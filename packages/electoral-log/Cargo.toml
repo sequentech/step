@@ -8,11 +8,14 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+immudb-rs = { path = "../immudb-rs" }
+uuid = { version = "1.5", features = ["v4"] }
+voting-crypto = { path = "../voting-crypto" }
 clap = { version = "4.0", features = ["derive"] }
-immudb-rs = { path="../immudb-rs" }
+wbraid-b4 = { workspace = true }
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "json"] }
 borsh = { version = "1.5", features = ["derive"] }
 anyhow = "1.0"
-strand = { path="../strand" }
 serde = { version = "1.0", features = ["derive"] }
 strum = "0.27"
 strum_macros = "0.27"
@@ -21,6 +24,8 @@ tokio-stream = "0.1"
 tonic = "0.13"
 hex = "0.4"
 serde_json = "1.0"
+base64 = "0.22"
+chrono = { version = "0.4", default-features = false, features = ["std"] }
 
 # logging 
 log = "0.4"
@@ -30,5 +35,21 @@ tracing-attributes = "0.1"
 tracing-subscriber = "0.3"
 tracing-tree = "0.4"
 
+[features]
+immudb-tests = []
+wbraid-storage-tests = []
+
+[[test]]
+name = "database_contracts"
+required-features = ["immudb-tests"]
+
 [dev-dependencies]
+axum = { version = "0.8", features = ["http2"] }
+prost = "0.13"
+tokio = { version = "1.38", features = ["process"] }
+tempfile = "3"
 serial_test = "3.2"
+
+[[test]]
+name = "board_storage"
+required-features = ["wbraid-storage-tests"]

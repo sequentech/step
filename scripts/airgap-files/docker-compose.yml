@@ -37,7 +37,6 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
       - db_logs:/logs
-      - ./initdb:/docker-entrypoint-initdb.d
     environment:
       POSTGRES_PASSWORD: ${HASURA_PG_PASSWORD}
     healthcheck:
@@ -53,7 +52,8 @@ services:
   minio:
     profiles: ["full", "base"]
     container_name: minio
-    image: minio/minio
+    # Use the release tag for offline docker save/load; digest-only archives lose the image name.
+    image: docker.io/pgsty/silo:RELEASE.2026-09-16T00-00-00Z
     pull_policy: never
     ports:
       - "9000:9000"
@@ -293,6 +293,7 @@ services:
       - 3002:8000
     stdin_open: true
     environment:
+        HARVEST_URL: ${HARVEST_PUBLIC_URL:?set the browser-reachable Harvest URL}
         MAX_DIFF_LINES: ${MAX_DIFF_LINES}
         SECONDS_TO_SHOW_COUNTDOWN: ${SECONDS_TO_SHOW_COUNTDOWN}
         SECONDS_TO_SHOW_ALERT: ${SECONDS_TO_SHOW_ALERT}
@@ -343,6 +344,10 @@ services:
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/harvest:STEP_VERSION
     pull_policy: never
     environment:
+      # Monitoring snapshot cadence, the same on beat, windmill and harvest:
+      # seconds between passes (5..3600), and between full voter reads.
+      MONITORING_SNAPSHOT_INTERVAL_SECONDS: ${MONITORING_SNAPSHOT_INTERVAL_SECONDS:-30}
+      MONITORING_VOTER_FULL_PASS_SECONDS: ${MONITORING_VOTER_FULL_PASS_SECONDS:-300}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       LOG_LEVEL: ${LOG_LEVEL}
       ROCKET_ADDRESS: ${ROCKET_ADDRESS}
@@ -360,6 +365,7 @@ services:
       KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}
       AMQP_ADDR: ${AMQP_ADDR}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
+      KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS: ${KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS:-30}
       KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
       KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
@@ -404,36 +410,83 @@ services:
       CLOUDFLARE_ZONE: ${CLOUDFLARE_ZONE}
       CLOUDFLARE_API_KEY: ${CLOUDFLARE_API_KEY}
       CUSTOM_URLS_IP_DNS_CONTENT: ${CUSTOM_URLS_IP_DNS_CONTENT}
-      B3_PG_HOST: ${B3_PG_HOST}
-      B3_PG_PORT: ${B3_PG_PORT}
-      B3_PG_USER: ${B3_PG_USER}
-      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
-      B3_PG_DATABASE: ${B3_PG_DATABASE}
+      WBRAID_B4_URL: http://b4v6:3005
+      WBRAID_BOARD_DATABASE_URL: postgres://postgres@postgres-b4v6:5432/wbraid_board
+      WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
+      # The monitoring renderer, reached on the internal monitoring-renderer
+      # network only.
+      HARVEST_MONITORING_RENDERER_URL: ${HARVEST_MONITORING_RENDERER_URL:-http://monitoring-renderer:8080}
+      HARVEST_MONITORING_RENDERER_TOKEN: ${MONITORING_RENDERER_TOKEN}
+      HARVEST_MONITORING_RENDERER_TIMEOUT_MS: ${HARVEST_MONITORING_RENDERER_TIMEOUT_MS:-5000}
+    networks:
+      - default
+      - monitoring-renderer
     ports:
      - ${HARVEST_PORT}:${HARVEST_PORT}
 
-  b3:
+  # Draws monitoring widgets with dbt Charts. Internal only: no published
+  # ports, on a network with no route out, shared with harvest alone.
+  monitoring-renderer:
     profiles: ["full", "base"]
-    stdin_open: true
-    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/b3:STEP_VERSION
+    container_name: monitoring-renderer
+    image: sequentech.local/monitoring-renderer
     pull_policy: never
-    container_name: b3
     restart: always
-    ports:
-      - "50051:50051"
-    command: ["--host", "${B3_PG_HOST}", "--port", "${B3_PG_PORT}", "--username", "${B3_PG_USER}", "--password", "${B3_PG_PASSWORD}", "--database", "${B3_PG_DATABASE}", "--bind", "0.0.0.0:50051"]
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     environment:
-      RUSTFLAGS: ${RUSTFLAGS}
-      RUST_BACKTRACE: ${RUST_BACKTRACE}
-      LOG_LEVEL: ${LOG_LEVEL}
-      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
-      B3_PG_HOST: ${B3_PG_HOST}
-      B3_PG_PORT: ${B3_PG_PORT}
-      B3_PG_USER: ${B3_PG_USER}
-      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
-      B3_PG_DATABASE: ${B3_PG_DATABASE}
-      B3_BIND: ${B3_BIND}
+      RENDERER_TOKEN: ${MONITORING_RENDERER_TOKEN}
+      RENDERER_CONCURRENCY: ${MONITORING_RENDERER_CONCURRENCY:-2}
+    networks:
+      - monitoring-renderer
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/ready', timeout=4).status == 200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  postgres-b4v6:
+    profiles: ["full", "base"]
+    image: postgres:16-bookworm
+    pull_policy: never
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: wbraid_board
+      POSTGRES_PASSWORD: ${WBRAID_B4_PG_PASSWORD:?set the native board database password}
+    volumes:
+      - wbraid_board_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d wbraid_board"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  b4v6:
+    profiles: ["full", "base"]
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/b4v6:STEP_VERSION
+    pull_policy: never
+    restart: unless-stopped
+    ports: ["3005:3005"]
+    depends_on:
+      postgres-b4v6:
+        condition: service_healthy
+    environment:
+      WBRAID_B4_BIND: 0.0.0.0:3005
+      DATABASE_URL: postgres://postgres@postgres-b4v6:5432/wbraid_board
+      WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
+      AWS_ENDPOINT_URL: ${AWS_S3_PRIVATE_URI}
+      AWS_ACCESS_KEY_ID: ${AWS_S3_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${AWS_S3_ACCESS_SECRET}
+      AWS_REGION: ${AWS_REGION}
+      S3_BUCKET_NAME: ${AWS_S3_BUCKET}
 
   trustee1:
     profiles: ["full"]
@@ -444,7 +497,7 @@ services:
     environment:
         LOG_LEVEL: ${LOG_LEVEL}
         TRUSTEE_NAME: trustee1
-        TRUSTEE_CONFIG: ${TRUSTEE1_CONFIG}
+        TRUSTEE_CONFIG_PATH: /opt/trustee/trustee.toml
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
@@ -458,6 +511,14 @@ services:
     depends_on:
       harvest:
         condition: service_started
+    volumes:
+      - type: bind
+        source: ./trustees-data/trustee1/trustee1.toml
+        target: /opt/trustee/trustee.toml
+        read_only: true
+        bind:
+          create_host_path: false
+      - trustee1_sessions:/opt/trustee/message_store
 
   trustee2:
     profiles: ["full"]
@@ -471,7 +532,7 @@ services:
     environment:
         LOG_LEVEL: ${LOG_LEVEL}
         TRUSTEE_NAME: trustee2
-        TRUSTEE_CONFIG: ${TRUSTEE2_CONFIG}
+        TRUSTEE_CONFIG_PATH: /opt/trustee/trustee.toml
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
@@ -482,6 +543,14 @@ services:
         TRUSTEE_KEYCLOAK_REALM: tenant-${TENANT_ID}
         TRUSTEE_KEYCLOAK_CLIENT_ID: ${TRUSTEE_KEYCLOAK_CLIENT_ID}
         TRUSTEE_KEYCLOAK_CLIENT_SECRET: ${TRUSTEE_KEYCLOAK_CLIENT_SECRET}
+    volumes:
+      - type: bind
+        source: ./trustees-data/trustee2/trustee2.toml
+        target: /opt/trustee/trustee.toml
+        read_only: true
+        bind:
+          create_host_path: false
+      - trustee2_sessions:/opt/trustee/message_store
 
   trustee3:
     profiles: ["full"]
@@ -495,7 +564,7 @@ services:
     environment:
         LOG_LEVEL: ${LOG_LEVEL}
         TRUSTEE_NAME: trustee3
-        TRUSTEE_CONFIG: ${TRUSTEE3_CONFIG}
+        TRUSTEE_CONFIG_PATH: /opt/trustee/trustee.toml
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
@@ -506,6 +575,14 @@ services:
         TRUSTEE_KEYCLOAK_REALM: tenant-${TENANT_ID}
         TRUSTEE_KEYCLOAK_CLIENT_ID: ${TRUSTEE_KEYCLOAK_CLIENT_ID}
         TRUSTEE_KEYCLOAK_CLIENT_SECRET: ${TRUSTEE_KEYCLOAK_CLIENT_SECRET}
+    volumes:
+      - type: bind
+        source: ./trustees-data/trustee3/trustee3.toml
+        target: /opt/trustee/trustee.toml
+        read_only: true
+        bind:
+          create_host_path: false
+      - trustee3_sessions:/opt/trustee/message_store
 
   rabbitmq:
     profiles: ["full", "base"]
@@ -548,6 +625,10 @@ services:
       configure-minio:
         condition: service_completed_successfully
     environment:
+      # Monitoring snapshot cadence, the same on beat, windmill and harvest:
+      # seconds between passes (5..3600), and between full voter reads.
+      MONITORING_SNAPSHOT_INTERVAL_SECONDS: ${MONITORING_SNAPSHOT_INTERVAL_SECONDS:-30}
+      MONITORING_VOTER_FULL_PASS_SECONDS: ${MONITORING_VOTER_FULL_PASS_SECONDS:-300}
       RUSTFLAGS: ${RUSTFLAGS}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       LOG_LEVEL: ${LOG_LEVEL}
@@ -555,6 +636,7 @@ services:
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}
       AMQP_ADDR: ${AMQP_ADDR}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
+      KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS: ${KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS:-30}
       IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
       IMMUDB_USER: ${IMMUDB_USER}
       IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
@@ -625,11 +707,9 @@ services:
       VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE: ${VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE}
        #Demo key
       DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
-      B3_PG_HOST: ${B3_PG_HOST}
-      B3_PG_PORT: ${B3_PG_PORT}
-      B3_PG_USER: ${B3_PG_USER}
-      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
-      B3_PG_DATABASE: ${B3_PG_DATABASE}
+      WBRAID_B4_URL: http://b4v6:3005
+      WBRAID_BOARD_DATABASE_URL: postgres://postgres@postgres-b4v6:5432/wbraid_board
+      WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
 
   beat:
@@ -643,6 +723,10 @@ services:
       rabbitmq:
         condition: service_healthy
     environment:
+      # Monitoring snapshot cadence, the same on beat, windmill and harvest:
+      # seconds between passes (5..3600), and between full voter reads.
+      MONITORING_SNAPSHOT_INTERVAL_SECONDS: ${MONITORING_SNAPSHOT_INTERVAL_SECONDS:-30}
+      MONITORING_VOTER_FULL_PASS_SECONDS: ${MONITORING_VOTER_FULL_PASS_SECONDS:-300}
       RUSTFLAGS: ${RUSTFLAGS}
       LOG_LEVEL: ${LOG_LEVEL}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
@@ -652,7 +736,16 @@ services:
       BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
 
+networks:
+  # Harvest and the monitoring renderer only; no route out.
+  monitoring-renderer:
+    internal: true
+
 volumes:
+  wbraid_board_data:
+  trustee1_sessions:
+  trustee2_sessions:
+  trustee3_sessions:
   db_data:
   db_logs:
   keycloak_db_logs:

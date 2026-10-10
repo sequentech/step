@@ -14,6 +14,9 @@ export default [
         ignores: [
             "node_modules/**",
             "dist/**",
+            "coverage/**",
+            "storybook-static/**",
+            "test-results/**",
             "target/**",
             "pkg/**",
             "build/**",

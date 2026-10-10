@@ -47,10 +47,32 @@ pub struct ElectoralLogMessage {
     pub username: Option<String>,
 }
 
+// Columns every electoral log row must carry; user_id and username are optional.
+const ID_COLUMN: &str = "id";
+const CREATED_COLUMN: &str = "created";
+const SENDER_PK_COLUMN: &str = "sender_pk";
+const STATEMENT_TIMESTAMP_COLUMN: &str = "statement_timestamp";
+const STATEMENT_KIND_COLUMN: &str = "statement_kind";
+const MESSAGE_COLUMN: &str = "message";
+const VERSION_COLUMN: &str = "version";
+const REQUIRED_COLUMNS: [&str; 7] = [
+    ID_COLUMN,
+    CREATED_COLUMN,
+    SENDER_PK_COLUMN,
+    STATEMENT_TIMESTAMP_COLUMN,
+    STATEMENT_KIND_COLUMN,
+    MESSAGE_COLUMN,
+    VERSION_COLUMN,
+];
+
 impl TryFrom<&Row> for ElectoralLogMessage {
     type Error = anyhow::Error;
 
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
+        if row.columns.len() != row.values.len() {
+            return Err(anyhow!("Mismatched column and value counts"));
+        }
+        let mut seen = std::collections::HashSet::new();
         let mut id = 0;
         let mut created = 0;
         let mut sender_pk = String::from("");
@@ -62,33 +84,48 @@ impl TryFrom<&Row> for ElectoralLogMessage {
         let mut username: Option<String> = None;
 
         for (column, value) in row.columns.iter().zip(row.values.iter()) {
-            // FIXME for some reason columns names appear with parentheses
-            let dot = column
-                .find('.')
-                .ok_or(anyhow!("invalid column found '{}'", column.as_str()))?;
-            let bare_column = &column[dot + 1..column.len() - 1];
+            let (_, bare_column) = column
+                .strip_prefix('(')
+                .and_then(|name| name.strip_suffix(')'))
+                .and_then(|name| name.split_once('.'))
+                .filter(|(table, name)| {
+                    !table.is_empty()
+                        && !name.is_empty()
+                        && !table.contains('(')
+                        && !table.contains(')')
+                })
+                .ok_or_else(|| anyhow!("invalid column found '{}'", column))?;
+            if !seen.insert(bare_column) {
+                return Err(anyhow!("duplicate column '{}'", bare_column));
+            }
 
             match bare_column {
-                "id" => assign_value!(Value::N, value, id),
-                "created" => assign_value!(Value::Ts, value, created),
-                "sender_pk" => assign_value!(Value::S, value, sender_pk),
-                "statement_timestamp" => {
+                ID_COLUMN => assign_value!(Value::N, value, id),
+                CREATED_COLUMN => assign_value!(Value::Ts, value, created),
+                SENDER_PK_COLUMN => assign_value!(Value::S, value, sender_pk),
+                STATEMENT_TIMESTAMP_COLUMN => {
                     assign_value!(Value::Ts, value, statement_timestamp)
                 }
-                "statement_kind" => assign_value!(Value::S, value, statement_kind),
-                "message" => assign_value!(Value::Bs, value, message),
-                "version" => assign_value!(Value::S, value, version),
+                STATEMENT_KIND_COLUMN => assign_value!(Value::S, value, statement_kind),
+                MESSAGE_COLUMN => assign_value!(Value::Bs, value, message),
+                VERSION_COLUMN => assign_value!(Value::S, value, version),
                 "user_id" => match value.value.as_ref() {
                     Some(Value::S(inner)) => user_id = Some(inner.clone()),
-                    None => user_id = None,
+                    None | Some(Value::Null(_)) => user_id = None,
                     _ => return Err(anyhow!("invalid column value for 'userId'")),
                 },
                 "username" => match value.value.as_ref() {
                     Some(Value::S(inner)) => username = Some(inner.clone()),
-                    None => username = None,
+                    None | Some(Value::Null(_)) => username = None,
                     _ => return Err(anyhow!("invalid column value for 'username'")),
                 },
                 _ => return Err(anyhow!("invalid column found '{}'", bare_column)),
+            }
+        }
+
+        for required in REQUIRED_COLUMNS {
+            if !seen.contains(required) {
+                return Err(anyhow!("missing column '{}'", required));
             }
         }
 

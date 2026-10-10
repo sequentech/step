@@ -6,27 +6,7 @@ FROM trustee-dependencies
 
 WORKDIR /app
 
-COPY ./braid ./braid
-COPY ./b4 ./b4
-COPY ./electoral-log ./electoral-log
-COPY ./harvest ./harvest
-COPY ./strand ./strand
-COPY ./immu-board ./immu-board
-COPY ./immudb-rs ./immudb-rs
-COPY ./protocol-board ./protocol-board
-COPY ./sequent-core ./sequent-core
-COPY ./velvet ./velvet
-COPY ./windmill ./windmill
-COPY ./wrap-map-err ./wrap-map-err
-COPY ./step-cli ./step-cli
-COPY ./e2e ./e2e
-COPY ./orare ./orare
-COPY ./plugins ./plugins
-COPY ./trustee ./trustee
-COPY ./wbraid ./wbraid
-COPY ./Cargo.toml ./Cargo.toml
-COPY ./Cargo.lock ./Cargo.lock
-COPY ./.cargo ./.cargo
+COPY . .
 
 WORKDIR /app/trustee
 RUN cargo build --release --locked --frozen --offline

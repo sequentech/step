@@ -189,36 +189,44 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
     }
 
     const handleImportAreas = async (documentId: string, sha256: string): Promise<void> => {
-        let {errors} = await importAreas({
-            variables: {
-                documentId,
-                electionEventId: record?.id,
-                sha256,
-            },
-        })
+        try {
+            const {errors} = await importAreas({
+                variables: {
+                    documentId,
+                    electionEventId: record?.id,
+                    sha256,
+                },
+            })
 
-        refresh()
+            refresh()
 
-        if (!errors) {
-            notify(t("electionEventScreen.importAreas.importSuccess"), {type: "success"})
-        } else {
+            if (!errors) {
+                notify(t("electionEventScreen.importAreas.importSuccess"), {type: "success"})
+            } else {
+                notify(t("electionEventScreen.importAreas.importError"), {type: "error"})
+            }
+        } catch {
             notify(t("electionEventScreen.importAreas.importError"), {type: "error"})
         }
     }
 
     const handleUpsertAreas = async (documentId: string, sha256: string): Promise<void> => {
-        let {errors} = await upsertAreas({
-            variables: {
-                documentId,
-                electionEventId: record?.id,
-            },
-        })
+        try {
+            const {errors} = await upsertAreas({
+                variables: {
+                    documentId,
+                    electionEventId: record?.id,
+                },
+            })
 
-        refresh()
+            refresh()
 
-        if (!errors) {
-            notify(t("electionEventScreen.importAreas.importSuccess"), {type: "success"})
-        } else {
+            if (!errors) {
+                notify(t("electionEventScreen.importAreas.importSuccess"), {type: "success"})
+            } else {
+                notify(t("electionEventScreen.importAreas.importError"), {type: "error"})
+            }
+        } catch {
             notify(t("electionEventScreen.importAreas.importError"), {type: "error"})
         }
     }

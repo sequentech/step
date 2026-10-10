@@ -29,6 +29,7 @@ pub enum ETasksExecution {
     EXPORT_TEMPLATES,
     IMPORT_TEMPLATES,
     DELETE_ELECTION_EVENT,
+    DELETE_TENANT,
     DELETE_VOTERS,
     EDIT_USER,
     PREPARE_PUBLICATION_PREVIEW,
@@ -40,6 +41,8 @@ pub enum ETasksExecution {
     GENERATE_BALLOT_PUBLICATION,
     PUBLISH_BALLOT,
     VOTER_INFORMATION_LETTER,
+    EXPORT_MONITORING_DATA,
+    RUN_SIGNED_ACTION,
 }
 
 impl ETasksExecution {
@@ -68,6 +71,7 @@ impl ETasksExecution {
             ETasksExecution::EXPORT_TEMPLATES => "Export Templates",
             ETasksExecution::IMPORT_TEMPLATES => "Import Templates",
             ETasksExecution::DELETE_ELECTION_EVENT => "Delete Election Event",
+            ETasksExecution::DELETE_TENANT => "Delete Tenant",
             ETasksExecution::DELETE_VOTERS => "Delete Voters",
             ETasksExecution::EDIT_USER => "Edit Voter",
             ETasksExecution::PREPARE_PUBLICATION_PREVIEW => "Prepare Publication Preview",
@@ -79,6 +83,8 @@ impl ETasksExecution {
             ETasksExecution::GENERATE_BALLOT_PUBLICATION => "Generate Ballot Publication",
             ETasksExecution::PUBLISH_BALLOT => "Publish Ballot",
             ETasksExecution::VOTER_INFORMATION_LETTER => "Voter Information Letter",
+            ETasksExecution::EXPORT_MONITORING_DATA => "Export Monitoring Data",
+            ETasksExecution::RUN_SIGNED_ACTION => "Run Signed Action",
         }
     }
 }

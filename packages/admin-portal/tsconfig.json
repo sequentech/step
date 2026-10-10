@@ -29,5 +29,9 @@
   "include": [
     "src",
     "../../constants"
+  ],
+  "exclude": [
+    "src/**/*.stories.tsx",
+    "src/**/__stories__/**"
   ]
 }

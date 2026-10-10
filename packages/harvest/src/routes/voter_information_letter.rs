@@ -3,15 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
+use crate::services::dependencies::HarvestServices;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::Context;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use rocket::State;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak::{
-    get_event_realm, get_realm_password_policy, KeycloakAdminClient,
-    PasswordPolicyGenerationError,
+    get_event_realm, PasswordPolicyGenerationError,
 };
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
@@ -19,15 +20,11 @@ use serde::{Deserialize, Serialize};
 use tracing::{error, instrument};
 use uuid::Uuid;
 use windmill::postgres::reports::ReportType;
-use windmill::services::celery_app::get_celery_app;
-use windmill::services::database::get_hasura_pool;
-use windmill::services::document_password::save_password;
 use windmill::services::electoral_log::{
-    post_voter_secret_attribute_audit, ElectoralLogAdminContext,
-    VoterSecretAttributeAction, VoterSecretAttributeAudit,
+    ElectoralLogAdminContext, VoterSecretAttributeAction,
+    VoterSecretAttributeAudit,
 };
 use windmill::services::reports::template_renderer::get_declared_report_secret_attribute_names;
-use windmill::services::tasks_execution::{post, update_fail};
 use windmill::types::tasks::ETasksExecution;
 
 const POLICY_NOT_CONFIGURED_ERROR: &str =
@@ -87,12 +84,15 @@ fn password_policy_generation_error(
 }
 
 async fn store_document_password(
+    services: &HarvestServices,
     tenant_id: &str,
     election_event_id: &str,
     document_id: &str,
     password: &str,
 ) -> anyhow::Result<String> {
-    let mut client: DbClient = get_hasura_pool()
+    let mut client: DbClient = services
+        .databases
+        .hasura()
         .await
         .get()
         .await
@@ -101,15 +101,17 @@ async fn store_document_password(
         .transaction()
         .await
         .context("Failed to start secret transaction")?;
-    let secret_id = save_password(
-        &transaction,
-        tenant_id,
-        Some(election_event_id),
-        document_id,
-        password,
-    )
-    .await
-    .context("Failed to store document password")?;
+    let secret_id = services
+        .vault
+        .save_document_password(
+            &transaction,
+            tenant_id,
+            Some(election_event_id),
+            document_id,
+            password,
+        )
+        .await
+        .context("Failed to store document password")?;
     transaction
         .commit()
         .await
@@ -126,6 +128,7 @@ async fn store_document_password(
 pub async fn generate_voter_information_letter(
     claims: JwtClaims,
     input: Json<GenerateVoterInformationLetterInput>,
+    services: &State<HarvestServices>,
 ) -> Result<Json<GenerateVoterInformationLetterOutput>, JsonError> {
     authorize(
         &claims,
@@ -147,7 +150,7 @@ pub async fn generate_voter_information_letter(
     let input = input.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let mut template_client =
-        get_hasura_pool().await.get().await.map_err(|_| {
+        services.databases.hasura().await.get().await.map_err(|_| {
             internal_error("Failed to read Voter Information Letter template")
         })?;
     let template_transaction =
@@ -182,41 +185,46 @@ pub async fn generate_voter_information_letter(
         })?;
         let attribute_names: Vec<String> =
             declared_secret_names.iter().cloned().collect();
-        post_voter_secret_attribute_audit(
-            &tenant_id,
-            &input.election_event_id,
-            &ElectoralLogAdminContext::from_claims(&claims),
-            VoterSecretAttributeAction::Report,
-            VoterSecretAttributeAudit {
-                voter_id: Some(&input.voter_id),
-                voter_username: None,
-                attribute_names: &attribute_names,
-                document_id: None,
-            },
-        )
-        .await
-        .map_err(|_| {
-            internal_error(
-                "Failed to record the secret-attribute electoral-log entry",
+        services
+            .electoral_log
+            .voter_secret_attributes(
+                &tenant_id,
+                &input.election_event_id,
+                &ElectoralLogAdminContext::from_claims(&claims),
+                VoterSecretAttributeAction::Report,
+                VoterSecretAttributeAudit {
+                    voter_id: Some(&input.voter_id),
+                    voter_username: None,
+                    attribute_names: &attribute_names,
+                    document_id: None,
+                },
             )
-        })?;
+            .await
+            .map_err(|_| {
+                internal_error(
+                    "Failed to record the secret-attribute electoral-log entry",
+                )
+            })?;
     }
     drop(template_transaction);
     drop(template_client);
-    let policy = get_realm_password_policy(
-        &tenant_id,
-        &input.election_event_id,
-    )
-    .await
-    .map_err(|error| {
-        error!("Failed to read the election event password policy: {error:#}");
-        internal_error("Failed to read the election event password policy")
-    })?;
+    let policy = services
+        .identity
+        .realm_password_policy(&tenant_id, &input.election_event_id)
+        .await
+        .map_err(|error| {
+            error!(
+                "Failed to read the election event password policy: {error:#}"
+            );
+            internal_error("Failed to read the election event password policy")
+        })?;
     policy
         .validate_for_generation()
         .map_err(password_policy_generation_error)?;
 
-    KeycloakAdminClient::new()
+    services
+        .identity
+        .client()
         .await
         .map_err(|_| internal_error("Failed to initialize Keycloak client"))?
         .get_user(
@@ -236,21 +244,24 @@ pub async fn generate_voter_information_letter(
         .name
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
-    let task_execution = post(
-        &tenant_id,
-        Some(&input.election_event_id),
-        ETasksExecution::VOTER_INFORMATION_LETTER,
-        &executer_name,
-    )
-    .await
-    .map_err(|error| {
-        error!("Failed to create Voter Information Letter task: {error:#}");
-        internal_error("Failed to create Voter Information Letter task")
-    })?;
+    let task_execution = services
+        .ledger
+        .post(
+            &tenant_id,
+            Some(&input.election_event_id),
+            ETasksExecution::VOTER_INFORMATION_LETTER,
+            &executer_name,
+        )
+        .await
+        .map_err(|error| {
+            error!("Failed to create Voter Information Letter task: {error:#}");
+            internal_error("Failed to create Voter Information Letter task")
+        })?;
 
     let document_id = Uuid::new_v4().to_string();
     let pdf_password = Uuid::new_v4().simple().to_string();
     let password_secret_id = match store_document_password(
+        services,
         &tenant_id,
         &input.election_event_id,
         &document_id,
@@ -264,12 +275,14 @@ pub async fn generate_voter_information_letter(
                 task_id = %task_execution.id,
                 "Failed to prepare Voter Information Letter document access: {error:#}"
             );
-            update_fail(
-                &task_execution,
-                "Failed to prepare Voter Information Letter generation",
-            )
-            .await
-            .ok();
+            services
+                .ledger
+                .update_fail(
+                    &task_execution,
+                    "Failed to prepare Voter Information Letter generation",
+                )
+                .await
+                .ok();
             return Err(internal_error(
                 "Failed to prepare Voter Information Letter generation",
             ));
@@ -285,7 +298,7 @@ pub async fn generate_voter_information_letter(
             .clone(),
         area_id: claims.hasura_claims.area_id.clone(),
     };
-    let celery_app = get_celery_app().await;
+    let celery_app = services.tasks.connect().await;
     if let Err(_send_error) = celery_app
         .send_task(
             windmill::tasks::voter_information_letter::generate_voter_information_letter::new(
@@ -305,7 +318,9 @@ pub async fn generate_voter_information_letter(
             task_id = %task_execution.id,
             "Failed to enqueue Voter Information Letter task"
         );
-        update_fail(
+        services
+            .ledger
+            .update_fail(
             &task_execution,
             "Failed to enqueue Voter Information Letter generation",
         )
@@ -373,3 +388,7 @@ mod tests {
         assert!(response.1 .0.message.contains("cannot exceed maximum"));
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/voter_information_letter_routes.rs"]
+mod route_tests;

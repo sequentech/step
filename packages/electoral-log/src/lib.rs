@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pub mod client;
 pub mod messages;
+pub mod seal;
 pub mod util;
 
 use std::time::{SystemTime, UNIX_EPOCH};

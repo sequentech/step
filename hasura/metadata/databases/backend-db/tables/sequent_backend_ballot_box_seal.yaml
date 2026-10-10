@@ -1,0 +1,148 @@
+table:
+    name: ballot_box_seal
+    schema: sequent_backend
+object_relationships:
+    - name: area
+      using:
+          manual_configuration:
+              column_mapping:
+                  area_id: id
+                  election_event_id: election_event_id
+                  tenant_id: tenant_id
+              insertion_order: null
+              remote_table:
+                  name: area
+                  schema: sequent_backend
+select_permissions:
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - area_id
+              - area_name
+              - ballots_counted
+              - ballots_in_box
+              - close_request_id
+              - closed_at
+              - closed_by
+              - created_at
+              - election_event_id
+              - election_id
+              - election_name
+              - failure_posted_at
+              - failure_reason
+              - grace_deadline
+              - id
+              - last_attempt_at
+              - log_entry_id
+              - public_document_id
+              - public_path
+              - published_at
+              - seal_hash
+              - sealed_at
+              - status
+              - tenant_id
+              - waiting_reason
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - area_id
+              - area_name
+              - ballots_counted
+              - ballots_in_box
+              - close_request_id
+              - closed_at
+              - closed_by
+              - created_at
+              - election_event_id
+              - election_id
+              - election_name
+              - failure_posted_at
+              - failure_reason
+              - grace_deadline
+              - id
+              - last_attempt_at
+              - log_entry_id
+              - public_document_id
+              - public_path
+              - published_at
+              - seal_hash
+              - sealed_at
+              - status
+              - tenant_id
+              - waiting_reason
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: election-dashboard-tab
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - area_id
+              - area_name
+              - ballots_counted
+              - ballots_in_box
+              - close_request_id
+              - closed_at
+              - closed_by
+              - created_at
+              - election_event_id
+              - election_id
+              - election_name
+              - failure_posted_at
+              - failure_reason
+              - grace_deadline
+              - id
+              - last_attempt_at
+              - log_entry_id
+              - manifest
+              - public_document_id
+              - public_path
+              - published_at
+              - seal_hash
+              - sealed_at
+              - signed_message
+              - status
+              - tenant_id
+              - waiting_reason
+          filter: {}
+      role: service-account
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - area_id
+              - area_name
+              - ballots_counted
+              - ballots_in_box
+              - close_request_id
+              - closed_at
+              - closed_by
+              - created_at
+              - election_event_id
+              - election_id
+              - election_name
+              - failure_posted_at
+              - failure_reason
+              - grace_deadline
+              - id
+              - last_attempt_at
+              - log_entry_id
+              - public_document_id
+              - public_path
+              - published_at
+              - seal_hash
+              - sealed_at
+              - status
+              - tenant_id
+              - waiting_reason
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: tally-read

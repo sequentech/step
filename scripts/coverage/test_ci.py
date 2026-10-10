@@ -1,0 +1,333 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+
+"""Exercise paired decisions, including real coverage against tiny git checkouts.
+
+The integration fixture has its own source and tests on each side. Removing a
+single test must produce a failing decision even though the remaining tests pass.
+"""
+
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+import ci
+from report import CoverageError
+from test_ratchet import metrics
+
+
+class PairedCoverageTests(unittest.TestCase):
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.root = Path(self.directory.name)
+        self.base, self.head = self.root / "base", self.root / "head"
+        self.output = self.root / "reports"
+        for checkout in (self.base, self.head):
+            (checkout / "scripts/coverage").mkdir(parents=True)
+
+    def run_pair(self, **kwargs):
+        with patch.object(ci, "identity", return_value="a" * 40):
+            return ci.paired_run(
+                self.base,
+                self.head,
+                "python",
+                "coverage-tooling",
+                self.output,
+                **kwargs,
+            )
+
+    def verdict(self):
+        reports = list(self.output.glob("*/verdict.json"))
+        self.assertEqual(len(reports), 1)
+        return json.loads(reports[0].read_text())
+
+    def test_equal_coverage_does_not_require_the_improvement_target(self):
+        with patch.object(ci, "measure", return_value=metrics(70)):
+            self.assertEqual(self.run_pair(), 0)
+        self.assertEqual(self.verdict()["status"], "pass")
+
+    def test_decrease_blocks_the_gate_and_is_visible_in_actions(self):
+        summary = self.root / "github-summary.md"
+        with (
+            patch.object(ci, "measure", side_effect=[metrics(98), metrics(99)]),
+            patch.dict(os.environ, {"GITHUB_STEP_SUMMARY": str(summary)}),
+        ):
+            self.assertEqual(self.run_pair(), 1)
+        self.assertEqual(self.verdict()["status"], "regression")
+        self.assertIn("decreased", summary.read_text())
+
+    def test_only_absent_base_source_can_initialize_a_measurement(self):
+        (self.base / "scripts/coverage").rmdir()
+        with patch.object(ci, "measure", return_value=metrics(40)) as measure:
+            self.assertEqual(self.run_pair(), 0)
+        measure.assert_called_once()
+        self.assertEqual(self.verdict()["status"], "initialized")
+
+    def test_named_rust_profile_still_measures_the_existing_package_base(self):
+        (self.base / "packages/existing/src").mkdir(parents=True)
+        report = {"package": "existing", "metrics": metrics()}
+        with (
+            patch.object(ci, "identity", return_value="a" * 40),
+            patch.object(ci, "measure", return_value=report) as measure,
+            patch.object(ci, "compare_rust", return_value={"passes": True}),
+        ):
+            code = ci.paired_run(
+                self.base, self.head, "rust", "existing-native", self.output
+            )
+        self.assertEqual(code, 0)
+        self.assertEqual(measure.call_count, 2)
+        self.assertEqual(self.verdict()["status"], "pass")
+
+    def test_only_the_base_measurement_skips_policy_files_it_predates(self):
+        (self.base / "packages/existing/src").mkdir(parents=True)
+        report = {"package": "existing", "metrics": metrics()}
+        with (
+            patch.object(ci, "identity", return_value="a" * 40),
+            patch.object(ci, "measure", return_value=report) as measure,
+            patch.object(ci, "compare_rust", return_value={"passes": True}),
+        ):
+            ci.paired_run(self.base, self.head, "rust", "existing", self.output)
+        roots = [call.args[0] for call in measure.call_args_list]
+        flags = [
+            call.kwargs.get("comparison_base", False) for call in measure.call_args_list
+        ]
+        self.assertEqual(roots, [self.head, self.base])
+        self.assertEqual(flags, [False, True])
+
+    def test_the_rust_runner_receives_the_comparison_base_flag(self):
+        commands = []
+
+        def runner(arguments, root, output, name, *, native=False):
+            self.assertTrue(native)
+            commands.append(arguments)
+            summary = output / "native" / "existing" / "run" / "summary.json"
+            summary.parent.mkdir(parents=True)
+            summary.write_text(json.dumps({"revision": "a" * 40}))
+            return ""
+
+        with (
+            patch.object(ci, "command", side_effect=runner),
+            patch.object(ci, "identity", return_value="a" * 40),
+        ):
+            for flag, name in ((False, "head-report"), (True, "base-report")):
+                output = self.root / name
+                output.mkdir()
+                ci.measure_rust(self.head, "existing", output, comparison_base=flag)
+        self.assertNotIn("--comparison-base", commands[0])
+        self.assertIn("--comparison-base", commands[1])
+
+    def test_a_broken_baseline_is_not_treated_as_zero_coverage(self):
+        with patch.object(
+            ci, "measure", side_effect=[metrics(), CoverageError("Tests failed")]
+        ):
+            self.assertEqual(self.run_pair(), 2)
+        self.assertFalse(self.verdict()["passes"])
+        self.assertIn("Tests failed", self.verdict()["failures"])
+
+    def test_checkout_changes_invalidate_an_otherwise_passing_comparison(self):
+        with (
+            patch.object(ci, "measure", return_value=metrics()),
+            patch.object(ci, "identity", side_effect=["a" * 40, "b" * 40, "c" * 40]),
+        ):
+            self.assertEqual(
+                ci.paired_run(
+                    self.base, self.head, "python", "coverage-tooling", self.output
+                ),
+                2,
+            )
+        self.assertEqual(self.verdict()["status"], "error")
+
+    def test_a_previous_success_cannot_be_reused_after_failure(self):
+        with patch.object(ci, "measure", return_value=metrics()):
+            self.assertEqual(self.run_pair(), 0)
+        with patch.object(
+            ci, "measure", side_effect=FileNotFoundError("missing report")
+        ):
+            self.assertEqual(self.run_pair(), 2)
+        statuses = sorted(
+            json.loads(path.read_text())["status"]
+            for path in self.output.glob("*/verdict.json")
+        )
+        self.assertEqual(statuses, ["error", "pass"])
+
+    def test_command_logs_are_bounded_and_do_not_publish_local_target_verdicts(self):
+        with (
+            patch.object(ci, "execute", return_value="ok") as execute,
+            patch.dict(os.environ, {"GITHUB_STEP_SUMMARY": "unused"}),
+        ):
+            self.assertEqual(
+                ci.command(["tool"], self.head, self.output, "tests"), "ok"
+            )
+        self.assertNotIn("GITHUB_STEP_SUMMARY", execute.call_args.args[2])
+        self.assertEqual(execute.call_args.kwargs["cwd"], self.head)
+
+    def test_native_budget_applies_to_outer_runner_but_not_other_gates(self):
+        with (
+            patch.object(ci, "execute", return_value="ok") as execute,
+            patch.dict(os.environ, {"NATIVE_COVERAGE_TIMEOUT_SECONDS": "3600"}),
+        ):
+            ci.command(["run.py"], self.head, self.output, "measurement", native=True)
+            self.assertEqual(
+                execute.call_args.args[2]["NATIVE_COVERAGE_TIMEOUT_SECONDS"], "3600"
+            )
+            self.assertTrue(execute.call_args.kwargs["cooperative"])
+            ci.command(["node"], self.head, self.output, "frontend")
+            self.assertNotIn(
+                "NATIVE_COVERAGE_TIMEOUT_SECONDS", execute.call_args.args[2]
+            )
+            self.assertFalse(execute.call_args.kwargs["cooperative"])
+
+    def test_cli_uses_cancellation_scope_only_for_native_pairs(self):
+        for kind, package in [("rust", "windmill"), ("python", "coverage-tooling")]:
+            arguments = [
+                "ci.py",
+                kind,
+                package,
+                "--base",
+                str(self.base),
+                "--head",
+                str(self.head),
+                "--output",
+                str(self.output),
+            ]
+            with (
+                patch.object(sys, "argv", arguments),
+                patch.object(ci, "paired_run", return_value=0),
+                patch.object(ci, "native_cancellation") as cancellation,
+            ):
+                self.assertEqual(ci.main(), 0)
+            self.assertEqual(cancellation.call_count, int(kind == "rust"))
+
+    def test_zero_python_tests_is_an_error(self):
+        with patch.object(ci, "command", return_value="Ran 0 tests in 0.001s"):
+            with self.assertRaisesRegex(CoverageError, "No Python tests"):
+                ci.measure_python(self.head, self.output)
+
+
+class RealPythonComparisonTests(unittest.TestCase):
+    def fixture(self, checkout, all_paths):
+        source = checkout / "scripts/coverage"
+        source.mkdir(parents=True)
+        (source / "choose.py").write_text(
+            "def choose(flag):\n    if flag:\n        return 'yes'\n    return 'no'\n"
+        )
+        test = (
+            "import unittest\nfrom choose import choose\n"
+            "class ChoiceTests(unittest.TestCase):\n"
+            "    def test_yes(self):\n"
+            "        self.assertEqual(choose(True), 'yes')\n"
+        )
+        if all_paths:
+            test += (
+                "    def test_no(self):\n"
+                "        self.assertEqual(choose(False), 'no')\n"
+            )
+        (source / "test_choose.py").write_text(test)
+        for args in (
+            ["init", "-q"],
+            ["add", "."],
+            [
+                "-c",
+                "user.name=Fixture",
+                "-c",
+                "user.email=fixture@example.invalid",
+                "commit",
+                "-qm",
+                "fixture",
+            ],
+        ):
+            subprocess.run(["git", "-C", str(checkout), *args], check=True)
+        return checkout
+
+    def test_removing_a_test_fails_with_real_branch_and_line_measurements(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            base = self.fixture(root / "base", all_paths=True)
+            head = self.fixture(root / "head", all_paths=False)
+            # Bytecode is generated by Python, never a source input.
+            with patch.dict(os.environ, {"PYTHONDONTWRITEBYTECODE": "1"}):
+                code = ci.paired_run(base, head, "python", "fixture", root / "reports")
+            self.assertEqual(code, 1)
+            verdict = json.loads(
+                next((root / "reports").glob("*/verdict.json")).read_text()
+            )
+            self.assertTrue(verdict["metrics"]["branches"]["decreased"])
+            self.assertTrue(verdict["metrics"]["lines"]["decreased"])
+
+    def test_dirty_inputs_and_nonobject_reports_fail_clearly(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self.fixture(Path(directory) / "checkout", all_paths=True)
+            (root / "untracked.py").write_text("unexpected = True")
+            with self.assertRaises(CoverageError):
+                ci.identity(root)
+            (root / "bad.json").write_text("[]")
+            with self.assertRaises(CoverageError):
+                ci.read_json(root / "bad.json")
+
+    def test_python_pair_without_ignore_rules_leaves_both_checkouts_clean(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            base = self.fixture(root / "base", all_paths=True)
+            head = self.fixture(root / "head", all_paths=True)
+            # An old PR base need not ignore bytecode from the candidate runner.
+            with patch.dict(os.environ):
+                os.environ.pop("PYTHONDONTWRITEBYTECODE", None)
+                code = ci.paired_run(base, head, "python", "fixture", root / "reports")
+            self.assertEqual(code, 0)
+            for checkout in (base, head):
+                self.assertFalse(list(checkout.rglob("__pycache__")))
+                ci.identity(checkout)
+
+
+class FrontendRunnerTests(unittest.TestCase):
+    def test_real_runner_boundary_returns_all_four_metrics(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / "measurement"
+
+            def run(arguments, checkout, destination, name):
+                self.assertEqual(arguments[0], "node")
+                self.assertEqual(arguments[-2], "ui-core")
+                (destination / "coverage-summary.json").write_text(
+                    json.dumps(
+                        {
+                            "total": {
+                                metric: {"covered": 7, "total": 10}
+                                for metric in (
+                                    "lines",
+                                    "statements",
+                                    "functions",
+                                    "branches",
+                                )
+                            }
+                        }
+                    )
+                )
+
+            with patch.object(ci, "command", side_effect=run):
+                actual = ci.measure(root, "frontend", "ui-core", output)
+            self.assertEqual(
+                actual,
+                {
+                    name: {"covered": 7, "count": 10}
+                    for name in ("lines", "statements", "functions", "branches")
+                },
+            )
+
+    def test_failed_frontend_command_cannot_reuse_an_old_summary(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "coverage-summary.json").write_text('{"total": {}}')
+            with patch.object(ci, "command", side_effect=CoverageError("Jest failed")):
+                with self.assertRaisesRegex(CoverageError, "Jest failed"):
+                    ci.measure_frontend(root, "ui-core", root)
+
+
+if __name__ == "__main__":
+    unittest.main()

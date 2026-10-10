@@ -307,6 +307,7 @@ export const ContestResultsBlock: React.FC<ContestResultsBlockProps> = ({
                         className="seq-results-contest__acclaimed-chip"
                         label={t("resultsPortal.acclaimed")}
                         color="info"
+                        sx={{color: "info.dark"}}
                         variant="outlined"
                         size="small"
                     />

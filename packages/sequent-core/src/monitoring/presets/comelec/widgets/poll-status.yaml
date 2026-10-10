@@ -1,0 +1,51 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Every milestone at once, as the Posts in scope that have reached it: each
+# as a count and a share, then as a bar against the Posts in scope.
+id: poll-status
+title: Poll status
+description: Percentages use the Posts in scope.
+source: poll_status
+requirements: [SW-F-0256, SW-F-0257, SW-F-0258, SW-F-0368, SW-F-0369, SW-F-0370]
+queries:
+  initialized: {template: summary, ratio: [initialized, posts]}
+  opened: {template: summary, ratio: [opened, posts]}
+  closed: {template: summary, ratio: [closed, posts]}
+  progress:
+    template: by_measure
+    measures: [posts, initialized, opened, closed]
+    labels: {posts: Posts in scope, opened: Online voting opened, closed: Voting closed}
+height: 300
+chart:
+  charts:
+    initialized:
+      type: kpi
+      query: initialized
+      value: numerator
+      label: Initialized
+      style: {value: {format: integer}}
+      support: {value: pct_label, label: of Posts}
+    opened:
+      type: kpi
+      query: opened
+      value: numerator
+      label: Online voting opened
+      style: {value: {format: integer}}
+      support: {value: pct_label, label: of Posts}
+    closed:
+      type: kpi
+      query: closed
+      value: numerator
+      label: Voting closed
+      style: {value: {format: integer}}
+      support: {value: pct_label, label: of Posts}
+    progress:
+      type: spark_bar
+      query: progress
+      x: value
+      y: label
+  rows:
+    - {cols: [initialized, opened, closed]}
+    - progress

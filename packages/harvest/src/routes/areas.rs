@@ -20,7 +20,7 @@ use windmill::postgres::area::{
 };
 use windmill::postgres::area_contest::insert_area_to_area_contests;
 use windmill::services::database::get_hasura_pool;
-use windmill::services::import::import_election_event::upsert_b3_and_elog;
+use windmill::services::import::import_election_event::ensure_election_audit_boards;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpsertAreaInput {
@@ -136,7 +136,7 @@ pub async fn upsert_area(
         )
     })?;
 
-    upsert_b3_and_elog(
+    ensure_election_audit_boards(
         &hasura_transaction,
         &claims.hasura_claims.tenant_id,
         &body.election_event_id.to_string(),

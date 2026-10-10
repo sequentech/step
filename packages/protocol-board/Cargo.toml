@@ -12,7 +12,8 @@ name = "protocol_board"
 path = "src/lib.rs"
 
 [dependencies]
-wbraid = { workspace = true }
+voting-crypto = { path = "../voting-crypto" }
+wbraid = { workspace = true, features = ["native"] }
 vsc = { workspace = true }
 # Only `types`, which needs no features.
 sequent-core = { path = "../sequent-core", default-features = false }
@@ -21,6 +22,7 @@ anyhow = { workspace = true }
 base64 = "0.22"
 hex = "0.4"
 serde = { workspace = true }
+serde_json = { workspace = true }
 strum = "0.27"
 strum_macros = "0.27"
 toml = "0.8"

@@ -8,6 +8,7 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::*;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
+use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::ballot::{ElectionPresentation, VotingPeriodDates};
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::scheduled_event::*;
@@ -18,8 +19,9 @@ pub async fn manage_dates(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    scheduled_date: Option<&str>,
+    cron_config: Option<CronConfig>,
     event_processor: &str,
+    voting_channels: Option<Vec<VotingStatusChannel>>,
 ) -> Result<()> {
     let event_processor_val: EventProcessors = EventProcessors::from_str(&event_processor)
         .map_err(|err| {
@@ -35,12 +37,7 @@ pub async fn manage_dates(
             .map_err(|e| anyhow!("scheduled event by task id not found: {e:?}"))?;
 
     // if there's an schedule date, we have to either insert or create this
-    if let Some(date) = scheduled_date {
-        let cron_config = CronConfig {
-            cron: None,
-            scheduled_date: Some(date.to_string()),
-        };
-
+    if let Some(cron_config) = cron_config {
         match old_scheduled_event_opt {
             Some(old_scheduled_event) if old_scheduled_event.archived_at.is_none() => {
                 update_scheduled_event(
@@ -48,12 +45,16 @@ pub async fn manage_dates(
                     tenant_id,
                     &old_scheduled_event.id,
                     cron_config,
+                    voting_channels.as_ref(),
                 )
                 .await
-                .map_err(|e| anyhow!("error updating scheduled event: {e:?}"))?
+                .map_err(|e| anyhow!("error updating scheduled event: {e:?}"))?;
             }
             _ => {
-                let payload = ManageElectionDatePayload { election_id: None };
+                let payload = ManageElectionDatePayload {
+                    election_id: None,
+                    voting_channels,
+                };
                 insert_scheduled_event(
                     hasura_transaction,
                     tenant_id,

@@ -6,8 +6,8 @@ import {gql} from "@apollo/client"
 export const EXPORT_BALLOT_PUBLICATION = gql`
     mutation ExportBallotPublication(
         $tenantId: String!
-        $electionEventId: String!
-        $electionId: String
+        $electionEventId: uuid!
+        $electionId: uuid
         $ballotPublicationId: String!
     ) {
         export_ballot_publication(

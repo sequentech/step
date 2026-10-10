@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+pub mod build_election_event;
 pub mod cast_vote;
+pub mod compile_plan;
 pub mod complete_key_ceremony;
 pub mod configure;
 pub mod confirm_tally_ceremoney_key;
@@ -14,15 +16,27 @@ pub mod create_contest;
 pub mod create_election;
 pub mod create_election_event;
 pub mod create_electoral_logs;
+pub mod create_tenant;
+pub mod create_trustee;
 pub mod create_voter;
+pub mod delete_election_event;
+pub mod delete_tenant;
+pub mod download_document;
 pub mod download_tally_results;
 pub mod duplicate_votes;
 pub mod export_cast_votes;
 pub mod export_election_event;
+pub mod export_tenant_config;
 pub mod generate_preview;
 pub mod generate_voters;
+pub mod get_key_ceremony_status;
+pub mod get_trustees;
 pub mod hash_passwords;
 pub mod import_election_event;
+pub mod import_tenant_config;
+pub mod import_voters;
+pub mod migrate_realm_permissions;
+pub mod migrate_registration_flows;
 pub mod publish_changes;
 pub mod refresh_token;
 pub mod render_template;
@@ -35,3 +49,6 @@ pub mod update_election_voting_status;
 pub mod update_event_voting_status;
 pub mod update_tally_status;
 pub mod update_voter;
+pub mod upload_document;
+pub mod verify_ballot_box_seal;
+pub mod verify_package;

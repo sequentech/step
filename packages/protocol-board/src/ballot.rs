@@ -1,77 +1,20 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
-//
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! What a cast vote carries for the tally: one Naor-Yung ciphertext and the
-//! contests it answers.
-//!
-//! A cast vote's `contests` entries are each the standard base64 (padded) of
-//! the canonical bytes of one [`BallotCiphertext`]: one entry per contest when
-//! every contest is encrypted on its own, one entry naming every contest of
-//! the ballot when the ballot is encrypted whole. The voter's client produces
-//! them and the tally reads them back; the ciphertext is encrypted under the
-//! joint key augmented with the ballot encryption context (PROTOCOL.md §5.2),
-//! and its well-formedness proof is checked by the trustees, not here.
+//! The cast-vote ciphertext contract shared with the voter.
 
-use anyhow::{Context as _, Result};
-use base64::engine::general_purpose::{GeneralPurpose, STANDARD};
-use base64::Engine as _;
-use cryptography::cryptosystem::naoryung;
-use cryptography::utils::serialization::{Deserializable, Serializable};
-use cryptography::Canonical;
-
-use crate::configuration::CIPHERTEXT_WIDTH;
-use crate::Ctx;
-
-/// A cast vote's contest entry.
-const BALLOT_BASE64: GeneralPurpose = STANDARD;
-
-/// One encrypted ballot, or one contest of it, as a cast vote stores it.
-#[derive(Debug, Clone, PartialEq, Canonical)]
-pub struct BallotCiphertext {
-    /// The contests the ciphertext answers.
-    pub contest_ids: Vec<String>,
-    ciphertext: naoryung::Ciphertext<Ctx, CIPHERTEXT_WIDTH>,
-}
-
-impl BallotCiphertext {
-    pub fn new(
-        contest_ids: Vec<String>,
-        ciphertext: naoryung::Ciphertext<Ctx, CIPHERTEXT_WIDTH>,
-    ) -> BallotCiphertext {
-        BallotCiphertext {
-            contest_ids,
-            ciphertext,
-        }
-    }
-
-    /// The entry as a cast vote stores it.
-    pub fn encode(&self) -> String {
-        BALLOT_BASE64.encode(self.ser())
-    }
-
-    /// A cast vote's stored entry.
-    pub fn parse(encoded: &str) -> Result<BallotCiphertext> {
-        let bytes = BALLOT_BASE64
-            .decode(encoded)
-            .context("a ballot ciphertext that is not base64")?;
-        BallotCiphertext::deser(&bytes)
-            .context("a ballot ciphertext that cannot be deserialized")
-    }
-
-    pub(crate) fn into_ciphertext(
-        self,
-    ) -> naoryung::Ciphertext<Ctx, CIPHERTEXT_WIDTH> {
-        self.ciphertext
-    }
-}
+pub type BallotCiphertext = voting_crypto::ballot::BallotCiphertext<crate::Ctx>;
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Ctx;
     use base64::engine::general_purpose::STANDARD_NO_PAD;
+    use base64::{engine::general_purpose::STANDARD, Engine as _};
     use cryptography::context::Context as _;
     use cryptography::cryptosystem::elgamal;
+    use cryptography::cryptosystem::naoryung;
+    use cryptography::utils::serialization::Serializable;
 
     fn ballot(contest_ids: &[&str]) -> BallotCiphertext {
         let key = naoryung::PublicKey::augment(

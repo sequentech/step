@@ -102,6 +102,37 @@ pub struct SignedConfiguration {
 }
 
 impl SignedConfiguration {
+    /// Validate an archived message against this immutable configuration.
+    pub fn verify_message(&self, bytes: &[u8]) -> Result<()> {
+        let message = ProtocolMessage::<Ctx>::deser(bytes)?;
+        wbraid::board::verify::verify(
+            &message,
+            &self.message.verify_configuration()?,
+        )?;
+        Ok(())
+    }
+    /// The immutable pair registered at this committee position.
+    pub fn trustee_public_keys(
+        &self,
+        position: usize,
+    ) -> Result<crate::TrusteePublicKeys> {
+        let cfg = self.message.verify_configuration()?;
+        let signing = cfg
+            .trustees
+            .get(position)
+            .context("trustee position outside committee")?;
+        let share = cfg
+            .share_encryption_keys
+            .get(position)
+            .context("missing share encryption key")?;
+        Ok(crate::TrusteePublicKeys {
+            signing_public_key: crate::encoding::encode_signing_public_key(
+                signing,
+            )?,
+            share_encryption_public_key:
+                crate::encoding::encode_share_encryption_public_key(share),
+        })
+    }
     /// A stored Configuration message, checked the way the board's readers
     /// check it: the manager named inside must have signed it.
     pub fn parse(bytes: &[u8]) -> Result<SignedConfiguration> {
@@ -122,6 +153,11 @@ impl SignedConfiguration {
             hash,
             threshold: configuration.threshold,
         })
+    }
+
+    /// Immutable cryptographic domain; importing may remap application UUIDs.
+    pub fn configuration_id(&self) -> Result<u128> {
+        Ok(self.message.verify_configuration()?.id)
     }
 
     /// The message's canonical bytes, which is what the database stores.

@@ -111,6 +111,25 @@ impl BoardHandle {
         .await
     }
 
+    /// Lossless canonical bytes for an election archive, using the supplied
+    /// transport's staged-blob downloads and version enforcement.
+    pub async fn export_messages(&self) -> Result<Vec<Vec<u8>>> {
+        let base_url = self.base_url.clone();
+        let board = self.board.clone();
+        run_board_io(move || async move {
+            HttpTransport::new(&base_url, board.as_str())
+                .fetch_raw()
+                .await
+        })
+        .await
+    }
+
+    /// Restore canonical protocol bytes through wbraid's publication tooling.
+    pub async fn import_message(&self, bytes: &[u8]) -> Result<()> {
+        use cryptography::utils::serialization::Deserializable;
+        self.publish(ProtocolMessage::<Ctx>::deser(bytes)?).await
+    }
+
     /// Read the board and say where the key generation stands. An error is an
     /// outage: nothing is concluded from it.
     #[instrument(skip(self, expected_cfg), fields(board = %self.board), err)]
@@ -275,7 +294,8 @@ pub(crate) async fn read_tally(
 /// A worker that panics comes back as an outage, so a bug there stops
 /// the ceremony from advancing.
 ///
-/// TODO: Remove once wbraid is updated to be Send compatible.
+/// The supplied transport future is not Send, so it is created and polled
+/// inside the blocking worker rather than crossing task boundaries.
 async fn run_board_io<T, F, Fut>(call: F) -> Result<T>
 where
     F: FnOnce() -> Fut + Send + 'static,

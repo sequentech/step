@@ -1,0 +1,27 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-License-Identifier: AGPL-3.0-only
+
+import {defineConfig, devices} from "@playwright/test"
+
+// A local Chromium (e.g. from nix) where Playwright can't download its own; CI leaves it unset.
+const executablePath = process.env.CHROMIUM_EXECUTABLE_PATH
+
+export default defineConfig({
+    testDir: "./test/journeys",
+    // Keep local and CI memory bounded; CI also splits this suite into shards.
+    fullyParallel: true,
+    workers: 2,
+    timeout: 45000,
+    expect: {timeout: 10000},
+    retries: 0,
+    reporter: [["list"], ["junit", {outputFile: "test-results/journeys.xml"}]],
+    use: {
+        ...devices["Desktop Chrome"],
+        locale: "en-US",
+        timezoneId: "UTC",
+        serviceWorkers: "block",
+        trace: "retain-on-failure",
+        screenshot: "only-on-failure",
+        ...(executablePath ? {launchOptions: {executablePath}} : {}),
+    },
+})

@@ -144,7 +144,9 @@ impl CountingAlgorithm for PluralityAtLarge {
             .tally
             .tally_sheet_results
             .iter()
-            .fold(contest_result, |acc, x| acc.aggregate(x, false));
+            .try_fold(contest_result, |acc, x| {
+                acc.aggregate_checked_channels(x, false)
+            })?;
 
         Ok(aggregate)
     }

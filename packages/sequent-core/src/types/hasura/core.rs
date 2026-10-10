@@ -215,6 +215,22 @@ pub struct Candidate {
 pub struct DocumentAnnotations {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub access: Option<DocumentAccess>,
+    /// For a report generated from a signed configuration: its
+    /// `report-manifest.json`, naming the configuration revision, the manifest
+    /// and template digests, and every file the generation wrote.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub report_manifest: Option<Value>,
+    /// The document that stores that `report-manifest.json` as a file.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub report_manifest_file: Option<ReportManifestFile>,
+}
+
+/// A report's `report-manifest.json`, stored as a document of its own.
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct ReportManifestFile {
+    pub document_id: String,
+    /// The SHA-256 of the file's bytes.
+    pub sha256: String,
 }
 
 impl DocumentAnnotations {
@@ -224,6 +240,7 @@ impl DocumentAnnotations {
                 password_secret_id: Some(password_secret_id.into()),
                 voter_secret_attributes: false,
             }),
+            ..Default::default()
         }
     }
 
@@ -239,6 +256,7 @@ impl DocumentAnnotations {
                 password_secret_id: None,
                 voter_secret_attributes: true,
             }),
+            ..Default::default()
         }
     }
 
@@ -278,7 +296,7 @@ pub struct Document {
 
 #[cfg(test)]
 mod document_annotations_tests {
-    use super::DocumentAnnotations;
+    use super::{DocumentAnnotations, ReportManifestFile};
     use serde_json::json;
 
     #[test]
@@ -304,6 +322,29 @@ mod document_annotations_tests {
         assert_eq!(
             serde_json::to_value(&annotations).unwrap(),
             json!({"access": {"voter_secret_attributes": true}})
+        );
+    }
+
+    #[test]
+    fn links_a_report_to_its_stored_hash_manifest() {
+        let annotations = DocumentAnnotations {
+            report_manifest_file: Some(ReportManifestFile {
+                document_id: "manifest-document".to_string(),
+                sha256: "ab".repeat(32),
+            }),
+            ..Default::default()
+        };
+        let written = serde_json::to_value(&annotations).unwrap();
+        assert_eq!(
+            written,
+            json!({"report_manifest_file": {
+                "document_id": "manifest-document",
+                "sha256": "ab".repeat(32),
+            }})
+        );
+        assert_eq!(
+            serde_json::from_value::<DocumentAnnotations>(written).unwrap(),
+            annotations
         );
     }
 }
@@ -561,6 +602,10 @@ pub struct TallySessionContestAnnotations {
     /// "that batch has not been mixed yet" and would hang the session.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub weight_bit_mask: Option<u32>,
+    /// Hex SHA-512 seal hash of the ballot box the tally checked and counted
+    /// (VOTE-FREEZE). Absent when the event doesn't seal ballot boxes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ballot_box_seal_hash: Option<String>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -672,6 +717,7 @@ mod tally_session_contest_annotations_tests {
             }))
             .unwrap();
         assert_eq!(legacy.votes_by_channel, None);
+        assert_eq!(legacy.ballot_box_seal_hash, None);
 
         let current = TallySessionContestAnnotations {
             elegible_voters: 0,
@@ -679,9 +725,11 @@ mod tally_session_contest_annotations_tests {
             casted_ballots: 0,
             votes_by_channel: Some(VotesByChannel::new()),
             weight_bit_mask: None,
+            ballot_box_seal_hash: None,
         };
         let serialized = serde_json::to_value(current).unwrap();
         assert_eq!(serialized["votes_by_channel"], serde_json::json!({}));
+        assert!(serialized.get("ballot_box_seal_hash").is_none());
     }
 }
 

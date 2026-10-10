@@ -1,0 +1,201 @@
+{
+  "charts": {
+    "bars": {
+      "query": "data",
+      "sort": {
+        "by": "position",
+        "order": "asc"
+      },
+      "style": {
+        "marks": {
+          "bar": {
+            "labels": {
+              "format": "percent",
+              "visible": true
+            }
+          }
+        },
+        "number_format": "percent",
+        "orientation": "horizontal"
+      },
+      "type": "bar",
+      "x": "group",
+      "y": "pct",
+      "y_label": "Turnout"
+    }
+  },
+  "queries": {
+    "data": {
+      "columns": [
+        "group",
+        "group_key",
+        "position",
+        "numerator",
+        "denominator",
+        "pct",
+        "pct_label"
+      ],
+      "values": [
+        [
+          "Europe",
+          "Europe",
+          1,
+          108,
+          284,
+          0.38028169014084506,
+          "38.0%"
+        ],
+        [
+          "Middle East",
+          "Middle East",
+          2,
+          85,
+          226,
+          0.37610619469026546,
+          "37.6%"
+        ],
+        [
+          "Americas",
+          "Americas",
+          3,
+          60,
+          227,
+          0.2643171806167401,
+          "26.4%"
+        ],
+        [
+          "Asia Pacific",
+          "Asia Pacific",
+          4,
+          80,
+          308,
+          0.2597402597402597,
+          "26.0%"
+        ],
+        [
+          "Not stated",
+          "__unknown__",
+          5,
+          58,
+          155,
+          0.3741935483870968,
+          "37.4%"
+        ]
+      ]
+    }
+  },
+  "rows": [
+    "bars"
+  ],
+  "style": {
+    "accent": "#0f766e",
+    "charts": {
+      "axis": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "axis_quantitative": {
+        "labels": {
+          "font": {
+            "family": "'Inter Variable', Inter, system-ui, sans-serif"
+          }
+        }
+      },
+      "callout": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "category_colors": {
+        "group": {
+          "values": {
+            "Not stated": "dbt-grays.muted"
+          }
+        }
+      },
+      "kpi": {
+        "font": {
+          "family": "'Inter Variable', Inter, system-ui, sans-serif"
+        },
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        },
+        "value": {
+          "font": {
+            "family": "'Inter Variable', Inter, system-ui, sans-serif"
+          }
+        }
+      },
+      "legend": {
+        "title": {
+          "visible": false
+        }
+      },
+      "pie": {
+        "total": {
+          "value": {
+            "font": {
+              "family": "'Inter Variable', Inter, system-ui, sans-serif"
+            }
+          }
+        }
+      },
+      "spark_bar": {
+        "bar": {
+          "height": 20
+        },
+        "count": {
+          "width": 64
+        },
+        "label": {
+          "width": 220
+        }
+      },
+      "support_table": {
+        "font": {
+          "family": "'Inter Variable', Inter, system-ui, sans-serif"
+        },
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "table": {
+        "header": {
+          "font": {
+            "case": "none"
+          }
+        }
+      }
+    },
+    "font": {
+      "family": "'Inter Variable', Inter, system-ui, sans-serif"
+    },
+    "footer": {
+      "visible": false
+    },
+    "text": {
+      "font": {
+        "family": "'Inter Variable', Inter, system-ui, sans-serif"
+      }
+    },
+    "timestamp": {
+      "visible": false
+    },
+    "title": {
+      "font": {
+        "case": "none",
+        "family": "'Inter Variable', Inter, system-ui, sans-serif"
+      }
+    }
+  },
+  "theme": "paper"
+}

@@ -5,7 +5,14 @@ import {Order_By} from "./../../../voting-portal/src/gql/graphql"
 
 import {buildQuery, buildVariables} from "ra-data-hasura"
 import {getPgauditVariables, getPgAudit} from "./ListPgAudit"
-import {getElectoralLogVariables, getElectoralLog} from "./ListElectoralLog"
+import {
+    getElectoralLogVariables,
+    getElectoralLog,
+    electoralLogInstantFilters,
+    ELECTORAL_LOG_RANGE_FILTERS,
+    ELECTORAL_LOG_ZONE_FILTER,
+    ELECTORAL_LOG_DEFAULT_ZONE_FILTER,
+} from "./ListElectoralLog"
 import {LIST_USERS, customBuildGetUsersVariables} from "./GetUsers"
 import {getPermissions} from "./GetPermissions"
 import {getRoles} from "./GetRoles"
@@ -55,6 +62,13 @@ function applyUuidFilter(filter: Record<string, unknown>, field: string): void {
     }
 }
 
+const BOOLEAN_OPERATORS = ["_and", "_or", "_not"]
+
+const isRawQuery = (value: unknown): boolean =>
+    typeof value === "object" &&
+    value !== null &&
+    (value as {format?: unknown}).format === "hasura-raw-query"
+
 export const customBuildQuery =
     (introspectionResults: any) => (raFetchType: any, resourceName: any, params: any) => {
         let sort: ParamsSort | undefined | null = params.sort
@@ -69,7 +83,14 @@ export const customBuildQuery =
             let validFilters = COLUMNS_MAP[resourceName]
             if (validFilters) {
                 Object.keys(params.filter).forEach((f) => {
-                    if (!validFilters.includes(f)) {
+                    // A boolean expression the portal builds itself, such as
+                    // the name search's `_or`, reaches Hasura unchanged.
+                    if (BOOLEAN_OPERATORS.includes(f) && isRawQuery(params.filter[f])) return
+                    // ra-data-hasura reads `column@operator` keys, such as
+                    // `name@_ilike`, and comma-joins several of them; each
+                    // must name one of the table's columns.
+                    const columns = f.split(",").map((key) => key.split("@")[0])
+                    if (!columns.every((column) => validFilters.includes(column))) {
                         console.log(`removing ${resourceName}.filter.${f}`)
                         delete params.filter[f]
                     }
@@ -106,12 +127,16 @@ export const customBuildQuery =
                 "created",
                 "statement_timestamp",
                 "statement_kind",
+                ...ELECTORAL_LOG_RANGE_FILTERS,
+                ELECTORAL_LOG_ZONE_FILTER,
+                ELECTORAL_LOG_DEFAULT_ZONE_FILTER,
             ]
             Object.keys(params.filter).forEach((f) => {
                 if (!validFilters.includes(f)) {
                     delete params.filter[f]
                 }
             })
+            params = {...params, filter: electoralLogInstantFilters(params.filter)}
             const resource: any = {
                 type: {
                     fields: [],
@@ -337,7 +362,13 @@ export const customBuildQuery =
                 },
             }
         } else if (resourceName === "sequent_backend_applications" && raFetchType === "GET_LIST") {
-            let ret = buildQuery(introspectionResults)(raFetchType, resourceName, params)
+            // `q` is the queue's search box: the name, email or ID number the
+            // applicant gave, anywhere in the applicant data.
+            const {q: search, ...columnFilters} = params.filter ?? {}
+            let ret = buildQuery(introspectionResults)(raFetchType, resourceName, {
+                ...params,
+                filter: columnFilters,
+            })
 
             if (ret?.variables?.order_by) {
                 const validOrderBy = [
@@ -372,6 +403,12 @@ export const customBuildQuery =
                     })
                 }
             })
+
+            if (typeof search === "string" && search.trim()) {
+                transformedParams.push({
+                    applicant_data: {_cast: {String: {_ilike: `%${search.trim()}%`}}},
+                })
+            }
 
             ret.variables.where = transformedRawParams
 

@@ -1,0 +1,154 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-License-Identifier: AGPL-3.0-only
+
+//! Exercise the process boundary that shell automation relies on.
+use std::{
+    fs,
+    io::{BufRead, BufReader, Read, Write},
+    net::TcpListener,
+    process::Command,
+    thread,
+};
+
+#[test]
+fn failed_http_commands_exit_nonzero() {
+    let temporary = tempfile::tempdir().unwrap();
+    let binary = temporary.path().join("step-cli");
+    let source = env!("CARGO_BIN_EXE_step-cli");
+    if fs::hard_link(source, &binary).is_err() {
+        fs::copy(source, &binary).unwrap();
+    }
+    let server = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = server.local_addr().unwrap();
+    let config = temporary.path().join("config");
+    fs::create_dir(&config).unwrap();
+    fs::write(
+        config.join("configuration.json"),
+        serde_json::json!({
+            "endpoint_url": format!("http://{address}"), "tenant_id": "synthetic",
+            "keycloak_url": "http://127.0.0.1", "auth_token": "synthetic",
+            "refresh_token": "", "client_id": "", "client_secret": "", "username": ""
+        })
+        .to_string(),
+    )
+    .unwrap();
+    let handler = thread::spawn(move || {
+        for _ in 0..2 {
+            let (mut stream, _) = server.accept().unwrap();
+            let mut reader = BufReader::new(&mut stream);
+            let mut request_line = String::new();
+            assert!(reader.read_line(&mut request_line).unwrap() > 0);
+            let mut content_length = 0;
+            loop {
+                let mut header = String::new();
+                assert!(reader.read_line(&mut header).unwrap() > 0);
+                if header == "\r\n" {
+                    break;
+                }
+                let (name, value) = header.split_once(':').unwrap();
+                if name.eq_ignore_ascii_case("content-length") {
+                    content_length = value.trim().parse::<usize>().unwrap();
+                }
+            }
+            let mut body = vec![0; content_length];
+            reader.read_exact(&mut body).unwrap();
+            stream.write_all(b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").unwrap();
+        }
+    });
+    for arguments in [
+        ["step", "create-tenant", "--slug", "synthetic"],
+        ["step", "delete-tenant", "--tenant-id", "synthetic"],
+    ] {
+        let output = Command::new(&binary).args(arguments).output().unwrap();
+        assert_eq!(output.status.code(), Some(1));
+        assert!(String::from_utf8_lossy(&output.stderr).contains("503"));
+    }
+    handler.join().unwrap();
+}
+
+#[test]
+fn a_failed_voter_generation_reports_the_error_but_exits_zero() {
+    let working_directory = tempfile::tempdir().unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_step-cli"))
+        .args(["step", "generate-voters", "--num-users", "1"])
+        .arg("--working-directory")
+        .arg(working_directory.path())
+        .output()
+        .unwrap();
+    // Pinned as found: scripts cannot tell this failure from a success.
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stderr),
+        "Error! Failed to generate voters: Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n"
+    );
+    assert!(output.stdout.is_empty());
+    assert_eq!(fs::read_dir(working_directory.path()).unwrap().count(), 0);
+}
+
+/// The realm permission migration fails, naming the database it can't reach,
+/// and exits non-zero, so a deployment script notices.
+#[test]
+fn an_unreachable_database_fails_the_realm_permission_migration() {
+    // A port nothing listens on: bind it, read it, close it.
+    let port = TcpListener::bind("127.0.0.1:0")
+        .unwrap()
+        .local_addr()
+        .unwrap()
+        .port();
+    let output = Command::new(env!("CARGO_BIN_EXE_step-cli"))
+        .args(["step", "migrate-realm-permissions"])
+        .env("HASURA_DB__HOST", "127.0.0.1")
+        .env("HASURA_DB__PORT", port.to_string())
+        .env("HASURA_DB__USER", "synthetic")
+        .env("HASURA_DB__PASSWORD", "synthetic")
+        .env("HASURA_DB__DBNAME", "synthetic")
+        .env_remove("KEYCLOAK_URL")
+        .output()
+        .unwrap();
+    // Pinned as found: Windmill's database pool panics on an unreachable
+    // server instead of returning an error, so the exit code is a panic's.
+    assert_eq!(output.status.code(), Some(101));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("Hasura DB"), "{stderr}");
+    assert!(stderr.contains("error connecting to server"), "{stderr}");
+}
+
+#[test]
+fn invalid_database_configuration_refuses_the_registration_flow_migration() {
+    let database_peer = TcpListener::bind("127.0.0.1:0").unwrap();
+    database_peer.set_nonblocking(true).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_step-cli"))
+        .args(["step", "migrate-registration-flows"])
+        .env("HASURA_DB__HOST", "127.0.0.1")
+        .env("HASURA_DB__PORT", "not-a-port")
+        .env("HASURA_DB__USER", "synthetic")
+        .env("HASURA_DB__PASSWORD", "synthetic")
+        .env("HASURA_DB__DBNAME", "synthetic")
+        .env("KEYCLOAK_DB__HOST", "127.0.0.1")
+        .env(
+            "KEYCLOAK_DB__PORT",
+            database_peer.local_addr().unwrap().port().to_string(),
+        )
+        .env("KEYCLOAK_DB__USER", "synthetic")
+        .env("KEYCLOAK_DB__PASSWORD", "synthetic")
+        .env("KEYCLOAK_DB__DBNAME", "synthetic")
+        .env("LOW_SQL_LIMIT", "1000")
+        .env("DEFAULT_SQL_LIMIT", "20")
+        .env("DEFAULT_SQL_BATCH_SIZE", "1000")
+        .env_remove("KEYCLOAK_URL")
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stdout.is_empty());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("Invalid migration database configuration"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("hasura_db.port"), "{stderr}");
+    assert!(!stderr.contains("panicked"), "{stderr}");
+    assert_eq!(
+        database_peer.accept().unwrap_err().kind(),
+        std::io::ErrorKind::WouldBlock
+    );
+}

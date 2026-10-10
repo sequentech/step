@@ -2,6 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+// Test vectors and fixture builders.
+// Coverage exclusion: scripts/coverage/profiles.toml.
+
 use crate::ballot::BallotStyle;
 use crate::ballot::*;
 use crate::ballot_codec::{vec_to_30_array, RawBallotContest};
@@ -28,6 +31,7 @@ pub struct BasesFixture {
 
 fn get_contest_plurality() -> Contest {
     Contest {
+        external_id: None,
         created_at: None,
         id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
         tenant_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
@@ -374,6 +378,10 @@ pub fn get_writein_ballot_style() -> BallotStyle {
         public_key: Some(PublicKeyConfig {
             public_key: "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4".into(),
             is_demo: false,
+            keys_ceremony_id: Some(
+                "12345678-1234-4234-9234-123456789abc".into(),
+            ),
+            configuration_id: None,
         }),
         area_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
         area_presentation: None,
@@ -383,7 +391,9 @@ pub fn get_writein_ballot_style() -> BallotStyle {
         election_annotations: Default::default(),
         election_dates: None,
         multi_contest_encoding_mode: None,
+        ballot_box_key: None,
         contests: vec![Contest {
+            external_id: None,
             created_at: None,
             id: "1c1500ac-173e-4e78-a59d-91bfa3678c5a".into(),
             tenant_id: ("9570d82a-d92a-44d7-b483-d5a6c8c398a8".into()),
@@ -652,6 +662,7 @@ pub fn get_writein_plaintext() -> DecodedVoteContest {
 
 pub fn get_test_contest() -> Contest {
     Contest {
+        external_id: None,
         created_at:None,
         id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
         tenant_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
@@ -808,6 +819,7 @@ pub(crate) fn get_configurable_contest(
     base32_writeins: bool,
 ) -> Contest {
     let mut contest: Contest = Contest {
+        external_id: None,
         created_at: None,
         id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
         tenant_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
@@ -1114,6 +1126,7 @@ pub(crate) fn get_contest_candidates_n(num_candidates: usize) -> Contest {
         .collect();
 
     let mut contest: Contest = Contest {
+        external_id: None,
         annotations: None,
         created_at: None,
         id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
@@ -1296,6 +1309,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         BallotCodecFixture {
             title: "example_3_explicit_and_implicit_invalid".to_string(),
             contest: Contest {
+                external_id: None,
         created_at:None,
                 id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 tenant_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
@@ -1503,6 +1517,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         BallotCodecFixture {
             title: "example_3_explicit_invalid".to_string(),
             contest: Contest {
+                external_id: None,
         created_at:None,
                 id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 tenant_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
@@ -1708,6 +1723,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         BallotCodecFixture {
             title: "example_3_implicit_too_many".to_string(),
             contest: Contest {
+                external_id: None,
         created_at:None,
                 id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 tenant_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
@@ -1905,6 +1921,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         BallotCodecFixture {
             title: "example_4_implicit_empty".to_string(),
             contest: Contest {
+                external_id: None,
         created_at:None,
                 id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 tenant_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
@@ -2076,6 +2093,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         BallotCodecFixture {
             title: "example_4_implicit_empty_warn".to_string(),
             contest: Contest {
+                external_id: None,
         created_at:None,
                 id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 tenant_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
@@ -2257,6 +2275,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         BallotCodecFixture {
             title: "example_4_implicit_empty_blank_vote".to_string(),
             contest: Contest {
+                external_id: None,
         created_at:None,
                 id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 tenant_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),
@@ -2437,6 +2456,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         BallotCodecFixture {
             title: "example_4_implicit_invented_candidate".to_string(),
             contest: Contest {
+                external_id: None,
         created_at:None,
                 id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 tenant_id: ("1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into()),

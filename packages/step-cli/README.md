@@ -14,6 +14,7 @@ Command-line tool for automating and streamlining operations within the Sequent 
 - Voter management and import
 - Key ceremony and tally management
 - Load testing and data generation utilities
+- Acceptance stage checks with an evidence ledger and a pass/fail verdict (`step-cli acceptance`)
 - Template rendering for email notifications
 - ImmuDB bulletin board export
 

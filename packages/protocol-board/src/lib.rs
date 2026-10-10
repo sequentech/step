@@ -30,6 +30,7 @@ mod board;
 mod ceremony;
 mod committee;
 mod configuration;
+mod custody;
 mod encoding;
 mod ids;
 mod secrets;
@@ -57,6 +58,7 @@ pub(crate) type Signer = <Scheme as SignatureScheme<Rng>>::Signer;
 /// that authors a `Configuration` the protocol manager, and the platform is
 /// that participant.
 pub type BoardManager = wbraid::protocol_manager::ProtocolManager<Ctx>;
+pub use custody::{CustodyProof, CustodyRequest};
 
 pub use ballot::BallotCiphertext;
 pub use board::BoardHandle;

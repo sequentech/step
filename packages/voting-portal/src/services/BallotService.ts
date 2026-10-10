@@ -17,8 +17,15 @@ import {
     checkIsBlank,
     signHashableBallot,
     signHashableMultiBallot,
+    verifyReceivedBallot,
+    signBallotCast,
+    verifyCastReceipt,
+    forgetVoterSigningKey,
     IDecodedVoteContest,
+    IBallotBoxKey,
     IBallotStyle,
+    ICastReceipt,
+    IReceivedBallot,
     IAuditableBallot,
     IAuditableSingleBallot,
     IAuditableMultiBallot,
@@ -74,6 +81,10 @@ export interface IBallotService {
         hashableBallot: IAuditableMultiBallot
     ) => ISignedContent | null
     isPreferential: (countingAlgorithm?: ICountingAlgorithm) => boolean
+    verifyReceivedBallot: (ballotBoxKey: IBallotBoxKey, receivedBallot: IReceivedBallot) => string
+    signBallotCast: (electionId: string, voterSigningPk: string, ballotId: string) => string
+    verifyCastReceipt: (ballotBoxKey: IBallotBoxKey, castReceipt: ICastReceipt) => boolean
+    forgetVoterSigningKey: (electionId: string) => void
 }
 
 export const provideBallotService = (): IBallotService => ({
@@ -92,4 +103,8 @@ export const provideBallotService = (): IBallotService => ({
     signHashableBallot,
     signHashableMultiBallot,
     isPreferential,
+    verifyReceivedBallot,
+    signBallotCast,
+    verifyCastReceipt,
+    forgetVoterSigningKey,
 })

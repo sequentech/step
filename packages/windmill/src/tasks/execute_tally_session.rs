@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::adapters::tally_execution::{PgTallyExecution, RandomTrusteeOrder, TallyExecutionLogs};
+use crate::domain::tally_execution::{execution_conclusion, TrusteeSelection};
+use crate::ports::tally_execution::{ExecutionRecord, ExecutionScope};
 use crate::postgres::area::get_event_areas;
 use crate::postgres::cast_vote::count_unresolved_cast_votes;
 use crate::postgres::election::set_election_initialization_report_generated;
@@ -27,6 +30,9 @@ use crate::services::ceremonies::tally_ceremony::find_last_tally_session_executi
 use crate::services::ceremonies::tally_ceremony::{
     get_tally_ceremony_status, set_tally_session_completed,
 };
+use crate::services::ceremonies::tally_execution::{
+    persist_execution_with, select_execution_trustees_with,
+};
 use crate::services::ceremonies::tally_resolution::{
     build_tie_resolutions_map, handle_pending_irv_resolutions,
 };
@@ -38,6 +44,7 @@ use crate::services::election::get_election_event_elections;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::electoral_log::ElectoralLog;
+use crate::services::initialization_record::stage_initialization_log;
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_board::{
     apply_tally_event, board_handle, insert_tally_board, load_dkg_board_row, load_manager,
@@ -49,6 +56,8 @@ use crate::services::reports::template_renderer::{
     ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
 use crate::services::reports::utils::get_public_asset_template;
+use crate::services::signing::actions::reports::start_held_tally_reports;
+use crate::services::signing::key_shares::tally_trustee_signatures;
 use crate::services::tally_sheets::validation::validate_tally_sheet;
 use crate::services::tasks_semaphore::acquire_semaphore;
 use crate::services::temp_path::{
@@ -57,6 +66,7 @@ use crate::services::temp_path::{
 use crate::services::users::list_users;
 use crate::services::users::ListUsersFilter;
 use crate::services::weight_batches::{collect_weighted_payloads, contest_weight_batches};
+use crate::tasks::signing_log_outbox::kick_signing_log_outbox;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use celery::prelude::TaskError;
@@ -603,42 +613,36 @@ async fn create_tally_boards(
     let tenant_id = &tally_session.tenant_id;
     let election_event_id = &tally_session.election_event_id;
 
-    let threshold = dkg.threshold();
-    let mut available_trustees: Vec<String> = match keys_ceremony.policy() {
-        CeremoniesPolicy::MANUAL_CEREMONIES => ceremony_status
-            .trustees
-            .iter()
-            .filter(|trustee| TallyTrusteeStatus::KEY_RESTORED == trustee.status)
-            .map(|trustee| trustee.name.clone())
-            .collect(),
-        CeremoniesPolicy::AUTOMATED_CEREMONIES => ceremony_status
-            .trustees
-            .iter()
-            .map(|trustee| trustee.name.clone())
-            .collect(),
-    };
-
-    let mut rng = StdRng::from_os_rng();
-    available_trustees.shuffle(&mut rng);
-
-    let trustee_names: Vec<String> = available_trustees.into_iter().take(threshold).collect();
-
-    if trustee_names.len() < threshold {
-        event!(
-            Level::INFO,
-            "Election Event {} has {} connected trustees but threshold is {}",
-            election_event_id,
-            trustee_names.len(),
-            threshold
-        );
-        return Ok(None);
-    }
-    event!(
-        Level::INFO,
-        "Election Event {}. Selected trustees {:#?}",
+    let signatures = tally_trustee_signatures(
+        hasura_transaction,
+        tenant_id,
         election_event_id,
-        trustee_names
-    );
+        &tally_session.id,
+    )
+    .await?;
+    let trustee_names = match select_execution_trustees_with(
+        &PgTallyExecution {
+            transaction: hasura_transaction,
+        },
+        &RandomTrusteeOrder,
+        tenant_id,
+        election_event_id,
+        keys_ceremony,
+        ceremony_status.clone(),
+        &signatures,
+    )
+    .await?
+    {
+        TrusteeSelection::Ready(names) => names,
+        TrusteeSelection::NoCeremony => return Ok(None),
+        TrusteeSelection::Insufficient {
+            available,
+            threshold,
+        } => {
+            info!(available, threshold, "Waiting for eligible trustees");
+            return Ok(None);
+        }
+    };
 
     let keys_ceremony_status = keys_ceremony.status()?;
     let committee_names: Vec<String> = keys_ceremony_status
@@ -663,6 +667,7 @@ async fn create_tally_boards(
         tenant_id,
         election_event_id,
         tally_session_contests.to_vec(),
+        tally_session,
         configuration.get_contest_encryption_policy(),
         configuration.get_delegated_voting_policy(),
         configuration.get_weighted_voting_policy(),
@@ -1497,126 +1502,44 @@ pub async fn execute_tally_session_wrapped(
     )
     .await?;
 
-    // Check if results contain pending IRV tie-break resolutions.
-    // On a re-run after partial resolution the new results_event_id ensures
-    // handle_pending_irv_resolutions only returns ties from the freshly-computed
-    // results, so old annotations are not accidentally re-processed.
-    if let Some(ref results_event_id_str) = results_event_id {
-        let pending_resolution_ids = handle_pending_irv_resolutions(
+    let pending_ties = if let Some(ref result_id) = results_event_id {
+        !handle_pending_irv_resolutions(
             hasura_transaction,
             &tenant_id,
             &election_event_id,
-            results_event_id_str,
+            result_id,
             &tally_session_id,
             election_event.bulletin_board_reference.clone(),
             tally_session.election_ids.clone(),
         )
-        .await?;
-
-        if !pending_resolution_ids.is_empty() {
-            // Insert execution record so frontend can load partial results
-            let session_ids_i32: Option<Vec<i32>> = session_ids
-                .clone()
-                .map(|values| values.into_iter().map(|int| int as i32).collect());
-            new_status.logs =
-                append_tally_updated(&new_status.logs, &election_ids.clone().unwrap_or_default());
-            insert_tally_session_execution(
-                hasura_transaction,
-                &tenant_id,
-                &election_event_id,
-                NO_BOARD_MESSAGE_ID,
-                &tally_session_id,
-                Some(new_status),
-                results_event_id,
-                session_ids_i32,
-                tally_session_execution_documents,
-                // The run happened; the next execution is a normal one again,
-                // which is what consumes any RECOUNT reason.
-                TallyRunReason::NORMAL,
-            )
-            .await?;
-
-            // Update status to AWAITING_INPUT
-            update_tally_session_status(
-                hasura_transaction,
-                &tenant_id,
-                &election_event_id,
-                &tally_session_id,
-                TallyExecutionStatus::AWAITING_INPUT,
-                false,
-            )
-            .await?;
-
-            return Ok(());
-        }
-    }
-
-    // map_plaintext_data also calls this but at this point the credentials
-    // could be expired
-
-    let session_ids_i32: Option<Vec<i32>> = session_ids
-        .clone()
-        .map(|values| values.clone().into_iter().map(|int| int as i32).collect());
-
-    new_status.logs = if is_execution_completed {
-        append_tally_finished(&new_status.logs, &election_ids.clone().unwrap_or(vec![]))
+        .await?
+        .is_empty()
     } else {
-        append_tally_updated(&new_status.logs, &election_ids.clone().unwrap_or(vec![]))
+        false
     };
-
-    // insert tally_session_execution
-    insert_tally_session_execution(
-        hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        NO_BOARD_MESSAGE_ID,
-        &tally_session_id,
-        Some(new_status),
-        results_event_id,
-        session_ids_i32,
-        tally_session_execution_documents,
-        TallyRunReason::NORMAL,
+    persist_execution_with(
+        &PgTallyExecution {
+            transaction: hasura_transaction,
+        },
+        &TallyExecutionLogs,
+        &ExecutionScope {
+            tenant_id,
+            election_event_id,
+            tally_session_id,
+        },
+        ExecutionRecord {
+            current_message_id: NO_BOARD_MESSAGE_ID,
+            status: new_status,
+            results_event_id,
+            session_ids: session_ids.map(|ids| ids.into_iter().map(|id| id as i32).collect()),
+            documents: tally_session_execution_documents,
+            run_reason: TallyRunReason::NORMAL,
+        },
+        execution_conclusion(pending_ties, is_execution_completed),
+        tally_type_enum,
+        election_ids_default,
     )
-    .await?;
-
-    if is_execution_completed {
-        // update tally session to flag it as completed
-        set_tally_session_completed(
-            hasura_transaction,
-            tenant_id.clone(),
-            election_event_id.clone(),
-            tally_session_id.clone(),
-        )
-        .await?;
-        // get the election event
-        let election_event =
-            get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id).await?;
-        let current_status = get_election_event_status(election_event.status)
-            .ok_or(anyhow!("Empty election status"))?;
-        let new_event_status = current_status.clone();
-        let new_status_js = serde_json::to_value(new_event_status)?;
-        update_election_event_status(
-            hasura_transaction,
-            &tenant_id,
-            &election_event_id,
-            new_status_js,
-        )
-        .await?;
-        if tally_type_enum == TallyType::INITIALIZATION_REPORT {
-            for election_id in election_ids_default {
-                set_election_initialization_report_generated(
-                    hasura_transaction,
-                    &tenant_id,
-                    &election_event_id,
-                    &election_id,
-                    &true,
-                )
-                .await?;
-            }
-        }
-    }
-
-    Ok(())
+    .await
 }
 
 #[instrument(err)]
@@ -1655,6 +1578,23 @@ pub async fn transactions_wrapper(
                 .commit()
                 .await
                 .with_context(|| "error comitting transaction")?;
+            if let (Ok(tenant), Ok(event)) = (
+                Uuid::parse_str(&tenant_id),
+                Uuid::parse_str(&election_event_id),
+            ) {
+                if let Err(error) =
+                    start_held_tally_reports(&mut hasura_db_client, tenant, event).await
+                {
+                    warn!("held tally reports not started yet: {error:?}");
+                }
+                match stage_initialization_log(&mut hasura_db_client, tenant, event).await {
+                    Ok(0) => {}
+                    Ok(_) => {
+                        kick_signing_log_outbox();
+                    }
+                    Err(error) => warn!("initialization log entries not staged yet: {error:?}"),
+                }
+            }
             Ok(res)
         }
         Err(err) => {
@@ -1771,6 +1711,7 @@ mod tests {
             num_allowed_revotes: None,
             description: None,
             public_key: None,
+            ballot_box_key: None,
             area_id: "area".to_string(),
             area_presentation: None,
             contests: vec![contest],

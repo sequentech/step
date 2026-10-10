@@ -40,6 +40,13 @@ const sameId = (left: unknown, right: unknown): boolean =>
     right !== undefined &&
     String(left) === String(right)
 
+// Apex places its scrollable legend inside an SVG foreignObject; make that
+// region reachable by keyboard after each render so users can scroll its labels.
+const focusableLegend = ({el}: {el: HTMLElement}): void => {
+    const legend = el.querySelector<HTMLElement>(".apexcharts-legend")
+    if (legend) legend.tabIndex = 0
+}
+
 const Chart = ((ReactApexChart as unknown as {default?: React.ComponentType<ApexChartProps>})
     .default ?? ReactApexChart) as React.ComponentType<ApexChartProps>
 
@@ -97,6 +104,7 @@ const GeneralInformationChart: React.FC<GeneralInformationChartProps> = ({
     const chartOptions = useMemo<ApexChartProps>(
         () => ({
             options: {
+                chart: {events: {mounted: focusableLegend, updated: focusableLegend}},
                 labels: chartData.map((item) => item.label),
                 legend: {position: "right"},
                 responsive: [

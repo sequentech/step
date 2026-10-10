@@ -122,7 +122,7 @@ const Dialog: React.FC<DialogProps> = ({
                 <Icon
                     variant={infoVariant}
                     icon={faIcon}
-                    fontSize="24px"
+                    fontSize="1.5rem"
                     className="dialog-icon-info"
                 />
                 <Box

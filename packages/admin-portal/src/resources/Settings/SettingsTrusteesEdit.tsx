@@ -36,12 +36,10 @@ export const SettingsTrusteesEdit: React.FC<EditProps> = (props) => {
         }
     }
 
-    const onError = async () => {
-        refresh()
+    const notify = useNotify()
 
-        if (close) {
-            close()
-        }
+    const onError = (error: Error) => {
+        notify(error.message, {type: "error"})
     }
 
     return (

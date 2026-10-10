@@ -1,15 +1,5 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
-//
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
-
-use strand::backend::ristretto::RistrettoCtx;
-use strand::context::Ctx;
-use strand::elgamal::*;
-use strand::hash;
-use strand::hash::Hash;
-use strand::serialization::StrandDeserialize;
-use strand::util::StrandError;
-use strand::zkp::{Schnorr, Zkp};
 
 use crate::ballot::*;
 use crate::ballot_codec::multi_ballot::BallotChoices;
@@ -25,10 +15,17 @@ use crate::plaintext::DecodedVoteContest;
 use crate::serialization::base64::Base64Deserialize;
 use crate::util::date::get_current_date;
 use crate::util::normalize_vote::normalize_election;
+use anyhow::{anyhow, Result as AnyhowResult};
 use base64::engine::general_purpose;
 use base64::Engine;
+use cryptography::context::{Context, RistrettoCtx};
+use cryptography::utils::serialization::{Deserializable, Serializable};
 use std::collections::{HashMap, HashSet};
-use strand::serialization::StrandSerialize;
+use voting_crypto::ballot::{
+    encrypt_payload, verify_opening, BallotCiphertext,
+};
+use voting_crypto::hash::{self, Hash};
+use voting_crypto::RecordSerialize;
 
 pub const DEFAULT_PUBLIC_KEY_RISTRETTO_STR: &str =
     "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4";
@@ -39,111 +36,160 @@ pub const SHORT_SHA512_HASH_LENGTH_BYTES: usize = 32;
 
 pub type ShortHash = [u8; SHORT_SHA512_HASH_LENGTH_BYTES];
 
-// Labels are used to make the proof of knowledge unique.
-// This is a constant for now but when we implement voter signatures this will
-// be unique to the voter, and it will include the public key of the voter,
-// election event id, election id, contest id etc.
-pub const DEFAULT_PLAINTEXT_LABEL: [u8; 0] = [];
-
-pub fn default_public_key_ristretto() -> (String, <RistrettoCtx as Ctx>::E) {
-    let pk_str: String = DEFAULT_PUBLIC_KEY_RISTRETTO_STR.to_string();
-    let pk_bytes = general_purpose::STANDARD_NO_PAD
-        .decode(pk_str.clone())
-        .unwrap();
-    let pk = <RistrettoCtx as Ctx>::E::strand_deserialize(&pk_bytes).unwrap();
-    (pk_str, pk)
+/// The demo public key, represented with wbraid's canonical element decoder.
+pub fn default_public_key_ristretto(
+) -> AnyhowResult<(String, <RistrettoCtx as Context>::Element)> {
+    let bytes = general_purpose::STANDARD_NO_PAD
+        .decode(DEFAULT_PUBLIC_KEY_RISTRETTO_STR)?;
+    let key = <RistrettoCtx as Context>::Element::deser(&bytes)?;
+    Ok((DEFAULT_PUBLIC_KEY_RISTRETTO_STR.to_string(), key))
 }
 
-pub fn encrypt_plaintext_candidate<C: Ctx>(
-    ctx: &C,
-    public_key_element: <C>::E,
-    plaintext: <C>::P,
-    label: &[u8],
-) -> Result<(ReplicationChoice<C>, Schnorr<C>), BallotError> {
-    // construct a public key from a provided element
-    let pk = PublicKey::from_element(&public_key_element, ctx);
-
-    let encoded = ctx.encode(&plaintext).unwrap();
-
-    // encrypt and prove knowledge of plaintext (enc + pok)
-    let (ciphertext, proof, randomness) =
-        pk.encrypt_and_pok(&encoded, label).unwrap();
-    // verify
-    let zkp = Zkp::new(ctx);
-    let proof_ok = zkp
-        .encryption_popk_verify(&ciphertext.mhr, &ciphertext.gr, &proof, label)
-        .unwrap();
-    assert!(proof_ok);
-
-    Ok((
-        ReplicationChoice {
-            ciphertext: ciphertext,
-            plaintext: plaintext,
-            randomness: randomness,
-        },
-        proof,
-    ))
+/// Read the published joint key without changing its unpadded base64 encoding.
+pub fn parse_public_key(
+    config: &BallotStyle,
+) -> Result<<RistrettoCtx as Context>::Element, BallotError> {
+    let published = config.public_key.as_ref().ok_or_else(|| {
+        BallotError::ConsistencyCheck("Missing Public Key".into())
+    })?;
+    let bytes = general_purpose::STANDARD_NO_PAD
+        .decode(&published.public_key)
+        .map_err(|e| BallotError::Serialization(e.to_string()))?;
+    <RistrettoCtx as Context>::Element::deser(&bytes)
+        .map_err(|e| BallotError::Serialization(e.to_string()))
 }
 
-pub fn parse_public_key<C: Ctx>(
-    election: &BallotStyle,
-) -> Result<C::E, BallotError> {
-    let public_key_config: PublicKeyConfig = election
-        .public_key
-        .clone()
-        .ok_or(BallotError::ConsistencyCheck(
-            "Missing Public Key".to_string(),
-        ))?;
-    Base64Deserialize::deserialize(public_key_config.public_key)
-}
-
-pub fn recreate_encrypt_cyphertext<C: Ctx>(
-    ctx: &C,
-    ballot: &AuditableBallot,
-) -> Result<Vec<ReplicationChoice<C>>, BallotError> {
-    let public_key = parse_public_key::<C>(&ballot.config)?;
-    // check ballot version
-    // sanity checks for number of candidates/choices
-    if ballot.contests.len() != ballot.config.votable_contests().count() {
-        return Err(BallotError::ConsistencyCheck(String::from(
-            "Number of election contests should match number of candidates in the ballot",
-        )));
+/// The keys ceremony UUID is exactly the Configuration.id used by trustees.
+pub fn ballot_configuration_id(
+    config: &BallotStyle,
+) -> Result<u128, BallotError> {
+    let published = config.public_key.as_ref().ok_or_else(|| {
+        BallotError::ConsistencyCheck("Missing Public Key".into())
+    })?;
+    if let Some(id) = &published.configuration_id {
+        let parsed: u128 = id.parse().map_err(|e| {
+            BallotError::ConsistencyCheck(format!(
+                "Invalid cryptographic configuration ID: {e}"
+            ))
+        })?;
+        if parsed.to_string() != *id {
+            return Err(BallotError::ConsistencyCheck(
+                "Noncanonical cryptographic configuration ID".into(),
+            ));
+        }
+        return Ok(parsed);
     }
+    match (&published.keys_ceremony_id, published.is_demo) {
+        (Some(id), _) => uuid::Uuid::parse_str(id)
+            .map(|id| id.as_u128())
+            .map_err(|e| {
+                BallotError::ConsistencyCheck(format!(
+                    "Invalid keys ceremony UUID: {e}"
+                ))
+            }),
+        (None, true) => Ok(0),
+        (None, false) => Err(BallotError::ConsistencyCheck(
+            "Missing keys ceremony UUID for ballot encryption".into(),
+        )),
+    }
+}
 
-    let contests: Vec<AuditableBallotContest<C>> =
-        ballot.deserialize_contests::<C>()?;
+/// Verify canonical ciphertext proofs and their complete ordered contest coverage
+/// against a trusted published style. Client-supplied keys and contexts are never used.
+pub fn verify_ballot_ciphertexts(
+    entries: &[BallotCiphertext],
+    style: &BallotStyle,
+    policy: ContestEncryptionPolicy,
+) -> Result<(), BallotError> {
+    let expected: Vec<String> = style
+        .votable_contests()
+        .map(|contest| contest.id.clone())
+        .collect();
+    let actual: Vec<Vec<String>> = entries
+        .iter()
+        .map(|entry| entry.contest_ids.clone())
+        .collect();
+    let expected_groups = match policy {
+        ContestEncryptionPolicy::SINGLE_CONTEST => {
+            expected.into_iter().map(|id| vec![id]).collect()
+        }
+        ContestEncryptionPolicy::MULTIPLE_CONTESTS => vec![expected],
+    };
+    if actual != expected_groups {
+        return Err(BallotError::ConsistencyCheck(
+            "Ciphertext contest coverage differs from the published style"
+                .into(),
+        ));
+    }
+    let public_key = parse_public_key(style)?;
+    let configuration_id = ballot_configuration_id(style)?;
+    for entry in entries {
+        entry
+            .verify(configuration_id, &public_key)
+            .map_err(|error| {
+                BallotError::ConsistencyCheck(format!(
+                    "Invalid ciphertext proof: {error}"
+                ))
+            })?;
+    }
+    Ok(())
+}
 
-    contests
-        .clone()
+/// Encrypt the ballot codec's payload with wbraid's Naor–Yung tooling.
+pub fn encrypt_plaintext_candidate(
+    _ctx: &RistrettoCtx,
+    public_key: <RistrettoCtx as Context>::Element,
+    plaintext: [u8; 30],
+    configuration_id: u128,
+) -> Result<ReplicationChoice, BallotError> {
+    let (ciphertext, randomness) =
+        encrypt_payload(configuration_id, &public_key, &plaintext)
+            .map_err(|e| BallotError::Serialization(e.to_string()))?;
+    Ok(ReplicationChoice {
+        ciphertext,
+        plaintext,
+        randomness,
+    })
+}
+
+/// Audit the published ciphertext against the revealed plaintext and randomness.
+pub fn recreate_encrypt_cyphertext(
+    _ctx: &RistrettoCtx,
+    ballot: &AuditableBallot,
+) -> Result<Vec<ReplicationChoice>, BallotError> {
+    let public_key = parse_public_key(&ballot.config)?;
+    let configuration_id = ballot_configuration_id(&ballot.config)?;
+    if ballot.contests.len() != ballot.config.votable_contests().count() {
+        return Err(BallotError::ConsistencyCheck("Number of election contests should match number of candidates in the ballot".into()));
+    }
+    ballot
+        .deserialize_contests()?
         .into_iter()
-        .map(|contests| {
-            recreate_encrypt_candidate(ctx, &public_key, &contests.choice)
+        .map(|contest| {
+            recreate_encrypt_candidate(
+                &public_key,
+                configuration_id,
+                &contest.choice,
+            )
         })
-        .collect::<Vec<Result<ReplicationChoice<C>, BallotError>>>()
-        .into_iter()
         .collect()
 }
 
-fn recreate_encrypt_candidate<C: Ctx>(
-    ctx: &C,
-    public_key_element: &C::E,
-    choice: &ReplicationChoice<C>,
-) -> Result<ReplicationChoice<C>, BallotError> {
-    // construct a public key from a provided element
-    let public_key = PublicKey::from_element(public_key_element, ctx);
-
-    let encoded = ctx.encode(&choice.plaintext).unwrap();
-
-    // encrypt / create ciphertext
-    let ciphertext =
-        public_key.encrypt_with_randomness(&encoded, &choice.randomness);
-
-    // convert to output format
-    Ok(ReplicationChoice {
-        ciphertext: ciphertext,
-        plaintext: choice.plaintext.clone(),
-        randomness: choice.randomness.clone(),
-    })
+pub(crate) fn recreate_encrypt_candidate(
+    public_key: &<RistrettoCtx as Context>::Element,
+    configuration_id: u128,
+    choice: &ReplicationChoice,
+) -> Result<ReplicationChoice, BallotError> {
+    let entry = BallotCiphertext::new(Vec::new(), choice.ciphertext.clone());
+    verify_opening(
+        &entry,
+        configuration_id,
+        public_key,
+        &choice.plaintext,
+        &choice.randomness,
+    )
+    .map_err(|e| BallotError::ConsistencyCheck(e.to_string()))?;
+    Ok(choice.clone())
 }
 
 /// The selections that are actually encoded into the ballot, one per votable
@@ -322,8 +368,8 @@ pub fn encode_to_plaintext_decoded_multi_contest(
     Ok((plaintext, ballot_choices))
 }
 
-pub fn encrypt_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
-    ctx: &C,
+pub fn encrypt_decoded_multi_contest(
+    _ctx: &RistrettoCtx,
     decoded_contests: &Vec<DecodedVoteContest>,
     config: &BallotStyle,
 ) -> Result<AuditableMultiBallot, BallotError> {
@@ -347,17 +393,18 @@ pub fn encrypt_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
         counting_algorithm,
     );
 
-    encrypt_multi_ballot(ctx, &ballot, config)
+    encrypt_multi_ballot(_ctx, &ballot, config)
 }
 
-pub fn encrypt_decoded_contest<C: Ctx<P = [u8; 30]>>(
-    ctx: &C,
+pub fn encrypt_decoded_contest(
+    _ctx: &RistrettoCtx,
     decoded_contests: &Vec<DecodedVoteContest>,
     config: &BallotStyle,
 ) -> Result<AuditableBallot, BallotError> {
-    let public_key: C::E = parse_public_key::<C>(&config)?;
+    let public_key: <RistrettoCtx as Context>::Element =
+        parse_public_key(&config)?;
 
-    let mut contests: Vec<AuditableBallotContest<C>> = vec![];
+    let mut contests: Vec<AuditableBallotContest> = vec![];
 
     // An acclaimed contest has no ciphertext of its own, so it contributes
     // nothing to the ballot.
@@ -380,23 +427,22 @@ pub fn encrypt_decoded_contest<C: Ctx<P = [u8; 30]>>(
                     err
                 ))
             })?;
-        let (choice, proof) = encrypt_plaintext_candidate(
-            ctx,
+        let choice = encrypt_plaintext_candidate(
+            _ctx,
             public_key.clone(),
             plaintext,
-            &DEFAULT_PLAINTEXT_LABEL,
+            ballot_configuration_id(config)?,
         )?;
-        contests.push(AuditableBallotContest::<C> {
+        contests.push(AuditableBallotContest {
             contest_id: contest.id.clone(),
             choice: choice,
-            proof: proof,
         });
     }
 
     let mut auditable_ballot = AuditableBallot {
         version: TYPES_VERSION,
         issue_date: get_current_date(),
-        contests: AuditableBallot::serialize_contests::<C>(&contests)?,
+        contests: AuditableBallot::serialize_contests(&contests)?,
         ballot_hash: String::from(""),
         config: config.clone(),
         voter_signing_pk: None,
@@ -414,8 +460,18 @@ pub fn encrypt_decoded_contest<C: Ctx<P = [u8; 30]>>(
 
 pub fn hash_ballot_style_sha512(
     ballot_style: &BallotStyle,
-) -> Result<Hash, StrandError> {
-    let bytes = ballot_style.strand_serialize()?;
+) -> AnyhowResult<Hash> {
+    let mut bytes = ballot_style.record_serialize()?;
+    if ballot_style.public_key.as_ref().is_some_and(|key| {
+        key.configuration_id.is_some() || key.keys_ceremony_id.is_some()
+    }) {
+        bytes.extend_from_slice(b"sequent-wbraid-ballot-context-v3");
+        bytes.extend_from_slice(
+            &ballot_configuration_id(ballot_style)
+                .map_err(|error| anyhow!("{error:?}"))?
+                .to_be_bytes(),
+        );
+    }
     hash::hash_to_array(&bytes)
 }
 
@@ -430,12 +486,11 @@ pub fn hash_ballot_style(
 
 pub fn hash_ballot_sha512(
     hashable_ballot: &HashableBallot,
-) -> Result<Hash, StrandError> {
-    let raw_hashable_ballot =
-        RawHashableBallot::<RistrettoCtx>::try_from(hashable_ballot)
-            .map_err(|error| StrandError::Generic(format!("{:?}", error)))?;
+) -> AnyhowResult<Hash> {
+    let raw_hashable_ballot = RawHashableBallot::try_from(hashable_ballot)
+        .map_err(|error| anyhow!("{error:?}"))?;
 
-    let bytes = raw_hashable_ballot.strand_serialize()?;
+    let bytes = raw_hashable_ballot.ser();
     hash::hash_to_array(&bytes)
 }
 
@@ -461,8 +516,8 @@ pub fn hash_ballot(
 /// Multi ballots
 ////////////////////////////////////////////////////////////////
 
-pub fn encrypt_multi_ballot<C: Ctx<P = [u8; 30]>>(
-    ctx: &C,
+pub fn encrypt_multi_ballot(
+    _ctx: &RistrettoCtx,
     ballot_choices: &BallotChoices,
     config: &BallotStyle,
 ) -> Result<AuditableMultiBallot, BallotError> {
@@ -491,7 +546,8 @@ pub fn encrypt_multi_ballot<C: Ctx<P = [u8; 30]>>(
         )));
     }
 
-    let public_key: C::E = parse_public_key::<C>(&config)?;
+    let public_key: <RistrettoCtx as Context>::Element =
+        parse_public_key(&config)?;
     let plaintext =
         ballot_choices.encode_to_30_bytes(&config).map_err(|err| {
             BallotError::Serialization(format!(
@@ -501,23 +557,22 @@ pub fn encrypt_multi_ballot<C: Ctx<P = [u8; 30]>>(
         })?;
     let contest_ids = ballot_choices.get_contest_ids();
 
-    let (choice, proof) = encrypt_plaintext_candidate(
-        ctx,
+    let choice = encrypt_plaintext_candidate(
+        _ctx,
         public_key.clone(),
         plaintext,
-        &DEFAULT_PLAINTEXT_LABEL,
+        ballot_configuration_id(config)?,
     )?;
 
     let contests = AuditableMultiBallotContests {
         contest_ids,
         choice,
-        proof,
     };
 
     let mut auditable_ballot = AuditableMultiBallot {
         version: TYPES_VERSION,
         issue_date: get_current_date(),
-        contests: AuditableMultiBallot::serialize_contests::<C>(&contests)?,
+        contests: AuditableMultiBallot::serialize_contests(&contests)?,
         ballot_hash: String::from(""),
         config: config.clone(),
         voter_signing_pk: None,
@@ -541,17 +596,18 @@ pub fn hash_multi_ballot(
 
 pub fn hash_multi_ballot_sha512(
     hashable_ballot: &HashableMultiBallot,
-) -> Result<Hash, StrandError> {
-    let raw_hashable_ballot =
-        RawHashableMultiBallot::<RistrettoCtx>::try_from(hashable_ballot)
-            .map_err(|error| StrandError::Generic(format!("{:?}", error)))?;
+) -> AnyhowResult<Hash> {
+    let raw_hashable_ballot = RawHashableMultiBallot::try_from(hashable_ballot)
+        .map_err(|error| anyhow!("{error:?}"))?;
 
-    let bytes = raw_hashable_ballot.strand_serialize()?;
+    let bytes = raw_hashable_ballot.ser();
     hash::hash_to_array(&bytes)
 }
 
 #[cfg(test)]
 mod tests {
+    use super::{encrypt_decoded_contest, verify_ballot_ciphertexts};
+    use crate::ballot::{ContestEncryptionPolicy, SignedHashableBallot};
     use crate::ballot_codec::bigint;
     use crate::ballot_codec::plaintext_contest::PlaintextCodec;
     use crate::ballot_codec::vec;
@@ -561,26 +617,84 @@ mod tests {
     use crate::serialization::deserialize_with_path::deserialize_value;
     use crate::util::normalize_vote::normalize_vote_contest;
 
-    use strand::backend::ristretto::RistrettoCtx;
-    use strand::context::Ctx;
-    use strand::rng::StrandRng;
+    use cryptography::context::Context;
+    use cryptography::context::RistrettoCtx;
+
+    #[test]
+    fn published_style_binds_ciphertexts_to_ceremony_and_contest_order() {
+        let mut style = get_writein_ballot_style();
+        let first = get_writein_plaintext();
+        let mut second_contest = style.contests[0].clone();
+        second_contest.id = "87654321-4321-4321-9321-cba987654321".into();
+        let mut second = first.clone();
+        second.contest_id = second_contest.id.clone();
+        style.contests.push(second_contest);
+        let choices = vec![first, second];
+        let published = style.public_key.as_mut().unwrap();
+        published.is_demo = false;
+        published.keys_ceremony_id =
+            Some("12345678-1234-4234-9234-123456789abc".into());
+        let ballot =
+            encrypt_decoded_contest(&RistrettoCtx, &choices, &style).unwrap();
+        let signed = SignedHashableBallot::try_from(&ballot).unwrap();
+        let entries = signed.deserialize_contests().unwrap();
+        verify_ballot_ciphertexts(
+            &entries,
+            &style,
+            ContestEncryptionPolicy::SINGLE_CONTEST,
+        )
+        .unwrap();
+
+        let mut foreign_style = style.clone();
+        foreign_style.public_key.as_mut().unwrap().keys_ceremony_id =
+            Some("87654321-4321-4321-9321-cba987654321".into());
+        assert!(verify_ballot_ciphertexts(
+            &entries,
+            &foreign_style,
+            ContestEncryptionPolicy::SINGLE_CONTEST
+        )
+        .is_err());
+        let mut substituted = entries.clone();
+        substituted[0].contest_ids = vec!["another-contest".into()];
+        assert!(verify_ballot_ciphertexts(
+            &substituted,
+            &style,
+            ContestEncryptionPolicy::SINGLE_CONTEST
+        )
+        .is_err());
+        assert!(verify_ballot_ciphertexts(
+            &entries[..entries.len() - 1],
+            &style,
+            ContestEncryptionPolicy::SINGLE_CONTEST
+        )
+        .is_err());
+        let mut duplicated = entries.clone();
+        duplicated.push(entries[0].clone());
+        assert!(verify_ballot_ciphertexts(
+            &duplicated,
+            &style,
+            ContestEncryptionPolicy::SINGLE_CONTEST
+        )
+        .is_err());
+        assert!(verify_ballot_ciphertexts(
+            &entries,
+            &style,
+            ContestEncryptionPolicy::MULTIPLE_CONTESTS
+        )
+        .is_err());
+    }
 
     #[test]
     fn test_encrypt_plaintext_candidate() {
-        let mut csprng = StrandRng;
         let ctx = RistrettoCtx;
 
-        let (pk_string, pk_element) = encrypt::default_public_key_ristretto();
+        let (pk_string, pk_element) =
+            encrypt::default_public_key_ristretto().unwrap();
 
-        let plaintext = ctx.rnd_plaintext(&mut csprng);
+        let plaintext = [0x5a; 30];
 
-        encrypt::encrypt_plaintext_candidate(
-            &ctx,
-            pk_element,
-            plaintext,
-            &encrypt::DEFAULT_PLAINTEXT_LABEL,
-        )
-        .unwrap();
+        encrypt::encrypt_plaintext_candidate(&ctx, pk_element, plaintext, 0)
+            .unwrap();
         assert_eq!(
             pk_string.as_str(),
             encrypt::DEFAULT_PUBLIC_KEY_RISTRETTO_STR
@@ -597,18 +711,15 @@ mod tests {
         let plaintext_bytes_vec = contest
             .encode_plaintext_contest_to_bytes(&decoded_contest)
             .unwrap(); // compare
-        let auditable_ballot =
-            encrypt::encrypt_decoded_contest::<RistrettoCtx>(
-                &ctx,
-                &vec![decoded_contest.clone()],
-                &ballot_style,
-            )
-            .unwrap();
-        let contests = auditable_ballot
-            .deserialize_contests::<RistrettoCtx>()
-            .unwrap();
+        let auditable_ballot = encrypt::encrypt_decoded_contest(
+            &ctx,
+            &vec![decoded_contest.clone()],
+            &ballot_style,
+        )
+        .unwrap();
+        let contests = auditable_ballot.deserialize_contests().unwrap();
         let plaintext = contests[0].choice.plaintext.clone();
-        let plaintext_vec = vec::decode_array_to_vec(&plaintext); // compare
+        let plaintext_vec = vec::decode_array_to_vec(&plaintext).unwrap(); // compare
         assert_eq!(plaintext_vec, plaintext_bytes_vec);
         assert_eq!(plaintext_vec, vec![198, 20, 150, 48]);
         let decoded_plaintext =
@@ -683,7 +794,7 @@ mod tests {
         let ctx = RistrettoCtx;
 
         // encrypt ballot
-        let auditable_ballot = encrypt_decoded_contest::<RistrettoCtx>(
+        let auditable_ballot = encrypt_decoded_contest(
             &ctx,
             &decoded_contests,
             &election,

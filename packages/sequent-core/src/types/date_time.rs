@@ -8,6 +8,9 @@ use serde::{Deserialize, Serialize};
 pub enum TimeZone {
     UTC,
     Offset(i32), // Offset in hours, e.g., +1 or -4
+    /// Offset in minutes east of UTC, for zones that are not whole hours
+    /// (+5:30 is 330, +5:45 is 345).
+    OffsetMinutes(i32),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

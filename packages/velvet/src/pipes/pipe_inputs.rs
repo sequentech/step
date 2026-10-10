@@ -281,11 +281,12 @@ impl PipeInputs {
             let part = component.as_os_str().to_string_lossy();
 
             if let Some(res) = part.strip_prefix(prefix) {
-                let slice = &res[res.len() - UUID_LEN..];
-                // Check if the string length is at least 36
+                // Folder names are external input. Check the byte length before
+                // subtraction, then use get() so a UTF-8 boundary cannot panic.
                 if res.len() >= UUID_LEN {
-                    // Use the last 36 characters for UUID parsing
-                    return Uuid::parse_str(slice).ok();
+                    return res
+                        .get(res.len() - UUID_LEN..)
+                        .and_then(|suffix| Uuid::parse_str(suffix).ok());
                 }
             }
         }

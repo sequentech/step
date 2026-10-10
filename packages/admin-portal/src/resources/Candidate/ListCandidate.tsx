@@ -10,16 +10,25 @@ import {
     TextInput,
     BooleanInput,
     ReferenceField,
+    FunctionField,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {Typography} from "@mui/material"
 import {generateRowClickHandler} from "../../services/RowClickService"
 import {useTenantStore} from "../../providers/TenantContextProvider"
+import {electionSearchQuery, electionSearchText} from "../../services/ElectionSearch"
+import {usePresentationName} from "../../hooks/usePresentationName"
 
 const OMIT_FIELDS = ["id", "type", "is_public"]
 
 const Filters: Array<ReactElement> = [
-    <TextInput label="Name" source="name" key={0} />,
+    <TextInput
+        label="Name"
+        source="_or"
+        key={0}
+        parse={electionSearchQuery}
+        format={electionSearchText}
+    />,
     <TextInput label="Description" source="description" key={1} />,
     <TextInput label="ID" source="id" key={2} />,
     <BooleanInput label="Is Public" source="is_public" key={3} />,
@@ -34,6 +43,7 @@ export interface ListCandidateProps {
 export const ListCandidate: React.FC<ListCandidateProps> = ({aside}) => {
     const [tenantId] = useTenantStore()
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
+    const presentationName = usePresentationName()
 
     const rowClickHandler = generateRowClickHandler(["election_event_id", "contest_id"])
 
@@ -51,7 +61,7 @@ export const ListCandidate: React.FC<ListCandidateProps> = ({aside}) => {
             >
                 <DatagridConfigurable rowClick={rowClickHandler} omit={OMIT_FIELDS}>
                     <TextField source="id" />
-                    <TextField source="name" />
+                    <FunctionField label="Name" render={presentationName} />
                     <TextField source="description" />
                     <TextField source="type" />
                     <BooleanField source="is_public" />
@@ -59,10 +69,10 @@ export const ListCandidate: React.FC<ListCandidateProps> = ({aside}) => {
                         source="election_event_id"
                         reference="sequent_backend_election_event"
                     >
-                        <TextField source="name" />
+                        <FunctionField render={presentationName} />
                     </ReferenceField>
                     <ReferenceField source="contest_id" reference="sequent_backend_contest">
-                        <TextField source="name" />
+                        <FunctionField render={presentationName} />
                     </ReferenceField>
                 </DatagridConfigurable>
             </List>

@@ -1,0 +1,43 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+[package]
+name = "messaging"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0-only"
+description = "Provider adapters, delivery attempts and webhook verification for voter messaging"
+
+[dependencies]
+sequent-core = { path = "../sequent-core" }
+anyhow = { workspace = true }
+async-trait = "0.1"
+aws-config = "1.6"
+aws-credential-types = "1"
+aws-sdk-sesv2 = "1.70"
+aws-sdk-sns = "1.63"
+chrono = { version = "0.4", features = ["serde"] }
+hex = "0.4"
+hmac = "0.12"
+openssl = "0.10"
+lettre = { version = "0.11", features = ["rustls-tls", "smtp-transport", "builder"] }
+rand = "0.8"
+reqwest = { version = "0.12", features = ["json"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = "0.10"
+strum = "0.27"
+strum_macros = "0.27"
+tokio = { workspace = true }
+tracing = "0.1"
+urlencoding = "2.1"
+
+[features]
+# The loopback HTTP peer used by adapter tests, for other crates' tests.
+test-support = []
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
+
+[lints.rust]
+unsafe_code = "forbid"

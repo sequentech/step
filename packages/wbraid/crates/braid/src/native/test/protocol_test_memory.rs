@@ -80,10 +80,8 @@ async fn run_with_width<C: Context, const W: usize>(ciphertexts: u32) -> Result<
     // 1-based trustee indices; the chosen subset is the mixing/decrypting set and
     // its order is the mixing order.
     let all: Vec<TrusteeIndex> = (1..=n_trustees).collect();
-    let mixing_trustees: Vec<TrusteeIndex> = all
-        .sample(&mut setup_rng, n_threshold)
-        .cloned()
-        .collect();
+    let mixing_trustees: Vec<TrusteeIndex> =
+        all.sample(&mut setup_rng, n_threshold).cloned().collect();
 
     let now = Instant::now();
 

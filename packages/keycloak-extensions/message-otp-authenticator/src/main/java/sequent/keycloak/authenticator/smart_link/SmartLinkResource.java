@@ -83,7 +83,7 @@ public class SmartLinkResource extends AbstractAdminResource {
     boolean sent = false;
     if (sendNotification) {
       sent = SmartLink.sendSmartLinkNotification(session, user, link);
-      log.infof("sent notification to %s? %b. Link? %s", request.getEmailOrUsername(), sent, link);
+      log.infof("sent notification to %s? %b", request.getEmailOrUsername(), sent);
     }
 
     SmartLinkResponse response = new SmartLinkResponse();

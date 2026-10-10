@@ -497,7 +497,11 @@ pub async fn get_object_into_temp_file(
     let mut stream = response.body.into_async_read();
     let mut buffer = [0u8; 1024]; // Adjust buffer size as needed
 
-    while let Ok(size) = stream.read(&mut buffer).await {
+    loop {
+        let size = stream
+            .read(&mut buffer)
+            .await
+            .with_context(|| "Error reading the object from S3")?;
         if size == 0 {
             break; // End of file
         }

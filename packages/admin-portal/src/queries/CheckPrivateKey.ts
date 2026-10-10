@@ -8,15 +8,25 @@ export const CHECK_PRIVATE_KEY = gql`
         $electionEventId: String!
         $keysCeremonyId: String!
         $privateKeyBase64: String!
+        $keyShareSha256: String
+        $signingRequestId: uuid
     ) {
         check_private_key(
             object: {
                 election_event_id: $electionEventId
                 keys_ceremony_id: $keysCeremonyId
                 private_key_base64: $privateKeyBase64
+                key_share_sha256: $keyShareSha256
+                signing_request_id: $signingRequestId
             }
         ) {
             is_valid
+            signing_request {
+                id
+                code
+                required
+                expires_at
+            }
         }
     }
 `

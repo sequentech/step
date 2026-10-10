@@ -3,11 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::electoral_log_board::get_election_board;
 use super::jwks::remove_realm_jwks;
-use super::legacy_board::get_b3_pgsql_client;
 use crate::postgres::election::get_elections;
 use crate::services::electoral_log_board::get_event_board;
 use crate::services::electoral_log_board::get_immudb_client;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, ensure, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use futures::future::try_join_all;
@@ -39,51 +38,56 @@ pub async fn delete_keycloak_realm(realm: &str) -> Result<()> {
     Ok(())
 }
 
-#[instrument(err)]
-pub async fn delete_event_b3(
-    hasura_transaction: &Transaction<'_>,
+/// Retire protocol boards while preserving their signed records.
+pub async fn archive_protocol_boards(
+    transaction: &Transaction<'_>,
     tenant_id: &str,
-    election_event_id: &str,
+    event_id: &str,
 ) -> Result<()> {
-    let mut board_client = get_b3_pgsql_client().await?;
-    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-    let board_name = get_event_board(tenant_id, election_event_id, &slug);
-
-    let elections = get_elections(&hasura_transaction, tenant_id, election_event_id).await?;
-    board_client.delete_board(board_name.as_str()).await?;
-
-    for election in elections {
-        let board_name = get_election_board(tenant_id, &election.id, &slug);
-        board_client.delete_board(board_name.as_str()).await?;
+    let boards = crate::postgres::protocol_board::get_event_protocol_boards(
+        transaction,
+        tenant_id,
+        event_id,
+    )
+    .await?;
+    if boards.is_empty() {
+        return Ok(());
     }
-
-    Ok(())
-}
-
-#[instrument(err)]
-pub async fn delete_election_event_b3(
-    tenant_id: &str,
-    election_event_id: &str,
-    election_ids: &Vec<String>,
-) -> Result<()> {
-    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-    let board_name = get_event_board(tenant_id, election_event_id, &slug);
-    let mut board_client = get_b3_pgsql_client().await?;
-    let existing: Option<b4::client::pgsql::B3IndexRow> =
-        board_client.get_board(board_name.as_str()).await?;
-
-    if existing.is_some() {
-        board_client.delete_board(board_name.as_str()).await?;
-    }
-
-    for election_id in election_ids {
-        let board_name = get_election_board(tenant_id, &election_id, &slug);
-        let existing: Option<b4::client::pgsql::B3IndexRow> =
-            board_client.get_board(board_name.as_str()).await?;
-
-        if existing.is_some() {
-            board_client.delete_board(board_name.as_str()).await?;
-        }
+    // Refuse before touching the independent board store when application
+    // metadata would prevent the surrounding deletion from committing.
+    let cleanup_allowed: bool = transaction
+        .query_one(
+            "SELECT NOT EXISTS (
+                SELECT 1 FROM pg_constraint
+                WHERE conrelid = 'sequent_backend.protocol_board'::regclass
+                  AND contype = 'f'
+                  AND confrelid IN (
+                      'sequent_backend.election_event'::regclass,
+                      'sequent_backend.keys_ceremony'::regclass,
+                      'sequent_backend.tally_session'::regclass,
+                      'sequent_backend.protocol_board'::regclass
+                  )
+                  AND confdeltype <> 'c'
+            )",
+            &[],
+        )
+        .await?
+        .get(0);
+    ensure!(
+        cleanup_allowed,
+        "protocol board metadata currently restricts election event deletion"
+    );
+    let url = std::env::var("WBRAID_BOARD_DATABASE_URL")
+        .context("WBRAID_BOARD_DATABASE_URL must be set")?;
+    let db = wbraid_b4::db::BoardDb::open_url(&url).await?;
+    let pool = db
+        .postgres_pool()
+        .context("native board archive requires PostgreSQL")?;
+    for row in boards {
+        sqlx::query("UPDATE boards SET status='archived' WHERE name=$1")
+            .bind(&row.name)
+            .execute(pool)
+            .await?;
     }
     Ok(())
 }

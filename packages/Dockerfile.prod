@@ -2,7 +2,20 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM node:20-alpine as builder
+# Optional offline dependency source. The default, scratch, copies an empty
+# directory into the builder and leaves the online build byte-identical. Point it
+# at packages/Dockerfile.offline-dependencies' output to resolve dependencies from
+# vendored inputs instead of a registry:
+#   --build-arg VENDOR_IMAGE=sequentech.local/offline-dependencies:latest
+#
+# This is not yet enough for --network=none: the stages below still install
+# operating-system packages, and some download tools over HTTPS. See the scope
+# note in packages/Dockerfile.offline-dependencies for the full list.
+# See sequentech/meta#13625.
+ARG VENDOR_IMAGE=scratch
+FROM ${VENDOR_IMAGE} AS vendor
+
+FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 as builder
 WORKDIR /usr/src/app/
 
 
@@ -13,11 +26,22 @@ COPY ./voting-portal ./voting-portal
 COPY ./admin-portal ./admin-portal
 COPY ./ballot-verifier ./ballot-verifier
 COPY ./results-portal ./results-portal
+# The portals list it as a dev dependency, so the workspace has to be present
+# for yarn to resolve it, even though the image does not build it.
+COPY ./ui-test-kit ./ui-test-kit
 COPY ./package.json ./package.json
 COPY ./yarn.lock ./yarn.lock
 
-# Install dependencies
-RUN yarn install --frozen-lockfile --non-interactive
+# Install dependencies. With a vendor image supplied, resolve them from its
+# offline mirror instead of the registry; otherwise fetch as before.
+COPY --from=vendor / /vendor/
+RUN if [ -d /vendor/npm-packages-offline-cache ]; then \
+        printf 'yarn-offline-mirror "/vendor/npm-packages-offline-cache"\nyarn-offline-mirror-pruning false\n' > .yarnrc && \
+        echo "offline build: using vendored packages from /vendor/npm-packages-offline-cache" && \
+        yarn install --frozen-lockfile --offline --non-interactive; \
+    else \
+        yarn install --frozen-lockfile --non-interactive; \
+    fi
 
 ARG SPA_NAME
 
@@ -28,9 +52,11 @@ RUN yarn build:${SPA_NAME}
 
 
 
-FROM nginx:alpine
+FROM nginx:alpine@sha256:df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2
 # Install dependencies
-RUN apk add --no-cache jq
+# apk logs the time of the install; removed so the layer is the same every build.
+RUN apk add --no-cache jq=1.8.2-r0 \
+    && rm -f /var/log/apk.log
 # Remove default nginx static assets
 RUN rm -rf /usr/share/nginx/html/*
 # Copy custom NGINX config

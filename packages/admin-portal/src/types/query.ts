@@ -87,6 +87,7 @@ export const sequent_backend_tally_sheet: Sequent_Backend_Tally_Sheet = {
     election_event_id: "",
     election_id: "",
     id: "",
+    import_id: undefined,
     labels: undefined,
     last_updated_at: undefined,
     reviewed_at: undefined,

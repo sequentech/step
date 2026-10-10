@@ -7,16 +7,23 @@ use anyhow::Result;
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
-use strand::hash::STRAND_HASH_LENGTH_BYTES;
-use strand::serialization::StrandSerialize;
-use strand::signature::StrandSignature;
-use strand::signature::StrandSignaturePk;
-use strand::signature::StrandSignatureSk;
 use tracing::instrument;
+use voting_crypto::hash::HASH_LENGTH_BYTES;
+use voting_crypto::signing::Signature;
+use voting_crypto::signing::SigningKey;
+use voting_crypto::signing::VerificationKey;
+use voting_crypto::RecordSerialize;
 
 use crate::messages::statement::Statement;
 use crate::messages::statement::StatementBody;
+use crate::messages::statement::StatementEventType;
 use crate::messages::statement::StatementHead;
+use crate::messages::statement::{
+    ballot_box_seal_failed_description, ballot_box_sealed_description,
+    tally_ballot_box_rejected_description, tally_ballot_box_verified_description,
+};
+use crate::seal::BallotBoxSealManifest;
+use voting_crypto::hash::Hash;
 
 use super::newtypes::*;
 use crate::messages::newtypes::{
@@ -32,8 +39,8 @@ pub const GENERIC_EVENT: &'static str = "Generic Event";
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, std::fmt::Debug)]
 pub struct Message {
     pub sender: Sender,
-    pub sender_signature: StrandSignature,
-    pub system_signature: StrandSignature,
+    pub sender_signature: Signature,
+    pub system_signature: Signature,
     pub statement: Statement,
     pub artifact: Option<Vec<u8>>,
     pub user_id: Option<String>,
@@ -206,7 +213,7 @@ impl Message {
             .0
             .into_inner()
             .iter()
-            .take(STRAND_HASH_LENGTH_BYTES / 2)
+            .take(HASH_LENGTH_BYTES / 2)
             .map(|b| format!("{:02x}", b))
             .collect();
 
@@ -246,15 +253,26 @@ impl Message {
         )
     }
 
+    /// `configuration` is the signed configuration the event was imported
+    /// from, with the designs this publication published; `None` for an
+    /// event that was not imported from a package.
     pub fn election_published_message(
         event: EventIdString,
         election: ElectionIdString,
         ballot_pub_id: BallotPublicationIdString,
+        configuration: Option<PublishedConfiguration>,
         sd: &SigningData,
         user_id: Option<String>,
         username: Option<String>,
     ) -> Result<Self> {
-        let body = StatementBody::ElectionPublish(election.clone(), ballot_pub_id);
+        let body = match configuration {
+            Some(configuration) => StatementBody::ElectionPublishWithConfiguration(
+                election.clone(),
+                ballot_pub_id,
+                configuration,
+            ),
+            None => StatementBody::ElectionPublish(election.clone(), ballot_pub_id),
+        };
         Self::from_body(event, body, sd, user_id, username, election.0, None, None)
     }
 
@@ -441,6 +459,107 @@ impl Message {
         Self::from_body(event, body, sd, user_id, username, None, None, None)
     }
 
+    pub fn monitoring_config_changed_message(
+        event: EventIdString,
+        details: MonitoringConfigChangeDetails,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::MonitoringConfigChanged(event.clone(), details);
+        Self::from_body(event, body, sd, user_id, username, None, None, None)
+    }
+
+    pub fn configuration_package_message(
+        event: EventIdString,
+        details: ConfigurationPackageDetails,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::ConfigurationPackage(event.clone(), details);
+        Self::from_body(event, body, sd, user_id, username, None, None, None)
+    }
+
+    /// The hash manifest of a generated report. The entry is the user's
+    /// when one asked for the report, and the system's otherwise.
+    pub fn report_generated_message(
+        event: EventIdString,
+        details: ReportGeneratedDetails,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::ReportGenerated(event.clone(), details);
+        let event_type = match (&user_id, &username) {
+            (None, None) => StatementEventType::SYSTEM,
+            _ => StatementEventType::USER,
+        };
+        let head = StatementHead {
+            event_type,
+            ..StatementHead::from_body(event, &body)
+        };
+        Message::sign(
+            Statement::new(head, body),
+            None,
+            &sd.sender_sk,
+            &sd.sender_name,
+            &sd.system_sk,
+            user_id,
+            username,
+            None,
+            None,
+            None,
+        )
+    }
+
+    pub fn approval_matrix_updated_message(
+        event: EventIdString,
+        version: ApprovalMatrixVersion,
+        digest: ApprovalMatrixDigestString,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::ApprovalMatrixUpdated(event.clone(), version, digest);
+        Self::from_body(event, body, sd, user_id, username, None, None, None)
+    }
+
+    /// One entry of a signing step. The worker that posts the outbox calls
+    /// it twice per step: for the USER entry with the person's user id and
+    /// username, and for the SYSTEM entry without them. `timestamp` is when
+    /// the step happened (the outbox row's `occurred_at`), not when the
+    /// entry is posted.
+    #[allow(clippy::too_many_arguments)]
+    pub fn signing_message(
+        event: EventIdString,
+        entry: SigningLogEntry,
+        timestamp: Timestamp,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+        election_id: Option<String>,
+        area_id: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::Signing(entry);
+        let head = StatementHead {
+            timestamp,
+            ..StatementHead::from_body(event, &body)
+        };
+        Message::sign(
+            Statement::new(head, body),
+            None,
+            &sd.sender_sk,
+            &sd.sender_name,
+            &sd.system_sk,
+            user_id,
+            username,
+            election_id,
+            area_id,
+            None,
+        )
+    }
+
     pub fn results_publication_action_message(
         event: EventIdString,
         details: ResultsPublicationDetails,
@@ -577,6 +696,129 @@ impl Message {
         )
     }
 
+    /// The `BallotBoxSealed` entry of a sealed ballot box (VOTE-FREEZE). Every
+    /// field comes from the built manifest, and the head's timestamp is its
+    /// seal time, so the statement and the manifest cannot disagree. The
+    /// row's election_id and area_id are set.
+    pub fn ballot_box_sealed_message(
+        manifest: &BallotBoxSealManifest,
+        seal_hash: Hash,
+        election_name: &str,
+        area_name: &str,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        let body = StatementBody::BallotBoxSealed(
+            ElectionIdString(Some(manifest.election_id.clone())),
+            AreaIdString(manifest.area_id.clone()),
+            SealHash::new(seal_hash),
+            manifest.ballots_in_box(),
+            manifest.ballots_counted(),
+            manifest.close_request_id.clone(),
+        );
+        let mut head =
+            StatementHead::from_body(EventIdString(manifest.election_event_id.clone()), &body);
+        head.timestamp = manifest.sealed_at;
+        head.description = ballot_box_sealed_description(
+            election_name,
+            area_name,
+            manifest.ballots_counted(),
+            manifest.ballots_in_box(),
+        );
+        Self::sign_ballot_box(head, body, sd, &manifest.election_id, &manifest.area_id)
+    }
+
+    /// The ERROR entry of a ballot box that could not be sealed; the box
+    /// stays locked (VOTE-FREEZE).
+    pub fn ballot_box_seal_failed_message(
+        event: EventIdString,
+        election_id: &str,
+        area_id: &str,
+        election_name: &str,
+        area_name: &str,
+        reason: String,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        let description = ballot_box_seal_failed_description(election_name, area_name, &reason);
+        let body = StatementBody::BallotBoxSealFailed(
+            ElectionIdString(Some(election_id.to_string())),
+            AreaIdString(area_id.to_string()),
+            reason,
+        );
+        let mut head = StatementHead::from_body(event, &body);
+        head.description = description;
+        Self::sign_ballot_box(head, body, sd, election_id, area_id)
+    }
+
+    /// The tally checked a ballot box against its seal (VOTE-FREEZE).
+    pub fn tally_ballot_box_verified_message(
+        event: EventIdString,
+        election_id: &str,
+        area_id: &str,
+        election_name: &str,
+        area_name: &str,
+        seal_hash: Hash,
+        counted: u64,
+        tally_session_id: String,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        let body = StatementBody::TallyBallotBoxVerified(
+            ElectionIdString(Some(election_id.to_string())),
+            AreaIdString(area_id.to_string()),
+            SealHash::new(seal_hash),
+            counted,
+            tally_session_id,
+        );
+        let mut head = StatementHead::from_body(event, &body);
+        head.description = tally_ballot_box_verified_description(election_name, area_name, counted);
+        Self::sign_ballot_box(head, body, sd, election_id, area_id)
+    }
+
+    /// The ERROR entry of a ballot box that does not match its seal
+    /// (VOTE-FREEZE); `what_differs` says how, e.g. `SealDiff::describe`.
+    pub fn tally_ballot_box_rejected_message(
+        event: EventIdString,
+        election_id: &str,
+        area_id: &str,
+        election_name: &str,
+        area_name: &str,
+        what_differs: String,
+        tally_session_id: String,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        let description =
+            tally_ballot_box_rejected_description(election_name, area_name, &what_differs);
+        let body = StatementBody::TallyBallotBoxRejected(
+            ElectionIdString(Some(election_id.to_string())),
+            AreaIdString(area_id.to_string()),
+            what_differs,
+            tally_session_id,
+        );
+        let mut head = StatementHead::from_body(event, &body);
+        head.description = description;
+        Self::sign_ballot_box(head, body, sd, election_id, area_id)
+    }
+
+    fn sign_ballot_box(
+        head: StatementHead,
+        body: StatementBody,
+        sd: &SigningData,
+        election_id: &str,
+        area_id: &str,
+    ) -> Result<Self> {
+        Message::sign(
+            Statement::new(head, body),
+            None,
+            &sd.sender_sk,
+            &sd.sender_name,
+            &sd.system_sk,
+            None,
+            None,
+            Some(election_id.to_string()),
+            Some(area_id.to_string()),
+            None,
+        )
+    }
+
     fn from_body(
         event: EventIdString,
         body: StatementBody,
@@ -607,19 +849,19 @@ impl Message {
     pub fn sign(
         statement: Statement,
         artifact: Option<Vec<u8>>,
-        sender_sk: &StrandSignatureSk,
+        sender_sk: &SigningKey,
         sender_name: &str,
-        system_sk: &StrandSignatureSk,
+        system_sk: &SigningKey,
         user_id: Option<String>,
         username: Option<String>,
         election_id: Option<String>,
         area_id: Option<String>,
         ballot_id: Option<String>,
     ) -> Result<Message> {
-        let bytes = statement.strand_serialize()?;
-        let sender_signature: StrandSignature = sender_sk.sign(&bytes)?;
-        let system_signature: StrandSignature = system_sk.sign(&bytes)?;
-        let sender_pk = StrandSignaturePk::from_sk(&sender_sk)?;
+        let bytes = statement.record_serialize()?;
+        let sender_signature: Signature = sender_sk.sign(&bytes)?;
+        let system_signature: Signature = system_sk.sign(&bytes)?;
+        let sender_pk = VerificationKey::from_sk(&sender_sk)?;
         let sender = Sender::new(sender_name.to_string(), sender_pk);
 
         Ok(Message {
@@ -636,8 +878,8 @@ impl Message {
         })
     }
 
-    pub fn verify(&self, system_pk: &StrandSignaturePk) -> Result<()> {
-        let bytes = self.statement.strand_serialize()?;
+    pub fn verify(&self, system_pk: &VerificationKey) -> Result<()> {
+        let bytes = self.statement.record_serialize()?;
         self.sender.pk.verify(&self.sender_signature, &bytes)?;
         system_pk.verify(&self.system_signature, &bytes)?;
 
@@ -661,8 +903,8 @@ impl TryFrom<&Message> for ElectoralLogMessage {
             created: crate::timestamp() as i64,
             statement_timestamp: message.statement.head.timestamp as i64,
             statement_kind: message.statement.head.kind.to_string(),
-            message: message.strand_serialize()?,
-            sender_pk: message.sender.pk.to_der_b64_string()?,
+            message: message.record_serialize()?,
+            sender_pk: message.sender.pk.to_b64_string()?,
             version,
             user_id: message.user_id.clone(),
             username: message.username.clone(),
@@ -676,25 +918,21 @@ impl TryFrom<&Message> for ElectoralLogMessage {
 #[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, std::fmt::Debug)]
 pub struct Sender {
     pub name: String,
-    pub pk: StrandSignaturePk,
+    pub pk: VerificationKey,
 }
 impl Sender {
-    pub fn new(name: String, pk: StrandSignaturePk) -> Sender {
+    pub fn new(name: String, pk: VerificationKey) -> Sender {
         Sender { name, pk }
     }
 }
 
 pub struct SigningData {
-    sender_sk: StrandSignatureSk,
+    sender_sk: SigningKey,
     sender_name: String,
-    system_sk: StrandSignatureSk,
+    system_sk: SigningKey,
 }
 impl SigningData {
-    pub fn new(
-        sender_sk: StrandSignatureSk,
-        sender_name: &str,
-        system_sk: StrandSignatureSk,
-    ) -> SigningData {
+    pub fn new(sender_sk: SigningKey, sender_name: &str, system_sk: SigningKey) -> SigningData {
         SigningData {
             sender_sk,
             sender_name: sender_name.to_string(),
@@ -704,87 +942,5 @@ impl SigningData {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn results_publication_message_keeps_actor_and_action_details() -> Result<()> {
-        let signing_data = SigningData::new(
-            StrandSignatureSk::generate()?,
-            "admin",
-            StrandSignatureSk::generate()?,
-        );
-        let details = ResultsPublicationDetails {
-            publication_id: ResultsPublicationIdString("publication-id".to_string()),
-            action: ResultsPublicationAction::Revoke,
-            route_scope: ResultsPublicationRouteScopeString("event".to_string()),
-            route_election_id: ElectionIdString(None),
-            access: ResultsPublicationAccessString("public".to_string()),
-            visibility_scope: ResultsPublicationVisibilityScopeString("full_event".to_string()),
-            contest_ids: vec![ContestIdString("contest-id".to_string())],
-        };
-
-        let message = Message::results_publication_action_message(
-            EventIdString("event-id".to_string()),
-            details,
-            &signing_data,
-            Some("user-id".to_string()),
-            Some("username".to_string()),
-        )?;
-
-        assert_eq!(message.user_id.as_deref(), Some("user-id"));
-        assert_eq!(message.username.as_deref(), Some("username"));
-        assert!(matches!(
-            message.statement.body,
-            StatementBody::ResultsPublicationAction(ResultsPublicationDetails {
-                action: ResultsPublicationAction::Revoke,
-                ..
-            })
-        ));
-        Ok(())
-    }
-
-    #[test]
-    fn only_channel_aware_cast_votes_use_schema_version_two() -> Result<()> {
-        let signing_data = SigningData::new(
-            StrandSignatureSk::generate()?,
-            "windmill",
-            StrandSignatureSk::generate()?,
-        );
-        let legacy = Message::cast_vote_message(
-            EventIdString("event-id".to_string()),
-            ElectionIdString(Some("election-id".to_string())),
-            PseudonymHash::new([1; 64]),
-            CastVoteHash::new([2; 64]),
-            &signing_data,
-            VoterIpString("ip".to_string()),
-            VoterCountryString("country".to_string()),
-            Some("voter-id".to_string()),
-            None,
-            "area-id".to_string(),
-        )?;
-        let with_channel = Message::cast_vote_with_channel_message(
-            EventIdString("event-id".to_string()),
-            ElectionIdString(Some("election-id".to_string())),
-            PseudonymHash::new([1; 64]),
-            CastVoteHash::new([2; 64]),
-            &signing_data,
-            VoterIpString("ip".to_string()),
-            VoterCountryString("country".to_string()),
-            VotingChannelString("TELEPHONE".to_string()),
-            Some("voter-id".to_string()),
-            None,
-            "area-id".to_string(),
-        )?;
-
-        let legacy_row: ElectoralLogMessage = (&legacy).try_into()?;
-        let with_channel_row: ElectoralLogMessage = (&with_channel).try_into()?;
-        assert_eq!(legacy_row.version, "1");
-        assert_eq!(with_channel_row.version, "2");
-        assert_eq!(
-            with_channel.statement.head.description,
-            "Inserted cast vote. Voting channel: TELEPHONE."
-        );
-        Ok(())
-    }
-}
+#[path = "../../tests/support/message_tests.rs"]
+mod tests;

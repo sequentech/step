@@ -15,7 +15,6 @@ import {
     List,
     TextField,
     useRecordContext,
-    DateField,
     Identifier,
     ReferenceArrayField,
     SingleFieldList,
@@ -23,10 +22,11 @@ import {
     FunctionField,
     RaRecord,
 } from "react-admin"
-import {Button, Typography, Chip, Alert, Box} from "@mui/material"
+import {AdminDateField} from "@/components/AdminDateTime"
+import {Button, Typography, Chip, Alert, Box, Tooltip} from "@mui/material"
 import {theme, IconButton} from "@sequentech/ui-essentials"
 import {AdminWizard} from "@/components/keys-ceremony/AdminWizard"
-import {TrusteeWizard, isTrusteeParticipating} from "@/components/keys-ceremony/TrusteeWizard"
+import {TrusteeWizard, isTrusteeActionable} from "@/components/keys-ceremony/TrusteeWizard"
 import {statusColor} from "@/components/keys-ceremony/CeremonyStep"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -37,6 +37,7 @@ import {AuthContext, AuthContextValues} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import FileOpenIcon from "@mui/icons-material/FileOpen"
 import KeyIcon from "@mui/icons-material/Key"
+import DescriptionIcon from "@mui/icons-material/Description"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {ListActions} from "../../components/ListActions"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
@@ -99,7 +100,7 @@ const getActiveCeremony = (
     if (!keyCeremonies) {
         return
     } else {
-        return keyCeremonies.find((ceremony) => isTrusteeParticipating(ceremony, authContext))
+        return keyCeremonies.find((ceremony) => isTrusteeActionable(ceremony, authContext))
     }
 }
 
@@ -241,6 +242,11 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
         }
     }
 
+    const isCeremonyActionable = (id: Identifier): boolean => {
+        const ceremony = getCeremony(id)
+        return !!ceremony && isTrusteeActionable(ceremony, authContext)
+    }
+
     const actions: Action[] = [
         {
             icon: <FileOpenIcon className="keys-view-admin-icon" />,
@@ -248,9 +254,23 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
             showAction: (id: Identifier) => canAdminCeremony && !!getCeremony(id),
         },
         {
-            icon: <TrusteeKeyIcon className="keys-view-trustee-icon" />,
+            icon: (
+                <Tooltip title={String(t("electionEventScreen.keys.actions.participate"))}>
+                    <TrusteeKeyIcon className="keys-view-trustee-icon" />
+                </Tooltip>
+            ),
             action: viewTrusteeCeremony,
-            showAction: (id: Identifier) => canTrusteeCeremony && !!getCeremony(id),
+            showAction: (id: Identifier) => canTrusteeCeremony && isCeremonyActionable(id),
+        },
+        {
+            icon: (
+                <Tooltip title={String(t("electionEventScreen.keys.actions.view"))}>
+                    <DescriptionIcon className="keys-view-trustee-status-icon" />
+                </Tooltip>
+            ),
+            action: viewTrusteeCeremony,
+            showAction: (id: Identifier) =>
+                canTrusteeCeremony && !!getCeremony(id) && !isCeremonyActionable(id),
         },
     ]
 
@@ -328,9 +348,9 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                     >
                         <TextField source="id" />
                         <TextField source="name" />
-                        <DateField
+                        <AdminDateField
                             source="created_at"
-                            showTime={true}
+                            seconds
                             label={String(t("electionEventScreen.keys.started"))}
                         />
 

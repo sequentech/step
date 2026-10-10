@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {EChannelSelection, IInstantMessageConfig} from "./messaging"
 
 export enum EIntegrityCheckError {
     IO_ERROR = "io-error",
@@ -30,13 +31,19 @@ export enum ITemplateMethod {
     EMAIL = "EMAIL",
     SMS = "SMS",
     DOCUMENT = "DOCUMENT",
+    WHATSAPP = "WHATSAPP",
+    VIBER = "VIBER",
+    MESSENGER = "MESSENGER",
 }
 
-export interface IEmail {
-    subject: string
-    plaintext_body: string
-    html_body: string
-}
+/** Methods that send a message to the voter, in the order they are offered. */
+export const MESSAGE_TEMPLATE_METHODS: ITemplateMethod[] = [
+    ITemplateMethod.EMAIL,
+    ITemplateMethod.SMS,
+    ITemplateMethod.WHATSAPP,
+    ITemplateMethod.VIBER,
+    ITemplateMethod.MESSENGER,
+]
 
 export interface IEmail {
     subject: string
@@ -48,11 +55,7 @@ export interface ISmsConfig {
     message: string
 }
 
-export interface IMethods {
-    [ITemplateMethod.EMAIL]: boolean
-    [ITemplateMethod.SMS]: boolean
-    [ITemplateMethod.DOCUMENT]: boolean
-}
+export type IMethods = Partial<Record<ITemplateMethod, boolean>>
 
 export interface ISendTemplateBody {
     audience_selection?: IAudienceSelection
@@ -65,6 +68,10 @@ export interface ISendTemplateBody {
     document?: string
     email?: IEmail
     sms?: ISmsConfig
+    whatsapp?: IInstantMessageConfig
+    viber?: IInstantMessageConfig
+    messenger?: IInstantMessageConfig
+    channel_selection?: EChannelSelection
     pdf_options?: IPdfOptions
     selected_methods?: IMethods
     secret_attribute_names?: string[]

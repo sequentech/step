@@ -9,7 +9,7 @@ license = "AGPL-3.0-only"
 
 [dependencies]
 protocol-board = { path = "../protocol-board" }
-wbraid = { workspace = true }
+wbraid = { workspace = true, features = ["native"] }
 vsc = { workspace = true }
 
 anyhow = { workspace = true }
@@ -17,6 +17,7 @@ async-trait = "0.1"
 clap = { version = "4.5", features = ["derive"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 serde = { workspace = true }
+serde_json = { workspace = true }
 # braid's transport and persistence futures are not `Send`: one thread.
 tokio = { version = "1.40", features = ["rt", "macros", "time", "signal"] }
 tracing = "0.1"

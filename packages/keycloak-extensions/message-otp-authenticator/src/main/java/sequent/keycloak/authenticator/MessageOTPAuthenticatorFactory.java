@@ -99,15 +99,28 @@ public class MessageOTPAuthenticatorFactory
         new ProviderConfigProperty(
             Utils.MESSAGE_COURIER_ATTRIBUTE,
             "Message Courier",
-            "Choose if the message is going to be sent via email, sms or both.",
+            "Choose if the message is going to be sent via email, sms or both, or on the one"
+                + " channel the voter chooses among the event's channels for codes (CHOSEN).",
             ProviderConfigProperty.LIST_TYPE,
             Utils.MessageCourier.BOTH.name());
     messageCourier.setOptions(
         asList(
             Utils.MessageCourier.BOTH.name(),
             Utils.MessageCourier.SMS.name(),
-            Utils.MessageCourier.EMAIL.name()));
+            Utils.MessageCourier.EMAIL.name(),
+            Utils.MessageCourier.CHOSEN.name()));
+    ProviderConfigProperty codeProgress =
+        new ProviderConfigProperty(
+            CodeProgress.POLICY,
+            "Code progress",
+            "SHOW tells the user which of the flow's codes the page asks for (\"Code 1 of 2\")"
+                + " when the flow asks for more than one; NONE doesn't.",
+            ProviderConfigProperty.LIST_TYPE,
+            CodeProgressPolicy.NONE.name());
+    codeProgress.setOptions(
+        java.util.Arrays.stream(CodeProgressPolicy.values()).map(Enum::name).toList());
     return List.of(
+        codeProgress,
         new ProviderConfigProperty(
             Utils.ONE_TIME_LINK,
             "Use OTL instead of OTP",
@@ -164,6 +177,12 @@ public class MessageOTPAuthenticatorFactory
             "Time in seconds the resend code gets re activated",
             ProviderConfigProperty.STRING_TYPE,
             Utils.RESEND_ACTIVATION_TIMER_DEFAULT),
+        new ProviderConfigProperty(
+            Utils.MAX_CODE_ATTEMPTS,
+            "Maximum attempts per code",
+            "Wrong codes allowed before the code is invalidated and a new one must be requested",
+            ProviderConfigProperty.STRING_TYPE,
+            Utils.MAX_CODE_ATTEMPTS_DEFAULT),
         new ProviderConfigProperty(
             Utils.TEST_MODE_ATTRIBUTE,
             "Test Mode",

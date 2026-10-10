@@ -77,3 +77,7 @@ pub async fn start_server() {
     // Start the server
     warp::serve(routes).run(([0, 0, 0, 0], 8080)).await;
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/render_contracts.rs"]
+mod tests;

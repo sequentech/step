@@ -1,27 +1,21 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
-//
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
+
 use crate::postgres::election::get_elections;
-use crate::postgres::keys_ceremony::get_keys_ceremonies;
-use crate::postgres::trustee::get_all_trustees;
+use crate::postgres::protocol_board::get_event_protocol_boards;
 use crate::services::electoral_log_board::{
     get_election_board, get_event_board, get_protocol_manager_secret_path,
 };
-use crate::services::legacy_board::{get_b3_pgsql_client, get_keys_ceremony_board};
+use crate::services::protocol_board::{board_handle, manager_key_vault_path};
 use crate::services::vault;
-use anyhow::{anyhow, Context, Result};
-use b4::client::pgsql::B3MessageRow;
-use base64::engine::general_purpose;
-use base64::Engine;
-use deadpool_postgres::{Client as DbClient, Transaction};
-use futures::future::try_join_all;
+use anyhow::{anyhow, ensure, Context, Result};
+use base64::{engine::general_purpose::STANDARD, Engine};
+use deadpool_postgres::Transaction;
+use protocol_board::BoardName;
 use regex::Regex;
-use sequent_core::util::aws::get_max_upload_size;
-use sequent_core::util::temp_path::generate_temp_file;
-use std::collections::HashMap;
+use sequent_core::util::{aws::get_max_upload_size, temp_path::generate_temp_file};
 use std::sync::LazyLock;
-use tempfile::{NamedTempFile, TempPath};
-use tracing::{event, info, instrument, Level};
+use tempfile::TempPath;
 
 pub static HEADER_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^[a-zA-Z0-9._-]+$").expect("Failed to build header regex"));
@@ -31,168 +25,84 @@ pub static CREATED_COL_NAME: &str = "created";
 pub static SENDER_PK_COL_NAME: &str = "sender_pk";
 pub static STATEMENT_TIMESTAMP_COL_NAME: &str = "statement_timestamp";
 pub static STATEMENT_COL_NAME: &str = "statement_kind";
-pub static BATCH_COL_NAME: &str = "batch";
-pub static MIX_NUMBER_COL_NAME: &str = "mix_number";
 pub static MESSAGE_COL_NAME: &str = "message";
 pub static VERSION_COL_NAME: &str = "version";
-pub static TRUSTEE_NAME_COL_NAME: &str = "trustee";
-pub static TRUSTEE_CONFIG_COL_NAME: &str = "config";
 
-#[instrument]
-fn get_board_record(election_id: &str, row: B3MessageRow) -> Vec<String> {
-    let message_b64 = general_purpose::STANDARD_NO_PAD.encode(row.message.clone());
-    vec![
-        election_id.to_string(),
-        row.id.to_string(),
-        row.created.to_string(),
-        row.sender_pk.to_string(),
-        row.statement_timestamp.to_string(),
-        row.statement_kind.clone(),
-        row.batch.to_string(),
-        row.mix_number.to_string(),
-        message_b64,
-        row.version.clone(),
-    ]
-}
+pub const PROTOCOL_ARCHIVE_HEADERS: [&str; 2] = ["board_name", "canonical_message"];
 
-#[instrument(err)]
-async fn create_boards_csv(boards_map: HashMap<String, Vec<B3MessageRow>>) -> Result<TempPath> {
-    let mut writer = csv::WriterBuilder::new().delimiter(b',').from_writer(
-        generate_temp_file("export-boards-", ".csv")
-            .with_context(|| "Error creating temporary file")?,
+fn finish(writer: csv::Writer<tempfile::NamedTempFile>) -> Result<TempPath> {
+    let path = writer.into_inner()?.into_temp_path();
+    ensure!(
+        path.metadata()?.len() <= get_max_upload_size()? as u64,
+        "board archive exceeds upload size limit"
     );
-    let headers: Vec<String> = vec![
-        ELECTION_ID_COL_NAME.to_string(),
-        ID_COL_NAME.to_string(),
-        CREATED_COL_NAME.to_string(),
-        SENDER_PK_COL_NAME.to_string(),
-        STATEMENT_TIMESTAMP_COL_NAME.to_string(),
-        STATEMENT_COL_NAME.to_string(),
-        BATCH_COL_NAME.to_string(),
-        MIX_NUMBER_COL_NAME.to_string(),
-        MESSAGE_COL_NAME.to_string(),
-        VERSION_COL_NAME.to_string(),
-    ];
-    writer.write_record(&headers)?;
-    for (board_name, board_rows) in boards_map {
-        for board_row in board_rows {
-            let record = get_board_record(&board_name, board_row);
-            writer
-                .write_record(&record)
-                .with_context(|| "Error writing record")?;
-        }
-    }
-    writer
-        .flush()
-        .with_context(|| "Error flushing CSV writer")?;
-
-    let temp_path = writer
-        .into_inner()
-        .with_context(|| "Error getting inner writer")?
-        .into_temp_path();
-
-    let size = temp_path.metadata()?.len();
-    if size > get_max_upload_size()? as u64 {
-        return Err(anyhow!("File too large: {} > {}", size, get_max_upload_size()?).into());
-    }
-
-    Ok(temp_path)
+    Ok(path)
 }
 
-#[instrument(err, skip(transaction))]
 pub async fn read_election_event_boards(
     transaction: &Transaction<'_>,
     tenant_id: &str,
-    election_event_id: &str,
+    event_id: &str,
+    include_tally: bool,
 ) -> Result<TempPath> {
-    let keys_ceremonies = get_keys_ceremonies(transaction, tenant_id, election_event_id).await?;
-    let b3_client = get_b3_pgsql_client().await?;
-    let mut boards_map: HashMap<String, Vec<B3MessageRow>> = HashMap::new();
-    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-
-    // event board
+    let mut writer = csv::Writer::from_writer(generate_temp_file("export-boards-", ".csv")?);
+    writer.write_record(PROTOCOL_ARCHIVE_HEADERS)?;
+    for row in get_event_protocol_boards(transaction, tenant_id, event_id)
+        .await?
+        .into_iter()
+        .filter(|row| include_tally || row.parent_id.is_none())
     {
-        let board_name = get_event_board(tenant_id, election_event_id, &slug);
-
-        let b3_messages = b3_client.get_messages(&board_name, -1).await?;
-        boards_map.insert("".to_string(), b3_messages);
+        let name = BoardName::parse(&row.name)?;
+        for message in board_handle(&name)?.export_messages().await? {
+            writer.write_record([name.to_string(), STANDARD.encode(message)])?;
+        }
     }
-
-    // elections
-    let elections = get_elections(transaction, tenant_id, election_event_id).await?;
-    for election in elections {
-        let board_name = get_election_board(tenant_id, &election.id, &slug);
-        let b3_messages = b3_client.get_messages(&board_name, -1).await?;
-        boards_map.insert(election.id.clone(), b3_messages);
-    }
-
-    create_boards_csv(boards_map).await
+    writer.flush()?;
+    finish(writer)
 }
 
-#[instrument(err, skip(transaction))]
 pub async fn read_protocol_manager_keys(
     transaction: &Transaction<'_>,
     tenant_id: &str,
-    election_event_id: &str,
+    event_id: &str,
 ) -> Result<TempPath> {
-    let mut writer = csv::WriterBuilder::new().delimiter(b',').from_writer(
-        generate_temp_file("export-protocol-keys-", ".csv")
-            .with_context(|| "Error creating temporary file")?,
+    let mut writer = csv::Writer::from_writer(generate_temp_file("export-protocol-keys-", ".csv")?);
+    writer.write_record(["election_id", "key"])?;
+    let slug = std::env::var("ENV_SLUG").context("missing ENV_SLUG")?;
+    let mut identities = vec![(String::new(), get_event_board(tenant_id, event_id, &slug))];
+    identities.extend(
+        get_elections(transaction, tenant_id, event_id)
+            .await?
+            .into_iter()
+            .map(|e| (e.id.clone(), get_election_board(tenant_id, &e.id, &slug))),
     );
-    let headers = vec!["election_id".to_string(), "key".to_string()];
-    writer.write_record(&headers)?;
-    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-
-    // first the event board
+    for (id, name) in identities {
+        let key = vault::read_secret(
+            transaction,
+            tenant_id,
+            Some(event_id),
+            &get_protocol_manager_secret_path(&name),
+        )
+        .await?
+        .ok_or_else(|| anyhow!("audit signing identity is missing"))?;
+        writer.write_record([id, key])?;
+    }
+    for row in get_event_protocol_boards(transaction, tenant_id, event_id)
+        .await?
+        .into_iter()
+        .filter(|row| row.parent_id.is_none())
     {
-        let board_name = get_event_board(tenant_id, election_event_id, &slug);
-        let protocol_manager_key = get_protocol_manager_secret_path(&board_name);
-        let protocol_manager_data = vault::read_secret(
+        let name = BoardName::parse(&row.name)?;
+        let key = vault::read_secret(
             transaction,
             tenant_id,
-            Some(election_event_id),
-            &protocol_manager_key,
+            Some(event_id),
+            &manager_key_vault_path(&name),
         )
         .await?
-        .ok_or(anyhow!("protocol manager secret not found"))?;
-        let record = vec!["".into(), protocol_manager_data];
-        writer
-            .write_record(&record)
-            .with_context(|| "Error writing record")?;
+        .ok_or_else(|| anyhow!("protocol manager identity is missing"))?;
+        writer.write_record([format!("protocol:{}", row.name), key])?;
     }
-
-    // now loop over all elections
-    let elections = get_elections(transaction, tenant_id, election_event_id).await?;
-
-    for election in elections {
-        let board_name = get_election_board(tenant_id, &election.id, &slug);
-        let protocol_manager_key = get_protocol_manager_secret_path(&board_name);
-        let protocol_manager_data = vault::read_secret(
-            transaction,
-            tenant_id,
-            Some(election_event_id),
-            &protocol_manager_key,
-        )
-        .await?
-        .ok_or(anyhow!("protocol manager secret not found"))?;
-        let record = vec![election.id.clone(), protocol_manager_data];
-        writer
-            .write_record(&record)
-            .with_context(|| "Error writing record")?;
-    }
-    writer
-        .flush()
-        .with_context(|| "Error flushing CSV writer")?;
-
-    let temp_path = writer
-        .into_inner()
-        .with_context(|| "Error getting inner writer")?
-        .into_temp_path();
-
-    let size = temp_path.metadata()?.len();
-    if size > get_max_upload_size()? as u64 {
-        return Err(anyhow!("File too large: {} > {}", size, get_max_upload_size()?).into());
-    }
-
-    Ok(temp_path)
+    writer.flush()?;
+    finish(writer)
 }

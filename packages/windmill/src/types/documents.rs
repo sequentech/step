@@ -23,6 +23,8 @@ pub enum EDocuments {
     IMAGES,
     ELECTION_EVENT_CONFIG,
     CERTIFICATES,
+    /// The staff issuers of signatures, apart from the voters' authorities.
+    STAFF_ISSUERS,
 }
 
 impl EDocuments {
@@ -45,6 +47,7 @@ impl EDocuments {
             EDocuments::IMAGES => "images",
             EDocuments::ELECTION_EVENT_CONFIG => "election_event_config",
             EDocuments::CERTIFICATES => "export_certificates",
+            EDocuments::STAFF_ISSUERS => "export_staff_issuers",
         }
     }
 }

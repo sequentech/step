@@ -3,9 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::ballot_publication::{
     get_ballot_publication_by_id, get_previous_publication, get_previous_publication_election,
-    insert_ballot_publication, soft_delete_other_ballot_publications, update_ballot_publication,
+    insert_ballot_publication, lock_publication_event, soft_delete_other_ballot_publications,
+    update_ballot_publication,
 };
 use crate::postgres::ballot_style::get_publication_ballot_styles;
+use crate::postgres::contest::export_contests;
 use crate::postgres::election::{get_election_by_id, get_elections_ids, update_election_status};
 use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
 use crate::services::celery_app::get_celery_app;
@@ -15,12 +17,13 @@ use crate::services::electoral_log::*;
 use crate::services::tasks_execution::{
     post as post_task_execution, update_fail as update_task_execution_fail,
 };
+use crate::services::{enrollment_windows, realm_localization};
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 use crate::types::tasks::ETasksExecution;
 use anyhow::{anyhow, Context, Result};
 use chrono::{Local, Utc};
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{ElectionEventStatus, ElectionStatus};
+use sequent_core::ballot::{ElectionEventPresentation, ElectionEventStatus, ElectionStatus};
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::connection;
 use sequent_core::services::date::ISO8601;
@@ -29,9 +32,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use thiserror::Error;
-use tracing::{event, instrument, Level};
+use tracing::{error, event, instrument, Level};
 
 use super::ballot_style;
+use super::slates;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ContestAcclamationState {
@@ -47,7 +51,7 @@ pub struct BallotPublicationValidationError {
 }
 
 impl BallotPublicationValidationError {
-    fn new(reasons: Vec<String>) -> Self {
+    pub(super) fn new(reasons: Vec<String>) -> Self {
         let message = format!(
             "Ballot publication validation failed:\n- {}",
             reasons.join("\n- ")
@@ -164,24 +168,14 @@ fn election_has_started(status: &ElectionStatus) -> bool {
     .any(|started_at| started_at.is_some())
 }
 
-async fn validate_published_acclamation_status(
+/// The live ballot styles of each election in `ballot_publication` whose
+/// voting has started, one publication per election.
+async fn started_elections_published_styles(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     ballot_publication: &BallotPublication,
-) -> Result<()> {
-    let current = collect_acclamation_states(
-        &get_publication_json(
-            hasura_transaction,
-            tenant_id.to_owned(),
-            election_event_id.to_owned(),
-            ballot_publication.id.clone(),
-            None,
-            None,
-        )
-        .await?,
-    )?;
-    let mut previous = BTreeMap::new();
+) -> Result<Vec<Value>> {
     let election_ids = ballot_publication
         .election_ids
         .as_ref()
@@ -190,6 +184,7 @@ async fn validate_published_acclamation_status(
         return Err(anyhow!("Ballot publication has no election ids"));
     }
 
+    let mut publications = Vec::new();
     for election_id in election_ids {
         let election = get_election_by_id(
             hasura_transaction,
@@ -218,15 +213,81 @@ async fn validate_published_acclamation_status(
             continue;
         };
 
-        let publication = get_publication_json(
+        publications.push(
+            get_publication_json(
+                hasura_transaction,
+                tenant_id.to_owned(),
+                election_event_id.to_owned(),
+                previous_publication.id,
+                Some(election_id.clone()),
+                None,
+            )
+            .await?,
+        );
+    }
+    Ok(publications)
+}
+
+async fn validate_published_slates(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    ballot_publication: &BallotPublication,
+) -> Result<()> {
+    let current = get_publication_json(
+        hasura_transaction,
+        tenant_id.to_owned(),
+        election_event_id.to_owned(),
+        ballot_publication.id.clone(),
+        None,
+        None,
+    )
+    .await?;
+    let contests = export_contests(hasura_transaction, tenant_id, election_event_id).await?;
+    slates::validate_publication_slates(&current, &contests)?;
+
+    let previous = started_elections_published_styles(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        ballot_publication,
+    )
+    .await?
+    .into_iter()
+    .flat_map(|publication| match publication {
+        Value::Array(ballot_styles) => ballot_styles,
+        other => vec![other],
+    })
+    .collect();
+    slates::validate_slates_unchanged(&Value::Array(previous), &current)
+}
+
+async fn validate_published_acclamation_status(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    ballot_publication: &BallotPublication,
+) -> Result<()> {
+    let current = collect_acclamation_states(
+        &get_publication_json(
             hasura_transaction,
             tenant_id.to_owned(),
             election_event_id.to_owned(),
-            previous_publication.id,
-            Some(election_id.clone()),
+            ballot_publication.id.clone(),
+            None,
             None,
         )
-        .await?;
+        .await?,
+    )?;
+    let mut previous = BTreeMap::new();
+    for publication in started_elections_published_styles(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        ballot_publication,
+    )
+    .await?
+    {
         merge_acclamation_states(&mut previous, collect_acclamation_states(&publication)?)?;
     }
 
@@ -250,15 +311,16 @@ async fn get_election_ids_for_publication(
 }
 
 #[instrument(err)]
-pub async fn add_ballot_publication(
+pub async fn prepare_ballot_publication(
     hasura_transaction: &Transaction<'_>,
     tenant_id: String,
     election_event_id: String,
     election_id: Option<String>,
     user_id: String,
-    executer_name: &str,
-) -> Result<(String, TasksExecution)> {
-    let celery_app = get_celery_app().await;
+) -> Result<BallotPublication> {
+    // A queued worker takes this same lock before reading the publication.
+    // Hold it until commit while allowing the task ledger's foreign-key insert.
+    lock_publication_event(hasura_transaction, &tenant_id, &election_event_id).await?;
 
     let election_ids = get_election_ids_for_publication(
         hasura_transaction,
@@ -268,7 +330,7 @@ pub async fn add_ballot_publication(
     )
     .await?;
 
-    let ballot_publication = insert_ballot_publication(
+    insert_ballot_publication(
         hasura_transaction,
         &tenant_id.clone(),
         &election_event_id.clone(),
@@ -277,7 +339,27 @@ pub async fn add_ballot_publication(
         election_id.clone(),
     )
     .await?
-    .with_context(|| "can't find inserted ballot publication")?;
+    .with_context(|| "can't find inserted ballot publication")
+}
+
+#[instrument(err)]
+pub async fn add_ballot_publication(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: String,
+    election_event_id: String,
+    election_id: Option<String>,
+    user_id: String,
+    executer_name: &str,
+) -> Result<(String, TasksExecution)> {
+    let celery_app = get_celery_app().await;
+    let ballot_publication = prepare_ballot_publication(
+        hasura_transaction,
+        tenant_id.clone(),
+        election_event_id.clone(),
+        election_id,
+        user_id,
+    )
+    .await?;
 
     let task_execution = post_task_execution(
         &tenant_id,
@@ -323,7 +405,10 @@ pub async fn update_publish_ballot(
     tenant_id: String,
     election_event_id: String,
     ballot_publication_id: String,
+    lifecycle: &crate::services::scheduled_outcome::PublicationLifecycle,
 ) -> Result<()> {
+    lock_publication_event(hasura_transaction, &tenant_id, &election_event_id).await?;
+
     let ballot_publication = get_ballot_publication_by_id(
         &hasura_transaction,
         &tenant_id,
@@ -333,11 +418,23 @@ pub async fn update_publish_ballot(
     .await?
     .with_context(|| "Can't find ballot publication")?;
 
+    if ballot_publication.deleted_at.is_some() {
+        return Err(anyhow!("Cannot publish a deleted ballot publication"));
+    }
+
     if ballot_publication.is_generated.unwrap_or(false) == false {
         return Err(anyhow!(
             "Ballot publication not generated yet, can't publish."
         ));
     }
+
+    super::publication_files::prepare_publication_files(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication_id,
+    )
+    .await?;
 
     if ballot_publication.published_at.is_some() {
         return Ok(());
@@ -350,6 +447,30 @@ pub async fn update_publish_ballot(
         &ballot_publication,
     )
     .await?;
+
+    validate_published_slates(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication,
+    )
+    .await?;
+
+    let design_check = super::design_check::check_publication_designs(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication_id,
+    )
+    .await?;
+    if let Some(check) = &design_check {
+        if !check.mismatches.is_empty() {
+            return Err(BallotPublicationValidationError::new(
+                check.mismatches.iter().map(ToString::to_string).collect(),
+            )
+            .into());
+        }
+    }
 
     let _result = soft_delete_other_ballot_publications(
         &hasura_transaction,
@@ -367,6 +488,18 @@ pub async fn update_publish_ballot(
         &ballot_publication_id,
         true,
         Some(ISO8601::now()),
+    )
+    .await?;
+
+    // What the publication says scheduled openings and closings may do
+    // (VOTE-LIFECYCLE §5b): the current values, or what an approval signed.
+    crate::services::scheduled_outcome::keep_publication_lifecycle(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication_id,
+        ballot_publication.election_id.as_deref(),
+        lifecycle,
     )
     .await?;
 
@@ -424,12 +557,67 @@ pub async fn update_publish_ballot(
             election_event_id.clone(),
             Some(election_ids.clone()),
             ballot_publication_id.clone(),
+            design_check.map(super::design_check::DesignCheck::published),
             Some(user_id),
             Some(username),
         )
         .await
         .map_err(|e| anyhow!("error posting to the electoral log: {e}"))?;
+
+    sync_enrollment_pages(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        election_event.presentation.clone(),
+    )
+    .await;
     Ok(())
+}
+
+/// The enrollment pages (event realm) follow the published configuration:
+/// the event's timezone and enrollment texts, and each Post's enrollment
+/// window in its zone (VOTE-LIFECYCLE §4, §8). A Keycloak failure doesn't
+/// undo the publication: it is logged, and the next publication or
+/// enrollment schedule change writes both again.
+async fn sync_enrollment_pages(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    presentation: Option<Value>,
+) {
+    match presentation
+        .map(deserialize_value::<ElectionEventPresentation>)
+        .transpose()
+    {
+        Ok(presentation) => {
+            if let Err(err) = realm_localization::sync_event_realm_localization(
+                tenant_id,
+                election_event_id,
+                presentation.as_ref(),
+            )
+            .await
+            {
+                error!(
+                    "Publication of event {election_event_id}: the event realm's timezone and \
+                     enrollment texts were not updated: {err:?}"
+                );
+            }
+        }
+        Err(err) => error!(
+            "Publication of event {election_event_id}: unreadable event presentation, the event \
+             realm's timezone and enrollment texts were not updated: {err:?}"
+        ),
+    }
+    // In a savepoint, so a failed read can't abort the publication's transaction.
+    let refreshed =
+        enrollment_windows::refresh_in_savepoint(hasura_transaction, tenant_id, election_event_id)
+            .await;
+    if let Err(err) = refreshed {
+        error!(
+            "Publication of event {election_event_id}: the enrollment windows were not \
+             updated: {err:?}"
+        );
+    }
 }
 
 #[instrument(skip(hasura_transaction), err)]

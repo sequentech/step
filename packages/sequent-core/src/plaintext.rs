@@ -13,7 +13,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::collections::HashSet;
-use strand::context::Ctx;
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub enum InvalidPlaintextErrorType {
@@ -172,7 +171,7 @@ fn sorted_ids<'a>(ids: &HashSet<&'a str>) -> Vec<&'a str> {
     ids
 }
 
-pub fn map_to_decoded_contest<C: Ctx<P = [u8; 30]>>(
+pub fn map_to_decoded_contest(
     ballot: &AuditableBallot,
 ) -> Result<Vec<DecodedVoteContest>, String> {
     let mut decoded_contests = vec![];
@@ -198,7 +197,7 @@ pub fn map_to_decoded_contest<C: Ctx<P = [u8; 30]>>(
                     contest.contest_id
                 )
             })?;
-        let replication_choice: &ReplicationChoice<C> = &contest.choice;
+        let replication_choice: &ReplicationChoice = &contest.choice;
         let decoded_plaintext = found_contest
             .decode_plaintext_contest(&replication_choice.plaintext)?;
         decoded_contests.push(decoded_plaintext);
@@ -267,10 +266,10 @@ pub fn map_decoded_ballot_choices_to_decoded_contests(
     Ok(decoded_contests)
 }
 
-pub fn map_to_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
+pub fn map_to_decoded_multi_contest(
     ballot: &AuditableMultiBallot,
 ) -> Result<Vec<DecodedVoteContest>, String> {
-    let ballot_contests: AuditableMultiBallotContests<C> =
+    let ballot_contests: AuditableMultiBallotContests =
         ballot.deserialize_contests().map_err(|err| {
             format!(
                 "Error deserializing auditable multi ballot contest {:?}",
@@ -293,7 +292,7 @@ pub fn map_to_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
         format!("Error decoding multi ballot plaintext {:?}", err)
     })?;
 
-    let ballot_contests: AuditableMultiBallotContests<C> =
+    let ballot_contests: AuditableMultiBallotContests =
         ballot.deserialize_contests().map_err(|err| {
             format!("Error deserializing auditable ballot contest {:?}", err)
         })?;
@@ -355,6 +354,7 @@ mod acclaimed_contest_set_tests {
             election_annotations: None,
             area_annotations: None,
             multi_contest_encoding_mode: None,
+            ballot_box_key: None,
         }
     }
 

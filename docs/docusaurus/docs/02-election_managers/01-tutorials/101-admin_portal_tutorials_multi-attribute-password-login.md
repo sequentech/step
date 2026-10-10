@@ -210,6 +210,12 @@ the number of candidates and decryption still contribute to total request time.
 > Configuring more attributes narrows the candidate set before the password check, making the
 > single-candidate (fully protected) case the common one; keep **Brute Force Detection** enabled
 > at the realm level regardless.
+>
+> Voters who share the configured attribute(s) can log in at the same time without blocking each
+> other: while several candidates match, their lockout state is read without reserving them in
+> Keycloak's brute-force protector, and only the account that authenticates is checked through it.
+> Developers can verify this against a running environment with
+> `packages/keycloak-extensions/message-otp-authenticator/src/test/integration/concurrent-shared-dob-login.py`.
 
 ---
 

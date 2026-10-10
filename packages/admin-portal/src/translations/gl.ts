@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {TranslationType} from "./en"
+import englishTranslation, {TranslationType} from "./en"
 
 const galegoTranslation: TranslationType = {
     translations: {
@@ -212,6 +212,57 @@ const galegoTranslation: TranslationType = {
             exportdialog: {
                 description:
                     "Confirme que quere executar esta acción; pode levar un tempo executarse.",
+                title: "Exportar rexistros",
+                from: "Desde",
+                to: "Ata",
+                timeZone: "Fuso horario",
+                format: "Formato",
+                csv: "CSV",
+                pdf: "PDF",
+                zoneNote:
+                    "Cada fila conserva a súa hora en UTC (ISO 8601) e en {{abbr}}, co nome do fuso horario. O intervalo de datas inclúe ambos os extremos, en {{abbr}}.",
+                zoneNotePdf:
+                    "O PDF amosa cada hora en {{abbr}}. O intervalo de datas inclúe ambos os extremos, en {{abbr}}.",
+                rowZones: "O fuso horario da elección de cada fila",
+                zoneNoteRows:
+                    "Cada fila conserva a súa hora en UTC (ISO 8601) e no fuso horario da súa elección, co nome do fuso horario. O intervalo de datas inclúe ambos os extremos, en {{abbr}}.",
+                zoneNoteRowsPdf:
+                    "O PDF amosa cada hora no fuso horario da súa elección. O intervalo de datas inclúe ambos os extremos, en {{abbr}}.",
+            },
+            filter: {
+                createdFrom: "Creado desde",
+                createdTo: "ata",
+                statementTimestampFrom: "Marca de tempo da declaración desde",
+                statementTimestampTo: "Marca de tempo da declaración ata",
+                timeZone: "Fuso horario",
+            },
+            scheduledOutcome: {
+                outcome: {
+                    "waiting-for-initialization": "Agardando pola inicialización",
+                    "runs": "execútase",
+                    "runs-unsigned": "execútase sen sinaturas",
+                    "refused": "rexéitase",
+                },
+                check: {
+                    "initialization": "A inicialización requirida está incompleta",
+                    "voting-close": "A votación non pode abrirse despois do prazo de peche",
+                    "needs-signatures": "sinaturas necesarias",
+                    "covered": "na configuración asinada",
+                    "unsigned-close": "peche sen sinaturas",
+                    "stricter-copy": "configuración actual ou publicada",
+                    "defaults": "aínda non hai nada publicado",
+                },
+                changed: "Agora {{after}} (antes: {{before}}).",
+                result: "Resultado: {{outcome}}.",
+                deciding: "Comprobación decisiva: {{check}}. {{value}}",
+                authorizedBy: "Autorizado pola configuración {{code}}.",
+                nextStep: "Seguinte paso: {{step}}",
+                reason: {
+                    "ballot-box-seal-policy":
+                        "Mantense pechada: con Selar ao pechar, a votación que xa se pechou segue pechada.",
+                    "never-opened-kept-open":
+                        "Non hai nada que pechar segundo a programación: o Posto nunca se abriu, polo que queda como está.",
+                },
             },
             column: {
                 id: "ID",
@@ -232,6 +283,23 @@ const galegoTranslation: TranslationType = {
             },
             iam: {
                 title: "Rexistros da Base de Datos IAM",
+            },
+            ballotBoxSeal: {
+                sealHash: "Hash do selo: {{hash}}",
+                counted: "Contabilizáronse {{counted}} de {{inBox}} papeletas.",
+                notCounted_one:
+                    "A outra papeleta foi substituída por unha papeleta posterior do votante, descartada ou emitida por un votante non elixible.",
+                notCounted_other:
+                    "As outras {{count}} papeletas foron substituídas por unha papeleta posterior do votante, descartadas ou emitidas por un votante non elixible.",
+                closeRequest:
+                    "Pechada pola solicitude de sinatura de Pechar a votación {{request}}.",
+                noCloseRequest:
+                    "Pechada sen solicitude de sinatura de Pechar a votación (Detener Votación ou o peche programado).",
+                failedReason: "Motivo: {{reason}}",
+                failedLocked: "A urna segue bloqueada e non está selada: é unha incidencia.",
+                verifiedCounted: "Contabilizáronse {{counted}} papeletas a partir do selo.",
+                tallySession: "Sesión de escrutinio {{session}}.",
+                differs: "Diferenzas: {{differs}}",
             },
         },
         tasksScreen: {
@@ -254,8 +322,10 @@ const galegoTranslation: TranslationType = {
                 logs: "Rexistros",
             },
             tasksExecution: {
+                DELETE_TENANT: "Eliminar organización",
                 PUBLISH_BALLOT: "Publicar papeleta",
                 VOTER_INFORMATION_LETTER: "Carta de información para o votante",
+                EXPORT_MONITORING_DATA: "Exportar Datos de Monitorización",
                 EXPORT_ELECTION_EVENT: "Exportar evento electoral",
                 CREATE_ELECTION_EVENT: "Crear Evento Electoral",
                 IMPORT_ELECTION_EVENT: "Importar evento electoral",
@@ -300,6 +370,7 @@ const galegoTranslation: TranslationType = {
                 taskTitle: "Tarefa: {{title}}",
                 viewTask: "Ver Tarefa",
                 downloadDocument: "Descargar Archivo",
+                downloadHashManifest: "Manifesto de hashes",
             },
             exportTasksExecution: {
                 success: "Exportación finalizada con éxito",
@@ -338,6 +409,9 @@ const galegoTranslation: TranslationType = {
                 helpLinks: "Ligazóns de Axuda",
                 logoUrl: "URL do Logo",
                 css: "CSS Personalizado",
+                displayName: "Nome visible",
+                displayNameHelp:
+                    "O nome da organización nas mensaxes que a mencionan. Baleiro: o nome curto do arrendatario.",
             },
             errors: {
                 invalidHelpLinks: "Formato de Ligazóns de Axuda inválido",
@@ -353,8 +427,6 @@ const galegoTranslation: TranslationType = {
                 telephoneVoting: "Votación Telefónica",
                 settingTitle: "Configuracións",
                 settingSubtitle: "Configuración Xeral",
-                sms: "SMS",
-                mail: "Correos",
                 createNew: "Crear Tipo de Elección",
                 emptyHeader: "Aínda non hai Tipos de Elección.",
                 emptyBody: "¿Queres crear un?",
@@ -368,7 +440,6 @@ const galegoTranslation: TranslationType = {
             tabs: {
                 votingChannels: "CANLES DE VOTACIÓN",
                 electionTypes: "TIPOS DE ELECCIÓN",
-                templates: "MODELOS",
                 languages: "IDIOMAS",
                 localization: "LOCALIZACIÓN",
                 integrations: "Integracións",
@@ -441,6 +512,112 @@ const galegoTranslation: TranslationType = {
             voterLoginURL: "URL de Inicio de Sesión do Votante",
             voterEnrollURL: "URL de Rexistro do Votante",
             voterEnrollKioskURL: "Kiosk URL de inscripción de votantes",
+            ballotBoxes: {
+                show: "Amosar as urnas",
+                loadError:
+                    "Non se puideron ler os selos das urnas. Recargue a páxina ou comprobe a conexión co servidor.",
+                title: "Urnas",
+                sealing:
+                    "A votación pechouse ás {{closed}}. As urnas sélanse cando remata o período de graza, ás {{deadline}}.",
+                sealed: "A votación pechouse ás {{closed}}. As urnas están seladas: non se pode engadir, cambiar nin borrar ningunha papeleta.",
+                failed: "A votación pechouse ás {{closed}}. Non se puido selar unha urna: segue bloqueada e a incidencia está nos rexistros.",
+                closedBySignatures:
+                    "Pechada por {{names}} cos seus certificados, código de sinatura {{code}}.",
+                closedByUser: "Pechada por {{username}}.",
+                closedBySchedule: "Pechada polo peche programado da votación.",
+                column: {
+                    area: "Área",
+                    status: "Estado",
+                    inTheBox: "Na urna",
+                    counted: "Contabilizadas",
+                    sealedAt: "Selada",
+                    sealHash: "Hash do selo",
+                    record: "Acta de selado",
+                },
+                status: {
+                    open: "Aberta",
+                    sealing: "Selarase ás {{time}}",
+                    publishing: "Selada, publicándose",
+                    sealed: "Selada",
+                    failed: "Sen selar: incidencia",
+                    due: "Selándose agora",
+                    overdue: "Selado atrasado",
+                },
+                help: {
+                    publishing:
+                        "A urna está bloqueada. A súa entrada no taboleiro de anuncios estase a publicar de novo.",
+                    counted:
+                        "Papeletas que contan: a última papeleta válida de cada votante elixible. As demais da urna foron substituídas por unha papeleta posterior do votante, descartadas ou emitidas por un votante non elixible.",
+                },
+                copyHash: "Copiar o hash do selo",
+                copied: "Hash do selo copiado",
+                copyError: "Non se puido copiar o hash do selo",
+                notYet: "Aínda non",
+                openRecord: "Abrir a acta de selado de {{area}}",
+                downloadRecord: "Descargar a acta de selado de {{area}}",
+                recordRestricted:
+                    "Restrinxida: pídella a un administrador que poida descargar documentos.",
+                recordError: "Non se puido descargar a acta de selado. Téntao de novo.",
+                recordMissing: "Falta o documento da acta de selado: comuníqueo como incidencia.",
+                beforeClose: "A urna de cada área sélase cando se pecha a votación.",
+                notStarted:
+                    "A votación aínda non se abriu. A urna de cada área sélase cando se pecha a votación.",
+                openOn: "A votación está aberta en {{channels}}. A urna de cada área sélase cando se pecha a votación.",
+                paused: "A votación está en pausa. A urna de cada área sélase cando se pecha a votación.",
+                holding_one:
+                    "A canle {{channels}} está habilitada e sen pechar: deteñaa para selar as urnas.",
+                holding_other:
+                    "As canles {{channels}} están habilitadas e sen pechar: deteñaas para selar as urnas.",
+                sealingNow: "A votación pechouse ás {{closed}}. As urnas estanse a selar.",
+                sealingPastGrace:
+                    "A votación pechouse ás {{closed}}. O período de graza rematou ás {{deadline}}; as urnas estanse a selar.",
+                why: {
+                    due: "Estase a selar: isto leva ata un minuto.",
+                    channelOpen:
+                        "A canle {{channel}} segue habilitada e sen pechar: deteñaa para selar a urna.",
+                    channelNotEnabled:
+                        "A canle {{channel}} non está pechada nin habilitada nesta elección: deteñaa para selar a urna.",
+                    channelHasBallots:
+                        "A canle {{channel}} ten papeletas nesta urna e non está pechada: deteñaa para selar a urna.",
+                    datafixVotes_one:
+                        "Hai {{count}} voto en curso en Datafix: a urna sélase cando se resolva.",
+                    datafixVotes_other:
+                        "Hai {{count}} votos en curso en Datafix: a urna sélase cando se resolvan.",
+                    stale: "Último intento ás {{time}}: é posible que o selador non estea en execución. Comprobe Beat e o worker de selado.",
+                    notTried:
+                        "Aínda non se intentou: é posible que o selador non estea en execución. Comprobe Beat e o worker de selado.",
+                    errorCategory: {
+                        board: "O último intento non puido acceder ao taboleiro de anuncios; reinténtase cada minuto.",
+                        census: "O último intento non puido ler a lista de votantes; reinténtase cada minuto.",
+                        keystore:
+                            "O último intento non puido obter a chave de sinatura; reinténtase cada minuto.",
+                        storage:
+                            "O último intento non puido subir a acta de selado ao almacenamento de ficheiros; reinténtase cada minuto.",
+                        settings:
+                            "O último intento non puido ler a configuración da elección; reinténtase cada minuto.",
+                        other: "O último intento fallou; reinténtase cada minuto. O rexistro do servizo ten os detalles.",
+                        ballots:
+                            "O último intento atopou unha papeleta que aínda non se pode ler ou que segue en curso; reinténtase cada minuto.",
+                        database:
+                            "O último intento non puido completarse na base de datos; reinténtase cada minuto.",
+                    },
+                },
+                failure: {
+                    ballotIdMismatch: "Unha papeleta non coincide co seu ID da papeleta.",
+                    missingContent: "Unha papeleta non ten contido ou non ten ID da papeleta.",
+                    unreadable: "Non se pode ler unha papeleta.",
+                    inProgress: "Unha papeleta segue en curso.",
+                    alreadyOnBoard: "Xa hai un selo desta urna no taboleiro de anuncios.",
+                    noBoard: "O evento electoral non ten taboleiro de anuncios.",
+                    unknownChannel: "Unha papeleta ten unha canle de votación descoñecida.",
+                },
+                incident: {
+                    title_one: "Non se puido selar {{count}} urna",
+                    title_other: "Non se puideron selar {{count}} urnas",
+                    body: "Isto é unha incidencia: cada unha destas urnas segue bloqueada e non se pode escrutar. Siga o procedemento para un selado fallido.",
+                    line: "{{election}}, {{area}}: {{reason}}",
+                },
+            },
             ipAddress: {
                 emptyState: "Aínda non hai votos.",
                 title: "Enderezos IP",
@@ -469,6 +646,7 @@ const galegoTranslation: TranslationType = {
                 language: "Idioma",
                 allowed: "Canles de Votación Permitidas",
                 materials: "Materiais de Soporte",
+                ballotReceipts: "Recibos de papeleta",
                 ballotDesign: "Deseño da Papeleta",
                 templates: "Modelos",
                 reorder: "Reordenar eleccións",
@@ -500,6 +678,7 @@ const galegoTranslation: TranslationType = {
                     duplicateKey: "Xa existe unha substitución con esta clave e ámbito do portal.",
                     invalidDateTimeFormat:
                         "Formato de data/hora non válido. Usa os tokens yyyy, MM, dd, HH, mm, ss (p. ex. dd/MM/yyyy HH:mm).",
+                    invalidTimeZoneText: "Este texto debe conservar {{placeholders}}.",
                 },
                 common: {
                     title: "Localización",
@@ -517,6 +696,7 @@ const galegoTranslation: TranslationType = {
                     ballotVerifier: "Verificador de papeletas",
                     resultsPortal: "Portal de resultados",
                     adminPortal: "Portal de administración",
+                    templates: "Informes e mensaxes",
                 },
             },
             field: {
@@ -579,6 +759,36 @@ const galegoTranslation: TranslationType = {
                 css: "CSS Personalizado",
                 skipElectionList: "Omitir Pantalla de Lista de Eleccións",
                 showUserProfile: "Mostrar Perfil do Usuario",
+                ballotReceipts: {
+                    checksPeriod: {
+                        policyLabel: "Período de comprobación dos votos emitidos",
+                        helper: "Durante canto tempo os votantes poden localizar o seu voto emitido e imprimir o seu recibo no Portal de Votación.",
+                        options: {
+                            "unlimited": "Sen límite",
+                            "until-date": "Ata unha data",
+                        },
+                    },
+                    checksAvailableUntil: "Comprobacións dispoñibles ata ({{timezone}})",
+                    checksAvailableUntilRequired:
+                        "Introduce a data e a hora ata a que se poden comprobar os votos.",
+                },
+                voterAccessibilitySettingsPolicy: {
+                    policyLabel: "Axustes de accesibilidade do votante",
+                    options: {
+                        disabled: "Ocultar os axustes de accesibilidade",
+                        enabled:
+                            "Ofrecer axustes de tamaño de texto, contraste, espazado e movemento",
+                    },
+                },
+                audioInstructionsPolicy: {
+                    policyLabel: "Instrucións en audio",
+                    options: {
+                        "disabled": "Sen instrucións en audio",
+                        "recorded": "Só gravacións subidas",
+                        "recorded-or-synthesized":
+                            "Gravacións subidas, ou a voz do navegador onde non haxa",
+                    },
+                },
                 showCastVoteLogs: {
                     policyLabel: "Mostrar Tab de Logs de Votación",
                     options: {
@@ -588,9 +798,45 @@ const galegoTranslation: TranslationType = {
                 },
                 lockdownState: {
                     policyLabel: "Estado de Bloqueo",
+                    helperText:
+                        "Programe o inicio ou o fin do período de bloqueo para cambiar este estado.",
                     options: {
                         "locked-down": "Bloqueado",
                         "not-locked-down": "Non Bloqueado",
+                    },
+                },
+                ballotBoxSealPolicy: {
+                    policyLabel: "Política de Selado de Urnas",
+                    helperText:
+                        "Cando se pecha a votación, a urna de cada área sélase: un hash asinado das súas papeletas publícase no taboleiro de anuncios, non se pode engadir, cambiar nin borrar ningunha papeleta e a votación non pode volver comezar.",
+                    locked: "Non se pode cambiar despois de que se abra a votación.",
+                    options: {
+                        "seal-at-close": "Selar ao pechar",
+                        "do-not-seal": "Non selar",
+                    },
+                    checking: "Comprobando se a votación se abriu…",
+                    lockedUnknown:
+                        "Bloqueada: non se puideron ler as eleccións, polo que se descoñece se a votación se abriu.",
+                    lockedOpened: "Bloqueada: a votación abriuse en {{names}}.",
+                    lockedEvent: "Bloqueada: a votación abriuse neste evento electoral.",
+                    refused:
+                        "A Política de Selado de Urnas non se pode cambiar despois de que se abra a votación.",
+                    settingLocked: "Con Selar ao pechar, o selo depende desta opción.",
+                    settingRefused:
+                        "Esta opción non se pode cambiar despois de que se abra a votación: con Selar ao pechar, o selo depende dela.",
+                    boardRefused:
+                        "O taboleiro de anuncios do evento electoral non pode cambiar despois de que se abra a votación: con Selar ao pechar, os selos publícanse nel.",
+                },
+                ballotBoxSealRecordPolicy: {
+                    policyLabel: "Acta de selado de urnas",
+                    options: {
+                        restricted: "Restrinxida",
+                        public: "Pública",
+                    },
+                    help: {
+                        restricted:
+                            "Só os administradores poden descargala; compártea cos observadores.",
+                        public: "Calquera persoa cos identificadores do evento pode descargala, sen iniciar sesión; mostra como contou cada papeleta.",
                     },
                 },
                 decodedBallots: {
@@ -639,6 +885,14 @@ const galegoTranslation: TranslationType = {
                     "policyLabel": "Política de Firma de Votantes",
                     "no-signature": "Sin firma",
                     "with-signature": "Con firma",
+                },
+                receiptsPolicy: {
+                    "policyLabel": "Recibos asinados pola urna",
+                    "disabled": "Desactivado",
+                    "signed-by-ballot-box": "Asinados pola urna",
+                    "helperText":
+                        "Cando está activado, a urna almacena e asina cada papeleta na pantalla de revisión, e o votante ve un ID de papeleta só cando a urna a recibiu. Os votantes asinan as súas papeletas. Volva publicar as papeletas despois de cambialo.",
+                    "lockedHelperText": "Non se pode cambiar unha vez iniciada a votación.",
                 },
                 VoterCertificatePolicy: {
                     policyLabel: "Voter Digital Certificate Policy",
@@ -770,14 +1024,17 @@ const galegoTranslation: TranslationType = {
                             'O identificador de votante e o PIN válidos son "123" e "123".',
                     },
                     sendDtmf: "Enviar entrada DTMF",
+                    keypadInput: "Entrada do teclado",
                     sendTimeout: "Enviar tempo de espera",
                     disconnected: "Desconectado",
                     startSession: "Iniciar unha nova sesión",
                     endSession: "Finalizar a sesión",
                     noStylesFound:
                         "Non se atoparon estilos de papeleta publicados que coincidan coas súas seleccións",
-                    inputPlaceholder:
-                        "Introduza a súa entrada (máximo de díxitos={{maxDigits}}, entradas válidas={{validInputs}}, tempo de espera={{timeout}} s)",
+                    inputPlaceholder: "Prema {{keys}} (tempo de espera={{timeout}} s)",
+                    inputPlaceholderOr: "ou",
+                    inputPlaceholderAnyKeys:
+                        "Introduza ata {{maxDigits}} díxitos (calquera díxito, tempo de espera={{timeout}} s)",
                     blacklistCaller: "Bloquear a persoa que chama",
                     elections: "Eleccións",
                     area: "Área",
@@ -802,6 +1059,10 @@ const galegoTranslation: TranslationType = {
                 statusLabel: "Estado",
                 waitingKeys: "Esperando a Xeración de Chaves...",
                 started: "Iniciado o",
+                actions: {
+                    participate: "Participar na cerimonia de chaves",
+                    view: "Ver a cerimonia de chaves",
+                },
                 breadCrumbs: {
                     configure: "Configurar",
                     ceremony: "Cerimonia",
@@ -1034,6 +1295,21 @@ const galegoTranslation: TranslationType = {
                 options: {
                     "gold-level": "Gold level Authentication",
                     "no-gold-level": "No Gold level Authentication",
+                },
+            },
+            slates: {
+                title: "Candidaturas",
+                configuration: "Configuración de candidaturas (JSON)",
+                helper: "Candidaturas con nome e os candidatos que cada unha presenta en cada contenda. Déixao baleiro para unha elección sen candidaturas.",
+                loading:
+                    "As contendas e os candidatos da elección aínda se están a cargar. Téntao de novo nun momento.",
+                mobileCandidateLists: {
+                    label: "Listas de candidatos no móbil",
+                    helper: "Como aparece inicialmente a lista de candidatos de cada candidatura no móbil. O votante sempre pode abrila ou pechala.",
+                    options: {
+                        collapsed: "Contraídas",
+                        expanded: "Despregadas",
+                    },
                 },
             },
             startScreenTitlePolicy: {
@@ -1305,11 +1581,35 @@ const galegoTranslation: TranslationType = {
                 "voter-information-letter": "Xerar Carta de información para o votante",
                 "admin-user": "Administración",
                 "admin-dashboard-view": "Vista del Panel de Administración",
+                "monitoring-view": "Ver Paneis de Monitorización",
+                "monitoring-configure": "Configurar Paneis de Monitorización",
+                "election-event-signatures-tab": "Lapela Sinaturas do Evento Electoral",
+                "signing-rules-read": "Sinaturas: ver accións protexidas",
+                "signing-rules-write": "Sinaturas: editar accións protexidas",
+                "signing-certificates-read": "Sinaturas: ver certificados",
+                "signing-issuers-write": "Sinaturas: importar e eliminar emisores de confianza",
+                "signing-checks-write": "Sinaturas: editar comprobacións de certificados",
+                "signing-certificates-register": "Sinaturas: rexistrar certificados",
+                "signing-certificates-revoke": "Sinaturas: revogar certificados",
+                "signing-requests-read": "Sinaturas: ver solicitudes",
+                "signing-requests-cancel": "Sinaturas: cancelar solicitudes",
+                "signing-requests-export": "Sinaturas: exportar solicitudes",
+                "sign-initialize-voting": "Asinar: inicializar a votación",
+                "sign-open-voting": "Asinar: abrir a votación",
+                "sign-close-voting": "Asinar: pechar a votación",
+                "sign-generate-election-returns": "Asinar: xerar actas electorais",
+                "sign-generate-reports": "Asinar: xerar outros informes electorais",
+                "sign-transmit-results": "Asinar: transmitir resultados",
+                "sign-approve-voter": "Asinar: aprobar manualmente un votante",
+                "sign-approve-configuration": "Asinar: aprobar unha versión de configuración",
+                "sign-key-ceremony": "Asinar: confirmar un fragmento de chave",
+                "sign-tally-key": "Asinar: achegar un fragmento de chave",
                 "application-export": "Exportación de Aplicaciones",
                 "application-import": "Importación de Aplicaciones",
                 "tenant-create": "Crear Inquilino",
                 "tenant-read": "Leer Inquilino",
                 "tenant-write": "Editar Inquilino",
+                "tenant-delete": "Eliminar Inquilino",
                 "election-event-create": "Crear Evento Electoral",
                 "election-event-read": "Leer Evento Electoral",
                 "election-event-write": "Editar Evento Electoral",
@@ -1449,6 +1749,7 @@ const galegoTranslation: TranslationType = {
                 "task-export": "Exportar Tareas",
                 "application-read": "Leer Aplicación",
                 "application-write": "Editar Aplicación",
+                "approval-matrix-write": "Editar a Matriz de Aprobación",
                 "logs-export": "Exportar Registros",
                 "election-event-logs-columns": "Columnas de los Registros del Evento Electoral",
                 "election-events-logs-filters": "Filtros de los Registros del Evento Electoral",
@@ -1536,6 +1837,9 @@ const galegoTranslation: TranslationType = {
                 "phone-blacklist-delete": "Eliminar entradas da lista negra de teléfonos",
                 "election-event-voter-list-reconciliation":
                     "Reconciliar a lista de votantes do evento electoral",
+                "messaging-account-read": "Ver contas de mensaxería",
+                "messaging-account-write": "Xestionar contas de mensaxería",
+                "messaging-config-write": "Configurar a mensaxería do evento electoral",
             },
         },
         generalSettingsScreen: {
@@ -1550,6 +1854,8 @@ const galegoTranslation: TranslationType = {
                 createError: "Erro ao crear o Evento Programado",
                 editSuccess: "Evento Programado editado correctamente",
                 editError: "Erro ao editar o Evento Programado",
+                onlineWithEarlyVoting:
+                    "Unha programación de inicio non pode abrir á vez o voto en liña e o voto anticipado: o voto anticipado debe comezar antes ca o voto en liña.",
             },
             eventType: {
                 label: "Tipo",
@@ -1562,6 +1868,22 @@ const galegoTranslation: TranslationType = {
                 START_LOCKDOWN_PERIOD: "Inicio do Período de Bloqueo",
                 END_LOCKDOWN_PERIOD: "Fin do Período de Bloqueo",
                 ALLOW_TALLY: "Permitir Recuento",
+                START_READINESS_TEST: "Iniciar proba de preparación electoral",
+                END_READINESS_TEST: "Finalizar proba de preparación electoral",
+                START_FINAL_TESTING: "Iniciar probas finais e bloqueo",
+                END_FINAL_TESTING: "Finalizar probas finais e bloqueo",
+                START_TEST_VOTING: "Iniciar votación de proba",
+                END_TEST_VOTING: "Finalizar votación de proba",
+            },
+            warning: {
+                votingWindowDays:
+                    "O período de votación de {{election}} abrangue {{days}} días locais (do {{start_local}} ao {{end_local}}, {{time_zone}}); a regra pide {{expected}}.",
+                finalTestingLeadTime:
+                    "As probas finais de {{election}} comezan o {{final_testing_local}}, menos de {{minimum_days}} días antes de que se abra a votación o {{voting_start_local}} ({{time_zone}}).",
+                closeBeforeOpen:
+                    "A votación de {{election}} péchase antes ou no momento de abrirse ({{start_local}} a {{end_local}}, {{time_zone}}).",
+                shortLastDay:
+                    "O último día de votación de {{election}} ten {{hours}} horas, menos de {{minimum_hours}}: a votación péchase o {{end_local}} ({{time_zone}}).",
             },
             election: {
                 label: "Elección",
@@ -1800,6 +2122,8 @@ const galegoTranslation: TranslationType = {
                         archive: "¿Estás seguro de que queres arquivar este elemento?",
                         unarchive: "¿Estás seguro de que queres desarquivar este elemento?",
                         delete: "¿Estás seguro de que queres eliminar este elemento?",
+                        sealsUnknown:
+                            "Non se puideron comprobar os selos das urnas: se ten urnas seladas, rexeitarase a eliminación.",
                     },
                     notification: {
                         success: {
@@ -1812,6 +2136,12 @@ const galegoTranslation: TranslationType = {
                             archive: "Erro ao tentar arquivar este elemento",
                             unarchive: "Erro ao tentar desarquivar este elemento",
                             delete: "Erro ao tentar eliminar este elemento",
+                            deleteSealedElection:
+                                "Esta elección ten urnas seladas e non se pode eliminar. No seu lugar, arquive o seu evento electoral.",
+                            deleteSealedEvent:
+                                "Este evento electoral ten urnas seladas e non se pode eliminar. No seu lugar, arquíveo.",
+                            deleteMaybeSealed:
+                                "Erro ao tentar eliminar este elemento. Se ten urnas seladas, non se pode eliminar.",
                         },
                     },
                 },
@@ -1900,6 +2230,7 @@ const galegoTranslation: TranslationType = {
                 "warn-only-in-review": "Avisar na Revisión",
                 "warn": "Avisar",
                 "warn-and-alert": "Avisar e Alertar",
+                "warn-and-confirm-in-review": "Avisar e Confirmar na Revisión",
             },
             invalidVotePolicy: {
                 "label": "Política de Voto Nulo",
@@ -1976,6 +2307,7 @@ const galegoTranslation: TranslationType = {
             createContestError: "Erro ao crear o concurso",
         },
         keysGeneration: {
+            ...englishTranslation.translations.keysGeneration,
             configureStep: {
                 create: "Crear Cerimonia de Chaves",
                 name: "Nome da Cerimonia de Chaves",
@@ -2009,11 +2341,11 @@ const galegoTranslation: TranslationType = {
                     "Non se pode crear a cerimonia de chaves: falta unha ou máis etiquetas de permisos.",
                 automaticCeremonyToggle: "Ceremonia automática",
             },
+            // Native custody instructions use the English fallback until translated.
             ceremonyStep: {
+                ...englishTranslation.translations.keysGeneration.ceremonyStep,
                 cancel: "Cancelar Cerimonia de Chaves",
                 progressHeader: "Progreso da Cerimonia de Chaves",
-                description:
-                    "Esta pantalla mostra o progreso e os rexistros da Cerimonia de Chaves do Evento Electoral. Na Cerimonia de Chaves, cada fiduciario xerará e descargará o seu fragmento da chave privada para o Evento Electoral.",
                 executionStatus: "Estado: {{status}}",
                 confirmdDialog: {
                     ok: "Si, Cancelar a Cerimonia de Chaves",
@@ -2023,10 +2355,9 @@ const galegoTranslation: TranslationType = {
                         "Estás a piques de Cancelar a Cerimonia de Chaves. Despois de realizar esta acción, para ter unha Cerimonia de Chaves exitosa terás que crear unha nova.",
                 },
                 header: {
+                    ...englishTranslation.translations.keysGeneration.ceremonyStep.header,
                     trusteeName: "Nome do Fiduciario",
                     fragment: "Fragmento de Chave Xerado",
-                    downloaded: "Fragmento de Chave Privada Descargado",
-                    checked: "Fragmento de Chave Privada Verificado",
                 },
                 logsHeader: {
                     title: "Rexistros",
@@ -2034,43 +2365,6 @@ const galegoTranslation: TranslationType = {
                     entry: "Entrada",
                 },
                 emptyLogs: "Aínda non hai rexistros.",
-            },
-            startStep: {
-                title: "Cerimonia de Chaves do Fiduciario",
-                subtitle:
-                    "Estás a piques de participar na Cerimonia de Chaves como Fiduciario (<strong>{{name}}</strong>). Isto implica os seguintes pasos:",
-                one: "<strong>Descargar</strong> a túa Chave Privada Cifrada.",
-                two: "Crear múltiples <strong>Copias de Seguridade</strong> da Chave Privada Cifrada.",
-                three: "<strong>Verificar</strong> que as copias de seguridade funcionan correctamente.",
-            },
-            downloadStep: {
-                title: "Descargar Chave Privada Cifrada",
-                subtitle:
-                    "Para continuar, por favor descarga e almacena a túa Chave Privada Cifrada en polo menos dous dispositivos diferentes:",
-                downloadButton: "Descargar a túa Chave Privada Cifrada",
-                errorDownloading: "Erro de descarga: {{error}}",
-                errorEmptyKey: "Erro de descarga, ficheiro baleiro",
-                confirmdDialog: {
-                    ok: "Confirmar Copias de Seguridade e Continuar",
-                    cancel: "Volver Atrás",
-                    title: "Fai unha Copia de Seguridade da túa Chave Privada Cifrada",
-                    description:
-                        "Por favor, fai unha copia de seguridade da túa Chave Privada Cifrada en polo menos dous lugares seguros diferentes e logo confírmao abaixo:",
-                    firstCopy: "Primeira copia de seguridade gardada",
-                    secondCopy: "Segunda copia de seguridade gardada",
-                    confirmError:
-                        "Create required backups and check the confirmation boxes to continue",
-                },
-            },
-            checkStep: {
-                title: "Verificar as túas Copias de Seguridade da Chave Privada Cifrada",
-                subtitle:
-                    "Carga unha Copia de Seguridade da Chave Privada Cifrada para comprobar que é correcta. Podes probar tantas veces como necesites, desde as túas diferentes copias de seguridade:",
-                errorUploading:
-                    "Copia de Seguridade da Chave Privada Cifrada inválida, por favor intenta de novo",
-                errorEmptyFile: "Ficheiro baleiro ou non atopado",
-                verified: "Copia de seguridade verificada correctamente.",
-                downloaded: "Chave Privada Cifrada xerada correctamente.",
             },
         },
         miruExport: {
@@ -2150,6 +2444,9 @@ const galegoTranslation: TranslationType = {
                             confirm: "Enviar Paquete de Transmisión",
                             cancel: "Pechar",
                         },
+
+                        disabled:
+                            "Faltan as sinaturas requiridas ou o paquete de transmisión xa se enviou a todos os destinos.",
                     },
                     regenerate: {
                         title: "Rexenerar",
@@ -2199,12 +2496,12 @@ const galegoTranslation: TranslationType = {
                     },
                 },
                 signatures: {
-                    title: "Sinaturas SBEI",
+                    title: "Sinaturas",
                     description:
-                        "Os membros SBEI poden asinar o Paquete de Transmisión. A táboa a continuación mostra o estado de sinatura de cada un dos membros SBEI.",
+                        "Os membros poden asinar o paquete de transmisión. A táboa mostra o estado de sinatura de cada membro.",
                     status: "{{signed}} de {{total}} Asinados, mínimo de {{minimum}}",
                     table: {
-                        trusteeName: "Nome do Fiduciario",
+                        trusteeName: "Membro",
                         signed: "Asinou",
                     },
                 },
@@ -2229,6 +2526,41 @@ const galegoTranslation: TranslationType = {
             generalInfoTitle: "Información Xeral",
             trusteeTallyTitle: "Fiduciarios",
             trusteeTallySubTitle: "Estado de importación do fragmento de chave",
+            ballotBoxes: {
+                unavailable: "Selos non dispoñibles",
+                sealed: "{{sealed}} de {{total}} seladas",
+                publishing: "Seladas, {{published}} de {{total}} no taboleiro de anuncios",
+                sealing: "Selarase ás {{time}}",
+                notSealed: "Sen selar",
+                help: "Unha elección pódese escrutar cando todas as súas urnas están seladas e os seus selos están no taboleiro de anuncios.",
+                failed: "Sen selar: incidencia",
+                overdue: "Selado atrasado",
+                blocked: "{{name}}: {{reason}}",
+                reason: {
+                    "not-sealed":
+                        "a votación non se pechou, polo que as súas urnas aínda non teñen selos",
+                    "sealing": "as súas urnas sélanse cando remata o período de graza",
+                    "overdue":
+                        "as súas urnas superaron o prazo e aínda non están seladas (consulte o seu Taboleiro)",
+                    "publishing":
+                        "algúns dos seus selos aínda se están a publicar no taboleiro de anuncios",
+                    "failed":
+                        "non se puido selar unha urna, o que é unha incidencia (consulte o seu Taboleiro)",
+                    "unavailable": "non se puideron ler os selos das súas urnas",
+                },
+            },
+            eligibility: {
+                ballotBoxesUnavailable:
+                    "Non se puideron ler os selos das urnas dunha elección seleccionada, polo que aínda non se pode escrutar. Recargue a páxina para tentalo de novo.",
+                selectElection: "Selecciona polo menos unha elección.",
+                publishElection:
+                    "Publica cada elección seleccionada antes de crear o seu escrutinio.",
+                tallyDisallowed: "O escrutinio está desactivado para unha elección seleccionada.",
+                endVoting:
+                    "Finaliza a votación de cada elección seleccionada e detén as súas canles activas antes de crear o escrutinio.",
+                sealBallotBoxes:
+                    "Unha elección pódese escrutar cando todas as súas urnas están seladas e os seus selos están no taboleiro de anuncios.",
+            },
             createTallySuccess: "Escrutinio creado",
             createTallyError: "Non se puido crear o Escrutinio",
             startTallySuccess: "Escrutinio iniciado",
@@ -2289,6 +2621,7 @@ const galegoTranslation: TranslationType = {
                 },
             },
             table: {
+                ballotBoxes: "Urnas",
                 elections: "Eleccións",
                 selected: "Seleccionado",
                 status: "Estado",
@@ -2385,6 +2718,16 @@ const galegoTranslation: TranslationType = {
                 "Exportar os resultados de todas as áreas en formato {{format}} para '{{item}}'",
         },
         publish: {
+            initialization: {
+                countryInfo:
+                    "Xere o informe para todo o posto ou para un país. A votación permanece bloqueada ata completar toda a inicialización requirida por país e para o evento.",
+                countriesError:
+                    "Non se puideron cargar os países elixibles. Peche e volva intentalo.",
+                noCountries:
+                    "Este posto non ten países elixibles con estilos de papeleta activos. Comprobe as súas áreas e a publicación antes de inicializar.",
+                country: "País",
+                entirePost: "Todo o posto",
+            },
             preview: {
                 publicationAreas: "Seleccionar Área para Vista Previa",
                 action: "Vista Previa",
@@ -2432,6 +2775,13 @@ const galegoTranslation: TranslationType = {
             forbidden: {
                 header: "Non se pode Publicar ata que a Cerimonia de Chaves estea completa.",
             },
+            skippedElections: {
+                dismiss: "Descartar",
+                title: "Algunhas eleccións seguen pechadas",
+                ballotBoxSealPolicy:
+                    "{{name}} segue pechada: a súa votación pechouse e Selar ao pechar fai que o peche sexa definitivo.",
+                other: "{{name}} quedou como estaba ({{reason}}).",
+            },
             dialog: {
                 title: "Confirmar Acción",
                 info: "Fixeches clic nunha acción sensible, polo que necesitamos que confirmes para continuar",
@@ -2441,6 +2791,18 @@ const galegoTranslation: TranslationType = {
                     "Estás a piques de iniciar o período de votación. ¿Estás seguro de que queres continuar?",
                 stopInfo:
                     "Estás a piques de deter o período de votación. ¿Estás seguro de que queres continuar?",
+                stopSeal:
+                    "Estás a piques de deter a votación en {{name}}. A continuación, as súas urnas sélanse: non se pode engadir, cambiar nin borrar ningunha papeleta, e a votación non pode volver comezar. ¿Estás seguro de que queres continuar?",
+                stopSealEvent:
+                    "Estás a piques de deter a votación en todas as eleccións. A continuación, as súas urnas sélanse: non se pode engadir, cambiar nin borrar ningunha papeleta, e a votación non pode volver comezar. ¿Estás seguro de que queres continuar?",
+                startSealNote:
+                    "Con Selar ao pechar, a votación pechada segue pechada: as eleccións cuxa votación se pechou non se abrirán.",
+                channel: {
+                    ONLINE: "En Liña",
+                    KIOSK: "Quiosco",
+                    EARLY_VOTING: "Votación anticipada",
+                    TELEPHONE: "Teléfono",
+                },
                 kioskStopInfo:
                     "Estás a piques de deter o período de votación en quiosco. ¿Estás seguro de que queres continuar?",
                 pauseInfo:
@@ -2457,11 +2819,74 @@ const galegoTranslation: TranslationType = {
                 diff: "Renderizar todos os cambios pode facer que a páxina non responda. ¿Estás seguro de que queres continuar?",
                 confirmation:
                     "A acción que estás a piques de realizar é sensible e require confirmación. Por favor, introduce o teu contrasinal para continuar con {{action}}.",
+                stopSealNotYet:
+                    "Estás a piques de deter o período de votación. {{holding}} ¿Estás seguro de que queres continuar?",
+                sealHolding_one:
+                    "Con Selar ao pechar, as súas urnas sélanse cando todas as canles habilitadas estean pechadas: a canle {{channels}} segue habilitada e sen pechar.",
+                sealHolding_other:
+                    "Con Selar ao pechar, as súas urnas sélanse cando todas as canles habilitadas estean pechadas: as canles {{channels}} seguen habilitadas e sen pechar.",
+                sealNotEnabled:
+                    "A canle {{channel}} non está pechada nin habilitada nesta elección: deteñaa para selar as urnas.",
+                sealNotEnabledPost:
+                    "En {{post}}, a canle {{channel}} non está pechada nin habilitada: deteñaa nesa elección para selar as súas urnas.",
+                sealNoChannel:
+                    "Ningunha canle está habilitada nesta elección e ningunha estivo aberta, así que as súas urnas non se selan.",
+                stopNeverOpened_one:
+                    "A canle {{channels}} nunca se abriu: se a detés, xa non se abrirá.",
+                stopNeverOpened_other:
+                    "As canles {{channels}} nunca se abriron: se as detés, xa non se abrirán.",
+                stopSealGrace_one:
+                    "Estás a piques de deter a votación en {{name}}. As súas urnas sélanse cando remata o período de graza, {{count}} minuto despois: a partir dese momento non se pode engadir, cambiar nin borrar ningunha papeleta. A votación non pode volver comezar. ¿Estás seguro de que queres continuar?",
+                stopSealGrace_other:
+                    "Estás a piques de deter a votación en {{name}}. As súas urnas sélanse cando remata o período de graza, {{count}} minutos despois: a partir dese momento non se pode engadir, cambiar nin borrar ningunha papeleta. A votación non pode volver comezar. ¿Estás seguro de que queres continuar?",
+                stopSealEventGrace_one:
+                    "Estás a piques de deter a votación en todas as eleccións. As súas urnas sélanse cando remata o período de graza de cada elección, ata {{count}} minuto despois: a partir dese momento non se pode engadir, cambiar nin borrar ningunha papeleta. A votación non pode volver comezar. ¿Estás seguro de que queres continuar?",
+                stopSealEventGrace_other:
+                    "Estás a piques de deter a votación en todas as eleccións. As súas urnas sélanse cando remata o período de graza de cada elección, ata {{count}} minutos despois: a partir dese momento non se pode engadir, cambiar nin borrar ningunha papeleta. A votación non pode volver comezar. ¿Estás seguro de que queres continuar?",
+                stopSealEventSome:
+                    "Estás a piques de deter a votación en todas as eleccións. {{sealed}} {{holding}} ¿Estás seguro de que queres continuar?",
+                sealedNowPart:
+                    "A continuación, as urnas de {{names}} sélanse: non se pode engadir, cambiar nin borrar ningunha papeleta, e a votación non pode volver comezar alí.",
+                sealedGracePart_one:
+                    "As urnas de {{names}} sélanse cando remata o seu período de graza, ata {{count}} minuto despois.",
+                sealedGracePart_other:
+                    "As urnas de {{names}} sélanse cando remata o seu período de graza, ata {{count}} minutos despois.",
+                holdingEventPart_one:
+                    "{{names}} mantén outra canle habilitada e sen pechar: as súas urnas sélanse cando esa canle estea pechada.",
+                holdingEventPart_other:
+                    "{{names}} manteñen outra canle habilitada e sen pechar: as súas urnas sélanse cando esas canles estean pechadas.",
+                noChannelEventPart_one:
+                    "{{names}} non habilita ningunha canle e ningunha estivo aberta: as súas urnas non se selan.",
+                noChannelEventPart_other:
+                    "{{names}} non habilitan ningunha canle e ningunha estivo aberta: as súas urnas non se selan.",
+                startSealNoteList:
+                    "Con Selar ao pechar, a votación pechada segue pechada: {{items}}.",
+                startKeptChannels_one: "{{post}}: a canle {{channels}} segue pechada",
+                startKeptChannels_other: "{{post}}: as canles {{channels}} seguen pechadas",
+                startKeptSealed: "{{post}} segue pechado, xa que as súas urnas están seladas",
+                startNotEnabledList:
+                    "Con Selar ao pechar, un inicio abre unha canle só nos Posts que a habilitan: {{items}}.",
+                startNotEnabledChannels_one:
+                    "{{post}}: a canle {{channels}} non está habilitada alí e segue Non iniciada",
+                startNotEnabledChannels_other:
+                    "{{post}}: as canles {{channels}} non están habilitadas alí e seguen Non iniciadas",
+                stopNeverOpenedPosts_one:
+                    "{{names}} nunca se abriu: ao detelo, péchase e sélanse as súas urnas baleiras.",
+                stopNeverOpenedPosts_other:
+                    "{{names}} nunca se abriron: ao detelos, péchanse e sélanse as súas urnas baleiras.",
             },
             notifications: {
                 generated: "Papeleta xerada",
                 published: "Papeleta publicada",
                 change_status: "Estado da elección cambiado",
+            },
+            sealRefusals: {
+                startAgain:
+                    "A votación non pode volver comezar: con Selar ao pechar, a votación que xa se pechou segue pechada e as súas urnas están seladas.",
+                startDisabled:
+                    "Iniciar Votación non está dispoñible: as urnas desta elección están seladas ou selándose, e con Selar ao pechar a votación pechada segue pechada.",
+                closedIsFinal:
+                    "A votación pechada non pode cambiar: con Selar ao pechar, a votación pechada segue pechada.",
             },
         },
         emailEditor: {
@@ -2502,6 +2927,9 @@ const galegoTranslation: TranslationType = {
             communicationMethod: {
                 EMAIL: "Correo",
                 SMS: "SMS",
+                WHATSAPP: "WhatsApp",
+                VIBER: "Viber",
+                MESSENGER: "Facebook Messenger",
             },
             communicationType: {
                 CREDENTIALS: "Credenciais",
@@ -2693,6 +3121,9 @@ const galegoTranslation: TranslationType = {
                 email: "Correo",
                 sms: "SMS",
                 document: "Documento",
+                whatsapp: "WhatsApp",
+                viber: "Viber",
+                messenger: "Facebook Messenger",
             },
             import: {
                 title: "Importar Plantillas",
@@ -2702,6 +3133,23 @@ const galegoTranslation: TranslationType = {
             },
         },
         materials: {
+            audioInstructions: {
+                screenLabel: "Instrucións en audio para a pantalla",
+                languageLabel: "Idioma da gravación",
+                none: "Non son instrucións en audio",
+                helperText:
+                    "Os votantes oen este ficheiro cando piden as instrucións nesa pantalla.",
+                screens: {
+                    "election-chooser": "Lista de eleccións",
+                    "start": "Inicio",
+                    "ballot": "Papeleta",
+                    "review": "Revisión",
+                    "confirmation": "Confirmación",
+                    "audit": "Auditoría",
+                    "ballot-locator": "Localizador de papeletas",
+                    "support-materials": "Materiais de apoio",
+                },
+            },
             createMaterialSuccess: "Material de soporte creado",
             createMaterialError: "Erro ao crear o material de soporte",
             updateMaterialSuccess: "Material de soporte actualizado",
@@ -2771,44 +3219,911 @@ const galegoTranslation: TranslationType = {
         approvalsScreen: {
             column: {
                 status: "Estado",
-                id: "ID",
-                applicantId: "ID do Solicitante",
-                verificationType: "Tipo de Verificación",
-                createdAt: "Creado o",
-                updatedAt: "Actualizado o",
-                verified_by: "Aprobado Por",
+                id: "ID da solicitude",
+                applicantId: "ID do solicitante",
+                verificationType: "Verificación",
+                createdAt: "Solicitada",
+                verified_by: "Verificada por",
+                voter: "Votante",
+                what: "Que pasou",
+                post: "Posto",
+                when: "Cando",
             },
-            approvalRequest: "Solicitud de Aprobación",
-            title: "Votantes",
-            subtitle: "Atopar votantes coincidentes",
-            approve: {
-                body: "¿Estás seguro de que queres aprobar este votante? Esta acción non é reversible.",
+            status: {
+                PENDING: "Pendente de revisión",
+                ACCEPTED: "Aprobada",
+                REJECTED: "Rexeitada",
             },
-            reject: {
-                label: "Rechazar la solicitud",
-                confirm:
-                    "¿Estás seguro de que deseas rechazar a este votante? Esta acción no es reversible.",
-                message: "Escribe aquí el motivo del rechazo",
-                rejectReason: "Motivo del rechazo",
-                messageRequired: "Se requiere un mensaje de rechazo para la opción 'Otro'",
-                reasons: {
-                    "undefined": "-",
-                    "insufficient-information": "Datos Faltantes",
-                    "no-matching-voter": "Votante no Coincidente",
-                    "voter-already-approved": "Ya Aprobado",
-                    "other": "Otro",
+            verification: {
+                AUTOMATIC: "Automática",
+                MANUAL: "Manual",
+            },
+            time: {
+                minutes_one: "{{count}} minuto",
+                minutes_other: "{{count}} minutos",
+                hours_one: "{{count}} hora",
+                hours_other: "{{count}} horas",
+                days_one: "{{count}} día",
+                days_other: "{{count}} días",
+            },
+            summary: {
+                join: "{{head}} e {{last}}",
+                differs_one: "{{fields}} non coincide co rexistro",
+                differs_other: "{{fields}} non coinciden co rexistro",
+                typedByHand: "Datos escritos á man, non lidos dun documento escaneado",
+                needsFaceToFace: "Precisa unha comprobación cara a cara",
+                scanVerified: "Documento escaneado e verificado",
+                noVoter: "Non se atopou ningún votante no rexistro",
+                allMatch: "Todos os datos coinciden co rexistro",
+                needsReview: "Á espera de que unha persoa decida",
+                approvedBy: "Aprobada por {{name}}",
+                approvedAuto: "Aprobada automaticamente",
+                rejectedBy: "Rexeitada por {{name}}",
+                rejectedAuto: "Rexeitada automaticamente",
+            },
+            list: {
+                title: "Aprobacións",
+                subtitle:
+                    "As inscricións que as regras non poden decidir por si soas agardan aquí por unha persoa.",
+                search: "Buscar",
+                review: "Revisar a inscrición",
+                openRecord: "Abrir a inscrición",
+                seeRule: "Ver a regra que decidiu",
+                unnamed: "Solicitante sen nome",
+                waiting: "Leva {{time}} agardando",
+                applied: "Solicitada o {{date}}",
+                empty: {
+                    title: "Aquí non hai nada",
+                    text: "As inscricións con este estado aparecerán aquí. Probe con outra busca ou outro estado.",
                 },
             },
+            flow: {
+                stepsLabel: "Pasos da revisión",
+                steps: {
+                    identity: "Comprobar a identidade",
+                    voter: "Buscar o votante",
+                    decide: "Decidir",
+                },
+                continue: "Continuar",
+                backToList: "Volver a Aprobacións",
+                identity: {
+                    details: "Datos da inscrición",
+                    confirm:
+                        "Comprobei o documento de identidade do votante en persoa ou por videochamada, e coincide con esta inscrición.",
+                    checked: "Comprobación cara a cara confirmada",
+                    notChecked: "Comprobación cara a cara aínda sen confirmar",
+                },
+                voter: {
+                    none: "Ningún destes é o votante",
+                    noneHint:
+                        "Nese caso a inscrición só se pode rexeitar, por non haber un votante coincidente.",
+                    noneChosen: "Ningún destes é o votante",
+                    notChosen: "Aínda non se escolleu ningún votante",
+                },
+                decide: {
+                    approve: "Aprobar",
+                    reject: "Rexeitar",
+                    approveText:
+                        "Vincula esta inscrición con {{voter}} no rexistro. Avísase o votante por correo electrónico ou SMS e poderá iniciar sesión para votar cando se abra a votación.",
+                    rejectText: "Díselle ao votante o motivo. Isto non se pode desfacer.",
+                    chooseVoter: "Escolla o votante coincidente no paso 2 para aprobar.",
+                    noVoter:
+                        "Non atopou un votante coincidente, así que esta inscrición só se pode rexeitar.",
+                    enrolled: "O votante escollido xa está inscrito.",
+                    faceToFace: "Confirme a comprobación cara a cara no paso 1 para aprobar.",
+                },
+            },
+            review: {
+                loadError: "Non se puido cargar a inscrición.",
+                applied: "Solicitada o {{date}}",
+                waiting: "Leva {{time}} agardando",
+                whyTitle: "Por que fai falta unha persoa",
+                decisionTitle: "Como se decidiu",
+                rule: "Regra {{rule}} da versión {{version}} da matriz",
+                ruleLast: "Última regra da versión {{version}} da matriz",
+                seeRule: "Ver a regra",
+                why: {
+                    typedByHand:
+                        "O votante escribiu os seus datos á man en lugar de escanear un documento de identidade. Estas inscricións nunca se aproban automaticamente: antes, un funcionario confirma quen é.",
+                    differs_one:
+                        "Un dato non coincide co rexistro: {{details}}. As regras de aprobación piden que unha persoa revise esta inscrición.",
+                    differs_other:
+                        "{{count}} datos non coinciden co rexistro: {{details}}. As regras de aprobación piden que unha persoa revise esta inscrición.",
+                    differsFields_one:
+                        "Un dato non coincide co rexistro: {{fields}}. As regras de aprobación piden que unha persoa revise esta inscrición.",
+                    differsFields_other:
+                        "{{count}} datos non coinciden co rexistro: {{fields}}. As regras de aprobación piden que unha persoa revise esta inscrición.",
+                    difference:
+                        "en {{field}}, a inscrición di “{{enrollment}}” e o rexistro di “{{registry}}”",
+                    noVoter:
+                        "Ningún votante do rexistro ten estes datos. As regras de aprobación piden que unha persoa revise esta inscrición.",
+                    severalVoters:
+                        "Máis dun votante do rexistro encaixa con esta inscrición. Unha persoa escolle o correcto.",
+                    pending:
+                        "As regras de aprobación piden que unha persoa revise esta inscrición.",
+                    unknown: "Esta inscrición está á espera de que unha persoa decida.",
+                    approvedAuto:
+                        "As regras de aprobación aprobaron esta inscrición automaticamente. Superáronse todas as comprobacións que esixen.",
+                    approvedBy: "{{name}} aprobou esta inscrición o {{date}}.",
+                    rejectedAuto:
+                        "As regras de aprobación rexeitaron esta inscrición automaticamente: {{reason}}.",
+                    rejectedBy: "{{name}} rexeitou esta inscrición o {{date}}: {{reason}}.",
+                },
+                registryHelp:
+                    "Buscamos votantes cos mesmos datos: {{fields}}. Escolla aquel ao que pertence esta inscrición.",
+                registrySearching:
+                    "Estes son os votantes do rexistro que coinciden coa súa busca. Escolla aquel ao que pertence esta inscrición.",
+                registrySearch:
+                    "Non está na lista? Busque no rexistro por nome ou correo electrónico",
+                registryLoading: "Buscando no rexistro",
+                registryError: "Non se puido buscar no rexistro.",
+                noCandidates:
+                    "Ningún votante do rexistro coincide. Probe a buscar por nome ou correo electrónico.",
+                candidates: "Votantes do rexistro",
+                alreadyEnrolled: "Xa inscrito",
+                bestMatch: "Mellor coincidencia",
+                detailsMatch: "Coinciden {{count}} de {{total}} datos",
+                compareTitle: "Comparación con {{name}} no rexistro",
+                col: {
+                    detail: "Dato",
+                    enrollment: "Na inscrición",
+                    registry: "No rexistro",
+                    result: "Resultado",
+                },
+                same: "Igual",
+                differs: "Distinto",
+                compareNote: "Nos nomes non se teñen en conta maiúsculas, acentos nin guións.",
+                compareJoint:
+                    "Para permisos de conducir e libretas de mariño, o nome e o segundo nome compáranse xuntos.",
+                applicationId: "ID da solicitude",
+                copy: "Copiar",
+                copied: "Copiado",
+                approve: "Aprobar a inscrición",
+                approveDialog: {
+                    title: "Aprobar a {{name}}?",
+                    body: "Isto vincula a inscrición co votante do rexistro que aparece abaixo. Avísase o votante por correo electrónico ou SMS e poderá iniciar sesión para votar cando se abra a votación.",
+                    checked: "Comprobou o documento de identidade do votante cara a cara.",
+                    irreversible: "Isto non se pode desfacer.",
+                    confirm: "Aprobar",
+                },
+                reject: "Rexeitar a inscrición",
+            },
+            idCheck: {
+                title: "Comprobación do documento",
+                method: {
+                    VERIFIED: "Documento escaneado e verificado",
+                    MANUAL_ENTRY: "Escrito á man",
+                    UNKNOWN: "Non indicado",
+                },
+                verified: "O proceso de inscrición verificou o documento de identidade do votante",
+                typedByHand: "O votante escribiu os seus datos á man",
+                unknown: "O proceso de inscrición non indicou como se comprobou a identidade",
+                faceToFaceTitle: "Comprobe a súa identidade cara a cara antes de aprobar",
+                faceToFaceText:
+                    "Reúnase co votante en persoa ou por videochamada e compare o seu documento de identidade cos datos desta páxina.",
+            },
+            reject: {
+                rejectReason: "Motivo do rexeitamento",
+                message: "Mensaxe para o votante",
+                messageRequired: "Escriba unha mensaxe para o votante cando o motivo sexa Outro.",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Faltan datos",
+                    "no-matching-voter": "Votante non coincidente",
+                    "voter-already-approved": "Xa aprobado",
+                    "other": "Outro",
+                },
+                hint: {
+                    "insufficient-information": "Faltan datos ou non se poden ler.",
+                    "no-matching-voter": "A persoa non está no rexistro de votantes.",
+                    "voter-already-approved": "Este votante xa está inscrito.",
+                    "other": "Escriba a súa propia mensaxe.",
+                },
+                preview: {
+                    "insufficient-information":
+                        "Non puidemos inscribilo porque faltan algúns dos seus datos ou non se poden ler. Volva inscribirse cos datos completos.",
+                    "no-matching-voter":
+                        "Non atopamos no rexistro un votante que coincida cos seus datos. Revise os seus datos e volva inscribirse, ou póñase en contacto coa súa oficina electoral.",
+                    "voter-already-approved":
+                        "Xa está inscrito. Poderá iniciar sesión para votar cando se abra a votación.",
+                },
+                previewTitle: "O votante verá",
+            },
             notifications: {
-                approveError: "Error al aprobar al votante",
-                approveSuccess: "Votante aprobado",
-                rejectError: "Error al rechazar al votante",
-                rejectSuccess: "Votante rechazado",
-                VoterApprovedAlready: "El votante ya está aprobado.",
+                approveError: "Non se puido aprobar a inscrición",
+                approveSuccess: "Inscrición de {{name}} aprobada. Avisouse o votante.",
+                rejectError: "Non se puido rexeitar a inscrición",
+                rejectSuccess: "Inscrición de {{name}} rexeitada. Avisouse o votante.",
+                VoterApprovedAlready: "Este votante xa está inscrito.",
             },
             export: {
-                success: "La exportación de aplicaciones se completó con éxito",
-                error: "Error al exportar las aplicaciones",
+                success: "A exportación de solicitudes completouse con éxito",
+                error: "Erro ao exportar as solicitudes",
+            },
+            matrix: {
+                button: "Matriz de aprobación",
+                title: "Matriz de aprobación",
+                back: "Aprobacións",
+                subtitle:
+                    "As regras deciden que pasa con cada inscrición. Decide a primeira regra que se cumpre.",
+                versionChip: "Versión {{version}}",
+                savedBy: "Gardada o {{date}} por {{user}}",
+                builtIn: "Regras integradas, en uso ata que se garde unha versión",
+                unsaved: "Cambios sen gardar",
+                viewOnly: "Só lectura",
+                readOnlyTitle: "Pode ver as regras, pero non cambialas",
+                readOnlyText:
+                    "Pídalle a un administrador que teña o permiso approval-matrix-write que faga os cambios.",
+                loadError: "Non se puido cargar a matriz de aprobación.",
+                compared: "Que comparamos",
+                comparedHelp:
+                    "Cada inscrición compárase co votante atopado no rexistro. Nos nomes non se teñen en conta maiúsculas, acentos nin guións; para permisos de conducir e libretas de mariño, o nome e o segundo nome compáranse xuntos.",
+                addCompared: "Comparar outro dato",
+                rules: "Regras",
+                rulesHelp:
+                    "As regras compróbanse desde arriba. Decide a primeira que se cumpre; se non se cumpre ningunha, aplícase a última regra.",
+                when: "Cando",
+                then: "Entón",
+                otherwise: "Noutro caso",
+                noneApply: "Non se aplica ningunha das regras anteriores",
+                andWord: "e",
+                and: " e ",
+                appliesToExample: "Aplícase ao seu exemplo",
+                cameFrom: "Decidiu a inscrición desde a que chegou",
+                voterIsTold: "Ao votante díselle: “{{reason}}”.",
+                sentence: "Cando {{when}}, {{outcome}}.",
+                sentenceOtherwise: "Se non se aplica ningunha das regras anteriores, {{outcome}}.",
+                sentenceEmpty: "Engada unha condición para indicar cando se aplica esta regra.",
+                addRule: "Engadir regra",
+                discard: "Descartar os cambios",
+                actions: {
+                    edit: "Editar a regra {{number}}",
+                    editOtherwise: "Editar a última regra",
+                    moveUp: "Subir a regra {{number}}",
+                    moveDown: "Baixar a regra {{number}}",
+                    delete: "Eliminar a regra {{number}}",
+                },
+                saveBar: {
+                    title: "Ten cambios sen gardar",
+                    fix_one: "Corrixa 1 regra antes de gardar",
+                    fix_other: "Corrixa {{count}} regras antes de gardar",
+                    more: "+{{count}} máis",
+                },
+                test: "Probar un exemplo",
+                testHelp:
+                    "Describa unha inscrición para ver que regra a decide. Os cambios sen gardar tamén contan.",
+                testDetails: "Datos comparados",
+                applies: "Aplícase a regra {{number}}",
+                otherwiseApplies: "Aplícase a última regra",
+                testError: "Non se puido probar o exemplo.",
+                testInvalid: "Corrixa estas regras para probar un exemplo:",
+                ruleError: "Regra {{number}}: {{error}}",
+                invariants: {
+                    MANUAL_ENTRY_NOT_ACCEPTED:
+                        "Unha identidade escrita á man nunca se aproba automaticamente, así que isto envíase a unha persoa.",
+                    ALREADY_ENROLLED_NOT_ACCEPTED:
+                        "Un votante que xa está inscrito nunca se aproba de novo.",
+                    NO_VOTER_NOT_ACCEPTED: "Non se aproba a ninguén sen un votante no rexistro.",
+                    OTHERWISE_NOT_ACCEPTED: "A última regra nunca aproba.",
+                },
+                dialog: {
+                    editTitle: "Editar a regra {{number}}",
+                    newTitle: "Nova regra",
+                    otherwiseTitle: "Editar a última regra",
+                    summary: "En resumo",
+                    whenHelp: "Deben cumprirse todas. Omita unha condición cando non importe.",
+                    otherwiseHelp: "Se non se aplica ningunha das regras anteriores",
+                    addCondition: "Engadir condición",
+                    remove: "Quitar “{{condition}}”",
+                    identity: "Comprobación de identidade",
+                    voterFound: "Votante no rexistro",
+                    alreadyEnrolled: "Xa inscrito",
+                    validId: "Tipo de documento",
+                    differing: "Datos que difiren",
+                    decision: "Decisión",
+                    reason: "Que se lle di ao votante",
+                    voterSees: "O votante ve",
+                    apply: "Aplicar",
+                    close: "Pechar",
+                    yes: "Si",
+                    no: "Non",
+                    notReported: "Non indicado",
+                },
+                identity: {
+                    VERIFIED: "Verificada con documento escaneado",
+                    MANUAL_ENTRY: "Escrita á man",
+                },
+                differing: {
+                    none: "Ningún",
+                    exactly_1: "Exactamente 1",
+                    at_most_1: "Como máximo 1",
+                    exactly_2: "Exactamente 2",
+                    at_most_2: "Como máximo 2",
+                    at_least_3: "3 ou máis",
+                },
+                fieldMatch: {
+                    MATCHES: "Igual",
+                    DIFFERS: "Distinto",
+                },
+                decisions: {
+                    ACCEPTED: "Aprobar automaticamente",
+                    PENDING: "Enviar a unha persoa",
+                    REJECTED: "Rexeitar",
+                },
+                outcomeShort: {
+                    ACCEPTED: "aprobar automaticamente",
+                    PENDING: "enviar a unha persoa",
+                    REJECTED: "rexeitar",
+                },
+                outcomeHelp: {
+                    ACCEPTED: "O votante queda inscrito sen que ninguén o revise.",
+                    PENDING:
+                        "Decide un funcionario, e ao votante díselle que a súa inscrición está en revisión.",
+                    REJECTED: "Ao votante díselle o motivo, e pode volver inscribirse.",
+                },
+                outcomeSentence: {
+                    ACCEPTED: "apróbase a inscrición automaticamente",
+                    PENDING: "envíase a inscrición a unha persoa",
+                    REJECTED: "rexéitase a inscrición",
+                },
+                reasons: {
+                    NO_VOTER: "Votante non coincidente",
+                    ALREADY_APPROVED: "Xa aprobado",
+                    INSUFFICIENT_INFORMATION: "Faltan datos",
+                    IDENTITY_NOT_VERIFIED: "Identidade non verificada",
+                    OTHER: "Outro",
+                },
+                voterText: {
+                    NO_VOTER:
+                        "Non atopamos no rexistro un votante que coincida cos seus datos. Revise os seus datos e volva inscribirse, ou póñase en contacto coa súa oficina electoral.",
+                    ALREADY_APPROVED:
+                        "Xa está inscrito. Poderá iniciar sesión para votar cando se abra a votación.",
+                    INSUFFICIENT_INFORMATION:
+                        "Non puidemos inscribilo porque faltan algúns dos seus datos ou non se poden ler. Volva inscribirse cos datos completos.",
+                    IDENTITY_NOT_VERIFIED:
+                        "Non puidemos verificar a súa identidade automaticamente, así que un funcionario electoral revisará a súa inscrición.",
+                    OTHER: "Un funcionario electoral escribe esta mensaxe cando decide.",
+                },
+                conditions: {
+                    any: "Aínda non hai condicións",
+                    identity: {
+                        VERIFIED: "Identidade verificada con documento escaneado",
+                        MANUAL_ENTRY: "Identidade escrita á man",
+                    },
+                    voterFound: {
+                        true: "Votante atopado no rexistro",
+                        false: "Ningún votante atopado no rexistro",
+                    },
+                    alreadyEnrolled: {
+                        true: "Xa inscrito",
+                        false: "Aínda non inscrito",
+                    },
+                    validId: "Documento: {{id}}",
+                    differing: {
+                        none: "Todos os datos coinciden",
+                        exactly_1: "Exactamente 1 dato difire",
+                        at_most_1: "Como máximo 1 dato difire",
+                        exactly_2: "Exactamente 2 datos difiren",
+                        at_most_2: "Como máximo 2 datos difiren",
+                        at_least_3: "3 ou máis datos difiren",
+                    },
+                    field: {
+                        MATCHES: "{{field}} coincide",
+                        DIFFERS: "{{field}} difire",
+                    },
+                },
+                errors: {
+                    ACCEPTS_MANUAL_ENTRY:
+                        "As inscricións coa identidade escrita á man non se poden aprobar automaticamente.",
+                    ACCEPTS_ALREADY_ENROLLED:
+                        "Un votante que xa está inscrito non se pode aprobar de novo.",
+                    ACCEPTS_WITHOUT_VOTER:
+                        "Non se pode aprobar unha inscrición sen un votante no rexistro.",
+                    OTHERWISE_ACCEPTS:
+                        "A última regra pode enviar inscricións a unha persoa ou rexeitalas, pero non aprobalas.",
+                    MISSING_REASON: "Escolla que se lle di ao votante.",
+                    UNEXPECTED_REASON: "Unha aprobación non ten motivo.",
+                    NO_COMPARED_FIELDS: "Escolla polo menos un dato para comparar co rexistro.",
+                    DUPLICATE_COMPARED_FIELD: "Hai un dato comparado repetido.",
+                    UNKNOWN_FIELD: "Unha regra usa un dato que non se compara.",
+                    NO_CONDITIONS:
+                        "Engada polo menos unha condición. Só a última regra se aplica a todo o demais.",
+                },
+                change: {
+                    added: "Regra {{number}} engadida",
+                    decision: "Regra {{number}}: {{from}} → {{to}}",
+                    edited: "Regra {{number}} modificada",
+                    removed: "Eliminouse unha regra ({{text}})",
+                    moved: "Reordenáronse as regras",
+                    otherwise: "A última regra cambiou",
+                    compared: "Os datos comparados cambiaron",
+                },
+                save: {
+                    button: "Gardar como versión {{version}}",
+                    title: "Gardar como versión {{version}}?",
+                    body: "A partir de agora, as novas inscricións decídense con estas regras. As inscricións xa decididas conservan a súa decisión.",
+                    changes: "Que cambiou",
+                    log: "A nova versión queda anotada na bitácora electoral.",
+                    confirm: "Gardar a versión {{version}}",
+                    success: "Gardada como versión {{version}}",
+                    error: "Non se puido gardar a matriz de aprobación",
+                },
+            },
+        },
+        monitoring: {
+            title: "Monitorización",
+            loading: "Cargando a monitorización",
+            unavailableAlert:
+                "Non se puideron cargar os paneis de monitorización, así que se mostra o panel estándar.",
+            noDashboards: "Este evento non ten paneis de monitorización.",
+            dashboardFailed: "Non se puido cargar o panel de monitorización.",
+            dashboardInvalid: "Este panel non se pode mostrar: {{problem}}",
+            retry: "Tentar de novo",
+            errors: {
+                busy: "O servidor está ocupado. Tentarase de novo nuns segundos.",
+                forbiddenScope: "Non pode ver esta rexión, Post ou país. Escolla outro.",
+                snapshotPruned:
+                    "A actualización mostrada xa non se conserva. O panel mostra agora a última actualización: exporte de novo para usala.",
+                checksUnavailable:
+                    "O servizo de gráficos non está dispoñible agora. Ténteo máis tarde.",
+                lockedDown: "O evento electoral está bloqueado, así que isto non se pode cambiar.",
+                notFound: "Este panel ou widget xa non está configurado. Recargue a páxina.",
+                badRequest: "Non se aceptou a solicitude. Recargue a páxina e ténteo de novo.",
+                conflict: "Outra persoa gardou un cambio antes. Recargue e ténteo de novo.",
+                invalid: "Algúns valores da exportación non se aceptan.",
+                unknown: "Algo fallou. Ténteo máis tarde.",
+            },
+            header: {
+                dashboard: "Panel",
+                updated: "Actualizado {{time}} ({{timeZone}})",
+                notUpdated: "Aínda sen reconto",
+                refresh: "cada {{seconds}} s",
+                export: "Exportar",
+                editDashboard: "Editar o panel",
+                preset: "Axuste predefinido de paneis",
+                reload: "Buscar cifras novas",
+            },
+            footer: {
+                dataThrough: "Datos ata {{time}} ({{timeZone}})",
+            },
+            selectors: {
+                region: "Rexión",
+                post: "Posto",
+                country: "País",
+                allRegions: "Todas as rexións",
+                allPosts: "Todos os postos",
+                allAuthorizedPosts: "Todos os postos autorizados",
+                allCountries: "Todos os países",
+                authorizedOnly: "{{all}} (autorizados)",
+            },
+            widget: {
+                menu: "Accións de {{widget}}",
+                configure: "Configurar o widget",
+                viewData: "Ver datos",
+                export: "Exportar",
+                duplicate: "Duplicar",
+                loading: "Cargando {{widget}}",
+                missing: "O panel nomea un widget que non existe: {{id}}",
+                updating: "Actualizando {{widget}}",
+                updatingNote: "Actualizando: o gráfico mostrado é o anterior.",
+            },
+            frame: {
+                title: "Gráfico de {{widget}}",
+            },
+            sources: {
+                voter_turnout: "Participación",
+                test_voting: "Votación de proba",
+                enrollment_decisions: "Decisións de inscrición",
+                voting_credentials: "Credenciais de voto",
+                poll_status: "Estado da votación",
+                final_testing_lockdown: "Probas finais e bloqueo",
+                counting_transmission: "Reconto e transmisión",
+                voting_enrollment_activity: "Actividade de voto e inscrición",
+                access_security: "Acceso e seguridade",
+                attack_detections: "Detección de ataques",
+                helpdesk: "Soporte",
+            },
+            reasons: {
+                TEST_ELECTION_DESIGNATION: "aínda non se poden marcar as eleccións de proba",
+                CREDENTIAL_ISSUED_EVENT: "aínda non se rexistra a emisión de credenciais",
+                FINAL_TESTING_LOCKDOWN_STATE: "aínda non se rexistran as probas finais e o bloqueo",
+                ATTACK_DETECTION_FEED: "non hai ningunha fonte de detección de ataques conectada",
+                HELPDESK_INTEGRATION: "non hai ningún sistema de soporte conectado",
+            },
+            notices: {
+                UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY:
+                    "Os intentos con nomes de usuario non rexistrados non pertencen a ningún posto, polo que só se contan para todo o evento.",
+                UNREGISTERED_ATTEMPTS_EXCLUDED:
+                    "Estas cifras non inclúen os intentos con nomes de usuario non rexistrados; cóntanse para todo o evento.",
+                CREDENTIALS_ISSUED_WHEN_PASSWORD_SET:
+                    "As credenciais contan como emitidas cando se establece o contrasinal do votante, ata que a plataforma rexistre a súa emisión.",
+                CONFIG_NEWER_THAN_SNAPSHOT:
+                    "Debuxado coa configuración máis recente; as cifras cóntanse con ela na próxima pasada.",
+                CONFIG_AT_SNAPSHOT_UNAVAILABLE:
+                    "Debuxado coa configuración actual: a configuración coa que se contaron as cifras xa non se conserva.",
+            },
+            unavailable: {
+                notConnected: "Non conectado · {{reason}}",
+                notConnectedHelp: "Non se mostra nada ata que o estea.",
+                unknownReason: "fonte de datos non dispoñible",
+                noSnapshot: "Aínda sen reconto",
+                noSnapshotHelp: "O primeiro reconto non rematou. Este widget actualízase só.",
+                scopePending: "Contando esta selección",
+                scopePendingHelp:
+                    "Esta selección cóntase na seguinte pasada, nun minuto aproximadamente.",
+                settingsPending: "Contando coa nova configuración…",
+                settingsPendingHelp:
+                    "As cifras vólvense contar coa configuración gardada, nun minuto aproximadamente.",
+                renderFailed: "Non se puido debuxar o gráfico",
+                renderFailedHelp: "No seu lugar móstranse as cifras.",
+                invalid: "Este widget non se pode mostrar",
+                invalidHelp: "A súa configuración ten un problema.",
+                requestFailed: "Non se puido cargar este widget",
+                requestFailedHelp: "Téntase de novo cando o panel se actualiza.",
+            },
+            dataTable: {
+                title: "{{widget}} · datos",
+                close: "Pechar",
+                empty: "Sen filas",
+                rowsPerPage: "Filas por páxina:",
+                shownRows: "{{from}}–{{to}} de {{total}}",
+                firstPage: "Primeira páxina",
+                previousPage: "Páxina anterior",
+                nextPage: "Páxina seguinte",
+                lastPage: "Última páxina",
+            },
+            columns: {
+                numerator: "Numerador",
+                denominator: "Denominador",
+                pct: "Porcentaxe",
+                pct_label: "Porcentaxe mostrada",
+                group: "Grupo",
+                group_key: "Clave do grupo",
+                post: "Posto",
+                post_id: "ID do posto",
+                region: "Rexión",
+                country: "País",
+                reason: "Motivo",
+                category: "Categoría",
+                state: "Estado",
+                state_label: "Estado mostrado",
+                bucket_start: "Inicio do período",
+                bucket_label: "Período",
+                bucket_utc: "Inicio do período (UTC)",
+                measure: "Medida",
+                label: "Etiqueta",
+                value: "Valor",
+            },
+            measures: {
+                registered: "Rexistrados",
+                pre_enrolled: "Preinscritos",
+                credentials_issued: "Credenciais emitidas",
+                test_voted: "Votos de proba",
+                voted: "Votaron",
+                voted_pre_enrolled: "Preinscritos que votaron",
+                applications: "Solicitudes",
+                pending: "Pendentes",
+                approved: "Aprobadas",
+                disapproved: "Rexeitadas",
+                posts: "Postos",
+                initialized: "Inicializados",
+                opened: "Abertos",
+                paused: "En pausa",
+                closed: "Pechados",
+                tested: "Probados",
+                locked_down: "Bloqueados",
+                tallied: "Escrutados",
+                transmitted: "Transmitidos",
+                transmission_failed: "Transmisión fallida",
+                logins: "Inicios de sesión",
+                login_failures: "Inicios de sesión fallidos",
+                login_failures_valid_user: "Fallidos, usuario válido",
+                login_failures_unregistered: "Fallidos, usuario non rexistrado",
+                password_resets: "Restablecementos de contrasinal",
+                password_reset_requests: "Solicitudes de restablecemento de contrasinal",
+                detections: "Deteccións",
+                issues: "Incidencias",
+                pending_issues: "Incidencias pendentes",
+            },
+            export: {
+                title: "Exportar datos de monitorización",
+                format: "Formato",
+                csv: "CSV",
+                sql: "SQL",
+                from: "Desde",
+                to: "Ata",
+                timeZoneHelp:
+                    "As horas están en {{timeZone}}. Os totais, os estados e os grupos son os da actualización mostrada; só as filas das series de actividade se limitan ao intervalo, desde a hora de inicio ata a hora de fin, sen incluíla.",
+                cancel: "Cancelar",
+                export: "Exportar",
+                invalidRange: "O fin debe ser posterior ao inicio.",
+                problems: {
+                    unknownSelector:
+                        "{{widget}} xa non ten a opción «{{selector}}». Recargue o panel e volva exportar.",
+                    unknownOption:
+                        "O valor escollido para «{{selector}}» en {{widget}} xa non se ofrece. Escóllao de novo e exporte.",
+                },
+            },
+            editor: {
+                scopeSelector: {
+                    region: "Rexión",
+                    post: "Posto",
+                    country: "País",
+                },
+                sources: {
+                    voter_turnout: "Participación de votantes",
+                    test_voting: "Votación de proba",
+                    enrollment_decisions: "Decisións de inscrición",
+                    voting_credentials: "Credenciais de votación",
+                    poll_status: "Estado da mesa",
+                    final_testing_lockdown: "Probas finais e bloqueo",
+                    counting_transmission: "Reconto e transmisión",
+                    voting_enrollment_activity: "Actividade de votación e inscrición",
+                    access_security: "Acceso e seguridade",
+                    attack_detections: "Deteccións de ataques",
+                    helpdesk: "Asistencia técnica",
+                },
+                templates: {
+                    summary: "Resumo",
+                    by_group: "Por grupo",
+                    by_post: "Por posto",
+                    timeseries: "Ao longo do tempo",
+                    by_measure: "Por medida",
+                },
+                yaml: {
+                    label: "YAML",
+                    readOnly:
+                        "O YAML ten un erro de sintaxe. Corríxao na pestana YAML para volver usar os formularios.",
+                },
+                diagnostics: {
+                    title: "Comprobacións",
+                    none: "Non se atopou ningún problema",
+                    localUnavailable:
+                        "As comprobacións no navegador non están dispoñibles; os problemas aparecen tras a vista previa ou Validar.",
+                    line: "Liña {{line}}",
+                    engineCode: "dbt Charts {{code}}",
+                    severity: {
+                        ERROR: "Erro",
+                        WARNING: "Aviso",
+                    },
+                    origin: {
+                        SYNTAX: "Sintaxe YAML",
+                        LOCAL: "Comprobación do navegador",
+                        SERVER: "Comprobación do servidor",
+                    },
+                },
+                footer: {
+                    preview: "Vista previa",
+                    valid: "Válido",
+                    errors_one: "{{count}} erro",
+                    errors_other: "{{count}} erros",
+                    noWarnings: "sen avisos de gráficos",
+                    warnings_one: "{{count}} aviso de gráfico",
+                    warnings_other: "{{count}} avisos de gráficos",
+                    rendering: "Xerando…",
+                    previewFailed: "fallou a vista previa",
+                    renderedIn: "xerado en {{ms}} ms",
+                    revision: "Revisión {{revision}}",
+                    savedBy: "gardado {{date}} por {{user}}",
+                    unknownUser: "un administrador",
+                    notSaved: "aínda sen gardar",
+                    unsaved: "cambios sen gardar",
+                    cancel: "Cancelar",
+                    validate: "Validar",
+                },
+                preview: {
+                    title: "Vista previa",
+                    empty: "A vista previa aparece cando o YAML é válido.",
+                    failed: "Non se puido xerar a vista previa: {{reason}}",
+                    notConnectedTail: "Non se amosa nada ata que o estea.",
+                    queryResult: "Resultado da consulta · primeiras filas",
+                    noRows: "A consulta non devolveu filas.",
+                    state: {
+                        RENDERED: "Xerado",
+                        NOT_CONNECTED: "Non conectado",
+                        NO_SNAPSHOT: "Aínda sen datos",
+                        SCOPE_PENDING: "Estase a contar este ámbito",
+                        RENDER_FAILED: "Non se puido debuxar o gráfico",
+                        INVALID: "A configuración non é válida",
+                    },
+                },
+                configureWidget: {
+                    title: "Configurar widget",
+                    tabs: {
+                        dataQuery: "Datos e consulta",
+                        selectors: "Selectores",
+                        yaml: "YAML",
+                        preview: "Vista previa",
+                    },
+                    save: "Gardar widget",
+                    loading: "Cargando o widget…",
+                    loadFailed: "Non se puido cargar o widget: {{reason}}",
+                    saved: "Widget gardado como revisión {{revision}}",
+                    refused: "Non se gardou o widget: corrixa os problemas indicados.",
+                    validated: "O widget é válido.",
+                    invalid: "O widget ten problemas: consulte as comprobacións.",
+                    requestFailed: "A solicitude fallou: {{reason}}",
+                    discardTitle: "Descartar os cambios?",
+                    discardBody: "Os cambios neste widget non se gardaron.",
+                    discard: "Descartar",
+                    keepEditing: "Seguir editando",
+                },
+                dataQuery: {
+                    title: "Título",
+                    source: "Fonte de datos",
+                    template: "Consulta",
+                    measures: "Medidas",
+                    ratio: "Numerador / denominador",
+                    numerator: "Numerador",
+                    denominator: "Denominador",
+                    groupBy: "Agrupar por",
+                    sort: "Ordenar",
+                    sortOrder: "Orde",
+                    templateOrder: "A orde propia da consulta",
+                    sortBy: {
+                        label: "Etiqueta",
+                        value: "Valor",
+                        ratio: "Proporción",
+                    },
+                    order: {
+                        asc: "Ascendente",
+                        desc: "Descendente",
+                    },
+                    limit: "Filas",
+                    noLimit: "Todas",
+                    none: "Ningún",
+                    fromSelector: "Desde o selector: {{name}}",
+                    follow: "Seguir os selectores do panel",
+                    followHelp: "Un selector sen marcar non limita este widget.",
+                    manyQueries: "Este widget ten varias consultas; edíteas na pestana YAML.",
+                    notConnected: "Non conectado · {{reason}}",
+                    sourceHelp: {
+                        DISTINCT_VOTERS:
+                            "Conta votantes distintos; as regras de reconto fíxaas a fonte de datos.",
+                        DISTINCT_PRE_ENROLLED_VOTERS:
+                            "Conta votantes preinscritos distintos; as regras de reconto fíxaas a fonte de datos.",
+                        LATEST_DECISION_PER_VOTER:
+                            "Conta a última decisión por votante; as regras de reconto fíxaas a fonte de datos.",
+                        APPROVED_VOTERS:
+                            "Conta votantes aprobados; as regras de reconto fíxaas a fonte de datos.",
+                        POSTS_IN_SCOPE:
+                            "Conta os postos do ámbito; as regras de reconto fíxaas a fonte de datos.",
+                        FIRST_EVENT_PER_VOTER:
+                            "Conta o primeiro voto ou aprobación válido de cada votante; as regras de reconto fíxaas a fonte de datos.",
+                        ATTEMPTS:
+                            "Conta intentos, non persoas; as regras de reconto fíxaas a fonte de datos.",
+                        DETECTIONS:
+                            "Conta deteccións; as regras de reconto fíxaas a fonte de datos.",
+                        REPORTED_ISSUES:
+                            "Conta incidencias notificadas; as regras de reconto fíxaas a fonte de datos.",
+                        default: "As regras de reconto fíxaas a fonte de datos.",
+                    },
+                },
+                selectors: {
+                    help: "Os selectores aparecen na cabeceira do widget. Os seus valores alimentan a consulta; os selectores do panel (Rexión, Posto, País) aplícanse a todos os widgets.",
+                    name: "Nome",
+                    label: "Etiqueta",
+                    control: "Control",
+                    controls: {
+                        dropdown: "Lista despregable",
+                        toggle: "Interruptor",
+                    },
+                    default: "Predeterminado",
+                    optionValue: "Valor",
+                    optionLabel: "Etiqueta da opción",
+                    addOption: "Engadir opción",
+                    addSelector: "Engadir selector",
+                    removeOption: "Quitar a opción {{option}}",
+                    removeSelector: "Quitar o selector {{name}}",
+                    moveUp: "Subir {{name}}",
+                    moveDown: "Baixar {{name}}",
+                    dynamic: "As opcións proceden dos datos ({{source}}).",
+                    none: "Este widget non ten selectores.",
+                    newLabel: "Novo selector",
+                    newOption: "Nova opción",
+                    shownWhen: "Amósase cando {{selector}} é {{values}}",
+                },
+                conflict: {
+                    title: "Alguén gardou antes",
+                    body: "{{user}} gardou a revisión {{revision}} ({{date}}) mentres vostede editaba.",
+                    bodyShort: "Gardouse a revisión {{revision}} mentres vostede editaba.",
+                    saved: "Revisión gardada",
+                    mine: "Os meus cambios",
+                    reload: "Recargar",
+                    copy: "Copiar o meu YAML",
+                    copied: "O seu YAML está no portapapeis.",
+                    copyFailed:
+                        "O portapapeis non está dispoñible; seleccione o YAML e cópieo a man.",
+                    keepEditing: "Seguir editando",
+                    removed:
+                        "O documento eliminouse mentres vostede editaba. Siga editando para gardalo de novo.",
+                },
+                dashboard: {
+                    editing: "Editando o panel",
+                    title: "Título",
+                    selectors: "Selectores do panel",
+                    theme: "Tema",
+                    editTheme: "Editar tema",
+                    addWidget: "Engadir widget",
+                    cancel: "Cancelar",
+                    save: "Gardar panel",
+                    width: "Largura",
+                    widthValue: "{{n}} de 12",
+                    moveUp: "Subir",
+                    moveDown: "Baixar",
+                    remove: "Quitar",
+                    duplicate: "Duplicar",
+                    configure: "Configurar widget",
+                    empty: "Este panel aínda non ten widgets.",
+                    saved: "Panel gardado como revisión {{revision}}",
+                    refused: "Non se gardou o panel: corrixa os problemas indicados.",
+                    requestFailed: "A solicitude fallou: {{reason}}",
+                    dragHandle: "Arrastre para reordenar {{title}}",
+                    widgets: "Widgets",
+                    duplicated: "Duplicado como {{id}}",
+                    resetToPreset: "Restablecer ao axuste predefinido",
+                    actions: "Accións de {{title}}",
+                    discardBody: "Os teus cambios neste panel non se gardaron.",
+                    duplicateInvalid: "A copia non se gardou: {{problem}}",
+                    layoutMalformed:
+                        "Algúns elementos do deseño non son un widget cun ancho. Corríxeos na lapela YAML para reordenar os widgets.",
+                },
+                catalog: {
+                    title: "Engadir widget",
+                    search: "Buscar widgets, fontes de datos ou requisitos",
+                    add: "Engadir",
+                    empty: "Ningún widget coincide.",
+                    onDashboard: "Neste panel",
+                    close: "Pechar",
+                },
+                theme: {
+                    title: "Tema do panel",
+                    subtitle: "estilo de dbt Charts aplicado a todos os widgets deste panel",
+                    appliesTo_one: "aplícase a {{count}} widget",
+                    appliesTo_other: "aplícase a {{count}} widgets",
+                    apply: "Aplicar tema",
+                    saved: "Tema gardado como revisión {{revision}}",
+                    discardBody: "Os cambios neste tema non se gardaron.",
+                },
+                reset: {
+                    title: "Restablecer ao axuste predefinido",
+                    body: "Todos os paneis, widgets e temas deste evento substitúense polos do axuste predefinido. A configuración actual permanece no historial.",
+                    preset: "Axuste predefinido",
+                    confirm: "Restablecer",
+                    cancel: "Cancelar",
+                    done: "O evento usa agora {{title}}.",
+                    failed: "O restablecemento fallou: {{reason}}",
+                    noPresets: "Non hai axustes predefinidos dispoñibles.",
+                    loading: "Cargando os axustes predefinidos…",
+                },
+                lockedDown:
+                    "O evento está bloqueado; a súa configuración de monitorización non pode cambiar.",
+                document: {
+                    loadFailed: "Non se puido cargar o documento: {{reason}}",
+                    refused: "Non se gardou: corrixe os problemas indicados.",
+                    validated: "O documento é válido.",
+                    invalid: "O documento ten problemas: consulta as comprobacións.",
+                    requestFailed: "A solicitude fallou: {{reason}}",
+                    savedWithWarnings_one: "{{count}} aviso: consulta as comprobacións.",
+                    savedWithWarnings_other: "{{count}} avisos: consulta as comprobacións.",
+                },
+                errors: {
+                    checksUnavailable:
+                        "O motor de gráficos non puido comprobar o cambio, así que non se gardou. Téntao de novo nun momento.",
+                    busy: "Estanse a gardar outros cambios deste evento. Téntao de novo nun momento.",
+                    lockedDown:
+                        "O evento está bloqueado; a súa configuración de monitorización non pode cambiar.",
+                    forbiddenScope: "Non podes ver cifras da rexión, o posto ou o país escollidos.",
+                    badRequest:
+                        "O editor enviou unha solicitude que o servidor non puido ler. Recargue a páxina e ténteo de novo.",
+                },
+                duplicate: {
+                    copyTitle: "{{title}} (copia)",
+                    done: "Engadiuse {{id}}, unha copia do widget, ao panel.",
+                    failed: "Non se puido duplicar o widget: {{reason}}",
+                    notPlaced:
+                        "A copia {{id}} gardouse, pero o panel non a incluíu ({{reason}}). Engádaa con Editar panel.",
+                },
             },
         },
         monitoringDashboardScreen: {
@@ -2903,6 +4218,1634 @@ const galegoTranslation: TranslationType = {
             confirmDelete: "Eliminar autoridade de certificación",
             confirmDeleteDescription:
                 '¿Está seguro de que quere eliminar o certificado "{{name}}" (pegada: {{fingerprint}})?',
+        },
+        signing: {
+            terms: {
+                post: "Posto",
+                posts: "Postos",
+            },
+            tab: {
+                title: "Sinaturas",
+                intro: "As accións protexidas só se executan cando abondas persoas autorizadas as asinan cos seus certificados dixitais. Cada sinatura compróbase cos emisores de confianza e queda anotada no rexistro.",
+                protectedActions: "Accións protexidas",
+                certificates: "Certificados",
+                requests: "Solicitudes",
+            },
+            loadError:
+                "Non se puido cargar a configuración de sinaturas. Recargue a páxina para tentalo de novo.",
+            errors: {
+                automatedCeremonies:
+                    "Este evento utiliza cerimonias de claves automáticas. Os custodios non realizan estes pasos, polo que non se poden esixir as súas sinaturas. Para esixir as sinaturas dos custodios, utiliza cerimonias de claves manuais.",
+                forbidden: "Non ten permiso para este cambio.",
+                invalid: "O servidor rexeitou estes valores. Revíseos e ténteo de novo.",
+                conflict:
+                    "Outra persoa cambiouno mentres tanto. Recargue a páxina e ténteo de novo.",
+                lockedDown:
+                    "O evento electoral está bloqueado: as regras de sinatura só cambian mediante unha nova versión de configuración.",
+                notFound: "Xa non existe. Recargue a páxina.",
+            },
+            readOnly: {
+                chip: "Só lectura",
+                rules: "Só lectura. Para cambiar as regras de sinatura cómpre o permiso «Sinaturas: editar accións protexidas».",
+                whoCanSign:
+                    "Roles co permiso «Asinar: {{action}}» en Usuarios e Roles. Para cambialos cómpre permiso para editar roles.",
+            },
+            groups: {
+                "voting": "Votación",
+                "results-and-reports": "Resultados e informes",
+                "enrollment": "Inscrición",
+                "configuration-and-keys": "Configuración e chaves",
+            },
+            actions: {
+                "initialize-voting": {
+                    label: "Inicializar a votación",
+                    short: "Inicialización",
+                    permissionName: "inicializar a votación",
+                    object: "inicialización da votación",
+                    appliesTo: "Cada $t(signing.terms.post)",
+                    description:
+                        "Iníciase en Publicar. Inicializa o $t(signing.terms.post) e xera o seu Informe de Inicialización.",
+                },
+                "open-voting": {
+                    label: "Abrir a votación",
+                    short: "Apertura",
+                    permissionName: "abrir a votación",
+                    object: "apertura da votación",
+                    appliesTo: "Cada $t(signing.terms.post)",
+                    description:
+                        "Iníciase en Publicar con Iniciar Votación. Abre a votación no $t(signing.terms.post).",
+                },
+                "close-voting": {
+                    label: "Pechar a votación",
+                    short: "Peche",
+                    permissionName: "pechar a votación",
+                    object: "peche da votación",
+                    appliesTo: "Cada $t(signing.terms.post)",
+                    description:
+                        "Iníciase en Publicar con Detener Votación. Pecha a votación no $t(signing.terms.post); as sinaturas de peche consérvanse na súa acta.",
+                    descriptionSealed:
+                        "Iníciase en Publicar con Detener Votación. Pecha a votación no $t(signing.terms.post). Cando todas as canles están pechadas, as súas urnas sélanse, tras o período de graza se o hai: non se pode engadir, cambiar nin borrar ningunha papeleta, e a votación non pode volver comezar. As sinaturas de peche consérvanse na súa acta.",
+                },
+                "generate-election-returns": {
+                    label: "Xerar actas electorais",
+                    short: "Actas electorais",
+                    permissionName: "xerar actas electorais",
+                    object: "actas electorais",
+                    appliesTo: "Cada $t(signing.terms.post) e país",
+                    description:
+                        "Iníciao o escrutinio, unha solicitude por $t(signing.terms.post) e país. Libera as actas electorais asinadas para a súa impresión e transmisión.",
+                },
+                "generate-reports": {
+                    label: "Xerar outros informes electorais",
+                    short: "Informe",
+                    permissionName: "xerar outros informes electorais",
+                    object: "informe",
+                    appliesTo: "Cada $t(signing.terms.post)",
+                    description:
+                        "Iníciao o escrutinio para o Informe de Inicialización e Informes para o informe de participación. Libera o informe asinado.",
+                },
+                "transmit-results": {
+                    label: "Transmitir resultados",
+                    short: "Transmisión",
+                    permissionName: "transmitir resultados",
+                    object: "paquete de resultados",
+                    appliesTo: "Cada $t(signing.terms.post) e país",
+                    description:
+                        "Iníciase en Escrutinio, Transmisión. Xera o paquete de resultados asinado para os seus destinos; as sinaturas completan a súa lista de sinaturas.",
+                },
+                "approve-voter": {
+                    label: "Aprobar manualmente un votante",
+                    short: "Aprobación de votante",
+                    permissionName: "aprobar manualmente un votante",
+                    object: "aprobación de votante",
+                    appliesTo: "O $t(signing.terms.post) do votante",
+                    description:
+                        "Iníciase en Aprobacións. Aproba o votante e emite as súas credenciais.",
+                },
+                "approve-configuration": {
+                    label: "Aprobar unha versión de configuración",
+                    short: "Versión de configuración",
+                    permissionName: "aprobar unha versión de configuración",
+                    object: "versión de configuración",
+                    appliesTo: "O evento electoral",
+                    description: "Iníciase en Publicar. Publica a versión de configuración.",
+                },
+                "key-ceremony": {
+                    label: "Confirmar un fragmento de chave (cerimonia de chaves)",
+                    short: "Fragmento de chave",
+                    permissionName: "confirmar un fragmento de chave",
+                    object: "fragmento de chave",
+                    appliesTo: "Cada fiduciario",
+                    description:
+                        "Iníciao cada fiduciario en Chaves. Anota a sinatura do fiduciario na cerimonia e no taboleiro de anuncios.",
+                },
+                "tally-key": {
+                    label: "Achegar un fragmento de chave (escrutinio)",
+                    short: "Achega de fragmento de chave",
+                    permissionName: "achegar un fragmento de chave",
+                    object: "achega de fragmento de chave",
+                    appliesTo: "Cada fiduciario",
+                    description:
+                        "Iníciao cada fiduciario en Escrutinio. Anota a achega do fiduciario.",
+                },
+            },
+            protectedActions: {
+                intro: "Cada sinatura faise co certificado dixital do token de seguranza do asinante.",
+                columns: {
+                    action: "Acción",
+                    appliesTo: "Aplícase a",
+                    whoCanSign: "Quen pode asinar",
+                    signaturesNeeded: "Sinaturas necesarias",
+                    requestExpires: "Caducidade da solicitude",
+                    waiting: "En espera",
+                },
+                off: "Desactivada",
+                eachTrustee: "Cada fiduciario",
+                footerVersion:
+                    "As regras de sinatura forman parte da versión de configuración {{version}} deste evento.",
+                footerFirstVersion:
+                    "As regras de sinatura pasarán a formar parte da primeira versión de configuración deste evento cando se publique.",
+                footerChanged: "Último cambio: {{date}}.",
+                footerChangedBy: "Último cambio: {{date}}, por {{name}}.",
+                lockedDown:
+                    "O evento electoral está bloqueado: as súas regras de sinatura pertencen á súa versión de configuración, polo que só cambian mediante unha nova versión de configuración.",
+                edit: "Editar {{action}}",
+                view: "Ver {{action}}",
+                waitingCount_one: "{{count}} solicitude en espera",
+                waitingCount_other: "{{count}} solicitudes en espera",
+                capacityError:
+                    "Non se puido cargar quen pode asinar, así que o número de sinaturas non se pode comprobar cos $t(signing.terms.posts).",
+            },
+            expiry: {
+                "30": "30 minutos",
+                "60": "1 hora",
+                "120": "2 horas",
+                "1440": "24 horas",
+                "none": "Sen límite",
+                "other": "{{count}} minutos",
+            },
+            rule: {
+                needsSignatures: "Require sinaturas",
+                whoCanSign: "Quen pode asinar",
+                whoCanSignHelp:
+                    "Estes roles reciben o permiso «Asinar: {{action}}» en Usuarios e Roles, para todos os eventos electorais. Os asinantes tamén deben ter acceso ao $t(signing.terms.post).",
+                signaturesNeeded: "Sinaturas necesarias",
+                signaturesNeededHelp:
+                    "Cada asinante usa o seu certificado dixital. Cada $t(signing.terms.post) ten polo menos {{n}} persoas que poden asinar.",
+                signaturesNeededShortHelp: "Cada asinante usa o seu certificado dixital.",
+                requesterSigning: "A persoa que a inicia tamén pode asinar",
+                expiresAfter: "Unha solicitude caduca despois de",
+                trusteesSign: "Os fiduciarios asinan este paso",
+                trusteesHelp:
+                    "Cada fiduciario asina o seu propio paso co seu certificado dixital. A cerimonia de chaves determina cantos fiduciarios participan.",
+                footer: "Os cambios quedan anotados no rexistro do evento electoral e pasan a formar parte da seguinte versión de configuración.",
+                cancel: "Cancelar",
+                save: "Gardar",
+                saved: "Gardouse a regra de sinatura.",
+                savedShort_one:
+                    "Gardouse a regra de sinatura. {{posts}} aínda non pode alcanzar o número: engada alí un asinante.",
+                savedShort_other:
+                    "Gardouse a regra de sinatura. {{posts}} aínda non poden alcanzar o número: engada alí asinantes.",
+                checkedOnSave: "O número compróbase cos novos roles ao gardar.",
+                savedRequesterShort:
+                    "Gardouse a regra de sinatura. Algúns $t(signing.terms.posts) non poden alcanzar o número sen a persoa que inicia unha solicitude.",
+                saveError:
+                    "Non se puido gardar a regra de sinatura. Pode que outra persoa a cambiase mentres tanto; recargue e ténteo de novo.",
+            },
+            validation: {
+                atLeastOne: "Polo menos 1.",
+                tooMany:
+                    "Ningún $t(signing.terms.post) ten {{n}} persoas que poidan asinar. O máximo é {{max}}.",
+                tooManyEvent: "Só {{max}} persoas poden asinar isto. Escolla como máximo {{max}}.",
+                atMost: "Como máximo {{max}}.",
+                shortPosts_one:
+                    "{{posts}} só ten {{n}} persoas que poden asinar, así que non pode alcanzar {{required}} sinaturas. Engada alí un asinante ou reduza o número.",
+                requesterShort_one:
+                    "Sen a persoa que a inicia, {{posts}} só ten {{n}} persoas que poden asinar, así que non pode alcanzar {{required}} sinaturas.",
+                requesterShort_other:
+                    "Sen a persoa que a inicia, {{posts}} só teñen {{n}} persoas que poden asinar, así que non poden alcanzar {{required}} sinaturas.",
+                shortPosts_other:
+                    "{{posts}} só teñen {{n}} persoas que poden asinar, así que non poden alcanzar {{required}} sinaturas. Engada alí un asinante ou reduza o número.",
+            },
+            pendingRequests_one:
+                "{{count}} solicitude está agardando sinaturas coa regra actual. Ao gardar cancélase; a persoa que a iniciou terá que comezar de novo.",
+            pendingRequests_other:
+                "{{count}} solicitudes están agardando sinaturas coa regra actual. Ao gardar cancélanse; as persoas que as iniciaron terán que comezar de novo.",
+            certificates: {
+                issuersIntro:
+                    "Os certificados do persoal deben encadear cun destes. Son distintos dos certificados cos que inician sesión os votantes.",
+                checkRevocation: "Comprobar as listas de revogación",
+                crlUnavailable: {
+                    "label": "Cando non se pode descargar unha lista",
+                    "refuse": "Non aceptar sinaturas",
+                    "accept-unchecked": "Aceptar e marcar a sinatura como non comprobada",
+                },
+                registration: {
+                    "label": "Rexistro dun certificado a nome dunha persoa",
+                    "on-first-use": "Cando o seu titular asina con el por primeira vez",
+                    "security-officer-only":
+                        "Só cando o rexistra alguén que pode rexistrar certificados",
+                },
+                onePost: "Un certificado asina só para un $t(signing.terms.post)",
+                issuers: "Emisores de confianza",
+                import: "Importar certificados de emisores",
+                importHelp:
+                    "Escolla un ficheiro PEM ou CER co certificado do emisor. Un ficheiro PEM pode conter varios certificados.",
+                chooseFile: "Escoller un ficheiro de certificado",
+                fileError: "Non se puido ler o ficheiro.",
+                imported:
+                    "{{imported}} certificados de emisores importados; {{skipped}} xa eran de confianza.",
+                importedWithErrors:
+                    "{{imported}} certificados de emisores importados, {{skipped}} xa eran de confianza. Rexeitados: {{errors}}",
+                importError: "Non se puideron importar os certificados de emisores.",
+                deleteIssuer: "Eliminar {{name}}",
+                deleteIssuerConfirm:
+                    "Eliminar {{name}} dos emisores de confianza? Os certificados que emitiu xa non poderán asinar.",
+                deleteError: "Non se puido eliminar o emisor.",
+                noIssuers:
+                    "Aínda non hai emisores de confianza. O persoal non pode asinar ata que se importe un.",
+                root: "Raíz",
+                intermediate: "Intermedio",
+                columns: {
+                    issuer: "Emisor",
+                    type: "Tipo",
+                    issuedBy: "Emitido por",
+                    validUntil: "Válido ata",
+                    sha256: "SHA-256",
+                    person: "Persoa",
+                    post: "$t(signing.terms.post)",
+                    certificate: "Certificado",
+                    registered: "Rexistrado",
+                    status: "Estado",
+                },
+                checks: "Comprobacións",
+                checksSaved: "Gardáronse as comprobacións de certificados.",
+                checksError: "Non se puideron gardar as comprobacións de certificados.",
+                crlSchedule: "Descárganse de cada emisor cada hora.",
+                crlUpdated: "{{url}}: actualizada {{time}}",
+                crlFailed: "{{url}}: non se puido descargar (último intento {{time}})",
+                registeredTitle: "Certificados rexistrados",
+                search: "Buscar persoas, certificados ou $t(signing.terms.posts)",
+                status: "Estado",
+                statusAll: "Todos",
+                statuses: {
+                    "active": "Activo",
+                    "expires-soon": "Caduca pronto",
+                    "expired": "Caducado",
+                    "revoked": "Revogado",
+                },
+                revokedOn: "Revogado o {{date}}",
+                allPosts: "Todos",
+                noCertificates: "Non hai certificados rexistrados.",
+                registeredHow: {
+                    "first-use": "Na primeira sinatura",
+                    "security-officer": "Rexistrado por un administrador",
+                },
+                register: "Rexistrar un certificado",
+                registerSubmit: "Rexistrar",
+                registerDone: "Rexistrouse o certificado.",
+                registerError: "Non se puido rexistrar o certificado.",
+                person: "Persoa",
+                personSearchHelp: "Escriba parte dun nome de usuario para atopar a persoa.",
+                registeredBy: "Por {{name}}",
+                registerRefused:
+                    "Este certificado non se pode rexistrar: comprobe que o emitiu un emisor de confianza, que é válido hoxe e que está destinado a asinar.",
+                registeredToOther:
+                    "Este certificado está rexistrado a nome de {{name}}. Se esta conta tamén é de {{name}}, vincúlea como a súa segunda conta.",
+                linkAccount: "Vincular como segunda conta da mesma persoa",
+                alreadyRegistered: "Este certificado xa está rexistrado a nome desta persoa.",
+                pem: "Certificado (PEM)",
+                revoke: "Revogar",
+                revokeOf: "Revogar o certificado de {{name}}",
+                revokeTitle: "Revogar o certificado de {{name}}",
+                revokeHelp:
+                    "Un certificado revogado xa non pode asinar. As sinaturas que xa fixo seguen sendo válidas.",
+                revokeReason: "Motivo",
+                revokeDone: "Revogouse o certificado.",
+                revokeError: "Non se puido revogar o certificado.",
+            },
+            requests: {
+                exportCsv: "Exportar CSV",
+                exportError: "Non se puideron exportar as solicitudes.",
+                exportFileName: "signing-requests.csv",
+                status: "Estado",
+                statusAll: "Todas",
+                statusCount: "{{status}} · {{count}} de {{total}}",
+                expires: "Caduca {{time}}",
+                lastSignatureBy: "{{name}}, {{time}}",
+                empty: "Aínda non hai solicitudes de sinatura.",
+                columns: {
+                    request: "Solicitude",
+                    status: "Estado",
+                    started: "Iniciada",
+                    by: "Por",
+                    lastSignature: "Última sinatura",
+                    code: "Código",
+                },
+            },
+            reports: {
+                postRequired:
+                    "Selecciona un posto para xerar este informe cando se requiren sinaturas.",
+                generateNotice:
+                    "{{post}}: o documento xérase agora. Poderase imprimir e transmitir cando o asinen {{n}} persoas.",
+            },
+            status: {
+                waiting: "En espera",
+                completed: "Asinada",
+                executed: "Feita",
+                cancelled: "Cancelada",
+                expired: "Caducada",
+                failed: "Fallida",
+            },
+            cancelReasons: {
+                "by-requester": "A persoa que a iniciou cancelouna",
+                "by-operator": "Un operador cancelouna",
+                "rule-changed": "Cambiou a regra de sinatura da acción",
+                "payload-changed": "Cambiou o que se asina",
+                "superseded": "Unha solicitude máis recente substituíuna",
+                "certificate-revoked": "Revogouse un certificado que a asinou",
+            },
+            panel: {
+                rulePost:
+                    "Require {{n}} sinaturas dos asinantes de {{post}}, cada unha co seu certificado dixital.",
+                ruleEvent: "Require {{n}} sinaturas, cada unha co certificado dixital do asinante.",
+                signingCode: "Código de sinatura",
+                signers: "Asinantes",
+                sign: "Asinar",
+                handover: "O seguinte membro inicia sesión",
+                cancel: "Cancelar a solicitude",
+                signedAt: "Asinado {{time}}",
+                notSigned: "Sen asinar",
+                certificate: "Certificado {{name}}",
+                you: "(vostede)",
+                expiresAt: "Caduca ás {{time}}",
+                progress: "{{count}} de {{total}}",
+                openDocument: "Abrir o documento",
+                configurationVersion: "Versión de configuración {{version}}",
+                configurationChanges: "Cambios nesta versión",
+            },
+            dialog: {
+                title: "Asinar {{object}}",
+                steps: {
+                    check: "Revisar",
+                    certificate: "Certificado",
+                    signed: "Asinado",
+                },
+                localNote:
+                    "A sinatura faise neste navegador. O seu ficheiro de certificado, a súa chave privada e o seu contrasinal nunca se envían. Só a súa sinatura e o seu certificado público chegan ao servidor.",
+                check: {
+                    signingAs: "Está a asinar como {{name}}",
+                    titlePost: "{{title}}, {{post}}",
+                    sameCode: "Todas as persoas que asinan ven o mesmo código.",
+                    confirmDocument: "Revisei o que asino: {{object}}",
+                },
+                certificate: {
+                    intro: "Insira o seu token de seguranza e escolla o seu ficheiro de certificado.",
+                    password: "Contrasinal do certificado",
+                    open: "Abrir o certificado",
+                    chooseAnother: "Escoller outro ficheiro",
+                },
+                checks: {
+                    "passed": {
+                        "trusted-issuer": "Emitido por un emisor de confianza ({{root}})",
+                        "valid-now": "Válido hoxe",
+                        "signing-key-usage": "Destinado a asinar",
+                        "not-revoked": "Non revogado (listas actualizadas {{time}})",
+                        "registered": "Rexistrado ao seu nome o {{date}}",
+                        "registered-to-other": "Non rexistrado a nome doutra persoa",
+                        "already-signed": "Aínda non usado para esta solicitude",
+                        "post-binding": "Rexistrado para este $t(signing.terms.post)",
+                        "signature": "A sinatura cobre esta solicitude",
+                    },
+                    "failed": {
+                        "trusted-issuer": "Non emitido por un emisor de confianza",
+                        "valid-now": "Non válido hoxe",
+                        "signing-key-usage": "Non destinado a asinar",
+                        "not-revoked":
+                            "Revogado, ou non hai unha lista de revogación vixente para comprobalo",
+                        "registered": "Non rexistrado ao seu nome",
+                        "registered-to-other": "Rexistrado a nome de {{name}}",
+                        "already-signed": "Xa usado para esta solicitude",
+                        "post-binding": "Rexistrado para outro $t(signing.terms.post)",
+                        "signature": "A sinatura non cobre esta solicitude",
+                    },
+                    "first-use": "Primeiro uso: rexistrarase ao seu nome",
+                },
+                problems: {
+                    wrongPassword: "Contrasinal incorrecto. Revíseo e ténteo de novo.",
+                    notForYou:
+                        "Este certificado non pode asinar por vostede. Use o certificado do seu propio token de seguranza.",
+                    issuerNotAccepted:
+                        "Use o certificado que {{organization}} rexistrou para vostede. Non se aceptan certificados doutros emisores.",
+                    cancelled:
+                        "Esta solicitude cancelouse: {{reason}}. As sinaturas dadas para ela xa non contan. Iníciea de novo para asinar a versión actual.",
+                },
+                signed: {
+                    title: "Asinado",
+                    withCertificate: "co certificado de {{name}}",
+                    count: "{{n}} de {{total}} sinaturas.",
+                    allIn: "Xa están as {{total}} sinaturas.",
+                    next: "A continuación asinan: {{names}}.",
+                },
+                handover:
+                    "Pecharase a súa sesión. O seguinte membro inicia sesión neste equipo e volve a esta solicitude para asinar. A solicitude segue aberta ata as {{time}}.",
+                sign: "Asinar",
+                back: "Atrás",
+                cancel: "Cancelar",
+            },
+            widget: {
+                continue: "Continuar",
+                done: "Feito",
+                close: "Pechar",
+                retry: "Tentar de novo",
+                loading: "Cargando a solicitude…",
+                loadError: "Non se puido cargar a solicitude.",
+                chooseFile: "Escoller ficheiro de certificado",
+                fileInput: "Ficheiro de certificado",
+                fileSize: "{{size}} KB",
+                showPassword: "Mostrar o contrasinal",
+                hidePassword: "Ocultar o contrasinal",
+                opening: "Abrindo o certificado…",
+                checking: "Comprobando o certificado…",
+                signing: "Asinando…",
+                certificateCard: "Emitido por {{issuer}} · válido ata {{date}} · {{algorithm}}",
+                fingerprint: "SHA-256 {{fingerprint}}",
+                algorithms: {
+                    "rsa-pkcs1-sha256": "RSA",
+                    "ecdsa-p256-sha256": "EC P-256",
+                },
+                document: "{{type}} · SHA-256 {{hash}}",
+                documentPages: "{{type}} · {{pages}} páxinas · SHA-256 {{hash}}",
+                checksTitle: "Comprobacións do certificado",
+                untrustedIssuer:
+                    "{{issuer}} non é un emisor de confianza para este evento electoral",
+                registeredToSomeoneElse: "Rexistrado a nome doutra persoa",
+                checkPassedNoDetail: {
+                    "trusted-issuer": "Emitido por un emisor de confianza",
+                    "not-revoked": "Non revogado",
+                },
+                organization: "a súa organización",
+                cantSign: "Este certificado non pode asinar esta solicitude.",
+                checkError: "Non se puido comprobar o certificado. Ténteo de novo.",
+                fileErrors: {
+                    UNREADABLE_FILE:
+                        "Este ficheiro non é un ficheiro de certificado (.p12 ou .pfx), ou está danado.",
+                    UNSUPPORTED_ENCRYPTION:
+                        "Este navegador non pode abrir o cifrado que usa este ficheiro.",
+                    NO_PRIVATE_KEY:
+                        "Este ficheiro non ten chave privada. Escolla o ficheiro de certificado do seu token de seguranza.",
+                    NO_CERTIFICATE: "Este ficheiro non ten ningún certificado.",
+                    UNSUPPORTED_KEY:
+                        "O tipo de chave deste certificado non é compatible. Use un certificado RSA ou EC P-256.",
+                    KEY_CERTIFICATE_MISMATCH:
+                        "O certificado deste ficheiro non coincide coa súa chave.",
+                },
+                openError: "Non se puido abrir o certificado. Ténteo de novo.",
+                signError: "Non se puido enviar a sinatura. Ténteo de novo.",
+                refused: "O servidor rexeitou a sinatura.",
+                stale: "O documento cambiou mentres asinaba. Asine de novo.",
+                mismatch:
+                    "O que se asinaría non coincide con esta solicitude. Peche o diálogo e volva abrir a solicitude.",
+                documentMismatch: "O documento non coincide co que asina esta solicitude.",
+                documentError: "Non se puido descargar o documento. Ténteo de novo.",
+                alreadySigned: "Xa asinou esta solicitude.",
+                closed: {
+                    changed:
+                        "Esta solicitude cambiou despois de abrila. Peche esta xanela e revísea de novo antes de asinar.",
+                    allSigned: "Esta solicitude xa ten todas as súas sinaturas.",
+                },
+                chooseCertificate: "Certificado co que asinar",
+                renderError:
+                    "Non se puido mostrar a solicitude de sinatura. Péchea e vólvaa abrir.",
+                signedAt: "{{time}}",
+                panel: {
+                    completedAt: "Asinada ás {{time}}",
+                    expired:
+                        "Esta solicitude caducou. As sinaturas dadas para ela xa non contan. Iníciea de novo para asinar.",
+                    failed: "Están todas as sinaturas, pero a acción fallou. O rexistro ten os detalles.",
+                    details: "Detalles",
+                    close: "Pechar o panel da solicitude",
+                },
+                cancelDialog: {
+                    title: "Cancelar esta solicitude?",
+                    body: "As sinaturas dadas para ela xa non contan. A persoa que a iniciou terá que comezar de novo.",
+                    reason: "Motivo (opcional)",
+                    confirm: "Cancelar a solicitude",
+                    back: "Mantela",
+                    error: "Non se puido cancelar a solicitude. Ténteo de novo.",
+                },
+                handoverDialog: {
+                    title: "O seguinte membro inicia sesión",
+                    noExpiry:
+                        "Pecharase a súa sesión. O seguinte membro inicia sesión neste equipo e volve a esta solicitude para asinar.",
+                    confirm: "Pechar sesión",
+                    back: "Manter a sesión",
+                    error: "Non se puido rexistrar o relevo. Ténteo de novo.",
+                },
+            },
+            details: {
+                keys_ceremony_id: "Cerimonia",
+                tally_session_id: "Sesión de escrutinio",
+                trustee_id: "Fiduciario",
+                key_share_sha256: "SHA-256 do fragmento de chave",
+                channel: "Canle",
+                channels: "Canles",
+                publication_id: "Publicación de papeletas",
+                ballot_publication_id: "Publicación de papeletas",
+                digest: "SHA-256 da configuración",
+                signing_rules: "Regras de sinatura",
+                scheduled_events: "Novos eventos programados",
+                ballots_and_contests: "Papeletas e concursos",
+                application_id: "Solicitude de inscrición",
+                applicant_registry_id: "Conta do rexistro",
+                decision: "Decisión",
+                submitted_at: "Enviada",
+                reason: "Por que require unha persoa",
+                registry_record: "Rexistro do censo",
+                status: "Estado da solicitude de inscrición",
+                from: "Estado anterior",
+            },
+            closed: {
+                pending: "Están todas as sinaturas. A votación péchase nun momento.",
+                title: "A votación pechouse ás {{time}}.",
+                titleSealed: "A votación pechouse ás {{time}}. Papeletas seladas.",
+                record: "Acta de selado",
+                ballots: "Papeletas no selo",
+                sealHash: "{{algorithm}} do selo",
+                signedBy: "Asinado por",
+                signatures: "Sinaturas de peche na acta de selado",
+                signaturesValue_one: "{{count}}, código de sinatura {{code}}",
+                signaturesValue_other: "{{count}}, código de sinatura {{code}}",
+                signers: "Asinado polos membros",
+            },
+            values: {
+                ballots_and_contests: {
+                    "first-version": "Primeira versión",
+                    "no-changes": "Sen cambios",
+                    "changed": "Con cambios",
+                },
+                signing_rules: {
+                    "initialize-voting": "$t(signing.actions.initialize-voting.label)",
+                    "open-voting": "$t(signing.actions.open-voting.label)",
+                    "close-voting": "$t(signing.actions.close-voting.label)",
+                    "generate-election-returns":
+                        "$t(signing.actions.generate-election-returns.label)",
+                    "generate-reports": "$t(signing.actions.generate-reports.label)",
+                    "transmit-results": "$t(signing.actions.transmit-results.label)",
+                    "approve-voter": "$t(signing.actions.approve-voter.label)",
+                    "approve-configuration": "$t(signing.actions.approve-configuration.label)",
+                    "key-ceremony": "$t(signing.actions.key-ceremony.label)",
+                    "tally-key": "$t(signing.actions.tally-key.label)",
+                },
+                channels: {
+                    ONLINE: "En liña",
+                    KIOSK: "Quiosco",
+                    EARLY_VOTING: "Votación anticipada",
+                    TELEPHONE: "Teléfono",
+                },
+                statuses: {
+                    NOT_STARTED: "Non iniciada",
+                    OPEN: "Aberta",
+                    PAUSED: "En pausa",
+                    CLOSED: "Pechada",
+                },
+                channelStatus: "{{channel}}: {{status}}",
+                ruleChange: "{{action}}: {{rule}}",
+                ruleChangeFrom: "{{action}}: {{rule}} (antes {{was}})",
+                ruleNeeds: "precisa {{n}}",
+                ruleOff: "desactivada",
+                decision: {
+                    approve: "Aprobar",
+                },
+            },
+            results: {
+                signatures: "Sinaturas",
+                needs: "Require {{n}}",
+                off: "Desactivada",
+                openRequest: "Abrir a solicitude de sinatura",
+                downloadSigned: "Descargar o PDF asinado",
+                print: "Imprimir",
+                transmit: "Transmitir resultados",
+                sendTo: "Enviar a {{count}} destinos",
+                awaiting: "{{item}}: agardando sinaturas",
+                transmission: {
+                    title: "Sinaturas",
+                    description:
+                        "Cada asinante asina os resultados do paquete co seu certificado dixital, neste navegador. O paquete pódese enviar cando o asinen {{n}} persoas.",
+                    waiting:
+                        "O paquete pódese enviar cando a súa solicitude de sinatura teña todas as sinaturas.",
+                    signed: "O paquete leva todas as súas sinaturas e pódese enviar.",
+                    ended: "A solicitude de sinatura deste paquete rematou. Volva crear o paquete para asinalo.",
+                },
+            },
+            waiting: {
+                title: "Pendente da miña sinatura",
+                buttonCount_one: "Pendente da miña sinatura: {{count}} solicitude por asinar",
+                buttonCount_other: "Pendente da miña sinatura: {{count}} solicitudes por asinar",
+                intro: "Solicitudes que agardan as sinaturas das accións que pode asinar, nos seus $t(signing.terms.posts).",
+                close: "Pechar a lista",
+                empty: "Non hai nada pendente da súa sinatura.",
+                loadError: "Non se puideron cargar as solicitudes que agardan sinaturas.",
+                signedByYou: "Asinada por vostede",
+            },
+            notes: {
+                afterApproval: "Despois da aprobación",
+                afterApprovalValue: "Emítense as credenciais do votante e envíanselle",
+                keyShare: "O seu fragmento de chave",
+                keyShareChecked: "Comprobado: é o seu fragmento de chave para esta cerimonia",
+                recordedIn: "Anótase en",
+                recordedInCeremony: "A cerimonia de chaves e o taboleiro de anuncios",
+                recordedInTally: "A sesión de escrutinio",
+            },
+            keyShare: {
+                signing:
+                    "Asine o seu fragmento de chave no panel de sinatura. Anótase unha vez que o asine.",
+                record: "Anotar o meu fragmento de chave",
+                failed: "Non se puido anotar o seu fragmento de chave asinado: {{error}}",
+                dropAgain:
+                    "Volva soltar o seu ficheiro de fragmento de chave para anotar o seu fragmento de chave asinado.",
+                redo: "O seu fragmento de chave achegouse sen a súa sinatura, que esta elección agora require. Achégueo de novo e asíneo.",
+                notTaken:
+                    "A cerimonia xa non acepta este fragmento de chave. Volva soltar o seu ficheiro de fragmento de chave.",
+            },
+        },
+        lifecycle: {
+            signedClose: {
+                title: "Prazo de peche asinado",
+                deadline: "{{election}}: {{time}} · autorizado pola configuración {{code}}.",
+                explanation:
+                    "Este prazo asinado segue sendo vinculante aínda que se cambie ou elimine o calendario editable. O planificador pecha as canles autorizadas que aínda estean abertas.",
+                reached:
+                    "Este prazo asinado xa venceu. Comprobe o estado actual da votación e o rexistro de auditoría; aínda non se rexistrou o seu procesamento.",
+                processed: "Prazo de peche asinado procesado ás {{time}}.",
+                signedAt: "Prazo asinado: {{time}}.",
+                channels: "Canles que seguen cubertas por este prazo: {{channels}}.",
+                result: "Consulte o estado da votación e o rexistro de auditoría para coñecer os cambios reais e o resultado completo.",
+                unavailable:
+                    "Non se puideron cargar os prazos de peche asinados. Comprobe o calendario publicado e o rexistro de auditoría.",
+            },
+            picker: {
+                noMatch:
+                    "Ningún fuso horario coincide. Escribe unha cidade, un país, unha zona, unha abreviatura ou un desprazamento.",
+            },
+            input: {
+                timezone: "Fuso horario",
+                scheduledAt: "Programado para",
+                meetingStart: "Inicio da reunión",
+                cronZone: "A programación execútase no fuso horario principal do evento, {{zone}}.",
+                unconfiguredZone:
+                    "{{zone}} non é un dos fusos horarios configurados do evento. Escolle un deles.",
+            },
+            schedule: {
+                allElections: "Todas as eleccións",
+                outcome: "Resultado",
+                noOffset: "Sen desprazamento horario: nunca se executa",
+                unpublished: "Aínda sen publicar",
+                notPublished:
+                    "Aínda non hai nada publicado: os votantes ven a programación tras a primeira publicación.",
+                unpublishedChanges_one:
+                    "{{count}} evento programado cambiou desde a última publicación. Os votantes verano cando publiques.",
+                unpublishedChanges_other:
+                    "{{count}} eventos programados cambiaron desde a última publicación. Os votantes veranos cando publiques.",
+                offsetless_one:
+                    "{{count}} hora programada non ten desprazamento horario, así que nunca se executa. Edítaa para fixar o seu fuso horario.",
+                offsetless_other:
+                    "{{count}} horas programadas non teñen desprazamento horario, así que nunca se executan. Edítaas para fixar o seu fuso horario.",
+                outcomeChange:
+                    "Ao gardar cambia o que fai esta transición programada: {{before}} → {{after}}.",
+                outcomeNew: "Unha vez gardada, esta transición programada: {{after}}.",
+                outcomeElections: "{{count}} de {{total}} eleccións",
+                exportError: "Non se puido exportar a programación.",
+                exportFileName: "schedule.csv",
+                totals: {
+                    refused_one:
+                        "{{count}} fila programada será rexeitada ({{transitions}} transicións de eleccións).",
+                    refused_other:
+                        "{{count}} filas programadas serán rexeitadas ({{transitions}} transicións de eleccións).",
+                    runsUnsigned_one:
+                        "{{count}} peche programado executarase sen sinaturas ({{transitions}} transicións de eleccións).",
+                    runsUnsigned_other:
+                        "{{count}} peches programados executaranse sen sinaturas ({{transitions}} transicións de eleccións).",
+                    review: "Revisar",
+                    showAll: "Amosar todo",
+                    showing: {
+                        refused:
+                            "Móstranse as {{count}} filas programadas que serán rexeitadas ({{transitions}} transicións de eleccións).",
+                        runsUnsigned:
+                            "Móstranse os {{count}} peches programados que se executarán sen sinaturas ({{transitions}} transicións de eleccións).",
+                    },
+                },
+                recompute: {
+                    title_one:
+                        "Unha actualización da base de datos de fusos horarios move {{count}} hora programada futura. Non cambia nada ata que a apliques.",
+                    title_other:
+                        "Unha actualización da base de datos de fusos horarios move {{count}} horas programadas futuras. Non cambia nada ata que as apliques.",
+                    change: "{{type}}: {{before}} → {{after}}",
+                    apply: "Aplicar",
+                    applied_one: "{{count}} hora programada actualizada.",
+                    applied_other: "{{count}} horas programadas actualizadas.",
+                    error: "Non se puideron actualizar as horas programadas.",
+                },
+                outcomeChangeElections_one: "Gardar cambia o resultado en {{count}} elección:",
+                outcomeChangeElections_other: "Gardar cambia o resultado en {{count}} eleccións:",
+            },
+            authorizes: {
+                reportPolicyOf: "{{election}}: {{value}}",
+                initializationRetained:
+                    "Un informe obrigatorio nesta configuración asinada segue sendo obrigatorio se a configuración actual do Posto cambia a non obrigatorio.",
+                title: "Que autoriza esta aprobación",
+                schedule: "Aperturas e peches programados",
+                noSchedule:
+                    "Non hai aperturas nin peches programados: os asinantes abren e pechan a votación.",
+                opens: "Ábrese {{time}}",
+                closes: "Péchase {{time}}",
+                settings: "Axustes",
+                unsignedClose: "Peche programado sen sinaturas: {{value}}",
+                initialization: "Inicialización: {{value}}",
+                firstConfiguration:
+                    "É a primeira configuración aprobada: non hai nada con que comparar.",
+                sameAsPrevious: "Os axustes son os mesmos que na configuración aprobada anterior.",
+                rule: {
+                    openNeeds_one: "Abrir require {{count}} sinatura",
+                    openNeeds_other: "Abrir require {{count}} sinaturas",
+                    openNoSignatures: "Abrir non require sinaturas",
+                    closeNeeds_one: "Pechar require {{count}} sinatura",
+                    closeNeeds_other: "Pechar require {{count}} sinaturas",
+                    closeNoSignatures: "Pechar non require sinaturas",
+                    openSetting: "Apertura da votación",
+                    closeSetting: "Peche da votación",
+                    signatures_one: "{{count}} sinatura",
+                    signatures_other: "{{count}} sinaturas",
+                    none: "sen sinaturas",
+                },
+                diff: {
+                    tightens: "Endurece: {{setting}} {{before}} → {{after}}",
+                    loosens: "Relaxa: {{setting}} {{before}} → {{after}}",
+                    mixed: "Cambia: {{setting}} {{before}} → {{after}} (máis estrito nun aspecto e menos noutro)",
+                },
+                comparedWith: "Comparado coa configuración aprobada anterior, aprobación {{code}}:",
+                channels: "Canles de votación por elección",
+                channelsOf: "{{election}}: {{channels}}",
+                noChannels: "ningunha",
+            },
+            publish: {
+                openedAuthorized:
+                    "A votación abriuse segundo a programación ({{time}}), autorizada pola aprobación de configuración {{code}} (asinada por {{names}}).",
+                closedAuthorized:
+                    "A votación pechouse segundo a programación ({{time}}), autorizada pola aprobación de configuración {{code}} (asinada por {{names}}).",
+                closedUnsigned:
+                    "A votación pechouse segundo a programación ({{time}}). Sen sinaturas de peche: a programación pechou a votación na súa hora límite.",
+                authorizedBy: "Autorizado por",
+                cancelledRequest:
+                    "A solicitude {{code}} tiña {{n}} de {{k}} sinaturas e cancelouse.",
+                openedRefused: "A apertura programada de {{time}} foi rexeitada.",
+                closedRefused: "O peche programado de {{time}} foi rexeitado.",
+                openedNoSignaturesNeeded:
+                    "A votación abriuse segundo a programación ({{time}}); non facían falta sinaturas.",
+                closedNoSignaturesNeeded:
+                    "A votación pechouse segundo a programación ({{time}}); non facían falta sinaturas.",
+                openedNothingToChange:
+                    "Ás {{time}} a apertura programada non tiña nada que abrir: as súas canles xa estaban abertas.",
+                closedNothingToChange:
+                    "Ás {{time}} o peche programado non tiña nada que pechar: as súas canles xa estaban pechadas.",
+            },
+            import: {
+                title: "Importar programación",
+                subtitle:
+                    "Unha fila por evento e elección, en hora local. Deixa o fuso horario baleiro para usar o fuso horario da elección.",
+                chooseFile: "Escolle un ficheiro CSV",
+                template: "Descargar modelo",
+                templateFileName: "schedule-template.csv",
+                ready: "{{ok}} eventos listos para {{posts}} eleccións.",
+                needsAttention_one:
+                    "{{ok}} eventos listos para {{posts}} eleccións. {{count}} fila require atención; corrixe o ficheiro e vólveo subir.",
+                needsAttention_other:
+                    "{{ok}} eventos listos para {{posts}} eleccións. {{count}} filas requiren atención; corrixe o ficheiro e vólveo subir.",
+                preview: "Filas que se importarán",
+                row: "Fila",
+                asWritten: "{{local}} · {{place}}",
+                moreRows: "…e {{count}} filas máis",
+                imported: "Programación importada: {{created}} creados, {{updated}} actualizados.",
+                uploadError: "Non se puido comprobar o ficheiro. Vólveo subir.",
+                importError: "Non se puido importar a programación.",
+                error: {
+                    unknownElection: "Ningunha elección ten o alias {{election}}.",
+                    unknownEventType: "{{type}} non é un tipo de evento programado.",
+                    invalidTimeZone: "{{zone}} non é un fuso horario.",
+                    invalidDateTime: "A data e a hora deben ter o formato YYYY-MM-DDTHH:MM.",
+                    invalidVotingChannels:
+                        "As canles de votación son descoñecidas ou abren á vez a votación en liña e a anticipada.",
+                    dstGap: "{{dateTime}} non existe en {{city}} porque se adiantan os reloxos. Escribe unha hora que exista.",
+                    duplicate: "Outra fila programa o mesmo evento para esta elección.",
+                    other: "Esta fila non se pode importar ({{code}}).",
+                    ambiguousElection: "Máis dunha elección ten o alias {{election}}.",
+                },
+            },
+            settings: {
+                accordion: "Idioma, data e hora",
+                dateAndTime: "Data e hora",
+                configured: "Fusos horarios configurados",
+                configuredHelp:
+                    "{{count}} fusos horarios. As eleccións escollen o seu desta lista; escribe unha cidade ou un país para engadir un.",
+                moreZones: "+{{count}}",
+                primary: "Fuso horario principal",
+                primaryHelp:
+                    "Úsase para as programacións de todo o evento, os informes e as eleccións sen fuso horario propio.",
+                primaryInUse:
+                    "{{zone}} é o fuso horario principal. Escolle antes outro fuso horario principal.",
+                inUse: "{{zone}} úsano {{names}}. Cambia antes esas eleccións.",
+                logs: "Horas nos rexistros e nas súas exportacións",
+                logsPrimary: "Fuso horario principal ({{abbr}})",
+                logsElection: "O fuso horario da elección de cada fila",
+                logsHelp: "As filas sen elección usan o fuso horario principal.",
+                electionZone: "Fuso horario",
+                electionPrimary: "Principal do evento: {{zone}}",
+                electionZoneHelp:
+                    "As programacións, as pantallas dos votantes e os informes desta elección usan este fuso horario, tamén en todas as súas áreas. Baleiro usa o fuso horario principal do evento.",
+                electionUnconfigured:
+                    "O evento xa non configura este fuso horario, así que a elección usa o fuso horario principal, {{zone}}. Escolle un dos fusos horarios configurados.",
+                electionUnconfiguredSave: "Escolle un dos fusos horarios configurados do evento.",
+            },
+            policies: {
+                accordion: "Ciclo da votación",
+                intro: "Estes axustes forman parte da configuración do evento electoral: a aprobación da configuración asínaos, e as aperturas e peches programados seguen os máis estritos entre os axustes actuais e os publicados.",
+                nothingPublished:
+                    "Aínda non hai nada publicado: ata a primeira publicación, as aperturas e peches programados usan os valores predeterminados (por elección, rexeitar).",
+                publishedValue: "Configuración publicada: {{value}}",
+                changedSincePublished:
+                    "Cambiou desde a configuración publicada: as aperturas e peches programados seguen a máis estrita das dúas ata a próxima publicación aprobada.",
+                scope: {
+                    title: "Inicialización antes de abrir a votación",
+                    post: {
+                        label: "Por elección",
+                        help: "Unha elección ábrese cando está inicializada.",
+                    },
+                    event: {
+                        label: "Todo o evento",
+                        help: "Ningunha elección se abre ata que todas estean inicializadas.",
+                        warning:
+                            "Unha elección sen inicializar mantén pechadas todas as eleccións, tamén nas súas aperturas programadas.",
+                    },
+                    postAndCountry: {
+                        label: "Por elección e país",
+                        help: "Unha elección ábrese cando todos os seus países (áreas) están inicializados.",
+                        warning:
+                            "Unha elección segue pechada, tamén na súa apertura programada, ata que todos os seus países están inicializados; cada país inicialízase co seu propio informe.",
+                    },
+                },
+                close: {
+                    title: "Peche programado sen sinaturas",
+                    help: "Cando pechar a votación require sinaturas e un peche programado non está na configuración asinada.",
+                    refuse: {
+                        label: "Rexeitar",
+                        help: "O peche non se executa; os asinantes da elección pechan a votación coas súas sinaturas.",
+                    },
+                    runAsSystem: {
+                        label: "Executar como sistema",
+                        help: "A votación péchase na hora límite e queda rexistrada como pechada pola programación sen sinaturas.",
+                        warning:
+                            "Os peches programados fóra da configuración asinada pechan a votación sen a sinatura de ninguén. O rexistro e os documentos indícano.",
+                    },
+                },
+                onSave: {
+                    outcomes_zero: "Ningunha transición programada cambia de resultado.",
+                    outcomes_one:
+                        "{{count}} transición programada cambia de resultado. Revísaa en Eventos Programados.",
+                    outcomes_other:
+                        "{{count}} transicións programadas cambian de resultado. Revísaas en Eventos Programados.",
+                },
+                saveError: "Non se puideron gardar os axustes do ciclo da votación.",
+                publishedPerTarget: "Configuración publicada, por destino: {{values}}",
+                publishedCount_one: "{{value}} ({{count}} destino)",
+                publishedCount_other: "{{value}} ({{count}} destinos)",
+                savedWithoutPolicies:
+                    "O evento electoral gardouse, pero os axustes do ciclo da votación non: {{reason}}. Gárdaos de novo.",
+            },
+        },
+        scheduledOutcome: {
+            chip: {
+                waitingForInitialization: "Agardando pola inicialización",
+                runs: "Executarase",
+                runsUnsigned: "Executarase sen sinaturas",
+                refused: "Rexeitarase",
+            },
+            note: {
+                waitingForInitialization: "Agardando pola inicialización",
+                authorized: "Autorizado pola configuración {{code}}",
+                noSignaturesNeeded: "Non necesita sinaturas",
+                closesUnsigned: "Péchase sen sinaturas",
+                refused: {
+                    initialization: "A inicialización requirida está incompleta",
+                    votingClose: "A votación non pode abrirse despois do prazo de peche",
+                    needsSignatures: "Necesita as sinaturas dos asinantes",
+                    covered: "Non está na configuración asinada",
+                    unsignedClose: "Un peche sen sinaturas rexéitase",
+                    stricterCopy: "Cambiou desde a configuración publicada, que segue a decidir",
+                    defaults: "Aínda non hai nada publicado: aplícanse os valores predeterminados",
+                },
+                refusedWithStep: "{{reason}}. {{next}}",
+            },
+            why: {
+                button: "Por que?",
+                title: {
+                    waitingForInitialization: "Por que agarda pola inicialización",
+                    runs: "Por que se executará",
+                    runsUnsigned: "Por que se executará sen sinaturas",
+                    refused: "Por que se rexeitará",
+                },
+                checks: "Comprobacións",
+                check: "Comprobación",
+                current: "Axustes actuais",
+                published: "Configuración publicada",
+                verdict: "Resultado",
+                allows: "Permite",
+                blocks: "Bloquea",
+                deciding: "Comprobación decisiva",
+                nextStep: "Seguinte paso:",
+                signedBy: "Asinado por {{names}}",
+            },
+            question: {
+                initialization: "Completouse a inicialización requirida?",
+                votingClose: "Esta apertura respecta o prazo de peche da votación?",
+                needsSignatures: "Esta acción necesita sinaturas?",
+                covered: "Está esta programación exacta na configuración asinada?",
+                unsignedClose: "Que pasa cun peche sen sinaturas?",
+                stricterCopy: "Difiren os axustes actuais e os publicados? Cales deciden?",
+                defaults: "Hai xa algo publicado?",
+            },
+            check: {
+                initialization: {
+                    waiting:
+                        "Deben completarse as inicializacións esixidas pola configuración actual e a publicada.",
+                },
+                votingClose: {
+                    passed: "A votación pecha ás {{closes_at}}; esta apertura non pode executarse nese momento nin despois.",
+                },
+                needsSignatures: {
+                    yes: "Si, {{signatures}} sinaturas",
+                    yes_one: "Si, {{count}} sinatura",
+                    yes_other: "Si, {{count}} sinaturas",
+                    no: "Non",
+                },
+                covered: {
+                    overriddenBySignedPostRow:
+                        "A configuración asinada {{code}} utiliza a apertura propia deste posto, {{scheduled_event_id}}. A apertura para todo o evento non se aplica.",
+                    yes: "Si: aprobación {{code}}, sen cambios",
+                    changed: "Non: cambiou desde a aprobación {{code}}",
+                    changedBy:
+                        "Non: editado o {{edited_at}} por {{edited_by}}, despois da aprobación {{code}}",
+                    notInApproval: "Non: a aprobación {{code}} non o inclúe",
+                    noApproval: "Aínda non hai ningunha configuración aprobada",
+                    channelsChanged:
+                        "Non: as canles de votación da elección cambiaron desde a aprobación {{code}}",
+                    alreadyFired:
+                        "Non: esta transición da aprobación {{code}} xa se executou o {{fired_at}}; executala de novo precisa sinaturas",
+                    late: "Non: pasaron máis de 15 minutos desde {{scheduled_date}} (aprobación {{code}}); executala agora precisa sinaturas",
+                },
+                unsignedClose: {
+                    refuse: "Rexeitar",
+                    runAsSystem: "Executar como sistema",
+                },
+                stricterCopy: {
+                    same: "Ambos son iguais",
+                    currentStricter: "Os axustes actuais son máis estritos: aplícanse xa",
+                    currentLooser:
+                        "Os axustes actuais son menos estritos: aplícanse tras a próxima publicación aprobada",
+                    combined: "Cada un é máis estrito nun valor: aplícanse ambos",
+                },
+                defaults: {
+                    published: "Publicado o {{published_at}}",
+                    nothingPublished: "Nada publicado: aplícanse os valores predeterminados",
+                    noSnapshot:
+                        "Publicado o {{published_at}}, antes de que as publicacións gardasen estes axustes: aplícanse os valores predeterminados",
+                },
+            },
+            nextStep: {
+                initialize:
+                    "Complete a inicialización requirida. O planificador volverá intentalo antes do peche da votación.",
+                closed: "Esta apertura non se executará despois do peche da votación.",
+                none: "Non fai falta facer nada.",
+                publishAndApprove: "Publica e aproba a configuración.",
+                requireConfigurationApproval:
+                    "Fai que Aprobar configuración requira sinaturas e, despois, publica e aproba a configuración.",
+                askSignersToOpen: "Pídelles aos asinantes da elección que abran a votación.",
+                askSignersToClose: "Pídelles aos asinantes da elección que pechen a votación.",
+            },
+            applies: {
+                tightens: "Aplícase xa ás accións manuais e programadas.",
+                loosens:
+                    "Aplícase xa ás accións manuais; ás aperturas e peches programados, tras a próxima publicación aprobada.",
+                tightensAndLoosens:
+                    "A súa parte máis estrita aplícase xa ás accións manuais e programadas; a súa parte menos estrita aplícase xa ás accións manuais e, ás aperturas e peches programados, tras a próxima publicación aprobada.",
+            },
+        },
+        messagingEvent: {
+            tab: "Mensaxería",
+            intro: "As canles que os votantes deste evento poden escoller para códigos e avisos, e a conta desde a que envía cada unha. As contas xestiónanse en Axustes > Mensaxería.",
+            readOnly:
+                "Pode ver estes axustes. Para cambialos precisa o permiso messaging-config-write.",
+            savingNote:
+                "Ao gardar tamén se actualizan as canles que as páxinas de inscrición ofrecen en cada Post.",
+            save: "Gardar",
+            saved: "Axustes de mensaxería gardados.",
+            saveRejected:
+                "Os axustes de mensaxería non se gardaron. Corrixa os problemas indicados.",
+            saveError: "Non se puideron gardar os axustes de mensaxería.",
+            accountLabel: "Conta de {{channel}}",
+            notUsed: "Sen usar",
+            missingAccount: "Conta non atopada",
+            noAccount: "Engada antes unha conta en Axustes > Mensaxería",
+            missing: "Falta: {{blockers}}",
+            purposeSwitch: "{{channel}}: {{purpose}}",
+            sections: {
+                channels: "Canles",
+                templates: "Modelos aprobados",
+                fallback: "Orde alternativa para avisos",
+                posts: "Canles por Post",
+                postsCount: "Canles por Post ({{count}} Posts)",
+                reply: "Resposta ás mensaxes entrantes",
+                delivery: "Estado da entrega",
+            },
+            column: {
+                channel: "Canle",
+                account: "Envía desde",
+                purpose: "Finalidade",
+                language: "Idioma",
+                template: "Modelo do provedor",
+                status: "Estado",
+                post: "Post",
+                key: "Para a mensaxe",
+                providerLanguage: "Idioma do provedor",
+            },
+            outOfWindow: {
+                label: "Fóra da xanela de conversa",
+                help: "Os avisos de texto libre só se envían mentres a xanela de conversa está aberta: en Messenger, nas 24 horas seguintes á última mensaxe do votante. Escolla Mensaxes de utilidade para enviar avisos despois cun modelo aprobado. Meta debe aprobalo para a páxina (o permiso page_utility_messaging e un modelo UTILITY aprobado), e ese modelo debe estar vinculado aos avisos en Modelos aprobados. Con Non enviar, un aviso fóra da xanela vai á seguinte canle dispoñible do votante.",
+                DISABLED: "Non enviar",
+                UTILITY_MESSAGES: "Mensaxes de utilidade",
+                noTemplate:
+                    "Aínda non hai ningún modelo vinculado aos avisos nesta canle. Engada un en Modelos aprobados; ata entón os avisos fóra da xanela van á seguinte canle dispoñible do votante.",
+            },
+            templates: {
+                empty: "Escolla unha conta que envíe modelos aprobados, como WhatsApp, Viber ou Messenger, para vincular aquí os seus modelos.",
+                help: "Cada fila indica que modelo aprobado envía o provedor para unha mensaxe. Para a mensaxe é o alias dun modelo de Modelos, para unha notificación, ou a clave de mensaxe que envía Keycloak, como otp; déixeo baleiro para o modelo que se usa por defecto para o propósito. Idioma é o idioma do votante. Modelo do provedor é o nome ou ID do modelo no provedor. Idioma do provedor é o código do provedor para ese modelo cando difire do idioma do votante: WhatsApp precisa o código exacto do modelo aprobado, como en_US.",
+                order: "Para cada mensaxe gaña a fila máis específica: a fila da mensaxe no idioma do votante, despois a fila da mensaxe en calquera idioma, despois o predeterminado do propósito no idioma do votante e, por último, calquera predeterminado do propósito.",
+                noneRequired:
+                    "{{channel}} só envía modelos aprobados. Engada polo menos un modelo predeterminado para cada propósito en uso.",
+                noneOptional:
+                    "Non hai modelos vinculados para {{channel}}. Só fan falta para enviar avisos fóra da xanela de conversa.",
+                row: "Modelo {{position}} de {{channel}}",
+                keyDefault: "Predeterminado do propósito",
+                add: "Engadir modelo de {{channel}}",
+                remove: "Quitar o modelo {{position}} de {{channel}}",
+                incomplete: "Indique o idioma e o modelo do provedor, ou quite esta fila.",
+                approval: {
+                    APPROVED: "Aprobado",
+                    NOT_APPROVED: "Non aprobado",
+                    ADMIN_CONFIRMED: "Confirmado por un administrador",
+                    NOT_CHECKED: "Aprobación non comprobada",
+                },
+            },
+            fallback: {
+                help: "Cando un aviso non pode chegar a un votante pola súa canle, pasa á seguinte canle desta orde que o votante verificase e que ofreza o seu Post. Os códigos nunca se reenvían sós: o votante escolle outra forma.",
+                empty: "Active os avisos dunha canle para engadila á orde alternativa.",
+                earlier: "Mover {{channel}} antes",
+                later: "Mover {{channel}} despois",
+            },
+            posts: {
+                noChannels:
+                    "Active códigos ou avisos nunha canle para escoller as canles de cada Post.",
+                help: "A inscrición mostra aos votantes de cada Post as canles marcadas aquí.",
+                restricted: "{{count}} Posts ofrecen menos das {{total}} canles.",
+                allChannels:
+                    "Todos os Posts ofrecen as {{total}} canles; desmarque unha canle no Post onde non funcione.",
+                search: "Buscar Posts",
+                cell: "{{post}}: {{channel}}",
+                showing: "Móstranse {{shown}} de {{total}} Posts. Busque para atopar outros.",
+            },
+            reply: {
+                help: "Envíase cando un votante escribe a unha das contas deste evento, como moito unha vez ao día por votante.",
+                label: "Resposta ({{language}})",
+            },
+            delivery: {
+                empty: "Non se usa ningunha canle.",
+                help: "Aceptado significa que o provedor aceptou a solicitude, non que o votante recibise ou verificase o código. Descoñecido significa que a entrega aínda non está confirmada. Un provedor sen informes de entrega mostra a entrega como non dispoñible.",
+            },
+            error: {
+                UNSUPPORTED_VERSION:
+                    "Esta configuración usa a versión {{version}}, que non se admite.",
+                DUPLICATE_CHANNEL: "{{channel}} está configurada máis dunha vez.",
+                UNKNOWN_ACCOUNT: "A conta de {{channel}} xa non existe. Escolla outra conta.",
+                ACCOUNT_OF_ANOTHER_TENANT: "A conta seleccionada pertence a outro inquilino.",
+                ACCOUNT_CHANNEL_MISMATCH: "A conta seleccionada non envía mensaxes de {{channel}}.",
+                PURPOSE_NOT_READY:
+                    "{{channel}} aínda non pode enviar {{purpose}}. Falta: {{blockers}}.",
+                TEMPLATE_NOT_APPROVED:
+                    "O modelo de {{channel}} para {{purpose}} en {{language}} non está aprobado polo provedor.",
+                OUT_OF_WINDOW_NOT_SUPPORTED:
+                    "{{channel}} non pode enviar fóra dunha xanela de conversa con esta conta: non ten xanela de conversa ou os seus avisos xa precisan un modelo.",
+                FALLBACK_CHANNEL_NOT_ENABLED:
+                    "{{channel}} está na orde alternativa pero non envía avisos.",
+                DUPLICATE_FALLBACK_CHANNEL:
+                    "{{channel}} aparece máis dunha vez na orde alternativa.",
+                ELECTION_CHANNEL_NOT_ENABLED:
+                    "{{election}} ofrece {{channel}}, que este evento non usa.",
+                UNKNOWN_ELECTION: "{{election}} non é unha elección deste evento.",
+            },
+        },
+        messaging: {
+            channel: {
+                EMAIL: "Correo electrónico",
+                SMS: "SMS",
+                WHATSAPP: "WhatsApp",
+                VIBER: "Viber",
+                MESSENGER: "Facebook Messenger",
+            },
+            provider: {
+                AWS_SES: "Amazon SES",
+                SMTP: "Servidor SMTP",
+                AWS_SNS: "Amazon SNS",
+                WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
+                MESSENGER_SEND_API: "Messenger Platform (Meta)",
+                VIBER_INFOBIP: "Viber Business Messages (Infobip)",
+                CONSOLE: "Consola (só probas, non se envía nada)",
+                HTTP_API: "API HTTP personalizada",
+            },
+            purpose: {
+                OTP: "Códigos",
+                NOTICE: "Avisos",
+            },
+            state: {
+                QUEUED: "En cola",
+                ACCEPTED: "Aceptado",
+                DELIVERED: "Entregado",
+                FAILED: "Fallido",
+                UNKNOWN: "Descoñecido",
+            },
+            stateHelp: {
+                QUEUED: "Pendente de entregar ao provedor.",
+                ACCEPTED:
+                    "O provedor aceptou a mensaxe. Isto non significa que o votante a recibise.",
+                DELIVERED: "O provedor informou de que a mensaxe se entregou.",
+                FAILED: "O provedor confirmou que a mensaxe non se entregou.",
+                UNKNOWN: "A entrega aínda non está confirmada.",
+            },
+            blocker: {
+                NOT_CONNECTED: "Sen conexión",
+                UNSUPPORTED_PURPOSE: "Este provedor non o admite",
+                NEEDS_PROVIDER_APPROVAL: "Precisa a aprobación do provedor",
+                NEEDS_PRODUCTION_ACCESS: "Precisa acceso de produción",
+                NEEDS_APPROVED_TEMPLATE: "Precisa un modelo aprobado",
+            },
+            readiness: {
+                connected: "Conectada",
+                notConnected: "Sen conexión",
+                readyOtp: "Lista para códigos",
+                readyNotice: "Lista para avisos",
+                notReady: "Non está lista",
+                lastCheck: "Comprobada {{date}}",
+                neverChecked: "Aínda non comprobada",
+                adminConfirmed: "Confirmada por un administrador",
+                checkNotUsed: "Non se usa a comprobación",
+            },
+            approval: {
+                PENDING: "Pendente de aprobación do provedor",
+                CONFIRMED: "Aprobación do provedor confirmada",
+            },
+            credential: {
+                ACCESS_TOKEN: "Token de acceso",
+                APP_SECRET: "Segredo da aplicación",
+                VERIFY_TOKEN: "Token de verificación",
+                API_KEY: "Clave de API",
+                SMTP_PASSWORD: "Contrasinal",
+                AWS_ACCESS_KEY_ID: "ID de clave de acceso de AWS",
+                AWS_SECRET_ACCESS_KEY: "Clave de acceso secreta de AWS",
+                API_SECRET: "Segredo da API",
+                USERNAME: "Nome de usuario",
+                PASSWORD: "Contrasinal",
+                WEBHOOK_SECRET: "Segredo do webhook",
+            },
+            deliveryUnavailable: "Entrega non dispoñible",
+            templates: {
+                noMethod: "Escolle polo menos un método para o modelo.",
+                parameters: "Parámetros do modelo",
+                parametersHelp:
+                    "O que enche cada marcador do modelo aprobado, en orde, como user.first_name ou vote_url. Para un modelo con parámetros con nome escriba @nome=valor, como @first_name=user.first_name; calquera outra entrada é posicional.",
+                parameter: "Parámetro {{position}}",
+                removeParameter: "Quitar o parámetro {{position}}",
+                addParameter: "Engadir parámetro",
+                noAccount:
+                    "Aínda non hai ningunha conta de {{channel}}. Engade unha en Axustes > Mensaxería para ver que idiomas están aprobados.",
+                account: "Conta",
+                approvalTitle: "Modelos aprobados",
+                language: "Idioma",
+                approvalFor: "Aprobado para {{purpose}}",
+                approved: "Aprobado",
+                notApproved: "Non aprobado",
+                approvalHelp:
+                    "As aprobacións veñen do provedor e actualízanse coa comprobación de conexión da conta.",
+                messengerIntro:
+                    "Nas 24 horas seguintes á última mensaxe do votante, Messenger envía o texto seguinte.",
+                messengerMessage: "Mensaxe dentro das 24 horas",
+                messengerWindow:
+                    "Un destinatario de Messenger gardado non é permiso para enviar. Fóra da xanela de 24 horas este aviso envíase como mensaxe de utilidade cando o evento electoral o permite e hai un modelo aprobado indicado abaixo ou vinculado no evento; se non, vai á seguinte canle dispoñible do votante. As mensaxes de utilidade precisan o permiso page_utility_messaging e un modelo UTILITY aprobado na páxina.",
+                intro: {
+                    WHATSAPP:
+                        "WhatsApp só envía modelos que Meta aprobou para a conta de WhatsApp Business. A mensaxe debe coincidir co modelo aprobado; escolle o que enche os seus parámetros.",
+                    VIBER: "Viber só envía códigos e mensaxes transaccionais con modelos aprobados polo socio de Viber. A mensaxe debe coincidir co modelo aprobado; escolle o que enche os seus parámetros.",
+                },
+                approvedWording: "Texto aprobado",
+                approvedWordingHelp:
+                    "Unha copia do modelo aprobado, usada como vista previa. Cambiala aquí non cambia o que envía o provedor.",
+                providerTemplateTitle: "Modelo do provedor",
+                providerTemplateHelp:
+                    "Opcional. O nome ou ID do modelo aprobado no provedor. Se está baleiro, úsase o modelo do evento electoral vinculado ao alias deste modelo, ou o predeterminado do evento para o propósito.",
+                providerTemplate: "Nome ou ID do modelo do provedor",
+                providerLanguage: "Código de idioma do provedor",
+                providerLanguageHelp: {
+                    WHATSAPP:
+                        "O código de idioma exacto do modelo de WhatsApp aprobado, como en_US.",
+                    VIBER: "O código de idioma co que o provedor de Viber coñece o modelo, cando o precisa.",
+                    MESSENGER: "O código de idioma do modelo de utilidade aprobado, como en_US.",
+                },
+                approvalAdminConfirmed:
+                    "Un administrador confirmou co provedor que os modelos desta conta están aprobados, así que non se usan as aprobacións da comprobación de conexión.",
+            },
+            send: {
+                channel: "Canle",
+                eachVoter: "A canle de cada votante",
+                only: "Só {{channel}}",
+                eachVoterHelp:
+                    "Os fallos confirmados usan a seguinte canle verificada dispoñible. A entrega sen confirmar móstrase como Descoñecido.",
+                onlyHelp: "Esta notificación envíase a cada votante por {{channel}}.",
+                channelColumn: "Canle",
+                sendsFrom: "Envíase desde",
+                noAccount: "Sen conta",
+                missingContent: "Esta notificación non ten contido para {{channels}}.",
+                approvedTemplateHelp:
+                    "Envíase co modelo aprobado polo provedor. Edítao en Modelos.",
+                providerTemplate: "Modelo do provedor de {{channel}}",
+                providerTemplateHelp:
+                    "Opcional. Se está baleiro, úsase o modelo do evento vinculado ao alias do modelo escollido, ou o predeterminado do evento para os avisos.",
+                providerLanguage: "Idioma do provedor de {{channel}}",
+                providerLanguageHelp: "O código de idioma do provedor para ese modelo, como en_US.",
+            },
+            voter: {
+                title: "Mensaxería",
+                preferredChannel: "Canle preferida",
+                whatsappNumber: "Número de WhatsApp",
+                viberNumber: "Número de Viber",
+                messengerConnected: "Conectado",
+                messengerNotConnected: "Non conectado",
+                verifiedChannels: "Canles verificadas",
+                noneVerified: "Ningunha canle verificada",
+                notSet: "Sen definir",
+            },
+            logs: {
+                channel: "Canle",
+            },
+            stats: {
+                sent: {
+                    WHATSAPP: "Mensaxes de WhatsApp enviadas",
+                    VIBER: "Mensaxes de Viber enviadas",
+                    MESSENGER: "Mensaxes de Messenger enviadas",
+                },
+            },
+            readinessPolicy: {
+                PROVIDER_CHECK: "Segundo a comprobación do provedor",
+                ADMIN_CONFIRMED: "Confirmada por un administrador",
+            },
+        },
+        messagingAccounts: {
+            tab: "MENSAXERÍA",
+            description:
+                "Contas que envían aos votantes os seus códigos e avisos. Cada evento electoral escolle a conta de cada canle; os eventos novos comezan coa conta predeterminada.",
+            list: {
+                title: "Contas de envío",
+                add: "Engadir conta",
+                loading: "Cargando contas",
+                loadError: "Non se puideron cargar as contas de envío.",
+                empty: "Aínda non hai contas de envío.",
+            },
+            column: {
+                channel: "Canle",
+                name: "Conta",
+                sender: "Envía como",
+                provider: "Provedor",
+                default: "Predeterminada",
+                isDefault: "Conta predeterminada",
+                lastCheck: "Última comprobación",
+                actions: "Accións",
+            },
+            action: {
+                edit: "Editar",
+                editNamed: "Editar {{name}}",
+                view: "Ver",
+                viewNamed: "Ver {{name}}",
+                check: "Comprobar conexión",
+                checkNamed: "Comprobar a conexión de {{name}}",
+                test: "Enviar mensaxe de proba",
+                testNamed: "Enviar unha mensaxe de proba desde {{name}}",
+                delete: "Eliminar",
+                deleteNamed: "Eliminar {{name}}",
+            },
+            check: {
+                done: "Comprobouse {{name}}. O seu estado está actualizado.",
+                error: "Non se puido comprobar {{name}}.",
+            },
+            delete: {
+                title: "Eliminar conta",
+                body: "Eliminar {{name}}? Os eventos electorais que a usan deixarán de enviar pola súa canle.",
+                success: "Conta eliminada",
+                error: "Non se puido eliminar a conta.",
+            },
+            editor: {
+                addTitle: "Engadir conta",
+                editTitle: "Editar conta de {{channel}}",
+                subtitle: "Os votantes reciben códigos e avisos desta conta nas canles que a usan.",
+                channel: "Canle",
+                provider: "Provedor",
+                save: "Gardar",
+                cancel: "Cancelar",
+                close: "Pechar",
+                channelHelp: "Non se pode cambiar despois de crear a conta.",
+            },
+            field: {
+                name: "Nome da conta",
+                from_address: "Enderezo do remitente",
+                from_name: "Nome do remitente",
+                region: "Rexión de AWS",
+                notification_topic_arn: "Tema de notificacións de entrega (ARN de SNS)",
+                server_url: "Servidor e porto",
+                sender_id: "ID do remitente",
+                origination_number: "Número de orixe",
+                business_account_id: "ID da conta de WhatsApp Business",
+                phone_number_id: "ID do número de teléfono",
+                display_phone_number: "Número",
+                display_name: "Nome visible",
+                api_version: "Versión de Graph API",
+                page_id: "ID da páxina de Facebook",
+                page_name: "Nome da páxina",
+                page_username: "Nome de usuario da páxina",
+                base_url: "URL base da API",
+                sender: "Nome do remitente",
+                provider_approval: "Aprobación do provedor",
+                is_default: "Conta de {{channel}} predeterminada para novos eventos electorais",
+                readiness: "Dispoñibilidade",
+                api_base_url: "URL base da Graph API",
+                label: "Remitente que ven os votantes",
+            },
+            fieldHelp: {
+                from_address:
+                    "O enderezo que ven os votantes. O seu dominio debe estar verificado co provedor.",
+                notification_topic_arn:
+                    "O tema de SNS no que SES publica os eventos de entrega e rebote. Rexéitanse as notificacións de calquera outro tema.",
+                sender_id: "Ata 11 letras e díxitos. Algúns países esixen rexistralo.",
+                origination_number:
+                    "Úsase en lugar do ID do remitente onde un país esixe un número.",
+                phone_number_id: "O número desde o que se envían as mensaxes.",
+                display_name: "O nome visible que Meta aprobou para o número.",
+                page_username:
+                    "Úsase na ligazón m.me que os votantes abren para obter o seu código.",
+                api_version: "Por exemplo, v23.0.",
+                base_url: "A URL base da API de Infobip da conta.",
+                sender: "O remitente aprobado que ven os votantes.",
+                provider_approval:
+                    "Meta só permite mensaxes de WhatsApp de gobernos mediante un acordo aprobado. Escolla Aprobación do provedor confirmada cando Meta o aprobase para esta conta; ata entón non se poden activar códigos nin avisos nela.",
+                readiness:
+                    "Segundo a comprobación do provedor usa o que atopa a comprobación de conexión: se a conta está conectada, en produción e que modelos están aprobados. Confirmada por un administrador é para provedores cuxa comprobación non pode sabelo: é a súa declaración de que a conta está conectada, en produción e ten os seus modelos aprobados, e úsase en lugar da comprobación.",
+                api_base_url:
+                    "Só cando a Graph API non é a de Meta, como o punto de acceso dun provedor de solucións. Baleiro usa a de Meta.",
+                label: "O nome que os votantes ven como remitente desta conta.",
+            },
+            error: {
+                REQUIRED: "Obrigatorio",
+                NOT_A_COUNT: "Introduce un número enteiro",
+                OTP_ABOVE_TOTAL: "Non pode superar as mensaxes por segundo",
+                INVALID_CALLING_CODE:
+                    "Introduce prefixos telefónicos de país de 1 a 3 díxitos, como 63",
+                DUPLICATE_LANGUAGE: "Este idioma xa ten un modelo para este propósito",
+                NOT_A_URL: "Introduza un enderezo que comece por https:// ou http://",
+                INVALID_HTTP_CONFIG: "Corrixa os problemas indicados",
+            },
+            warning: {
+                pageChange:
+                    "As conversas de Messenger pertencen a unha páxina. Tras cambiar a páxina, os votantes conectados a {{page}} só recibirán códigos despois de volver conectar Messenger.",
+                numberChange:
+                    "As mensaxes chegarán desde outro número. Os seus modelos deben estar aprobados nesa conta de empresa antes de poder enviar códigos, e os votantes verán un chat novo.",
+            },
+            viber: {
+                title: "Modelos aprobados",
+                description:
+                    "Introduce os modelos que Viber aprobou a través do socio, por propósito e idioma. A API de modelos do socio non está dispoñible, así que esta lista mantense a man e a comprobación de conexión lea.",
+                purpose: "Propósito",
+                language: "Idioma",
+                templateId: "ID do modelo do socio",
+                add: "Engadir modelo",
+                remove: "Quitar modelo",
+            },
+            limits: {
+                title: "Límites de envío",
+                messagesPerSecond: "Mensaxes por segundo",
+                otpReservedPerSecond: "Reservadas para códigos por segundo",
+                otpReservedHelp: "Mantéñense libres para os códigos durante os envíos masivos.",
+                allowedCallingCodes: "Destinos permitidos (prefixos telefónicos de país)",
+                allowedCallingCodesHelp:
+                    "Separados por comas, por exemplo 63, 971. Baleiro permite calquera destino.",
+            },
+            credentials: {
+                title: "Credenciais",
+                description:
+                    "As credenciais son só de escritura: despois de gardar, só se mostra a data en que se substituíu cada unha.",
+                set: "Configurada · substituída {{date}}. Gárdase cifrada e nunca se mostra.",
+                replace: "Substituír",
+                replaceNamed: "Substituír {{name}}",
+            },
+            credentialHelp: {
+                AWS_SES: {
+                    AWS_ACCESS_KEY_ID: "Opcional. Sen claves, úsase o rol propio do servizo.",
+                    AWS_SECRET_ACCESS_KEY: "Opcional. Configúraa xunto co ID de clave de acceso.",
+                },
+                AWS_SNS: {
+                    AWS_ACCESS_KEY_ID: "Opcional. Sen claves, úsase o rol propio do servizo.",
+                    AWS_SECRET_ACCESS_KEY: "Opcional. Configúraa xunto co ID de clave de acceso.",
+                },
+                SMTP: {
+                    SMTP_PASSWORD: "O contrasinal do servidor SMTP.",
+                },
+                WHATSAPP_CLOUD_API: {
+                    ACCESS_TOKEN:
+                        "Un token dun usuario do sistema da carteira empresarial do propietario, con whatsapp_business_messaging.",
+                    APP_SECRET: "Comproba que as chamadas ao webhook proceden de Meta.",
+                },
+                MESSENGER_SEND_API: {
+                    ACCESS_TOKEN: "Un token de acceso de páxina con pages_messaging.",
+                    APP_SECRET: "Comproba que as chamadas ao webhook proceden de Meta.",
+                },
+                VIBER_INFOBIP: {
+                    API_KEY: "A clave de API de Infobip.",
+                },
+                HTTP_API: {
+                    API_KEY: "Opcional. As solicitudes úsana como a credencial API_KEY.",
+                    API_SECRET:
+                        "Opcional. Un segundo segredo, e a clave que asina o JWT: unha clave privada PEM para RS256, o segredo compartido para HS256.",
+                    ACCESS_TOKEN: "Opcional. As solicitudes úsano como a credencial ACCESS_TOKEN.",
+                    USERNAME: "Opcional. Co contrasinal, forma o marcador basic_auth.",
+                    PASSWORD: "Opcional. Co nome de usuario, forma o marcador basic_auth.",
+                    WEBHOOK_SECRET:
+                        "Opcional. O segredo compartido co que se comproban as chamadas do provedor.",
+                },
+            },
+            webhook: {
+                title: "Informes de entrega e respostas",
+                description:
+                    "Introduce este enderezo de retorno na configuración de webhooks do provedor. Os informes de entrega e as respostas dos votantes chegan alí.",
+                path: "Ruta de retorno",
+                pathHelp:
+                    "Engádea ao enderezo público dos webhooks de mensaxería desta plataforma.",
+                afterSaving: "Móstrase despois de gardar",
+                copyPath: "Copiar ruta de retorno",
+                tokenSet: "Configurado · substituído {{date}}",
+                tokenMissing: "Aínda non xerado",
+                tokenAfterSaving: "Xérase despois de gardar",
+                generate: "Xerar token de verificación",
+                tokenTitle: "Token de verificación",
+                tokenOnce:
+                    "Introduce agora este token na configuración de webhooks de Meta. Só se mostra unha vez.",
+                copyToken: "Copiar token de verificación",
+                tokenDone: "Feito",
+                tokenError: "Non se puido xerar o token de verificación.",
+                httpHelp:
+                    "Unha API HTTP personalizada pode enviar os seus informes como JSON, ou como unha solicitude GET; os seus parámetros de consulta lense entón como un obxecto plano, con punteiros como /status.",
+            },
+            copy: {
+                success: "Copiado",
+                error: "Non se puido copiar",
+            },
+            save: {
+                success: "Conta gardada",
+                error: "Non se puido gardar a conta.",
+            },
+            test: {
+                title: "Enviar unha mensaxe de proba desde {{name}}",
+                description:
+                    "Envía unha mensaxe real para o propósito escollido a este destino. O resultado mostra o que informou o provedor.",
+                purpose: "Propósito",
+                destination: {
+                    EMAIL_ADDRESS: "Correo electrónico",
+                    PHONE_NUMBER: "Número de teléfono (E.164)",
+                    PAGE_SCOPED_ID: "ID de ámbito de páxina",
+                },
+                language: "Idioma",
+                send: "Enviar mensaxe de proba",
+                reason: "Motivo: {{reason}}",
+                error: "Non se puido enviar a mensaxe de proba.",
+                template: "Modelo aprobado",
+                templateHelp:
+                    "O nome ou ID do modelo que o provedor aprobou para este propósito e idioma.",
+                viberTemplate:
+                    "Viber usa o modelo que esta conta indica como aprobado para o propósito e o idioma escollidos.",
+                languageHelp:
+                    "Para un provedor que envía modelos aprobados, introduza o código de idioma do provedor para o modelo, como en_US.",
+            },
+            http: {
+                title: "API HTTP personalizada",
+                description:
+                    "Describe un provedor polas súas solicitudes HTTP: outro socio de Viber, a API propia dun provedor de solucións de WhatsApp, unha pasarela de SMS. As solicitudes son JSON; a súa URL, cabeceiras e corpo poden conter os marcadores da referencia de abaixo.",
+                phoneFormat: "Formato do número de teléfono",
+                phoneFormatHelp: "Como se escribe o número do destinatario nunha solicitude.",
+                phoneFormatOption: {
+                    E164: "Co signo máis: +639171234567",
+                    DIGITS: "Só díxitos: 639171234567",
+                },
+                templateRequired: "Propósitos que precisan un modelo aprobado",
+                templateRequiredHelp:
+                    "Un propósito marcado só se envía cun modelo que o provedor aprobou, vinculado no evento electoral. Os demais propósitos envíanse como texto libre.",
+                approvedLanguages: "Idiomas con modelo aprobado para {{purpose}}",
+                approvedLanguagesHelp:
+                    "Os códigos de idioma cun modelo aprobado, segundo o confirmado co provedor, separados por comas: en, tl. A comprobación de conexión comunícaos.",
+                conversationWindow: "Xanela de conversa (horas)",
+                conversationWindowHelp:
+                    "Horas tras a última mensaxe do destinatario durante as que se pode enviar texto libre. Baleiro cando o provedor non ten esa xanela.",
+                messageIdPointer: "ID da mensaxe na resposta de envío",
+                messageIdPointerHelp:
+                    "Un punteiro JSON ao ID de mensaxe do provedor na resposta á solicitude de envío, como /message_id. Con el emparéllanse os informes de entrega.",
+                notConfigured: "Sen configurar.",
+                thisSection: "Esta sección",
+                add: "Engadir: {{section}}",
+                remove: "Quitar: {{section}}",
+                section: {
+                    SEND: "Solicitude de envío",
+                    CHECK: "Solicitude de comprobación de conexión",
+                    TOKEN: "Solicitude de token",
+                    JWT: "Token asinado (JWT)",
+                    REPORTS: "Informes de entrega e respostas",
+                    RECONCILE: "Solicitude de consulta dunha mensaxe",
+                },
+                sectionHelp: {
+                    SEND: "A solicitude que envía unha mensaxe: method (POST se se omite), url, headers e body.",
+                    CHECK: "Opcional. Unha solicitude que ten éxito, cunha resposta 2xx, cando as credenciais funcionan. Execútaa a comprobación de conexión.",
+                    TOKEN: "Opcional. Obtén un token de curta duración antes de enviar, como as credenciais de cliente de OAuth: request, token_pointer (onde está o token na resposta) e lifetime_seconds. As solicitudes úsano co marcador token.",
+                    JWT: "Opcional. Un token asinado para cada solicitude coa credencial Segredo da API: algorithm (RS256 ou HS256), claims (engádense iat, exp e jti) e lifetime_seconds. As solicitudes úsano co marcador jwt.",
+                    REPORTS:
+                        "Opcional. Como ler o que o provedor envía ao enderezo de retorno: auth, items_pointer (onde está a lista de informes; todo o contido se se omite), status (message_id_pointer, state_pointer, states, que asigna cada valor do provedor a QUEUED, ACCEPTED, DELIVERED, FAILED ou UNKNOWN, e error_pointer) e inbound_from_pointer (onde está o remitente dunha resposta). auth ten un kind: URL_KEY (só o enderezo secreto de retorno), HEADER_SECRET (unha cabeceira igual ao segredo do webhook), HMAC_SHA256 (unha cabeceira co HMAC do corpo co segredo do webhook, con prefix, encoding HEX ou BASE64, e signed cando se asina algo máis que o corpo) ou JWT_HS256 (unha cabeceira cun JWT bearer asinado co segredo do webhook).",
+                    RECONCILE:
+                        "Opcional. Pregunta ao provedor por unha mensaxe cuxo resultado se descoñece: request e status, que se le como o status dos informes de entrega.",
+                },
+                problem: {
+                    NOT_AN_OBJECT: "{{path}} debe ser un obxecto.",
+                    MISSING_URL: "{{path}} é obrigatorio: o enderezo da solicitude.",
+                    INVALID_METHOD: "{{path}} debe ser un método HTTP, como POST ou GET.",
+                    INVALID_HEADERS:
+                        "{{path}} debe ser texto: headers é un obxecto de nomes de cabeceira e valores de texto.",
+                    UNKNOWN_FIELD: "{{path}} non é un campo desta sección.",
+                    UNKNOWN_PLACEHOLDER:
+                        "{{path}} usa un marcador que non existe. Consulte a referencia de marcadores.",
+                    INVALID_POINTER:
+                        "{{path}} debe ser un punteiro JSON que comece por /, como /data/id.",
+                    INVALID_STATES:
+                        "{{path}} debe asignar un valor de estado do provedor a QUEUED, ACCEPTED, DELIVERED, FAILED ou UNKNOWN; fai falta polo menos un.",
+                    INVALID_AUTH:
+                        "{{path}} non é válido: kind é URL_KEY, HEADER_SECRET, HMAC_SHA256 ou JWT_HS256; header é obrigatorio salvo para URL_KEY; encoding é HEX ou BASE64.",
+                    INVALID_LIFETIME:
+                        "{{path}} debe ser un número enteiro de segundos maior que 0.",
+                    INVALID_ALGORITHM: "{{path}} debe ser RS256 ou HS256.",
+                    INVALID_CLAIMS: "{{path}} debe ser un obxecto.",
+                    INVALID_HOURS: "{{path}} debe ser un número enteiro de horas maior que 0.",
+                },
+                placeholders: {
+                    title: "Referencia de marcadores",
+                    help: "Escríbense entre chaves dobres na URL, no valor dunha cabeceira ou en calquera texto do corpo. Cada un substitúese ao facer a solicitude.",
+                },
+                placeholder: {
+                    to: "O destinatario: número de teléfono, enderezo de correo electrónico ou ID de ámbito de páxina.",
+                    text: "A mensaxe como texto sen formato.",
+                    subject: "O asunto, para o correo electrónico.",
+                    html: "A mensaxe como HTML, para o correo electrónico.",
+                    code: "O código dun só uso, para os códigos.",
+                    template: "O modelo do provedor vinculado no evento electoral.",
+                    language: "O código de idioma do provedor para o modelo.",
+                    message_id:
+                        "O ID de mensaxe do provedor, nunha solicitude de consulta dunha mensaxe.",
+                    callback_url: "O enderezo público de retorno desta conta.",
+                    param: "Un parámetro do modelo pola súa posición: 1, 2, 3, etc.",
+                    credential:
+                        "Unha credencial desta conta polo seu nome: API_KEY, API_SECRET, ACCESS_TOKEN, USERNAME, PASSWORD ou WEBHOOK_SECRET.",
+                    basic_auth:
+                        "O nome de usuario e o contrasinal, codificados para unha cabeceira Authorization: Basic.",
+                    token: "O token obtido coa solicitude de token.",
+                    jwt: "O token asinado descrito en Token asinado (JWT).",
+                    parameters:
+                        "Só, como valor do corpo, convértese na lista de todos os parámetros do modelo.",
+                    named_parameters:
+                        "Só, como valor do corpo, convértese nun obxecto cos parámetros escritos como @nome=valor.",
+                },
+                example: {
+                    title: "Exemplo completo: un socio de Viber",
+                    description:
+                        "O socio recibe un POST JSON autenticado coa clave de API como token bearer, responde co ID da mensaxe en message_id e envía informes de entrega cunha cabeceira secreta. Úseo como punto de partida e cambie o enderezo e os nomes de campo polos do provedor.",
+                    use: "Usar este exemplo",
+                },
+            },
         },
     },
 }

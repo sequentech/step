@@ -32,6 +32,7 @@ services:
       dockerfile: Dockerfile.keycloak
       additional_contexts:
         beyond: ../beyond
+        scripts: ../scripts
     restart: always
     environment:
       AMQP_ADDR: ${AMQP_ADDR}
@@ -148,11 +149,10 @@ services:
     volumes:
       - db_logs:/logs
       - keycloak_db_logs:/keycloak_logs
-      - b3_db_logs:/b3_logs
     user: root
     group_add:
       - '999'
-    command: chown -R 999:999 /logs /keycloak_logs /b3_logs
+    command: chown -R 999:999 /logs /keycloak_logs
 
   postgres:
     profiles: ["full", "base"]
@@ -181,7 +181,7 @@ services:
   minio:
     profiles: ["full", "base"]
     container_name: minio
-    image: minio/minio
+    image: docker.io/pgsty/silo:RELEASE.2026-09-16T00-00-00Z@sha256:635197cb9f36d01bee221d34d1c7d7960f6a95c48b0b6c01d99cd13bdae51a46
     volumes:
       - minio_storage:/data
     environment:
@@ -396,6 +396,10 @@ services:
       "run"
     ]
     environment:
+      # Monitoring snapshot cadence, the same on beat, windmill and harvest:
+      # seconds between passes (5..3600), and between full voter reads.
+      MONITORING_SNAPSHOT_INTERVAL_SECONDS: ${MONITORING_SNAPSHOT_INTERVAL_SECONDS:-30}
+      MONITORING_VOTER_FULL_PASS_SECONDS: ${MONITORING_VOTER_FULL_PASS_SECONDS:-300}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       LOG_LEVEL: ${LOG_LEVEL}
@@ -418,6 +422,7 @@ services:
       KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}
       AMQP_ADDR: ${AMQP_ADDR}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
+      KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS: ${KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS:-30}
       KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
       KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
@@ -457,11 +462,9 @@ services:
       CLOUDFLARE_ZONE: ${CLOUDFLARE_ZONE}
       CLOUDFLARE_API_KEY: ${CLOUDFLARE_API_KEY}
       CUSTOM_URLS_IP_DNS_CONTENT: ${CUSTOM_URLS_IP_DNS_CONTENT}
-      B3_PG_HOST: ${B3_PG_HOST}
-      B3_PG_PORT: ${B3_PG_PORT}
-      B3_PG_USER: ${B3_PG_USER}
-      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
-      B3_PG_DATABASE: ${B3_PG_DATABASE}
+      WBRAID_B4_URL: http://b4v6:3005
+      WBRAID_BOARD_DATABASE_URL: postgres://postgres@postgres-b4v6:5432/wbraid_board
+      WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       ENV_SLUG: ${ENV_SLUG}
 
@@ -545,6 +548,12 @@ services:
     profiles: ["full", "base"]
     image: rabbitmq:3.12.11-management
     container_name: rabbitmq
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q check_running && rabbitmq-diagnostics -q check_port_connectivity"]
+      interval: 5s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
@@ -659,16 +668,20 @@ services:
       "--ignore",
       "windmill/core",
       "-x",
-      "run --bin main consume -q beat short_queue tally_queue reports_queue communication_queue import_export_queue electoral_log_batch_queue electoral_log_beat_queue --prefetch-count 1"
+      "run --bin main consume -q beat short_queue tally_queue reports_queue communication_queue import_export_queue electoral_log_batch_queue electoral_log_beat_queue monitoring_queue --prefetch-count 1"
     ]
     volumes:
       - ..:/workspaces/step:z
     depends_on:
       rabbitmq:
-        condition: service_started
+        condition: service_healthy
       configure-minio:
         condition: service_completed_successfully
     environment:
+      # Monitoring snapshot cadence, the same on beat, windmill and harvest:
+      # seconds between passes (5..3600), and between full voter reads.
+      MONITORING_SNAPSHOT_INTERVAL_SECONDS: ${MONITORING_SNAPSHOT_INTERVAL_SECONDS:-30}
+      MONITORING_VOTER_FULL_PASS_SECONDS: ${MONITORING_VOTER_FULL_PASS_SECONDS:-300}
       RUSTFLAGS: ${RUSTFLAGS}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       LOG_LEVEL: ${LOG_LEVEL}
@@ -676,6 +689,7 @@ services:
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}
       AMQP_ADDR: ${AMQP_ADDR}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
+      KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS: ${KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS:-30}
       IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
       IMMUDB_USER: ${IMMUDB_USER}
       IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
@@ -732,11 +746,9 @@ services:
       APP_HASH: ${APP_HASH}
       PUBLIC_ASSETS_PATH: ${PUBLIC_ASSETS_PATH}
       DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
-      B3_PG_HOST: ${B3_PG_HOST}
-      B3_PG_PORT: ${B3_PG_PORT}
-      B3_PG_USER: ${B3_PG_USER}
-      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
-      B3_PG_DATABASE: ${B3_PG_DATABASE}
+      WBRAID_B4_URL: http://b4v6:3005
+      WBRAID_BOARD_DATABASE_URL: postgres://postgres@postgres-b4v6:5432/wbraid_board
+      WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       BALLOT_VERIFIER_URL: ${BALLOT_VERIFIER_URL}
       ENV_SLUG: ${ENV_SLUG}
@@ -766,6 +778,10 @@ services:
       "run --bin beat"
     ]
     environment:
+      # Monitoring snapshot cadence, the same on beat, windmill and harvest:
+      # seconds between passes (5..3600), and between full voter reads.
+      MONITORING_SNAPSHOT_INTERVAL_SECONDS: ${MONITORING_SNAPSHOT_INTERVAL_SECONDS:-30}
+      MONITORING_VOTER_FULL_PASS_SECONDS: ${MONITORING_VOTER_FULL_PASS_SECONDS:-300}
       RUSTFLAGS: ${RUSTFLAGS}
       LOG_LEVEL: ${LOG_LEVEL}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
@@ -776,61 +792,42 @@ services:
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
       ENV_SLUG: ${ENV_SLUG}
 
-  postgres-b3:
+  postgres-b4v6:
     profiles: ["full", "base"]
-    image: sequentech.local/postgresql-b3
-    container_name: postgres-b3
-    build:
-      context: ./postgresql-b3
-      dockerfile: Dockerfile
+    image: postgres:16-bookworm
     restart: unless-stopped
-    volumes:
-      - b3_db_data:/var/lib/postgresql
-      - b3_db_logs:/logs
-    command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
     environment:
-      POSTGRES_PASSWORD: ${B3_PG_PASSWORD}
-    user: "999:999"
+      POSTGRES_USER: postgres
+      POSTGRES_DB: wbraid_board
+      POSTGRES_PASSWORD: ${WBRAID_B4_PG_PASSWORD:?set the native board database password}
+    volumes:
+      - wbraid_board_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready  -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d wbraid_board"]
       interval: 5s
-      timeout: 10s
-      retries: 15
-      start_period: 5s
-    depends_on:
-      - postgres-volume-init
+      timeout: 5s
+      retries: 30
 
-  b3:
+  b4v6:
     profiles: ["full", "base"]
-    stdin_open: true
-    image: sequentech.local/cargo-packages
-    container_name: b3
-    restart: always
-    volumes:
-      - ..:/workspaces/step:z
+    image: sequentech.local/b4v6
+    build:
+      context: ../packages/wbraid
+      dockerfile: crates/b4/Dockerfile
+    restart: unless-stopped
+    ports: ["3005:3005"]
     depends_on:
-      - postgres-b3
-    working_dir: /workspaces/step/packages/b3
-    entrypoint: [
-      "cargo",
-      "watch",
-      "--why",
-      "--ignore",
-      "rust-local-target/",
-      "-x",
-      "run --bin server --features server sqlcopy -- --host $B3_PG_HOST --port $B3_PG_PORT --username $B3_PG_USER --password $B3_PG_PASSWORD --database $B3_PG_DATABASE --bind $B3_BIND",
-    ]
+      postgres-b4v6:
+        condition: service_healthy
     environment:
-      RUSTFLAGS: ${RUSTFLAGS}
-      RUST_BACKTRACE: ${RUST_BACKTRACE}
-      LOG_LEVEL: ${LOG_LEVEL}
-      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
-      B3_PG_HOST: ${B3_PG_HOST}
-      B3_PG_PORT: ${B3_PG_PORT}
-      B3_PG_USER: ${B3_PG_USER}
-      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
-      B3_PG_DATABASE: ${B3_PG_DATABASE}
-      B3_BIND: ${B3_BIND}
+      WBRAID_B4_BIND: 0.0.0.0:3005
+      DATABASE_URL: postgres://postgres@postgres-b4v6:5432/wbraid_board
+      WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
+      AWS_ENDPOINT_URL: ${AWS_S3_PRIVATE_URI}
+      AWS_ACCESS_KEY_ID: ${AWS_S3_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${AWS_S3_ACCESS_SECRET}
+      AWS_REGION: ${AWS_REGION}
+      S3_BUCKET_NAME: ${AWS_S3_BUCKET}
 
   admin-portal:
     profiles: ["full"]
@@ -846,6 +843,7 @@ services:
         SECONDS_TO_SHOW_COUNTDOWN: ${SECONDS_TO_SHOW_COUNTDOWN}
         SECONDS_TO_SHOW_ALRET: ${SECONDS_TO_SHOW_ALRET}
         HASURA_URL: ${HASURA_ENDPOINT}
+        HARVEST_URL: ${HARVEST_PUBLIC_URL:?set the browser-reachable Harvest URL}
         KEYCLOAK_URL: ${KEYCLOAK_PUBLIC_URL}/
         PUBLIC_BUCKET_URL: ${AWS_S3_PUBLIC_URI}/public/
         VOTING_PORTAL_URL: ${VOTING_PORTAL_URL}
@@ -903,6 +901,7 @@ services:
         PUBLIC_BUCKET_URL: ${AWS_S3_PUBLIC_URI}/public/
 
 volumes:
+  wbraid_board_data:
   db_data:
   db_logs:
   keycloak_db_logs:
@@ -916,5 +915,3 @@ volumes:
   trustee2_data:
   trustee3_data:
   protocol_manager_data:
-  b3_db_logs:
-  b3_db_data:

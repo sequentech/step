@@ -23,6 +23,12 @@ SPDX-License-Identifier: AGPL-3.0-only
     You can also enter the link using the following QR code:
   </p>
   {{{qrcode}}}
+  {{#if execution_annotations.configuration_revision}}
+  <p>Configuration revision {{sanitize_html execution_annotations.configuration_revision}}, manifest SHA-256 {{sanitize_html execution_annotations.configuration_manifest_sha256}}</p>
+  {{/if}}
+  {{#if execution_annotations.copy_total}}
+  <p>Copy {{sanitize_html execution_annotations.copy_number}} of {{sanitize_html execution_annotations.copy_total}}</p>
+  {{/if}}
 </div>
 
 

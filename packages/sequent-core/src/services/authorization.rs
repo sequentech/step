@@ -11,12 +11,66 @@ use std::collections::HashSet;
 use std::env;
 use tracing::{error, info, instrument};
 
+/// Keycloak clients allowed to authenticate voters. Keep the distinct onsite
+/// client identity while applying the polling-station (kiosk) voting policy.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    strum_macros::Display,
+    strum_macros::EnumString,
+)]
+pub enum VoterClient {
+    #[strum(serialize = "voting-portal")]
+    Online,
+    #[strum(serialize = "voting-portal-kiosk")]
+    Kiosk,
+    #[strum(serialize = "onsite-voting-portal")]
+    Onsite,
+    #[strum(serialize = "ivr-voting")]
+    Telephone,
+}
+
+impl VoterClient {
+    /// Return the policy channel used to validate a cast from this client.
+    pub fn channel(self) -> VotingStatusChannel {
+        match self {
+            Self::Online => VotingStatusChannel::ONLINE,
+            Self::Kiosk | Self::Onsite => VotingStatusChannel::KIOSK,
+            Self::Telephone => VotingStatusChannel::TELEPHONE,
+        }
+    }
+}
+
+const SUPER_ADMIN_TENANT_ID: &str = "SUPER_ADMIN_TENANT_ID";
+
 #[instrument(skip(claims))]
 pub fn authorize(
     claims: &JwtClaims,
     allow_super_admin_auth: bool, // Allow authorizing super admin tenant
     tenant_id_opt: Option<String>,
     permissions: Vec<Permissions>,
+) -> Result<(), (Status, String)> {
+    authorize_with(
+        claims,
+        allow_super_admin_auth,
+        tenant_id_opt,
+        permissions,
+        || env::var(SUPER_ADMIN_TENANT_ID).ok(),
+    )
+}
+
+/// `authorize`, asking `super_admin_tenant_id` for the super admin tenant
+/// instead of the environment. It is only asked when super admins are allowed
+/// and the requested tenant is not the caller's own.
+pub fn authorize_with(
+    claims: &JwtClaims,
+    allow_super_admin_auth: bool,
+    tenant_id_opt: Option<String>,
+    permissions: Vec<Permissions>,
+    super_admin_tenant_id: impl FnOnce() -> Option<String>,
 ) -> Result<(), (Status, String)> {
     // Verify tenant id
     let allowed = match (tenant_id_opt.clone(), allow_super_admin_auth) {
@@ -27,11 +81,11 @@ pub fn authorize(
         }
 
         (_, true) => {
-            let super_admin_tenant_id = env::var("SUPER_ADMIN_TENANT_ID")
-                .map_err(|_| {
+            let super_admin_tenant_id =
+                super_admin_tenant_id().ok_or_else(|| {
                     (
                         Status::Unauthorized,
-                        format!("SUPER_ADMIN_TENANT_ID must be set"),
+                        format!("{SUPER_ADMIN_TENANT_ID} must be set"),
                     )
                 })?;
             info!("super_admin_tenant_id: {super_admin_tenant_id}");
@@ -107,10 +161,30 @@ pub fn authorize_voter_election(
         ));
     }
 
-    match claims.azp.as_str() {
-        "voting-portal" => Ok((area_id, VotingStatusChannel::ONLINE)),
-        "voting-portal-kiosk" => Ok((area_id, VotingStatusChannel::KIOSK)),
-        "ivr-voting" => Ok((area_id, VotingStatusChannel::TELEPHONE)),
-        _ => Err((Status::Unauthorized, "Unknown Client".into())),
+    claims
+        .azp
+        .parse::<VoterClient>()
+        .map(|client| (area_id, client.channel()))
+        .map_err(|_| (Status::Unauthorized, "Unknown Client".into()))
+}
+
+#[cfg(test)]
+mod voter_client_tests {
+    use super::*;
+
+    #[test]
+    fn voter_clients_round_trip_with_their_policy_channels() {
+        for (name, channel) in [
+            ("voting-portal", VotingStatusChannel::ONLINE),
+            ("voting-portal-kiosk", VotingStatusChannel::KIOSK),
+            ("onsite-voting-portal", VotingStatusChannel::KIOSK),
+            ("ivr-voting", VotingStatusChannel::TELEPHONE),
+        ] {
+            let client = name.parse::<VoterClient>().unwrap();
+            assert_eq!(client.to_string(), name);
+            assert_eq!(client.channel(), channel);
+        }
+        assert!("admin-portal".parse::<VoterClient>().is_err());
+        assert!("".parse::<VoterClient>().is_err());
     }
 }

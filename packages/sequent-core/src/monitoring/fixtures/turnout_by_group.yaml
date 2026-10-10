@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The preset's Turnout by group widget, as the specification shows it.
+id: turnout-by-group
+title: Turnout by group
+source: voter_turnout
+requirements: [SW-F-0260, SW-F-0372]
+selectors:
+  breakdown: {label: Breakdown, options: {sex: Sex, age_band: Age, status: Status abroad}, default: age_band}
+  measure:
+    label: Show
+    options: {voted_reg: Voted of registered, voted_pre: Voted of pre-enrolled, pre_reg: Pre-enrolled of registered}
+    default: voted_reg
+    maps: {voted_reg: [voted, registered], voted_pre: [voted, pre_enrolled], pre_reg: [pre_enrolled, registered]}
+query:
+  template: by_group
+  group_by: {selector: breakdown}
+  ratio: {selector: measure}
+chart:
+  charts:
+    bars:
+      type: bar
+      query: data
+      x: group
+      y: pct
+      style:
+        orientation: horizontal
+        axis_y: {format: percent}
+        marks: {bar: {labels: {visible: true, format: ".1%"}}}
+  rows: [bars]

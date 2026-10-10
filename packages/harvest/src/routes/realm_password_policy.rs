@@ -3,9 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
+use crate::services::dependencies::HarvestServices;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use rocket::State;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak::{
     get_realm_password_policy, update_realm_password_policy,
@@ -14,6 +16,7 @@ use sequent_core::services::keycloak::{
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{error, instrument};
+use windmill::postgres::scheduled_event::lock_scheduling_event;
 
 #[derive(Deserialize, Debug)]
 pub struct GetRealmPasswordPolicyInput {
@@ -81,6 +84,7 @@ pub async fn get_realm_password_policy_route(
 pub async fn update_realm_password_policy_route(
     claims: JwtClaims,
     input: Json<UpdateRealmPasswordPolicyInput>,
+    services: &State<HarvestServices>,
 ) -> Result<Json<UpdateRealmPasswordPolicyOutput>, JsonError> {
     let body = input.into_inner();
 
@@ -116,6 +120,45 @@ pub async fn update_realm_password_policy_route(
         )
     })?;
 
+    let mut connection = services
+        .databases
+        .hasura()
+        .await
+        .get()
+        .await
+        .map_err(|error| {
+            error!("Failed to get password-policy DB connection: {:?}", error);
+            ErrorResponse::new(
+                Status::InternalServerError,
+                "Failed to update realm password policy",
+                ErrorCode::InternalServerError,
+            )
+        })?;
+    let transaction = connection.transaction().await.map_err(|error| {
+        error!("Failed to start password-policy transaction: {:?}", error);
+        ErrorResponse::new(
+            Status::InternalServerError,
+            "Failed to update realm password policy",
+            ErrorCode::InternalServerError,
+        )
+    })?;
+    // The shared helper writes a full realm. Serialize with enrollment repair
+    // for this event until the external write completes.
+    lock_scheduling_event(
+        &transaction,
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await
+    .map_err(|error| {
+        error!("Failed to lock password-policy event: {:?}", error);
+        ErrorResponse::new(
+            Status::InternalServerError,
+            "Failed to update realm password policy",
+            ErrorCode::InternalServerError,
+        )
+    })?;
+
     update_realm_password_policy(
         &claims.hasura_claims.tenant_id,
         &body.election_event_id,
@@ -131,5 +174,13 @@ pub async fn update_realm_password_policy_route(
         )
     })?;
 
+    transaction.commit().await.map_err(|error| {
+        error!("Failed to commit password-policy transaction: {:?}", error);
+        ErrorResponse::new(
+            Status::InternalServerError,
+            "Failed to update realm password policy",
+            ErrorCode::InternalServerError,
+        )
+    })?;
     Ok(Json(UpdateRealmPasswordPolicyOutput { updated: true }))
 }

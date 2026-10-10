@@ -7,7 +7,7 @@ use crate::services::celery_app::get_celery_app;
 use crate::services::database::{get_hasura_pool, PgConfig};
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log_board::{
-    create_named_param, get_board_client, get_event_board, get_immudb_client, get_protocol_manager,
+    create_named_param, get_board_client, get_board_signing_key, get_event_board, get_immudb_client,
 };
 use crate::services::insert_cast_vote::hash_voter_id;
 use crate::services::vault;
@@ -16,7 +16,6 @@ use crate::tasks::electoral_log::{
 };
 use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregate};
 use anyhow::{anyhow, ensure, Context, Result};
-use b4::messages::message::Signer;
 use base64::engine::general_purpose;
 use base64::Engine;
 use deadpool_postgres::Transaction;
@@ -37,21 +36,22 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::time::Duration;
-use strand::backend::ristretto::RistrettoCtx;
-use strand::hash::HashWrapper;
-use strand::hash::STRAND_HASH_LENGTH_BYTES;
-use strand::serialization::StrandDeserialize;
-use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strum_macros::{Display, EnumString};
 use tempfile::NamedTempFile;
 use tokio_stream::StreamExt;
 use tracing::{event, info, instrument, warn, Level};
+use velvet::pipes::report_manifest::csv_report_reader;
+use voting_crypto::hash::HashWrapper;
+use voting_crypto::hash::HASH_LENGTH_BYTES;
+use voting_crypto::signing::{SigningKey, VerificationKey};
+use voting_crypto::RecordDeserialize;
+use voting_crypto::RistrettoCtx;
 
 pub const IMMUDB_ROWS_LIMIT: usize = 2500;
 pub const MAX_ROWS_PER_PAGE: usize = 50;
 
 /// Ballot_id input is the first half of the original hash which is stored in the electoral log.
-pub const BALLOT_ID_LENGTH_BYTES: usize = STRAND_HASH_LENGTH_BYTES / 2;
+pub const BALLOT_ID_LENGTH_BYTES: usize = HASH_LENGTH_BYTES / 2;
 /// Ballot_id input is in HEX, each byte is represented in 2 chars.
 pub const BALLOT_ID_LENGTH_CHARS: usize = BALLOT_ID_LENGTH_BYTES * 2;
 
@@ -478,6 +478,15 @@ async fn prepare_voter_secret_attribute_audit(
     Ok(PreparedVoterPasswordChangeLog { board, message })
 }
 
+/// A reader of the log's CSV export: the backup an event export holds, or
+/// the report, which starts with a comment line naming the configuration
+/// when the event was imported from a signed one.
+pub fn exported_log_reader<R: std::io::Read>(
+    file: R,
+) -> Result<csv::Reader<std::io::BufReader<R>>> {
+    csv_report_reader(file).context("Failed to read the CSV file")
+}
+
 pub struct ElectoralLog {
     pub(crate) sd: SigningData,
     pub(crate) elog_database: String,
@@ -506,7 +515,7 @@ impl ElectoralLog {
         let election_event_id =
             election_event_id_opt.ok_or(anyhow!("Election event id is required"))?;
 
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
+        let protocol_manager = get_board_signing_key(
             hasura_transaction,
             tenant_id,
             Some(election_event_id),
@@ -515,11 +524,7 @@ impl ElectoralLog {
         .await?;
 
         Ok(ElectoralLog {
-            sd: SigningData::new(
-                protocol_manager.get_signing_key().clone(),
-                "",
-                protocol_manager.get_signing_key().clone(),
-            ),
+            sd: SigningData::new(protocol_manager.clone(), "", protocol_manager.clone()),
             elog_database: elog_database.to_string(),
         })
     }
@@ -530,21 +535,44 @@ impl ElectoralLog {
         tenant_id: &str,
         election_event_id: &str,
         elog_database: &str,
-        sender_sk: &StrandSignatureSk,
+        sender_sk: &SigningKey,
     ) -> Result<Self> {
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
+        let protocol_manager = get_board_signing_key(
             hasura_transaction,
             tenant_id,
             Some(election_event_id),
             elog_database,
         )
         .await?;
-        let system_sk = protocol_manager.get_signing_key().clone();
+        let system_sk = protocol_manager.clone();
 
         Ok(ElectoralLog {
             sd: SigningData::new(sender_sk.clone(), "", system_sk),
             elog_database: elog_database.to_string(),
         })
+    }
+
+    /// Construct a system-authored audit message using an already loaded key.
+    /// The empty sender name preserves the system identity used by `new` and
+    /// `new_from_sk`; voter attribution belongs in the message's actor fields.
+    pub fn for_system_with_signing_key(elog_database: &str, system_sk: &SigningKey) -> Self {
+        Self {
+            sd: SigningData::new(system_sk.clone(), "", system_sk.clone()),
+            elog_database: elog_database.to_string(),
+        }
+    }
+
+    /// Reuses an election's already loaded system signing key. This is the
+    /// same signing identity as `for_voter`, without another database lookup.
+    pub fn for_voter_with_signing_key(
+        elog_database: &str,
+        user_id: &str,
+        system_sk: &SigningKey,
+    ) -> Self {
+        Self {
+            sd: SigningData::new(system_sk.clone(), user_id, system_sk.clone()),
+            elog_database: elog_database.to_string(),
+        }
     }
 
     /// Returns an electoral log whose posts will have the given voter
@@ -562,16 +590,12 @@ impl ElectoralLog {
         tenant_id: &str,
         event_id: &str,
         user_id: &str,
-        voter_signing_key: &Option<StrandSignaturePk>,
+        voter_signing_key: &Option<VerificationKey>,
     ) -> Result<Self> {
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
-            hasura_transaction,
-            tenant_id,
-            Some(event_id),
-            elog_database,
-        )
-        .await?;
-        let system_sk = protocol_manager.get_signing_key().clone();
+        let protocol_manager =
+            get_board_signing_key(hasura_transaction, tenant_id, Some(event_id), elog_database)
+                .await?;
+        let system_sk = protocol_manager.clone();
 
         Ok(ElectoralLog {
             sd: SigningData::new(system_sk.clone(), user_id, system_sk),
@@ -599,14 +623,14 @@ impl ElectoralLog {
         user_area_id: Option<String>,
     ) -> Result<Self> {
         let election_ids = flatten_election_ids(election_ids_vec);
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
+        let protocol_manager = get_board_signing_key(
             hasura_transaction,
             tenant_id,
             Some(election_event_id),
             elog_database,
         )
         .await?;
-        let system_sk = protocol_manager.get_signing_key().clone();
+        let system_sk = protocol_manager.clone();
 
         let sk = vault::get_admin_user_signing_key(
             hasura_transaction,
@@ -636,14 +660,10 @@ impl ElectoralLog {
         pk_der_b64: &str,
         area_id: &str,
     ) -> Result<()> {
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
-            hasura_transaction,
-            tenant_id,
-            Some(event_id),
-            elog_database,
-        )
-        .await?;
-        let system_sk = protocol_manager.get_signing_key().clone();
+        let protocol_manager =
+            get_board_signing_key(hasura_transaction, tenant_id, Some(event_id), elog_database)
+                .await?;
+        let system_sk = protocol_manager.clone();
         let sd = SigningData::new(system_sk.clone(), "", system_sk.clone());
 
         let pseudonym = hash_voter_id(&user_id)?;
@@ -670,6 +690,7 @@ impl ElectoralLog {
                 serde_json::to_string(&board_message)
                     .with_context(|| "Error serializing ElectoralLogMessage")?,
             ),
+            event_time_ms: None,
         };
 
         let celery_app = get_celery_app().await;
@@ -700,14 +721,9 @@ impl ElectoralLog {
         elections_ids: Option<String>,
         user_area_id: Option<String>,
     ) -> Result<()> {
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
-            hasura_transaction,
-            tenant_id,
-            None,
-            elog_database,
-        )
-        .await?;
-        let system_sk = protocol_manager.get_signing_key().clone();
+        let protocol_manager =
+            get_board_signing_key(hasura_transaction, tenant_id, None, elog_database).await?;
+        let system_sk = protocol_manager.clone();
         let sd = SigningData::new(system_sk.clone(), "", system_sk.clone());
 
         let message = Message::admin_public_key_message(
@@ -783,6 +799,7 @@ impl ElectoralLog {
                 serde_json::to_string(&board_message)
                     .with_context(|| "Error serializing ElectoralLogMessage")?,
             ),
+            event_time_ms: None,
         };
         let celery_app = get_celery_app().await;
         celery_app
@@ -835,6 +852,7 @@ impl ElectoralLog {
                 serde_json::to_string(&board_message)
                     .with_context(|| "Error serializing post cast vote")?,
             ),
+            event_time_ms: None,
         };
         let celery_app = get_celery_app().await;
         celery_app
@@ -922,6 +940,7 @@ impl ElectoralLog {
                 serde_json::to_string(&board_message)
                     .with_context(|| "Error serializing ElectoralLogMessage")?,
             ),
+            event_time_ms: None,
         };
         let celery_app = get_celery_app().await;
         celery_app
@@ -987,30 +1006,130 @@ impl ElectoralLog {
         self.post(&message).await
     }
 
+    /// Posts a new version of the election event's approval matrix.
     #[instrument(skip(self))]
-    pub async fn post_election_published(
+    pub async fn post_approval_matrix_updated(
         &self,
         event_id: String,
-        election_ids_vec: Option<Vec<String>>,
-        ballot_pub_id: String,
+        version: u32,
+        sha256: String,
         user_id: Option<String>,
         username: Option<String>,
     ) -> Result<()> {
-        let event = EventIdString(event_id);
-        let election_ids = flatten_election_ids(election_ids_vec);
-        let election = ElectionIdString(election_ids.clone());
-        let ballot_pub_id = BallotPublicationIdString(ballot_pub_id);
-
-        let message = Message::election_published_message(
-            event,
-            election,
-            ballot_pub_id,
+        let message = Message::approval_matrix_updated_message(
+            EventIdString(event_id),
+            ApprovalMatrixVersion(version),
+            ApprovalMatrixDigestString(sha256),
             &self.sd,
             user_id,
             username,
         )?;
 
         self.post(&message).await
+    }
+
+    /// Posts a change to the election event's monitoring dashboards.
+    #[instrument(skip(self))]
+    pub async fn post_monitoring_config_changed(
+        &self,
+        event_id: String,
+        details: MonitoringConfigChangeDetails,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let message = Message::monitoring_config_changed_message(
+            EventIdString(event_id),
+            details,
+            &self.sd,
+            user_id,
+            username,
+        )?;
+
+        self.post(&message).await
+    }
+
+    /// Posts a signed configuration package's import.
+    #[instrument(skip(self))]
+    pub async fn post_configuration_package(
+        &self,
+        event_id: String,
+        details: ConfigurationPackageDetails,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let message = Message::configuration_package_message(
+            EventIdString(event_id),
+            details,
+            &self.sd,
+            user_id,
+            username,
+        )?;
+
+        self.post(&message).await
+    }
+
+    /// Posts the hash manifest of a generated report.
+    #[instrument(skip(self))]
+    pub async fn post_report_generated(
+        &self,
+        event_id: String,
+        details: ReportGeneratedDetails,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let message = Message::report_generated_message(
+            EventIdString(event_id),
+            details,
+            &self.sd,
+            user_id,
+            username,
+        )?;
+
+        self.post(&message).await
+    }
+
+    /// Posts a publication. For an event imported from a signed
+    /// configuration package the entry carries `configuration`: the
+    /// manifest SHA-256 and the digest of each design published.
+    #[instrument(skip(self))]
+    pub async fn post_election_published(
+        &self,
+        event_id: String,
+        election_ids_vec: Option<Vec<String>>,
+        ballot_pub_id: String,
+        configuration: Option<PublishedConfiguration>,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let message = self.election_published_message(
+            event_id,
+            election_ids_vec,
+            ballot_pub_id,
+            configuration,
+            user_id,
+            username,
+        )?;
+        self.post(&message).await
+    }
+
+    fn election_published_message(
+        &self,
+        event_id: String,
+        election_ids_vec: Option<Vec<String>>,
+        ballot_pub_id: String,
+        configuration: Option<PublishedConfiguration>,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Message> {
+        Message::election_published_message(
+            EventIdString(event_id),
+            ElectionIdString(flatten_election_ids(election_ids_vec)),
+            BallotPublicationIdString(ballot_pub_id),
+            configuration,
+            &self.sd,
+            user_id,
+            username,
+        )
     }
 
     #[instrument(skip(self))]
@@ -1415,7 +1534,7 @@ impl ElectoralLog {
     #[instrument(skip(self))]
     pub async fn import_from_csv(&self, logs_file: &NamedTempFile) -> Result<()> {
         let batch_size: usize = PgConfig::from_env()?.default_sql_batch_size.try_into()?;
-        let mut rdr = csv::Reader::from_reader(logs_file);
+        let mut rdr = exported_log_reader(logs_file)?;
 
         let mut client = get_board_client().await?;
         client.open_session(self.elog_database.as_str()).await?;
@@ -1428,7 +1547,7 @@ impl ElectoralLog {
             let row: ElectoralLogRow =
                 result.map_err(|err| anyhow::Error::new(err).context("Failed to read CSV row"))?;
             let message: &Message =
-                &Message::strand_deserialize(&general_purpose::STANDARD_NO_PAD.decode(&row.data)?)
+                &Message::record_deserialize(&general_purpose::STANDARD_NO_PAD.decode(&row.data)?)
                     .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
             let electoral_log_message: ElectoralLogMessage = message.try_into()?;
             messages.push(electoral_log_message);
@@ -1473,6 +1592,82 @@ pub enum OrderField {
     EventType,
     Description,
     Version,
+    /// Filter only (never a column or a sort key): the first minute of an
+    /// inclusive range of `created` (RFC 3339 instant).
+    CreatedFrom,
+    /// Filter only: the last minute of an inclusive range of `created`.
+    CreatedTo,
+    /// Filter only: the first minute of a range of `statement_timestamp`.
+    StatementTimestampFrom,
+    /// Filter only: the last minute of a range of `statement_timestamp`.
+    StatementTimestampTo,
+}
+
+impl OrderField {
+    /// The range keys filter a column but aren't one, so they never sort.
+    pub fn is_column(&self) -> bool {
+        !matches!(
+            self,
+            OrderField::CreatedFrom
+                | OrderField::CreatedTo
+                | OrderField::StatementTimestampFrom
+                | OrderField::StatementTimestampTo
+        )
+    }
+}
+
+/// The start of the minute of a Unix time in seconds. Every zone's offset is
+/// a whole number of minutes, so a minute is the same in every zone.
+fn minute_start(ts: i64) -> i64 {
+    ts - ts.rem_euclid(60)
+}
+
+/// Unix seconds of an RFC 3339 instant.
+fn parse_instant(value: &str) -> Result<i64> {
+    let datetime = ISO8601::to_date_utc(value)
+        .map_err(|err| anyhow!("Failed to parse timestamp {value:?}: {err:?}"))?;
+    Ok(datetime.timestamp())
+}
+
+/// A range of instants inclusive to the minute at both ends: `from` and `to`
+/// are RFC 3339 instants (the Admin Portal turns the wall times it shows in
+/// the chosen zone into instants), and a time is inside when it falls in or
+/// after `from`'s minute and in or before `to`'s minute.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MinuteRange {
+    /// The first second inside, if bounded.
+    pub start: Option<i64>,
+    /// The first second after the range, if bounded.
+    pub end: Option<i64>,
+}
+
+impl MinuteRange {
+    pub fn parse(from: Option<&str>, to: Option<&str>) -> Result<Self> {
+        let bound = |value: Option<&str>| -> Result<Option<i64>> {
+            value
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(parse_instant)
+                .transpose()
+        };
+        Ok(MinuteRange {
+            start: bound(from)?.map(minute_start),
+            end: bound(to)?.map(|ts| minute_start(ts) + 60),
+        })
+    }
+
+    /// The minute of one instant (the single-value filter).
+    pub fn minute_of(value: &str) -> Result<Self> {
+        Self::parse(Some(value), Some(value))
+    }
+
+    pub fn contains(&self, ts: i64) -> bool {
+        self.start.map_or(true, |start| start <= ts) && self.end.map_or(true, |end| ts < end)
+    }
+
+    pub fn is_unbounded(&self) -> bool {
+        self.start.is_none() && self.end.is_none()
+    }
 }
 
 #[derive(Deserialize, Debug, Default, Clone)]
@@ -1490,6 +1685,19 @@ pub struct GetElectoralLogBody {
 }
 
 impl GetElectoralLogBody {
+    /// `ORDER BY` over the requested columns; the filter-only range keys
+    /// never sort.
+    fn order_by_clause(&self) -> Option<String> {
+        let order_by_clauses: Vec<String> = self
+            .order_by
+            .as_ref()?
+            .iter()
+            .filter(|(field, _)| field.is_column())
+            .map(|(field, direction)| format!("{field} {direction}"))
+            .collect();
+        (!order_by_clauses.is_empty()).then(|| format!("ORDER BY {}", order_by_clauses.join(", ")))
+    }
+
     // Returns the SQL clauses related to the request along with the parameters
     #[instrument(ret)]
     fn as_sql(&self, to_count: bool) -> Result<(String, Vec<NamedParam>)> {
@@ -1514,15 +1722,28 @@ impl GetElectoralLogBody {
                         params.push(create_named_param(param_name, Value::S(value.to_string())));
                     }
                     OrderField::StatementTimestamp | OrderField::Created => { // sql TIMESTAMP type
-                        // these have their own column and are inside of Message´s column as well
-                        let datetime = ISO8601::to_date_utc(&value)
-                            .map_err(|err| anyhow!("Failed to parse timestamp: {:?}", err))?;
-                        let ts: i64 = datetime.timestamp();
-                        let ts_end: i64 = ts + 60; // Search along that minute, the second is not specified by the front.
-                        let param_name_end = format!("{param_name}_end");
-                        where_clauses.push(format!("{field} >= @{} AND {field} < @{}", param_name, param_name_end));
-                        params.push(create_named_param(param_name, Value::Ts(ts)));
-                        params.push(create_named_param(param_name_end, Value::Ts(ts_end)));
+                        // These have their own column (and are inside the message too).
+                        // A single value means its minute.
+                        if let MinuteRange { start: Some(start), end: Some(end) } = MinuteRange::minute_of(value)? {
+                            let param_name_end = format!("{param_name}_end");
+                            where_clauses.push(format!("{field} >= @{} AND {field} < @{}", param_name, param_name_end));
+                            params.push(create_named_param(param_name, Value::Ts(start)));
+                            params.push(create_named_param(param_name_end, Value::Ts(end)));
+                        }
+                    }
+                    OrderField::CreatedFrom | OrderField::StatementTimestampFrom => {
+                        let column = if *field == OrderField::CreatedFrom { OrderField::Created } else { OrderField::StatementTimestamp };
+                        if let Some(start) = MinuteRange::parse(Some(value), None)?.start {
+                            where_clauses.push(format!("{column} >= @{}", param_name));
+                            params.push(create_named_param(param_name, Value::Ts(start)));
+                        }
+                    }
+                    OrderField::CreatedTo | OrderField::StatementTimestampTo => {
+                        let column = if *field == OrderField::CreatedTo { OrderField::Created } else { OrderField::StatementTimestamp };
+                        if let Some(end) = MinuteRange::parse(None, Some(value))?.end {
+                            where_clauses.push(format!("{column} < @{}", param_name));
+                            params.push(create_named_param(param_name, Value::Ts(end)));
+                        }
                     }
                     OrderField::EventType | OrderField::LogType | OrderField::Description // these have no column but are inside of Message
                     | OrderField::Message => {} // Message column is sql BLOB type and it´s encrypted so we can't search it without expensive operations
@@ -1614,16 +1835,9 @@ impl GetElectoralLogBody {
         }
 
         // Handle order_by
-        if !to_count && self.order_by.is_some() {
-            let order_by_clauses: Vec<String> = self
-                .order_by
-                .as_ref()
-                .ok_or(anyhow!("Empty order clause"))?
-                .iter()
-                .map(|(field, direction)| format!("{field} {direction}"))
-                .collect();
-            if order_by_clauses.len() > 0 {
-                clauses.push(format!("ORDER BY {}", order_by_clauses.join(", ")));
+        if !to_count {
+            if let Some(order_by) = self.order_by_clause() {
+                clauses.push(order_by);
             }
         }
 
@@ -1734,7 +1948,7 @@ impl TryFrom<ElectoralLogMessage> for ElectoralLogRow {
 
     fn try_from(elog_msg: ElectoralLogMessage) -> Result<Self, Self::Error> {
         let serialized = general_purpose::STANDARD_NO_PAD.encode(elog_msg.message.clone());
-        let deserialized_message = Message::strand_deserialize(&elog_msg.message)
+        let deserialized_message = Message::record_deserialize(&elog_msg.message)
             .map_err(|e| anyhow!("Error deserializing message: {e:?}"))?;
 
         Ok(ElectoralLogRow {
@@ -1801,7 +2015,7 @@ impl TryFrom<&Row> for ElectoralLogRow {
         }
 
         let deserialized_message =
-            Message::strand_deserialize(&message).with_context(|| "Error deserializing message")?;
+            Message::record_deserialize(&message).with_context(|| "Error deserializing message")?;
         let serialized = general_purpose::STANDARD_NO_PAD.encode(message);
         Ok(ElectoralLogRow {
             id,
@@ -1833,20 +2047,40 @@ pub struct CastVoteMessagesOutput {
 }
 
 impl CastVoteEntry {
-    pub fn from_elog_message(entry: &ElectoralLogMessage) -> Result<Option<Self>, anyhow::Error> {
+    pub fn from_elog_message(
+        entry: &ElectoralLogMessage,
+        viewer_user_id: &str,
+    ) -> Result<Option<Self>, anyhow::Error> {
         let ballot_id = entry.ballot_id.clone().unwrap_or_default();
         let username = entry.username.clone();
-        let message: &Message = &Message::strand_deserialize(&entry.message)
+        let message: &Message = &Message::record_deserialize(&entry.message)
             .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
         let message = Some(message.to_string());
 
-        Ok(Some(CastVoteEntry {
-            statement_timestamp: entry.statement_timestamp,
-            statement_kind: StatementType::CastVote.to_string(),
-            ballot_id,
-            username,
-            message,
-        }))
+        Ok(Some(
+            CastVoteEntry {
+                statement_timestamp: entry.statement_timestamp,
+                statement_kind: StatementType::CastVote.to_string(),
+                ballot_id,
+                username,
+                message,
+            }
+            .shown_to(entry.user_id.as_deref(), viewer_user_id),
+        ))
+    }
+
+    /// The username and the signed statement (pseudonym, IP and country) tie a
+    /// Ballot ID to a voter, so a voter gets them only for their own entries.
+    pub fn shown_to(self, entry_user_id: Option<&str>, viewer_user_id: &str) -> Self {
+        if entry_user_id == Some(viewer_user_id) {
+            self
+        } else {
+            CastVoteEntry {
+                username: None,
+                message: None,
+                ..self
+            }
+        }
     }
 }
 
@@ -2017,7 +2251,7 @@ pub async fn list_cast_vote_messages(
         let t_entries = electoral_log_messages.len();
         info!("Got {t_entries} entries. Offset: {offset}, limit: {limit}, total: {total}");
         for message in electoral_log_messages.iter() {
-            match CastVoteEntry::from_elog_message(&message)? {
+            match CastVoteEntry::from_elog_message(&message, user_id)? {
                 Some(entry) if !ballot_id_filter.is_empty() => {
                     // If there is filter exit at the first match
                     filter_matched = true;
@@ -2213,5 +2447,264 @@ mod voter_secret_attribute_audit_tests {
         assert_eq!(body["voter"]["user_id"], "voter-id");
         assert_eq!(body["initiated_by"]["username"], "admin");
         assert!(body.get("document_id").is_none());
+    }
+}
+
+#[cfg(test)]
+mod cast_vote_entry_tests {
+    use super::*;
+
+    fn entry() -> CastVoteEntry {
+        CastVoteEntry {
+            statement_timestamp: 1_841_000_000,
+            statement_kind: StatementType::CastVote.to_string(),
+            ballot_id: "0abc12".to_string(),
+            username: Some("voter-one".to_string()),
+            message: Some("{\"ip\":\"203.0.113.7\"}".to_string()),
+        }
+    }
+
+    #[test]
+    fn a_voter_sees_their_own_entry_in_full() {
+        let shown = entry().shown_to(Some("voter-one-id"), "voter-one-id");
+        assert_eq!(shown.username.as_deref(), Some("voter-one"));
+        assert!(shown.message.is_some());
+    }
+
+    #[test]
+    fn another_voters_entry_keeps_only_what_does_not_identify_them() {
+        for entry_user_id in [Some("voter-one-id"), Some(""), None] {
+            let shown = entry().shown_to(entry_user_id, "voter-two-id");
+            assert_eq!(shown.username, None);
+            assert_eq!(shown.message, None);
+            assert_eq!(shown.ballot_id, "0abc12");
+            assert_eq!(shown.statement_timestamp, 1_841_000_000);
+        }
+    }
+}
+
+#[cfg(test)]
+mod election_published_tests {
+    use super::*;
+
+    fn log() -> ElectoralLog {
+        let key = SigningKey::generate().unwrap();
+        ElectoralLog::for_system_with_signing_key("board", &key)
+    }
+
+    fn message(configuration: Option<PublishedConfiguration>) -> Message {
+        log()
+            .election_published_message(
+                "event".to_string(),
+                Some(vec!["election".to_string()]),
+                "publication".to_string(),
+                configuration,
+                Some("admin-id".to_string()),
+                Some("admin".to_string()),
+            )
+            .unwrap()
+    }
+
+    #[test]
+    fn a_signed_configurations_publication_is_one_entry_with_its_manifest_and_designs() {
+        let configuration = PublishedConfiguration {
+            external_id: "ov-2028".to_string(),
+            revision: 3,
+            manifest_sha256: "ab".repeat(32),
+            design_digests: vec![ConfigurationDesignDigest {
+                area: "Post 1".to_string(),
+                election: "national".to_string(),
+                sha256: "cd".repeat(32),
+            }],
+        };
+        let message = message(Some(configuration.clone()));
+        assert!(matches!(
+            message.statement.head.kind,
+            StatementType::ElectionPublish
+        ));
+        match &message.statement.body {
+            StatementBody::ElectionPublishWithConfiguration(election, publication, logged) => {
+                assert_eq!(election.0.as_deref(), Some("election"));
+                assert_eq!(publication.0, "publication");
+                assert_eq!(logged, &configuration);
+            }
+            other => panic!("unexpected body {other:?}"),
+        }
+        assert_eq!(message.user_id.as_deref(), Some("admin-id"));
+        assert_eq!(message.username.as_deref(), Some("admin"));
+        assert_eq!(message.election_id.as_deref(), Some("election"));
+
+        let stored = ElectoralLogMessage::try_from(&message).unwrap();
+        assert_eq!(stored.statement_kind, "ElectionPublish");
+        let read = Message::record_deserialize(&stored.message).unwrap();
+        assert!(matches!(
+            read.statement.body,
+            StatementBody::ElectionPublishWithConfiguration(_, _, logged) if logged == configuration
+        ));
+    }
+
+    #[test]
+    fn a_publication_without_a_package_is_the_entry_older_logs_hold() {
+        let message = message(None);
+        assert!(matches!(
+            message.statement.head.kind,
+            StatementType::ElectionPublish
+        ));
+        assert!(matches!(
+            message.statement.body,
+            StatementBody::ElectionPublish(..)
+        ));
+    }
+}
+
+#[cfg(test)]
+mod range_filter_tests {
+    use super::*;
+
+    fn ts(rfc3339: &str) -> i64 {
+        ISO8601::to_date_utc(rfc3339).unwrap().timestamp()
+    }
+
+    fn body(filter: &[(OrderField, &str)]) -> GetElectoralLogBody {
+        GetElectoralLogBody {
+            tenant_id: "tenant".to_string(),
+            election_event_id: "event".to_string(),
+            filter: Some(
+                filter
+                    .iter()
+                    .map(|(field, value)| (field.clone(), value.to_string()))
+                    .collect(),
+            ),
+            ..Default::default()
+        }
+    }
+
+    fn param(params: &[NamedParam], name: &str) -> i64 {
+        let found = params
+            .iter()
+            .find(|param| param.name == name)
+            .unwrap_or_else(|| panic!("no parameter {name}"));
+        match found.value.as_ref().and_then(|value| value.value.as_ref()) {
+            Some(Value::Ts(ts)) => *ts,
+            other => panic!("{name} isn't a timestamp: {other:?}"),
+        }
+    }
+
+    /// Two configurations: the wall times are entered in the chosen zone
+    /// (Manila, +08:00; Kathmandu, +05:45) and arrive as instants.
+    #[test]
+    fn the_range_includes_both_ends_to_the_minute_in_the_chosen_zone() {
+        for offset in ["+08:00", "+05:45"] {
+            let from = format!("2028-04-08T00:00:00{offset}");
+            let to = format!("2028-04-09T23:59:00{offset}");
+            let range = MinuteRange::parse(Some(&from), Some(&to)).unwrap();
+
+            assert!(range.contains(ts(&from)));
+            assert!(range.contains(ts(&format!("2028-04-09T23:59:59{offset}"))));
+            assert!(!range.contains(ts(&format!("2028-04-10T00:00:00{offset}"))));
+            assert!(!range.contains(ts(&format!("2028-04-07T23:59:59{offset}"))));
+        }
+    }
+
+    #[test]
+    fn seconds_in_the_bounds_still_cover_their_whole_minute() {
+        let range = MinuteRange::parse(
+            Some("2028-04-08T10:15:42+08:00"),
+            Some("2028-04-08T10:20:05+08:00"),
+        )
+        .unwrap();
+        assert!(range.contains(ts("2028-04-08T10:15:00+08:00")));
+        assert!(range.contains(ts("2028-04-08T10:20:59+08:00")));
+        assert!(!range.contains(ts("2028-04-08T10:14:59+08:00")));
+        assert!(!range.contains(ts("2028-04-08T10:21:00+08:00")));
+    }
+
+    #[test]
+    fn an_open_end_is_unbounded() {
+        let range = MinuteRange::parse(Some("2028-04-08T10:15:00Z"), None).unwrap();
+        assert!(range.contains(i64::MAX));
+        assert!(!range.contains(ts("2028-04-08T10:14:59Z")));
+        assert!(MinuteRange::parse(None, Some(" ")).unwrap().is_unbounded());
+    }
+
+    #[test]
+    fn the_list_filters_created_from_and_to_inclusive_to_the_minute() {
+        let (sql, params) = body(&[
+            (OrderField::CreatedFrom, "2028-04-08T00:00:00+08:00"),
+            (OrderField::CreatedTo, "2028-04-09T23:59:00+08:00"),
+        ])
+        .as_sql(true)
+        .unwrap();
+
+        assert!(sql.contains("created >= @param_created_from"), "{sql}");
+        assert!(sql.contains("created < @param_created_to"), "{sql}");
+        assert_eq!(
+            param(&params, "param_created_from"),
+            ts("2028-04-07T16:00:00Z")
+        );
+        assert_eq!(
+            param(&params, "param_created_to"),
+            ts("2028-04-09T16:00:00Z")
+        );
+    }
+
+    #[test]
+    fn the_list_filters_the_statement_timestamp_range() {
+        let (sql, params) = body(&[
+            (
+                OrderField::StatementTimestampFrom,
+                "2028-04-08T09:30:00-04:00",
+            ),
+            (
+                OrderField::StatementTimestampTo,
+                "2028-04-08T09:30:00-04:00",
+            ),
+        ])
+        .as_sql(true)
+        .unwrap();
+
+        assert!(
+            sql.contains("statement_timestamp >= @param_statement_timestamp_from"),
+            "{sql}"
+        );
+        assert!(
+            sql.contains("statement_timestamp < @param_statement_timestamp_to"),
+            "{sql}"
+        );
+        assert_eq!(
+            param(&params, "param_statement_timestamp_to")
+                - param(&params, "param_statement_timestamp_from"),
+            60
+        );
+    }
+
+    #[test]
+    fn a_single_value_still_means_its_minute() {
+        let (sql, params) = body(&[(OrderField::Created, "2028-04-08T10:15:42Z")])
+            .as_sql(true)
+            .unwrap();
+        assert!(
+            sql.contains("created >= @param_created AND created < @param_created_end"),
+            "{sql}"
+        );
+        assert_eq!(param(&params, "param_created"), ts("2028-04-08T10:15:00Z"));
+        assert_eq!(
+            param(&params, "param_created_end"),
+            ts("2028-04-08T10:16:00Z")
+        );
+    }
+
+    #[test]
+    fn the_range_keys_arrive_in_the_filter_and_never_sort() {
+        let body: GetElectoralLogBody = serde_json::from_value(serde_json::json!({
+            "tenant_id": "tenant",
+            "election_event_id": "event",
+            "filter": {"created_from": "2028-04-08T00:00:00+08:00"},
+            "order_by": {"created_from": "desc"},
+        }))
+        .unwrap();
+        let (sql, _) = body.as_sql(true).unwrap();
+        assert!(sql.contains("created >= @param_created_from"), "{sql}");
+        assert_eq!(body.order_by_clause(), None);
     }
 }

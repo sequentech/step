@@ -17,6 +17,7 @@ use keycloak::{
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 use reqwest::Client;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 use std::env;
@@ -95,8 +96,13 @@ pub fn parse_realm(realm: &str) -> Option<(String, Option<String>)> {
     // Expected formats:
     // - Tenant realm: "tenant-{tenant_id}"
     // - Event realm: "tenant-{tenant_id}-event-{election_event_id}"
-
-    if parts.len() >= 2 && parts[0] == "tenant" {
+    //
+    // Copies replace these IDs throughout the realm JSON, so an empty ID
+    // segment is malformed rather than a match for every position or dash.
+    if parts.len() >= 2
+        && parts[0] == "tenant"
+        && parts[1..].iter().all(|part| !part.is_empty())
+    {
         // Check if this is an event realm
         if let Some(event_idx) = parts.iter().position(|&p| p == "event") {
             if event_idx > 1 && event_idx < parts.len() - 1 {
@@ -268,6 +274,51 @@ async fn error_check(
     }
 
     Ok(response)
+}
+
+/// What Keycloak's `/partialImport` does with a resource the realm already
+/// has.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum IfResourceExists {
+    Fail,
+    Skip,
+    Overwrite,
+}
+
+/// How many resources a partial import added, skipped and overwrote.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+#[serde(default)]
+pub struct PartialImportSummary {
+    pub added: usize,
+    pub skipped: usize,
+    pub overwritten: usize,
+}
+
+/// Imports realm roles into an existing realm and nothing else: the payload
+/// holds only the roles and the policy, so the realm's groups, clients and
+/// settings stay as they are.
+#[instrument(skip(client, roles), fields(roles = roles.len()), err)]
+pub async fn partial_import_realm_roles(
+    client: &PubKeycloakAdmin,
+    realm: &str,
+    roles: &[RoleRepresentation],
+    if_resource_exists: IfResourceExists,
+) -> Result<PartialImportSummary> {
+    let req_url =
+        format!("{}/admin/realms/{}/partialImport", client.url, realm);
+    let payload = json!({
+        "ifResourceExists": if_resource_exists,
+        "roles": { "realm": roles },
+    });
+    let response = client
+        .client
+        .post(&req_url)
+        .bearer_auth(client.token_supplier.get(&client.url).await?)
+        .json(&payload)
+        .send()
+        .await?;
+    Ok(error_check(response).await?.json().await?)
 }
 
 impl KeycloakAdminClient {
@@ -459,6 +510,7 @@ impl KeycloakAdminClient {
             .send()
             .await?;
 
+        let response = error_check(response).await?;
         if let Some(location_header) =
             response.headers().get(reqwest::header::LOCATION)
         {
@@ -469,10 +521,42 @@ impl KeycloakAdminClient {
                     text: e.to_string(),
                 }
             })?;
-            // The ID is the trailing part of the URL
-            if let Some(id) = location_str.split('/').last() {
-                return Ok(Some(id.to_string()));
-            }
+            // Keycloak may advertise a public origin, with its own path prefix
+            // such as `/auth`, behind a reverse proxy. Only consume an ID for
+            // this realm's groups resource; never follow the advertised host.
+            let base = reqwest::Url::parse(&url).map_err(|e| {
+                KeycloakError::HttpFailure {
+                    status: response.status().into(),
+                    body: None,
+                    text: e.to_string(),
+                }
+            })?;
+            let location = base.join(location_str).map_err(|e| {
+                KeycloakError::HttpFailure {
+                    status: response.status().into(),
+                    body: None,
+                    text: e.to_string(),
+                }
+            })?;
+            let segments: Vec<&str> = location
+                .path_segments()
+                .map(Iterator::collect)
+                .unwrap_or_default();
+            let id = match segments.as_slice() {
+                [.., "admin", "realms", location_realm, "groups", id]
+                    if *location_realm == realm && !id.is_empty() =>
+                {
+                    Some(*id)
+                }
+                _ => None,
+            };
+            return id.map(|id| Some(id.to_string())).ok_or_else(|| {
+                KeycloakError::HttpFailure {
+                    status: response.status().into(),
+                    body: None,
+                    text: "Group creation Location does not identify a group in the requested realm".to_string(),
+                }
+            });
         }
 
         Ok(None)
@@ -555,7 +639,8 @@ impl KeycloakAdminClient {
             .await
             .context("Failed to get groups roles")?;
 
-        let roles: Vec<RoleRepresentation> = resp.json().await?;
+        let roles: Vec<RoleRepresentation> =
+            error_check(resp).await?.json().await?;
         Ok(roles)
     }
 
@@ -571,7 +656,7 @@ impl KeycloakAdminClient {
             "{}/admin/realms/{}/groups/{}",
             client.url,
             realm,
-            group.id.as_ref().unwrap()
+            group.id.as_ref().context("Missing group id")?
         );
         let response = client
             .client
@@ -616,6 +701,7 @@ impl KeycloakAdminClient {
                 .send()
                 .await
                 .context(format!("Failed to send request to update localization texts for locale '{}'", locale))?;
+                error_check(response).await?;
             }
         }
 
@@ -802,11 +888,12 @@ impl KeycloakAdminClient {
                 .realm_put(&board_name, realm)
                 .await
                 .map_err(|err| anyhow!("Keycloak error: {:?}", err)),
-            Err(_) => self
+            Err(KeycloakError::HttpFailure { status: 404, .. }) => self
                 .client
                 .post(realm)
                 .await
                 .map_err(|err| anyhow!("Keycloak error: {:?}", err)),
+            Err(error) => Err(error.into()),
         }
     }
 }

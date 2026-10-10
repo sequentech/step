@@ -11,11 +11,25 @@ export {default as CustomDropFile} from "./components/CustomDropFile/CustomDropF
 export {default as DropFile} from "./components/DropFile/DropFile"
 export {default as Footer} from "./components/Footer/Footer"
 export {default as Icon} from "./components/Icon/Icon"
+export {
+    default as ChannelIcon,
+    ChannelLabel,
+    CHANNEL_ICON_NAMES,
+} from "./components/ChannelIcon/ChannelIcon"
+export type {
+    ChannelIconName,
+    ChannelIconProps,
+    ChannelLabelProps,
+} from "./components/ChannelIcon/ChannelIcon"
 export {default as DecorativeIconBox} from "./components/Icon/DecorativeIconBox"
 export {default as IconButton} from "./components/IconButton/IconButton"
 export {default as VisuallyHidden} from "./components/VisuallyHidden/VisuallyHidden"
 export {default as InfoDataBox} from "./components/InfoDataBox/InfoDataBox"
 export {default as LanguageMenu} from "./components/LanguageMenu/LanguageMenu"
+export {default as AccessibilityMenu} from "./components/AccessibilityMenu/AccessibilityMenu"
+export {accessibilityStyles} from "./components/AccessibilityMenu/accessibilityStyles"
+export {default as AudioInstructions} from "./components/AudioInstructions/AudioInstructions"
+export type {AudioInstructionsProps} from "./components/AudioInstructions/AudioInstructions"
 export {default as LanguageSetter} from "./components/LanguageSetter/LanguageSetter"
 export {default as LinkBehavior} from "./components/LinkBehavior/LinkBehavior"
 export {default as LogoutButton} from "./components/LogoutButton/LogoutButton"
@@ -38,13 +52,26 @@ export {default as BallotHash, BallotHashCopyButton} from "./components/BallotHa
 export {default as QRCode} from "./components/QRCode/QRCode"
 export {default as CandidatesList} from "./components/CandidatesList/CandidatesList"
 export {default as SelectElection} from "./components/SelectElection/SelectElection"
+export {
+    getElectionTimes,
+    getEndDate,
+    getEndDateEntry,
+    getStartDate,
+    hasDate,
+    sameWallClock,
+} from "./components/SelectElection/electionTimes"
+export type {
+    IElectionTimes,
+    IElectionTimesInput,
+    ZonedDateTimeFormatter,
+} from "./components/SelectElection/electionTimes"
 export {default as Tree} from "./components/Tree/Tree"
 export {NotFoundScreen} from "./components/NotFoundScreen"
 export {default as BlankAnswer} from "./components/BlankAnswer/BlankAnswer"
 export {default as CustomAutocompleteArrayInput} from "./components/CustomAutocompleteArrayInput/CustomAutocompleteArrayInput"
 export {default as Loader} from "./components/Loader/Loader"
 export {default as ExpandableText} from "./components/ExpandableText/ExpandableText"
-export {ActionsContainer, StyledButton} from "./components/ConfirmationActions/ConfirmationActions"
+export {ActionsContainer, StyledButton} from "./components/ActionsRow/ActionsRow"
 export {PlaintextVoteContest} from "./components/PlaintextVoteContest/PlaintextVoteContest"
 export type {PlaintextVoteContestProps} from "./components/PlaintextVoteContest/PlaintextVoteContest"
 export {
@@ -88,3 +115,83 @@ export type {
     ReviewChangesRow,
     ReviewChangesTableProps,
 } from "./components/ReviewChangesTable/ReviewChangesTable"
+
+// The ballot a voter marks, and the port a host implements to hold their marks.
+//
+// The voting portal renders these over its redux store. Other tools, such as the
+// Election Architect, do not import them: they frame the portal's own screens through
+// the workbench's embedded voter preview (`voting-portal/src/preview/embed.ts`).
+export {SupportMaterialsLayout, SupportMaterialCard} from "./ballot/SupportMaterialsLayout"
+export type {
+    ISupportMaterialsLayoutProps,
+    ISupportMaterialCardProps,
+} from "./ballot/SupportMaterialsLayout"
+export {ConfirmationLayout} from "./ballot/ConfirmationLayout"
+export type {IConfirmationLayoutProps} from "./ballot/ConfirmationLayout"
+export {StartLayout} from "./ballot/StartLayout"
+export type {IStartLayoutProps} from "./ballot/StartLayout"
+export {ReviewLayout} from "./ballot/ReviewLayout"
+export type {IReviewLayoutProps} from "./ballot/ReviewLayout"
+// The voter's breadcrumb. The portal's `Stepper` is a shim over this that answers
+// `withElectionList` from its store; the wizard's Ballot Preview draws it directly.
+export {BallotSteps} from "./ballot/BallotSteps"
+export type {IBallotStepsProps} from "./ballot/BallotSteps"
+// The ballot list screen, which the portal's `ElectionSelectionScreen` renders and
+// the wizard's preview draws.
+export {ElectionListLayout} from "./ballot/ElectionListLayout"
+export type {IElectionListLayoutProps} from "./ballot/ElectionListLayout"
+// The ballot screen itself, and the row of buttons under it.
+export {BallotScreenLayout} from "./ballot/BallotScreenLayout"
+export type {IBallotScreenLayoutProps} from "./ballot/BallotScreenLayout"
+export {BallotActions} from "./ballot/BallotActions"
+// The rows under the review and confirmation screens, lifted the same way: the portal's
+// `ReviewScreen` and `ConfirmationScreen` drew them inline, so a preview could only
+// approximate them — and did, with plain buttons and no icons.
+export {ReviewActions} from "./ballot/ReviewActions"
+export type {IReviewActionsProps} from "./ballot/ReviewActions"
+export {ConfirmationActions} from "./ballot/ConfirmationActions"
+export type {IConfirmationActionsProps} from "./ballot/ConfirmationActions"
+export type {IBallotActionsProps} from "./ballot/BallotActions"
+// The Admin Portal's emulator, less the part that reads its own database. Two
+// consumers for the same reason as above: the portal tries a call against a
+// published event, the wizard against the plan on screen.
+export {IvrCall, IvrPromptLine} from "./ballot/IvrCall"
+export {keyList, keypadHint} from "./ballot/keypadHint"
+export type {KeypadHintValues, KeypadHintWording} from "./ballot/keypadHint"
+export type {
+    IIvrCallProps,
+    IvrAction,
+    IvrCallDriver,
+    IvrCallStatus,
+    IvrExpectedInput,
+    IvrPrompt,
+} from "./ballot/IvrCall"
+export {forgetIvrEmulator, IvrEmulatorError, loadIvrEmulator} from "./ballot/ivrEmulator"
+export type {
+    ImportModule,
+    IvrEmulatorApi,
+    IvrEmulatorConfig,
+    IvrEmulatorFailure,
+} from "./ballot/ivrEmulator"
+export {Question, contestTitleId} from "./ballot/Question"
+export type {IQuestionProps} from "./ballot/Question"
+export {Answer} from "./ballot/Answer"
+export {AnswersList} from "./ballot/AnswersList"
+export {InvalidErrorsList} from "./ballot/InvalidErrorsList"
+export {BallotSelectionProvider, useBallotSelection} from "./ballot/selection"
+export {BallotEngineProvider, useBallotEngine} from "./ballot/engine"
+export type {BallotEngine} from "./ballot/engine"
+export {
+    BallotSlatesProvider,
+    getDefaultLanguageCode,
+    useBallotSlates,
+    useCandidateSlateLabel,
+} from "./ballot/slates"
+export type {BallotSelectionPort, ContestSelection, VoteChoice} from "./ballot/selection"
+export type {IBallotStyle as IBallotStyleRow} from "./ballot/types"
+export * from "./ballot/presentation"
+export {IInvalidPlaintextErrorType} from "./ballot/errors"
+
+// What an import or a validation found, and how to say it. Shared with the
+// Election Architect as the workbench build's `dist/problem-list/`, with its sentences.
+export * from "./components/ProblemList"

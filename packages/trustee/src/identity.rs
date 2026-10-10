@@ -59,7 +59,7 @@ pub(crate) fn load(path: &Path) -> Result<TrusteeSecrets> {
 }
 
 /// Write a keys file that did not exist.
-fn write_new(path: &Path, contents: &str) -> Result<()> {
+pub(crate) fn write_new(path: &Path, contents: &str) -> Result<()> {
     let mut file = OpenOptions::new()
         .write(true)
         .create_new(true)

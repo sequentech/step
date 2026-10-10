@@ -12,11 +12,11 @@ import {
     RaRecord,
     useRecordContext,
     FunctionField,
-    DateField,
     useGetList,
     useNotify,
     useRefresh,
 } from "react-admin"
+import {AdminDateField} from "@/components/AdminDateTime"
 import CellTowerIcon from "@mui/icons-material/CellTower"
 import {ListActions} from "../../components/ListActions"
 import {Button} from "react-admin"
@@ -526,7 +526,7 @@ export const ListTally: React.FC<ListAreaProps> = () => {
                                 t(`electionEventScreen.tally.tallyType.${record.tally_type}`)
                             }
                         />
-                        <DateField source="created_at" showTime={true} />
+                        <AdminDateField source="created_at" seconds />
 
                         <FunctionField
                             key="permission_label"

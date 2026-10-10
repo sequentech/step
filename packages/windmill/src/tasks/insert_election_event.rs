@@ -5,8 +5,8 @@
 use crate::postgres::election_event::update_bulletin_board;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::BoardSerializable;
+use crate::services::import::import_election_event::ensure_election_audit_boards;
 use crate::services::import::import_election_event::insert_election_event_db;
-use crate::services::import::import_election_event::upsert_b3_and_elog;
 use crate::services::import::import_election_event::upsert_keycloak_realm;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::Result;
@@ -57,6 +57,8 @@ pub async fn insert_election_event_anyhow(
         final_object.voting_channels = serde_json::to_value(VotingChannels::default()).ok();
     }
 
+    crate::postgres::scheduled_event::lock_scheduling_event(&hasura_transaction, &tenant_id, &id)
+        .await?;
     match upsert_keycloak_realm(tenant_id.as_str(), &id.as_ref(), None, None).await {
         Ok(realm) => Some(realm),
         Err(err) => {
@@ -85,7 +87,7 @@ pub async fn insert_election_event_anyhow(
         }
     };
 
-    let board = upsert_b3_and_elog(
+    let board = ensure_election_audit_boards(
         &hasura_transaction,
         tenant_id.as_str(),
         &id.as_ref(),

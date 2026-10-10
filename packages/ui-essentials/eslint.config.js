@@ -14,6 +14,9 @@ export default [
         ignores: [
             "node_modules/**",
             "dist/**",
+            "storybook-static/**",
+            "test-results/**",
+            "coverage/**",
             "target/**",
             "pkg/**",
             "build/**",
@@ -24,7 +27,7 @@ export default [
         ],
     },
     {
-        files: ["**/*.{js,jsx,ts,tsx}"],
+        files: ["**/*.{js,jsx,ts,tsx,mts}"],
         languageOptions: {
             ecmaVersion: "latest",
             sourceType: "module",
@@ -67,7 +70,7 @@ export default [
         },
     },
     {
-        files: ["**/*.stories.*"],
+        files: ["**/*.stories.{js,jsx,ts,tsx}"],
         rules: {
             "import/no-anonymous-default-export": "off",
         },

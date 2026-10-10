@@ -6,6 +6,6 @@ FROM trustee-build-dependencies
 
 COPY --from=trustee-compile /app/target/release/trustee /usr/bin/trustee
 COPY --from=trustee-compile /app/trustee/scripts/trustee.sh /usr/bin/trustee.sh
-RUN mkdir -p /opt/braid/
+RUN mkdir -p /opt/trustee/
 
 CMD ["/usr/bin/trustee.sh"]

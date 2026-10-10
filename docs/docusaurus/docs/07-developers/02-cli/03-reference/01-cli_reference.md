@@ -324,6 +324,8 @@ cli step complete-key-ceremony \
 * `--election-event-id` – Election event ID **(required)**
 * `--key-ceremony-id` – Key ceremony ID **(required)**
 
+The command downloads the trustee's encrypted private key, stores it in the `keys` directory next to the CLI binary, in a file named after the key ceremony, and then checks it. Once the key passes the check, it is also stored as the election event's key, which `confirm-key-tally` uses. A checked key can no longer be downloaded, so running the command again checks the key ceremony's stored copy instead.
+
 ---
 
 ## Start Tally Ceremony

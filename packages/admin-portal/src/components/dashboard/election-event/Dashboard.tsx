@@ -80,6 +80,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
 
     const {
         loading,
+        error,
         data: dataStats,
         refetch: doRefetch,
     } = useQuery<GetElectionEventStatsQuery>(GET_ELECTION_EVENT_STATS, {
@@ -147,6 +148,11 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
         areasCount: dataStats?.stats?.total_areas ?? "-",
         emailsSentCount: stats?.num_emails_sent ?? "-",
         smsSentCount: stats?.num_sms_sent ?? "-",
+        messagesSentCount: {
+            WHATSAPP: stats?.num_whatsapp_sent ?? "-",
+            VIBER: stats?.num_viber_sent ?? "-",
+            MESSENGER: stats?.num_messenger_sent ?? "-",
+        },
     }
 
     useEffect(() => {
@@ -254,6 +260,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
                     <Container className="dashboard-container">
                         <VotesPerDay
                             data={(dataStats?.stats?.votes_per_day as CastVotesPerDay[]) ?? null}
+                            unavailable={!!error}
                             width={cardWidth}
                             height={cardHeight}
                             selection={votesTimeSelection}

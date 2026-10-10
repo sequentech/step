@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::scheduled_event::insert_new_scheduled_event;
+use crate::services::schedule_csv::checked_import_cron_config;
 use anyhow::{anyhow, Context, Result};
 use csv::StringRecord;
 use deadpool_postgres::Transaction;
@@ -10,8 +11,7 @@ use regex::Regex;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::date::ISO8601;
 use sequent_core::types::scheduled_event::{
-    generate_manage_date_task_name, CronConfig, EventProcessors, ManageElectionDatePayload,
-    ScheduledEvent,
+    generate_manage_date_task_name, CronConfig, EventProcessors, ScheduledEvent,
 };
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
@@ -76,14 +76,15 @@ pub async fn process_record(
     replacement_map: HashMap<String, String>,
 ) -> Result<()> {
     info!("record: {:?}", record);
-    let old_election_id = record
+    let mut event_payload: JsonValue = record
         .get(10)
-        .map(|v| deserialize_str::<JsonValue>(v))
+        .map(deserialize_str)
         .transpose()?
-        .and_then(|json| {
-            json.get("election_id")
-                .and_then(|id| id.as_str().map(String::from))
-        });
+        .unwrap_or_else(|| serde_json::json!({}));
+    let old_election_id = event_payload
+        .get("election_id")
+        .and_then(|id| id.as_str())
+        .map(String::from);
 
     let election_id = if let Some(old_election_id) = old_election_id {
         Some(
@@ -108,10 +109,23 @@ pub async fn process_record(
         .get(6)
         .map(|s| deserialize_str::<JsonValue>(s).ok())
         .flatten();
-    let annotations = record
+    let mut annotations = record
         .get(7)
         .map(|s| deserialize_str::<JsonValue>(s).ok())
         .flatten();
+    // Imported schedules start a fresh lifecycle; prior execution evidence
+    // must not be copied to unrelated event/Post identities.
+    if let Some(annotations) = annotations.as_mut().and_then(JsonValue::as_object_mut) {
+        for key in [
+            crate::services::scheduled_outcome::FIRED_OUTCOME,
+            crate::services::scheduled_outcome::PREDICTED_OUTCOME,
+            crate::services::initialization_schedule::PENDING_ANNOTATION,
+            crate::services::initialization_schedule::WAIT_ANNOTATION,
+            crate::services::schedule_recompute::ANNOTATION,
+        ] {
+            annotations.remove(key);
+        }
+    }
     let event_processor: Option<EventProcessors> = record
         .get(8)
         .map(|val| deserialize_str::<EventProcessors>(val))
@@ -121,11 +135,22 @@ pub async fn process_record(
         .get(9)
         .map(|val| deserialize_str(val))
         .transpose()
-        .context("Error deserializing cron_config")?;
-    let event_payload = ManageElectionDatePayload {
-        election_id: election_id.clone(),
-    };
-    let event_payload = Some(serde_json::to_value(event_payload)?);
+        .context("Error deserializing cron_config")?
+        // A date without an offset is recomputed from its wall time and
+        // zone, or refused: its instant can't be known.
+        .map(checked_import_cron_config)
+        .transpose()
+        .with_context(|| format!("Scheduled event {:?}", record.get(0).unwrap_or_default()))?;
+    if event_payload.is_null() {
+        event_payload = serde_json::json!({});
+    }
+    if let Some(payload) = event_payload.as_object_mut() {
+        payload.insert(
+            "election_id".to_string(),
+            serde_json::to_value(&election_id)?,
+        );
+    }
+    let event_payload = Some(event_payload);
     let task_id = match &event_processor {
         Some(event_processor) => Some(generate_manage_date_task_name(
             tenant_id,

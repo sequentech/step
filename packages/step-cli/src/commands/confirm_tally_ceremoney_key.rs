@@ -20,6 +20,10 @@ pub struct ConfirmKeyForTally {
     /// Tally Cremony Id - the tally ceremony to be associated with
     #[arg(long)]
     tally_id: String,
+
+    /// Native trustee keys file.
+    #[arg(long)]
+    trustee_config: std::path::PathBuf,
 }
 
 #[derive(GraphQLQuery)]
@@ -32,7 +36,11 @@ pub struct RestorePrivateKey;
 
 impl ConfirmKeyForTally {
     pub fn run(&self) {
-        match confirm_key(&self.election_event_id, &self.tally_id) {
+        match confirm_key_with_keys(
+            &self.election_event_id,
+            &self.tally_id,
+            &self.trustee_config,
+        ) {
             Ok(is_valid) => {
                 if is_valid {
                     println!("{}", "Success! Successfully confirmed key".green());
@@ -51,10 +59,28 @@ pub fn confirm_key(
     election_event_id: &str,
     tally_id: &str,
 ) -> Result<bool, Box<dyn std::error::Error>> {
+    let keys_file = std::env::var_os("TRUSTEE_CONFIG_PATH")
+        .ok_or("TRUSTEE_CONFIG_PATH must name your native trustee keys file")?;
+    confirm_key_with_keys(
+        election_event_id,
+        tally_id,
+        std::path::Path::new(&keys_file),
+    )
+}
+
+fn confirm_key_with_keys(
+    election_event_id: &str,
+    tally_id: &str,
+    keys_file: &std::path::Path,
+) -> Result<bool, Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
-    let key = get_private_key_content(&election_event_id, &config.username)?;
+    let request = get_private_key_content(election_event_id, &config.username)?;
+    let mut custody: protocol_board::CustodyRequest = serde_json::from_str(&request)?;
+    custody.tally_session_id = Some(tally_id.to_owned());
+    let secrets = protocol_board::TrusteeSecrets::parse(&std::fs::read_to_string(keys_file)?)?;
+    let key = custody.attest(&secrets)?;
 
     let variables = restore_private_key::Variables {
         election_event_id: election_event_id.to_string(),

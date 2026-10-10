@@ -48,10 +48,7 @@ import {SettingsElectionsTypesCreate} from "./resources/Settings/SettingsElectio
 import {adminI18nProvider} from "./services/AdminTranslation"
 import {useTranslation} from "react-i18next"
 import {ApolloContext} from "./providers/ApolloContextProvider"
-import cssInputLookAndFeel from "@/atoms/css-input-look-and-feel"
-import {Box} from "@mui/material"
-import {styled} from "@mui/material/styles"
-import {useAtomValue} from "jotai"
+import {StyledAppAtom} from "@/components/StyledAppAtom"
 import ListScheduledEvents from "./resources/ScheduledEvents/ListScheduledEvent"
 import Notifications from "./resources/Notifications/Notifications"
 import {TemplateEdit} from "./resources/Template/TemplateEdit"
@@ -63,23 +60,9 @@ import {AuthContext} from "./providers/AuthContextProvider"
 import {customSortData} from "./lib/helpers"
 import {UpsertArea} from "./resources/Area/UpsertArea"
 import {TrusteeDashboard} from "./screens/TrusteeDashboard"
+import {rethrowTrustedWriteError} from "./services/trustedWriteError"
 
 interface AppProps {}
-
-const StyledApp = styled(Box, {
-    shouldForwardProp: (prop) => prop !== "customCss",
-})<{customCss: string}>`
-    ${({customCss}) => customCss}
-`
-
-export const StyledAppAtom: React.FC<{children: React.ReactNode}> = ({children}) => {
-    const css = useAtomValue(cssInputLookAndFeel)
-    return (
-        <StyledApp className="styled-app-atom" customCss={css}>
-            {children}
-        </StyledApp>
-    )
-}
 
 // This function builds and wraps your Hasura data provider.
 export const buildWrappedHasuraProvider = async (apolloClient: any): Promise<DataProvider> => {
@@ -96,6 +79,12 @@ export const buildWrappedHasuraProvider = async (apolloClient: any): Promise<Dat
     // Override the getList method to apply custom sort logic.
     const wrappedDataProvider: DataProvider = {
         ...dataProviderHasura,
+        create: (resource, params) =>
+            dataProviderHasura.create(resource, params).catch(rethrowTrustedWriteError),
+        update: (resource, params) =>
+            dataProviderHasura.update(resource, params).catch(rethrowTrustedWriteError),
+        updateMany: (resource, params) =>
+            dataProviderHasura.updateMany(resource, params).catch(rethrowTrustedWriteError),
         getList: (resource: string, params: GetListParams): Promise<GetListResult> =>
             dataProviderHasura.getList(resource, params).then((response: GetListResult) => {
                 // Create a new sort object ensuring proper literal types for order.
@@ -277,7 +266,7 @@ const App: React.FC<AppProps> = () => {
 
                 <Resource
                     name="user"
-                    edit={UpsertArea}
+                    edit={ListUsers}
                     list={ListUsers}
                     options={{label: "Users"}}
                 />

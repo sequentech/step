@@ -6,7 +6,9 @@ use crate::postgres::application::insert_applications;
 use crate::postgres::election_event::{get_election_event_by_id_if_exist, update_bulletin_board};
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
+use crate::postgres::trusted_write;
 use crate::postgres::trustee::get_all_trustees;
+use crate::services::approval_matrix::store::import_approval_matrix;
 use crate::services::electoral_log::ElectoralLogAdminContext;
 use crate::services::electoral_log_board::get_event_board;
 use crate::services::import::import_publications::{
@@ -14,7 +16,7 @@ use crate::services::import::import_publications::{
 };
 use crate::services::import::import_scheduled_events::import_scheduled_events;
 use crate::services::import::import_tally::process_tally_file;
-use crate::services::keycloak::read_realm_config_from_s3;
+use crate::services::keycloak::{read_realm_config_from_s3, require_enrollment_window_checks};
 use crate::services::reports::template_renderer::EReportEncryption;
 use crate::services::reports_vault::get_report_key_pair;
 use crate::services::tasks_execution::update_fail;
@@ -68,7 +70,7 @@ use std::io::{self, Read, Write};
 use std::path::Path;
 use std::str::FromStr;
 use tempfile::NamedTempFile;
-use tracing::{event, info, instrument, Level};
+use tracing::{event, info, instrument, warn, Level};
 use uuid::Uuid;
 use zip::read::ZipArchive;
 
@@ -101,7 +103,8 @@ use crate::services::electoral_log_board::{
 };
 use crate::services::import::import_bulletin_boards::*;
 use crate::services::jwks::upsert_realm_jwks;
-use crate::services::legacy_board::get_b3_pgsql_client;
+use crate::services::signing::certificates::parse_chain;
+use crate::services::signing::configuration::{import_bundle_signing, import_bundle_staff_issuers};
 use crate::tasks::import_election_event::ImportElectionEventBody;
 use crate::types::documents::EDocuments;
 use regex::Regex;
@@ -124,11 +127,16 @@ use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
 //   keycloak_event_realm serde_json::Value, not RealmRepresentation. That type
 //                        comes from the keycloak crate, which pulls reqwest.
 //                        Deserialized into the typed form where it is used.
+use super::configuration_package;
+use super::rejection::reject;
 use sequent_core::election_config;
+use sequent_core::election_config::package_verify::VerifiedPackage;
+use sequent_core::election_config::report::{parse_copies, parse_output_formats};
 pub use sequent_core::election_config::ImportElectionEventSchema;
+use sequent_core::election_config::{import_problems, Rejected};
 
 #[instrument(err)]
-pub async fn upsert_b3_and_elog(
+pub async fn ensure_election_audit_boards(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
@@ -137,83 +145,31 @@ pub async fn upsert_b3_and_elog(
 ) -> Result<Value> {
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
     let board_name = get_event_board(tenant_id, election_event_id, &slug);
-    // FIXME must also create the electoral log board here
-    let mut immudb_client = get_board_client().await?;
-    immudb_client.upsert_electoral_log_db(&board_name).await?;
-
-    let mut board_client = get_b3_pgsql_client().await?;
-
-    // Create board and protocol manager keys for election event (assert)
-    let existing: Option<b4::client::pgsql::B3IndexRow> =
-        board_client.get_board(board_name.as_str()).await?;
-    // insert into the index of boards
-    board_client.create_index_ine().await?;
-    // create board table
-    board_client.create_board_ine(board_name.as_str()).await?;
-
-    if existing.is_none() && !dont_auto_generate_keys {
-        event!(
-            Level::INFO,
-            "creating protocol manager keys for Election event {}",
-            election_event_id
-        );
-        create_protocol_manager_keys(
-            hasura_transaction,
-            &tenant_id,
-            &election_event_id,
-            &board_name,
-        )
-        .await?;
-    }
-
-    // board was created, checking it is now present
-    let board = board_client
-        .get_board(board_name.as_str())
-        .await?
-        .ok_or(anyhow!(
-            "Unexpected error: could not retrieve created board '{}'",
-            &board_name
-        ))?;
-
-    for election_id in election_ids.clone() {
-        // Create board and protocol manager keys for election (insert, not asssert)
-        let board_name = get_election_board(tenant_id, &election_id, &slug);
-
-        let existing: Option<b4::client::pgsql::B3IndexRow> =
-            board_client.get_board(board_name.as_str()).await?;
-
-        // assert board table
-        board_client.create_board_ine(board_name.as_str()).await?;
-        // create board table
-
-        if existing.is_none() && !dont_auto_generate_keys {
-            event!(
-                Level::INFO,
-                "creating protocol manager keys for election {}",
-                election_id
-            );
+    let mut client = get_board_client().await?;
+    let mut identities = vec![board_name.clone()];
+    identities.extend(
+        election_ids
+            .iter()
+            .map(|id| get_election_board(tenant_id, id, &slug)),
+    );
+    for identity in identities {
+        let existing = client.has_database(&identity).await?;
+        client.upsert_electoral_log_db(&identity).await?;
+        if !existing && !dont_auto_generate_keys {
             create_protocol_manager_keys(
                 hasura_transaction,
                 tenant_id,
                 election_event_id,
-                &board_name,
+                &identity,
             )
             .await?;
         }
-        // board was created, checking it is now present
-        board_client
-            .get_board(board_name.as_str())
-            .await?
-            .ok_or(anyhow!(
-                "Unexpected error: could not retrieve created board '{}'",
-                &board_name
-            ))?;
     }
-
-    let board_serializable: BoardSerializable = board.into();
-
-    let board_value = serde_json::to_value(board_serializable.clone())?;
-    Ok(board_value)
+    Ok(serde_json::to_value(BoardSerializable {
+        id: 0,
+        database_name: board_name,
+        is_archived: false,
+    })?)
 }
 
 #[instrument(err)]
@@ -369,10 +325,32 @@ pub async fn upsert_keycloak_realm(
         realm.attributes = Some(attrs);
     }
 
+    require_enrollment_window_checks(&mut realm)?;
     realm = remove_keycloak_realm_secrets(&realm)?;
-    let realm_config = serde_json::to_string(&realm)?;
     let client = KeycloakAdminClient::new().await?;
     let realm_name = get_event_realm(tenant_id, election_event_id);
+    let registration_allowed = match realm.registration_allowed {
+        Some(allowed) => allowed,
+        None => match client.client.realm_get(&realm_name).await {
+            Ok(existing) => {
+                crate::tasks::migrate_registration_flows::registration_desire(&existing)?
+            }
+            Err(::keycloak::KeycloakError::HttpFailure { status: 404, .. }) => false,
+            Err(error) => return Err(error.into()),
+        },
+    };
+    // Imported partial/builtin flows remain closed until the installed
+    // registration forms have been verified. Failed verification stays closed.
+    realm.registration_allowed = Some(false);
+    // A source realm's unfinished workflow state is not an imported policy.
+    if let Some(attributes) = realm.attributes.as_mut() {
+        attributes.remove(crate::tasks::migrate_registration_flows::REGISTRATION_RESTORE_ATTRIBUTE);
+    }
+    crate::tasks::migrate_registration_flows::mark_import_registration_pending(
+        &mut realm,
+        registration_allowed,
+    );
+    let realm_config = serde_json::to_string(&realm)?;
     client
         .upsert_realm(
             realm_name.as_str(),
@@ -383,7 +361,23 @@ pub async fn upsert_keycloak_realm(
             Some(election_event_id.to_string()),
         )
         .await?;
+    // upsert_realm consumes its administrator client.
+    let client = KeycloakAdminClient::new().await?;
+    let public_client = KeycloakAdminClient::pub_new().await?;
+    let outcome = crate::tasks::migrate_registration_flows::migrate_realm_for_import(
+        &client,
+        &public_client,
+        &realm_name,
+    )
+    .await?;
+    if outcome == crate::tasks::migrate_registration_flows::FlowOutcome::NoRealm {
+        return Err(anyhow!(
+            "Imported event realm is missing before enrollment verification"
+        ));
+    }
     upsert_realm_jwks(realm_name.as_str()).await?;
+    crate::tasks::migrate_registration_flows::finish_registration_setup(&client, &realm_name)
+        .await?;
     Ok(())
 }
 
@@ -483,12 +477,40 @@ pub fn replace_ids(
     // - Preserving UUIDs in Keycloak authenticator configurations
     // - Preserving tenant_id and election_event_id in the keep list before UUID replacement
     // - Applying explicit tenant_id and election_event_id replacements after UUID replacement
-    let (new_data, replacement_map) = replace_realm_ids(
+    let (mut new_data, mut replacement_map) = replace_realm_ids(
         data_str,
         vec![], // Empty keep list - replace_realm_ids will populate it automatically
         tenant_id_replacement,
         election_event_id_replacement,
     )?;
+
+    // Board names encode compact UUIDs; remap only outer metadata references.
+    // The signed manager-message bytes and cryptographic domain IDs stay intact.
+    if let Some(boards) = &original_data.protocol_boards {
+        for board in boards {
+            let name = if board.parent_id.is_none() {
+                let id = replacement_map
+                    .get(&board.keys_ceremony_id)
+                    .context("missing ceremony ID replacement")?;
+                protocol_board::BoardName::for_dkg(&Uuid::parse_str(id)?)
+            } else {
+                let session = board
+                    .tally_session_id
+                    .as_ref()
+                    .and_then(|id| replacement_map.get(id))
+                    .context("missing tally ID replacement")?;
+                protocol_board::BoardName::for_tally(
+                    &Uuid::parse_str(session)?,
+                    board.batch.context("missing tally batch")?,
+                )
+            };
+            new_data = new_data.replace(
+                &serde_json::to_string(&board.name)?,
+                &serde_json::to_string(&name.to_string())?,
+            );
+            replacement_map.insert(board.name.clone(), name.to_string());
+        }
+    }
 
     // Parse the modified JSON string back into the structured format
     let data: ImportElectionEventSchema = deserialize_str(&new_data)?;
@@ -502,7 +524,12 @@ pub async fn get_document(
     hasura_transaction: &Transaction<'_>,
     object: ImportElectionEventBody,
     election_event_id: Option<String>,
-) -> Result<(NamedTempFile, Document, String)> {
+) -> Result<(
+    NamedTempFile,
+    Document,
+    String,
+    Option<Box<VerifiedPackage>>,
+)> {
     let document = postgres::document::get_document(
         hasura_transaction,
         &object.tenant_id,
@@ -524,11 +551,19 @@ pub async fn get_document(
         .media_type
         .unwrap_or("application/ezip".to_string());
 
+    // Only the cipher's own failure is named `file.cannot-decrypt`; a temp file
+    // that cannot be written keeps its real cause.
     temp_file = decrypt_document(object.password.clone(), temp_file)
         .await
-        .map_err(|err| anyhow!("error decrypting document {:?}", document.id))?;
+        .with_context(|| format!("error decrypting document {:?}", document.id))?;
 
-    Ok((temp_file, document, document_type))
+    // Before anything in the file is read: a signed configuration package is
+    // verified and replaced by its importable archive.
+    let (temp_file, package) =
+        configuration_package::admit_document(hasura_transaction, &object.tenant_id, temp_file)
+            .await?;
+
+    Ok((temp_file, document, document_type, package))
 }
 
 #[instrument(err, skip_all)]
@@ -547,7 +582,8 @@ pub async fn decrypt_document(
             &decrypted_path.as_path().to_string_lossy().to_string(),
             &password,
         )
-        .map_err(|err| anyhow!("Error generating decrypted file"))?;
+        .map_err(|_| reject("election event file", import_problems::cannot_decrypt()))
+        .context("Error generating decrypted file")?;
 
         // Create a new NamedTempFile for the decrypted content
         let mut temp_file = NamedTempFile::new()?;
@@ -571,8 +607,10 @@ pub async fn get_election_event_schema(
 ) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
     // Catch a version missmatch early and return a clear error message about it, rather than having it fail later on
     // with a more obscure error when trying to deserialize data that is incompatible with the current version.
-    let raw: serde_json::Value = serde_json::from_str(data_str)
-        .map_err(|e| anyhow!("Failed to parse import data as JSON: {e}"))?;
+    let raw: serde_json::Value = serde_json::from_str(data_str).map_err(|e| {
+        reject("election event file", import_problems::not_json(&e))
+            .context(format!("Failed to parse import data as JSON: {e}"))
+    })?;
     let default_ver = HISTORICAL_DEFAULT_VERSION.to_string();
     let imported_version = raw
         .get(VERSION_KEY)
@@ -580,8 +618,21 @@ pub async fn get_election_event_schema(
         .unwrap_or(&default_ver);
     let current_version = std::env::var(ENV_VAR_APP_VERSION)
         .map_err(|_| anyhow!("Environment variable {ENV_VAR_APP_VERSION} should be set"))?;
-    check_version_compatibility(imported_version, &current_version)?;
-    let original_data: ImportElectionEventSchema = deserialize_str(data_str)?;
+    check_version_compatibility(imported_version, &current_version).map_err(|err| {
+        reject(
+            "election event file",
+            import_problems::incompatible_version(imported_version, &current_version),
+        )
+        .context(err.to_string())
+    })?;
+    let original_data: ImportElectionEventSchema = deserialize_str(data_str).map_err(|err| {
+        let message = err.to_string();
+        reject(
+            "election event file",
+            import_problems::not_a_bundle(&message),
+        )
+        .context(message)
+    })?;
     check_bundle(&original_data)?;
     replace_ids(data_str, &original_data, event_id, tenant_id.clone())
 }
@@ -608,16 +659,13 @@ fn check_bundle(data: &ImportElectionEventSchema) -> Result<()> {
     }
 
     if report.has_errors() {
-        let listing = report
-            .errors()
-            .map(|problem| format!("  {problem}"))
-            .collect::<Vec<_>>()
-            .join("\n");
-        let count = report.errors().count();
-        let noun = if count == 1 { "problem" } else { "problems" };
-        return Err(anyhow!(
-            "The election event bundle cannot be imported; {count} {noun} found:\n{listing}"
-        ));
+        // Carried whole, warnings included: the operator fixing the errors is
+        // the one who should hear about the rest too. `Rejected` prints the same
+        // line this always did, so the task log does not change.
+        return Err(anyhow::Error::new(Rejected::new(
+            "election event bundle",
+            report,
+        )));
     }
 
     Ok(())
@@ -678,11 +726,15 @@ pub async fn process_election_event_file(
                 .unwrap_or_default()
                 .unwrap_or_default();
 
+            // An imported election starts with voting not started on every
+            // channel (the database refuses anything else).
             status.voting_status = VotingStatus::default();
             status.kiosk_voting_status = VotingStatus::default();
+            status.early_voting_status = VotingStatus::default();
             status.telephone_voting_status = VotingStatus::default();
             status.voting_period_dates = PeriodDates::default();
             status.kiosk_voting_period_dates = PeriodDates::default();
+            status.early_voting_period_dates = PeriodDates::default();
             status.telephone_voting_period_dates = PeriodDates::default();
 
             clone.status = Some(
@@ -710,6 +762,12 @@ pub async fn process_election_event_file(
         .transpose()
         .with_context(|| "Error deserializing keycloak_event_realm")?;
 
+    crate::postgres::scheduled_event::lock_scheduling_event(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+    )
+    .await?;
     upsert_keycloak_realm(
         tenant_id.as_str(),
         &election_event_id,
@@ -719,6 +777,8 @@ pub async fn process_election_event_file(
     .await
     .with_context(|| format!("Error upserting Keycloak realm for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
 
+    // The import keeps an exported lockdown, which only the server may set.
+    trusted_write(hasura_transaction).await?;
     insert_election_event(hasura_transaction, &data.election_event)
         .await
         .with_context(|| "Error inserting election event")?;
@@ -728,7 +788,7 @@ pub async fn process_election_event_file(
         .with_context(|| "Error managing dates")?;
 
     // Upsert immutable board
-    let board = upsert_b3_and_elog(hasura_transaction, tenant_id.as_str(), &election_event_id, &election_ids, is_importing_keys)
+    let board = ensure_election_audit_boards(hasura_transaction, tenant_id.as_str(), &election_event_id, &election_ids, is_importing_keys)
         .await
         .with_context(|| format!("Error upserting b3 board for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
 
@@ -814,10 +874,37 @@ pub async fn process_election_event_file(
     .await
     .with_context(|| "Error inserting area contests")?;
 
+    // After the areas, whose `miru:area-threshold` may imply the
+    // transmit-results rule.
+    import_bundle_signing(
+        hasura_transaction,
+        Uuid::parse_str(&tenant_id).with_context(|| "Error parsing the tenant id")?,
+        Uuid::parse_str(&election_event_id)
+            .with_context(|| "Error parsing the election event id")?,
+        &data,
+        object.importer.as_ref(),
+    )
+    .await
+    .with_context(|| "Error importing the signing configuration")?;
+
+    if let Some(matrix) = data.approval_matrix.as_ref() {
+        import_approval_matrix(hasura_transaction, &tenant_id, &election_event_id, matrix)
+            .await
+            .with_context(|| "Error importing the approval matrix")?;
+    }
+
     if let Some(applications) = data.applications.clone() {
         insert_applications(hasura_transaction, &applications)
             .await
             .with_context(|| "Error inserting applications")?;
+    }
+
+    // Before the archive members are walked, so the row exists by the time
+    // `process_s3_file` creates the document it points at.
+    if let Some(materials) = data.support_materials.clone() {
+        crate::postgres::document::insert_support_materials(hasura_transaction, &materials)
+            .await
+            .with_context(|| "Error inserting support materials")?;
     }
 
     Ok((data, replacement_map))
@@ -925,6 +1012,9 @@ pub async fn process_reports_file(
                     )
                 }
             }),
+            // Absent from a file written before these columns existed.
+            copies: parse_copies(record.get(8)).map_err(|err| anyhow!(err))?,
+            output_formats: parse_output_formats(record.get(9)).map_err(|err| anyhow!(err))?,
         };
 
         if let Some(password) = record
@@ -1092,30 +1182,48 @@ pub async fn get_zip_entries(
         if document_type == "application/ezip" || matches_mime("zip", document_type) {
             tokio::task::spawn_blocking(move || -> Result<(Vec<(String, Vec<u8>)>, String)> {
                 let file = File::open(&temp_file_path)?;
-                let mut zip = ZipArchive::new(file)?;
+                // Any failure reading the archive's members is the archive being
+                // unreadable, and says why.
+                let unreadable = |err: &dyn std::fmt::Display| {
+                    reject(
+                        "election event file",
+                        import_problems::unreadable_archive(err),
+                    )
+                };
+                let mut zip = ZipArchive::new(file).map_err(|err| unreadable(&err))?;
                 let mut entries: Vec<(String, Vec<u8>)> = Vec::new();
 
                 let mut election_event_schema: Option<String> = None;
                 for i in 0..zip.len() {
-                    let mut file = zip.by_index(i)?;
+                    let mut file = zip.by_index(i).map_err(|err| unreadable(&err))?;
                     let file_name = file.name().to_string();
                     if file_name.contains(EDocuments::ELECTION_EVENT.to_file_name())
                         && file_name.ends_with(".json")
                     {
                         // Regular JSON document processing
                         let mut file_str = String::new();
-                        file.read_to_string(&mut file_str)?;
+                        file.read_to_string(&mut file_str)
+                            .map_err(|err| unreadable(&err))
+                            .with_context(|| format!("reading {file_name}"))?;
                         election_event_schema = Some(file_str);
                     } else {
                         let mut file_contents = Vec::new();
-                        file.read_to_end(&mut file_contents)?;
+                        file.read_to_end(&mut file_contents)
+                            .map_err(|err| unreadable(&err))
+                            .with_context(|| format!("reading {file_name}"))?;
                         entries.push((file_name, file_contents));
                     }
                 }
                 if let Some(schema_str) = election_event_schema {
                     Ok((entries, schema_str))
                 } else {
-                    Err(anyhow!("No JSON file found in ZIP"))
+                    Err(reject(
+                        "election event file",
+                        import_problems::unreadable_archive(
+                            "no election event document (.json) was found in it",
+                        ),
+                    )
+                    .context("No JSON file found in ZIP"))
                 }
             })
             .await??
@@ -1123,7 +1231,14 @@ pub async fn get_zip_entries(
             // Regular JSON document processing
             let mut file = File::open(temp_file_path)?;
             let mut data_str = String::new();
-            file.read_to_string(&mut data_str)?;
+            // Bytes that are not text are not a JSON election event either.
+            file.read_to_string(&mut data_str).map_err(|err| {
+                if err.kind() == std::io::ErrorKind::InvalidData {
+                    reject("election event file", import_problems::not_json(&err))
+                } else {
+                    anyhow::Error::new(err)
+                }
+            })?;
             (vec![], data_str)
         };
 
@@ -1161,13 +1276,17 @@ pub async fn process_document(
     election_event_id: String,
     tenant_id: String,
 ) -> Result<()> {
-    let (temp_file_path, document, document_type) = get_document(
+    let importer = object.importer.clone();
+    let (temp_file_path, document, document_type, package) = get_document(
         hasura_transaction,
         object.clone(),
         Some(election_event_id.clone()),
     )
     .await
-    .map_err(|err| anyhow!("Failed to get document: {err}"))?;
+    .map_err(|err| {
+        let message = format!("Failed to get document: {err}");
+        err.context(message)
+    })?;
 
     let (zip_entries, file_election_event_schema) =
         get_zip_entries(temp_file_path, &document_type).await?;
@@ -1218,7 +1337,12 @@ pub async fn process_document(
         is_importing_keys,
     )
     .await
-    .map_err(|err| anyhow!("Error processing election event file: {err}"))?;
+    .map_err(|err| {
+        // `context`, not `anyhow!`, so a rejection further down stays in the
+        // chain for whoever reports the failure.
+        let message = format!("Error processing election event file: {err}");
+        err.context(message)
+    })?;
 
     // Zip file processing
     if document_type == "application/ezip" || matches_mime("zip", &document_type) {
@@ -1349,6 +1473,10 @@ pub async fn process_document(
                     &election_event_schema.election_event.id,
                     temp_file,
                     replacement_map.clone(),
+                    election_event_schema
+                        .protocol_boards
+                        .as_deref()
+                        .unwrap_or_default(),
                 )
                 .await
                 .context("Failed to import bulletin boards")?;
@@ -1466,7 +1594,8 @@ pub async fn process_document(
                 .context("Failed to import tally_file")?;
             }
 
-            if file_name.contains(EDocuments::CERTIFICATES.to_file_name()) {
+            let staff_issuers = file_name.contains(EDocuments::STAFF_ISSUERS.to_file_name());
+            if staff_issuers || file_name.contains(EDocuments::CERTIFICATES.to_file_name()) {
                 let pem_content = String::from_utf8(file_contents.clone())
                     .context("Failed to decode certificates PEM as UTF-8")?;
                 let tenant_uuid = Uuid::parse_str(&election_event_schema.tenant_id)
@@ -1474,6 +1603,25 @@ pub async fn process_document(
                 let election_event_uuid = Uuid::parse_str(&election_event_schema.election_event.id)
                     .context("Failed to parse election event UUID")?;
                 let pem_chunks = split_pem_bundle(&pem_content);
+                if staff_issuers {
+                    // Checked and logged as the Certificates settings import them.
+                    let certificates =
+                        parse_chain(&pem_chunks).context("Failed to parse the staff issuers")?;
+                    let import = import_bundle_staff_issuers(
+                        hasura_transaction,
+                        tenant_uuid,
+                        election_event_uuid,
+                        &certificates,
+                        importer.as_ref(),
+                        Utc::now(),
+                    )
+                    .await
+                    .context("Failed to import the staff issuers")?;
+                    for error in &import.errors {
+                        warn!("Staff issuer not imported: {error}");
+                    }
+                    continue;
+                }
                 for pem_chunk in pem_chunks {
                     let pem_chunk_owned = pem_chunk.clone();
                     let parsed = tokio::task::spawn_blocking(move || {
@@ -1504,6 +1652,57 @@ pub async fn process_document(
         }
     };
 
+    // Parent rows precede children; tally foreign keys have been imported above.
+    if let Some(boards) = &election_event_schema.protocol_boards {
+        for parent in [false, true] {
+            for row in boards
+                .iter()
+                .filter(|row| row.parent_id.is_some() == parent)
+            {
+                if !parent {
+                    protocol_board::SignedConfiguration::parse(&row.manager_message)?;
+                } else {
+                    let cfg = boards
+                        .iter()
+                        .find(|cfg| Some(&cfg.id) == row.parent_id.as_ref())
+                        .context("missing imported DKG parent")?;
+                    protocol_board::SignedBallots::parse(
+                        &row.manager_message,
+                        &protocol_board::SignedConfiguration::parse(&cfg.manager_message)?,
+                    )?;
+                }
+                crate::postgres::protocol_board::insert_protocol_board(
+                    hasura_transaction,
+                    &crate::postgres::protocol_board::NewProtocolBoard {
+                        id: Some(row.id.clone()),
+                        tenant_id: row.tenant_id.clone(),
+                        election_event_id: row.election_event_id.clone(),
+                        parent_id: row.parent_id.clone(),
+                        keys_ceremony_id: row.keys_ceremony_id.clone(),
+                        tally_session_id: row.tally_session_id.clone(),
+                        batch: row.batch,
+                        name: row.name.clone(),
+                        manager_message: row.manager_message.clone(),
+                    },
+                )
+                .await?;
+            }
+        }
+    }
+
+    if let Some(package) = package {
+        configuration_package::record(hasura_transaction, &tenant_id, &election_event_id, &package)
+            .await?;
+        configuration_package::log_import(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &package,
+            importer.as_ref(),
+        )
+        .await?;
+    }
+
     Ok(())
 }
 
@@ -1516,67 +1715,62 @@ pub async fn manage_dates(
         return Ok(());
     };
 
-    //Manage election event
-    let election_event_dates = generate_voting_period_dates(
-        scheduled_events.clone(),
-        data.tenant_id.to_string().as_str(),
-        &data.election_event.id,
-        None,
-    )?;
-    if let Some(start_date) = election_event_dates.start_date {
-        maybe_create_scheduled_event(
-            hasura_transaction,
-            data.tenant_id.to_string().as_str(),
-            &data.election_event.id,
-            EventProcessors::START_VOTING_PERIOD,
-            start_date,
-            None,
-        )
-        .await?;
-    }
-    if let Some(end_date) = election_event_dates.end_date {
-        maybe_create_scheduled_event(
-            hasura_transaction,
-            data.tenant_id.to_string().as_str(),
-            &data.election_event.id,
-            EventProcessors::END_VOTING_PERIOD,
-            end_date,
-            None,
-        )
-        .await?;
-    }
-    //Manage elections
-    let elections = &data.elections;
-    for election in elections {
-        let dates = generate_voting_period_dates(
-            scheduled_events.clone(),
-            data.tenant_id.to_string().as_str(),
-            &data.election_event.id,
-            Some(&election.id),
+    for scheduled_event in scheduled_events {
+        let Some(
+            processor @ (EventProcessors::START_VOTING_PERIOD | EventProcessors::END_VOTING_PERIOD),
+        ) = scheduled_event.event_processor
+        else {
+            continue;
+        };
+        let payload: ManageElectionDatePayload = serde_json::from_value(
+            scheduled_event
+                .event_payload
+                .unwrap_or_else(|| serde_json::json!({})),
         )?;
-        if let Some(start_date) = dates.start_date {
-            maybe_create_scheduled_event(
-                hasura_transaction,
-                data.tenant_id.to_string().as_str(),
-                &data.election_event.id,
-                EventProcessors::START_VOTING_PERIOD,
-                start_date,
-                Some(&election.id),
-            )
-            .await?;
+        if scheduled_event.tenant_id.as_deref() != Some(data.tenant_id.to_string().as_str())
+            || scheduled_event.election_event_id.as_deref() != Some(data.election_event.id.as_str())
+            || scheduled_event.task_id.as_deref()
+                != Some(
+                    generate_manage_date_task_name(
+                        &data.tenant_id.to_string(),
+                        &data.election_event.id,
+                        payload.election_id.as_deref(),
+                        &processor,
+                    )
+                    .as_str(),
+                )
+        {
+            continue;
         }
-        if let Some(end_date) = dates.end_date {
-            maybe_create_scheduled_event(
-                hasura_transaction,
-                data.tenant_id.to_string().as_str(),
-                &data.election_event.id,
-                EventProcessors::END_VOTING_PERIOD,
-                end_date,
-                Some(&election.id),
-            )
-            .await?;
+        if payload
+            .election_id
+            .as_ref()
+            .is_some_and(|id| !data.elections.iter().any(|election| &election.id == id))
+        {
+            continue;
         }
+        // The wall time and its zone come along with the instant. A date
+        // without an offset is recomputed from them, or refused.
+        let Some(cron_config) = scheduled_event
+            .cron_config
+            .filter(|config| config.scheduled_date.is_some())
+        else {
+            continue;
+        };
+        let cron_config = crate::services::schedule_csv::checked_import_cron_config(cron_config)
+            .with_context(|| format!("Scheduled event {}", scheduled_event.id))?;
+        maybe_create_scheduled_event(
+            hasura_transaction,
+            &data.tenant_id.to_string(),
+            &data.election_event.id,
+            processor,
+            cron_config,
+            payload.election_id.as_deref(),
+            payload.voting_channels,
+        )
+        .await?;
     }
+
     Ok(())
 }
 
@@ -1586,20 +1780,19 @@ pub async fn maybe_create_scheduled_event(
     tenant_id: &str,
     election_event_id: &str,
     event_processor: EventProcessors,
-    start_date: String,
+    cron_config: CronConfig,
     election_id: Option<&str>,
+    voting_channels: Option<Vec<sequent_core::ballot::VotingStatusChannel>>,
 ) -> Result<()> {
     let start_task_id =
         generate_manage_date_task_name(tenant_id, election_event_id, election_id, &event_processor);
     let payload = ManageElectionDatePayload {
-        election_id: match election_id {
-            Some(id) => Some(id.to_string()),
-            None => None,
-        },
+        election_id: election_id.map(str::to_string),
+        voting_channels,
     };
     let cron_config = CronConfig {
         cron: None,
-        scheduled_date: Some(start_date.to_string()),
+        ..cron_config
     };
     insert_scheduled_event(
         hasura_transaction,
@@ -1681,9 +1874,18 @@ mod tests {
         )
         .await;
 
-        let error = outcome
-            .expect_err("a contest pointing at a missing election should not import")
-            .to_string();
+        let error =
+            outcome.expect_err("a contest pointing at a missing election should not import");
+        // The structured reasons travel with it, for the Admin Portal to translate.
+        let problems = crate::services::import::rejection::problems_of(&error)
+            .expect("a rejected bundle carries its problems");
+        assert!(
+            problems
+                .iter()
+                .any(|problem| problem.id.as_deref() == Some("contest.election-missing")),
+            "{problems:?}"
+        );
+        let error = error.to_string();
         assert!(
             error.contains("cannot be imported"),
             "unexpected message: {error}"
@@ -1692,6 +1894,22 @@ mod tests {
             error.contains("contests[0].election_id"),
             "unexpected message: {error}"
         );
+    }
+
+    /// A file that is not JSON is refused with a reason the Admin Portal can say.
+    #[tokio::test]
+    async fn a_file_that_is_not_json_is_a_named_problem() {
+        std::env::set_var(ENV_VAR_APP_VERSION, DEV_APP_VERSION);
+
+        let error = get_election_event_schema("not json", None, TENANT.to_string())
+            .await
+            .expect_err("text that is not JSON should not import");
+        assert!(error
+            .to_string()
+            .contains("Failed to parse import data as JSON"));
+        let problems = crate::services::import::rejection::problems_of(&error)
+            .expect("an unreadable file carries its problem");
+        assert_eq!(problems[0].id.as_deref(), Some("file.not-json"));
     }
 
     /// And a bundle with no fatal problems gets through this gate.
@@ -1713,5 +1931,93 @@ mod tests {
                 .expect("a bundle with no fatal problems should get past validation");
 
         assert!(!ids.is_empty());
+    }
+
+    fn problem_id(error: &anyhow::Error) -> Option<String> {
+        crate::services::import::rejection::problems_of(error)
+            .and_then(|problems| problems.first().and_then(|problem| problem.id.clone()))
+    }
+
+    fn a_file_holding(bytes: &[u8]) -> NamedTempFile {
+        let mut file = NamedTempFile::new().expect("a temp file");
+        file.write_all(bytes).expect("the bytes are written");
+        file
+    }
+
+    fn a_zip_of(members: &[(&str, &[u8])]) -> NamedTempFile {
+        let mut buffer = std::io::Cursor::new(Vec::new());
+        {
+            let mut zip = zip::ZipWriter::new(&mut buffer);
+            for (name, bytes) in members {
+                zip.start_file(*name, zip::write::SimpleFileOptions::default())
+                    .expect("a member starts");
+                zip.write_all(bytes).expect("a member is written");
+            }
+            zip.finish().expect("the archive closes");
+        }
+        a_file_holding(buffer.get_ref())
+    }
+
+    /// Bytes that are not a zip, a zip with no election event in it, and a member
+    /// that is not text are all the archive being unreadable, and say so by name.
+    #[tokio::test]
+    async fn an_archive_that_cannot_be_read_is_a_named_problem() {
+        let schema = format!("{}.json", EDocuments::ELECTION_EVENT.to_file_name());
+        for (case, file) in [
+            ("not a zip", a_file_holding(b"not a zip")),
+            ("no election event", a_zip_of(&[("notes.txt", b"hello")])),
+            (
+                "not text",
+                a_zip_of(&[(schema.as_str(), &[0xff, 0xfe, 0xfd])]),
+            ),
+        ] {
+            let error = get_zip_entries(file, "application/zip")
+                .await
+                .expect_err(case);
+            assert_eq!(
+                problem_id(&error).as_deref(),
+                Some("file.unreadable-archive"),
+                "{case}: {error:?}"
+            );
+        }
+    }
+
+    /// A plain file that is not text cannot be a JSON election event.
+    #[tokio::test]
+    async fn a_plain_file_that_is_not_text_is_not_json() {
+        let error = get_zip_entries(a_file_holding(&[0xff, 0xfe, 0xfd]), "application/json")
+            .await
+            .expect_err("bytes that are not text should not read as JSON");
+        assert_eq!(problem_id(&error).as_deref(), Some("file.not-json"));
+    }
+
+    /// A zip with its election event in it reads, the event apart from the rest.
+    #[tokio::test]
+    async fn a_readable_archive_gives_its_event_and_members() {
+        let schema = format!("{}.json", EDocuments::ELECTION_EVENT.to_file_name());
+        let file = a_zip_of(&[(schema.as_str(), b"{}"), ("notes.txt", b"hello")]);
+        let (entries, event) = get_zip_entries(file, "application/zip")
+            .await
+            .expect("a readable archive reads");
+        assert_eq!(event, "{}");
+        assert_eq!(entries, vec![("notes.txt".to_string(), b"hello".to_vec())]);
+    }
+
+    /// A file that does not decrypt with the password given names the password.
+    #[tokio::test]
+    async fn a_file_that_does_not_decrypt_is_a_named_problem() {
+        let error = decrypt_document(Some("wrong".to_string()), a_file_holding(b"plain"))
+            .await
+            .expect_err("a file that was never encrypted does not decrypt");
+        assert_eq!(problem_id(&error).as_deref(), Some("file.cannot-decrypt"));
+    }
+
+    /// With no password there is nothing to decrypt, and the file is untouched.
+    #[tokio::test]
+    async fn no_password_leaves_the_file_as_it_is() {
+        let file = decrypt_document(None, a_file_holding(b"plain"))
+            .await
+            .expect("no password, no decryption");
+        assert_eq!(fs::read(file.path()).unwrap(), b"plain");
     }
 }

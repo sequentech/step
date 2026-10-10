@@ -32,6 +32,7 @@ import {sortContestList} from "@sequentech/ui-core"
 import {keyBy} from "lodash"
 import {useElectionClassName} from "./hooks/useElectionClassName"
 import {SettingsContext} from "../providers/SettingsContextProvider"
+import {TenantEventContext} from "../providers/TenantEventContext"
 import {
     EDeclineToVotePolicy,
     EElectionEventContestEncryptionPolicy,
@@ -214,15 +215,17 @@ const BallotIdSection: React.FC<BallotIdSectionProps> = ({confirmationBallot, ba
     )
 }
 
-interface ActionButtonProps {}
+interface ActionButtonProps {
+    importPath: string
+}
 
-const ActionButtons: React.FC<ActionButtonProps> = () => {
+const ActionButtons: React.FC<ActionButtonProps> = ({importPath}) => {
     const {t} = useTranslation()
     const triggerPrint = () => window.print()
 
     return (
         <ActionsContainer sx={{marginBottom: "20px", marginTop: "10px"}}>
-            <StyledLink to="/" sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
+            <StyledLink to={importPath} sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
                 <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
                     <Icon icon={faAngleLeft} size="sm" />
                     <span>{t("confirmationScreen.backButton")}</span>
@@ -370,15 +373,17 @@ interface IProps {
 
 export const ConfirmationScreen: React.FC<IProps> = ({confirmationBallot, ballotId}) => {
     const navigate = useNavigate()
+    const {tenantId, eventId} = useContext(TenantEventContext)
+    const importPath = `/tenant/${tenantId}/event/${eventId}/start`
     const [isLoading, setIsLoading] = useState(confirmationBallot === null)
     useElectionClassName(confirmationBallot)
 
     useEffect(() => {
         setIsLoading(confirmationBallot === null)
         if (confirmationBallot == null) {
-            navigate("/")
+            navigate(importPath)
         }
-    }, [confirmationBallot])
+    }, [confirmationBallot, importPath])
 
     return (
         <PageLimit maxWidth="md" className="confirmation-screen screen">
@@ -399,7 +404,7 @@ export const ConfirmationScreen: React.FC<IProps> = ({confirmationBallot, ballot
                     isLoading={isLoading}
                 />
             ) : null}
-            <ActionButtons />
+            <ActionButtons importPath={importPath} />
         </PageLimit>
     )
 }

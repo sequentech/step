@@ -4,8 +4,30 @@
 use anyhow::Result;
 use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
+use std::collections::BTreeMap;
 use tokio_postgres::row::Row;
 use tracing::instrument;
+
+/// SQL expression adding the counters of the jsonb parameter `$param`
+/// (`{"num_emails_sent": 2, ...}`) to the row's `statistics`, keeping every
+/// other key.
+pub fn increment_statistics_sql(param: usize) -> String {
+    format!(
+        r#"COALESCE(statistics, '{{}}'::jsonb) || (
+            SELECT COALESCE(
+                jsonb_object_agg(
+                    increment.key,
+                    to_jsonb(
+                        COALESCE((statistics->>increment.key)::int8, 0)
+                            + increment.value::int8
+                    )
+                ),
+                '{{}}'::jsonb
+            )
+            FROM jsonb_each_text(${param}::jsonb) AS increment
+        )"#
+    )
+}
 
 /**
  * Returns the count of areas per election event
@@ -100,29 +122,21 @@ pub async fn update_election_event_statistics(
     transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    inc_emails_sent: i64,
-    inc_sms_sent: i64,
+    increments: &BTreeMap<String, i64>,
 ) -> Result<()> {
+    let increments_sql = increment_statistics_sql(3);
     let update_stats_statement = transaction
-        .prepare(
+        .prepare(&format!(
             r#"
             UPDATE
                 sequent_backend.election_event
             SET
-                statistics = jsonb_set(
-                    jsonb_set(
-                        COALESCE(statistics, '{}'),
-                        '{num_emails_sent}', 
-                        (COALESCE(statistics->>'num_emails_sent', '0')::int8 + $3)::text::jsonb
-                    ),
-                    '{num_sms_sent}', 
-                    (COALESCE(statistics->>'num_sms_sent', '0')::int8 + $4)::text::jsonb
-                )
+                statistics = {increments_sql}
             WHERE
                 tenant_id = $1 AND
                 id = $2;
             "#,
-        )
+        ))
         .await?;
 
     transaction
@@ -131,8 +145,7 @@ pub async fn update_election_event_statistics(
             &[
                 &parse_uuid_v4(tenant_id)?,
                 &parse_uuid_v4(election_event_id)?,
-                &inc_emails_sent,
-                &inc_sms_sent,
+                &serde_json::to_value(increments)?,
             ],
         )
         .await?;

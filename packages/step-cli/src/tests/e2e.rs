@@ -76,7 +76,7 @@ fn run_e2e() -> Result<(), Box<dyn Error>> {
     }
 
     // Step 2: Start Key Ceremony
-    let key_ceremony_id = start_key_ceremony(&election_event_id, 2, None, None)?;
+    let key_ceremony_id = start_key_ceremony(&election_event_id, 2, None, None, false)?;
 
     // Auth with trustee1
     let trustee1 = env::var("TRUSTEE_1").unwrap_or("trustee1".to_string());

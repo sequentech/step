@@ -5,6 +5,7 @@ import React, {useContext, useMemo, useState} from "react"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {useTranslation} from "react-i18next"
+import {useEventZonedFormat} from "@/hooks/useZonedFormat"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useGetList, useNotify} from "react-admin"
 import {useMutation} from "@apollo/client"
@@ -74,6 +75,7 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
     onResolutionSubmitted,
 }) => {
     const {t, i18n} = useTranslation()
+    const zoned = useEventZonedFormat(electionEventId)
     const aliasRenderer = useAliasRenderer()
     const notify = useNotify()
     const {globalSettings} = useContext(SettingsContext)
@@ -840,9 +842,7 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
                                         {t("tally.pendingResolutions.tallyResumedTitle")}
                                     </AlertTitle>
                                     {t("tally.pendingResolutions.tallyResumedBody", {
-                                        date: new Date(
-                                            selectedResolution.resolved_at
-                                        ).toLocaleDateString(i18n.language),
+                                        date: zoned.format(selectedResolution.resolved_at),
                                         user: selectedResolution.resolved_by_user ?? "",
                                     })}
                                 </Alert>

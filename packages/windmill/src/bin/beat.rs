@@ -9,15 +9,32 @@ use celery::beat::DeltaSchedule;
 use celery::prelude::Task;
 use clap::Parser;
 use dotenv::dotenv;
+use sequent_core::monitoring::cadence::{Cadence, SNAPSHOT_INTERVAL_ENV, VOTER_FULL_PASS_ENV};
 use sequent_core::util::init_log::init_log;
 use tokio::time::Duration;
 use windmill::services::celery_app::{set_is_app_active, Queue};
+use windmill::services::monitoring::cadence;
 use windmill::services::probe::{setup_probe, AppName};
 use windmill::tasks::electoral_log::electoral_log_batch_dispatcher;
+use windmill::tasks::migrate_realm_permissions::{migrate_realm_permissions, RunOnce};
+use windmill::tasks::migrate_registration_flows::migrate_registration_flows;
+use windmill::tasks::recompute_schedule_instants::{
+    recompute_schedule_instants, RECOMPUTE_INTERVAL_SECONDS,
+};
+use windmill::tasks::reconcile_messages::reconcile_messages;
+use windmill::tasks::refresh_monitoring_snapshot::{
+    refresh_monitoring_snapshots, scheduled_fan_out,
+};
+use windmill::tasks::refresh_staff_crls::refresh_staff_crls;
 use windmill::tasks::review_boards::review_boards;
 use windmill::tasks::review_cast_votes::review_cast_votes;
 use windmill::tasks::scheduled_events::scheduled_events;
 use windmill::tasks::scheduled_reports::scheduled_reports;
+use windmill::tasks::seal_ballot_boxes::{seal_ballot_boxes, SEAL_BALLOT_BOXES_INTERVAL_SECONDS};
+use windmill::tasks::signing_log_outbox::post_signing_log_outbox;
+use windmill::tasks::signing_requests::{
+    expire_signing_requests, sweep_signing_executions, SIGNING_JOBS_INTERVAL_SECONDS,
+};
 
 #[derive(Debug, Parser)]
 #[command(name = "beat", about = "Windmill's periodic task scheduler.")]
@@ -32,6 +49,19 @@ struct CeleryOpt {
     review_cast_votes_interval: u64,
     #[arg(short = 'e', long, default_value = "5")]
     electoral_log_interval: u64,
+    /// Seconds between two passes resolving messages whose outcome is unknown.
+    #[arg(long, default_value = "300")]
+    reconcile_messages_interval: u64,
+    /// Seconds between two monitoring snapshot passes; bounds and default
+    /// in `sequent_core::monitoring::cadence`.
+    #[arg(short = 'm', long, env = SNAPSHOT_INTERVAL_ENV)]
+    monitoring_snapshot_interval: Option<String>,
+    /// Seconds between two passes of the signing log outbox.
+    #[arg(short = 'g', long, default_value = "5")]
+    signing_log_interval: u64,
+    /// Seconds between two refreshes of the staff issuers' revocation lists.
+    #[arg(long, env = "STAFF_CRL_INTERVAL", default_value = "3600")]
+    staff_crl_interval: u64,
 }
 
 #[tokio::main]
@@ -40,6 +70,11 @@ async fn main() -> Result<()> {
     init_log(true);
     setup_probe(AppName::BEAT).await;
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+    let monitoring_cadence = Cadence::parse(
+        CeleryOpt::parse().monitoring_snapshot_interval.as_deref(),
+        std::env::var(VOTER_FULL_PASS_ENV).ok().as_deref(),
+    );
+    cadence::log(&monitoring_cadence);
 
     let mut beat = celery::beat!(
         broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into()) },
@@ -69,6 +104,41 @@ async fn main() -> Result<()> {
                 schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().electoral_log_interval)),
                 args = (),
             },
+            post_signing_log_outbox::NAME => {
+                post_signing_log_outbox,
+                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().signing_log_interval)),
+                args = (),
+            },
+            expire_signing_requests::NAME => {
+                expire_signing_requests,
+                schedule = DeltaSchedule::new(Duration::from_secs(SIGNING_JOBS_INTERVAL_SECONDS)),
+                args = (),
+            },
+            sweep_signing_executions::NAME => {
+                sweep_signing_executions,
+                schedule = DeltaSchedule::new(Duration::from_secs(SIGNING_JOBS_INTERVAL_SECONDS)),
+                args = (),
+            },
+            refresh_staff_crls::NAME => {
+                refresh_staff_crls,
+                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().staff_crl_interval)),
+                args = (),
+            },
+            recompute_schedule_instants::NAME => {
+                recompute_schedule_instants,
+                schedule = DeltaSchedule::new(Duration::from_secs(RECOMPUTE_INTERVAL_SECONDS)),
+                args = (),
+            },
+            reconcile_messages::NAME => {
+                reconcile_messages,
+                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().reconcile_messages_interval)),
+                args = (),
+            },
+            seal_ballot_boxes::NAME => {
+                seal_ballot_boxes,
+                schedule = DeltaSchedule::new(Duration::from_secs(SEAL_BALLOT_BOXES_INTERVAL_SECONDS)),
+                args = (),
+            },
         ],
         task_routes = [
             review_boards::NAME => &Queue::Beat.queue_name(&slug),
@@ -76,8 +146,32 @@ async fn main() -> Result<()> {
             scheduled_reports::NAME => &Queue::Beat.queue_name(&slug),
             review_cast_votes::NAME => &Queue::Beat.queue_name(&slug),
             electoral_log_batch_dispatcher::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
+            refresh_monitoring_snapshots::NAME => &Queue::Beat.queue_name(&slug),
+            migrate_realm_permissions::NAME => &Queue::Short.queue_name(&slug),
+            migrate_registration_flows::NAME => &Queue::Short.queue_name(&slug),
+            post_signing_log_outbox::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
+            expire_signing_requests::NAME => &Queue::Beat.queue_name(&slug),
+            sweep_signing_executions::NAME => &Queue::Beat.queue_name(&slug),
+            refresh_staff_crls::NAME => &Queue::Beat.queue_name(&slug),
+            recompute_schedule_instants::NAME => &Queue::Beat.queue_name(&slug),
+            reconcile_messages::NAME => &Queue::Communication.queue_name(&slug),
+            seal_ballot_boxes::NAME => &Queue::Beat.queue_name(&slug),
         ],
     ).await?;
+    // Scheduled outside the macro, which cannot give a message its expiry.
+    beat.schedule_named_task(
+        refresh_monitoring_snapshots::NAME.to_string(),
+        scheduled_fan_out(&monitoring_cadence),
+        DeltaSchedule::new(Duration::from_secs(
+            monitoring_cadence.snapshot_interval.seconds,
+        )),
+    );
+    // Tenant realms made before a release get its new permissions once,
+    // whenever beat starts; the migration skips the roles a realm has.
+    beat.schedule_task(migrate_realm_permissions::new(), RunOnce);
+    // Event realms made before the per-Post enrollment check get it in their
+    // registration form, once whenever beat starts (VOTE-LIFECYCLE).
+    beat.schedule_task(migrate_registration_flows::new(), RunOnce);
 
     set_is_app_active(true);
     beat.start().await?;

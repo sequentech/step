@@ -8,6 +8,7 @@ import {
     TextInput,
     useRecordContext,
     SimpleForm,
+    useSaveContext,
     useGetOne,
     Toolbar,
     SaveButton,
@@ -43,6 +44,7 @@ import {
     ManageElectionDatesMutation,
 } from "../../gql/graphql"
 
+import type {FieldValues} from "react-hook-form"
 import React, {useCallback, useContext, useEffect, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
@@ -91,6 +93,12 @@ import {CustomFilter} from "@/types/filters"
 import {useGetDocumentUrl} from "@/hooks/useGetDocumentUrl"
 import {SettingsLanguageSelector} from "@/components/SettingsLanguageSelector"
 import {IVR_ENTITY_I18N_ANNOTATION, parseIvrEntityAnnotations} from "@/utils/ivr"
+import {SLATES_FORM_FIELD, readSlatesConfiguration} from "@/utils/slates"
+import {SlatesConfigurationInput} from "./SlatesConfigurationInput"
+import {ElectionTimeZoneInput} from "@/components/timezones/ElectionTimeZoneInput"
+import {timeZoneContextOf} from "@/components/timezones/useTimeZoneContext"
+
+const formResetOptions = {keepDirtyValues: true}
 
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
@@ -108,9 +116,11 @@ const ContestRows = styled("div")`
 export type Sequent_Backend_Election_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
     contestsOrder?: Array<Sequent_Backend_Contest>
+    [SLATES_FORM_FIELD]?: string
 } & Sequent_Backend_Election
 
 export const ElectionDataForm: React.FC = () => {
+    const {save} = useSaveContext()
     const record = useRecordContext<Sequent_Backend_Election>()
     const [tenantId] = useTenantStore()
     const {t} = useTranslation()
@@ -159,11 +169,11 @@ export const ElectionDataForm: React.FC = () => {
     const {data: imageData, refetch: refetchImage} = useGetOne<Sequent_Backend_Document>(
         "sequent_backend_document",
         {
-            id: record?.image_document_id || record?.tenant_id,
+            id: record?.image_document_id,
             meta: {tenant_id: record?.tenant_id},
         },
         {
-            enabled: !!record?.image_document_id || !!record?.tenant_id,
+            enabled: !!record?.image_document_id,
             onError: (error: any) => {
                 console.log(`error fetching image doc: ${error.message}`)
             },
@@ -304,6 +314,7 @@ export const ElectionDataForm: React.FC = () => {
 
             temp.presentation.i18n.en.description = temp.description
             temp.annotations = parseIvrEntityAnnotations(temp.annotations)
+            temp[SLATES_FORM_FIELD] = readSlatesConfiguration(temp.annotations)
 
             // receipts
             const template: {[key: string]: string | null} = {}
@@ -595,24 +606,20 @@ export const ElectionDataForm: React.FC = () => {
                     imageData?.name
                 )
 
-                const onSave = async () => {}
-
                 return (
                     <SimpleForm
+                        onSubmit={async (values: FieldValues) => {
+                            try {
+                                return await save?.(values)
+                            } catch {
+                                // The transform reports the error; retain the editable form.
+                                return undefined
+                            }
+                        }}
                         defaultValues={{contestsOrder: sortedContests}}
                         record={parsedValue}
-                        toolbar={
-                            <Toolbar>
-                                {canEdit && (
-                                    <SaveButton
-                                        onClick={() => {
-                                            onSave()
-                                        }}
-                                        type="button"
-                                    />
-                                )}
-                            </Toolbar>
-                        }
+                        resetOptions={formResetOptions}
+                        toolbar={<Toolbar>{canEdit && <SaveButton />}</Toolbar>}
                     >
                         <Accordion
                             sx={{width: "100%"}}
@@ -661,19 +668,35 @@ export const ElectionDataForm: React.FC = () => {
                             >
                                 <ElectionStyles.Wrapper>
                                     <ElectionStyles.Title>
-                                        {t("electionScreen.edit.language")}
+                                        {t("lifecycle.settings.accordion")}
                                     </ElectionStyles.Title>
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <ElectionStyles.AccordionContainer>
-                                    <ElectionStyles.AccordionWrapper>
+                                <Box
+                                    sx={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        gap: 3,
+                                        width: "100%",
+                                        minWidth: 0,
+                                    }}
+                                >
+                                    <Box sx={{width: "100%", maxWidth: 372}}>
                                         <SettingsLanguageSelector
                                             languageSettings={languageSettings}
                                             canEdit={canEdit}
                                         />
-                                    </ElectionStyles.AccordionWrapper>
-                                </ElectionStyles.AccordionContainer>
+                                    </Box>
+                                    <ElectionTimeZoneInput
+                                        context={timeZoneContextOf(
+                                            data?.presentation as
+                                                | IElectionEventPresentation
+                                                | undefined
+                                        )}
+                                        disabled={!canEdit}
+                                    />
+                                </Box>
                             </AccordionDetails>
                         </Accordion>
 
@@ -787,7 +810,8 @@ export const ElectionDataForm: React.FC = () => {
                                 <Grid container spacing={1}>
                                     <Grid size={2}>
                                         {parsedValue?.image_document_id &&
-                                        parsedValue?.image_document_id !== "" ? (
+                                        imageData?.id === parsedValue.image_document_id &&
+                                        imageData.name ? (
                                             <img
                                                 width={200}
                                                 height={200}
@@ -862,6 +886,15 @@ export const ElectionDataForm: React.FC = () => {
                                     fileSource="configuration"
                                     jsonSource="presentation"
                                 />
+                                <SlatesConfigurationInput
+                                    defaultLanguage={
+                                        parsedValue?.presentation?.language_conf
+                                            ?.default_language_code ?? "en"
+                                    }
+                                    contests={contests}
+                                    tenantId={record?.tenant_id}
+                                    electionEventId={record?.election_event_id}
+                                />
                                 <SelectInput
                                     source={`presentation.initialization_report_policy`}
                                     choices={initializationReportChoices()}
@@ -884,6 +917,7 @@ export const ElectionDataForm: React.FC = () => {
                                     </Typography>
 
                                     <JsonEditor
+                                        theme={{styles: {itemCount: {color: "#444"}}}}
                                         data={customFilters ?? []}
                                         onUpdate={(data) =>
                                             updateCustomFilters(

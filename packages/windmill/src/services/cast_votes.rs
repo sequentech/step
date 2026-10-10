@@ -22,7 +22,6 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::str::FromStr;
-use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strum_macros::{Display, EnumString};
 use tokio::fs::File;
 use tokio::io::{copy, AsyncWriteExt, BufWriter};
@@ -30,6 +29,7 @@ use tokio_postgres::row::Row;
 use tokio_util::io::StreamReader;
 use tracing::{debug, info, instrument};
 use uuid::Uuid;
+use voting_crypto::signing::{SigningKey, VerificationKey};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Display, EnumString, PartialEq, Eq)]
 pub enum CastVoteStatus {

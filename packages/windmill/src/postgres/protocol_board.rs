@@ -55,6 +55,19 @@ pub struct NewProtocolBoard {
     pub manager_message: Vec<u8>,
 }
 
+/// Boards of the event, with DKG parents before their tally children.
+pub async fn get_event_protocol_boards(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Vec<ProtocolBoard>> {
+    let rows = transaction.query("SELECT * FROM sequent_backend.protocol_board WHERE tenant_id=$1 AND election_event_id=$2 ORDER BY parent_id NULLS FIRST, created_at, id",
+        &[&parse_uuid_v4(tenant_id)?, &parse_uuid_v4(election_event_id)?]).await?;
+    rows.into_iter()
+        .map(|row| Ok(ProtocolBoardWrapper::try_from(row)?.0))
+        .collect()
+}
+
 #[instrument(err, skip(hasura_transaction, board), fields(board = %board.name))]
 pub async fn insert_protocol_board(
     hasura_transaction: &Transaction<'_>,

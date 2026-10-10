@@ -143,20 +143,33 @@ impl<C: Context, const W: usize> Ballots<C, W> {
 pub struct Mix<C: Context, const W: usize> {
     pub ciphertexts: Vec<Ciphertext<C, W>>,
     pub proof: Option<ShuffleProof<C, W>>,
+    /// Input of a null mix, distinguishing consecutive empty chain links.
+    pub null_input: Option<super::newtypes::CiphertextsHash>,
 }
 
 impl<C: Context, const W: usize> Serializable for Mix<C, W> {
     fn write(&self, out: &mut Vec<u8>) {
         self.ciphertexts.write(out);
         self.proof.write(out);
+        if self.proof.is_none() {
+            self.null_input.write(out);
+        }
     }
 }
 
 impl<C: Context, const W: usize> Deserializable for Mix<C, W> {
     fn read(input: &mut &[u8]) -> Result<Self, cryptography::utils::error::Error> {
+        let ciphertexts = Vec::<Ciphertext<C, W>>::read(input)?;
+        let proof = Option::<ShuffleProof<C, W>>::read(input)?;
+        let null_input = if proof.is_none() {
+            Option::<super::newtypes::CiphertextsHash>::read(input)?
+        } else {
+            None
+        };
         Ok(Mix {
-            ciphertexts: Vec::<Ciphertext<C, W>>::read(input)?,
-            proof: Option::<ShuffleProof<C, W>>::read(input)?,
+            ciphertexts,
+            proof,
+            null_input,
         })
     }
 }
@@ -166,13 +179,15 @@ impl<C: Context, const W: usize> Mix<C, W> {
         Mix {
             ciphertexts,
             proof: Some(proof),
+            null_input: None,
         }
     }
     /// A null mix (empty input ⇒ empty output, no proof).
-    pub fn null() -> Mix<C, W> {
+    pub fn null(input: super::newtypes::CiphertextsHash) -> Mix<C, W> {
         Mix {
             ciphertexts: vec![],
             proof: None,
+            null_input: Some(input),
         }
     }
 }

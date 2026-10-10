@@ -6,7 +6,7 @@ title: Step CLI
 <!-- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io> -->
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
-`step-cli` administers elections through authenticated APIs. `step-cli load` prepares synthetic voting workloads and runs them with k6 or Chromium.
+`step-cli` administers elections through authenticated APIs. `step-cli load` prepares synthetic voting workloads and runs them with k6 or Chromium. `step-cli acceptance` checks a stage of an acceptance test against a live election event and keeps its evidence; see [Checking an Acceptance Stage with the CLI](./02-tutorials/06-cli-tutorials-acceptance-stage.md).
 
 ## Build in the devcontainer
 

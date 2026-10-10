@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::cast_votes::{CastVote, CastVoteStatus};
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
+use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
@@ -147,6 +148,55 @@ fn cast_vote_annotations(
     })?)
 }
 
+/// What a cast vote keeps of the receipt the ballot box signed for it. Its
+/// time is the one the receipt states.
+#[derive(Debug)]
+pub struct CastVoteReceipt<'a> {
+    pub received_ballot_id: &'a Uuid,
+    pub cast_at: &'a DateTime<Utc>,
+    pub cast_receipt_signature: &'a str,
+}
+
+/// The cast vote a received ballot was cast as.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_cast_vote_id_of_received_ballot(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    election_id: &Uuid,
+    voter_id_string: &str,
+    received_ballot_id: &Uuid,
+) -> Result<Option<Uuid>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT id
+                FROM sequent_backend.cast_vote
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    election_id = $3 AND
+                    voter_id_string = $4 AND
+                    received_ballot_id = $5;
+            "#,
+        )
+        .await?;
+    let row = hasura_transaction
+        .query_opt(
+            &statement,
+            &[
+                &tenant_id,
+                &election_event_id,
+                &election_id,
+                &voter_id_string,
+                &received_ballot_id,
+            ],
+        )
+        .await?;
+
+    Ok(row.map(|row| row.try_get("id")).transpose()?)
+}
+
 #[instrument(skip(hasura_transaction, content, cast_ballot_signature), err)]
 pub async fn insert_cast_vote(
     hasura_transaction: &Transaction<'_>,
@@ -162,6 +212,7 @@ pub async fn insert_cast_vote(
     voter_country: &Option<String>,
     voting_channel: VotingStatusChannel,
     initial_status: CastVoteStatus,
+    cast_receipt: Option<&CastVoteReceipt<'_>>,
 ) -> Result<CastVote> {
     let status = initial_status.to_string();
     let statement = hasura_transaction
@@ -169,7 +220,7 @@ pub async fn insert_cast_vote(
             r#"
                 INSERT INTO
                     sequent_backend.cast_vote
-                (tenant_id, election_event_id, election_id, area_id, voter_id_string, ballot_id, content, cast_ballot_signature, annotations, status)
+                (tenant_id, election_event_id, election_id, area_id, voter_id_string, ballot_id, content, cast_ballot_signature, annotations, status, received_ballot_id, cast_receipt_signature, created_at)
                 VALUES(
                     $1,
                     $2,
@@ -180,25 +231,15 @@ pub async fn insert_cast_vote(
                     $7,
                     $8,
                     COALESCE($9::jsonb, '{}'),
-                    $10
+                    $10,
+                    $11,
+                    $12,
+                    COALESCE($13, now())
                 )
                 RETURNING
-                    id,
-                    ballot_id,
-                    election_id,
-                    election_event_id,
-                    tenant_id,
-                    election_id,
-                    area_id,
-                    created_at,
-                    last_updated_at,
-                    labels,
-                    annotations,
-                    content,
-                    cast_ballot_signature,
-                    voter_id_string,
-                    election_event_id,
-                    status;
+                    id, ballot_id, election_id, election_event_id, tenant_id,
+                    area_id, created_at, last_updated_at, cast_ballot_signature,
+                    voter_id_string, status;
             "#,
         )
         .await?;
@@ -219,21 +260,38 @@ pub async fn insert_cast_vote(
                 &cast_ballot_signature,
                 &annotations,
                 &status,
+                &cast_receipt.map(|receipt| receipt.received_ballot_id),
+                &cast_receipt.map(|receipt| receipt.cast_receipt_signature),
+                &cast_receipt.map(|receipt| receipt.cast_at),
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error inserting cast vote: {}", err))?;
+        .map_err(|err| anyhow::Error::new(err).context("Error inserting cast vote"))?;
 
-    let cast_votes: Vec<CastVote> = rows
-        .into_iter()
-        .map(|row| -> Result<CastVote> { row.try_into() })
-        .collect::<Result<Vec<CastVote>>>()?;
-
-    if 1 == cast_votes.len() {
-        Ok(cast_votes[0].clone())
-    } else {
-        Err(anyhow!("Unexpected rows affected {}", cast_votes.len()))
+    if rows.len() != 1 {
+        return Err(anyhow!("Unexpected rows affected {}", rows.len()));
     }
+    let row = rows.into_iter().next().unwrap();
+    Ok(CastVote {
+        id: row.try_get::<_, Uuid>("id")?.to_string(),
+        tenant_id: row.try_get::<_, Uuid>("tenant_id")?.to_string(),
+        election_id: row
+            .try_get::<_, Option<Uuid>>("election_id")?
+            .map(|id| id.to_string()),
+        election_event_id: row.try_get::<_, Uuid>("election_event_id")?.to_string(),
+        area_id: row
+            .try_get::<_, Option<Uuid>>("area_id")?
+            .map(|id| id.to_string()),
+        created_at: row.try_get("created_at")?,
+        last_updated_at: row.try_get("last_updated_at")?,
+        // INSERT does not transform content. Keep the API response identical
+        // without reading the encrypted ballot back out of TOAST storage.
+        content: Some(content.to_owned()),
+        voter_id_string: row.try_get("voter_id_string")?,
+        ballot_id: row.try_get("ballot_id")?,
+        cast_ballot_signature: row.try_get("cast_ballot_signature")?,
+        status: row.try_get::<_, String>("status")?.parse()?,
+    })
 }
 
 #[cfg(test)]
@@ -298,7 +356,7 @@ pub async fn compare_and_set_cast_vote_status(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error updating cast vote: {}", err))?;
+        .context("Error updating cast vote")?;
 
     Ok(updated == 1)
 }
@@ -346,6 +404,67 @@ pub async fn get_cast_vote_by_id(
         .await?
         .map(TryInto::try_into)
         .transpose()
+}
+
+/// The voter's own cast votes whose Ballot ID matches a `LIKE` pattern, in any
+/// status. At most two rows are returned: enough to tell one match from several.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn find_voter_cast_votes_by_ballot_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    area_id: &str,
+    voter_id_string: &str,
+    ballot_id_pattern: &str,
+) -> Result<Vec<CastVote>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    id,
+                    ballot_id,
+                    election_id,
+                    election_event_id,
+                    tenant_id,
+                    area_id,
+                    created_at,
+                    last_updated_at,
+                    content,
+                    cast_ballot_signature,
+                    voter_id_string,
+                    status
+                FROM sequent_backend.cast_vote
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    election_id = $3 AND
+                    area_id = $4 AND
+                    voter_id_string = $5 AND
+                    ballot_id LIKE $6
+                ORDER BY created_at DESC
+                LIMIT 2
+            "#,
+        )
+        .await?;
+
+    hasura_transaction
+        .query(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(election_id)?,
+                &parse_uuid_v4(area_id)?,
+                &voter_id_string,
+                &ballot_id_pattern,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error finding cast votes by ballot id: {}", err))?
+        .into_iter()
+        .map(TryInto::try_into)
+        .collect()
 }
 
 /// Used by the datafix flow to tell a VoterView
@@ -441,7 +560,8 @@ pub async fn count_unresolved_cast_votes(
 /// unconditionally as part of the disable, regardless of whether the
 /// `SetNotVoted` notification to VoterView succeeds — a divergence between the
 /// platform and VoterView is caught by the separate manual reconciliation
-/// process. Returns the number of rows discarded.
+/// process. Ballots in a sealed ballot box (a seal past `pending`) stay as
+/// they were sealed (VOTE-FREEZE). Returns the number of rows discarded.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn discard_voter_cast_votes(
     hasura_transaction: &Transaction<'_>,
@@ -465,7 +585,15 @@ pub async fn discard_voter_cast_votes(
                     tenant_id = $1 AND
                     election_event_id = $2 AND
                     voter_id_string = $3 AND
-                    status = ANY($5)
+                    status = ANY($5) AND
+                    NOT EXISTS (
+                        SELECT 1 FROM sequent_backend.ballot_box_seal AS seal
+                        WHERE seal.tenant_id = cast_vote.tenant_id
+                          AND seal.election_event_id = cast_vote.election_event_id
+                          AND seal.election_id = cast_vote.election_id
+                          AND seal.area_id = cast_vote.area_id
+                          AND seal.status <> 'pending'
+                    )
             "#,
         )
         .await?;

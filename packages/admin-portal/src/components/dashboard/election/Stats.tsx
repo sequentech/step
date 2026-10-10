@@ -10,13 +10,23 @@ import GroupIcon from "@mui/icons-material/Group"
 import MarkEmailReadOutlinedIcon from "@mui/icons-material/MarkEmailReadOutlined"
 import SmsOutlinedIcon from "@mui/icons-material/SmsOutlined"
 import {styled} from "@mui/material/styles"
+import {ChannelIcon} from "@sequentech/ui-essentials"
 import StatItem from "../StatItem"
+import {EMessageChannel} from "@/types/messaging"
+
+const INSTANT_CHANNELS = [
+    EMessageChannel.WHATSAPP,
+    EMessageChannel.VIBER,
+    EMessageChannel.MESSENGER,
+] as const
 import {formatNumber} from "@/services/Numbers"
 
 const CardList = styled(Box)`
     display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
     width: 100%;
-    justify-content: space-between;
+    justify-content: flex-start;
     margin: 20px 0;
 `
 
@@ -26,6 +36,7 @@ interface Metrics {
     areasCount: number | string
     emailsSentCount: number | string
     smsSentCount: number | string
+    messagesSentCount: Record<(typeof INSTANT_CHANNELS)[number], number | string>
 }
 
 interface StatsProps {
@@ -63,6 +74,14 @@ export const Stats: React.FC<StatsProps> = ({metrics}) => {
                 count={formatNumber(metrics.smsSentCount)}
                 label={String(t("electionEventScreen.stats.sentSMS"))}
             ></StatItem>
+            {INSTANT_CHANNELS.map((channel) => (
+                <StatItem
+                    key={channel}
+                    icon={<ChannelIcon channel={channel} sx={{fontSize: iconSize}} />}
+                    count={formatNumber(metrics.messagesSentCount[channel])}
+                    label={String(t(`messaging.stats.sent.${channel}`))}
+                ></StatItem>
+            ))}
         </CardList>
     )
 }

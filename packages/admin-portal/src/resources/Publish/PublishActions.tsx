@@ -5,10 +5,24 @@
 import React, {useContext, useEffect, useState} from "react"
 import {styled} from "@mui/material/styles"
 import {CircularProgress, Typography, Menu, MenuItem} from "@mui/material"
-import {Publish, RotateLeft, PlayCircle, PauseCircle, StopCircle} from "@mui/icons-material"
+import {
+    Publish,
+    RotateLeft,
+    PlayCircle,
+    PauseCircle,
+    StopCircle,
+    PlaylistAddCheck,
+} from "@mui/icons-material"
 import {useTranslation} from "react-i18next"
 import {Dialog} from "@sequentech/ui-essentials"
-import {Button, FilterButton, SelectColumnsButton, useRecordContext, Identifier} from "react-admin"
+import {
+    Button,
+    FilterButton,
+    SelectColumnsButton,
+    useGetList,
+    useRecordContext,
+    Identifier,
+} from "react-admin"
 
 import {EPublishActionsType, EPublishType} from "./EPublishType"
 import {PublishStatus, ElectionEventStatus, nextStatus} from "./EPublishStatus"
@@ -21,6 +35,8 @@ import {EPublishActions} from "@/types/publishActions"
 import {VotingStatusChannel} from "@/gql/graphql"
 import {Sequent_Backend_Election} from "@/gql/graphql"
 import {
+    EBallotBoxSealPolicy,
+    EGracePeriodPolicy,
     EInitializeReportPolicy,
     EVotingPeriodEnd,
     EVotingStatus,
@@ -30,6 +46,26 @@ import {
 } from "@sequentech/ui-core"
 import {usePublishPermissions} from "./usePublishPermissions"
 import PublishExport from "./PublishExport"
+import {useEventPresentation} from "@/hooks/useZonedFormat"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {intlLanguage} from "@/hooks/useZonedTime"
+import {
+    electionSealChannels,
+    eventNamedChannels,
+    type ISealChannel,
+    type IStopSealOutcome,
+    eventStartChannels,
+    keptClosedChannels,
+    notEnabledStartChannels,
+    neverOpened,
+    onlineRan,
+    sealProgress,
+    stopSealOutcome,
+} from "@/services/sealOnStop"
+import {useSealReadRole} from "@/hooks/useSealReadRole"
+import {useQuery} from "@apollo/client"
+import {GET_BALLOT_BOX_SEALS} from "@/queries/GetBallotBoxSeals"
+import type {GetBallotBoxSealsQuery, GetBallotBoxSealsQueryVariables} from "@/types/ballotBoxSeal"
 
 type SvgIconComponent = typeof SvgIcon
 
@@ -76,14 +112,19 @@ export type PublishActionsProps = {
     onPublish?: () => void
     onGenerate: () => void
     onChangeStatus?: (status: ElectionEventStatus, votingChannel?: VotingStatusChannel[]) => void
+    /** Initializes voting at the Post (its initialization report); election level only. */
+    onInitialize?: () => void
+    initializing?: boolean
+    perCountryInitialization?: boolean
+    initializationReportPolicy?: EInitializeReportPolicy
     type: EPublishActionsType.List | EPublishActionsType.Generate
 }
 
 export const PublishActions: React.FC<PublishActionsProps> = ({
     ballotPublicationId,
-    publishType,
     type,
     status,
+    publishType,
     kioskModeEnabled,
     onlineModeEnabled,
     earlyVotingEnabled,
@@ -94,9 +135,13 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     onGenerate,
     onPublish = () => null,
     onChangeStatus = () => null,
+    onInitialize,
+    initializing = false,
+    perCountryInitialization = false,
+    initializationReportPolicy,
     data,
 }) => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
     const {isGoldUser, reauthWithGold} = authContext
@@ -109,7 +154,18 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         tenantId,
         IPermissions.ELECTION_STATE_WRITE
     )
+    const requiredInitialization =
+        (initializationReportPolicy ?? record?.presentation?.initialization_report_policy) ===
+        EInitializeReportPolicy.REQUIRED
+    // The trusted published requirement also controls ceremony availability.
+    const canInitialize =
+        publishType === EPublishType.Election &&
+        !!onInitialize &&
+        requiredInitialization &&
+        authContext.isAuthorized(true, tenantId, IPermissions.ADMIN_CEREMONY)
     // const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
+    const eventPresentation = useEventPresentation()
+    const aliasRenderer = useAliasRenderer()
     const [showDialog, setShowDialog] = useState(false)
     const [dialogText, setDialogText] = useState("")
     const [currentCallback, setCurrentCallback] = useState<any>(null)
@@ -190,15 +246,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         action: EPublishActions,
         voting_channels?: VotingStatusChannel[]
     ) => {
-        if (publishType === EPublishType.Event) {
-            const electionEventPublishTabIndex = localStorage.getItem(
-                "electionEventPublishTabIndex"
-            )
-            baseUrl.searchParams.set("tabIndex", electionEventPublishTabIndex ?? "8")
-        } else {
-            const electionPublishTabIndex = localStorage.getItem("electionPublishTabIndex")
-            baseUrl.searchParams.set("tabIndex", electionPublishTabIndex ?? "4")
-        }
+        // The event and election tabs select Publish by id; its position depends on permissions.
+        baseUrl.searchParams.set("tabId", "publish")
         sessionStorage.setItem(action, "true")
         if (
             voting_channels &&
@@ -212,6 +261,326 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                 console.warn("Could not persist selected channels for re-auth", e)
             }
         }
+    }
+
+    const sealsAtClose =
+        eventPresentation?.ballot_box_seal_policy === EBallotBoxSealPolicy.SEAL_AT_CLOSE
+
+    // The event's elections, for what an event-wide Start or Stop does to each.
+    const {data: eventElections} = useGetList<Sequent_Backend_Election>(
+        "sequent_backend_election",
+        {
+            filter: {election_event_id: record?.id, tenant_id: tenantId},
+            pagination: {page: 1, perPage: 9999},
+        },
+        {enabled: sealsAtClose && publishType === EPublishType.Event && !!record?.id}
+    )
+
+    // Whether this election has seals: then it never opens again (S3).
+    const sealRole = useSealReadRole()
+    const {data: electionSeals} = useQuery<GetBallotBoxSealsQuery, GetBallotBoxSealsQueryVariables>(
+        GET_BALLOT_BOX_SEALS,
+        {
+            variables: {
+                electionEventId: String(record?.election_event_id ?? ""),
+                electionIds: [String(record?.id ?? "")],
+            },
+            skip:
+                !sealsAtClose || publishType !== EPublishType.Election || !record?.id || !sealRole,
+            context: sealRole ? {headers: {"x-hasura-role": sealRole}} : undefined,
+        }
+    )
+    const electionHasSeals = !!electionSeals?.sequent_backend_ballot_box_seal?.length
+
+    // The seals of the event's elections, for what an event-wide Start keeps closed.
+    const {data: eventSeals} = useQuery<GetBallotBoxSealsQuery, GetBallotBoxSealsQueryVariables>(
+        GET_BALLOT_BOX_SEALS,
+        {
+            variables: {
+                electionEventId: String(record?.id ?? ""),
+                electionIds: (eventElections ?? []).map((election) => String(election.id)),
+            },
+            skip:
+                !sealsAtClose ||
+                publishType !== EPublishType.Event ||
+                !eventElections?.length ||
+                !sealRole,
+            context: sealRole ? {headers: {"x-hasura-role": sealRole}} : undefined,
+        }
+    )
+    const sealedElectionIds = new Set(
+        (eventSeals?.sequent_backend_ballot_box_seal ?? []).map((seal) => String(seal.election_id))
+    )
+
+    /** The channels as Stop Voting sees them, with when each first opened (election level). */
+    const sealChannels = (): ISealChannel[] => {
+        const dates = (key: keyof IElectionStatus) =>
+            (electionStatus?.[key] as {first_started_at?: string | null} | undefined)
+                ?.first_started_at
+        return [
+            {
+                channel: VotingStatusChannel.Online,
+                info: onlineModeEnabled,
+                firstStartedAt: dates("voting_period_dates"),
+            },
+            {
+                channel: VotingStatusChannel.Kiosk,
+                info: kioskModeEnabled,
+                firstStartedAt: dates("kiosk_voting_period_dates"),
+            },
+            {
+                channel: VotingStatusChannel.EarlyVoting,
+                info: earlyVotingEnabled,
+                firstStartedAt: dates("early_voting_period_dates"),
+            },
+            {
+                channel: VotingStatusChannel.Telephone,
+                info: telephoneVotingEnabled,
+                firstStartedAt: dates("telephone_voting_period_dates"),
+            },
+        ].map(({channel, info, firstStartedAt}) => ({
+            channel,
+            enabled: !!info?.is_channel_enabled,
+            status: info?.status ?? EVotingStatus.NOT_STARTED,
+            firstStartedAt,
+        }))
+    }
+
+    const listFormat = (items: string[]) =>
+        new Intl.ListFormat(intlLanguage(i18n?.language ?? "en"), {
+            style: "long",
+            type: "conjunction",
+        }).format(items)
+    const channelNames = (channels: VotingStatusChannel[]) =>
+        listFormat(channels.map((channel) => t(`publish.dialog.channel.${channel}`)))
+
+    /**
+     * The online grace period of an election in minutes, or 0. It applies only
+     * when online voting ran (`deadline.rs`: ONLINE enabled and started).
+     */
+    const graceMinutes = (presentation: unknown, ran: boolean): number => {
+        const value = (presentation ?? {}) as IElectionPresentation
+        const secs =
+            ran &&
+            (value.grace_period_policy ?? EGracePeriodPolicy.NO_GRACE_PERIOD) !==
+                EGracePeriodPolicy.NO_GRACE_PERIOD
+                ? (value.grace_period_secs ?? 0)
+                : 0
+        return Math.ceil(secs / 60)
+    }
+
+    /** The sentence said before a Stop's seal text: channels it closes before they ever opened. */
+    const stopPrefix = (stopping?: VotingStatusChannel[]): string => {
+        const closingUnopened = sealChannels()
+            .filter(
+                (channel) =>
+                    channel.enabled &&
+                    channel.status === EVotingStatus.NOT_STARTED &&
+                    !channel.firstStartedAt &&
+                    (!stopping || stopping.includes(channel.channel))
+            )
+            .map(({channel}) => channel)
+        return closingUnopened.length
+            ? t("publish.dialog.stopNeverOpened", {
+                  count: closingUnopened.length,
+                  channels: channelNames(closingUnopened),
+              })
+            : ""
+    }
+
+    /**
+     * Why a Stop doesn't seal the ballot boxes yet: the enabled channels still
+     * open, and each channel the Post doesn't enable that isn't closed; or,
+     * when no channel counts (none enabled and none ran), that.
+     */
+    const sealHoldingText = (outcome: IStopSealOutcome): string =>
+        [
+            !outcome.holding.length && !outcome.notEnabled.length
+                ? t("publish.dialog.sealNoChannel")
+                : "",
+            outcome.holding.length
+                ? t("publish.dialog.sealHolding", {
+                      count: outcome.holding.length,
+                      channels: channelNames(outcome.holding),
+                  })
+                : "",
+            ...outcome.notEnabled.map((channel) =>
+                t("publish.dialog.sealNotEnabled", {
+                    channel: t(`publish.dialog.channel.${channel}`),
+                })
+            ),
+        ]
+            .filter(Boolean)
+            .join(" ")
+
+    /**
+     * What Stop Voting says when the event seals its ballot boxes at close
+     * (D1): the seal text only when this Stop finishes voting; otherwise the
+     * usual text with the channels that still hold the seal. Null when the
+     * event doesn't seal them.
+     */
+    const stopSealText = (stopping?: VotingStatusChannel[]): string | null => {
+        if (!sealsAtClose) return null
+        if (publishType === EPublishType.Event && eventElections) {
+            // Unnamed, the server closes the event's enabled channels.
+            return stopSealEventText(eventNamedChannels(sealChannels(), stopping))
+        }
+        const outcome = stopSealOutcome(sealChannels(), stopping)
+        const prefix = stopPrefix(stopping)
+        const text = outcome.seals
+            ? stopSealBaseText()
+            : t("publish.dialog.stopSealNotYet", {holding: sealHoldingText(outcome)})
+        return [prefix, text].filter(Boolean).join(" ")
+    }
+
+    /** The seal text of a Stop that finishes voting at this election, with its grace period. */
+    const stopSealBaseText = (): string => {
+        if (publishType === EPublishType.Event) return t("publish.dialog.stopSealEvent")
+        const name = aliasRenderer(record)
+        const minutes = graceMinutes(electionPresentation, onlineRan(sealChannels()))
+        return minutes > 0
+            ? t("publish.dialog.stopSealGrace", {name, count: minutes})
+            : t("publish.dialog.stopSeal", {name})
+    }
+
+    /**
+     * An event-wide Stop, election by election with their own channels and
+     * grace periods: which are sealed (now or after their grace period) and
+     * which keep a channel that holds the seal.
+     */
+    const stopSealEventText = (stopping?: VotingStatusChannel[]): string => {
+        const affected = (eventElections ?? [])
+            .map((election) => {
+                const channels = electionSealChannels(election)
+                return {
+                    election,
+                    before: sealProgress(channels),
+                    outcome: stopSealOutcome(channels, stopping),
+                    grace: graceMinutes(election.presentation, onlineRan(channels)),
+                    unopened: neverOpened(channels),
+                }
+            })
+            // Elections whose voting had already finished don't change.
+            .filter(({before}) => !before.finished)
+        // An event-wide Stop closes the channel on every election, so a Post
+        // that never opened is closed for good and gets empty sealed boxes.
+        const unopened = affected.filter(({outcome, unopened}) => outcome.seals && unopened)
+        const sealing = affected.filter(({outcome, unopened}) => outcome.seals && !unopened)
+        // Posts kept by an enabled channel; those kept only by channels they
+        // don't enable are named with those channels; and those where no
+        // channel counts (none enabled and none ran).
+        const holding = affected.filter(({outcome}) => !outcome.seals && outcome.holding.length > 0)
+        const noChannel = affected.filter(
+            ({outcome}) => !outcome.seals && !outcome.holding.length && !outcome.notEnabled.length
+        )
+        const notEnabled = affected.flatMap(({election, outcome}) =>
+            outcome.seals
+                ? []
+                : outcome.notEnabled.map((channel) =>
+                      t("publish.dialog.sealNotEnabledPost", {
+                          post: aliasRenderer(election),
+                          channel: t(`publish.dialog.channel.${channel}`),
+                      })
+                  )
+        )
+        const grace = Math.max(0, ...sealing.map((item) => item.grace))
+        const names = (items: typeof affected) =>
+            listFormat(items.map(({election}) => aliasRenderer(election)))
+        const unopenedPart = unopened.length
+            ? `${t("publish.dialog.stopNeverOpenedPosts", {
+                  count: unopened.length,
+                  names: names(unopened),
+              })} `
+            : ""
+        if (!holding.length && !notEnabled.length && !noChannel.length) {
+            return `${unopenedPart}${
+                grace > 0
+                    ? t("publish.dialog.stopSealEventGrace", {count: grace})
+                    : t("publish.dialog.stopSealEvent")
+            }`
+        }
+        const sealedPart = !sealing.length
+            ? ""
+            : grace > 0
+              ? t("publish.dialog.sealedGracePart", {names: names(sealing), count: grace})
+              : t("publish.dialog.sealedNowPart", {names: names(sealing)})
+        const holdingPart = [
+            holding.length
+                ? t("publish.dialog.holdingEventPart", {
+                      count: holding.length,
+                      names: names(holding),
+                  })
+                : "",
+            ...notEnabled,
+            noChannel.length
+                ? t("publish.dialog.noChannelEventPart", {
+                      count: noChannel.length,
+                      names: names(noChannel),
+                  })
+                : "",
+        ]
+            .filter(Boolean)
+            .join(" ")
+        return `${unopenedPart}${t("publish.dialog.stopSealEventSome", {
+            sealed: sealedPart,
+            holding: holdingPart,
+        })}`
+            .replace(/\s+/g, " ")
+            .trim()
+    }
+
+    /**
+     * With the seal at close, an event Start names, Post by Post, what the
+     * server leaves as it is (`manual_post_change`): per channel it applies,
+     * a Post that doesn't enable that channel (it stays Not started there);
+     * else a Post where that channel is CLOSED; and every enabled channel of
+     * a Post with ballot box seals.
+     */
+    const startSealNote = (starting?: VotingStatusChannel[]): string | null => {
+        if (!sealsAtClose || publishType !== EPublishType.Event) return null
+        if (!eventElections || (eventElections.length && !eventSeals)) {
+            return t("publish.dialog.startSealNote")
+        }
+        const applied = eventStartChannels(sealChannels(), starting)
+        const kept: string[] = []
+        const notEnabled: string[] = []
+        for (const election of eventElections) {
+            const post = aliasRenderer(election)
+            const channels = electionSealChannels(election)
+            const skipped = notEnabledStartChannels(channels, applied)
+            if (skipped.length) {
+                notEnabled.push(
+                    t("publish.dialog.startNotEnabledChannels", {
+                        post,
+                        count: skipped.length,
+                        channels: channelNames(skipped),
+                    })
+                )
+            }
+            if (sealedElectionIds.has(String(election.id))) {
+                if (skipped.length < applied.length) {
+                    kept.push(t("publish.dialog.startKeptSealed", {post}))
+                }
+                continue
+            }
+            const closed = keptClosedChannels(channels, applied)
+            if (closed.length) {
+                kept.push(
+                    t("publish.dialog.startKeptChannels", {
+                        post,
+                        count: closed.length,
+                        channels: channelNames(closed),
+                    })
+                )
+            }
+        }
+        const sentences = [
+            kept.length ? t("publish.dialog.startSealNoteList", {items: kept.join("; ")}) : null,
+            notEnabled.length
+                ? t("publish.dialog.startNotEnabledList", {items: notEnabled.join("; ")})
+                : null,
+        ].filter(Boolean)
+        return sentences.length ? sentences.join(" ") : null
     }
 
     /**
@@ -230,13 +599,24 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                   ? t(`publish.action.stopVotingPeriod`)
                   : t(`publish.action.pauseVotingPeriod`)
 
+        // With the seal at close, the dialog says what this action does to the
+        // ballot boxes, also before re-authenticating: whether a Stop seals
+        // them, and that an event Start leaves closed elections closed.
+        const sealText =
+            action === EPublishActions.PENDING_STOP_VOTING
+                ? stopSealText(voting_channels)
+                : action === EPublishActions.PENDING_START_VOTING
+                  ? startSealNote(voting_channels)
+                  : null
         const dialogMessage = isGoldUser()
             ? action === EPublishActions.PENDING_START_VOTING
-                ? t("publish.dialog.startInfo")
+                ? [t("publish.dialog.startInfo"), sealText].filter(Boolean).join(" ")
                 : action === EPublishActions.PENDING_STOP_VOTING
-                  ? t("publish.dialog.stopInfo")
+                  ? (sealText ?? t("publish.dialog.stopInfo"))
                   : t("publish.dialog.pauseInfo")
-            : t("publish.dialog.confirmation", {action: actionText})
+            : [sealText, t("publish.dialog.confirmation", {action: actionText})]
+                  .filter(Boolean)
+                  .join(" ")
         openDialog(dialogMessage)
 
         setCurrentCallback(() => async () => {
@@ -253,6 +633,18 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             }
         })
     }
+
+    /** Initializing voting asks for confirmation, then creates the initialization report. */
+    const handleInitialize = () => {
+        openDialog(t("publish.dialog.initializationInfo"))
+        setCurrentCallback(() => async () => onInitialize?.())
+    }
+
+    const isInitializeDisabled = (): boolean =>
+        changingStatus ||
+        initializing ||
+        (!!record?.initialization_report_generated && !perCountryInitialization) ||
+        (electionStatus?.voting_status ?? EVotingStatus.NOT_STARTED) !== EVotingStatus.NOT_STARTED
 
     /**
      * Specific Handler for "Publish Changes" Button: Incorporates
@@ -368,7 +760,13 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     const isStartChannelDisabled = (info?: IChannelButtonInfo): boolean => {
         const channelEnabled = info?.is_channel_enabled ?? false
         const st = info?.status
-        return !channelEnabled || st === EVotingStatus.OPEN || st === EVotingStatus.CLOSED
+        return (
+            !channelEnabled ||
+            st === EVotingStatus.OPEN ||
+            st === EVotingStatus.CLOSED ||
+            // With Seal at close, an election with seals never opens again.
+            electionHasSeals
+        )
     }
 
     const isPauseChannelDisabled = (info?: IChannelButtonInfo): boolean => {
@@ -385,14 +783,17 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     const isStopChannelDisabled = (info?: IChannelButtonInfo): boolean => {
         const channelEnabled = info?.is_channel_enabled ?? false
         const st = info?.status
+        // With Seal at close, an election's Stop closes any channel that
+        // isn't CLOSED, enabled or not and started or not, so none holds the
+        // seal: closing lets no ballot in (D1, R10 B1).
+        if (sealsAtClose && publishType === EPublishType.Election) {
+            return st === EVotingStatus.CLOSED
+        }
         return !channelEnabled || st === EVotingStatus.CLOSED || st === EVotingStatus.NOT_STARTED
     }
 
     const initializationReportNotGenerated = (): boolean => {
-        return (
-            record?.presentation?.initialization_report_policy ===
-                EInitializeReportPolicy.REQUIRED && !record?.initialization_report_generated
-        )
+        return requiredInitialization && !record?.initialization_report_generated
     }
 
     // Encapsulated original disabled logic for each main action button
@@ -448,6 +849,16 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
 
     return (
         <>
+            {electionHasSeals ? (
+                <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{textAlign: "right", mb: 1}}
+                    className="publish-seal-start-reason"
+                >
+                    {t("publish.sealRefusals.startDisabled")}
+                </Typography>
+            ) : null}
             <PublishActionsStyled.Container>
                 <div
                     className="list-actions"
@@ -462,6 +873,20 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                         <>
                             {showPublishColumns ? <SelectColumnsButton /> : null}
                             {showPublishFilters ? <FilterButton /> : null}
+                            {canInitialize && (
+                                <StyledStatusButton
+                                    onClick={handleInitialize}
+                                    className={"initializeVoting"}
+                                    label={String(t("publish.action.generateInitializationReport"))}
+                                    disabled={isInitializeDisabled()}
+                                >
+                                    {initializing ? (
+                                        <CircularProgress size={16} />
+                                    ) : (
+                                        <PlaylistAddCheck width={24} />
+                                    )}
+                                </StyledStatusButton>
+                            )}
                             {canChangeStatus && canPublishStartVoting && (
                                 <>
                                     <StyledStatusButton
@@ -712,7 +1137,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                     onClick={() => handlePublish(false)}
                                     st={PublishStatus.Generated}
                                     label={String(t("publish.action.publish"))}
-                                    disabledStatus={[PublishStatus.Stopped]}
+                                    disabledStatus={[]}
+                                    disabled={changingStatus}
                                 />
                             )}
                         </>

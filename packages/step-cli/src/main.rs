@@ -2,7 +2,12 @@
 // //
 // // SPDX-License-Identifier: AGPL-3.0-only
 
+mod acceptance;
+mod adapters;
 mod commands;
+mod domain;
+mod load;
+mod ports;
 mod tests;
 mod types;
 mod utils;
@@ -22,13 +27,22 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum MainCommand {
+    /// Check an acceptance stage against a live election event and keep its evidence.
+    #[command(subcommand)]
+    Acceptance(acceptance::Command),
+    /// Prepare and measure complete synthetic voting journeys.
+    #[command(subcommand)]
+    Load(load::Command),
     #[command(subcommand)]
     Step(StepCommands),
 }
 
 #[derive(Subcommand)]
 enum StepCommands {
+    BuildElectionEvent(commands::build_election_event::BuildElectionEvent),
+    CompilePlan(commands::compile_plan::CompilePlan),
     Config(commands::configure::Config),
+    CreateTenant(commands::create_tenant::CreateTenant),
     CreateElectionEvent(commands::create_election_event::CreateElectionEventCLI),
     CreateElection(commands::create_election::CreateElection),
     CreateContest(commands::create_contest::CreateContest),
@@ -36,14 +50,18 @@ enum StepCommands {
     CreateArea(commands::create_area::CreateArea),
     CreateAreaContest(commands::create_area_contest::CreateAreaContest),
     CreateVoter(commands::create_voter::CreateVoter),
+    DeleteElectionEvent(commands::delete_election_event::DeleteElectionEventCLI),
+    DeleteTenant(commands::delete_tenant::DeleteTenantCLI),
     ExportCastVotes(commands::export_cast_votes::ExportCastVotes),
     ExportElectionEvent(commands::export_election_event::ExportElectionEventCommand),
     UpdateVoter(commands::update_voter::UpdateVoter),
     ImportElection(commands::import_election_event::ImportElectionEventFile),
+    ImportVoters(commands::import_voters::ImportVoters),
     Publish(commands::publish_changes::PublishChanges),
     RefreshToken(commands::refresh_token::Refresh),
     StartKeyCeremony(commands::start_key_ceremony::StartKeyCeremony),
     CompleteKeyCeremony(commands::complete_key_ceremony::Complete),
+    GetKeyCeremonyStatus(commands::get_key_ceremony_status::GetKeyCeremonyStatus),
     StartTally(commands::start_tally::StartTallyCeremony),
     UpdateTally(commands::update_tally_status::UpdateTallyStatus),
     SubmitTallyResolution(commands::submit_tally_resolution::SubmitTallyResolution),
@@ -64,14 +82,39 @@ enum StepCommands {
     ConfigureResultsWebsite(commands::results_publication::ConfigureResultsWebsite),
     PublishResults(commands::results_publication::PublishResults),
     RevokeResultsPublication(commands::results_publication::RevokeResultsPublication),
+    ExportTenantConfig(commands::export_tenant_config::ExportTenantConfig),
+    ImportTenantConfig(commands::import_tenant_config::ImportTenantConfig),
+    ListTrustees(commands::get_trustees::ListTrustees),
+    CreateTrustee(commands::create_trustee::CreateTrustee),
+    DownloadDocument(commands::download_document::DownloadDocument),
+    UploadDocument(commands::upload_document::UploadDocument),
+    MigrateRealmPermissions(commands::migrate_realm_permissions::MigrateRealmPermissions),
+    MigrateRegistrationFlows(commands::migrate_registration_flows::MigrateRegistrationFlows),
+    VerifyBallotBoxSeal(commands::verify_ballot_box_seal::VerifyBallotBoxSeal),
+    VerifyPackage(commands::verify_package::VerifyPackage),
 }
 
 fn main() {
     let cli = Cli::parse();
 
     match &cli.command {
+        MainCommand::Acceptance(command) => {
+            if let Err(error) = command.run() {
+                eprintln!("{error:#}");
+                std::process::exit(1);
+            }
+        }
+        MainCommand::Load(command) => {
+            if let Err(error) = command.run() {
+                eprintln!("{error:#}");
+                std::process::exit(1);
+            }
+        }
         MainCommand::Step(step_cmd) => match step_cmd {
+            StepCommands::BuildElectionEvent(cmd) => cmd.run(),
+            StepCommands::CompilePlan(cmd) => cmd.run(),
             StepCommands::Config(cmd) => cmd.run(),
+            StepCommands::CreateTenant(create_tenant) => exit_on_error(create_tenant.run()),
             StepCommands::CreateElectionEvent(create_event) => create_event.run(),
             StepCommands::CreateElection(create_election) => create_election.run(),
             StepCommands::CreateContest(create_contest) => create_contest.run(),
@@ -81,12 +124,16 @@ fn main() {
             StepCommands::ExportCastVotes(export_cast_votes) => export_cast_votes.run(),
             StepCommands::ExportElectionEvent(export_election_event) => export_election_event.run(),
             StepCommands::ImportElection(import) => import.run(),
+            StepCommands::ImportVoters(import_voters) => exit_on_error(import_voters.run()),
             StepCommands::CreateVoter(create_voter) => create_voter.run(),
+            StepCommands::DeleteElectionEvent(delete_event) => exit_on_error(delete_event.run()),
+            StepCommands::DeleteTenant(delete_tenant) => exit_on_error(delete_tenant.run()),
             StepCommands::UpdateVoter(update_voter) => update_voter.run(),
             StepCommands::Publish(publish_ballot) => publish_ballot.run(),
             StepCommands::RefreshToken(refresh) => refresh.run(),
             StepCommands::StartKeyCeremony(start) => start.run(),
             StepCommands::CompleteKeyCeremony(complete) => complete.run(),
+            StepCommands::GetKeyCeremonyStatus(status) => exit_on_error(status.run()),
             StepCommands::StartTally(start) => start.run(),
             StepCommands::UpdateTally(update) => update.run(),
             StepCommands::SubmitTallyResolution(submit) => submit.run(),
@@ -97,7 +144,12 @@ fn main() {
             StepCommands::DuplicateVotes(render) => render.run(),
             StepCommands::CreateApplications(render) => render.run(),
             StepCommands::CreateElectoralLogs(render) => render.run(),
-            StepCommands::HashPassword(render) => render.run(),
+            StepCommands::HashPassword(command) => {
+                if let Err(error) = command.run() {
+                    eprintln!("Error! Failed to generate hashed passwords: {error:#}");
+                    std::process::exit(1);
+                }
+            }
             StepCommands::UpdateEventVotingStatus(update_event_voting_status) => {
                 update_event_voting_status.run()
             }
@@ -113,6 +165,30 @@ fn main() {
             StepCommands::RevokeResultsPublication(revoke_results_publication) => {
                 revoke_results_publication.run()
             }
+            StepCommands::ExportTenantConfig(export) => exit_on_error(export.run()),
+            StepCommands::ImportTenantConfig(import) => exit_on_error(import.run()),
+            StepCommands::ListTrustees(list) => exit_on_error(list.run()),
+            StepCommands::CreateTrustee(create) => exit_on_error(create.run()),
+            StepCommands::DownloadDocument(download) => exit_on_error(download.run()),
+            StepCommands::UploadDocument(upload) => exit_on_error(upload.run()),
+            StepCommands::MigrateRealmPermissions(migrate) => {
+                exit_on_error(migrate.run().map_err(|error| format!("{error:#}")))
+            }
+            StepCommands::MigrateRegistrationFlows(migrate) => {
+                exit_on_error(migrate.run().map_err(|error| format!("{error:#}")))
+            }
+            StepCommands::VerifyBallotBoxSeal(verify) => {
+                exit_on_error(verify.run().map_err(|error| format!("{error:#}")))
+            }
+            StepCommands::VerifyPackage(cmd) => cmd.run(),
         },
+    }
+}
+
+/// Give scripts a nonzero status while leaving the detailed error on stderr.
+fn exit_on_error(result: Result<(), impl std::fmt::Display>) {
+    if let Err(error) = result {
+        eprintln!("Error! {error}");
+        std::process::exit(1);
     }
 }

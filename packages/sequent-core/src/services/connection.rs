@@ -146,7 +146,7 @@ fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
     let mut missing_headers = vec![];
     for header in required_headers {
         if !headers.contains(header) {
-            warn!("DatafixClaims guard: No {header} in headers: {headers:?}");
+            warn!("DatafixClaims guard: Missing {header} header");
             missing_headers.push(header);
         }
     }
@@ -213,7 +213,7 @@ impl LastDatafixAccessToken {
 
 /// Reads the access token if it has been requested successfully before and it
 /// is not expired.
-#[instrument(skip(lst_acc_tkn))]
+#[instrument(skip(lst_acc_tkn, client_secret))]
 async fn read_access_token(
     client_id: &str,
     client_secret: &str,
@@ -246,7 +246,7 @@ async fn read_access_token(
 }
 
 /// Request a new access token and writes it to the cache
-#[instrument(err, skip(lst_acc_tkn))]
+#[instrument(err, skip(lst_acc_tkn, client_secret))]
 async fn request_access_token(
     client_id: String,
     client_secret: String,

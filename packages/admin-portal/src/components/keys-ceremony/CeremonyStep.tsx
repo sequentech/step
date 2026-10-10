@@ -17,6 +17,7 @@ import {WizardStyles} from "@/components/styles/WizardStyles"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline"
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty"
 import {Accordion, AccordionSummary, Typography} from "@mui/material"
 import Table from "@mui/material/Table"
@@ -63,6 +64,7 @@ export interface CeremonyStepProps {
     goNext?: () => void
     isNextDisabled?: boolean
     goBack: () => void
+    verifyPrivateKey?: () => void
 }
 
 export const CeremonyStep: React.FC<CeremonyStepProps> = ({
@@ -73,6 +75,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     goBack,
     goNext,
     isNextDisabled = false,
+    verifyPrivateKey,
 }) => {
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
@@ -207,7 +210,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                     </WizardStyles.AccordionDetails>
                 </Accordion>
 
-                <Logs logs={status?.logs} />
+                <Logs logs={status?.logs} event={electionEvent} />
             </WizardStyles.ContentWrapper>
 
             <WizardStyles.FooterContainer>
@@ -216,11 +219,17 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                         <ArrowBackIosIcon />
                         {t("common.label.back")}
                     </CancelButton>
+                    {!!verifyPrivateKey && (
+                        <CancelButton onClick={verifyPrivateKey} className="list-actions">
+                            <CheckCircleOutlineIcon />
+                            {t("keysGeneration.checkStep.verifyButton")}
+                        </CancelButton>
+                    )}
                     {!!goNext && !isAutomaticCeremony && (
                         <WizardStyles.NextButton
                             color="info"
                             onClick={goNext}
-                            disabled={isNextDisabled && !status.public_key}
+                            disabled={isNextDisabled}
                         >
                             <ArrowForwardIosIcon />
                             {t("common.label.next")}

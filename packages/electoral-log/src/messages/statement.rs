@@ -87,6 +87,17 @@ impl StatementHead {
                 description: "Election published.".to_string(),
                 ..default_head
             },
+            StatementBody::ElectionPublishWithConfiguration(_, _, configuration) => StatementHead {
+                kind: StatementType::ElectionPublish,
+                description: format!(
+                    "Election published as approved: configuration {} revision {} (manifest {}, {} designs).",
+                    configuration.external_id,
+                    configuration.revision,
+                    configuration.manifest_sha256,
+                    configuration.design_digests.len()
+                ),
+                ..default_head
+            },
             StatementBody::ElectionVotingPeriodOpen(_, channel) => StatementHead {
                 kind: StatementType::ElectionVotingPeriodOpen,
                 description: format!(
@@ -285,6 +296,91 @@ impl StatementHead {
                     ..default_head
                 }
             }
+            StatementBody::MonitoringConfigChanged(_, details) => StatementHead {
+                kind: StatementType::MonitoringConfigChanged,
+                event_type: StatementEventType::USER,
+                description: monitoring_config_description(details),
+                ..default_head
+            },
+            StatementBody::ConfigurationPackage(_, details) => StatementHead {
+                kind: match details.action {
+                    ConfigurationPackageAction::Imported => {
+                        StatementType::ConfigurationPackageImported
+                    }
+                },
+                event_type: StatementEventType::USER,
+                description: match details.action {
+                    ConfigurationPackageAction::Imported => format!(
+                        "Configuration {} revision {} imported from a signed package (manifest {}).",
+                        details.external_id, details.revision, details.manifest_sha256
+                    ),
+                },
+                ..default_head
+            },
+            StatementBody::ReportGenerated(_, details) => StatementHead {
+                kind: StatementType::ReportGenerated,
+                description: report_generated_description(details),
+                ..default_head
+            },
+            StatementBody::ApprovalMatrixUpdated(_, version, digest) => StatementHead {
+                kind: StatementType::ApprovalMatrixUpdated,
+                event_type: StatementEventType::USER,
+                description: format!(
+                    "Enrollment approval matrix version {} saved (SHA-256 {}).",
+                    version.0, digest.0
+                ),
+                ..default_head
+            },
+            StatementBody::Signing(entry) => StatementHead {
+                kind: entry.kind.statement_type(),
+                event_type: entry.event_type.clone(),
+                log_type: entry.log_type.clone(),
+                description: entry.description.clone(),
+                ..default_head
+            },
+            StatementBody::BallotBoxSealed(election, area, _, in_box, counted, _) => {
+                StatementHead {
+                    kind: StatementType::BallotBoxSealed,
+                    description: ballot_box_sealed_description(
+                        election.0.as_deref().unwrap_or_default(),
+                        &area.0,
+                        *counted,
+                        *in_box,
+                    ),
+                    ..default_head
+                }
+            }
+            StatementBody::BallotBoxSealFailed(election, area, reason) => StatementHead {
+                kind: StatementType::BallotBoxSealFailed,
+                log_type: StatementLogType::ERROR,
+                description: ballot_box_seal_failed_description(
+                    election.0.as_deref().unwrap_or_default(),
+                    &area.0,
+                    reason,
+                ),
+                ..default_head
+            },
+            StatementBody::TallyBallotBoxVerified(election, area, _, counted, _) => StatementHead {
+                kind: StatementType::TallyBallotBoxVerified,
+                description: tally_ballot_box_verified_description(
+                    election.0.as_deref().unwrap_or_default(),
+                    &area.0,
+                    *counted,
+                ),
+                ..default_head
+            },
+            StatementBody::TallyBallotBoxRejected(election, area, what_differs, _) => {
+                StatementHead {
+                    kind: StatementType::TallyBallotBoxRejected,
+                    log_type: StatementLogType::ERROR,
+                    description: tally_ballot_box_rejected_description(
+                        election.0.as_deref().unwrap_or_default(),
+                        &area.0,
+                        what_differs,
+                    ),
+                    ..default_head
+                }
+            }
             StatementBody::ResultsPublicationAction(details) => {
                 let action = match details.action {
                     ResultsPublicationAction::Publish => "published",
@@ -307,6 +403,117 @@ impl StatementHead {
             }
         }
     }
+}
+
+fn report_generated_description(details: &ReportGeneratedDetails) -> String {
+    let stored = match &details.document_id {
+        Some(document_id) => format!(" (document {document_id})"),
+        None => String::new(),
+    };
+    format!(
+        "{} report generated with hash manifest {}{stored}, for configuration {} revision {} (manifest {}).",
+        details.report_type,
+        details.report_manifest_sha256,
+        details.external_id,
+        details.revision,
+        details.manifest_sha256
+    )
+}
+
+/// `1342` → `1,342`, as the seal descriptions show counts.
+pub fn group_thousands(value: u64) -> String {
+    let digits = value.to_string();
+    let mut grouped = String::with_capacity(digits.len() + digits.len() / 3);
+    for (index, digit) in digits.chars().enumerate() {
+        if index > 0 && (digits.len() - index) % 3 == 0 {
+            grouped.push(',');
+        }
+        grouped.push(digit);
+    }
+    grouped
+}
+
+/// The statement descriptions name the election and area. `from_body` only
+/// has their ids; the message constructors pass their names.
+pub fn ballot_box_sealed_description(
+    election: &str,
+    area: &str,
+    counted: u64,
+    in_box: u64,
+) -> String {
+    format!(
+        "Ballot box of {election}, {area} sealed: {} of {} ballots counted.",
+        group_thousands(counted),
+        group_thousands(in_box),
+    )
+}
+
+pub fn ballot_box_seal_failed_description(election: &str, area: &str, reason: &str) -> String {
+    format!(
+        "Ballot box of {election}, {area} not sealed, it stays locked: {}.",
+        reason.trim_end_matches('.')
+    )
+}
+
+pub fn tally_ballot_box_verified_description(election: &str, area: &str, counted: u64) -> String {
+    format!(
+        "Ballot box of {election}, {area} matches its seal: {} ballots counted.",
+        group_thousands(counted)
+    )
+}
+
+pub fn tally_ballot_box_rejected_description(
+    election: &str,
+    area: &str,
+    what_differs: &str,
+) -> String {
+    format!(
+        "The ballot box of {election}, {area} does not match its seal: {}.",
+        what_differs.trim_end_matches('.')
+    )
+}
+
+fn monitoring_config_description(details: &MonitoringConfigChangeDetails) -> String {
+    let removed = details
+        .revisions
+        .iter()
+        .filter(|revision| revision.action == MonitoringConfigChangeAction::Delete)
+        .count();
+    let counts = match details.revisions.len() {
+        0 => "no document changed".to_string(),
+        written => {
+            let saved = written - removed;
+            let noun = if saved == 1 { "document" } else { "documents" };
+            format!("{saved} {noun} saved and {removed} removed")
+        }
+    };
+    let changes = match (
+        details.origin,
+        details.preset.as_ref(),
+        details.revisions.as_slice(),
+    ) {
+        (MonitoringConfigOrigin::Preset, Some(preset), _) => format!(
+            "reset to preset {} version {}, {counts}",
+            preset.id.0, preset.version
+        ),
+        (MonitoringConfigOrigin::Preset, None, _) => format!("reset to a preset, {counts}"),
+        (MonitoringConfigOrigin::Editor, _, []) => format!("Dashboard tab switched, {counts}"),
+        (MonitoringConfigOrigin::Editor, _, [revision]) => format!(
+            "{} {} revision {} {}",
+            revision.kind.0,
+            revision.key.0,
+            revision.revision,
+            match revision.action {
+                MonitoringConfigChangeAction::Upsert => "saved",
+                MonitoringConfigChangeAction::Delete => "removed",
+            }
+        ),
+        (MonitoringConfigOrigin::Editor, _, _) => counts,
+    };
+    format!(
+        "Monitoring configuration generation {} (dashboard {}): {changes}.",
+        details.generation, details.mode
+    )
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Debug)]
@@ -437,6 +644,60 @@ pub enum StatementBody {
         ExternalReconciliationInputHashString,
         ExternalReconciliationOutputHashString,
     ),
+    /// Records a change to an election event's monitoring dashboards
+    /// configuration. The digests bind each entry to the stored document.
+    MonitoringConfigChanged(EventIdString, MonitoringConfigChangeDetails),
+    /// One entry of a step of signing a protected action. The entry sets
+    /// the head's kind, event type, log type and description.
+    Signing(SigningLogEntry),
+    /// A signed configuration package imported into an election event.
+    ConfigurationPackage(EventIdString, ConfigurationPackageDetails),
+    /// `ElectionPublish` for an event imported from a signed configuration
+    /// package: the same statement type, also carrying the configuration's
+    /// revision, its manifest SHA-256 and the digest of each design
+    /// published. A stored entry continues after the statement body without
+    /// delimiting it, so a field added to `ElectionPublish` would break the
+    /// entries already written; this separate, append-only variant keeps
+    /// them deserializable.
+    ///
+    /// Rollout invariant: as for `CastVoteWithChannel`, readers must be
+    /// upgraded before writers emit this variant. Publications of events
+    /// that were not imported from a package keep writing `ElectionPublish`.
+    ElectionPublishWithConfiguration(
+        ElectionIdString,
+        BallotPublicationIdString,
+        PublishedConfiguration,
+    ),
+    /// The hash manifest a report's generation wrote, for an event imported
+    /// from a signed configuration package.
+    ReportGenerated(EventIdString, ReportGeneratedDetails),
+    /// Records a new version of an election event's enrollment approval
+    /// matrix. The digest binds the entry to the saved version.
+    ApprovalMatrixUpdated(
+        EventIdString,
+        ApprovalMatrixVersion,
+        ApprovalMatrixDigestString,
+    ),
+    /// A ballot box (election, area) was sealed at close (VOTE-FREEZE):
+    /// the seal hash (SHA-512 of the manifest in `crate::seal`), the
+    /// ballots in the box, the ballots counted and the Close voting request,
+    /// if one closed it. The head's timestamp is the seal time.
+    BallotBoxSealed(
+        ElectionIdString,
+        AreaIdString,
+        SealHash,
+        u64,
+        u64,
+        Option<String>,
+    ),
+    /// A ballot box could not be sealed; it stays locked (VOTE-FREEZE).
+    BallotBoxSealFailed(ElectionIdString, AreaIdString, String),
+    /// The tally checked a ballot box against its seal: the seal hash, the
+    /// ballots counted and the tally session id (VOTE-FREEZE).
+    TallyBallotBoxVerified(ElectionIdString, AreaIdString, SealHash, u64, String),
+    /// The tally found a ballot box that does not match its seal: what
+    /// differs and the tally session id (VOTE-FREEZE).
+    TallyBallotBoxRejected(ElectionIdString, AreaIdString, String, String),
 }
 
 // Note: When creating new variants, consider that the length limit STATEMENT_KIND_VARCHAR_LENGTH is 40.
@@ -471,211 +732,94 @@ pub enum StatementType {
     ResultsPublicationAction,
     ExternalApiRequest,
     ExternalReconciliation,
+    MonitoringConfigChanged,
+    SigningRequestCreated,
+    SigningCertificateOpenFailed,
+    SigningRequestSigned,
+    SigningSignatureRefused,
+    SigningCertificateRegistered,
+    SigningHandover,
+    SigningRequestCancelled,
+    SigningRequestExpired,
+    SigningRequestCompleted,
+    SigningActionExecuted,
+    SigningRuleChanged,
+    SigningPermissionChanged,
+    SigningIssuerChanged,
+    SigningChecksChanged,
+    SigningCertificateRevoked,
+    SigningRequestsExported,
+    LifecycleWindowChanged,
+    ScheduleRecomputeApplied,
+    ScheduleImported,
+    ScheduledOutcomeChanged,
+    ElectionInitialized,
+    LockdownChanged,
+    ConfigurationPackageImported,
+    ReportGenerated,
+    ApprovalMatrixUpdated,
+    BallotBoxSealed,
+    BallotBoxSealFailed,
+    TallyBallotBoxVerified,
+    TallyBallotBoxRejected,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug, Clone)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Deserialize,
+    Serialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+)]
 pub enum StatementEventType {
     USER,
     SYSTEM,
 }
 
 #[cfg(test)]
-mod statement_compatibility_tests {
-    use super::*;
+#[path = "../../tests/support/statement_statement_compatibility_tests.rs"]
+mod statement_compatibility_tests;
 
-    fn external_api_request_description(operation: &str) -> String {
-        let event_id = EventIdString("0609dd53-3c33-41cd-b2cd-0ffb39738d2d".to_string());
-        let body = StatementBody::ExternalApiRequest(
-            event_id.clone(),
-            ExternalApiSubject {
-                user_id: Some("voter-id".to_string()),
-                username: Some("voter-name".to_string()),
-            },
-            ExtApiRequestDirection::Outbound,
-            ExtApiName::Datafix,
-            operation.to_string(),
-        );
-        StatementHead::from_body(event_id, &body).description
-    }
-
-    #[test]
-    fn external_api_request_description_success() {
-        assert_eq!(
-            external_api_request_description("SetVoted Succeeded"),
-            "Outbound request SetVoted Succeeded."
-        );
-    }
-
-    #[test]
-    fn external_api_request_description_failure_without_detail() {
-        assert_eq!(
-            external_api_request_description("SetNotVoted Failed"),
-            "Outbound request SetNotVoted Failed."
-        );
-    }
-
-    #[test]
-    fn external_api_request_description_excludes_detail() {
-        assert_eq!(
-            external_api_request_description("SetNotVoted Failed: The voter has not voted."),
-            "Outbound request SetNotVoted Failed."
-        );
-    }
-
-    #[test]
-    fn statement_body_borsh_discriminants_are_append_only() {
-        let election_publish = StatementBody::ElectionPublish(
-            ElectionIdString(None),
-            BallotPublicationIdString(String::new()),
-        );
-        let certificate = StatementBody::CertificateAuthEvent(
-            CertificateAuthEventAction::Import,
-            CertificateSubjectDnsString(Vec::new()),
-        );
-        let phone = StatementBody::PhoneBlacklistUpdated(
-            PhoneE164String(String::new()),
-            PhoneBlacklistAction::CreateEntry,
-        );
-        let external = StatementBody::ExternalApiRequest(
-            EventIdString(String::new()),
-            ExternalApiSubject {
-                user_id: None,
-                username: None,
-            },
-            ExtApiRequestDirection::Outbound,
-            ExtApiName::Datafix,
-            String::new(),
-        );
-        let cast_vote_with_channel = StatementBody::CastVoteWithChannel(
-            ElectionIdString(None),
-            PseudonymHash::new([0; 64]),
-            CastVoteHash::new([0; 64]),
-            VoterIpString(String::new()),
-            VoterCountryString(String::new()),
-            VotingChannelString(String::new()),
-        );
-        let external_reconciliation = StatementBody::ExternalReconciliation(
-            EventIdString(String::new()),
-            ExternalReconciliationKind::PatchGenerated,
-            ExternalReconciliationSequenceString(String::new()),
-            ExternalReconciliationGeneratedAtString(String::new()),
-            ExternalReconciliationInputHashString(String::new()),
-            ExternalReconciliationOutputHashString(None),
-        );
-
-        assert_eq!(borsh::to_vec(&election_publish).unwrap()[0], 2);
-        assert_eq!(borsh::to_vec(&certificate).unwrap()[0], 23);
-        assert_eq!(borsh::to_vec(&phone).unwrap()[0], 24);
-        // `ExternalApiRequest` follows `ResultsPublicationAction` in the
-        // released enum. The previous expectation of 25 was left stale by the
-        // rebase that introduced `ExternalApiRequest`.
-        assert_eq!(borsh::to_vec(&external).unwrap()[0], 26);
-        assert_eq!(borsh::to_vec(&cast_vote_with_channel).unwrap()[0], 27);
-        assert_eq!(borsh::to_vec(&external_reconciliation).unwrap()[0], 28);
-    }
-
-    #[test]
-    fn legacy_cast_vote_body_remains_deserializable() {
-        let legacy = StatementBody::CastVote(
-            ElectionIdString(Some("election-id".to_string())),
-            PseudonymHash::new([1; 64]),
-            CastVoteHash::new([2; 64]),
-            VoterIpString("ip".to_string()),
-            VoterCountryString("country".to_string()),
-        );
-
-        let bytes = borsh::to_vec(&legacy).unwrap();
-        assert_eq!(bytes[0], 0);
-        let decoded: StatementBody = borsh::from_slice(&bytes).unwrap();
-        assert!(matches!(decoded, StatementBody::CastVote(_, _, _, _, _)));
-    }
-
-    #[test]
-    fn statement_type_borsh_discriminants_are_append_only() {
-        assert_eq!(
-            borsh::to_vec(&StatementType::ElectionPublish).unwrap()[0],
-            3
-        );
-        assert_eq!(
-            borsh::to_vec(&StatementType::CertificateAuthEvent).unwrap()[0],
-            24
-        );
-        assert_eq!(
-            borsh::to_vec(&StatementType::PhoneBlacklistUpdated).unwrap()[0],
-            25
-        );
-        assert_eq!(
-            borsh::to_vec(&StatementType::ResultsPublicationAction).unwrap()[0],
-            26
-        );
-        assert_eq!(
-            borsh::to_vec(&StatementType::ExternalApiRequest).unwrap()[0],
-            27
-        );
-    }
-
-    #[test]
-    fn external_api_subject_is_part_of_borsh_payload() {
-        let without_subject = StatementBody::ExternalApiRequest(
-            EventIdString("event".to_string()),
-            ExternalApiSubject {
-                user_id: None,
-                username: None,
-            },
-            ExtApiRequestDirection::Outbound,
-            ExtApiName::Datafix,
-            "SetVoted Succeeded".to_string(),
-        );
-        let with_subject = StatementBody::ExternalApiRequest(
-            EventIdString("event".to_string()),
-            ExternalApiSubject {
-                user_id: Some("voter-id".to_string()),
-                username: Some("voter-name".to_string()),
-            },
-            ExtApiRequestDirection::Outbound,
-            ExtApiName::Datafix,
-            "SetVoted Succeeded".to_string(),
-        );
-
-        assert_ne!(
-            borsh::to_vec(&without_subject).unwrap(),
-            borsh::to_vec(&with_subject).unwrap()
-        );
-    }
-}
-
-#[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug, Clone)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Deserialize,
+    Serialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+)]
 pub enum StatementLogType {
     INFO,
     ERROR,
 }
 
 #[cfg(test)]
-mod results_publication_tests {
-    use super::*;
+#[path = "../../tests/support/statement_results_publication_tests.rs"]
+mod results_publication_tests;
 
-    #[test]
-    fn results_publication_action_is_a_structured_user_event() {
-        let body = StatementBody::ResultsPublicationAction(ResultsPublicationDetails {
-            publication_id: ResultsPublicationIdString("publication-id".to_string()),
-            action: ResultsPublicationAction::Publish,
-            route_scope: ResultsPublicationRouteScopeString("election".to_string()),
-            route_election_id: ElectionIdString(Some("election-id".to_string())),
-            access: ResultsPublicationAccessString("public".to_string()),
-            visibility_scope: ResultsPublicationVisibilityScopeString("full_event".to_string()),
-            contest_ids: vec![
-                ContestIdString("contest-1".to_string()),
-                ContestIdString("contest-2".to_string()),
-            ],
-        });
+#[cfg(test)]
+#[path = "../../tests/support/statement_monitoring_config_tests.rs"]
+mod monitoring_config_tests;
 
-        let head = StatementHead::from_body(EventIdString("event-id".to_string()), &body);
+#[cfg(test)]
+#[path = "../../tests/support/statement_signing_tests.rs"]
+mod signing_tests;
 
-        assert!(matches!(head.kind, StatementType::ResultsPublicationAction));
-        assert!(matches!(head.event_type, StatementEventType::USER));
-        assert_eq!(
-            head.description,
-            "Results publication publication-id published for election route (election-id), with public access, full_event visibility, and 2 contests."
-        );
-    }
-}
+#[cfg(test)]
+#[path = "../../tests/support/statement_approval_matrix_tests.rs"]
+mod approval_matrix_tests;
+
+#[cfg(test)]
+#[path = "../../tests/support/statement_election_initialized_tests.rs"]
+mod election_initialized_tests;
+#[path = "../../tests/support/statement_lockdown_tests.rs"]
+mod lockdown_tests;

@@ -45,6 +45,7 @@ in
 {
   # https://devenv.sh/basics/
   env = {
+    FONTCONFIG_FILE = pkgs.makeFontsConf { fontDirectories = [ pkgs.dejavu_fonts ]; };
     REGISTRY = "localhost:5000";
     OPENWHISK_BASIC_AUTH = "23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP";
     # NOTE(ereslibre): You will find this Base Image duplicated in
@@ -54,6 +55,8 @@ in
     # they don't allow to use environment variables as an input, or
     # because they don't run within the devenv environment.
     ALPINE_LAMBDA_BASE_IMAGE = "alpine:3.17@sha256:8fc3dacfb6d69da8d44e42390de777e48577085db99aa4e4af35f483eb08b989";
+  } // pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
+    CHROMIUM_EXECUTABLE_PATH = "${pkgs.chromium}/bin/chromium";
   };
 
   # https://devenv.sh/packages/
@@ -72,7 +75,6 @@ in
     glibc
     openssh
     postgresql_18
-    python3
     openssh
 
     # immudb
@@ -85,6 +87,9 @@ in
     ack
 
     # docker utilities
+    docker-client
+    docker-buildx
+    docker-compose
     dive
 
     # wget and curl
@@ -93,14 +98,15 @@ in
 
     # For frontend
     yarn
-    nodejs_20
-    nodePackages.graphqurl
+    nodejs_22
+    graphqurl
 
     # For protocol buffers
     protobuf
     iputils
     geckodriver
     firefox
+    k6 # HTTP cast load generator, pinned by devenv.lock.
 
     # to build the rug backend in strand/braid
     gcc
@@ -120,19 +126,22 @@ in
     wasm-pack
     wasm-bindgen-cli-pinned
 
-    python3
+    (python3.withPackages (ps: [ ps.psycopg ps.black ps.matplotlib ps.pyyaml ]))
     python3Packages.virtualenvwrapper
+    python3Packages.pyyaml
 
     # for parsing docker-compose.yml
     yq
 
     minio-client
 
-    # AI. Note, requires allowUnfree: true in devenv.yaml
-    claude-code
+    # AI
+    inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.claude-code
 
     # for plugins
     cargo-component
+  ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+    pkgs.chromium # Browser for full voting-portal journeys.
   ];
 
   # https://devenv.sh/scripts/
@@ -142,7 +151,9 @@ in
     set -a
     source .devcontainer/.env
     export LD_LIBRARY_PATH=${pkgs.openssl.out}/lib:$LD_LIBRARY_PATH
-    export PATH=/workspaces/step/packages/step-cli/rust-local-target/release:$PATH
+    export PATH=$DEVENV_ROOT/packages/step-cli/rust-local-target/release:$PATH
+    # The same linker as the Rust service containers (docker-compose-base.yml).
+    export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=$DEVENV_ROOT/.devcontainer/scripts/rust-lld-cc.sh
     set +a
 
     export RUST_SRC_PATH=${rustStable}/lib/rustlib/src/rust/library

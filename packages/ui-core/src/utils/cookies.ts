@@ -3,10 +3,29 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {getDomain} from "tldts"
 
-export function getValueFromCookie(cookieName: string) {
-    const cookies = Object.fromEntries(document.cookie.split("; ").map((c) => c.split("=")))
-    const value = cookies[cookieName]
+/** Decode our own cookies while tolerating legacy values with literal percent signs. */
+function decodeCookiePart(value: string): string {
+    try {
+        return decodeURIComponent(value)
+    } catch {
+        return value
+    }
+}
 
+export function getValueFromCookie(cookieName: string): string | undefined {
+    // Browsers list more specific paths first, then older cookies. Keep the
+    // last same-name entry: the most recent Path=/ cookie that setCookie writes.
+    let value: string | undefined
+    for (const entry of document.cookie.split(";")) {
+        const separator = entry.indexOf("=")
+        if (separator < 0) continue
+        const name = decodeCookiePart(entry.slice(0, separator).trim())
+        if (name === cookieName) {
+            // Only the first equals sign separates name from value. Opaque
+            // tokens may contain further equals signs as base64 padding.
+            value = decodeCookiePart(entry.slice(separator + 1))
+        }
+    }
     return value || undefined
 }
 

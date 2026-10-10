@@ -287,3 +287,122 @@ describe("formatVotingPortalDateTime — memoization", () => {
         expect(first).toBe("2026-03-09 07:05")
     })
 })
+
+describe("formatVotingPortalDateTime — in a given timezone", () => {
+    // 2028-04-08T20:00:00Z = 09 Apr 2028 00:00 in Dubai (+04:00), 04:00 in Manila
+    // (+08:00), 16:00 on 08 Apr in New York (EDT, the jest TZ), 22:00 in Madrid (CEST).
+    const OPENING = "2028-04-08T20:00:00Z"
+
+    it("renders every preset in the zone, not the browser's", () => {
+        const formats: Array<[EVotingPortalDateTimeFormat, string, string]> = [
+            [EVotingPortalDateTimeFormat.ISO_LOCAL, "Asia/Dubai", "2028-04-09 00:00"],
+            [EVotingPortalDateTimeFormat.ISO_LOCAL, "Asia/Manila", "2028-04-09 04:00"],
+            [EVotingPortalDateTimeFormat.ISO_LOCAL, "Europe/Madrid", "2028-04-08 22:00"],
+            [EVotingPortalDateTimeFormat.ISO_LOCAL, "Atlantic/Canary", "2028-04-08 21:00"],
+            [EVotingPortalDateTimeFormat.LEGACY_GB_24H, "Asia/Dubai", "09/04/2028, 00:00"],
+            [EVotingPortalDateTimeFormat.US_12H, "Asia/Dubai", "04/09/2028, 12:00 AM"],
+            [EVotingPortalDateTimeFormat.LOCALE_MEDIUM, "Asia/Dubai", "Apr 9, 2028, 12:00 AM"],
+            [EVotingPortalDateTimeFormat.DATE_ONLY, "Asia/Dubai", "04/09/2028"],
+        ]
+        for (const [format, zone, expected] of formats) {
+            const event = makeEvent(`e-zone-${format}`, {voting_portal_datetime_format: format})
+            expect(
+                formatVotingPortalDateTime(OPENING, event, "en", zone).replace(/\u202f/g, " ")
+            ).toBe(expected)
+        }
+    })
+
+    it("renders a custom pattern and an override in the zone", () => {
+        const custom = makeEvent("e-zone-custom", {
+            voting_portal_datetime_format: {custom: "dd.MM.yyyy HH:mm:ss"},
+        })
+        expect(formatVotingPortalDateTime(OPENING, custom, "en", "Asia/Dubai")).toBe(
+            "09.04.2028 00:00:00"
+        )
+        const override = makeEvent("e-zone-override", {
+            i18n: {en: {[VOTING_PORTAL_DATETIME_FORMAT_KEY]: "yyyy/MM/dd HH:mm"}},
+        })
+        expect(formatVotingPortalDateTime(OPENING, override, "en", "Asia/Manila")).toBe(
+            "2028/04/09 04:00"
+        )
+    })
+
+    it("keeps the browser zone without a zone argument", () => {
+        const event = makeEvent("e-zone-none", {
+            voting_portal_datetime_format: EVotingPortalDateTimeFormat.ISO_LOCAL,
+        })
+        const local = new Date(OPENING)
+        const expected = `${local.getFullYear()}-${String(local.getMonth() + 1).padStart(
+            2,
+            "0"
+        )}-${String(local.getDate()).padStart(2, "0")} ${String(local.getHours()).padStart(
+            2,
+            "0"
+        )}:${String(local.getMinutes()).padStart(2, "0")}`
+        expect(formatVotingPortalDateTime(OPENING, event, "en")).toBe(expected)
+    })
+
+    it("keys the memo by zone, so one event formats in several zones", () => {
+        const event = makeEvent("e-zone-memo", {
+            voting_portal_datetime_format: EVotingPortalDateTimeFormat.ISO_LOCAL,
+        })
+        expect(formatVotingPortalDateTime(OPENING, event, "en", "Asia/Dubai")).toBe(
+            "2028-04-09 00:00"
+        )
+        expect(formatVotingPortalDateTime(OPENING, event, "en", "Asia/Manila")).toBe(
+            "2028-04-09 04:00"
+        )
+        expect(formatVotingPortalDateTime(OPENING, event, "en", "Asia/Dubai")).toBe(
+            "2028-04-09 00:00"
+        )
+    })
+
+    it("follows DST in the zone (Madrid, Toronto)", () => {
+        const event = makeEvent("e-zone-dst", {
+            voting_portal_datetime_format: EVotingPortalDateTimeFormat.ISO_LOCAL,
+        })
+        expect(
+            formatVotingPortalDateTime("2028-01-15T08:00:00Z", event, "en", "Europe/Madrid")
+        ).toBe("2028-01-15 09:00")
+        expect(
+            formatVotingPortalDateTime("2028-06-02T07:00:00Z", event, "en", "Europe/Madrid")
+        ).toBe("2028-06-02 09:00")
+        expect(
+            formatVotingPortalDateTime("2028-03-12T07:30:00Z", event, "en", "America/Toronto")
+        ).toBe("2028-03-12 03:30")
+    })
+
+    it("renders midnight as 00, never 24", () => {
+        expect(parseVotingPortalDateTimePattern("HH:mm")(new Date(OPENING), "Asia/Dubai")).toBe(
+            "00:00"
+        )
+    })
+
+    it("shows a dash for an invalid date, with any format, instead of throwing", () => {
+        for (const format of [
+            EVotingPortalDateTimeFormat.ISO_LOCAL,
+            EVotingPortalDateTimeFormat.LEGACY_GB_24H,
+        ]) {
+            const event = makeEvent(`e-invalid-${format}`, {voting_portal_datetime_format: format})
+            expect(formatVotingPortalDateTime("not a date", event, "en", "Asia/Dubai")).toBe("-")
+        }
+        const custom = makeEvent("e-invalid-custom", {
+            voting_portal_datetime_format: {custom: "dd/MM/yyyy"},
+        })
+        expect(formatVotingPortalDateTime(Number.NaN, custom, "en")).toBe("-")
+    })
+
+    it("warns and falls back to the legacy format on an unknown zone", () => {
+        const warn = jest.spyOn(console, "warn").mockImplementation(() => undefined)
+        const event = makeEvent("e-zone-bad", {
+            voting_portal_datetime_format: EVotingPortalDateTimeFormat.ISO_LOCAL,
+        })
+        let out = ""
+        expect(() => {
+            out = formatVotingPortalDateTime(OPENING, event, "en", "Not/AZone")
+        }).not.toThrow()
+        expect(out).toMatch(/\d{2}\/\d{2}\/2028/)
+        expect(warn).toHaveBeenCalled()
+        warn.mockRestore()
+    })
+})

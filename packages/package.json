@@ -11,35 +11,15 @@
       "admin-portal",
       "keycloak-extensions/sequent-theme",
       "ballot-verifier",
-      "results-portal"
-    ],
-    "nohoist": [
-      "**/node_modules/@storybook",
-      "**/storybook"
+      "results-portal",
+      "ui-test-kit",
+      "ui-e2e",
+      "workbench",
+      "keycloak-ui"
     ]
   },
-  "devDependencies": {
-    "storybook": "8.6.15",
-    "@storybook/addon-docs": "8.6.15",
-    "@storybook/addon-essentials": "8.6.15",
-    "@storybook/addon-interactions": "8.6.15",
-    "@storybook/addon-links": "8.6.15",
-    "@storybook/addon-viewport": "8.6.15",
-    "@storybook/blocks": "8.6.15",
-    "@storybook/cli": "8.6.15",
-    "@storybook/react-vite": "8.6.15",
-    "@storybook/test": "8.6.15",
-    "@storybook/preview": "8.6.15",
-    "@storybook/preview-api": "8.6.15",
-    "@storybook/core-common": "8.6.15",
-    "@storybook/csf": "0.1.13",
-    "@storybook/core-events": "8.6.15",
-    "@storybook/channels": "8.6.15",
-    "@storybook/client-logger": "8.6.15",
-    "@storybook/docs-tools": "8.6.15",
-    "@storybook/instrumenter": "8.6.15"
-  },
   "resolutions": {
+    "**/test-exclude/minimatch/brace-expansion": "^5.0.8",
     "graphql": "^16.8.1",
     "dompurify": "^3.4.13",
     "braces": "^3.0.3",
@@ -69,8 +49,8 @@
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",
     "rollup": "^4.59.0",
+    "vite": "^7.3.5",
     "react-docgen": "8.0.2",
-    "@storybook/react": "8.6.15",
     "qs": "6.16.0",
     "node-forge": "1.4.0",
     "tar": "7.5.18",
@@ -96,18 +76,21 @@
     "immutable": "^3.8.4",
     "@babel/core": "^7.29.6",
     "@babel/plugin-transform-modules-systemjs": "^7.29.4",
-    "@tootallnate/once": "^2.0.1"
+    "@tootallnate/once": "^2.0.1",
+    "test-exclude": "^7.0.2"
   },
   "scripts": {
     "start:voting-portal": "yarn --cwd ./voting-portal start",
     "start:admin-portal": "yarn --cwd ./admin-portal start",
     "start:ballot-verifier": "yarn --cwd ./ballot-verifier start",
     "start:results-portal": "yarn --cwd ./results-portal start",
+    "start:workbench": "yarn --cwd ./workbench dev",
     "storybook:ui-essentials": "yarn --cwd ./ui-essentials storybook",
     "build:ballot-verifier": "yarn --cwd ./ballot-verifier build",
     "build:voting-portal": "yarn --cwd ./voting-portal build",
     "build:admin-portal": "yarn --cwd ./admin-portal build",
     "build:results-portal": "yarn --cwd ./results-portal build",
+    "build:workbench": "yarn --cwd ./workbench build",
     "build:ui-essentials": "yarn --cwd ./ui-essentials build",
     "build:ui-core": "yarn --cwd ./ui-core build",
     "test:results-portal": "yarn --cwd ./results-portal test --runInBand",
@@ -118,20 +101,26 @@
     "lint:fix:results-portal": "yarn --cwd ./results-portal lint:fix",
     "lint:fix:ui-essentials": "yarn --cwd ./ui-essentials lint:fix",
     "lint:fix:ui-core": "yarn --cwd ./ui-core lint:fix",
-    "lint:fix": "yarn --cwd ./voting-portal lint:fix && yarn --cwd ./admin-portal lint:fix && yarn --cwd ./ballot-verifier lint:fix && yarn --cwd ./results-portal lint:fix && yarn --cwd ./ui-essentials lint:fix",
-    "lint": "yarn --cwd ./voting-portal lint && yarn --cwd ./admin-portal lint && yarn --cwd ./ballot-verifier lint && yarn --cwd ./results-portal lint && yarn --cwd ./ui-essentials lint && yarn --cwd ./ui-core lint",
+    "lint:fix:workbench": "yarn --cwd ./workbench lint:fix",
+    "lint:fix": "yarn --cwd ./voting-portal lint:fix && yarn --cwd ./admin-portal lint:fix && yarn --cwd ./ballot-verifier lint:fix && yarn --cwd ./results-portal lint:fix && yarn --cwd ./ui-essentials lint:fix && yarn --cwd ./workbench lint:fix",
+    "lint": "yarn --cwd ./voting-portal lint && yarn --cwd ./admin-portal lint && yarn --cwd ./ballot-verifier lint && yarn --cwd ./results-portal lint && yarn --cwd ./ui-essentials lint && yarn --cwd ./ui-core lint && yarn --cwd ./workbench lint",
     "prettify:fix:voting-portal": "yarn --cwd ./voting-portal prettify:fix",
     "prettify:fix:admin-portal": "yarn --cwd ./admin-portal prettify:fix",
     "prettify:fix:ballot-verifier": "yarn --cwd ./ballot-verifier prettify:fix",
     "prettify:fix:results-portal": "yarn --cwd ./results-portal prettify:fix",
     "prettify:fix:ui-essentials": "yarn --cwd ./ui-essentials prettify:fix",
     "prettify:fix:ui-core": "yarn --cwd ./ui-core prettify:fix",
-    "prettify:fix": "yarn --cwd ./voting-portal prettify:fix && yarn --cwd ./admin-portal prettify:fix && yarn --cwd ./ballot-verifier prettify:fix && yarn --cwd ./results-portal prettify:fix && yarn --cwd ./ui-essentials prettify:fix && yarn --cwd ./ui-core prettify:fix",
-    "prettify": "yarn --cwd ./voting-portal prettify && yarn --cwd ./admin-portal prettify && yarn --cwd ./ballot-verifier prettify && yarn --cwd ./results-portal prettify && yarn --cwd ./ui-essentials prettify && yarn --cwd ./ui-core prettify",
+    "prettify:fix:workbench": "yarn --cwd ./workbench prettify:fix",
+    "prettify:fix": "yarn --cwd ./voting-portal prettify:fix && yarn --cwd ./admin-portal prettify:fix && yarn --cwd ./ballot-verifier prettify:fix && yarn --cwd ./results-portal prettify:fix && yarn --cwd ./ui-essentials prettify:fix && yarn --cwd ./ui-core prettify:fix && yarn --cwd ./workbench prettify:fix",
+    "prettify": "yarn --cwd ./voting-portal prettify && yarn --cwd ./admin-portal prettify && yarn --cwd ./ballot-verifier prettify && yarn --cwd ./results-portal prettify && yarn --cwd ./ui-essentials prettify && yarn --cwd ./ui-core prettify && yarn --cwd ./workbench prettify",
     "generate:voting-portal": "yarn --cwd ./voting-portal generate",
     "generate:admin-portal": "yarn --cwd ./admin-portal generate",
     "generate:ballot-verifier": "yarn --cwd ./ballot-verifier generate",
     "generate:results-portal": "yarn --cwd ./results-portal generate",
-    "generate:graphql-docs": "yarn --cwd ./api-docs/graphql generate-docs"
+    "generate:graphql-docs": "yarn --cwd ./api-docs/graphql generate-docs",
+    "typecheck:voting-portal": "yarn workspace @sequentech/ui-core build:types && yarn workspace @sequentech/ui-essentials build:types && yarn workspace voting-portal typecheck"
+  },
+  "devDependencies": {
+    "@vitest/coverage-istanbul": "4.1.11"
   }
 }

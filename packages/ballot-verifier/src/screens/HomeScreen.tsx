@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {SettingsContext} from "../providers/SettingsContextProvider"
 import React, {useState, useEffect, useContext, useMemo} from "react"
 import Typography from "@mui/material/Typography"
 import Button from "@mui/material/Button"
@@ -27,7 +28,7 @@ import TextField from "@mui/material/TextField"
 import {faCircleQuestion, faAngleRight} from "@fortawesome/free-solid-svg-icons"
 import JsonImg from "../public/json.png"
 import Image from "mui-image"
-import {TenantEventContext} from ".."
+import {TenantEventContext} from "../providers/TenantEventContext"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {useAppDispatch} from "../store/hooks"
 import {
@@ -144,7 +145,10 @@ export const HomeScreen: React.FC<IProps> = ({
     const [isNextActive, setNextActive] = useState(false)
     const navigate = useNavigate()
     const {tenantId, eventId} = useContext(TenantEventContext)
-    const {data: dataBallotStyles} = useQuery<GetPublishedBallotStylesQuery>(GET_BALLOT_STYLES)
+    const {globalSettings} = useContext(SettingsContext)
+    const {data: dataBallotStyles} = useQuery<GetPublishedBallotStylesQuery>(GET_BALLOT_STYLES, {
+        skip: globalSettings.DISABLE_AUTH,
+    })
     const dispatch = useAppDispatch()
 
     useEffect(() => {
@@ -191,8 +195,9 @@ export const HomeScreen: React.FC<IProps> = ({
             ? ballotService.hashMultiBallot(auditableBallot as IAuditableMultiBallot)
             : ballotService.hashBallot512(auditableBallot as IAuditableSingleBallot)
 
+        // sequent-core also rejects a signature without its public key, and the reverse.
         if (
-            auditableBallot?.voter_ballot_signature !== undefined &&
+            auditableBallot?.voter_ballot_signature !== undefined ||
             auditableBallot?.voter_signing_pk !== undefined
         ) {
             try {

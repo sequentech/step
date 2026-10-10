@@ -15,17 +15,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 
 # copy projects
-#TODO: Copy only necessary files
 WORKDIR /app
-COPY ./braid/scripts/Cargo-init.toml ./Cargo.toml
-COPY ./braid ./braid
-COPY ./b3 ./b3
-COPY ./board-messages ./board-messages
-COPY ./sequent-core ./sequent-core
-COPY ./immu-board ./immu-board
-COPY ./immudb-rs ./immudb-rs
-COPY ./strand ./strand
-COPY ./wrap-map-err ./wrap-map-err
+COPY . .
 
 # build projects
 WORKDIR /app/immu-board

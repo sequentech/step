@@ -115,7 +115,7 @@ public final class LoginBridge {
   }
 
   private static UriBuilder actionTokenBuilder(URI baseUri, String tokenString, String clientId) {
-    log.debugf("baseUri: %s, tokenString: %s, clientId: %s", baseUri, tokenString, clientId);
+    log.debugf("baseUri: %s, clientId: %s", baseUri, clientId);
     return Urls.realmBase(baseUri)
         .path(RealmsResource.class, "getLoginActionsService")
         .path(LoginActionsService.class, "executeActionToken")

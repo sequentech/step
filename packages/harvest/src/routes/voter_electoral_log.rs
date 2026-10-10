@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::routes::ballot_checks::ensure_checks_open;
 use crate::services::authorization::authorize_voter_election;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::Result;
@@ -59,6 +60,42 @@ pub async fn list_cast_vote_messages(
         )
     })?; // TODO: Temporary till merging the ballot performace inprovements.
 
+    // The log list's range filter keys aren't columns: they never sort.
+    if let Some(field) = input
+        .order_by
+        .as_ref()
+        .and_then(|order_by| order_by.keys().find(|field| !field.is_column()))
+    {
+        return Err(ErrorResponse::new(
+            Status::BadRequest,
+            &format!("Cannot sort by {field}"),
+            ErrorCode::InvalidOrderBy,
+        ));
+    }
+
+    if claims.hasura_claims.election_event_id.as_deref()
+        != Some(input.election_event_id.as_str())
+    {
+        return Err(ErrorResponse::new(
+            Status::Forbidden,
+            "Voter not authorized",
+            ErrorCode::Unauthorized,
+        ));
+    }
+    ensure_checks_open(
+        &claims.hasura_claims.tenant_id,
+        &input.election_event_id,
+    )
+    .await
+    .map_err(|(status, message)| {
+        let code = if status == Status::Forbidden {
+            ErrorCode::BallotChecksEnded
+        } else {
+            ErrorCode::InternalServerError
+        };
+        ErrorResponse::new(status, &message, code)
+    })?;
+
     // Check that the policy is enabled
     provide_hasura_transaction(|hasura_transaction| {
         let tenant_id = claims.hasura_claims.tenant_id.clone();
@@ -95,7 +132,7 @@ pub async fn list_cast_vote_messages(
 
     let ballot_id = input.ballot_id.as_str();
     let elog_input = GetElectoralLogBody {
-        tenant_id: input.tenant_id,
+        tenant_id: claims.hasura_claims.tenant_id.clone(),
         election_event_id: input.election_event_id,
         limit: input.limit,
         offset: input.offset,

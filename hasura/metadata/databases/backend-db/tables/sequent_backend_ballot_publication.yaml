@@ -80,6 +80,18 @@ select_permissions:
       role: admin-user
     - comment: ""
       permission:
+          columns:
+              - election_event_id
+              - id
+              - is_generated
+              - published_at
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: election-dashboard-tab
+    - comment: ""
+      permission:
           allow_aggregations: true
           columns:
               - election_ids

@@ -84,13 +84,6 @@ add-janitor-to-tarball() {
     tar --append -C $JANITOR_PARENT --file=$DELIVERABLE_TARBALL janitor
 }
 
-add-database-init-to-tarball() {
-    tmpdir=$(mktemp -d)
-    mkdir -p $tmpdir/initdb
-    cat $PROJECT_ROOT/scripts/airgap-files/b3.sql > $tmpdir/initdb/b3.sql
-
-    tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL initdb
-}
 
 add-readme-to-tarball() {
     tmpdir=$(mktemp -d)
@@ -164,7 +157,6 @@ add-keycloak-data-to-tarball
 add-docker-compose-to-tarball
 add-hasura-data-to-tarball
 add-up-script-to-tarball
-add-database-init-to-tarball
 add-readme-to-tarball
 add-janitor-to-tarball
 

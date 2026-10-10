@@ -4,10 +4,10 @@
 
 const englishTranslation = {
     translations: {
-        philippinePassport: "Philippine Passport",
-        seamanBook: "Seaman's Book",
+        philippinePassport: "Passport",
+        seamanBook: "Seafarer's Book",
         philSysID: "PhilSys ID",
-        iBP: "Integrated Bar of the Philippines (IBP)",
+        iBP: "Integrated Bar of the Philippines ID",
         driversLicense: "Driver's License",
         loading: "Loading...",
         loadingDataProvider: "Loading data provider...",
@@ -210,6 +210,57 @@ const englishTranslation = {
             exportdialog: {
                 description:
                     "Please confirm you want to execute this action, it might take a while to execute.",
+                title: "Export logs",
+                from: "From",
+                to: "To",
+                timeZone: "Timezone",
+                format: "Format",
+                csv: "CSV",
+                pdf: "PDF",
+                zoneNote:
+                    "Each row keeps its time in UTC (ISO 8601) and in {{abbr}}, with the timezone name. The date range includes both ends, in {{abbr}}.",
+                zoneNotePdf:
+                    "The PDF prints each time in {{abbr}}. The date range includes both ends, in {{abbr}}.",
+                rowZones: "Each row's election timezone",
+                zoneNoteRows:
+                    "Each row keeps its time in UTC (ISO 8601) and in its election's timezone, with the timezone name. The date range includes both ends, in {{abbr}}.",
+                zoneNoteRowsPdf:
+                    "The PDF prints each time in its election's timezone. The date range includes both ends, in {{abbr}}.",
+            },
+            filter: {
+                createdFrom: "Created from",
+                createdTo: "to",
+                statementTimestampFrom: "Statement Timestamp from",
+                statementTimestampTo: "Statement Timestamp to",
+                timeZone: "Timezone",
+            },
+            scheduledOutcome: {
+                outcome: {
+                    "waiting-for-initialization": "Waiting for initialization",
+                    "runs": "runs",
+                    "runs-unsigned": "runs without signatures",
+                    "refused": "refused",
+                },
+                check: {
+                    "initialization": "Required initialization is incomplete",
+                    "voting-close": "Voting cannot open at or after its close deadline",
+                    "needs-signatures": "signatures needed",
+                    "covered": "in the signed configuration",
+                    "unsigned-close": "close without signatures",
+                    "stricter-copy": "current or published settings",
+                    "defaults": "nothing published yet",
+                },
+                changed: "Now {{after}} (was: {{before}}).",
+                result: "Outcome: {{outcome}}.",
+                deciding: "Deciding check: {{check}}. {{value}}",
+                authorizedBy: "Authorized by configuration {{code}}.",
+                nextStep: "Next step: {{step}}",
+                reason: {
+                    "ballot-box-seal-policy":
+                        "Kept closed: with Seal at close, voting that has closed stays closed.",
+                    "never-opened-kept-open":
+                        "Nothing to close on schedule: the Post never opened, so it stays as it is.",
+                },
             },
             column: {
                 id: "Id",
@@ -230,6 +281,22 @@ const englishTranslation = {
             },
             iam: {
                 title: "IAM Database Logs",
+            },
+            ballotBoxSeal: {
+                sealHash: "Seal hash: {{hash}}",
+                counted: "{{counted}} of {{inBox}} ballots counted.",
+                notCounted_one:
+                    "The other ballot was replaced by the voter's later ballot, discarded, or cast by a voter who is not eligible.",
+                notCounted_other:
+                    "The other {{count}} ballots were replaced by the voter's later ballot, discarded, or cast by a voter who is not eligible.",
+                closeRequest: "Closed by the Close voting request {{request}}.",
+                noCloseRequest:
+                    "Closed without a Close voting request (Stop Voting or the scheduled close).",
+                failedReason: "Why: {{reason}}",
+                failedLocked: "The ballot box stays locked and is not sealed: an incident.",
+                verifiedCounted: "{{counted}} ballots counted from the seal.",
+                tallySession: "Tally session {{session}}.",
+                differs: "What differs: {{differs}}",
             },
         },
         tasksScreen: {
@@ -252,6 +319,7 @@ const englishTranslation = {
                 logs: "Logs",
             },
             tasksExecution: {
+                DELETE_TENANT: "Delete tenant",
                 PUBLISH_BALLOT: "Publish Ballot",
                 EXPORT_ELECTION_EVENT: "Export Election Event",
                 CREATE_ELECTION_EVENT: "Create Election Event",
@@ -263,6 +331,7 @@ const englishTranslation = {
                 CREATE_TRANSMISSION_PACKAGE: "Create Transmission Package",
                 EXPORT_BALLOT_PUBLICATION: "Export Ballot Publication",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Export Activity Logs Report",
+                EXPORT_MONITORING_DATA: "Export Monitoring Data",
                 GENERATE_REPORT: "Generate Report",
                 GENERATE_TRANSMISSION_REPORT: "Generate Transmission Report",
                 EXPORT_TRUSTEES: "Export Trustees",
@@ -298,6 +367,7 @@ const englishTranslation = {
                 taskTitle: "Task: {{title}}",
                 viewTask: "View Task",
                 downloadDocument: "Download File",
+                downloadHashManifest: "Hash manifest",
             },
             exportTasksExecution: {
                 success: "Export finished successfully",
@@ -336,6 +406,9 @@ const englishTranslation = {
                 helpLinks: "Help Links",
                 logoUrl: "Logo URL",
                 css: "Custom CSS",
+                displayName: "Display name",
+                displayNameHelp:
+                    "The organization's name in messages that name it. Empty: the tenant's short name.",
             },
             errors: {
                 invalidHelpLinks: "Invalid Help Links format",
@@ -351,8 +424,6 @@ const englishTranslation = {
                 telephoneVoting: "Telephone Voting",
                 settingTitle: "Settings",
                 settingSubtitle: "General Configuration",
-                sms: "SMS",
-                mail: "Mails",
                 createNew: "Create Election Type",
                 emptyHeader: "No Election Types yet.",
                 emptyBody: "Do you want to create one?",
@@ -366,7 +437,6 @@ const englishTranslation = {
             tabs: {
                 votingChannels: "VOTING CHANELS",
                 electionTypes: "ELECTION TYPES",
-                templates: "TEMPLATES",
                 languages: "LANGUAGES",
                 localization: "LOCALIZATION",
                 integrations: "Integrations",
@@ -439,6 +509,111 @@ const englishTranslation = {
             voterLoginURL: "Voter Login URL",
             voterEnrollURL: "Voter Enroll URL",
             voterEnrollKioskURL: "Voter Enroll Kiosk URL",
+            ballotBoxes: {
+                show: "Show ballot boxes",
+                loadError:
+                    "The ballot boxes' seals could not be read. Reload the page, or check the connection to the server.",
+                title: "Ballot boxes",
+                sealing:
+                    "Voting closed at {{closed}}. The ballot boxes are sealed when the grace period ends, at {{deadline}}.",
+                sealed: "Voting closed at {{closed}}. The ballot boxes are sealed: no ballot can be added, changed or deleted.",
+                failed: "Voting closed at {{closed}}. A ballot box could not be sealed: it stays locked, and the incident is in the logs.",
+                closedBySignatures:
+                    "Closed by {{names}} with their certificates, signing code {{code}}.",
+                closedByUser: "Closed by {{username}}.",
+                closedBySchedule: "Closed by the scheduled close of polls.",
+                column: {
+                    area: "Area",
+                    status: "Status",
+                    inTheBox: "In the box",
+                    counted: "Counted",
+                    sealedAt: "Sealed",
+                    sealHash: "Seal hash",
+                    record: "Seal record",
+                },
+                status: {
+                    open: "Open",
+                    sealing: "Sealing at {{time}}",
+                    publishing: "Sealed, publishing",
+                    sealed: "Sealed",
+                    failed: "Not sealed: incident",
+                    due: "Sealing now",
+                    overdue: "Sealing overdue",
+                },
+                help: {
+                    publishing:
+                        "The ballot box is locked. Its entry on the bulletin board is being posted again.",
+                    counted:
+                        "Ballots that count: each eligible voter's latest valid ballot. The others in the box were replaced by the voter's later ballot, discarded, or cast by a voter who is not eligible.",
+                },
+                copyHash: "Copy seal hash",
+                copied: "Seal hash copied",
+                copyError: "Could not copy the seal hash",
+                notYet: "Not yet",
+                openRecord: "Open the seal record of {{area}}",
+                downloadRecord: "Download the seal record of {{area}}",
+                recordRestricted: "Restricted: ask an administrator who can download documents.",
+                recordError: "The seal record could not be downloaded. Try again.",
+                recordMissing: "The seal record document is missing: report it as an incident.",
+                beforeClose: "The ballot box of each area is sealed when voting closes.",
+                notStarted:
+                    "Voting hasn't opened yet. The ballot box of each area is sealed when voting closes.",
+                openOn: "Voting is open on {{channels}}. The ballot box of each area is sealed when voting closes.",
+                paused: "Voting is paused. The ballot box of each area is sealed when voting closes.",
+                holding_one:
+                    "{{channels}} is enabled and not closed: stop it to seal the ballot boxes.",
+                holding_other:
+                    "{{channels}} are enabled and not closed: stop them to seal the ballot boxes.",
+                sealingNow: "Voting closed at {{closed}}. The ballot boxes are being sealed.",
+                sealingPastGrace:
+                    "Voting closed at {{closed}}. The grace period ended at {{deadline}}; the ballot boxes are being sealed.",
+                why: {
+                    due: "Being sealed: this takes up to a minute.",
+                    channelOpen:
+                        "{{channel}} is still enabled and not closed: stop it to seal the ballot box.",
+                    channelNotEnabled:
+                        "{{channel}} isn't closed and isn't enabled for this Post: stop it to seal the ballot box.",
+                    channelHasBallots:
+                        "{{channel}} has ballots in this ballot box and isn't closed: stop it to seal the ballot box.",
+                    datafixVotes_one:
+                        "{{count}} vote is in progress in Datafix: the ballot box is sealed once it is resolved.",
+                    datafixVotes_other:
+                        "{{count}} votes are in progress in Datafix: the ballot box is sealed once they are resolved.",
+                    stale: "Last tried at {{time}}: the sealer may not be running. Check Beat and the seal worker.",
+                    notTried:
+                        "Not tried yet: the sealer may not be running. Check Beat and the seal worker.",
+                    errorCategory: {
+                        board: "The last attempt couldn't reach the bulletin board; it is retried every minute.",
+                        census: "The last attempt couldn't read the voter list; it is retried every minute.",
+                        keystore:
+                            "The last attempt couldn't get the signing key; it is retried every minute.",
+                        storage:
+                            "The last attempt couldn't upload the seal record to the file storage; it is retried every minute.",
+                        settings:
+                            "The last attempt couldn't read the election's settings; it is retried every minute.",
+                        other: "The last attempt failed; it is retried every minute. The service log has the details.",
+                        ballots:
+                            "The last attempt found a ballot that can't be read yet or is still in progress; it is retried every minute.",
+                        database:
+                            "The last attempt couldn't complete in the database; it is retried every minute.",
+                    },
+                },
+                failure: {
+                    ballotIdMismatch: "A ballot does not match its Ballot ID.",
+                    missingContent: "A ballot has no content or no Ballot ID.",
+                    unreadable: "A ballot can't be read.",
+                    inProgress: "A ballot is still in progress.",
+                    alreadyOnBoard: "A seal for this ballot box is already on the bulletin board.",
+                    noBoard: "The election event has no bulletin board.",
+                    unknownChannel: "A ballot has an unknown voting channel.",
+                },
+                incident: {
+                    title_one: "{{count}} ballot box could not be sealed",
+                    title_other: "{{count}} ballot boxes could not be sealed",
+                    body: "This is an incident: each of these ballot boxes stays locked and can't be tallied. Follow the runbook for a failed seal.",
+                    line: "{{election}}, {{area}}: {{reason}}",
+                },
+            },
             ipAddress: {
                 emptyState: "No votes yet.",
                 title: "IP Addresses",
@@ -466,6 +641,7 @@ const englishTranslation = {
                 language: "Language",
                 allowed: "Voting Channels Allowed",
                 materials: "Support Materials",
+                ballotReceipts: "Ballot Receipts",
                 ballotDesign: "Ballot Design",
                 templates: "Templates",
                 reorder: "Reorder elections",
@@ -497,6 +673,7 @@ const englishTranslation = {
                     duplicateKey: "An override with this key and portal scope already exists.",
                     invalidDateTimeFormat:
                         "Invalid date/time format. Use tokens yyyy, MM, dd, HH, mm, ss (e.g. dd/MM/yyyy HH:mm).",
+                    invalidTimeZoneText: "This text must keep {{placeholders}}.",
                 },
                 common: {
                     title: "Localization",
@@ -514,6 +691,7 @@ const englishTranslation = {
                     ballotVerifier: "Ballot verifier",
                     resultsPortal: "Results portal",
                     adminPortal: "Admin portal",
+                    templates: "Reports and messages",
                 },
             },
             field: {
@@ -573,6 +751,35 @@ const englishTranslation = {
                 css: "Custom CSS",
                 skipElectionList: "Skip Election List Screen",
                 showUserProfile: "Show User Profile",
+                ballotReceipts: {
+                    checksPeriod: {
+                        policyLabel: "Period for checking cast ballots",
+                        helper: "How long voters can look up their cast ballot and print its receipt in the Voting Portal.",
+                        options: {
+                            "unlimited": "No limit",
+                            "until-date": "Until a date",
+                        },
+                    },
+                    checksAvailableUntil: "Checks available until ({{timezone}})",
+                    checksAvailableUntilRequired:
+                        "Enter the date and time until which ballots can be checked.",
+                },
+                voterAccessibilitySettingsPolicy: {
+                    policyLabel: "Voter accessibility settings",
+                    options: {
+                        disabled: "Hide the accessibility settings",
+                        enabled: "Offer text size, contrast, spacing and motion settings",
+                    },
+                },
+                audioInstructionsPolicy: {
+                    policyLabel: "Audio instructions",
+                    options: {
+                        "disabled": "No audio instructions",
+                        "recorded": "Uploaded recordings only",
+                        "recorded-or-synthesized":
+                            "Uploaded recordings, or the browser's voice where there is none",
+                    },
+                },
                 showCastVoteLogs: {
                     policyLabel: "Show Cast Vote Logs Tab",
                     options: {
@@ -582,9 +789,43 @@ const englishTranslation = {
                 },
                 lockdownState: {
                     policyLabel: "Lockdown Status",
+                    helperText:
+                        "Schedule a start or end of the lockdown period to change this state.",
                     options: {
                         "locked-down": "Locked Down",
                         "not-locked-down": "Not Locked Down",
+                    },
+                },
+                ballotBoxSealPolicy: {
+                    policyLabel: "Ballot Box Seal Policy",
+                    helperText:
+                        "When voting closes, the ballot box of each area is sealed: a signed hash of its ballots goes to the bulletin board, no ballot can be added, changed or deleted, and voting cannot start again.",
+                    locked: "It cannot be changed after voting has opened.",
+                    options: {
+                        "seal-at-close": "Seal at close",
+                        "do-not-seal": "Do not seal",
+                    },
+                    checking: "Checking whether voting has opened…",
+                    lockedUnknown:
+                        "Locked: the elections could not be read, so whether voting has opened is unknown.",
+                    lockedOpened: "Locked: voting has opened in {{names}}.",
+                    lockedEvent: "Locked: voting has opened in this election event.",
+                    refused: "The Ballot Box Seal Policy can't be changed after voting has opened.",
+                    settingLocked: "With Seal at close, the seal relies on this setting.",
+                    settingRefused:
+                        "This setting can't be changed after voting has opened: with Seal at close, the seal relies on it.",
+                    boardRefused:
+                        "The election event's bulletin board can't change after voting has opened: with Seal at close, the seals are posted to it.",
+                },
+                ballotBoxSealRecordPolicy: {
+                    policyLabel: "Ballot Box Seal Record",
+                    options: {
+                        restricted: "Restricted",
+                        public: "Public",
+                    },
+                    help: {
+                        restricted: "Only administrators can download it; share it with observers.",
+                        public: "Anyone with the event's ids can download it, without signing in; it shows how each ballot counted.",
                     },
                 },
                 decodedBallots: {
@@ -634,6 +875,14 @@ const englishTranslation = {
                     "policyLabel": "Voter Signing Policy",
                     "no-signature": "No signature",
                     "with-signature": "With signature",
+                },
+                receiptsPolicy: {
+                    "policyLabel": "Receipts signed by the ballot box",
+                    "disabled": "Disabled",
+                    "signed-by-ballot-box": "Signed by the ballot box",
+                    "helperText":
+                        "When on, the ballot box stores and signs each ballot at review, and the voter sees a Ballot ID only once the ballot has been received. Voters sign their ballots. Publish the ballots again after changing it.",
+                    "lockedHelperText": "This cannot be changed once voting has started.",
                 },
                 VoterCertificatePolicy: {
                     policyLabel: "Voter Digital Certificate Policy",
@@ -762,13 +1011,16 @@ const englishTranslation = {
                         credentials: 'The valid voter id and pin are "123" and "123".',
                     },
                     sendDtmf: "Send DTMF input",
+                    keypadInput: "Keypad input",
                     sendTimeout: "Send timeout",
                     disconnected: "Disconnected",
                     startSession: "Start new session",
                     endSession: "End the session",
                     noStylesFound: "No published ballot styles found matching your selections",
-                    inputPlaceholder:
-                        "Enter your input (max digits={{maxDigits}}, valid inputs={{validInputs}}, timeout={{timeout}}s)",
+                    inputPlaceholder: "Press {{keys}} (timeout={{timeout}}s)",
+                    inputPlaceholderOr: "or",
+                    inputPlaceholderAnyKeys:
+                        "Enter up to {{maxDigits}} digits (any digits, timeout={{timeout}}s)",
                     blacklistCaller: "Blocklist the caller",
                     elections: "Elections",
                     area: "Area",
@@ -793,6 +1045,10 @@ const englishTranslation = {
                 statusLabel: "Status",
                 waitingKeys: "Waiting for Keys Generation..",
                 started: "Started at",
+                actions: {
+                    participate: "Participate in Keys Ceremony",
+                    view: "View Keys Ceremony",
+                },
                 breadCrumbs: {
                     configure: "Configure",
                     ceremony: "Ceremony",
@@ -1025,6 +1281,21 @@ const englishTranslation = {
                 options: {
                     "gold-level": "Gold level Authentication",
                     "no-gold-level": "No Gold level Authentication",
+                },
+            },
+            slates: {
+                title: "Slates",
+                configuration: "Slate configuration (JSON)",
+                helper: "Named slates and the candidates each one runs in each contest. Leave empty for an election without slates.",
+                loading:
+                    "The election's contests and candidates are still loading. Try again in a moment.",
+                mobileCandidateLists: {
+                    label: "Mobile candidate lists",
+                    helper: "How each slate's candidate list starts on phones. Voters can always open or close it.",
+                    options: {
+                        collapsed: "Collapsed",
+                        expanded: "Expanded",
+                    },
                 },
             },
             startScreenTitlePolicy: {
@@ -1292,11 +1563,35 @@ const englishTranslation = {
             permissions: {
                 "admin-user": "Admin User",
                 "admin-dashboard-view": "Admin Dashboard View",
+                "monitoring-view": "View Monitoring Dashboards",
+                "monitoring-configure": "Configure Monitoring Dashboards",
+                "election-event-signatures-tab": "Election Event Signatures Tab",
+                "signing-rules-read": "Signatures: read protected actions",
+                "signing-rules-write": "Signatures: edit protected actions",
+                "signing-certificates-read": "Signatures: read certificates",
+                "signing-issuers-write": "Signatures: import and remove trusted issuers",
+                "signing-checks-write": "Signatures: edit certificate checks",
+                "signing-certificates-register": "Signatures: register certificates",
+                "signing-certificates-revoke": "Signatures: revoke certificates",
+                "signing-requests-read": "Signatures: read requests",
+                "signing-requests-cancel": "Signatures: cancel requests",
+                "signing-requests-export": "Signatures: export requests",
+                "sign-initialize-voting": "Sign: initialize voting",
+                "sign-open-voting": "Sign: open voting",
+                "sign-close-voting": "Sign: close voting",
+                "sign-generate-election-returns": "Sign: generate election returns",
+                "sign-generate-reports": "Sign: generate other election reports",
+                "sign-transmit-results": "Sign: transmit results",
+                "sign-approve-voter": "Sign: approve a voter manually",
+                "sign-approve-configuration": "Sign: approve a configuration version",
+                "sign-key-ceremony": "Sign: confirm a key share",
+                "sign-tally-key": "Sign: contribute a key share",
                 "application-export": "Application Export",
                 "application-import": "Application Import",
                 "tenant-create": "Create Tenant",
                 "tenant-read": "Read Tenant",
                 "tenant-write": "Edit Tenant",
+                "tenant-delete": "Delete Tenant",
                 "election-event-create": "Create Election Event",
                 "election-event-read": "Read Election Event",
                 "election-event-write": "Edit Election Event",
@@ -1436,6 +1731,7 @@ const englishTranslation = {
                 "task-export": "Export Tasks",
                 "application-read": "Read Application",
                 "application-write": "Edit Application",
+                "approval-matrix-write": "Edit Approval Matrix",
                 "logs-export": "Export Logs",
                 "election-event-logs-columns": "Election Event Logs Columns",
                 "election-events-logs-filters": "Election Event Logs Filters",
@@ -1515,6 +1811,9 @@ const englishTranslation = {
                 "phone-blacklist-update": "Edit phone blacklist entries",
                 "phone-blacklist-delete": "Delete phone blacklist entries",
                 "election-event-voter-list-reconciliation": "Reconcile election event voter list",
+                "messaging-account-read": "Read messaging accounts",
+                "messaging-account-write": "Manage messaging accounts",
+                "messaging-config-write": "Configure election event messaging",
             },
         },
         generalSettingsScreen: {
@@ -1529,6 +1828,8 @@ const englishTranslation = {
                 createError: "Error creating Scheduled Event",
                 editSuccess: "Scheduled Event edited successfully",
                 editError: "Error editing Scheduled Event",
+                onlineWithEarlyVoting:
+                    "A start schedule cannot open Online and Early voting together: early voting has to start before online voting.",
             },
             eventType: {
                 label: "Type",
@@ -1541,6 +1842,22 @@ const englishTranslation = {
                 START_LOCKDOWN_PERIOD: "Start Lockdown Period",
                 END_LOCKDOWN_PERIOD: "End Lockdown Period",
                 ALLOW_TALLY: "Allow Tally",
+                START_READINESS_TEST: "Start Election Readiness Test",
+                END_READINESS_TEST: "End Election Readiness Test",
+                START_FINAL_TESTING: "Start Final Testing and Lockdown",
+                END_FINAL_TESTING: "End Final Testing and Lockdown",
+                START_TEST_VOTING: "Start Test Voting",
+                END_TEST_VOTING: "End Test Voting",
+            },
+            warning: {
+                votingWindowDays:
+                    "The voting window of {{election}} covers {{days}} local days ({{start_local}} to {{end_local}}, {{time_zone}}); the rule asks for {{expected}}.",
+                finalTestingLeadTime:
+                    "Final testing of {{election}} starts {{final_testing_local}}, less than {{minimum_days}} days before voting opens at {{voting_start_local}} ({{time_zone}}).",
+                closeBeforeOpen:
+                    "Voting at {{election}} closes at or before it opens ({{start_local}} to {{end_local}}, {{time_zone}}).",
+                shortLastDay:
+                    "The last voting day at {{election}} has {{hours}} hours, less than {{minimum_hours}}: voting closes {{end_local}} ({{time_zone}}).",
             },
             election: {
                 label: "Election",
@@ -1777,6 +2094,8 @@ const englishTranslation = {
                         archive: "Are you sure to archive this item?",
                         unarchive: "Are you sure to unarchive this item?",
                         delete: "Are you sure to delete this item?",
+                        sealsUnknown:
+                            "The ballot box seals could not be checked: if it has sealed ballot boxes, the delete is refused.",
                     },
                     notification: {
                         success: {
@@ -1789,6 +2108,12 @@ const englishTranslation = {
                             archive: "Error while trying to archive this item",
                             unarchive: "Error while trying to unarchive this item",
                             delete: "Error while trying to delete this item",
+                            deleteSealedElection:
+                                "This election has sealed ballot boxes and cannot be deleted. Archive its election event instead.",
+                            deleteSealedEvent:
+                                "This election event has sealed ballot boxes and cannot be deleted. Archive it instead.",
+                            deleteMaybeSealed:
+                                "Error while trying to delete this item. If it has sealed ballot boxes, it can't be deleted.",
                         },
                     },
                 },
@@ -1877,6 +2202,7 @@ const englishTranslation = {
                 "warn-only-in-review": "Warn in Review",
                 "warn": "Warn",
                 "warn-and-alert": "Warn and Alert",
+                "warn-and-confirm-in-review": "Warn and Confirm in Review",
             },
             invalidVotePolicy: {
                 "label": "Invalid Vote Policy",
@@ -1959,7 +2285,7 @@ const englishTranslation = {
                 allElections: "All Elections",
                 title: "Create Election Event Key Ceremony",
                 subtitle:
-                    "In the Key Ceremony each trustee will generate and download their fragment of the private key for the Election Event. To proceed, please choose the trustees that will participate in the ceremony and the threshold, which is the minimum number of trustees required to tally.",
+                    "Each trustee generates and keeps their keys locally, then confirms custody for the Election Event. To proceed, please choose the trustees that will participate in the ceremony and the threshold, which is the minimum number of trustees required to tally.",
                 threshold: "Threshold",
                 trusteeList: "Trustees",
                 errorMinTrustees_one:
@@ -1990,7 +2316,7 @@ const englishTranslation = {
                 cancel: "Cancel Key Ceremony",
                 progressHeader: "Key Ceremony Progress",
                 description:
-                    "This screen shows the progress and logs of the Election Event's Key Ceremony. In the Key Ceremony each trustee will generate and download their fragment of the private key for the Election Event.",
+                    "This screen shows the progress and logs of the Election Event's Key Ceremony. Each trustee generates and keeps their key share on their trustee machine, then confirms custody using a signed proof.",
                 executionStatus: "Status: {{status}}",
                 confirmdDialog: {
                     ok: "Yes, Cancel Create Key Ceremony",
@@ -2002,8 +2328,8 @@ const englishTranslation = {
                 header: {
                     trusteeName: "Trustee Name",
                     fragment: "Key Fragment Generated",
-                    downloaded: "Private Key Fragment Downloaded",
-                    checked: "Private Key Fragment Checked",
+                    downloaded: "Custody Request Downloaded",
+                    checked: "Custody Confirmed",
                 },
                 logsHeader: {
                     title: "Logs",
@@ -2016,23 +2342,27 @@ const englishTranslation = {
                 title: "Trustee Key Ceremony",
                 subtitle:
                     "You are about to participate in the Key Ceremony as a Trustee (<strong>{{name}}</strong>). This involves the following steps:",
-                one: "<strong>Download</strong> your Encrypted Private Key.",
-                two: "Create multiple <strong>Backups</strong> of the Encrypted Private Key.",
-                three: "<strong>Check</strong> that the backups works well.",
+                one: "<strong>Download</strong> the public custody request.",
+                two: "Keep secure <strong>Backups</strong> of your local trustee.toml keys file.",
+                three: "Create and upload a signed <strong>custody proof</strong> using your local keys.",
             },
             downloadStep: {
-                title: "Download Encrypted Private Key",
+                title: "Download Custody Request",
                 subtitle:
-                    "To continue, please download and store your Encrypted Private Key at least into two different devices:",
-                downloadButton: "Download your Encrypted Private Key",
-                errorDownloading: "Download error: {{error}}",
+                    "Download this public request. Keep your private trustee keys file on your trustee machine:",
+                downloadButton: "Download Custody Request",
+                downloaded: "Public custody request downloaded successfully.",
                 errorEmptyKey: "Download error, empty file",
+                unexpectedError: "The custody request could not be downloaded. Please try again.",
+                alreadyVerified: "Your trustee custody was already confirmed.",
+                unavailable:
+                    "The custody request is no longer available because the ceremony has moved on.",
                 confirmdDialog: {
                     ok: "Confirm Backups and Continue",
                     cancel: "Go Back",
-                    title: "Backup your Encrypted Private Key",
+                    title: "Back Up Your Local Trustee Keys",
                     description:
-                        "Please backup your Encrypted Private Key in at least two different secure locations and then confirm it below:",
+                        "Back up trustee.toml from your trustee machine in at least two secure locations, then confirm below:",
                     firstCopy: "First backup secured",
                     secondCopy: "Second backup secured",
                     confirmError:
@@ -2040,13 +2370,13 @@ const englishTranslation = {
                 },
             },
             checkStep: {
-                title: "Check your Encrypted Private Key Backups",
+                title: "Confirm Trustee Custody",
+                verifyButton: "Verify Custody Proof",
                 subtitle:
-                    "Upload a Encrypted Private Key Backup to check that it's correct. You can try as many times as needed, from your different backups:",
-                errorUploading: "Invalid Encrypted Private Key Backup, please try again",
+                    "Upload custody-proof.json produced by the native trustee tool. Keep your private trustee.toml file on your machine:",
+                errorUploading: "Invalid custody proof, please try again",
                 errorEmptyFile: "File empty or not found",
-                verified: "Backup verified successfully.",
-                downloaded: "Encrypted Private Key generated successfully.",
+                verified: "Trustee custody confirmed successfully.",
             },
         },
         miruExport: {
@@ -2126,6 +2456,9 @@ const englishTranslation = {
                             confirm: "Send Transmission Package",
                             cancel: "Close",
                         },
+
+                        disabled:
+                            "The required signatures are missing, or the transmission package has already been sent to every destination.",
                     },
                     regenerate: {
                         title: "Regenerate",
@@ -2175,12 +2508,12 @@ const englishTranslation = {
                     },
                 },
                 signatures: {
-                    title: "SBEI Signatures",
+                    title: "Signatures",
                     description:
-                        "SBEIs can sign the Transmission Package. The table below shows the signing status of each of the SBEI members.",
+                        "Members can sign the transmission package. The table shows each member’s signing status.",
                     status: "{{signed}} out of {{total}} Signed, {{minimum}} minimum",
                     table: {
-                        trusteeName: "SBEI id",
+                        trusteeName: "Member",
                         signed: "Has Signed",
                     },
                 },
@@ -2204,6 +2537,37 @@ const englishTranslation = {
             generalInfoTitle: "General Information",
             trusteeTallyTitle: "Trustees",
             trusteeTallySubTitle: "Key fragment import status",
+            ballotBoxes: {
+                unavailable: "Seals unavailable",
+                sealed: "{{sealed}} of {{total}} sealed",
+                publishing: "Sealed, {{published}} of {{total}} on the bulletin board",
+                sealing: "Sealing at {{time}}",
+                notSealed: "Not sealed",
+                help: "An election can be tallied once every ballot box is sealed and its seal is on the bulletin board.",
+                failed: "Not sealed: incident",
+                overdue: "Sealing overdue",
+                blocked: "{{name}}: {{reason}}",
+                reason: {
+                    "not-sealed": "voting hasn't closed, so its ballot boxes have no seals yet",
+                    "sealing": "its ballot boxes are sealed when the grace period ends",
+                    "overdue":
+                        "its ballot boxes are past their deadline and not sealed yet (see its Dashboard)",
+                    "publishing": "some of its seals are still being posted to the bulletin board",
+                    "failed": "a ballot box could not be sealed, an incident (see its Dashboard)",
+                    "unavailable": "its ballot box seals could not be read",
+                },
+            },
+            eligibility: {
+                ballotBoxesUnavailable:
+                    "The ballot boxes' seals of a selected election could not be read, so it can't be tallied yet. Reload the page to try again.",
+                selectElection: "Select at least one election.",
+                publishElection: "Publish each selected election before creating its tally.",
+                tallyDisallowed: "Tallying is disabled for a selected election.",
+                endVoting:
+                    "End voting in each selected election and stop its active voting channels before creating the tally.",
+                sealBallotBoxes:
+                    "An election can be tallied once every ballot box is sealed and its seal is on the bulletin board.",
+            },
             createTallySuccess: "Tally created",
             createTallyError: "Could not create Tally",
             startTallySuccess: "Tally started",
@@ -2264,6 +2628,7 @@ const englishTranslation = {
                 },
             },
             table: {
+                ballotBoxes: "Ballot boxes",
                 elections: "Elections",
                 selected: "Selected",
                 status: "Status",
@@ -2359,6 +2724,15 @@ const englishTranslation = {
             exportAllAreas: "Export All Areas Results in {{format}} format for '{{item}}'",
         },
         publish: {
+            initialization: {
+                countryInfo:
+                    "Generate the report for the entire Post or one country. Voting remains blocked until all required country and event-wide initialization is complete.",
+                countriesError: "Could not load eligible countries. Close and try again.",
+                noCountries:
+                    "This Post has no eligible countries with active ballot styles. Check its areas and publication before initializing.",
+                country: "Country",
+                entirePost: "Entire Post",
+            },
             preview: {
                 publicationAreas: "Select Area for Preview",
                 action: "Preview",
@@ -2406,6 +2780,13 @@ const englishTranslation = {
             forbidden: {
                 header: "Cannot Publish until the Key Ceremony is completed.",
             },
+            skippedElections: {
+                dismiss: "Dismiss",
+                title: "Some elections stay closed",
+                ballotBoxSealPolicy:
+                    "{{name}} stays closed: its voting has closed and Seal at close makes closing final.",
+                other: "{{name}} was left as it was ({{reason}}).",
+            },
             dialog: {
                 title: "Confirm Action",
                 info: "You have clicked on a sensitive action, so we need you to confirm in order to continue",
@@ -2414,6 +2795,18 @@ const englishTranslation = {
                 startInfo:
                     "You are about to start voting period. Are you sure you want to continue?",
                 stopInfo: "You are about to stop voting period. Are you sure you want to continue?",
+                stopSeal:
+                    "You are about to stop voting in {{name}}. Its ballot boxes are then sealed: no ballot can be added, changed or deleted, and voting cannot start again. Are you sure you want to continue?",
+                stopSealEvent:
+                    "You are about to stop voting in every election. Their ballot boxes are then sealed: no ballot can be added, changed or deleted, and voting cannot start again. Are you sure you want to continue?",
+                startSealNote:
+                    "With Seal at close, closed voting stays closed: elections whose voting has closed won't open.",
+                channel: {
+                    ONLINE: "Online",
+                    KIOSK: "Kiosk",
+                    EARLY_VOTING: "Early voting",
+                    TELEPHONE: "Telephone",
+                },
                 kioskStopInfo:
                     "You are about to stop the kiosk voting period. Are you sure you want to continue?",
                 pauseInfo:
@@ -2430,11 +2823,72 @@ const englishTranslation = {
                 diff: "Rendering all changes might make the page unresponsive. Are you sure you want to continue?",
                 confirmation:
                     "The action you are about to perform is sensitive and requires confirmation. Please enter your password to proceed with {{action}}.",
+                stopSealNotYet:
+                    "You are about to stop voting period. {{holding}} Are you sure you want to continue?",
+                sealHolding_one:
+                    "With Seal at close, its ballot boxes are sealed once every enabled channel is closed: {{channels}} is still enabled and not closed.",
+                sealHolding_other:
+                    "With Seal at close, its ballot boxes are sealed once every enabled channel is closed: {{channels}} are still enabled and not closed.",
+                sealNotEnabled:
+                    "{{channel}} isn't closed and isn't enabled for this Post: stop it to seal the ballot boxes.",
+                sealNotEnabledPost:
+                    "In {{post}}, {{channel}} isn't closed and isn't enabled: stop it at that Post to seal its ballot boxes.",
+                sealNoChannel:
+                    "No channel is enabled for this Post and none has run, so its ballot boxes aren't sealed.",
+                stopNeverOpened_one: "{{channels}} never opened: stopping it means it won't open.",
+                stopNeverOpened_other:
+                    "{{channels}} never opened: stopping them means they won't open.",
+                stopSealGrace_one:
+                    "You are about to stop voting in {{name}}. Its ballot boxes are sealed when the grace period ends, {{count}} minute later: from then on no ballot can be added, changed or deleted. Voting cannot start again. Are you sure you want to continue?",
+                stopSealGrace_other:
+                    "You are about to stop voting in {{name}}. Its ballot boxes are sealed when the grace period ends, {{count}} minutes later: from then on no ballot can be added, changed or deleted. Voting cannot start again. Are you sure you want to continue?",
+                stopSealEventGrace_one:
+                    "You are about to stop voting in every election. Their ballot boxes are sealed when each election's grace period ends, up to {{count}} minute later: from then on no ballot can be added, changed or deleted. Voting cannot start again. Are you sure you want to continue?",
+                stopSealEventGrace_other:
+                    "You are about to stop voting in every election. Their ballot boxes are sealed when each election's grace period ends, up to {{count}} minutes later: from then on no ballot can be added, changed or deleted. Voting cannot start again. Are you sure you want to continue?",
+                stopSealEventSome:
+                    "You are about to stop voting in every election. {{sealed}} {{holding}} Are you sure you want to continue?",
+                sealedNowPart:
+                    "The ballot boxes of {{names}} are then sealed: no ballot can be added, changed or deleted, and voting cannot start again there.",
+                sealedGracePart_one:
+                    "The ballot boxes of {{names}} are sealed when their grace period ends, up to {{count}} minute later.",
+                sealedGracePart_other:
+                    "The ballot boxes of {{names}} are sealed when their grace period ends, up to {{count}} minutes later.",
+                holdingEventPart_one:
+                    "{{names}} keeps another channel enabled and not closed: its ballot boxes are sealed once that channel is closed.",
+                holdingEventPart_other:
+                    "{{names}} keep another channel enabled and not closed: their ballot boxes are sealed once those channels are closed.",
+                noChannelEventPart_one:
+                    "{{names}} enables no channel and none has run there: its ballot boxes aren't sealed.",
+                noChannelEventPart_other:
+                    "{{names}} enable no channel and none has run there: their ballot boxes aren't sealed.",
+                startSealNoteList: "With Seal at close, closed voting stays closed: {{items}}.",
+                startKeptChannels_one: "{{post}}: {{channels}} stays closed",
+                startKeptChannels_other: "{{post}}: {{channels}} stay closed",
+                startKeptSealed: "{{post}} stays closed, as its ballot boxes are sealed",
+                startNotEnabledList:
+                    "With Seal at close, a Start opens a channel only at the Posts that enable it: {{items}}.",
+                startNotEnabledChannels_one:
+                    "{{post}}: {{channels}} isn't enabled there and stays Not started",
+                startNotEnabledChannels_other:
+                    "{{post}}: {{channels}} aren't enabled there and stay Not started",
+                stopNeverOpenedPosts_one:
+                    "{{names}} never opened: stopping closes it and seals its empty ballot boxes.",
+                stopNeverOpenedPosts_other:
+                    "{{names}} never opened: stopping closes them and seals their empty ballot boxes.",
             },
             notifications: {
                 generated: "Ballot generated",
                 published: "Ballot published",
                 change_status: "Election status changed",
+            },
+            sealRefusals: {
+                startAgain:
+                    "Voting can't start again: with Seal at close, voting that has closed stays closed and its ballot boxes are sealed.",
+                startDisabled:
+                    "Start Voting isn't available: this election's ballot boxes are sealed or being sealed, and with Seal at close closed voting stays closed.",
+                closedIsFinal:
+                    "Closed voting can't change: with Seal at close, closed voting stays closed.",
             },
         },
         emailEditor: {
@@ -2475,6 +2929,9 @@ const englishTranslation = {
             communicationMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
+                WHATSAPP: "WhatsApp",
+                VIBER: "Viber",
+                MESSENGER: "Facebook Messenger",
             },
             communicationType: {
                 CREDENTIALS: "Credentials",
@@ -2666,6 +3123,9 @@ const englishTranslation = {
                 email: "Email",
                 sms: "SMS",
                 document: "Document",
+                whatsapp: "WhatsApp",
+                viber: "Viber",
+                messenger: "Facebook Messenger",
             },
             import: {
                 title: "Import Templates",
@@ -2675,6 +3135,23 @@ const englishTranslation = {
             },
         },
         materials: {
+            audioInstructions: {
+                screenLabel: "Audio instructions for screen",
+                languageLabel: "Language of the recording",
+                none: "Not audio instructions",
+                helperText:
+                    "Voters hear this file when they ask for the instructions on that screen.",
+                screens: {
+                    "election-chooser": "Election list",
+                    "start": "Start",
+                    "ballot": "Ballot",
+                    "review": "Review",
+                    "confirmation": "Confirmation",
+                    "audit": "Audit",
+                    "ballot-locator": "Ballot locator",
+                    "support-materials": "Support materials",
+                },
+            },
             createMaterialSuccess: "Support material created",
             createMaterialError: "Error creating support material",
             updateMaterialSuccess: "Support material updated",
@@ -2745,44 +3222,906 @@ const englishTranslation = {
         approvalsScreen: {
             column: {
                 status: "Status",
-                id: "ID",
+                id: "Application ID",
                 applicantId: "Applicant ID",
-                verificationType: "Verification Type",
-                createdAt: "Created At",
-                updatedAt: "Updated At",
-                verified_by: "Verified By",
+                verificationType: "Verification",
+                createdAt: "Applied",
+                verified_by: "Verified by",
+                voter: "Voter",
+                what: "What happened",
+                post: "Post",
+                when: "When",
             },
-            approvalRequest: "Approval Request",
-            title: "Voters",
-            subtitle: "Find matching voters",
-            approve: {
-                body: "Are you sure you want to approve this voter? This action is not reversible.",
+            status: {
+                PENDING: "Needs review",
+                ACCEPTED: "Approved",
+                REJECTED: "Rejected",
             },
-            reject: {
-                label: "Reject Application",
-                confirm:
-                    "Are you sure you want to reject this voter? This action is not reversible.",
-                rejectReason: "Rejection Reason",
-                message: "Write here the disapproval reason",
-                messageRequired: "A rejection message is required for the 'Other' option.",
-                reasons: {
-                    "undefined": "-",
-                    "insufficient-information": "Missing Data",
-                    "no-matching-voter": "No Matching Voter",
-                    "voter-already-approved": "Already Approved",
-                    "other": "Other",
+            verification: {
+                AUTOMATIC: "Automatic",
+                MANUAL: "Manual",
+            },
+            time: {
+                minutes_one: "{{count}} minute",
+                minutes_other: "{{count}} minutes",
+                hours_one: "{{count}} hour",
+                hours_other: "{{count}} hours",
+                days_one: "{{count}} day",
+                days_other: "{{count}} days",
+            },
+            summary: {
+                join: "{{head}} and {{last}}",
+                differs_one: "{{fields}} differs from the registry",
+                differs_other: "{{fields}} differ from the registry",
+                typedByHand: "Details typed by hand, not read from an ID scan",
+                needsFaceToFace: "Needs a face-to-face check",
+                scanVerified: "ID scan verified",
+                noVoter: "No voter found in the registry",
+                allMatch: "All details match the registry",
+                needsReview: "Waiting for a person to decide",
+                approvedBy: "Approved by {{name}}",
+                approvedAuto: "Approved automatically",
+                rejectedBy: "Rejected by {{name}}",
+                rejectedAuto: "Rejected automatically",
+            },
+            list: {
+                title: "Approvals",
+                subtitle: "Enrollments the rules can't decide on their own wait here for a person.",
+                search: "Search",
+                review: "Review enrollment",
+                openRecord: "Open enrollment",
+                seeRule: "See the rule that decided",
+                unnamed: "Unnamed applicant",
+                waiting: "Waiting {{time}}",
+                applied: "Applied {{date}}",
+                empty: {
+                    title: "Nothing here",
+                    text: "Enrollments with this status will appear here. Try another search or status.",
                 },
             },
+            flow: {
+                stepsLabel: "Review steps",
+                steps: {
+                    identity: "Check the identity",
+                    voter: "Find the voter",
+                    decide: "Decide",
+                },
+                continue: "Continue",
+                backToList: "Back to Approvals",
+                identity: {
+                    details: "Details on the enrollment",
+                    confirm:
+                        "I checked the voter's ID in person or by video call, and it matches this enrollment.",
+                    checked: "Face-to-face check confirmed",
+                    notChecked: "Face-to-face check not confirmed yet",
+                },
+                voter: {
+                    none: "None of these is the voter",
+                    noneHint: "The enrollment can then only be rejected, for no matching voter.",
+                    noneChosen: "None of these is the voter",
+                    notChosen: "No voter chosen yet",
+                },
+                decide: {
+                    approve: "Approve",
+                    reject: "Reject",
+                    approveText:
+                        "Link this enrollment to {{voter}} in the registry. The voter is told by email or text message and can sign in to vote when voting opens.",
+                    rejectText: "The voter is told why. This can't be undone.",
+                    chooseVoter: "Choose the matching voter in step 2 to approve.",
+                    noVoter:
+                        "You found no matching voter, so this enrollment can only be rejected.",
+                    enrolled: "The chosen voter is already enrolled.",
+                    faceToFace: "Confirm the face-to-face check in step 1 to approve.",
+                },
+            },
+            review: {
+                loadError: "The enrollment could not be loaded.",
+                applied: "Applied {{date}}",
+                waiting: "Waiting {{time}}",
+                whyTitle: "Why this needs a person",
+                decisionTitle: "How this was decided",
+                rule: "Rule {{rule}} of matrix version {{version}}",
+                ruleLast: "Last rule of matrix version {{version}}",
+                seeRule: "See the rule",
+                why: {
+                    typedByHand:
+                        "The voter typed their details by hand instead of scanning an ID. Enrollments like this are never approved automatically: an officer confirms who they are first.",
+                    differs_one:
+                        "One detail doesn't match the registry: {{details}}. The approval rules ask a person to check this enrollment.",
+                    differs_other:
+                        "{{count}} details don't match the registry: {{details}}. The approval rules ask a person to check this enrollment.",
+                    differsFields_one:
+                        "One detail doesn't match the registry: the {{fields}}. The approval rules ask a person to check this enrollment.",
+                    differsFields_other:
+                        "{{count}} details don't match the registry: the {{fields}}. The approval rules ask a person to check this enrollment.",
+                    difference:
+                        "the {{field}} is “{{enrollment}}” on the enrollment and “{{registry}}” in the registry",
+                    noVoter:
+                        "No voter in the registry has these details. The approval rules ask a person to check this enrollment.",
+                    severalVoters:
+                        "More than one voter in the registry fits this enrollment. A person chooses the right one.",
+                    pending: "The approval rules ask a person to check this enrollment.",
+                    unknown: "This enrollment is waiting for a person to decide.",
+                    approvedAuto:
+                        "The approval rules approved this enrollment automatically. Every check they require passed.",
+                    approvedBy: "{{name}} approved this enrollment on {{date}}.",
+                    rejectedAuto:
+                        "The approval rules rejected this enrollment automatically: {{reason}}.",
+                    rejectedBy: "{{name}} rejected this enrollment on {{date}}: {{reason}}.",
+                },
+                registryHelp:
+                    "We looked for voters with the same {{fields}}. Choose the one this enrollment belongs to.",
+                registrySearching:
+                    "These are the voters in the registry that match your search. Choose the one this enrollment belongs to.",
+                registrySearch: "Not in the list? Search the registry by name or email",
+                registryLoading: "Looking in the registry",
+                registryError: "The registry could not be searched.",
+                noCandidates: "No voter in the registry matches. Try searching by name or email.",
+                candidates: "Voters in the registry",
+                alreadyEnrolled: "Already enrolled",
+                bestMatch: "Best match",
+                detailsMatch: "{{count}} of {{total}} details match",
+                compareTitle: "Compared with {{name}} in the registry",
+                col: {
+                    detail: "Detail",
+                    enrollment: "On the enrollment",
+                    registry: "In the registry",
+                    result: "Result",
+                },
+                same: "Same",
+                differs: "Different",
+                compareNote: "Names ignore capital letters, accents and hyphens.",
+                compareJoint:
+                    "For driver's licenses and seafarer's books, first and middle name are compared together.",
+                applicationId: "Application ID",
+                copy: "Copy",
+                copied: "Copied",
+                approve: "Approve enrollment",
+                approveDialog: {
+                    title: "Approve {{name}}?",
+                    body: "This links the enrollment to the registry voter below. The voter is told by email or text message and can sign in to vote when voting opens.",
+                    checked: "You checked the voter's ID face to face.",
+                    irreversible: "This can't be undone.",
+                    confirm: "Approve",
+                },
+                reject: "Reject enrollment",
+            },
+            idCheck: {
+                title: "ID check",
+                method: {
+                    VERIFIED: "ID scan verified",
+                    MANUAL_ENTRY: "Typed by hand",
+                    UNKNOWN: "Not reported",
+                },
+                verified: "The enrollment flow verified the voter's ID",
+                typedByHand: "The voter typed their details by hand",
+                unknown: "The enrollment flow didn't report how the identity was checked",
+                faceToFaceTitle: "Check them face to face before approving",
+                faceToFaceText:
+                    "Meet the voter in person or by video call and compare their ID with the details on this page.",
+            },
+            reject: {
+                rejectReason: "Reason for rejecting",
+                message: "Message to the voter",
+                messageRequired: "Write a message for the voter when the reason is Other.",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Missing data",
+                    "no-matching-voter": "No matching voter",
+                    "voter-already-approved": "Already approved",
+                    "other": "Other",
+                },
+                hint: {
+                    "insufficient-information": "Details are missing or can't be read.",
+                    "no-matching-voter": "The person isn't in the voter registry.",
+                    "voter-already-approved": "This voter is already enrolled.",
+                    "other": "Write your own message.",
+                },
+                preview: {
+                    "insufficient-information":
+                        "We couldn't enroll you because some of your details are missing or can't be read. Please enroll again with complete details.",
+                    "no-matching-voter":
+                        "We couldn't find a voter in the registry that matches your details. Check your details and enroll again, or contact your election office.",
+                    "voter-already-approved":
+                        "You are already enrolled. You can sign in to vote when voting opens.",
+                },
+                previewTitle: "The voter will see",
+            },
             notifications: {
-                approveError: "Error approving voter",
-                approveSuccess: "Voter approved",
-                rejectError: "Error rejecting voter",
-                rejectSuccess: "Voter rejected",
-                VoterApprovedAlready: "Voter is already approved.",
+                approveError: "The enrollment could not be approved",
+                approveSuccess: "{{name}} approved. The voter has been told.",
+                rejectError: "The enrollment could not be rejected",
+                rejectSuccess: "{{name}} rejected. The voter has been told.",
+                VoterApprovedAlready: "This voter is already enrolled.",
             },
             export: {
                 success: "Applications export finished successfully",
                 error: "Error exporting applications",
+            },
+            matrix: {
+                button: "Approval matrix",
+                title: "Approval matrix",
+                back: "Approvals",
+                subtitle:
+                    "Rules decide what happens to each enrollment. The first rule that fits decides.",
+                versionChip: "Version {{version}}",
+                savedBy: "Saved {{date}} by {{user}}",
+                builtIn: "Built-in rules, used until a version is saved",
+                unsaved: "Unsaved changes",
+                viewOnly: "View only",
+                readOnlyTitle: "You can see the rules but not change them",
+                readOnlyText:
+                    "Ask an administrator who has the approval-matrix-write permission to make changes.",
+                loadError: "The approval matrix could not be loaded.",
+                compared: "What we compare",
+                comparedHelp:
+                    "Each enrollment is compared with the voter found in the registry. Names ignore capital letters, accents and hyphens; for driver's licenses and seafarer's books, first and middle name are compared together.",
+                addCompared: "Compare another detail",
+                rules: "Rules",
+                rulesHelp:
+                    "Rules are checked from the top. The first one that fits decides; if none fits, the last rule applies.",
+                when: "When",
+                then: "Then",
+                otherwise: "Otherwise",
+                noneApply: "None of the rules above apply",
+                andWord: "and",
+                and: " and ",
+                appliesToExample: "Applies to your example",
+                cameFrom: "Decided the enrollment you came from",
+                voterIsTold: "The voter is told: “{{reason}}”.",
+                sentence: "When {{when}}, {{outcome}}.",
+                sentenceOtherwise: "If none of the rules above apply, {{outcome}}.",
+                sentenceEmpty: "Add a condition to say when this rule applies.",
+                addRule: "Add rule",
+                discard: "Discard changes",
+                actions: {
+                    edit: "Edit rule {{number}}",
+                    editOtherwise: "Edit the last rule",
+                    moveUp: "Move rule {{number}} up",
+                    moveDown: "Move rule {{number}} down",
+                    delete: "Delete rule {{number}}",
+                },
+                saveBar: {
+                    title: "You have unsaved changes",
+                    fix_one: "Fix 1 rule before saving",
+                    fix_other: "Fix {{count}} rules before saving",
+                    more: "+{{count}} more",
+                },
+                test: "Try an example",
+                testHelp:
+                    "Describe an enrollment to see which rule decides it. Your unsaved changes count.",
+                testDetails: "Details compared",
+                applies: "Rule {{number}} applies",
+                otherwiseApplies: "The last rule applies",
+                testError: "The example could not be tried.",
+                testInvalid: "Fix these rules to try an example:",
+                ruleError: "Rule {{number}}: {{error}}",
+                invariants: {
+                    MANUAL_ENTRY_NOT_ACCEPTED:
+                        "A typed identity is never approved automatically, so this goes to a person.",
+                    ALREADY_ENROLLED_NOT_ACCEPTED:
+                        "A voter who is already enrolled is never approved again.",
+                    NO_VOTER_NOT_ACCEPTED: "Nobody is approved without a voter in the registry.",
+                    OTHERWISE_NOT_ACCEPTED: "The last rule never approves.",
+                },
+                dialog: {
+                    editTitle: "Edit rule {{number}}",
+                    newTitle: "New rule",
+                    otherwiseTitle: "Edit the last rule",
+                    summary: "In short",
+                    whenHelp:
+                        "All of these must be true. Leave a condition out when it doesn't matter.",
+                    otherwiseHelp: "If none of the rules above apply",
+                    addCondition: "Add condition",
+                    remove: "Remove “{{condition}}”",
+                    identity: "Identity check",
+                    voterFound: "Voter in the registry",
+                    alreadyEnrolled: "Already enrolled",
+                    validId: "ID type",
+                    differing: "Details that differ",
+                    decision: "Decision",
+                    reason: "What the voter is told",
+                    voterSees: "The voter sees",
+                    apply: "Apply",
+                    close: "Close",
+                    yes: "Yes",
+                    no: "No",
+                    notReported: "Not reported",
+                },
+                identity: {
+                    VERIFIED: "Verified by ID scan",
+                    MANUAL_ENTRY: "Typed by hand",
+                },
+                differing: {
+                    none: "None",
+                    exactly_1: "Exactly 1",
+                    at_most_1: "At most 1",
+                    exactly_2: "Exactly 2",
+                    at_most_2: "At most 2",
+                    at_least_3: "3 or more",
+                },
+                fieldMatch: {
+                    MATCHES: "Same",
+                    DIFFERS: "Different",
+                },
+                decisions: {
+                    ACCEPTED: "Approve automatically",
+                    PENDING: "Send to a person",
+                    REJECTED: "Reject",
+                },
+                outcomeShort: {
+                    ACCEPTED: "approve automatically",
+                    PENDING: "send to a person",
+                    REJECTED: "reject",
+                },
+                outcomeHelp: {
+                    ACCEPTED: "The voter is enrolled without anyone looking at it.",
+                    PENDING:
+                        "An officer decides, and the voter is told the enrollment is under review.",
+                    REJECTED: "The voter is told why, and can enroll again.",
+                },
+                outcomeSentence: {
+                    ACCEPTED: "approve the enrollment automatically",
+                    PENDING: "send the enrollment to a person",
+                    REJECTED: "reject the enrollment",
+                },
+                reasons: {
+                    NO_VOTER: "No matching voter",
+                    ALREADY_APPROVED: "Already approved",
+                    INSUFFICIENT_INFORMATION: "Missing data",
+                    IDENTITY_NOT_VERIFIED: "Identity not verified",
+                    OTHER: "Other",
+                },
+                voterText: {
+                    NO_VOTER:
+                        "We couldn't find a voter in the registry that matches your details. Check your details and enroll again, or contact your election office.",
+                    ALREADY_APPROVED:
+                        "You are already enrolled. You can sign in to vote when voting opens.",
+                    INSUFFICIENT_INFORMATION:
+                        "We couldn't enroll you because some of your details are missing or can't be read. Please enroll again with complete details.",
+                    IDENTITY_NOT_VERIFIED:
+                        "We could not verify your identity automatically, so an election officer will review your enrollment.",
+                    OTHER: "An election officer writes this message when they decide.",
+                },
+                conditions: {
+                    any: "No conditions yet",
+                    identity: {
+                        VERIFIED: "Identity verified by ID scan",
+                        MANUAL_ENTRY: "Identity typed by hand",
+                    },
+                    voterFound: {
+                        true: "Voter found in the registry",
+                        false: "No voter found in the registry",
+                    },
+                    alreadyEnrolled: {
+                        true: "Already enrolled",
+                        false: "Not enrolled yet",
+                    },
+                    validId: "ID: {{id}}",
+                    differing: {
+                        none: "All details match",
+                        exactly_1: "Exactly 1 detail differs",
+                        at_most_1: "At most 1 detail differs",
+                        exactly_2: "Exactly 2 details differ",
+                        at_most_2: "At most 2 details differ",
+                        at_least_3: "3 or more details differ",
+                    },
+                    field: {
+                        MATCHES: "{{field}} matches",
+                        DIFFERS: "{{field}} differs",
+                    },
+                },
+                errors: {
+                    ACCEPTS_MANUAL_ENTRY:
+                        "Enrollments whose identity was typed by hand can't be approved automatically.",
+                    ACCEPTS_ALREADY_ENROLLED:
+                        "A voter who is already enrolled can't be approved again.",
+                    ACCEPTS_WITHOUT_VOTER:
+                        "An enrollment can't be approved without a voter in the registry.",
+                    OTHERWISE_ACCEPTS:
+                        "The last rule can send enrollments to a person or reject them, but not approve them.",
+                    MISSING_REASON: "Choose what the voter is told.",
+                    UNEXPECTED_REASON: "An approval has no reason.",
+                    NO_COMPARED_FIELDS: "Choose at least one detail to compare with the registry.",
+                    DUPLICATE_COMPARED_FIELD: "A compared detail is repeated.",
+                    UNKNOWN_FIELD: "A rule uses a detail that is not compared.",
+                    NO_CONDITIONS:
+                        "Add at least one condition. Only the last rule applies to everything else.",
+                },
+                change: {
+                    added: "Rule {{number}} added",
+                    decision: "Rule {{number}}: {{from}} → {{to}}",
+                    edited: "Rule {{number}} changed",
+                    removed: "A rule was removed ({{text}})",
+                    moved: "Rules were reordered",
+                    otherwise: "The last rule changed",
+                    compared: "The details compared changed",
+                },
+                save: {
+                    button: "Save as version {{version}}",
+                    title: "Save as version {{version}}?",
+                    body: "New enrollments are decided with these rules from now on. Enrollments already decided keep their decision.",
+                    changes: "What changed",
+                    log: "The new version is recorded in the electoral log.",
+                    confirm: "Save version {{version}}",
+                    success: "Saved as version {{version}}",
+                    error: "The approval matrix could not be saved",
+                },
+            },
+        },
+        monitoring: {
+            title: "Monitoring",
+            loading: "Loading monitoring",
+            unavailableAlert:
+                "Monitoring dashboards could not be loaded, so the standard dashboard is shown.",
+            noDashboards: "This event has no monitoring dashboards.",
+            dashboardFailed: "The monitoring dashboard could not be loaded.",
+            dashboardInvalid: "This dashboard cannot be shown: {{problem}}",
+            retry: "Retry",
+            errors: {
+                busy: "The server is busy. It is tried again in a few seconds.",
+                forbiddenScope: "You may not see this region, Post or country. Choose another one.",
+                snapshotPruned:
+                    "The update shown is no longer kept. The dashboard now shows the latest update: export again to use it.",
+                checksUnavailable: "The chart service is not available right now. Try again later.",
+                lockedDown: "The election event is locked down, so this cannot be changed.",
+                notFound: "This dashboard or widget is no longer configured. Reload the page.",
+                badRequest: "The request was not accepted. Reload the page and try again.",
+                conflict: "Someone else saved a change first. Reload and try again.",
+                invalid: "Some of the export's values are not accepted.",
+                unknown: "Something went wrong. Try again later.",
+            },
+            header: {
+                dashboard: "Dashboard",
+                updated: "Updated {{time}} ({{timeZone}})",
+                notUpdated: "Not counted yet",
+                refresh: "every {{seconds}} s",
+                export: "Export",
+                editDashboard: "Edit dashboard",
+                preset: "Dashboard preset",
+                reload: "Check for new figures",
+            },
+            footer: {
+                dataThrough: "Data through {{time}} ({{timeZone}})",
+            },
+            selectors: {
+                region: "Region",
+                post: "Post",
+                country: "Country",
+                allRegions: "All regions",
+                allPosts: "All Posts",
+                allAuthorizedPosts: "All authorized Posts",
+                allCountries: "All countries",
+                authorizedOnly: "{{all}} (authorized)",
+            },
+            widget: {
+                menu: "Actions for {{widget}}",
+                configure: "Configure widget",
+                viewData: "View data",
+                export: "Export",
+                duplicate: "Duplicate",
+                loading: "Loading {{widget}}",
+                missing: "The dashboard names a widget that does not exist: {{id}}",
+                updating: "Updating {{widget}}",
+                updatingNote: "Updating: the chart shown is the previous one.",
+            },
+            frame: {
+                title: "{{widget}} chart",
+            },
+            sources: {
+                voter_turnout: "Voter turnout",
+                test_voting: "Test voting",
+                enrollment_decisions: "Enrollment decisions",
+                voting_credentials: "Voting credentials",
+                poll_status: "Poll status",
+                final_testing_lockdown: "Final testing and lockdown",
+                counting_transmission: "Counting and transmission",
+                voting_enrollment_activity: "Voting and enrollment activity",
+                access_security: "Access and security",
+                attack_detections: "Attack detections",
+                helpdesk: "Helpdesk",
+            },
+            reasons: {
+                TEST_ELECTION_DESIGNATION: "test elections cannot be marked yet",
+                CREDENTIAL_ISSUED_EVENT: "issuing credentials is not recorded yet",
+                FINAL_TESTING_LOCKDOWN_STATE: "final testing and lockdown are not recorded yet",
+                ATTACK_DETECTION_FEED: "no attack detection feed is connected",
+                HELPDESK_INTEGRATION: "no helpdesk system is connected",
+            },
+            notices: {
+                UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY:
+                    "Attempts by unregistered usernames belong to no Post, so they are counted for the whole event only.",
+                UNREGISTERED_ATTEMPTS_EXCLUDED:
+                    "These figures leave out attempts by unregistered usernames; they are counted for the whole event.",
+                CREDENTIALS_ISSUED_WHEN_PASSWORD_SET:
+                    "Credentials count as issued when the voter's password is set, until the platform records their issue.",
+                CONFIG_NEWER_THAN_SNAPSHOT:
+                    "Drawn with the latest settings; the figures are counted with them in the next pass.",
+                CONFIG_AT_SNAPSHOT_UNAVAILABLE:
+                    "Drawn with the current settings: those the figures were counted under are no longer kept.",
+            },
+            unavailable: {
+                notConnected: "Not connected · {{reason}}",
+                notConnectedHelp: "Nothing is shown until it is.",
+                unknownReason: "data source not available",
+                noSnapshot: "Not counted yet",
+                noSnapshotHelp: "The first count has not finished. This widget updates on its own.",
+                scopePending: "Counting this selection",
+                scopePendingHelp:
+                    "This selection is counted in the next pass, within about a minute.",
+                settingsPending: "Counting with the new settings…",
+                settingsPendingHelp:
+                    "The figures are counted again with the saved settings, within about a minute.",
+                renderFailed: "The chart could not be drawn",
+                renderFailedHelp: "The figures are shown instead.",
+                invalid: "This widget cannot be shown",
+                invalidHelp: "Its configuration has a problem.",
+                requestFailed: "This widget could not be loaded",
+                requestFailedHelp: "It is tried again when the dashboard updates.",
+            },
+            dataTable: {
+                title: "{{widget}} · data",
+                close: "Close",
+                empty: "No rows",
+                rowsPerPage: "Rows per page:",
+                shownRows: "{{from}}–{{to}} of {{total}}",
+                firstPage: "First page",
+                previousPage: "Previous page",
+                nextPage: "Next page",
+                lastPage: "Last page",
+            },
+            columns: {
+                numerator: "Numerator",
+                denominator: "Denominator",
+                pct: "Percentage",
+                pct_label: "Percentage as shown",
+                group: "Group",
+                group_key: "Group key",
+                post: "Post",
+                post_id: "Post ID",
+                region: "Region",
+                country: "Country",
+                reason: "Reason",
+                category: "Category",
+                state: "State",
+                state_label: "State as shown",
+                bucket_start: "Period start",
+                bucket_label: "Period",
+                bucket_utc: "Period start (UTC)",
+                measure: "Measure",
+                label: "Label",
+                value: "Value",
+            },
+            measures: {
+                registered: "Registered",
+                pre_enrolled: "Pre-enrolled",
+                credentials_issued: "Credentials issued",
+                test_voted: "Test voted",
+                voted: "Voted",
+                voted_pre_enrolled: "Pre-enrolled and voted",
+                applications: "Applications",
+                pending: "Pending",
+                approved: "Approved",
+                disapproved: "Disapproved",
+                posts: "Posts",
+                initialized: "Initialized",
+                opened: "Opened",
+                paused: "Paused",
+                closed: "Closed",
+                tested: "Tested",
+                locked_down: "Locked down",
+                tallied: "Tallied",
+                transmitted: "Transmitted",
+                transmission_failed: "Transmission failed",
+                logins: "Logins",
+                login_failures: "Login failures",
+                login_failures_valid_user: "Failed, valid user",
+                login_failures_unregistered: "Failed, unregistered user",
+                password_resets: "Password resets",
+                password_reset_requests: "Password reset requests",
+                detections: "Detections",
+                issues: "Issues",
+                pending_issues: "Pending issues",
+            },
+            export: {
+                title: "Export monitoring data",
+                format: "Format",
+                csv: "CSV",
+                sql: "SQL",
+                from: "From",
+                to: "To",
+                timeZoneHelp:
+                    "Times are in {{timeZone}}. Totals, statuses and groups are as of the shown update; only the rows of activity series are limited to the range, from the start time up to, but not including, the end time.",
+                cancel: "Cancel",
+                export: "Export",
+                invalidRange: "The end must be after the start.",
+                problems: {
+                    unknownSelector:
+                        "{{widget}} no longer has the choice “{{selector}}”. Reload the dashboard and export again.",
+                    unknownOption:
+                        "The value chosen for “{{selector}}” in {{widget}} is no longer offered. Choose it again and export.",
+                },
+            },
+            editor: {
+                scopeSelector: {
+                    region: "Region",
+                    post: "Post",
+                    country: "Country",
+                },
+                sources: {
+                    voter_turnout: "Voter turnout",
+                    test_voting: "Test voting",
+                    enrollment_decisions: "Enrollment decisions",
+                    voting_credentials: "Voting credentials",
+                    poll_status: "Poll status",
+                    final_testing_lockdown: "Final testing and lockdown",
+                    counting_transmission: "Counting and transmission",
+                    voting_enrollment_activity: "Voting and enrollment activity",
+                    access_security: "Access and security",
+                    attack_detections: "Attack detections",
+                    helpdesk: "Helpdesk",
+                },
+                templates: {
+                    summary: "Summary",
+                    by_group: "By group",
+                    by_post: "By Post",
+                    timeseries: "Over time",
+                    by_measure: "By measure",
+                },
+                yaml: {
+                    label: "YAML",
+                    readOnly:
+                        "The YAML has a syntax error. Fix it in the YAML tab to use the forms again.",
+                },
+                diagnostics: {
+                    title: "Checks",
+                    none: "No problems found",
+                    localUnavailable:
+                        "Checks in the browser are unavailable; problems appear after the preview or Validate.",
+                    line: "Line {{line}}",
+                    engineCode: "dbt Charts {{code}}",
+                    severity: {
+                        ERROR: "Error",
+                        WARNING: "Warning",
+                    },
+                    origin: {
+                        SYNTAX: "YAML syntax",
+                        LOCAL: "Browser check",
+                        SERVER: "Server check",
+                    },
+                },
+                footer: {
+                    preview: "Preview",
+                    valid: "Valid",
+                    errors_one: "{{count}} error",
+                    errors_other: "{{count}} errors",
+                    noWarnings: "no chart warnings",
+                    warnings_one: "{{count}} chart warning",
+                    warnings_other: "{{count}} chart warnings",
+                    rendering: "Rendering…",
+                    previewFailed: "preview failed",
+                    renderedIn: "rendered in {{ms}} ms",
+                    revision: "Revision {{revision}}",
+                    savedBy: "saved {{date}} by {{user}}",
+                    unknownUser: "an administrator",
+                    notSaved: "not saved yet",
+                    unsaved: "unsaved changes",
+                    cancel: "Cancel",
+                    validate: "Validate",
+                },
+                preview: {
+                    title: "Preview",
+                    empty: "The preview appears once the YAML is valid.",
+                    failed: "The preview could not be rendered: {{reason}}",
+                    notConnectedTail: "Nothing is shown until it is.",
+                    queryResult: "Query result · first rows",
+                    noRows: "The query returned no rows.",
+                    state: {
+                        RENDERED: "Rendered",
+                        NOT_CONNECTED: "Not connected",
+                        NO_SNAPSHOT: "No data yet",
+                        SCOPE_PENDING: "This scope is being counted",
+                        RENDER_FAILED: "The chart could not be drawn",
+                        INVALID: "The configuration is invalid",
+                    },
+                },
+                configureWidget: {
+                    title: "Configure widget",
+                    tabs: {
+                        dataQuery: "Data & query",
+                        selectors: "Selectors",
+                        yaml: "YAML",
+                        preview: "Preview",
+                    },
+                    save: "Save widget",
+                    loading: "Loading the widget…",
+                    loadFailed: "The widget could not be loaded: {{reason}}",
+                    saved: "Widget saved as revision {{revision}}",
+                    refused: "The widget was not saved: fix the problems listed.",
+                    validated: "The widget is valid.",
+                    invalid: "The widget has problems: see the checks.",
+                    requestFailed: "The request failed: {{reason}}",
+                    discardTitle: "Discard changes?",
+                    discardBody: "Your changes to this widget have not been saved.",
+                    discard: "Discard",
+                    keepEditing: "Keep editing",
+                },
+                dataQuery: {
+                    title: "Title",
+                    source: "Data source",
+                    template: "Query",
+                    measures: "Measures",
+                    ratio: "Numerator / denominator",
+                    numerator: "Numerator",
+                    denominator: "Denominator",
+                    groupBy: "Group by",
+                    sort: "Sort",
+                    sortOrder: "Order",
+                    templateOrder: "The query's own order",
+                    sortBy: {
+                        label: "Label",
+                        value: "Value",
+                        ratio: "Ratio",
+                    },
+                    order: {
+                        asc: "Ascending",
+                        desc: "Descending",
+                    },
+                    limit: "Rows",
+                    noLimit: "All",
+                    none: "None",
+                    fromSelector: "From selector: {{name}}",
+                    follow: "Follow dashboard selectors",
+                    followHelp: "A selector left unticked does not narrow this widget.",
+                    manyQueries: "This widget has several queries; edit them in the YAML tab.",
+                    notConnected: "Not connected · {{reason}}",
+                    sourceHelp: {
+                        DISTINCT_VOTERS:
+                            "Counts distinct voters; counting rules are fixed by the data source.",
+                        DISTINCT_PRE_ENROLLED_VOTERS:
+                            "Counts distinct pre-enrolled voters; counting rules are fixed by the data source.",
+                        LATEST_DECISION_PER_VOTER:
+                            "Counts the latest decision per voter; counting rules are fixed by the data source.",
+                        APPROVED_VOTERS:
+                            "Counts approved voters; counting rules are fixed by the data source.",
+                        POSTS_IN_SCOPE:
+                            "Counts the Posts in scope; counting rules are fixed by the data source.",
+                        FIRST_EVENT_PER_VOTER:
+                            "Counts each voter's first valid vote or approval; counting rules are fixed by the data source.",
+                        ATTEMPTS:
+                            "Counts attempts, not people; counting rules are fixed by the data source.",
+                        DETECTIONS:
+                            "Counts detections; counting rules are fixed by the data source.",
+                        REPORTED_ISSUES:
+                            "Counts reported issues; counting rules are fixed by the data source.",
+                        default: "Counting rules are fixed by the data source.",
+                    },
+                },
+                selectors: {
+                    help: "Selectors appear in the widget header. Their values feed the query; dashboard selectors (Region, Post, Country) apply to every widget.",
+                    name: "Name",
+                    label: "Label",
+                    control: "Control",
+                    controls: {
+                        dropdown: "Dropdown",
+                        toggle: "Toggle",
+                    },
+                    default: "Default",
+                    optionValue: "Value",
+                    optionLabel: "Option label",
+                    addOption: "Add option",
+                    addSelector: "Add selector",
+                    removeOption: "Remove option {{option}}",
+                    removeSelector: "Remove selector {{name}}",
+                    moveUp: "Move {{name}} up",
+                    moveDown: "Move {{name}} down",
+                    dynamic: "Options come from the data ({{source}}).",
+                    none: "This widget has no selectors.",
+                    newLabel: "New selector",
+                    newOption: "New option",
+                    shownWhen: "Shown when {{selector}} is {{values}}",
+                },
+                conflict: {
+                    title: "Someone saved first",
+                    body: "{{user}} saved revision {{revision}} ({{date}}) while you were editing.",
+                    bodyShort: "Revision {{revision}} was saved while you were editing.",
+                    saved: "Saved revision",
+                    mine: "My changes",
+                    reload: "Reload",
+                    copy: "Copy my YAML",
+                    copied: "Your YAML is on the clipboard.",
+                    copyFailed:
+                        "The clipboard is unavailable; select the YAML and copy it by hand.",
+                    keepEditing: "Keep editing",
+                    removed:
+                        "The document was removed while you were editing. Keep editing to save it again.",
+                },
+                dashboard: {
+                    editing: "Editing dashboard",
+                    title: "Title",
+                    selectors: "Dashboard selectors",
+                    theme: "Theme",
+                    editTheme: "Edit theme",
+                    addWidget: "Add widget",
+                    cancel: "Cancel",
+                    save: "Save dashboard",
+                    width: "Width",
+                    widthValue: "{{n}} of 12",
+                    moveUp: "Move up",
+                    moveDown: "Move down",
+                    remove: "Remove",
+                    duplicate: "Duplicate",
+                    configure: "Configure widget",
+                    empty: "This dashboard has no widgets yet.",
+                    saved: "Dashboard saved as revision {{revision}}",
+                    refused: "The dashboard was not saved: fix the problems listed.",
+                    requestFailed: "The request failed: {{reason}}",
+                    dragHandle: "Drag to reorder {{title}}",
+                    widgets: "Widgets",
+                    duplicated: "Duplicated as {{id}}",
+                    resetToPreset: "Reset to preset",
+                    actions: "Actions for {{title}}",
+                    discardBody: "Your changes to this dashboard have not been saved.",
+                    duplicateInvalid: "The copy was not saved: {{problem}}",
+                    layoutMalformed:
+                        "Some layout items are not a widget with a width. Fix them in the YAML tab to reorder the widgets.",
+                },
+                catalog: {
+                    title: "Add widget",
+                    search: "Search widgets, data sources or requirements",
+                    add: "Add",
+                    empty: "No widget matches.",
+                    onDashboard: "On this dashboard",
+                    close: "Close",
+                },
+                theme: {
+                    title: "Dashboard theme",
+                    subtitle: "dbt Charts style applied to every widget on this dashboard",
+                    appliesTo_one: "applies to {{count}} widget",
+                    appliesTo_other: "applies to {{count}} widgets",
+                    apply: "Apply theme",
+                    saved: "Theme saved as revision {{revision}}",
+                    discardBody: "Your changes to this theme have not been saved.",
+                },
+                reset: {
+                    title: "Reset to preset",
+                    body: "Every dashboard, widget and theme of this event is replaced by the preset's. The current configuration stays in the history.",
+                    preset: "Preset",
+                    confirm: "Reset",
+                    cancel: "Cancel",
+                    done: "The event now uses {{title}}.",
+                    failed: "The reset failed: {{reason}}",
+                    noPresets: "No presets are available.",
+                    loading: "Loading presets…",
+                },
+                lockedDown: "The event is locked down; its monitoring configuration cannot change.",
+                document: {
+                    loadFailed: "The document could not be loaded: {{reason}}",
+                    refused: "Not saved: fix the problems listed.",
+                    validated: "The document is valid.",
+                    invalid: "The document has problems: see the checks.",
+                    requestFailed: "The request failed: {{reason}}",
+                    savedWithWarnings_one: "{{count}} warning: see the checks.",
+                    savedWithWarnings_other: "{{count}} warnings: see the checks.",
+                },
+                errors: {
+                    checksUnavailable:
+                        "The chart engine could not check the change, so it was not saved. Try again in a moment.",
+                    busy: "Other changes to this event are being saved. Try again in a moment.",
+                    lockedDown:
+                        "The event is locked down; its monitoring configuration cannot change.",
+                    forbiddenScope:
+                        "You cannot see figures for the chosen region, Post or country.",
+                    badRequest:
+                        "The editor sent a request the server could not read. Reload the page and try again.",
+                },
+                duplicate: {
+                    copyTitle: "{{title}} (copy)",
+                    done: "Added {{id}}, a copy of the widget, to the dashboard.",
+                    failed: "The widget could not be duplicated: {{reason}}",
+                    notPlaced:
+                        "The copy {{id}} was saved, but the dashboard did not take it ({{reason}}). Add it with Edit dashboard.",
+                },
             },
         },
         monitoringDashboardScreen: {
@@ -2876,6 +4215,1624 @@ const englishTranslation = {
             confirmDelete: "Delete Certificate Authority",
             confirmDeleteDescription:
                 'Are you sure you want to delete the certificate "{{name}}" (fingerprint: {{fingerprint}})?',
+        },
+        signing: {
+            terms: {
+                post: "Post",
+                posts: "Posts",
+            },
+            tab: {
+                title: "Signatures",
+                intro: "Protected actions run only after enough authorized people sign them with their digital certificates. Each signature is checked against the trusted issuers and recorded in the log.",
+                protectedActions: "Protected actions",
+                certificates: "Certificates",
+                requests: "Requests",
+            },
+            loadError: "The signing settings couldn't be loaded. Reload the page to try again.",
+            errors: {
+                automatedCeremonies:
+                    "This event uses automatic key ceremonies. Trustees do not perform these steps, so their signatures cannot be required. To require trustee signatures, use manual key ceremonies.",
+                forbidden: "You don't have the permission for this change.",
+                invalid: "The server refused these values. Check them and try again.",
+                conflict: "Someone else changed this meanwhile. Reload the page and try again.",
+                lockedDown:
+                    "The election event is locked down: signing rules change only through a new configuration version.",
+                notFound: "It no longer exists. Reload the page.",
+            },
+            readOnly: {
+                chip: "Read only",
+                rules: "Read only. Changing signing rules needs the permission “Signatures: edit protected actions”.",
+                whoCanSign:
+                    "Roles with the permission “Sign: {{action}}” in Users and Roles. Changing them needs permission to edit roles.",
+            },
+            groups: {
+                "voting": "Voting",
+                "results-and-reports": "Results and reports",
+                "enrollment": "Enrollment",
+                "configuration-and-keys": "Configuration and keys",
+            },
+            actions: {
+                "initialize-voting": {
+                    label: "Initialize voting",
+                    short: "Initialization",
+                    permissionName: "initialize voting",
+                    object: "initialization of voting",
+                    appliesTo: "Each $t(signing.terms.post)",
+                    description:
+                        "Started in Publish. Initializes the $t(signing.terms.post) and generates its Initialization Report.",
+                },
+                "open-voting": {
+                    label: "Open voting",
+                    short: "Opening",
+                    permissionName: "open voting",
+                    object: "opening of voting",
+                    appliesTo: "Each $t(signing.terms.post)",
+                    description:
+                        "Started in Publish with Start voting. Opens voting at the $t(signing.terms.post).",
+                },
+                "close-voting": {
+                    label: "Close voting",
+                    short: "Closing",
+                    permissionName: "close voting",
+                    object: "closing of voting",
+                    appliesTo: "Each $t(signing.terms.post)",
+                    description:
+                        "Started in Publish with Stop voting. Closes voting at the $t(signing.terms.post); the closing signatures are kept in its record.",
+                    descriptionSealed:
+                        "Started in Publish with Stop voting. Closes voting at the $t(signing.terms.post). Once every channel is closed, its ballot boxes are sealed, after the grace period when there is one: no ballot can be added, changed or deleted, and voting can't start again. The closing signatures are kept in its record.",
+                },
+                "generate-election-returns": {
+                    label: "Generate election returns",
+                    short: "Election returns",
+                    permissionName: "generate election returns",
+                    object: "election returns",
+                    appliesTo: "Each $t(signing.terms.post) and country",
+                    description:
+                        "Started by the tally, one request per $t(signing.terms.post) and country. Releases the signed election returns for printing and transmission.",
+                },
+                "generate-reports": {
+                    label: "Generate other election reports",
+                    short: "Report",
+                    permissionName: "generate other election reports",
+                    object: "report",
+                    appliesTo: "Each $t(signing.terms.post)",
+                    description:
+                        "Started by the tally for the Initialization Report and in Reports for the participation report. Releases the signed report.",
+                },
+                "transmit-results": {
+                    label: "Transmit results",
+                    short: "Transmission",
+                    permissionName: "transmit results",
+                    object: "results package",
+                    appliesTo: "Each $t(signing.terms.post) and country",
+                    description:
+                        "Started in Tally, Transmission. Builds the signed results package for its destinations; the signatures fill its signature list.",
+                },
+                "approve-voter": {
+                    label: "Approve a voter manually",
+                    short: "Voter approval",
+                    permissionName: "approve a voter manually",
+                    object: "voter approval",
+                    appliesTo: "The voter's $t(signing.terms.post)",
+                    description:
+                        "Started in Approvals. Approves the voter and issues their credentials.",
+                },
+                "approve-configuration": {
+                    label: "Approve a configuration version",
+                    short: "Configuration version",
+                    permissionName: "approve a configuration version",
+                    object: "configuration version",
+                    appliesTo: "The election event",
+                    description: "Started in Publish. Publishes the configuration version.",
+                },
+                "key-ceremony": {
+                    label: "Confirm a key share (key ceremony)",
+                    short: "Key share",
+                    permissionName: "confirm a key share",
+                    object: "key share",
+                    appliesTo: "Each trustee",
+                    description:
+                        "Started in Keys by each trustee. Records the trustee's signature with the ceremony and the bulletin board.",
+                },
+                "tally-key": {
+                    label: "Contribute a key share (tally)",
+                    short: "Key share contribution",
+                    permissionName: "contribute a key share",
+                    object: "key share contribution",
+                    appliesTo: "Each trustee",
+                    description:
+                        "Started in Tally by each trustee. Records the trustee's contribution.",
+                },
+            },
+            protectedActions: {
+                intro: "Each signature is made with the digital certificate on the signer's security token.",
+                columns: {
+                    action: "Action",
+                    appliesTo: "Applies to",
+                    whoCanSign: "Who can sign",
+                    signaturesNeeded: "Signatures needed",
+                    requestExpires: "Request expires",
+                    waiting: "Waiting",
+                },
+                off: "Off",
+                eachTrustee: "Each trustee",
+                footerVersion:
+                    "Signing rules are part of this event's configuration version {{version}}.",
+                footerFirstVersion:
+                    "Signing rules become part of this event's first configuration version when it is published.",
+                footerChanged: "Last changed {{date}}.",
+                footerChangedBy: "Last changed {{date}} by {{name}}.",
+                lockedDown:
+                    "The election event is locked down: its signing rules belong to its configuration version, so they change only through a new configuration version.",
+                edit: "Edit {{action}}",
+                view: "View {{action}}",
+                waitingCount_one: "{{count}} request waiting",
+                waitingCount_other: "{{count}} requests waiting",
+                capacityError:
+                    "Who can sign couldn't be loaded, so the number of signatures can't be checked against the $t(signing.terms.posts).",
+            },
+            expiry: {
+                "30": "30 minutes",
+                "60": "1 hour",
+                "120": "2 hours",
+                "1440": "24 hours",
+                "none": "No limit",
+                "other": "{{count}} minutes",
+            },
+            rule: {
+                needsSignatures: "Needs signatures",
+                whoCanSign: "Who can sign",
+                whoCanSignHelp:
+                    "These roles get the permission “Sign: {{action}}” in Users and Roles, for every election event. Signers must also have access to the $t(signing.terms.post).",
+                signaturesNeeded: "Signatures needed",
+                signaturesNeededHelp:
+                    "Each signer uses their digital certificate. Every $t(signing.terms.post) has at least {{n}} people who can sign.",
+                signaturesNeededShortHelp: "Each signer uses their digital certificate.",
+                requesterSigning: "The person who starts it can also sign",
+                expiresAfter: "A request expires after",
+                trusteesSign: "Trustees sign this step",
+                trusteesHelp:
+                    "Each trustee signs their own step with their digital certificate. The key ceremony sets how many trustees take part.",
+                footer: "Changes are recorded in the election event's log and become part of the next configuration version.",
+                cancel: "Cancel",
+                save: "Save",
+                saved: "The signing rule was saved.",
+                savedShort_one:
+                    "The signing rule was saved. {{posts}} can't reach the number yet: add a signer there.",
+                savedShort_other:
+                    "The signing rule was saved. {{posts}} can't reach the number yet: add signers there.",
+                checkedOnSave: "The number is checked against the new roles when you save.",
+                savedRequesterShort:
+                    "The signing rule was saved. Some $t(signing.terms.posts) can't reach the number without the person who starts a request.",
+                saveError:
+                    "The signing rule couldn't be saved. Someone may have changed it meanwhile; reload and try again.",
+            },
+            validation: {
+                atLeastOne: "At least 1.",
+                tooMany:
+                    "No $t(signing.terms.post) has {{n}} people who can sign. The most is {{max}}.",
+                tooManyEvent: "Only {{max}} people can sign this. Choose at most {{max}}.",
+                atMost: "At most {{max}}.",
+                shortPosts_one:
+                    "{{posts}} has only {{n}} people who can sign, so it can't reach {{required}} signatures. Add a signer there or lower the number.",
+                requesterShort_one:
+                    "Without the person who starts it, {{posts}} has only {{n}} people who can sign, so it can't reach {{required}} signatures.",
+                requesterShort_other:
+                    "Without the person who starts it, {{posts}} have only {{n}} people who can sign, so they can't reach {{required}} signatures.",
+                shortPosts_other:
+                    "{{posts}} have only {{n}} people who can sign, so they can't reach {{required}} signatures. Add a signer there or lower the number.",
+            },
+            pendingRequests_one:
+                "{{count}} request is waiting for signatures under the current rule. Saving cancels it; the person who started it starts again.",
+            pendingRequests_other:
+                "{{count}} requests are waiting for signatures under the current rule. Saving cancels them; the people who started them start again.",
+            certificates: {
+                issuersIntro:
+                    "Staff certificates must chain to one of these. They are separate from the certificates voters sign in with.",
+                checkRevocation: "Check revocation lists",
+                crlUnavailable: {
+                    "label": "When a list can't be downloaded",
+                    "refuse": "Don't accept signatures",
+                    "accept-unchecked": "Accept and mark the signature as unchecked",
+                },
+                registration: {
+                    "label": "Registering a certificate to a person",
+                    "on-first-use": "When its holder first signs with it",
+                    "security-officer-only":
+                        "Only when someone who can register certificates registers it",
+                },
+                onePost: "A certificate signs for one $t(signing.terms.post) only",
+                issuers: "Trusted issuers",
+                import: "Import issuer certificates",
+                importHelp:
+                    "Choose a PEM or CER file with the issuer's certificate. A PEM file can hold several certificates.",
+                chooseFile: "Choose a certificate file",
+                fileError: "The file couldn't be read.",
+                imported:
+                    "{{imported}} issuer certificates imported; {{skipped}} were already trusted.",
+                importedWithErrors:
+                    "{{imported}} issuer certificates imported, {{skipped}} already trusted. Refused: {{errors}}",
+                importError: "The issuer certificates couldn't be imported.",
+                deleteIssuer: "Remove {{name}}",
+                deleteIssuerConfirm:
+                    "Remove {{name}} from the trusted issuers? Certificates it issued can no longer sign.",
+                deleteError: "The issuer couldn't be removed.",
+                noIssuers: "No trusted issuers yet. Staff can't sign until one is imported.",
+                root: "Root",
+                intermediate: "Intermediate",
+                columns: {
+                    issuer: "Issuer",
+                    type: "Type",
+                    issuedBy: "Issued by",
+                    validUntil: "Valid until",
+                    sha256: "SHA-256",
+                    person: "Person",
+                    post: "$t(signing.terms.post)",
+                    certificate: "Certificate",
+                    registered: "Registered",
+                    status: "Status",
+                },
+                checks: "Checks",
+                checksSaved: "The certificate checks were saved.",
+                checksError: "The certificate checks couldn't be saved.",
+                crlSchedule: "Downloaded from each issuer every hour.",
+                crlUpdated: "{{url}}: updated {{time}}",
+                crlFailed: "{{url}}: couldn't be downloaded (last try {{time}})",
+                registeredTitle: "Registered certificates",
+                search: "Search people, certificates or $t(signing.terms.posts)",
+                status: "Status",
+                statusAll: "All",
+                statuses: {
+                    "active": "Active",
+                    "expires-soon": "Expires soon",
+                    "expired": "Expired",
+                    "revoked": "Revoked",
+                },
+                revokedOn: "Revoked {{date}}",
+                allPosts: "All",
+                noCertificates: "No registered certificates.",
+                registeredHow: {
+                    "first-use": "On first signature",
+                    "security-officer": "Registered by an administrator",
+                },
+                register: "Register a certificate",
+                registerSubmit: "Register",
+                registerDone: "The certificate was registered.",
+                registerError: "The certificate couldn't be registered.",
+                person: "Person",
+                personSearchHelp: "Type part of a username to find the person.",
+                registeredBy: "By {{name}}",
+                registerRefused:
+                    "This certificate can't be registered: check that a trusted issuer issued it, that it's valid today and that it's made for signing.",
+                registeredToOther:
+                    "This certificate is registered to {{name}}. If this account is {{name}}'s too, link it as their second account.",
+                linkAccount: "Link as a second account of the same person",
+                alreadyRegistered: "This certificate is already registered to this person.",
+                pem: "Certificate (PEM)",
+                revoke: "Revoke",
+                revokeOf: "Revoke the certificate of {{name}}",
+                revokeTitle: "Revoke the certificate of {{name}}",
+                revokeHelp:
+                    "A revoked certificate can't sign anymore. Signatures it already made still count.",
+                revokeReason: "Reason",
+                revokeDone: "The certificate was revoked.",
+                revokeError: "The certificate couldn't be revoked.",
+            },
+            requests: {
+                exportCsv: "Export CSV",
+                exportError: "The requests couldn't be exported.",
+                exportFileName: "signing-requests.csv",
+                status: "Status",
+                statusAll: "All",
+                statusCount: "{{status}} · {{count}} of {{total}}",
+                expires: "Expires {{time}}",
+                lastSignatureBy: "{{name}}, {{time}}",
+                empty: "No signing requests yet.",
+                columns: {
+                    request: "Request",
+                    status: "Status",
+                    started: "Started",
+                    by: "By",
+                    lastSignature: "Last signature",
+                    code: "Code",
+                },
+            },
+            reports: {
+                postRequired: "Select a Post to generate this report when signatures are required.",
+                generateNotice:
+                    "{{post}}: the document is generated now. It can be printed and transmitted once {{n}} people have signed it.",
+            },
+            status: {
+                waiting: "Waiting",
+                completed: "Signed",
+                executed: "Done",
+                cancelled: "Cancelled",
+                expired: "Expired",
+                failed: "Failed",
+            },
+            cancelReasons: {
+                "by-requester": "The person who started it cancelled it",
+                "by-operator": "An operator cancelled it",
+                "rule-changed": "The action's signing rule changed",
+                "payload-changed": "What it signs changed",
+                "superseded": "A newer request replaced it",
+                "certificate-revoked": "A certificate that signed it was revoked",
+            },
+            panel: {
+                rulePost:
+                    "Needs {{n}} signatures from {{post}}'s signers, each with their digital certificate.",
+                ruleEvent: "Needs {{n}} signatures, each with the signer's digital certificate.",
+                signingCode: "Signing code",
+                signers: "Signers",
+                sign: "Sign",
+                handover: "Next member signs in",
+                cancel: "Cancel request",
+                signedAt: "Signed {{time}}",
+                notSigned: "Not signed",
+                certificate: "Certificate {{name}}",
+                you: "(you)",
+                expiresAt: "Expires at {{time}}",
+                progress: "{{count}} of {{total}}",
+                openDocument: "Open the document",
+                configurationVersion: "Configuration version {{version}}",
+                configurationChanges: "Changes in this version",
+            },
+            dialog: {
+                title: "Sign the {{object}}",
+                steps: {
+                    check: "Check",
+                    certificate: "Certificate",
+                    signed: "Signed",
+                },
+                localNote:
+                    "Signing happens in this browser. Your certificate file, its private key and its password are never sent. Only your signature and your public certificate go to the server.",
+                check: {
+                    signingAs: "You are signing as {{name}}",
+                    titlePost: "{{title}}, {{post}}",
+                    sameCode: "Everyone who signs sees the same code.",
+                    confirmDocument: "I have checked the {{object}}",
+                },
+                certificate: {
+                    intro: "Insert your security token and choose your certificate file.",
+                    password: "Certificate password",
+                    open: "Open certificate",
+                    chooseAnother: "Choose another file",
+                },
+                checks: {
+                    "passed": {
+                        "trusted-issuer": "Issued by a trusted issuer ({{root}})",
+                        "valid-now": "Valid today",
+                        "signing-key-usage": "Made for signing",
+                        "not-revoked": "Not revoked (lists updated {{time}})",
+                        "registered": "Registered to you on {{date}}",
+                        "registered-to-other": "Not registered to anyone else",
+                        "already-signed": "Not used for this request yet",
+                        "post-binding": "Registered for this $t(signing.terms.post)",
+                        "signature": "The signature covers this request",
+                    },
+                    "failed": {
+                        "trusted-issuer": "Not issued by a trusted issuer",
+                        "valid-now": "Not valid today",
+                        "signing-key-usage": "Not made for signing",
+                        "not-revoked": "Revoked, or no current revocation list to check it",
+                        "registered": "Not registered to you",
+                        "registered-to-other": "Registered to {{name}}",
+                        "already-signed": "Already used for this request",
+                        "post-binding": "Registered for another $t(signing.terms.post)",
+                        "signature": "The signature doesn't cover this request",
+                    },
+                    "first-use": "First use: it will be registered to you",
+                },
+                problems: {
+                    wrongPassword: "Wrong password. Check it and try again.",
+                    notForYou:
+                        "This certificate can't sign for you. Use the certificate on your own security token.",
+                    issuerNotAccepted:
+                        "Use the certificate {{organization}} registered for you. Certificates from other issuers are not accepted.",
+                    cancelled:
+                        "This request was cancelled: {{reason}}. Signatures given for it no longer count. Start it again to sign the current version.",
+                },
+                signed: {
+                    title: "Signed",
+                    withCertificate: "with the certificate of {{name}}",
+                    count: "{{n}} of {{total}} signatures.",
+                    allIn: "All {{total}} signatures are in.",
+                    next: "Next: {{names}} sign.",
+                },
+                handover:
+                    "You will be signed out. The next member signs in on this computer and returns to this request to sign. The request stays open until {{time}}.",
+                sign: "Sign",
+                back: "Back",
+                cancel: "Cancel",
+            },
+            widget: {
+                continue: "Continue",
+                done: "Done",
+                close: "Close",
+                retry: "Try again",
+                loading: "Loading the request…",
+                loadError: "The request could not be loaded.",
+                chooseFile: "Choose certificate file",
+                fileInput: "Certificate file",
+                fileSize: "{{size}} KB",
+                showPassword: "Show password",
+                hidePassword: "Hide password",
+                opening: "Opening the certificate…",
+                checking: "Checking the certificate…",
+                signing: "Signing…",
+                certificateCard: "Issued by {{issuer}} · valid until {{date}} · {{algorithm}}",
+                fingerprint: "SHA-256 {{fingerprint}}",
+                algorithms: {
+                    "rsa-pkcs1-sha256": "RSA",
+                    "ecdsa-p256-sha256": "EC P-256",
+                },
+                document: "{{type}} · SHA-256 {{hash}}",
+                documentPages: "{{type}} · {{pages}} pages · SHA-256 {{hash}}",
+                checksTitle: "Certificate checks",
+                untrustedIssuer: "{{issuer}} is not a trusted issuer for this election event",
+                registeredToSomeoneElse: "Registered to someone else",
+                checkPassedNoDetail: {
+                    "trusted-issuer": "Issued by a trusted issuer",
+                    "not-revoked": "Not revoked",
+                },
+                organization: "your organization",
+                cantSign: "This certificate can't sign this request.",
+                checkError: "The certificate could not be checked. Try again.",
+                fileErrors: {
+                    UNREADABLE_FILE:
+                        "This file is not a certificate file (.p12 or .pfx), or it is damaged.",
+                    UNSUPPORTED_ENCRYPTION:
+                        "This browser can't open the encryption this file uses.",
+                    NO_PRIVATE_KEY:
+                        "This file has no private key. Choose the certificate file from your security token.",
+                    NO_CERTIFICATE: "This file has no certificate.",
+                    UNSUPPORTED_KEY:
+                        "This certificate's key type is not supported. Use an RSA or EC P-256 certificate.",
+                    KEY_CERTIFICATE_MISMATCH:
+                        "The certificate in this file does not match its key.",
+                },
+                openError: "The certificate could not be opened. Try again.",
+                signError: "The signature could not be sent. Try again.",
+                refused: "The server refused the signature.",
+                stale: "The document changed while you were signing. Sign again.",
+                mismatch:
+                    "What would be signed does not match this request. Close the dialog and open the request again.",
+                documentMismatch: "The document does not match the one this request signs.",
+                documentError: "The document could not be downloaded. Try again.",
+                alreadySigned: "You have already signed this request.",
+                closed: {
+                    changed:
+                        "This request changed after you opened it. Close this window and check it again before you sign.",
+                    allSigned: "This request already has all its signatures.",
+                },
+                chooseCertificate: "Certificate to sign with",
+                renderError: "The signing request could not be shown. Close it and open it again.",
+                signedAt: "{{time}}",
+                panel: {
+                    completedAt: "Signed at {{time}}",
+                    expired:
+                        "This request expired. Signatures given for it no longer count. Start it again to sign.",
+                    failed: "All signatures are in, but the action failed. The log has the details.",
+                    details: "Details",
+                    close: "Close the request panel",
+                },
+                cancelDialog: {
+                    title: "Cancel this request?",
+                    body: "Signatures given for it no longer count. The person who started it starts again.",
+                    reason: "Reason (optional)",
+                    confirm: "Cancel request",
+                    back: "Keep it",
+                    error: "The request could not be cancelled. Try again.",
+                },
+                handoverDialog: {
+                    title: "Next member signs in",
+                    noExpiry:
+                        "You will be signed out. The next member signs in on this computer and returns to this request to sign.",
+                    confirm: "Sign out",
+                    back: "Stay signed in",
+                    error: "The handover could not be recorded. Try again.",
+                },
+            },
+            details: {
+                keys_ceremony_id: "Ceremony",
+                tally_session_id: "Tally session",
+                trustee_id: "Trustee",
+                key_share_sha256: "Key share SHA-256",
+                channel: "Channel",
+                channels: "Channels",
+                publication_id: "Ballot publication",
+                ballot_publication_id: "Ballot publication",
+                digest: "Configuration SHA-256",
+                signing_rules: "Signing rules",
+                scheduled_events: "New scheduled events",
+                ballots_and_contests: "Ballots and contests",
+                application_id: "Application",
+                applicant_registry_id: "Registry account",
+                decision: "Decision",
+                submitted_at: "Submitted",
+                reason: "Why it needs a person",
+                registry_record: "Registry record",
+                status: "Application status",
+                from: "Status before",
+            },
+            closed: {
+                pending: "Every signature is in. Voting closes in a moment.",
+                title: "Voting closed at {{time}}.",
+                titleSealed: "Voting closed at {{time}}. Ballots sealed.",
+                record: "Seal record",
+                ballots: "Ballots in the seal",
+                sealHash: "Seal {{algorithm}}",
+                signedBy: "Signed by",
+                signatures: "Closing signatures in the seal record",
+                signaturesValue_one: "{{count}}, signing code {{code}}",
+                signaturesValue_other: "{{count}}, signing code {{code}}",
+                signers: "Signed by the members",
+            },
+            values: {
+                ballots_and_contests: {
+                    "first-version": "First version",
+                    "no-changes": "No changes",
+                    "changed": "Changed",
+                },
+                signing_rules: {
+                    "initialize-voting": "$t(signing.actions.initialize-voting.label)",
+                    "open-voting": "$t(signing.actions.open-voting.label)",
+                    "close-voting": "$t(signing.actions.close-voting.label)",
+                    "generate-election-returns":
+                        "$t(signing.actions.generate-election-returns.label)",
+                    "generate-reports": "$t(signing.actions.generate-reports.label)",
+                    "transmit-results": "$t(signing.actions.transmit-results.label)",
+                    "approve-voter": "$t(signing.actions.approve-voter.label)",
+                    "approve-configuration": "$t(signing.actions.approve-configuration.label)",
+                    "key-ceremony": "$t(signing.actions.key-ceremony.label)",
+                    "tally-key": "$t(signing.actions.tally-key.label)",
+                },
+                channels: {
+                    ONLINE: "Online",
+                    KIOSK: "Kiosk",
+                    EARLY_VOTING: "Early voting",
+                    TELEPHONE: "Telephone",
+                },
+                statuses: {
+                    NOT_STARTED: "Not started",
+                    OPEN: "Open",
+                    PAUSED: "Paused",
+                    CLOSED: "Closed",
+                },
+                channelStatus: "{{channel}}: {{status}}",
+                ruleChange: "{{action}}: {{rule}}",
+                ruleChangeFrom: "{{action}}: {{rule}} (was {{was}})",
+                ruleNeeds: "needs {{n}}",
+                ruleOff: "off",
+                decision: {
+                    approve: "Approve",
+                },
+            },
+            waiting: {
+                title: "Waiting for my signature",
+                buttonCount_one: "Waiting for my signature: {{count}} request to sign",
+                buttonCount_other: "Waiting for my signature: {{count}} requests to sign",
+                intro: "Requests waiting for the signatures of the actions you can sign, in your $t(signing.terms.posts).",
+                close: "Close the list",
+                empty: "Nothing is waiting for your signature.",
+                loadError: "The requests waiting for signatures couldn't be loaded.",
+                signedByYou: "Signed by you",
+            },
+            notes: {
+                afterApproval: "After approval",
+                afterApprovalValue: "The voter's credentials are issued and sent to them",
+                keyShare: "Your key share",
+                keyShareChecked: "Checked: it is your key share for this ceremony",
+                recordedIn: "Recorded in",
+                recordedInCeremony: "The keys ceremony and the bulletin board",
+                recordedInTally: "The tally session",
+            },
+            results: {
+                signatures: "Signatures",
+                needs: "Needs {{n}}",
+                off: "Off",
+                openRequest: "Open the signing request",
+                downloadSigned: "Download signed PDF",
+                print: "Print",
+                transmit: "Transmit results",
+                sendTo: "Send to {{count}} destinations",
+                awaiting: "{{item}}: awaiting signatures",
+                transmission: {
+                    title: "Signatures",
+                    description:
+                        "Each signer signs the package's results with their digital certificate, in this browser. The package can be sent once {{n}} people have signed it.",
+                    waiting:
+                        "The package can be sent once its signing request has all its signatures.",
+                    signed: "The package carries all its signatures and can be sent.",
+                    ended: "This package's signing request ended. Create the package again to sign it.",
+                },
+            },
+            keyShare: {
+                signing:
+                    "Sign your key share in the signing panel. It is recorded once you have signed.",
+                record: "Record my key share",
+                failed: "Your signed key share could not be recorded: {{error}}",
+                dropAgain: "Drop your key share file again to record your signed key share.",
+                redo: "Your key share was contributed without your signature, which this election now needs. Contribute it again and sign it.",
+                notTaken:
+                    "The ceremony no longer takes this key share. Drop your key share file again.",
+            },
+        },
+        lifecycle: {
+            signedClose: {
+                title: "Signed close deadline",
+                deadline: "{{election}}: {{time}} · authorized by configuration {{code}}.",
+                explanation:
+                    "This signed deadline remains authoritative after the editable schedule is changed or removed. The scheduler closes its authorized channels that are still open.",
+                reached:
+                    "This signed deadline has passed. Check the current voting state and audit log; processing has not been recorded yet.",
+                processed: "Signed close deadline processed at {{time}}.",
+                signedAt: "Signed deadline: {{time}}.",
+                channels: "Channels still covered by this deadline: {{channels}}.",
+                result: "Consult the voting state and audit log for the actual changes and complete result.",
+                unavailable:
+                    "Unable to load signed close deadlines. Check the published schedule and audit log.",
+            },
+            picker: {
+                noMatch: "No timezone matches. Type a city, country, zone, abbreviation or offset.",
+            },
+            input: {
+                timezone: "Timezone",
+                scheduledAt: "Scheduled at",
+                meetingStart: "Meeting start",
+                cronZone: "The schedule runs in the event's primary timezone, {{zone}}.",
+                unconfiguredZone:
+                    "{{zone}} isn't one of the event's configured timezones. Choose one of them.",
+            },
+            schedule: {
+                allElections: "All elections",
+                outcome: "Outcome",
+                noOffset: "No timezone offset: never runs",
+                unpublished: "Not published yet",
+                notPublished:
+                    "Nothing is published yet: voters see the schedule after the first publication.",
+                unpublishedChanges_one:
+                    "{{count}} scheduled event changed since the last publication. Voters see it after you publish.",
+                unpublishedChanges_other:
+                    "{{count}} scheduled events changed since the last publication. Voters see them after you publish.",
+                offsetless_one:
+                    "{{count}} scheduled time has no timezone offset, so it never runs. Edit it to set its timezone.",
+                offsetless_other:
+                    "{{count}} scheduled times have no timezone offset, so they never run. Edit them to set their timezone.",
+                outcomeChange:
+                    "Saving changes what this scheduled transition does: {{before}} → {{after}}.",
+                outcomeNew: "Once saved, this scheduled transition: {{after}}.",
+                outcomeElections: "{{count}} of {{total}} elections",
+                exportError: "The schedule could not be exported.",
+                exportFileName: "schedule.csv",
+                totals: {
+                    refused_one:
+                        "{{count}} scheduled row will be refused ({{transitions}} election transitions).",
+                    refused_other:
+                        "{{count}} scheduled rows will be refused ({{transitions}} election transitions).",
+                    runsUnsigned_one:
+                        "{{count}} scheduled close will run without signatures ({{transitions}} election transitions).",
+                    runsUnsigned_other:
+                        "{{count}} scheduled closes will run without signatures ({{transitions}} election transitions).",
+                    review: "Review",
+                    showAll: "Show all",
+                    showing: {
+                        refused:
+                            "Showing the {{count}} scheduled rows that will be refused ({{transitions}} election transitions).",
+                        runsUnsigned:
+                            "Showing the {{count}} scheduled closes that will run without signatures ({{transitions}} election transitions).",
+                    },
+                },
+                recompute: {
+                    title_one:
+                        "A timezone database update moves {{count}} future scheduled time. Nothing changes until you apply it.",
+                    title_other:
+                        "A timezone database update moves {{count}} future scheduled times. Nothing changes until you apply them.",
+                    change: "{{type}}: {{before}} → {{after}}",
+                    apply: "Apply",
+                    applied_one: "{{count}} scheduled time updated.",
+                    applied_other: "{{count}} scheduled times updated.",
+                    error: "The scheduled times could not be updated.",
+                },
+                outcomeChangeElections_one: "Saving changes the outcome at {{count}} election:",
+                outcomeChangeElections_other: "Saving changes the outcome at {{count}} elections:",
+            },
+            authorizes: {
+                reportPolicyOf: "{{election}}: {{value}}",
+                initializationRetained:
+                    "A required report in this signed configuration remains required if the current Post setting is changed to not required.",
+                title: "What this approval authorizes",
+                schedule: "Scheduled openings and closings",
+                noSchedule: "No scheduled openings or closings: the signers open and close voting.",
+                opens: "Opens {{time}}",
+                closes: "Closes {{time}}",
+                settings: "Settings",
+                unsignedClose: "Scheduled close without signatures: {{value}}",
+                initialization: "Initialization: {{value}}",
+                firstConfiguration:
+                    "This is the first approved configuration: nothing to compare with.",
+                sameAsPrevious:
+                    "The settings are the same as in the previous approved configuration.",
+                rule: {
+                    openNeeds_one: "Opening needs {{count}} signature",
+                    openNeeds_other: "Opening needs {{count}} signatures",
+                    openNoSignatures: "Opening needs no signatures",
+                    closeNeeds_one: "Closing needs {{count}} signature",
+                    closeNeeds_other: "Closing needs {{count}} signatures",
+                    closeNoSignatures: "Closing needs no signatures",
+                    openSetting: "Opening voting",
+                    closeSetting: "Closing voting",
+                    signatures_one: "{{count}} signature",
+                    signatures_other: "{{count}} signatures",
+                    none: "no signatures",
+                },
+                diff: {
+                    tightens: "Tightens: {{setting}} {{before}} → {{after}}",
+                    loosens: "Loosens: {{setting}} {{before}} → {{after}}",
+                    mixed: "Changes: {{setting}} {{before}} → {{after}} (stricter in one way, looser in another)",
+                },
+                comparedWith:
+                    "Compared with the previous approved configuration, approval {{code}}:",
+                channels: "Voting channels per election",
+                channelsOf: "{{election}}: {{channels}}",
+                noChannels: "none",
+            },
+            publish: {
+                openedAuthorized:
+                    "Voting opened on schedule at {{time}}, authorized by configuration approval {{code}} (signed by {{names}}).",
+                closedAuthorized:
+                    "Voting closed on schedule at {{time}}, authorized by configuration approval {{code}} (signed by {{names}}).",
+                closedUnsigned:
+                    "Voting closed on schedule at {{time}}. No closing signatures: the schedule closed voting at its deadline.",
+                authorizedBy: "Authorized by",
+                cancelledRequest:
+                    "Request {{code}} had {{n}} of {{k}} signatures and was cancelled.",
+                openedRefused: "The scheduled opening at {{time}} was refused.",
+                closedRefused: "The scheduled close at {{time}} was refused.",
+                openedNoSignaturesNeeded:
+                    "Voting opened on schedule at {{time}}; no signatures were needed.",
+                closedNoSignaturesNeeded:
+                    "Voting closed on schedule at {{time}}; no signatures were needed.",
+                openedNothingToChange:
+                    "At {{time}} the scheduled opening had nothing to open: its channels were already open.",
+                closedNothingToChange:
+                    "At {{time}} the scheduled close had nothing to close: its channels were already closed.",
+            },
+            import: {
+                title: "Import schedule",
+                subtitle:
+                    "One row per event and election, in local time. Leave timezone empty to use the election's timezone.",
+                chooseFile: "Choose a CSV file",
+                template: "Download template",
+                templateFileName: "schedule-template.csv",
+                ready: "{{ok}} events ready for {{posts}} elections.",
+                needsAttention_one:
+                    "{{ok}} events ready for {{posts}} elections. {{count}} row needs attention; fix the file and upload it again.",
+                needsAttention_other:
+                    "{{ok}} events ready for {{posts}} elections. {{count}} rows need attention; fix the file and upload it again.",
+                preview: "Rows to import",
+                row: "Row",
+                asWritten: "{{local}} · {{place}}",
+                moreRows: "…and {{count}} more rows",
+                imported: "Schedule imported: {{created}} created, {{updated}} updated.",
+                uploadError: "The file could not be checked. Upload it again.",
+                importError: "The schedule could not be imported.",
+                error: {
+                    unknownElection: "No election has the alias {{election}}.",
+                    unknownEventType: "{{type}} is not a scheduled event type.",
+                    invalidTimeZone: "{{zone}} is not a timezone.",
+                    invalidDateTime: "The date and time must read YYYY-MM-DDTHH:MM.",
+                    invalidVotingChannels:
+                        "The voting channels are unknown, or open Online and Early voting together.",
+                    dstGap: "{{dateTime}} does not exist in {{city}} because clocks go forward. Write a time that exists.",
+                    duplicate: "Another row schedules the same event for this election.",
+                    other: "This row can't be imported ({{code}}).",
+                    ambiguousElection: "More than one election has the alias {{election}}.",
+                },
+            },
+            settings: {
+                accordion: "Language, Date and Time",
+                dateAndTime: "Date and time",
+                configured: "Configured timezones",
+                configuredHelp:
+                    "{{count}} timezones. Elections choose theirs from this list; type a city or country to add one.",
+                moreZones: "+{{count}}",
+                primary: "Primary timezone",
+                primaryHelp:
+                    "Used for event-wide schedules, reports and elections without their own timezone.",
+                primaryInUse:
+                    "{{zone}} is the primary timezone. Choose another primary timezone first.",
+                inUse: "{{zone}} is in use by {{names}}. Change those elections first.",
+                logs: "Times in Logs and log exports",
+                logsPrimary: "Primary timezone ({{abbr}})",
+                logsElection: "Each row's election timezone",
+                logsHelp: "Rows without an election use the primary timezone.",
+                electionZone: "Timezone",
+                electionPrimary: "Event primary: {{zone}}",
+                electionZoneHelp:
+                    "Schedules, voter screens and reports for this election use this timezone, including every area under it. Empty uses the event's primary timezone.",
+                electionUnconfigured:
+                    "The event no longer configures this timezone, so the election uses the primary timezone, {{zone}}. Choose one of the configured timezones.",
+                electionUnconfiguredSave: "Choose one of the event's configured timezones.",
+            },
+            policies: {
+                accordion: "Voting lifecycle",
+                intro: "These settings are part of the election event's configuration: the configuration approval signs them, and scheduled openings and closings follow the stricter of the current and the published settings.",
+                nothingPublished:
+                    "Nothing published yet: until the first publication, scheduled openings and closings use the defaults (per election, refuse).",
+                publishedValue: "Published configuration: {{value}}",
+                changedSincePublished:
+                    "Changed since the published configuration: scheduled openings and closings follow the stricter of the two until the next approved publication.",
+                scope: {
+                    title: "Initialization before voting opens",
+                    post: {
+                        label: "Per election",
+                        help: "An election opens once it is initialized.",
+                    },
+                    event: {
+                        label: "Whole event",
+                        help: "No election opens until every election is initialized.",
+                        warning:
+                            "One election that isn't initialized keeps every election closed, including at their scheduled openings.",
+                    },
+                    postAndCountry: {
+                        label: "Per election and country",
+                        help: "An election opens once every country (area) under it is initialized.",
+                        warning:
+                            "An election stays closed, also at its scheduled opening, until every country under it is initialized; each country is initialized with its own report.",
+                    },
+                },
+                close: {
+                    title: "Scheduled close without signatures",
+                    help: "When closing voting needs signatures and a scheduled close isn't in the signed configuration.",
+                    refuse: {
+                        label: "Refuse",
+                        help: "The close doesn't run; the election's signers close voting with their signatures.",
+                    },
+                    runAsSystem: {
+                        label: "Run as system",
+                        help: "Voting closes at the deadline, recorded as closed by the schedule without signatures.",
+                        warning:
+                            "Scheduled closes outside the signed configuration close voting without anyone's signature. The log and the documents say so.",
+                    },
+                },
+                onSave: {
+                    outcomes_zero: "No scheduled transition changes its outcome.",
+                    outcomes_one:
+                        "{{count}} scheduled transition changes its outcome. Review it in Scheduled Events.",
+                    outcomes_other:
+                        "{{count}} scheduled transitions change their outcome. Review them in Scheduled Events.",
+                },
+                saveError: "The voting lifecycle settings could not be saved.",
+                publishedPerTarget: "Published configuration, per target: {{values}}",
+                publishedCount_one: "{{value}} ({{count}} target)",
+                publishedCount_other: "{{value}} ({{count}} targets)",
+                savedWithoutPolicies:
+                    "The election event was saved, but the voting lifecycle settings were not: {{reason}}. Save them again.",
+            },
+        },
+        scheduledOutcome: {
+            chip: {
+                waitingForInitialization: "Waiting for initialization",
+                runs: "Will run",
+                runsUnsigned: "Will run without signatures",
+                refused: "Will be refused",
+            },
+            note: {
+                waitingForInitialization: "Waiting for initialization",
+                authorized: "Authorized by configuration {{code}}",
+                noSignaturesNeeded: "No signatures needed",
+                closesUnsigned: "Closes without signatures",
+                refused: {
+                    initialization: "Required initialization is incomplete",
+                    votingClose: "Voting cannot open at or after its close deadline",
+                    needsSignatures: "Needs the signers' signatures",
+                    covered: "Not in the signed configuration",
+                    unsignedClose: "A close without signatures is refused",
+                    stricterCopy: "Changed since the published configuration, which still decides",
+                    defaults: "Nothing published yet: the defaults apply",
+                },
+                refusedWithStep: "{{reason}}. {{next}}",
+            },
+            why: {
+                button: "Why?",
+                title: {
+                    waitingForInitialization: "Why it is waiting for initialization",
+                    runs: "Why it will run",
+                    runsUnsigned: "Why it will run without signatures",
+                    refused: "Why it will be refused",
+                },
+                checks: "Checks",
+                check: "Check",
+                current: "Current settings",
+                published: "Published configuration",
+                verdict: "Verdict",
+                allows: "Allows",
+                blocks: "Blocks",
+                deciding: "Deciding check",
+                nextStep: "Next step:",
+                signedBy: "Signed by {{names}}",
+            },
+            question: {
+                initialization: "Is the required initialization complete?",
+                votingClose: "Does this opening respect the voting close deadline?",
+                needsSignatures: "Does this action need signatures?",
+                covered: "Is this exact schedule in the signed configuration?",
+                unsignedClose: "What happens to a close without signatures?",
+                stricterCopy:
+                    "Do the current and the published settings differ? Which one decides?",
+                defaults: "Is anything published yet?",
+            },
+            check: {
+                initialization: {
+                    waiting:
+                        "Initialization requirements in both the current and published settings must be satisfied.",
+                },
+                votingClose: {
+                    passed: "Voting closes at {{closes_at}}; this opening cannot run at or after that deadline.",
+                },
+                needsSignatures: {
+                    yes: "Yes, {{signatures}} signatures",
+                    yes_one: "Yes, {{count}} signature",
+                    yes_other: "Yes, {{count}} signatures",
+                    no: "No",
+                },
+                covered: {
+                    overriddenBySignedPostRow:
+                        "The signed configuration {{code}} uses this Post's own opening {{scheduled_event_id}}. The event-wide opening does not apply.",
+                    yes: "Yes: approval {{code}}, unchanged",
+                    changed: "No: changed since approval {{code}}",
+                    changedBy:
+                        "No: edited on {{edited_at}} by {{edited_by}}, after approval {{code}}",
+                    notInApproval: "No: approval {{code}} doesn't include it",
+                    noApproval: "No approved configuration yet",
+                    channelsChanged:
+                        "No: the election's voting channels changed since approval {{code}}",
+                    alreadyFired:
+                        "No: this transition of approval {{code}} already ran at {{fired_at}}; running it again needs signatures",
+                    late: "No: it is more than 15 minutes past {{scheduled_date}} (approval {{code}}); running it now needs signatures",
+                },
+                unsignedClose: {
+                    refuse: "Refuse",
+                    runAsSystem: "Run as system",
+                },
+                stricterCopy: {
+                    same: "Both are the same",
+                    currentStricter: "Current settings are stricter: applied now",
+                    currentLooser:
+                        "Current settings are looser: they apply after the next approved publication",
+                    combined: "Each is stricter in one value: both apply",
+                },
+                defaults: {
+                    published: "Published on {{published_at}}",
+                    nothingPublished: "Nothing published: defaults apply",
+                    noSnapshot:
+                        "Published on {{published_at}}, before publications kept these settings: defaults apply",
+                },
+            },
+            nextStep: {
+                initialize:
+                    "Complete the required initialization. The scheduler will retry before voting closes.",
+                closed: "This opening will not run after voting closes.",
+                none: "No action needed.",
+                publishAndApprove: "Publish and approve the configuration.",
+                requireConfigurationApproval:
+                    "Make Approve configuration need signatures, then publish and approve the configuration.",
+                askSignersToOpen: "Ask the election's signers to open voting.",
+                askSignersToClose: "Ask the election's signers to close voting.",
+            },
+            applies: {
+                tightens: "Applies now to manual and scheduled actions.",
+                loosens:
+                    "Applies now to manual actions; to scheduled openings and closings after the next approved publication.",
+                tightensAndLoosens:
+                    "Its stricter part applies now to manual and scheduled actions; its looser part applies now to manual actions and to scheduled openings and closings after the next approved publication.",
+            },
+        },
+        messagingEvent: {
+            tab: "Messaging",
+            intro: "The channels voters of this event can choose for codes and notices, and the account each one sends from. Accounts are managed in Settings > Messaging.",
+            readOnly:
+                "You can view these settings. Changing them needs the messaging-config-write permission.",
+            savingNote:
+                "Saving also updates the channels the enrollment pages offer for each Post.",
+            save: "Save",
+            saved: "Messaging settings saved.",
+            saveRejected: "The messaging settings were not saved. Fix the problems shown.",
+            saveError: "Could not save the messaging settings.",
+            accountLabel: "{{channel}} account",
+            notUsed: "Not used",
+            missingAccount: "Account not found",
+            noAccount: "Add an account in Settings > Messaging first",
+            missing: "Missing: {{blockers}}",
+            purposeSwitch: "{{channel}}: {{purpose}}",
+            sections: {
+                channels: "Channels",
+                templates: "Approved templates",
+                fallback: "Fallback order for notices",
+                posts: "Channels by Post",
+                postsCount: "Channels by Post ({{count}} Posts)",
+                reply: "Reply to incoming messages",
+                delivery: "Delivery status",
+            },
+            column: {
+                channel: "Channel",
+                account: "Sends from",
+                purpose: "Purpose",
+                language: "Language",
+                template: "Provider template",
+                status: "Status",
+                post: "Post",
+                key: "For message",
+                providerLanguage: "Provider language",
+            },
+            outOfWindow: {
+                label: "Outside the conversation window",
+                help: "Free-text notices are sent only while the conversation window is open: on Messenger, within 24 hours of the voter's last message. Choose Utility messages to send notices after that with an approved template. Meta must approve this for the Page (the page_utility_messaging permission and an approved UTILITY template), and that template must be bound to notices under Approved templates. With Do not send, a notice outside the window goes to the voter's next eligible channel.",
+                DISABLED: "Do not send",
+                UTILITY_MESSAGES: "Utility messages",
+                noTemplate:
+                    "No template is bound to notices on this channel yet. Add one under Approved templates; until then notices outside the window go to the voter's next eligible channel.",
+            },
+            templates: {
+                empty: "Choose an account that sends approved templates, such as WhatsApp, Viber or Messenger, to bind its templates here.",
+                help: "Each row says which approved template the provider sends for a message. For message is the alias of a template in Templates, for a notification, or the message key Keycloak sends, such as otp; leave it empty for the template used by default for the purpose. Language is the voter's language. Provider template is the template's name or ID at the provider. Provider language is the provider's code for that template when it differs from the voter's language: WhatsApp needs the exact code of the approved template, such as en_US.",
+                order: "For each message the most specific row wins: the row for the message in the voter's language, then the row for the message in any language, then the default for the purpose in the voter's language, then any default for the purpose.",
+                noneRequired:
+                    "{{channel}} sends only approved templates. Add at least a default template for each purpose in use.",
+                noneOptional:
+                    "No templates are bound for {{channel}}. They are needed only to send notices outside the conversation window.",
+                row: "{{channel}} template {{position}}",
+                keyDefault: "Default for the purpose",
+                add: "Add {{channel}} template",
+                remove: "Remove {{channel}} template {{position}}",
+                incomplete: "Enter the language and the provider template, or remove this row.",
+                approval: {
+                    APPROVED: "Approved",
+                    NOT_APPROVED: "Not approved",
+                    ADMIN_CONFIRMED: "Confirmed by an administrator",
+                    NOT_CHECKED: "Approval not checked",
+                },
+            },
+            fallback: {
+                help: "When a notice cannot reach a voter on their channel, it goes to the next channel in this order that the voter has verified and their Post offers. Codes are never resent on their own: the voter chooses another way.",
+                empty: "Turn on notices for a channel to add it to the fallback order.",
+                earlier: "Move {{channel}} earlier",
+                later: "Move {{channel}} later",
+            },
+            posts: {
+                noChannels:
+                    "Turn on codes or notices for a channel to choose the channels of each Post.",
+                help: "Enrollment shows each Post's voters the channels ticked here.",
+                restricted: "{{count}} Posts offer fewer than all {{total}} channels.",
+                allChannels:
+                    "Every Post offers all {{total}} channels; untick a channel for a Post where it does not work.",
+                search: "Search Posts",
+                cell: "{{post}}: {{channel}}",
+                showing: "Showing {{shown}} of {{total}} Posts. Search to find others.",
+            },
+            reply: {
+                help: "Sent when a voter writes to one of this event's accounts, at most once a day per voter.",
+                label: "Reply ({{language}})",
+            },
+            delivery: {
+                empty: "No channel is in use.",
+                help: "Accepted means the provider accepted the request, not that the voter received or verified the code. Unknown means delivery is not confirmed yet. A provider without delivery reports shows delivery as unavailable.",
+            },
+            error: {
+                UNSUPPORTED_VERSION:
+                    "This configuration uses version {{version}}, which is not supported.",
+                DUPLICATE_CHANNEL: "{{channel}} is configured more than once.",
+                UNKNOWN_ACCOUNT:
+                    "The {{channel}} account no longer exists. Choose another account.",
+                ACCOUNT_OF_ANOTHER_TENANT: "The selected account belongs to another tenant.",
+                ACCOUNT_CHANNEL_MISMATCH:
+                    "The selected account does not send {{channel}} messages.",
+                PURPOSE_NOT_READY:
+                    "{{channel}} cannot send {{purpose}} yet. Missing: {{blockers}}.",
+                TEMPLATE_NOT_APPROVED:
+                    "The {{channel}} template for {{purpose}} in {{language}} is not approved by the provider.",
+                OUT_OF_WINDOW_NOT_SUPPORTED:
+                    "{{channel}} cannot send outside a conversation window with this account: it has no conversation window, or its notices already need a template.",
+                FALLBACK_CHANNEL_NOT_ENABLED:
+                    "{{channel}} is in the fallback order but does not send notices.",
+                DUPLICATE_FALLBACK_CHANNEL: "{{channel}} is in the fallback order more than once.",
+                ELECTION_CHANNEL_NOT_ENABLED:
+                    "{{election}} offers {{channel}}, which this event does not use.",
+                UNKNOWN_ELECTION: "{{election}} is not an election of this event.",
+            },
+        },
+        messaging: {
+            channel: {
+                EMAIL: "Email",
+                SMS: "SMS",
+                WHATSAPP: "WhatsApp",
+                VIBER: "Viber",
+                MESSENGER: "Facebook Messenger",
+            },
+            provider: {
+                AWS_SES: "Amazon SES",
+                SMTP: "SMTP server",
+                AWS_SNS: "Amazon SNS",
+                WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
+                MESSENGER_SEND_API: "Messenger Platform (Meta)",
+                VIBER_INFOBIP: "Viber Business Messages (Infobip)",
+                CONSOLE: "Console (test only, nothing is sent)",
+                HTTP_API: "Custom HTTP API",
+            },
+            purpose: {
+                OTP: "OTPs",
+                NOTICE: "Notices",
+            },
+            state: {
+                QUEUED: "Queued",
+                ACCEPTED: "Accepted",
+                DELIVERED: "Delivered",
+                FAILED: "Failed",
+                UNKNOWN: "Unknown",
+            },
+            stateHelp: {
+                QUEUED: "Waiting to be handed to the provider.",
+                ACCEPTED:
+                    "The provider accepted the message. This does not mean the voter received it.",
+                DELIVERED: "The provider reported the message as delivered.",
+                FAILED: "The provider confirmed the message was not delivered.",
+                UNKNOWN: "Delivery is not confirmed yet.",
+            },
+            blocker: {
+                NOT_CONNECTED: "Not connected",
+                UNSUPPORTED_PURPOSE: "Not supported by this provider",
+                NEEDS_PROVIDER_APPROVAL: "Needs provider approval",
+                NEEDS_PRODUCTION_ACCESS: "Needs production access",
+                NEEDS_APPROVED_TEMPLATE: "Needs approved template",
+            },
+            readiness: {
+                connected: "Connected",
+                notConnected: "Not connected",
+                readyOtp: "Ready for OTP",
+                readyNotice: "Ready for notices",
+                notReady: "Not ready",
+                lastCheck: "Checked {{date}}",
+                neverChecked: "Not checked yet",
+                adminConfirmed: "Confirmed by an administrator",
+                checkNotUsed: "Check not used",
+            },
+            approval: {
+                PENDING: "Pending provider approval",
+                CONFIRMED: "Provider approval confirmed",
+            },
+            credential: {
+                ACCESS_TOKEN: "Access token",
+                APP_SECRET: "App secret",
+                VERIFY_TOKEN: "Verify token",
+                API_KEY: "API key",
+                SMTP_PASSWORD: "Password",
+                AWS_ACCESS_KEY_ID: "AWS access key ID",
+                AWS_SECRET_ACCESS_KEY: "AWS secret access key",
+                API_SECRET: "API secret",
+                USERNAME: "User name",
+                PASSWORD: "Password",
+                WEBHOOK_SECRET: "Webhook secret",
+            },
+            deliveryUnavailable: "Delivery unavailable",
+            templates: {
+                noMethod: "Choose at least one method for the template.",
+                parameters: "Template parameters",
+                parametersHelp:
+                    "What fills each placeholder of the approved template, in order, such as user.first_name or vote_url. For a template with named parameters write @name=value, such as @first_name=user.first_name; any other entry is positional.",
+                parameter: "Parameter {{position}}",
+                removeParameter: "Remove parameter {{position}}",
+                addParameter: "Add parameter",
+                noAccount:
+                    "There is no {{channel}} account yet. Add one in Settings > Messaging to see which languages are approved.",
+                account: "Account",
+                approvalTitle: "Approved templates",
+                language: "Language",
+                approvalFor: "Approved for {{purpose}}",
+                approved: "Approved",
+                notApproved: "Not approved",
+                approvalHelp:
+                    "Approvals come from the provider and are updated by the account's connection check.",
+                messengerIntro:
+                    "Within 24 hours of the voter's last message, Messenger sends the text below.",
+                messengerMessage: "Message within 24 hours",
+                messengerWindow:
+                    "A saved Messenger recipient is not permission to send. Outside the 24-hour window this notice is sent as a utility message when the election event allows it and an approved template is set below or bound in the event; otherwise it goes to the voter's next eligible channel. Utility messages need the page_utility_messaging permission and an approved UTILITY template on the Page.",
+                intro: {
+                    WHATSAPP:
+                        "WhatsApp sends only templates that Meta approved for the account's WhatsApp Business Account. The message must match the approved template; choose what fills its parameters.",
+                    VIBER: "Viber sends codes and transactional messages only with templates the Viber partner approved. The message must match the approved template; choose what fills its parameters.",
+                },
+                approvedWording: "Approved wording",
+                approvedWordingHelp:
+                    "A copy of the approved template, used as a preview. Changing it here does not change what the provider sends.",
+                providerTemplateTitle: "Provider template",
+                providerTemplateHelp:
+                    "Optional. The name or ID of the approved template at the provider. When empty, the election event's template bound to this template's alias is used, or the event's default for the purpose.",
+                providerTemplate: "Provider template name or ID",
+                providerLanguage: "Provider language code",
+                providerLanguageHelp: {
+                    WHATSAPP:
+                        "The exact language code of the approved WhatsApp template, such as en_US.",
+                    VIBER: "The language code the Viber provider knows the template by, when it needs one.",
+                    MESSENGER: "The language code of the approved utility template, such as en_US.",
+                },
+                approvalAdminConfirmed:
+                    "An administrator confirmed with the provider that this account's templates are approved, so the approvals of the connection check are not used.",
+            },
+            send: {
+                channel: "Channel",
+                eachVoter: "Each voter's channel",
+                only: "{{channel}} only",
+                eachVoterHelp:
+                    "Confirmed failures use the next eligible verified channel. Unconfirmed delivery is shown as Unknown.",
+                onlyHelp: "Every voter is sent this notification by {{channel}}.",
+                channelColumn: "Channel",
+                sendsFrom: "Sends from",
+                noAccount: "No account",
+                missingContent: "This notification has no content for {{channels}}.",
+                approvedTemplateHelp:
+                    "Sent with the provider-approved template. Edit it in Templates.",
+                providerTemplate: "{{channel}} provider template",
+                providerTemplateHelp:
+                    "Optional. When empty, the event's template bound to the chosen template's alias is used, or the event's default for notices.",
+                providerLanguage: "{{channel}} provider language",
+                providerLanguageHelp:
+                    "The provider's language code of that template, such as en_US.",
+            },
+            voter: {
+                title: "Messaging",
+                preferredChannel: "Preferred channel",
+                whatsappNumber: "WhatsApp number",
+                viberNumber: "Viber number",
+                messengerConnected: "Connected",
+                messengerNotConnected: "Not connected",
+                verifiedChannels: "Verified channels",
+                noneVerified: "No verified channels",
+                notSet: "Not set",
+            },
+            logs: {
+                channel: "Channel",
+            },
+            stats: {
+                sent: {
+                    WHATSAPP: "WhatsApp messages sent",
+                    VIBER: "Viber messages sent",
+                    MESSENGER: "Messenger messages sent",
+                },
+            },
+            readinessPolicy: {
+                PROVIDER_CHECK: "From the provider's check",
+                ADMIN_CONFIRMED: "Confirmed by an administrator",
+            },
+        },
+        messagingAccounts: {
+            tab: "MESSAGING",
+            description:
+                "Accounts that send voters their codes and notices. Each election event chooses the account for each channel; new events start with the default account.",
+            list: {
+                title: "Sending accounts",
+                add: "Add account",
+                loading: "Loading accounts",
+                loadError: "The sending accounts could not be loaded.",
+                empty: "No sending accounts yet.",
+            },
+            column: {
+                channel: "Channel",
+                name: "Account",
+                sender: "Sends as",
+                provider: "Provider",
+                default: "Default",
+                isDefault: "Default account",
+                lastCheck: "Last check",
+                actions: "Actions",
+            },
+            action: {
+                edit: "Edit",
+                editNamed: "Edit {{name}}",
+                view: "View",
+                viewNamed: "View {{name}}",
+                check: "Check connection",
+                checkNamed: "Check the connection of {{name}}",
+                test: "Send test message",
+                testNamed: "Send a test message from {{name}}",
+                delete: "Delete",
+                deleteNamed: "Delete {{name}}",
+            },
+            check: {
+                done: "{{name}} was checked. Its status is updated.",
+                error: "{{name}} could not be checked.",
+            },
+            delete: {
+                title: "Delete account",
+                body: "Delete {{name}}? Election events that use it stop sending on its channel.",
+                success: "Account deleted",
+                error: "The account could not be deleted.",
+            },
+            editor: {
+                addTitle: "Add account",
+                editTitle: "Edit {{channel}} account",
+                subtitle:
+                    "Voters receive codes and notices from this account on the channels that use it.",
+                channel: "Channel",
+                provider: "Provider",
+                save: "Save",
+                cancel: "Cancel",
+                close: "Close",
+                channelHelp: "Cannot be changed after the account is created.",
+            },
+            field: {
+                name: "Account name",
+                from_address: "From address",
+                from_name: "From name",
+                region: "AWS region",
+                notification_topic_arn: "Delivery notifications topic (SNS ARN)",
+                server_url: "Server and port",
+                sender_id: "Sender ID",
+                origination_number: "Origination number",
+                business_account_id: "WhatsApp Business Account ID",
+                phone_number_id: "Phone number ID",
+                display_phone_number: "Number",
+                display_name: "Display name",
+                api_version: "Graph API version",
+                page_id: "Facebook Page ID",
+                page_name: "Page name",
+                page_username: "Page username",
+                base_url: "API base URL",
+                sender: "Sender name",
+                provider_approval: "Provider approval",
+                is_default: "Default {{channel}} account for new election events",
+                readiness: "Readiness",
+                api_base_url: "Graph API base URL",
+                label: "Sender shown to voters",
+            },
+            fieldHelp: {
+                from_address:
+                    "The address voters see. Its domain must be verified with the provider.",
+                notification_topic_arn:
+                    "The SNS topic SES publishes delivery and bounce events to. Notifications from any other topic are refused.",
+                sender_id: "Up to 11 letters and digits. Some countries require registration.",
+                origination_number:
+                    "Used instead of the sender ID where a country requires a number.",
+                phone_number_id: "The number messages are sent from.",
+                display_name: "The display name Meta approved for the number.",
+                page_username: "Used for the m.me link voters open to get their code.",
+                api_version: "For example v23.0.",
+                base_url: "The account's Infobip API base URL.",
+                sender: "The approved sender voters see.",
+                provider_approval:
+                    "Meta allows government messaging on WhatsApp only through an approved arrangement. Choose Provider approval confirmed once Meta has approved it for this account; until then OTPs and notices cannot be enabled for it.",
+                readiness:
+                    "From the provider's check uses what the connection check finds: whether the account is connected, in production, and which templates are approved. Confirmed by an administrator is for providers whose check cannot tell: it is your statement that the account is connected, in production and has its templates approved, and it is used instead of the check.",
+                api_base_url:
+                    "Only when the Graph API is not Meta's own, such as a Solution Provider's endpoint. Empty uses Meta's.",
+                label: "The name voters see as the sender of this account.",
+            },
+            error: {
+                REQUIRED: "Required",
+                NOT_A_COUNT: "Enter a whole number",
+                OTP_ABOVE_TOTAL: "Cannot exceed the messages per second",
+                INVALID_CALLING_CODE: "Enter country calling codes of 1 to 3 digits, such as 63",
+                DUPLICATE_LANGUAGE: "This language already has a template for this purpose",
+                NOT_A_URL: "Enter an address starting with https:// or http://",
+                INVALID_HTTP_CONFIG: "Fix the problems shown",
+            },
+            warning: {
+                pageChange:
+                    "Messenger conversations belong to a Page. After changing the Page, the voters connected to {{page}} get codes only after connecting Messenger again.",
+                numberChange:
+                    "Messages will come from another number. Its templates must be approved in that business account before it can send codes, and voters will see a new chat.",
+            },
+            viber: {
+                title: "Approved templates",
+                description:
+                    "Enter the templates Viber approved through the partner, per purpose and language. The partner's template API is not available, so this list is kept by hand and the connection check reads it.",
+                purpose: "Purpose",
+                language: "Language",
+                templateId: "Partner template ID",
+                add: "Add template",
+                remove: "Remove template",
+            },
+            limits: {
+                title: "Sending limits",
+                messagesPerSecond: "Messages per second",
+                otpReservedPerSecond: "Reserved for OTPs per second",
+                otpReservedHelp: "Kept free for codes during bulk sends.",
+                allowedCallingCodes: "Allowed destinations (country calling codes)",
+                allowedCallingCodesHelp:
+                    "Separated by commas, for example 63, 971. Empty allows any destination.",
+            },
+            credentials: {
+                title: "Credentials",
+                description:
+                    "Credentials are write-only: after saving, only the date each was last replaced is shown.",
+                set: "Set · replaced {{date}}. It is stored encrypted and never shown.",
+                replace: "Replace",
+                replaceNamed: "Replace {{name}}",
+            },
+            credentialHelp: {
+                AWS_SES: {
+                    AWS_ACCESS_KEY_ID: "Optional. Without keys, the service's own role is used.",
+                    AWS_SECRET_ACCESS_KEY: "Optional. Set it together with the access key ID.",
+                },
+                AWS_SNS: {
+                    AWS_ACCESS_KEY_ID: "Optional. Without keys, the service's own role is used.",
+                    AWS_SECRET_ACCESS_KEY: "Optional. Set it together with the access key ID.",
+                },
+                SMTP: {
+                    SMTP_PASSWORD: "The SMTP server's password.",
+                },
+                WHATSAPP_CLOUD_API: {
+                    ACCESS_TOKEN:
+                        "A token of a system user in the owner's business portfolio, with whatsapp_business_messaging.",
+                    APP_SECRET: "Checks that webhook calls come from Meta.",
+                },
+                MESSENGER_SEND_API: {
+                    ACCESS_TOKEN: "A Page access token with pages_messaging.",
+                    APP_SECRET: "Checks that webhook calls come from Meta.",
+                },
+                VIBER_INFOBIP: {
+                    API_KEY: "The Infobip API key.",
+                },
+                HTTP_API: {
+                    API_KEY: "Optional. Requests use it as the credential API_KEY.",
+                    API_SECRET:
+                        "Optional. A second secret, and the key that signs the JWT: a PEM private key for RS256, the shared secret for HS256.",
+                    ACCESS_TOKEN: "Optional. Requests use it as the credential ACCESS_TOKEN.",
+                    USERNAME: "Optional. With the password, it forms the basic_auth placeholder.",
+                    PASSWORD: "Optional. With the user name, it forms the basic_auth placeholder.",
+                    WEBHOOK_SECRET:
+                        "Optional. The shared secret the provider's callbacks are checked with.",
+                },
+            },
+            webhook: {
+                title: "Delivery reports and replies",
+                description:
+                    "Enter this callback in the provider's webhook settings. Delivery reports and voters' replies arrive there.",
+                path: "Callback path",
+                pathHelp: "Add it to the public address of this platform's messaging webhooks.",
+                afterSaving: "Shown after saving",
+                copyPath: "Copy callback path",
+                tokenSet: "Set · replaced {{date}}",
+                tokenMissing: "Not generated yet",
+                tokenAfterSaving: "Generated after saving",
+                generate: "Generate verify token",
+                tokenTitle: "Verify token",
+                tokenOnce:
+                    "Enter this token in Meta's webhook settings now. It is shown only once.",
+                copyToken: "Copy verify token",
+                tokenDone: "Done",
+                tokenError: "The verify token could not be generated.",
+                httpHelp:
+                    "A custom HTTP API may post its reports as JSON, or send them as a GET request; its query parameters are then read as a flat object, with pointers such as /status.",
+            },
+            copy: {
+                success: "Copied",
+                error: "Could not copy",
+            },
+            save: {
+                success: "Account saved",
+                error: "The account could not be saved.",
+            },
+            test: {
+                title: "Send a test message from {{name}}",
+                description:
+                    "Sends a real message for the chosen purpose to this destination. The result shows what the provider reported.",
+                purpose: "Purpose",
+                destination: {
+                    EMAIL_ADDRESS: "Email address",
+                    PHONE_NUMBER: "Phone number (E.164)",
+                    PAGE_SCOPED_ID: "Page-scoped ID",
+                },
+                language: "Language",
+                send: "Send test message",
+                reason: "Reason: {{reason}}",
+                error: "The test message could not be sent.",
+                template: "Approved template",
+                templateHelp:
+                    "The name or ID of the template the provider approved for this purpose and language.",
+                viberTemplate:
+                    "Viber uses the template this account lists as approved for the chosen purpose and language.",
+                languageHelp:
+                    "For a provider that sends approved templates, enter the provider's language code of the template, such as en_US.",
+            },
+            http: {
+                title: "Custom HTTP API",
+                description:
+                    "Describes a provider by its HTTP requests: another Viber partner, a WhatsApp Solution Provider's own API, an SMS gateway. Requests are JSON; their URL, headers and body may hold the placeholders of the reference below.",
+                phoneFormat: "Phone number format",
+                phoneFormatHelp: "How the recipient's phone number is written in a request.",
+                phoneFormatOption: {
+                    E164: "With the plus sign: +639171234567",
+                    DIGITS: "Digits only: 639171234567",
+                },
+                templateRequired: "Purposes that need an approved template",
+                templateRequiredHelp:
+                    "A ticked purpose is sent only with a template the provider approved, bound in the election event. The other purposes are sent as free text.",
+                approvedLanguages: "Approved template languages for {{purpose}}",
+                approvedLanguagesHelp:
+                    "The language codes with an approved template, as confirmed with the provider, separated by commas: en, tl. The connection check reports them.",
+                conversationWindow: "Conversation window (hours)",
+                conversationWindowHelp:
+                    "Hours after the recipient's last message during which free text may be sent. Empty when the provider has no such window.",
+                messageIdPointer: "Message ID in the send response",
+                messageIdPointerHelp:
+                    "A JSON pointer to the provider's message ID in the answer to the send request, such as /message_id. Delivery reports are matched with it.",
+                notConfigured: "Not configured.",
+                thisSection: "This section",
+                add: "Add: {{section}}",
+                remove: "Remove: {{section}}",
+                section: {
+                    SEND: "Send request",
+                    CHECK: "Connection check request",
+                    TOKEN: "Token request",
+                    JWT: "Signed token (JWT)",
+                    REPORTS: "Delivery reports and replies",
+                    RECONCILE: "Message lookup request",
+                },
+                sectionHelp: {
+                    SEND: "The request that sends one message: method (POST when left out), url, headers and body.",
+                    CHECK: "Optional. A request that succeeds, with a 2xx answer, when the credentials work. The connection check runs it.",
+                    TOKEN: "Optional. Gets a short-lived token before sending, such as OAuth client credentials: request, token_pointer (where the token is in the answer) and lifetime_seconds. Requests use it with the token placeholder.",
+                    JWT: "Optional. A token signed for each request with the API secret credential: algorithm (RS256 or HS256), claims (iat, exp and jti are added) and lifetime_seconds. Requests use it with the jwt placeholder.",
+                    REPORTS:
+                        "Optional. How to read what the provider sends to the callback: auth, items_pointer (where the list of reports is; the whole payload when left out), status (message_id_pointer, state_pointer, states mapping each provider value to QUEUED, ACCEPTED, DELIVERED, FAILED or UNKNOWN, and error_pointer) and inbound_from_pointer (where the sender of a reply is). auth has a kind: URL_KEY (only the callback's secret address), HEADER_SECRET (a header equal to the webhook secret), HMAC_SHA256 (a header with the HMAC of the body under the webhook secret, with prefix, encoding HEX or BASE64, and signed when more than the body is signed) or JWT_HS256 (a header with a bearer JWT signed with the webhook secret).",
+                    RECONCILE:
+                        "Optional. Asks the provider about one message whose outcome is unknown: request and status, which is read like the status of the delivery reports.",
+                },
+                problem: {
+                    NOT_AN_OBJECT: "{{path}} must be an object.",
+                    MISSING_URL: "{{path}} is required: the address of the request.",
+                    INVALID_METHOD: "{{path}} must be an HTTP method, such as POST or GET.",
+                    INVALID_HEADERS:
+                        "{{path}} must be text: headers is an object of header names and text values.",
+                    UNKNOWN_FIELD: "{{path}} is not a field of this section.",
+                    UNKNOWN_PLACEHOLDER:
+                        "{{path}} uses a placeholder that does not exist. See the placeholder reference.",
+                    INVALID_POINTER:
+                        "{{path}} must be a JSON pointer starting with /, such as /data/id.",
+                    INVALID_STATES:
+                        "{{path}} must map a provider status value to QUEUED, ACCEPTED, DELIVERED, FAILED or UNKNOWN; at least one is needed.",
+                    INVALID_AUTH:
+                        "{{path}} is not valid: kind is URL_KEY, HEADER_SECRET, HMAC_SHA256 or JWT_HS256; header is required except for URL_KEY; encoding is HEX or BASE64.",
+                    INVALID_LIFETIME: "{{path}} must be a whole number of seconds above 0.",
+                    INVALID_ALGORITHM: "{{path}} must be RS256 or HS256.",
+                    INVALID_CLAIMS: "{{path}} must be an object.",
+                    INVALID_HOURS: "{{path}} must be a whole number of hours above 0.",
+                },
+                placeholders: {
+                    title: "Placeholder reference",
+                    help: "Written between double curly braces in the URL, a header value or any text of the body. Each is replaced when the request is made.",
+                },
+                placeholder: {
+                    to: "The recipient: phone number, email address or Page-scoped ID.",
+                    text: "The message as plain text.",
+                    subject: "The subject, for email.",
+                    html: "The message as HTML, for email.",
+                    code: "The one-time code, for OTPs.",
+                    template: "The provider template bound in the election event.",
+                    language: "The provider's language code of the template.",
+                    message_id: "The provider's message ID, in a message lookup request.",
+                    callback_url: "The public address of this account's callback.",
+                    param: "One template parameter by its position: 1, 2, 3 and so on.",
+                    credential:
+                        "A credential of this account by name: API_KEY, API_SECRET, ACCESS_TOKEN, USERNAME, PASSWORD or WEBHOOK_SECRET.",
+                    basic_auth:
+                        "The user name and password, encoded for an Authorization: Basic header.",
+                    token: "The token obtained with the token request.",
+                    jwt: "The signed token described under Signed token (JWT).",
+                    parameters:
+                        "Alone as a body value, it becomes the list of all template parameters.",
+                    named_parameters:
+                        "Alone as a body value, it becomes an object of the parameters written as @name=value.",
+                },
+                example: {
+                    title: "Worked example: a Viber partner",
+                    description:
+                        "The partner takes a JSON POST authenticated with the API key as a bearer token, answers with the message's ID under message_id, and posts delivery reports with a secret header. Use it as a starting point and change the address and field names to the provider's.",
+                    use: "Use this example",
+                },
+            },
         },
     },
 }

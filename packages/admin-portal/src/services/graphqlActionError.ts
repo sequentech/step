@@ -51,6 +51,32 @@ const readableMessage = (value: unknown): string | undefined => {
 }
 
 /**
+ * Whether a failed action carries `errorCode`, wherever Hasura left it: the
+ * promoted extension code when it parsed Harvest's answer, the original body
+ * when it could not, or one of `legacyMessages` from backends that answered
+ * with a message only.
+ */
+export const hasGraphQLActionErrorCode = (
+    error: unknown,
+    errorCode: string,
+    legacyMessages: readonly string[] = []
+): boolean => {
+    const actionError = error as IGraphQLActionError | undefined
+    const markers = [errorCode, ...legacyMessages]
+    const containsMarker = (value: string | null | undefined): boolean =>
+        markers.some((marker) => value?.includes(marker) === true)
+
+    return (
+        actionError?.graphQLErrors?.some(
+            (graphQLError) =>
+                graphQLError.extensions?.code === errorCode ||
+                containsMarker(graphQLError.message) ||
+                containsMarker(graphQLError.extensions?.internal?.response?.body)
+        ) === true || containsMarker(actionError?.message)
+    )
+}
+
+/**
  * Extracts why a Hasura action failed, so a form can tell the admin what went
  * wrong instead of only that something did.
  *
@@ -106,4 +132,32 @@ export const getGraphQLActionErrorMessage = (error: unknown): string | undefined
     }
 
     return readableMessage(actionError?.message)
+}
+
+/** Promote only timezone guard reasons; arbitrary PostgreSQL details stay private. */
+export const getTimeZoneValidationMessage = (error: unknown): string | undefined => {
+    const objectOf = (value: unknown): Record<string, unknown> =>
+        value !== null && typeof value === "object" ? (value as Record<string, unknown>) : {}
+    const extensions = objectOf(objectOf(error).extensions)
+    const details = objectOf(objectOf(extensions.internal).error)
+    const message = readableReason(details.message)
+    if (details.status_code === "55P03") {
+        return message === "Election event settings are busy; retry the timezone save"
+            ? message
+            : undefined
+    }
+    if (details.status_code !== "23514" || !message) return undefined
+    const prefixes = [
+        "Invalid IANA timezone:",
+        "Timezones require a configured array",
+        "Configured timezones must be IANA zone names",
+        "At least one timezone is required; primary must be configured",
+        "Log timezone policy must be primary or election",
+        "Timezone ",
+        "Post timezone ",
+        "Election event for Post timezone does not exist",
+        "Election event presentation must be an object",
+        "Post presentation must be an object",
+    ]
+    return prefixes.some((prefix) => message.startsWith(prefix)) ? message : undefined
 }

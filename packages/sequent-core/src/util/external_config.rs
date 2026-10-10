@@ -34,6 +34,12 @@ pub struct GenerateVoters {
     pub domain: String,
     pub sequence_email_number: bool,
     pub sequence_start_number: i64,
+    /// First value of the incrementing counter used as each generated voter's `username`.
+    /// Defaults to 0 (existing `external_config.json` files, which predate this field, keep
+    /// generating usernames "0", "1", ... unchanged). Set higher (e.g. 100) to guarantee a
+    /// minimum username length - useful for auth flows with a minimum-digit identifier.
+    #[serde(default)]
+    pub username_start_number: i64,
     pub voter_password: String,
     /// Governs how each generated voter's plaintext password is chosen. Defaults to
     /// `Fixed` (every voter gets `voter_password` verbatim) so existing

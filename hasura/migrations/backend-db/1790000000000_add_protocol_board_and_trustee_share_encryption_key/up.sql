@@ -28,9 +28,6 @@ CREATE TABLE "sequent_backend"."protocol_board"
     FOREIGN KEY ("tenant_id")
         REFERENCES "sequent_backend"."tenant" ("id")
         ON UPDATE RESTRICT ON DELETE RESTRICT,
-    FOREIGN KEY ("tenant_id")
-        REFERENCES "sequent_backend"."tenant" ("id")
-        ON UPDATE RESTRICT ON DELETE RESTRICT,
     FOREIGN KEY ("election_event_id")
         REFERENCES "sequent_backend"."election_event" ("id")
         ON UPDATE RESTRICT ON DELETE RESTRICT,

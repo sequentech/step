@@ -4,15 +4,18 @@
 
 use crate::assign_value;
 use anyhow::{anyhow, Context, Result};
-use immudb_rs::{sql_value::Value, Client, CommittedSqlTx, NamedParam, Row, SqlValue, TxMode};
+use immudb_rs::{
+    sql_value::Value, Client, CommittedSqlTx, NamedParam, Row, SqlQueryResult, SqlValue, TxMode,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::fmt::Display;
+use std::time::Duration;
 use strum_macros::Display;
-use tokio_stream::StreamExt; // Added for streaming
-use tracing::{error, info, instrument, warn};
+use tokio_stream::{Stream, StreamExt};
+use tracing::{info, instrument};
 
 const IMMUDB_DEFAULT_LIMIT: usize = 900;
 const IMMUDB_DEFAULT_ENTRIES_TX_LIMIT: usize = 50;
@@ -24,6 +27,41 @@ const ID_VARCHAR_LENGTH: usize = 40;
 const STATEMENT_KIND_VARCHAR_LENGTH: usize = 40;
 /// 64 chars + EOL + some padding
 const BALLOT_ID_VARCHAR_LENGTH: usize = 70;
+const READ_CONFLICT_RETRIES: usize = 5;
+const READ_CONFLICT_BACKOFF: Duration = Duration::from_millis(100);
+
+/// Run one board transaction, retrying only a definite ImmuDB read conflict.
+/// Each invocation must start a fresh transaction over the same messages.
+/// Transport failures can leave commit status unknown and must not be replayed.
+pub async fn retry_electoral_log_transaction<F, Fut, T>(mut transaction: F) -> Result<T>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = Result<T>>,
+{
+    let mut retries = 0;
+    let mut backoff = READ_CONFLICT_BACKOFF;
+    loop {
+        match transaction().await {
+            Err(error)
+                if retries < READ_CONFLICT_RETRIES
+                    && error.downcast_ref::<tonic::Status>().is_some_and(|status| {
+                        status.code() == tonic::Code::Unknown
+                            && status.message() == "tx read conflict"
+                    }) =>
+            {
+                retries += 1;
+                tracing::warn!(
+                    retries,
+                    ?backoff,
+                    "Retrying rejected electoral log transaction"
+                );
+                tokio::time::sleep(backoff).await;
+                backoff *= 2;
+            }
+            result => return result,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct BoardClient {
@@ -88,6 +126,10 @@ impl TryFrom<&Row> for ElectoralLogMessage {
     type Error = anyhow::Error;
 
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
+        if row.columns.len() != row.values.len() {
+            return Err(anyhow!("audit row has unequal column and value counts"));
+        }
+        let mut seen_columns = HashSet::new();
         let mut id = 0;
         let mut created = 0;
         let mut sender_pk = String::from("");
@@ -102,11 +144,18 @@ impl TryFrom<&Row> for ElectoralLogMessage {
         let mut ballot_id: Option<String> = None;
 
         for (column, value) in row.columns.iter().zip(row.values.iter()) {
-            // FIXME for some reason columns names appear with parentheses
-            let dot = column
-                .find('.')
-                .ok_or(anyhow!("invalid column found '{}'", column.as_str()))?;
-            let bare_column = &column[dot + 1..column.len() - 1];
+            // ImmuDB qualifies labels as `(table.column)`. Validate the
+            // wrapper before splitting; byte slicing can panic on corrupt
+            // or multibyte labels returned by the database.
+            let (_, bare_column) = column
+                .strip_prefix('(')
+                .and_then(|label| label.strip_suffix(')'))
+                .and_then(|label| label.rsplit_once('.'))
+                .filter(|(table, name)| !table.is_empty() && !name.is_empty())
+                .ok_or_else(|| anyhow!("invalid audit column label {column:?}"))?;
+            if !seen_columns.insert(bare_column) {
+                return Err(anyhow!("duplicate audit column '{bare_column}'"));
+            }
 
             match bare_column {
                 "id" => assign_value!(Value::N, value, id),
@@ -177,6 +226,22 @@ impl TryFrom<&Row> for ElectoralLogMessage {
             }
         }
 
+        // Some readers intentionally omit optional metadata. The seven
+        // fields that identify and carry the signed record are mandatory.
+        for required in [
+            "id",
+            "created",
+            "sender_pk",
+            "statement_timestamp",
+            "statement_kind",
+            "message",
+            "version",
+        ] {
+            if !seen_columns.contains(required) {
+                return Err(anyhow!("missing required audit column '{required}'"));
+            }
+        }
+
         Ok(ElectoralLogMessage {
             id,
             created,
@@ -203,15 +268,80 @@ impl TryFrom<&Row> for Aggregate {
     type Error = anyhow::Error;
 
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
-        let mut count = 0;
-
-        for (column, value) in row.columns.iter().zip(row.values.iter()) {
-            match column.as_str() {
-                _ => assign_value!(Value::N, value, count),
-            }
+        if row.columns.len() != 1 || row.values.len() != 1 {
+            return Err(anyhow!(
+                "count query must return exactly one column and value"
+            ));
         }
-        Ok(Aggregate { count })
+        // ImmuDB 1.9.6 labels the unaliased COUNT(*) projection as col0.
+        // "count" is also accepted for explicitly named aggregate rows.
+        if row.columns[0] != "count" && row.columns[0] != format!("({ELECTORAL_LOG_TABLE}.col0)") {
+            return Err(anyhow!("unexpected count column {:?}", row.columns[0]));
+        }
+        match row.values[0].value.as_ref() {
+            Some(Value::N(count)) if *count >= 0 => Ok(Aggregate { count: *count }),
+            _ => Err(anyhow!("count query must return a nonnegative integer")),
+        }
     }
+}
+
+/// Build one ORDER BY clause from validated identifiers. Values use bound SQL
+/// parameters elsewhere; identifiers cannot be parameters, so they need an
+/// explicit allowlist even when today's caller supplies an enum.
+fn order_clause<K: Display, V: Display>(order_by: Option<HashMap<K, V>>) -> Result<String> {
+    let mut columns = BTreeMap::new();
+    for (field, direction) in order_by.unwrap_or_default() {
+        let field = field.to_string();
+        let direction = direction.to_string().to_ascii_uppercase();
+        if !matches!(
+            field.as_str(),
+            "id" | "created"
+                | "statement_timestamp"
+                | "statement_kind"
+                | "message"
+                | "user_id"
+                | "username"
+                | "ballot_id"
+                | "sender_pk"
+                | "election_id"
+                | "area_id"
+                | "version"
+        ) || !matches!(direction.as_str(), "ASC" | "DESC")
+        {
+            return Err(anyhow!(
+                "invalid audit sort column {field:?} or direction {direction:?}"
+            ));
+        }
+        columns.insert(field, direction);
+    }
+    if columns.is_empty() {
+        return Ok("ORDER BY id DESC".into());
+    }
+    // `id` is unique, so any key after it would be ignored: it always goes last.
+    let id_direction = columns.remove("id").unwrap_or_else(|| "ASC".into());
+    let mut fields = columns
+        .iter()
+        .map(|(field, direction)| format!("{field} {direction}"))
+        .collect::<Vec<_>>();
+    // Nonunique timestamps/metadata need a stable final key across offset pages.
+    fields.push(format!("id {id_direction}"));
+    Ok(format!("ORDER BY {}", fields.join(", ")))
+}
+
+/// Return either the complete requested page or an error. A truncated stream
+/// must not look like the end of the audit log to export/pagination callers.
+async fn collect_messages<S>(mut stream: S) -> Result<Vec<ElectoralLogMessage>>
+where
+    S: Stream<Item = std::result::Result<SqlQueryResult, tonic::Status>> + Unpin,
+{
+    let mut messages = Vec::new();
+    while let Some(batch) = stream.next().await {
+        for row in batch.context("audit database stream failed")?.rows {
+            messages
+                .push(ElectoralLogMessage::try_from(&row).context("invalid audit database row")?);
+        }
+    }
+    Ok(messages)
 }
 
 impl BoardClient {
@@ -272,6 +402,7 @@ impl BoardClient {
             message,
             version,
             user_id,
+            election_id,
             area_id,
             ballot_id,
             username
@@ -366,15 +497,7 @@ impl BoardClient {
             }
         }
 
-        let order_by_clauses = if let Some(order_by) = order_by {
-            order_by
-                .iter()
-                .map(|(field, direction)| format!("ORDER BY {field} {direction}"))
-                .collect::<Vec<String>>()
-                .join(", ")
-        } else {
-            format!("ORDER BY id desc")
-        };
+        let order_by_clauses = order_clause(order_by)?;
 
         self.client.use_database(board_db).await?;
         let sql = format!(
@@ -402,7 +525,7 @@ impl BoardClient {
         "#
         );
 
-        if min_clause_value != 0 {
+        if min_ts.is_some() {
             params.push(NamedParam {
                 name: String::from("min_ts"),
                 value: Some(SqlValue {
@@ -410,7 +533,7 @@ impl BoardClient {
                 }),
             })
         }
-        if max_clause_value != 0 {
+        if max_ts.is_some() {
             params.push(NamedParam {
                 name: String::from("max_ts"),
                 value: Some(SqlValue {
@@ -437,41 +560,7 @@ impl BoardClient {
         let response_stream = self.client.streaming_sql_query(&sql, params)
             .await
             .with_context(|| "Failed to execute streaming_sql_query using immudb-rs v0.1.0. This version streams batches (SqlQueryResult).")?;
-        let mut stream = response_stream.into_inner(); // Get the tonic::Streaming<SqlQueryResult>
-
-        let mut messages: Vec<ElectoralLogMessage> = vec![];
-        let mut total_rows_fetched = 0;
-
-        while let Some(batch_result) = stream.next().await {
-            // Iterates over SqlQueryResult batches
-            match batch_result {
-                Ok(sql_query_result_batch) => {
-                    for individual_row in &sql_query_result_batch.rows {
-                        total_rows_fetched += 1;
-                        if total_rows_fetched % 1000 == 0 {
-                            info!(total_rows_fetched, "Processed rows from stream...");
-                        }
-
-                        let elog_row = match ElectoralLogMessage::try_from(individual_row) {
-                            Ok(elog_row) => elog_row,
-                            Err(e) => {
-                                warn!(error = %e, "Failed to parse ImmudbRow into ElectoralLogRow from stream batch.");
-                                continue;
-                            }
-                        };
-                        messages.push(elog_row);
-                    }
-                }
-                Err(e) => {
-                    error!(error = %e, "Error receiving batch from Immudb stream.");
-                    // Depending on the error, you might want to break or continue.
-                    // For now, we'll log and break for stream errors to avoid infinite loops on persistent errors.
-                    break;
-                }
-            }
-        }
-
-        Ok(messages)
+        collect_messages(response_stream.into_inner()).await
     }
 
     #[instrument(err)]
@@ -540,7 +629,10 @@ impl BoardClient {
                 message,
                 version,
                 user_id,
-                username
+                username,
+                election_id,
+                area_id,
+                ballot_id
             FROM {ELECTORAL_LOG_TABLE}
             ORDER BY id
             LIMIT {limit}
@@ -548,27 +640,7 @@ impl BoardClient {
             "#
         );
         let response_stream = self.client.streaming_sql_query(&sql, vec![]).await?;
-        let mut stream = response_stream.into_inner();
-        let mut messages: Vec<ElectoralLogMessage> = vec![];
-        while let Some(batch_result) = stream.next().await {
-            match batch_result {
-                Ok(batch) => {
-                    for row in &batch.rows {
-                        match ElectoralLogMessage::try_from(row) {
-                            Ok(msg) => messages.push(msg),
-                            Err(e) => {
-                                warn!("Failed to parse row: {e}");
-                            }
-                        }
-                    }
-                }
-                Err(e) => {
-                    error!("Error receiving batch from stream: {e}");
-                    break;
-                }
-            }
-        }
-        Ok(messages)
+        collect_messages(response_stream.into_inner()).await
     }
 
     /// Returns a batch of electoral log messages with id > `after_id`, ordered by id,
@@ -594,7 +666,10 @@ impl BoardClient {
                 message,
                 version,
                 user_id,
-                username
+                username,
+                election_id,
+                area_id,
+                ballot_id
             FROM {ELECTORAL_LOG_TABLE}
             WHERE id > {after_id}
             ORDER BY id
@@ -602,27 +677,7 @@ impl BoardClient {
             "#
         );
         let response_stream = self.client.streaming_sql_query(&sql, vec![]).await?;
-        let mut stream = response_stream.into_inner();
-        let mut messages: Vec<ElectoralLogMessage> = vec![];
-        while let Some(batch_result) = stream.next().await {
-            match batch_result {
-                Ok(batch) => {
-                    for row in &batch.rows {
-                        match ElectoralLogMessage::try_from(row) {
-                            Ok(msg) => messages.push(msg),
-                            Err(e) => {
-                                warn!("Failed to parse row: {e}");
-                            }
-                        }
-                    }
-                }
-                Err(e) => {
-                    error!("Error receiving batch from stream: {e}");
-                    break;
-                }
-            }
-        }
-        Ok(messages)
+        collect_messages(response_stream.into_inner()).await
     }
 
     pub async fn open_session(&mut self, database_name: &str) -> Result<()> {
@@ -639,6 +694,83 @@ impl BoardClient {
 
     pub async fn commit(&mut self, transaction_id: &String) -> Result<CommittedSqlTx> {
         self.client.commit(transaction_id).await
+    }
+
+    /// Add receipts to existing boards without changing their audit table.
+    /// Call before opening the delivery transaction.
+    pub async fn ensure_electoral_log_delivery_receipts(&mut self) -> Result<()> {
+        self.client.sql_exec(
+            "CREATE TABLE IF NOT EXISTS electoral_log_delivery_receipts (delivery_id VARCHAR[64], payload_hash VARCHAR[64], PRIMARY KEY delivery_id)",
+            vec![],
+        ).await?;
+        Ok(())
+    }
+
+    /// Atomically record a stable delivery ID with all of its audit rows.
+    /// A repeated input is a no-op, even if signing generated different bytes.
+    /// Reusing an ID for different input is an error, never a silent omission.
+    pub async fn insert_electoral_log_delivery(
+        &mut self,
+        transaction_id: &String,
+        delivery_id: &str,
+        payload_hash: &str,
+        messages: &[ElectoralLogMessage],
+    ) -> Result<bool> {
+        anyhow::ensure!(
+            [delivery_id, payload_hash].iter().all(
+                |value| value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+            ),
+            "electoral log delivery identity must be a SHA-256 digest"
+        );
+        anyhow::ensure!(
+            !messages.is_empty(),
+            "electoral log delivery has no messages"
+        );
+        let id_param = NamedParam {
+            name: "delivery_id".into(),
+            value: Some(SqlValue {
+                value: Some(Value::S(delivery_id.into())),
+            }),
+        };
+        let mut response = self.client.tx_sql_query(
+            "SELECT payload_hash FROM electoral_log_delivery_receipts WHERE delivery_id = @delivery_id",
+            transaction_id,
+            vec![id_param.clone()],
+        ).await?.into_inner();
+        let mut existing = None;
+        while let Some(result) = response.next().await {
+            for row in result?.rows {
+                anyhow::ensure!(
+                    existing.is_none(),
+                    "duplicate electoral log delivery receipts"
+                );
+                existing = Some(
+                    row.values
+                        .into_iter()
+                        .next()
+                        .and_then(|value| value.value)
+                        .ok_or_else(|| anyhow!("invalid electoral log delivery receipt"))?,
+                );
+            }
+        }
+        if let Some(existing) = existing {
+            anyhow::ensure!(
+                existing == Value::S(payload_hash.into()),
+                "electoral log delivery ID reused with different input"
+            );
+            return Ok(false);
+        }
+        self.insert_electoral_log_messages_batch(transaction_id, messages)
+            .await?;
+        self.client.tx_sql_exec(
+            "INSERT INTO electoral_log_delivery_receipts (delivery_id, payload_hash) VALUES (@delivery_id, @payload_hash)",
+            transaction_id,
+            vec![id_param, NamedParam {
+                name: "payload_hash".into(),
+                value: Some(SqlValue { value: Some(Value::S(payload_hash.into())) }),
+            }],
+        ).await?;
+        Ok(true)
     }
 
     // Insert messages in batch using an existing session/transaction
@@ -909,18 +1041,27 @@ impl BoardClient {
             sql_results.push(result);
         }
 
-        let commit = self
-            .client
-            .commit(&transaction_id)
-            .await
-            .with_context(|| "error commiting to electoral log");
+        // Every message or none: entries that belong together must not be
+        // left half written when one of them cannot be inserted.
+        let end = if sql_results.iter().all(|result| result.is_ok()) {
+            self.client
+                .commit(&transaction_id)
+                .await
+                .map(|_| ())
+                .with_context(|| "error commiting to electoral log")
+        } else {
+            self.client
+                .rollback(&transaction_id)
+                .await
+                .with_context(|| "error rolling back the electoral log insert")
+        };
         self.client.close_session().await?;
 
         // We defer checking on these results until after closing the session
         for result in sql_results {
             result?;
         }
-        commit?;
+        end?;
 
         Ok(())
     }
@@ -968,7 +1109,8 @@ impl BoardClient {
         ];
 
         self.upsert_database(board_dbname, &sql, elog_indexes.as_slice())
-            .await
+            .await?;
+        self.ensure_electoral_log_delivery_receipts().await
     }
 
     /// Deletes the immudb database.
@@ -1012,132 +1154,9 @@ impl BoardClient {
 // Run ignored tests with
 // cargo test <test_name> -- --include-ignored
 #[cfg(test)]
-pub(crate) mod tests {
-    use super::*;
-    use serial_test::serial;
+#[path = "../../tests/support/board_client_tests.rs"]
+mod tests;
 
-    const BOARD_DB: &'static str = "testdb";
-
-    async fn set_up() -> BoardClient {
-        let mut b = BoardClient::new("http://localhost:3322", "immudb", "immudb")
-            .await
-            .unwrap();
-
-        // In case the previous test did not clean up properly
-        b.delete_database(BOARD_DB).await.unwrap();
-        b.upsert_electoral_log_db(BOARD_DB).await.unwrap();
-
-        b
-    }
-
-    async fn tear_down(mut b: BoardClient) {
-        b.delete_database(BOARD_DB).await.unwrap();
-    }
-
-    #[tokio::test]
-    #[ignore]
-    #[serial]
-    pub async fn test_message_create_retrieve() {
-        let mut b = set_up().await;
-        let electoral_log_message = ElectoralLogMessage {
-            id: 1,
-            created: 555,
-            sender_pk: "".to_string(),
-            statement_timestamp: 0,
-            statement_kind: "".to_string(),
-            message: vec![],
-            version: "".to_string(),
-            user_id: None,
-            username: None,
-            election_id: None,
-            area_id: None,
-            ballot_id: None,
-        };
-        let messages = vec![electoral_log_message];
-
-        b.insert_electoral_log_messages(BOARD_DB, &messages)
-            .await
-            .unwrap();
-
-        let ret = b.get_electoral_log_messages(BOARD_DB).await.unwrap();
-        assert_eq!(messages, ret);
-
-        let cols_match = BTreeMap::from([
-            (
-                ElectoralLogVarCharColumn::StatementKind,
-                (SqlCompOperators::Equal, "".to_string()),
-            ),
-            (
-                ElectoralLogVarCharColumn::SenderPk,
-                (SqlCompOperators::Equal, "".to_string()),
-            ),
-        ]);
-        let ret = b
-            .get_electoral_log_messages_filtered::<String, String>(
-                BOARD_DB,
-                Some(cols_match.clone()),
-                None,
-                None,
-                None,
-                None,
-                None,
-            )
-            .await
-            .unwrap();
-        assert_eq!(messages, ret);
-        let ret = b
-            .get_electoral_log_messages_filtered::<String, String>(
-                BOARD_DB,
-                Some(cols_match.clone()),
-                Some(1i64),
-                None,
-                None,
-                None,
-                None,
-            )
-            .await
-            .unwrap();
-        assert_eq!(messages, ret);
-        let ret = b
-            .get_electoral_log_messages_filtered::<String, String>(
-                BOARD_DB,
-                Some(cols_match.clone()),
-                None,
-                Some(556i64),
-                None,
-                None,
-                None,
-            )
-            .await
-            .unwrap();
-        assert_eq!(messages, ret);
-        let ret = b
-            .get_electoral_log_messages_filtered::<String, String>(
-                BOARD_DB,
-                Some(cols_match.clone()),
-                Some(1i64),
-                Some(556i64),
-                None,
-                None,
-                None,
-            )
-            .await
-            .unwrap();
-        assert_eq!(messages, ret);
-        let ret = b
-            .get_electoral_log_messages_filtered::<String, String>(
-                BOARD_DB,
-                Some(cols_match),
-                Some(556i64),
-                Some(666i64),
-                None,
-                None,
-                None,
-            )
-            .await
-            .unwrap();
-        assert_eq!(ret.len(), 0);
-
-        tear_down(b).await;
-    }
-}
+#[cfg(test)]
+#[path = "../../tests/support/stream_failures.rs"]
+mod stream_failure_tests;

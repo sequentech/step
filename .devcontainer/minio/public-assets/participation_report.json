@@ -16,7 +16,7 @@
     "election_event_name": "Election Event",
     "election_name": null,
     "generated_at": "2026-05-09T10:30:00+00:00",
-    "generated_timezone": "+00:00",
+    "generated_timezone": "UTC",
     "total_voters": 1250,
     "voted_voters": 895,
     "participation_percentage": 71.6,

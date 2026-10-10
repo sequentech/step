@@ -2,23 +2,28 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::secret::{get_secret_by_id, get_secret_by_key, insert_secret, Secret};
+use crate::postgres::secret::{
+    delete_secret_by_key, get_secret_by_id, get_secret_by_key, insert_secret, update_secret_value,
+    Secret,
+};
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::vault::{
     aws_secret_manager::AwsSecretManager, env_var_master_secret::EnvVarMasterSecret,
-    hashicorp_vault::HashiCorpVault, strand_layout_shim,
+    hashicorp_vault::HashiCorpVault,
 };
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use cryptography::utils::serialization::Serializable;
-use cryptography::utils::symm::{decrypt, encrypt, gen_key, sk_from_bytes, SymmetricKey};
+use cryptography::utils::serialization::{Deserializable, Serializable};
+use cryptography::utils::symm::{
+    decrypt, encrypt, gen_key, sk_from_bytes, EncryptionData, SymmetricKey,
+};
 use deadpool_postgres::Transaction;
 use std::str::FromStr;
-use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strum_macros::{Display, EnumString};
 use tokio;
 use tokio::sync::OnceCell;
 use tracing::{info, instrument};
+use voting_crypto::signing::{SigningKey, VerificationKey};
 
 const MASTER_SECRET_KEY_NAME: &str = "master_secret";
 
@@ -144,8 +149,53 @@ pub async fn save_secret_and_return(
     .context("Error saving secret")
 }
 
+/// Encrypts short-lived data, such as a held Messenger code, with the
+/// master key.
+pub async fn encrypt_with_master_secret(plaintext: &[u8]) -> Result<Vec<u8>> {
+    let master_secret = get_master_secret().await?;
+    Ok(encrypt(master_secret, plaintext)
+        .context("Error encrypting data")?
+        .ser())
+}
+
+pub async fn decrypt_with_master_secret(ciphertext: &[u8]) -> Result<Vec<u8>> {
+    let encrypted_data = EncryptionData::deser(ciphertext).context("Error deserializing data")?;
+    let master_secret = get_master_secret().await?;
+    decrypt(&master_secret, &encrypted_data).context("Error decrypting data")
+}
+
+/// Stores `value` under `key`, replacing the previous value if there is one.
+/// Used for credentials that rotate.
+#[instrument(skip(hasura_transaction, value), err)]
+pub async fn replace_secret(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    key: &str,
+    value: &str,
+) -> Result<()> {
+    let master_secret = get_master_secret().await?;
+    let encrypted_bytes = encrypt(master_secret, value.as_bytes())
+        .context("Error encrypting secret")?
+        .ser();
+    if !update_secret_value(hasura_transaction, tenant_id, key, &encrypted_bytes).await? {
+        insert_secret(hasura_transaction, tenant_id, None, key, &encrypted_bytes)
+            .await
+            .context("Error saving secret")?;
+    }
+    Ok(())
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn delete_secret(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    key: &str,
+) -> Result<bool> {
+    delete_secret_by_key(hasura_transaction, tenant_id, key).await
+}
+
 async fn decrypt_stored_secret(secret: &Secret) -> Result<String> {
-    let encrypted_data = strand_layout_shim::read_stored(&secret.value)
+    let encrypted_data = voting_crypto::envelope::read_encrypted_value(&secret.value)
         .context("Error deserializing encrypted data")?;
     let master_secret = get_master_secret().await?;
     let decrypted_bytes = decrypt(&master_secret, &encrypted_data)
@@ -195,21 +245,21 @@ pub async fn get_admin_user_signing_key(
     username: Option<String>,
     elections_ids: Option<String>,
     user_area_id: Option<String>,
-) -> Result<StrandSignatureSk> {
+) -> Result<SigningKey> {
     let lookup_key = admin_vault_lookup_key(&tenant_id, &user_id);
     let sk_der_b64 = read_secret(hasura_transaction, tenant_id, None, &lookup_key).await?;
 
     let sk = if let Some(sk_der_b64) = sk_der_b64 {
-        StrandSignatureSk::from_der_b64_string(&sk_der_b64)?
+        SigningKey::from_b64_string(&sk_der_b64)?
     } else {
         info!(
             "Vault: generating private signing key for admin user {}",
             lookup_key.clone()
         );
-        let sk = StrandSignatureSk::generate()?;
-        let sk_string = sk.to_der_b64_string()?;
-        let pk = StrandSignaturePk::from_sk(&sk)?;
-        let pk = pk.to_der_b64_string()?;
+        let sk = SigningKey::generate()?;
+        let sk_string = sk.to_b64_string()?;
+        let pk = VerificationKey::from_sk(&sk)?;
+        let pk = pk.to_b64_string()?;
 
         // We save the secret right before notifying the public key
         // to minimize the chances that the second call fails while
@@ -232,6 +282,21 @@ pub async fn get_admin_user_signing_key(
     };
 
     Ok(sk)
+}
+
+/// Whether the admin user has a signing key, without reading it.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn admin_user_signing_key_exists(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    user_id: &str,
+) -> Result<bool> {
+    let lookup_key = admin_vault_lookup_key(tenant_id, user_id);
+    Ok(
+        get_secret_by_key(hasura_transaction, tenant_id, None, &lookup_key)
+            .await?
+            .is_some(),
+    )
 }
 
 fn voter_vault_lookup_key(tenant_id: &str, event_id: &str, user_id: &str) -> String {

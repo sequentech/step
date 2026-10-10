@@ -8,7 +8,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::default::Default;
-use strum_macros::{Display, EnumString, VariantNames};
+use strum_macros::{Display, EnumIter, EnumString, VariantNames};
 
 #[derive(
     Display,
@@ -54,9 +54,9 @@ pub enum TrusteeStatus {
     SHARES_POSTED,
     /// Posted its derivation of the joint public key (`PublicKey`).
     KEY_GENERATED,
-    /// Downloaded its key bundle.
+    /// Downloaded its public custody request.
     KEY_RETRIEVED,
-    /// Re-uploaded its key bundle and it matched the board.
+    /// Uploaded a valid custody proof bound to this ceremony.
     KEY_CHECKED,
     /// Halted its session over the board and reported it.
     HALTED,
@@ -367,6 +367,7 @@ pub struct TallySessionDocuments {
     Eq,
     Clone,
     EnumString,
+    EnumIter,
     Default,
     JsonSchema,
 )]
@@ -611,3 +612,6 @@ impl CountingAlgType {
         }
     }
 }
+
+/// Logical ballot batch number, independent of bulletin board storage.
+pub type BatchNumber = u64;

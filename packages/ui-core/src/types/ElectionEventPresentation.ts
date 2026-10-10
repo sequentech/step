@@ -33,9 +33,25 @@ export enum EVoterSigningPolicy {
     WITH_SIGNATURE = "with-signature",
 }
 
+export enum EReceiptsPolicy {
+    DISABLED = "disabled",
+    SIGNED_BY_BALLOT_BOX = "signed-by-ballot-box",
+}
+
 export enum EShowCastVoteLogsPolicy {
     SHOW_LOGS_TAB = "show-logs-tab",
     HIDE_LOGS_TAB = "hide-logs-tab",
+}
+
+export enum EChecksPeriodPolicy {
+    UNLIMITED = "unlimited",
+    UNTIL_DATE = "until-date",
+}
+
+export interface IReceiptsPresentation {
+    policy?: EReceiptsPolicy
+    checks_period_policy?: EChecksPeriodPolicy
+    checks_available_until?: string
 }
 
 export enum ElectionsOrder {
@@ -56,6 +72,23 @@ export interface IActiveTemplateIds {
 export enum EElectionEventLockedDown {
     LOCKED_DOWN = "locked-down",
     NOT_LOCKED_DOWN = "not-locked-down",
+}
+
+/** Whether each ballot box is sealed when voting closes (VOTE-FREEZE). Locked once voting has opened. */
+export enum EBallotBoxSealPolicy {
+    DO_NOT_SEAL = "do-not-seal",
+    SEAL_AT_CLOSE = "seal-at-close",
+}
+
+/**
+ * Who can download a sealed ballot box's seal record (VOTE-FREEZE): Restricted
+ * (the default) keeps it a private event document for administrators; Public
+ * puts it in the public bucket. Locked once voting has opened on a
+ * seal-at-close event.
+ */
+export enum EBallotBoxSealRecordPolicy {
+    RESTRICTED = "restricted",
+    PUBLIC = "public",
 }
 
 export enum EElectionEventDecodedBallots {
@@ -107,6 +140,17 @@ export enum EElectionEventDelegatedVotingPolicy {
 export enum EVoterCertificatePolicy {
     ENABLED = "enabled",
     DISABLED = "disabled",
+}
+
+export enum EVoterAccessibilitySettingsPolicy {
+    DISABLED = "disabled",
+    ENABLED = "enabled",
+}
+
+export enum EAudioInstructionsPolicy {
+    DISABLED = "disabled",
+    RECORDED = "recorded",
+    RECORDED_OR_SYNTHESIZED = "recorded-or-synthesized",
 }
 
 export enum EResultsWebsiteStatus {
@@ -212,6 +256,7 @@ export interface IElectionEventPresentation {
     css?: string
     skip_election_list?: boolean
     show_user_profile?: boolean
+    show_cast_vote_logs?: EShowCastVoteLogsPolicy
     elections_order?: ElectionsOrder
     voting_portal_countdown_policy?: IVotingPortalCountdownPolicy
     custom_urls?: ICustomUrls
@@ -230,4 +275,46 @@ export interface IElectionEventPresentation {
     results_website?: string
     delegated_voting_policy: EElectionEventDelegatedVotingPolicy
     voting_portal_datetime_format?: VotingPortalDateTimeFormat
+    receipts?: IReceiptsPresentation
+    voter_accessibility_settings_policy?: EVoterAccessibilitySettingsPolicy
+    audio_instructions_policy?: EAudioInstructionsPolicy
+    /** Configured timezones and the primary one (VOTE-LIFECYCLE). */
+    timezones?: IElectionEventTimeZones
+    /** Lifecycle decisions that are part of the (signed) configuration. */
+    lifecycle_policies?: ILifecyclePolicies
+    /** Unset means do-not-seal (VOTE-FREEZE). */
+    ballot_box_seal_policy?: EBallotBoxSealPolicy
+    /** Unset means restricted (VOTE-FREEZE). */
+    ballot_box_seal_record_policy?: EBallotBoxSealRecordPolicy
+}
+
+/** Which timezone the Logs tab and log exports show. */
+export enum ELogTimeZonePolicy {
+    PRIMARY = "primary",
+    ELECTION = "election",
+}
+
+/** IANA zone names in tzdata canonical form (Asia/Kolkata, not Asia/Calcutta). */
+export interface IElectionEventTimeZones {
+    /** At least one; elections choose theirs from this list. */
+    configured: Array<string>
+    /** One of `configured`. */
+    primary: string
+    logs?: ELogTimeZonePolicy
+}
+
+export enum EInitializationScope {
+    POST = "post",
+    EVENT = "event",
+    POST_AND_COUNTRY = "post-and-country",
+}
+
+export enum EUnsignedScheduledClosePolicy {
+    REFUSE = "refuse",
+    RUN_AS_SYSTEM = "run-as-system",
+}
+
+export interface ILifecyclePolicies {
+    initialization_scope?: EInitializationScope
+    unsigned_scheduled_close?: EUnsignedScheduledClosePolicy
 }

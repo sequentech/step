@@ -127,7 +127,8 @@ default = ["native"]
 
 # Minimal surface for the fuzz targets (crates/braid/fuzz): just the message
 # layer's cryptography dependency, none of the native transport stack.
-fuzzing = ["dep:vsc"]
+core = ["dep:vsc"]
+fuzzing = ["core"]
 
 # Native build with gRPC, filesystem, SQLite  
 native = [

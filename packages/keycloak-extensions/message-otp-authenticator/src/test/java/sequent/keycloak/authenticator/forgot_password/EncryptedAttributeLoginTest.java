@@ -13,6 +13,7 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.keycloak.authentication.AuthenticationFlowContext;
+import org.keycloak.common.util.Time;
 import org.keycloak.credential.hash.PasswordHashProvider;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.http.HttpRequest;
@@ -79,6 +80,15 @@ class EncryptedAttributeLoginTest {
                 EncryptedAttributeCredential.verifier(
                     session, realm, config, identifiers, policy, key));
     return mocked;
+  }
+
+  private void lockTemporarily(UserModel user) {
+    var failure = mock(UserLoginFailureModel.class);
+    when(failure.getFailedLoginNotBefore())
+        .thenReturn((int) (Time.currentTimeMillis() / 1000) + 60);
+    var failures = mock(UserLoginFailureProvider.class);
+    when(failures.getUserLoginFailure(realm, user.getId())).thenReturn(failure);
+    when(session.loginFailures()).thenReturn(failures);
   }
 
   private MultiAttributeCredentialResolver.Resolution resolve(String value) {
@@ -178,9 +188,9 @@ class EncryptedAttributeLoginTest {
     try (var ignored = master(vector.get("master"))) {
       assertTrue(resolve(vector.get("plaintext")).authenticatedUser().isEmpty());
       when(realm.isBruteForceProtected()).thenReturn(true);
-      var protector = mock(BruteForceProtector.class);
-      when(session.getProvider(BruteForceProtector.class)).thenReturn(protector);
-      when(protector.isTemporarilyDisabled(session, realm, other)).thenReturn(true);
+      // Several candidates share these attributes, so the resolver reads the stored lockout state
+      // instead of engaging BruteForceProtector for each of them - see meta#13460.
+      lockTemporarily(other);
       assertTrue(resolve(vector.get("plaintext")).authenticatedUser().isEmpty());
       config.getConfig().put("maxCandidates", "1");
       clearInvocations(voter, other);

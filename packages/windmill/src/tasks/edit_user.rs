@@ -36,7 +36,7 @@ use sequent_core::types::keycloak::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tracing::{error, info, instrument};
+use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
 
 /// Input for the `edit_user` task. Mirrors the fields the `/edit-user` route
@@ -250,22 +250,61 @@ async fn edit_keycloak_voter(
 
 /// Discards the voter's active ballots in its own Hasura transaction. Keycloak
 /// and Hasura are updated sequentially; failures are traced by the caller and
-/// left for the existing reconciliation process.
+/// left for the existing reconciliation process. Returns `false`, discarding
+/// nothing, when a ballot of the voter is in a sealed ballot box (VOTE-FREEZE):
+/// the ballots in sealed ballot boxes stay as they were sealed, and only
+/// the others are discarded (one `warn!` names the sealed boxes).
 #[instrument(err)]
 async fn discard_voter_ballots(
     tenant_id: &str,
     election_event_id: &str,
     voter_id: &str,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<bool> {
     let tenant_id = parse_uuid_v4(tenant_id)?;
     let election_event_id = parse_uuid_v4(election_event_id)?;
     let mut client: DbClient = get_hasura_pool().await.get().await?;
     let transaction = client.transaction().await?;
-    let discarded =
-        discard_voter_cast_votes(&transaction, &tenant_id, &election_event_id, voter_id).await?;
+    let sealed = crate::services::ballot_box_seal::voter_sealed_boxes(
+        &transaction,
+        &tenant_id,
+        &election_event_id,
+        voter_id,
+    )
+    .await?;
+    let discarded = match discard_voter_cast_votes(
+        &transaction,
+        &tenant_id,
+        &election_event_id,
+        voter_id,
+    )
+    .await
+    {
+        Ok(discarded) => discarded,
+        // A box sealed while this ran: the next edit discards the rest.
+        Err(err) if crate::services::ballot_box_seal::is_ballot_box_sealed(&err) => {
+            warn!(
+                "Not discarding the voter's ballots: {}",
+                crate::services::ballot_box_seal::BALLOT_BOX_SEALED_MESSAGE
+            );
+            return Ok(false);
+        }
+        Err(err) => return Err(err),
+    };
     transaction.commit().await?;
     info!(discarded, "Discarded active Datafix cast votes");
-    Ok(())
+    if !sealed.is_empty() {
+        let boxes: Vec<String> = sealed
+            .iter()
+            .map(|(election_id, area_id)| format!("election {election_id} area {area_id}"))
+            .collect();
+        warn!(
+            "Kept the voter's ballots in sealed ballot boxes ({}): {}",
+            boxes.join(", "),
+            crate::services::ballot_box_seal::BALLOT_BOX_SEALED_MESSAGE
+        );
+        return Ok(false);
+    }
+    Ok(true)
 }
 
 /// Resets `VOTED_CHANNEL` back to `NONE` after a release discards the voter's
@@ -478,9 +517,14 @@ async fn run_datafix_voter_edit(
         .map_err(|err| {
             format!("The Datafix voter lock was lost before discarding ballots: {err}")
         })?;
-    discard_voter_ballots(&body.tenant_id, &body.election_event_id, &body.user_id)
+    let discarded = discard_voter_ballots(&body.tenant_id, &body.election_event_id, &body.user_id)
         .await
         .map_err(|err| format!("Error discarding Datafix cast votes: {err:?}"))?;
+    if !discarded {
+        // A ballot of the voter is in a sealed box: that vote stands, so the
+        // voter stays marked as voted, here and in VoterView.
+        return Ok(());
+    }
     clear_voted_channel(ctx).await.map_err(|err| {
         format!("Could not reset the voter's voted-channel attribute after discard: {err}")
     })?;

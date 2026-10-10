@@ -4,6 +4,7 @@
 import React, {useState} from "react"
 import Image from "mui-image"
 import LanguageMenu from "../LanguageMenu/LanguageMenu"
+import AccessibilityMenu from "../AccessibilityMenu/AccessibilityMenu"
 import PageBanner from "../PageBanner/PageBanner"
 import PageLimit from "../PageLimit/PageLimit"
 import {theme} from "../../services/theme"
@@ -14,14 +15,14 @@ import LogoutIcon from "@mui/icons-material/Logout"
 import Dialog from "../Dialog/Dialog"
 import {useTranslation} from "react-i18next"
 import {ProfileMenu} from "../ProfileMenu/ProfileMenu"
-import {EVotingPortalCountdownPolicy} from "@sequentech/ui-core"
+import {EVoterAccessibilitySettingsPolicy, EVotingPortalCountdownPolicy} from "@sequentech/ui-core"
 
 const smBreakpoint = theme.breakpoints.values.sm
 
 const HeaderWrapper = styled(PageBanner)`
     background-color: ${theme.palette.lightBackground};
     padding: 16px 0;
-    font-size: 16px;
+    font-size: 1rem;
 
     @media (max-width: ${theme.breakpoints.values.lg}px) {
         padding: 9px;
@@ -139,6 +140,10 @@ export interface HeaderProps {
     errorVariant?: HeaderErrorVariant
     expiry?: IExpiryCountdown
     onChangeLanguage?: (lang: string) => void
+    /** Whether the voter's display settings are offered. Absent, the header has none. */
+    accessibilitySettingsPolicy?: EVoterAccessibilitySettingsPolicy
+    /** Contextual actions before the language and profile controls. */
+    actions?: React.ReactNode
 }
 
 export default function Header({
@@ -152,6 +157,8 @@ export default function Header({
     errorVariant,
     expiry = undefined,
     onChangeLanguage,
+    accessibilitySettingsPolicy = EVoterAccessibilitySettingsPolicy.DISABLED,
+    actions,
 }: HeaderProps) {
     const {t} = useTranslation()
     const [openModal, setOpenModal] = useState<boolean>(false)
@@ -195,6 +202,11 @@ export default function Header({
                         >
                             <Version version={appVersion ?? {main: "0.0.0"}} />
                             <Version header="hash.header" version={appHash ?? {main: "-"}} />
+                            {accessibilitySettingsPolicy ===
+                            EVoterAccessibilitySettingsPolicy.ENABLED ? (
+                                <AccessibilityMenu />
+                            ) : null}
+                            {actions}
                             <LanguageMenu
                                 languagesList={languagesList}
                                 onChange={onChangeLanguage}

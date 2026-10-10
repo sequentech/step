@@ -111,14 +111,12 @@ pub fn collect_weighted_payloads(
         found.push((payloads.as_slice(), multiplier));
     }
 
-    let total: u64 = found
-        .iter()
-        .try_fold(0u64, |acc, (payloads, multiplier)| {
-            (payloads.len() as u64)
-                .checked_mul(*multiplier)
-                .and_then(|batch_total| acc.checked_add(batch_total))
-                .ok_or_else(|| anyhow!("Weighted plaintext count overflowed"))
-        })?;
+    let total: u64 = found.iter().try_fold(0u64, |acc, (payloads, multiplier)| {
+        (payloads.len() as u64)
+            .checked_mul(*multiplier)
+            .and_then(|batch_total| acc.checked_add(batch_total))
+            .ok_or_else(|| anyhow!("Weighted plaintext count overflowed"))
+    })?;
     // Only where a weight actually multiplies something. The dump bounds the
     // summed weight, but it is not what runs here: the multipliers come from a
     // mask read back out of a jsonb column and the ballot counts from the

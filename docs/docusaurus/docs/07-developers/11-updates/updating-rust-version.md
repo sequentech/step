@@ -79,21 +79,21 @@ Update the `FROM rust:X.Y.Z` line in **all** Dockerfiles:
   FROM rust:1.90.0-slim-bookworm  # ← Update this
   ```
 
-- **`packages/braid/Dockerfile`** (line 5)
+- **`packages/trustee/Dockerfile`** (line 5)
   ```dockerfile
   FROM rust:1.90.0-slim-bookworm  # ← Update this
   ```
 
-- **`packages/braid/Dockerfile.prod`**
-- **`packages/braid/Dockerfile.prod-vstl-dependencies`**
+- **`packages/trustee/Dockerfile.prod`**
+- **`packages/trustee/Dockerfile.prod-vstl-dependencies`**
 - **`packages/windmill/Dockerfile`**
 - **`packages/windmill/Dockerfile.prod`**
 - **`packages/windmill/Dockerfile.prod-vstl-dependencies`**
 - **`packages/harvest/Dockerfile`**
 - **`packages/harvest/Dockerfile.prod`**
 - **`packages/harvest/Dockerfile.prod-vstl-dependencies`**
-- **`packages/b3/Dockerfile.prod`**
-- **`packages/b3/Dockerfile.prod-vstl-dependencies`**
+- **`packages/wbraid/crates/b4/Dockerfile`**
+- **`packages/wbraid/crates/b4/Dockerfile`**
 - **`packages/e2e/src/mock_server/Dockerfile.prod`**
 - **`packages/loadtesting/Dockerfile`**
 - **`packages/Dockerfile.immudb-init-vstl-dependencies`**
@@ -321,17 +321,17 @@ Here's the complete list of files that need updating:
 
 ### Dockerfiles (19 files)
 - `packages/Dockerfile.cargo-packages`
-- `packages/braid/Dockerfile`
-- `packages/braid/Dockerfile.prod`
-- `packages/braid/Dockerfile.prod-vstl-dependencies`
+- `packages/trustee/Dockerfile`
+- `packages/trustee/Dockerfile.prod`
+- `packages/trustee/Dockerfile.prod-vstl-dependencies`
 - `packages/windmill/Dockerfile`
 - `packages/windmill/Dockerfile.prod`
 - `packages/windmill/Dockerfile.prod-vstl-dependencies`
 - `packages/harvest/Dockerfile`
 - `packages/harvest/Dockerfile.prod`
 - `packages/harvest/Dockerfile.prod-vstl-dependencies`
-- `packages/b3/Dockerfile.prod`
-- `packages/b3/Dockerfile.prod-vstl-dependencies`
+- `packages/wbraid/crates/b4/Dockerfile`
+- `packages/wbraid/crates/b4/Dockerfile`
 - `packages/e2e/src/mock_server/Dockerfile.prod`
 - `packages/loadtesting/Dockerfile`
 - `packages/Dockerfile.immudb-init-vstl-dependencies`

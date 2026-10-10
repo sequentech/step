@@ -7,8 +7,26 @@
 !Dockerfile.keycloak
 !keycloak-extensions
 !keycloak-extensions/**
+# The React login themes and the workspace packages they build with
+!package.json
+!yarn.lock
+!ui-core
+!ui-core/**
+!ui-essentials
+!ui-essentials/**
+!ui-test-kit
+!ui-test-kit/**
+!test-support
+!test-support/**
+!keycloak-ui
+!keycloak-ui/**
 
 **/target
 **/target/**
 **/build.log
 **/dependency-reduced-pom.xml
+**/node_modules
+**/dist
+**/dist_keycloak
+**/storybook-static
+**/test-results

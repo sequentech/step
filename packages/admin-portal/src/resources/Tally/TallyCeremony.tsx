@@ -44,16 +44,16 @@ import {useGetList, useGetOne, useNotify, useRecordContext} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {CREATE_TALLY_CEREMONY} from "@/queries/CreateTallyCeremony"
+import {useSignedAction} from "@/hooks/useSignedAction"
 import {useMutation, useQuery} from "@apollo/client"
 import {ETallyType, ITallyExecutionStatus} from "@/types/ceremonies"
 import {
-    EAllowTally,
     EElectionEventCeremoniesPolicy,
     EElectionEventContestEncryptionPolicy,
     EInitializeReportPolicy,
     EInitReport,
-    EVotingStatus,
     isArray,
+    isString,
     parseResultsWebsitePolicy,
 } from "@sequentech/ui-core"
 
@@ -96,6 +96,10 @@ import {LIST_KEYS_CEREMONY} from "@/queries/ListKeysCeremonies"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
+import {getTallyDisabledReason} from "@/services/tallyEligibility"
+import {useBallotBoxesReadiness} from "./useBallotBoxesReadiness"
+import {getGraphQLActionErrorReason} from "@/services/graphqlActionError"
+
 const WizardSteps = {
     Start: 0,
     Ceremony: 1,
@@ -108,6 +112,7 @@ const StyledCircularProgress = styled(CircularProgress)`
     width: 14px !important;
     height: 14px !important;
 `
+
 export interface IExpanded {
     [key: string]: boolean
 }
@@ -152,10 +157,12 @@ export const TallyCeremony: React.FC = () => {
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [isTallyCompleted, setIsTallyCompleted] = useState<boolean>(false)
     const [isConfirming, setIsConfirming] = useState<boolean>(false)
+    const [isCreating, setIsCreating] = useState(false)
     const allowTallyCeremonyCreation = useRef<boolean>(true)
     const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
     const [CreateTallyCeremonyMutation] =
         useMutation<CreateTallyCeremonyMutation>(CREATE_TALLY_CEREMONY)
+    const openSigning = useSignedAction()
     const [UpdateTallyCeremonyMutation] =
         useMutation<UpdateTallyCeremonyMutation>(UPDATE_TALLY_CEREMONY)
 
@@ -209,21 +216,28 @@ export const TallyCeremony: React.FC = () => {
     })
 
     // TODO: fix the "perPage 9999"
-    const {data: elections} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
-        pagination: {page: 1, perPage: 9999},
-        filter: {
-            election_event_id: record?.id,
-            tenant_id: tenantId,
-            id: tallySession
-                ? {
-                      format: "hasura-raw-query",
-                      value: {
-                          _in: tallySession?.election_ids ?? [],
-                      },
-                  }
-                : undefined,
+    const {data: elections} = useGetList<Sequent_Backend_Election>(
+        "sequent_backend_election",
+        {
+            pagination: {page: 1, perPage: 9999},
+            filter: {
+                election_event_id: record?.id,
+                tenant_id: tenantId,
+                id: tallySession
+                    ? {
+                          format: "hasura-raw-query",
+                          value: {
+                              _in: tallySession?.election_ids ?? [],
+                          },
+                      }
+                    : undefined,
+            },
         },
-    })
+        {
+            refetchInterval:
+                page <= WizardSteps.Ceremony ? globalSettings.QUERY_FAST_POLL_INTERVAL_MS : false,
+        }
+    )
 
     const {data: contests} = useGetList<Sequent_Backend_Contest>("sequent_backend_contest", {
         pagination: {page: 1, perPage: 9999},
@@ -422,78 +436,34 @@ export const TallyCeremony: React.FC = () => {
         }
     }, [tallySession])
 
-    const isTallyAllowed = useMemo(() => {
-        return (
-            elections?.every((election) => {
-                // Check if the voting period has ended for the election AND kiosk voting has also ended or disabled
-                const isVotingPeriodEnded =
-                    election.status?.voting_status === EVotingStatus.CLOSED &&
-                    (!election.voting_channels?.kiosk ||
-                        election.status?.kiosk_voting_status === EVotingStatus.CLOSED)
-                return (
-                    // If the election is not included in the current tally session, it's allowed
-                    !(tallySession?.election_ids || []).find(
-                        (election_id) => election.id == election_id
-                    ) ||
-                    // Otherwise, tallying is allowed if it is explicitly permitted OR if it requires the voting period to end and it has ended
-                    ((election.status?.allow_tally === EAllowTally.ALLOWED ||
-                        (election.status?.allow_tally === EAllowTally.REQUIRES_VOTING_PERIOD_END &&
-                            isVotingPeriodEnded)) &&
-                        // And the election must be published
-                        election.status.is_published)
-                )
-            }) || false // Return `false` if elections array is undefined or empty
-        )
-    }, [elections, tallySession])
-
-    // Check if Tally is Allowed for automatic ceremony (skipped ceremony step)
-    const isAutomaticTallyAllowed = useMemo(() => {
-        let selectedKeysElections = elections?.filter(
-            (election) =>
-                selectedElections?.includes(election.id) &&
-                election.keys_ceremony_id &&
-                currentKeysCeremony?.id === election.keys_ceremony_id
-        )
-        if (selectedKeysElections?.length === 0) {
-            return false
-        }
-        return (
-            selectedKeysElections?.every((election) => {
-                const isVotingPeriodEnded =
-                    election.status?.voting_status === EVotingStatus.CLOSED &&
-                    (!election.voting_channels?.kiosk ||
-                        election.status?.kiosk_voting_status === EVotingStatus.CLOSED)
-                return (
-                    // tallying is allowed if it is explicitly permitted OR if it requires the voting period to end and it has ended
-                    (election.status?.allow_tally === EAllowTally.ALLOWED ||
-                        (election.status?.allow_tally === EAllowTally.REQUIRES_VOTING_PERIOD_END &&
-                            isVotingPeriodEnded)) &&
-                    // And the election must be published
-                    election.status.is_published
-                )
-            }) || false
-        )
-    }, [elections, currentKeysCeremony, isAutomatedCeremony, selectedElections])
+    // With the seal at close, an election's results wait for its sealed ballot boxes.
+    const ballotBoxes = useBallotBoxesReadiness(
+        record?.id,
+        (elections ?? []).map((election) => election.id),
+        record?.presentation
+    )
+    const tallyDisabledReason = useMemo(
+        () => getTallyDisabledReason(elections, selectedElections ?? undefined, ballotBoxes),
+        [elections, selectedElections, ballotBoxes]
+    )
+    const isTallyAllowed = useMemo(
+        () =>
+            !getTallyDisabledReason(
+                elections,
+                tallySession?.election_ids ?? undefined,
+                ballotBoxes
+            ),
+        [elections, tallySession, ballotBoxes]
+    )
 
     useEffect(() => {
         if (page === WizardSteps.Start && creatingType !== ETallyType.INITIALIZATION_REPORT) {
-            let is_published = elections?.every(
-                (election) =>
-                    !selectedElections?.includes(election.id) || election.status?.is_published
+            setIsButtonDisabled(isCreating || !!tallyDisabledReason)
+            setNextDisabledReason(
+                tallyDisabledReason ? t(`tally.eligibility.${tallyDisabledReason}`) : ""
             )
-            let newIsButtonDisabled =
-                (page === WizardSteps.Start && selectedElections?.length === 0 ? true : false) ||
-                !is_published
-            let isAutomaticCeremonyTallyNotAllowed = isAutomatedCeremony && !isAutomaticTallyAllowed
-
-            setIsButtonDisabled(newIsButtonDisabled || isAutomaticCeremonyTallyNotAllowed)
-            if (isAutomaticCeremonyTallyNotAllowed) {
-                setNextDisabledReason(t("electionEventScreen.tally.notify.ceremonyDisabled"))
-            } else if (newIsButtonDisabled) {
-                setNextDisabledReason(t("electionEventScreen.tally.notify.startDisabled"))
-            }
         }
-    }, [selectedElections, isAutomatedCeremony, isAutomaticTallyAllowed])
+    }, [page, creatingType, tallyDisabledReason, isCreating, t])
 
     const isInitAllowed = useMemo(() => {
         return (
@@ -515,7 +485,9 @@ export const TallyCeremony: React.FC = () => {
                     ? isTallyAllowed
                     : isInitAllowed
             let newIsButtonDisabled =
-                tally?.execution_status !== ITallyExecutionStatus.CONNECTED || !isStartAllowed
+                isConfirming ||
+                tally?.execution_status !== ITallyExecutionStatus.CONNECTED ||
+                !isStartAllowed
             setIsButtonDisabled(newIsButtonDisabled)
             if (newIsButtonDisabled) {
                 setNextDisabledReason(t("electionEventScreen.tally.notify.ceremonyDisabled"))
@@ -528,7 +500,7 @@ export const TallyCeremony: React.FC = () => {
                 setIsButtonDisabled(newIsButtonDisabled)
             }
         }
-    }, [tally, page, elections, isTallyAllowed])
+    }, [tally, page, elections, isTallyAllowed, isInitAllowed, isConfirming, t])
 
     useEffect(() => {
         let singleKeysCeremony = keysCeremonies?.list_keys_ceremony?.items?.[0]
@@ -584,10 +556,10 @@ export const TallyCeremony: React.FC = () => {
                             election.initialization_report_generated
                     ) ||
                 false
-            setIsButtonDisabled(newStatus)
+            setIsButtonDisabled(isCreating || newStatus)
             setNextDisabledReason(t("electionEventScreen.tally.notify.startDisabled"))
         }
-    }, [selectedElections, elections, allTallySessions])
+    }, [selectedElections, elections, allTallySessions, creatingType, page, isCreating, t])
 
     const handleNext = () => {
         if (page === WizardSteps.Start) {
@@ -607,6 +579,7 @@ export const TallyCeremony: React.FC = () => {
 
     const confirmStartAction = async () => {
         try {
+            setIsCreating(true)
             setIsTallyElectionListDisabled(true)
             const {data, errors} = await CreateTallyCeremonyMutation({
                 variables: {
@@ -619,19 +592,31 @@ export const TallyCeremony: React.FC = () => {
             })
 
             if (errors || !data?.create_tally_ceremony) {
-                notify(t("tally.createTallyError"), {type: "error"})
+                notify(
+                    getGraphQLActionErrorReason({graphQLErrors: errors}) ??
+                        t("tally.createTallyError"),
+                    {type: "error"}
+                )
                 return
             }
 
+            // Initializing voting may wait for signatures: its panel opens instead.
+            if (openSigning(data.create_tally_ceremony)) {
+                return
+            }
             if (data) {
                 notify(t("tally.createTallySuccess"), {type: "success"})
                 setLocalTallyId(data.create_tally_ceremony.tally_session_id)
                 setTallyId(data.create_tally_ceremony.tally_session_id)
             }
         } catch (error) {
-            notify(t("tally.startTallyCeremonyError"), {type: "error"})
+            notify(getGraphQLActionErrorReason(error) ?? t("tally.startTallyCeremonyError"), {
+                type: "error",
+            })
         } finally {
             allowTallyCeremonyCreation.current = true
+            setIsTallyElectionListDisabled(false)
+            setIsCreating(false)
             refetch()
         }
     }
@@ -648,7 +633,11 @@ export const TallyCeremony: React.FC = () => {
             })
 
             if (errors) {
-                notify(t("tally.startTallyError"), {type: "error"})
+                notify(
+                    getGraphQLActionErrorReason({graphQLErrors: errors}) ??
+                        t("tally.startTallyError"),
+                    {type: "error"}
+                )
                 setIsConfirming(false)
                 return
             }
@@ -661,7 +650,9 @@ export const TallyCeremony: React.FC = () => {
             }
         } catch (error) {
             setIsConfirming(false)
-            notify(t("tally.startTallyError"), {type: "error"})
+            notify(getGraphQLActionErrorReason(error) ?? t("tally.startTallyError"), {
+                type: "error",
+            })
         }
     }
 
@@ -840,7 +831,8 @@ export const TallyCeremony: React.FC = () => {
                     {resultsEventId &&
                     record?.id &&
                     isArray(contests) &&
-                    isArray(tallySession?.election_ids) ? (
+                    isArray(tallySession?.election_ids) &&
+                    tallySession.election_ids.every(isString) ? (
                         <ResultsDataLoader
                             resultsEventId={resultsEventId}
                             electionEventId={record?.id}
@@ -852,15 +844,6 @@ export const TallyCeremony: React.FC = () => {
                     ) : null}
                     {page === WizardSteps.Start && (
                         <>
-                            {/* 
-                            This code snippet determines whether the "Next" button should be
-                            disabled on the Start page of the wizard. The button is disabled if:
-                            1. The current page is the Start page and no elections are selected.
-                            2. The elections are not published. 
-                            3. The keys ceremony policy is automatic-ceremonies and
-                            the tally session is not in the CONNECTED state or if the start of the ceremony 
-                            is not allowed based on the tally type and the status of the elections.
-                            */}
                             {nextDisabledReason && isButtonDisabled && (
                                 <Alert severity="warning">{nextDisabledReason}</Alert>
                             )}
@@ -875,6 +858,11 @@ export const TallyCeremony: React.FC = () => {
                             <TallyElectionsList
                                 elections={elections}
                                 electionEventPresentation={record?.presentation}
+                                ballotBoxes={
+                                    creatingType === ETallyType.INITIALIZATION_REPORT
+                                        ? undefined
+                                        : ballotBoxes
+                                }
                                 update={(elections) => setSelectedElections(elections)}
                                 disabled={isTallyElectionListDisabled}
                                 electionEventId={record?.id}
@@ -889,6 +877,7 @@ export const TallyCeremony: React.FC = () => {
 
                                 <Select
                                     id="keys-ceremony-for-tally"
+                                    inputProps={{"aria-label": t("tally.keysCeremonyTitle")}}
                                     value={keysCeremonyId ?? ""}
                                     label={String(t("tally.keysCeremonyTitle"))}
                                     onChange={(props) => {
@@ -925,6 +914,11 @@ export const TallyCeremony: React.FC = () => {
                             <TallyElectionsList
                                 elections={elections}
                                 electionEventPresentation={record?.presentation}
+                                ballotBoxes={
+                                    tallySession?.tally_type === ETallyType.INITIALIZATION_REPORT
+                                        ? undefined
+                                        : ballotBoxes
+                                }
                                 electionEventId={record?.id}
                                 disabled={true}
                                 update={(elections) => setSelectedElections(elections)}

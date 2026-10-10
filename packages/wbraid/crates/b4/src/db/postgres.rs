@@ -9,7 +9,7 @@ use crate::api_types::MessageBlob;
 
 #[derive(Clone)]
 pub struct PostgresBackend {
-    pool: sqlx::PgPool,
+    pub(super) pool: sqlx::PgPool,
 }
 
 impl PostgresBackend {
@@ -190,8 +190,11 @@ impl PostgresBackend {
 
         let id = sqlx::query_scalar(
             r#"
+        WITH active_board AS (
+            SELECT name FROM boards WHERE name = $1 AND status = 'active' FOR SHARE
+        )
         INSERT INTO messages (board_name, content_type, inline_data, s3_key, version)
-        VALUES ($1, $2, $3, $4, $5)
+        SELECT name, $2, $3, $4, $5 FROM active_board
         RETURNING id
         "#,
         )

@@ -9,6 +9,10 @@ use crate::{
 use clap::Args;
 use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
+use std::{
+    thread::sleep,
+    time::{Duration, Instant},
+};
 
 #[derive(Args)]
 #[command(about = "Import Election Event", long_about = None)]
@@ -40,8 +44,34 @@ impl ImportElectionEventFile {
                 );
             }
             Err(err) => {
-                eprintln!("Error! Failed to create election event: {}", err)
+                eprintln!("Error! Failed to create election event: {}", err);
+                std::process::exit(1);
             }
+        }
+    }
+}
+
+fn wait_for_task(task_execution_id: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let start_time = Instant::now();
+    let timeout = Duration::from_secs(300);
+    let polling_interval = Duration::from_secs(3);
+
+    loop {
+        crate::utils::read_config::refresh_and_save_token()?;
+        match crate::utils::tasks::get_task_status(task_execution_id) {
+            Ok(status) if status == "SUCCESS" => return Ok(()),
+            Ok(status) if status == "FAILED" => {
+                return Err("Import election event task failed".into())
+            }
+            Ok(_) => {
+                if Instant::now().duration_since(start_time) >= timeout {
+                    return Err(
+                        "Timeout while waiting for import election event task to complete".into(),
+                    );
+                }
+                sleep(polling_interval);
+            }
+            Err(e) => return Err(format!("Error checking task status: {}", e).into()),
         }
     }
 }
@@ -66,11 +96,25 @@ pub fn import(file_path: &str, is_local: bool) -> Result<String, Box<dyn std::er
 
     if response.status().is_success() {
         let response_body: Response<import_election_event::ResponseData> = response.json()?;
+        // A GraphQL response can contain usable-looking data and errors.
+        // Reject the partial operation before acting on any returned ID/URL.
+        if let Some(errors) = response_body.errors.filter(|errors| !errors.is_empty()) {
+            let messages: Vec<_> = errors.into_iter().map(|error| error.message).collect();
+            return Err(Box::from(messages.join(", ")));
+        }
         if let Some(data) = response_body.data {
             if let Some(e) = data.import_election_event {
                 if let Some(err) = e.error {
                     Err(Box::from(err))
                 } else if let Some(id) = e.id {
+                    // The mutation only enqueues the import; the realm, areas,
+                    // and bulletin board are created asynchronously by the
+                    // matching celery task. Wait for it so callers (like
+                    // `import-voters` right after) see a fully-provisioned
+                    // election event rather than racing it.
+                    if let Some(task_execution) = e.task_execution {
+                        wait_for_task(&task_execution.id)?;
+                    }
                     Ok(id)
                 } else {
                     Err(Box::from("failed generating id"))
@@ -78,9 +122,6 @@ pub fn import(file_path: &str, is_local: bool) -> Result<String, Box<dyn std::er
             } else {
                 Err(Box::from("failed generating id"))
             }
-        } else if let Some(errors) = response_body.errors {
-            let error_messages: Vec<String> = errors.into_iter().map(|e| e.message).collect();
-            Err(Box::from(error_messages.join(", ")))
         } else {
             Err(Box::from("Unknown error occurred"))
         }

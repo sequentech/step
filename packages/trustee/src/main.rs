@@ -45,6 +45,25 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Print both public keys of an existing local keys file as JSON.
+    PublicKeys {
+        #[arg(long)]
+        trustee_config: PathBuf,
+    },
+    /// Confirm custody without sending private keys to the platform.
+    Attest {
+        /// Public custody request downloaded from the administration portal.
+        #[arg(long)]
+        request: PathBuf,
+        #[arg(long)]
+        trustee_config: PathBuf,
+        /// Bind the proof to this tally's restore step.
+        #[arg(long)]
+        tally_session_id: Option<String>,
+        /// A new proof file to upload to the portal.
+        #[arg(long)]
+        output: PathBuf,
+    },
     /// Generate a keys file and print its public keys.
     Generate {
         /// Write the keys file here, readable by its owner only; without it,
@@ -65,6 +84,35 @@ enum Command {
 
 fn main() -> Result<()> {
     match Cli::parse().command {
+        Command::PublicKeys { trustee_config } => {
+            let keys = identity::load(&trustee_config)?.public_keys()?;
+            println!(
+                "{}",
+                serde_json::json!({
+                    "signing_public_key": keys.signing_public_key,
+                    "share_encryption_public_key": keys.share_encryption_public_key,
+                })
+            );
+            Ok(())
+        }
+        Command::Attest {
+            request,
+            trustee_config,
+            tally_session_id,
+            output,
+        } => {
+            let mut request: protocol_board::CustodyRequest =
+                serde_json::from_str(
+                    &std::fs::read_to_string(&request)
+                        .context("reading custody request")?,
+                )
+                .context("invalid custody request")?;
+            if tally_session_id.is_some() {
+                request.tally_session_id = tally_session_id;
+            }
+            let proof = request.attest(&identity::load(&trustee_config)?)?;
+            identity::write_new(&output, &proof)
+        }
         Command::Generate { trustee_config } => {
             identity::generate(trustee_config.as_deref())
         }

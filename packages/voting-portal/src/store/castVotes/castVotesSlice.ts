@@ -11,6 +11,18 @@ export enum CastVoteStatus {
     DISCARDED = "discarded",
 }
 
+/** Validate the database string before storing it as a voting status. */
+export function parseCastVoteStatus(status: string): CastVoteStatus {
+    switch (status) {
+        case CastVoteStatus.IN_PROGRESS:
+        case CastVoteStatus.VALID:
+        case CastVoteStatus.DISCARDED:
+            return status
+        default:
+            throw new Error("Unknown cast vote status")
+    }
+}
+
 export interface ICastVote {
     id: string
     tenant_id: string

@@ -122,10 +122,18 @@ pub fn decode_permission_labels(claims: &JwtClaims) -> Vec<String> {
  */
 #[instrument(skip_all)]
 pub fn has_gold_permission(claims: &JwtClaims) -> bool {
+    has_gold_permission_at(claims, ISO8601::now())
+}
+
+/// `has_gold_permission` at the given time rather than the current one.
+pub fn has_gold_permission_at(
+    claims: &JwtClaims,
+    now: DateTime<Local>,
+) -> bool {
     let auth_time_local: DateTime<Local> =
         if let Some(auth_time_int) = claims.auth_time {
             if let Ok(auth_time_parsed) =
-                ISO8601::timestamp_ms_utc_to_date_opt(auth_time_int * 1000)
+                ISO8601::timestamp_secs_utc_to_date_opt(auth_time_int)
             {
                 auth_time_parsed
             } else {
@@ -135,7 +143,7 @@ pub fn has_gold_permission(claims: &JwtClaims) -> bool {
         } else {
             info!("fallback to iat, claims.auth_time is None");
             if let Ok(iat_parsed) =
-                ISO8601::timestamp_ms_utc_to_date_opt(claims.iat * 1000)
+                ISO8601::timestamp_secs_utc_to_date_opt(claims.iat)
             {
                 iat_parsed
             } else {
@@ -144,7 +152,7 @@ pub fn has_gold_permission(claims: &JwtClaims) -> bool {
             }
         };
     // Let's asume fresh means token has at most 1 minute since authentication
-    let freshness_limit = ISO8601::now() - Duration::seconds(60);
+    let freshness_limit = now - Duration::seconds(60);
     let is_fresh = auth_time_local > freshness_limit;
     warn!("is_fresh={is_fresh:?}, auth_time_local={auth_time_local:?}, freshness_limit={freshness_limit:?}");
     let is_gold = claims.acr == Permissions::GOLD.to_string();
