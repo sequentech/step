@@ -7,6 +7,7 @@ use super::counting_algorithm::{
     acclaimed::Acclaimed, instant_runoff::InstantRunoff, plurality_at_large::PluralityAtLarge,
     CountingAlgorithm,
 };
+use super::do_tally::checked_count_sum;
 use super::error::{Error, Result};
 use super::{BlankVotes, CandidateResult, ContestResult, ExtendedMetricsContest, InvalidVotes};
 use crate::pipes::error::Error as PipesError;
@@ -98,11 +99,10 @@ impl Tally {
         }
         let mut contest_result = ContestResult::default();
         contest_result.contest = self.contest.clone();
-        let aggregated = self
-            .tally_results
+        self.tally_results
             .iter()
-            .fold(contest_result, |acc, x| acc.aggregate(x, true));
-        Ok(aggregated)
+            .try_fold(contest_result, |acc, x| acc.aggregate(x, true))
+            .map_err(|error| CntAlgError::UnexpectedError(error.to_string()))
     }
 
     #[instrument(err, skip_all)]
@@ -290,7 +290,10 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
         invalid_votes.explicit_invalid.unwrap_or(0),
         invalid_votes.implicit_invalid.unwrap_or(0),
     );
-    let count_invalid: u64 = count_invalid_votes.explicit + count_invalid_votes.implicit;
+    let count_invalid = checked_count_sum(
+        [count_invalid_votes.explicit, count_invalid_votes.implicit],
+        "total_invalid",
+    )?;
     let blank_votes = BlankVotes::new(0, content.total_blank_votes.unwrap_or(0));
     let count_blank = blank_votes.total();
 
@@ -314,26 +317,30 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
         })
         .collect::<Result<Vec<CandidateResult>>>()?;
 
-    let votes_for_candidates: u64 = candidate_results
-        .iter()
-        .map(|candidate_result| candidate_result.total_count)
-        .sum();
-    let total_valid_marks: u64 = match contest.get_counting_algorithm() {
-        CountingAlgType::PluralityAtLarge => candidate_results
+    let votes_for_candidates = checked_count_sum(
+        candidate_results
             .iter()
-            .filter(|candidate_result| {
-                !candidate_result.candidate.is_explicit_blank()
-                    && !candidate_result.candidate.is_explicit_invalid()
-            })
-            .map(|candidate_result| candidate_result.total_count)
-            .sum(),
+            .map(|candidate_result| candidate_result.total_count),
+        "candidate votes",
+    )?;
+    let total_valid_marks: u64 = match contest.get_counting_algorithm() {
+        CountingAlgType::PluralityAtLarge => checked_count_sum(
+            candidate_results
+                .iter()
+                .filter(|candidate_result| {
+                    !candidate_result.candidate.is_explicit_blank()
+                        && !candidate_result.candidate.is_explicit_invalid()
+                })
+                .map(|candidate_result| candidate_result.total_count),
+            "candidate marks",
+        )?,
         _ => 0,
     };
     let count_valid: u64 = content
         .total_valid_votes
         .unwrap_or(votes_for_candidates.saturating_add(count_blank));
 
-    let total_votes = count_valid + count_invalid;
+    let total_votes = checked_count_sum([count_valid, count_invalid], "total_votes")?;
     let channel: VotingChannel = tally_sheet.channel.clone().into();
     let votes_by_channel =
         VotesByChannel::from([(ParticipationChannel::from(channel), total_votes)]);
@@ -732,9 +739,48 @@ mod tests {
             ..ContestResult::default()
         };
 
-        let result = electronic_result.aggregate(&tally_sheet_result, false);
+        let result = electronic_result
+            .aggregate(&tally_sheet_result, false)
+            .expect("counts fit");
 
         assert_percentage(candidate_percentage(&result, "candidate-a"), 60.0);
         assert_percentage(candidate_percentage(&result, "candidate-b"), 40.0);
+    }
+
+    fn candidate_count_result(contest: &Contest, total_count: u64) -> ContestResult {
+        ContestResult {
+            contest: contest.clone(),
+            candidate_result: contest
+                .candidates
+                .iter()
+                .map(|candidate| CandidateResult {
+                    candidate: candidate.clone(),
+                    percentage_votes: 0.0,
+                    total_count,
+                })
+                .collect(),
+            ..ContestResult::default()
+        }
+    }
+
+    #[test]
+    fn aggregate_rejects_candidate_counts_beyond_the_counter_range() {
+        let contest = contest();
+        let electronic_result = candidate_count_result(&contest, 500);
+        let tally_sheet_result = candidate_count_result(&contest, u64::MAX - 99);
+
+        assert!(electronic_result
+            .aggregate(&tally_sheet_result, false)
+            .is_err());
+    }
+
+    #[test]
+    fn process_tally_sheet_rejects_vote_totals_beyond_the_counter_range() {
+        let mut sheet = tally_sheet(4, 2);
+        if let Some(content) = sheet.content.as_mut() {
+            content.total_valid_votes = Some(u64::MAX);
+        }
+
+        assert!(process_tally_sheet(&sheet, &contest()).is_err());
     }
 }
