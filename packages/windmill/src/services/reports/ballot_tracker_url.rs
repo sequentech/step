@@ -5,6 +5,12 @@
 use anyhow::{anyhow, Context, Result};
 use reqwest::Url;
 
+// Older deployed and custom templates embed the tracker URL in raw JavaScript
+// string literals, where URL parsing alone leaves characters such as
+// apostrophes and backticks unchanged. Every byte outside this set is
+// percent-encoded.
+const SCRIPT_LITERAL_URL_BYTES: &[u8] = b"-._~:/%[]?";
+
 pub(super) struct BallotTrackerPath<'a> {
     pub tenant_id: &'a str,
     pub election_event_id: &'a str,
@@ -82,12 +88,9 @@ pub(super) fn build_ballot_tracker_url(
         url.set_query(Some("kiosk"));
     }
 
-    // Older deployed and custom templates embed this URL in raw JavaScript
-    // string literals. URL parsing alone leaves characters such as apostrophes
-    // and backticks unchanged; percent-encode them without changing the link.
     let mut safe_url = String::new();
     for byte in url.as_str().bytes() {
-        if byte.is_ascii_alphanumeric() || b"-._~:/%[]?".contains(&byte) {
+        if byte.is_ascii_alphanumeric() || SCRIPT_LITERAL_URL_BYTES.contains(&byte) {
             safe_url.push(char::from(byte));
         } else {
             use std::fmt::Write;
@@ -203,6 +206,19 @@ mod tests {
             .unwrap(),
             tracker("https://voting.example", kiosk, "https://kiosk.example").unwrap()
         );
+        for (kiosk_base, client) in [
+            ("https://kiosk.example:443/portal", "https://kiosk.example"),
+            ("https://kiosk.example/portal", "https://kiosk.example:443/"),
+            (
+                "https://kiosk.example/portal",
+                " https://kiosk.example/old-path \n",
+            ),
+        ] {
+            assert_eq!(
+                tracker("https://voting.example", Some(kiosk_base), client).unwrap(),
+                tracker("https://voting.example", kiosk, "https://kiosk.example").unwrap()
+            );
+        }
     }
 
     #[test]
