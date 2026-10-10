@@ -37,7 +37,10 @@ use windmill::services::export::export_users::{
 };
 use windmill::services::keycloak_events::list_keycloak_events_by_type;
 use windmill::services::tasks_execution::*;
-use windmill::services::users::list_users_has_voted;
+use windmill::services::users::{
+    census_change_refusal, changed_census_attributes, list_users_has_voted,
+    voter_has_cast_ballot,
+};
 use windmill::services::users::{
     count_keycloak_users, list_users, list_users_with_vote_info,
 };
@@ -45,6 +48,54 @@ use windmill::services::users::{FilterOption, ListUsersFilter};
 use windmill::tasks::export_users::{self, ExportUsersOutput};
 use windmill::tasks::import_users::{self, ImportUsersOutput};
 use windmill::types::tasks::ETasksExecution;
+
+/// Refuses deleting a voter who has cast a ballot: the tally would no longer
+/// find the voter and would leave that ballot out.
+async fn ensure_voters_have_no_ballot(
+    tenant_id: &str,
+    election_event_id: Option<&str>,
+    user_ids: &[String],
+) -> Result<(), (Status, String)> {
+    let Some(election_event_id) = election_event_id else {
+        return Ok(());
+    };
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring hasura db client from pool {:?}", e),
+            )
+        })?;
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring hasura transaction {:?}", e),
+            )
+        })?;
+    for user_id in user_ids {
+        let has_ballot = voter_has_cast_ballot(
+            &hasura_transaction,
+            tenant_id,
+            election_event_id,
+            user_id,
+        )
+        .await
+        .map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error checking the voter's ballots: {e:?}"),
+            )
+        })?;
+        if has_ballot {
+            return Err((
+                Status::Conflict,
+                "Cannot delete a voter who has cast a ballot".to_string(),
+            ));
+        }
+    }
+    Ok(())
+}
 
 #[derive(Deserialize, Debug)]
 pub struct DeleteUserBody {
@@ -71,6 +122,12 @@ pub async fn delete_user(
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
+    ensure_voters_have_no_ballot(
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+        std::slice::from_ref(&input.user_id),
+    )
+    .await?;
     let realm = match input.election_event_id {
         Some(election_event_id) => {
             get_event_realm(&input.tenant_id, &election_event_id)
@@ -120,6 +177,12 @@ pub async fn delete_users(
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
+    ensure_voters_have_no_ballot(
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+        &input.users_id,
+    )
+    .await?;
     let realm = match input.election_event_id {
         Some(election_event_id) => {
             get_event_realm(&input.tenant_id, &election_event_id)
@@ -666,6 +729,39 @@ pub async fn edit_user(
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     let new_attributes = input.attributes.clone().unwrap_or(HashMap::new());
+
+    if let Some(election_event_id) = input.election_event_id.as_deref() {
+        let current_user =
+            client.get_user(&realm, &input.user_id).await.map_err(|e| {
+                (
+                    Status::InternalServerError,
+                    format!("Error loading the voter: {e:?}"),
+                )
+            })?;
+        let changed = changed_census_attributes(
+            &current_user,
+            input.enabled,
+            &new_attributes,
+        );
+        if !changed.is_empty() {
+            let has_ballot = voter_has_cast_ballot(
+                &hasura_transaction,
+                &input.tenant_id,
+                election_event_id,
+                &input.user_id,
+            )
+            .await
+            .map_err(|e| {
+                (
+                    Status::InternalServerError,
+                    format!("Error checking the voter's ballots: {e:?}"),
+                )
+            })?;
+            if let Some(reason) = census_change_refusal(has_ballot, &changed) {
+                return Err((Status::Conflict, reason));
+            }
+        }
+    }
 
     // maintain current user attributes and do not allow to override tenant-id
     if new_attributes.contains_key(TENANT_ID_ATTR_NAME) {
