@@ -197,7 +197,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       accessToken =
           tokenClient.fetchAccessToken(ServiceAccountTokenClient.tenantRealmName(tenantId));
     } catch (IOException e) {
-      log.error("authenticate(): could not obtain a service-account token");
+      log.errorv("authenticate(): could not obtain a service-account token: {0}", e.getMessage());
       context.failureChallenge(
           AuthenticationFlowError.INTERNAL_ERROR,
           context
