@@ -30,6 +30,7 @@ pub struct ScheduledReportExecutor {
     pub realm_roles: Vec<String>,
 }
 
+/// Whether a scheduled report may run, or why it may not.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
 pub enum ScheduledReportAuthorization {
     #[strum(to_string = "authorized")]
@@ -60,6 +61,8 @@ pub fn authorize_scheduled_report(
     ScheduledReportAuthorization::Authorized
 }
 
+/// Looks up the schedule's user in the tenant realm. Returns `None` when the
+/// username is empty or no user has it.
 #[instrument(err)]
 async fn get_scheduled_report_executor(
     tenant_id: &str,
@@ -111,6 +114,38 @@ async fn get_scheduled_report_executor(
         enabled: user.enabled.unwrap_or(false),
         realm_roles,
     }))
+}
+
+/// Turns off a schedule that failed its check and records a failed task. The
+/// deactivation is committed first, so the task never reports a deactivation
+/// that was rolled back.
+#[instrument(skip(report), err)]
+async fn deactivate_unauthorized_schedule(
+    report: &Report,
+    executer_username: &str,
+    authorization: ScheduledReportAuthorization,
+) -> anyhow::Result<()> {
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|err| anyhow!("Error getting hasura client: {err}"))?;
+    let hasura_transaction = hasura_db_client.transaction().await?;
+    deactivate_report_schedule(&hasura_transaction, &report.tenant_id, &report.id).await?;
+    hasura_transaction.commit().await?;
+
+    let task_execution = tasks_execution::post(
+        &report.tenant_id,
+        Some(report.election_event_id.as_str()),
+        ETasksExecution::GENERATE_REPORT,
+        executer_username,
+    )
+    .await?;
+    tasks_execution::update_fail(
+        &task_execution,
+        &format!("Scheduled report deactivated: {authorization}"),
+    )
+    .await
 }
 
 /// Parse the next scheduled time for the report using the cron expression.
@@ -246,23 +281,18 @@ pub async fn scheduled_reports(rate_seconds: u64) -> Result<()> {
                 "Deactivating scheduled report id={id}: {authorization}",
                 id = report.id
             );
-            deactivate_report_schedule(&hasura_transaction, &report.tenant_id, &report.id)
-                .await
-                .map_err(|err| anyhow!("Error deactivating report schedule: {err:?}"))?;
-            let task_execution = tasks_execution::post(
-                &report.tenant_id,
-                Some(report.election_event_id.as_str()),
-                ETasksExecution::GENERATE_REPORT,
+            if let Err(err) = deactivate_unauthorized_schedule(
+                report,
                 &cron_config.executer_username,
+                authorization,
             )
             .await
-            .map_err(|err| anyhow!("Error creating task execution record: {err:?}"))?;
-            tasks_execution::update_fail(
-                &task_execution,
-                &format!("Scheduled report deactivated: {authorization}"),
-            )
-            .await
-            .map_err(|err| anyhow!("Error updating task execution record: {err:?}"))?;
+            {
+                error!(
+                    "Error deactivating scheduled report id={id}: {err:?}",
+                    id = report.id
+                );
+            }
             continue;
         }
 
