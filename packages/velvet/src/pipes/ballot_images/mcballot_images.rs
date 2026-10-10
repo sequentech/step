@@ -2,7 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::config::ballot_images_config::{PipeConfigBallotImages, DEFAULT_MCBALLOT_TITLE};
+use crate::config::ballot_images_config::{
+    BallotImageSignaturePolicy, PipeConfigBallotImages, BALLOT_IMAGE_SIGNATURE_POLICY_ANNOTATION,
+    DEFAULT_MCBALLOT_TITLE,
+};
 use crate::pipes::decode_ballots::decode_mcballots::OUTPUT_DECODED_BALLOTS_FILE;
 use crate::pipes::error::{Error, Result};
 use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs};
@@ -18,6 +21,7 @@ use sequent_core::ballot_codec::multi_ballot::DecodedBallotChoices;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::services::{pdf, reports};
 use sequent_core::signatures::ecies_encrypt::ecies_sign_data_bulk;
+use sequent_core::signatures::ecies_encrypt::EciesKeyPair;
 use sequent_core::signatures::ecies_encrypt::SignRequest;
 use sequent_core::temp_path::generate_temp_file;
 use sequent_core::util::date_time::get_date_and_time;
@@ -34,6 +38,9 @@ use tokio::runtime::Runtime;
 use tracing::{info, instrument};
 
 pub const BALLOT_IMAGES_OUTPUT_FILE: &str = "ballots";
+pub const BALLOT_FILES_CSV: &str = "ballots_files.csv";
+pub const BALLOT_FILES_CSV_SIGNATURE: &str = "ballots_files.csv.sign";
+pub const BALLOT_PAGE_SIGN_PAYLOAD_VERSION: &str = "v2";
 
 pub struct MCBallotImages {
     pub pipe_inputs: PipeInputs,
@@ -143,6 +150,7 @@ impl MCBallotImages {
         contests: &Vec<Contest>,
         election_input: &InputElectionConfig,
         pipe_config: &PipeConfigBallotImages,
+        signature_policy: BallotImageSignaturePolicy,
         area_name: &str,
     ) -> Result<(Option<Vec<u8>>, Vec<u8>)> {
         // 1. Gather the sign_data for all ballots/contests
@@ -208,14 +216,19 @@ impl MCBallotImages {
 
                 // Instead of calling ecies_sign_data here, we only CREATE the data
                 let (digital_signature, sign_data) = if pipe_config.acm_key.is_some() {
-                    let data_str = format!(
-                        "{}:{}:{}:{}:{}",
+                    let page_ids = BallotPageIds {
                         election_event_id,
-                        precint_id,
-                        ballot.mcballot.serial_number.clone().unwrap_or_default(),
+                        precinct_id: precint_id,
+                        serial_number: ballot.mcballot.serial_number.as_deref().unwrap_or_default(),
                         election_id,
-                        page_number.to_string()
-                    );
+                        page_number,
+                    };
+                    let data_str = ballot_page_sign_payload(
+                        signature_policy,
+                        &page_ids,
+                        &contest_choices.contest_id,
+                        &choices,
+                    )?;
                     // We'll push this into our bulk_sign_requests
                     // We also need a unique ID to correlate the signature
                     let sign_id = format!("b{}_c{}_p{}", b_idx, c_idx, page_number);
@@ -384,6 +397,78 @@ impl MCBallotImages {
     }
 }
 
+struct BallotPageIds<'a> {
+    election_event_id: &'a str,
+    precinct_id: &'a str,
+    serial_number: &'a str,
+    election_id: &'a str,
+    page_number: i64,
+}
+
+/// Encodes each field as `<byte length>:<value>`, joined with `:`.
+fn length_prefixed(fields: &[&str]) -> String {
+    fields
+        .iter()
+        .map(|field| format!("{}:{}", field.len(), field))
+        .collect::<Vec<String>>()
+        .join(":")
+}
+
+fn ballot_page_sign_payload(
+    policy: BallotImageSignaturePolicy,
+    ids: &BallotPageIds,
+    contest_id: &str,
+    choices: &[DecodedChoice],
+) -> Result<String> {
+    let page_number = ids.page_number.to_string();
+    match policy {
+        BallotImageSignaturePolicy::IdentifiersOnly => Ok(format!(
+            "{}:{}:{}:{}:{}",
+            ids.election_event_id, ids.precinct_id, ids.serial_number, ids.election_id, page_number
+        )),
+        BallotImageSignaturePolicy::IdentifiersAndChoices => {
+            let mut selected: Vec<&str> = choices
+                .iter()
+                .filter(|choice| choice.is_selected())
+                .map(|choice| choice.choice.id.as_str())
+                .collect();
+            selected.sort_unstable();
+            let selections_hash =
+                hash_sha256(length_prefixed(&selected).as_bytes()).map_err(|e| {
+                    Error::UnexpectedError(format!("Error hashing the page selections: {e}"))
+                })?;
+            let selections_hash = hex::encode(selections_hash);
+            Ok(format!(
+                "{}:{}",
+                BALLOT_PAGE_SIGN_PAYLOAD_VERSION,
+                length_prefixed(&[
+                    ids.election_event_id,
+                    ids.precinct_id,
+                    ids.serial_number,
+                    ids.election_id,
+                    &page_number,
+                    contest_id,
+                    &selections_hash,
+                ])
+            ))
+        }
+    }
+}
+
+fn sign_ballot_files_csv(acm_key: &EciesKeyPair, csv_bytes: Vec<u8>) -> Result<String> {
+    let data = String::from_utf8(csv_bytes)
+        .map_err(|e| Error::UnexpectedError(format!("Ballot files CSV is not UTF-8: {e}")))?;
+    let request = SignRequest {
+        id: BALLOT_FILES_CSV.to_string(),
+        data,
+    };
+    let mut signatures = ecies_sign_data_bulk(acm_key, &[request])
+        .map_err(|e| Error::UnexpectedError(format!("Error signing the ballot files CSV: {e}")))?;
+    signatures
+        .remove(BALLOT_FILES_CSV)
+        .ok_or_else(|| Error::UnexpectedError("Missing ballot files CSV signature".into()))
+}
+
 #[instrument(skip_all)]
 fn get_pipe_data() -> BallotImagesPipeData {
     BallotImagesPipeData {
@@ -455,6 +540,14 @@ impl Pipe for MCBallotImages {
         let pipe_config: PipeConfigBallotImages = self.get_config()?;
         let pipe_data = get_pipe_data();
         for election_input in &self.pipe_inputs.election_list {
+            let signature_policy = BallotImageSignaturePolicy::from_annotations(
+                &election_input.election_event_annotations,
+            )
+            .map_err(|e| {
+                Error::UnexpectedError(format!(
+                    "Invalid {BALLOT_IMAGE_SIGNATURE_POLICY_ANNOTATION} annotation: {e}"
+                ))
+            })?;
             let area_contests_map = election_input.get_area_contest_map();
 
             let files = Mutex::new(vec![]);
@@ -521,6 +614,7 @@ impl Pipe for MCBallotImages {
                                     &area_contests.contests,
                                     &election_input,
                                     &pipe_config,
+                                    signature_policy,
                                     &area_contests.area_name,
                                 )?;
 
@@ -620,14 +714,13 @@ impl Pipe for MCBallotImages {
 
                         // Write the CSV file of file names and hashes ONLY for `ballot` type
                         if pipe_data.output_file.clone() == BALLOT_IMAGES_OUTPUT_FILE {
-                            let csv_filename = format!("ballots_files.csv");
-                            let csv_path = path.join(csv_filename);
+                            let csv_path = path.join(BALLOT_FILES_CSV);
                             let files_lock = files.lock().map_err(|e| {
                                 Error::UnexpectedError(format!("Error locking files: {}", e))
                             })?;
 
                             let rt = Runtime::new()?;
-                            rt.block_on(async {
+                            let csv_bytes = rt.block_on(async {
                                 write_file_hash_csv(files_lock.clone(), csv_path)
                                     .await
                                     .map_err(|e| {
@@ -637,6 +730,11 @@ impl Pipe for MCBallotImages {
                                         ))
                                     })
                             })?;
+
+                            if let Some(acm_key) = &pipe_config.acm_key {
+                                let signature = sign_ballot_files_csv(acm_key, csv_bytes)?;
+                                fs::write(path.join(BALLOT_FILES_CSV_SIGNATURE), signature)?;
+                            }
                         }
 
                         Ok(())
@@ -790,7 +888,7 @@ fn convert_ballots(
     Ok(ret)
 }
 
-pub async fn write_file_hash_csv(data: Vec<BallotCsvData>, path: PathBuf) -> Result<()> {
+pub async fn write_file_hash_csv(data: Vec<BallotCsvData>, path: PathBuf) -> Result<Vec<u8>> {
     let headers = vec!["file_name".to_string(), "hash".to_string()];
 
     let mut writer = Writer::from_writer(vec![]);
@@ -816,5 +914,169 @@ pub async fn write_file_hash_csv(data: Vec<BallotCsvData>, path: PathBuf) -> Res
         .open(path)?;
     file.write_all(&data_bytes)?;
 
-    Ok(())
+    Ok(data_bytes)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const SERIAL_NUMBER: &str = "000000001";
+    const PAGE_NUMBER: i64 = 3;
+
+    fn page_ids<'a>(precinct_id: &'a str, election_id: &'a str) -> BallotPageIds<'a> {
+        BallotPageIds {
+            election_event_id: "event",
+            precinct_id,
+            serial_number: SERIAL_NUMBER,
+            election_id,
+            page_number: PAGE_NUMBER,
+        }
+    }
+
+    fn choice(id: &str, selected: i64) -> DecodedChoice {
+        DecodedChoice {
+            choice: DecodedVoteChoice {
+                id: id.to_string(),
+                selected,
+                write_in_text: None,
+            },
+            candidate: None,
+        }
+    }
+
+    fn build_payload(
+        policy: BallotImageSignaturePolicy,
+        ids: &BallotPageIds,
+        contest_id: &str,
+        choices: &[DecodedChoice],
+    ) -> String {
+        ballot_page_sign_payload(policy, ids, contest_id, choices).expect("payload")
+    }
+
+    #[test]
+    fn identifiers_only_payload_keeps_original_format() {
+        let payload = build_payload(
+            BallotImageSignaturePolicy::IdentifiersOnly,
+            &page_ids("prec", "elec"),
+            "contest",
+            &[choice("a", 1), choice("b", -1)],
+        );
+
+        assert_eq!(payload, "event:prec:000000001:elec:3");
+    }
+
+    #[test]
+    fn identifiers_and_choices_payload_matches_documented_encoding() {
+        let payload = build_payload(
+            BallotImageSignaturePolicy::IdentifiersAndChoices,
+            &page_ids("prec", "elec"),
+            "contest",
+            &[choice("c", 1), choice("b", -1), choice("a", 1)],
+        );
+
+        assert_eq!(
+            payload,
+            "v2:5:event:4:prec:9:000000001:4:elec:1:3:7:contest:64:\
+             b2939ab7982fed32555ff3b42e4361401f8a511e9f52c81f58e0fbeea7573fdb"
+        );
+    }
+
+    #[test]
+    fn identifiers_and_choices_payload_covers_selected_candidates() {
+        let ids = page_ids("prec", "elec");
+        let first = build_payload(
+            BallotImageSignaturePolicy::IdentifiersAndChoices,
+            &ids,
+            "contest",
+            &[choice("a", 1), choice("b", -1)],
+        );
+        let second = build_payload(
+            BallotImageSignaturePolicy::IdentifiersAndChoices,
+            &ids,
+            "contest",
+            &[choice("a", -1), choice("b", 1)],
+        );
+        let blank = build_payload(
+            BallotImageSignaturePolicy::IdentifiersAndChoices,
+            &ids,
+            "contest",
+            &[choice("a", -1), choice("b", -1)],
+        );
+
+        assert_ne!(first, second);
+        assert_ne!(first, blank);
+        assert_ne!(second, blank);
+    }
+
+    #[test]
+    fn identifiers_and_choices_payload_covers_contest_id() {
+        let ids = page_ids("prec", "elec");
+        let choices = [choice("a", 1)];
+
+        assert_ne!(
+            build_payload(
+                BallotImageSignaturePolicy::IdentifiersAndChoices,
+                &ids,
+                "contest-1",
+                &choices
+            ),
+            build_payload(
+                BallotImageSignaturePolicy::IdentifiersAndChoices,
+                &ids,
+                "contest-2",
+                &choices
+            ),
+        );
+    }
+
+    #[test]
+    fn identifiers_and_choices_payload_keeps_field_boundaries() {
+        let choices = [choice("a", 1)];
+        let joined_event = BallotPageIds {
+            election_event_id: "event:prec",
+            precinct_id: "",
+            ..page_ids("", "elec")
+        };
+        let joined_precinct = BallotPageIds {
+            election_event_id: "event",
+            precinct_id: "prec:",
+            ..page_ids("", "elec")
+        };
+
+        assert_ne!(
+            build_payload(
+                BallotImageSignaturePolicy::IdentifiersAndChoices,
+                &joined_event,
+                "contest",
+                &choices
+            ),
+            build_payload(
+                BallotImageSignaturePolicy::IdentifiersAndChoices,
+                &joined_precinct,
+                "contest",
+                &choices
+            ),
+        );
+    }
+
+    #[test]
+    fn identifiers_and_choices_payload_ignores_candidate_order() {
+        let ids = page_ids("prec", "elec");
+
+        assert_eq!(
+            build_payload(
+                BallotImageSignaturePolicy::IdentifiersAndChoices,
+                &ids,
+                "contest",
+                &[choice("a", 1), choice("b", 1), choice("c", -1)]
+            ),
+            build_payload(
+                BallotImageSignaturePolicy::IdentifiersAndChoices,
+                &ids,
+                "contest",
+                &[choice("c", -1), choice("b", 1), choice("a", 1)]
+            ),
+        );
+    }
 }
