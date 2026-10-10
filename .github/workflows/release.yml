@@ -257,7 +257,11 @@ jobs:
     if: ${{ github.event.inputs.infra_only == 'false' }}
     uses: ./.github/workflows/reusable_build_push.yml
     needs: release
-    secrets: inherit
+    secrets:
+      PAT: ${{ secrets.PAT }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+      AWS_ACCESS_KEY_ID_GLOBALDOT: ${{ secrets.AWS_ACCESS_KEY_ID_GLOBALDOT }}
+      AWS_SECRET_ACCESS_KEY_GLOBALDOT: ${{ secrets.AWS_SECRET_ACCESS_KEY_GLOBALDOT }}
     with:
       tag: ${{ needs.release.outputs.VERSION }}
       push: true
@@ -267,7 +271,11 @@ jobs:
     if: ${{ github.event.inputs.infra_only == 'false' }}
     uses: ./.github/workflows/reusable_build_push_root.yml
     needs: release
-    secrets: inherit
+    secrets:
+      PAT: ${{ secrets.PAT }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     with:
       tag: ${{ needs.release.outputs.VERSION }}
       push: true
@@ -276,6 +284,7 @@ jobs:
     needs: [release]
     if: ${{ always() && needs.release.result == 'success' }}
     runs-on: ubuntu-24.04
+    environment: release
     steps:
     - name: Trigger Beyond Release Workflow
       uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch
@@ -296,6 +305,7 @@ jobs:
           (needs.build-and-push.result == 'success' ||
            (inputs.infra_only && needs.build-and-push.result == 'skipped')) }}
     runs-on: ubuntu-24.04
+    environment: release
     steps:
     - name: Trigger Deployer Workflow
       uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch
