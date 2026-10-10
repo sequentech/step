@@ -11,6 +11,7 @@ use sequent_core::ballot::{Enrollment, Otp};
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use tracing::{error, info, instrument};
 use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::database::get_hasura_pool;
@@ -31,6 +32,36 @@ struct SetVoterAuthenticationOutput {
     message: String,
 }
 
+fn authorize_set_voter_authentication(
+    claims: &JwtClaims,
+) -> Result<(), (Status, String)> {
+    authorize(
+        claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::ELECTION_EVENT_WRITE],
+    )
+    .map_err(|err| {
+        error!("Authorization failed: {:?}", err);
+        (Status::Forbidden, "Authorization failed".to_string())
+    })
+}
+
+fn parse_requested<T: FromStr>(
+    value: &str,
+    field: &str,
+) -> Result<Option<T>, (Status, String)> {
+    if value.trim().is_empty() {
+        return Ok(None);
+    }
+    value.parse::<T>().map(Some).map_err(|_| {
+        (
+            Status::BadRequest,
+            format!("Invalid {field} value: {value:?}"),
+        )
+    })
+}
+
 #[instrument(skip(claims))]
 #[post("/set-voter-authentication", format = "json", data = "<input>")]
 pub async fn set_voter_authentication(
@@ -39,17 +70,10 @@ pub async fn set_voter_authentication(
 ) -> Result<Json<SetVoterAuthenticationOutput>, (Status, String)> {
     let body = input.into_inner();
 
-    // Authorization check
-    authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![],
-    )
-    .map_err(|err| {
-        error!("Authorization failed: {:?}", err);
-        (Status::Forbidden, "Authorization failed".to_string())
-    })?;
+    authorize_set_voter_authentication(&claims)?;
+    let enrollment =
+        parse_requested::<Enrollment>(&body.enrollment, "enrollment")?;
+    let otp = parse_requested::<Otp>(&body.otp, "otp")?;
 
     let mut hasura_db_client =
         get_hasura_pool().await.get().await.map_err(|e| {
@@ -96,10 +120,10 @@ pub async fn set_voter_authentication(
         );
 
     // Update enrollment if it has changed
-    if !body.enrollment.trim().is_empty() && prev_enrollment != body.enrollment
+    if let Some(enrollment) =
+        enrollment.filter(|value| prev_enrollment != value.to_string())
     {
-        let enable_enrollment =
-            body.enrollment.eq(&Enrollment::ENABLED.to_string());
+        let enable_enrollment = enrollment == Enrollment::ENABLED;
         info!("Updating enrollment to: {}", enable_enrollment);
 
         update_keycloak_enrollment(
@@ -117,11 +141,10 @@ pub async fn set_voter_authentication(
         })?;
     }
 
-    if !body.otp.trim().is_empty() && prev_otp != body.otp {
-        let new_otp_state = if body.otp == Otp::ENABLED.to_string() {
-            "REQUIRED".to_string()
-        } else {
-            "DISABLED".to_string()
+    if let Some(otp) = otp.filter(|value| prev_otp != value.to_string()) {
+        let new_otp_state = match otp {
+            Otp::ENABLED => "REQUIRED".to_string(),
+            Otp::DISABLED => "DISABLED".to_string(),
         };
 
         info!("Updating OTP to: {}", new_otp_state);
@@ -151,4 +174,93 @@ pub async fn set_voter_authentication(
         success: true,
         message: "Authentication updated successfully".to_string(),
     }))
+}
+
+#[cfg(test)]
+mod voter_authentication_tests {
+    use super::*;
+
+    fn admin(roles: &[&str]) -> JwtClaims {
+        serde_json::from_value(serde_json::json!({
+            "exp": 1, "iat": 0, "jti": "test", "iss": "test",
+            "sub": "admin", "typ": "Bearer", "azp": "admin-portal",
+            "acr": "1", "allowed-origins": [], "scope": "openid",
+            "email_verified": false,
+            "https://hasura.io/jwt/claims": {
+                "x-hasura-default-role": "admin-user",
+                "x-hasura-tenant-id": "tenant",
+                "x-hasura-user-id": "admin",
+                "x-hasura-allowed-roles": roles
+            }
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn requires_election_event_write() {
+        for roles in [
+            vec![
+                "admin-user",
+                "election-event-read",
+                "election-event-keys-tab",
+                "election-event-tally-tab",
+            ],
+            vec!["admin-user", "election-event-read", "publish-write"],
+        ] {
+            assert_eq!(
+                authorize_set_voter_authentication(&admin(&roles))
+                    .unwrap_err()
+                    .0,
+                Status::Forbidden
+            );
+        }
+    }
+
+    #[test]
+    fn allows_election_event_write() {
+        let claims = admin(&["admin-user", "election-event-write"]);
+        assert!(authorize_set_voter_authentication(&claims).is_ok());
+    }
+
+    #[test]
+    fn empty_values_leave_settings_unchanged() {
+        assert_eq!(parse_requested::<Enrollment>("", "enrollment"), Ok(None));
+        assert_eq!(parse_requested::<Otp>(" ", "otp"), Ok(None));
+    }
+
+    #[test]
+    fn parses_enabled_and_disabled() {
+        assert_eq!(
+            parse_requested::<Enrollment>("enabled", "enrollment"),
+            Ok(Some(Enrollment::ENABLED))
+        );
+        assert_eq!(
+            parse_requested::<Enrollment>("disabled", "enrollment"),
+            Ok(Some(Enrollment::DISABLED))
+        );
+        assert_eq!(
+            parse_requested::<Otp>("enabled", "otp"),
+            Ok(Some(Otp::ENABLED))
+        );
+        assert_eq!(
+            parse_requested::<Otp>("disabled", "otp"),
+            Ok(Some(Otp::DISABLED))
+        );
+    }
+
+    #[test]
+    fn rejects_unknown_values() {
+        for value in ["FOO", "ENABLED", "disabled ", "required"] {
+            assert_eq!(
+                parse_requested::<Otp>(value, "otp").unwrap_err().0,
+                Status::BadRequest
+            );
+            assert_eq!(
+                parse_requested::<Enrollment>(value, "enrollment")
+                    .unwrap_err()
+                    .0,
+                Status::BadRequest
+            );
+        }
+    }
 }
