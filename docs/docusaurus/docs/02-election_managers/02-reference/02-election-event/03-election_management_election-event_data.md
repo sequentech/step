@@ -114,6 +114,9 @@ Define the voting methods available for this Election Event.
 Create custom URL prefixes for the Voting and Enrollment portals, and SAML endpoint.
 
 - Input the desired prefix for each endpoint.
+- Each prefix must be a single DNS label: letters, digits and hyphens, up to 63 characters, not starting or ending with a hyphen.
+- A prefix that another host in the domain already uses is rejected.
+- The address each custom URL redirects to is set by the platform from the tenant and the election event.
 
 **Examples:**
 
