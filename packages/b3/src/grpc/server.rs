@@ -26,6 +26,8 @@ use crate::client::pgsql::B3MessageRow;
 use crate::client::pgsql::PgsqlDbConnectionParams;
 use crate::client::pgsql::PooledPgsqlB3Client;
 use crate::messages::message::Message;
+use crate::messages::trusted_board;
+use strand::backend::ristretto::RistrettoCtx;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 
 const BB8_POOL_SIZE: u32 = 20;
@@ -179,12 +181,14 @@ impl PgsqlB3Server {
         };
         let mut c = PooledPgsqlB3Client::new(c);
 
-        // Board bootstrap is provisioned through the trusted database connection,
-        // never by an unauthenticated first writer on the shared gRPC endpoint.
+        // The board configuration is provisioned through the database, not through this endpoint.
         let configurations = c
             .get_with_kind_only(board, StatementType::Configuration)
             .await
-            .map_err(|_| Status::internal("Unable to load board configuration"))?;
+            .map_err(|e| {
+                error!("Failed to load board configuration: {:?}", e);
+                Status::internal("Unable to load board configuration")
+            })?;
         let configurations = configurations
             .iter()
             .map(|row| Message::strand_deserialize(&row.message))
@@ -195,13 +199,13 @@ impl PgsqlB3Server {
                 "Board must have one provisioned configuration",
             ));
         }
-        let config_message = &configurations[0];
-        let config = crate::messages::trusted_board::verify_board::<
-            strand::backend::ristretto::RistrettoCtx,
-        >(&configurations, &config_message.sender.pk)
+        let config = trusted_board::verify_board::<RistrettoCtx>(
+            &configurations,
+            &configurations[0].sender.pk,
+        )
         .map_err(|_| Status::failed_precondition("Invalid board configuration"))?;
-        // A signature from a member of this board authenticates each write. Verify
-        // the entire request before touching the blob store or inserting any row.
+
+        // Verify every message before inserting any of them.
         for incoming in messages {
             let message = Message::strand_deserialize(&incoming.message)
                 .map_err(|_| Status::invalid_argument("Invalid board message"))?;
@@ -210,16 +214,10 @@ impl PgsqlB3Server {
                     "Board configuration is provisioned separately",
                 ));
             }
-            crate::messages::trusted_board::verify_board::<strand::backend::ristretto::RistrettoCtx>(
-                &[
-                    config_message
-                        .try_clone()
-                        .map_err(|_| Status::internal("Unable to read board configuration"))?,
-                    message,
-                ],
-                &config.protocol_manager,
-            )
-            .map_err(|_| Status::permission_denied("Message authentication failed"))?;
+            trusted_board::verify_message(&message, &config).map_err(|e| {
+                warn!("Rejected message for board '{}': {}", board, e);
+                Status::permission_denied("Message authentication failed")
+            })?;
         }
 
         let mut messages = messages
@@ -563,10 +561,10 @@ pub(crate) mod tests {
             .await
             .unwrap();
         let member = Message::configuration_msg(&cfg, &trustees[0]).unwrap();
-        let mut spoofed = member.try_clone().unwrap();
-        spoofed.sender.pk = cfg.trustees[1].clone();
+        let mut mismatched = member.try_clone().unwrap();
+        mismatched.sender.pk = cfg.trustees[1].clone();
         let request =
-            B3Client::put_messages_request(TEST_BOARD, &[member.try_clone().unwrap(), spoofed])
+            B3Client::put_messages_request(TEST_BOARD, &[member.try_clone().unwrap(), mismatched])
                 .unwrap();
         assert_eq!(
             b3_impl
