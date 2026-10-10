@@ -373,6 +373,17 @@ impl RawBallotCodec for Contest {
             });
         }
 
+        let disabled_selection_check = check_disabled_candidate_selections(
+            decoded_contest
+                .choices
+                .iter()
+                .filter(|choice| choice.selected > -1)
+                .filter_map(|choice| {
+                    context.candidates_by_id.get(choice.id.as_str()).copied()
+                }),
+        );
+        decoded_contest.update(disabled_selection_check);
+
         let presentation = self.presentation.clone().unwrap_or_default();
 
         let invalid_vote_policy_errors =
@@ -994,5 +1005,111 @@ mod tests {
                     == Some("errors.implicit.selectedMin")),
             "Explicit invalid should satisfy min_votes"
         );
+    }
+
+    fn disabled_candidate_fixture(
+        counting_algorithm: CountingAlgType,
+    ) -> (Contest, String, String) {
+        let mut contest = get_configurable_contest(
+            2,
+            3,
+            counting_algorithm,
+            false,
+            None,
+            false,
+        );
+        contest.candidates[1]
+            .presentation
+            .get_or_insert_with(ballot::CandidatePresentation::default)
+            .is_disabled = Some(true);
+        let enabled_id = contest.candidates[0].id.clone();
+        let disabled_id = contest.candidates[1].id.clone();
+        (contest, enabled_id, disabled_id)
+    }
+
+    fn decode_selection(
+        contest: &Contest,
+        selected_ids: &[&str],
+    ) -> DecodedVoteContest {
+        let plaintext = DecodedVoteContest {
+            contest_id: contest.id.clone(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            is_blank_ballot: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: contest
+                .candidates
+                .iter()
+                .map(|candidate| DecodedVoteChoice {
+                    id: candidate.id.clone(),
+                    selected: selected_ids
+                        .iter()
+                        .position(|id| *id == candidate.id)
+                        .map(|position| position as i64)
+                        .unwrap_or(-1),
+                    write_in_text: None,
+                })
+                .collect(),
+        };
+        let raw_ballot = contest
+            .encode_to_raw_ballot(&plaintext)
+            .expect("Expected raw ballot");
+        contest
+            .decode_from_raw_ballot(&raw_ballot)
+            .expect("Expected decoded contest")
+    }
+
+    fn disabled_selection_errors(
+        decoded: &DecodedVoteContest,
+    ) -> Vec<Option<String>> {
+        decoded
+            .invalid_errors
+            .iter()
+            .filter(|error| {
+                error.message.as_deref()
+                    == Some(SELECTED_DISABLED_CANDIDATE_ERROR)
+            })
+            .map(|error| error.candidate_id.clone())
+            .collect()
+    }
+
+    #[test]
+    fn test_decode_rejects_selection_of_disabled_candidate() {
+        for counting_algorithm in [
+            CountingAlgType::PluralityAtLarge,
+            CountingAlgType::InstantRunoff,
+        ] {
+            let (contest, enabled_id, disabled_id) =
+                disabled_candidate_fixture(counting_algorithm);
+
+            let decoded =
+                decode_selection(&contest, &[&enabled_id, &disabled_id]);
+
+            assert!(decoded.is_invalid());
+            assert_eq!(
+                disabled_selection_errors(&decoded),
+                vec![Some(disabled_id)]
+            );
+            assert!(decoded.invalid_errors.iter().all(|error| {
+                error.error_type == InvalidPlaintextErrorType::Implicit
+            }));
+        }
+    }
+
+    #[test]
+    fn test_decode_accepts_unselected_disabled_candidate() {
+        for counting_algorithm in [
+            CountingAlgType::PluralityAtLarge,
+            CountingAlgType::InstantRunoff,
+        ] {
+            let (contest, enabled_id, _disabled_id) =
+                disabled_candidate_fixture(counting_algorithm);
+
+            let decoded = decode_selection(&contest, &[&enabled_id]);
+
+            assert!(!decoded.is_invalid());
+            assert!(disabled_selection_errors(&decoded).is_empty());
+        }
     }
 }

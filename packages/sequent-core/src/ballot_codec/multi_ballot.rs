@@ -11,10 +11,10 @@ use crate::ballot::{
     DeclineToVotePolicy, EUnderVotePolicy, MultiContestEncodingMode,
 };
 use crate::ballot_codec::{
-    check_blank_vote_policy, check_invalid_vote_policy,
-    check_max_min_votes_policy, check_min_vote_policy, check_over_vote_policy,
-    check_under_vote_policy, validate_contest_configuration,
-    ContestCodecContext,
+    check_blank_vote_policy, check_disabled_candidate_selections,
+    check_invalid_vote_policy, check_max_min_votes_policy,
+    check_min_vote_policy, check_over_vote_policy, check_under_vote_policy,
+    validate_contest_configuration, ContestCodecContext,
 };
 use crate::error::BallotError;
 use crate::mixed_radix;
@@ -980,6 +980,13 @@ impl BallotChoices {
             }
         }
 
+        let disabled_selection_check = check_disabled_candidate_selections(
+            decoded_contest.choices.iter().filter_map(|choice| {
+                context.candidates_by_id.get(choice.0.as_str()).copied()
+            }),
+        );
+        decoded_contest.update(disabled_selection_check);
+
         let num_selected_candidates = next_choices.len();
         // Explicit invalid and explicit blank flags count as selections
         // for the min_votes, max_votes, undervote and blank-vote rules.
@@ -1295,6 +1302,7 @@ mod tests {
         BallotStyle, Candidate, Contest, DeclineToVotePolicy,
         ElectionPresentation,
     };
+    use crate::ballot_codec::SELECTED_DISABLED_CANDIDATE_ERROR;
     use crate::plaintext::DecodedVoteChoice;
     use crate::serialization::deserialize_with_path::deserialize_value;
     use rand::{seq::SliceRandom, Rng};
@@ -1496,6 +1504,55 @@ mod tests {
             .expect("under-min ballots should be encoded and reported");
 
         assert!(has_invalid_error(&result[0], "errors.implicit.selectedMin"));
+    }
+
+    #[test]
+    fn test_multi_contest_decode_rejects_selection_of_disabled_candidate() {
+        let mut contest = test_contest("1", 3, 2);
+        contest.candidates[1]
+            .presentation
+            .get_or_insert_with(Default::default)
+            .is_disabled = Some(true);
+        let enabled_id = contest.candidates[0].id.clone();
+        let disabled_id = contest.candidates[1].id.clone();
+        let style = test_ballot_style(vec![contest.clone()]);
+
+        let disabled_selection = decoded_vote_contest(
+            &contest,
+            false,
+            &[enabled_id.clone(), disabled_id.clone()],
+        );
+        let result =
+            test_multi_contest_reencoding(&vec![disabled_selection], &style)
+                .expect("ballot should be encoded and reported");
+
+        assert!(result[0].is_invalid());
+        let disabled_errors: Vec<&InvalidPlaintextError> = result[0]
+            .invalid_errors
+            .iter()
+            .filter(|error| {
+                error.message.as_deref()
+                    == Some(SELECTED_DISABLED_CANDIDATE_ERROR)
+            })
+            .collect();
+        assert_eq!(disabled_errors.len(), 1);
+        assert_eq!(disabled_errors[0].candidate_id, Some(disabled_id));
+        assert_eq!(
+            disabled_errors[0].error_type,
+            InvalidPlaintextErrorType::Implicit
+        );
+
+        let enabled_selection =
+            decoded_vote_contest(&contest, false, &[enabled_id]);
+        let result =
+            test_multi_contest_reencoding(&vec![enabled_selection], &style)
+                .expect("ballot should be encoded and reported");
+
+        assert!(!result[0].is_invalid());
+        assert!(!has_invalid_error(
+            &result[0],
+            SELECTED_DISABLED_CANDIDATE_ERROR
+        ));
     }
 
     #[test]
