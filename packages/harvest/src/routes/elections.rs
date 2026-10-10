@@ -11,6 +11,7 @@ use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::ballot::ElectionPresentation;
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::services::uuid_validation::parse_uuid_v4_field;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
@@ -45,6 +46,8 @@ pub async fn create_election(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::ELECTION_EVENT_WRITE],
     )?;
+    parse_uuid_v4_field(&body.election_event_id, "election_event_id")
+        .map_err(|error| (Status::BadRequest, error.to_string()))?;
 
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -96,4 +99,35 @@ pub async fn create_election(
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     Ok(Json(CreateElectionOutput { id: election.id }))
+}
+
+#[cfg(test)]
+mod create_election_tests {
+    use super::*;
+    use crate::services::authorization::test_claims::admin;
+    use uuid::Uuid;
+
+    /// A malformed election event id is a client error, answered before any
+    /// database access.
+    #[tokio::test]
+    async fn create_election_rejects_a_malformed_election_event_id() {
+        let body: CreateElectionInput =
+            serde_json::from_value(serde_json::json!({
+                "election_event_id": "event",
+                "external_id": "election",
+                "presentation": {}
+            }))
+            .expect("valid request");
+        let claims = admin(
+            &Uuid::new_v4().to_string(),
+            &[Permissions::ELECTION_EVENT_WRITE.to_string()],
+        );
+        assert_eq!(
+            create_election(Json(body), claims)
+                .await
+                .err()
+                .map(|error| error.0),
+            Some(Status::BadRequest)
+        );
+    }
 }
