@@ -51,6 +51,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::io::{Error, ErrorKind};
+use zeroize::Zeroizing;
 
 use crate::rng::StrandRng;
 use crate::util;
@@ -255,7 +256,7 @@ impl StrandSignatureSk {
     pub fn from_der_b64_string(
         b64_der: &str,
     ) -> Result<StrandSignatureSk, StrandError> {
-        let bytes: Vec<u8> = general_purpose::STANDARD.decode(b64_der)?;
+        let bytes = Zeroizing::new(general_purpose::STANDARD.decode(b64_der)?);
         Self::from_der(&bytes)
     }
 

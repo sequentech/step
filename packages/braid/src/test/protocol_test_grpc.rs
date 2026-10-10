@@ -9,12 +9,14 @@ use rand::Rng;
 use rayon::prelude::*;
 use std::collections::HashSet;
 use std::marker::PhantomData;
+use std::sync::Arc;
 use std::time::Instant;
 
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
 use strand::serialization::StrandDeserialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+use zeroize::Zeroizing;
 
 use b3::messages::artifact::{Ballots, Configuration, DkgPublicKey, Plaintexts};
 use b3::messages::message::Message;
@@ -237,8 +239,8 @@ pub async fn create_protocol_test<C: Ctx>(
                 Trustee::new(
                     i.to_string(),
                     "foo".to_string(),
-                    sk,
-                    encryption_key,
+                    Arc::new(sk),
+                    Arc::new(Zeroizing::new(encryption_key)),
                     None,
                     None,
                 ),

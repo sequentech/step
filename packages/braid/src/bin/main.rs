@@ -9,6 +9,7 @@ use clap::Parser;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Arc;
 use tokio::time::{sleep, Duration};
 use tracing::instrument;
 use tracing::{error, info};
@@ -19,6 +20,7 @@ use braid::protocol::trustee2::TrusteeConfig;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
 use strand::symm;
+use zeroize::Zeroizing;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "jemalloc")] {
@@ -77,16 +79,22 @@ async fn main() -> Result<()> {
 
     let args = Cli::parse();
 
-    let contents = fs::read_to_string(args.trustee_config)
-        .expect("Should have been able to read the trustee configuration file");
-
     info!("{}", strand::info_string());
 
-    let tc: TrusteeConfig = toml::from_str(&contents).unwrap();
-    let sk: StrandSignatureSk = StrandSignatureSk::from_der_b64_string(&tc.signing_key_sk)?;
+    let (sk, ek) = {
+        let contents = Zeroizing::new(
+            fs::read_to_string(args.trustee_config)
+                .expect("Should have been able to read the trustee configuration file"),
+        );
 
-    let bytes = braid::util::decode_base64(&tc.encryption_key)?;
-    let ek = symm::sk_from_bytes(&bytes)?;
+        let tc: TrusteeConfig = toml::from_str(&contents).unwrap();
+        let sk = Arc::new(StrandSignatureSk::from_der_b64_string(&tc.signing_key_sk)?);
+
+        let bytes = Zeroizing::new(braid::util::decode_base64(&tc.encryption_key)?);
+        let ek = Arc::new(Zeroizing::new(symm::sk_from_bytes(&bytes)?));
+
+        (sk, ek)
+    };
 
     let ignored_boards = get_ignored_boards();
     info!("ignored boards {:?}", ignored_boards);
@@ -134,8 +142,8 @@ async fn main() -> Result<()> {
             let trustee: Trustee<RistrettoCtx> = Trustee::new(
                 std::env::var("TRUSTEE_NAME").unwrap_or_else(|_| "Self".to_string()),
                 board_name.to_string(),
-                sk.clone(),
-                ek.clone(),
+                Arc::clone(&sk),
+                Arc::clone(&ek),
                 Some(store_root.join(board_name)),
                 None,
             );
