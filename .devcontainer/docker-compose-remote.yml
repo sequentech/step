@@ -484,6 +484,10 @@ services:
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
         B3_URL: ${B3_URL}
+        B3_CLIENT_TRANSPORT_SECURITY: ${B3_CLIENT_TRANSPORT_SECURITY:-plaintext}
+        B3_CLIENT_TLS_CA_PATH: ${B3_CLIENT_TLS_CA_PATH:-}
+        B3_CLIENT_TLS_CERT_PATH: ${B3_CLIENT_TLS_CERT_PATH:-}
+        B3_CLIENT_TLS_KEY_PATH: ${B3_CLIENT_TLS_KEY_PATH:-}
     depends_on:
       - immudb
       - b3
@@ -506,6 +510,10 @@ services:
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
         B3_URL: ${B3_URL}
+        B3_CLIENT_TRANSPORT_SECURITY: ${B3_CLIENT_TRANSPORT_SECURITY:-plaintext}
+        B3_CLIENT_TLS_CA_PATH: ${B3_CLIENT_TLS_CA_PATH:-}
+        B3_CLIENT_TLS_CERT_PATH: ${B3_CLIENT_TLS_CERT_PATH:-}
+        B3_CLIENT_TLS_KEY_PATH: ${B3_CLIENT_TLS_KEY_PATH:-}
 
   rabbitmq:
     profiles: ["full", "base"]
@@ -804,6 +812,10 @@ services:
       B3_PG_PASSWORD: ${B3_PG_PASSWORD}
       B3_PG_DATABASE: ${B3_PG_DATABASE}
       B3_BIND: ${B3_BIND}
+      B3_TRANSPORT_SECURITY: ${B3_TRANSPORT_SECURITY:-plaintext}
+      B3_TLS_CERT_PATH: ${B3_TLS_CERT_PATH:-}
+      B3_TLS_KEY_PATH: ${B3_TLS_KEY_PATH:-}
+      B3_TLS_CA_PATH: ${B3_TLS_CA_PATH:-}
 
   admin-portal:
     profiles: ["full"]
