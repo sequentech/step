@@ -231,6 +231,7 @@ The system also handles specific GraphQL error codes with dynamic error messages
 - Corrupted ballot data
 - Version compatibility issues
 - JSON/serialization parsing errors
+- The ballot was not encrypted with the ballot style published for the voter's area and election, for example because the voting portal was loaded before a new ballot publication (see the ballot tracker policy)
 
 #### CAST_VOTE_DeserializeContestsFailed
 **Translation**: "An error occurred reading your selections. Please try again later or contact support for assistance."
