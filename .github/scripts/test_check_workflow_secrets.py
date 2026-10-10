@@ -142,7 +142,14 @@ jobs:
     secrets:
       PAT: ${{ secrets.PAT }}
 """)
-        self.assertEqual(errors, [OUTSIDE_ENVIRONMENT.format("build")])
+        self.assertEqual(
+            errors,
+            [
+                "workflow.yml: job 'build' passes release credentials to the "
+                "external reusable workflow "
+                "'example/workflows/.github/workflows/build.yml@v1'"
+            ],
+        )
 
     def test_rejects_release_secret_in_pull_request_workflow(self):
         errors = check("""
