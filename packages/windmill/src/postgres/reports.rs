@@ -184,6 +184,8 @@ pub async fn update_report_last_document_time(
     Ok(())
 }
 
+/// Turns off the schedule of a report, keeping the rest of its cron
+/// configuration so it can be enabled again.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn deactivate_report_schedule(
     hasura_transaction: &Transaction<'_>,
