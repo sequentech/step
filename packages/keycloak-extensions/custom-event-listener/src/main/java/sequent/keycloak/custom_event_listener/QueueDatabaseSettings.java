@@ -32,6 +32,7 @@ record QueueDatabaseSettings(
   // Longer than the statement timeout, so the server normally cancels first; it bounds a send
   // to a database that stopped answering, which would otherwise hold the login.
   private static final String SOCKET_TIMEOUT_SECONDS = "10";
+  private static final String LOGIN_TIMEOUT_SECONDS = "5";
 
   static QueueDatabaseSettings fromEnvironment(Map<String, String> environment) {
     return new QueueDatabaseSettings(
@@ -51,6 +52,8 @@ record QueueDatabaseSettings(
     parameters.put("ApplicationName", APPLICATION_NAME);
     parameters.put("options", "-c statement_timeout=" + STATEMENT_TIMEOUT);
     parameters.put("socketTimeout", SOCKET_TIMEOUT_SECONDS);
+    // In the URL rather than the pool, which would set DriverManager's JVM-wide login timeout.
+    parameters.put("loginTimeout", LOGIN_TIMEOUT_SECONDS);
     // pgjdbc verifies the server only in verify-* modes; with a CA, Require verifies the
     // certificate and host name, as Windmill does.
     sslMode.ifPresent(

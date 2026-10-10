@@ -5,9 +5,10 @@
 use anyhow::{anyhow, Result};
 use celery::export::Arc;
 use config::{Config, ConfigError, Environment};
-use deadpool_postgres::{Client, Pool, PoolError, Runtime, SslMode};
+use deadpool_postgres::{Client, Pool, PoolConfig, PoolError, Runtime, SslMode};
 use serde::{Deserialize, Serialize};
 use std::env;
+use std::time::Duration;
 use tracing::instrument;
 
 use super::sql_utils::assert_standard_conforming_strings;
@@ -155,13 +156,22 @@ pub async fn generate_hasura_pool() -> Result<Arc<Pool>> {
     }
 }
 
+/// Connection and pool limits of the task-queue database unless `QUEUE_DB__*` sets them, so
+/// a request that enqueues fails fast instead of waiting on an unreachable database.
+const QUEUE_DB_TIMEOUT: Duration = Duration::from_secs(5);
+
 /// The environment's task-queue database (`QUEUE_DB__*`), where PGMQ keeps the queues.
 #[instrument(err)]
 pub async fn generate_queue_pool() -> Result<Arc<Pool>> {
-    let config: deadpool_postgres::Config = Config::builder()
+    let mut config: deadpool_postgres::Config = Config::builder()
         .add_source(Environment::default().separator("__"))
         .build()?
         .get("queue_db")?;
+    config.connect_timeout.get_or_insert(QUEUE_DB_TIMEOUT);
+    let timeouts = &mut config.pool.get_or_insert_with(PoolConfig::default).timeouts;
+    timeouts.wait.get_or_insert(QUEUE_DB_TIMEOUT);
+    timeouts.create.get_or_insert(QUEUE_DB_TIMEOUT);
+    timeouts.recycle.get_or_insert(QUEUE_DB_TIMEOUT);
 
     cfg_if::cfg_if! {
         if #[cfg(any(feature = "fips_core", feature = "fips_full"))] {
@@ -228,16 +238,25 @@ pub async fn get_keycloak_pool() -> Arc<Pool> {
 }
 
 pub async fn get_queue_pool() -> Arc<Pool> {
+    try_get_queue_pool()
+        .await
+        .expect("Task-queue DB: could not create the pool")
+}
+
+/// The task-queue pool, or the error that kept it from being created; a later call tries again.
+pub async fn try_get_queue_pool() -> Result<Arc<Pool>> {
     QUEUE_POOL
-        .get_or_init(|| async {
-            let pool = generate_queue_pool().await.unwrap();
+        .get_or_try_init(|| async {
+            let pool = generate_queue_pool().await?;
             assert_standard_conforming_strings(&pool)
                 .await
-                .expect("Task-queue DB: standard_conforming_strings check failed");
-            pool
+                .map_err(|error| {
+                    anyhow!("Task-queue DB: standard_conforming_strings check failed: {error}")
+                })?;
+            Ok::<_, anyhow::Error>(pool)
         })
         .await
-        .clone()
+        .cloned()
 }
 
 pub async fn get_hasura_pool() -> Arc<Pool> {

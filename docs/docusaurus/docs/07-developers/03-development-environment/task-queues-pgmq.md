@@ -89,8 +89,9 @@ does not create queues.
    grants each role its privileges, and revokes access to the database from other
    roles of the server. It runs in one transaction and can run again: run it on every
    upgrade, so that queues added by a release exist before its services start. In
-   development the `task-queues-setup` Compose service runs it before Windmill, Beat
-   and Harvest start; run `docker compose up task-queues-setup` after adding a queue.
+   development the `task-queues-setup` Compose service runs it when the stack starts,
+   and Windmill and Beat retry until it has run; run
+   `docker compose up task-queues-setup` after adding a queue.
 
 The PGMQ SQL distribution and its license are unchanged from
 [PGMQ v1.13.0](https://github.com/pgmq/pgmq/tree/v1.13.0), in

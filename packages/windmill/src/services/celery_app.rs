@@ -1,12 +1,13 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::database::get_queue_pool;
+use crate::services::database::try_get_queue_pool;
 use anyhow::{anyhow, Context, Result};
 use celery::prelude::Task;
 use celery::Celery;
 use pgmq_broker::PgmqBrokerBuilder;
 use std::sync::{Arc, LazyLock, RwLock};
+use std::time::Duration;
 use strum::IntoEnumIterator;
 use strum_macros::{AsRefStr, EnumIter, EnumString, IntoStaticStr};
 use tokio::sync::OnceCell;
@@ -201,18 +202,35 @@ pub fn get_is_app_active() -> bool {
 /// built separately from the Broker because it handles task routing/scheduling.
 static CELERY_APP: OnceCell<Arc<Celery>> = OnceCell::const_new();
 
+/// How long a producer inside a request waits for the Celery app to be built.
+const REQUEST_CELERY_APP_TIMEOUT: Duration = Duration::from_secs(5);
+
 /// Returns the global Celery app.
 #[instrument]
 pub async fn get_celery_app() -> Arc<Celery> {
+    init_celery_app().await.unwrap_or_else(|err| {
+        tracing::error!("{:#}", err);
+        panic!("{:#}", err);
+    })
+}
+
+/// Builds the global Celery app, or returns the error that kept it from being built; a later
+/// call tries again.
+#[instrument]
+pub async fn init_celery_app() -> Result<Arc<Celery>> {
     CELERY_APP
-        .get_or_init(|| async {
-            generate_celery_app().await.unwrap_or_else(|err| {
-                tracing::error!("{:#}", err);
-                panic!("{:#}", err);
-            })
-        })
+        .get_or_try_init(generate_celery_app)
         .await
-        .clone()
+        .cloned()
+}
+
+/// The global Celery app for producers inside requests, such as a voter's: an unreachable
+/// task-queue database fails their enqueue within seconds instead of failing the request.
+#[instrument]
+pub async fn try_get_celery_app() -> Result<Arc<Celery>> {
+    tokio::time::timeout(REQUEST_CELERY_APP_TIMEOUT, init_celery_app())
+        .await
+        .map_err(|_| anyhow!("Timed out connecting to the task-queue database"))?
 }
 
 #[instrument]
@@ -241,10 +259,11 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
         ));
     }
     init_plugin_manager().await?;
+    let queue_pool = try_get_queue_pool().await?;
 
     celery::app!(
         broker_builder = Box::new(
-            PgmqBrokerBuilder::from_pool(get_queue_pool().await).environment(&slug)
+            PgmqBrokerBuilder::from_pool(queue_pool).environment(&slug)
         ),
         tasks = [
             create_keys,

@@ -27,7 +27,7 @@ class QueueDatabaseSettingsTest {
     assertEquals("dev", settings.environment());
     assertEquals(
         "jdbc:postgresql://postgres:5432/dev_queues?ApplicationName=keycloak-electoral-log"
-            + "&options=-c+statement_timeout%3D5s&socketTimeout=10",
+            + "&options=-c+statement_timeout%3D5s&socketTimeout=10&loginTimeout=5",
         settings.jdbcUrl());
     assertFalse(settings.toString().contains("secret-password"));
   }

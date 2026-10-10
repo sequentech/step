@@ -13,7 +13,7 @@ use sequent_core::{services::jwt::JwtClaims, types::date_time::TimeZone};
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
-use windmill::services::celery_app::get_celery_app;
+use windmill::services::celery_app::try_get_celery_app;
 use windmill::services::tasks_execution::post;
 use windmill::types::tasks::ETasksExecution;
 
@@ -61,7 +61,12 @@ pub async fn create_ballot_receipt(
 
     let voter_id = claims.hasura_claims.user_id.clone();
     let document_id: String = Uuid::new_v4().to_string();
-    let celery_app = get_celery_app().await;
+    let celery_app = try_get_celery_app().await.map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("The task queues are not available: {error:#}"),
+        )
+    })?;
 
     // Insert the task execution record
     let task_execution = post(

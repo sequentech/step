@@ -407,7 +407,7 @@ services:
     ]
     depends_on:
       task-queues-setup:
-        condition: service_completed_successfully
+        condition: service_started
     environment:
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
@@ -595,7 +595,8 @@ services:
       - .env
 
   # Installs PGMQ and the queues in the task-queue database, as the database owner,
-  # like the setup job of a deployment. It is idempotent.
+  # like the setup job of a deployment. It is idempotent. Windmill and Beat retry until it
+  # has run, so the stack does not wait for its build.
   task-queues-setup:
     profiles: ["full", "base"]
     image: sequentech.local/cargo-packages
@@ -646,7 +647,7 @@ services:
       - ..:/workspaces/step:z
     depends_on:
       task-queues-setup:
-        condition: service_completed_successfully
+        condition: service_started
       postgres-keycloak:
         condition: service_healthy
       configure-minio:
@@ -760,7 +761,7 @@ services:
       - ..:/workspaces/step:z
     depends_on:
       task-queues-setup:
-        condition: service_completed_successfully
+        condition: service_started
       harvest:
         condition: service_started
     working_dir: /workspaces/step/packages/windmill

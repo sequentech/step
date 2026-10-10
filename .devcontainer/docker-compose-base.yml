@@ -551,7 +551,7 @@ services:
       devcontainer:
         condition: service_started
       task-queues-setup:
-        condition: service_completed_successfully
+        condition: service_started
     working_dir: /workspaces/step/packages/harvest
     entrypoint: ["/usr/local/bin/entrypoint.sh"]
     command: [
@@ -804,6 +804,7 @@ services:
 
   # Installs PGMQ and the queues in the task-queue database, as the database owner, like
   # the setup job of a deployment. It is idempotent; run it again after adding a queue.
+  # Windmill and Beat retry until it has run, so the stack does not wait for its build.
   task-queues-setup:
     profiles: ["full", "base"]
     image: sequentech.local/cargo-packages
@@ -867,7 +868,7 @@ services:
       configure-minio:
         condition: service_completed_successfully
       task-queues-setup:
-        condition: service_completed_successfully
+        condition: service_started
       #- postgres
       #- postgres-keycloak
     environment:
@@ -998,7 +999,7 @@ services:
       harvest:
         condition: service_started
       task-queues-setup:
-        condition: service_completed_successfully
+        condition: service_started
     working_dir: /workspaces/step/packages/windmill
     entrypoint: ["/usr/local/bin/entrypoint.sh"]
     command: [
