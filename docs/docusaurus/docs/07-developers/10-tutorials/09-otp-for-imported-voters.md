@@ -46,8 +46,9 @@ authentication flow.
 
 - Voters imported with an **email address**, a **mobile number**, or both.
 - A working sender for the channel you use: an email sender for email codes, an
-  SMS sender for SMS codes. In the development environment the dummy senders write
-  the message to the Keycloak log instead of sending it.
+  SMS sender for SMS codes. In the development environment the dummy senders
+  simulate delivery without sending or logging the message; Step 3 explains how to
+  sign in with them.
 - Access to the Keycloak admin console for the election event realm.
 
 ## Step 1: add the OTP sub-flow to the browser flow
