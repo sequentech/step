@@ -244,6 +244,8 @@ const dutchTranslation: TranslationType = {
                 SESSION_EXPIRED: "Uw sessie is verlopen. Begin opnieuw vanaf het begin.",
                 CAST_VOTE_BallotIdMismatch:
                     "De stembiljet-ID komt niet overeen met de uitgebrachte stem.",
+                CAST_VOTE_BallotStyleMismatch:
+                    "Uw stembiljet komt niet overeen met het stembiljet dat momenteel voor deze verkiezing is gepubliceerd. Laad de pagina opnieuw en probeer het opnieuw, of neem contact op met ondersteuning voor hulp.",
                 SESSION_STORAGE_ERROR:
                     "Sessie-opslag is niet beschikbaar. Probeer het opnieuw of neem contact op met de ondersteuning.",
                 PARSE_BALLOT_DATA_ERROR:

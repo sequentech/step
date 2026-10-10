@@ -244,6 +244,8 @@ const englishTranslation = {
                     "Authentication failed. Please try again or contact support for assistance.",
                 SESSION_EXPIRED: "Your session has expired. Please try again from the beginning.",
                 CAST_VOTE_BallotIdMismatch: "The ballot id does not match with the cast vote.",
+                CAST_VOTE_BallotStyleMismatch:
+                    "Your ballot does not match the one currently published for this election. Please reload the page and try again, or contact support for assistance.",
                 SESSION_STORAGE_ERROR:
                     "Session storage is not available. Please try again or contact support.",
                 PARSE_BALLOT_DATA_ERROR:

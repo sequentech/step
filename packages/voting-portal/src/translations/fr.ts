@@ -244,6 +244,8 @@ const frenchTranslation: TranslationType = {
                 SESSION_EXPIRED: "Votre session a expiré. Veuillez recommencer depuis le début.",
                 CAST_VOTE_BallotIdMismatch:
                     "L'identifiant du bulletin ne correspond pas à celui du vote exprimé.",
+                CAST_VOTE_BallotStyleMismatch:
+                    "Votre bulletin ne correspond pas à celui actuellement publié pour cette élection. Veuillez recharger la page et réessayer, ou contacter le support pour obtenir de l'aide.",
                 SESSION_STORAGE_ERROR:
                     "Le stockage de session n'est pas disponible. Veuillez réessayer ou contacter le support.",
                 PARSE_BALLOT_DATA_ERROR:

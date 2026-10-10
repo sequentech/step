@@ -451,6 +451,10 @@ mod ballot_style_contests {
         contest_ids(&[get_test_contest().id.as_str()])
     }
 
+    fn published_styles() -> Vec<HashSet<String>> {
+        vec![style_contest_ids()]
+    }
+
     fn single_input(signed: &SignedHashableBallot) -> InsertCastVoteInput {
         let hashable = HashableBallot::try_from(signed).unwrap();
         InsertCastVoteInput {
@@ -470,60 +474,200 @@ mod ballot_style_contests {
         SignedHashableBallot::try_from(&auditable).unwrap()
     }
 
-    fn multi_input() -> InsertCastVoteInput {
+    /// A ballot that carries one copy of the encrypted contest for each of
+    /// the given ids.
+    fn single_input_with_contest_ids(ids: &[&str]) -> InsertCastVoteInput {
+        let signed = signed_single_ballot();
+        let contest = signed
+            .deserialize_contests::<RistrettoCtx>()
+            .unwrap()
+            .remove(0);
+        let contests: Vec<HashableBallotContest<RistrettoCtx>> = ids
+            .iter()
+            .map(|id| HashableBallotContest {
+                contest_id: id.to_string(),
+                ..contest.clone()
+            })
+            .collect();
+        single_input(&SignedHashableBallot {
+            contests: SignedHashableBallot::serialize_contests::<RistrettoCtx>(&contests).unwrap(),
+            ..signed
+        })
+    }
+
+    fn signed_multi_ballot() -> SignedHashableMultiBallot {
         let auditable = encrypt_decoded_multi_contest::<RistrettoCtx>(
             &RistrettoCtx,
             &vec![get_test_decoded_vote_contest()],
             &ballot_style(),
         )
         .unwrap();
-        let signed = SignedHashableMultiBallot::try_from(&auditable).unwrap();
-        let hashable = HashableMultiBallot::try_from(&signed).unwrap();
+        SignedHashableMultiBallot::try_from(&auditable).unwrap()
+    }
+
+    fn multi_input(signed: &SignedHashableMultiBallot) -> InsertCastVoteInput {
+        let hashable = HashableMultiBallot::try_from(signed).unwrap();
         InsertCastVoteInput {
             ballot_id: hash_multi_ballot(&hashable).unwrap(),
             election_id: Uuid::new_v4(),
-            content: serde_json::to_string(&signed).unwrap(),
+            content: serde_json::to_string(signed).unwrap(),
         }
+    }
+
+    /// A multi ballot that lists exactly the given contest ids.
+    fn multi_input_with_contest_ids(ids: &[&str]) -> InsertCastVoteInput {
+        let signed = signed_multi_ballot();
+        let mut contests = signed.deserialize_contests::<RistrettoCtx>().unwrap();
+        contests.contest_ids = ids.iter().map(|id| id.to_string()).collect();
+        multi_input(&SignedHashableMultiBallot {
+            contests: SignedHashableMultiBallot::serialize_contests::<RistrettoCtx>(&contests)
+                .unwrap(),
+            ..signed
+        })
     }
 
     #[test]
     fn ballot_with_every_style_contest_is_accepted() {
         let input = single_input(&signed_single_ballot());
 
-        assert!(deserialize_and_check_ballot(&input, VOTER_ID, &style_contest_ids()).is_ok());
+        assert!(deserialize_and_check_ballot(&input, VOTER_ID, &published_styles()).is_ok());
     }
 
     #[test]
     fn ballot_missing_a_style_contest_is_rejected() {
         let input = single_input(&signed_single_ballot());
-        let style_contest_ids = contest_ids(&[&get_test_contest().id, OTHER_CONTEST_ID]);
+        let published = vec![contest_ids(&[&get_test_contest().id, OTHER_CONTEST_ID])];
 
         assert!(matches!(
-            deserialize_and_check_ballot(&input, VOTER_ID, &style_contest_ids),
+            deserialize_and_check_ballot(&input, VOTER_ID, &published),
             Err(CastVoteError::BallotStyleMismatch(message)) if message.contains(OTHER_CONTEST_ID)
         ));
     }
 
     #[test]
     fn ballot_without_contests_is_rejected() {
-        let signed = SignedHashableBallot {
-            contests: vec![],
-            ..signed_single_ballot()
-        };
-        let input = single_input(&signed);
+        let input = single_input_with_contest_ids(&[]);
 
         assert!(matches!(
-            deserialize_and_check_ballot(&input, VOTER_ID, &style_contest_ids()),
+            deserialize_and_check_ballot(&input, VOTER_ID, &published_styles()),
+            Err(CastVoteError::BallotStyleMismatch(_))
+        ));
+    }
+
+    #[test]
+    fn ballot_with_a_contest_outside_the_style_is_rejected() {
+        let input = single_input_with_contest_ids(&[&get_test_contest().id, OTHER_CONTEST_ID]);
+
+        assert!(matches!(
+            deserialize_and_check_ballot(&input, VOTER_ID, &published_styles()),
+            Err(CastVoteError::BallotStyleMismatch(message)) if message.contains(OTHER_CONTEST_ID)
+        ));
+    }
+
+    #[test]
+    fn ballot_repeating_a_style_contest_is_rejected() {
+        let contest_id = get_test_contest().id;
+        let input = single_input_with_contest_ids(&[&contest_id, &contest_id]);
+
+        assert!(matches!(
+            deserialize_and_check_ballot(&input, VOTER_ID, &published_styles()),
+            Err(CastVoteError::BallotStyleMismatch(message)) if message.contains(&contest_id)
+        ));
+    }
+
+    #[test]
+    fn ballot_is_rejected_when_no_ballot_style_is_published() {
+        let input = single_input(&signed_single_ballot());
+
+        assert!(matches!(
+            deserialize_and_check_ballot(&input, VOTER_ID, &[]),
+            Err(CastVoteError::BallotStyleMismatch(_))
+        ));
+    }
+
+    #[test]
+    fn ballot_without_contests_is_rejected_when_no_ballot_style_is_published() {
+        let input = single_input_with_contest_ids(&[]);
+
+        assert!(matches!(
+            deserialize_and_check_ballot(&input, VOTER_ID, &[]),
+            Err(CastVoteError::BallotStyleMismatch(_))
+        ));
+    }
+
+    #[test]
+    fn ballot_without_contests_is_accepted_for_a_style_without_votable_contests() {
+        let input = single_input_with_contest_ids(&[]);
+
+        assert!(deserialize_and_check_ballot(&input, VOTER_ID, &[HashSet::new()]).is_ok());
+    }
+
+    #[test]
+    fn ballot_matching_any_published_style_is_accepted() {
+        let input = single_input(&signed_single_ballot());
+        let published = vec![contest_ids(&[OTHER_CONTEST_ID]), style_contest_ids()];
+
+        assert!(deserialize_and_check_ballot(&input, VOTER_ID, &published).is_ok());
+    }
+
+    #[test]
+    fn ballot_cannot_combine_the_contests_of_different_published_styles() {
+        let input = single_input_with_contest_ids(&[&get_test_contest().id, OTHER_CONTEST_ID]);
+        let published = vec![style_contest_ids(), contest_ids(&[OTHER_CONTEST_ID])];
+
+        assert!(matches!(
+            deserialize_and_check_ballot(&input, VOTER_ID, &published),
             Err(CastVoteError::BallotStyleMismatch(_))
         ));
     }
 
     #[test]
     fn multi_ballot_with_every_style_contest_is_accepted() {
-        assert!(
-            deserialize_and_check_multi_ballot(&multi_input(), VOTER_ID, &style_contest_ids())
-                .is_ok()
-        );
+        let input = multi_input(&signed_multi_ballot());
+
+        assert!(deserialize_and_check_multi_ballot(&input, VOTER_ID, &published_styles()).is_ok());
+    }
+
+    #[test]
+    fn multi_ballot_missing_a_style_contest_is_rejected() {
+        let input = multi_input(&signed_multi_ballot());
+        let published = vec![contest_ids(&[&get_test_contest().id, OTHER_CONTEST_ID])];
+
+        assert!(matches!(
+            deserialize_and_check_multi_ballot(&input, VOTER_ID, &published),
+            Err(CastVoteError::BallotStyleMismatch(message)) if message.contains(OTHER_CONTEST_ID)
+        ));
+    }
+
+    #[test]
+    fn multi_ballot_with_a_contest_outside_the_style_is_rejected() {
+        let input = multi_input_with_contest_ids(&[&get_test_contest().id, OTHER_CONTEST_ID]);
+
+        assert!(matches!(
+            deserialize_and_check_multi_ballot(&input, VOTER_ID, &published_styles()),
+            Err(CastVoteError::BallotStyleMismatch(message)) if message.contains(OTHER_CONTEST_ID)
+        ));
+    }
+
+    #[test]
+    fn multi_ballot_repeating_a_style_contest_is_rejected() {
+        let contest_id = get_test_contest().id;
+        let input = multi_input_with_contest_ids(&[&contest_id, &contest_id]);
+
+        assert!(matches!(
+            deserialize_and_check_multi_ballot(&input, VOTER_ID, &published_styles()),
+            Err(CastVoteError::BallotStyleMismatch(message)) if message.contains(&contest_id)
+        ));
+    }
+
+    #[test]
+    fn multi_ballot_is_rejected_when_no_ballot_style_is_published() {
+        let input = multi_input(&signed_multi_ballot());
+
+        assert!(matches!(
+            deserialize_and_check_multi_ballot(&input, VOTER_ID, &[]),
+            Err(CastVoteError::BallotStyleMismatch(_))
+        ));
     }
 
     #[test]
@@ -549,16 +693,6 @@ mod ballot_style_contests {
         assert!(matches!(
             votable_contest_ids("{\"contests\": 1}"),
             Err(CastVoteError::CheckStatusInternalFailed(_))
-        ));
-    }
-
-    #[test]
-    fn multi_ballot_missing_a_style_contest_is_rejected() {
-        let style_contest_ids = contest_ids(&[&get_test_contest().id, OTHER_CONTEST_ID]);
-
-        assert!(matches!(
-            deserialize_and_check_multi_ballot(&multi_input(), VOTER_ID, &style_contest_ids),
-            Err(CastVoteError::BallotStyleMismatch(message)) if message.contains(OTHER_CONTEST_ID)
         ));
     }
 }
