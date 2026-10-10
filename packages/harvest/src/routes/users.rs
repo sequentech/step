@@ -36,6 +36,7 @@ use windmill::services::cast_votes::get_users_with_vote_info;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::datafix::utils::datafix_annotations;
+use windmill::services::documents::restrict_import_source;
 use windmill::services::election::is_election_event_locked_down;
 use windmill::services::electoral_log::{
     post_voter_password_change, ElectoralLogAdminContext,
@@ -1851,6 +1852,21 @@ pub async fn import_users_f(
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
+
+    if let Err(err) =
+        restrict_import_source(&input.tenant_id, &input.document_id).await
+    {
+        let _ = update_fail(
+            &task_execution,
+            "Failed to restrict access to the voters file",
+        )
+        .await;
+        return Err((
+            Status::InternalServerError,
+            format!("Error restricting access to the voters file: {err}"),
+        ));
+    }
+
     let celery_app = get_celery_app().await;
 
     let mut task_input = input.clone();
