@@ -862,3 +862,60 @@ pub async fn get_election_permission_label(
 
     Ok(perms.into_iter().flatten().collect())
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ElectionPermissionLabel {
+    pub election_id: String,
+    pub permission_label: Option<String>,
+}
+
+/// Permission labels of the given elections of an event, or of every election
+/// of the event when `election_ids` is `None`.
+#[instrument(err, skip(hasura_transaction))]
+pub async fn get_elections_permission_labels(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_ids: Option<&[String]>,
+) -> Result<Vec<ElectionPermissionLabel>> {
+    let election_uuids = election_ids
+        .map(|ids| {
+            ids.iter()
+                .map(|id| parse_uuid_v4(id))
+                .collect::<Result<Vec<Uuid>>>()
+        })
+        .transpose()?;
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT id, permission_label
+                FROM sequent_backend.election
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    ($3::uuid[] IS NULL OR id = ANY($3::uuid[]))
+            "#,
+        )
+        .await?;
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &election_uuids,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error reading election permission labels: {err}"))?;
+
+    rows.into_iter()
+        .map(|row| -> Result<ElectionPermissionLabel> {
+            let election_id: Uuid = row.try_get("id")?;
+            Ok(ElectionPermissionLabel {
+                election_id: election_id.to_string(),
+                permission_label: row.try_get("permission_label")?,
+            })
+        })
+        .collect()
+}
