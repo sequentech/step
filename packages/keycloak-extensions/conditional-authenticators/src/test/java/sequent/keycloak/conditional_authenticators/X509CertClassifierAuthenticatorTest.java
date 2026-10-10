@@ -28,10 +28,7 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 
 class X509CertClassifierAuthenticatorTest {
 
-  static final String TRUST_POLICY_KEY = "cert-header-trust-policy";
-  static final String PROXY_SECRET_KEY = "cert-proxy-secret";
-  static final String PROXY_SECRET_HEADER = "X-Client-Cert-Proxy-Secret";
-  static final String REQUIRE_PROXY_SECRET = "REQUIRE_PROXY_SECRET";
+  static final String REQUIRE_PROXY_SECRET = X509CertHeaderTrust.Policy.REQUIRE_PROXY_SECRET.name();
   static final String PROXY_SECRET = "configured-proxy-secret";
 
   private static final String CERT_PEM =
@@ -85,9 +82,9 @@ class X509CertClassifierAuthenticatorTest {
 
   @Test
   void classifiesForwardedCertificateWithMatchingProxySecret() {
-    config.put(TRUST_POLICY_KEY, REQUIRE_PROXY_SECRET);
-    config.put(PROXY_SECRET_KEY, PROXY_SECRET);
-    when(headers.getHeaderString(PROXY_SECRET_HEADER)).thenReturn(PROXY_SECRET);
+    config.put(X509CertHeaderTrust.CONF_TRUST_POLICY, REQUIRE_PROXY_SECRET);
+    config.put(X509CertHeaderTrust.CONF_PROXY_SECRET, PROXY_SECRET);
+    when(headers.getHeaderString(X509CertHeaderTrust.PROXY_SECRET_HEADER)).thenReturn(PROXY_SECRET);
 
     authenticator.authenticate(context);
 
@@ -98,8 +95,8 @@ class X509CertClassifierAuthenticatorTest {
 
   @Test
   void ignoresForwardedCertificateWithoutProxySecret() {
-    config.put(TRUST_POLICY_KEY, REQUIRE_PROXY_SECRET);
-    config.put(PROXY_SECRET_KEY, PROXY_SECRET);
+    config.put(X509CertHeaderTrust.CONF_TRUST_POLICY, REQUIRE_PROXY_SECRET);
+    config.put(X509CertHeaderTrust.CONF_PROXY_SECRET, PROXY_SECRET);
 
     authenticator.authenticate(context);
 
@@ -108,9 +105,10 @@ class X509CertClassifierAuthenticatorTest {
 
   @Test
   void ignoresForwardedCertificateWithWrongProxySecret() {
-    config.put(TRUST_POLICY_KEY, REQUIRE_PROXY_SECRET);
-    config.put(PROXY_SECRET_KEY, PROXY_SECRET);
-    when(headers.getHeaderString(PROXY_SECRET_HEADER)).thenReturn("other-secret");
+    config.put(X509CertHeaderTrust.CONF_TRUST_POLICY, REQUIRE_PROXY_SECRET);
+    config.put(X509CertHeaderTrust.CONF_PROXY_SECRET, PROXY_SECRET);
+    when(headers.getHeaderString(X509CertHeaderTrust.PROXY_SECRET_HEADER))
+        .thenReturn("other-secret");
 
     authenticator.authenticate(context);
 
@@ -119,8 +117,8 @@ class X509CertClassifierAuthenticatorTest {
 
   @Test
   void ignoresForwardedCertificateWhenRequiredProxySecretIsNotConfigured() {
-    config.put(TRUST_POLICY_KEY, REQUIRE_PROXY_SECRET);
-    when(headers.getHeaderString(PROXY_SECRET_HEADER)).thenReturn("");
+    config.put(X509CertHeaderTrust.CONF_TRUST_POLICY, REQUIRE_PROXY_SECRET);
+    when(headers.getHeaderString(X509CertHeaderTrust.PROXY_SECRET_HEADER)).thenReturn("");
 
     authenticator.authenticate(context);
 
@@ -129,8 +127,8 @@ class X509CertClassifierAuthenticatorTest {
 
   @Test
   void unknownTrustPolicyRequiresProxySecret() {
-    config.put(TRUST_POLICY_KEY, "NOT_A_POLICY");
-    config.put(PROXY_SECRET_KEY, PROXY_SECRET);
+    config.put(X509CertHeaderTrust.CONF_TRUST_POLICY, "NOT_A_POLICY");
+    config.put(X509CertHeaderTrust.CONF_PROXY_SECRET, PROXY_SECRET);
 
     authenticator.authenticate(context);
 

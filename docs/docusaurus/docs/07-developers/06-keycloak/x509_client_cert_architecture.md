@@ -268,7 +268,8 @@ must only come from the proxy that performed the client certificate TLS
 handshake:
 
 - Every other route to Keycloak removes the certificate headers. The
-  remote-deployment nginx server block for `login-…` clears `ssl-client-cert`,
+  `login-remote-deployment` nginx server block in
+  `.devcontainer/nginx/default.conf.template` clears `ssl-client-cert`,
   `Cf-Tls-Client-Cert` and `Client-Cert`. In production, remove
   `Cf-Tls-Client-Cert` from requests to `login-{env}` and keep the Keycloak
   origin reachable only from the proxies and internal services. The dev
