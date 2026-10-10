@@ -5,7 +5,6 @@ use crate::ballot::{Candidate, Contest};
 use crate::ballot_codec::check_contest_configuration;
 use crate::types::ceremonies::CountingAlgType;
 use std::collections::HashMap;
-use std::convert::TryInto;
 
 /// Precomputed per-contest constants used by the ballot codecs.
 ///
@@ -112,7 +111,11 @@ impl<'a> ContestCodecContext<'a> {
     }
 
     /// Returns the bases of the single-contest (dense) encoding.
-    pub fn single_contest_bases(&self) -> Vec<u64> {
+    ///
+    /// Returns an error when the contest's `max_votes` or
+    /// `cumulative_number_of_checkboxes` does not yield a valid candidate
+    /// base for its counting algorithm.
+    pub fn single_contest_bases(&self) -> Result<Vec<u64>, String> {
         // Calculate the base for candidates. It depends on the
         // `contest.counting_algorithm`:
         // - plurality-at-large: base 2 (value can be either 0 o 1)
@@ -123,10 +126,21 @@ impl<'a> ContestCodecContext<'a> {
         let contest = self.contest;
         let candidate_base: u64 = match contest.get_counting_algorithm() {
             CountingAlgType::PluralityAtLarge => 2,
-            CountingAlgType::Cumulative => {
-                contest.cumulative_number_of_checkboxes() + 1u64
-            }
-            _ => (contest.max_votes + 1i64).try_into().unwrap(),
+            CountingAlgType::Cumulative => contest
+                .cumulative_number_of_checkboxes()
+                .checked_add(1)
+                .ok_or_else(|| {
+                    "cumulative_number_of_checkboxes is out of range"
+                        .to_string()
+                })?,
+            counting_algorithm => u64::try_from(contest.max_votes)
+                .map(|max_votes| max_votes + 1)
+                .map_err(|_| {
+                    format!(
+                        "max_votes {} is out of range for the {} counting algorithm",
+                        contest.max_votes, counting_algorithm
+                    )
+                })?,
         };
 
         // Set the initial bases and raw ballot, populate bases using the valid
@@ -150,6 +164,6 @@ impl<'a> ContestCodecContext<'a> {
             }
         }
 
-        bases
+        Ok(bases)
     }
 }
