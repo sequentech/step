@@ -7,7 +7,6 @@ package sequent.keycloak.conditional_authenticators;
 import static sequent.keycloak.authenticator.Utils.sendConfirmation;
 
 import com.google.auto.service.AutoService;
-import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.core.Response;
 import java.util.List;
 import java.util.Optional;
@@ -81,13 +80,8 @@ public class ManualVerificationTokenHandler
 
     KeycloakSession session = tokenContext.getSession();
 
-    String redirectUri = token.getRedirectUri();
-    if (redirectUri != null) {
-      redirectUri = RedirectUtils.verifyRedirectUri(session, redirectUri, authSession.getClient());
-      if (redirectUri == null) {
-        throw new BadRequestException("Invalid redirect URI");
-      }
-    }
+    String redirectUri =
+        RedirectUtils.verifyRedirectUri(session, token.getRedirectUri(), authSession.getClient());
 
     if (redirectUri != null) {
       log.infov("handleToken(): setting redirectUri={0}", redirectUri);

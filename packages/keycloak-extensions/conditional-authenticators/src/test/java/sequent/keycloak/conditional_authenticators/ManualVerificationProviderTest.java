@@ -8,6 +8,7 @@ import static org.mockito.Mockito.*;
 
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.ForbiddenException;
+import jakarta.ws.rs.InternalServerErrorException;
 import jakarta.ws.rs.NotAuthorizedException;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MultivaluedHashMap;
@@ -90,6 +91,24 @@ class ManualVerificationProviderTest {
     assertThrows(
         BadRequestException.class,
         () -> authorized(true).generateLink("voter", "javascript:alert(1)"));
+    verifyNoInteractions(users);
+  }
+
+  @Test
+  void authorizedAdminCannotIssueLinkWithoutVotingPortalClient() {
+    when(session.clients().getClientByClientId(realm, "voting-portal")).thenReturn(null);
+    assertThrows(
+        InternalServerErrorException.class,
+        () -> authorized(true).generateLink("voter", "https://vote.example/login"));
+    verifyNoInteractions(users);
+  }
+
+  @Test
+  void authorizedAdminCannotIssueLinkWithDisabledVotingPortalClient() {
+    when(client.isEnabled()).thenReturn(false);
+    assertThrows(
+        InternalServerErrorException.class,
+        () -> authorized(true).generateLink("voter", "https://vote.example/login"));
     verifyNoInteractions(users);
   }
 

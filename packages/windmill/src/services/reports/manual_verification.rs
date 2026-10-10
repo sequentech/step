@@ -177,7 +177,10 @@ async fn get_manual_verification_url(
         .await?;
 
     if response.status() != reqwest::StatusCode::OK {
-        return Err(anyhow!("Error during generate_token_url"));
+        return Err(anyhow!(
+            "Error during generate_token_url: HTTP {}",
+            response.status()
+        ));
     }
     let response_body: ManualVerificationOutput = response.json().await?;
 
