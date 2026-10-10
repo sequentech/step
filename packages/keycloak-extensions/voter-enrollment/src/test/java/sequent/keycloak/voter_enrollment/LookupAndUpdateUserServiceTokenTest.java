@@ -22,6 +22,7 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -56,7 +57,7 @@ class LookupAndUpdateUserServiceTokenTest {
   private static final String VERIFY_PATH = "/verify-application";
 
   private final AtomicReference<String> harvestAuthorization = new AtomicReference<>();
-  private final List<String> logMessages = new ArrayList<>();
+  private final List<String> logMessages = Collections.synchronizedList(new ArrayList<>());
   private final List<Logger> capturedLoggers = new ArrayList<>();
   private final Handler logHandler =
       new Handler() {
@@ -152,7 +153,9 @@ class LookupAndUpdateUserServiceTokenTest {
   }
 
   private String capturedLogs() {
-    return String.join("\n", logMessages);
+    synchronized (logMessages) {
+      return String.join("\n", logMessages);
+    }
   }
 
   @Test

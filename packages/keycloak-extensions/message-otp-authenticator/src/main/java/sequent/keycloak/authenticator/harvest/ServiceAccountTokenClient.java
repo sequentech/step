@@ -10,6 +10,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -26,7 +27,11 @@ public class ServiceAccountTokenClient {
   private static final String CLIENT_SECRET_ENV = "KEYCLOAK_CLIENT_SECRET";
   private static final String KEYCLOAK_URL_ENV = "KEYCLOAK_URL";
 
-  private final HttpClient httpClient = HttpClient.newHttpClient();
+  private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(10);
+  private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
+
+  private final HttpClient httpClient =
+      HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
   private final String keycloakUrl;
   private final String clientId;
   private final String clientSecret;
@@ -50,6 +55,9 @@ public class ServiceAccountTokenClient {
 
   /** Returns an access token issued by the given realm. */
   public String fetchAccessToken(String realmName) throws IOException {
+    if (keycloakUrl == null || keycloakUrl.isBlank()) {
+      throw new IOException("Service-account token request has no Keycloak URL");
+    }
     Map<String, String> form = new LinkedHashMap<>();
     form.put("client_id", clientId);
     form.put("client_secret", clientSecret);
@@ -59,17 +67,20 @@ public class ServiceAccountTokenClient {
         form.entrySet().stream()
             .map(entry -> encode(entry.getKey()) + "=" + encode(entry.getValue()))
             .collect(Collectors.joining("&"));
-    HttpRequest request =
-        HttpRequest.newBuilder()
-            .uri(
-                URI.create(keycloakUrl + "/realms/" + realmName + "/protocol/openid-connect/token"))
-            .header("Content-Type", "application/x-www-form-urlencoded")
-            .POST(HttpRequest.BodyPublishers.ofString(body))
-            .build();
-
     HttpResponse<String> response;
     try {
+      HttpRequest request =
+          HttpRequest.newBuilder()
+              .uri(
+                  URI.create(
+                      keycloakUrl + "/realms/" + realmName + "/protocol/openid-connect/token"))
+              .timeout(REQUEST_TIMEOUT)
+              .header("Content-Type", "application/x-www-form-urlencoded")
+              .POST(HttpRequest.BodyPublishers.ofString(body))
+              .build();
       response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+    } catch (IllegalArgumentException e) {
+      throw new IOException("Service-account token request has an invalid Keycloak URL");
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new IOException("Interrupted while requesting a service-account token", e);
@@ -81,8 +92,13 @@ public class ServiceAccountTokenClient {
       throw new IOException(
           "Service-account token request failed with status " + response.statusCode());
     }
-    Object accessToken =
-        JsonSerialization.readValue(response.body(), Map.class).get("access_token");
+    Map<?, ?> tokenResponse;
+    try {
+      tokenResponse = JsonSerialization.readValue(response.body(), Map.class);
+    } catch (IOException e) {
+      throw new IOException("Service-account token response is not valid JSON");
+    }
+    Object accessToken = tokenResponse == null ? null : tokenResponse.get("access_token");
     if (!(accessToken instanceof String token) || token.isEmpty()) {
       throw new IOException("Service-account token response has no access_token");
     }

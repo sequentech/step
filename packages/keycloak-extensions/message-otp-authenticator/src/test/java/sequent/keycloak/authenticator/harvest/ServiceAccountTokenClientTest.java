@@ -92,4 +92,28 @@ class ServiceAccountTokenClientTest {
 
     assertThrows(IOException.class, () -> client.fetchAccessToken("tenant-1"));
   }
+
+  @Test
+  void invalidKeycloakUrlsFailWithAnIOException() {
+    for (String url : new String[] {null, "", "not a url", "no-scheme"}) {
+      ServiceAccountTokenClient client =
+          new ServiceAccountTokenClient(url, "service-account", SECRET);
+
+      assertThrows(IOException.class, () -> client.fetchAccessToken("tenant-1"));
+    }
+  }
+
+  @Test
+  void responsesThatAreNotJsonFailWithoutExposingTheBody() throws Exception {
+    String url = serve(200, "not json " + SECRET);
+    ServiceAccountTokenClient client =
+        new ServiceAccountTokenClient(url, "service-account", SECRET);
+
+    IOException error = assertThrows(IOException.class, () -> client.fetchAccessToken("tenant-1"));
+    assertFalse(error.getMessage().contains(SECRET));
+    assertThrows(
+        IOException.class,
+        () ->
+            new ServiceAccountTokenClient(serve(200, "null"), "id", SECRET).fetchAccessToken("r"));
+  }
 }
