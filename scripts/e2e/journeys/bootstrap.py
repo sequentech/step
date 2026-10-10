@@ -79,6 +79,25 @@ def email_otp_config(keycloak):
     raise AssertionError(f"No email OTP step in the {flow} flow")
 
 
+def set_admin_password(keycloak):
+    """Give the seeded administrator its password, as an operator would.
+
+    The realm template carries no passwords and asks the administrator to choose
+    one. A password that is already set stays.
+    """
+    admin = keycloak.user(TENANT_REALM, ENV["ADMIN_USERNAME"])
+    path = f"{TENANT_REALM}/users/{admin['id']}"
+    credentials = keycloak.admin("GET", f"{path}/credentials")
+    if any(credential["type"] == "password" for credential in credentials):
+        return
+    keycloak.admin(
+        "PUT",
+        f"{path}/reset-password",
+        {"type": "password", "value": ENV["ADMIN_PASSWORD"], "temporary": False},
+        expect=(204,),
+    )
+
+
 def enroll_admin_mfa(keycloak):
     """Complete the seeded administrator's first login, as an operator would.
 
@@ -207,6 +226,7 @@ def main():
         timeout=300,
     )
     mark("JWKS published")
+    set_admin_password(keycloak)
     enrolled = enroll_admin_mfa(keycloak)
     mark("administrator enrolled" if enrolled else "administrator already enrolled")
     try:

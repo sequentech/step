@@ -328,6 +328,7 @@ class StackBackend:
             "the tenant realm keys in the published JWKS", keys_published, "tenant"
         )
         self._restore_otp_test_mode()
+        bootstrap.set_admin_password(self.keycloak)
         try:
             bootstrap.admin_token(self.keycloak)
         except LoginError as error:

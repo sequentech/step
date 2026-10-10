@@ -305,8 +305,10 @@ voter credentials. The event is recorded in `.cache/scenarios/<Compose project>/
 carries owner annotations; the next `up` checks both and continues from the furthest
 stage that still holds. `reset` deletes only that event. Ceremonies start `trustee1`
 and `trustee2`, which no mode starts; their first start builds the braid image. On a
-new stack the first `up` enrolls the tenant administrator's email code, as the journeys
-do; the admin portal then asks for it, and the Keycloak container log shows it.
+new stack the first `up` gives the tenant administrator the password in
+`ADMIN_PORTAL_TEST_PASSWORD`, which the realm template does not carry, and enrolls its
+email code, as the journeys do; the admin portal then asks for it, and the Keycloak
+container log shows it.
 `VOTING_PORTAL_URL`, `BALLOT_VERIFIER_URL` and `RESULTS_PORTAL_URL` select the printed
 portals, and `--step-cli` another step-cli build.
 
