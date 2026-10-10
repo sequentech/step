@@ -60,7 +60,7 @@ use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 use zip::read::ZipArchive;
 
-use super::import_users::import_users_file;
+use super::import_users::{import_users_file, ImportUsersPrivileges};
 use crate::postgres;
 use crate::postgres::area::insert_areas;
 use crate::postgres::area_contest::insert_area_contests;
@@ -654,6 +654,7 @@ async fn process_voters_file(
     election_event_id: Option<String>,
     tenant_id: String,
     is_admin: bool,
+    privileges: ImportUsersPrivileges,
 ) -> Result<()> {
     let separator = if file_name.ends_with(".tsv") {
         b'\t'
@@ -668,6 +669,7 @@ async fn process_voters_file(
         election_event_id,
         tenant_id,
         is_admin,
+        privileges,
     )
     .await
     .map_err(|err| anyhow!("Error importing users file: {err}"))?;
@@ -1025,6 +1027,7 @@ pub async fn process_document(
         None => file_election_event_schema,
     };
 
+    let privileges = object.privileges;
     let (election_event_schema, replacement_map) = process_election_event_file(
         hasura_transaction,
         &document_type,
@@ -1075,6 +1078,7 @@ pub async fn process_document(
                     Some(election_event_schema.election_event.id.clone()),
                     election_event_schema.tenant_id.to_string(),
                     false,
+                    privileges,
                 )
                 .await
                 .context("Failed to import voters")?;
