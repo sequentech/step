@@ -14,16 +14,29 @@ export interface GetPublishedBallotStylesQuery {
     sequent_backend_ballot_style: Array<BallotStyleRow & {ballot_publication_id: string}>
 }
 
+export enum EPublishedBallotStyleLookup {
+    FOUND = "FOUND",
+    NOT_LOADED = "NOT_LOADED",
+    NOT_PUBLISHED = "NOT_PUBLISHED",
+    UNREADABLE = "UNREADABLE",
+}
+
+export type PublishedBallotStyleLookup =
+    | {status: EPublishedBallotStyleLookup.FOUND; ballotStyle: IElectionDTO}
+    | {status: Exclude<EPublishedBallotStyleLookup, EPublishedBallotStyleLookup.FOUND>}
+
 /**
- * Returns the ballot style with the given id if it belongs to a published
- * publication, or null when there is none or the styles have not loaded.
+ * Looks up the ballot style with the given id among those of published
+ * publications. NOT_PUBLISHED is only returned once the ballot styles have
+ * loaded and none of the published ones has that id; NOT_LOADED and
+ * UNREADABLE mean the lookup could not be completed.
  */
 export const findPublishedBallotStyle = (
     data: GetPublishedBallotStylesQuery | undefined,
     ballotStyleId: string | undefined
-): IElectionDTO | null => {
-    if (!data || !ballotStyleId) {
-        return null
+): PublishedBallotStyleLookup => {
+    if (!data) {
+        return {status: EPublishedBallotStyleLookup.NOT_LOADED}
     }
     const publishedPublicationIds = new Set(
         data.sequent_backend_ballot_publication.map((publication) => publication.id)
@@ -32,14 +45,20 @@ export const findPublishedBallotStyle = (
         (style) =>
             style.id === ballotStyleId && publishedPublicationIds.has(style.ballot_publication_id)
     )
-    if (!ballotStyle || !isString(ballotStyle.ballot_eml)) {
-        return null
+    if (!ballotStyle) {
+        return {status: EPublishedBallotStyleLookup.NOT_PUBLISHED}
+    }
+    if (!isString(ballotStyle.ballot_eml)) {
+        return {status: EPublishedBallotStyleLookup.UNREADABLE}
     }
     try {
-        return JSON.parse(ballotStyle.ballot_eml)
+        return {
+            status: EPublishedBallotStyleLookup.FOUND,
+            ballotStyle: JSON.parse(ballotStyle.ballot_eml),
+        }
     } catch (error) {
         console.log(`Error loading EML: ${error}`)
-        return null
+        return {status: EPublishedBallotStyleLookup.UNREADABLE}
     }
 }
 

@@ -35,6 +35,8 @@ const englishTranslation = {
                 "The ciphertext in this auditable ballot is not the encryption of the plaintext and randomness it contains. The ballot cannot be trusted.",
             unpublishedStyleErrorDescription:
                 "This auditable ballot does not match any ballot published for this election event, so it cannot be verified.",
+            unavailableStyleErrorDescription:
+                "The ballots published for this election event could not be loaded, so this auditable ballot cannot be verified yet. Please try again.",
             useSampleLink: "Use a sample ballot",
             nextButton: "Next",
             ballotIdLabel: "Ballot ID",
