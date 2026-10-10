@@ -597,7 +597,8 @@ const tagalogTranslation: TranslationType = {
                     },
                 },
                 decodedBallots: {
-                    policyLabel: "Isama ang mga na-decode na balota sa database ng mga resulta",
+                    policyLabel:
+                        "Isama ang mga na-decode na balota sa database ng mga resulta at sa archive ng tally",
                     options: {"included": "Isama", "not-included": "Huwag isama"},
                 },
                 contestEncryptionPolicy: {
