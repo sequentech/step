@@ -1118,3 +1118,111 @@ fn partial_import_policies_have_keycloak_names() {
         assert_eq!(serde_json::to_value(policy).unwrap(), json!(name));
     }
 }
+
+const RESERVED_NAMES: [&str; 5] = [
+    "admin",
+    "service-account",
+    "datafix-account",
+    "super-admin-user",
+    "cli-account-admin",
+];
+
+fn permission_named(name: &str) -> Permission {
+    serde_json::from_value(json!({ "name": name })).unwrap()
+}
+
+#[rocket::async_test]
+async fn reserved_permission_names_are_not_created() {
+    for name in RESERVED_NAMES
+        .into_iter()
+        .chain(["Service-Account", " admin "])
+    {
+        let peer = HttpServer::start(vec![]);
+
+        let result = peer
+            .client()
+            .create_permission(REALM, &permission_named(name))
+            .await;
+
+        assert!(result.is_err(), "{name:?} was created");
+        assert!(peer.finish().is_empty(), "{name:?} reached Keycloak");
+    }
+}
+
+#[rocket::async_test]
+async fn reserved_permission_names_are_not_assigned_to_a_role() {
+    for name in RESERVED_NAMES {
+        let peer = HttpServer::start(vec![]);
+
+        let single = peer
+            .client()
+            .set_role_permission(REALM, "group-1", name)
+            .await;
+        let bulk = peer
+            .client()
+            .set_role_permissions(
+                REALM,
+                "group-1",
+                &vec!["read".into(), name.into()],
+            )
+            .await;
+
+        assert!(single.is_err() && bulk.is_err(), "{name:?} was assigned");
+        assert!(peer.finish().is_empty(), "{name:?} reached Keycloak");
+    }
+}
+
+#[rocket::async_test]
+async fn a_reserved_permission_reached_by_another_spelling_is_not_assigned() {
+    for (requested, path) in [
+        ("%73ervice-account", format!("{ROLES}/%73ervice-account")),
+        (
+            "other/../service-account",
+            format!("{ROLES}/service-account"),
+        ),
+    ] {
+        let found = || {
+            Exchange::json(
+                "GET",
+                &path,
+                200,
+                json!({"id": "permission-1", "name": "service-account"}),
+            )
+        };
+        let peer = HttpServer::start(vec![found(), found()]);
+
+        let single = peer
+            .client()
+            .set_role_permission(REALM, "group-1", requested)
+            .await;
+        let bulk = peer
+            .client()
+            .set_role_permissions(REALM, "group-1", &vec![requested.into()])
+            .await;
+
+        assert!(
+            single.is_err() && bulk.is_err(),
+            "{requested:?} was assigned"
+        );
+        assert!(
+            peer.finish().iter().all(|request| request.method == "GET"),
+            "{requested:?} was assigned"
+        );
+    }
+}
+
+#[rocket::async_test]
+async fn a_role_with_a_reserved_permission_is_not_created() {
+    for name in RESERVED_NAMES {
+        let peer = HttpServer::start(vec![]);
+        let role: Role = serde_json::from_value(
+            json!({"name": "Clerks", "permissions": ["read", name]}),
+        )
+        .unwrap();
+
+        let result = peer.client().create_role(REALM, &role).await;
+
+        assert!(result.is_err(), "a role with {name:?} was created");
+        assert!(peer.finish().is_empty(), "{name:?} reached Keycloak");
+    }
+}
