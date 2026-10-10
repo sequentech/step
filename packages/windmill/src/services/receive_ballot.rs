@@ -179,6 +179,9 @@ fn sign_received(
     .map_err(|err| CastVoteError::BallotSignFailed(err.to_string()))
 }
 
+/// Receives a ballot at review: runs the same checks as the cast, including that
+/// the ballot carries exactly the contests of a ballot style published for the
+/// voter's area and election, and signs a receipt for it.
 #[instrument(skip(input), err)]
 pub async fn try_receive_ballot(
     input: ReceiveBallotInput,
