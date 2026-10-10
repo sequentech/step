@@ -32,7 +32,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.extern.jbosslog.JBossLog;
@@ -62,11 +61,11 @@ import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.services.resources.LoginActionsService;
 import org.keycloak.theme.Theme;
-import org.keycloak.util.JsonSerialization;
 import sequent.keycloak.authenticator.MessageOTPAuthenticator;
 import sequent.keycloak.authenticator.Utils.MessageCourier;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
+import sequent.keycloak.authenticator.harvest.ServiceAccountTokenClient;
 
 /** Lookups an user using a field */
 @JBossLog
@@ -116,11 +115,17 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     }
   }
 
-  private String keycloakUrl = System.getenv("KEYCLOAK_URL");
-  private String clientId = System.getenv("KEYCLOAK_CLIENT_ID");
-  private String clientSecret = System.getenv("KEYCLOAK_CLIENT_SECRET");
-  private String harvestUrl = System.getenv("HARVEST_DOMAIN");
-  private String access_token;
+  private final ServiceAccountTokenClient tokenClient;
+  private final String harvestUrl;
+
+  public LookupAndUpdateUser() {
+    this(ServiceAccountTokenClient.fromEnvironment(), System.getenv("HARVEST_DOMAIN"));
+  }
+
+  LookupAndUpdateUser(ServiceAccountTokenClient tokenClient, String harvestUrl) {
+    this.tokenClient = tokenClient;
+    this.harvestUrl = harvestUrl;
+  }
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
@@ -185,8 +190,22 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     RealmModel realm = context.getRealm();
     String realmId = realm.getId();
     String tenantId = getTenantId(context.getSession(), realmId);
+    String sessionId = context.getAuthenticationSession().getParentSession().getId();
 
-    authenticate(tenantId);
+    String accessToken;
+    try {
+      accessToken =
+          tokenClient.fetchAccessToken(ServiceAccountTokenClient.tenantRealmName(tenantId));
+    } catch (IOException e) {
+      log.error("authenticate(): could not obtain a service-account token");
+      context.failureChallenge(
+          AuthenticationFlowError.INTERNAL_ERROR,
+          context
+              .form()
+              .setError(Utils.ERROR_GENERATING_APPROVAL, sessionId)
+              .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+      return;
+    }
 
     // Retrieve the configuration
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
@@ -198,7 +217,6 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     String updateAttributes = configMap.get(UPDATE_ATTRIBUTES);
     boolean autoLogin = Boolean.parseBoolean(configMap.get(AUTO_LOGIN));
     boolean auto2FA = Boolean.parseBoolean(configMap.get(AUTO_2FA));
-    String sessionId = context.getAuthenticationSession().getParentSession().getId();
     // Parse attributes lists
     List<String> unsetAttributesList = parseAttributesList(unsetAttributes);
     List<String> updateAttributesList = parseAttributesList(updateAttributes);
@@ -244,6 +262,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           Utils.buildApplicantData(context.getSession(), context.getAuthenticationSession());
       HttpResponse<String> verificationResponse =
           verifyApplication(
+              accessToken,
               tenantId,
               getElectionEventId(context.getSession(), realmId),
               null,
@@ -953,6 +972,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   }
 
   private HttpResponse<String> verifyApplication(
+      String accessToken,
       String tenantId,
       String electionEventId,
       String areaId,
@@ -977,7 +997,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         HttpRequest.newBuilder()
             .uri(URI.create(url))
             .header("Content-Type", "application/json")
-            .header("Authorization", "Bearer " + this.access_token)
+            .header("Authorization", "Bearer " + accessToken)
             .POST(HttpRequest.BodyPublishers.ofString(requestBody))
             .build();
 
@@ -985,50 +1005,6 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     log.infov("Verification response: {0}", response);
 
     return response;
-  }
-
-  public void authenticate(String tenantId) {
-    HttpClient client = HttpClient.newHttpClient();
-    String url =
-        this.keycloakUrl
-            + "/realms/"
-            + getTenantRealmName(tenantId)
-            + "/protocol/openid-connect/token";
-    Map<Object, Object> data = new HashMap<>();
-    data.put("client_id", this.clientId);
-    data.put("scope", "openid");
-    data.put("client_secret", this.clientSecret);
-    data.put("grant_type", "client_credentials");
-
-    String form =
-        data.entrySet().stream()
-            .map(entry -> entry.getKey() + "=" + entry.getValue())
-            .reduce((entry1, entry2) -> entry1 + "&" + entry2)
-            .orElse("");
-    log.info(form);
-    HttpRequest request =
-        HttpRequest.newBuilder()
-            .uri(URI.create(url))
-            .header("Content-Type", "application/x-www-form-urlencoded")
-            .POST(HttpRequest.BodyPublishers.ofString(form))
-            .build();
-
-    CompletableFuture<HttpResponse<String>> responseFuture;
-    responseFuture = client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
-    String responseBody = responseFuture.join().body();
-    Object accessToken;
-    try {
-      log.info("responseBody " + responseBody);
-      accessToken = JsonSerialization.readValue(responseBody, Map.class).get("access_token");
-      log.info("authenticate " + accessToken.toString());
-      this.access_token = accessToken.toString();
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
-  }
-
-  private String getTenantRealmName(String tenantId) {
-    return "tenant-" + tenantId;
   }
 
   private String getElectionEventId(KeycloakSession session, String realmId) {
