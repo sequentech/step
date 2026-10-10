@@ -14,7 +14,9 @@ impl BasesCodec for Contest {
         let context = ContestCodecContext::new(self)
             .map_err(|message| anyhow::anyhow!("{}", message))?;
 
-        Ok(context.single_contest_bases())
+        context
+            .single_contest_bases()
+            .map_err(|message| anyhow::anyhow!("{}", message))
     }
 }
 
@@ -22,7 +24,9 @@ impl BasesCodec for Contest {
 mod tests {
     use crate::ballot_codec::*;
     use crate::fixtures::ballot_codec::bases_fixture;
+    use crate::fixtures::ballot_codec::get_configurable_contest;
     use crate::fixtures::ballot_codec::get_fixtures;
+    use crate::types::ceremonies::CountingAlgType;
 
     #[test]
     fn test_contest_bases() {
@@ -56,5 +60,50 @@ mod tests {
             let bases = fixture.contest.get_bases().unwrap();
             assert_eq!(bases, fixture.bases);
         }
+    }
+
+    #[test]
+    fn test_get_bases_rejects_negative_max_votes() {
+        for max_votes in [-1, -2, i64::MIN] {
+            let contest = get_configurable_contest(
+                max_votes,
+                3,
+                CountingAlgType::InstantRunoff,
+                false,
+                None,
+                false,
+            );
+            assert!(contest.get_bases().is_err(), "max_votes {max_votes}");
+        }
+    }
+
+    #[test]
+    fn test_get_bases_accepts_zero_max_votes() {
+        let contest = get_configurable_contest(
+            0,
+            3,
+            CountingAlgType::InstantRunoff,
+            false,
+            None,
+            false,
+        );
+        assert_eq!(contest.get_bases().unwrap(), vec![2, 1, 1, 1]);
+    }
+
+    #[test]
+    fn test_get_bases_rejects_cumulative_checkboxes_overflow() {
+        let mut contest = get_configurable_contest(
+            1,
+            3,
+            CountingAlgType::Cumulative,
+            false,
+            None,
+            false,
+        );
+        contest
+            .presentation
+            .get_or_insert_with(Default::default)
+            .cumulative_number_of_checkboxes = Some(u64::MAX);
+        assert!(contest.get_bases().is_err());
     }
 }
