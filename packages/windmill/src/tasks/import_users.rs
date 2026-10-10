@@ -6,7 +6,7 @@ use crate::postgres::document::get_document;
 use crate::postgres::maintenance::vacuum_analyze_direct;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::get_document_as_temp_file;
-use crate::services::import::import_users::import_users_file;
+use crate::services::import::import_users::{import_users_file, ImportUsersPrivileges};
 use crate::services::tasks_execution::*;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
@@ -29,6 +29,10 @@ pub struct ImportUsersBody {
     pub election_event_id: Option<String>,
     #[serde(default = "default_is_admin")]
     pub is_admin: bool,
+    /// What the importing user may grant through the file, derived by the
+    /// server from that user's permissions.
+    #[serde(default)]
+    pub privileges: ImportUsersPrivileges,
     pub sha256: Option<String>,
 }
 
@@ -143,6 +147,7 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
         body.election_event_id.clone(),
         body.tenant_id,
         body.is_admin,
+        body.privileges,
     )
     .await
     {
