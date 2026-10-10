@@ -15,8 +15,8 @@ use crate::services::ceremonies::sealed_box_ballots::{
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::election::{get_election_event_elections, ElectionHead};
 use crate::services::join::merge_join_csv;
-use crate::services::join::{MergeJoinResult, MultiplicitySource};
 use crate::services::join::read_valid_ballot_voter_ids;
+use crate::services::join::{MergeJoinResult, MultiplicitySource};
 use crate::services::protocol_manager::*;
 use crate::services::public_keys::deserialize_public_key;
 use crate::services::users::{
