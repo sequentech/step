@@ -10,6 +10,16 @@ Updated 2026-10-10. Work is in `/workspaces/step` on
 The final fix-round commit is the commit containing this file. Nothing was
 pushed, rebased, deployed or restarted during this continuation.
 
+## Prepared user testing continuation
+
+[INFRA-MSG-USER-TESTING.md](INFRA-MSG-USER-TESTING.md) contains verified setup
+commands, fixture identities, both tenants' expected channel behavior, the
+Page-change regression and a results worksheet. Read-only preflight found old
+Keycloak, disabled Harvest fake routes and missing new live GraphQL actions.
+Both scenario states are absent. Scenario/organization/monitoring tests passed
+146/146; both profiles render and the existing step-cli runs. No live data or
+service changes were made. Activate the stack before running the prepared scenarios.
+
 ## Scope and current boundary
 
 The second-pass messaging implementation and fix round 3 are complete on the
