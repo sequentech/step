@@ -4,17 +4,55 @@
 
 use super::{
     validate_keycloak_path_segment, validate_keycloak_scope,
-    KeycloakAdminClient, PubKeycloakAdmin,
+    KeycloakAdminClient, PubKeycloakAdmin, RoleAction,
 };
+use keycloak::types::GroupRepresentation;
 use keycloak::{KeycloakAdmin, KeycloakAdminToken, KeycloakError};
-use std::io::{Read, Write};
-use std::net::TcpListener;
+use std::collections::HashMap;
+use std::io::{BufRead, BufReader, Read, Write};
+use std::net::{TcpListener, TcpStream};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc, Mutex,
 };
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
+
+const RECORDER_RESPONSE: &[u8] = b"HTTP/1.1 200 OK\r\n\
+    Content-Type: application/json\r\n\
+    Content-Length: 2\r\n\
+    Connection: close\r\n\r\n{}";
+
+/// Record the request line of one connection, then answer it. A connection
+/// that closes before sending a request line records nothing.
+fn serve(
+    stream: TcpStream,
+    requests: &Mutex<Vec<String>>,
+) -> std::io::Result<()> {
+    let mut reader = BufReader::new(stream);
+    let mut request_line = String::new();
+    if reader.read_line(&mut request_line)? == 0 {
+        return Ok(());
+    }
+    requests
+        .lock()
+        .unwrap()
+        .push(request_line.trim_end().to_string());
+    let mut length = 0;
+    loop {
+        let mut header = String::new();
+        if reader.read_line(&mut header)? == 0 || header == "\r\n" {
+            break;
+        }
+        if let Some(value) =
+            header.to_ascii_lowercase().strip_prefix("content-length:")
+        {
+            length = value.trim().parse().unwrap_or(0);
+        }
+    }
+    std::io::copy(&mut reader.by_ref().take(length), &mut std::io::sink())?;
+    reader.get_mut().write_all(RECORDER_RESPONSE)
+}
 
 struct Recorder {
     url: String,
@@ -35,18 +73,12 @@ impl Recorder {
         let worker = thread::spawn(move || {
             while !stopped.load(Ordering::Acquire) {
                 match listener.accept() {
-                    Ok((mut stream, _)) => {
+                    Ok((stream, _)) => {
+                        stream.set_nonblocking(false).unwrap();
                         stream
                             .set_read_timeout(Some(Duration::from_secs(2)))
                             .unwrap();
-                        let mut buffer = [0; 8192];
-                        let read = stream.read(&mut buffer).unwrap();
-                        let request = String::from_utf8_lossy(&buffer[..read]);
-                        captured
-                            .lock()
-                            .unwrap()
-                            .push(request.lines().next().unwrap().to_string());
-                        stream.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}").unwrap();
+                        let _ = serve(stream, &captured);
                     }
                     Err(error)
                         if error.kind() == std::io::ErrorKind::WouldBlock =>
@@ -108,15 +140,16 @@ impl Drop for Recorder {
     }
 }
 
+fn is_bad_segment(error: Option<&KeycloakError>) -> bool {
+    matches!(error, Some(KeycloakError::HttpFailure { status: 400, .. }))
+}
+
 fn assert_bad_segment<T: std::fmt::Debug>(result: anyhow::Result<T>) {
     let error = result.expect_err(
         "invalid segment must be rejected before sending a request",
     );
     assert!(
-        matches!(
-            error.downcast_ref::<KeycloakError>(),
-            Some(KeycloakError::HttpFailure { status: 400, .. })
-        ),
+        is_bad_segment(error.downcast_ref::<KeycloakError>()),
         "wrong error: {error:?}"
     );
 }
@@ -312,6 +345,111 @@ async fn realm_and_client_path_segments_reject_controls_before_requests() {
             .client()
             .get_user_profile_attributes("../other-realm")
             .await,
+    );
+    recorder.assert_no_requests();
+}
+
+#[rocket::async_test]
+async fn realm_helpers_reject_each_invalid_segment_before_requests() {
+    let recorder = Recorder::new();
+    let public = recorder.public_client();
+    let bad = "../../other-realm";
+    assert_bad_segment(
+        recorder
+            .client()
+            .get_flow_executions(&public, bad, "valid-flow")
+            .await
+            .map_err(Into::into),
+    );
+    for (board, execution) in [(bad, "valid-flow"), ("valid-realm", bad)] {
+        assert_bad_segment(
+            recorder
+                .client()
+                .upsert_flow_execution(&public, board, execution, "{}")
+                .await,
+        );
+    }
+    assert_bad_segment(
+        recorder
+            .client()
+            .partial_import_realm_with_cleanup(
+                &public,
+                bad,
+                "valid-container",
+                vec![],
+                vec![],
+                "SKIP",
+            )
+            .await,
+    );
+    assert_bad_segment(
+        recorder
+            .client()
+            .realm_delete(&public, "valid-tenant", bad, "valid-id")
+            .await
+            .map_err(Into::into),
+    );
+    assert_bad_segment(
+        recorder
+            .client()
+            .create_new_group(bad, "valid-group", &public)
+            .await
+            .map_err(Into::into),
+    );
+    for (tenant, group_id) in [(bad, "valid-group"), ("valid-tenant", bad)] {
+        assert_bad_segment(
+            recorder
+                .client()
+                .add_roles_to_group(
+                    tenant,
+                    &public,
+                    group_id,
+                    &vec![],
+                    RoleAction::Add,
+                )
+                .await
+                .map_err(Into::into),
+        );
+        let error = recorder
+            .client()
+            .get_group_assigned_roles(tenant, group_id, &public)
+            .await
+            .expect_err("invalid segment must be rejected");
+        assert!(
+            is_bad_segment(error.downcast_ref::<KeycloakError>()),
+            "wrong error: {error:?}"
+        );
+        let group = GroupRepresentation {
+            id: Some(group_id.to_string()),
+            ..Default::default()
+        };
+        assert_bad_segment(
+            recorder.client().update_group(tenant, &group).await,
+        );
+    }
+    assert_bad_segment(
+        recorder
+            .client()
+            .update_localization_texts_from_import(None, &public, bad)
+            .await,
+    );
+    // A valid locale beside an invalid one must not be sent either.
+    let locales = HashMap::from([
+        ("en".to_string(), HashMap::new()),
+        (bad.to_string(), HashMap::new()),
+    ]);
+    assert_bad_segment(
+        recorder
+            .client()
+            .update_localization_texts_from_import(
+                Some(locales),
+                &public,
+                "valid-tenant",
+            )
+            .await,
+    );
+    assert_bad_segment(
+        recorder.client().delete_permission(bad, "user-read").await,
     );
     recorder.assert_no_requests();
 }
