@@ -131,8 +131,21 @@ async fn deactivate_unauthorized_schedule(
         .await
         .map_err(|err| anyhow!("Error getting hasura client: {err}"))?;
     let hasura_transaction = hasura_db_client.transaction().await?;
-    deactivate_report_schedule(&hasura_transaction, &report.tenant_id, &report.id).await?;
+    let deactivated = deactivate_report_schedule(
+        &hasura_transaction,
+        &report.tenant_id,
+        &report.id,
+        executer_username,
+    )
+    .await?;
     hasura_transaction.commit().await?;
+    if !deactivated {
+        info!(
+            "Scheduled report id={id} was changed since it was checked, leaving it as it is",
+            id = report.id
+        );
+        return Ok(());
+    }
 
     let task_execution = tasks_execution::post(
         &report.tenant_id,
