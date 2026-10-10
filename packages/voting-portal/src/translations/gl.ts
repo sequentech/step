@@ -168,6 +168,8 @@ const galegoTranslation: TranslationType = {
                     "A túa sesión expirou. Por favor, comeza de novo dende o principio.",
                 CAST_VOTE_BallotIdMismatch:
                     "O identificador da papeleta non coincide co do voto emitido.",
+                CAST_VOTE_BallotStyleMismatch:
+                    "A túa papeleta non coincide coa que está publicada actualmente para esta elección. Recarga a páxina e inténtao de novo, ou contacta co soporte para obter axuda.",
                 SESSION_STORAGE_ERROR:
                     "O almacenamento de sesión non está dispoñible. Por favor, inténteo de novo ou contacte co soporte.",
                 PARSE_BALLOT_DATA_ERROR:
