@@ -302,7 +302,9 @@ Keycloak administration console: select the new tenant realm, open the `admin`
 user's Credentials tab and set a temporary password. The administrator then signs
 in interactively and chooses their own password. Create actual trustee accounts
 through the normal trustee workflow. Service-account client authentication keeps
-its configured client secrets and roles.
+its configured client secrets and roles. The development stack imports the template
+as it is, so its `admin` also starts without a password; `step-dev scenario` and the
+backend journeys set the one in `ADMIN_PORTAL_TEST_PASSWORD`.
 
 The remote deployment configuration script also removes user credentials from its
 prepared realm JSON while continuing to generate client secrets. Updating templates
