@@ -18,7 +18,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -36,7 +35,7 @@ import org.keycloak.protocol.oidc.mappers.TokenIntrospectionTokenMapper;
 import org.keycloak.protocol.oidc.mappers.UserInfoTokenMapper;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.IDToken;
-import org.keycloak.util.JsonSerialization;
+import sequent.keycloak.authenticator.harvest.ServiceAccountTokenClient;
 
 /**
  * Mappings UserModel.attribute to an ID Token claim. Token claim name can be a full qualified
@@ -50,9 +49,7 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
         UserInfoTokenMapper,
         TokenIntrospectionTokenMapper {
 
-  private String keycloakUrl = System.getenv("KEYCLOAK_URL");
-  private String clientId = System.getenv("KEYCLOAK_CLIENT_ID");
-  private String clientSecret = System.getenv("KEYCLOAK_CLIENT_SECRET");
+  private final ServiceAccountTokenClient tokenClient;
   private String hasuraEndpoint = System.getenv("HASURA_ENDPOINT");
   private final HttpClient client = HttpClient.newHttpClient();
   private final ObjectMapper objectMapper = new ObjectMapper();
@@ -104,6 +101,14 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
   }
 
   public static final String PROVIDER_ID = "authorized-elections-oidc-usermodel-attribute-mapper";
+
+  public AuthorizedElectionsUserAttributeMapper() {
+    this(ServiceAccountTokenClient.fromEnvironment());
+  }
+
+  AuthorizedElectionsUserAttributeMapper(ServiceAccountTokenClient tokenClient) {
+    this.tokenClient = tokenClient;
+  }
 
   public List<ProviderConfigProperty> getConfigProperties() {
     return configProperties;
@@ -309,49 +314,8 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
         false);
   }
 
-  public String authenticate(String tenantId) {
-    HttpClient client = HttpClient.newHttpClient();
-    String url =
-        this.keycloakUrl
-            + "/realms/"
-            + getTenantRealmName(tenantId)
-            + "/protocol/openid-connect/token";
-    Map<Object, Object> data = new HashMap<>();
-    data.put("client_id", this.clientId);
-    data.put("scope", "openid");
-    data.put("client_secret", this.clientSecret);
-    data.put("grant_type", "client_credentials");
-
-    String form =
-        data.entrySet().stream()
-            .map(entry -> entry.getKey() + "=" + entry.getValue())
-            .reduce((entry1, entry2) -> entry1 + "&" + entry2)
-            .orElse("");
-    log.info(form);
-    HttpRequest request =
-        HttpRequest.newBuilder()
-            .uri(URI.create(url))
-            .header("Content-Type", "application/x-www-form-urlencoded")
-            .POST(HttpRequest.BodyPublishers.ofString(form))
-            .build();
-
-    CompletableFuture<HttpResponse<String>> responseFuture;
-    responseFuture = client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
-    String responseBody = responseFuture.join().body();
-    Object accessToken;
-    try {
-      log.info("responseBody " + responseBody);
-      accessToken = JsonSerialization.readValue(responseBody, Map.class).get("access_token");
-      log.info("authenticate " + accessToken.toString());
-      return accessToken.toString();
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
-    return responseBody;
-  }
-
-  private String getTenantRealmName(String tenantId) {
-    return "tenant-" + tenantId;
+  public String authenticate(String tenantId) throws IOException {
+    return tokenClient.fetchAccessToken(ServiceAccountTokenClient.tenantRealmName(tenantId));
   }
 
   // Cache results for each electionEventId with expiration after 5 minutes
