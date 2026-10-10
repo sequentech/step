@@ -169,3 +169,87 @@ pub async fn delete_permission(
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     Ok(Json(Default::default()))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const TENANT_ID: &str = "tenant";
+    const RESERVED_NAMES: [&str; 5] = [
+        "admin",
+        "service-account",
+        "datafix-account",
+        "super-admin-user",
+        "cli-account-admin",
+    ];
+
+    fn tenant_admin(permissions: &[Permissions]) -> jwt::JwtClaims {
+        let allowed_roles: Vec<String> = permissions
+            .iter()
+            .map(|permission| permission.to_string())
+            .collect();
+        serde_json::from_value(serde_json::json!({
+            "exp": 1, "iat": 0, "jti": "test", "iss": "test",
+            "sub": "admin", "typ": "Bearer", "azp": "admin-portal",
+            "acr": "1", "allowed-origins": [], "scope": "openid",
+            "email_verified": false,
+            "https://hasura.io/jwt/claims": {
+                "x-hasura-default-role": "admin-user",
+                "x-hasura-tenant-id": TENANT_ID,
+                "x-hasura-user-id": "admin",
+                "x-hasura-allowed-roles": allowed_roles
+            }
+        }))
+        .unwrap()
+    }
+
+    #[rocket::async_test]
+    async fn reserved_permission_names_are_not_created() {
+        for name in RESERVED_NAMES {
+            let body = Json(CreatePermissionsBody {
+                tenant_id: TENANT_ID.to_string(),
+                permission: Permission {
+                    id: None,
+                    attributes: None,
+                    container_id: None,
+                    description: None,
+                    name: Some(name.to_string()),
+                },
+            });
+
+            let (status, message) = create_permission(
+                tenant_admin(&[Permissions::USER_PERMISSION_CREATE]),
+                body,
+            )
+            .await
+            .unwrap_err();
+
+            assert_eq!(status, Status::BadRequest, "{name}");
+            assert!(message.contains(name), "{message}");
+        }
+    }
+
+    #[rocket::async_test]
+    async fn reserved_permission_names_are_not_attached_to_a_role() {
+        for name in RESERVED_NAMES {
+            let body = Json(SetOrDeleteRolePermissionsBody {
+                tenant_id: TENANT_ID.to_string(),
+                role_id: "role-id".to_string(),
+                permission_name: name.to_string(),
+            });
+
+            let (status, message) = set_role_permission(
+                tenant_admin(&[
+                    Permissions::USER_PERMISSION_WRITE,
+                    Permissions::ROLE_WRITE,
+                ]),
+                body,
+            )
+            .await
+            .unwrap_err();
+
+            assert_eq!(status, Status::BadRequest, "{name}");
+            assert!(message.contains(name), "{message}");
+        }
+    }
+}

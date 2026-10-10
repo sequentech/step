@@ -323,7 +323,10 @@ pub async fn read_roles_config_file(
 
 #[cfg(test)]
 mod tests {
-    use super::{normalize_realm_config_s3_key, parse_realm_config};
+    use super::{normalize_realm_config_s3_key, parse_realm_config, read_roles_config_file};
+    use keycloak::types::RealmRepresentation;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
 
     const S3_BUCKET: &str = "election-event-documents";
     const S3_KEY: &str = "defaults/keycloak/tenant.json";
@@ -382,5 +385,24 @@ mod tests {
 
         assert!(error.contains(S3_BUCKET));
         assert!(error.contains(S3_KEY));
+    }
+
+    fn roles_config(rows: &str) -> NamedTempFile {
+        let mut file = NamedTempFile::new().expect("temporary file");
+        write!(file, "role,permissions\n{rows}").expect("roles config");
+        file
+    }
+
+    #[tokio::test]
+    async fn roles_config_with_a_reserved_permission_is_rejected_before_keycloak() {
+        for permission in ["admin", "service-account", "datafix-account"] {
+            let file = roles_config(&format!("auditors,election-event-read|{permission}\n"));
+
+            let error = read_roles_config_file(file, &RealmRepresentation::default(), "tenant")
+                .await
+                .expect_err("reserved permission should be rejected");
+
+            assert!(format!("{error}").contains("reserved"), "{error}");
+        }
     }
 }
