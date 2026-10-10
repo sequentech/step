@@ -6,7 +6,7 @@ use crate::services::authorization::authorize;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::futures::future::join_all;
 use rocket::http::Status;
@@ -21,8 +21,8 @@ use sequent_core::services::keycloak::{
 };
 use sequent_core::services::keycloak::{GroupInfo, KeycloakAdminClient};
 use sequent_core::types::keycloak::{
-    User, UserProfileAttribute, UserProfileConfiguration, PERMISSION_LABELS,
-    TENANT_ID_ATTR_NAME,
+    User, UserProfileAttribute, UserProfileConfiguration,
+    MOBILE_PHONE_ATTR_NAME, PERMISSION_LABELS, TENANT_ID_ATTR_NAME,
 };
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
@@ -1128,7 +1128,91 @@ pub struct EditUserBody {
     temporary: Option<bool>,
 }
 
-const MOBILE_NUMBER_ATTRIBUTE: &str = "sequent.read-only.mobile-number";
+const EMAIL_AND_OR_MOBILE_ATTR_NAME: &str = "emailAndOrMobile";
+const EMAIL_TLF_ATTRIBUTES: [&str; 2] =
+    [MOBILE_PHONE_ATTR_NAME, EMAIL_AND_OR_MOBILE_ATTR_NAME];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum VoterEditScope {
+    Full,
+    EmailTlfOnly,
+}
+
+impl VoterEditScope {
+    fn from_allowed_roles(allowed_roles: &[String]) -> Self {
+        if allowed_roles.contains(&Permissions::VOTER_WRITE.to_string()) {
+            Self::Full
+        } else {
+            Self::EmailTlfOnly
+        }
+    }
+}
+
+fn same_attribute_values(
+    requested: &[String],
+    current: Option<&Vec<String>>,
+) -> bool {
+    let mut requested = requested.to_vec();
+    let mut current = current.cloned().unwrap_or_default();
+    requested.sort();
+    current.sort();
+    requested == current
+}
+
+/// Fields the request would change besides the email and mobile number.
+/// A field counts only when it is supplied and differs from the current
+/// value, so a form that sends every field back unchanged passes.
+fn email_tlf_edit_violations(
+    input: &EditUserBody,
+    attributes: &HashMap<String, Vec<String>>,
+    current: &User,
+) -> Vec<String> {
+    let mut violations = Vec::new();
+    if input
+        .enabled
+        .is_some_and(|enabled| current.enabled != Some(enabled))
+    {
+        violations.push("enabled".to_string());
+    }
+    for (field, requested, current) in [
+        ("first_name", &input.first_name, &current.first_name),
+        ("last_name", &input.last_name, &current.last_name),
+        ("username", &input.username, &current.username),
+    ] {
+        if requested.is_some() && requested != current {
+            violations.push(field.to_string());
+        }
+    }
+    let current_attributes = current.attributes.as_ref();
+    let mut changed_attributes: Vec<String> = attributes
+        .iter()
+        .filter(|(name, values)| {
+            !EMAIL_TLF_ATTRIBUTES.contains(&name.as_str())
+                && !same_attribute_values(
+                    values,
+                    current_attributes.and_then(|current| current.get(*name)),
+                )
+        })
+        .map(|(name, _)| format!("attributes.{name}"))
+        .collect();
+    changed_attributes.sort();
+    violations.extend(changed_attributes);
+    violations
+}
+
+/// Drops everything but the email and mobile number from a request that
+/// passed `email_tlf_edit_violations`, so that fields the caller may not
+/// change are not written back from a stale copy of the form.
+fn keep_only_email_tlf(
+    input: &mut EditUserBody,
+    attributes: &mut HashMap<String, Vec<String>>,
+) {
+    input.enabled = None;
+    input.first_name = None;
+    input.last_name = None;
+    input.username = None;
+    attributes.retain(|name, _| EMAIL_TLF_ATTRIBUTES.contains(&name.as_str()));
+}
 
 pub struct EditUserError(JsonError);
 
@@ -1191,56 +1275,13 @@ impl<'r> Responder<'r, 'static> for EditUserError {
     }
 }
 
-pub async fn check_edit_email_tlf(
-    client: &KeycloakAdminClient,
-    input: &EditUserBody,
-    realm: &str,
-    attributes: &HashMap<String, Vec<String>>,
-) -> Result<()> {
-    let user = client.get_user(realm, &input.user_id).await?;
-    let mut changes: Vec<String> = vec![];
-
-    let mut current_attributes = user.attributes.unwrap_or_default();
-    current_attributes.remove(MOBILE_NUMBER_ATTRIBUTE);
-    let mut new_attributes = attributes.clone();
-    new_attributes.remove(MOBILE_NUMBER_ATTRIBUTE);
-    if current_attributes != new_attributes {
-        changes.push("attributes".to_string());
-    }
-
-    if input.enabled != user.enabled {
-        changes.push("enabled".to_string());
-    }
-    if input.first_name != user.first_name {
-        changes.push("first_name".to_string());
-    }
-    if input.last_name != user.last_name {
-        changes.push("last_name".to_string());
-    }
-    if input.username != user.username {
-        changes.push("username".to_string());
-    }
-    if input.password.is_some() {
-        changes.push("password".to_string());
-    }
-    if input.temporary.is_some() {
-        changes.push("temporary".to_string());
-    }
-
-    if changes.len() > 0 {
-        return Err(anyhow!("Can't change user properties: {:?}", changes));
-    }
-
-    Ok(())
-}
-
 #[instrument(skip(claims, body), ret)]
 #[post("/edit-user", format = "json", data = "<body>")]
 pub async fn edit_user(
     claims: jwt::JwtClaims,
     body: Json<EditUserBody>,
 ) -> Result<Json<EditUserOutput>, EditUserError> {
-    let input = body.into_inner();
+    let mut input = body.into_inner();
     let password_only = input.election_event_id.is_some()
         && input.password.is_some()
         && input.enabled.is_none()
@@ -1256,7 +1297,7 @@ pub async fn edit_user(
         .as_ref()
         .is_some_and(|attributes| !attributes.is_empty());
     let mut voter_voted_edit = false;
-    let mut voter_email_tlf_edit = false;
+    let mut edit_scope = VoterEditScope::Full;
     if input.election_event_id.is_some() {
         if password_only {
             required_perms.push(Permissions::VOTER_CHANGE_PASSWORD);
@@ -1265,27 +1306,23 @@ pub async fn edit_user(
             .hasura_claims
             .allowed_roles
             .contains(&Permissions::VOTER_VOTED_EDIT.to_string());
-        voter_email_tlf_edit = claims
-            .hasura_claims
-            .allowed_roles
-            .contains(&Permissions::VOTER_EMAIL_TLF_EDIT.to_string());
-        let voter_write = claims
-            .hasura_claims
-            .allowed_roles
-            .contains(&Permissions::VOTER_WRITE.to_string());
 
         if !password_only {
-            if voter_write {
-                required_perms.push(Permissions::VOTER_WRITE);
-            } else {
-                required_perms.push(Permissions::VOTER_EMAIL_TLF_EDIT);
-            }
+            edit_scope = VoterEditScope::from_allowed_roles(
+                &claims.hasura_claims.allowed_roles,
+            );
+            required_perms.push(match edit_scope {
+                VoterEditScope::Full => Permissions::VOTER_WRITE,
+                VoterEditScope::EmailTlfOnly => {
+                    Permissions::VOTER_EMAIL_TLF_EDIT
+                }
+            });
             if input.password.is_some() {
                 required_perms.push(Permissions::VOTER_CHANGE_PASSWORD);
             }
             if has_secret_changes {
                 required_perms.push(Permissions::VOTER_SECRET_ATTRIBUTE_WRITE);
-                if !voter_write {
+                if edit_scope == VoterEditScope::EmailTlfOnly {
                     required_perms.push(Permissions::VOTER_WRITE);
                 }
             }
@@ -1457,12 +1494,6 @@ pub async fn edit_user(
             .into());
     }
 
-    if voter_email_tlf_edit {
-        /*check_edit_email_tlf(&client, &input, &realm, &new_attributes)
-        .await
-        .map_err(|e| (Status::Unauthorized, format!("{:?}", e)))?;*/
-    }
-
     let datafix_election_event = match input.election_event_id.as_deref() {
         Some(election_event_id) => {
             let election_event = get_election_event_by_id(
@@ -1491,6 +1522,35 @@ pub async fn edit_user(
         )
     })?;
     drop(hasura_db_client);
+
+    if edit_scope == VoterEditScope::EmailTlfOnly {
+        let client = KeycloakAdminClient::new()
+            .await
+            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        let current_user = client
+            .get_user(&realm, &input.user_id)
+            .await
+            .map_err(|error| {
+                EditUserError::from_keycloak(
+                    error,
+                    "Error reading user in Keycloak",
+                )
+            })?;
+        let violations =
+            email_tlf_edit_violations(&input, &new_attributes, &current_user);
+        if !violations.is_empty() {
+            return Err((
+                Status::Forbidden,
+                format!(
+                    "Without the {} permission only the email and mobile number can be changed: {}",
+                    Permissions::VOTER_WRITE,
+                    violations.join(", ")
+                ),
+            )
+                .into());
+        }
+        keep_only_email_tlf(&mut input, &mut new_attributes);
+    }
 
     if let (Some(election_event_id), Some(secret_attributes)) = (
         input.election_event_id.as_deref(),
@@ -2312,5 +2372,214 @@ mod tests {
             response.0 .1 .0.message,
             "Password does not contain enough digits"
         );
+    }
+
+    mod voter_edit_scope {
+        use super::super::{
+            email_tlf_edit_violations, keep_only_email_tlf, EditUserBody,
+            VoterEditScope, EMAIL_AND_OR_MOBILE_ATTR_NAME,
+        };
+        use sequent_core::types::keycloak::{
+            User, AUTHORIZED_ELECTION_IDS_NAME, MOBILE_PHONE_ATTR_NAME,
+        };
+        use sequent_core::types::permissions::Permissions;
+        use serde_json::{json, Value};
+        use std::collections::HashMap;
+
+        const AREA_ID: &str = "area-id";
+
+        fn current_attributes() -> HashMap<String, Vec<String>> {
+            HashMap::from([
+                (AREA_ID.to_string(), vec!["area-1".to_string()]),
+                (
+                    AUTHORIZED_ELECTION_IDS_NAME.to_string(),
+                    vec!["election-1".to_string(), "election-2".to_string()],
+                ),
+                (
+                    MOBILE_PHONE_ATTR_NAME.to_string(),
+                    vec!["+34600000001".to_string()],
+                ),
+                (
+                    EMAIL_AND_OR_MOBILE_ATTR_NAME.to_string(),
+                    vec!["email".to_string()],
+                ),
+            ])
+        }
+
+        fn current_voter() -> User {
+            User {
+                id: Some("voter".to_string()),
+                attributes: Some(current_attributes()),
+                email: Some("voter@example.com".to_string()),
+                enabled: Some(true),
+                first_name: Some("Ada".to_string()),
+                last_name: Some("Lovelace".to_string()),
+                username: Some("ada".to_string()),
+                ..Default::default()
+            }
+        }
+
+        fn violations(fields: Value) -> Vec<String> {
+            let mut body = json!({
+                "tenant_id": "tenant",
+                "user_id": "voter",
+                "election_event_id": "event",
+            });
+            if let (Some(body), Some(fields)) =
+                (body.as_object_mut(), fields.as_object())
+            {
+                body.extend(fields.clone());
+            }
+            let input: EditUserBody =
+                serde_json::from_value(body).expect("valid edit body");
+            let attributes = input.attributes.clone().unwrap_or_default();
+            email_tlf_edit_violations(&input, &attributes, &current_voter())
+        }
+
+        fn attributes_with(name: &str, values: &[&str]) -> Value {
+            let mut attributes = current_attributes();
+            attributes.insert(
+                name.to_string(),
+                values.iter().map(|value| value.to_string()).collect(),
+            );
+            json!(attributes)
+        }
+
+        #[test]
+        fn voter_write_keeps_the_full_edit_scope() {
+            let roles = vec![
+                "admin-user".to_string(),
+                Permissions::VOTER_WRITE.to_string(),
+                Permissions::VOTER_EMAIL_TLF_EDIT.to_string(),
+            ];
+            assert_eq!(
+                VoterEditScope::from_allowed_roles(&roles),
+                VoterEditScope::Full
+            );
+        }
+
+        #[test]
+        fn email_tlf_edit_without_voter_write_is_limited_to_email_and_mobile() {
+            let roles = vec![
+                "admin-user".to_string(),
+                Permissions::VOTER_EMAIL_TLF_EDIT.to_string(),
+            ];
+            assert_eq!(
+                VoterEditScope::from_allowed_roles(&roles),
+                VoterEditScope::EmailTlfOnly
+            );
+        }
+
+        #[test]
+        fn email_tlf_scope_rejects_enabled_change() {
+            assert_eq!(violations(json!({"enabled": false})), vec!["enabled"]);
+        }
+
+        #[test]
+        fn email_tlf_scope_rejects_name_and_username_changes() {
+            assert_eq!(
+                violations(json!({
+                    "first_name": "Grace",
+                    "last_name": "Hopper",
+                    "username": "grace",
+                })),
+                vec!["first_name", "last_name", "username"]
+            );
+        }
+
+        #[test]
+        fn email_tlf_scope_rejects_area_change() {
+            assert_eq!(
+                violations(json!({
+                    "attributes": attributes_with(AREA_ID, &["area-2"]),
+                })),
+                vec!["attributes.area-id"]
+            );
+        }
+
+        #[test]
+        fn email_tlf_scope_rejects_authorized_elections_change() {
+            assert_eq!(
+                violations(json!({
+                    "attributes": attributes_with(
+                        AUTHORIZED_ELECTION_IDS_NAME,
+                        &["election-1"],
+                    ),
+                })),
+                vec!["attributes.authorized-election-ids"]
+            );
+        }
+
+        #[test]
+        fn email_tlf_scope_rejects_new_attribute() {
+            assert_eq!(
+                violations(json!({"attributes": {"vote-weight": ["5"]}})),
+                vec!["attributes.vote-weight"]
+            );
+        }
+
+        #[test]
+        fn email_tlf_scope_allows_email_and_mobile_changes() {
+            let mut attributes = current_attributes();
+            attributes.insert(
+                MOBILE_PHONE_ATTR_NAME.to_string(),
+                vec!["+34600000002".to_string()],
+            );
+            attributes.insert(
+                EMAIL_AND_OR_MOBILE_ATTR_NAME.to_string(),
+                vec!["email".to_string(), "mobile".to_string()],
+            );
+            attributes.insert(
+                AUTHORIZED_ELECTION_IDS_NAME.to_string(),
+                vec!["election-2".to_string(), "election-1".to_string()],
+            );
+            assert!(violations(json!({
+                "enabled": true,
+                "email": "new@example.com",
+                "first_name": "Ada",
+                "last_name": "Lovelace",
+                "temporary": true,
+                "attributes": attributes,
+            }))
+            .is_empty());
+        }
+
+        #[test]
+        fn email_tlf_scope_forwards_only_email_and_mobile() {
+            let body = json!({
+                "tenant_id": "tenant",
+                "user_id": "voter",
+                "election_event_id": "event",
+                "enabled": true,
+                "email": "new@example.com",
+                "first_name": "Ada",
+                "last_name": "Lovelace",
+                "username": "ada",
+                "attributes": current_attributes(),
+            });
+            let mut input: EditUserBody =
+                serde_json::from_value(body).expect("valid edit body");
+            let mut attributes = input.attributes.clone().unwrap_or_default();
+            keep_only_email_tlf(&mut input, &mut attributes);
+            assert_eq!(input.enabled, None);
+            assert_eq!(input.first_name, None);
+            assert_eq!(input.last_name, None);
+            assert_eq!(input.username, None);
+            assert_eq!(input.email.as_deref(), Some("new@example.com"));
+            let mut names: Vec<&str> =
+                attributes.keys().map(String::as_str).collect();
+            names.sort();
+            assert_eq!(
+                names,
+                vec![EMAIL_AND_OR_MOBILE_ATTR_NAME, MOBILE_PHONE_ATTR_NAME]
+            );
+        }
+
+        #[test]
+        fn email_tlf_scope_ignores_fields_left_out() {
+            assert!(violations(json!({})).is_empty());
+            assert!(violations(json!({"enabled": null, "attributes": {}}))
+                .is_empty());
+        }
     }
 }
