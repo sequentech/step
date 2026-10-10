@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::tenant::get_tenant_by_id;
+use crate::services::google_meet::take_service_account_key;
 use crate::types::documents::EDocuments;
 use anyhow::Context;
 use anyhow::{anyhow, Result};
@@ -48,14 +49,7 @@ pub async fn write_export_document(
     let mut writer = Writer::from_writer(vec![]);
     writer.write_record(&headers)?;
 
-    let values: Vec<String> = serde_json::to_value(data)?
-        .as_object()
-        .ok_or_else(|| anyhow!("Failed to convert tenant to JSON object"))?
-        .values()
-        .map(|value| value.to_string())
-        .collect();
-
-    writer.write_record(&values)?;
+    writer.write_record(&tenant_export_values(data)?)?;
 
     let data_bytes = writer
         .into_inner()
@@ -67,4 +61,49 @@ pub async fn write_export_document(
             .with_context(|| "Failed to write tenant into temp file")?;
 
     Ok(temp_path)
+}
+
+fn tenant_export_values(mut data: Tenant) -> Result<Vec<String>> {
+    if let Some(settings) = data.settings.as_mut() {
+        take_service_account_key(settings);
+    }
+
+    Ok(serde_json::to_value(data)?
+        .as_object()
+        .ok_or_else(|| anyhow!("Failed to convert tenant to JSON object"))?
+        .values()
+        .map(|value| value.to_string())
+        .collect())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn tenant_export_values_omit_service_account_key() {
+        let tenant = Tenant {
+            id: "90505c8a-23a9-4cdf-a26b-4e19f6a097d5".to_string(),
+            slug: "tenant".to_string(),
+            created_at: None,
+            updated_at: None,
+            labels: None,
+            annotations: None,
+            is_active: true,
+            voting_channels: None,
+            settings: Some(json!({
+                "gapi_key": {"private_key": "test-private-key"},
+                "gapi_email": "organizer@example.org",
+            })),
+            test: None,
+        };
+
+        let values = tenant_export_values(tenant).expect("tenant export values");
+
+        let settings = values.join(",");
+        assert!(!settings.contains("gapi_key"));
+        assert!(!settings.contains("test-private-key"));
+        assert!(settings.contains("organizer@example.org"));
+    }
 }
