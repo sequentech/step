@@ -29,7 +29,6 @@ use electoral_log::{
 };
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, TxMode};
 use rust_decimal::prelude::ToPrimitive;
-use sequent_core::encrypt::SHORT_SHA512_HASH_LENGTH_BYTES;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::jwt::JwtClaims;
@@ -2044,18 +2043,15 @@ pub fn get_cols_match_count_and_select(
     (cols_match_count, cols_match_select)
 }
 
-/// Number of hex characters in the Ballot ID kept with each cast vote.
-const BALLOT_ID_HEX_LENGTH: usize = 2 * SHORT_SHA512_HASH_LENGTH_BYTES;
-
 /// Lowercases a Ballot ID prefix and checks that it is an even number of hex
 /// characters, no longer than a Ballot ID.
 fn normalize_ballot_id_filter(ballot_id_filter: &str) -> Result<String> {
     let ballot_id_filter = ballot_id_filter.trim().to_ascii_lowercase();
     ensure!(
         ballot_id_filter.len() % 2 == 0
-            && ballot_id_filter.len() <= BALLOT_ID_HEX_LENGTH
+            && ballot_id_filter.len() <= BALLOT_ID_LENGTH_CHARS
             && ballot_id_filter.chars().all(|c| c.is_ascii_hexdigit()),
-        "Incorrect ballot_id, it must be an even number of hexadecimal characters, at most {BALLOT_ID_HEX_LENGTH}"
+        "Incorrect ballot_id, it must be an even number of hexadecimal characters, at most {BALLOT_ID_LENGTH_CHARS}"
     );
     Ok(ballot_id_filter)
 }
@@ -2396,7 +2392,7 @@ mod cast_vote_entry_tests {
     fn ballot_id_filter_accepts_an_even_length_hex_prefix() {
         assert_eq!(normalize_ballot_id_filter("").unwrap(), "");
         assert_eq!(normalize_ballot_id_filter("AB12").unwrap(), "ab12");
-        let full_ballot_id = "0a".repeat(SHORT_SHA512_HASH_LENGTH_BYTES);
+        let full_ballot_id = "0a".repeat(BALLOT_ID_LENGTH_BYTES);
         assert_eq!(
             normalize_ballot_id_filter(&full_ballot_id).unwrap(),
             full_ballot_id
@@ -2405,7 +2401,7 @@ mod cast_vote_entry_tests {
 
     #[test]
     fn ballot_id_filter_rejects_non_hex_odd_or_overlong_input() {
-        let overlong = "0a".repeat(SHORT_SHA512_HASH_LENGTH_BYTES + 1);
+        let overlong = "0a".repeat(BALLOT_ID_LENGTH_BYTES + 1);
         for filter in [".*", "%%", "zz", "abc", "ab 1", "^a", overlong.as_str()] {
             assert!(
                 normalize_ballot_id_filter(filter).is_err(),
