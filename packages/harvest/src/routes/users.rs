@@ -63,7 +63,10 @@ use windmill::services::voter_secret_attributes::{
 use windmill::tasks::delete_users::{
     self as delete_users_task, DeleteUsersOutput,
 };
-use windmill::tasks::edit_user::{EditUserOutput, EditUserTaskBody};
+use windmill::tasks::edit_user::{
+    EditUserOutput, EditUserTaskBody, VotedVoterEditPolicy,
+    VOTED_VOTER_EDIT_REFUSAL,
+};
 use windmill::tasks::export_users::{self, ExportUsersOutput};
 use windmill::tasks::import_users::{self, ImportUsersOutput};
 use windmill::types::tasks::ETasksExecution;
@@ -1234,6 +1237,16 @@ pub async fn check_edit_email_tlf(
     Ok(())
 }
 
+/// The caller's policy for editing a voter who has cast a ballot.
+#[instrument(skip_all)]
+fn voted_voter_edit_policy(allowed_roles: &[String]) -> VotedVoterEditPolicy {
+    if allowed_roles.contains(&Permissions::VOTER_VOTED_EDIT.to_string()) {
+        VotedVoterEditPolicy::Allowed
+    } else {
+        VotedVoterEditPolicy::Denied
+    }
+}
+
 #[instrument(skip(claims, body), ret)]
 #[post("/edit-user", format = "json", data = "<body>")]
 pub async fn edit_user(
@@ -1255,16 +1268,14 @@ pub async fn edit_user(
         .secret_attributes
         .as_ref()
         .is_some_and(|attributes| !attributes.is_empty());
-    let mut voter_voted_edit = false;
+    let mut voted_voter_edit = VotedVoterEditPolicy::Denied;
     let mut voter_email_tlf_edit = false;
     if input.election_event_id.is_some() {
         if password_only {
             required_perms.push(Permissions::VOTER_CHANGE_PASSWORD);
         }
-        voter_voted_edit = claims
-            .hasura_claims
-            .allowed_roles
-            .contains(&Permissions::VOTER_VOTED_EDIT.to_string());
+        voted_voter_edit =
+            voted_voter_edit_policy(&claims.hasura_claims.allowed_roles);
         voter_email_tlf_edit = claims
             .hasura_claims
             .allowed_roles
@@ -1384,7 +1395,7 @@ pub async fn edit_user(
         })?;
 
     // check if the voter has voted
-    if !voter_voted_edit {
+    if voted_voter_edit == VotedVoterEditPolicy::Denied {
         if let Some(election_event_id) = input.election_event_id.clone() {
             let mut user = User::default();
             user.id = Some(input.user_id.clone());
@@ -1414,7 +1425,7 @@ pub async fn edit_user(
                 if votes_info.len() > 0 {
                     return Err((
                         Status::Unauthorized,
-                        format!("Can't edit a voter that has already cast its ballot"),
+                        VOTED_VOTER_EDIT_REFUSAL.to_string(),
                     )
                         .into());
                 }
@@ -1561,6 +1572,7 @@ pub async fn edit_user(
                         area_id: claims.hasura_claims.area_id.clone(),
                     }
                 }),
+                voted_voter_edit,
             };
 
             let celery_app = get_celery_app().await;
@@ -2217,6 +2229,26 @@ mod tests {
         })).unwrap();
         assert!(super::ensure_secret_attributes_not_queried(&public, &names)
             .is_ok());
+    }
+
+    #[test]
+    fn only_the_voter_voted_edit_role_allows_editing_a_voter_who_voted() {
+        use sequent_core::types::permissions::Permissions;
+        use windmill::tasks::edit_user::VotedVoterEditPolicy;
+
+        let voter_write = vec![Permissions::VOTER_WRITE.to_string()];
+        assert_eq!(
+            super::voted_voter_edit_policy(&voter_write),
+            VotedVoterEditPolicy::Denied
+        );
+        let voter_voted_edit = vec![
+            Permissions::VOTER_WRITE.to_string(),
+            Permissions::VOTER_VOTED_EDIT.to_string(),
+        ];
+        assert_eq!(
+            super::voted_voter_edit_policy(&voter_voted_edit),
+            VotedVoterEditPolicy::Allowed
+        );
     }
 
     use super::{

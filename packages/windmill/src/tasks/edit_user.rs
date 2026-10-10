@@ -37,6 +37,17 @@ use std::collections::HashMap;
 use tracing::{error, info, instrument};
 use uuid::Uuid;
 
+pub const VOTED_VOTER_EDIT_REFUSAL: &str = "Can't edit a voter that has already cast its ballot";
+
+/// Whether the admin who requested an edit may edit a voter who has cast a
+/// ballot, as granted by the `voter-voted-edit` permission.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum VotedVoterEditPolicy {
+    Allowed,
+    #[default]
+    Denied,
+}
+
 /// Input for the `edit_user` task. Mirrors the fields the `/edit-user` route
 /// forwards to Keycloak. Only launched for a Datafix election event, so
 /// `election_event_id` is always present.
@@ -55,6 +66,8 @@ pub struct EditUserTaskBody {
     pub temporary: Option<bool>,
     #[serde(default)]
     pub password_change_initiator: Option<ElectoralLogAdminContext>,
+    #[serde(default)]
+    pub voted_voter_edit: VotedVoterEditPolicy,
 }
 
 /// Response of the `/edit-user` route. For Datafix election events the edit is
@@ -173,6 +186,22 @@ fn plan_voter_release(
         release_attempt,
         owes_set_not_voted: release_attempt && voted_via_internet(current_attributes),
     })
+}
+
+/// Refuses the edit when the requesting admin may not edit a voter who has
+/// voted and the voter has a valid or in-progress ballot. `/edit-user` checks
+/// this before queueing the task; the task checks it again under the
+/// per-voter lock.
+#[instrument(err)]
+fn check_voted_voter_edit(
+    policy: VotedVoterEditPolicy,
+    cast_vote_state: &VoterCastVoteState,
+) -> std::result::Result<(), String> {
+    let has_voted = cast_vote_state.has_unresolved_vote || cast_vote_state.has_valid_vote;
+    match policy {
+        VotedVoterEditPolicy::Denied if has_voted => Err(VOTED_VOTER_EDIT_REFUSAL.to_string()),
+        VotedVoterEditPolicy::Allowed | VotedVoterEditPolicy::Denied => Ok(()),
+    }
 }
 
 /// Rejects edits to the fields an admin may not change on a Datafix voter: the
@@ -428,8 +457,9 @@ async fn run_datafix_voter_edit(
     let current_attributes = current_user.attributes.clone().unwrap_or_default();
     validate_datafix_immutable_fields(body, &current_user, &current_attributes)?;
 
-    let needs_cast_vote_state =
-        body.enabled == Some(false) || is_reenable_transition(current_user.enabled, body.enabled);
+    let needs_cast_vote_state = body.voted_voter_edit == VotedVoterEditPolicy::Denied
+        || body.enabled == Some(false)
+        || is_reenable_transition(current_user.enabled, body.enabled);
     let cast_vote_state = if needs_cast_vote_state {
         voter_cast_vote_state(&body.tenant_id, &body.election_event_id, &body.user_id)
             .await
@@ -440,6 +470,7 @@ async fn run_datafix_voter_edit(
             has_valid_vote: false,
         }
     };
+    check_voted_voter_edit(body.voted_voter_edit, &cast_vote_state)?;
     let plan = plan_voter_release(
         current_user.enabled,
         body.enabled,
@@ -707,6 +738,7 @@ mod tests {
             password: None,
             temporary: None,
             password_change_initiator: None,
+            voted_voter_edit: VotedVoterEditPolicy::Denied,
         }
     }
 
@@ -738,5 +770,56 @@ mod tests {
         assert!(
             validate_datafix_immutable_fields(&echoed, &current_user, &internet_voter()).is_ok()
         );
+    }
+
+    #[test]
+    fn denied_policy_refuses_a_voter_with_a_ballot_in_progress() {
+        let state = VoterCastVoteState {
+            has_unresolved_vote: true,
+            ..no_cast_votes()
+        };
+        assert_eq!(
+            check_voted_voter_edit(VotedVoterEditPolicy::Denied, &state),
+            Err(VOTED_VOTER_EDIT_REFUSAL.to_string())
+        );
+    }
+
+    #[test]
+    fn denied_policy_refuses_a_voter_with_a_valid_ballot() {
+        let state = VoterCastVoteState {
+            has_valid_vote: true,
+            ..no_cast_votes()
+        };
+        assert_eq!(
+            check_voted_voter_edit(VotedVoterEditPolicy::Denied, &state),
+            Err(VOTED_VOTER_EDIT_REFUSAL.to_string())
+        );
+    }
+
+    #[test]
+    fn denied_policy_allows_a_voter_without_active_ballots() {
+        assert!(check_voted_voter_edit(VotedVoterEditPolicy::Denied, &no_cast_votes()).is_ok());
+    }
+
+    #[test]
+    fn allowed_policy_allows_a_voter_with_active_ballots() {
+        let state = VoterCastVoteState {
+            has_unresolved_vote: true,
+            has_valid_vote: true,
+        };
+        assert!(check_voted_voter_edit(VotedVoterEditPolicy::Allowed, &state).is_ok());
+    }
+
+    #[test]
+    fn a_task_body_without_a_voted_voter_edit_policy_is_denied() {
+        let body: EditUserTaskBody = serde_json::from_value(serde_json::json!({
+            "tenant_id": "tenant",
+            "user_id": "voter",
+            "election_event_id": "event",
+            "enabled": false,
+            "attributes": {},
+        }))
+        .unwrap();
+        assert_eq!(body.voted_voter_edit, VotedVoterEditPolicy::Denied);
     }
 }
