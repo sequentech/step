@@ -1159,6 +1159,20 @@ fn email_tlf_edit_violations(
     violations
 }
 
+/// Drops everything but the email and mobile number from a request that
+/// passed `email_tlf_edit_violations`, so that fields the caller may not
+/// change are not written back from a stale copy of the form.
+fn keep_only_email_tlf(
+    input: &mut EditUserBody,
+    attributes: &mut HashMap<String, Vec<String>>,
+) {
+    input.enabled = None;
+    input.first_name = None;
+    input.last_name = None;
+    input.username = None;
+    attributes.retain(|name, _| EMAIL_TLF_ATTRIBUTES.contains(&name.as_str()));
+}
+
 pub struct EditUserError(JsonError);
 
 impl std::fmt::Debug for EditUserError {
@@ -1461,6 +1475,7 @@ pub async fn edit_user(
             )
                 .into());
         }
+        keep_only_email_tlf(&mut input, &mut new_attributes);
     }
 
     if let (Some(election_event_id), Some(secret_attributes)) = (
@@ -2083,8 +2098,8 @@ mod tests {
 
     mod voter_edit_scope {
         use super::super::{
-            email_tlf_edit_violations, EditUserBody, VoterEditScope,
-            EMAIL_AND_OR_MOBILE_ATTR_NAME,
+            email_tlf_edit_violations, keep_only_email_tlf, EditUserBody,
+            VoterEditScope, EMAIL_AND_OR_MOBILE_ATTR_NAME,
         };
         use sequent_core::types::keycloak::{
             User, AUTHORIZED_ELECTION_IDS_NAME, MOBILE_PHONE_ATTR_NAME,
@@ -2249,6 +2264,37 @@ mod tests {
                 "attributes": attributes,
             }))
             .is_empty());
+        }
+
+        #[test]
+        fn email_tlf_scope_forwards_only_email_and_mobile() {
+            let body = json!({
+                "tenant_id": "tenant",
+                "user_id": "voter",
+                "election_event_id": "event",
+                "enabled": true,
+                "email": "new@example.com",
+                "first_name": "Ada",
+                "last_name": "Lovelace",
+                "username": "ada",
+                "attributes": current_attributes(),
+            });
+            let mut input: EditUserBody =
+                serde_json::from_value(body).expect("valid edit body");
+            let mut attributes = input.attributes.clone().unwrap_or_default();
+            keep_only_email_tlf(&mut input, &mut attributes);
+            assert_eq!(input.enabled, None);
+            assert_eq!(input.first_name, None);
+            assert_eq!(input.last_name, None);
+            assert_eq!(input.username, None);
+            assert_eq!(input.email.as_deref(), Some("new@example.com"));
+            let mut names: Vec<&str> =
+                attributes.keys().map(String::as_str).collect();
+            names.sort();
+            assert_eq!(
+                names,
+                vec![EMAIL_AND_OR_MOBILE_ATTR_NAME, MOBILE_PHONE_ATTR_NAME]
+            );
         }
 
         #[test]
