@@ -143,8 +143,12 @@ select_permissions:
               - election_event_id
               - id
               - tenant_id
-          filter: {}
-          allow_aggregations: true
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+              is_public:
+                  _eq: true
+          allow_aggregations: false
       role: user
 update_permissions:
     - permission:
