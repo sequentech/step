@@ -280,7 +280,7 @@ export const HomeScreen: React.FC<IProps> = ({
                 const auditableBallot: IAuditableBallot | null = JSON.parse(auditableBallotString)
                 handleAuditableBallot(
                     auditableBallot,
-                    findPublishedBallotStyle(dataBallotStyles, auditableBallot?.config?.id)
+                    findPublishedBallotStyle(dataBallotStyles, auditableBallot?.config?.id, eventId)
                 )
             }
         } catch (e) {
