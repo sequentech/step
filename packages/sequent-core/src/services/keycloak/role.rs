@@ -163,3 +163,55 @@ impl KeycloakAdminClient {
         Ok(new_role.clone())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::keycloak::test_support::FakeKeycloak;
+
+    const REALM: &str = "tenant-test";
+    const GROUPS_PATH: &str = "/admin/realms/tenant-test/groups";
+
+    fn role(permissions: &[&str]) -> Role {
+        Role {
+            id: None,
+            name: Some("auditors".to_string()),
+            permissions: Some(
+                permissions.iter().map(|name| name.to_string()).collect(),
+            ),
+            access: None,
+            attributes: None,
+            client_roles: None,
+        }
+    }
+
+    #[rocket::async_test]
+    async fn a_role_with_a_reserved_permission_is_not_created() {
+        for name in ["admin", "service-account"] {
+            let keycloak = FakeKeycloak::start(&[]);
+            let result = keycloak
+                .client()
+                .create_role(REALM, &role(&["election-event-read", name]))
+                .await;
+
+            assert!(result.is_err(), "role with {name:?} was created");
+            assert!(
+                keycloak.requests().is_empty(),
+                "{name:?} reached Keycloak"
+            );
+        }
+    }
+
+    #[rocket::async_test]
+    async fn a_role_with_ordinary_permissions_is_created() {
+        let keycloak = FakeKeycloak::start(&[]);
+
+        keycloak
+            .client()
+            .create_role(REALM, &role(&["election-event-read", "tally-read"]))
+            .await
+            .unwrap();
+
+        assert_eq!(keycloak.requests(), [format!("POST {GROUPS_PATH}")]);
+    }
+}
