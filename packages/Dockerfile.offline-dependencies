@@ -94,6 +94,16 @@ COPY . .
 # before cargo has made that directory. Write it outside, then move it in.
 RUN cargo vendor /vendor-cache > /config.toml \
     && mv /config.toml /vendor-cache/config.toml
+# crepe's code generator is not deterministic; see the patch. The checksums
+# cargo verifies vendored sources against are updated for the two patched
+# files, so every other file of the crate is still checked. A new crepe version
+# makes the patch fail to apply, which is the signal to look at it again.
+RUN cd /vendor-cache/crepe \
+    && git apply /workspace/patches/crepe-fixed-hash-seed.patch \
+    && for f in src/lib.rs src/strata.rs; do \
+        sum="$(sha256sum "$f" | cut -d' ' -f1)"; \
+        sed -i "s|\"$f\":\"[0-9a-f]*\"|\"$f\":\"$sum\"|" .cargo-checksum.json; \
+    done
 
 # Yarn dependencies as an offline mirror: a directory of tarballs that
 # `yarn install --offline` resolves against without contacting a registry.
@@ -117,7 +127,10 @@ ARG IMMUDB_VERSION
 RUN apk add --no-cache git make gcc musl-dev bash
 WORKDIR /src
 RUN git clone --depth 1 --branch "v${IMMUDB_VERSION}" https://github.com/codenotary/immudb.git .
-RUN make immudb immuadmin
+# immudb's Makefile compiles the time of the build into the binaries. With
+# SOURCE_DATE_EPOCH (a BuildKit built-in argument) it is that time instead.
+ARG SOURCE_DATE_EPOCH
+RUN make immudb immuadmin ${SOURCE_DATE_EPOCH:+V_BUILT_AT=${SOURCE_DATE_EPOCH}}
 
 # Maven dependencies for the Keycloak provider extensions.
 #
