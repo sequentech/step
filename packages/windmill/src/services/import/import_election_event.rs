@@ -664,6 +664,7 @@ fn sanitize_imported_event_realm(
 #[instrument(skip(realm))]
 pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<RealmRepresentation> {
     let mut realm_copy = realm.clone();
+    super::realm_identity_providers::remove_demo_identity_providers(&mut realm_copy);
 
     // Collect well-known clients and their secrets to set.
     let keycloak_client_id = env::var("KEYCLOAK_CLIENT_ID")
