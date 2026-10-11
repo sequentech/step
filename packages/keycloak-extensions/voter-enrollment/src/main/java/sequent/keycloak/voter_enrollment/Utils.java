@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -43,7 +44,11 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.userprofile.UserProfile;
 import org.keycloak.userprofile.UserProfileContext;
 import org.keycloak.userprofile.UserProfileProvider;
+import sequent.keycloak.authenticator.messaging.ContactDetails;
+import sequent.keycloak.authenticator.messaging.MessageChannel;
 import sequent.keycloak.authenticator.messaging.MessagingAttributes;
+import sequent.keycloak.authenticator.messaging.VerifiedContacts;
+import sequent.keycloak.authenticator.messaging.VoterChannel;
 
 @UtilityClass
 @JBossLog
@@ -91,8 +96,62 @@ public class Utils {
                   KEYS_USERDATA))
           .collect(Collectors.toUnmodifiableSet());
 
+  /**
+   * Form fields that become notes besides the user profile's attributes: the account fields, the
+   * password, the terms box, the identity method and the messaging channel choice.
+   */
+  static final Set<String> FORM_FIELDS =
+      Set.of(
+          UserModel.USERNAME,
+          UserModel.EMAIL,
+          UserModel.FIRST_NAME,
+          UserModel.LAST_NAME,
+          "password",
+          "password-confirm",
+          "termsAccepted",
+          "identity-method",
+          MessagingAttributes.FORM_OTP_CHANNEL,
+          MessagingAttributes.FORM_WHATSAPP_NUMBER,
+          MessagingAttributes.FORM_VIBER_NUMBER,
+          MessagingAttributes.FORM_MESSAGE_CONSENT);
+
+  /**
+   * Whether a submitted field may become an authentication note: an allowlist of the profile's
+   * attributes and {@link #FORM_FIELDS}. Notes only Keycloak sets, and the messaging channel
+   * attributes (written only after a code verified them), never come from a form.
+   */
+  static boolean isFormNote(String key, Set<String> profileAttributes) {
+    if (key == null
+        || RESERVED_NOTES.contains(key)
+        || MessagingAttributes.CONTACT_ATTRIBUTES.contains(key)) {
+      return false;
+    }
+    return FORM_FIELDS.contains(key) || profileAttributes.contains(key);
+  }
+
+  /** The form's messaging channel fields: the channel, its numbers and the consent. */
+  static final Set<String> CHANNEL_FIELDS =
+      Set.of(
+          MessagingAttributes.FORM_OTP_CHANNEL,
+          MessagingAttributes.FORM_WHATSAPP_NUMBER,
+          MessagingAttributes.FORM_VIBER_NUMBER,
+          MessagingAttributes.FORM_MESSAGE_CONSENT);
+
+  /**
+   * {@link #isFormNote(String, Set)} for a form whose channel choice is {@code choice}: the channel
+   * fields become notes only when the form asks for a channel (R7-09).
+   */
+  static boolean isFormNote(
+      String key, Set<String> profileAttributes, EnrollmentChannels.ChannelChoicePolicy choice) {
+    if (CHANNEL_FIELDS.contains(key)
+        && choice != EnrollmentChannels.ChannelChoicePolicy.OTP_CHANNELS) {
+      return false;
+    }
+    return isFormNote(key, profileAttributes);
+  }
+
   static boolean isFormNote(String key) {
-    return !RESERVED_NOTES.contains(key);
+    return isFormNote(key, Set.of());
   }
 
   String escapeJson(String value) {
@@ -128,7 +187,9 @@ public class Utils {
    * will later be retrieved to create a user account.
    */
   static void storeUserDataInAuthSessionNotes(
-      FormContext context, List<String> searchAttributesList) {
+      FormContext context,
+      List<String> searchAttributesList,
+      EnrollmentChannels.ChannelChoicePolicy channelChoice) {
     log.info("storeUserDataInAuthSessionNotes: start");
     MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
     AuthenticationSessionModel sessionModel = context.getAuthenticationSession();
@@ -143,9 +204,18 @@ public class Utils {
         "storeUserDataInAuthSessionNotes: setAuthNote(" + Utils.KEYS_USERDATA + ", " + keys + ")");
     sessionModel.setAuthNote(Utils.KEYS_USERDATA, keys);
 
+    Set<String> profileAttributes =
+        getRealmUserProfileAttributes(context.getSession()).stream()
+            .map(UPAttribute::getName)
+            .collect(Collectors.toSet());
+    if (channelChoice != EnrollmentChannels.ChannelChoicePolicy.OTP_CHANNELS) {
+      // A form that doesn't ask for a channel can't set one, nor keep one set earlier (R7-09).
+      CHANNEL_FIELDS.forEach(sessionModel::removeAuthNote);
+      sessionModel.removeAuthNote(MessagingAttributes.NOTE_OFFERED_CHANNELS);
+    }
     formData.forEach(
         (key, value) -> {
-          if (!isFormNote(key)) {
+          if (!isFormNote(key, profileAttributes, channelChoice)) {
             log.warnv("storeUserDataInAuthSessionNotes: ignoring reserved field {0}", key);
             return;
           }
@@ -191,11 +261,7 @@ public class Utils {
       username = email;
     }
 
-    context
-        .getEvent()
-        .detail(Details.USERNAME, username)
-        .detail(Details.REGISTER_METHOD, "form")
-        .detail(Details.EMAIL, email);
+    context.getEvent().detail(Details.USERNAME, username).detail(Details.REGISTER_METHOD, "form");
 
     KeycloakSession session = context.getSession();
 
@@ -287,8 +353,10 @@ public class Utils {
       ObjectNode attributesJson = mapper.createObjectNode();
 
       for (String attributeName : attributes.keySet()) {
-        String value = attributes.get(attributeName).get(0);
-        if (value != null) {
+        List<String> values = attributes.get(attributeName);
+        String value = values == null || values.isEmpty() ? null : values.get(0);
+        // Events reach the electoral log: never a voter's number or email address.
+        if (value != null && !ContactDetails.isContact(attributeName, value)) {
           attributesJson.put(attributeName, value);
         }
       }
@@ -305,13 +373,59 @@ public class Utils {
     Map<String, String> applicantData = new HashMap<>();
 
     for (UPAttribute attribute : realmsAttributes) {
+      if (MessagingAttributes.CONTACT_ATTRIBUTES.contains(attribute.getName())) {
+        continue;
+      }
       String authNoteValue = authSession.getAuthNote(attribute.getName());
 
       if (authNoteValue != null && !authNoteValue.isBlank())
         applicantData.put(attribute.getName(), authNoteValue);
     }
+    RealmModel realm = session.getContext().getRealm();
+    applicantData.putAll(
+        verifiedChannelData(
+            authSession,
+            realm == null ? "" : sequent.keycloak.authenticator.Utils.getRealmName(realm),
+            realm == null
+                ? MessagingAttributes.CONSENT_VERSION_DEFAULT
+                : VerifiedContacts.consentVersion(realm),
+            Instant.now()));
 
     return applicantData;
+  }
+
+  /**
+   * The verified channel for a reviewer's decision, read from notes only Keycloak sets (never from
+   * form fields), under the user attribute names windmill writes on approval: {@code
+   * sequent.read-only.message-channel}, {@code sequent.read-only.message-number} (WhatsApp, Viber,
+   * SMS), {@code sequent.read-only.messenger-id} and {@code sequent.read-only.messenger-page}
+   * (Messenger), and {@code sequent.read-only.message-consent} (JSON {@code {at, version,
+   * organization, channel}}) when the voter consented to that channel. Empty when no code verified
+   * a channel.
+   */
+  static Map<String, String> verifiedChannelData(
+      AuthenticationSessionModel authSession,
+      String organization,
+      String consentVersion,
+      Instant now) {
+    Map<String, String> data = new HashMap<>();
+    Optional<VoterChannel> verified = VerifiedContacts.verified(authSession, null);
+    if (verified.isEmpty()) {
+      return data;
+    }
+    VoterChannel channel = verified.get();
+    data.put(MessagingAttributes.MESSAGE_CHANNEL, channel.channel().name());
+    if (VerifiedContacts.NUMBER_CHANNELS.contains(channel.channel())) {
+      data.put(MessagingAttributes.MESSAGE_NUMBER, channel.destination());
+    }
+    if (channel.channel() == MessageChannel.MESSENGER) {
+      data.put(MessagingAttributes.MESSENGER_ID, channel.destination());
+      channel.messengerPage().ifPresent(page -> data.put(MessagingAttributes.MESSENGER_PAGE, page));
+    }
+    VerifiedContacts.verifiedConsent(
+            authSession, consentVersion, organization, channel.channel(), now)
+        .ifPresent(consent -> data.put(MessagingAttributes.MESSAGE_CONSENT, consent));
+    return data;
   }
 
   public PasswordCredentialModel buildPassword(KeycloakSession session, String rawPassword) {
@@ -337,6 +451,9 @@ public class Utils {
     List<UPAttribute> realmsAttributes = getRealmUserProfileAttributes(session);
     for (UPAttribute attribute : realmsAttributes) {
       String authNoteValue = authSession.getAuthNote(attribute.getName());
+      if (ContactDetails.isContact(attribute.getName(), authNoteValue)) {
+        continue;
+      }
       builder.detail(attribute.getName(), authNoteValue);
     }
     if (user != null) {

@@ -4,7 +4,7 @@ import type {Meta, StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, waitFor, within} from "storybook/test"
 import {KEYCLOAK_PROFILE_ATTRIBUTES} from "@sequentech/ui-test-kit/fixtures/keycloak"
 import {createKcPageStory} from "../KcPageStory"
-import {CredentialFieldPosition} from "../KcContext"
+import {CredentialFieldPosition, MessageChannel} from "../KcContext"
 import {expectStickyActions} from "../scanovate/stickyActions"
 
 const {KcPageStory} = createKcPageStory({pageId: "register.ftl"})
@@ -348,5 +348,226 @@ export const Spanish: Story = {
         const canvas = within(canvasElement)
         await canvas.findByRole("heading", {level: 1})
         await expect(canvas.getByText("Paso 1 de 4 · Sus datos")).toBeVisible()
+    },
+}
+
+// The enrollment's channel choice: two synthetic Posts, one offering every channel, one fewer.
+const CHANNEL_CHOICE = {
+    themeName: "sequent-ui-voting" as const,
+    profile: {
+        attributesByName: {
+            post: attribute("post", "Post", {
+                annotations: {
+                    inputType: "select",
+                    inputOptionLabels: {
+                        "post-a": "Synthetic Embassy A",
+                        "post-b": "Synthetic Consulate B",
+                    },
+                },
+                validators: {options: {options: ["post-a", "post-b"]}},
+            }),
+        },
+    },
+    messagingPostAttribute: "post",
+    // Before a Post is chosen: the channels every Post offers, in Keycloak's order.
+    messagingChannels: [MessageChannel.Email, MessageChannel.Sms],
+    messagingChannelsByPost: {
+        "post-a": [
+            MessageChannel.Email,
+            MessageChannel.Sms,
+            MessageChannel.Messenger,
+            MessageChannel.Viber,
+            MessageChannel.WhatsApp,
+        ],
+        "post-b": [MessageChannel.Sms, MessageChannel.Email, MessageChannel.WhatsApp],
+    },
+    messagingOrganization: "Synthetic Commission",
+    messagingConsentVersion: "1",
+    messagingPage: "Synthetic Page",
+}
+
+const channelValues = (canvasElement: HTMLElement) =>
+    [
+        ...within(canvasElement)
+            .getByRole("radiogroup", {name: /Get codes and updates by/})
+            .querySelectorAll<HTMLInputElement>("input[type='radio']"),
+    ].map(({value}) => value)
+
+const choosePost = async (canvasElement: HTMLElement, post: string) =>
+    userEvent.selectOptions(within(canvasElement).getByLabelText(/^Post/), post)
+
+/** The list follows the Post the voter picks, always in the ticket's channel order. */
+export const ChannelChoiceFollowsThePost: Story = {
+    args: {kcContext: CHANNEL_CHOICE},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(channelValues(canvasElement)).toEqual(["SMS", "EMAIL"])
+        await choosePost(canvasElement, "post-a")
+        await expect(channelValues(canvasElement)).toEqual([
+            "WHATSAPP",
+            "VIBER",
+            "MESSENGER",
+            "SMS",
+            "EMAIL",
+        ])
+        await expect(canvas.queryByText(/can reach you/)).toBeNull()
+        await choosePost(canvasElement, "post-b")
+        await expect(channelValues(canvasElement)).toEqual(["WHATSAPP", "SMS", "EMAIL"])
+        await expect(
+            canvas.getByText("The ways Synthetic Consulate B can reach you.")
+        ).toBeVisible()
+        // Every channel has the shared icon.
+        await expect(
+            canvasElement.querySelectorAll(".auth-channel-option [data-channel]")
+        ).toHaveLength(3)
+    },
+}
+
+/** Only the chosen channel's number and consent are on the form; there is no notice choice. */
+export const ChannelChoiceNumberAndConsent: Story = {
+    args: {kcContext: CHANNEL_CHOICE},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await choosePost(canvasElement, "post-a")
+        await userEvent.click(canvas.getByRole("radio", {name: "WhatsApp"}))
+        const number = canvas.getByLabelText(/^WhatsApp number/)
+        await expect(number).toBeRequired()
+        await expect(number).toHaveAttribute("name", "sequent.whatsapp-number")
+        await expect(number).toHaveAccessibleDescription(
+            "Synthetic Commission will send codes and election notices to this number."
+        )
+        const consent = canvas.getByRole("checkbox", {
+            name: "I agree that Synthetic Commission sends me codes and election notices by WhatsApp.",
+        })
+        await expect(consent).toBeRequired()
+        await expect(consent).toHaveAttribute("value", "1:WHATSAPP")
+        await userEvent.type(number, "+15550000999")
+        await userEvent.click(consent)
+
+        // Another channel replaces the number and the consent: nothing typed for WhatsApp is sent.
+        await userEvent.click(canvas.getByRole("radio", {name: "Viber"}))
+        await expect(canvas.queryByLabelText(/^WhatsApp number/)).toBeNull()
+        await expect(canvas.getByLabelText(/^Viber number/)).toHaveValue("")
+        const form = canvasElement.querySelector<HTMLFormElement>("#kc-register-form")!
+        const data = new FormData(form)
+        await expect(data.get("sequent.otp-channel")).toBe("VIBER")
+        await expect(data.get("sequent.whatsapp-number")).toBeNull()
+        await expect(data.getAll("sequent.message-consent")).toEqual([])
+        await expect(data.get("sequent.notice-channel")).toBeNull()
+        await expect(canvas.queryByText(/notices to my/)).toBeNull()
+    },
+}
+
+/** A channel the new Post doesn't offer is no longer chosen, and its fields go. */
+export const ChannelChoiceDropsAChannelThePostLacks: Story = {
+    args: {kcContext: CHANNEL_CHOICE},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await choosePost(canvasElement, "post-a")
+        await userEvent.click(canvas.getByRole("radio", {name: "Viber"}))
+        await expect(canvas.getByLabelText(/^Viber number/)).toBeVisible()
+        await choosePost(canvasElement, "post-b")
+        await expect(canvas.queryByRole("radio", {checked: true})).toBeNull()
+        await expect(canvas.queryByLabelText(/^Viber number/)).toBeNull()
+    },
+}
+
+/** Messenger needs no number: the voter connects the Page's chat on the next step. */
+export const ChannelChoiceMessenger: Story = {
+    args: {kcContext: CHANNEL_CHOICE},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await choosePost(canvasElement, "post-a")
+        await userEvent.click(canvas.getByRole("radio", {name: "Facebook Messenger"}))
+        await expect(canvasElement.querySelector("#messenger-connect-help")).toHaveTextContent(
+            "Connect Messenger Open Synthetic Page and tap Get Started to get your code."
+        )
+        await expect(canvasElement.querySelector("input[type='tel']")).toBeNull()
+        await expect(
+            canvas.getByRole("checkbox", {
+                name: "I agree that Synthetic Commission sends me codes and election notices by Facebook Messenger.",
+            })
+        ).toHaveAttribute("value", "1:MESSENGER")
+    },
+}
+
+/** A Post with one channel has it chosen already. */
+export const ChannelChoiceSingleChannel: Story = {
+    args: {
+        kcContext: {
+            ...CHANNEL_CHOICE,
+            messagingChannels: [MessageChannel.Email],
+            messagingChannelsByPost: {},
+        },
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(canvas.getByRole("radio", {name: "Email"})).toBeChecked()
+    },
+}
+
+export const ChannelChoiceErrors: Story = {
+    args: {
+        kcContext: {
+            ...CHANNEL_CHOICE,
+            messagesPerField: {
+                exists: () => false,
+                existsError: (...fields: string[]) => fields.includes("sequent.otp-channel"),
+                get: () => "Choose how to get your verification code.",
+            },
+        },
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        const group = canvas.getByRole("radiogroup", {name: /Get codes and updates by/})
+        await expect(group).toHaveAttribute("aria-invalid", "true")
+        await expect(group).toHaveAccessibleDescription("Choose how to get your verification code.")
+    },
+}
+
+export const ChannelChoiceSpanish: Story = {
+    args: {locale: "es", kcContext: CHANNEL_CHOICE},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(
+            canvas.getByRole("radiogroup", {name: /Recibir códigos y avisos por/})
+        ).toBeVisible()
+        await choosePost(canvasElement, "post-b")
+        await expect(
+            canvas.getByText("Las formas en que Synthetic Consulate B puede contactarle.")
+        ).toBeVisible()
+    },
+}
+
+/** Shown again with errors, the form keeps the channel, number and consent the voter sent. */
+export const ChannelChoiceKeepsWhatWasSubmitted: Story = {
+    args: {
+        kcContext: {
+            ...CHANNEL_CHOICE,
+            profile: {
+                attributesByName: {
+                    post: {...CHANNEL_CHOICE.profile.attributesByName.post, values: ["post-b"]},
+                },
+            },
+            messagingFormData: {
+                "sequent.otp-channel": "WHATSAPP",
+                "sequent.whatsapp-number": "+15550000999",
+                "sequent.message-consent": "1:WHATSAPP",
+            },
+        },
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(canvas.getByRole("radio", {name: "WhatsApp"})).toBeChecked()
+        await expect(canvas.getByLabelText(/^WhatsApp number/)).toHaveValue("+15550000999")
+        await expect(canvas.getByRole("checkbox", {name: /by WhatsApp\./})).toBeChecked()
     },
 }

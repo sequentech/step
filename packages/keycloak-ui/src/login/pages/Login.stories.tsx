@@ -369,3 +369,22 @@ export const FrenchServerHeadingKeepsItsLanguage: Story = {
         await expect(canvas.getByText("Votre espace électoral")).toHaveAttribute("lang", "fr")
     },
 }
+
+/** After a reset request the page names no channel and doesn't tell whether the account exists. */
+export const ResetLinkSent: Story = {
+    args: {
+        kcContext: {
+            message: {
+                type: "success",
+                summary: "If an account exists, we sent the link to its contact.",
+            },
+        },
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(canvas.getByRole("status")).toHaveTextContent(
+            "If an account exists, we sent the link to its contact."
+        )
+    },
+}

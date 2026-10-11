@@ -9,6 +9,13 @@ const basqueTranslation: TranslationType = {
             error: "Ezin izan da bozketa-ataria abiarazi. Saiatu berriro.",
             retry: "Saiatu berriro",
         },
+        contactChannel: {
+            change: "Aldatu zurekin harremanetan jartzeko modua",
+            updated: "Zure kontaktua aldatu da. Kodeak eta abisuak hara bidaltzen dira orain.",
+            cancelled: "Zure kontaktua ez da aldatu.",
+            failed: "Ezin izan dugu aldatu zurekin harremanetan jartzeko modua. Saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin.",
+            close: "Itxi",
+        },
         common: {
             goBack: "Itzuli",
             showMore: "Erakutsi Gehiago",
