@@ -88,7 +88,15 @@ SAVE_CONFIG = """mutation ($event: uuid!, $config: jsonb!) {
 ACCOUNTS = """query ($tenant: uuid!, $names: [String!]!) {
   sequent_backend_messaging_account(
     where: {tenant_id: {_eq: $tenant}, name: {_in: $names}}
-  ) { id name credentials }
+  ) { id name sender credentials }
+}"""
+RENAME_ACCOUNT = """mutation (
+  $tenant: uuid!, $id: uuid!, $name: String!, $sender: jsonb!
+) {
+  update_sequent_backend_messaging_account(
+    where: {tenant_id: {_eq: $tenant}, id: {_eq: $id}},
+    _set: {name: $name, sender: $sender}
+  ) { affected_rows }
 }"""
 DEFAULT_ACCOUNTS = """query ($tenant: uuid!) {
   sequent_backend_messaging_account(
@@ -125,6 +133,7 @@ class Account:
     sender: dict[str, Any]
     credentials: dict[str, str]
     is_default: bool = False
+    legacy_name: str | None = None
     # Meta: the subscription's verify token; Infobip: the report Basic auth.
     generate_verify_token: bool = False
     generate_report_credentials: bool = False
@@ -159,11 +168,12 @@ def _whatsapp(
     return Account(
         key=key,
         name=name,
+        legacy_name="Fake WhatsApp" if name == "Demo WhatsApp" else None,
         channel="WHATSAPP",
         sender={
             "provider": "WHATSAPP_CLOUD_API",
-            "business_account_id": f"fake-waba-{number}",
-            "phone_number_id": f"fake-wa-number-{number}",
+            "business_account_id": f"demo-waba-{number}",
+            "phone_number_id": f"demo-wa-number-{number}",
             "display_phone_number": display,
             "display_name": sender_name,
             "api_version": GRAPH_API_VERSION,
@@ -186,17 +196,18 @@ def _templates(
 FIRST_ORGANIZATION = Profile(
     accounts=(
         _whatsapp(
-            "whatsapp", "Fake WhatsApp", "1", "+1 555 010 0001", True, "Fake WhatsApp"
+            "whatsapp", "Demo WhatsApp", "1", "+1 555 010 0001", True, "Demo WhatsApp"
         ),
         Account(
             key="viber",
-            name="Fake Viber",
+            name="Demo Viber",
+            legacy_name="Fake Viber",
             channel="VIBER",
             sender={
                 "provider": "VIBER_INFOBIP",
                 # Replaced by MESSAGING_INFOBIP_URL (the fake routes).
-                "base_url": "https://fake-infobip.example.org",
-                "sender": "FakeElections",
+                "base_url": "https://demo-infobip.example.org",
+                "sender": "DemoElections",
                 "approved_templates": _templates(
                     {OTP: CODE_TEMPLATE, NOTICE: NOTICE_TEMPLATE}
                 ),
@@ -207,13 +218,14 @@ FIRST_ORGANIZATION = Profile(
         ),
         Account(
             key="messenger",
-            name="Fake Messenger",
+            name="Demo Messenger",
+            legacy_name="Fake Messenger",
             channel="MESSENGER",
             sender={
                 "provider": "MESSENGER_SEND_API",
                 "page_id": "100000000000001",
                 "page_name": "Elections",
-                "page_username": "fake.elections",
+                "page_username": "demo.elections",
                 "api_version": GRAPH_API_VERSION,
             },
             credentials=META_CREDENTIALS,
@@ -222,7 +234,8 @@ FIRST_ORGANIZATION = Profile(
         ),
         Account(
             key="sms",
-            name="Fake SMS",
+            name="Demo SMS",
+            legacy_name="Fake SMS",
             channel="SMS",
             sender={
                 "provider": "AWS_SNS",
@@ -234,11 +247,12 @@ FIRST_ORGANIZATION = Profile(
         ),
         Account(
             key="email",
-            name="Fake email",
+            name="Demo Email",
+            legacy_name="Fake email",
             channel="EMAIL",
             sender={
                 "provider": "AWS_SES",
-                "from_address": "elections@fake-provider.example.org",
+                "from_address": "elections@demo-provider.example.org",
                 "from_name": "Elections",
                 "region": "us-east-1",
             },
@@ -281,7 +295,7 @@ SECOND_ORGANIZATION = Profile(
             sender={
                 "provider": "VIBER_INFOBIP",
                 # Replaced by MESSAGING_INFOBIP_URL (the fake routes).
-                "base_url": "https://fake-infobip.example.org",
+                "base_url": "https://demo-infobip.example.org",
                 "sender": "StaffAssociation",
                 "approved_templates": _templates(
                     {NOTICE: NOTICE_TEMPLATE}, SECOND_LANGUAGES
@@ -299,7 +313,7 @@ SECOND_ORGANIZATION = Profile(
                 "provider": "MESSENGER_SEND_API",
                 "page_id": "100000000000002",
                 "page_name": "Staff Association",
-                "page_username": "fake.staff.association",
+                "page_username": "demo.staff.association",
                 "api_version": GRAPH_API_VERSION,
             },
             credentials=META_CREDENTIALS,
@@ -324,7 +338,7 @@ SECOND_ORGANIZATION = Profile(
             channel="EMAIL",
             sender={
                 "provider": "AWS_SES",
-                "from_address": "votes@staff-association.fake-provider.example.org",
+                "from_address": "votes@staff-association.demo-provider.example.org",
                 "from_name": "Staff Association",
                 "region": "eu-west-1",
             },
@@ -482,9 +496,47 @@ class Graphql:
         return result["data"]
 
 
+def demo_label(value: str) -> str:
+    """The old synthetic sender labels, retaining real provider credentials."""
+    return (
+        value.replace("Fake", "Demo")
+        .replace("fake-", "demo-")
+        .replace("fake.", "demo.")
+    )
+
+
+def rename_demo_account(
+    admin: Any, tenant_id: str, account: Account, current: dict[str, Any]
+) -> bool:
+    """Update this fixture's display metadata without replacing its shared account."""
+    sender = {
+        key: demo_label(value) if isinstance(value, str) else value
+        for key, value in (current.get("sender") or {}).items()
+    }
+    if current["name"] != account.legacy_name and sender == current.get("sender", {}):
+        return False
+    renamed = admin.query(
+        RENAME_ACCOUNT,
+        {
+            "tenant": tenant_id,
+            "id": current["id"],
+            "name": account.name,
+            "sender": sender,
+        },
+    )["update_sequent_backend_messaging_account"]["affected_rows"]
+    if renamed != 1:
+        raise MessagingError(f"could not rename demo account {account.name}")
+    return True
+
+
 def stored_rows(admin: Any, tenant_id: str, profile: Profile) -> dict[str, dict]:
     """The profile's accounts the tenant already has, by key."""
-    names = {account.name: account.key for account in profile.accounts}
+    names = {
+        name: account.key
+        for account in profile.accounts
+        for name in (account.name, account.legacy_name)
+        if name is not None
+    }
     rows = admin.query(ACCOUNTS, {"tenant": tenant_id, "names": list(names)})[
         "sequent_backend_messaging_account"
     ]
@@ -530,7 +582,15 @@ def election_ids(admin: Any, event_id: str) -> dict[str, str]:
 
 def configured(admin: Any, tenant_id: str, event_id: str, profile: Profile) -> bool:
     """Whether the accounts exist and the event has a messaging configuration."""
-    if len(stored_accounts(admin, tenant_id, profile)) < len(profile.accounts):
+    rows = stored_rows(admin, tenant_id, profile)
+    if len(rows) < len(profile.accounts) or any(
+        rows[account.key]["name"] != account.name
+        or any(
+            isinstance(value, str) and demo_label(value) != value
+            for value in (rows[account.key].get("sender") or {}).values()
+        )
+        for account in profile.accounts
+    ):
         return False
     return bool(
         admin.query(EVENT_CONFIG, {"event": event_id})[
@@ -616,6 +676,8 @@ def configure(
                     f"account: the tenant's own default, {other}, stays"
                 )
         else:
+            if rename_demo_account(admin, tenant_id, account, rows[account.key]):
+                say(f"    renamed account {account.name}")
             missing = expected_credentials(account) - set(
                 rows[account.key].get("credentials") or {}
             )

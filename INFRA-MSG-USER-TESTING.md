@@ -32,7 +32,7 @@ Use the admin portal tenant selector for Staff Association before opening its ev
 | Backend              | Keycloak, Hasura, Harvest and relay healthy; Windmill and beat running                                                                                                       |
 | Keycloak             | Current image rebuilt before activation; deployed message-OTP bytecode matches local source                                                                                  |
 | Migration / metadata | All migrations present, including `1791200000000_messaging_second_pass`; all nine new viewer/insight actions present                                                         |
-| Fake provider        | Enabled; Meta, Infobip and AWS endpoint overrides point to Harvest's fake routes                                                                                             |
+| Demo provider        | Enabled; Meta, Infobip and AWS endpoint overrides point to Harvest's fake routes                                                                                             |
 | Service activation   | Beat and messaging-webhooks recreated by name; other backend services were already refreshed                                                                                 |
 | GraphQL              | All four portals regenerated successfully; shared and CLI schemas refreshed separately                                                                                       |
 | Portals              | Existing admin server preserved; missing voting server started; both return HTTP 200                                                                                         |
@@ -51,7 +51,7 @@ all-target clippy, Rust formatting and REUSE pass. Full channel journeys remain
 user acceptance.
 
 The public development callback URL is HTTP, so account checks warn **Callback
-address must be https**. Fake reports use the internal relay and were verified;
+address must be https**. Demo reports use the internal relay and were verified;
 real provider activation requires a reachable HTTPS callback URL. Synthetic
 account-test messages for `+15550999001` (Viber normalizes away the plus) and
 `activation-smoke@fake-provider.example.org` are visible in Sent messages;
@@ -102,7 +102,7 @@ is a separate journey, not proved by successful scenario creation.
 ## First scenario: successful paths
 
 Open its admin and voting URLs from `scenario urls`. Keep an admin session
-with **Settings > Messaging > Sent messages** open. Fake messages appear there;
+with **Settings > Messaging > Sent messages** open. Demo messages appear there;
 no real messaging app or real phone number is needed.
 
 Use these voters to prepare one contact per channel through the voting
@@ -229,7 +229,7 @@ devenv shell -- scripts/dev/step-dev scenario reset messaging
 devenv shell -- scripts/dev/step-dev scenario reset messaging-second-organization
 ```
 
-The fake accounts, second tenant and organization administrator intentionally
+The demo accounts, second tenant and organization administrator intentionally
 remain for reuse. Reset does not delete those shared scenario resources, stop
 services, or alter unrelated events. Restore any Page/configuration edits first.
 
@@ -259,3 +259,18 @@ stage complete. The checked-in realm already includes the correct attribute.
 Smoke messages use `+15550999100`, `+15550999101` and
 `demo-provider-check-{0,1}@fake-provider.example.org`; their text identifies the
 local provider check. Exclude these synthetic messages from manual count checks.
+
+## Demo display labels
+
+The synthetic accounts now use **Demo WhatsApp**, **Demo Viber**,
+**Demo Messenger**, **Demo SMS** and **Demo Email**. Their sender metadata uses
+Demo names and `demo-provider.example.org` addresses. Staff Association keeps
+its organization labels and uses the same Demo naming for synthetic addresses.
+Local setup recognizes legacy account names and updates those accounts in place,
+retaining account IDs, credentials, defaults, approval, limits and event links.
+
+Received messages captured before the rename remain in the local provider's
+history. Sent messages displays their legacy synthetic sender and recipient
+labels as Demo labels too, grouping them with new sends. Original codes,
+content, timestamps, message IDs and callback results are preserved. Wire API
+names and credential values are internal and remain compatible.
