@@ -3787,6 +3787,19 @@ mod presentation_borsh_compat_tests {
     }
 
     #[test]
+    fn batch_anonymity_policy_round_trips_through_borsh() {
+        for policy in [BatchAnonymityPolicy::WARN, BatchAnonymityPolicy::REFUSE]
+        {
+            let bytes = borsh::to_vec(&policy).unwrap();
+            assert_eq!(
+                borsh::from_slice::<BatchAnonymityPolicy>(&bytes).unwrap(),
+                policy
+            );
+        }
+        assert!(borsh::from_slice::<BatchAnonymityPolicy>(&[2]).is_err());
+    }
+
+    #[test]
     fn json_only_results_fields_do_not_change_borsh_bytes() {
         let event_presentation = ElectionEventPresentation::default();
         let event_bytes = borsh::to_vec(&event_presentation).unwrap();

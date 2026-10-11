@@ -153,6 +153,7 @@ import {getGraphQLActionErrorReason} from "@/services/graphqlActionError"
 import {ballotBoxSealPolicyLock, ESealPolicyLock} from "@/services/ElectionStatus"
 import {effectiveSealRecordPolicy} from "@/services/ballotBoxSealPolicy"
 import {sealErrorText} from "@/services/ballotBoxSealErrors"
+import {policyOptions} from "@/services/policyOptions"
 import {timeZoneContextOf} from "@/components/timezones/useTimeZoneContext"
 import {
     CONFIGURE_RESULTS_WEBSITE_POLICY,
@@ -1064,13 +1065,6 @@ export const EditElectionEventDataForm: React.FC<{
         return Object.values(EElectionEventDelegatedVotingPolicy).map((value) => ({
             id: value,
             name: t(`electionEventScreen.field.delegatedVotingPolicy.options.${value}`),
-        }))
-    }
-
-    const batchAnonymityPolicyOptions = () => {
-        return Object.values(EElectionEventBatchAnonymityPolicy).map((value) => ({
-            id: value,
-            name: t(`electionEventScreen.field.batchAnonymityPolicy.options.${value}`),
         }))
     }
 
@@ -2279,7 +2273,11 @@ export const EditElectionEventDataForm: React.FC<{
                         />
                         <SelectInput
                             source={"presentation.batch_anonymity_policy"}
-                            choices={batchAnonymityPolicyOptions()}
+                            choices={policyOptions(
+                                Object.values(EElectionEventBatchAnonymityPolicy),
+                                "electionEventScreen.field.batchAnonymityPolicy.options",
+                                t
+                            )}
                             label={String(
                                 t("electionEventScreen.field.batchAnonymityPolicy.policyLabel")
                             )}
