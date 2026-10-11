@@ -59,6 +59,20 @@ export const Desktop: Story = {
         expect(within(menu).queryByRole("button")).toBeNull()
         expect(menu.querySelector(".user-details")).not.toHaveAttribute("role", "menuitem")
         expect(menu.querySelector(".user-details")).not.toHaveAttribute("tabindex")
+        const entries = within(menu).getAllByRole("menuitem")
+        const menuColor = getComputedStyle(entries[0]).color
+        for (const entry of entries) {
+            const icon = entry.querySelector("svg")
+            if (!icon) throw new Error("Menu icon is missing")
+            expect(getComputedStyle(entry).color).toBe(menuColor)
+            expect(getComputedStyle(icon).color).toBe(getComputedStyle(entry).color)
+            await userEvent.hover(entry)
+            expect(getComputedStyle(icon).color).toBe(menuColor)
+            entry.focus()
+            expect(getComputedStyle(entry).color).toBe(menuColor)
+            expect(getComputedStyle(icon).color).toBe(menuColor)
+            await userEvent.unhover(entry)
+        }
         await userEvent.click(item)
         expect(changeContact).toHaveBeenCalledTimes(1)
         await expect(body.queryByRole("menu")).toBeNull()

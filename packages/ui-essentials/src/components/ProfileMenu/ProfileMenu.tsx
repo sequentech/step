@@ -227,6 +227,10 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                     horizontal: "right",
                 }}
                 slotProps={{paper: {sx: {minWidth: 200, maxWidth: "calc(100vw - 32px)"}}}}
+                sx={{
+                    "& .MuiMenuItem-root": {color: "text.primary"},
+                    "& .MuiListItemIcon-root": {color: "inherit"},
+                }}
                 open={Boolean(anchorEl)}
                 onClose={handleClose}
             >
@@ -274,7 +278,9 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                             userProfile?.openLink?.()
                         }}
                     >
-                        <AccountCircle className="profile-menu-icon" sx={{marginRight: "14px"}} />
+                        <ListItemIcon>
+                            <AccountCircle className="profile-menu-icon" aria-hidden />
+                        </ListItemIcon>
                         {t("header.profile")}
                     </MenuItem>
                 )}
@@ -299,7 +305,9 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                             handleClose()
                         }}
                     >
-                        <LogoutIcon className="profile-logout-icon" sx={{marginRight: "14px"}} />
+                        <ListItemIcon>
+                            <LogoutIcon className="profile-logout-icon" aria-hidden />
+                        </ListItemIcon>
                         {t("logout.buttonText")}
                     </MenuItem>
                 )}
