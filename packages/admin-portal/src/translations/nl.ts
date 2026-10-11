@@ -2949,7 +2949,7 @@ const dutchTranslation: TranslationType = {
             languages: "Talen",
             smsMessage: "SMS-bericht",
             errorSending: "Fout bij verzenden melding: {{error}}",
-            successSending: "Melding succesvol ingepland/verzonden",
+            successSending: "Melding succesvol ingepland",
             method: "Methode Sjabloon",
             type: "Communicatietype",
             alias: "Alias Sjabloon",

@@ -2963,7 +2963,7 @@ const tagalogTranslation: TranslationType = {
             languages: "Mga Wika",
             smsMessage: "Mensaheng SMS",
             errorSending: "Error sa pagpapadala ng abiso: {{error}}",
-            successSending: "Nakaprograma/naipadala nang matagumpay ang abiso",
+            successSending: "Matagumpay na naiskedyul ang abiso",
             method: "Pamamaraan ng Mga Template",
             type: "Uri ng Komunikasyon",
             alias: "Alias ng Template",
