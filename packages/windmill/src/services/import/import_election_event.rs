@@ -395,9 +395,12 @@ pub async fn upsert_keycloak_realm(
     // Imported partial/builtin flows remain closed until the installed
     // registration forms have been verified. Failed verification stays closed.
     realm.registration_allowed = Some(false);
-    // A source realm's unfinished workflow state is not an imported policy.
+    // A source realm's unfinished workflow state is not an imported policy,
+    // nor are its messaging channels: they are published from the imported
+    // configuration, once it validates here.
     if let Some(attributes) = realm.attributes.as_mut() {
         attributes.remove(crate::tasks::migrate_registration_flows::REGISTRATION_RESTORE_ATTRIBUTE);
+        attributes.remove(sequent_core::types::messaging::REALM_ATTR_MESSAGING);
     }
     crate::tasks::migrate_registration_flows::mark_import_registration_pending(
         &mut realm,
@@ -705,7 +708,12 @@ pub async fn process_election_event_file(
     election_event_id: String,
     tenant_id: String,
     is_importing_keys: bool,
-) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
+) -> Result<(
+    ImportElectionEventSchema,
+    HashMap<String, String>,
+    Vec<String>,
+)> {
+    let mut notes = vec![];
     let (mut data, replacement_map) = get_election_event_schema(
         file_election_event_schema,
         Some(election_event_id.clone()),
@@ -918,6 +926,43 @@ pub async fn process_election_event_file(
             .with_context(|| "Error importing the approval matrix")?;
     }
 
+    // Only as `update_event_messaging_config` would store it: with the
+    // importer's messaging-config-write and once it validates against this
+    // tenant's accounts and the new elections. Otherwise the import goes on
+    // without it and its log says why.
+    if let Some(config) = data.messaging_config.as_ref() {
+        use crate::services::messaging::config::{import_event_messaging_config, ImportOutcome};
+        let outcome = import_event_messaging_config(
+            hasura_transaction,
+            &Uuid::parse_str(&tenant_id).with_context(|| "Error parsing the tenant id")?,
+            &Uuid::parse_str(&election_event_id)
+                .with_context(|| "Error parsing the election event id")?,
+            config,
+            &replacement_map,
+            object.messaging_config_permission,
+        )
+        .await
+        .with_context(|| "Error importing the messaging configuration")?;
+        match outcome {
+            ImportOutcome::Imported(projection) => {
+                sequent_core::services::keycloak::update_realm_attributes(
+                    &tenant_id,
+                    &election_event_id,
+                    HashMap::from([(
+                        sequent_core::types::messaging::REALM_ATTR_MESSAGING.to_string(),
+                        serde_json::to_string(&projection)?,
+                    )]),
+                )
+                .await
+                .with_context(|| "Error publishing the messaging channels to the event's realm")?;
+            }
+            ImportOutcome::NotImported(reason) => {
+                warn!(%tenant_id, %election_event_id, "{reason}");
+                notes.push(reason);
+            }
+        }
+    }
+
     if let Some(applications) = data.applications.clone() {
         insert_applications(hasura_transaction, &applications)
             .await
@@ -932,7 +977,7 @@ pub async fn process_election_event_file(
             .with_context(|| "Error inserting support materials")?;
     }
 
-    Ok((data, replacement_map))
+    Ok((data, replacement_map, notes))
 }
 
 #[instrument(err, skip(hasura_transaction, temp_file))]
@@ -1294,13 +1339,15 @@ pub async fn get_zip_entries(
     Ok((zip_entries, election_event_schema))
 }
 
+/// Imports the document. Returns what the import left out, each with its
+/// reason, for the task's log.
 #[instrument(err, skip_all)]
 pub async fn process_document(
     hasura_transaction: &Transaction<'_>,
     object: ImportElectionEventBody,
     election_event_id: String,
     tenant_id: String,
-) -> Result<()> {
+) -> Result<Vec<String>> {
     let importer = object.importer.clone();
     let (temp_file_path, document, document_type, package) = get_document(
         hasura_transaction,
@@ -1352,7 +1399,7 @@ pub async fn process_document(
 
     let may_write_secret_attributes = object.may_write_secret_attributes;
     let secret_write_initiator = object.secret_write_initiator.clone();
-    let (election_event_schema, replacement_map) = process_election_event_file(
+    let (election_event_schema, replacement_map, notes) = process_election_event_file(
         hasura_transaction,
         &document_type,
         &file_election_event_schema,
@@ -1686,7 +1733,7 @@ pub async fn process_document(
         .await?;
     }
 
-    Ok(())
+    Ok(notes)
 }
 
 #[instrument(err, skip_all)]

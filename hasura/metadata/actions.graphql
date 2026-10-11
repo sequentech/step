@@ -987,6 +987,8 @@ input ElectoralLogFilter {
     created_to: String
     statement_timestamp_from: String
     statement_timestamp_to: String
+    channel: String
+    outcome: String
 }
 
 input ElectoralLogOrderBy {
@@ -2862,8 +2864,8 @@ type Mutation {
         sender: jsonb!
         limits: jsonb
         provider_approval: String
-        readiness: String
         is_default: Boolean
+        credentials: jsonb
     ): MessagingAccountOutput
 }
 
@@ -2876,7 +2878,74 @@ type Mutation {
         id: uuid!
         credentials: jsonb!
         generate_verify_token: Boolean
+        generate_report_credentials: Boolean
     ): ReplaceMessagingAccountCredentialsOutput
+}
+
+type Query {
+    messaging_account_callback_url(
+        account_id: uuid!
+    ): MessagingAccountCallbackUrlOutput
+}
+
+type Query {
+    messaging_account_change_impact(
+        account_id: uuid!
+        page_id: String
+    ): MessagingAccountChangeImpactOutput
+}
+
+type Query {
+    messaging_event_stats(election_event_id: uuid!): MessagingEventStatsOutput
+}
+
+type Query {
+    messaging_voter_counts(election_event_id: uuid!): MessagingVoterCountsOutput
+}
+
+type Mutation {
+    messaging_recount_voters(election_event_id: uuid!): MessagingRecountVotersOutput
+}
+
+type Query {
+    messaging_audience_preview(
+        election_event_id: uuid!
+        audience_selection: String
+        voter_ids: [String!]
+    ): MessagingAudiencePreviewOutput
+}
+
+type Query {
+    messaging_monthly_volumes(
+        month: String!
+        election_event_id: uuid
+    ): MessagingMonthlyVolumesOutput
+}
+
+type Query {
+    find_applications_by_support_reference(
+        election_event_id: uuid!
+        reference: String!
+        permission_label: String
+    ): FindApplicationsBySupportReferenceOutput
+}
+
+type Query {
+    messaging_callback_status: MessagingCallbackStatusOutput
+}
+
+type Query {
+    messaging_fake_provider_messages: MessagingFakeProviderMessagesOutput
+}
+
+type Query {
+    messaging_fake_provider_message(id: String!): MessagingFakeProviderMessage
+}
+
+type Mutation {
+    messaging_fake_provider_get_started(
+        link: String!
+    ): MessagingFakeProviderGetStartedOutput
 }
 
 type Mutation {
@@ -2902,15 +2971,159 @@ type Mutation {
 
 type MessagingAccountOutput {
     id: uuid!
+    callback_url: String
+    callback_reason: String
 }
 
 type ReplaceMessagingAccountCredentialsOutput {
     replaced: [String!]!
     verify_token: String
+    report_username: String
+    report_password: String
 }
 
 type CheckMessagingAccountOutput {
     status: jsonb!
+    callback_url: String
+    callback_reason: String
+}
+
+type MessagingAccountCallbackUrlOutput {
+    callback_url: String
+    reason: String
+}
+
+type MessagingAccountChangeImpactOutput {
+    affected_voters: Int!
+    events: Int!
+}
+
+type MessagingCallbackStatusOutput {
+    accounts: [MessagingAccountCallbackStatus!]!
+}
+
+type MessagingFakeProviderMessagesOutput {
+    messages: [MessagingFakeProviderMessage!]!
+}
+
+type MessagingFakeProviderMessage {
+    id: String!
+    provider_message_id: String!
+    received_at: String!
+    channel: String!
+    provider: String!
+    sender: String!
+    recipient: String!
+    content: MessagingFakeProviderContent!
+    report: MessagingFakeProviderReport!
+}
+
+type MessagingFakeProviderContent {
+    text: String
+    subject: String
+    html: String
+    has_html: Boolean!
+    truncated: Boolean!
+    template_name: String
+    template_language: String
+    parameters: [MessagingFakeProviderParameter!]!
+    code: String
+}
+
+type MessagingFakeProviderParameter {
+    name: String
+    value: String!
+}
+
+type MessagingFakeProviderReport {
+    state: String!
+    status: Int
+    reason: String
+}
+
+type MessagingFakeProviderGetStartedOutput {
+    status: Int
+    reason: String
+}
+
+type MessagingAccountCallbackStatus {
+    account_id: uuid!
+    blockers: [String!]!
+    reasons: [String!]!
+}
+
+type MessagingEventStatsOutput {
+    channels: [MessagingChannelStats!]!
+}
+
+type MessagingChannelStats {
+    channel: String
+    sent_last_24h: Int!
+    queued: Int!
+    accepted: Int!
+    delivered: Int!
+    failed: Int!
+    unknown: Int!
+    unresolved: Int!
+}
+
+type MessagingAudiencePreviewOutput {
+    total: Int!
+    will_send: Int!
+    channels: [MessagingAudienceChannel!]!
+    status: MessagingVoterCountStatus!
+}
+
+type MessagingVoterCountStatus {
+    computed_at: String
+    pending: Boolean!
+    outcome: String
+}
+
+type MessagingVoterCountsOutput {
+    total: Int!
+    channels: [MessagingVoterChannel!]!
+    status: MessagingVoterCountStatus!
+}
+
+type MessagingVoterChannel {
+    channel: String
+    voters: Int!
+    not_offered: Int!
+}
+
+type MessagingRecountVotersOutput {
+    requested: Boolean!
+    status: MessagingVoterCountStatus!
+}
+
+type MessagingAudienceChannel {
+    channel: String
+    voters: Int!
+    not_offered: Int!
+    sends_from: String
+    account_id: uuid
+    account_name: String
+}
+
+type MessagingMonthlyVolumesOutput {
+    month: String!
+    rows: [MessagingMonthlyVolume!]!
+}
+
+type MessagingMonthlyVolume {
+    channel: String!
+    account_id: uuid
+    account_name: String
+    destination_country: String
+    billing_category: String
+    billable: Boolean
+    messages: Int!
+}
+
+type FindApplicationsBySupportReferenceOutput {
+    reference: String!
+    application_ids: [uuid!]!
 }
 
 type TestMessagingAccountOutput {

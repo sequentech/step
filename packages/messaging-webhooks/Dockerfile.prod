@@ -1,0 +1,99 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The messaging webhook component: the one public entrypoint for provider
+# callbacks. It relays each callback, signed, to harvest's internal
+# /messaging/callbacks and holds no database, vault or provider secret, so its
+# runtime image carries only TLS libraries and certificates.
+#
+# Built from packages/ like harvest's image, with the same optional offline
+# dependency source (VENDOR_IMAGE) and pinned Debian snapshot.
+ARG DEBIAN_SNAPSHOT=20260929T000000Z
+
+ARG VENDOR_IMAGE=scratch
+FROM ${VENDOR_IMAGE} AS vendor
+
+FROM rust:1.96.0-slim-bookworm@sha256:4732ca96fd086cb9be682050c3f0176288eebaac2b80aa2bcefccfaf198e1950 as builder
+
+WORKDIR /app
+
+# Resolve apt against the pinned snapshot rather than the live mirror.
+ARG DEBIAN_SNAPSHOT
+RUN set -eux; \
+    rm -f /etc/apt/sources.list.d/debian.sources; \
+    { \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm-updates main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/${DEBIAN_SNAPSHOT} bookworm-security main"; \
+    } > /etc/apt/sources.list
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    protobuf-compiler \
+    libprotobuf-dev \
+    m4 \
+    make \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Every workspace member, or cargo can't load the workspace.
+COPY ./braid ./braid
+COPY ./b4 ./b4
+COPY ./electoral-log ./electoral-log
+COPY ./harvest ./harvest
+COPY ./strand ./strand
+COPY ./immu-board ./immu-board
+COPY ./immudb-rs ./immudb-rs
+COPY ./sequent-core ./sequent-core
+COPY ./velvet ./velvet
+COPY ./windmill ./windmill
+COPY ./e2e ./e2e
+COPY ./step-cli ./step-cli
+COPY ./orare ./orare
+COPY ./wrap-map-err ./wrap-map-err
+COPY ./messaging ./messaging
+COPY ./messaging-webhooks ./messaging-webhooks
+COPY ./plugins ./plugins
+COPY ./Cargo.toml ./Cargo.toml
+COPY ./Cargo.lock ./Cargo.lock
+COPY ./.cargo ./.cargo
+
+# Vendored crates when a vendor image was supplied, as in harvest's image.
+COPY --from=vendor / /vendor/
+RUN if [ -d /vendor/vendor-cache ]; then \
+        mkdir -p .cargo && \
+        { echo; sed 's|^directory = .*|directory = "/vendor/vendor-cache"|' \
+            /vendor/vendor-cache/config.toml; } >> .cargo/config.toml && \
+        printf '\n[net]\noffline = true\n' >> .cargo/config.toml && \
+        echo "offline build: using vendored crates from /vendor/vendor-cache"; \
+    fi
+
+WORKDIR /app/messaging-webhooks
+RUN cargo build --release --locked -p messaging-webhooks --bin messaging-webhooks
+
+
+FROM debian:bookworm@sha256:f37a335e82bca302e955fa39f9dfe28f1be618f016f8a2b56318e5a5111afc26
+ENV ROCKET_ADDRESS=0.0.0.0
+ENV ROCKET_PORT=8410
+EXPOSE 8410
+
+ARG DEBIAN_SNAPSHOT
+RUN set -eux; \
+    rm -f /etc/apt/sources.list.d/debian.sources; \
+    { \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm-updates main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/${DEBIAN_SNAPSHOT} bookworm-security main"; \
+    } > /etc/apt/sources.list
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libssl3 ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /app/target/release/messaging-webhooks /usr/local/bin/messaging-webhooks
+
+# No root needed: the component only listens and relays.
+USER nobody
+WORKDIR /usr/local/bin
+CMD ["messaging-webhooks"]

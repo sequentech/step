@@ -32,6 +32,10 @@ pub struct ImportElectionEventBody {
     /// signing configuration's log entries name them.
     #[serde(default)]
     pub importer: Option<ElectoralLogAdminContext>,
+    /// Whether the importer holds `messaging-config-write`, set by the
+    /// server: a bundle's messaging configuration is imported only then.
+    #[serde(default)]
+    pub messaging_config_permission: crate::services::messaging::config::MessagingConfigPermission,
 }
 
 #[instrument(err)]
@@ -43,19 +47,24 @@ pub async fn import_election_event(
     tenant_id: String,
     task_execution: TasksExecution,
 ) -> Result<()> {
+    // What the import left out, with its reason, for the task's log.
+    let notes = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
     let result = provide_hasura_transaction(|hasura_transaction| {
         let object = object.clone();
         let tenant_id = tenant_id.clone();
         let election_event_id = election_event_id.clone();
+        let notes = notes.clone();
 
         Box::pin(async move {
-            import_election_event_service::process_document(
+            let imported = import_election_event_service::process_document(
                 hasura_transaction,
                 object,
                 election_event_id,
                 tenant_id,
             )
-            .await
+            .await?;
+            *notes.lock().unwrap_or_else(|e| e.into_inner()) = imported;
+            Ok(())
         })
     })
     .await;
@@ -65,6 +74,16 @@ pub async fn import_election_event(
             // Execute database maintenance
             info!("Performing mainteinance after election event import.");
             vacuum_analyze_direct().await?;
+            let mut task_execution = task_execution.clone();
+            for note in notes.lock().unwrap_or_else(|e| e.into_inner()).iter() {
+                task_execution.logs = serde_json::to_value(
+                    crate::services::serialize_tasks_logs::append_general_log(
+                        &task_execution.logs,
+                        note,
+                    ),
+                )
+                .ok();
+            }
             let _ = update_complete(&task_execution, Some(object.document_id.clone())).await;
             Ok(())
         }

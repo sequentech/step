@@ -171,6 +171,15 @@ pub async fn read_export_data(
         .map(|saved| serde_json::to_value(saved.matrix))
         .transpose()?;
 
+    // The messaging configuration travels with the event, as stored.
+    let messaging_config = crate::postgres::messaging::get_messaging_event_config(
+        &transaction,
+        &Uuid::parse_str(tenant_id)?,
+        &Uuid::parse_str(election_event_id)?,
+    )
+    .await?
+    .map(|stored| stored.config);
+
     let mut import_election_event_schema = ImportElectionEventSchema {
         // parse_uuid_v4 still runs: the schema now carries a String, but an
         // export must not emit a tenant id that is not a UUID.
@@ -190,6 +199,7 @@ pub async fn read_export_data(
         signing_rules: None,
         signing_checks: None,
         approval_matrix,
+        messaging_config,
         version,
     };
 
