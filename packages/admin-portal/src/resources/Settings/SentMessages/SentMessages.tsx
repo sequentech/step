@@ -26,6 +26,7 @@ import {EmailInbox, EmailReadingPane} from "./EmailInbox"
 import {ReportResult} from "./ReportResult"
 import {
     contentPreview,
+    demoMessageText,
     formatTime,
     newestFirst,
     parameterText,
@@ -41,6 +42,7 @@ import {
 const MessageDetails: React.FC<{message: IFakeProviderMessage}> = ({message}) => {
     const {t} = useTranslation()
     const {content} = message
+    const messageText = demoMessageText(content, t)
     if (message.channel === EMessageChannel.EMAIL) {
         return <EmailReadingPane message={message} />
     }
@@ -60,9 +62,9 @@ const MessageDetails: React.FC<{message: IFakeProviderMessage}> = ({message}) =>
                     {templateLabel(content, t)}
                 </Typography>
             ) : null}
-            {content.text ? (
+            {messageText ? (
                 <Typography variant="body2" sx={{whiteSpace: "pre-wrap"}}>
-                    {content.text}
+                    {messageText}
                 </Typography>
             ) : null}
             {(content.parameters ?? []).map((parameter, index) => (

@@ -6033,6 +6033,13 @@ const englishTranslation = {
                 unavailable: "No delivery reports on this channel",
             },
             content: {
+                demoCode:
+                    "{{code}} is your verification code. For your security, do not share this code with anyone.",
+                demoNotice:
+                    "Voting reminder\n\nHello {{name}}, voting is now open for {{event}}.\n\nSign in to the voting portal to review your ballot and cast your vote:\n{{url}}\n\nDo not share your sign-in code with anyone. If you have already voted, no further action is needed.",
+                demoLegacyNotice:
+                    "Voting reminder\n\nHello {{name}}, voting is now open. Sign in to the voting portal to cast your vote:\n{{url}}\n\nDo not share your sign-in code with anyone.",
+
                 template: "Template {{name}} ({{language}})",
                 noText: "(no text)",
                 code: "Code",

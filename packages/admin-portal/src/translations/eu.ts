@@ -6114,6 +6114,13 @@ const basqueTranslation: TranslationType = {
                 unavailable: "Kanal honek ez du entrega-txostenik",
             },
             content: {
+                demoCode:
+                    "{{code}} zure egiaztapen kodea da. Zure segurtasunerako, ez partekatu kode hau inorekin.",
+                demoNotice:
+                    "Bozkatzeko oroigarria\n\nKaixo {{name}}, {{event}} ekitaldirako bozketa irekita dago.\n\nHasi saioa bozketa atarian zure boto-papera berrikusi eta botoa emateko:\n{{url}}\n\nEz partekatu saioa hasteko kodea inorekin. Botoa eman baduzu, ez duzu beste ezer egin behar.",
+                demoLegacyNotice:
+                    "Bozkatzeko oroigarria\n\nKaixo {{name}}, bozketa irekita dago. Hasi saioa bozketa atarian botoa emateko:\n{{url}}\n\nEz partekatu saioa hasteko kodea inorekin.",
+
                 template: "{{name}} txantiloia ({{language}})",
                 noText: "(testurik gabe)",
                 code: "Kodea",

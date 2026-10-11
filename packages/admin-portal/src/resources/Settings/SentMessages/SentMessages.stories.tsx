@@ -150,7 +150,9 @@ export const Viber: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await userEvent.click(canvas.getByRole("button", {name: chatButton(VIBER_VOTER)}))
-        await expect(canvas.getByText("Template tpl-otp-en (en)")).toBeVisible()
+        await expect(
+            canvas.getByText(/is your verification code.*do not share this code/)
+        ).toBeVisible()
         expect(canvas.queryByRole("button", {name: "Copy code"})).toBeNull()
     },
 }

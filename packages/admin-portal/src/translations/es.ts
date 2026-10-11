@@ -6121,6 +6121,13 @@ const spanishTranslation: TranslationType = {
                 unavailable: "Este canal no tiene informes de entrega",
             },
             content: {
+                demoCode:
+                    "{{code}} es su código de verificación. Por su seguridad, no lo comparta con nadie.",
+                demoNotice:
+                    "Recordatorio de votación\n\nHola {{name}}, la votación de {{event}} ya está abierta.\n\nAcceda al portal de votación para revisar su papeleta y emitir su voto:\n{{url}}\n\nNo comparta su código de acceso con nadie. Si ya ha votado, no necesita hacer nada más.",
+                demoLegacyNotice:
+                    "Recordatorio de votación\n\nHola {{name}}, la votación ya está abierta. Acceda al portal de votación para emitir su voto:\n{{url}}\n\nNo comparta su código de acceso con nadie.",
+
                 template: "Plantilla {{name}} ({{language}})",
                 noText: "(sin texto)",
                 code: "Código",

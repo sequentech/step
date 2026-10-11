@@ -28,12 +28,34 @@ export const templateLabel = (content: IFakeMessageContent, t: TFunction): strin
         language: content.template_language ?? "",
     })
 
+/** Known local demo templates have approved sample copy, unlike arbitrary provider IDs. */
+export const demoMessageText = (content: IFakeMessageContent, t: TFunction): string | null => {
+    if (content.text) return content.text
+    const lng = content.template_language?.replace("_", "-") || "en"
+    if (content.template_name === "step_code" && content.code) {
+        return t("sentMessages.content.demoCode", {lng, code: content.code})
+    }
+    if (content.template_name !== "step_notice") return null
+    const parameters = content.parameters ?? []
+    const [name, event, url] = parameters.map(({value}) => value)
+    if (parameters.length === 3 && name && event && url) {
+        return t("sentMessages.content.demoNotice", {lng, name, event, url})
+    }
+    // Previously seeded reminders carried only the greeting and portal URL.
+    if (parameters.length === 2 && name && /^https?:\/\//i.test(event)) {
+        return t("sentMessages.content.demoLegacyNotice", {lng, name, url: event})
+    }
+    return null
+}
+
 /** One line for a table cell or a chat list. */
 export const contentPreview = (message: IFakeProviderMessage, t: TFunction): string => {
     const {content} = message
     if (message.channel === EMessageChannel.EMAIL) {
         return content.subject || t("sentMessages.email.noSubject")
     }
+    const messageText = demoMessageText(content, t)
+    if (messageText) return messageText
     if (content.template_name) {
         const parameters = (content.parameters ?? []).map(parameterText).join(", ")
         const template = templateLabel(content, t)

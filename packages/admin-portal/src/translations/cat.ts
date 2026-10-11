@@ -6132,6 +6132,13 @@ const catalanTranslation: TranslationType = {
                 unavailable: "Aquest canal no té informes de lliurament",
             },
             content: {
+                demoCode:
+                    "{{code}} és el vostre codi de verificació. Per seguretat, no el compartiu amb ningú.",
+                demoNotice:
+                    "Recordatori de votació\n\nHola {{name}}, la votació de {{event}} ja està oberta.\n\nAccediu al portal de votació per revisar la papereta i emetre el vostre vot:\n{{url}}\n\nNo compartiu el codi d’accés amb ningú. Si ja heu votat, no cal fer res més.",
+                demoLegacyNotice:
+                    "Recordatori de votació\n\nHola {{name}}, la votació ja està oberta. Accediu al portal de votació per emetre el vostre vot:\n{{url}}\n\nNo compartiu el codi d’accés amb ningú.",
+
                 template: "Plantilla {{name}} ({{language}})",
                 noText: "(sense text)",
                 code: "Codi",
