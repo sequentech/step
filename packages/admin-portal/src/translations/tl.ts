@@ -5364,7 +5364,7 @@ const tagalogTranslation: TranslationType = {
                 template: "Template ng provider",
                 status: "Katayuan",
                 post: "Post",
-                key: "Para sa mensahe",
+                key: "Uri ng mensahe o template",
                 providerLanguage: "Wika ng provider",
                 voters: "Mga botanteng gumagamit nito",
                 sent24h: "Naipadala, huling 24 oras",
@@ -5375,16 +5375,27 @@ const tagalogTranslation: TranslationType = {
                 utility:
                     "Sa labas ng 24 na oras na window, ipinapadala ng {{channel}} ang mga abiso gamit ang aprubadong utility template na nakaugnay sa mga abiso sa Mga aprubadong template.",
             },
+            messageTypes: {
+                otp: "Code ng pagpapatunay",
+                otl: "Link sa pag-sign in",
+                enrollmentAccepted: "Tinanggap ang pagpaparehistro",
+                enrollmentAcceptedKiosk: "Tinanggap ang pagpaparehistro (kiosk)",
+                enrollmentPending: "Naghihintay ng pag-apruba ang pagpaparehistro",
+                enrollmentRejected: "Tinanggihan ang pagpaparehistro",
+                passwordReset: "Pag-reset ng password",
+                temporaryPassword: "Pansamantalang password",
+                contactChanged: "Binago ang paraan ng pakikipag-ugnayan",
+            },
             templates: {
                 empty: "Pumili ng account na nagpapadala ng mga aprubadong template, gaya ng WhatsApp, Viber o Messenger, para iugnay dito ang mga template nito.",
-                help: "Sinasabi ng bawat hilera kung aling aprubadong template ang ipinapadala ng provider para sa isang mensahe. Ang Para sa mensahe ay ang alias ng isang template sa Templates, para sa isang notification, o ang message key na ipinapadala ng Keycloak, gaya ng otp; iwanang walang laman para sa template na ginagamit bilang default para sa layunin. Ang Wika ay ang wika ng botante. Ang Template ng provider ay ang pangalan o ID ng template sa provider. Ang Wika ng provider ay ang code ng provider para sa template na iyon kapag iba ito sa wika ng botante: kailangan ng WhatsApp ang eksaktong code ng aprubadong template, gaya ng en_US.",
+                help: "Pumili ng uri ng mensahe ng sistema o alias mula sa Mga Template. Iwanang walang laman upang gamitin ang aprubadong template bilang default para sa layuning ito. Ang Wika ay ang wika ng botante. Ang Template ng provider ay ang pangalan o ID ng template sa provider. Ang Wika ng provider ay ang code ng provider para sa template na iyon kapag iba ito sa wika ng botante: kailangan ng WhatsApp ang eksaktong code ng aprubadong template, gaya ng en_US.",
                 order: "Para sa bawat mensahe, ang pinakatiyak na hilera ang nananaig: ang hilera para sa mensahe sa wika ng botante, pagkatapos ang hilera para sa mensahe sa anumang wika, pagkatapos ang default para sa layunin sa wika ng botante, at panghuli ang anumang default para sa layunin.",
                 noneRequired:
                     "Mga aprubadong template lamang ang ipinapadala ng {{channel}}. Magdagdag ng kahit isang default na template para sa bawat layuning ginagamit.",
                 noneOptional:
                     "Walang template na nakaugnay para sa {{channel}}. Kailangan lamang ang mga ito para magpadala ng mga abiso sa labas ng window ng usapan.",
                 row: "Template {{position}} ng {{channel}}",
-                keyDefault: "Default para sa layunin",
+                keyDefault: "Default para sa layuning ito",
                 add: "Magdagdag ng template ng {{channel}}",
                 remove: "Alisin ang template {{position}} ng {{channel}}",
                 incomplete:

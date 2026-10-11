@@ -5332,7 +5332,7 @@ const spanishTranslation: TranslationType = {
                 template: "Plantilla del proveedor",
                 status: "Estado",
                 post: "Post",
-                key: "Para el mensaje",
+                key: "Tipo de mensaje o plantilla",
                 providerLanguage: "Idioma del proveedor",
                 voters: "Votantes que lo usan",
                 sent24h: "Enviados, últimas 24 h",
@@ -5343,16 +5343,27 @@ const spanishTranslation: TranslationType = {
                 utility:
                     "Fuera de la ventana de 24 horas, {{channel}} envía los avisos con la plantilla de utilidad aprobada vinculada a los avisos en Plantillas aprobadas.",
             },
+            messageTypes: {
+                otp: "Código de verificación",
+                otl: "Enlace de acceso",
+                enrollmentAccepted: "Inscripción aceptada",
+                enrollmentAcceptedKiosk: "Inscripción aceptada (quiosco)",
+                enrollmentPending: "Inscripción pendiente de aprobación",
+                enrollmentRejected: "Inscripción rechazada",
+                passwordReset: "Restablecimiento de contraseña",
+                temporaryPassword: "Contraseña temporal",
+                contactChanged: "Método de contacto cambiado",
+            },
             templates: {
                 empty: "Elija una cuenta que envíe plantillas aprobadas, como WhatsApp, Viber o Messenger, para vincular aquí sus plantillas.",
-                help: "Cada fila indica qué plantilla aprobada envía el proveedor para un mensaje. Para el mensaje es el alias de una plantilla de Plantillas, para una notificación, o la clave de mensaje que envía Keycloak, como otp; déjelo vacío para la plantilla que se usa por defecto para el propósito. Idioma es el idioma del votante. Plantilla del proveedor es el nombre o ID de la plantilla en el proveedor. Idioma del proveedor es el código del proveedor para esa plantilla cuando difiere del idioma del votante: WhatsApp necesita el código exacto de la plantilla aprobada, como en_US.",
+                help: "Seleccione un tipo de mensaje del sistema o un alias de Plantillas. Déjelo vacío para usar la plantilla aprobada por defecto para este propósito. Idioma es el idioma del votante. Plantilla del proveedor es el nombre o ID de la plantilla en el proveedor. Idioma del proveedor es el código del proveedor para esa plantilla cuando difiere del idioma del votante: WhatsApp necesita el código exacto de la plantilla aprobada, como en_US.",
                 order: "Para cada mensaje gana la fila más específica: la fila del mensaje en el idioma del votante, después la fila del mensaje en cualquier idioma, después la predeterminada del propósito en el idioma del votante y, por último, cualquier predeterminada del propósito.",
                 noneRequired:
                     "{{channel}} solo envía plantillas aprobadas. Añada al menos una plantilla predeterminada para cada propósito en uso.",
                 noneOptional:
                     "No hay plantillas vinculadas para {{channel}}. Solo hacen falta para enviar avisos fuera de la ventana de conversación.",
                 row: "Plantilla {{position}} de {{channel}}",
-                keyDefault: "Predeterminada del propósito",
+                keyDefault: "Predeterminada para este propósito",
                 add: "Añadir plantilla de {{channel}}",
                 remove: "Quitar la plantilla {{position}} de {{channel}}",
                 incomplete: "Indique el idioma y la plantilla del proveedor, o quite esta fila.",
