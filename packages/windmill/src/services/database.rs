@@ -5,9 +5,10 @@
 use anyhow::{anyhow, Result};
 use celery::export::Arc;
 use config::{Config, ConfigError, Environment};
-use deadpool_postgres::{Client, Pool, PoolError, Runtime, SslMode};
+use deadpool_postgres::{Client, Pool, PoolConfig, PoolError, Runtime, SslMode};
 use serde::{Deserialize, Serialize};
 use std::env;
+use std::time::Duration;
 use tracing::instrument;
 
 use super::sql_utils::assert_standard_conforming_strings;
@@ -155,6 +156,10 @@ pub async fn generate_hasura_pool() -> Result<Arc<Pool>> {
     }
 }
 
+/// Connection and pool limits of the task-queue database unless `QUEUE_DB__*` sets them, so
+/// a request fails fast instead of waiting on an unreachable database.
+const QUEUE_DB_TIMEOUT: Duration = Duration::from_secs(5);
+
 /// The user of read-only queue inspection (the reader role), for Harvest.
 pub const QUEUE_DB_READER_USER_ENV: &str = "QUEUE_DB_READER_USER";
 pub const QUEUE_DB_READER_PASSWORD_ENV: &str = "QUEUE_DB_READER_PASSWORD";
@@ -188,7 +193,12 @@ pub async fn generate_queue_reader_pool() -> Result<Arc<Pool>> {
     create_queue_pool(config)
 }
 
-fn create_queue_pool(config: deadpool_postgres::Config) -> Result<Arc<Pool>> {
+fn create_queue_pool(mut config: deadpool_postgres::Config) -> Result<Arc<Pool>> {
+    config.connect_timeout.get_or_insert(QUEUE_DB_TIMEOUT);
+    let timeouts = &mut config.pool.get_or_insert_with(PoolConfig::default).timeouts;
+    timeouts.wait.get_or_insert(QUEUE_DB_TIMEOUT);
+    timeouts.create.get_or_insert(QUEUE_DB_TIMEOUT);
+    timeouts.recycle.get_or_insert(QUEUE_DB_TIMEOUT);
     cfg_if::cfg_if! {
         if #[cfg(any(feature = "fips_core", feature = "fips_full"))] {
             if  config.ssl_mode == Some(SslMode::Prefer) ||
@@ -256,16 +266,26 @@ pub async fn get_keycloak_pool() -> Arc<Pool> {
 }
 
 pub async fn get_queue_pool() -> Arc<Pool> {
+    try_get_queue_pool()
+        .await
+        .expect("Task-queue DB: could not create the pool")
+}
+
+/// The task-queue pool, or the error that kept it from being created; a later call tries again.
+pub async fn try_get_queue_pool() -> Result<Arc<Pool>> {
     QUEUE_POOL
-        .get_or_init(|| async {
-            let pool = generate_queue_pool().await.unwrap();
-            assert_standard_conforming_strings(&pool)
+        .get_or_try_init(|| async {
+            let pool = generate_queue_pool().await?;
+            tokio::time::timeout(QUEUE_DB_TIMEOUT, assert_standard_conforming_strings(&pool))
                 .await
-                .expect("Task-queue DB: standard_conforming_strings check failed");
-            pool
+                .map_err(|_| anyhow!("Task-queue DB: standard_conforming_strings check timed out"))?
+                .map_err(|error| {
+                    anyhow!("Task-queue DB: standard_conforming_strings check failed: {error}")
+                })?;
+            Ok::<_, anyhow::Error>(pool)
         })
         .await
-        .clone()
+        .cloned()
 }
 
 /// The reader pool, or an error when the reader role is not configured; a later call

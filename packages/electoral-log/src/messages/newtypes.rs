@@ -343,14 +343,43 @@ pub enum ElectoralLogCheckpointReason {
     Periodic,
 }
 
-/// A published checkpoint of the board's Merkle log, recorded in the log itself.
+/// A published checkpoint of the board's Merkle log, recorded in the log itself, as
+/// the first log format named the log: by its key in one database. Readers still
+/// decode it; writers record `ElectoralLogCheckpointV2`.
 #[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
 pub struct ElectoralLogCheckpoint {
-    /// Trellis log generation.
+    /// Key of the Trellis log in the database that stored it.
     pub log_id: i64,
     /// Entries covered by the root.
     pub tree_size: u64,
     /// Hex-encoded SHA-256 root.
     pub root: String,
     pub reason: ElectoralLogCheckpointReason,
+}
+
+/// A published checkpoint of the board's Merkle log, recorded in the log itself.
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
+pub struct ElectoralLogCheckpointV2 {
+    /// Identity of the Trellis log, as a hyphenated UUID.
+    pub log_uid: String,
+    /// Entries covered by the root.
+    pub tree_size: u64,
+    /// Hex-encoded SHA-256 root.
+    pub root: String,
+    pub reason: ElectoralLogCheckpointReason,
+}
+
+/// The first record of a log that continues another one, as an imported election
+/// event's log continues the log of the event it was exported from. It commits to the
+/// last checkpoint of the previous log, which is kept, sealed, in the same database.
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
+pub struct ElectoralLogContinuation {
+    /// Board name of the previous log.
+    pub previous_log_name: String,
+    /// Identity of the previous log, as a hyphenated UUID.
+    pub previous_log_uid: String,
+    /// Entries of the previous log.
+    pub tree_size: u64,
+    /// Hex-encoded SHA-256 root of the previous log.
+    pub root: String,
 }

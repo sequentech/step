@@ -4,37 +4,79 @@
 use crate::domain::LogEntry;
 use crate::messages::newtypes::ElectoralLogCheckpointReason;
 use anyhow::Result;
+use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use strand::signature::{StrandSignature, StrandSignaturePk};
 pub use trellis::journal::{
-    Checkpoint, Consistency, Evidence, Inclusion, Journal, JournalError, TreeAudit,
+    Checkpoint, Consistency, Evidence, Inclusion, Journal, JournalError, LogState, LogSummary,
+    TreeAudit,
 };
+pub use uuid::Uuid;
 
-/// Domain tag of the first record-commitment format. Changing the encoding requires a new tag.
-pub const LEAF_FORMAT_V1: &str = "sequent-electoral-log-v1";
+/// Domain tag of the record-commitment format. Changing the encoding requires a new tag.
+pub const LEAF_FORMAT_V2: &str = "sequent-electoral-log-v2";
 
-/// Hash the exact stored record, including its database ID and delivery identity.
+/// The log a record is committed to: its board name and its identity.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct LogIdentity {
+    pub name: String,
+    pub uid: Uuid,
+}
+impl LogIdentity {
+    /// The log a checkpoint belongs to.
+    pub fn of(checkpoint: &Checkpoint) -> Self {
+        Self {
+            name: checkpoint.log_name.clone(),
+            uid: checkpoint.log_uid,
+        }
+    }
+}
+
+/// Commit to a record of a log: the log's identity, the record's delivery ID and its
+/// fields, but not where a database stores it. A log copied to another database, in
+/// the same order, keeps its roots.
 ///
-/// The commitment is SHA-256 over the compact JSON array
-/// `[LEAF_FORMAT_V1, board, entry]`, with `entry` fields in declaration order.
-pub fn leaf_hash(board: &str, entry: &LogEntry) -> Result<Vec<u8>> {
-    Ok(Sha256::digest(serde_json::to_vec(&(LEAF_FORMAT_V1, board, entry))?).to_vec())
+/// The commitment is SHA-256 over the compact JSON array `[LEAF_FORMAT_V2, log_name,
+/// log_uid, delivery_id, created, sender_pk, statement_timestamp, statement_kind,
+/// base64(message), version, user_id, username, election_id, area_id, ballot_id]`,
+/// with the UUID hyphenated in lowercase, base64 with padding and absent values as
+/// `null`.
+pub fn leaf_hash(log: &LogIdentity, entry: &LogEntry) -> Result<Vec<u8>> {
+    let record = &entry.message;
+    let preimage = serde_json::to_vec(&(
+        LEAF_FORMAT_V2,
+        &log.name,
+        log.uid.hyphenated().to_string(),
+        &entry.delivery_id,
+        record.created,
+        &record.sender_pk,
+        record.statement_timestamp,
+        &record.statement_kind,
+        STANDARD.encode(&record.message),
+        &record.version,
+        &record.user_id,
+        &record.username,
+        &record.election_id,
+        &record.area_id,
+        &record.ballot_id,
+    ))?;
+    Ok(Sha256::digest(preimage).to_vec())
 }
 
 /// Domain tag of signed checkpoint publications.
-pub const CHECKPOINT_FORMAT_V1: &str = "sequent-electoral-log-checkpoint-v1";
+pub const CHECKPOINT_FORMAT_V2: &str = "sequent-electoral-log-checkpoint-v2";
 
 /// Bytes signed when a checkpoint is published: the compact JSON array
-/// `[CHECKPOINT_FORMAT_V1, log_name, log_id, tree_size, hex(root), reason]`.
+/// `[CHECKPOINT_FORMAT_V2, log_name, log_uid, tree_size, hex(root), reason]`.
 pub fn checkpoint_signing_bytes(
     checkpoint: &Checkpoint,
     reason: ElectoralLogCheckpointReason,
 ) -> Result<Vec<u8>> {
     Ok(serde_json::to_vec(&(
-        CHECKPOINT_FORMAT_V1,
+        CHECKPOINT_FORMAT_V2,
         &checkpoint.log_name,
-        checkpoint.log_id,
+        checkpoint.log_uid.hyphenated().to_string(),
         checkpoint.tree_size,
         hex::encode(&checkpoint.root),
         reason.to_string(),
@@ -83,7 +125,7 @@ impl RecordProof {
     /// Without a consistency proof the trusted checkpoint must be exactly the inclusion
     /// checkpoint; with one, it must be the checkpoint the consistency proof extends.
     pub fn verify(&self, trusted: &Checkpoint) -> Result<()> {
-        let hash = leaf_hash(&trusted.log_name, &self.entry)?;
+        let hash = leaf_hash(&LogIdentity::of(trusted), &self.entry)?;
         match &self.consistency {
             Some(consistency) => {
                 consistency.verify(trusted)?;
@@ -99,10 +141,15 @@ mod tests {
     use super::*;
     use crate::domain::ElectoralLogMessage;
 
-    /// Historical proofs depend on these exact bytes; never update this vector in place.
-    #[test]
-    fn v1_leaf_encoding_is_stable() {
-        let entry = LogEntry {
+    fn identity() -> LogIdentity {
+        LogIdentity {
+            name: "tenantboard".into(),
+            uid: Uuid::parse_str("0b6f1c7e-2a3d-4e5f-8a9b-0c1d2e3f4a5b").unwrap(),
+        }
+    }
+
+    fn entry() -> LogEntry {
+        LogEntry {
             delivery_id: "delivery-1".into(),
             message: ElectoralLogMessage {
                 id: 42,
@@ -118,16 +165,62 @@ mod tests {
                 area_id: None,
                 ballot_id: Some("00ff".into()),
             },
+        }
+    }
+
+    /// Historical proofs depend on these exact bytes; never update this vector in place.
+    #[test]
+    fn v2_leaf_encoding_is_stable() {
+        let preimage = r#"["sequent-electoral-log-v2","tenantboard","0b6f1c7e-2a3d-4e5f-8a9b-0c1d2e3f4a5b","delivery-1",1700000000,"sender-pk",1700000001,"CastVote","AP+AJwA=","2","user-1","O'Brien","election-a",null,"00ff"]"#;
+        assert_eq!(
+            leaf_hash(&identity(), &entry()).unwrap(),
+            Sha256::digest(preimage.as_bytes()).to_vec()
+        );
+        assert_eq!(
+            hex::encode(leaf_hash(&identity(), &entry()).unwrap()),
+            "28e9ae58c65e0ed83b06779d38e55ac966d37c3e40bdef19d4d00f080e25018e"
+        );
+    }
+
+    /// The commitment does not depend on where a database stores the record, and
+    /// changes with the log and with every field.
+    #[test]
+    fn leaves_commit_to_the_log_and_the_record_but_not_its_storage() {
+        let hash = |log: &LogIdentity, entry: &LogEntry| leaf_hash(log, entry).unwrap();
+        let original = hash(&identity(), &entry());
+        let mut stored_elsewhere = entry();
+        stored_elsewhere.message.id = 7;
+        assert_eq!(hash(&identity(), &stored_elsewhere), original);
+        let other_name = LogIdentity {
+            name: "other".into(),
+            ..identity()
         };
-        let encoded = serde_json::to_string(&(LEAF_FORMAT_V1, "tenantboard", &entry)).unwrap();
-        assert_eq!(
-            encoded,
-            r#"["sequent-electoral-log-v1","tenantboard",{"delivery_id":"delivery-1","message":{"id":42,"created":1700000000,"sender_pk":"sender-pk","statement_timestamp":1700000001,"statement_kind":"CastVote","message":[0,255,128,39,0],"version":"2","user_id":"user-1","username":"O'Brien","election_id":"election-a","area_id":null,"ballot_id":"00ff"}}]"#
-        );
-        assert_eq!(
-            hex::encode(leaf_hash("tenantboard", &entry).unwrap()),
-            "da558ad92d0d8f516b7b3102cc472b8a9b66a53d30cba9c9d497819c1eb282d1"
-        );
+        let other_uid = LogIdentity {
+            uid: Uuid::from_u128(1),
+            ..identity()
+        };
+        assert_ne!(hash(&other_name, &entry()), original);
+        assert_ne!(hash(&other_uid, &entry()), original);
+        let changes: [fn(&mut LogEntry); 13] = [
+            |e| e.delivery_id.push('x'),
+            |e| e.message.created += 1,
+            |e| e.message.sender_pk.push('x'),
+            |e| e.message.statement_timestamp += 1,
+            |e| e.message.statement_kind.push('x'),
+            |e| e.message.message.push(0),
+            |e| e.message.version.push('x'),
+            |e| e.message.user_id = None,
+            |e| e.message.username = None,
+            |e| e.message.election_id = None,
+            |e| e.message.area_id = Some(String::new()),
+            |e| e.message.ballot_id = None,
+            |e| e.message.username = Some("O'Brien ".into()),
+        ];
+        for change in changes {
+            let mut changed = entry();
+            change(&mut changed);
+            assert_ne!(hash(&identity(), &changed), original, "{changed:?}");
+        }
     }
 
     #[test]
@@ -139,7 +232,7 @@ mod tests {
             .unwrap();
         let checkpoint = Checkpoint {
             log_name: "board".into(),
-            log_id: 3,
+            log_uid: Uuid::from_u128(3),
             tree_size: 9,
             root: vec![5; 32],
         };
@@ -148,7 +241,7 @@ mod tests {
         assert_eq!(
             String::from_utf8(bytes.clone()).unwrap(),
             format!(
-                r#"["{CHECKPOINT_FORMAT_V1}","board",3,9,"{}","TALLY_COMPLETED"]"#,
+                r#"["{CHECKPOINT_FORMAT_V2}","board","00000000-0000-0000-0000-000000000003",9,"{}","TALLY_COMPLETED"]"#,
                 "05".repeat(32)
             )
         );
@@ -162,7 +255,7 @@ mod tests {
                 ..checkpoint.clone()
             },
             Checkpoint {
-                log_id: 4,
+                log_uid: Uuid::from_u128(4),
                 ..checkpoint.clone()
             },
             Checkpoint {

@@ -22,6 +22,7 @@ use std::str::FromStr;
 use std::time::{Duration, SystemTime};
 use strum_macros::{Display, EnumString};
 use tracing::instrument;
+use uuid::Uuid;
 
 /// Environment variable with the copy policy: `off`, `best-effort` or `required`.
 pub const COPY_POLICY_ENV: &str = "ELECTORAL_LOG_CHECKPOINT_COPY";
@@ -139,9 +140,14 @@ fn copy_prefix(tenant_id: &str, election_event_id: &str) -> String {
 
 /// Object key of the copy of a checkpoint. Sizes are zero-padded so that copies
 /// list in log order.
-pub fn copy_key(tenant_id: &str, election_event_id: &str, log_id: i64, tree_size: i64) -> String {
+pub fn copy_key(
+    tenant_id: &str,
+    election_event_id: &str,
+    log_uid: &Uuid,
+    tree_size: i64,
+) -> String {
     format!(
-        "{}log-{log_id}/size-{tree_size:020}.json",
+        "{}log-{log_uid}/size-{tree_size:020}.json",
         copy_prefix(tenant_id, election_event_id)
     )
 }
@@ -186,7 +192,7 @@ async fn put_copy(
     let key = copy_key(
         tenant_id,
         election_event_id,
-        checkpoint.log_id,
+        &checkpoint.log_uid,
         checkpoint.tree_size,
     );
     client
@@ -308,7 +314,12 @@ pub async fn read_checkpoint_copies(
             match serde_json::from_slice::<PublishedCheckpoint>(&bytes) {
                 Ok(copy)
                     if key
-                        == copy_key(tenant_id, election_event_id, copy.log_id, copy.tree_size) =>
+                        == copy_key(
+                            tenant_id,
+                            election_event_id,
+                            &copy.log_uid,
+                            copy.tree_size,
+                        ) =>
                 {
                     result.copies.push(copy)
                 }
@@ -335,38 +346,38 @@ pub fn cross_check(
     published: &[PublishedCheckpoint],
     copies: &[PublishedCheckpoint],
 ) -> Vec<String> {
-    let rows: BTreeMap<(i64, i64), &PublishedCheckpoint> = published
+    let rows: BTreeMap<(Uuid, i64), &PublishedCheckpoint> = published
         .iter()
-        .map(|row| ((row.log_id, row.tree_size), row))
+        .map(|row| ((row.log_uid, row.tree_size), row))
         .collect();
-    let mut copied: BTreeMap<(i64, i64), BTreeSet<&str>> = BTreeMap::new();
+    let mut copied: BTreeMap<(Uuid, i64), BTreeSet<&str>> = BTreeMap::new();
     for copy in copies {
         copied
-            .entry((copy.log_id, copy.tree_size))
+            .entry((copy.log_uid, copy.tree_size))
             .or_default()
             .insert(copy.root.as_str());
     }
     let mut findings = Vec::new();
-    for ((log_id, size), roots) in &copied {
+    for ((log_uid, size), roots) in &copied {
         if roots.len() > 1 {
             findings.push(format!(
-                "The write-once copy of the checkpoint at size {size} of log {log_id} was overwritten with a different root"
+                "The write-once copy of the checkpoint at size {size} of log {log_uid} was overwritten with a different root"
             ));
         }
-        match rows.get(&(*log_id, *size)) {
+        match rows.get(&(*log_uid, *size)) {
             None => findings.push(format!(
-                "The checkpoint at size {size} of log {log_id} has a write-once copy but no published row: the row was deleted"
+                "The checkpoint at size {size} of log {log_uid} has a write-once copy but no published row: the row was deleted"
             )),
             Some(row) if !roots.contains(row.root.as_str()) => findings.push(format!(
-                "The published checkpoint at size {size} of log {log_id} differs from its write-once copy"
+                "The published checkpoint at size {size} of log {log_uid} differs from its write-once copy"
             )),
             Some(_) => {}
         }
     }
-    for (log_id, size) in rows.keys() {
-        if !copied.contains_key(&(*log_id, *size)) {
+    for (log_uid, size) in rows.keys() {
+        if !copied.contains_key(&(*log_uid, *size)) {
             findings.push(format!(
-                "The published checkpoint at size {size} of log {log_id} has no write-once copy"
+                "The published checkpoint at size {size} of log {log_uid} has no write-once copy"
             ));
         }
     }
@@ -377,10 +388,10 @@ pub fn cross_check(
 mod tests {
     use super::*;
 
-    fn checkpoint(log_id: i64, tree_size: i64, root: &str) -> PublishedCheckpoint {
+    fn checkpoint(log: u128, tree_size: i64, root: &str) -> PublishedCheckpoint {
         PublishedCheckpoint {
             board_name: "board".to_string(),
-            log_id,
+            log_uid: Uuid::from_u128(log),
             tree_size,
             root: root.repeat(64),
             reason: "PERIODIC".to_string(),
@@ -435,11 +446,12 @@ mod tests {
 
     #[test]
     fn copy_keys_list_in_log_order() {
-        let small = copy_key("t", "e", 1, 9);
-        let large = copy_key("t", "e", 1, 10);
+        let log = Uuid::from_u128(1);
+        let small = copy_key("t", "e", &log, 9);
+        let large = copy_key("t", "e", &log, 10);
         assert_eq!(
             small,
-            "tenant-t/event-e/log-1/size-00000000000000000009.json"
+            "tenant-t/event-e/log-00000000-0000-0000-0000-000000000001/size-00000000000000000009.json"
         );
         assert!(small < large);
     }
@@ -496,7 +508,7 @@ mod tests {
         assert!(cross_check(&[original.clone()], &read.copies).is_empty());
 
         let client = get_shared_s3_client(S3Endpoint::Server).await.unwrap();
-        let key = copy_key(&tenant, &event, 1, 5);
+        let key = copy_key(&tenant, &event, &Uuid::from_u128(1), 5);
         let versions = client
             .list_object_versions()
             .bucket(&config.bucket)

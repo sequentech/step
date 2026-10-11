@@ -39,7 +39,8 @@ final class QueueDatabase implements QueueSender {
                         // instead of failing the request that would use it.
                         .validateOnBorrow(true)
                         .validationTimeout(Duration.ofMinutes(1))
-                        .connectionValidator(ConnectionValidator.defaultValidatorWithTimeout(5))
+                        // Short, as a login may check several pooled connections in turn.
+                        .connectionValidator(ConnectionValidator.defaultValidatorWithTimeout(1))
                         .reapTimeout(Duration.ofMinutes(5))
                         .maxLifetime(Duration.ofMinutes(30))
                         .connectionFactoryConfiguration(
@@ -47,7 +48,6 @@ final class QueueDatabase implements QueueSender {
                                 factory
                                     .connectionProviderClassName("org.postgresql.Driver")
                                     .jdbcUrl(settings.jdbcUrl())
-                                    .loginTimeout(Duration.ofSeconds(5))
                                     .autoCommit(true)
                                     .principal(new NamePrincipal(settings.user()))
                                     .credential(new SimplePassword(settings.password()))));

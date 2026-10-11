@@ -20,8 +20,8 @@ use anyhow::{ensure, Context, Result};
 use clap::{Parser, Subcommand};
 use electoral_log::messages::statement::StatementType;
 use electoral_log::{
-    adapters::postgres::PostgresStore,
-    proofs::{Checkpoint, JournalError},
+    adapters::postgres::{LogScope, PostgresStore},
+    proofs::{Checkpoint, JournalError, Uuid},
     BoardClient, ElectoralLogMessage, Filter, LogEntry, LogQuery, LogVisibility, NumberColumn,
     NumberComparison, OrderColumn, SortDirection, SqlCompOperators, TextColumn,
 };
@@ -374,7 +374,7 @@ impl Load {
         Ok(())
     }
 
-    fn saved_checkpoints(&self, log_id: i64) -> Result<Vec<Checkpoint>> {
+    fn saved_checkpoints(&self, log_uid: Uuid) -> Result<Vec<Checkpoint>> {
         if !Path::new(&self.checkpoints).exists() {
             return Ok(Vec::new());
         }
@@ -384,7 +384,7 @@ impl Load {
             .filter(|checkpoint| {
                 checkpoint
                     .as_ref()
-                    .map_or(true, |c| c.log_name == self.board && c.log_id == log_id)
+                    .map_or(true, |c| c.log_name == self.board && c.log_uid == log_uid)
             })
             .collect()
     }
@@ -750,14 +750,14 @@ impl Load {
         time("proof.record_current", proofs, async |n| {
             let proof = self
                 .store
-                .record_proof(&journal, board, sampled(n), None)
+                .record_proof(&journal, LogScope::Board(board), sampled(n), None)
                 .await?;
             proof.verify(&proof.inclusion.checkpoint.clone())?;
             Ok(1)
         })
         .await?;
         let trusted = self
-            .saved_checkpoints(current.log_id)?
+            .saved_checkpoints(current.log_uid)?
             .into_iter()
             .filter(|checkpoint| checkpoint.tree_size <= size / 2)
             .max_by_key(|checkpoint| checkpoint.tree_size);
@@ -771,7 +771,7 @@ impl Load {
             time("proof.record_trusted", proofs, async |n| {
                 let proof = self
                     .store
-                    .record_proof(&journal, board, sampled(n), Some(&trusted))
+                    .record_proof(&journal, LogScope::Board(board), sampled(n), Some(&trusted))
                     .await?;
                 proof.verify(&trusted)?;
                 Ok(1)
@@ -791,7 +791,7 @@ impl Load {
             .collect();
         for (name, value) in [
             ("board", self.board.clone()),
-            ("log_id", current.log_id.to_string()),
+            ("log_uid", current.log_uid.to_string()),
             ("size", size.to_string()),
             ("half", (size / 2).to_string()),
             (
@@ -812,7 +812,7 @@ impl Load {
 
     async fn audit(&self) -> Result<()> {
         let current = self.store.journal().checkpoint(&self.board).await?;
-        let published = self.saved_checkpoints(current.log_id)?;
+        let published = self.saved_checkpoints(current.log_uid)?;
         let started = Instant::now();
         let report = self.store.audit(&self.board, &published).await?;
         println!(

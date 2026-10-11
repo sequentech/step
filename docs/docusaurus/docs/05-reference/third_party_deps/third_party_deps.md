@@ -539,7 +539,6 @@ Windmill provides workflow automation and task orchestration capabilities.
 | handlebars | 6.1 | MIT | Handlebars templating implemented in Rust. |
 | hex | 0.4 | MIT OR Apache-2.0 | Encoding and decoding data into/from hexadecimal representation. |
 | keycloak | 24.0 | Unlicense OR MIT | Keycloak Admin REST API. |
-| lapin | 2.5 | MIT | AMQP client library |
 | lazy_static | 1.4 | MIT OR Apache-2.0 | A macro for declaring lazily evaluated statics in Rust. |
 | lettre | 0.11 | MIT | Email client |
 | num_cpus | 1.16 | MIT OR Apache-2.0 | Get the number of CPUs on a machine. |

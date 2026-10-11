@@ -35,6 +35,11 @@ const DB_TIMEOUTS: Timeouts = Timeouts {
 
 #[instrument(ret)]
 async fn check_celery(app_name: &AppName) -> Option<bool> {
+    // Casting a vote does not need the task queues, so their outage must not take Harvest
+    // out of service.
+    if *app_name == AppName::HARVEST {
+        return None;
+    }
     if *app_name == AppName::BEAT {
         let healthy = tokio::time::timeout(Duration::from_secs(5), async {
             let pool = get_queue_pool().await;

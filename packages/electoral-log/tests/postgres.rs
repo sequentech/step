@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Result};
-use electoral_log::{adapters::postgres::PostgresStore, domain::*, service::BoardClient};
+use electoral_log::{
+    adapters::postgres::{LogScope, PostgresStore},
+    domain::*,
+    service::BoardClient,
+};
 use std::sync::Arc;
 use trellis::journal::INSERT_CHUNK;
 use uuid::Uuid;
@@ -299,7 +303,7 @@ async fn newest(client: &BoardClient, board: &str) -> Result<ElectoralLogMessage
 async fn trellis_atomic_append_proofs_and_board_recreation() -> Result<()> {
     use electoral_log::{
         ports::ElectoralLogStore,
-        proofs::{leaf_hash, JournalError},
+        proofs::{leaf_hash, JournalError, LogIdentity},
     };
     let (store, board, _db) = trellis_store().await?;
     let client = BoardClient::new(Arc::new(store.clone()));
@@ -310,13 +314,20 @@ async fn trellis_atomic_append_proofs_and_board_recreation() -> Result<()> {
     client.append(&board, &[entry("a", 1, None)]).await?;
     let first = newest(&client, &board).await?;
     // Proofs are available as soon as the append commits.
-    let proof = store.record_proof(&journal, &board, first.id, None).await?;
+    let proof = store
+        .record_proof(&journal, LogScope::Board(&board), first.id, None)
+        .await?;
     let old = proof.inclusion.checkpoint.clone();
     assert_eq!(old.tree_size, 1);
     proof.verify(&old)?;
     assert!(matches!(
         store
-            .record_proof(&journal, &board, first.id + 1_000_000, None)
+            .record_proof(
+                &journal,
+                LogScope::Board(&board),
+                first.id + 1_000_000,
+                None
+            )
             .await,
         Err(JournalError::NotFound(_))
     ));
@@ -327,7 +338,7 @@ async fn trellis_atomic_append_proofs_and_board_recreation() -> Result<()> {
     journal.consistency(&empty).await?.verify(&empty)?;
     // The empty checkpoint anchors every record through a proof-less link.
     let from_empty = store
-        .record_proof(&journal, &board, first.id, Some(&empty))
+        .record_proof(&journal, LogScope::Board(&board), first.id, Some(&empty))
         .await?;
     from_empty.verify(&empty)?;
     assert!(from_empty.verify(&old).is_err());
@@ -335,7 +346,7 @@ async fn trellis_atomic_append_proofs_and_board_recreation() -> Result<()> {
     changed.message.username = Some("changed".into());
     assert!(proof
         .inclusion
-        .verify(&leaf_hash(&board, &changed)?, &old)
+        .verify(&leaf_hash(&LogIdentity::of(&old), &changed)?, &old)
         .is_err());
     let second = entry("b", 1, None);
     let (a, b) = tokio::join!(
@@ -413,9 +424,9 @@ async fn trellis_concurrency_history_and_forks() -> Result<()> {
     forged.root = vec![7; 32];
     let mut beyond = trusted.clone();
     beyond.tree_size += 10;
-    let mut other_generation = trusted.clone();
-    other_generation.log_id += 1;
-    for checkpoint in [&forged, &beyond, &other_generation] {
+    let mut other_log = trusted.clone();
+    other_log.log_uid = electoral_log::proofs::Uuid::new_v4();
+    for checkpoint in [&forged, &beyond, &other_log] {
         assert!(matches!(
             journal.consistency(checkpoint).await,
             Err(JournalError::Diverged(_))
@@ -428,12 +439,12 @@ async fn trellis_concurrency_history_and_forks() -> Result<()> {
         .await?;
     let latest = newest(&client, &board).await?;
     let anchored = store
-        .record_proof(&journal, &board, latest.id, Some(&trusted))
+        .record_proof(&journal, LogScope::Board(&board), latest.id, Some(&trusted))
         .await?;
     assert!(anchored.consistency.is_some());
     anchored.verify(&trusted)?;
     let unanchored = store
-        .record_proof(&journal, &board, latest.id, None)
+        .record_proof(&journal, LogScope::Board(&board), latest.id, None)
         .await?;
     assert!(unanchored.verify(&trusted).is_err());
     // A record the trusted checkpoint already covers is proven at that checkpoint.
@@ -449,7 +460,7 @@ async fn trellis_concurrency_history_and_forks() -> Result<()> {
         .await?
         .remove(0);
     let historical = store
-        .record_proof(&journal, &board, oldest.id, Some(&early))
+        .record_proof(&journal, LogScope::Board(&board), oldest.id, Some(&early))
         .await?;
     assert!(historical.consistency.is_none());
     assert_eq!(historical.inclusion.checkpoint, early);
@@ -463,7 +474,7 @@ async fn trellis_concurrency_history_and_forks() -> Result<()> {
                 forged.clone(),
                 early.clone(),
                 beyond.clone(),
-                other_generation.clone(),
+                other_log.clone(),
                 other_board,
             ],
         )
@@ -516,7 +527,7 @@ async fn trellis_concurrency_history_and_forks() -> Result<()> {
     assert_eq!(client.count(&board, &LogQuery::default()).await?, stored);
     assert!(matches!(
         store
-            .record_proof(&journal, &board, latest.id, Some(&forged))
+            .record_proof(&journal, LogScope::Board(&board), latest.id, Some(&forged))
             .await,
         Err(JournalError::Diverged(_))
     ));
@@ -593,7 +604,9 @@ async fn trellis_audit_tampering_and_rebuild() -> Result<()> {
     assert_eq!(report.published_checked, 2);
     assert!(!report.findings().is_empty());
     assert!(matches!(
-        store.record_proof(&journal, &board, ids[3], None).await,
+        store
+            .record_proof(&journal, LogScope::Board(&board), ids[3], None)
+            .await,
         Err(JournalError::Corrupt(_))
     ));
     // The damaged subtree also changes the root at size 2, which is reported as damage,
@@ -663,7 +676,9 @@ async fn trellis_audit_tampering_and_rebuild() -> Result<()> {
     assert!(report.published_mismatches.is_empty());
     // A stored record without a leaf is an integrity fault, not an unknown record.
     assert!(matches!(
-        store.record_proof(&journal, &board, unlogged, None).await,
+        store
+            .record_proof(&journal, LogScope::Board(&board), unlogged, None)
+            .await,
         Err(JournalError::Corrupt(_))
     ));
 

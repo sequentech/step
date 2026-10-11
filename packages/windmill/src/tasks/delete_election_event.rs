@@ -28,16 +28,10 @@ async fn delete_election_event_related_data(
     realm: &str,
     election_ids: &Vec<String>,
 ) -> AnyhowResult<()> {
-    let electoral_log_future = delete_election_event_electoral_log(tenant_id, election_event_id);
     let b3_future = delete_election_event_b3(tenant_id, election_event_id, election_ids);
     let documents_future = delete_election_event_related_documents(tenant_id, election_event_id);
     let keycloak_future = delete_keycloak_realm(realm);
-    try_join!(
-        electoral_log_future,
-        b3_future,
-        documents_future,
-        keycloak_future
-    )?;
+    try_join!(b3_future, documents_future, keycloak_future)?;
 
     Ok(())
 }
@@ -89,7 +83,14 @@ async fn delete_election_event(
             Ok(())
         })
     })
-    .await
+    .await?;
+
+    // Dropping a database can't be rolled back, so it runs once the event's deletion
+    // is committed. Dropping is idempotent: a failed drop can be run again with
+    // `electoral-log-admin drop-event-database`.
+    delete_election_event_electoral_log(&tenant_id, &election_event_id)
+        .await
+        .map_err(|err| anyhow!("Error dropping the election event's electoral-log database: {err}"))
 }
 
 #[instrument(err)]

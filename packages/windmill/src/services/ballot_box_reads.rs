@@ -6,7 +6,7 @@
 
 use crate::services::cast_votes::CastVoteStatus;
 use crate::services::election_event_board::get_election_event_board;
-use crate::services::protocol_manager::get_electoral_log_store;
+use crate::services::protocol_manager::get_event_store;
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
@@ -18,7 +18,7 @@ use serde_json::Value;
 use tracing::instrument;
 use uuid::Uuid;
 
-/// An election event's ballot box: the electoral-log database of its board.
+/// An election event's ballot box, in the event's electoral-log database.
 pub struct EventBallotBox {
     pub store: PostgresStore,
     pub board: String,
@@ -44,7 +44,7 @@ pub async fn get_event_ballot_box(
     let board =
         get_election_event_board(reference).context("Election event has no electoral-log board")?;
     Ok(EventBallotBox {
-        store: get_electoral_log_store(&board).await?,
+        store: get_event_store(election_event_id).await?,
         board,
     })
 }

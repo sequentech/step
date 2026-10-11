@@ -19,8 +19,8 @@ use fake::Fake;
 use std::env;
 use strand::signature::{StrandSignature, StrandSignaturePk};
 use uuid::Uuid;
-use windmill::services::protocol_manager::get_board_client;
 use windmill::services::protocol_manager::get_event_board;
+use windmill::services::protocol_manager::{get_board_client, get_event_databases};
 
 #[derive(Args)]
 #[command(about)]
@@ -151,6 +151,10 @@ impl CreateElectoralLogs {
             })
             .collect();
 
+        get_event_databases()
+            .await?
+            .create_event(&tenant_id, &election_event_id)
+            .await?;
         let client = get_board_client().await?;
         client.create_board(&board).await?;
         let mut entries = Vec::with_capacity(1000);

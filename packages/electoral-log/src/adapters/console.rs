@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Read-only views of an electoral-log database for administrators: a board's records
-//! and an election event's ballot box, page by page in key order, and SQL queries in a
-//! read-only transaction.
+//! Read-only views of an election event's electoral-log database for administrators:
+//! its records, those of the event's board and of the sealed logs the board continues,
+//! and its ballot box, page by page in key order, and SQL queries in a read-only
+//! transaction.
 
 use super::ballot_box::canonical_uuid;
 use super::postgres::PostgresStore;
@@ -21,7 +22,7 @@ use tokio_postgres::types::ToSql;
 #[serde(rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
 pub enum ConsoleTable {
-    /// The board's records, `electoral_log_messages`.
+    /// The records of every log of the database, `electoral_log_messages`.
     Records,
     /// The event's accepted ballots, without their content.
     Ballots,
@@ -56,7 +57,7 @@ pub struct ConsoleFilters {
 #[derive(Debug, Clone)]
 pub struct PageRequest<'a> {
     pub table: ConsoleTable,
-    /// The event's board, for records.
+    /// The event's board: records are read only from the database that holds it.
     pub board: &'a str,
     pub election_event_id: &'a str,
     pub filters: &'a ConsoleFilters,
@@ -152,15 +153,18 @@ struct TableQuery {
 
 /// Separates the key's columns in a cursor.
 const CURSOR_SEPARATOR: char = '/';
+/// Rows a console query fetches at a time.
+const QUERY_FETCH_ROWS: i32 = 100;
 
 fn table_query(table: ConsoleTable) -> TableQuery {
     match table {
         ConsoleTable::Records => TableQuery {
             select: "m.id AS position, to_timestamp(m.created) AS created, \
                      m.statement_kind AS kind, m.user_id, m.username, m.election_id, \
-                     m.area_id, m.ballot_id, m.delivery_id, m.sender_pk, m.version",
+                     m.area_id, m.ballot_id, m.delivery_id, m.sender_pk, m.version, \
+                     m.board_name AS log",
             from: "electoral_log_messages m",
-            scope: "m.board_name = $1",
+            scope: "EXISTS (SELECT 1 FROM electoral_log_boards eb WHERE eb.board_name = $1)",
             key: &[("m.id", "bigint")],
         },
         ConsoleTable::Ballots => TableQuery {
@@ -397,10 +401,17 @@ impl PostgresStore {
         let partition = |prefix: &str| format!("{prefix}_{}", scope.replace('-', ""));
         let (estimate, count) = match table {
             ConsoleTable::Records => {
-                let row = client
-                    .query_opt("SELECT size FROM trellis_logs WHERE name = $1", &[&scope])
-                    .await?;
-                return Ok(row.map(|row| row.get::<_, i64>(0)).unwrap_or(0));
+                return Ok(client
+                    .query_one(
+                        "SELECT CASE WHEN EXISTS ( \
+                             SELECT 1 FROM electoral_log_boards WHERE board_name = $1) \
+                         THEN (SELECT coalesce(sum(l.size), 0)::bigint FROM trellis_logs l \
+                               JOIN electoral_log_boards b ON b.board_name = l.name) \
+                         ELSE 0 END",
+                        &[&scope],
+                    )
+                    .await?
+                    .get(0));
             }
             ConsoleTable::Ballots => (
                 partition("ballot_box_ballot"),
@@ -434,7 +445,7 @@ impl PostgresStore {
         }
     }
 
-    /// A record of a board, with its delivery ID.
+    /// A record of the database that holds `board`, with its delivery ID and log.
     pub async fn console_record(&self, board: &str, id: i64) -> Result<Option<ConsoleRecord>> {
         let row = self
             .client()
@@ -442,8 +453,9 @@ impl PostgresStore {
             .query_opt(
                 "SELECT id, to_json(to_timestamp(created)) #>> '{}', statement_kind, user_id, \
                         username, election_id, area_id, ballot_id, delivery_id, sender_pk, \
-                        version, message \
-                 FROM electoral_log_messages WHERE board_name = $1 AND id = $2",
+                        version, message, board_name \
+                 FROM electoral_log_messages WHERE id = $2 \
+                 AND EXISTS (SELECT 1 FROM electoral_log_boards WHERE board_name = $1)",
                 &[&board, &id],
             )
             .await?;
@@ -461,28 +473,24 @@ impl PostgresStore {
                 sender_pk: row.try_get(9)?,
                 version: row.try_get(10)?,
                 message: row.try_get(11)?,
+                log: row.try_get(12)?,
             })
         })
         .transpose()
     }
 
-    /// Let `role` read every table of the database, those created later included.
-    /// Run by the database's owner.
+    /// Let `role` read every table and sequence of the database, those created later
+    /// included. Run by the database's owner.
     pub async fn grant_read(&self, role: &str) -> Result<()> {
-        ensure!(
-            !role.is_empty()
-                && role
-                    .chars()
-                    .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
-                && !role.starts_with(|c: char| c.is_ascii_digit()),
-            "Invalid PostgreSQL role name {role:?}"
-        );
+        check_role_name(role)?;
         self.client()
             .await?
             .batch_execute(&format!(
                 "GRANT USAGE ON SCHEMA public TO {role};
                  GRANT SELECT ON ALL TABLES IN SCHEMA public TO {role};
-                 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO {role};"
+                 GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO {role};
+                 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO {role};
+                 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON SEQUENCES TO {role};"
             ))
             .await
             .with_context(|| format!("Error letting {role} read the database"))
@@ -506,6 +514,8 @@ pub struct ConsoleRecord {
     pub version: String,
     /// The signed message, serialized.
     pub message: Vec<u8>,
+    /// Board name of the record's log.
+    pub log: String,
 }
 
 impl ConsoleRecord {
@@ -539,6 +549,7 @@ impl ConsoleRecord {
             "delivery_id": self.delivery_id,
             "sender_pk": self.sender_pk,
             "version": self.version,
+            "log": self.log,
             "message": message,
         });
         if personal_data == PersonalData::Hidden {
@@ -603,15 +614,29 @@ pub struct QueryResult {
     pub elapsed_ms: u64,
 }
 
+/// Refuse a role name that would need quoting: roles are granted by name.
+pub fn check_role_name(role: &str) -> Result<()> {
+    ensure!(
+        !role.is_empty()
+            && role
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+            && !role.starts_with(|c: char| c.is_ascii_digit()),
+        "Invalid PostgreSQL role name {role:?}"
+    );
+    Ok(())
+}
+
 /// Run one SQL query in a read-only transaction, with a time limit, and return at
-/// most `max_rows` of its rows. Only a query that can be a subquery runs: a `SELECT`,
-/// `VALUES`, `TABLE` or `WITH` without data-modifying statements. Use a connection of
-/// its own, of a role that can only read, and close it afterwards, so that nothing the
-/// query sets outlives it.
+/// most `max_rows` of its rows, of at most `max_bytes` of JSON in all. Only a query
+/// that can be a subquery runs: a `SELECT`, `VALUES`, `TABLE` or `WITH` without
+/// data-modifying statements. Use a connection of its own, of a role that can only
+/// read, and close it afterwards, so that nothing the query sets outlives it.
 pub async fn run_read_only_query(
     client: &mut tokio_postgres::Client,
     sql: &str,
     max_rows: usize,
+    max_bytes: usize,
     timeout: Duration,
 ) -> Result<QueryResult> {
     let sql = sql
@@ -639,23 +664,42 @@ pub async fn run_read_only_query(
         !columns.is_empty(),
         "Only queries that return rows run: SELECT, VALUES, TABLE or WITH"
     );
-    let found = transaction
-        .query(
-            &format!(
-                "SELECT row_to_json(q)::text FROM ({sql}\n) q LIMIT {}",
-                max_rows + 1
-            ),
-            &[],
-        )
+    // Rows are fetched a batch at a time, each cut by the server to just over the byte
+    // limit, so a query of large rows stops once the limit is reached.
+    let limited = transaction
+        .prepare(&format!(
+            "SELECT left(row_to_json(q)::text, {}) FROM ({sql}\n) q LIMIT {}",
+            max_bytes + 1,
+            max_rows + 1
+        ))
         .await
         .map_err(|error| anyhow!(query_error(&error)))?;
+    let portal = transaction
+        .bind(&limited, &[])
+        .await
+        .map_err(|error| anyhow!(query_error(&error)))?;
+    let mut texts = Vec::new();
+    let mut bytes = 0;
+    let mut truncated = false;
+    'fetch: loop {
+        let batch = transaction
+            .query_portal(&portal, QUERY_FETCH_ROWS)
+            .await
+            .map_err(|error| anyhow!(query_error(&error)))?;
+        if batch.is_empty() {
+            break;
+        }
+        for row in &batch {
+            let text: String = row.try_get(0)?;
+            bytes += text.len();
+            if texts.len() == max_rows || bytes > max_bytes {
+                truncated = true;
+                break 'fetch;
+            }
+            texts.push(text);
+        }
+    }
     transaction.rollback().await?;
-    let truncated = found.len() > max_rows;
-    let texts = found
-        .iter()
-        .take(max_rows)
-        .map(|row| row.try_get::<_, String>(0))
-        .collect::<Result<Vec<_>, _>>()?;
     Ok(QueryResult {
         rows: Rows {
             rows: json_rows(&columns, texts)?,
@@ -718,6 +762,7 @@ mod tests {
             sender_pk: "pk".into(),
             version: "1".into(),
             message: borsh::to_vec(&message).unwrap(),
+            log: "board".into(),
         }
     }
 

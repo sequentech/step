@@ -15,6 +15,9 @@ use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::reports::get_reports_by_election_event_id;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::database::get_hasura_pool;
+use crate::services::electoral_log_transfer::{
+    export_electoral_log, manifest_file_name, records_file_name,
+};
 use crate::services::export::export_ballot_publication::export_election_event_config_file;
 use crate::services::import::import_election_event::ImportElectionEventSchema;
 use crate::services::reports::activity_log::{ActivityLogsTemplate, ReportFormat};
@@ -558,6 +561,25 @@ pub async fn process_export_zip(
             .map_err(|e| anyhow!("Error opening temporary activity logs file: {e:?}"))?;
         std::io::copy(&mut activity_logs_file, &mut zip_writer)
             .map_err(|e| anyhow!("Error copying activity logs file to ZIP: {e:?}"))?;
+
+        // The electoral logs with their identities and published checkpoints, which an
+        // import stores with the same roots.
+        let (records, manifest) =
+            export_electoral_log(&hasura_transaction, tenant_id, election_event_id)
+                .await
+                .map_err(|e| anyhow!("Error exporting the electoral log: {e:?}"))?;
+        zip_writer
+            .start_file(records_file_name(election_event_id), options)
+            .map_err(|e| anyhow!("Error starting electoral-log records file in ZIP: {e:?}"))?;
+        let mut records_file = File::open(records.path())
+            .map_err(|e| anyhow!("Error opening electoral-log records file: {e:?}"))?;
+        std::io::copy(&mut records_file, &mut zip_writer)
+            .map_err(|e| anyhow!("Error copying electoral-log records file to ZIP: {e:?}"))?;
+        zip_writer
+            .start_file(manifest_file_name(election_event_id), options)
+            .map_err(|e| anyhow!("Error starting electoral-log manifest file in ZIP: {e:?}"))?;
+        serde_json::to_writer_pretty(&mut zip_writer, &manifest)
+            .map_err(|e| anyhow!("Error writing electoral-log manifest to ZIP: {e:?}"))?;
     }
 
     // Add the S3 files to the ZIP archive

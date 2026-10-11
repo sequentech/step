@@ -15,7 +15,7 @@ use sequent_core::util::retry::retry_with_exponential_backoff;
 use std::time::Duration;
 use std::time::Instant;
 use tracing::{error, info, instrument};
-use windmill::services::celery_app::get_celery_app;
+use windmill::services::celery_app::try_get_celery_app;
 use windmill::services::insert_cast_vote::{
     try_insert_cast_vote, CastVoteError, InsertCastVoteInput,
     InsertCastVoteOutput, InsertCastVoteResult,
@@ -306,15 +306,18 @@ pub async fn insert_cast_vote(
     if let Some(cast_vote_id) = pending_cast_vote_id {
         // The Datafix vote is already committed: an enqueue failure must not
         // fail the request. The review beat recovers in-progress rows.
-        let celery_app = get_celery_app().await;
-        match celery_app
-            .send_task(process_cast_vote::process_cast_vote::new(
-                inserted_cast_vote.tenant_id.clone(),
-                inserted_cast_vote.election_event_id.clone(),
-                cast_vote_id.clone(),
-            ))
-            .await
-        {
+        let sent = match try_get_celery_app().await {
+            Ok(celery_app) => celery_app
+                .send_task(process_cast_vote::process_cast_vote::new(
+                    inserted_cast_vote.tenant_id.clone(),
+                    inserted_cast_vote.election_event_id.clone(),
+                    cast_vote_id.clone(),
+                ))
+                .await
+                .map_err(anyhow::Error::from),
+            Err(e) => Err(e),
+        };
+        match sent {
             Ok(celery_task) => {
                 info!("Sent process_cast_vote task {}", celery_task.task_id);
             }

@@ -47,6 +47,17 @@ fn queue_names_are_safe_table_suffixes() {
     }
 }
 
+#[test]
+fn deliveries_ended_by_retries_are_not_abandoned() {
+    let payload = serde_json::json!({ "headers": { "retries": 2 } });
+    assert_eq!(abandoned_deliveries(3, &payload), 0);
+    assert_eq!(abandoned_deliveries(9, &payload), 6);
+    assert_eq!(
+        abandoned_deliveries(1, &serde_json::json!({ "headers": {} })),
+        0
+    );
+}
+
 fn test_pool() -> Arc<Pool> {
     let url = std::env::var("PGMQ_TEST_DATABASE_URL")
         .expect("set PGMQ_TEST_DATABASE_URL to a disposable database");

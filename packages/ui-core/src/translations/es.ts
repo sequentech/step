@@ -6,7 +6,6 @@ import {TranslationType} from "./en"
 const spanishTranslation: TranslationType = {
     translations: {
         language: "Español",
-        welcome: "Let's start: Import auditable ballot..",
         breadcrumbSteps: {
             select: "Seleccionar un Verificador",
             import: "Importar Datos",
@@ -58,10 +57,10 @@ const spanishTranslation: TranslationType = {
             description2:
                 "El verificador de voto le permite al votante asegurarse de que el voto cifrado capture correctamente las selecciones realizadas en la cabina de votación. Permitir realizar esta verificación se denomina verificabilidad de transmisión según lo previsto y evita errores y actividades maliciosas durante el cifrado del voto.",
             descriptionMore: "Más información",
-            startButton: "Selecciona fichero",
+            startButton: "Seleccione fichero",
             dragDropOption: "O arrastre el fichero aquí",
             importErrorDescription:
-                "Hubo un problema al importar el voto auditable. ¿Elegiste el archivo correcto?",
+                "Hubo un problema al importar el voto auditable. ¿Eligió el archivo correcto?",
             importErrorMoreInfo: "Más información",
             importErrorTitle: "Error",
             useSampleText: "¿No tiene un voto verificable?",
@@ -85,7 +84,7 @@ const spanishTranslation: TranslationType = {
             statusModal: {
                 title: "Estado",
                 content:
-                    "El panel de estado te da información sobre las verificaciones realizadas.",
+                    "El panel de estado le da información sobre las verificaciones realizadas.",
                 ok: "OK",
             },
         },
@@ -151,7 +150,7 @@ const spanishTranslation: TranslationType = {
         logout: {
             buttonText: "Cerrar sesión",
             modal: {
-                title: "¿Estás seguro de que quieres cerrar sesión?",
+                title: "¿Está seguro de que quiere cerrar sesión?",
                 content:
                     "Está a punto de cerrar esta aplicación. Esta acción no se puede deshacer.",
                 ok: "OK",
@@ -175,10 +174,10 @@ const spanishTranslation: TranslationType = {
             voted: "Votado",
             notVoted: "No votado",
             resultsButton: "Resultados de Votación",
-            voteButton: "Haga click para Votar",
+            voteButton: "Haga clic para votar",
             openDate: "Abierta: ",
             closeDate: "Cerrada: ",
-            ballotLocator: "Localiza tu voto",
+            ballotLocator: "Localice su voto",
         },
         header: {
             profile: "Perfil",

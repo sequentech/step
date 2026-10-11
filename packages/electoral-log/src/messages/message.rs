@@ -473,12 +473,29 @@ impl Message {
 
     pub fn electoral_log_checkpoint_message(
         event: EventIdString,
-        details: ElectoralLogCheckpoint,
+        details: ElectoralLogCheckpointV2,
         sd: &SigningData,
     ) -> Result<Self> {
         Self::from_body(
             event,
-            StatementBody::ElectoralLogCheckpoint(details),
+            StatementBody::ElectoralLogCheckpointV2(details),
+            sd,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+    }
+
+    pub fn electoral_log_continuation_message(
+        event: EventIdString,
+        details: ElectoralLogContinuation,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        Self::from_body(
+            event,
+            StatementBody::ElectoralLogContinuation(details),
             sd,
             None,
             None,

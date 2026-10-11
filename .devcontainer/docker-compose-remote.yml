@@ -172,8 +172,8 @@ services:
     restart: unless-stopped
     volumes:
       - ./postgresql/init-electoral-log.sh:/docker-entrypoint-initdb.d/20-electoral-log.sh:ro
+      - ../packages/electoral-log/catalog.sql:/electoral-log-catalog.sql:ro
       - ./postgresql/init-task-queues.sh:/docker-entrypoint-initdb.d/30-task-queues.sh:ro
-      - ../packages/electoral-log/schema.sql:/electoral-log-schema.sql:ro
       - db_data:/var/lib/postgresql
       - db_logs:/logs
     environment:
@@ -181,7 +181,7 @@ services:
       ELECTORAL_LOG_PG_USER: ${ELECTORAL_LOG_PG_USER}
       ELECTORAL_LOG_PG_PASSWORD: ${ELECTORAL_LOG_PG_PASSWORD}
       ELECTORAL_LOG_PG_PROVISIONING_USER: ${ELECTORAL_LOG_PG_PROVISIONING_USER:-electoral_log_provisioner}
-      ELECTORAL_LOG_PG_PROVISIONING_PASSWORD: ${ELECTORAL_LOG_PG_PROVISIONING_PASSWORD:-electoral_log_provisioner}
+      ELECTORAL_LOG_PG_PROVISIONING_PASSWORD: ${ELECTORAL_LOG_PG_PROVISIONING_PASSWORD:-electoral_log_provisioner_dev}
       ELECTORAL_LOG_PG_READER_USER: ${ELECTORAL_LOG_PG_READER_USER:-electoral_log_reader}
       ELECTORAL_LOG_PG_READER_PASSWORD: ${ELECTORAL_LOG_PG_READER_PASSWORD:-electoral_log_reader_dev}
       ELECTORAL_LOG_PG_DATABASE: ${ELECTORAL_LOG_PG_DATABASE}
@@ -407,7 +407,7 @@ services:
     ]
     depends_on:
       task-queues-setup:
-        condition: service_completed_successfully
+        condition: service_started
     environment:
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
@@ -420,11 +420,13 @@ services:
       ELECTORAL_LOG_PG_PORT: ${ELECTORAL_LOG_PG_PORT}
       ELECTORAL_LOG_PG_USER: ${ELECTORAL_LOG_PG_USER}
       ELECTORAL_LOG_PG_PASSWORD: ${ELECTORAL_LOG_PG_PASSWORD}
-      ELECTORAL_LOG_PG_DATABASE_LAYOUT: ${ELECTORAL_LOG_PG_DATABASE_LAYOUT:-per-tenant}
       ELECTORAL_LOG_PG_READER_USER: ${ELECTORAL_LOG_PG_READER_USER:-electoral_log_reader}
       ELECTORAL_LOG_PG_READER_PASSWORD: ${ELECTORAL_LOG_PG_READER_PASSWORD:-electoral_log_reader_dev}
-      ELECTORAL_LOG_PG_TENANT_POOL_SIZE: ${ELECTORAL_LOG_PG_TENANT_POOL_SIZE:-4}
       ELECTORAL_LOG_PG_DATABASE: ${ELECTORAL_LOG_PG_DATABASE}
+      ELECTORAL_LOG_PG_EVENT_POOL_SIZE: ${ELECTORAL_LOG_PG_EVENT_POOL_SIZE:-4}
+      ELECTORAL_LOG_PG_OPEN_EVENTS: ${ELECTORAL_LOG_PG_OPEN_EVENTS:-16}
+      # Role of the backups, granted read access to each election event's database.
+      ELECTORAL_LOG_PG_BACKUP_USER: ${ELECTORAL_LOG_PG_BACKUP_USER:-}
       ELECTORAL_LOG_PG_SSLMODE: ${ELECTORAL_LOG_PG_SSLMODE}
       ELECTORAL_LOG_PG_SSLROOTCERT: ${ELECTORAL_LOG_PG_SSLROOTCERT:-}
       SMS_TRANSPORT_NAME: ${SMS_TRANSPORT_NAME}
@@ -595,7 +597,8 @@ services:
       - .env
 
   # Installs PGMQ and the queues in the task-queue database, as the database owner,
-  # like the setup job of a deployment. It is idempotent.
+  # like the setup job of a deployment. It is idempotent. Windmill and Beat retry until it
+  # has run, so the stack does not wait for its build.
   task-queues-setup:
     profiles: ["full", "base"]
     image: sequentech.local/cargo-packages
@@ -638,17 +641,15 @@ services:
       "rust-local-target/",
       "--ignore",
       "windmill/core",
-      "--",
-      "sh",
-      "../../.devcontainer/restart-worker.sh",
-      "cargo",
-      "run", "--bin", "main", "consume", "-q", "beat", "short_queue", "tally_queue", "reports_queue", "communication_queue", "import_export_queue", "electoral_log_batch_queue", "electoral_log_beat_queue", "--prefetch-count", "1"
+      # Build first, so a compile error waits for the next change instead of the restart loop.
+      "-x", "build --bin main",
+      "-s", "sh ../../.devcontainer/restart-worker.sh ../target/debug/main consume -q beat short_queue tally_queue reports_queue communication_queue import_export_queue electoral_log_batch_queue electoral_log_beat_queue --prefetch-count 1"
     ]
     volumes:
       - ..:/workspaces/step:z
     depends_on:
       task-queues-setup:
-        condition: service_completed_successfully
+        condition: service_started
       postgres-keycloak:
         condition: service_healthy
       configure-minio:
@@ -665,12 +666,16 @@ services:
       ELECTORAL_LOG_PG_PORT: ${ELECTORAL_LOG_PG_PORT}
       ELECTORAL_LOG_PG_USER: ${ELECTORAL_LOG_PG_USER}
       ELECTORAL_LOG_PG_PASSWORD: ${ELECTORAL_LOG_PG_PASSWORD}
-      ELECTORAL_LOG_PG_DATABASE_LAYOUT: ${ELECTORAL_LOG_PG_DATABASE_LAYOUT:-per-tenant}
-      ELECTORAL_LOG_PG_TENANT_POOL_SIZE: ${ELECTORAL_LOG_PG_TENANT_POOL_SIZE:-4}
+      # Creates and drops each election event's database, which the role above owns.
       ELECTORAL_LOG_PG_PROVISIONING_USER: ${ELECTORAL_LOG_PG_PROVISIONING_USER:-electoral_log_provisioner}
-      ELECTORAL_LOG_PG_PROVISIONING_PASSWORD: ${ELECTORAL_LOG_PG_PROVISIONING_PASSWORD:-electoral_log_provisioner}
+      ELECTORAL_LOG_PG_PROVISIONING_PASSWORD: ${ELECTORAL_LOG_PG_PROVISIONING_PASSWORD:-electoral_log_provisioner_dev}
+      # Granted read access to each election event's database when it is created.
       ELECTORAL_LOG_PG_READER_USER: ${ELECTORAL_LOG_PG_READER_USER:-electoral_log_reader}
       ELECTORAL_LOG_PG_DATABASE: ${ELECTORAL_LOG_PG_DATABASE}
+      ELECTORAL_LOG_PG_EVENT_POOL_SIZE: ${ELECTORAL_LOG_PG_EVENT_POOL_SIZE:-4}
+      ELECTORAL_LOG_PG_OPEN_EVENTS: ${ELECTORAL_LOG_PG_OPEN_EVENTS:-16}
+      # Role of the backups, granted read access to each election event's database.
+      ELECTORAL_LOG_PG_BACKUP_USER: ${ELECTORAL_LOG_PG_BACKUP_USER:-}
       ELECTORAL_LOG_PG_SSLMODE: ${ELECTORAL_LOG_PG_SSLMODE}
       ELECTORAL_LOG_PG_SSLROOTCERT: ${ELECTORAL_LOG_PG_SSLROOTCERT:-}
       AWS_S3_PRIVATE_URI: ${AWS_S3_PRIVATE_URI}
@@ -758,7 +763,7 @@ services:
       - ..:/workspaces/step:z
     depends_on:
       task-queues-setup:
-        condition: service_completed_successfully
+        condition: service_started
       harvest:
         condition: service_started
     working_dir: /workspaces/step/packages/windmill
@@ -769,11 +774,8 @@ services:
       "--why",
       "--ignore",
       "rust-local-target/",
-      "--",
-      "sh",
-      "../../.devcontainer/restart-worker.sh",
-      "cargo",
-      "run", "--bin", "beat"
+      "-x", "build --bin beat",
+      "-s", "sh ../../.devcontainer/restart-worker.sh ../target/debug/beat"
     ]
     environment:
       QUEUE_DB__HOST: ${QUEUE_DB__HOST}

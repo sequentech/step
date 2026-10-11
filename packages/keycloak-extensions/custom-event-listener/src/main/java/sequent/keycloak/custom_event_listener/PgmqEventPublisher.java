@@ -100,8 +100,11 @@ final class PgmqEventPublisher implements AutoCloseable {
         case LOG_AND_CONTINUE ->
             log.errorv(
                 exception,
-                "Unable to enqueue electoral audit event {0}; it is not in the electoral log",
-                taskId);
+                "Unable to enqueue electoral audit event {0}; it is not in the electoral log."
+                    + " Its message, to send to {1}: {2}",
+                taskId,
+                QUEUE,
+                payload);
       }
     }
   }

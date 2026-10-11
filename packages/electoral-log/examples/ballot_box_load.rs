@@ -796,7 +796,7 @@ async fn main() -> Result<()> {
         Command::Accept(args) => args.clients + 4,
         _ => 8,
     };
-    let store = connection.store(&database, pool)?;
+    let store = connection.store_of(&database, pool)?;
     store.initialize().await?;
     match cli.command {
         Command::Accept(args) => accept(store, args).await,

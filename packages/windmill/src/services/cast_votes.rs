@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::database::PgConfig;
-use crate::services::ballot_box::{wait_for_sequencer, TALLY_SEQUENCER_WAIT};
+use crate::services::ballot_box::{request_sequencer, wait_for_sequencer, TALLY_SEQUENCER_WAIT};
 use crate::services::ballot_box_reads::{ballot_box_time, get_event_ballot_box};
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::external::utils::{
@@ -74,6 +74,9 @@ pub async fn find_area_ballots(
 ) -> Result<()> {
     let ballot_box = get_event_ballot_box(hasura_transaction, tenant_id, election_event_id).await?;
     let store = &ballot_box.store;
+    if store.pending_count(election_event_id).await? > 0 {
+        request_sequencer(election_event_id).await?;
+    }
     let waiting = wait_for_sequencer(TALLY_SEQUENCER_WAIT, || {
         store.unsequenced_count(election_event_id, election_id, area_id)
     })
