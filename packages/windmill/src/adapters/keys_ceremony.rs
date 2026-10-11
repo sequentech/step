@@ -16,12 +16,14 @@ use crate::services::{private_keys, protocol_manager, public_keys};
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::set_public_key::set_public_key;
 use crate::types::error::Error;
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use b4::messages::statement::StatementType;
+use b4::messages::trusted_board::BoardConfigurationState;
 use celery::Celery;
 use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::{Election, ElectionEvent, KeysCeremony, Trustee};
 use serde_json::Value;
+use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignaturePk;
 
 /// Keys ceremonies, trustees, elections and election events in the Hasura
@@ -194,10 +196,25 @@ impl KeysCeremonyElectionEvents for PgKeysCeremonyStore<'_> {
     }
 }
 
-/// The B4 bulletin boards. Posting a configuration reads the protocol
-/// manager keys through the transaction.
+/// The B4 bulletin boards. Every read is anchored to the protocol manager key
+/// of the election event, which is read through the transaction.
 pub struct B4KeysBoard<'a> {
     pub transaction: &'a Transaction<'a>,
+    pub tenant_id: &'a str,
+    pub election_event_id: &'a str,
+}
+
+impl B4KeysBoard<'_> {
+    async fn manager(&self, board_name: &str) -> Result<StrandSignaturePk> {
+        let manager = protocol_manager::get_protocol_manager::<RistrettoCtx>(
+            self.transaction,
+            self.tenant_id,
+            Some(self.election_event_id),
+            board_name,
+        )
+        .await?;
+        Ok(StrandSignaturePk::from_sk(&manager.signing_key)?)
+    }
 }
 
 impl KeysBoard for B4KeysBoard<'_> {
@@ -213,7 +230,14 @@ impl KeysBoard for B4KeysBoard<'_> {
     }
 
     async fn configuration_exists(&self, board_name: &str) -> Result<bool> {
-        protocol_manager::check_configuration_exists(board_name).await
+        let manager = self.manager(board_name).await?;
+        match protocol_manager::check_configuration_exists(board_name, &manager).await? {
+            BoardConfigurationState::Missing => Ok(false),
+            BoardConfigurationState::Trusted(_) => Ok(true),
+            BoardConfigurationState::Foreign => Err(anyhow!(
+                "Board configuration does not match the trusted manager"
+            )),
+        }
     }
 
     async fn create_keys(
@@ -236,7 +260,8 @@ impl KeysBoard for B4KeysBoard<'_> {
     }
 
     async fn public_key(&self, board_name: &str) -> Result<String> {
-        public_keys::get_public_key(board_name.to_string()).await
+        let manager = self.manager(board_name).await?;
+        public_keys::get_public_key(board_name.to_string(), &manager).await
     }
 
     async fn public_key_messages(
@@ -244,7 +269,9 @@ impl KeysBoard for B4KeysBoard<'_> {
         board_name: &str,
         logs_since: u64,
     ) -> Result<KeysBoardMessages<StrandSignaturePk>> {
-        let messages = protocol_manager::get_board_public_key_messages(board_name).await?;
+        let manager = self.manager(board_name).await?;
+        let messages =
+            protocol_manager::get_board_public_key_messages(board_name, &manager).await?;
         let logs = generate_logs(&messages, logs_since, &vec![0])?;
         Ok(KeysBoardMessages {
             logs,
@@ -272,7 +299,9 @@ impl KeysBoard for B4KeysBoard<'_> {
         board_name: &str,
         trustee_public_key: &str,
     ) -> Result<String> {
-        private_keys::get_trustee_encrypted_private_key(board_name, trustee_public_key).await
+        let manager = self.manager(board_name).await?;
+        private_keys::get_trustee_encrypted_private_key(board_name, trustee_public_key, &manager)
+            .await
     }
 }
 

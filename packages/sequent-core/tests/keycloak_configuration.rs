@@ -8,6 +8,8 @@
 
 #[path = "support/http.rs"]
 mod http;
+#[path = "support/signing.rs"]
+mod signing;
 
 use http::{Exchange, HttpServer};
 use keycloak::types::{GroupRepresentation, RealmRepresentation};
@@ -1035,7 +1037,7 @@ async fn a_token_shaped_error_response_is_still_an_authentication_failure() {
 }
 
 /// Return the identities that the guard would pass to an application handler.
-/// The local issuer supplies a synthetic JWT; this does not test JWT signatures.
+/// The local issuer supplies a JWT signed with the public test key.
 #[rocket::get("/datafix")]
 fn guarded_datafix(
     claims: sequent_core::services::connection::DatafixClaims,
@@ -1046,15 +1048,31 @@ fn guarded_datafix(
     )
 }
 
-fn datafix_token(subject: &str, expires_in: u64) -> Value {
-    use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
-    let claims = json!({"exp": 2000000000, "iat": 0, "jti": "test", "iss": "local-test-issuer",
+#[rocket::get("/claims")]
+fn guarded_claims(claims: sequent_core::services::jwt::JwtClaims) -> String {
+    claims.sub
+}
+
+fn datafix_claims(subject: &str) -> Value {
+    json!({"exp": signing::EXPIRY, "iat": 0, "jti": "test", "iss": signing::issuer_of("north"),
         "sub": subject, "typ": "Bearer", "azp": "datafix", "acr": "1", "allowed-origins": [],
         "scope": "openid", "email_verified": false, "https://hasura.io/jwt/claims": {
             "x-hasura-default-role": "user", "x-hasura-tenant-id": "north",
-            "x-hasura-user-id": subject, "x-hasura-allowed-roles": ["user"]}});
-    json!({"access_token": format!("fixture.{}.unsigned", URL_SAFE_NO_PAD.encode(serde_json::to_vec(&claims).unwrap())),
+            "x-hasura-user-id": subject, "x-hasura-allowed-roles": ["user"]}})
+}
+
+fn datafix_token(subject: &str, expires_in: u64) -> Value {
+    json!({"access_token": signing::token(&datafix_claims(subject)),
         "expires_in": expires_in, "token_type": "Bearer", "scope": "openid"})
+}
+
+/// A well-formed token whose signature no trusted key can have produced.
+fn unsigned_datafix_token(subject: &str) -> Value {
+    use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+    let payload = URL_SAFE_NO_PAD
+        .encode(serde_json::to_vec(&datafix_claims(subject)).unwrap());
+    json!({"access_token": format!("fixture.{payload}.unsigned"),
+        "expires_in": 300, "token_type": "Bearer", "scope": "openid"})
 }
 
 #[rocket::async_test]
@@ -1075,11 +1093,13 @@ async fn datafix_cache_is_bound_to_credentials_and_tenant_and_renews_before_expi
         Exchange::json("POST", south, 200, datafix_token("renewed", 300)),
         Exchange::json("POST", north, 401, json!({"error": "invalid_client"})),
         Exchange::json("POST", north, 200, http::token_json()),
+        Exchange::json("POST", north, 200, unsigned_datafix_token("unsigned")),
     ]);
     let _environment = Environment::set(&[("KEYCLOAK_URL", Some(&peer.url))]);
     let client = Client::tracked(
         rocket::build()
             .manage(LastDatafixAccessToken::init())
+            .manage(signing::issuers())
             .mount("/", rocket::routes![guarded_datafix]),
     )
     .await
@@ -1110,10 +1130,14 @@ async fn datafix_cache_is_bound_to_credentials_and_tenant_and_renews_before_expi
         );
     }
 
-    // Neither a rejected credential nor a token with malformed claims reaches
-    // the handler, even after a previous request has populated the cache.
-    for credentials in ["rejected:synthetic-three", "malformed:synthetic-four"]
-    {
+    // Neither a rejected credential, a token that is not a JWT nor one nobody
+    // trusted signed reaches the handler, even after a previous request has
+    // populated the cache.
+    for credentials in [
+        "rejected:synthetic-three",
+        "malformed:synthetic-four",
+        "unsigned:synthetic-five",
+    ] {
         assert_eq!(
             client
                 .get("/datafix")
@@ -1129,7 +1153,7 @@ async fn datafix_cache_is_bound_to_credentials_and_tenant_and_renews_before_expi
     let requests = peer.finish();
     assert_eq!(
         requests.len(),
-        7,
+        8,
         "exactly one request should use the cached token"
     );
     for (request, expected_secret) in requests.iter().zip([
@@ -1140,6 +1164,7 @@ async fn datafix_cache_is_bound_to_credentials_and_tenant_and_renews_before_expi
         "synthetic-two",
         "synthetic-three",
         "synthetic-four",
+        "synthetic-five",
     ]) {
         let form: std::collections::HashMap<String, String> =
             serde_urlencoded::from_str(&request.body).unwrap();
@@ -1156,11 +1181,15 @@ async fn request_guard_diagnostics_never_log_authorization_headers_or_client_sec
     };
     use sequent_core::services::connection::LastDatafixAccessToken;
     use tracing::instrument::WithSubscriber;
+    let issued = datafix_token("voter", 300);
+    let access_token = issued["access_token"].as_str().unwrap().to_owned();
+    let signed_parts: Vec<_> = access_token.split('.').collect();
+    let forged = format!("{}.{}.forged", signed_parts[0], signed_parts[1]);
     let peer = HttpServer::start(vec![Exchange::json(
         "POST",
         TENANT_TOKEN_PATH,
         200,
-        datafix_token("voter", 300),
+        issued,
     )]);
     let _environment = Environment::set(&[("KEYCLOAK_URL", Some(&peer.url))]);
     let log = LogWriter(Default::default());
@@ -1176,7 +1205,8 @@ async fn request_guard_diagnostics_never_log_authorization_headers_or_client_sec
         let client = Client::tracked(
             rocket::build()
                 .manage(LastDatafixAccessToken::init())
-                .mount("/", rocket::routes![guarded_datafix]),
+                .manage(signing::issuers())
+                .mount("/", rocket::routes![guarded_datafix, guarded_claims]),
         )
         .await
         .unwrap();
@@ -1210,16 +1240,35 @@ async fn request_guard_diagnostics_never_log_authorization_headers_or_client_sec
                 .status(),
             Status::BadRequest
         );
+        assert_eq!(
+            client
+                .get("/claims")
+                .header(Header::new(
+                    "authorization",
+                    format!("Bearer {forged}")
+                ))
+                .dispatch()
+                .await
+                .status(),
+            Status::Unauthorized
+        );
     }
     .with_subscriber(subscriber)
     .await;
     peer.finish();
     let log = String::from_utf8(log.0.lock().unwrap().clone()).unwrap();
-    assert!(
-        log.contains("DatafixClaims"),
-        "capture application diagnostics, not an empty log"
-    );
-    for secret in ["synthetic-private-secret", "synthetic-incomplete-secret"] {
+    for guard in ["DatafixClaims", "JwtClaims"] {
+        assert!(
+            log.contains(guard),
+            "capture {guard} diagnostics, not an empty log"
+        );
+    }
+    for secret in [
+        "synthetic-private-secret",
+        "synthetic-incomplete-secret",
+        &access_token,
+        &forged,
+    ] {
         assert!(
             !log.contains(secret),
             "request diagnostics disclosed credentials"
