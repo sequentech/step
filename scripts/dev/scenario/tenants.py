@@ -232,6 +232,34 @@ def admin_token(keycloak: Any, realm: str, secret: str) -> str:
     )["access_token"]
 
 
+def _messaging_service_user(keycloak: Any, tenant_id: str) -> dict[str, Any]:
+    realm = tenant_realm(tenant_id)
+    (client,) = keycloak.admin("GET", f"{realm}/clients?clientId=service-account")
+    return keycloak.admin("GET", f"{realm}/clients/{client['id']}/service-account-user")
+
+
+def messaging_service_account_configured(keycloak: Any, tenant_id: str) -> bool:
+    """The messaging service token's tenant mapper needs this user attribute."""
+    user = _messaging_service_user(keycloak, tenant_id)
+    return (user.get("attributes") or {}).get("tenant-id") == [tenant_id]
+
+
+def configure_messaging_service_account(keycloak: Any, tenant_id: str) -> bool:
+    """Repair older local realms without replacing unrelated service attributes."""
+    user = _messaging_service_user(keycloak, tenant_id)
+    attributes = dict(user.get("attributes") or {})
+    if attributes.get("tenant-id") == [tenant_id]:
+        return False
+    attributes["tenant-id"] = [tenant_id]
+    keycloak.admin(
+        "PUT",
+        f"{tenant_realm(tenant_id)}/users/{user['id']}",
+        json_body={"attributes": attributes},
+        expect=(204,),
+    )
+    return True
+
+
 def realm_signing_kids(realm: str) -> set[str]:
     certs = http_get(
         f"{KEYCLOAK_URL}/realms/{realm}/protocol/openid-connect/certs"

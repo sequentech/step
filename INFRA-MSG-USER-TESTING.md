@@ -232,3 +232,30 @@ devenv shell -- scripts/dev/step-dev scenario reset messaging-second-organizatio
 The fake accounts, second tenant and organization administrator intentionally
 remain for reuse. Reset does not delete those shared scenario resources, stop
 services, or alter unrelated events. Restore any Page/configuration edits first.
+
+## Local provider configuration verified (2026-10-11)
+
+Both prepared organizations use synthetic provider credentials. Harvest,
+Windmill and beat override the Meta, Infobip and AWS endpoints with Harvest's
+`/fake-provider/meta`, `/fake-provider/infobip` and `/fake-provider/aws` routes.
+Provider callbacks enter the local relay at `http://messaging-webhooks:8410`.
+The account check's HTTPS callback warning is expected for these internal HTTP
+fixtures; successful signed delivery callbacks were verified separately.
+
+All ten account checks passed. WhatsApp, Viber, SMS and email test sends were
+accepted for each organization, using its existing permitted purpose (Staff
+Association Viber remains notice-only). Messenger was tested through the
+service-token link API and fake Get Started callback, reaching `CODE_SENT` and
+then `CONFIRMED`; Meta/Infobip delivery reports returned HTTP 200. This establishes
+local provider delivery and service authentication, not the remaining browser
+acceptance cases above or delivery through real providers.
+
+The main tenant's existing service-account user lacked `tenant-id`, so its token
+was rejected by Harvest. The local user attribute was repaired, preserving
+other attributes. Scenario setup now checks and repairs that attribute before
+configuring messaging; a missing attribute also prevents reporting the messaging
+stage complete. The checked-in realm already includes the correct attribute.
+
+Smoke messages use `+15550999100`, `+15550999101` and
+`demo-provider-check-{0,1}@fake-provider.example.org`; their text identifies the
+local provider check. Exclude these synthetic messages from manual count checks.

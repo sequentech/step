@@ -201,8 +201,10 @@ class StackBackend:
 
     @property
     def realm(self) -> str:
-        return TENANT_REALM if self.organization is None else tenants.tenant_realm(
-            self.tenant_id
+        return (
+            TENANT_REALM
+            if self.organization is None
+            else tenants.tenant_realm(self.tenant_id)
         )
 
     def _event_realm(self, event_id: str) -> str:
@@ -461,8 +463,10 @@ class StackBackend:
             token = self._admin_token()
         self._wait(
             f"Hasura to accept {organization.slug} administrator tokens",
-            lambda: (tenants.hasura_accepts(self._admin_token(), self.tenant_id),
-                     "tokens rejected"),
+            lambda: (
+                tenants.hasura_accepts(self._admin_token(), self.tenant_id),
+                "tokens rejected",
+            ),
             "hasura",
             hint=f"restart Hasura: docker restart {self.checkout.name_prefix}hasura",
         )
@@ -650,7 +654,9 @@ class StackBackend:
         if stage is Stage.EVENT:
             return self._event(event_id) is not None
         if stage is Stage.MESSAGING:
-            return messaging.configured(
+            return tenants.messaging_service_account_configured(
+                self.keycloak, self.tenant_id
+            ) and messaging.configured(
                 self.admin, self.tenant_id, event_id, messaging.PROFILES[scenario.name]
             )
         if stage is Stage.VOTERS:
@@ -818,6 +824,8 @@ class StackBackend:
     def _configure_messaging(
         self, scenario: Scenario, state: State, event_id: str
     ) -> None:
+        if tenants.configure_messaging_service_account(self.keycloak, self.tenant_id):
+            self.say("    restored the messaging service account's tenant attribute")
         graphql = messaging.Graphql(Http(), HASURA_URL, self._admin_token())
         try:
             messaging.configure(
