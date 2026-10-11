@@ -28,7 +28,7 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const Inbox: Story = {
-    parameters: {widgets: ["ReadingPane"]},
+    parameters: {widgets: ["EmailReadingPane"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         const inbox = within(canvas.getByRole("list", {name: "Inbox"}))
@@ -62,7 +62,7 @@ export const Inbox: Story = {
         const other = within(canvas.getByRole("article", {name: "Selected email"}))
         await expect(other.getByText(/We received your enrollment/)).toBeVisible()
         await expect(
-            other.getByText("Cut: the fake provider keeps only the first 64 KiB of each field.")
+            other.getByText("Cut: the demo provider keeps only the first 64 KiB of each field.")
         ).toBeVisible()
         expect(other.queryByTitle("Email content")).toBeNull()
     },

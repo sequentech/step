@@ -6120,6 +6120,8 @@ const frenchTranslation: TranslationType = {
             },
         },
         sentMessages: {
+            showMore: "Afficher plus",
+            showLess: "Afficher moins",
             tab: "Messages envoyés",
             accountsTab: "Comptes",
             tabsLabel: "Sections de la messagerie",

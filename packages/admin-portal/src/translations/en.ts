@@ -5995,6 +5995,8 @@ const englishTranslation = {
             },
         },
         sentMessages: {
+            showMore: "Show more",
+            showLess: "Show less",
             tab: "Sent messages",
             accountsTab: "Accounts",
             tabsLabel: "Messaging sections",

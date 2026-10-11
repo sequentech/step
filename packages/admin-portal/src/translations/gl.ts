@@ -6051,6 +6051,8 @@ const galegoTranslation: TranslationType = {
             },
         },
         sentMessages: {
+            showMore: "Mostrar máis",
+            showLess: "Mostrar menos",
             tab: "Mensaxes enviadas",
             accountsTab: "Contas",
             tabsLabel: "Seccións de mensaxería",

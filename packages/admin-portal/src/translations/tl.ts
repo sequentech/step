@@ -6118,6 +6118,8 @@ const tagalogTranslation: TranslationType = {
             },
         },
         sentMessages: {
+            showMore: "Ipakita pa",
+            showLess: "Ipakita ang mas kaunti",
             tab: "Mga naipadalang mensahe",
             accountsTab: "Mga account",
             tabsLabel: "Mga seksyon ng pagmemensahe",

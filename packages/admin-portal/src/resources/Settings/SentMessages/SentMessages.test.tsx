@@ -6,13 +6,14 @@ import React from "react"
 import {readFileSync} from "fs"
 import {resolve} from "path"
 import {MemoryRouter, useLocation} from "react-router-dom"
-import {fireEvent, render, screen} from "@testing-library/react"
+import {fireEvent, render, screen, within} from "@testing-library/react"
 import "@testing-library/jest-dom"
 import {useQuery} from "@apollo/client"
 import {print} from "graphql"
 import {EMessageChannel} from "@/types/messaging"
 import {EmailInbox} from "./EmailInbox"
 import {MessagingTabs} from "./MessagingTabs"
+import {AllMessagesTable} from "./SentMessages"
 import {emailSrcDoc} from "./emailFrame"
 import {FAKE_PROVIDER_REASONS, conversations, demoLabel} from "./messageContent"
 import {FAKE_PROVIDER_MESSAGE, FAKE_PROVIDER_MESSAGES} from "./queries"
@@ -104,6 +105,33 @@ const renderTabs = (url: string) =>
 beforeEach(() => {
     mockCanWrite = true
     useQueryMock.mockReset()
+})
+
+it("keeps a message expanded when a refresh inserts a newer message", () => {
+    const original = channelMessages(EMessageChannel.SMS)[0]
+    const {rerender} = render(<AllMessagesTable messages={[original]} />)
+    fireEvent.click(screen.getByRole("button", {name: "sentMessages.showMore"}))
+    expect(screen.getByRole("group", {name: "sentMessages.column.message"})).toHaveTextContent(
+        original.content.text!
+    )
+    rerender(
+        <AllMessagesTable
+            messages={[
+                {
+                    ...original,
+                    id: "new-message",
+                    received_at: "2026-10-11T10:00:00Z",
+                    content: {...original.content, text: "A new notice"},
+                },
+                {...original, report: {...original.report!, status: 200}},
+            ]}
+        />
+    )
+    const detail = screen.getByRole("group", {name: "sentMessages.column.message"})
+    expect(detail).toHaveTextContent(original.content.text!)
+    expect(within(detail).queryByText("A new notice")).toBeNull()
+    fireEvent.click(within(detail).getByRole("button", {name: "sentMessages.showLess"}))
+    expect(screen.queryByRole("group", {name: "sentMessages.column.message"})).toBeNull()
 })
 
 it.each([

@@ -6109,6 +6109,8 @@ const dutchTranslation: TranslationType = {
             },
         },
         sentMessages: {
+            showMore: "Meer tonen",
+            showLess: "Minder tonen",
             tab: "Verzonden berichten",
             accountsTab: "Verzendaccounts",
             tabsLabel: "Onderdelen van berichten",
