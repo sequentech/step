@@ -501,11 +501,14 @@ administrator's language.
 
 ### Editing event template bindings
 
-The event's Messaging tab shows a compact summary of each provider template
-binding: purpose, language, message key, provider template and approval status.
-Expand a binding to inspect or edit it. Opening another binding closes the
-previous editor and retains its changes. Add opens the new binding immediately;
-saving highlights and opens incomplete bindings. Save includes all bindings,
+The event's Messaging tab groups approved template bindings into collapsed
+channel sections, each showing its channel and binding count. Expand a channel
+to see compact binding summaries: purpose, language, message key, provider
+template and approval status. Expand a binding to inspect or edit it. Closing a
+channel retains its changes. Approval problems remain visible when a channel is
+closed, and Save opens channels with incomplete bindings. Opening another
+binding closes the previous editor and retains its changes. Add opens the new
+binding immediately; saving highlights and opens incomplete bindings. Save includes all bindings,
 including those whose editors are closed.
 
 ### Send Notification
