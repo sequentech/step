@@ -527,6 +527,57 @@ class MessagingSetupTest(unittest.TestCase):
             graphql, admin, "tenant", "event", self.profile, self.said.append
         )
 
+    def test_existing_fake_account_is_renamed_without_creating_another_account(self):
+        m = self.messaging
+        profile = m.FIRST_ORGANIZATION
+        email = profile.account("email")
+        self.assertEqual(email.name, "Demo Email")
+        renamed = []
+
+        def rename(values):
+            renamed.append(values)
+            return {"update_sequent_backend_messaging_account": {"affected_rows": 1}}
+
+        admin = FakeHasura(
+            {
+                m.RENAME_ACCOUNT: rename,
+                m.ACCOUNTS: lambda _: {
+                    "sequent_backend_messaging_account": [
+                        {
+                            "id": "existing",
+                            "name": "Fake email",
+                            "sender": {
+                                "provider": "AWS_SES",
+                                "from_name": "Elections",
+                                "from_address": "elections@fake-provider.example.org",
+                            },
+                            "credentials": {
+                                key: "ref" for key in m.expected_credentials(email)
+                            },
+                        }
+                    ]
+                },
+                m.DEFAULT_ACCOUNTS: lambda _: {"sequent_backend_messaging_account": []},
+                m.ELECTIONS: lambda _: {"sequent_backend_election": []},
+            }
+        )
+        graphql = self.graphql()
+        ids = m.configure(graphql, admin, "tenant", "event", profile, self.said.append)
+        self.assertEqual(ids["email"], "existing")
+        self.assertEqual(len(renamed), 1)
+        self.assertEqual(renamed[0]["name"], "Demo Email")
+        self.assertEqual(renamed[0]["tenant"], "tenant")
+        self.assertEqual(renamed[0]["id"], "existing")
+        self.assertFalse(
+            any(v["name"] == "Demo Email" for v in graphql.documents(m.UPSERT))
+        )
+        self.assertEqual(
+            renamed[0]["sender"]["from_address"], "elections@demo-provider.example.org"
+        )
+        self.assertFalse(
+            any(v["id"] == "existing" for v in graphql.documents(m.CREDENTIALS))
+        )
+
     def test_an_account_left_without_credentials_gets_them_and_is_checked(self):
         stored = self.complete()
         viber = next(a for a in self.profile.accounts if a.channel == "VIBER")
