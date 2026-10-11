@@ -15,12 +15,15 @@ interface Scenario {
     /** Whether harvest mounts the fake provider routes (the action answers). */
     routes: "mounted" | "absent"
     roles: string[]
+    refresh: "manual" | "automatic"
+    messages: "populated" | "arriving"
 }
 
 const ACCOUNTS = "The sending accounts"
 const WRITE_ROLE = {"x-hasura-role": IPermissions.MESSAGING_ACCOUNT_WRITE}
 
 let graphql: ReturnType<typeof graphqlBoundary>
+let messagesArrived = false
 
 const callsOf = (name: string) => graphql.calls.filter((call) => call.name === name)
 
@@ -33,17 +36,22 @@ const meta = {
     component: MessagingTabs,
     args: {
         routes: "mounted",
+        refresh: "manual",
+        messages: "populated",
         roles: [IPermissions.MESSAGING_ACCOUNT_READ, IPermissions.MESSAGING_ACCOUNT_WRITE],
     },
     parameters: {router: {initialEntries: ["/settings?tabIndex=2"]}},
     argTypes: {routes: {control: "inline-radio", options: ["mounted", "absent"]}},
     beforeEach: ({args}) => {
+        messagesArrived = false
         graphql = graphqlBoundary({
             MessagingFakeProviderMessages: () => {
                 if (args.routes === "absent") {
                     throw new Error("Synthetic http exception when calling webhook")
                 }
-                return {data: {messaging_fake_provider_messages: {messages: sentMessages()}}}
+                const messages =
+                    args.messages === "arriving" && !messagesArrived ? [] : sentMessages()
+                return {data: {messaging_fake_provider_messages: {messages}}}
             },
             MessagingFakeProviderMessage: fakeMessageHandler,
             MessagingFakeProviderGetStarted: () => ({
@@ -53,7 +61,10 @@ const meta = {
     },
     render: (args) => (
         <AdminStoryProvider boundary={graphql} roles={args.roles}>
-            <MessagingTabs accounts={<Typography>{ACCOUNTS}</Typography>} refreshMs={0} />
+            <MessagingTabs
+                accounts={<Typography>{ACCOUNTS}</Typography>}
+                refreshMs={args.refresh === "automatic" ? undefined : 0}
+            />
         </AdminStoryProvider>
     ),
 } satisfies WidgetMeta<Scenario>
@@ -127,5 +138,32 @@ export const WithoutWriteRole: Story = {
         await expect(canvas.getByText(ACCOUNTS)).toBeVisible()
         expect(canvas.queryByRole("tablist")).toBeNull()
         expect(graphql.calls).toEqual([])
+    },
+}
+
+export const AutomaticRefresh: Story = {
+    args: {messages: "arriving", refresh: "automatic"},
+    parameters: {router: {initialEntries: ["/settings?channel=all"]}},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByText("No messages yet.")).toBeVisible()
+        const refresh = canvas.getByRole("button", {name: "Refresh"})
+        await expect(refresh).toBeEnabled()
+        messagesArrived = true
+        await waitFor(
+            () => {
+                const table = canvas.getByRole("table", {name: "Sent messages"})
+                expect(within(table).getAllByRole("row")).toHaveLength(sentMessages().length + 1)
+            },
+            {timeout: 10000}
+        )
+        const reads = callsOf("MessagingFakeProviderMessages").length
+        await userEvent.click(refresh)
+        await waitFor(() =>
+            expect(callsOf("MessagingFakeProviderMessages").length).toBeGreaterThan(reads)
+        )
+        await waitFor(() => expect(refresh).toBeEnabled())
+        await userEvent.click(canvas.getByRole("tab", {name: "Accounts"}))
+        await expect(canvas.getByText(ACCOUNTS)).toBeVisible()
     },
 }
