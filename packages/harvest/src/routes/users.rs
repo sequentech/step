@@ -7,12 +7,15 @@ use crate::adapters::user_tasks::{
     CeleryUserTaskDispatch, ClaimsUserTaskAuthorization,
     WindmillUserTaskLedger,
 };
+use crate::ports::database::DatabasePools;
+use crate::ports::identity::IdentityAdmin;
 use crate::services::access::{
     create_user_permissions, delete_permission, edit_user_access,
     read_permission, writes_secret_attributes, UserEdit, UserEditAccess,
     UserScope,
 };
 use crate::services::authorization::authorize;
+use crate::services::dependencies::HarvestServices;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
@@ -23,6 +26,7 @@ use rocket::http::Status;
 use rocket::response::{Responder, Result as ResponseResult};
 use rocket::serde::json::Json;
 use rocket::Request;
+use rocket::State;
 use sequent_core::services::jwt;
 use sequent_core::services::keycloak::{
     get_event_realm, get_realm_password_policy, get_tenant_realm,
@@ -41,7 +45,9 @@ use std::collections::{HashMap, HashSet};
 use std::env;
 use tracing::{info, instrument};
 use uuid::Uuid;
-use windmill::postgres::cast_vote::get_voter_cast_vote_state;
+use windmill::postgres::cast_vote::{
+    get_voter_cast_vote_state, VoterCastVoteState,
+};
 use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::cast_votes::get_users_with_vote_info;
 use windmill::services::celery_app::get_celery_app;
@@ -102,9 +108,36 @@ async fn ensure_election_event_not_locked(
     }
 }
 
+/// Why checking a voter's ballots failed, not that the voter has one.
+fn ballot_check_error(err: anyhow::Error) -> (Status, String) {
+    (
+        Status::InternalServerError,
+        format!("Error checking the voter's ballots: {err:?}"),
+    )
+}
+
+async fn voter_cast_vote_state(
+    databases: &dyn DatabasePools,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    user_id: &str,
+) -> Result<VoterCastVoteState> {
+    let mut hasura_db_client: DbClient = databases.hasura().await.get().await?;
+    let hasura_transaction = hasura_db_client.transaction().await?;
+    get_voter_cast_vote_state(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        user_id,
+    )
+    .await
+    .map_err(|err| anyhow!("{err:?}"))
+}
+
 /// Refuses deleting a voter whose ballot is valid or still in progress: the
 /// tally would no longer find the voter and would leave that ballot out.
 async fn ensure_voter_has_no_active_ballot(
+    databases: &dyn DatabasePools,
     tenant_id: &str,
     election_event_id: &str,
     user_id: &str,
@@ -113,33 +146,14 @@ async fn ensure_voter_has_no_active_ballot(
         .map_err(|err| (Status::BadRequest, err.to_string()))?;
     let election_event_uuid = parse_uuid_v4(election_event_id)
         .map_err(|err| (Status::BadRequest, err.to_string()))?;
-    let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.map_err(|err| {
-            (
-                Status::InternalServerError,
-                format!("Error acquiring hasura db client from pool {err:?}"),
-            )
-        })?;
-    let hasura_transaction =
-        hasura_db_client.transaction().await.map_err(|err| {
-            (
-                Status::InternalServerError,
-                format!("Error acquiring hasura transaction {err:?}"),
-            )
-        })?;
-    let state = get_voter_cast_vote_state(
-        &hasura_transaction,
+    let state = voter_cast_vote_state(
+        databases,
         &tenant_uuid,
         &election_event_uuid,
         user_id,
     )
     .await
-    .map_err(|err| {
-        (
-            Status::InternalServerError,
-            format!("Error checking the voter's ballots: {err:?}"),
-        )
-    })?;
+    .map_err(ballot_check_error)?;
     if state.has_active_vote() {
         return Err((
             Status::Conflict,
@@ -149,66 +163,71 @@ async fn ensure_voter_has_no_active_ballot(
     Ok(())
 }
 
-/// Refuses an edit that changes a census attribute counting a valid or
-/// in-progress ballot: the tally reads those attributes when it runs, so the
-/// edit would leave that ballot out or change its weight.
-async fn ensure_census_edit_keeps_ballots(
+async fn census_refusal(
+    databases: &dyn DatabasePools,
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    user_id: &str,
+    current_user: &User,
     enabled: Option<bool>,
     attributes: &HashMap<String, Vec<String>>,
-) -> Result<(), (Status, String)> {
-    let client = KeycloakAdminClient::new().await.map_err(|err| {
-        (
-            Status::InternalServerError,
-            format!("Error obtaining the client: {err:?}"),
-        )
-    })?;
-    let current_user = client
-        .get_user(&get_event_realm(tenant_id, election_event_id), user_id)
-        .await
-        .map_err(|err| {
-            (
-                Status::InternalServerError,
-                format!("Error loading the voter: {err:?}"),
-            )
-        })?;
+) -> Result<Option<String>> {
     let mut keycloak_db_client: DbClient =
-        get_keycloak_pool().await.get().await.map_err(|err| {
-            (
-                Status::InternalServerError,
-                format!("Error acquiring keycloak db client from pool {err:?}"),
-            )
-        })?;
-    let keycloak_transaction =
-        keycloak_db_client.transaction().await.map_err(|err| {
-            (
-                Status::InternalServerError,
-                format!("Error acquiring keycloak transaction {err:?}"),
-            )
-        })?;
-    let refusal = census_edit_refusal(
+        databases.keycloak().await.get().await?;
+    let keycloak_transaction = keycloak_db_client.transaction().await?;
+    census_edit_refusal(
         hasura_transaction,
         &keycloak_transaction,
         tenant_id,
         election_event_id,
-        &current_user,
+        current_user,
         enabled,
         attributes,
     )
     .await
-    .map_err(|err| {
-        (
-            Status::InternalServerError,
-            format!("Error checking the ballots the edit affects: {err:?}"),
-        )
-    })?;
+    .map_err(|err| anyhow!("{err:?}"))
+}
+
+/// Refuses an edit that changes a census attribute counting a valid or
+/// in-progress ballot: the tally reads those attributes when it runs, so the
+/// edit would leave that ballot out or change its weight.
+async fn ensure_census_edit_keeps_ballots(
+    databases: &dyn DatabasePools,
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    current_user: &User,
+    enabled: Option<bool>,
+    attributes: &HashMap<String, Vec<String>>,
+) -> Result<(), (Status, String)> {
+    let refusal = census_refusal(
+        databases,
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        current_user,
+        enabled,
+        attributes,
+    )
+    .await
+    .map_err(ballot_check_error)?;
     match refusal {
         Some(reason) => Err((Status::Conflict, reason)),
         None => Ok(()),
     }
+}
+
+async fn load_voter(
+    identity: &dyn IdentityAdmin,
+    tenant_id: &str,
+    election_event_id: &str,
+    user_id: &str,
+) -> Result<User> {
+    identity
+        .client()
+        .await?
+        .get_user(&get_event_realm(tenant_id, election_event_id), user_id)
+        .await
 }
 
 async fn get_event_secret_attribute_config(
@@ -319,11 +338,12 @@ fn ensure_secret_attributes_not_queried(
     Ok(())
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/delete-user", format = "json", data = "<body>")]
 pub async fn delete_user(
     claims: jwt::JwtClaims,
     body: Json<DeleteUserBody>,
+    services: &State<HarvestServices>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
     authorize(
@@ -338,6 +358,7 @@ pub async fn delete_user(
         ensure_election_event_not_locked(&input.tenant_id, election_event_id)
             .await?;
         ensure_voter_has_no_active_ballot(
+            services.databases.as_ref(),
             &input.tenant_id,
             election_event_id,
             &input.user_id,
@@ -1309,11 +1330,12 @@ pub async fn check_edit_email_tlf(
     Ok(())
 }
 
-#[instrument(skip(claims, body), ret)]
+#[instrument(skip(claims, body, services), ret)]
 #[post("/edit-user", format = "json", data = "<body>")]
 pub async fn edit_user(
     claims: jwt::JwtClaims,
     body: Json<EditUserBody>,
+    services: &State<HarvestServices>,
 ) -> Result<Json<EditUserOutput>, EditUserError> {
     let input = body.into_inner();
     let has_secret_changes =
@@ -1524,11 +1546,20 @@ pub async fn edit_user(
         datafix_election_event.as_ref(),
         password_only,
     ) {
-        ensure_census_edit_keeps_ballots(
-            &hasura_transaction,
+        let current_user = load_voter(
+            services.identity.as_ref(),
             &input.tenant_id,
             election_event_id,
             &input.user_id,
+        )
+        .await
+        .map_err(ballot_check_error)?;
+        ensure_census_edit_keeps_ballots(
+            services.databases.as_ref(),
+            &hasura_transaction,
+            &input.tenant_id,
+            election_event_id,
+            &current_user,
             input.enabled,
             &new_attributes,
         )
@@ -2165,3 +2196,7 @@ mod tests {
 #[cfg(test)]
 #[path = "../../tests/support/user_service_errors.rs"]
 mod user_service_errors;
+
+#[cfg(test)]
+#[path = "../../tests/support/user_ballot_guards.rs"]
+mod user_ballot_guards;
