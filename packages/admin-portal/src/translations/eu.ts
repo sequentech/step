@@ -5327,7 +5327,7 @@ const basqueTranslation: TranslationType = {
                 template: "Hornitzailearen txantiloia",
                 status: "Egoera",
                 post: "Post",
-                key: "Mezu honetarako",
+                key: "Mezu mota edo txantiloia",
                 providerLanguage: "Hornitzailearen hizkuntza",
                 voters: "Erabiltzen duten hautesleak",
                 sent24h: "Bidaliak, azken 24 h",
@@ -5338,16 +5338,27 @@ const basqueTranslation: TranslationType = {
                 utility:
                     "24 orduko leihotik kanpo, {{channel}} kanalak Txantiloi onartuak atalean jakinarazpenei lotutako utilitate-txantiloi onartuarekin bidaltzen ditu jakinarazpenak.",
             },
+            messageTypes: {
+                otp: "Egiaztapen kodea",
+                otl: "Saioa hasteko esteka",
+                enrollmentAccepted: "Izen-ematea onartuta",
+                enrollmentAcceptedKiosk: "Izen-ematea onartuta (kioskoa)",
+                enrollmentPending: "Izen-ematea onarpenaren zain",
+                enrollmentRejected: "Izen-ematea baztertuta",
+                passwordReset: "Pasahitza berrezartzea",
+                temporaryPassword: "Aldi baterako pasahitza",
+                contactChanged: "Harremanetarako metodoa aldatuta",
+            },
             templates: {
                 empty: "Aukeratu txantiloi onartuak bidaltzen dituen kontu bat, hala nola WhatsApp, Viber edo Messenger, bere txantiloiak hemen lotzeko.",
-                help: "Errenkada bakoitzak adierazten du hornitzaileak zein txantiloi onartu bidaltzen duen mezu baterako. Mezu honetarako da Txantiloiak ataleko txantiloi baten aliasa, jakinarazpen baterako, edo Keycloak-ek bidaltzen duen mezu-gakoa, adibidez otp; utzi hutsik helbururako lehenespenez erabiltzen den txantiloirako. Hizkuntza hauteslearen hizkuntza da. Hornitzailearen txantiloia txantiloiak hornitzailean duen izena edo IDa da. Hornitzailearen hizkuntza hornitzaileak txantiloi horretarako duen kodea da, hauteslearen hizkuntzatik desberdina denean: WhatsApp-ek txantiloi onartuaren kode zehatza behar du, adibidez en_US.",
+                help: "Aukeratu sistemako mezu mota bat edo Txantiloiak ataleko alias bat. Utzi hutsik helburu honetarako onartutako txantiloia lehenespenez erabiltzeko. Hizkuntza hauteslearen hizkuntza da. Hornitzailearen txantiloia txantiloiak hornitzailean duen izena edo IDa da. Hornitzailearen hizkuntza hornitzaileak txantiloi horretarako duen kodea da, hauteslearen hizkuntzatik desberdina denean: WhatsApp-ek txantiloi onartuaren kode zehatza behar du, adibidez en_US.",
                 order: "Mezu bakoitzerako errenkada zehatzenak irabazten du: mezuaren errenkada hauteslearen hizkuntzan, gero mezuaren errenkada edozein hizkuntzatan, gero helbururako lehenetsia hauteslearen hizkuntzan, eta azkenik helbururako edozein lehenetsi.",
                 noneRequired:
                     "{{channel}} kanalak txantiloi onartuak soilik bidaltzen ditu. Gehitu gutxienez txantiloi lehenetsi bat erabiltzen den helburu bakoitzerako.",
                 noneOptional:
                     "Ez dago txantiloirik lotuta {{channel}} kanalerako. Elkarrizketa-leihotik kanpo jakinarazpenak bidaltzeko soilik behar dira.",
                 row: "{{channel}} txantiloia, {{position}}.",
-                keyDefault: "Helbururako lehenetsia",
+                keyDefault: "Helburu honetarako lehenetsia",
                 add: "Gehitu {{channel}} txantiloia",
                 remove: "Kendu {{channel}} txantiloia, {{position}}.",
                 incomplete:

@@ -391,6 +391,18 @@ const APPROVAL_COLOR: Record<EBindingApproval, "success" | "default"> = {
     [EBindingApproval.NOT_CHECKED]: "default",
 }
 
+const MESSAGE_TYPE_LABELS: Record<string, string> = {
+    "otp": "otp",
+    "otl": "otl",
+    "messageSuccessSms": "enrollmentAccepted",
+    "messageSuccessSmsKiosk": "enrollmentAcceptedKiosk",
+    "messagePendingSms": "enrollmentPending",
+    "messageRejectedSms": "enrollmentRejected",
+    "forgotPassword.sms.text": "passwordReset",
+    "newPassword.message.text": "temporaryPassword",
+    "contactChanged.notice.text": "contactChanged",
+}
+
 export interface MessagingTemplateBindingsProps {
     config: IEventMessagingConfig
     accounts: IMessagingAccount[]
@@ -429,6 +441,10 @@ export const MessagingTemplateBindings: React.FC<MessagingTemplateBindingsProps>
     if (!channels.length) {
         return <Helper>{t("messagingEvent.templates.empty")}</Helper>
     }
+    const messageLabel = (key: string) =>
+        Object.prototype.hasOwnProperty.call(MESSAGE_TYPE_LABELS, key)
+            ? t(`messagingEvent.messageTypes.${MESSAGE_TYPE_LABELS[key]}`)
+            : key
     const keyOptions = (purpose: EMessagePurpose) =>
         purpose === EMessagePurpose.NOTICE
             ? Array.from(new Set([...templateAliases, ...KEYCLOAK_NOTICE_MESSAGE_KEYS]))
@@ -578,7 +594,10 @@ export const MessagingTemplateBindings: React.FC<MessagingTemplateBindingsProps>
                                                                     {" · "}
                                                                     {binding.language || "–"}
                                                                     {" · "}
-                                                                    {binding.key ||
+                                                                    {(binding.key &&
+                                                                        messageLabel(
+                                                                            binding.key
+                                                                        )) ||
                                                                         t(
                                                                             "messagingEvent.templates.keyDefault"
                                                                         )}
@@ -643,13 +662,31 @@ export const MessagingTemplateBindings: React.FC<MessagingTemplateBindingsProps>
                                                                         options={keyOptions(
                                                                             binding.purpose
                                                                         )}
-                                                                        inputValue={
+                                                                        inputValue={messageLabel(
                                                                             binding.key ?? ""
+                                                                        )}
+                                                                        value={binding.key || null}
+                                                                        getOptionLabel={
+                                                                            messageLabel
+                                                                        }
+                                                                        onChange={(_event, value) =>
+                                                                            update({
+                                                                                key: value ?? "",
+                                                                            })
                                                                         }
                                                                         onInputChange={(
                                                                             _event,
-                                                                            value
-                                                                        ) => update({key: value})}
+                                                                            value,
+                                                                            reason
+                                                                        ) => {
+                                                                            if (
+                                                                                reason ===
+                                                                                    "input" ||
+                                                                                reason === "clear"
+                                                                            ) {
+                                                                                update({key: value})
+                                                                            }
+                                                                        }}
                                                                         renderInput={(params) => (
                                                                             <TextField
                                                                                 {...params}

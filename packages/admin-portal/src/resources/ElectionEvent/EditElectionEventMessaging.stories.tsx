@@ -746,7 +746,10 @@ export const MessengerUtilityTemplate: Story = {
         const row = within(
             await canvas.findByRole("group", {name: "Facebook Messenger template 1"})
         )
-        await userEvent.click(row.getByRole("combobox", {name: "For message"}))
+        await userEvent.click(row.getByRole("combobox", {name: "Message type or template"}))
+        await expect(
+            await within(document.body).findByRole("option", {name: "Enrollment rejected"})
+        ).toBeVisible()
         await userEvent.click(
             await within(document.body).findByRole("option", {name: "voting-reminder"})
         )
@@ -779,7 +782,14 @@ export const IncompleteTemplateRow: Story = {
         await userEvent.click(await canvas.findByRole("button", {name: "WhatsApp"}))
         await userEvent.click(await canvas.findByRole("button", {name: "Add WhatsApp template"}))
         const row = within(await canvas.findByRole("group", {name: "WhatsApp template 1"}))
-        await userEvent.type(row.getByRole("combobox", {name: "For message"}), "otp")
+        const message = row.getByRole("combobox", {name: "Message type or template"})
+        await expect(message).toHaveAttribute("placeholder", "Default for this purpose")
+        await userEvent.keyboard("{Escape}")
+        await userEvent.click(message)
+        await userEvent.click(
+            await within(document.body).findByRole("option", {name: "Verification code"})
+        )
+        await expect(message).toHaveValue("Verification code")
         await userEvent.click(canvas.getByRole("button", {name: "Save"}))
         await expect(
             await row.findByText(
@@ -973,5 +983,36 @@ export const ChannelGroupsFitNarrowScreens: Story = {
         } finally {
             container.style.width = original
         }
+    },
+}
+
+export const ReadableMessageType: Story = {
+    parameters: {widgets: ["MessagingTemplateBindings"]},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await userEvent.click(await canvas.findByRole("button", {name: "WhatsApp"}))
+        await userEvent.click(canvas.getByRole("button", {name: "Add WhatsApp template"}))
+        const row = within(await canvas.findByRole("group", {name: "WhatsApp template 1"}))
+        const message = row.getByRole("combobox", {name: "Message type or template"})
+        await userEvent.type(message, "custom-reminder")
+        await expect(message).toHaveValue("custom-reminder")
+        await userEvent.clear(message)
+        await expect(message).toHaveValue("")
+        await expect(message).toHaveAttribute("placeholder", "Default for this purpose")
+        await userEvent.keyboard("{Escape}")
+        await userEvent.click(message)
+        await userEvent.click(
+            await within(document.body).findByRole("option", {name: "Verification code"})
+        )
+        await expect(message).toHaveValue("Verification code")
+        await userEvent.type(row.getByRole("combobox", {name: "Provider template"}), "demo_code")
+        await userEvent.click(canvas.getByRole("button", {name: "Save"}))
+        await notified("Messaging settings saved.")
+        const config = saveCall()?.variables.config as IEventMessagingConfig
+        expect(
+            config.channels.find(({channel}) => channel === EMessageChannel.WHATSAPP)?.templates[0]
+        ).toMatchObject({key: "otp", provider_template: "demo_code"})
+        await userEvent.click(row.getByRole("button", {name: "WhatsApp template 1"}))
+        await expect(row.getByText(/Verification code/)).toBeVisible()
     },
 }

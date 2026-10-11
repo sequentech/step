@@ -5370,7 +5370,7 @@ const frenchTranslation: TranslationType = {
                 template: "Modèle du fournisseur",
                 status: "État",
                 post: "Post",
-                key: "Pour le message",
+                key: "Type de message ou modèle",
                 providerLanguage: "Langue du fournisseur",
                 voters: "Électeurs qui l'utilisent",
                 sent24h: "Envoyés, dernières 24 h",
@@ -5381,16 +5381,27 @@ const frenchTranslation: TranslationType = {
                 utility:
                     "En dehors de la fenêtre de 24 heures, {{channel}} envoie les avis avec le modèle utilitaire approuvé lié aux avis dans Modèles approuvés.",
             },
+            messageTypes: {
+                otp: "Code de vérification",
+                otl: "Lien de connexion",
+                enrollmentAccepted: "Inscription acceptée",
+                enrollmentAcceptedKiosk: "Inscription acceptée (kiosque)",
+                enrollmentPending: "Inscription en attente d’approbation",
+                enrollmentRejected: "Inscription rejetée",
+                passwordReset: "Réinitialisation du mot de passe",
+                temporaryPassword: "Mot de passe temporaire",
+                contactChanged: "Méthode de contact modifiée",
+            },
             templates: {
                 empty: "Choisissez un compte qui envoie des modèles approuvés, comme WhatsApp, Viber ou Messenger, pour lier ses modèles ici.",
-                help: "Chaque ligne indique quel modèle approuvé le fournisseur envoie pour un message. Pour le message est l'alias d'un modèle de Modèles, pour une notification, ou la clé de message qu'envoie Keycloak, comme otp ; laissez-le vide pour le modèle utilisé par défaut pour l'usage. Langue est la langue de l'électeur. Modèle du fournisseur est le nom ou l'ID du modèle chez le fournisseur. Langue du fournisseur est le code du fournisseur pour ce modèle lorsqu'il diffère de la langue de l'électeur : WhatsApp exige le code exact du modèle approuvé, comme en_US.",
+                help: "Choisissez un type de message du système ou un alias dans Modèles. Laissez ce champ vide pour utiliser le modèle approuvé par défaut pour cet usage. Langue est la langue de l'électeur. Modèle du fournisseur est le nom ou l'ID du modèle chez le fournisseur. Langue du fournisseur est le code du fournisseur pour ce modèle lorsqu'il diffère de la langue de l'électeur : WhatsApp exige le code exact du modèle approuvé, comme en_US.",
                 order: "Pour chaque message, la ligne la plus précise l'emporte : la ligne du message dans la langue de l'électeur, puis la ligne du message dans n'importe quelle langue, puis le modèle par défaut de l'usage dans la langue de l'électeur, puis n'importe quel modèle par défaut de l'usage.",
                 noneRequired:
                     "{{channel}} n'envoie que des modèles approuvés. Ajoutez au moins un modèle par défaut pour chaque usage utilisé.",
                 noneOptional:
                     "Aucun modèle n'est lié pour {{channel}}. Ils ne sont nécessaires que pour envoyer des avis hors de la fenêtre de conversation.",
                 row: "Modèle {{channel}} {{position}}",
-                keyDefault: "Par défaut pour l'usage",
+                keyDefault: "Par défaut pour cet usage",
                 add: "Ajouter un modèle {{channel}}",
                 remove: "Retirer le modèle {{channel}} {{position}}",
                 incomplete:

@@ -397,6 +397,7 @@ export const KEYCLOAK_NOTICE_MESSAGE_KEYS: string[] = [
     "messageRejectedSms",
     "forgotPassword.sms.text",
     "newPassword.message.text",
+    "contactChanged.notice.text",
 ]
 
 export interface IEventChannelConfig {

@@ -5317,7 +5317,7 @@ const galegoTranslation: TranslationType = {
                 template: "Modelo do provedor",
                 status: "Estado",
                 post: "Post",
-                key: "Para a mensaxe",
+                key: "Tipo de mensaxe ou modelo",
                 providerLanguage: "Idioma do provedor",
                 voters: "Votantes que a usan",
                 sent24h: "Enviados, últimas 24 h",
@@ -5328,16 +5328,27 @@ const galegoTranslation: TranslationType = {
                 utility:
                     "Fóra da xanela de 24 horas, {{channel}} envía os avisos co modelo de utilidade aprobado vinculado aos avisos en Modelos aprobados.",
             },
+            messageTypes: {
+                otp: "Código de verificación",
+                otl: "Ligazón de acceso",
+                enrollmentAccepted: "Inscrición aceptada",
+                enrollmentAcceptedKiosk: "Inscrición aceptada (quiosco)",
+                enrollmentPending: "Inscrición pendente de aprobación",
+                enrollmentRejected: "Inscrición rexeitada",
+                passwordReset: "Restablecemento do contrasinal",
+                temporaryPassword: "Contrasinal temporal",
+                contactChanged: "Método de contacto cambiado",
+            },
             templates: {
                 empty: "Escolla unha conta que envíe modelos aprobados, como WhatsApp, Viber ou Messenger, para vincular aquí os seus modelos.",
-                help: "Cada fila indica que modelo aprobado envía o provedor para unha mensaxe. Para a mensaxe é o alias dun modelo de Modelos, para unha notificación, ou a clave de mensaxe que envía Keycloak, como otp; déixeo baleiro para o modelo que se usa por defecto para o propósito. Idioma é o idioma do votante. Modelo do provedor é o nome ou ID do modelo no provedor. Idioma do provedor é o código do provedor para ese modelo cando difire do idioma do votante: WhatsApp precisa o código exacto do modelo aprobado, como en_US.",
+                help: "Seleccione un tipo de mensaxe do sistema ou un alias de Modelos. Déixeo baleiro para usar o modelo aprobado por defecto para este propósito. Idioma é o idioma do votante. Modelo do provedor é o nome ou ID do modelo no provedor. Idioma do provedor é o código do provedor para ese modelo cando difire do idioma do votante: WhatsApp precisa o código exacto do modelo aprobado, como en_US.",
                 order: "Para cada mensaxe gaña a fila máis específica: a fila da mensaxe no idioma do votante, despois a fila da mensaxe en calquera idioma, despois o predeterminado do propósito no idioma do votante e, por último, calquera predeterminado do propósito.",
                 noneRequired:
                     "{{channel}} só envía modelos aprobados. Engada polo menos un modelo predeterminado para cada propósito en uso.",
                 noneOptional:
                     "Non hai modelos vinculados para {{channel}}. Só fan falta para enviar avisos fóra da xanela de conversa.",
                 row: "Modelo {{position}} de {{channel}}",
-                keyDefault: "Predeterminado do propósito",
+                keyDefault: "Predeterminado para este propósito",
                 add: "Engadir modelo de {{channel}}",
                 remove: "Quitar o modelo {{position}} de {{channel}}",
                 incomplete: "Indique o idioma e o modelo do provedor, ou quite esta fila.",

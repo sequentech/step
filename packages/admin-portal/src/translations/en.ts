@@ -5265,7 +5265,7 @@ const englishTranslation = {
                 template: "Provider template",
                 status: "Status",
                 post: "Post",
-                key: "For message",
+                key: "Message type or template",
                 providerLanguage: "Provider language",
                 voters: "Voters using it",
                 sent24h: "Sent, last 24 h",
@@ -5276,16 +5276,27 @@ const englishTranslation = {
                 utility:
                     "Outside the 24-hour window, {{channel}} sends notices with the approved utility template bound to notices under Approved templates.",
             },
+            messageTypes: {
+                otp: "Verification code",
+                otl: "Sign-in link",
+                enrollmentAccepted: "Enrollment accepted",
+                enrollmentAcceptedKiosk: "Enrollment accepted (kiosk)",
+                enrollmentPending: "Enrollment pending approval",
+                enrollmentRejected: "Enrollment rejected",
+                passwordReset: "Password reset",
+                temporaryPassword: "Temporary password",
+                contactChanged: "Contact method changed",
+            },
             templates: {
                 empty: "Choose an account that sends approved templates, such as WhatsApp, Viber or Messenger, to bind its templates here.",
-                help: "Each row says which approved template the provider sends for a message. For message is the alias of a template in Templates, for a notification, or the message key Keycloak sends, such as otp; leave it empty for the template used by default for the purpose. Language is the voter's language. Provider template is the template's name or ID at the provider. Provider language is the provider's code for that template when it differs from the voter's language: WhatsApp needs the exact code of the approved template, such as en_US.",
+                help: "Choose a built-in message type or a template alias from Templates. Leave this empty to use the approved template by default for this purpose. Language is the voter's language. Provider template is the template's name or ID at the provider. Provider language is the provider's code for that template when it differs from the voter's language: WhatsApp needs the exact code of the approved template, such as en_US.",
                 order: "For each message the most specific row wins: the row for the message in the voter's language, then the row for the message in any language, then the default for the purpose in the voter's language, then any default for the purpose.",
                 noneRequired:
                     "{{channel}} sends only approved templates. Add at least a default template for each purpose in use.",
                 noneOptional:
                     "No templates are bound for {{channel}}. They are needed only to send notices outside the conversation window.",
                 row: "{{channel}} template {{position}}",
-                keyDefault: "Default for the purpose",
+                keyDefault: "Default for this purpose",
                 add: "Add {{channel}} template",
                 remove: "Remove {{channel}} template {{position}}",
                 incomplete: "Enter the language and the provider template, or remove this row.",
