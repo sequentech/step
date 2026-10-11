@@ -69,6 +69,7 @@ COPY ./e2e ./e2e
 COPY ./step-cli ./step-cli
 COPY ./orare ./orare
 COPY ./wrap-map-err ./wrap-map-err
+COPY ./messaging ./messaging
 COPY ./braid/scripts ./braid/scripts
 COPY ./plugins ./plugins
 COPY ./Cargo.toml ./Cargo.toml
@@ -109,9 +110,17 @@ RUN set -eux; \
       echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/${DEBIAN_SNAPSHOT} bookworm-security main"; \
     } > /etc/apt/sources.list
 
+# What the package manager leaves behind that differs on every build is removed
+# in the layer that writes it, so that two builds of the same commit give the
+# same layer (sequentech/meta#13625): its logs, which carry the time; the
+# linker's auxiliary cache, which only speeds up the next ldconfig; the machine
+# ID that installing Chromium's dependencies generates, which a container
+# should not share anyway; and the font cache, which records directory times
+# and is rebuilt on first use.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libssl3 chromium ca-certificates wget software-properties-common \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* /var/log/apt /var/log/dpkg.log /var/log/alternatives.log \
+        /var/cache/ldconfig/aux-cache /var/cache/fontconfig /etc/machine-id /var/lib/dbus/machine-id
 RUN update-ca-certificates
 
 # Use Docker build arguments to determine the architecture
@@ -149,7 +158,8 @@ RUN case "${TARGETARCH}" in \
     && mv jdk-${JAVA_VERSION} /usr/local/ \
     && update-alternatives --install /usr/bin/java java /usr/local/jdk-${JAVA_VERSION}/bin/java 1 \
     && update-alternatives --install /usr/bin/javac javac /usr/local/jdk-${JAVA_VERSION}/bin/javac 1 \
-    && curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+    && curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash \
+    && rm -f /var/log/alternatives.log
 
 # Copy the compiled binaries from the builder stage (beat + windmill:main)
 COPY --from=builder /app/target/release/main /usr/local/bin/main
