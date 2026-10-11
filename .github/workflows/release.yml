@@ -331,7 +331,7 @@ jobs:
       tag: ${{ needs.release.outputs.VERSION }}
       push: true
 
-  # Root account (581718213778): build/push to ca-central-1 ECR; other regions replicate.
+  # Root account (581718213778): build/push to eu-west-1 ECR; ca-central-1 and us-east-1 replicate.
   build-and-push-root-account:
     if: ${{ github.event.inputs.infra_only == 'false' }}
     uses: ./.github/workflows/reusable_build_push_root.yml
