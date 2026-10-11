@@ -5,7 +5,7 @@
 
 Parent issue: https://github.com/sequentech/meta/issues/13755
 
-Updated 2026-10-10. Work is in `/workspaces/step` on
+Updated 2026-10-11. Work is in `/workspaces/step` on
 `feat/meta-13755-msg-integration/ovcs`, based on `ovcs` at `8780ca92`.
 Code checkpoint `7627b1d3c9` contains the final fix round; `31ad9a5302`
 fixes activation prerequisites; `86dabdc370` fixes fake Messenger identity
@@ -29,8 +29,12 @@ and Keycloak were already refreshed. Portal servers serve ports 3000 and 3002.
 The second-pass messaging implementation and fix round 3 are complete on the
 code side. The later instruction **"Do these, and make sure everything is
 ready"** authorized activation of the named services and test scenarios.
-Manual journey acceptance, OTP load latency, real Meta checks and local CI
-remain pending. W4 (local CI and PR splitting) still follows user review of W3.
+The user authorized local commits and PR-stack preparation on 2026-10-11,
+then explicitly prohibited pushing. Manual journey acceptance, OTP load latency
+and real Meta checks remain pending; they are not marked passed by local checks.
+Four local PR branches are prepared against the recorded `ovcs` base, each
+with at most 150 changed files. No remote refs or PRs were created or updated.
+The integration history is preserved; no shared branch is rebased or rewritten.
 
 Activation fixed two reproduced setup failures: results queries used String
 where the live schema requires UUID; scenario realm construction dropped the
@@ -59,9 +63,17 @@ All 14 fake-provider tests passed, including the later sign-in confirmation;
 Harvest all-target clippy, workspace Rust formatting and REUSE passed. R10
 cleared the source fix and required Rust target-directory export.
 
-User changes to the Keycloak image build context and concurrent admin messaging
-layout/story edits remain unstaged and intact. They were not folded into the
-activation commits. `devenv.lock` remains unchanged.
+The messaging layout fixes are committed as `f5ea1f02a6`; the Keycloak Docker
+build includes both Rust OTP contract sources in `cac2203f8a`. The user approved
+unsigned local commits because the configured signing key is unavailable; the
+global signing setting is unchanged. All 42 affected Chromium stories passed,
+as did all 1,832 admin unit tests, admin journey/story types, focused and package
+ESLint/Prettier checks, six Keycloak image tests and REUSE. The selected Python
+suite initially hit the missing signing key in fixture commits; the rerun
+passed all 595 tests with a process-scoped unsigned-commit override. Ruff
+passes across scripts/dev after formatting messaging tooling and explicitly
+retaining zip truncation behavior. Local verification logs and PR drafts
+are in `.agents/work/infra-msg/pr-stack/`. `devenv.lock` remains unchanged.
 
 The implementation provides one verified voter channel without fallback,
 account readiness and event configuration, same-channel retries, reserved OTP
@@ -74,8 +86,8 @@ and messaging insights. Production and staff guides:
 - [Development](docs/docusaurus/docs/07-developers/14-messaging/03-messaging-development.md)
 - [Manager reference](docs/docusaurus/docs/02-election_managers/02-reference/13-messaging-channels.md)
 
-`INFRA-MSG-PLAN.md` and `INFRA-MSG-PROGRESS.md` remain local untracked planning
-files as previously required. Detailed local evidence is in the git-excluded
+The previous root `INFRA-MSG-PLAN.md` and `INFRA-MSG-PROGRESS.md` are preserved
+under `.agents/work/infra-msg/local-planning/`, outside the product commits. Detailed local evidence is in the git-excluded
 `.agents/work/infra-msg/` directory. This tracked handover carries the essential
 state so a fresh checkout does not depend on those local files.
 
@@ -229,10 +241,23 @@ Use the already prepared scenarios and the user-testing worksheet:
 - Verify `appsecret_proof` with real Meta credentials supplied by the user.
 - Record stack ownership, health and cleanup; keep the devcontainer running.
 
-Then obtain the planned W3 review before W4. W4 runs local CI and splits the
-unpublished integration stack into the fewest PRs with at most 150 changed
-files each, using `feat/meta-13755-msg-<n>-<slug>/ovcs`. PR descriptions start
-with the parent-issue URL. No push or branch rearrangement happened here.
+Local stack preparation is now authorized and uses these four branches in order:
+
+1. `feat/meta-13755-msg-1-backend/ovcs` → `ovcs`
+2. `feat/meta-13755-msg-2-authentication/ovcs` → layer 1
+3. `feat/meta-13755-msg-3-admin/ovcs` → layer 2
+4. `feat/meta-13755-msg-4-integration/ovcs` → layer 3
+
+Each PR description begins with the parent-issue URL. The last layer has the
+same tree as the integration branch, with generated contracts in separate
+commits. These are dependency layers; deploy the complete stack. Validation
+was run on the complete integration tree, not on each intermediate tree.
+Local PR bodies, file lists, hashes and the tree-equivalence check are recorded
+in `.agents/work/infra-msg/pr-stack/`. The original integration branch remains
+checked out. GitHub checks/reviews cannot be claimed ready from this local
+preparation; no push or remote PR operation is authorized. Broad CI across the
+entire integration diff has not been rerun; the current fast-check selection
+covers the final outstanding code changes. W3 acceptance remains as listed above.
 
 ## Decisions and limitations to preserve
 
