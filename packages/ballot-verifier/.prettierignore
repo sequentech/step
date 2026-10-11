@@ -48,3 +48,4 @@ build/
 storybook-static/
 test-results/
 coverage/
+src/gql/

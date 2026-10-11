@@ -63,7 +63,7 @@ summary = "Editor, review-bot, release and repository settings that no check rea
 summary = "The devenv toolchain: Node, Yarn, Rust, Java and the tools every check runs with"
 
 [units.rust-toolchain]
-summary = "rust-toolchain.toml and packages/.cargo: compiler and Cargo configuration"
+summary = "Rust toolchain, Cargo configuration and vendored dependency patches"
 consumers = ["cargo:*"]
 
 [units.devcontainer]
@@ -176,7 +176,7 @@ units = ["scripts-dev"]
 broad = "the selection model changed"
 
 [[paths]]
-globs = ["rust-toolchain.toml", "packages/.cargo/**"]
+globs = ["rust-toolchain.toml", "packages/.cargo/**", "packages/patches/**"]
 units = ["rust-toolchain"]
 
 [[paths]]
