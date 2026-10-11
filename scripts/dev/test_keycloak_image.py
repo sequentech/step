@@ -54,7 +54,9 @@ class KeycloakImageTests(unittest.TestCase):
 
     def test_the_image_installs_the_prepared_react_themes(self):
         dockerfile = DOCKERFILE.read_text()
-        self.assertIn("python3 -m scripts.dev.keycloak prepare --runtime built", dockerfile)
+        self.assertIn(
+            "python3 -m scripts.dev.keycloak prepare --runtime built", dockerfile
+        )
         self.assertRegex(
             dockerfile,
             rf"COPY [^\n]*--from=themes-build [^\n]*/{re.escape(str(THEMES))}/ "

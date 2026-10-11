@@ -90,12 +90,18 @@ class AirgapBundleTest(unittest.TestCase):
     def test_the_compose_file_renders_with_the_bundle_env(self):
         result = subprocess.run(
             [
-                "docker", "compose",
-                "--project-directory", str(BUNDLE),
-                "--env-file", str(BUNDLE / ".env"),
-                "-f", str(BUNDLE / "docker-compose.yml"),
-                "--profile", "full",
-                "config", "--quiet",
+                "docker",
+                "compose",
+                "--project-directory",
+                str(BUNDLE),
+                "--env-file",
+                str(BUNDLE / ".env"),
+                "-f",
+                str(BUNDLE / "docker-compose.yml"),
+                "--profile",
+                "full",
+                "config",
+                "--quiet",
             ],
             capture_output=True,
             text=True,
@@ -121,11 +127,15 @@ class AirgapBundleTest(unittest.TestCase):
         self.assertIn(f'MESSAGING_RELAY_SECRET="{PLACEHOLDER}"', self.env)
         result, generated = self.run_preamble(self.env)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        secret = re.search(r'^MESSAGING_RELAY_SECRET="([0-9a-f]{64})"$', generated, re.M)
+        secret = re.search(
+            r'^MESSAGING_RELAY_SECRET="([0-9a-f]{64})"$', generated, re.M
+        )
         self.assertIsNotNone(secret, generated)
         # Other lines are left as they were.
         self.assertEqual(
-            generated.replace(secret.group(0), f'MESSAGING_RELAY_SECRET="{PLACEHOLDER}"'),
+            generated.replace(
+                secret.group(0), f'MESSAGING_RELAY_SECRET="{PLACEHOLDER}"'
+            ),
             self.env,
         )
         result, again = self.run_preamble(generated)

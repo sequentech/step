@@ -451,7 +451,9 @@ def run_messaging_otp(options: OtpOptions) -> Path:
         target=channel.lower(),
         label=options.label,
         cache=CacheState.WARM,
-        cache_detail="running stack; harvest, windmill and the provider as local processes",
+        cache_detail=(
+            "running stack; harvest, windmill and the provider as local processes"
+        ),
         checkout=options.checkout,
         output_dir=options.output_dir,
         services=["postgres", "keycloak"],
@@ -511,7 +513,8 @@ def run_messaging_otp(options: OtpOptions) -> Path:
         harvest_url = f"http://127.0.0.1:{harvest_port}"
 
         database.query(
-            "UPDATE sequent_backend.messaging_account SET limits = limits || jsonb_build_object("
+            "UPDATE sequent_backend.messaging_account "
+            "SET limits = limits || jsonb_build_object("
             f"'messages_per_second', {options.messages_per_second}, "
             f"'otp_reserved_per_second', {options.otp_reserved_per_second}) "
             f"WHERE id = '{options.account_id}'"
@@ -525,7 +528,8 @@ def run_messaging_otp(options: OtpOptions) -> Path:
         index += 1
         used = database.query(
             "SELECT account_id FROM sequent_backend.message WHERE tenant_id = "
-            f"'{options.tenant_id}' AND logical_key = 'keycloak:bench-otp:{options.run_id}:0'"
+            f"'{options.tenant_id}' AND logical_key = "
+            f"'keycloak:bench-otp:{options.run_id}:0'"
         )
         if (
             smoke.status != 200
@@ -534,7 +538,8 @@ def run_messaging_otp(options: OtpOptions) -> Path:
             or used[0][0] != options.account_id
         ):
             raise ValueError(
-                f"the first code wasn't accepted through the account: status {smoke.status}, "
+                "the first code wasn't accepted through the account: "
+                f"status {smoke.status}, "
                 f"state {smoke.state}, reason {smoke.reason!r}, account {used}"
             )
 
@@ -571,12 +576,14 @@ def run_messaging_otp(options: OtpOptions) -> Path:
         summaries: dict[str, Any] = {}
         if options.baseline:
             database.query(
-                f"DELETE FROM sequent_backend.messaging_rate_bucket WHERE account_id = '{options.account_id}'"
+                "DELETE FROM sequent_backend.messaging_rate_bucket "
+                f"WHERE account_id = '{options.account_id}'"
             )
             summaries["baseline"] = measure(SampleRole.BASELINE, "baseline")
 
         database.query(
-            f"DELETE FROM sequent_backend.messaging_rate_bucket WHERE account_id = '{options.account_id}'"
+            "DELETE FROM sequent_backend.messaging_rate_bucket "
+            f"WHERE account_id = '{options.account_id}'"
         )
         bulk = Process(
             [
@@ -626,7 +633,8 @@ def run_messaging_otp(options: OtpOptions) -> Path:
         if not options.keep_rows:
             database.query(
                 "DELETE FROM sequent_backend.message WHERE tenant_id = "
-                f"'{options.tenant_id}' AND (logical_key LIKE 'bench-bulk:{options.run_id}:%' "
+                f"'{options.tenant_id}' AND "
+                f"(logical_key LIKE 'bench-bulk:{options.run_id}:%' "
                 f"OR logical_key LIKE 'keycloak:bench-otp:{options.run_id}:%')"
             )
     return run.finish()

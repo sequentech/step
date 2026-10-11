@@ -36,7 +36,10 @@ ROOT = Path(__file__).resolve().parents[3]
 DEV_REALM = (
     ROOT
     / ".devcontainer/keycloak/import"
-    / "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559.json"
+    / (
+        "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-"
+        "33f18502-a67c-4853-8333-a58630663559.json"
+    )
 )
 
 # The template names the fake provider reports as approved, in every
@@ -377,7 +380,11 @@ def event_config(
                 "account_id": account_ids[account.key],
                 "purposes": list(channel.purposes),
                 "templates": [
-                    {"purpose": purpose, "language": language, "provider_template": name}
+                    {
+                        "purpose": purpose,
+                        "language": language,
+                        "provider_template": name,
+                    }
                     for purpose, name in channel.templates.items()
                     for language in profile.languages
                 ],
@@ -486,7 +493,9 @@ def stored_rows(admin: Any, tenant_id: str, profile: Profile) -> dict[str, dict]
 
 def stored_accounts(admin: Any, tenant_id: str, profile: Profile) -> dict[str, str]:
     """The IDs of the profile's accounts the tenant already has, by key."""
-    return {key: row["id"] for key, row in stored_rows(admin, tenant_id, profile).items()}
+    return {
+        key: row["id"] for key, row in stored_rows(admin, tenant_id, profile).items()
+    }
 
 
 def expected_credentials(account: Account) -> set[str]:
@@ -597,7 +606,10 @@ def configure(
             say(f"    created account {account.name}")
             if is_default:
                 defaults[account.channel] = account.name
-                say(f"    {account.name} is the tenant's default {account.channel} account")
+                say(
+                    f"    {account.name} is the tenant's default "
+                    f"{account.channel} account"
+                )
             elif account.is_default:
                 say(
                     f"    {account.name} is not the default {account.channel} "
@@ -633,7 +645,9 @@ def configure(
         CONFIG_ROLE, SAVE_CONFIG, {"event": event_id, "config": config}
     )["update_event_messaging_config"]["errors"]
     if errors:
-        raise MessagingError(f"the event configuration was refused: {json.dumps(errors)}")
+        raise MessagingError(
+            f"the event configuration was refused: {json.dumps(errors)}"
+        )
     return ids
 
 

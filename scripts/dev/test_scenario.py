@@ -211,10 +211,13 @@ class CatalogTest(unittest.TestCase):
             with self.subTest(client=client_id):
                 self.assertIn(client_id, imported)
                 self.assertEqual(
-                    imported[client_id]["redirectUris"], originals[client_id]["redirectUris"]
+                    imported[client_id]["redirectUris"],
+                    originals[client_id]["redirectUris"],
                 )
                 self.assertIsNot(imported[client_id], originals[client_id])
-        self.assertFalse(imported["voting-portal-kiosk"].get("authenticationFlowBindingOverrides"))
+        self.assertFalse(
+            imported["voting-portal-kiosk"].get("authenticationFlowBindingOverrides")
+        )
 
     def test_every_scenario_tenant_is_a_known_organization(self):
         from scripts.dev.scenario import tenants
@@ -272,8 +275,11 @@ class OrganizationTest(unittest.TestCase):
         self.assertTrue(
             [c for c in event["candidates"] if c["contest_id"] == contest["id"]]
         )
-        ids = [item["id"] for key in ("elections", "contests", "candidates",
-                                      "area_contests") for item in event[key]]  # fmt: skip
+        ids = [
+            item["id"]
+            for key in ("elections", "contests", "candidates", "area_contests")
+            for item in event[key]
+        ]
         self.assertEqual(len(ids), len(set(ids)))
         presentation = event["election_event"]["presentation"]
         self.assertEqual(
@@ -325,9 +331,7 @@ class OrganizationTest(unittest.TestCase):
             {"en", "es"},
         )
         with self.assertRaisesRegex(self.messaging.MessagingError, "Pension board"):
-            self.messaging.event_config(
-                profile, ids, {"Council: Central office": "x"}
-            )
+            self.messaging.event_config(profile, ids, {"Council: Central office": "x"})
 
     def test_every_profile_config_has_one_entry_per_channel(self):
         for profile in self.messaging.PROFILES.values():
@@ -479,7 +483,10 @@ class MessagingSetupTest(unittest.TestCase):
                 },
                 m.ELECTIONS: lambda _: {
                     "sequent_backend_election": [
-                        {"id": f"election-{n}", "presentation": {"i18n": {"en": {"name": name}}}}
+                        {
+                            "id": f"election-{n}",
+                            "presentation": {"i18n": {"en": {"name": name}}},
+                        }
                         for n, name in enumerate(self.profile.election_channels)
                     ]
                 },
@@ -491,7 +498,9 @@ class MessagingSetupTest(unittest.TestCase):
         ready = {"connected": True, "production_access": True, "reason": None}
         return FakeGraphql(
             {
-                m.UPSERT: lambda v: {"upsert_messaging_account": {"id": f"new-{v['name']}"}},
+                m.UPSERT: lambda v: {
+                    "upsert_messaging_account": {"id": f"new-{v['name']}"}
+                },
                 m.CREDENTIALS: lambda v: {
                     "replace_messaging_account_credentials": {"replaced": True}
                 },
@@ -501,7 +510,9 @@ class MessagingSetupTest(unittest.TestCase):
                         "callback_reason": None,
                     }
                 },
-                m.SAVE_CONFIG: lambda v: {"update_event_messaging_config": {"errors": []}},
+                m.SAVE_CONFIG: lambda v: {
+                    "update_event_messaging_config": {"errors": []}
+                },
             }
         )
 
@@ -525,11 +536,20 @@ class MessagingSetupTest(unittest.TestCase):
         replaced = graphql.documents(self.messaging.CREDENTIALS)
         self.assertEqual(
             replaced,
-            [{"id": f"id-{viber.key}", "credentials": viber.credentials,
-              "verify": False, "report": True}],
+            [
+                {
+                    "id": f"id-{viber.key}",
+                    "credentials": viber.credentials,
+                    "verify": False,
+                    "report": True,
+                }
+            ],
         )
         self.assertFalse(graphql.documents(self.messaging.UPSERT))
-        self.assertIn(f"id-{viber.key}", [v["id"] for v in graphql.documents(self.messaging.CHECK)])
+        self.assertIn(
+            f"id-{viber.key}",
+            [v["id"] for v in graphql.documents(self.messaging.CHECK)],
+        )
         self.assertTrue(any("REPORT_PASSWORD" in line for line in self.said))
 
     def test_generated_credentials_count(self):
@@ -544,7 +564,8 @@ class MessagingSetupTest(unittest.TestCase):
     def test_a_failed_check_names_its_own_reason(self):
         sms = next(a for a in self.profile.accounts if a.channel == "SMS")
         self.checks[f"id-{sms.key}"] = {
-            "connected": False, "reason": "The account is in the SMS sandbox"
+            "connected": False,
+            "reason": "The account is in the SMS sandbox",
         }
         with self.assertRaises(self.messaging.MessagingError) as raised:
             self.configure(self.admin(self.complete()), self.graphql())
@@ -555,7 +576,8 @@ class MessagingSetupTest(unittest.TestCase):
     def test_a_connection_failure_asks_about_the_fake_provider_routes(self):
         sms = next(a for a in self.profile.accounts if a.channel == "SMS")
         self.checks[f"id-{sms.key}"] = {
-            "connected": False, "reason": "The provider couldn't be reached"
+            "connected": False,
+            "reason": "The provider couldn't be reached",
         }
         with self.assertRaisesRegex(
             self.messaging.MessagingError,
@@ -565,10 +587,10 @@ class MessagingSetupTest(unittest.TestCase):
 
     def test_a_tenant_default_is_kept_and_named(self):
         graphql = self.graphql()
-        self.configure(
-            self.admin({}, defaults=[("Their own SMS", "SMS")]), graphql
-        )
-        upserts = {v["name"]: v["is_default"] for v in graphql.documents(self.messaging.UPSERT)}
+        self.configure(self.admin({}, defaults=[("Their own SMS", "SMS")]), graphql)
+        upserts = {
+            v["name"]: v["is_default"] for v in graphql.documents(self.messaging.UPSERT)
+        }
         sms = next(a for a in self.profile.accounts if a.channel == "SMS")
         email = next(a for a in self.profile.accounts if a.channel == "EMAIL")
         self.assertIs(upserts[sms.name], False)
@@ -592,11 +614,16 @@ class TenantSettingsTest(unittest.TestCase):
     def reconcile(self, settings):
         graphql = FakeGraphql({self.tenants.APPEND_SETTINGS: lambda v: {}})
         admin = FakeHasura(
-            {self.tenants.TENANT_SETTINGS: lambda _: {
-                "sequent_backend_tenant_by_pk": {"settings": settings}}}
+            {
+                self.tenants.TENANT_SETTINGS: lambda _: {
+                    "sequent_backend_tenant_by_pk": {"settings": settings}
+                }
+            }
         )
         kept = self.tenants.reconcile_settings(graphql, admin, "t", self.organization)
-        written = [v["settings"] for v in graphql.documents(self.tenants.APPEND_SETTINGS)]
+        written = [
+            v["settings"] for v in graphql.documents(self.tenants.APPEND_SETTINGS)
+        ]
         return written, kept
 
     def test_a_new_tenant_gets_the_organization_settings(self):
@@ -605,11 +632,17 @@ class TenantSettingsTest(unittest.TestCase):
         self.assertEqual(kept, [])
 
     def test_the_tenant_own_settings_are_kept_and_named(self):
-        written, kept = self.reconcile(
-            {"display_name": "Renamed by hand", "other": 1}
+        written, kept = self.reconcile({"display_name": "Renamed by hand", "other": 1})
+        self.assertEqual(
+            written,
+            [
+                {
+                    "language_conf": self.tenants.tenant_settings(self.organization)[
+                        "language_conf"
+                    ]
+                }
+            ],
         )
-        self.assertEqual(written, [{"language_conf": self.tenants.tenant_settings(
-            self.organization)["language_conf"]}])
         self.assertEqual(kept, ["display_name"])
 
     def test_nothing_is_written_when_the_settings_match(self):

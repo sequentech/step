@@ -91,7 +91,9 @@ STAFF_ASSOCIATION = Organization(
     },
     extra_elections=("Pension board",),
 )
-ORGANIZATIONS = {organization.slug: organization for organization in (STAFF_ASSOCIATION,)}
+ORGANIZATIONS = {
+    organization.slug: organization for organization in (STAFF_ASSOCIATION,)
+}
 
 
 def find(slug: str | None) -> Organization | None:
@@ -133,15 +135,13 @@ def organization_event(document: dict[str, Any], organization: Organization) -> 
     after it) for the fixture's first area.
     """
     event = copy.deepcopy(document)
-    by_key = dict(zip(("main", "grace"), event["elections"]))
+    by_key = dict(zip(("main", "grace"), event["elections"], strict=False))
     for key, name in organization.election_names.items():
         fixtures._name(by_key[key], name)
     main = by_key["main"]
     first_area = event["areas"][0]
     template_contest = next(
-        contest
-        for contest in event["contests"]
-        if contest["election_id"] == main["id"]
+        contest for contest in event["contests"] if contest["election_id"] == main["id"]
     )
     for name in organization.extra_elections:
         election = copy.deepcopy(main)
@@ -151,7 +151,11 @@ def organization_event(document: dict[str, Any], organization: Organization) -> 
         contest.update(id=str(uuid.uuid4()), election_id=election["id"])
         fixtures._name(contest, name)
         candidates = [
-            {**copy.deepcopy(candidate), "id": str(uuid.uuid4()), "contest_id": contest["id"]}
+            {
+                **copy.deepcopy(candidate),
+                "id": str(uuid.uuid4()),
+                "contest_id": contest["id"],
+            }
             for candidate in event["candidates"]
             if candidate["contest_id"] == template_contest["id"]
         ]
@@ -159,7 +163,11 @@ def organization_event(document: dict[str, Any], organization: Organization) -> 
         event["contests"].append(contest)
         event["candidates"].extend(candidates)
         event["area_contests"].append(
-            {"id": str(uuid.uuid4()), "area_id": first_area["id"], "contest_id": contest["id"]}
+            {
+                "id": str(uuid.uuid4()),
+                "area_id": first_area["id"],
+                "contest_id": contest["id"],
+            }
         )
     presentation = event["election_event"].setdefault("presentation", {})
     presentation["language_conf"] = _language_conf(
@@ -252,7 +260,9 @@ def email_otp_config(keycloak: Any, realm: str) -> dict[str, Any]:
     for execution in executions:
         if execution.get("authenticationFlow"):
             in_email_subflow = execution["displayName"] == EMAIL_OTP_SUBFLOW
-        elif in_email_subflow and execution.get("providerId") == EMAIL_OTP_AUTHENTICATOR:
+        elif (
+            in_email_subflow and execution.get("providerId") == EMAIL_OTP_AUTHENTICATOR
+        ):
             return keycloak.admin(
                 "GET",
                 f"{realm}/authentication/config/{execution['authenticationConfig']}",
@@ -316,7 +326,9 @@ def reconcile_settings(
     them for a new tenant, or one a stopped run left without them). Settings
     the tenant has with other values are its own: they stay, and their names
     are returned so the caller says so."""
-    row = admin.query(TENANT_SETTINGS, {"id": tenant_id})["sequent_backend_tenant_by_pk"]
+    row = admin.query(TENANT_SETTINGS, {"id": tenant_id})[
+        "sequent_backend_tenant_by_pk"
+    ]
     current = (row or {}).get("settings") or {}
     wanted = tenant_settings(organization)
     missing = {key: value for key, value in wanted.items() if key not in current}
