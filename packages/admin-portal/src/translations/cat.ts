@@ -5345,7 +5345,7 @@ const catalanTranslation: TranslationType = {
                 template: "Plantilla del proveïdor",
                 status: "Estat",
                 post: "Post",
-                key: "Per al missatge",
+                key: "Tipus de missatge o plantilla",
                 providerLanguage: "Idioma del proveïdor",
                 voters: "Votants que el fan servir",
                 sent24h: "Enviats, últimes 24 h",
@@ -5356,16 +5356,27 @@ const catalanTranslation: TranslationType = {
                 utility:
                     "Fora de la finestra de 24 hores, {{channel}} envia els avisos amb la plantilla d'utilitat aprovada vinculada als avisos a Plantilles aprovades.",
             },
+            messageTypes: {
+                otp: "Codi de verificació",
+                otl: "Enllaç d’accés",
+                enrollmentAccepted: "Inscripció acceptada",
+                enrollmentAcceptedKiosk: "Inscripció acceptada (quiosc)",
+                enrollmentPending: "Inscripció pendent d’aprovació",
+                enrollmentRejected: "Inscripció rebutjada",
+                passwordReset: "Restabliment de contrasenya",
+                temporaryPassword: "Contrasenya temporal",
+                contactChanged: "Mètode de contacte canviat",
+            },
             templates: {
                 empty: "Trieu un compte que enviï plantilles aprovades, com ara WhatsApp, Viber o Messenger, per vincular-ne aquí les plantilles.",
-                help: "Cada fila indica quina plantilla aprovada envia el proveïdor per a un missatge. Per al missatge és l'àlies d'una plantilla de Plantilles, per a una notificació, o la clau de missatge que envia Keycloak, com ara otp; deixeu-lo buit per a la plantilla que s'utilitza per defecte per al propòsit. Idioma és l'idioma del votant. Plantilla del proveïdor és el nom o l'ID de la plantilla al proveïdor. Idioma del proveïdor és el codi del proveïdor per a aquesta plantilla quan difereix de l'idioma del votant: WhatsApp necessita el codi exacte de la plantilla aprovada, com ara en_US.",
+                help: "Trieu un tipus de missatge del sistema o un àlies de Plantilles. Deixeu-lo buit per utilitzar la plantilla aprovada per defecte per a aquest propòsit. Idioma és l'idioma del votant. Plantilla del proveïdor és el nom o l'ID de la plantilla al proveïdor. Idioma del proveïdor és el codi del proveïdor per a aquesta plantilla quan difereix de l'idioma del votant: WhatsApp necessita el codi exacte de la plantilla aprovada, com ara en_US.",
                 order: "Per a cada missatge guanya la fila més específica: la fila del missatge en l'idioma del votant, després la fila del missatge en qualsevol idioma, després la predeterminada del propòsit en l'idioma del votant i, finalment, qualsevol predeterminada del propòsit.",
                 noneRequired:
                     "{{channel}} només envia plantilles aprovades. Afegiu almenys una plantilla predeterminada per a cada propòsit en ús.",
                 noneOptional:
                     "No hi ha plantilles vinculades per a {{channel}}. Només calen per enviar avisos fora de la finestra de conversa.",
                 row: "Plantilla {{position}} de {{channel}}",
-                keyDefault: "Predeterminada del propòsit",
+                keyDefault: "Predeterminada per a aquest propòsit",
                 add: "Afegeix una plantilla de {{channel}}",
                 remove: "Treu la plantilla {{position}} de {{channel}}",
                 incomplete:

@@ -5354,7 +5354,7 @@ const dutchTranslation: TranslationType = {
                 template: "Sjabloon van de provider",
                 status: "Status",
                 post: "Post",
-                key: "Voor bericht",
+                key: "Berichttype of sjabloon",
                 providerLanguage: "Taal van de provider",
                 voters: "Kiezers die het gebruiken",
                 sent24h: "Verzonden, laatste 24 u",
@@ -5365,16 +5365,27 @@ const dutchTranslation: TranslationType = {
                 utility:
                     "Buiten het venster van 24 uur verzendt {{channel}} berichten met de goedgekeurde hulpprogrammasjabloon die onder Goedgekeurde sjablonen aan berichten is gekoppeld.",
             },
+            messageTypes: {
+                otp: "Verificatiecode",
+                otl: "Aanmeldlink",
+                enrollmentAccepted: "Registratie geaccepteerd",
+                enrollmentAcceptedKiosk: "Registratie geaccepteerd (kiosk)",
+                enrollmentPending: "Registratie wacht op goedkeuring",
+                enrollmentRejected: "Registratie afgewezen",
+                passwordReset: "Wachtwoord herstellen",
+                temporaryPassword: "Tijdelijk wachtwoord",
+                contactChanged: "Contactmethode gewijzigd",
+            },
             templates: {
                 empty: "Kies een account dat goedgekeurde sjablonen verzendt, zoals WhatsApp, Viber of Messenger, om de sjablonen hier te koppelen.",
-                help: "Elke rij geeft aan welke goedgekeurde sjabloon de provider voor een bericht verzendt. Voor bericht is de alias van een sjabloon in Sjablonen, voor een melding, of de berichtsleutel die Keycloak verzendt, zoals otp; laat het leeg voor de sjabloon die standaard voor het doel wordt gebruikt. Taal is de taal van de kiezer. Sjabloon van de provider is de naam of ID van de sjabloon bij de provider. Taal van de provider is de code van de provider voor die sjabloon wanneer die afwijkt van de taal van de kiezer: WhatsApp heeft de exacte code van de goedgekeurde sjabloon nodig, zoals en_US.",
+                help: "Kies een systeemberichttype of een alias uit Sjablonen. Laat dit leeg om het goedgekeurde sjabloon standaard voor dit doel te gebruiken. Taal is de taal van de kiezer. Sjabloon van de provider is de naam of ID van de sjabloon bij de provider. Taal van de provider is de code van de provider voor die sjabloon wanneer die afwijkt van de taal van de kiezer: WhatsApp heeft de exacte code van de goedgekeurde sjabloon nodig, zoals en_US.",
                 order: "Voor elk bericht wint de meest specifieke rij: de rij voor het bericht in de taal van de kiezer, dan de rij voor het bericht in een willekeurige taal, dan de standaard voor het doel in de taal van de kiezer, dan een willekeurige standaard voor het doel.",
                 noneRequired:
                     "{{channel}} verzendt alleen goedgekeurde sjablonen. Voeg minstens een standaardsjabloon toe voor elk doel dat in gebruik is.",
                 noneOptional:
                     "Er zijn geen sjablonen gekoppeld voor {{channel}}. Ze zijn alleen nodig om berichten buiten het gespreksvenster te verzenden.",
                 row: "{{channel}}-sjabloon {{position}}",
-                keyDefault: "Standaard voor het doel",
+                keyDefault: "Standaard voor dit doel",
                 add: "{{channel}}-sjabloon toevoegen",
                 remove: "{{channel}}-sjabloon {{position}} verwijderen",
                 incomplete:
