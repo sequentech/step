@@ -6097,7 +6097,7 @@ const catalanTranslation: TranslationType = {
             accountsTab: "Comptes",
             tabsLabel: "Seccions de missatgeria",
             description:
-                "Missatges que ha rebut el proveïdor simulat d'aquest entorn de desenvolupament, tal com els mostrarien les aplicacions dels votants. Cap no ha arribat a un votant real. Aquesta pestanya només apareix on les rutes del proveïdor simulat estan habilitades.",
+                "Missatges que ha rebut el proveïdor de demostració d'aquest entorn de desenvolupament, tal com els mostrarien les aplicacions dels votants. Cap no ha arribat a un votant real. Aquesta pestanya només apareix on les rutes del proveïdor de demostració estan habilitades.",
             modeLabel: "Mostra missatges de",
             all: "Tots",
             refresh: "Actualitza",
@@ -6131,7 +6131,7 @@ const catalanTranslation: TranslationType = {
                 copied: "Codi copiat",
                 copyFailed: "No s'ha pogut copiar el codi",
                 truncated:
-                    "Retallat: el proveïdor simulat només conserva els primers 64 KiB de cada camp.",
+                    "Retallat: el proveïdor de demostració només conserva els primers 64 KiB de cada camp.",
             },
             chat: {
                 phone: "{{channel}} en un telèfon",
@@ -6163,7 +6163,7 @@ const catalanTranslation: TranslationType = {
                 noContent: "Aquest correu no té contingut.",
                 loading: "S'està carregant el correu…",
                 loadError:
-                    "No s'ha pogut llegir l'HTML del correu: potser el proveïdor simulat ja no el conserva.",
+                    "No s'ha pogut llegir l'HTML del correu: potser el proveïdor de demostració ja no el conserva.",
             },
             reason: {
                 SEVERAL_ACCOUNTS: "Diversos comptes fan servir aquest remitent",

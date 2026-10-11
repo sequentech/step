@@ -14,7 +14,7 @@ import {EMessageChannel} from "@/types/messaging"
 import {EmailInbox} from "./EmailInbox"
 import {MessagingTabs} from "./MessagingTabs"
 import {emailSrcDoc} from "./emailFrame"
-import {FAKE_PROVIDER_REASONS, conversations} from "./messageContent"
+import {FAKE_PROVIDER_REASONS, conversations, demoLabel} from "./messageContent"
 import {FAKE_PROVIDER_MESSAGE, FAKE_PROVIDER_MESSAGES} from "./queries"
 import {IFakeProviderMessage, parseMode} from "./types"
 import {channelMessages, fullMessage, sentMessages} from "./__stories__/SentMessagesFixture"
@@ -106,6 +106,24 @@ beforeEach(() => {
     useQueryMock.mockReset()
 })
 
+it.each([
+    ["Fake WhatsApp", "Demo WhatsApp"],
+    ["FakeElections", "DemoElections"],
+    ["fake-wa-number-1", "demo-wa-number-1"],
+    [
+        "Elections <elections@fake-provider.example.org>",
+        "Elections <elections@demo-provider.example.org>",
+    ],
+    [
+        "votes@staff-association.fake-provider.example.org",
+        "votes@staff-association.demo-provider.example.org",
+    ],
+    ["Staff Association", "Staff Association"],
+    ["real@example.org", "real@example.org"],
+])("displays the demo sender label %s as %s", (before, after) => {
+    expect(demoLabel(before)).toBe(after)
+})
+
 describe("the Sent messages mode in the URL", () => {
     it("opens the tab in the mode `?channel=` names", () => {
         answered()
@@ -163,6 +181,20 @@ describe("the Sent messages mode in the URL", () => {
 })
 
 describe("the Sent messages tab", () => {
+    it("shows legacy demo senders without changing the stored message or code", () => {
+        const message = {...sentMessages()[0], sender: "FakeElections"}
+        useQueryMock.mockReturnValue({
+            data: {messaging_fake_provider_messages: {messages: [message]}},
+            networkStatus: 7,
+            refetch: jest.fn(),
+        })
+        renderTabs("/settings?channel=all")
+        expect(screen.getByText("DemoElections")).toBeVisible()
+        expect(screen.queryByText("FakeElections")).toBeNull()
+        expect(message.sender).toBe("FakeElections")
+        expect(message.content.code).toBe(sentMessages()[0].content.code)
+    })
+
     it("is hidden when the list action fails, even with `?channel=` in the URL", () => {
         failed()
         renderTabs("/settings?channel=whatsapp")

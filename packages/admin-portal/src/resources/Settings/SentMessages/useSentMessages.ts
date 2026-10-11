@@ -1,12 +1,13 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {useCallback, useContext, useEffect, useState} from "react"
+import {useCallback, useContext, useEffect, useMemo, useState} from "react"
 import {NetworkStatus, useMutation, useQuery} from "@apollo/client"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {getGraphQLActionErrorReason} from "@/services/graphqlActionError"
+import {demoLabel} from "./messageContent"
 import {FAKE_PROVIDER_GET_STARTED, FAKE_PROVIDER_MESSAGE, FAKE_PROVIDER_MESSAGES} from "./queries"
 import {
     IFakeGetStartedAnswer,
@@ -65,13 +66,22 @@ export const useSentMessages = ({
     // After a failed refresh Apollo clears `data`; `previousData` keeps the last answer.
     const list =
         data?.messaging_fake_provider_messages ?? previousData?.messaging_fake_provider_messages
+    const messages = useMemo(
+        () =>
+            list?.messages.map((message) => ({
+                ...message,
+                sender: demoLabel(message.sender),
+                recipient: demoLabel(message.recipient),
+            })) ?? NO_MESSAGES,
+        [list]
+    )
     useEffect(() => setAnswered(!!list), [list])
     const refresh = useCallback(() => {
         refetch().catch(() => undefined)
     }, [refetch])
     return {
         available: !!list,
-        messages: list?.messages ?? NO_MESSAGES,
+        messages,
         error: list ? error : undefined,
         refreshing: networkStatus === NetworkStatus.refetch,
         refresh,

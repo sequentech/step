@@ -16,7 +16,7 @@ interface Scenario {
     routes: "mounted" | "absent"
     roles: string[]
     refresh: "manual" | "automatic"
-    messages: "populated" | "arriving"
+    messages: "populated" | "arriving" | "legacy"
 }
 
 const ACCOUNTS = "The sending accounts"
@@ -50,7 +50,11 @@ const meta = {
                     throw new Error("Synthetic http exception when calling webhook")
                 }
                 const messages =
-                    args.messages === "arriving" && !messagesArrived ? [] : sentMessages()
+                    args.messages === "arriving" && !messagesArrived
+                        ? []
+                        : args.messages === "legacy"
+                          ? [{...sentMessages()[0], sender: "Fake WhatsApp"}]
+                          : sentMessages()
                 return {data: {messaging_fake_provider_messages: {messages}}}
             },
             MessagingFakeProviderMessage: fakeMessageHandler,
@@ -165,5 +169,18 @@ export const AutomaticRefresh: Story = {
         await waitFor(() => expect(refresh).toBeEnabled())
         await userEvent.click(canvas.getByRole("tab", {name: "Accounts"}))
         await expect(canvas.getByText(ACCOUNTS)).toBeVisible()
+    },
+}
+
+export const StoredDemoLabels: Story = {
+    args: {messages: "legacy"},
+    parameters: {router: {initialEntries: ["/settings?channel=all"]}},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByText("Demo WhatsApp")).toBeVisible()
+        expect(canvas.queryByText("Fake WhatsApp")).toBeNull()
+        await userEvent.click(canvas.getByRole("button", {name: "WhatsApp"}))
+        await userEvent.click(canvas.getByRole("button", {name: /from Demo WhatsApp$/}))
+        await expect(canvas.getByText("From Demo WhatsApp")).toBeVisible()
     },
 }
