@@ -160,6 +160,10 @@ warning and the last list.
   `/settings?tabIndex=2&channel=whatsapp` for a user who sees all the
   Settings tabs.
 - **All** is a table: Time, Channel, From, To, Message, Delivery report.
+  **Show more** opens the complete captured message below its row; **Show less**
+  collapses it. Text wraps with its original line breaks, template parameters
+  and codes are visible, and emails use the same sandboxed reader as Email mode.
+  Expanded messages stay open across automatic refreshes.
 - **Channel modes** show a phone frame with one chat per sender and
   recipient, in our own colours and icons (never the apps' logos):
   WhatsApp shows the code with a **Copy code** button; the Messenger view
