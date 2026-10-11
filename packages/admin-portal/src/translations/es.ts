@@ -5527,7 +5527,7 @@ const spanishTranslation: TranslationType = {
                 providerLanguage: "Código de idioma del proveedor",
                 providerLanguageHelp: {
                     WHATSAPP:
-                        "El código de idioma exacto de la plantilla de WhatsApp aprobada, como en_US.",
+                        "Usa el código de idioma exacto de la plantilla de WhatsApp aprobada, como en o en_US. Solo se necesita un código regional si la plantilla se aprobó con él.",
                     VIBER: "El código de idioma con el que el proveedor de Viber conoce la plantilla, cuando lo necesita.",
                     MESSENGER:
                         "El código de idioma de la plantilla de utilidad aprobada, como en_US.",
@@ -5544,13 +5544,7 @@ const spanishTranslation: TranslationType = {
                 noAccount: "Sin cuenta",
                 missingContent: "Esta notificación no tiene contenido para {{channels}}.",
                 approvedTemplateHelp:
-                    "Se envía con la plantilla aprobada por el proveedor. Edítala en Plantillas.",
-                providerTemplate: "Plantilla del proveedor de {{channel}}",
-                providerTemplateHelp:
-                    "Opcional. Si está vacío, se usa la plantilla del evento vinculada al alias de la plantilla elegida, o la predeterminada del evento para los avisos.",
-                providerLanguage: "Idioma del proveedor de {{channel}}",
-                providerLanguageHelp:
-                    "El código de idioma del proveedor para esa plantilla, como en_US.",
+                    "Las plantillas de {{channel}} están aprobadas por el proveedor, por lo que su texto, plantilla del proveedor e idioma no se pueden cambiar aquí. Elige otra plantilla guardada para usar otro contenido aprobado.",
                 voters: "Votantes",
                 environment: "El remitente predeterminado de la instalación",
                 noNoticeChannels:

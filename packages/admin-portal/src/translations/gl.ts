@@ -5510,7 +5510,7 @@ const galegoTranslation: TranslationType = {
                 providerLanguage: "Código de idioma do provedor",
                 providerLanguageHelp: {
                     WHATSAPP:
-                        "O código de idioma exacto do modelo de WhatsApp aprobado, como en_US.",
+                        "Usa o código de idioma exacto do modelo de WhatsApp aprobado, como en ou en_US. Só se necesita un código rexional se o modelo se aprobou con el.",
                     VIBER: "O código de idioma co que o provedor de Viber coñece o modelo, cando o precisa.",
                     MESSENGER: "O código de idioma do modelo de utilidade aprobado, como en_US.",
                 },
@@ -5525,12 +5525,7 @@ const galegoTranslation: TranslationType = {
                 noAccount: "Sen conta",
                 missingContent: "Esta notificación non ten contido para {{channels}}.",
                 approvedTemplateHelp:
-                    "Envíase co modelo aprobado polo provedor. Edítao en Modelos.",
-                providerTemplate: "Modelo do provedor de {{channel}}",
-                providerTemplateHelp:
-                    "Opcional. Se está baleiro, úsase o modelo do evento vinculado ao alias do modelo escollido, ou o predeterminado do evento para os avisos.",
-                providerLanguage: "Idioma do provedor de {{channel}}",
-                providerLanguageHelp: "O código de idioma do provedor para ese modelo, como en_US.",
+                    "Os modelos de {{channel}} están aprobados polo provedor, polo que o texto, o modelo do provedor e o idioma non se poden cambiar aquí. Escolle outro modelo gardado para usar outro contido aprobado.",
                 voters: "Votantes",
                 environment: "O remitente predeterminado da instalación",
                 noNoticeChannels:

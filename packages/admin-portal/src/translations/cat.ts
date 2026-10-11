@@ -5539,7 +5539,7 @@ const catalanTranslation: TranslationType = {
                 providerLanguage: "Codi d'idioma del proveïdor",
                 providerLanguageHelp: {
                     WHATSAPP:
-                        "El codi d'idioma exacte de la plantilla de WhatsApp aprovada, com ara en_US.",
+                        "Utilitzeu el codi d’idioma exacte de la plantilla de WhatsApp aprovada, com ara en o en_US. Només cal un codi regional si la plantilla es va aprovar amb aquest codi.",
                     VIBER: "El codi d'idioma amb què el proveïdor de Viber coneix la plantilla, quan el necessita.",
                     MESSENGER:
                         "El codi d'idioma de la plantilla d'utilitat aprovada, com ara en_US.",
@@ -5555,13 +5555,7 @@ const catalanTranslation: TranslationType = {
                 noAccount: "Sense compte",
                 missingContent: "Aquesta notificació no té contingut per a {{channels}}.",
                 approvedTemplateHelp:
-                    "S'envia amb la plantilla aprovada pel proveïdor. Edita-la a Plantilles.",
-                providerTemplate: "Plantilla del proveïdor de {{channel}}",
-                providerTemplateHelp:
-                    "Opcional. Si és buit, s'utilitza la plantilla de l'esdeveniment vinculada a l'àlies de la plantilla triada, o la predeterminada de l'esdeveniment per als avisos.",
-                providerLanguage: "Idioma del proveïdor de {{channel}}",
-                providerLanguageHelp:
-                    "El codi d'idioma del proveïdor per a aquesta plantilla, com ara en_US.",
+                    "Les plantilles de {{channel}} estan aprovades pel proveïdor, de manera que el text, la plantilla del proveïdor i l’idioma no es poden canviar aquí. Trieu una altra plantilla desada per utilitzar un altre contingut aprovat.",
                 voters: "Votants",
                 environment: "El remitent per defecte de la instal·lació",
                 noNoticeChannels:

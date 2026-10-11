@@ -6,6 +6,7 @@ import React, {useContext, useMemo, useState} from "react"
 import {SaveButton, SimpleForm, useNotify, Toolbar, Identifier, useGetList} from "react-admin"
 import {
     Alert,
+    Box,
     Accordion,
     AccordionDetails,
     AccordionSummary,
@@ -288,15 +289,13 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
     const handleSmsChange = (e: React.ChangeEvent<HTMLInputElement>) =>
         updateContent({sms: {message: e.target.value}})
 
-    const handleInstantChange =
-        (key: InstantContentKey, field: "message" | "provider_template" | "provider_language") =>
-        (e: React.ChangeEvent<HTMLInputElement>) =>
+    const handleInstantMessageChange =
+        (key: InstantContentKey) => (e: React.ChangeEvent<HTMLInputElement>) =>
             updateContent({
                 [key]: {
                     ...content[key],
-                    message: content[key]?.message ?? "",
                     parameters: content[key]?.parameters ?? [],
-                    [field]: e.target.value,
+                    message: e.target.value,
                 },
             })
 
@@ -533,46 +532,46 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                             const channel = t(`template.method.${key}`)
                             return (
                                 <SendChannelSection key={method} channel={method}>
-                                    <FormStyles.TextField
-                                        name={key}
-                                        label={String(channel)}
-                                        value={value?.message ?? ""}
-                                        onChange={
-                                            editable
-                                                ? handleInstantChange(key, "message")
-                                                : undefined
-                                        }
-                                        InputProps={{readOnly: !editable}}
-                                        helperText={
-                                            editable
-                                                ? undefined
-                                                : String(t("messaging.send.approvedTemplateHelp"))
-                                        }
-                                        multiline={true}
-                                        minRows={3}
-                                    />
-                                    <FormStyles.TextField
-                                        name={`${key}.provider_template`}
-                                        label={String(
-                                            t("messaging.send.providerTemplate", {channel})
-                                        )}
-                                        value={value?.provider_template ?? ""}
-                                        onChange={handleInstantChange(key, "provider_template")}
-                                        helperText={String(
-                                            t("messaging.send.providerTemplateHelp")
-                                        )}
-                                    />
-                                    <FormStyles.TextField
-                                        name={`${key}.provider_language`}
-                                        label={String(
-                                            t("messaging.send.providerLanguage", {channel})
-                                        )}
-                                        value={value?.provider_language ?? ""}
-                                        onChange={handleInstantChange(key, "provider_language")}
-                                        helperText={String(
-                                            t("messaging.send.providerLanguageHelp")
-                                        )}
-                                    />
+                                    {editable ? (
+                                        <FormStyles.TextField
+                                            name={key}
+                                            label={String(channel)}
+                                            value={value.message}
+                                            onChange={handleInstantMessageChange(key)}
+                                            multiline
+                                            minRows={3}
+                                        />
+                                    ) : (
+                                        <>
+                                            <Alert severity="info">
+                                                {t("messaging.send.approvedTemplateHelp", {
+                                                    channel,
+                                                })}
+                                            </Alert>
+                                            <Box>
+                                                <Typography
+                                                    variant="caption"
+                                                    color="text.secondary"
+                                                >
+                                                    {t("messaging.templates.approvedWording")}
+                                                </Typography>
+                                                <Typography
+                                                    component="p"
+                                                    variant="body2"
+                                                    sx={{
+                                                        m: 0,
+                                                        p: 2,
+                                                        borderRadius: 1,
+                                                        bgcolor: "action.hover",
+                                                        whiteSpace: "pre-wrap",
+                                                        overflowWrap: "anywhere",
+                                                    }}
+                                                >
+                                                    {value.message}
+                                                </Typography>
+                                            </Box>
+                                        </>
+                                    )}
                                 </SendChannelSection>
                             )
                         })}
