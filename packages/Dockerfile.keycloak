@@ -30,11 +30,16 @@ FROM maven:3-amazoncorretto-17@sha256:046784a9c83821fc3e9ded94c2f18155e0daf1981c
 # maven:3-amazoncorretto-17 does not. Unconditional, this was a network fetch on
 # every build -- including offline ones, where it cannot succeed.
 RUN command -v find >/dev/null 2>&1 || { dnf install -y findutils && dnf clean all; }
+# Maven stamps every jar entry with the time of the build unless it is given
+# one. With SOURCE_DATE_EPOCH (a BuildKit built-in argument) the jars are the
+# same on every build; without it nothing changes.
+ARG SOURCE_DATE_EPOCH
 COPY ./keycloak-extensions/ /build/context/packages/keycloak-extensions/
 COPY --from=vendor / /vendor/
 WORKDIR /build/context
 RUN --mount=from=beyond,source=.,target=/build/beyond-context,readonly \
     set -eux; \
+    reproducible="${SOURCE_DATE_EPOCH:+-Dproject.build.outputTimestamp=${SOURCE_DATE_EPOCH}}"; \
     keycloak_extensions_dir=packages/keycloak-extensions; \
     beyond_keycloak_extensions_dir=beyond/packages/keycloak-extensions; \
     if [ -d /build/beyond-context/packages/keycloak-extensions ]; then \
@@ -47,10 +52,10 @@ RUN --mount=from=beyond,source=.,target=/build/beyond-context,readonly \
     fi; \
     if [ -d /vendor/m2-repo ]; then \
         echo "offline build: using vendored Maven repository"; \
-        mvn -B -o -Dmaven.repo.local=/vendor/m2-repo \
+        mvn -B -o ${reproducible} -Dmaven.repo.local=/vendor/m2-repo \
             -f "${keycloak_extensions_dir}/pom.xml" clean package; \
     else \
-        mvn -B -f "${keycloak_extensions_dir}/pom.xml" clean package; \
+        mvn -B ${reproducible} -f "${keycloak_extensions_dir}/pom.xml" clean package; \
     fi; \
     mkdir -p /build/keycloak-provider-jars /build/keycloak-provider-conf; \
     cp "${keycloak_extensions_dir}/quarkus.properties" /build/keycloak-provider-conf/quarkus.properties; \
@@ -68,10 +73,12 @@ RUN --mount=from=beyond,source=.,target=/build/beyond-context,readonly \
 FROM maven:3-amazoncorretto-21@sha256:efdf660ec74911594e2a7f642e177ffba21b741c8e848223bf41a6d0fc367692 AS oid4vp-build
 ARG OID4VP_VERSION
 ARG OID4VP_SHA256
+ARG SOURCE_DATE_EPOCH
 COPY --from=vendor / /vendor/
 # The archive is checksum-pinned either way, so the vendored copy is verified
 # against the same expected digest as a freshly downloaded one.
 RUN set -eux; \
+    reproducible="${SOURCE_DATE_EPOCH:+-Dproject.build.outputTimestamp=${SOURCE_DATE_EPOCH}}"; \
     if [ -f /vendor/oid4vp/oid4vp.tar.gz ]; then \
         echo "offline build: using the vendored oid4vp archive"; \
         cp /vendor/oid4vp/oid4vp.tar.gz /tmp/oid4vp.tar.gz; \
@@ -84,9 +91,9 @@ RUN set -eux; \
     tar -xzf /tmp/oid4vp.tar.gz -C /build; \
     cd /build/keycloak-extension-oid4vp-${OID4VP_VERSION}; \
     if [ -d /vendor/m2-repo-oid4vp ]; then \
-        mvn -B -o -Dmaven.repo.local=/vendor/m2-repo-oid4vp clean package -DskipTests; \
+        mvn -B -o ${reproducible} -Dmaven.repo.local=/vendor/m2-repo-oid4vp clean package -DskipTests; \
     else \
-        mvn -B clean package -DskipTests; \
+        mvn -B ${reproducible} clean package -DskipTests; \
     fi
 
 # Build the React login themes (packages/keycloak-ui) and lay them out as
@@ -163,7 +170,18 @@ COPY --chown=keycloak:keycloak \
 
 COPY --chown=keycloak:keycloak --from=themes-build /build/repo/.cache/keycloak-ui/themes/ /opt/keycloak/themes/
 
-RUN /opt/keycloak/bin/kc.sh build
+# kc.sh build writes the optimised server ahead of time, for `start --optimized`.
+# Its output is different on every run: about a hundred generated classes carry
+# random field names and keys in no fixed order. An image that has to be the
+# same on every build passes KEYCLOAK_AUGMENTATION=at-start and leaves this to
+# the server's start, which is what `start-dev` does anyway, discarding this
+# output (sequentech/meta#13625).
+ARG KEYCLOAK_AUGMENTATION=in-image
+RUN case "${KEYCLOAK_AUGMENTATION}" in \
+        in-image) /opt/keycloak/bin/kc.sh build ;; \
+        at-start) ;; \
+        *) echo "KEYCLOAK_AUGMENTATION must be in-image or at-start" >&2; exit 1 ;; \
+    esac
 
 FROM quay.io/keycloak/keycloak:26.6.1@sha256:dea26401d06341095cc4ea9d66896200b55de5ca1daa1d2fcbe58493afa6e0ad
 COPY --from=builder /opt/keycloak/ /opt/keycloak/
