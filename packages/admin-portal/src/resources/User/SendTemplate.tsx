@@ -3,15 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useContext, useMemo, useState} from "react"
-import {
-    SaveButton,
-    SimpleForm,
-    useNotify,
-    Toolbar,
-    Identifier,
-    useGetList,
-    useGetOne,
-} from "react-admin"
+import {SaveButton, SimpleForm, useNotify, Toolbar, Identifier, useGetList} from "react-admin"
 import {
     Alert,
     AccordionDetails,
@@ -20,18 +12,12 @@ import {
     FormControlLabel,
     SelectChangeEvent,
     Switch,
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableRow,
     Typography,
 } from "@mui/material"
 import {useMutation} from "@apollo/client"
 import {FieldValues, SubmitHandler} from "react-hook-form"
 import MailIcon from "@mui/icons-material/Mail"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
-import {ChannelLabel} from "@sequentech/ui-essentials"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import EmailEditor from "@/components/EmailEditor"
@@ -50,23 +36,19 @@ import {
     ISmsConfig,
     MESSAGE_TEMPLATE_METHODS,
 } from "@/types/templates"
-import {
-    EChannelSelection,
-    EMessageChannel,
-    EMessagePurpose,
-    IInstantMessageConfig,
-    MESSAGING_CONFIG_ANNOTATION,
-} from "@/types/messaging"
-import {enabledChannels, parseEventMessagingConfig} from "@/services/messaging"
-import {methodChannel} from "@/services/templateMethods"
+import {EMessageChannel, IInstantMessageConfig} from "@/types/messaging"
 import {useMessagingAccounts} from "@/hooks/useMessagingAccounts"
+import {useEventMessagingConfig} from "@/hooks/useEventMessagingConfig"
 import {useLocation} from "react-router-dom"
 import {
     ISendContent,
     buildSendTemplatePayload,
     missingChannelContent,
-    templatesForChannelSelection,
+    sendNoticeChannels,
+    sendableTemplates,
+    sendingAccountFor,
 } from "./sendTemplatePayload"
+import {SendTemplateAudience} from "./SendTemplateAudience"
 import {
     ZonedDateTimeInput,
     type IStoredZonedDateTime,
@@ -81,8 +63,7 @@ export enum AudienceSelection {
     SELECTED = "SELECTED",
 }
 
-const EACH_VOTER = EChannelSelection.VOTER_PREFERENCE
-const DEFAULT_CHANNELS = [EMessageChannel.EMAIL, EMessageChannel.SMS]
+// Without an event configuration, notices go by SMS or email, in channel order.
 const INSTANT_METHODS = [ITemplateMethod.WHATSAPP, ITemplateMethod.VIBER, ITemplateMethod.MESSENGER]
 
 type InstantContentKey = "whatsapp" | "viber" | "messenger"
@@ -105,8 +86,6 @@ interface ITemplate {
         selection: AudienceSelection
         voter_ids?: Array<Identifier> | undefined
     }
-    channel_selection: EChannelSelection
-    communication_method: ITemplateMethod
     alias?: string
     schedule: {
         now: boolean
@@ -130,11 +109,6 @@ interface ITemplateContents {
     whatsapp?: IInstantMessageConfig
     viber?: IInstantMessageConfig
     messenger?: IInstantMessageConfig
-}
-
-interface IEventRecord {
-    id: string
-    annotations?: Record<string, unknown> | null
 }
 
 interface SendTemplateProps {
@@ -169,8 +143,6 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
             selection: audienceSelection ?? AudienceSelection.SELECTED,
             voter_ids: ids ?? undefined,
         },
-        channel_selection: EACH_VOTER,
-        communication_method: ITemplateMethod.EMAIL,
         schedule: {
             now: true,
             zoned: undefined,
@@ -193,25 +165,22 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
         },
     })
 
-    const {data: electionEvent} = useGetOne<IEventRecord>(
-        "sequent_backend_election_event",
-        {id: electionEventId ?? ""},
-        {enabled: !!electionEventId}
+    const {accounts} = useMessagingAccounts({skip: !electionEventId, summaries: true})
+    const {
+        storedConfig,
+        canRead: canReadMessaging,
+        loading: messagingLoading,
+    } = useEventMessagingConfig(electionEventId)
+    // The channels the backend will send on; nothing is guessed when they can't be read.
+    const notices = useMemo(
+        () => sendNoticeChannels(canReadMessaging, storedConfig),
+        [canReadMessaging, storedConfig]
     )
-    const {accounts} = useMessagingAccounts({skip: !electionEventId})
-    const messagingConfig = useMemo(
-        () => parseEventMessagingConfig(electionEvent?.annotations?.[MESSAGING_CONFIG_ANNOTATION]),
-        [electionEvent]
-    )
-    const noticeChannels = useMemo(() => {
-        const channels = enabledChannels(messagingConfig, EMessagePurpose.NOTICE)
-        return channels.length ? channels : DEFAULT_CHANNELS
-    }, [messagingConfig])
-    const sendingAccount = (channel: EMessageChannel) => {
-        const accountId = messagingConfig.channels.find(
-            (config) => config.channel === channel
-        )?.account_id
-        return accounts.find((account) => account.id === accountId)
+    const noticeChannels = notices.kind === "CHANNELS" ? notices.channels : []
+    const sendsFrom = (channel: EMessageChannel): string => {
+        const account = sendingAccountFor(storedConfig, accounts, channel)
+        if (account === "ENVIRONMENT") return t("messaging.send.environment")
+        return account?.name ?? t("messaging.send.noAccount")
     }
 
     const content = template.i18n["en"]
@@ -221,8 +190,6 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
         return buildSendTemplatePayload({
             audienceSelection: formData.audience.selection,
             voterIds: formData.audience.voter_ids,
-            channelSelection: formData.channel_selection,
-            communicationMethod: formData.communication_method,
             scheduleNow: formData.schedule.now,
             scheduleDate: formData.schedule.zoned?.scheduled_date ?? undefined,
             scheduleLocal: formData.schedule.zoned?.local ?? undefined,
@@ -239,6 +206,11 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
     const onSubmit: SubmitHandler<FieldValues> = async (formData) => {
         const zoned = (formData as Partial<ITemplate>).schedule?.zoned
         setErrors(null)
+        if (electionEventId && notices.kind === "NONE") {
+            // Every voter's notice would be refused: nothing is scheduled.
+            setErrors(t("messaging.send.noNoticeChannels"))
+            return
+        }
         setShowProgress(true)
         try {
             const {errors} = await createScheduledEvent({
@@ -296,20 +268,6 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
             audience: {...template.audience, selection: e.target.value as AudienceSelection},
         })
 
-    const handleChannelChange = (e: SelectChangeEvent<unknown>) => {
-        const value = e.target.value as string
-        if (value === EACH_VOTER) {
-            setTemplate({...template, channel_selection: EACH_VOTER, alias: undefined})
-        } else {
-            setTemplate({
-                ...template,
-                channel_selection: EChannelSelection.SINGLE_CHANNEL,
-                communication_method: value as ITemplateMethod,
-                alias: undefined,
-            })
-        }
-    }
-
     const {data: receipts} = useGetList<Sequent_Backend_Template>("sequent_backend_template", {
         filter: {
             tenant_id: tenantId,
@@ -318,15 +276,13 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
 
     const selectableTemplates = useMemo(
         () =>
-            templatesForChannelSelection(
+            sendableTemplates(
                 (receipts ?? []).map((receipt) => ({
                     communication_method: receipt.communication_method,
                     template: receipt.template as ITemplateContents,
-                })),
-                template.channel_selection,
-                template.communication_method
+                }))
             ).map((receipt) => receipt.template),
-        [receipts, template.channel_selection, template.communication_method]
+        [receipts]
     )
 
     const handleSelectAliasChange = (e: SelectChangeEvent<unknown>) => {
@@ -355,12 +311,10 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
         }
     }
 
-    const eachVoter = template.channel_selection === EACH_VOTER
-    const shownMethods = eachVoter ? MESSAGE_TEMPLATE_METHODS : [template.communication_method]
-    const shows = (method: ITemplateMethod) => shownMethods.includes(method)
-    const missing = eachVoter ? missingChannelContent(content, noticeChannels) : []
+    // Every voter gets this notification on their own channel: there's no other choice.
+    const shows = (method: ITemplateMethod) => MESSAGE_TEMPLATE_METHODS.includes(method)
+    const missing = missingChannelContent(content, noticeChannels)
     const channelName = (channel: EMessageChannel) => t(`messaging.channel.${channel}`)
-    const singleChannel = methodChannel(template.communication_method)
 
     return (
         <PageHeaderStyles.Wrapper>
@@ -462,63 +416,24 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                         </ElectionHeaderStyles.Wrapper>
                     </AccordionSummary>
                     <AccordionDetails>
-                        <Typography variant="body2" sx={{margin: "0"}}>
-                            {t("messaging.send.channel")}
-                        </Typography>
-                        <FormStyles.Select
-                            name="channel"
-                            value={eachVoter ? EACH_VOTER : template.communication_method}
-                            onChange={handleChannelChange}
-                        >
-                            <MenuItem value={EACH_VOTER}>{t("messaging.send.eachVoter")}</MenuItem>
-                            {MESSAGE_TEMPLATE_METHODS.map((method) => (
-                                <MenuItem key={method} value={method}>
-                                    {t("messaging.send.only", {
-                                        channel: t(
-                                            `sendCommunication.communicationMethod.${method}`
-                                        ),
-                                    })}
-                                </MenuItem>
-                            ))}
-                        </FormStyles.Select>
-                        <Typography variant="caption" color="text.secondary" component="p">
-                            {eachVoter
-                                ? t("messaging.send.eachVoterHelp")
-                                : t("messaging.send.onlyHelp", {
-                                      channel: singleChannel ? channelName(singleChannel) : "",
-                                  })}
-                        </Typography>
-                        {electionEventId && messagingConfig.channels.length > 0 ? (
-                            <Table size="small" aria-label={String(t("messaging.send.sendsFrom"))}>
-                                <TableHead>
-                                    <TableRow>
-                                        <TableCell>{t("messaging.send.channelColumn")}</TableCell>
-                                        <TableCell>{t("messaging.send.sendsFrom")}</TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {(eachVoter
-                                        ? noticeChannels
-                                        : singleChannel
-                                          ? [singleChannel]
-                                          : []
-                                    ).map((channel) => (
-                                        <TableRow key={channel}>
-                                            <TableCell>
-                                                <ChannelLabel
-                                                    channel={channel}
-                                                    label={channelName(channel)}
-                                                />
-                                            </TableCell>
-                                            <TableCell>
-                                                {sendingAccount(channel)?.name ??
-                                                    t("messaging.send.noAccount")}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                        {electionEventId && notices.kind === "NO_PERMISSION" ? (
+                            <Alert severity="info">{t("messaging.send.noReadPermission")}</Alert>
                         ) : null}
+                        {electionEventId && notices.kind === "NONE" && !messagingLoading ? (
+                            <Alert severity="error">{t("messaging.send.noNoticeChannels")}</Alert>
+                        ) : null}
+                        {electionEventId && noticeChannels.length > 0 ? (
+                            <SendTemplateAudience
+                                electionEventId={electionEventId}
+                                audienceSelection={template.audience.selection}
+                                voterIds={template.audience.voter_ids}
+                                channels={noticeChannels}
+                                sendsFrom={sendsFrom}
+                            />
+                        ) : null}
+                        <Typography variant="caption" color="text.secondary" component="p">
+                            {t("messaging.send.eachVoterHelp")}
+                        </Typography>
                         <Typography variant="body2" sx={{margin: "0"}}>
                             {t("sendCommunication.alias")}
                         </Typography>
@@ -560,7 +475,7 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                             }
                             const value = content[key]
                             const editable = method === ITemplateMethod.MESSENGER
-                            if (!value && eachVoter) {
+                            if (!value) {
                                 return null
                             }
                             const channel = t(`template.method.${key}`)

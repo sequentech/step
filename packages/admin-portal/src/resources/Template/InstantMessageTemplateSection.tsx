@@ -31,7 +31,7 @@ import {
     templateApprovalRows,
     templatePurpose,
 } from "@/services/templateApproval"
-import {EMessageChannel, EMessagePurpose, EReadinessPolicy} from "@/types/messaging"
+import {EMessageChannel, EMessagePurpose} from "@/types/messaging"
 
 export type InstantMessageChannel =
     | EMessageChannel.WHATSAPP
@@ -100,7 +100,7 @@ const ApprovalStatus: React.FC<{channel: InstantMessageChannel}> = ({channel}) =
     const [tenantId] = useTenantStore()
     const type = useWatch({name: "type"}) as string | undefined
     const purpose = templatePurpose(type)
-    const {accounts, loading} = useMessagingAccounts()
+    const {accounts, loading, canRead} = useMessagingAccounts()
     const {data: tenant} = useGetOne("sequent_backend_tenant", {id: tenantId ?? ""})
     const channelAccounts = useMemo(
         () => accounts.filter((account) => account.channel === channel),
@@ -116,6 +116,9 @@ const ApprovalStatus: React.FC<{channel: InstantMessageChannel}> = ({channel}) =
 
     if (loading) {
         return null
+    }
+    if (!canRead) {
+        return <Alert severity="info">{t("messaging.templates.noReadPermission")}</Alert>
     }
     if (!account) {
         return (
@@ -143,13 +146,7 @@ const ApprovalStatus: React.FC<{channel: InstantMessageChannel}> = ({channel}) =
                     </MenuItem>
                 ))}
             </TextField>
-            {account.readiness === EReadinessPolicy.ADMIN_CONFIRMED ? (
-                <Typography variant="body2" color="text.secondary">
-                    {t("messaging.templates.approvalAdminConfirmed")}
-                </Typography>
-            ) : (
-                <ApprovalTable rows={rows} purpose={purpose} />
-            )}
+            <ApprovalTable rows={rows} purpose={purpose} />
         </Box>
     )
 }

@@ -2,14 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
-    EMessageAttemptState,
     EMessageChannel,
     EMessagePurpose,
     EMessagingProvider,
     EOutOfWindowPolicy,
     EProviderApproval,
     EReadinessBlocker,
-    EReadinessPolicy,
     IAccountSummary,
     IEventMessagingConfig,
     IMessagingConfigError,
@@ -23,17 +21,14 @@ import {
     incompleteBindings,
     preparedConfig,
     removeTemplateBinding,
-    setOutOfWindow,
+    statsByChannel,
     templateChannels,
     updateTemplateBinding,
     electionChannelsOf,
     errorLocation,
     errorsAt,
-    moveFallback,
-    parseDeliveryStats,
     parseMessagingConfigErrors,
     setChannelAccount,
-    setReplyText,
     togglePurpose,
     toggleElectionChannel,
 } from "./eventMessagingConfig"
@@ -70,8 +65,17 @@ describe("setChannelAccount", () => {
         ])
     })
 
+    it("sends Messenger notices outside the window with the utility template", () => {
+        const config = setChannelAccount(
+            emptyEventMessagingConfig(),
+            EMessageChannel.MESSENGER,
+            "page-1"
+        )
+        expect(config.channels[0].out_of_window).toBe(EOutOfWindowPolicy.UTILITY_MESSAGES)
+    })
+
     it("clears purposes and templates when the account changes", () => {
-        const before = withChannels([[VIBER, [OTP, NOTICE]]], {notice_fallback: [VIBER]})
+        const before = withChannels([[VIBER, [OTP, NOTICE]]])
         before.channels[0].templates = [{purpose: OTP, language: "en", provider_template: "t"}]
         const after = setChannelAccount(before, VIBER, "viber-2")
         expect(after.channels[0]).toMatchObject({
@@ -79,7 +83,6 @@ describe("setChannelAccount", () => {
             purposes: [],
             templates: [],
         })
-        expect(after.notice_fallback).toEqual([])
     })
 
     it("keeps the channel unchanged when the same account is selected", () => {
@@ -94,32 +97,29 @@ describe("setChannelAccount", () => {
                 [EMAIL, [NOTICE]],
             ],
             {
-                notice_fallback: [SMS, EMAIL],
                 election_channels: {"election-1": [SMS, EMAIL]},
             }
         )
         const after = setChannelAccount(before, SMS, null)
         expect(after.channels.map(({channel}) => channel)).toEqual([EMAIL])
-        expect(after.notice_fallback).toEqual([EMAIL])
         expect(after.election_channels).toEqual({"election-1": [EMAIL]})
     })
 })
 
 describe("togglePurpose", () => {
-    it("enables a notice and appends the channel to the fallback order", () => {
+    it("enables a notice without any fallback order", () => {
         const after = togglePurpose(withChannels([[SMS, []]]), SMS, NOTICE, true)
         expect(after.channels[0].purposes).toEqual([NOTICE])
-        expect(after.notice_fallback).toEqual([SMS])
+        expect(Object.keys(after)).not.toContain("notice_fallback")
     })
 
-    it("enabling OTPs leaves the fallback order alone", () => {
+    it("enables OTPs", () => {
         const after = togglePurpose(withChannels([[SMS, []]]), SMS, OTP, true)
         expect(after.channels[0].purposes).toEqual([OTP])
-        expect(after.notice_fallback).toEqual([])
     })
 
-    it("disabling a purpose drops its templates and fallback entry", () => {
-        const before = withChannels([[VIBER, [OTP, NOTICE]]], {notice_fallback: [VIBER]})
+    it("disabling a purpose drops its templates", () => {
+        const before = withChannels([[VIBER, [OTP, NOTICE]]])
         before.channels[0].templates = [
             {purpose: OTP, language: "en", provider_template: "otp"},
             {purpose: NOTICE, language: "en", provider_template: "notice"},
@@ -129,7 +129,6 @@ describe("togglePurpose", () => {
         expect(after.channels[0].templates).toEqual([
             {purpose: OTP, language: "en", provider_template: "otp"},
         ])
-        expect(after.notice_fallback).toEqual([])
     })
 
     it("ignores a channel without an account", () => {
@@ -243,19 +242,6 @@ describe("template bindings", () => {
     })
 })
 
-describe("setOutOfWindow", () => {
-    it("chooses how a channel sends outside its conversation window", () => {
-        const config = withChannels([[EMessageChannel.MESSENGER, [NOTICE]]])
-        const after = setOutOfWindow(
-            config,
-            EMessageChannel.MESSENGER,
-            EOutOfWindowPolicy.UTILITY_MESSAGES
-        )
-        expect(after.channels[0].out_of_window).toBe(EOutOfWindowPolicy.UTILITY_MESSAGES)
-        expect(config.channels[0].out_of_window).toBe(EOutOfWindowPolicy.DISABLED)
-    })
-})
-
 describe("bindingApproval", () => {
     const whatsapp: IAccountSummary = {
         id: "wa-1",
@@ -264,7 +250,6 @@ describe("bindingApproval", () => {
         provider: EMessagingProvider.WHATSAPP_CLOUD_API,
         capabilities: providerCapabilities(EMessagingProvider.WHATSAPP_CLOUD_API, WHATSAPP),
         provider_approval: EProviderApproval.CONFIRMED,
-        readiness: EReadinessPolicy.PROVIDER_CHECK,
         check: {connected: true, production_access: true, approved_templates: {NOTICE: ["en_US"]}},
     }
     const notice = (language: string, providerLanguage: string | null = null) => ({
@@ -278,15 +263,6 @@ describe("bindingApproval", () => {
         expect(bindingApproval(whatsapp, notice("en", "en_US"))).toBe(EBindingApproval.APPROVED)
         expect(bindingApproval(whatsapp, notice("en_US"))).toBe(EBindingApproval.APPROVED)
         expect(bindingApproval(whatsapp, notice("en"))).toBe(EBindingApproval.NOT_APPROVED)
-    })
-
-    it("shows the administrator's confirmation instead of a check result", () => {
-        expect(
-            bindingApproval(
-                {...whatsapp, readiness: EReadinessPolicy.ADMIN_CONFIRMED},
-                notice("tl")
-            )
-        ).toBe(EBindingApproval.ADMIN_CONFIRMED)
     })
 
     it("does not ask for an approval the purpose does not need", () => {
@@ -317,7 +293,6 @@ describe("templateChannels", () => {
         provider,
         capabilities: providerCapabilities(provider, channel),
         provider_approval: EProviderApproval.PENDING,
-        readiness: EReadinessPolicy.PROVIDER_CHECK,
         check: {connected: true, production_access: true},
     })
 
@@ -344,16 +319,6 @@ describe("templateChannels", () => {
     })
 })
 
-describe("moveFallback", () => {
-    it("swaps neighbours and ignores moves past either end", () => {
-        const config = withChannels([], {notice_fallback: [SMS, VIBER, EMAIL]})
-        expect(moveFallback(config, 1, -1).notice_fallback).toEqual([VIBER, SMS, EMAIL])
-        expect(moveFallback(config, 1, 1).notice_fallback).toEqual([SMS, EMAIL, VIBER])
-        expect(moveFallback(config, 0, -1).notice_fallback).toEqual([SMS, VIBER, EMAIL])
-        expect(moveFallback(config, 2, 1).notice_fallback).toEqual([SMS, VIBER, EMAIL])
-    })
-})
-
 describe("election channels", () => {
     const config = withChannels([
         [SMS, [OTP]],
@@ -361,8 +326,13 @@ describe("election channels", () => {
         [VIBER, []],
     ])
 
-    it("an election without an entry offers every enabled channel", () => {
+    it("an election without an entry offers every enabled channel, in channel order", () => {
         expect(electionChannelsOf(config, "election-1")).toEqual([SMS, EMAIL])
+        const reversed = withChannels([
+            [EMAIL, [NOTICE]],
+            [WHATSAPP, [OTP]],
+        ])
+        expect(electionChannelsOf(reversed, "election-1")).toEqual([WHATSAPP, EMAIL])
     })
 
     it("unticking writes the explicit list and ticking everything again inherits", () => {
@@ -371,15 +341,6 @@ describe("election channels", () => {
         expect(electionChannelsOf(restricted, "election-1")).toEqual([EMAIL])
         const inherited = toggleElectionChannel(restricted, "election-1", SMS)
         expect(inherited.election_channels).toEqual({})
-    })
-})
-
-describe("setReplyText", () => {
-    it("stores text per language and removes empty text", () => {
-        let config = setReplyText(emptyEventMessagingConfig(), "en", "Not read")
-        expect(config.reply_text).toEqual({en: "Not read"})
-        config = setReplyText(config, "en", "")
-        expect(config.reply_text).toEqual({})
     })
 })
 
@@ -398,8 +359,7 @@ describe("errors", () => {
         },
         {kind: "TEMPLATE_NOT_APPROVED", channel: WHATSAPP, purpose: OTP, language: "tl"},
         {kind: "OUT_OF_WINDOW_NOT_SUPPORTED", channel: SMS},
-        {kind: "FALLBACK_CHANNEL_NOT_ENABLED", channel: EMAIL},
-        {kind: "DUPLICATE_FALLBACK_CHANNEL", channel: EMAIL},
+        {kind: "UTILITY_TEMPLATE_MISSING", channel: EMessageChannel.MESSENGER},
         {kind: "ELECTION_CHANNEL_NOT_ENABLED", election_id: "e-1", channel: VIBER},
         {kind: "UNKNOWN_ELECTION", election_id: "e-2"},
     ]
@@ -415,8 +375,11 @@ describe("errors", () => {
             {area: EMessagingErrorArea.PURPOSE, channel: WHATSAPP, purpose: OTP},
             {area: EMessagingErrorArea.TEMPLATE, channel: WHATSAPP, purpose: OTP, language: "tl"},
             {area: EMessagingErrorArea.CHANNEL, channel: SMS},
-            {area: EMessagingErrorArea.FALLBACK},
-            {area: EMessagingErrorArea.FALLBACK},
+            {
+                area: EMessagingErrorArea.PURPOSE,
+                channel: EMessageChannel.MESSENGER,
+                purpose: NOTICE,
+            },
             {area: EMessagingErrorArea.ELECTION, electionId: "e-1"},
             {area: EMessagingErrorArea.ELECTION, electionId: "e-2"},
         ])
@@ -437,7 +400,6 @@ describe("errors", () => {
                 ({kind}) => kind
             )
         ).toEqual(["DUPLICATE_CHANNEL", "UNKNOWN_ACCOUNT", "OUT_OF_WINDOW_NOT_SUPPORTED"])
-        expect(errorsAt(errors, config, {area: EMessagingErrorArea.FALLBACK})).toHaveLength(2)
     })
 
     it("parses the action's errors, keeping only tagged objects", () => {
@@ -453,24 +415,18 @@ describe("errors", () => {
     })
 })
 
-describe("parseDeliveryStats", () => {
-    it("reads the aliased aggregates per channel", () => {
-        const stats = parseDeliveryStats({
-            SMS_ACCEPTED: {aggregate: {count: 4}},
-            SMS_FAILED: {aggregate: {count: 1}},
-            VIBER_DELIVERED: {aggregate: {count: 7}},
-            VIBER_UNKNOWN: {aggregate: null},
-            unrelated: {aggregate: {count: 9}},
-        })
-        expect(stats[SMS]).toEqual([
-            {state: EMessageAttemptState.ACCEPTED, count: 4},
-            {state: EMessageAttemptState.FAILED, count: 1},
-        ])
-        expect(stats[VIBER]).toEqual([{state: EMessageAttemptState.DELIVERED, count: 7}])
-        expect(stats[EMAIL]).toEqual([])
-    })
-
-    it("handles a missing response", () => {
-        expect(parseDeliveryStats(undefined)[WHATSAPP]).toEqual([])
+describe("statsByChannel", () => {
+    it("indexes the event's message counts by channel", () => {
+        const sms = {
+            channel: SMS,
+            queued: 0,
+            accepted: 4,
+            delivered: 0,
+            failed: 1,
+            unknown: 0,
+            unresolved: 0,
+        }
+        expect(statsByChannel([sms])).toEqual({[SMS]: sms})
+        expect(statsByChannel(undefined)).toEqual({})
     })
 })

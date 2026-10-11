@@ -17,14 +17,15 @@ import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {STORY_IDS, type StoryRecord, storyId} from "@/__stories__/fixtures"
 import type {Sequent_Backend_Template} from "@/gql/graphql"
 import {ITemplateMethod} from "@/types/templates"
+import {IPermissions} from "@/types/keycloak"
 import {
-    EChannelSelection,
     EMessageChannel,
     EMessagePurpose,
     EMessagingProvider,
     EOutOfWindowPolicy,
-    MESSAGING_CONFIG_ANNOTATION,
+    IEventMessagingConfig,
 } from "@/types/messaging"
+import {ESendsFrom, IAudienceChannel} from "@/queries/GetMessagingAudiencePreview"
 import {AudienceSelection, SendTemplate} from "./SendTemplate"
 
 interface Scenario {
@@ -33,6 +34,11 @@ interface Scenario {
     secretAttributeNames?: string[]
     failure: boolean
     close: () => void
+    /** The event's stored configuration; `null` for an event without one. */
+    config?: IEventMessagingConfig | null
+    roles?: string[]
+    /** The audience preview's rows, or `"FAIL"` when it can't be read. */
+    preview?: IAudienceChannel[] | "FAIL"
 }
 
 const welcome = {
@@ -95,7 +101,6 @@ const account = (
     limits: {allowed_calling_codes: []},
     provider_approval: "CONFIRMED",
     status: {connected: true, production_access: true, approved_templates: {}},
-    webhook_key: null,
     is_default: true,
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
@@ -111,7 +116,7 @@ const accounts = [
     account(SMS_ACCOUNT_ID, EMessageChannel.SMS, EMessagingProvider.AWS_SNS, "Election office SMS"),
 ]
 
-const messagingConfig = {
+const messagingConfig: IEventMessagingConfig = {
     version: 1,
     channels: [
         {
@@ -129,14 +134,42 @@ const messagingConfig = {
             out_of_window: EOutOfWindowPolicy.DISABLED,
         },
     ],
-    notice_fallback: [EMessageChannel.SMS],
     election_channels: {},
-    reply_text: {},
 }
 
-const electionEvent = eventRecord(undefined, {
-    annotations: {[MESSAGING_CONFIG_ANNOTATION]: JSON.stringify(messagingConfig)},
-})
+const electionEvent = eventRecord()
+
+// Reads the event's messaging configuration and safe account columns.
+const ROLES = [IPermissions.MESSAGING_CONFIG_READ]
+const READS = ["GetEventMessagingConfig", "GetMessagingAccountSummaries"]
+// The audience preview is read once the channels are known; asserted on its own.
+const PREVIEW = "GetMessagingAudiencePreview"
+const callNames = () =>
+    graphql.calls
+        .map((call) => call.name)
+        .filter((name) => name !== PREVIEW)
+        .sort()
+const previewCalls = () => graphql.calls.filter((call) => call.name === PREVIEW)
+
+// The two selected voters: one on SMS, one on Email.
+const preview: IAudienceChannel[] = [
+    {
+        channel: EMessageChannel.SMS,
+        voters: 1,
+        not_offered: 0,
+        sends_from: ESendsFrom.ACCOUNT,
+        account_id: SMS_ACCOUNT_ID,
+        account_name: "Election office SMS",
+    },
+    {
+        channel: EMessageChannel.EMAIL,
+        voters: 1,
+        not_offered: 0,
+        sends_from: ESendsFrom.ACCOUNT,
+        account_id: EMAIL_ACCOUNT_ID,
+        account_name: "Election office email",
+    },
+]
 
 let graphql: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof resourceBoundary>
@@ -155,9 +188,45 @@ const meta = {
     beforeEach: async ({args}) => {
         graphql = graphqlBoundary(
             {
-                GetMessagingAccounts: () => ({
+                GetMessagingAccountSummaries: () => ({
                     data: {sequent_backend_messaging_account: accounts},
                 }),
+                GetEventMessagingConfig: () => ({
+                    data: {
+                        sequent_backend_messaging_event_config:
+                            args.config === null
+                                ? []
+                                : [
+                                      {
+                                          election_event_id: EVENT_ID,
+                                          config: args.config ?? messagingConfig,
+                                          version: 1,
+                                      },
+                                  ],
+                    },
+                }),
+                GetMessagingAudiencePreview: () => {
+                    if (args.preview === "FAIL") throw new Error("Synthetic preview failure")
+                    const channels = args.preview ?? preview
+                    return {
+                        data: {
+                            messaging_audience_preview: {
+                                total: channels.reduce((sum, row) => sum + row.voters, 0),
+                                will_send: channels
+                                    .filter((row) => !!row.channel && !!row.sends_from)
+                                    .filter((row) => row.sends_from !== ESendsFrom.NONE)
+                                    .reduce((sum, row) => sum + row.voters - row.not_offered, 0),
+                                channels,
+                                // Selected voters are counted when asked.
+                                status: {
+                                    computed_at: "2026-10-09T08:00:00Z",
+                                    pending: false,
+                                    outcome: "COUNTED",
+                                },
+                            },
+                        },
+                    }
+                },
                 CreateScheduledEvent: () => {
                     if (args.failure) throw new Error("Synthetic scheduler failure")
                     return {data: {createScheduledEvent: {id: storyId(9, 9)}}}
@@ -173,8 +242,8 @@ const meta = {
         })
         await graphql.ready
     },
-    render: ({ids, audienceSelection, secretAttributeNames, close}) => (
-        <AdminStoryProvider boundary={graphql} dataProvider={data.provider}>
+    render: ({ids, audienceSelection, secretAttributeNames, close, roles}) => (
+        <AdminStoryProvider boundary={graphql} dataProvider={data.provider} roles={roles ?? ROLES}>
             <SendTemplate
                 ids={ids}
                 audienceSelection={audienceSelection}
@@ -208,9 +277,9 @@ async function choose(canvasElement: HTMLElement, select: string, option: string
     await userEvent.click(await within(document.body).findByRole("option", {name: option}))
 }
 
-/** The template is the third select (the schedule's timezone picker isn't one). */
+/** The template is the second select (the schedule's timezone picker isn't one). */
 function aliasSelect(canvasElement: HTMLElement) {
-    const [, , alias] = within(canvasElement)
+    const [, alias] = within(canvasElement)
         .getAllByRole("combobox")
         .filter((box) => box.tagName !== "INPUT")
     return alias
@@ -231,9 +300,31 @@ export const Populated: Story = {
                 expect.objectContaining({filter: {tenant_id: TENANT_ID}}),
             ])
         )
-        expect(canvas.getByText("Each voter's channel")).toBeVisible()
         await expect(await canvas.findByRole("cell", {name: "Election office SMS"})).toBeVisible()
-        expect(graphql.calls.map((call) => call.name)).toEqual(["GetMessagingAccounts"])
+        const table = within(canvas.getByRole("table", {name: "Each voter's channel"}))
+        expect(table.getAllByRole("columnheader").map((header) => header.textContent)).toEqual([
+            "Channel",
+            "Voters",
+            "Sends from",
+        ])
+        // The voters of the send, counted on the server the way the send reads them.
+        await expect(await canvas.findByText("Voters in this audience: 2")).toBeVisible()
+        expect(previewCalls().map((call) => call.variables)).toContainEqual({
+            electionEventId: EVENT_ID,
+            audienceSelection: AudienceSelection.SELECTED,
+            voterIds: [STORY_IDS.user, STORY_IDS.secondUser],
+        })
+        // Channel order: SMS before Email.
+        expect(
+            table
+                .getAllByRole("row")
+                .slice(1)
+                .map((row) => row.getAttribute("data-channel"))
+        ).toEqual([EMessageChannel.SMS, EMessageChannel.EMAIL])
+        expect(canvas.getByText(/Each voter gets one message on their own channel/)).toBeVisible()
+        // No channel override: every voter is sent on their own channel.
+        expect(canvas.queryByText(/ only$/)).toBeNull()
+        expect(callNames()).toEqual(READS)
     },
 }
 
@@ -248,7 +339,6 @@ export const SendNowToTheSelectedVoters: Story = {
             eventPayload: {
                 audience_selection: AudienceSelection.SELECTED,
                 audience_voter_ids: [STORY_IDS.user, STORY_IDS.secondUser],
-                channel_selection: EChannelSelection.VOTER_PREFERENCE,
                 schedule_now: true,
                 email: defaultEmail,
                 sms: {message: "Enter in {{vote_url}} to vote"},
@@ -327,40 +417,37 @@ export const EmailTemplateWithSecretAttribute: Story = {
 export const SmsMessage: Story = {
     play: async ({args, canvasElement}) => {
         const canvas = within(canvasElement)
-        await choose(canvasElement, "Each voter's channel", "SMS only")
         const message = await canvas.findByRole("textbox", {name: "SMS Message"})
         await userEvent.clear(message)
         await userEvent.type(message, "Polls close at 20:00")
-        expect(canvas.queryByRole("textbox", {name: "Email Subject"})).toBeNull()
         await send(canvasElement)
         await waitFor(() => expect(args.close).toHaveBeenCalledTimes(1))
         expect(sent()?.eventPayload).toMatchObject({
-            channel_selection: EChannelSelection.SINGLE_CHANNEL,
-            communication_method: ITemplateMethod.SMS,
             sms: {message: "Polls close at 20:00"},
+            email: defaultEmail,
         })
-        expect(sent()?.eventPayload).not.toHaveProperty("email")
+        expect(sent()?.eventPayload).not.toHaveProperty("channel_selection")
+        expect(sent()?.eventPayload).not.toHaveProperty("communication_method")
     },
 }
 
-export const MultiMethodTemplateForSms: Story = {
+export const TemplatesOfEveryChannel: Story = {
     // The open listbox hides the unnamed selects from the accessibility tree.
     parameters: {expectedFailure: null},
     play: async ({canvasElement}) => {
-        await choose(canvasElement, "Each voter's channel", "SMS only")
         const alias = aliasSelect(canvasElement)
         await userEvent.click(alias)
         const options = within(await within(document.body).findByRole("listbox"))
             .getAllByRole("option")
             .map((option) => option.textContent)
-        expect(options).toEqual(["voting-opens", "reminder"])
+        // The templates list reads newest id first (react-admin's default sort).
+        expect(options).toEqual(["voting-opens", "reminder", "welcome"])
     },
 }
 
-export const WhatsAppOnly: Story = {
+export const WhatsAppContentOfATemplate: Story = {
     play: async ({args, canvasElement}) => {
         const canvas = within(canvasElement)
-        await choose(canvasElement, "Each voter's channel", "WhatsApp only")
         const alias = aliasSelect(canvasElement)
         await userEvent.click(alias)
         await userEvent.click(
@@ -372,19 +459,17 @@ export const WhatsAppOnly: Story = {
         await send(canvasElement)
         await waitFor(() => expect(args.close).toHaveBeenCalledTimes(1))
         expect(sent()?.eventPayload).toMatchObject({
-            channel_selection: EChannelSelection.SINGLE_CHANNEL,
-            communication_method: ITemplateMethod.WHATSAPP,
             alias: "voting-opens",
             whatsapp: whatsappReminder,
+            sms: {message: "Voting opens tomorrow"},
         })
-        expect(sent()?.eventPayload).toHaveProperty("whatsapp", whatsappReminder)
+        expect(sent()?.eventPayload).not.toHaveProperty("communication_method")
     },
 }
 
 export const WhatsAppWithItsProviderTemplate: Story = {
     play: async ({args, canvasElement}) => {
         const canvas = within(canvasElement)
-        await choose(canvasElement, "Each voter's channel", "WhatsApp only")
         const alias = aliasSelect(canvasElement)
         await userEvent.click(alias)
         await userEvent.click(
@@ -427,7 +512,7 @@ export const ScheduleNeedsADate: Story = {
         expect(canvas.getByLabelText(/Date and time to start sending/)).toBeEnabled()
         await send(canvasElement)
         await expect(await canvas.findByText("Please choose a date")).toBeVisible()
-        expect(graphql.calls.map((call) => call.name)).toEqual(["GetMessagingAccounts"])
+        expect(callNames()).toEqual(READS)
         expect(args.close).not.toHaveBeenCalled()
     },
 }
@@ -439,10 +524,7 @@ export const SendFailure: Story = {
         await expect(
             await within(canvasElement).findByText(/Error sending the notification/)
         ).toBeVisible()
-        expect(graphql.calls.map((call) => call.name)).toEqual([
-            "GetMessagingAccounts",
-            "CreateScheduledEvent",
-        ])
+        expect(callNames()).toEqual(["CreateScheduledEvent", ...READS])
         expect(args.close).not.toHaveBeenCalled()
     },
 }
@@ -451,5 +533,52 @@ export const SelectedUsers: Story = {
     parameters: {router: {initialEntries: ["/user-roles/users"]}},
     play: async ({canvasElement}) => {
         await expect(within(canvasElement).getByText("To 2 Selected users")).toBeVisible()
+    },
+}
+
+export const EventThatSendsNoNotices: Story = {
+    args: {
+        config: {
+            ...messagingConfig,
+            channels: messagingConfig.channels.map((channel) => ({
+                ...channel,
+                purposes: [EMessagePurpose.OTP],
+            })),
+        },
+    },
+    play: async ({args, canvasElement}) => {
+        const canvas = within(canvasElement)
+        // Never shown as SMS and Email: every voter's notice would be refused.
+        await expect(await canvas.findByText(/turn on notices for no channel/)).toBeVisible()
+        expect(canvas.queryByRole("table", {name: "Each voter's channel"})).toBeNull()
+        await send(canvasElement)
+        expect(callNames()).toEqual(READS)
+        expect(args.close).not.toHaveBeenCalled()
+    },
+}
+
+export const EventWithoutAConfiguration: Story = {
+    args: {config: null},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const table = within(await canvas.findByRole("table", {name: "Each voter's channel"}))
+        expect(
+            table
+                .getAllByRole("row")
+                .slice(1)
+                .map((row) => row.getAttribute("data-channel"))
+        ).toEqual([EMessageChannel.SMS, EMessageChannel.EMAIL])
+    },
+}
+
+export const WithoutTheReadPermission: Story = {
+    args: {roles: []},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(
+            await canvas.findByText(/needs the messaging-config-read permission/)
+        ).toBeVisible()
+        expect(canvas.queryByRole("table", {name: "Each voter's channel"})).toBeNull()
+        expect(graphql.calls.filter((call) => READS.includes(call.name))).toEqual([])
     },
 }

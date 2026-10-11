@@ -353,7 +353,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         !isSecretAttribute(attr) && attr.name !== SUPPORT_MATERIALS_ACKNOWLEDGED
                 )
                 .map((attr) => {
-                    //covert to valid source string (if attr name is for example sequent.read-only.otp-method)
+                    //covert to valid source string (if attr name is for example sequent.read-only.mobile-number)
                     const source = attr.name?.replaceAll(".", "%")
                     if (attr.annotations?.inputType === "html5-date") {
                         return (

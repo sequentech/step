@@ -6,9 +6,9 @@
 // packages/sequent-core/src/types/messaging.rs. The server stays
 // authoritative; these let the screens explain a blocked control before saving.
 import {
+    EApprovalSource,
     ECredentialName,
     EDeliveryFeedback,
-    EMessageAttemptState,
     EMessageChannel,
     EMessagePurpose,
     EMessagingProvider,
@@ -17,19 +17,24 @@ import {
     EReadinessBlocker,
     ERecipientKind,
     EVENT_MESSAGING_CONFIG_VERSION,
+    GENERATED_CREDENTIALS,
+    IAccountCallbackStatus,
     IAccountCheck,
+    IAccountIdentity,
     IAccountSender,
     IAccountSummary,
     IEventChannelConfig,
     IEventMessagingConfig,
-    EReadinessPolicy,
+    IChannelMessageStats,
     IMessagingAccount,
     IMessagingConfigError,
     IProviderCapabilities,
     IPublicMessagingChannels,
     IPurposeReadiness,
     ITemplateBinding,
+    MESSAGE_CHANNELS,
     MESSAGE_PURPOSES,
+    UNSUPPORTED_PROVIDERS,
 } from "@/types/messaging"
 
 export const recipientKind = (channel: EMessageChannel): ERecipientKind => {
@@ -45,7 +50,11 @@ export const recipientKind = (channel: EMessageChannel): ERecipientKind => {
     }
 }
 
-/** The channel a provider sends on; `null` for the console, which can stand in for any. */
+/** Whether accounts of `provider` can no longer send and must be replaced. */
+export const isUnsupportedProvider = (provider: EMessagingProvider): boolean =>
+    UNSUPPORTED_PROVIDERS.includes(provider)
+
+/** The channel a provider sends on; `null` for an unsupported provider. */
 export const providerChannel = (provider: EMessagingProvider): EMessageChannel | null => {
     switch (provider) {
         case EMessagingProvider.AWS_SES:
@@ -65,18 +74,15 @@ export const providerChannel = (provider: EMessagingProvider): EMessageChannel |
     }
 }
 
+/** The providers a new account of `channel` can use: an adapter per partner. */
 export const providersForChannel = (channel: EMessageChannel): EMessagingProvider[] =>
-    Object.values(EMessagingProvider).filter((provider) => {
-        const own = providerChannel(provider)
-        return own === null || own === channel
-    })
+    Object.values(EMessagingProvider).filter((provider) => providerChannel(provider) === channel)
 
 export const providerCapabilities = (
     provider: EMessagingProvider,
     channel: EMessageChannel
 ): IProviderCapabilities | null => {
-    const own = providerChannel(provider)
-    if (own !== null && own !== channel) {
+    if (providerChannel(provider) !== channel) {
         return null
     }
     const both = [...MESSAGE_PURPOSES]
@@ -92,12 +98,13 @@ export const providerCapabilities = (
     }
     switch (provider) {
         case EMessagingProvider.AWS_SES:
-            return base
         case EMessagingProvider.SMTP:
         case EMessagingProvider.AWS_SNS:
+            // SES reports deliveries only through a notification topic: see senderCapabilities.
+            return {...base, delivery_feedback: EDeliveryFeedback.UNAVAILABLE}
         case EMessagingProvider.HTTP_API:
         case EMessagingProvider.CONSOLE:
-            return {...base, delivery_feedback: EDeliveryFeedback.UNAVAILABLE}
+            return null
         case EMessagingProvider.WHATSAPP_CLOUD_API:
             return {
                 ...base,
@@ -112,60 +119,168 @@ export const providerCapabilities = (
     }
 }
 
-/** What an account can do on `channel`; a configured HTTP provider declares its own. */
+/**
+ * What an account can do on `channel`. SES reports deliveries only when a
+ * notification topic is set; without one, delivery is unavailable, never 0.
+ */
 export const senderCapabilities = (
     sender: IAccountSender,
     channel: EMessageChannel
 ): IProviderCapabilities | null => {
     const capabilities = providerCapabilities(sender.provider, channel)
-    if (!capabilities || sender.provider !== EMessagingProvider.HTTP_API) {
-        return capabilities
+    if (
+        capabilities &&
+        sender.provider === EMessagingProvider.AWS_SES &&
+        sender.notification_topic_arn?.trim()
+    ) {
+        return {...capabilities, delivery_feedback: EDeliveryFeedback.PROVIDER_RECEIPTS}
     }
-    return {
-        ...capabilities,
-        template_required_for: [...(sender.template_required_for ?? [])],
-        conversation_window_hours: sender.conversation_window_hours ?? null,
-        delivery_feedback: sender.reports
-            ? EDeliveryFeedback.PROVIDER_RECEIPTS
-            : EDeliveryFeedback.UNAVAILABLE,
-        reconciliation: !!sender.reconcile,
-    }
+    return capabilities
 }
 
 export const accountCapabilities = (account: IMessagingAccount): IProviderCapabilities | null =>
     senderCapabilities(account.sender, account.channel)
 
 /**
- * Readiness of `purpose` for `language` (any language when null) on an account.
- * With `ADMIN_CONFIRMED` the administrator's statement replaces what the
- * provider's check tells; provider approval is still confirmed separately.
+ * Port of `AccountCheck::approval`: the provider approval the check reported,
+ * where the provider has an API for it, else the one an administrator entered.
+ */
+export const accountApproval = (
+    entered: EProviderApproval | null | undefined,
+    check: IAccountCheck | null | undefined
+): {approval: EProviderApproval | null; source: EApprovalSource} => {
+    const reported = check?.details?.provider_approval
+    return reported
+        ? {approval: reported, source: EApprovalSource.PROVIDER_CHECK}
+        : {approval: entered ?? null, source: EApprovalSource.ADMIN_ENTERED}
+}
+
+/**
+ * What identifies a sender to its provider (`AccountSender::identity`): the
+ * provider and its identifying ids, trimmed, absent ones left out. Names,
+ * labels, API versions and templates are not part of it. Keep in step with
+ * the Rust function; `messaging.test.ts` holds the same cases.
+ */
+export const accountIdentity = (sender: IAccountSender): IAccountIdentity => {
+    const fields: Array<[string, string | null | undefined]> = (() => {
+        switch (sender.provider) {
+            case EMessagingProvider.AWS_SES:
+                return [
+                    ["from_address", sender.from_address],
+                    ["region", sender.region],
+                ]
+            case EMessagingProvider.SMTP:
+                return [
+                    ["from_address", sender.from_address],
+                    ["server_url", sender.server_url],
+                ]
+            case EMessagingProvider.AWS_SNS:
+                return [
+                    ["sender_id", sender.sender_id],
+                    ["origination_number", sender.origination_number],
+                    ["region", sender.region],
+                ]
+            case EMessagingProvider.WHATSAPP_CLOUD_API:
+                return [
+                    ["business_account_id", sender.business_account_id],
+                    ["phone_number_id", sender.phone_number_id],
+                ]
+            case EMessagingProvider.MESSENGER_SEND_API:
+                return [["page_id", sender.page_id]]
+            case EMessagingProvider.VIBER_INFOBIP:
+                return [
+                    ["base_url", sender.base_url?.replace(/\/+$/, "")],
+                    ["sender", sender.sender],
+                ]
+            default:
+                return []
+        }
+    })()
+    const ids: Record<string, string> = {}
+    for (const [name, value] of fields) {
+        const trimmed = value?.trim()
+        if (trimmed) ids[name] = trimmed
+    }
+    return {provider: sender.provider, ids}
+}
+
+const sameIdentity = (a: IAccountIdentity, b: IAccountIdentity): boolean => {
+    const keys = (identity: IAccountIdentity) => Object.keys(identity.ids).sort()
+    return (
+        a.provider === b.provider &&
+        keys(a).join() === keys(b).join() &&
+        keys(a).every((key) => a.ids[key] === b.ids[key])
+    )
+}
+
+/**
+ * Whether a check describes an account whose identity is `current`
+ * (`AccountCheck::is_for`). A check that doesn't name its identity was
+ * stored before identities were recorded and counts.
+ */
+export const checkIsFor = (
+    check: IAccountCheck | null | undefined,
+    current: IAccountIdentity
+): boolean => {
+    const checked = check?.details?.identity
+    return !checked || sameIdentity(checked, current)
+}
+
+/**
+ * Whether the account's last check was of another identity (an earlier
+ * number, Page or sender): it sends nothing until checked as it is now.
+ */
+export const checkedForAnotherIdentity = (account: IMessagingAccount): boolean =>
+    !!account.status?.checked_at && !checkIsFor(account.status, accountIdentity(account.sender))
+
+/**
+ * Readiness of `purpose` for `language` (any language when null) on an account
+ * whose identity is `identity` (null: unknown, the check is taken as the
+ * account's). It always comes from the provider's check: no statement of an
+ * administrator replaces it. An account of a removed provider is unsupported.
+ * A check of another identity readies nothing: the same rule decides at
+ * config save and at send time.
  */
 export const purposeReadiness = (
+    provider: EMessagingProvider,
     capabilities: IProviderCapabilities | null,
     approval: EProviderApproval | null | undefined,
-    policy: EReadinessPolicy | null | undefined,
     check: IAccountCheck | null | undefined,
     purpose: EMessagePurpose,
-    language: string | null | undefined
+    language: string | null | undefined,
+    identity?: IAccountIdentity | null
 ): IPurposeReadiness => {
+    if (isUnsupportedProvider(provider)) {
+        return {purpose, blockers: [EReadinessBlocker.UNSUPPORTED_PROVIDER]}
+    }
     if (!capabilities) {
         return {purpose, blockers: [EReadinessBlocker.UNSUPPORTED_PURPOSE]}
     }
-    const checked = policy !== EReadinessPolicy.ADMIN_CONFIRMED
     const blockers: EReadinessBlocker[] = []
-    if (checked && !check?.connected) {
+    const unchecked = !!check?.checked_at && !!identity && !checkIsFor(check, identity)
+    if (unchecked) {
+        blockers.push(EReadinessBlocker.UNCHECKED)
+    }
+    if (!unchecked && !check?.connected) {
         blockers.push(EReadinessBlocker.NOT_CONNECTED)
     }
     if (!capabilities.purposes.includes(purpose)) {
         blockers.push(EReadinessBlocker.UNSUPPORTED_PURPOSE)
     }
-    if (capabilities.requires_provider_approval && approval !== EProviderApproval.CONFIRMED) {
+    if (
+        capabilities.requires_provider_approval &&
+        accountApproval(approval, check).approval !== EProviderApproval.CONFIRMED
+    ) {
         blockers.push(EReadinessBlocker.NEEDS_PROVIDER_APPROVAL)
     }
-    if (checked && !check?.production_access) {
+    if (unchecked) {
+        // The rest comes from the check, which describes another identity.
+        return {purpose, blockers}
+    }
+    if (!check?.production_access) {
         blockers.push(EReadinessBlocker.NEEDS_PRODUCTION_ACCESS)
     }
-    if (checked && capabilities.template_required_for.includes(purpose)) {
+    if (capabilities.template_required_for.includes(purpose)) {
         const languages = check?.approved_templates?.[purpose]
         const approved = languages
             ? language
@@ -176,8 +291,55 @@ export const purposeReadiness = (
             blockers.push(EReadinessBlocker.NEEDS_APPROVED_TEMPLATE)
         }
     }
+    const callback = callbackBlocker(capabilities.channel, purpose, callbackConfigured(check))
+    if (callback) {
+        blockers.push(callback)
+    }
     return {purpose, blockers}
 }
+
+/**
+ * Whether callbacks can reach the account: false only when
+ * `messaging_callback_status` says the callback address isn't configured.
+ */
+export const callbackConfigured = (check: IAccountCheck | null | undefined): boolean =>
+    !check?.callback_blockers?.includes(EReadinessBlocker.CALLBACK_NOT_CONFIGURED)
+
+/** Puts each account's callback status on its check, as the screens read it. */
+export const withCallbackStatus = (
+    accounts: IMessagingAccount[],
+    statuses: IAccountCallbackStatus[] | null | undefined
+): IMessagingAccount[] => {
+    if (!statuses) return accounts
+    const byAccount = new Map(statuses.map((status) => [status.account_id, status]))
+    return accounts.map((account) => {
+        const status = byAccount.get(account.id)
+        return status && account.status
+            ? {
+                  ...account,
+                  status: {
+                      ...account.status,
+                      callback_blockers: status.blockers,
+                      callback_reasons: status.reasons,
+                  },
+              }
+            : account
+    })
+}
+
+/**
+ * Port of `callback_blocker`: Messenger codes need the callback address,
+ * because a code goes out only after the voter's Get Started arrives as a
+ * callback. Other purposes and channels send without one.
+ */
+export const callbackBlocker = (
+    channel: EMessageChannel,
+    purpose: EMessagePurpose,
+    configured: boolean
+): EReadinessBlocker | null =>
+    channel === EMessageChannel.MESSENGER && purpose === EMessagePurpose.OTP && !configured
+        ? EReadinessBlocker.CALLBACK_NOT_CONFIGURED
+        : null
 
 /**
  * Credentials a provider needs before it can send. Webhook credentials are not
@@ -200,6 +362,8 @@ export const requiredCredentials = (provider: EMessagingProvider): ECredentialNa
     }
 }
 
+/** Credentials an account of `provider` keeps; unsupported providers take none. */
+
 export const acceptedCredentials = (provider: EMessagingProvider): ECredentialName[] => {
     switch (provider) {
         case EMessagingProvider.AWS_SES:
@@ -212,53 +376,34 @@ export const acceptedCredentials = (provider: EMessagingProvider): ECredentialNa
                 ECredentialName.APP_SECRET,
                 ECredentialName.VERIFY_TOKEN,
             ]
-        case EMessagingProvider.HTTP_API:
+        case EMessagingProvider.VIBER_INFOBIP:
             return [
                 ECredentialName.API_KEY,
-                ECredentialName.API_SECRET,
-                ECredentialName.ACCESS_TOKEN,
-                ECredentialName.USERNAME,
-                ECredentialName.PASSWORD,
-                ECredentialName.WEBHOOK_SECRET,
+                ECredentialName.REPORT_USERNAME,
+                ECredentialName.REPORT_PASSWORD,
             ]
         default:
             return requiredCredentials(provider)
     }
 }
 
-/** Credentials an administrator types; the verify token is generated by Step. */
+/** Credentials an administrator types; the verify token and report credentials are generated. */
 export const typedCredentials = (provider: EMessagingProvider): ECredentialName[] =>
-    acceptedCredentials(provider).filter((name) => name !== ECredentialName.VERIFY_TOKEN)
+    acceptedCredentials(provider).filter((name) => !GENERATED_CREDENTIALS.includes(name))
 
 export const isMetaProvider = (provider: EMessagingProvider): boolean =>
     provider === EMessagingProvider.WHATSAPP_CLOUD_API ||
     provider === EMessagingProvider.MESSENGER_SEND_API
 
-/** Path of the account's webhook, relative to harvest's public base URL. */
-export const webhookPath = (
-    provider: EMessagingProvider,
-    webhookKey: string | null | undefined
-): string | null => {
-    if (!webhookKey) {
-        return null
-    }
-    if (isMetaProvider(provider)) {
-        return `/webhooks/meta/${webhookKey}`
-    }
-    if (provider === EMessagingProvider.VIBER_INFOBIP) {
-        return `/webhooks/viber/${webhookKey}`
-    }
-    if (provider === EMessagingProvider.HTTP_API) {
-        return `/webhooks/http/${webhookKey}`
-    }
-    return null
-}
-
-/** Whether the provider posts delivery reports or replies to a callback of the account. */
+/**
+ * Whether the provider posts delivery reports (and, for Messenger, the voter's
+ * Get Started) to the account's callback URL. The full URL comes from the
+ * backend, which knows the public address of the webhook component.
+ */
 export const hasWebhook = (provider: EMessagingProvider): boolean =>
     isMetaProvider(provider) ||
     provider === EMessagingProvider.VIBER_INFOBIP ||
-    provider === EMessagingProvider.HTTP_API
+    provider === EMessagingProvider.AWS_SES
 
 export const channelStatisticsKey = (channel: EMessageChannel): string => {
     switch (channel) {
@@ -290,7 +435,6 @@ export const accountSenderLabel = (sender: IAccountSender): string | null => {
         case EMessagingProvider.VIBER_INFOBIP:
             return sender.sender
         case EMessagingProvider.HTTP_API:
-            return sender.label || null
         case EMessagingProvider.CONSOLE:
             return null
     }
@@ -304,7 +448,7 @@ export const accountSummary = (account: IMessagingAccount): IAccountSummary => (
     provider: account.provider,
     capabilities: accountCapabilities(account),
     provider_approval: account.provider_approval ?? EProviderApproval.PENDING,
-    readiness: account.readiness ?? EReadinessPolicy.PROVIDER_CHECK,
+    identity: accountIdentity(account.sender),
     check: account.status ?? {connected: false, production_access: false},
     public_label: accountSenderLabel(account.sender),
     messenger_page:
@@ -363,10 +507,18 @@ export const templateFor = (
 export const emptyEventMessagingConfig = (): IEventMessagingConfig => ({
     version: EVENT_MESSAGING_CONFIG_VERSION,
     channels: [],
-    notice_fallback: [],
     election_channels: {},
-    reply_text: {},
 })
+
+/**
+ * How a channel sends notices outside its conversation window. Messenger
+ * always uses the approved utility template: there is no "do not send", and a
+ * notice never moves to another channel. Other channels have no such choice.
+ */
+export const outOfWindowPolicy = (channel: EMessageChannel): EOutOfWindowPolicy =>
+    channel === EMessageChannel.MESSENGER
+        ? EOutOfWindowPolicy.UTILITY_MESSAGES
+        : EOutOfWindowPolicy.DISABLED
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === "object" && value !== null && !Array.isArray(value)
@@ -376,7 +528,11 @@ const asArray = <T>(value: unknown): T[] => (Array.isArray(value) ? (value as T[
 const asRecord = <T>(value: unknown): Record<string, T> =>
     isRecord(value) ? (value as Record<string, T>) : {}
 
-/** Reads the `messaging:config` annotation, filling the defaults serde applies. */
+/**
+ * Reads a stored configuration, filling the defaults serde applies. The
+ * removed `notice_fallback` and `reply_text` are dropped, and each channel
+ * gets its out-of-window policy.
+ */
 export const parseEventMessagingConfig = (raw: unknown): IEventMessagingConfig => {
     let value: unknown = raw
     if (typeof raw === "string") {
@@ -397,32 +553,37 @@ export const parseEventMessagingConfig = (raw: unknown): IEventMessagingConfig =
                 account_id: String(channel.account_id ?? ""),
                 purposes: asArray<EMessagePurpose>(channel.purposes),
                 templates: asArray(channel.templates),
-                out_of_window:
-                    (channel.out_of_window as EOutOfWindowPolicy | undefined) ??
-                    EOutOfWindowPolicy.DISABLED,
+                out_of_window: outOfWindowPolicy(channel.channel as EMessageChannel),
             })
         )
     return {
         version: typeof value.version === "number" ? value.version : EVENT_MESSAGING_CONFIG_VERSION,
         channels,
-        notice_fallback: asArray<EMessageChannel>(value.notice_fallback),
         election_channels: asRecord<EMessageChannel[]>(value.election_channels),
-        reply_text: asRecord<string>(value.reply_text),
     }
 }
 
-/** Channels enabled for `purpose`, optionally restricted to an election. */
+/** Channels enabled for `purpose`, optionally restricted to an election, in channel order. */
 export const enabledChannels = (
     config: IEventMessagingConfig,
     purpose: EMessagePurpose,
     electionId?: string | null
 ): EMessageChannel[] => {
     const restriction = electionId ? config.election_channels[electionId] : undefined
-    return config.channels
+    const enabled = config.channels
         .filter((channel) => channel.purposes.includes(purpose))
         .map((channel) => channel.channel)
-        .filter((channel) => !restriction || restriction.includes(channel))
+    return MESSAGE_CHANNELS.filter(
+        (channel) => enabled.includes(channel) && (!restriction || restriction.includes(channel))
+    )
 }
+
+/** Whether a notice template is bound for `channel`: Messenger's utility template. */
+export const noticeTemplateBound = (entry: IEventChannelConfig): boolean =>
+    entry.templates.some(
+        (binding) =>
+            binding.purpose === EMessagePurpose.NOTICE && !!binding.provider_template.trim()
+    )
 
 /** Same checks, in the same order, as `EventMessagingConfig::validate`. */
 export const validateEventMessagingConfig = (
@@ -459,12 +620,13 @@ export const validateEventMessagingConfig = (
         }
         for (const purpose of channelConfig.purposes) {
             const readiness = purposeReadiness(
+                account.provider,
                 account.capabilities,
                 account.provider_approval,
-                account.readiness,
                 account.check,
                 purpose,
-                null
+                null,
+                account.identity
             )
             if (readiness.blockers.length) {
                 errors.push({
@@ -477,10 +639,7 @@ export const validateEventMessagingConfig = (
         }
         const templatePurposes = account.capabilities?.template_required_for ?? []
         for (const binding of channelConfig.templates) {
-            if (
-                !templatePurposes.includes(binding.purpose) ||
-                account.readiness === EReadinessPolicy.ADMIN_CONFIRMED
-            ) {
+            if (!templatePurposes.includes(binding.purpose)) {
                 continue
             }
             const languages = account.check.approved_templates?.[binding.purpose] ?? []
@@ -501,18 +660,13 @@ export const validateEventMessagingConfig = (
             !supportsOutOfWindow(account.capabilities)
         ) {
             errors.push({kind: "OUT_OF_WINDOW_NOT_SUPPORTED", channel})
-        }
-    }
-    const noticeChannels = new Set(enabledChannels(config, EMessagePurpose.NOTICE))
-    const seenFallback = new Set<EMessageChannel>()
-    for (const channel of config.notice_fallback) {
-        if (seenFallback.has(channel)) {
-            errors.push({kind: "DUPLICATE_FALLBACK_CHANNEL", channel})
-        } else {
-            seenFallback.add(channel)
-            if (!noticeChannels.has(channel)) {
-                errors.push({kind: "FALLBACK_CHANNEL_NOT_ENABLED", channel})
-            }
+        } else if (
+            channelConfig.out_of_window === EOutOfWindowPolicy.UTILITY_MESSAGES &&
+            channelConfig.purposes.includes(EMessagePurpose.NOTICE) &&
+            !noticeTemplateBound(channelConfig)
+        ) {
+            // Outside the window a notice is sent only with the utility template.
+            errors.push({kind: "UTILITY_TEMPLATE_MISSING", channel})
         }
     }
     const enabled = new Set(config.channels.map((channel) => channel.channel))
@@ -572,34 +726,59 @@ export const publicProjection = (
     }
 }
 
-export interface IStateCount {
-    state: EMessageAttemptState
-    count: number
-}
-
-/** Message counts per state; `delivered` is null when the provider sends no receipts. */
+/**
+ * Message counts of a channel, per message (its latest attempt). `delivered`
+ * is null when the account gets no receipts: unavailable, never 0.
+ */
 export interface IDeliverySummary {
+    voters: number | null
+    sentLast24h: number | null
     queued: number
     accepted: number
     delivered: number | null
     failed: number
     unknown: number
+    unresolved: number
 }
 
 export const deliverySummary = (
-    counts: IStateCount[],
+    stats: IChannelMessageStats | undefined,
     feedback: EDeliveryFeedback
-): IDeliverySummary => {
-    const total = (state: EMessageAttemptState) =>
-        counts.filter((row) => row.state === state).reduce((sum, row) => sum + row.count, 0)
-    return {
-        queued: total(EMessageAttemptState.QUEUED),
-        accepted: total(EMessageAttemptState.ACCEPTED),
-        delivered:
-            feedback === EDeliveryFeedback.UNAVAILABLE
-                ? null
-                : total(EMessageAttemptState.DELIVERED),
-        failed: total(EMessageAttemptState.FAILED),
-        unknown: total(EMessageAttemptState.UNKNOWN),
+): IDeliverySummary => ({
+    voters: stats?.voters ?? null,
+    sentLast24h: stats?.sent_last_24h ?? null,
+    queued: stats?.queued ?? 0,
+    accepted: stats?.accepted ?? 0,
+    delivered: feedback === EDeliveryFeedback.UNAVAILABLE ? null : (stats?.delivered ?? 0),
+    failed: stats?.failed ?? 0,
+    unknown: stats?.unknown ?? 0,
+    unresolved: stats?.unresolved ?? 0,
+})
+
+/**
+ * Whether the event tab can show deliveries for an account, and why not:
+ * without receipts from the provider (`UNAVAILABLE` alone), or because
+ * callbacks can't reach the account (`reason`: the backend's reason, such as
+ * "Callback address not configured"). Either way delivery reads
+ * "Unavailable", never 0.
+ */
+export const accountDeliveryFeedback = (
+    account: IMessagingAccount | undefined
+): {feedback: EDeliveryFeedback; reason?: string} => {
+    const feedback = account
+        ? (accountCapabilities(account)?.delivery_feedback ?? EDeliveryFeedback.UNAVAILABLE)
+        : EDeliveryFeedback.UNAVAILABLE
+    const blocked = account?.status?.callback_blockers ?? []
+    if (feedback === EDeliveryFeedback.PROVIDER_RECEIPTS && blocked.length) {
+        // Reports can't arrive: the backend's reason, or the blocker itself.
+        return {
+            feedback: EDeliveryFeedback.UNAVAILABLE,
+            reason: account?.status?.callback_reasons?.[0] ?? String(blocked[0]),
+        }
     }
+    return {feedback}
 }
+
+/** Whether `account` can no longer send because its provider was removed. */
+export const accountUnsupported = (account: Pick<IMessagingAccount, "provider">): boolean =>
+    isUnsupportedProvider(account.provider)

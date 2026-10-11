@@ -68,6 +68,7 @@ import {
     waitingTime,
 } from "./approvalReview"
 import {Muted} from "./approvalStyles"
+import {useSupportReferenceSearch} from "./useSupportReferenceSearch"
 
 const StyledChip = styled(Chip)`
     margin: 4px;
@@ -102,6 +103,8 @@ interface ApprovalsListProps extends Omit<DatagridConfigurableProps, "children">
     onViewRule?: (id: Identifier) => void
     userAttributes: GetUserProfileAttributesQuery | undefined
     defaultFilters: string | null
+    /** The queue's own filter (event and Post), which a support reference is looked up in. */
+    scope: Record<string, unknown>
 }
 
 // Storage key for the status filter
@@ -134,9 +137,11 @@ const ApprovalsList = ({
     onViewRule,
     userAttributes,
     defaultFilters,
+    scope,
     ...props
 }: ApprovalsListProps) => {
     const {filterValues, setFilters} = useListContext()
+    useSupportReferenceSearch(scope)
     const location = useLocation()
 
     const {t, i18n} = useTranslation()
@@ -438,6 +443,7 @@ const CustomFilters = (t: any, changeFilters: any, fields: UserProfileAttribute[
             source="q"
             key="search_filter"
             label={String(t("approvalsScreen.list.search"))}
+            helperText={String(t("approvalsScreen.list.searchHelp"))}
             alwaysOn
             resettable
         />,
@@ -685,6 +691,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                         onViewRule={onViewRule}
                         userAttributes={userAttributes}
                         defaultFilters={defaultFilters}
+                        scope={listFilter}
                     />
                 </List>
             </RecordContextProvider>

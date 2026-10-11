@@ -1840,6 +1840,7 @@ const spanishTranslation: TranslationType = {
                 "messaging-account-read": "Ver cuentas de mensajería",
                 "messaging-account-write": "Gestionar cuentas de mensajería",
                 "messaging-config-write": "Configurar la mensajería del evento electoral",
+                "messaging-config-read": "Ver la mensajería del evento electoral",
             },
         },
         generalSettingsScreen: {
@@ -3319,6 +3320,9 @@ const spanishTranslation: TranslationType = {
                     title: "No hay nada aquí",
                     text: "Las inscripciones con este estado aparecerán aquí. Pruebe con otra búsqueda u otro estado.",
                 },
+                searchHelp:
+                    "Un nombre, un correo electrónico o un número de identificación, o la referencia de soporte que se dio al votante, como Q5KW-8RFX.",
+                referenceError: "No se pudo buscar la referencia de soporte.",
             },
             flow: {
                 stepsLabel: "Pasos de la revisión",
@@ -5316,10 +5320,8 @@ const spanishTranslation: TranslationType = {
             sections: {
                 channels: "Canales",
                 templates: "Plantillas aprobadas",
-                fallback: "Orden alternativo para avisos",
                 posts: "Canales por Post",
                 postsCount: "Canales por Post ({{count}} Posts)",
-                reply: "Respuesta a mensajes entrantes",
                 delivery: "Estado de entrega",
             },
             column: {
@@ -5332,14 +5334,14 @@ const spanishTranslation: TranslationType = {
                 post: "Post",
                 key: "Para el mensaje",
                 providerLanguage: "Idioma del proveedor",
+                voters: "Votantes que lo usan",
+                sent24h: "Enviados, últimas 24 h",
+                sent24hHelp:
+                    "Cada mensaje cuyo último intento fue en las últimas 24 horas, en cualquier estado, incluidos los fallidos. Las columnas de estado cuentan todos los mensajes del evento.",
             },
             outOfWindow: {
-                label: "Fuera de la ventana de conversación",
-                help: "Los avisos de texto libre solo se envían mientras la ventana de conversación está abierta: en Messenger, durante las 24 horas siguientes al último mensaje del votante. Elija Mensajes de utilidad para enviar avisos después con una plantilla aprobada. Meta debe aprobarlo para la página (el permiso page_utility_messaging y una plantilla UTILITY aprobada), y esa plantilla debe estar vinculada a los avisos en Plantillas aprobadas. Con No enviar, un aviso fuera de la ventana va al siguiente canal válido del votante.",
-                DISABLED: "No enviar",
-                UTILITY_MESSAGES: "Mensajes de utilidad",
-                noTemplate:
-                    "Aún no hay ninguna plantilla vinculada a los avisos en este canal. Añada una en Plantillas aprobadas; hasta entonces los avisos fuera de la ventana van al siguiente canal válido del votante.",
+                utility:
+                    "Fuera de la ventana de 24 horas, {{channel}} envía los avisos con la plantilla de utilidad aprobada vinculada a los avisos en Plantillas aprobadas.",
             },
             templates: {
                 empty: "Elija una cuenta que envíe plantillas aprobadas, como WhatsApp, Viber o Messenger, para vincular aquí sus plantillas.",
@@ -5357,15 +5359,8 @@ const spanishTranslation: TranslationType = {
                 approval: {
                     APPROVED: "Aprobada",
                     NOT_APPROVED: "No aprobada",
-                    ADMIN_CONFIRMED: "Confirmada por un administrador",
                     NOT_CHECKED: "Aprobación no comprobada",
                 },
-            },
-            fallback: {
-                help: "Cuando un aviso no puede llegar a un votante por su canal, pasa al siguiente canal de este orden que el votante haya verificado y que ofrezca su Post. Los códigos nunca se reenvían solos: el votante elige otra forma.",
-                empty: "Active los avisos de un canal para añadirlo al orden alternativo.",
-                earlier: "Mover {{channel}} antes",
-                later: "Mover {{channel}} después",
             },
             posts: {
                 noChannels:
@@ -5378,13 +5373,18 @@ const spanishTranslation: TranslationType = {
                 cell: "{{post}}: {{channel}}",
                 showing: "Se muestran {{shown}} de {{total}} Posts. Busque para encontrar otros.",
             },
-            reply: {
-                help: "Se envía cuando un votante escribe a una de las cuentas de este evento, como mucho una vez al día por votante.",
-                label: "Respuesta ({{language}})",
-            },
             delivery: {
+                notConfigured: "Este evento no lo ofrece",
                 empty: "No se usa ningún canal.",
-                help: "Aceptado significa que el proveedor aceptó la solicitud, no que el votante recibiera o verificara el código. Desconocido significa que la entrega aún no está confirmada. Un proveedor sin informes de entrega muestra la entrega como no disponible.",
+                help: "Los recuentos son por mensaje, según el estado de su último intento. Aceptado significa que el proveedor aceptó el mensaje, no que el votante lo recibiera. Desconocido significa que la entrega aún no está confirmada; pasadas 24 horas se muestra como Sin resolver, nunca como fallido. Una cuenta sin informes de entrega muestra la entrega como no disponible.",
+                loadError: "No se pudieron cargar los recuentos de mensajes.",
+                noReceipts:
+                    "Esta cuenta no recibe informes de entrega, así que no se puede mostrar la entrega.",
+                showFailed: "Ver los mensajes fallidos de {{channel}} en Logs",
+                noChannelHelp:
+                    "Votantes sin ningún canal de contacto registrado. Sus avisos fallan y nunca se cuentan en ningún canal.",
+                showFailedNoChannel:
+                    "Ver en Logs los mensajes fallidos de votantes sin canal de contacto",
             },
             error: {
                 UNSUPPORTED_VERSION:
@@ -5400,14 +5400,18 @@ const spanishTranslation: TranslationType = {
                     "La plantilla de {{channel}} para {{purpose}} en {{language}} no está aprobada por el proveedor.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
                     "{{channel}} no puede enviar fuera de una ventana de conversación con esta cuenta: no tiene ventana de conversación o sus avisos ya necesitan una plantilla.",
-                FALLBACK_CHANNEL_NOT_ENABLED:
-                    "{{channel}} está en el orden alternativo pero no envía avisos.",
-                DUPLICATE_FALLBACK_CHANNEL:
-                    "{{channel}} aparece más de una vez en el orden alternativo.",
                 ELECTION_CHANNEL_NOT_ENABLED:
                     "{{election}} ofrece {{channel}}, que este evento no usa.",
                 UNKNOWN_ELECTION: "{{election}} no es una elección de este evento.",
+                UTILITY_TEMPLATE_MISSING:
+                    "Los avisos de {{channel}} fuera de la ventana de 24 horas necesitan la plantilla de utilidad aprobada. Vincúlela a los avisos en Plantillas aprobadas.",
             },
+            noReadPermission:
+                "Para ver estos ajustes se necesita el permiso messaging-config-read.",
+            chooseAccount: "Elija antes una cuenta.",
+            needsSavingAgain: "Hay que volver a guardar la configuración.",
+            needsSavingAgainHelp:
+                "Se copió del almacenamiento anterior y no superó las comprobaciones que hace un guardado. Corrija los problemas que se muestran y vuelva a guardarla.",
         },
         messaging: {
             channel: {
@@ -5424,8 +5428,8 @@ const spanishTranslation: TranslationType = {
                 WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
-                CONSOLE: "Consola (solo pruebas, no se envía nada)",
-                HTTP_API: "API HTTP personalizada",
+                CONSOLE: "Consola (ya no es compatible)",
+                HTTP_API: "API HTTP personalizada (ya no es compatible)",
             },
             purpose: {
                 OTP: "Códigos",
@@ -5437,6 +5441,7 @@ const spanishTranslation: TranslationType = {
                 DELIVERED: "Entregado",
                 FAILED: "Fallido",
                 UNKNOWN: "Desconocido",
+                UNRESOLVED: "Sin resolver",
             },
             stateHelp: {
                 QUEUED: "Pendiente de entregar al proveedor.",
@@ -5445,13 +5450,19 @@ const spanishTranslation: TranslationType = {
                 DELIVERED: "El proveedor informó de que el mensaje se entregó.",
                 FAILED: "El proveedor confirmó que el mensaje no se entregó.",
                 UNKNOWN: "La entrega aún no está confirmada.",
+                UNRESOLVED:
+                    "No se pudo confirmar la entrega en 24 horas. Esto no significa que haya fallado.",
             },
             blocker: {
+                UNCHECKED: "Sin comprobar para su número, página o remitente actuales",
                 NOT_CONNECTED: "Sin conexión",
                 UNSUPPORTED_PURPOSE: "No lo admite este proveedor",
                 NEEDS_PROVIDER_APPROVAL: "Necesita la aprobación del proveedor",
                 NEEDS_PRODUCTION_ACCESS: "Necesita acceso de producción",
                 NEEDS_APPROVED_TEMPLATE: "Necesita una plantilla aprobada",
+                UNSUPPORTED_PROVIDER: "Proveedor no compatible: sustituya esta cuenta",
+                CALLBACK_NOT_CONFIGURED: "Dirección de retorno no configurada",
+                REPORT_CREDENTIALS_MISSING: "Credenciales de informes no generadas",
             },
             readiness: {
                 connected: "Conectada",
@@ -5461,8 +5472,6 @@ const spanishTranslation: TranslationType = {
                 notReady: "No está lista",
                 lastCheck: "Comprobada {{date}}",
                 neverChecked: "Aún no comprobada",
-                adminConfirmed: "Confirmada por un administrador",
-                checkNotUsed: "No se usa la comprobación",
             },
             approval: {
                 PENDING: "Pendiente de aprobación del proveedor",
@@ -5476,10 +5485,8 @@ const spanishTranslation: TranslationType = {
                 SMTP_PASSWORD: "Contraseña",
                 AWS_ACCESS_KEY_ID: "ID de clave de acceso de AWS",
                 AWS_SECRET_ACCESS_KEY: "Clave de acceso secreta de AWS",
-                API_SECRET: "Secreto de la API",
-                USERNAME: "Nombre de usuario",
-                PASSWORD: "Contraseña",
-                WEBHOOK_SECRET: "Secreto del webhook",
+                REPORT_USERNAME: "Usuario de informes",
+                REPORT_PASSWORD: "Contraseña de informes",
             },
             deliveryUnavailable: "Entrega no disponible",
             templates: {
@@ -5504,7 +5511,7 @@ const spanishTranslation: TranslationType = {
                     "En las 24 horas siguientes al último mensaje del votante, Messenger envía el texto siguiente.",
                 messengerMessage: "Mensaje dentro de las 24 horas",
                 messengerWindow:
-                    "Un destinatario de Messenger guardado no es un permiso para enviar. Fuera de la ventana de 24 horas este aviso se envía como mensaje de utilidad cuando el evento electoral lo permite y hay una plantilla aprobada indicada abajo o vinculada en el evento; si no, va al siguiente canal válido del votante. Los mensajes de utilidad necesitan el permiso page_utility_messaging y una plantilla UTILITY aprobada en la página.",
+                    "Un destinatario de Messenger guardado no es un permiso para enviar. Fuera de la ventana de 24 horas este aviso se envía con la plantilla de utilidad aprobada indicada abajo o vinculada en el evento electoral; sin ella no se envía, y el fallo se muestra con su motivo. Los mensajes de utilidad necesitan el permiso page_utility_messaging y una plantilla UTILITY aprobada en la página.",
                 intro: {
                     WHATSAPP:
                         "WhatsApp solo envía plantillas que Meta aprobó para la cuenta de WhatsApp Business. El mensaje debe coincidir con la plantilla aprobada; elige qué rellena sus parámetros.",
@@ -5525,16 +5532,13 @@ const spanishTranslation: TranslationType = {
                     MESSENGER:
                         "El código de idioma de la plantilla de utilidad aprobada, como en_US.",
                 },
-                approvalAdminConfirmed:
-                    "Un administrador confirmó con el proveedor que las plantillas de esta cuenta están aprobadas, así que no se usan las aprobaciones de la comprobación de conexión.",
+                noReadPermission:
+                    "Para ver las cuentas se necesita el permiso messaging-config-read.",
             },
             send: {
-                channel: "Canal",
                 eachVoter: "El canal de cada votante",
-                only: "Solo {{channel}}",
                 eachVoterHelp:
-                    "Los fallos confirmados usan el siguiente canal verificado disponible. La entrega sin confirmar se muestra como Desconocido.",
-                onlyHelp: "Esta notificación se envía a cada votante por {{channel}}.",
+                    "Cada votante recibe un mensaje en su propio canal. Si la entrega falla, se reintenta en ese canal y el fallo se muestra en la pestaña Mensajería del evento. La entrega sin confirmar se muestra como Desconocido.",
                 channelColumn: "Canal",
                 sendsFrom: "Se envía desde",
                 noAccount: "Sin cuenta",
@@ -5547,20 +5551,93 @@ const spanishTranslation: TranslationType = {
                 providerLanguage: "Idioma del proveedor de {{channel}}",
                 providerLanguageHelp:
                     "El código de idioma del proveedor para esa plantilla, como en_US.",
+                voters: "Votantes",
+                environment: "El remitente predeterminado de la instalación",
+                noNoticeChannels:
+                    "La configuración de mensajería de este evento no activa los avisos en ningún canal, así que ningún votante recibiría esta notificación. Active los avisos de un canal en la pestaña Mensajería del evento.",
+                noReadPermission:
+                    "Para mostrar el canal de cada votante se necesita el permiso messaging-config-read. Cada votante recibe igualmente la notificación por su propio canal.",
+            },
+            audience: {
+                notOfferedRow:
+                    "Ningún Post de estos votantes ofrece este canal para avisos, así que ninguno de ellos lo recibe: {{reason}}.",
+                willSend: "Recibirán la notificación: {{willSend}}",
+                selectedTimedOut:
+                    "Contar los votantes seleccionados tardó demasiado, así que no se muestran recuentos. Cada votante recibe igualmente la notificación por su propio canal.",
+                notSent: "No se envía",
+                deletedAccount: "Cuenta eliminada",
+                notOffered: "{{notOffered}} de ellos no lo reciben: {{reason}}.",
+                noAccountHelp:
+                    "Ninguna cuenta envía por este canal, así que los avisos de estos votantes fallan: {{reason}}.",
+                noChannelHelp:
+                    "Estos votantes no tienen canal de contacto registrado. No reciben nada, y cada uno aparece como fallido: {{reason}}.",
+                total: "Votantes de esta audiencia: {{total}}",
+                loadError:
+                    "No se pudo cargar el número de votantes. Cada votante recibe igualmente la notificación por su propio canal.",
+            },
+            voterCount: {
+                countedAt: "Contado: {{time}}.",
+                never: "Aún no se ha contado.",
+                pending: "Hay un recuento en curso.",
+                timedOut: "El último recuento tardó demasiado y se detuvo.",
+                failed: "El último recuento falló.",
+                previous: "Los recuentos que se muestran son del anterior.",
+                recount: "Volver a contar",
+                recountAsked: "Se pidió un recuento. Los recuentos se actualizan cuando termine.",
+                recountAlreadyAsked: "Ya hay un recuento en curso.",
+                recountError: "No se pudo pedir el recuento.",
+                loadError: "No se pudieron cargar los recuentos de votantes.",
+            },
+            volumes: {
+                title: "Volúmenes mensuales",
+                intro: "Intentos entregados a un proveedor cada mes, por canal, cuenta de envío, país de destino y categoría de facturación, para conciliar las facturas de los proveedores. Cada intento cuenta en el mes en que se hizo, así que un reintento vuelve a contar. La categoría de facturación es la prevista al enviar, o la que informó el proveedor; si un intento es facturable es lo que informó el proveedor. No se muestran precios.",
+                month: "Mes",
+                monthHelp: "Los meses se cuentan en UTC.",
+                loading: "Cargando los volúmenes mensuales",
+                loadError: "No se pudieron cargar los volúmenes.",
+                empty: "No se entregó ningún intento a un proveedor en {{month}}.",
+                noPermission:
+                    "Para ver los volúmenes se necesita el permiso messaging-account-read o messaging-config-read.",
+                notReported: "Sin informar",
+                deploymentOrDeleted: "Remitente de la instalación o una cuenta eliminada",
+                category: {
+                    AUTHENTICATION: "Autenticación",
+                    UTILITY: "Utilidad",
+                    SERVICE: "Servicio",
+                    TRANSACTIONAL: "Transaccional",
+                    EMAIL: "Correo electrónico",
+                },
+                billableYes: "Facturable",
+                billableNo: "No facturable",
+                total: "Todos los intentos",
+                column: {
+                    account: "Enviado desde",
+                    country: "País de destino",
+                    category: "Categoría de facturación",
+                    billable: "Facturable",
+                    messages: "Intentos",
+                },
             },
             voter: {
                 title: "Mensajería",
-                preferredChannel: "Canal preferido",
-                whatsappNumber: "Número de WhatsApp",
-                viberNumber: "Número de Viber",
-                messengerConnected: "Conectado",
-                messengerNotConnected: "No conectado",
-                verifiedChannels: "Canales verificados",
-                noneVerified: "Ningún canal verificado",
                 notSet: "Sin definir",
+                channel: "Canal",
+                destination: "Se envía a",
+                messengerPage: "Página de Messenger",
+                consent: "Consentimiento",
+                lastFailure: "Último fallo",
+                noFailure: "Ninguno",
+                failureNeedsPermission: "Se muestra con el permiso messaging-config-read.",
+                noChannel: "Sin contacto registrado",
+                notConfirmed: "Entrega no confirmada",
+                notConfirmedHelp:
+                    "El último mensaje cuya entrega aún no está confirmada. Pasadas 24 horas se muestra como Sin resolver, lo que no significa que haya fallado.",
             },
             logs: {
                 channel: "Canal",
+                status: "Estado",
+                statusAsLogged:
+                    "El estado cuando se escribió la entrada; el estado actual necesita el permiso messaging-config-read.",
             },
             stats: {
                 sent: {
@@ -5569,12 +5646,172 @@ const spanishTranslation: TranslationType = {
                     MESSENGER: "Mensajes de Messenger enviados",
                 },
             },
-            readinessPolicy: {
-                PROVIDER_CHECK: "Según la comprobación del proveedor",
-                ADMIN_CONFIRMED: "Confirmada por un administrador",
+            reason: {
+                CANDIDATE_REFUSED:
+                    "Las nuevas credenciales no conectaron: se mantienen las anteriores",
+                ACCOUNT_IN_USE:
+                    "La usan los ajustes de mensajería de un evento electoral: quítela allí primero",
+                NUMBER_CHANGED:
+                    "Un votante cambió su número de WhatsApp: pídale que verifique de nuevo su contacto",
+                IDENTITY_CHANGED:
+                    "La identidad de envío de la cuenta cambió: se comprueba de nuevo",
+                TEMPLATES_NOT_READ: "No se pudieron leer las plantillas del proveedor",
+                PARTNER_LOGIN_REFUSED: "Infobip rechazó la clave de API de la cuenta",
+                NO_PAGES_MESSAGING: "El token de la página no tiene el permiso pages_messaging",
+                NOT_SUBSCRIBED: "La aplicación no está suscrita a la página",
+                NUMBER_STATUS_NOT_READ: "No se pudo leer el estado del número",
+                CALLBACK_NOT_CONFIGURED: "Dirección de retorno no configurada",
+                UNSUPPORTED_PROVIDER: "Proveedor no compatible: sustituya esta cuenta",
+                CREDENTIALS_FOLLOW_ENDPOINT:
+                    "Vuelva a introducir las credenciales para la nueva dirección",
+                NO_CONTACT_CHANNEL: "Sin canal de contacto",
+                NOT_RETRYABLE_NO_TEMPLATE: "No se puede reintentar: no hay plantilla guardada",
+                CHANNEL_NOT_OFFERED_FOR_NOTICES: "Canal no ofrecido para avisos",
+                CHANNEL_NOT_OFFERED_FOR_CODES: "Canal no ofrecido para códigos",
+                NO_CONTENT_FOR_CHANNEL: "Sin contenido para el canal",
+                NO_ACCOUNT_FOR_CHANNEL: "Sin cuenta de envío para el canal",
+                INVALID_DESTINATION: "Destino no válido para el canal",
+                NOT_RETRYABLE_PROTECTED_FIELDS:
+                    "No se puede reintentar: contiene campos protegidos",
+                REPORTED_TOO_LATE: "Notificado demasiado tarde para reintentar",
+                CHANNEL_CHANGED: "El canal del votante cambió: no se reintenta",
+                WORKER_STOPPED_BEFORE_SENDING: "El proceso se detuvo antes de enviar",
+                WORKER_STOPPED_AFTER_SENDING:
+                    "El proceso se detuvo antes de registrar el resultado",
+                CODE_EXPIRED_BEFORE_SENDING: "El código caducó antes de poder enviarse",
+                CAPACITY_BUSY:
+                    "No enviado: la cuenta estuvo en su límite de envío durante demasiado tiempo",
+                PROVIDER_ANSWER_LATE:
+                    "El proveedor no respondió a tiempo: es posible que el mensaje se haya enviado",
+                UNRESOLVED: "No se pudo confirmar la entrega",
+                SELECTED_WITHOUT_VOTERS: "Seleccione al menos un votante",
+                WRONG_RECIPIENT_KIND: "El destino no es del tipo al que envía este canal",
+                UNSUPPORTED_PURPOSE: "El proveedor no envía este tipo de mensaje",
+                MISSING_APPROVED_TEMPLATE: "No hay plantilla aprobada para este mensaje",
+                OUTSIDE_CONVERSATION_WINDOW: "Fuera de la ventana de conversación",
+                DESTINATION_NOT_ALLOWED: "Esta cuenta no envía al país del destino",
+                CODE_EXPIRED: "El código caducó",
+                MISSING_CODE: "No hay código que enviar",
+                ENDPOINT_NOT_HTTPS: "La dirección del proveedor debe empezar por https://",
+                PROVIDER_CODE: "Código de error del proveedor {{code}}",
+                CHECK_DROPPED: "La cuenta cambió mientras se comprobaba: compruébela de nuevo",
+                ACCOUNT_NOT_READY: "No enviado: la cuenta no está lista ({{blocker}})",
+                PROVIDER_UNREACHABLE: "No se pudo contactar con el proveedor",
+                PROVIDER_STATUS: "El proveedor respondió con el estado {{status}}",
+                MISSING_CREDENTIAL: "Falta la credencial: {{credential}}",
+                PROVIDER_CHECK_FAILED: "La comprobación del proveedor falló: {{detail}}",
+                NUMBER_STATUS: "El estado del número es {{status}}",
+                NUMBER_NAME_STATUS: "El nombre visible del número es {{status}}",
+                NUMBER_IN_SANDBOX: "El número está en modo sandbox",
+                NUMBER_NOT_VERIFIED: "El código del número no está verificado",
+                SMS_SANDBOX: "La cuenta está en el sandbox de SMS",
+                SES_SANDBOX: "La cuenta está en el sandbox de SES",
+                SES_SENDING_DISABLED: "El envío está desactivado para esta cuenta",
+                SMTP_REFUSED: "El servidor SMTP no es accesible o rechazó las credenciales",
+                TOKEN_INVALID: "El token de acceso no es válido o ha caducado",
+                TOKEN_CANNOT_SEND: "El token de acceso no tiene el permiso para enviar",
+                TOKEN_NOT_CHECKED: "No se pudo comprobar el token de acceso",
+                APP_SECRET_REFUSED: "Meta rechazó el secreto de la aplicación",
+                APP_SECRET_NOT_CHECKED: "No se pudo comprobar el secreto de la aplicación",
+                RETRY_NOT_PREPARED:
+                    "No se puede reintentar: no se pudo volver a preparar el mensaje",
+                NOT_THE_VOTERS_CHANNEL: "No es el canal del votante",
+                REPORT_CREDENTIALS_MISSING:
+                    "Genere las credenciales de informes y cree la suscripción de Infobip",
+                CALLBACK_NOT_HTTPS: "La dirección de retorno debe ser https",
+                UNKNOWN_ACCOUNT:
+                    "Esta cuenta ya no existe: puede que se haya eliminado en otra pestaña. Vuelva a cargar la lista.",
+                INTERNAL_ERROR:
+                    "El servidor no pudo completar la solicitud. Vuelva a intentarlo más tarde.",
+                VERIFY_TOKEN_GENERATED:
+                    "El token de verificación lo genera el sistema; no se introduce",
+                CREDENTIAL_GENERATED: "{{credential}}: lo genera el sistema; no se introduce",
+                CREDENTIAL_NOT_USED: "Las cuentas de {{provider}} no usan {{credential}}",
+                CREDENTIAL_EMPTY: "{{credential}} no puede estar vacío",
+                NO_REPORT_CREDENTIALS:
+                    "Las cuentas de {{provider}} no tienen credenciales de informes",
+                UNKNOWN_AUDIENCE: "Selección de destinatarios desconocida",
+                INVALID_MONTH: "El mes debe escribirse como AAAA-MM",
+                INVALID_SUPPORT_REFERENCE: "No es una referencia de soporte",
+                MESSENGER_PAGE_CHANGED:
+                    "No enviado: el votante está conectado a otra página de Messenger",
             },
         },
         messagingAccounts: {
+            status: {
+                title: "Estado en el proveedor",
+                daily: "Las cuentas se comprueban una vez al día y cada vez que compruebe la conexión.",
+                unchecked:
+                    "El número, la página o el remitente cambiaron desde la última comprobación. Hasta que la cuenta se compruebe de nuevo, los códigos y avisos que pasen por ella fallan por no estar lista; el mensaje de prueba sí se envía.",
+                notReported: "No informado",
+                yes: "Sí",
+                no: "No",
+                token: "Token de acceso",
+                tokenExpires: "Válido · caduca el {{date}}",
+                tokenNoExpiry: "Válido · no caduca",
+                tokenInvalid: "No válido",
+                missingScopes: "Faltan permisos: {{scopes}}",
+                numberStatus: "Estado del número",
+                nameStatus: "Nombre visible: {{status}}",
+                qualityRating: "Calificación de calidad",
+                quality: {
+                    GREEN: "Alta",
+                    YELLOW: "Media",
+                    RED: "Baja",
+                    UNKNOWN: "Desconocida",
+                },
+                messagingLimit: "Límite de mensajes",
+                pagesMessaging: "Permiso para enviar (pages_messaging)",
+                subscribed: "Aplicación suscrita a la página",
+                getStarted: "Botón Empezar",
+                getStartedMissing:
+                    "Sin el botón, los votantes que nunca escribieron a la página no pueden iniciar la conversación que les trae su código.",
+                partnerLogin: "Acceso del socio",
+                appSecret: "Secreto de la aplicación",
+                notChecked: "No se pudo comprobar",
+                numberQualityWarning:
+                    "Un aviso de calidad de Meta: el número sigue enviando, pero una calidad baja puede reducir su límite de mensajes.",
+                accepted: "Aceptado",
+                refused: "Rechazado",
+                callback: "Dirección de retorno",
+                callbackReady: "Configurada",
+                approvalFromCheck: "Informada por la comprobación del proveedor",
+                approvalEntered:
+                    "Introducida por un administrador: la comprobación del proveedor no la informó",
+                approvalEnteredHelp:
+                    "Solo se usa hasta que la comprobación del proveedor informe de la aprobación.",
+                templates: {
+                    title: "Plantillas en el proveedor",
+                    none: "Sin plantillas",
+                    name: "Plantilla",
+                    language: "Idioma",
+                    category: "Categoría",
+                    status: "Estado",
+                    entered:
+                        "Las plantillas de Viber las introduce un administrador en Plantillas aprobadas: el socio no tiene API para la aprobación de plantillas.",
+                },
+                templateCategory: {
+                    AUTHENTICATION: "Autenticación",
+                    UTILITY: "Utilidad",
+                    MARKETING: "Marketing",
+                },
+                templateStatus: {
+                    APPROVED: "Aprobada",
+                    PENDING: "En revisión",
+                    REJECTED: "Rechazada",
+                    PAUSED: "En pausa",
+                    DISABLED: "Desactivada",
+                },
+                numberChanges: {
+                    title: "Votantes que cambiaron su número de WhatsApp",
+                    description:
+                        "WhatsApp informó de estos cambios de número. Pida a estos votantes que verifiquen de nuevo su contacto; no se cambió nada automáticamente.",
+                    item: "{{old}} cambió a {{new}} el {{date}}.",
+                    voters: "Votantes: {{voters}}",
+                    noVoters:
+                        "Ningún votante recibió mensajes de esta cuenta en el número anterior.",
+                },
+            },
             tab: "MENSAJERÍA",
             description:
                 "Cuentas que envían a los votantes sus códigos y avisos. Cada evento electoral elige la cuenta de cada canal; los eventos nuevos empiezan con la cuenta predeterminada.",
@@ -5612,6 +5849,7 @@ const spanishTranslation: TranslationType = {
                 error: "No se pudo comprobar {{name}}.",
             },
             delete: {
+                refused: "La cuenta no se eliminó: {{reason}}",
                 title: "Eliminar cuenta",
                 body: "¿Eliminar {{name}}? Los eventos electorales que la usan dejarán de enviar por su canal.",
                 success: "Cuenta eliminada",
@@ -5650,9 +5888,7 @@ const spanishTranslation: TranslationType = {
                 sender: "Nombre del remitente",
                 provider_approval: "Aprobación del proveedor",
                 is_default: "Cuenta de {{channel}} predeterminada para nuevos eventos electorales",
-                readiness: "Disponibilidad",
                 api_base_url: "URL base de la Graph API",
-                label: "Remitente que ven los votantes",
             },
             fieldHelp: {
                 from_address:
@@ -5671,25 +5907,32 @@ const spanishTranslation: TranslationType = {
                 sender: "El remitente aprobado que ven los votantes.",
                 provider_approval:
                     "Meta solo permite la mensajería de gobiernos en WhatsApp mediante un acuerdo aprobado. Elija Aprobación del proveedor confirmada cuando Meta lo haya aprobado para esta cuenta; hasta entonces no se pueden activar códigos ni avisos en ella.",
-                readiness:
-                    "Según la comprobación del proveedor usa lo que encuentra la comprobación de conexión: si la cuenta está conectada, en producción y qué plantillas están aprobadas. Confirmada por un administrador es para proveedores cuya comprobación no puede saberlo: es su declaración de que la cuenta está conectada, en producción y tiene sus plantillas aprobadas, y se usa en lugar de la comprobación.",
                 api_base_url:
                     "Solo cuando la Graph API no es la de Meta, como el punto de acceso de un proveedor de soluciones. Vacío usa la de Meta.",
-                label: "El nombre que los votantes ven como remitente de esta cuenta.",
             },
             error: {
                 REQUIRED: "Obligatorio",
                 NOT_A_COUNT: "Introduce un número entero",
+                AT_LEAST_ONE: "Introduce 1 o más",
                 OTP_ABOVE_TOTAL: "No puede superar los mensajes por segundo",
                 INVALID_CALLING_CODE:
                     "Introduce prefijos telefónicos de país de 1 a 3 dígitos, como 63",
                 DUPLICATE_LANGUAGE: "Este idioma ya tiene una plantilla para este propósito",
-                NOT_A_URL: "Indique una dirección que empiece por https:// o http://",
-                INVALID_HTTP_CONFIG: "Corrija los problemas indicados",
+                NOT_A_URL: "Indique una dirección que empiece por https://",
+                UNSUPPORTED_PROVIDER: "Proveedor no compatible: sustituya esta cuenta",
+                CREDENTIALS_FOLLOW_ENDPOINT:
+                    "Vuelva a introducir las credenciales para la nueva dirección",
             },
             warning: {
+                pageChangeCount:
+                    "Votantes conectados a {{page}} que deberán volver a conectarse: {{count}}.",
+                pageChangeCounting: "Contando los votantes conectados a la página…",
+                pageChangeCountError:
+                    "No se pudo leer el número de votantes conectados a la página.",
+                recheck:
+                    "Al guardar, la cuenta se comprueba de nuevo en segundo plano. Hasta que esa comprobación salga bien, los códigos y avisos que pasen por ella fallan por no estar lista; el mensaje de prueba sí se envía.",
                 pageChange:
-                    "Las conversaciones de Messenger pertenecen a una página. Tras cambiar la página, los votantes conectados a {{page}} solo recibirán códigos después de volver a conectar Messenger.",
+                    "Las conversaciones de Messenger pertenecen a una página. Tras cambiar la página, no se envían códigos ni avisos a los votantes conectados a {{page}} hasta que vuelvan a conectarse. El votante se vuelve a conectar en su siguiente inicio de sesión, después de introducir su contraseña: el inicio de sesión muestra el paso de conexión de la página nueva, el votante pulsa Empezar en Messenger y recibe allí el código. Un votante que no puede iniciar sesión con contraseña, por ejemplo porque la ha olvidado, necesita que el personal le cambie el canal.",
                 numberChange:
                     "Los mensajes llegarán desde otro número. Sus plantillas deben estar aprobadas en esa cuenta de empresa antes de poder enviar códigos, y los votantes verán un chat nuevo.",
             },
@@ -5706,8 +5949,13 @@ const spanishTranslation: TranslationType = {
             limits: {
                 title: "Límites de envío",
                 messagesPerSecond: "Mensajes por segundo",
+                messagesPerSecondHelp: "Vacío: los mensajes no se limitan.",
                 otpReservedPerSecond: "Reservados para códigos por segundo",
-                otpReservedHelp: "Se mantienen libres para los códigos durante los envíos masivos.",
+                otpReservedHelp:
+                    "Un mínimo dentro del único presupuesto de envío compartido de la cuenta: los avisos se detienen en él y los códigos van primero. Si no se envían códigos, un envío masivo puede usar todo el ritmo.",
+                otpConcurrency: "Códigos enviados a la vez",
+                otpConcurrencyHelp:
+                    "Vacío: 8. Los códigos y los avisos de Keycloak (enlaces de restablecimiento, contraseñas temporales) ocupan cada uno una plaza mientras se envían. Se cuenta por proceso del servidor; los demás envíos esperan su turno.",
                 allowedCallingCodes: "Destinos permitidos (prefijos telefónicos de país)",
                 allowedCallingCodesHelp:
                     "Separados por comas, por ejemplo 63, 971. Vacío permite cualquier destino.",
@@ -5719,6 +5967,7 @@ const spanishTranslation: TranslationType = {
                 set: "Configurada · reemplazada {{date}}. Se guarda cifrada y nunca se muestra.",
                 replace: "Reemplazar",
                 replaceNamed: "Reemplazar {{name}}",
+                reenter: "La dirección ha cambiado: vuelva a introducir esta credencial.",
             },
             credentialHelp: {
                 AWS_SES: {
@@ -5746,27 +5995,20 @@ const spanishTranslation: TranslationType = {
                 VIBER_INFOBIP: {
                     API_KEY: "La clave de API de Infobip.",
                 },
-                HTTP_API: {
-                    API_KEY: "Opcional. Las peticiones la usan como la credencial API_KEY.",
-                    API_SECRET:
-                        "Opcional. Un segundo secreto, y la clave que firma el JWT: una clave privada PEM para RS256, el secreto compartido para HS256.",
-                    ACCESS_TOKEN:
-                        "Opcional. Las peticiones lo usan como la credencial ACCESS_TOKEN.",
-                    USERNAME: "Opcional. Con la contraseña, forma el marcador basic_auth.",
-                    PASSWORD: "Opcional. Con el nombre de usuario, forma el marcador basic_auth.",
-                    WEBHOOK_SECRET:
-                        "Opcional. El secreto compartido con el que se comprueban las llamadas del proveedor.",
-                },
             },
             webhook: {
-                title: "Informes de entrega y respuestas",
-                description:
-                    "Introduce esta dirección de retorno en la configuración de webhooks del proveedor. Los informes de entrega y las respuestas de los votantes llegan allí.",
-                path: "Ruta de retorno",
-                pathHelp:
-                    "Añádela a la dirección pública de los webhooks de mensajería de esta plataforma.",
+                title: "Informes de entrega",
+                description: {
+                    WHATSAPP_CLOUD_API:
+                        "Introduzca esta URL de retorno en la configuración de webhooks de Meta. Los informes de entrega llegan aquí y se comprueban con el secreto de la aplicación.",
+                    MESSENGER_SEND_API:
+                        "Introduzca esta URL de retorno en la configuración de webhooks de Meta. Los informes de entrega y el toque del votante en Empezar llegan aquí y se comprueban con el secreto de la aplicación.",
+                    VIBER_INFOBIP:
+                        "Infobip envía los informes de entrega de Viber a esta URL de retorno mediante una suscripción con autenticación Basic.",
+                    AWS_SES:
+                        "Suscriba esta URL de retorno (HTTPS) al tema de notificaciones de entrega. Los eventos de entrega y rebote llegan aquí y se comprueban con la firma de Amazon.",
+                },
                 afterSaving: "Se muestra después de guardar",
-                copyPath: "Copiar ruta de retorno",
                 tokenSet: "Configurado · reemplazado {{date}}",
                 tokenMissing: "Aún no generado",
                 tokenAfterSaving: "Se genera después de guardar",
@@ -5777,8 +6019,13 @@ const spanishTranslation: TranslationType = {
                 copyToken: "Copiar token de verificación",
                 tokenDone: "Hecho",
                 tokenError: "No se pudo generar el token de verificación.",
-                httpHelp:
-                    "Una API HTTP personalizada puede enviar sus informes como JSON, o como una petición GET; sus parámetros de consulta se leen entonces como un objeto plano, con punteros como /status.",
+                url: "URL de retorno",
+                copyUrl: "Copiar la URL de retorno",
+                needsWrite:
+                    "Se muestra a los administradores que pueden gestionar cuentas de mensajería.",
+                loading: "Cargando…",
+                unavailable: "No disponible",
+                loadError: "No se pudo cargar la URL de retorno.",
             },
             copy: {
                 success: "Copiado",
@@ -5787,6 +6034,7 @@ const spanishTranslation: TranslationType = {
             save: {
                 success: "Cuenta guardada",
                 error: "No se pudo guardar la cuenta.",
+                refused: "No se ha guardado la cuenta: {{reason}}",
             },
             test: {
                 title: "Enviar un mensaje de prueba desde {{name}}",
@@ -5810,103 +6058,111 @@ const spanishTranslation: TranslationType = {
                 languageHelp:
                     "Para un proveedor que envía plantillas aprobadas, indique el código de idioma del proveedor para la plantilla, como en_US.",
             },
-            http: {
-                title: "API HTTP personalizada",
-                description:
-                    "Describe un proveedor por sus peticiones HTTP: otro socio de Viber, la API propia de un proveedor de soluciones de WhatsApp, una pasarela de SMS. Las peticiones son JSON; su URL, cabeceras y cuerpo pueden contener los marcadores de la referencia de abajo.",
-                phoneFormat: "Formato del número de teléfono",
-                phoneFormatHelp: "Cómo se escribe el número del destinatario en una petición.",
-                phoneFormatOption: {
-                    E164: "Con el signo más: +639171234567",
-                    DIGITS: "Solo dígitos: 639171234567",
+            unsupported:
+                "Proveedor no compatible: sustituya esta cuenta. Su proveedor ya no es compatible, así que no puede enviar. Añada una cuenta para este canal con un proveedor compatible, elíjala en los eventos electorales que usan esta y después elimine esta cuenta.",
+            reports: {
+                label: "Credenciales de informes",
+                missing: "Aún no generadas",
+                generate: "Generar credenciales de informes",
+                title: "Credenciales de informes",
+                once: "Introdúzcalas ahora en la suscripción de Infobip. Solo se muestran una vez; generar otras nuevas las sustituye.",
+                copyUsername: "Copiar el usuario de informes",
+                copyPassword: "Copiar la contraseña de informes",
+                error: "No se pudieron generar las credenciales de informes.",
+                step: {
+                    subscription:
+                        "En Infobip, cree una suscripción para los informes de entrega de Viber.",
+                    url: "Ponga como URL la URL de retorno de esta cuenta.",
+                    auth: "Elija la autenticación Basic e introduzca el usuario y la contraseña de informes.",
                 },
-                templateRequired: "Propósitos que necesitan una plantilla aprobada",
-                templateRequiredHelp:
-                    "Un propósito marcado solo se envía con una plantilla que el proveedor aprobó, vinculada en el evento electoral. Los demás propósitos se envían como texto libre.",
-                approvedLanguages: "Idiomas con plantilla aprobada para {{purpose}}",
-                approvedLanguagesHelp:
-                    "Los códigos de idioma con una plantilla aprobada, según lo confirmado con el proveedor, separados por comas: en, tl. La comprobación de conexión los comunica.",
-                conversationWindow: "Ventana de conversación (horas)",
-                conversationWindowHelp:
-                    "Horas tras el último mensaje del destinatario durante las que se puede enviar texto libre. Vacío cuando el proveedor no tiene esa ventana.",
-                messageIdPointer: "ID del mensaje en la respuesta de envío",
-                messageIdPointerHelp:
-                    "Un puntero JSON al ID de mensaje del proveedor en la respuesta a la petición de envío, como /message_id. Con él se emparejan los informes de entrega.",
-                notConfigured: "Sin configurar.",
-                thisSection: "Esta sección",
-                add: "Añadir: {{section}}",
-                remove: "Quitar: {{section}}",
-                section: {
-                    SEND: "Petición de envío",
-                    CHECK: "Petición de comprobación de conexión",
-                    TOKEN: "Petición de token",
-                    JWT: "Token firmado (JWT)",
-                    REPORTS: "Informes de entrega y respuestas",
-                    RECONCILE: "Petición de consulta de un mensaje",
-                },
-                sectionHelp: {
-                    SEND: "La petición que envía un mensaje: method (POST si se omite), url, headers y body.",
-                    CHECK: "Opcional. Una petición que tiene éxito, con una respuesta 2xx, cuando las credenciales funcionan. La ejecuta la comprobación de conexión.",
-                    TOKEN: "Opcional. Obtiene un token de corta duración antes de enviar, como las credenciales de cliente de OAuth: request, token_pointer (dónde está el token en la respuesta) y lifetime_seconds. Las peticiones lo usan con el marcador token.",
-                    JWT: "Opcional. Un token firmado para cada petición con la credencial Secreto de la API: algorithm (RS256 o HS256), claims (se añaden iat, exp y jti) y lifetime_seconds. Las peticiones lo usan con el marcador jwt.",
-                    REPORTS:
-                        "Opcional. Cómo leer lo que el proveedor envía a la dirección de retorno: auth, items_pointer (dónde está la lista de informes; todo el contenido si se omite), status (message_id_pointer, state_pointer, states, que asigna cada valor del proveedor a QUEUED, ACCEPTED, DELIVERED, FAILED o UNKNOWN, y error_pointer) e inbound_from_pointer (dónde está el remitente de una respuesta). auth tiene un kind: URL_KEY (solo la dirección secreta de retorno), HEADER_SECRET (una cabecera igual al secreto del webhook), HMAC_SHA256 (una cabecera con el HMAC del cuerpo con el secreto del webhook, con prefix, encoding HEX o BASE64, y signed cuando se firma algo más que el cuerpo) o JWT_HS256 (una cabecera con un JWT bearer firmado con el secreto del webhook).",
-                    RECONCILE:
-                        "Opcional. Pregunta al proveedor por un mensaje cuyo resultado se desconoce: request y status, que se lee como el status de los informes de entrega.",
-                },
-                problem: {
-                    NOT_AN_OBJECT: "{{path}} debe ser un objeto.",
-                    MISSING_URL: "{{path}} es obligatorio: la dirección de la petición.",
-                    INVALID_METHOD: "{{path}} debe ser un método HTTP, como POST o GET.",
-                    INVALID_HEADERS:
-                        "{{path}} debe ser texto: headers es un objeto de nombres de cabecera y valores de texto.",
-                    UNKNOWN_FIELD: "{{path}} no es un campo de esta sección.",
-                    UNKNOWN_PLACEHOLDER:
-                        "{{path}} usa un marcador que no existe. Consulte la referencia de marcadores.",
-                    INVALID_POINTER:
-                        "{{path}} debe ser un puntero JSON que empiece por /, como /data/id.",
-                    INVALID_STATES:
-                        "{{path}} debe asignar un valor de estado del proveedor a QUEUED, ACCEPTED, DELIVERED, FAILED o UNKNOWN; hace falta al menos uno.",
-                    INVALID_AUTH:
-                        "{{path}} no es válido: kind es URL_KEY, HEADER_SECRET, HMAC_SHA256 o JWT_HS256; header es obligatorio salvo para URL_KEY; encoding es HEX o BASE64.",
-                    INVALID_LIFETIME: "{{path}} debe ser un número entero de segundos mayor que 0.",
-                    INVALID_ALGORITHM: "{{path}} debe ser RS256 o HS256.",
-                    INVALID_CLAIMS: "{{path}} debe ser un objeto.",
-                    INVALID_HOURS: "{{path}} debe ser un número entero de horas mayor que 0.",
-                },
-                placeholders: {
-                    title: "Referencia de marcadores",
-                    help: "Se escriben entre llaves dobles en la URL, en el valor de una cabecera o en cualquier texto del cuerpo. Cada uno se sustituye al hacer la petición.",
-                },
-                placeholder: {
-                    to: "El destinatario: número de teléfono, dirección de correo o ID de ámbito de página.",
-                    text: "El mensaje como texto sin formato.",
-                    subject: "El asunto, para correo.",
-                    html: "El mensaje como HTML, para correo.",
-                    code: "El código de un solo uso, para los códigos.",
-                    template: "La plantilla del proveedor vinculada en el evento electoral.",
-                    language: "El código de idioma del proveedor para la plantilla.",
-                    message_id:
-                        "El ID de mensaje del proveedor, en una petición de consulta de un mensaje.",
-                    callback_url: "La dirección pública de retorno de esta cuenta.",
-                    param: "Un parámetro de la plantilla por su posición: 1, 2, 3, etc.",
-                    credential:
-                        "Una credencial de esta cuenta por su nombre: API_KEY, API_SECRET, ACCESS_TOKEN, USERNAME, PASSWORD o WEBHOOK_SECRET.",
-                    basic_auth:
-                        "El nombre de usuario y la contraseña, codificados para una cabecera Authorization: Basic.",
-                    token: "El token obtenido con la petición de token.",
-                    jwt: "El token firmado descrito en Token firmado (JWT).",
-                    parameters:
-                        "Solo, como valor del cuerpo, se convierte en la lista de todos los parámetros de la plantilla.",
-                    named_parameters:
-                        "Solo, como valor del cuerpo, se convierte en un objeto con los parámetros escritos como @nombre=valor.",
-                },
-                example: {
-                    title: "Ejemplo completo: un socio de Viber",
-                    description:
-                        "El socio recibe un POST JSON autenticado con la clave de API como token bearer, responde con el ID del mensaje en message_id y envía informes de entrega con una cabecera secreta. Úselo como punto de partida y cambie la dirección y los nombres de campo por los del proveedor.",
-                    use: "Usar este ejemplo",
-                },
+                confirmTitle: "¿Reemplazar las credenciales de informes?",
+                confirmBody:
+                    "El usuario y la contraseña de informes actuales dejan de funcionar de inmediato. Hasta que la suscripción de Infobip tenga los nuevos, los informes de entrega de Viber se rechazan y los mensajes se quedan en Aceptado.",
+                confirm: "Reemplazar",
+            },
+        },
+        sentMessages: {
+            tab: "Mensajes enviados",
+            accountsTab: "Cuentas",
+            tabsLabel: "Secciones de mensajería",
+            description:
+                "Mensajes que recibió el proveedor simulado de este entorno de desarrollo, tal como los mostrarían las aplicaciones de los votantes. Ninguno llegó a un votante real. Esta pestaña solo aparece donde las rutas del proveedor simulado están habilitadas.",
+            modeLabel: "Mostrar mensajes de",
+            all: "Todos",
+            refresh: "Actualizar",
+            refreshing: "Actualizando…",
+            refreshError:
+                "No se pudieron actualizar los mensajes. La lista mostrada es la última que se leyó.",
+            empty: "Aún no hay mensajes.",
+            emptyChannel: "Aún no hay mensajes de {{channel}}.",
+            column: {
+                time: "Hora",
+                channel: "Canal",
+                from: "De",
+                to: "Para",
+                message: "Mensaje",
+                report: "Informe de entrega",
+            },
+            report: {
+                accepted: "Informe aceptado por el componente de webhooks (HTTP 200)",
+                refused: "Informe rechazado: HTTP {{status}}",
+                pending: "Informe aún no enviado",
+                notSent: "Informe no enviado: {{reason}}",
+                noAnswer: "El informe no obtuvo respuesta: {{reason}}",
+                noReason: "sin motivo indicado",
+                unavailable: "Este canal no tiene informes de entrega",
+            },
+            content: {
+                template: "Plantilla {{name}} ({{language}})",
+                noText: "(sin texto)",
+                code: "Código",
+                copyCode: "Copiar código",
+                copied: "Código copiado",
+                copyFailed: "No se pudo copiar el código",
+                truncated:
+                    "Recortado: el proveedor simulado solo conserva los primeros 64 KiB de cada campo.",
+            },
+            chat: {
+                phone: "{{channel}} en un teléfono",
+                chats: "Chats de {{channel}}",
+                open: "Abrir el chat con {{recipient}} desde {{sender}}",
+                back: "Volver a los chats",
+                from: "De {{sender}}",
+                messages: "Mensajes para {{recipient}}",
+            },
+            getStarted: {
+                title: "Empezar",
+                help: "Pegue el enlace de Messenger que muestra la página de inscripción y pulse Empezar, como haría el votante en Messenger. Después, el código llega al chat.",
+                link: "Enlace de Messenger",
+                submit: "Empezar",
+                accepted: "El componente de webhooks respondió 200. El código llega al chat.",
+                answered: "El componente de webhooks respondió {{status}}.",
+                failed: "No se pudo empezar: {{reason}}",
+            },
+            email: {
+                inbox: "Bandeja de entrada",
+                reading: "Correo seleccionado",
+                noSubject: "(sin asunto)",
+                from: "De",
+                to: "Para",
+                view: "Mostrar el correo como",
+                html: "HTML",
+                text: "Texto sin formato",
+                htmlFrame: "Contenido del correo",
+                noContent: "Este correo no tiene contenido.",
+                loading: "Cargando el correo…",
+                loadError:
+                    "No se pudo leer el HTML del correo: puede que el proveedor simulado ya no lo conserve.",
+            },
+            reason: {
+                SEVERAL_ACCOUNTS: "Varias cuentas usan este remitente",
+                ACCOUNTS_UNREADABLE: "No se pudieron leer las cuentas",
+                UNREACHABLE: "El componente de webhooks no respondió",
+                LINK_UNREADABLE: "Pegue el enlace m.me de la página de inscripción",
+                LINK_WITHOUT_REF: "El enlace no tiene ref: copie el enlace completo",
+                NO_PAGE_ACCOUNT: "Ninguna cuenta de Messenger de esta organización usa esta página",
+                SEVERAL_PAGE_ACCOUNTS:
+                    "Varias cuentas de Messenger de esta organización usan esta página",
             },
         },
     },
