@@ -6123,7 +6123,7 @@ const frenchTranslation: TranslationType = {
             accountsTab: "Comptes",
             tabsLabel: "Sections de la messagerie",
             description:
-                "Messages reçus par le fournisseur simulé de cet environnement de développement, tels que les applications des électeurs les afficheraient. Aucun n'a atteint un électeur réel. Cet onglet n'apparaît que là où les routes du fournisseur simulé sont activées.",
+                "Messages reçus par le fournisseur de démonstration de cet environnement de développement, tels que les applications des électeurs les afficheraient. Aucun n'a atteint un électeur réel. Cet onglet n'apparaît que là où les routes du fournisseur de démonstration sont activées.",
             modeLabel: "Afficher les messages de",
             all: "Tous",
             refresh: "Actualiser",
@@ -6157,7 +6157,7 @@ const frenchTranslation: TranslationType = {
                 copied: "Code copié",
                 copyFailed: "Le code n'a pas pu être copié",
                 truncated:
-                    "Tronqué : le fournisseur simulé ne conserve que les 64 premiers Kio de chaque champ.",
+                    "Tronqué : le fournisseur de démonstration ne conserve que les 64 premiers Kio de chaque champ.",
             },
             chat: {
                 phone: "{{channel}} sur un téléphone",
@@ -6189,7 +6189,7 @@ const frenchTranslation: TranslationType = {
                 noContent: "Cet e-mail n'a aucun contenu.",
                 loading: "Chargement de l'e-mail…",
                 loadError:
-                    "Le HTML de l'e-mail n'a pas pu être lu : le fournisseur simulé ne le conserve peut-être plus.",
+                    "Le HTML de l'e-mail n'a pas pu être lu : le fournisseur de démonstration ne le conserve peut-être plus.",
             },
             reason: {
                 SEVERAL_ACCOUNTS: "Plusieurs comptes utilisent cet expéditeur",

@@ -6079,7 +6079,7 @@ const basqueTranslation: TranslationType = {
             accountsTab: "Kontuak",
             tabsLabel: "Mezularitzaren atalak",
             description:
-                "Garapen-ingurune honetako hornitzaile simulatuak jasotako mezuak, hautesleen aplikazioek erakutsiko luketen bezala. Horietako bat ere ez zaio benetako hautesle bati iritsi. Fitxa hau hornitzaile simulatuaren bideak gaituta dauden lekuetan bakarrik agertzen da.",
+                "Garapen-ingurune honetako demo hornitzaileak jasotako mezuak, hautesleen aplikazioek erakutsiko luketen bezala. Horietako bat ere ez zaio benetako hautesle bati iritsi. Fitxa hau demo hornitzailearen bideak gaituta dauden lekuetan bakarrik agertzen da.",
             modeLabel: "Erakutsi mezu hauek",
             all: "Guztiak",
             refresh: "Freskatu",
@@ -6113,7 +6113,7 @@ const basqueTranslation: TranslationType = {
                 copied: "Kodea kopiatuta",
                 copyFailed: "Ezin izan da kodea kopiatu",
                 truncated:
-                    "Moztuta: hornitzaile simulatuak eremu bakoitzaren lehen 64 KiB-ak bakarrik gordetzen ditu.",
+                    "Moztuta: demo hornitzaileak eremu bakoitzaren lehen 64 KiB-ak bakarrik gordetzen ditu.",
             },
             chat: {
                 phone: "{{channel}} telefono batean",
@@ -6145,7 +6145,7 @@ const basqueTranslation: TranslationType = {
                 noContent: "Mezu elektroniko honek ez du edukirik.",
                 loading: "Mezu elektronikoa kargatzen…",
                 loadError:
-                    "Ezin izan da mezuaren HTMLa irakurri: baliteke hornitzaile simulatuak jada ez gordetzea.",
+                    "Ezin izan da mezuaren HTMLa irakurri: baliteke demo hornitzaileak jada ez gordetzea.",
             },
             reason: {
                 SEVERAL_ACCOUNTS: "Hainbat kontuk erabiltzen dute igorle hau",

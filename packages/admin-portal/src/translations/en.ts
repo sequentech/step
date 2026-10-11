@@ -5998,7 +5998,7 @@ const englishTranslation = {
             accountsTab: "Accounts",
             tabsLabel: "Messaging sections",
             description:
-                "Messages the fake provider of this development stack received, shown as the voters' apps would show them. None of them reached a real voter. This tab is shown only where the fake provider routes are enabled.",
+                "Messages the demo provider of this development stack received, shown as the voters' apps would show them. None of them reached a real voter. This tab is shown only where the demo provider routes are enabled.",
             modeLabel: "Show messages from",
             all: "All",
             refresh: "Refresh",
@@ -6031,7 +6031,7 @@ const englishTranslation = {
                 copyCode: "Copy code",
                 copied: "Code copied",
                 copyFailed: "The code could not be copied",
-                truncated: "Cut: the fake provider keeps only the first 64 KiB of each field.",
+                truncated: "Cut: the demo provider keeps only the first 64 KiB of each field.",
             },
             chat: {
                 phone: "{{channel}} on a phone",
@@ -6063,7 +6063,7 @@ const englishTranslation = {
                 noContent: "This email has no content.",
                 loading: "Loading the email…",
                 loadError:
-                    "The email's HTML could not be read: the fake provider may no longer keep it.",
+                    "The email's HTML could not be read: the demo provider may no longer keep it.",
             },
             reason: {
                 SEVERAL_ACCOUNTS: "Several accounts use this sender",

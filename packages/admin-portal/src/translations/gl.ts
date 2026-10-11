@@ -6054,7 +6054,7 @@ const galegoTranslation: TranslationType = {
             accountsTab: "Contas",
             tabsLabel: "Seccións de mensaxería",
             description:
-                "Mensaxes que recibiu o provedor simulado deste contorno de desenvolvemento, tal como as amosarían as aplicacións dos votantes. Ningunha chegou a un votante real. Esta lapela só aparece onde as rutas do provedor simulado están activadas.",
+                "Mensaxes que recibiu o provedor de demostración deste contorno de desenvolvemento, tal como as amosarían as aplicacións dos votantes. Ningunha chegou a un votante real. Esta lapela só aparece onde as rutas do provedor de demostración están activadas.",
             modeLabel: "Amosar mensaxes de",
             all: "Todas",
             refresh: "Actualizar",
@@ -6088,7 +6088,7 @@ const galegoTranslation: TranslationType = {
                 copied: "Código copiado",
                 copyFailed: "Non se puido copiar o código",
                 truncated:
-                    "Recortado: o provedor simulado só conserva os primeiros 64 KiB de cada campo.",
+                    "Recortado: o provedor de demostración só conserva os primeiros 64 KiB de cada campo.",
             },
             chat: {
                 phone: "{{channel}} nun teléfono",
@@ -6120,7 +6120,7 @@ const galegoTranslation: TranslationType = {
                 noContent: "Este correo non ten contido.",
                 loading: "Cargando o correo…",
                 loadError:
-                    "Non se puido ler o HTML do correo: pode que o provedor simulado xa non o conserve.",
+                    "Non se puido ler o HTML do correo: pode que o provedor de demostración xa non o conserve.",
             },
             reason: {
                 SEVERAL_ACCOUNTS: "Varias contas usan este remitente",
