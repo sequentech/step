@@ -49,16 +49,23 @@ impl std::fmt::Debug for PubKeycloakAdminToken {
     }
 }
 
+/// Error for a failed token conversion. It names the failed step but never
+/// includes the token, as the token is a secret.
+fn token_conversion_error(
+    step: &str,
+    err: impl std::fmt::Debug,
+) -> anyhow::Error {
+    anyhow!("Error {step} token: {err:?}")
+}
+
 impl TryFrom<KeycloakAdminToken> for PubKeycloakAdminToken {
     type Error = anyhow::Error;
 
     fn try_from(token: KeycloakAdminToken) -> Result<Self, Self::Error> {
-        let json = serde_json::to_string(&token).map_err(|err| {
-            anyhow!(format!("Error serializing token: {err:?}"))
-        })?;
-        deserialize_str(&json).map_err(|err| {
-            anyhow!(format!("Error deserializing token: {err:?}"))
-        })
+        let json = serde_json::to_string(&token)
+            .map_err(|err| token_conversion_error("serializing", err))?;
+        deserialize_str(&json)
+            .map_err(|err| token_conversion_error("deserializing", err))
     }
 }
 
@@ -66,13 +73,11 @@ impl TryFrom<PubKeycloakAdminToken> for KeycloakAdminToken {
     type Error = anyhow::Error;
 
     fn try_from(token: PubKeycloakAdminToken) -> Result<Self, Self::Error> {
-        let json = serde_json::to_string(&token).map_err(|err| {
-            anyhow!(format!("Error serializing token: {err:?}"))
-        })?;
+        let json = serde_json::to_string(&token)
+            .map_err(|err| token_conversion_error("serializing", err))?;
 
-        deserialize_str(&json).map_err(|err| {
-            anyhow!(format!("Error deserializing token: {err:?}"))
-        })
+        deserialize_str(&json)
+            .map_err(|err| token_conversion_error("deserializing", err))
     }
 }
 
@@ -392,6 +397,56 @@ impl KeycloakAdminClient {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn token(refresh_token: Option<&str>) -> PubKeycloakAdminToken {
+        PubKeycloakAdminToken {
+            access_token: "AccessTokenValue8c4d".to_string(),
+            expires_in: 60,
+            not_before_policy: Some(0),
+            refresh_expires_in: Some(120),
+            refresh_token: refresh_token.map(str::to_string),
+            scope: "profile".to_string(),
+            session_state: Some("session".to_string()),
+            token_type: "Bearer".to_string(),
+        }
+    }
+
+    #[test]
+    fn token_debug_omits_access_and_refresh_tokens() {
+        let debug = format!("{:?}", token(Some("RefreshTokenValue5e2f")));
+
+        assert!(debug.contains("expires_in: 60"), "{debug}");
+        assert!(debug.contains(REDACTED), "{debug}");
+        assert!(!debug.contains("AccessTokenValue8c4d"), "{debug}");
+        assert!(!debug.contains("RefreshTokenValue5e2f"), "{debug}");
+    }
+
+    #[test]
+    fn token_debug_without_refresh_token_shows_none() {
+        let debug = format!("{:?}", token(None));
+
+        assert!(debug.contains("refresh_token: None"), "{debug}");
+        assert!(!debug.contains("AccessTokenValue8c4d"), "{debug}");
+    }
+
+    #[test]
+    fn token_round_trips_through_keycloak_admin_token() {
+        let original = token(Some("RefreshTokenValue5e2f"));
+
+        let keycloak_token = KeycloakAdminToken::try_from(original.clone())
+            .expect("conversion to keycloak token");
+        let converted = PubKeycloakAdminToken::try_from(keycloak_token)
+            .expect("conversion back");
+
+        assert_eq!(converted, original);
+    }
+
+    #[test]
+    fn token_conversion_error_names_the_step_only() {
+        let error = token_conversion_error("serializing", "bad shape");
+
+        assert_eq!(error.to_string(), "Error serializing token: \"bad shape\"");
+    }
 
     #[test]
     fn keycloak_login_config_debug_omits_client_secret() {

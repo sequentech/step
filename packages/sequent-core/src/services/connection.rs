@@ -367,3 +367,52 @@ impl<'r> FromRequest<'r> for DatafixClaims {
         }
     }
 }
+
+#[cfg(test)]
+mod redaction_tests {
+    use super::*;
+
+    const CLIENT_SECRET: &str = "ClientSecretValue9f3b";
+    const ACCESS_TOKEN: &str = "AccessTokenValue1c7e";
+
+    #[test]
+    fn datafix_credentials_debug_omits_client_secret() {
+        let credentials = DatafixCredentials {
+            client_id: "datafix-client".to_string(),
+            client_secret: CLIENT_SECRET.to_string(),
+        };
+
+        let debug = format!("{credentials:?}");
+
+        assert!(debug.contains("datafix-client"), "{debug}");
+        assert!(debug.contains(REDACTED), "{debug}");
+        assert!(!debug.contains(CLIENT_SECRET), "{debug}");
+    }
+
+    #[test]
+    fn extended_token_debug_omits_client_secret_and_access_token() {
+        let extended = TokenResponseExtended {
+            token_resp: PubKeycloakAdminToken {
+                access_token: ACCESS_TOKEN.to_string(),
+                expires_in: 60,
+                not_before_policy: None,
+                refresh_expires_in: None,
+                refresh_token: None,
+                scope: "profile".to_string(),
+                session_state: None,
+                token_type: "Bearer".to_string(),
+            },
+            stamp: Instant::now(),
+            client_id: "datafix-client".to_string(),
+            client_secret: CLIENT_SECRET.to_string(),
+            tenant_id: "tenant".to_string(),
+        };
+
+        let debug = format!("{extended:?}");
+
+        assert!(debug.contains("datafix-client"), "{debug}");
+        assert!(debug.contains("tenant"), "{debug}");
+        assert!(!debug.contains(CLIENT_SECRET), "{debug}");
+        assert!(!debug.contains(ACCESS_TOKEN), "{debug}");
+    }
+}
