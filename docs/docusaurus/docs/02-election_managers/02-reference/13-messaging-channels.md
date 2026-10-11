@@ -499,6 +499,15 @@ marked as such. Under it is the reason: for a failure that isn't retried,
 the failure and, after `; `, why it isn't retried, both in the
 administrator's language.
 
+### Editing event template bindings
+
+The event's Messaging tab shows a compact summary of each provider template
+binding: purpose, language, message key, provider template and approval status.
+Expand a binding to inspect or edit it. Opening another binding closes the
+previous editor and retains its changes. Add opens the new binding immediately;
+saving highlights and opens incomplete bindings. Save includes all bindings,
+including those whose editors are closed.
+
 ### Send Notification
 
 Send Notification has no channel choice: every notice goes to each voter's
