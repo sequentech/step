@@ -22,10 +22,10 @@ export const OUTCOMES: Outcome[] = [
 export const OUTCOME_COLORS: Record<Outcome, string> = {
     succeeded: "#2e7d32",
     failed: "#d32f2f",
-    expired: "#ed6c02",
+    expired: "#b45309",
     rejected: "#7b1fa2",
     discarded: "#757575",
-    unknown: "#bdbdbd",
+    unknown: "#616161",
 }
 export const OUTCOME_HEADER = "x-step-outcome"
 

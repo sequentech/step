@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use std::time::Duration;
 use tracing::instrument;
-use windmill::services::celery_app::{get_celery_app, Queue};
+use windmill::services::celery_app::{try_get_celery_app, Queue};
 use windmill::services::database::get_queue_reader_pool;
 use windmill::services::electoral_log_dead_letter::DeadLetterOperation;
 use windmill::tasks::manage_electoral_log_dead_letters::manage_electoral_log_dead_letters;
@@ -294,8 +294,9 @@ pub async fn task_queues_dead_letters(
         messages = requested,
         "Dead-lettered electoral-log events"
     );
-    let task = get_celery_app()
+    let task = try_get_celery_app()
         .await
+        .map_err(internal_error)?
         .send_task(manage_electoral_log_dead_letters::new(
             operation,
             ids,
@@ -347,9 +348,7 @@ pub async fn task_queues_query(
         sql = %sql,
         "Task-queue query"
     );
-    // A connection of its own, closed afterwards, so that nothing the query sets, such
-    // as an advisory lock, outlives it.
-    let mut client = deadpool_postgres::Object::take(reader().await?);
+    let mut client = reader().await?;
     let output = match run_read_only_query(
         &mut client,
         &sql,
@@ -364,6 +363,9 @@ pub async fn task_queues_query(
             error: format!("{error:#}"),
         },
     };
+    // The pool's size bounds the queries that run at once; the connection is then closed,
+    // so that nothing the query set, such as an advisory lock, outlives it.
+    drop(deadpool_postgres::Object::take(client));
     Ok(Json(output))
 }
 

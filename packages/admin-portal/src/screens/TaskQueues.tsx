@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useMemo, useState} from "react"
+import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react"
 import {ApolloError, NetworkStatus, useApolloClient, useMutation, useQuery} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {
@@ -112,7 +112,10 @@ const NO_SELECTION: GridRowSelectionModel = {type: "include", ids: new Set()}
 
 const useOutcomeLabel = () => {
     const {t} = useTranslation()
-    return (outcome: string) => (isOutcome(outcome) ? t(`taskQueues.outcomes.${outcome}`) : outcome)
+    return useCallback(
+        (outcome: string) => (isOutcome(outcome) ? t(`taskQueues.outcomes.${outcome}`) : outcome),
+        [t]
+    )
 }
 
 const OutcomeChips: React.FC<{outcomes: Record<string, number>}> = ({outcomes}) => {
@@ -164,6 +167,15 @@ const Overview: React.FC<{
                             hover
                             selected={queue.queue === selected}
                             onClick={() => onSelect(queue.queue)}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault()
+                                    onSelect(queue.queue)
+                                }
+                            }}
+                            tabIndex={0}
+                            role="button"
+                            aria-pressed={queue.queue === selected}
                             sx={{cursor: "pointer"}}
                         >
                             <TableCell sx={{fontFamily: "monospace"}}>{queue.queue}</TableCell>
@@ -222,14 +234,22 @@ const Graphs: React.FC<{queue: string; live: boolean}> = ({queue, live}) => {
     const locale = i18n.resolvedLanguage ?? i18n.language
     const [period, setPeriod] = useState<GraphPeriod>("day")
     const range = GRAPH_RANGES[period]
-    const {data, error, loading} = useQuery(TASK_QUEUES_THROUGHPUT, {
+    const {data, error, networkStatus} = useQuery(TASK_QUEUES_THROUGHPUT, {
         variables: {queue, hours: range.hours, bucketMinutes: range.bucketMinutes},
         fetchPolicy: "network-only",
         pollInterval: live ? GRAPH_POLL_MS : 0,
+        // Each poll then renders, also when its result is unchanged, so the window moves.
+        notifyOnNetworkStatusChange: true,
         context: readHeaders,
     })
     const result = data?.task_queues_throughput as ThroughputResult | undefined
-    const now = useMemo(() => new Date(), [result])
+    const [now, setNow] = useState(() => new Date())
+
+    useEffect(() => {
+        if (result && networkStatus === NetworkStatus.ready) {
+            setNow(new Date())
+        }
+    }, [result, networkStatus])
     const outcomes: ChartSeries[] = result ? outcomeSeries(result, now) : []
     const durations = result ? durationSeries(result, now) : null
     const showsDurations =
@@ -260,7 +280,7 @@ const Graphs: React.FC<{queue: string; live: boolean}> = ({queue, live}) => {
                     {getGraphQLActionErrorReason(error) ?? t("taskQueues.error")}
                 </Alert>
             )}
-            {result && outcomes.length === 0 && !loading && (
+            {result && outcomes.length === 0 && networkStatus !== NetworkStatus.loading && (
                 <Alert severity="info">{t("taskQueues.graphs.empty")}</Alert>
             )}
             {result && outcomes.length > 0 && durations && (
@@ -386,6 +406,8 @@ const Messages: React.FC<{queue: string; canWrite: boolean}> = ({queue, canWrite
     const [cursors, setCursors] = useState<Array<string | null>>([null])
     const [selection, setSelection] = useState<GridRowSelectionModel>(NO_SELECTION)
     const [operation, setOperation] = useState<DeadLetterOperation | null>(null)
+    // The events chosen when the dialog opened; a refresh may clear the selection meanwhile.
+    const [operationIds, setOperationIds] = useState<number[]>([])
     const [notice, setNotice] = useState<string | null>(null)
     const [failure, setFailure] = useState<string | null>(null)
     const before = cursors[cursors.length - 1]
@@ -396,6 +418,10 @@ const Messages: React.FC<{queue: string; canWrite: boolean}> = ({queue, canWrite
         setNotice(null)
         setFailure(null)
     }, [queue, state])
+
+    // A refresh scheduled after an operation belongs to the queue and list it was made on.
+    const refreshTimer = useRef<number | undefined>(undefined)
+    useEffect(() => () => window.clearTimeout(refreshTimer.current), [queue, state])
 
     // A selection belongs to the page it was made on.
     useEffect(() => {
@@ -431,7 +457,7 @@ const Messages: React.FC<{queue: string; canWrite: boolean}> = ({queue, canWrite
         if (!operation) {
             return
         }
-        const ids = selected
+        const ids = operationIds
         setOperation(null)
         setNotice(null)
         setFailure(null)
@@ -447,7 +473,7 @@ const Messages: React.FC<{queue: string; canWrite: boolean}> = ({queue, canWrite
                 })
             )
             setSelection(NO_SELECTION)
-            setTimeout(() => {
+            refreshTimer.current = window.setTimeout(() => {
                 refresh()
             }, REFRESH_AFTER_OPERATION_MS)
         } catch (operationFailure) {
@@ -457,105 +483,111 @@ const Messages: React.FC<{queue: string; canWrite: boolean}> = ({queue, canWrite
         }
     }
 
-    const date = (value: string | null) => (value ? new Date(value).toLocaleString(locale) : "—")
-    const columns: GridColDef<MessageSummary>[] = [
-        {field: "msg_id", headerName: t("taskQueues.messages.columns.id"), width: 90},
-        {
-            field: "task",
-            headerName: t("taskQueues.messages.columns.task"),
-            minWidth: 240,
-            flex: 1,
-            valueGetter: (_, row) => row.task ?? t("taskQueues.messages.unreadable"),
-        },
-        ...(state === "archived"
-            ? [
-                  {
-                      field: "outcome",
-                      headerName: t("taskQueues.messages.columns.outcome"),
-                      width: 130,
-                      valueGetter: (_: unknown, row: MessageSummary) =>
-                          row.headers[OUTCOME_HEADER] ?? "unknown",
-                      renderCell: ({value}: {value?: string}) => (
-                          <Chip
-                              size="small"
-                              label={outcomeLabel(value ?? "unknown")}
-                              sx={{
-                                  backgroundColor: outcomeColor(value ?? "unknown"),
-                                  color: "#fff",
-                              }}
-                          />
-                      ),
-                  } as GridColDef<MessageSummary>,
-              ]
-            : []),
-        ...(showsEvents
-            ? [
-                  {
-                      field: "event",
-                      headerName: t("taskQueues.messages.columns.event"),
-                      minWidth: 260,
-                      flex: 1,
-                      valueGetter: (_: unknown, row: MessageSummary) => eventLabel(row.event),
-                  } as GridColDef<MessageSummary>,
-              ]
-            : []),
-        ...(showsErrors
-            ? [
-                  {
-                      field: "error",
-                      headerName: t("taskQueues.messages.columns.error"),
-                      minWidth: 240,
-                      flex: 1,
-                      valueGetter: (_: unknown, row: MessageSummary) =>
-                          row.headers[ERROR_HEADER] ?? "",
-                      renderCell: ({value}: {value?: string}) => <span title={value}>{value}</span>,
-                  } as GridColDef<MessageSummary>,
-              ]
-            : []),
-        {
-            field: "enqueued_at",
-            headerName: t("taskQueues.messages.columns.enqueued"),
-            width: 180,
-            valueFormatter: (value: string) => date(value),
-        },
-        {
-            field: "read_count",
-            headerName: t("taskQueues.messages.columns.reads"),
-            width: 80,
-            type: "number",
-        },
-        {
-            field: "retries",
-            headerName: t("taskQueues.messages.columns.retries"),
-            width: 80,
-            type: "number",
-        },
-        state === "archived"
-            ? {
-                  field: "archived_at",
-                  headerName: t("taskQueues.messages.columns.archived"),
-                  width: 180,
-                  valueFormatter: (value: string | null) => date(value),
-              }
-            : {
-                  field: "visible_at",
-                  headerName: t("taskQueues.messages.columns.visible"),
-                  width: 180,
-                  valueFormatter: (value: string) => date(value),
-              },
-        {
-            field: "size_bytes",
-            headerName: t("taskQueues.messages.columns.size"),
-            width: 100,
-            type: "number",
-            valueFormatter: (value: number) => formatBytes(value),
-        },
-        {
-            field: "task_id",
-            headerName: t("taskQueues.messages.columns.taskId"),
-            minWidth: 290,
-        },
-    ]
+    // Built again only when its inputs change, so the grid keeps column widths the user set.
+    const columns = useMemo((): GridColDef<MessageSummary>[] => {
+        const date = (value: string | null) =>
+            value ? new Date(value).toLocaleString(locale) : "—"
+        return [
+            {field: "msg_id", headerName: t("taskQueues.messages.columns.id"), width: 90},
+            {
+                field: "task",
+                headerName: t("taskQueues.messages.columns.task"),
+                minWidth: 240,
+                flex: 1,
+                valueGetter: (_, row) => row.task ?? t("taskQueues.messages.unreadable"),
+            },
+            ...(state === "archived"
+                ? [
+                      {
+                          field: "outcome",
+                          headerName: t("taskQueues.messages.columns.outcome"),
+                          width: 130,
+                          valueGetter: (_: unknown, row: MessageSummary) =>
+                              row.headers[OUTCOME_HEADER] ?? "unknown",
+                          renderCell: ({value}: {value?: string}) => (
+                              <Chip
+                                  size="small"
+                                  label={outcomeLabel(value ?? "unknown")}
+                                  sx={{
+                                      backgroundColor: outcomeColor(value ?? "unknown"),
+                                      color: "#fff",
+                                  }}
+                              />
+                          ),
+                      } as GridColDef<MessageSummary>,
+                  ]
+                : []),
+            ...(showsEvents
+                ? [
+                      {
+                          field: "event",
+                          headerName: t("taskQueues.messages.columns.event"),
+                          minWidth: 260,
+                          flex: 1,
+                          valueGetter: (_: unknown, row: MessageSummary) => eventLabel(row.event),
+                      } as GridColDef<MessageSummary>,
+                  ]
+                : []),
+            ...(showsErrors
+                ? [
+                      {
+                          field: "error",
+                          headerName: t("taskQueues.messages.columns.error"),
+                          minWidth: 240,
+                          flex: 1,
+                          valueGetter: (_: unknown, row: MessageSummary) =>
+                              row.headers[ERROR_HEADER] ?? "",
+                          renderCell: ({value}: {value?: string}) => (
+                              <span title={value}>{value}</span>
+                          ),
+                      } as GridColDef<MessageSummary>,
+                  ]
+                : []),
+            {
+                field: "enqueued_at",
+                headerName: t("taskQueues.messages.columns.enqueued"),
+                width: 180,
+                valueFormatter: (value: string) => date(value),
+            },
+            {
+                field: "read_count",
+                headerName: t("taskQueues.messages.columns.reads"),
+                width: 80,
+                type: "number",
+            },
+            {
+                field: "retries",
+                headerName: t("taskQueues.messages.columns.retries"),
+                width: 80,
+                type: "number",
+            },
+            state === "archived"
+                ? {
+                      field: "archived_at",
+                      headerName: t("taskQueues.messages.columns.archived"),
+                      width: 180,
+                      valueFormatter: (value: string | null) => date(value),
+                  }
+                : {
+                      field: "visible_at",
+                      headerName: t("taskQueues.messages.columns.visible"),
+                      width: 180,
+                      valueFormatter: (value: string) => date(value),
+                  },
+            {
+                field: "size_bytes",
+                headerName: t("taskQueues.messages.columns.size"),
+                width: 100,
+                type: "number",
+                valueFormatter: (value: number) => formatBytes(value),
+            },
+            {
+                field: "task_id",
+                headerName: t("taskQueues.messages.columns.taskId"),
+                minWidth: 290,
+            },
+        ]
+    }, [state, showsEvents, showsErrors, t, locale, outcomeLabel])
 
     return (
         <Stack spacing={2}>
@@ -615,7 +647,10 @@ const Messages: React.FC<{queue: string; canWrite: boolean}> = ({queue, canWrite
                         <Button
                             variant="contained"
                             disabled={selected.length === 0 || applying}
-                            onClick={() => setOperation("replay")}
+                            onClick={() => {
+                                setOperationIds(selected)
+                                setOperation("replay")
+                            }}
                         >
                             {t("taskQueues.deadLetters.replay")}
                         </Button>
@@ -623,7 +658,10 @@ const Messages: React.FC<{queue: string; canWrite: boolean}> = ({queue, canWrite
                             variant="outlined"
                             color="error"
                             disabled={selected.length === 0 || applying}
-                            onClick={() => setOperation("discard")}
+                            onClick={() => {
+                                setOperationIds(selected)
+                                setOperation("discard")
+                            }}
                         >
                             {t("taskQueues.deadLetters.discard")}
                         </Button>
@@ -647,7 +685,7 @@ const Messages: React.FC<{queue: string; canWrite: boolean}> = ({queue, canWrite
             </Box>
             <ConfirmDialog
                 operation={operation}
-                count={selected.length}
+                count={operationIds.length}
                 onCancel={() => setOperation(null)}
                 onConfirm={confirm}
             />
@@ -722,7 +760,11 @@ const QueryPanel: React.FC = () => {
                         run()
                     }
                 }}
-                inputProps={{spellCheck: false, style: {fontFamily: "monospace", fontSize: 13}}}
+                inputProps={{
+                    "aria-label": t("taskQueues.tabs.query"),
+                    "spellCheck": false,
+                    "style": {fontFamily: "monospace", fontSize: 13},
+                }}
             />
             <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between">
                 <Typography variant="caption" color="text.secondary">

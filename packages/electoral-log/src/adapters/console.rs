@@ -10,6 +10,7 @@ use super::ballot_box::canonical_uuid;
 use super::postgres::PostgresStore;
 use crate::messages::message::Message;
 use anyhow::{anyhow, ensure, Context, Result};
+use futures_util::TryStreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::time::{Duration, Instant};
@@ -664,6 +665,12 @@ pub async fn run_read_only_query(
         !columns.is_empty(),
         "Only queries that return rows run: SELECT, VALUES, TABLE or WITH"
     );
+    // Rows are read as JSON objects keyed by column name.
+    let mut names = std::collections::HashSet::new();
+    ensure!(
+        columns.iter().all(|column| names.insert(column)),
+        "Give each column of the result a different name"
+    );
     // Rows are fetched a batch at a time, each cut by the server to just over the byte
     // limit, so a query of large rows stops once the limit is reached.
     let limited = transaction
@@ -682,24 +689,33 @@ pub async fn run_read_only_query(
     let mut bytes = 0;
     let mut truncated = false;
     'fetch: loop {
-        // Each fetch arms the statement timeout anew from the setting, which the query
-        // itself could change, so it is set again to the time left.
+        // Each fetch arms the statement timeout anew from the settings, which the query
+        // itself could change, so it is set again to the time left. A transaction timeout
+        // (PostgreSQL 17 and later) would keep the statement timeout from being armed.
         let left = timeout.saturating_sub(started.elapsed());
         ensure!(!left.is_zero(), "The query took longer than {timeout:?}");
         transaction
             .batch_execute(&format!(
-                "SET LOCAL statement_timeout = {}",
+                "SELECT set_config(name, '0', true) FROM pg_settings \
+                 WHERE name = 'transaction_timeout'; \
+                 SET LOCAL statement_timeout = {}",
                 left.as_millis().max(1)
             ))
             .await?;
-        let batch = transaction
-            .query_portal(&portal, QUERY_FETCH_ROWS)
+        // Rows are read as they arrive, so that no more than one row beyond the byte
+        // limit is held.
+        let rows = transaction
+            .query_portal_raw(&portal, QUERY_FETCH_ROWS)
             .await
             .map_err(|error| anyhow!(query_error(&error)))?;
-        if batch.is_empty() {
-            break;
-        }
-        for row in &batch {
+        futures_util::pin_mut!(rows);
+        let mut fetched = false;
+        while let Some(row) = rows
+            .try_next()
+            .await
+            .map_err(|error| anyhow!(query_error(&error)))?
+        {
+            fetched = true;
             let text: String = row.try_get(0)?;
             bytes += text.len();
             if texts.len() == max_rows || bytes > max_bytes {
@@ -707,6 +723,9 @@ pub async fn run_read_only_query(
                 break 'fetch;
             }
             texts.push(text);
+        }
+        if !fetched {
+            break;
         }
     }
     transaction.rollback().await?;

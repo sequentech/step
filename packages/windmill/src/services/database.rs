@@ -182,14 +182,15 @@ pub async fn generate_queue_pool() -> Result<Arc<Pool>> {
 #[instrument(err)]
 pub async fn generate_queue_reader_pool() -> Result<Arc<Pool>> {
     let mut config = queue_db_config()?;
-    config.user = Some(
-        env::var(QUEUE_DB_READER_USER_ENV)
-            .map_err(|_| anyhow!("{QUEUE_DB_READER_USER_ENV} is not set"))?,
-    );
-    config.password = Some(
-        env::var(QUEUE_DB_READER_PASSWORD_ENV)
-            .map_err(|_| anyhow!("{QUEUE_DB_READER_PASSWORD_ENV} is not set"))?,
-    );
+    // Compose passes an unset variable as an empty one.
+    let required = |name: &str| {
+        env::var(name)
+            .ok()
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| anyhow!("{name} is not set"))
+    };
+    config.user = Some(required(QUEUE_DB_READER_USER_ENV)?);
+    config.password = Some(required(QUEUE_DB_READER_PASSWORD_ENV)?);
     create_queue_pool(config)
 }
 
@@ -292,7 +293,20 @@ pub async fn try_get_queue_pool() -> Result<Arc<Pool>> {
 /// tries again.
 pub async fn get_queue_reader_pool() -> Result<Arc<Pool>> {
     QUEUE_READER_POOL
-        .get_or_try_init(|| async { generate_queue_reader_pool().await })
+        .get_or_try_init(|| async {
+            let pool = generate_queue_reader_pool().await?;
+            // Refuse a task-queue database of another environment, as the brokers do.
+            let environment = env::var("ENV_SLUG").map_err(|_| anyhow!("ENV_SLUG is not set"))?;
+            tokio::time::timeout(QUEUE_DB_TIMEOUT, async {
+                let client = pool.get().await?;
+                pgmq_broker::verify_environment(&**client, &environment)
+                    .await
+                    .map_err(|error| anyhow!("{error}"))
+            })
+            .await
+            .map_err(|_| anyhow!("Task-queue DB: the environment check timed out"))??;
+            Ok::<_, anyhow::Error>(pool)
+        })
         .await
         .cloned()
 }
