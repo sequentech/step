@@ -165,7 +165,7 @@ export const sanitizePresentationCss = (css: string, scope: PresentationCssScope
             }
             node.selector = selector
             delete node.raws.selector
-        } else if (node.type === "decl") {
+        } else {
             const value = rewriteUrls(node.value, isAllowed)
             if (
                 value === null ||

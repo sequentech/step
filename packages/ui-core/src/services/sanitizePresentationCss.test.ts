@@ -130,4 +130,58 @@ describe("sanitizePresentationCss", () => {
         )
         expect(sanitize('.a { font-family: "unterminated; }')).toBe("")
     })
+
+    it("drops declarations whose string spans lines or whose url() is malformed", () => {
+        expect(sanitize('.a { color: red; font-family: "x\ny"; }')).toBe(".a { color: red; }")
+        expect(sanitize(".a { color: red; background: url(/a.png b); }")).toBe(".a { color: red; }")
+    })
+
+    it("drops rules whose selector loads a resource", () => {
+        expect(
+            sanitize(".a { color: red; } .b[x=url(https://elsewhere.example/a)] { color: blue; }")
+        ).toBe(".a { color: red; }")
+    })
+
+    it("drops declarations whose property name is not plain", () => {
+        expect(sanitize(".a { color: red; x//y: blue; }")).toBe(".a { color: red; }")
+    })
+
+    it("drops every url() when the page base URL is not valid", () => {
+        const out = sanitizePresentationCss(".a { color: red; background: url(/a.png); }", {
+            baseUrl: "not a url",
+        })
+
+        expect(out).toBe(".a { color: red; }")
+    })
+
+    it("removes comments", () => {
+        expect(sanitize("/* note */ .a { color: red; /* inner */ }")).toBe(".a { color: red; }")
+    })
+
+    it("accepts a public bucket URL without a trailing slash", () => {
+        const out = sanitizePresentationCss(
+            ".a { background: url(https://files.example.org/public/bg.png); }",
+            {
+                baseUrl: scope.baseUrl,
+                publicBucketUrl: "https://files.example.org/public",
+            }
+        )
+
+        expect(out).toContain("https://files.example.org/public/bg.png")
+    })
+
+    it("only accepts the page origin when there is no public bucket", () => {
+        const out = sanitizePresentationCss(
+            ".a { background: url(https://files.example.org/public/bg.png); }",
+            {
+                baseUrl: scope.baseUrl,
+            }
+        )
+
+        expect(out).toBe(".a { }")
+    })
+
+    it("returns an empty string when an at-rule would change the generated class name", () => {
+        expect(sanitize("@layer label:b.c; .a { color: red; }")).toBe("")
+    })
 })
