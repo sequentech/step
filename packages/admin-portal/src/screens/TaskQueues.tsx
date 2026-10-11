@@ -9,6 +9,7 @@ import {
     Alert,
     Box,
     Button,
+    ButtonBase,
     Card,
     CardContent,
     Chip,
@@ -167,18 +168,21 @@ const Overview: React.FC<{
                             hover
                             selected={queue.queue === selected}
                             onClick={() => onSelect(queue.queue)}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === " ") {
-                                    e.preventDefault()
-                                    onSelect(queue.queue)
-                                }
-                            }}
-                            tabIndex={0}
-                            role="button"
-                            aria-pressed={queue.queue === selected}
                             sx={{cursor: "pointer"}}
                         >
-                            <TableCell sx={{fontFamily: "monospace"}}>{queue.queue}</TableCell>
+                            <TableCell>
+                                {/* The row stays a table row; its name is the control for the keyboard. */}
+                                <ButtonBase
+                                    aria-pressed={queue.queue === selected}
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        onSelect(queue.queue)
+                                    }}
+                                    sx={{fontFamily: "monospace", fontSize: "inherit"}}
+                                >
+                                    {queue.queue}
+                                </ButtonBase>
+                            </TableCell>
                             <TableCell align="right">{queue.ready.toLocaleString()}</TableCell>
                             <TableCell align="right">
                                 {queue.running_or_scheduled.toLocaleString()}
@@ -296,6 +300,7 @@ const Graphs: React.FC<{queue: string; live: boolean}> = ({queue, live}) => {
                             {t("taskQueues.graphs.outcomes")}
                         </Typography>
                         <Chart
+                            key={locale}
                             type="bar"
                             height={CHART_HEIGHT}
                             series={outcomes.map((series) => ({
@@ -325,6 +330,7 @@ const Graphs: React.FC<{queue: string; live: boolean}> = ({queue, live}) => {
                                 {t("taskQueues.graphs.durations")}
                             </Typography>
                             <Chart
+                                key={locale}
                                 type="line"
                                 height={CHART_HEIGHT}
                                 series={[
@@ -421,7 +427,15 @@ const Messages: React.FC<{queue: string; canWrite: boolean}> = ({queue, canWrite
 
     // A refresh scheduled after an operation belongs to the queue and list it was made on.
     const refreshTimer = useRef<number | undefined>(undefined)
-    useEffect(() => () => window.clearTimeout(refreshTimer.current), [queue, state])
+    // Counts list changes, so that an operation answered after one leaves the new list alone.
+    const listVersion = useRef(0)
+    useEffect(
+        () => () => {
+            window.clearTimeout(refreshTimer.current)
+            listVersion.current += 1
+        },
+        [queue, state]
+    )
 
     // A selection belongs to the page it was made on.
     useEffect(() => {
@@ -458,6 +472,7 @@ const Messages: React.FC<{queue: string; canWrite: boolean}> = ({queue, canWrite
             return
         }
         const ids = operationIds
+        const version = listVersion.current
         setOperation(null)
         setNotice(null)
         setFailure(null)
@@ -466,6 +481,9 @@ const Messages: React.FC<{queue: string; canWrite: boolean}> = ({queue, canWrite
                 variables: {operation, messageIds: ids.map(String)},
             })
             const result = answer?.task_queues_dead_letters as DeadLettersResult | undefined
+            if (version !== listVersion.current) {
+                return
+            }
             setNotice(
                 t(`taskQueues.deadLetters.queued.${operation}`, {
                     count: result?.requested ?? ids.length,
@@ -473,10 +491,14 @@ const Messages: React.FC<{queue: string; canWrite: boolean}> = ({queue, canWrite
                 })
             )
             setSelection(NO_SELECTION)
+            window.clearTimeout(refreshTimer.current)
             refreshTimer.current = window.setTimeout(() => {
                 refresh()
             }, REFRESH_AFTER_OPERATION_MS)
         } catch (operationFailure) {
+            if (version !== listVersion.current) {
+                return
+            }
             setFailure(
                 getGraphQLActionErrorReason(operationFailure) ?? t("taskQueues.deadLetters.failed")
             )

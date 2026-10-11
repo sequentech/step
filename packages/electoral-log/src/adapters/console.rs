@@ -156,6 +156,9 @@ struct TableQuery {
 const CURSOR_SEPARATOR: char = '/';
 /// Rows a console query fetches at a time.
 const QUERY_FETCH_ROWS: i32 = 100;
+/// Read-only queries that run at once in a process, which bounds the memory their rows
+/// take in a service that also does other work, such as Harvest.
+static RUNNING_QUERIES: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(4);
 
 fn table_query(table: ConsoleTable) -> TableQuery {
     match table {
@@ -640,6 +643,26 @@ pub async fn run_read_only_query(
     max_bytes: usize,
     timeout: Duration,
 ) -> Result<QueryResult> {
+    // The limit covers the whole query, also its parsing, planning and a connection that
+    // stops answering; the server's statement timeout only covers each step.
+    tokio::time::timeout(timeout, async {
+        let _running = RUNNING_QUERIES
+            .acquire()
+            .await
+            .context("Error waiting for a query slot")?;
+        read_only_query(client, sql, max_rows, max_bytes, timeout).await
+    })
+    .await
+    .map_err(|_| anyhow!("The query took longer than {timeout:?}"))?
+}
+
+async fn read_only_query(
+    client: &mut tokio_postgres::Client,
+    sql: &str,
+    max_rows: usize,
+    max_bytes: usize,
+    timeout: Duration,
+) -> Result<QueryResult> {
     let sql = sql
         .trim()
         .trim_end_matches(|c: char| c == ';' || c.is_whitespace());
@@ -675,7 +698,7 @@ pub async fn run_read_only_query(
     // limit, so a query of large rows stops once the limit is reached.
     let limited = transaction
         .prepare(&format!(
-            "SELECT left(row_to_json(q)::text, {}) FROM ({sql}\n) q LIMIT {}",
+            "SELECT left(row_to_json(q.*)::text, {}) FROM ({sql}\n) q LIMIT {}",
             max_bytes + 1,
             max_rows + 1
         ))
