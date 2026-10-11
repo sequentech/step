@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! The signing log outbox worker against the real outbox table, with an
-//! in-memory board that keeps delivery receipts as immudb does: entries are
+//! in-memory board that keeps delivery receipts as native audit does: entries are
 //! posted once each, in order, a failure stops the event until a later
 //! pass, and signing steps never wait for the board.
 
@@ -121,7 +121,7 @@ impl SigningLogKeys for TestKeys {
 /// What the board shows, in the order it was posted.
 type Posted = Vec<(Uuid, StatementEventType)>;
 
-/// A board in memory with immudb's receipts: a delivery whose id it holds
+/// A board in memory with native audit's receipts: a delivery whose id it holds
 /// with the same payload is not written again. A call is all or nothing.
 /// It fails on request: before writing, or after (the write lands but its
 /// answer is lost).

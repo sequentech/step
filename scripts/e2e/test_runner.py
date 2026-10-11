@@ -168,7 +168,7 @@ class CoverageExitContracts(unittest.TestCase):
             binary = binaries / "harvest"
             binary.write_text("instrumented binary placeholder")
             binary.chmod(0o700)
-            for name in ("immudb-init", "harvest", "windmill", "beat", "b4v6",
+            for name in ("audit-init", "harvest", "windmill", "beat", "b4v6",
                          "trustee1", "trustee2", "step-cli"):
                 (directory / "profiles" / f"{name}-123.profraw").write_bytes(b"profile")
             rows = [{"Service": name, "ExitCode": code} for name, code in codes.items()]
@@ -194,7 +194,7 @@ class CoverageExitContracts(unittest.TestCase):
 
     @staticmethod
     def normal_codes():
-        return {"immudb-init": 0, "harvest": 0, "windmill": 0,
+        return {"audit-init": 0, "harvest": 0, "windmill": 0,
                 "beat": 143, "b4v6": 143, "trustee1": 143, "trustee2": 143}
 
     def test_normal_shutdown_and_removed_driver_accept_nonempty_profiles(self):
@@ -208,7 +208,7 @@ class CoverageExitContracts(unittest.TestCase):
 
     def test_worker_crash_fails_even_when_its_profile_executed_code(self):
         for service, code in (("windmill", 101), ("harvest", 143), ("beat", 137),
-                              ("b4v6", 1), ("immudb-init", 143), ("trustee1", 101)):
+                              ("b4v6", 1), ("audit-init", 143), ("trustee1", 101)):
             with self.subTest(service=service, code=code):
                 codes = self.normal_codes()
                 codes[service] = code

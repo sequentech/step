@@ -28,7 +28,6 @@ use electoral_log::client::board_client::{
 };
 use electoral_log::messages::message::Message;
 use electoral_log::messages::statement::StatementType;
-use immudb_rs::TxMode;
 use sequent_core::ballot::BallotBoxSealRecordPolicy;
 use sequent_core::services::s3::get_public_election_event_document_name_key;
 use sequent_core::types::hasura::core::ElectionEvent;
@@ -126,21 +125,9 @@ async fn deliver_now(
 ) -> Result<bool> {
     let row = ElectoralLogMessage::try_from(message)?;
     let mut client = get_board_client().await?;
-    client.open_session(board).await?;
-    let result = async {
-        client.ensure_electoral_log_delivery_receipts().await?;
-        let immudb_tx = client.new_tx(TxMode::ReadWrite).await?;
-        let inserted = client
-            .insert_electoral_log_delivery(&immudb_tx, delivery_id, payload_hash, &[row])
-            .await?;
-        client.commit(&immudb_tx).await?;
-        Ok(inserted)
-    }
-    .await;
-    if let Err(error) = client.close_session().await {
-        warn!(%board, ?error, "Error closing the electoral log session");
-    }
-    result
+    client
+        .append_delivery(board, delivery_id, payload_hash, &[row])
+        .await
 }
 
 /// Every `BallotBoxSealed` entry of a ballot box in the event's log, in id

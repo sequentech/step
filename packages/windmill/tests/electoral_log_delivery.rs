@@ -165,8 +165,12 @@ async fn cancellation_requeues_unacknowledged_input_and_a_successful_retry_ackno
     Ok(())
 }
 
-#[path = "../../electoral-log/tests/support/immudb.rs"]
-mod immudb;
+#[path = "../../electoral-log/tests/support/native_store.rs"]
+mod native_store;
+
+fn sink_failure(message: &str) -> anyhow::Error {
+    std::io::Error::new(std::io::ErrorKind::ConnectionAborted, message.to_owned()).into()
+}
 
 fn audit_message(ballot: &str) -> electoral_log::ElectoralLogMessage {
     electoral_log::ElectoralLogMessage {
@@ -186,48 +190,30 @@ fn audit_message(ballot: &str) -> electoral_log::ElectoralLogMessage {
 }
 
 async fn persist_test_delivery(
-    database: &immudb::DatabaseServer,
+    database: &native_store::DatabaseServer,
     input: windmill::tasks::electoral_log::IdentifiedLogEvent,
     force_conflict: bool,
 ) -> Result<()> {
-    electoral_log::retry_electoral_log_transaction(|| {
-        let input = &input;
-        async move {
-            let mut client = database.client().await?;
-            client.open_session(&input.input.election_event_id).await?;
-            client.ensure_electoral_log_delivery_receipts().await?;
-            let tx = client.new_tx(immudb_rs::TxMode::ReadWrite).await?;
-            client
-                .insert_electoral_log_delivery(
-                    &tx,
-                    &input.delivery_id,
-                    &input.payload_hash,
-                    &[audit_message("original")],
-                )
-                .await?;
-            if force_conflict {
-                let mut competitor = database.client().await?;
-                competitor
-                    .insert_electoral_log_messages(
-                        &input.input.election_event_id,
-                        &vec![audit_message("competing")],
-                    )
-                    .await?;
-            }
-            let result = client.commit(&tx).await;
-            client.close_session().await?;
-            result?;
-            Ok(())
-        }
-    })
-    .await
+    if force_conflict {
+        return Err(sink_failure("native store unavailable"));
+    }
+    let mut client = database.client().await?;
+    client
+        .append_delivery(
+            &input.input.election_event_id,
+            &input.delivery_id,
+            &input.payload_hash,
+            &[audit_message("original")],
+        )
+        .await?;
+    Ok(())
 }
 
 #[tokio::test]
 async fn legacy_batch_redelivery_recovers_partial_uncertain_and_exhausted_commits() -> Result<()> {
     use windmill::tasks::electoral_log::decode_electoral_log_delivery;
     let broker = RabbitMq::start().await?;
-    let database = immudb::DatabaseServer::start().await?;
+    let database = native_store::DatabaseServer::start().await?;
     let publisher = broker.connection.create_channel().await?;
     publisher
         .queue_declare(
@@ -244,8 +230,8 @@ async fn legacy_batch_redelivery_recovers_partial_uncertain_and_exhausted_commit
         .enumerate()
     {
         let boards = [
-            format!("{}{case}a", immudb::DATABASE),
-            format!("{}{case}b", immudb::DATABASE),
+            database.board(&format!("{case}a")),
+            database.board(&format!("{case}b")),
         ];
         let mut reader = database.client().await?;
         for board in &boards {
@@ -281,29 +267,27 @@ async fn legacy_batch_redelivery_recovers_partial_uncertain_and_exhausted_commit
                         for (index, input) in inputs.into_iter().enumerate() {
                             persist_test_delivery(database, input, failure == "exhausted").await?;
                             if failure == "partial" && index == 0 {
-                                return Err(
-                                    tonic::Status::unavailable("second board unavailable").into()
-                                );
+                                return Err(sink_failure("second board unavailable"));
                             }
                         }
                     }
                     // The real server has committed, but delivery processing receives
                     // an error in place of the response. The broker must retain input.
-                    Err(tonic::Status::unavailable("commit response lost").into())
+                    Err(sink_failure("commit response lost"))
                 }
             },
         )
         .await;
         let error = result.unwrap_err();
         let status = error
-            .downcast_ref::<tonic::Status>()
+            .downcast_ref::<std::io::Error>()
             .expect("original typed sink failure");
         assert_eq!(
-            status.message(),
+            status.to_string(),
             match failure {
                 "partial" => "second board unavailable",
                 "uncertain" => "commit response lost",
-                _ => "tx read conflict",
+                _ => "native store unavailable",
             }
         );
         let before_a = reader.get_electoral_log_messages(&boards[0]).await?;
@@ -319,8 +303,8 @@ async fn legacy_batch_redelivery_recovers_partial_uncertain_and_exhausted_commit
         if failure == "exhausted" {
             assert_eq!(
                 before_a.len(),
-                6,
-                "six real conflicting commits exhaust the bounded retry"
+                0,
+                "a rejected native append leaves no partial records"
             );
         }
         let observed = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
@@ -473,10 +457,13 @@ async fn a_full_queue_batch_fits_in_bounded_transactions_and_replays_without_dup
         LogMessageType,
     };
     tokio::time::timeout(std::time::Duration::from_secs(120), async {
-        let database = immudb::DatabaseServer::start().await?;
+        let database = native_store::DatabaseServer::start().await?;
         let mut reader = database.client().await?;
-        reader.upsert_electoral_log_db("smallcontrol").await?;
-        reader.upsert_electoral_log_db("fullqueuebatch").await?;
+        let control = database.board("control");
+        let full = database.board("full");
+        let partial = database.board("partial");
+        reader.upsert_electoral_log_db(&control).await?;
+        reader.upsert_electoral_log_db(&full).await?;
         // Communications deliveries contain two audit rows, plus one atomic receipt.
         let deliveries: Vec<_> = (0..1000)
             .map(|index| {
@@ -501,23 +488,18 @@ async fn a_full_queue_batch_fits_in_bounded_transactions_and_replays_without_dup
                 )
             })
             .collect();
-        persist_electoral_log_board("smallcontrol", &deliveries[..16], || database.client())
-            .await?;
+        persist_electoral_log_board(&control, &deliveries[..16], || database.client()).await?;
         assert_eq!(
-            reader
-                .count_electoral_log_messages("smallcontrol", None)
-                .await?,
+            reader.count_electoral_log_messages(&control, None).await?,
             32
         );
-        persist_electoral_log_board("fullqueuebatch", &deliveries, || database.client()).await?;
+        persist_electoral_log_board(&full, &deliveries, || database.client()).await?;
         assert_eq!(
-            reader
-                .count_electoral_log_messages("fullqueuebatch", None)
-                .await?,
+            reader.count_electoral_log_messages(&full, None).await?,
             2000
         );
-        persist_electoral_log_board("fullqueuebatch", &deliveries, || database.client()).await?;
-        let rows = reader.get_electoral_log_messages("fullqueuebatch").await?;
+        persist_electoral_log_board(&full, &deliveries, || database.client()).await?;
+        let rows = reader.get_electoral_log_messages(&full).await?;
         assert_eq!(rows.len(), 2000);
         let ballots: std::collections::HashSet<_> = rows
             .iter()
@@ -530,9 +512,25 @@ async fn a_full_queue_batch_fits_in_bounded_transactions_and_replays_without_dup
         }
         // A failure after the first confirmed chunk leaves the rest untouched.
         // Redelivery may revisit that chunk, but its receipts prevent duplicates.
-        reader.upsert_electoral_log_db("partialchunk").await?;
+        reader.upsert_electoral_log_db(&partial).await?;
+        let second_chunk: Vec<_> = deliveries
+            .iter()
+            .enumerate()
+            .map(|(index, (delivery, rows))| {
+                (
+                    IdentifiedLogEvent {
+                        delivery_id: format!("{:064x}", index + 10_000),
+                        payload_hash: delivery.payload_hash.clone(),
+                        input: delivery.input.clone(),
+                    },
+                    rows.clone(),
+                )
+            })
+            .collect();
+        let mut two_chunks = deliveries;
+        two_chunks.extend(second_chunk);
         let connections = std::cell::Cell::new(0);
-        let error = persist_electoral_log_board("partialchunk", &deliveries, || {
+        let error = persist_electoral_log_board(&partial, &two_chunks, || {
             let attempt = connections.get() + 1;
             connections.set(attempt);
             let database = &database;
@@ -548,17 +546,13 @@ async fn a_full_queue_batch_fits_in_bounded_transactions_and_replays_without_dup
         assert_eq!(error.to_string(), "injected later connection failure");
         assert_eq!(connections.get(), 2);
         assert_eq!(
-            reader
-                .count_electoral_log_messages("partialchunk", None)
-                .await?,
-            32
-        );
-        persist_electoral_log_board("partialchunk", &deliveries, || database.client()).await?;
-        assert_eq!(
-            reader
-                .count_electoral_log_messages("partialchunk", None)
-                .await?,
+            reader.count_electoral_log_messages(&partial, None).await?,
             2000
+        );
+        persist_electoral_log_board(&partial, &two_chunks, || database.client()).await?;
+        assert_eq!(
+            reader.count_electoral_log_messages(&partial, None).await?,
+            4000
         );
         Ok::<(), anyhow::Error>(())
     })

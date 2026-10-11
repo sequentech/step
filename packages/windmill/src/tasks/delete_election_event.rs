@@ -8,7 +8,7 @@ use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::{
     services::{
         delete_election_event::{
-            archive_protocol_boards, delete_election_event_immudb,
+            archive_election_event_audit, archive_protocol_boards,
             delete_election_event_related_documents, delete_keycloak_realm,
         },
         providers::transactions_provider::provide_hasura_transaction,
@@ -28,10 +28,10 @@ async fn delete_election_event_related_data(
     realm: &str,
     election_ids: &Vec<String>,
 ) -> AnyhowResult<()> {
-    let immudb_future = delete_election_event_immudb(tenant_id, election_event_id);
+    let audit_future = archive_election_event_audit(tenant_id, election_event_id, election_ids);
     let documents_future = delete_election_event_related_documents(tenant_id, election_event_id);
     let keycloak_future = delete_keycloak_realm(realm);
-    try_join!(immudb_future, documents_future, keycloak_future)?;
+    try_join!(audit_future, documents_future, keycloak_future)?;
 
     Ok(())
 }
@@ -61,6 +61,9 @@ pub async fn delete_election_event_in(
     election_event_id: &str,
     realm: &str,
 ) -> AnyhowResult<()> {
+    // Hold the parent row so a concurrent ceremony cannot add metadata between
+    // archival and the explicit child cleanup (foreign keys take KEY SHARE).
+    hasura_transaction.query_one("SELECT id FROM sequent_backend.election_event WHERE tenant_id=$1::text::uuid AND id=$2::text::uuid FOR UPDATE", &[&tenant_id,&election_event_id]).await?;
     refuse_sealed_event_delete(hasura_transaction, tenant_id, election_event_id).await?;
 
     archive_protocol_boards(hasura_transaction, tenant_id, election_event_id)

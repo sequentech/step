@@ -14,6 +14,7 @@ pub enum AuditColumn {
     Created,
     StatementTimestamp,
     Text(ElectoralLogVarCharColumn),
+    DatabaseText(super::database_audit::DatabaseAuditColumn),
 }
 
 impl AuditColumn {
@@ -22,6 +23,7 @@ impl AuditColumn {
             Self::Id => "id",
             Self::Created => "created",
             Self::StatementTimestamp => "statement_timestamp",
+            Self::DatabaseText(column) => column.sql(),
             Self::Text(column) => match column {
                 ElectoralLogVarCharColumn::StatementKind => "statement_kind",
                 ElectoralLogVarCharColumn::UserId => "user_id",
@@ -56,6 +58,7 @@ pub struct AuditQuery {
     pub election_id: Option<String>,
     pub area_ids: Vec<String>,
     pub only_with_user: bool,
+    pub scoped: bool,
     /// `true` for descending, `false` for ascending.
     pub order: Vec<(AuditColumn, bool)>,
     pub limit: Option<i64>,
@@ -84,7 +87,7 @@ impl AuditQuery {
                 .push(predicate.operator.to_string())
                 .push(" ");
             match (&predicate.column, &predicate.value) {
-                (AuditColumn::Text(_), AuditValue::Text(value)) => {
+                (AuditColumn::Text(_) | AuditColumn::DatabaseText(_), AuditValue::Text(value)) => {
                     query.push_bind(value);
                 }
                 (
@@ -100,10 +103,13 @@ impl AuditQuery {
                 _ => anyhow::bail!("audit predicate type does not match its column"),
             }
         }
-        if self.election_id.is_some() || !self.area_ids.is_empty() {
+        if self.scoped || self.election_id.is_some() || !self.area_ids.is_empty() {
             query.push(" AND (");
             if let Some(election) = &self.election_id {
-                query.push("election_id=").push_bind(election).push(" OR ");
+                query
+                    .push("election_id LIKE ")
+                    .push_bind(election)
+                    .push(" OR ");
             }
             if !self.area_ids.is_empty() {
                 query
@@ -120,12 +126,18 @@ impl AuditQuery {
         }
         if !count {
             query.push(" ORDER BY ");
-            for (column, descending) in &self.order {
+            let mut order = self.order.clone();
+            if !order.iter().any(|(column, _)| *column == AuditColumn::Id) {
+                order.push((AuditColumn::Id, false));
+            }
+            for (index, (column, descending)) in order.into_iter().enumerate() {
+                if index > 0 {
+                    query.push(", ");
+                }
                 query
                     .push(column.sql())
-                    .push(if *descending { " DESC, " } else { " ASC, " });
+                    .push(if descending { " DESC" } else { " ASC" });
             }
-            query.push("id ASC");
             if let Some(limit) = self.limit {
                 query.push(" LIMIT ").push_bind(limit);
             }
@@ -134,5 +146,42 @@ impl AuditQuery {
             }
         }
         Ok(query)
+    }
+}
+
+impl std::str::FromStr for AuditColumn {
+    type Err = anyhow::Error;
+    fn from_str(value: &str) -> Result<Self> {
+        use ElectoralLogVarCharColumn as Text;
+        Ok(match value {
+            "id" => Self::Id,
+            "created" => Self::Created,
+            "statement_timestamp" => Self::StatementTimestamp,
+            "statement_kind" => Self::Text(Text::StatementKind),
+            "user_id" => Self::Text(Text::UserId),
+            "username" => Self::Text(Text::Username),
+            "sender_pk" => Self::Text(Text::SenderPk),
+            "version" => Self::Text(Text::Version),
+            "election_id" => Self::Text(Text::ElectionId),
+            "area_id" => Self::Text(Text::AreaId),
+            "ballot_id" => Self::Text(Text::BallotId),
+            _ => anyhow::bail!("unsupported audit column: {value}"),
+        })
+    }
+}
+
+impl From<super::audit_types::WhereClauseBTreeMap> for AuditQuery {
+    fn from(filters: super::audit_types::WhereClauseBTreeMap) -> Self {
+        Self {
+            predicates: filters
+                .into_iter()
+                .map(|(column, (operator, value))| AuditPredicate {
+                    column: AuditColumn::Text(column),
+                    operator,
+                    value: AuditValue::Text(value),
+                })
+                .collect(),
+            ..Self::default()
+        }
     }
 }

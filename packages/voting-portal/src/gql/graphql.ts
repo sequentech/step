@@ -6528,7 +6528,7 @@ export type Query_Root = {
   list_user_roles: Array<KeycloakRole>;
   /** Look up one of the voter's own cast ballots while checks are open */
   locate_ballot?: Maybe<LocateBallotOutput>;
-  /** log an event in immudb */
+  /** log an event in native wbraid audit storage */
   logEvent?: Maybe<LogEventOutput>;
   /** Get a monitoring configuration document and its history */
   monitoringGetConfig: MonitoringGetConfigOutput;

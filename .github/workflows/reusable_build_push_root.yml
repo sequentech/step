@@ -72,13 +72,9 @@ jobs:
             context: hasura
             file: packages/Dockerfile.hasura
 
-          - service: immudb-init
+          - service: audit-ingest
             context: packages
-            file: packages/Dockerfile.immudb-init.prod
-
-          - service: immudb
-            context: packages
-            file: packages/Dockerfile.immudb
+            file: packages/Dockerfile.audit-ingest.prod
 
           - service: loadtesting
             context: .

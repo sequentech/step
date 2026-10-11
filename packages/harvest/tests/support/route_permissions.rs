@@ -277,8 +277,9 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/get-user-template", {"template_type": "test-template"}, [REPORT_READ], BACKEND_TEXT, UNAUTHORIZED),
         case!(Admin, "/get-users", {"tenant_id": TENANT_ID}, [USER_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/get-users", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [VOTER_READ], BACKEND_TEXT, UNAUTHORIZED),
-        case!(Admin, "/immudb/electoral-log", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [LOGS_READ], BACKEND_TEXT, UNAUTHORIZED),
-        case!(Admin, "/immudb/pgaudit-list", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [LOGS_READ], BACKEND_TEXT, UNAUTHORIZED),
+        case!(Admin, "/audit/electoral-log", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [LOGS_READ], BACKEND_TEXT, UNAUTHORIZED),
+        case!(Admin, "/audit/pgaudit-list", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [LOGS_READ], BACKEND_TEXT, UNAUTHORIZED),
+        case!(Admin, "/trustee/boards/report", {"board": "dkg_d9792af071b849528aac94bc0fead5f7", "kind": "HALTED", "detail": "fixture error"}, [TRUSTEE_CEREMONY], BACKEND, UNAUTHORIZED),
         case!(Admin, "/import-application", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "document_id": "test-document"}, [APPLICATION_IMPORT], BACKEND, UNAUTHORIZED),
         case!(Admin, "/import-areas", {"election_event_id": EVENT_ID, "document_id": "test-document"}, [AREA_WRITE], BACKEND, UNAUTHORIZED),
         // The task row is written before the permission check.

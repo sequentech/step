@@ -299,49 +299,31 @@ impl FakeConnection {
 }
 
 impl BoardConnection for FakeConnection {
-    async fn open_session(&mut self, board: &str) -> Result<()> {
-        self.note(format!("open {board}"));
-        Ok(())
-    }
-
-    async fn ensure_receipts(&mut self) -> Result<()> {
-        self.note("receipts".to_string());
-        Ok(())
-    }
-
-    async fn begin(&mut self) -> Result<String> {
-        self.note("begin".to_string());
-        Ok("tx".to_string())
-    }
-
-    async fn insert_delivery(
+    async fn append(
         &mut self,
-        transaction_id: &String,
-        delivery: &SigningLogDelivery,
-    ) -> Result<bool> {
-        self.note(format!("insert {transaction_id} {}", delivery.row_id));
-        if self.fail_insert.as_deref() == Some(delivery.delivery_id.as_str()) {
-            return Err(anyhow!("board unavailable"));
-        }
+        board: &str,
+        deliveries: &[SigningLogDelivery],
+    ) -> Result<Vec<bool>> {
+        self.note(format!("append {board}"));
         let mut receipts = self.receipts.lock().unwrap();
-        match receipts.get(&delivery.delivery_id) {
-            Some(hash) if hash == &delivery.payload_hash => Ok(false),
-            Some(_) => Err(anyhow!("delivery ID reused with different input")),
-            None => {
-                receipts.insert(delivery.delivery_id.clone(), delivery.payload_hash.clone());
-                Ok(true)
+        let mut next = receipts.clone();
+        let mut results = Vec::new();
+        for delivery in deliveries {
+            if self.fail_insert.as_deref() == Some(delivery.delivery_id.as_str()) {
+                return Err(anyhow!("board unavailable"));
             }
+            results.push(match next.get(&delivery.delivery_id) {
+                Some(hash) if hash == &delivery.payload_hash => false,
+                Some(_) => return Err(anyhow!("delivery ID reused with different input")),
+                None => {
+                    next.insert(delivery.delivery_id.clone(), delivery.payload_hash.clone());
+                    true
+                }
+            });
         }
-    }
-
-    async fn commit(&mut self, transaction_id: &String) -> Result<()> {
-        self.note(format!("commit {transaction_id}"));
-        Ok(())
-    }
-
-    async fn close_session(&mut self) -> Result<()> {
-        self.note("close".to_string());
-        Ok(())
+        *receipts = next;
+        self.note("committed".into());
+        Ok(results)
     }
 }
 
@@ -368,7 +350,7 @@ fn fake_board() -> FakeBoard {
             (l.clone(), r.clone(), f.clone(), c.clone());
         Box::pin(async move {
             if fail_connect.load(Ordering::SeqCst) {
-                return Err(anyhow!("immudb unreachable"));
+                return Err(anyhow!("audit board unreachable"));
             }
             log.lock().unwrap().push("connect".to_string());
             let fail_insert = fail_insert.lock().unwrap().clone();
@@ -413,19 +395,10 @@ async fn the_board_writes_a_call_in_one_transaction_on_one_connection() {
         *fake.log.lock().unwrap(),
         [
             "connect",
-            "open event-board",
-            "receipts",
-            "begin",
-            "insert tx 1",
-            "insert tx 2",
-            "commit tx",
-            "close",
-            "open event-board",
-            "receipts",
-            "begin",
-            "insert tx 2",
-            "commit tx",
-            "close",
+            "append event-board",
+            "committed",
+            "append event-board",
+            "committed"
         ]
     );
 }
@@ -449,10 +422,8 @@ async fn a_failed_delivery_drops_the_connection() {
 
     *fake.fail_insert.lock().unwrap() = None;
     fake.log.lock().unwrap().clear();
-    // The receipt of the first delivery was written by the fake, but the
-    // real board rolls it back with the transaction; either way it's one.
-    let written = fake.board.deliver("event-board", &both[1..]).await.unwrap();
-    assert_eq!(written, vec![true]);
+    let written = fake.board.deliver("event-board", &both).await.unwrap();
+    assert_eq!(written, vec![true, true]);
     assert_eq!(fake.log.lock().unwrap()[0], "connect");
 
     fake.fail_connect.store(true, Ordering::SeqCst);
@@ -470,7 +441,7 @@ async fn an_unreachable_board_fails_the_delivery() {
         .deliver("event-board", &deliveries(&keys))
         .await
         .unwrap_err();
-    assert_eq!(error.to_string(), "immudb unreachable");
+    assert_eq!(error.to_string(), "audit board unreachable");
 }
 
 /// Keys loaded for the event sign its SYSTEM entries and its people's

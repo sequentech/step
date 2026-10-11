@@ -112,7 +112,7 @@ pub fn strict_presentation(election_event: &ElectionEvent) -> Result<ElectionEve
         .unwrap_or_default())
 }
 
-/// How long a call to immudb or the public bucket may take before the
+/// How long a call to native audit or the public bucket may take before the
 /// attempt fails and the next one retries.
 pub const REMOTE_CALL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
 

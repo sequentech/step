@@ -27,10 +27,8 @@ path = [
 	"packages/admin-portal/.ignore",
 	"packages/step-cli/.ignore",
 	"packages/ballot-verifier/.ignore",
-	"packages/braid/.ignore",
 	"packages/sequent-core/.ignore",
 	"packages/step-cli/src/graphql/**",
-	"packages/strand/.ignore",
 	"packages/ui-essentials/.ignore",
 	"packages/voting-portal/.ignore",
 	"packages/windmill/.ignore",
@@ -46,7 +44,6 @@ path = [
 	"packages/results-portal/graphql.schema.json",
 	"packages/results-portal/src/gql/**",
 	"packages/windmill/src/graphql/**",
-	"packages/immudb-rs/proto/immudb/**",
 	"packages/keycloak-extensions/message-otp-authenticator/src/main/resources/theme-resources/templates/**",
 	"packages/keycloak-extensions/conditional-authenticators/src/main/resources/META-INF/services/org.keycloak.protocol.ProtocolMapper",
 	"docs/assets/**",
@@ -55,7 +52,6 @@ path = [
 	".devcontainer/minio/certs.json",
 	"packages/orare/doc_renderer/assets/**",
 	"packages/windmill/external-bin/janitor/**.xlsx",
-	"packages/strand/browserstack/package-lock.json"
 ]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2025 Sequent Tech <legal@sequentech.io>"

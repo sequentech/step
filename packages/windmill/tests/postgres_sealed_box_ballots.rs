@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! The tally of a sealed ballot box (VOTE-FREEZE) against the stack's
-//! PostgreSQL (a private migrated database) and immudb (a board of its own
+//! PostgreSQL (a private migrated database) and native audit (a board of its own
 //! per test): a box that matches its seal is counted from the manifest and
 //! verified once; any difference is rejected on the log and refused.
 //!
-//! Needs `HASURA_DB__*` and `IMMUDB_SERVER_URL`, `IMMUDB_USER`,
-//! `IMMUDB_PASSWORD` (from `.devcontainer/.env`, or the immudb service of
+//! Needs `HASURA_DB__*` and `WBRAID_AUDIT_DATABASE_URL` (from `.devcontainer/.env`, or the native audit service of
 //! the CI jobs) and sets its own `MASTER_SECRET`.
 
 #![recursion_limit = "256"]
@@ -50,7 +49,6 @@ use windmill::services::ceremonies::sealed_box_ballots::{
 use windmill::services::ceremonies::tally_boards::sealed_boxes_for_execution;
 use windmill::services::election::get_election_event_elections;
 use windmill::services::electoral_log_board::create_protocol_manager_keys;
-use windmill::services::electoral_log_board::get_immudb_client;
 
 const SESSION: &str = "tally-session";
 const ELECTION_NAME: &str = "Mayor";
@@ -65,40 +63,11 @@ fn master_secret() {
 
 /// The prefix of the boards these tests create.
 const BOARD_PREFIX: &str = "sealedbox";
-static BOARDS_SWEPT: tokio::sync::OnceCell<()> = tokio::sync::OnceCell::const_new();
-
-/// Drops the boards an earlier, interrupted run left behind, once per run
-/// and before this run creates any.
-async fn sweep_boards() {
-    let mut immudb = match get_immudb_client().await {
-        Ok(immudb) => immudb,
-        Err(error) => return eprintln!("not sweeping {BOARD_PREFIX} boards: {error}"),
-    };
-    let list = match immudb.list_databases().await {
-        Ok(list) => list,
-        Err(error) => return eprintln!("not sweeping {BOARD_PREFIX} boards: {error}"),
-    };
-    let mut removed = 0;
-    for database in &list.get_ref().databases {
-        if database.name.starts_with(BOARD_PREFIX)
-            && immudb.delete_database(&database.name).await.is_ok()
-        {
-            removed += 1;
-        }
-    }
-    eprintln!("removed {removed} leftover {BOARD_PREFIX} boards");
-}
 
 async fn board_client() -> BoardClient {
-    let variable =
-        |name: &str| std::env::var(name).unwrap_or_else(|_| panic!("{name} must be set"));
-    BoardClient::new(
-        &variable("IMMUDB_SERVER_URL"),
-        &variable("IMMUDB_USER"),
-        &variable("IMMUDB_PASSWORD"),
-    )
-    .await
-    .expect("immudb connection")
+    windmill::services::electoral_log_board::get_board_client()
+        .await
+        .expect("native audit connection")
 }
 
 /// One ballot box of a seal-at-close event, with its own electoral log.
@@ -113,7 +82,6 @@ struct World {
 
 impl World {
     async fn new(tx: &Transaction<'_>, policy: &str) -> World {
-        BOARDS_SWEPT.get_or_init(sweep_boards).await;
         let w = World {
             tenant: Uuid::new_v4(),
             event: Uuid::new_v4(),
@@ -178,7 +146,7 @@ impl World {
 
     /// Drops the test's board.
     async fn finish(self) {
-        if let Err(error) = board_client().await.delete_database(&self.board).await {
+        if let Err(error) = board_client().await.archive_board(&self.board).await {
             eprintln!("dropping board {}: {error}", self.board);
         }
     }

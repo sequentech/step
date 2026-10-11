@@ -24,23 +24,28 @@ impl RabbitMq {
     pub async fn start() -> Result<Self> {
         let name = format!("electoral-delivery-test-{}", uuid::Uuid::new_v4());
         let password = uuid::Uuid::new_v4().to_string();
-        let output = docker()
-            .args([
-                "run",
-                "--detach",
-                "--rm",
-                "--name",
-                &name,
-                "--publish",
-                "127.0.0.1::5672",
-                "--env",
-                "RABBITMQ_DEFAULT_USER=synthetic",
-                "--env",
-                &format!("RABBITMQ_DEFAULT_PASS={password}"),
-                "--env",
-                "RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=+S 2:2",
-                "rabbitmq:3.12.11-management",
-            ])
+        let network = std::env::var("WINDMILL_TEST_DOCKER_NETWORK").ok();
+        let mut startup = docker();
+        startup.args([
+            "run",
+            "--detach",
+            "--rm",
+            "--name",
+            &name,
+            "--publish",
+            "127.0.0.1::5672",
+            "--env",
+            "RABBITMQ_DEFAULT_USER=synthetic",
+            "--env",
+            &format!("RABBITMQ_DEFAULT_PASS={password}"),
+            "--env",
+            "RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=+S 2:2",
+        ]);
+        if let Some(network) = &network {
+            startup.args(["--network", network]);
+        }
+        let output = startup
+            .arg("rabbitmq:3.12.11-management")
             .output()
             .context("starting owned RabbitMQ fixture")?;
         if !output.status.success() {
@@ -58,11 +63,33 @@ impl RabbitMq {
             }
         }
         let cleanup = Cleanup(id.clone());
-        let port = docker().args(["port", &id, "5672/tcp"]).output()?;
-        let address = String::from_utf8(port.stdout)?.trim().to_owned();
-        if !address.starts_with("127.0.0.1:") {
-            bail!("fixture was not published on loopback");
-        }
+        let address = if let Some(network) = &network {
+            // A devcontainer reaches its Docker daemon's fixtures through its
+            // own network; the daemon host's loopback is a different namespace.
+            let inspect = docker()
+                .args([
+                    "inspect",
+                    "--format",
+                    "{{json .NetworkSettings.Networks}}",
+                    &id,
+                ])
+                .output()?;
+            let networks: serde_json::Value = serde_json::from_slice(&inspect.stdout)?;
+            let ip = networks
+                .get(network)
+                .and_then(|entry| entry.get("IPAddress"))
+                .and_then(serde_json::Value::as_str)
+                .context("fixture network has no IPv4 address")?
+                .parse::<std::net::Ipv4Addr>()?;
+            format!("{ip}:5672")
+        } else {
+            let port = docker().args(["port", &id, "5672/tcp"]).output()?;
+            let address = String::from_utf8(port.stdout)?.trim().to_owned();
+            if !address.starts_with("127.0.0.1:") {
+                bail!("fixture was not published on loopback");
+            }
+            address
+        };
         let url = format!("amqp://synthetic:{password}@{address}/%2f");
         let connection = tokio::time::timeout(Duration::from_secs(60), async {
             loop {

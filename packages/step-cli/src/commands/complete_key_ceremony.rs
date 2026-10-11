@@ -81,6 +81,15 @@ fn complete_ceremony_with_keys(
             Err(error) => return Err(error),
         };
     let custody: protocol_board::CustodyRequest = serde_json::from_str(&request)?;
+    let config = crate::utils::read_config::read_config()?;
+    if custody.tenant_id != config.tenant_id
+        || custody.election_event_id != election_event_id
+        || custody.keys_ceremony_id != key_ceremony_id
+        || custody.trustee_name != config.username
+        || custody.tally_session_id.is_some()
+    {
+        return Err("custody request does not match this trustee and key ceremony".into());
+    }
     let secrets = protocol_board::TrusteeSecrets::parse(&std::fs::read_to_string(keys_file)?)?;
     let proof = custody.attest(&secrets)?;
     if !CheckPrivateKey::check(election_event_id, key_ceremony_id, &proof)? {

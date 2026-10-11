@@ -17,10 +17,7 @@ use crate::types::error::{Error, Result};
 use anyhow::{anyhow, ensure, Context};
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
-use electoral_log::client::board_client::{
-    retry_electoral_log_transaction, BoardClient, ElectoralLogMessage,
-};
-use immudb_rs::TxMode;
+use electoral_log::client::board_client::{BoardClient, ElectoralLogMessage};
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_event_realm;
 use serde::{Deserialize, Serialize};
@@ -336,12 +333,9 @@ async fn persist_electoral_log_deliveries(events: Vec<IdentifiedLogEvent>) -> an
     Ok(())
 }
 
-// A communications delivery writes two audit rows plus its receipt. Keeping
-// sixteen whole deliveries per transaction leaves room for ImmuDB's SQL indexes.
-const ELECTORAL_LOG_DELIVERIES_PER_TRANSACTION: usize = 16;
+// Each native append atomically stores its complete deliveries and receipts.
+const ELECTORAL_LOG_DELIVERIES_PER_TRANSACTION: usize = 1000;
 
-/// Persist one board's prepared deliveries through an owned client per attempt.
-/// The connection boundary keeps database transactions independent of metadata preparation.
 pub async fn persist_electoral_log_board<F, Fut>(
     board: &str,
     messages: &[(IdentifiedLogEvent, Vec<ElectoralLogMessage>)],
@@ -351,45 +345,22 @@ where
     F: FnMut() -> Fut,
     Fut: std::future::Future<Output = anyhow::Result<BoardClient>>,
 {
-    for messages in messages.chunks(ELECTORAL_LOG_DELIVERIES_PER_TRANSACTION) {
-        retry_electoral_log_transaction(|| {
-            let client = connect();
-            async move {
-                let mut board_client = client.await?;
-                board_client.open_session(board).await?;
-                let result = async {
-                    board_client
-                        .ensure_electoral_log_delivery_receipts()
-                        .await?;
-                    let immudb_tx = board_client.new_tx(TxMode::ReadWrite).await?;
-                    for (delivery, rows) in messages {
-                        board_client
-                            .insert_electoral_log_delivery(
-                                &immudb_tx,
-                                &delivery.delivery_id,
-                                &delivery.payload_hash,
-                                rows,
-                            )
-                            .await
-                            .with_context(|| {
-                                format!("Error persisting electoral log delivery for board {board}")
-                            })?;
-                    }
-                    board_client.commit(&immudb_tx).await.with_context(|| {
-                        format!("Error committing immudb transaction for board {}", board)
-                    })?;
-                    Ok(())
-                }
-                .await;
-                // Cleanup must neither hide a rejected transaction nor turn a
-                // confirmed commit into a replay or prevent later boards' delivery.
-                if let Err(error) = board_client.close_session().await {
-                    warn!(%board, ?error, "Error closing electoral log batch session");
-                }
-                result
-            }
-        })
-        .await?;
+    for batch in messages.chunks(ELECTORAL_LOG_DELIVERIES_PER_TRANSACTION) {
+        let mut client = connect().await?;
+        let deliveries: Vec<_> = batch
+            .iter()
+            .map(|(delivery, rows)| {
+                (
+                    delivery.delivery_id.as_str(),
+                    delivery.payload_hash.as_str(),
+                    rows.as_slice(),
+                )
+            })
+            .collect();
+        client
+            .append_deliveries(board, &deliveries)
+            .await
+            .with_context(|| format!("Error persisting audit deliveries for board {board}"))?;
     }
     Ok(())
 }

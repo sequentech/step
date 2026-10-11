@@ -16,7 +16,7 @@ Command-line tool for automating and streamlining operations within the Sequent 
 - Load testing and data generation utilities
 - Acceptance stage checks with an evidence ledger and a pass/fail verdict (`step-cli acceptance`)
 - Template rendering for email notifications
-- ImmuDB bulletin board export
+- native wbraid audit storage bulletin board export
 
 ## Quick Start
 
@@ -34,7 +34,7 @@ Or use the pre-compiled binary from GitHub releases.
 ### Configuration
 
 Configure CLI with your environment credentials:
-This is a mandatory first command to setup the credentials in order to use the CLI 
+This is a mandatory first command to setup the credentials in order to use the CLI
 
 ```bash
 cli step config \
@@ -68,12 +68,12 @@ Common commands:
 
 ## Refresh Auth Token
 > This command should be called when the jwt has expired
-```bash 
+```bash
 cli step refresh-token
 ```
 
 # Create Election Event
-```bash 
+```bash
 cli step create-election-event --name <ELECTION_NAME> --description <DESCRIPTION> --encryption-protocol "RSA256" --is-archived
 ```
 - name - the election event name - required*
@@ -82,7 +82,7 @@ cli step create-election-event --name <ELECTION_NAME> --description <DESCRIPTION
 - is_archived - boolean if should be archived - optional*
 
 ## Create Election
-```bash 
+```bash
 cli step create-election --name <ELECTION_NAME> --external-id <EXTERNAL_ID> --description <DESCRIPTION> --election-event-id <ELECTION_EVENT_ID>
 ```
 - name - the election name - required*
@@ -91,7 +91,7 @@ cli step create-election --name <ELECTION_NAME> --external-id <EXTERNAL_ID> --de
 - election_event_id - The associated election event id - required*
 
 ## Create Contest
-```bash 
+```bash
 cli step create-contest --name <CONTEST_NAME> --description <DESCRIPTION> --election-event-id <ELECTION_EVENT_ID> --election-id <ELECTION_ID> --counting-algorithm <COUNTING_ALGORITHM>
 ```
 - name - the contest name - required*
@@ -101,8 +101,8 @@ cli step create-contest --name <CONTEST_NAME> --description <DESCRIPTION> --elec
 - counting_algorithm - A valid counting algorithm(plurality-at-large, instant-runoff) - optional* (default: plurality-at-large )
 
 ## Create Candidate
-```bash 
-cli step create-candidate --name <CANDIDATE_NAME> --description <DESCRIPTION> 
+```bash
+cli step create-candidate --name <CANDIDATE_NAME> --description <DESCRIPTION>
 --election-event-id <ELECTION_EVENT_ID>
 ```
 - name - the candidate name - required*
@@ -111,8 +111,8 @@ cli step create-candidate --name <CANDIDATE_NAME> --description <DESCRIPTION>
 - contest_id - The associated contest id - required*
 
 ## Create Area
-```bash 
-cli step create-area --name <AREA_NAME> --description <DESCRIPTION> 
+```bash
+cli step create-area --name <AREA_NAME> --description <DESCRIPTION>
 --election-event-id <ELECTION_EVENT_ID>
 ```
 - name - the area name - required*
@@ -120,7 +120,7 @@ cli step create-area --name <AREA_NAME> --description <DESCRIPTION>
 - election_event_id - The associated election event id - required*
 
 ## Create Area Contest
-```bash 
+```bash
 cli step create-area-contest --election-event-id <ELECTION_EVENT_ID> --contest-id <CONTEST_ID> --area-id <AREA_ID>
 ```
 - election_event_id - The associated election event id - required*
@@ -128,7 +128,7 @@ cli step create-area-contest --election-event-id <ELECTION_EVENT_ID> --contest-i
 - area_id - The associated area id - required*
 
 ## Export Election Event
-```bash 
+```bash
 cli step export-election-event \
   --election-event-id <ELECTION_EVENT_ID> \
   --include-voters \
@@ -159,14 +159,14 @@ cli step export-election-event \
 > Note: The export is forced to be encrypted if you include any sensitive data flags, specifically: `--bulletin-board`, `--reports`, `--applications`, or `--tally`.
 
 ## Update Election Event Voting Status
-```bash 
+```bash
 cli step update-event-voting-status --election-event-id <ELECTION_EVENT_ID> --voting-status <VOTING_STATUS>
 ```
 - election-event-id - The associated election event id - required*
 - voting-status - A valid voting status (OPEN, CLOSE, PAUSE) - required*
 
 ## Update Election Voting Status
-```bash 
+```bash
 cli step update-election-voting-status --election-event-id <ELECTION_EVENT_ID> --election-id <ELECTION_ID> --voting-status <VOTING_STATUS>
 ```
 - election-event-id - The associated election event id - required*
@@ -174,7 +174,7 @@ cli step update-election-voting-status --election-event-id <ELECTION_EVENT_ID> -
 - voting-status - A valid voting status (OPEN, CLOSE, PAUSE) - required*
 
 ## Import election event from .json file
-```bash 
+```bash
 cli step import-election --file-path <PATH> --is-local <ADD THIS FOR LOCAL ONLY>
 ```
 - file-path - Path to file - required* (Example - /workspaces/step/packages/step-cli/data/mock.json)
@@ -182,7 +182,7 @@ cli step import-election --file-path <PATH> --is-local <ADD THIS FOR LOCAL ONLY>
 
 ## Create Voter
 > This can be used to create a new voter for an election event
-```bash 
+```bash
 cli step create-voter --election-event-id <ELECTION_EVENT_ID> --first-name <FIRST_NAME> --last-name <LAST_NAME> --username <USERNAME> --email <EMAIL>
 ```
 - Election event id - the election event to be associated with - required*
@@ -193,7 +193,7 @@ cli step create-voter --election-event-id <ELECTION_EVENT_ID> --first-name <FIRS
 
 ## Update Voter
 > This can be used to update voter details, set a password and area for a voter
-```bash 
+```bash
 cli step update-voter --election-event-id <ELECTION_EVENT_ID> --user-id <USER_ID> --first-name <FIRST_NAME> --last-name <LAST_NAME> --username <USERNAME> --email <EMAIL>  --password <PASSWORD> --area-id <AREA_ID>
 ```
 - Election event id - the election event to be associated with - required*
@@ -207,7 +207,7 @@ cli step update-voter --election-event-id <ELECTION_EVENT_ID> --user-id <USER_ID
 
 ## Publish Ballot
 > This generates a new publication and publishes it
-```bash 
+```bash
 cli step publish --election-event-id <ELECTION_EVENT_ID> --election-id <ELECTION_ID>```
 ```
 - Election event id - the election event to be associated with - required*
@@ -215,7 +215,7 @@ cli step publish --election-event-id <ELECTION_EVENT_ID> --election-id <ELECTION
 
 ## Start Key Ceremony
 > This only starts a key ceremony - make sure to first run in .devcontainer:
-```bash 
+```bash
 docker compose up -d --no-deps beat trustee1 trustee2
 cli step start-key-ceremony --election-event-id <ELECTION_EVENT_ID> --threshold <THRESHOLD> --election-id <ELECTION_ID> --name <NAME>
 ```
@@ -226,14 +226,14 @@ cli step start-key-ceremony --election-event-id <ELECTION_EVENT_ID> --threshold 
 
 ## Complete Key Ceremony
 > This needs to be done by a trustee - authenticate with a trustee using the config command
-```bash 
+```bash
 cli step complete-key-ceremony --election-event-id <ELECTION_EVENT_ID> --key-ceremony-id <KEY_CEREMONY_ID>
 ```
 - Election event id - the election event to be associated with - required*
 - Key ceremony id - the key ceremony to complete - required*
 
 ## Start Tally Ceremony
-```bash 
+```bash
 cli step start-tally --election-event-id <ELECTION_EVENT_ID> --election-ids <ELECTION_IDS> --tally-type <TALLY_TYPE>
 ```
 - Election event id - the election event to be associated with - required*
@@ -242,7 +242,7 @@ cli step start-tally --election-event-id <ELECTION_EVENT_ID> --election-ids <ELE
 
 ## Confirm Trustee Key For Tally Ceremony
 > This needs to be done by a trustee - authenticate with a trustee using the config command
-```bash 
+```bash
 cli step confirm-key-tally --election-event-id <ELECTION_EVENT_ID> --tally-id <TALLY_ID>
 ```
 - Election event id - the election event to be associated with - required*
@@ -250,7 +250,7 @@ cli step confirm-key-tally --election-event-id <ELECTION_EVENT_ID> --tally-id <T
 
 ## Update Tally Ceremony Status
 > This can be used to complete the tally ceremony after the trustee keys have been confirmed
-```bash 
+```bash
 cli step update-tally --election-event-id <ELECTION_EVENT_ID> --tally-id <TALLY_ID> --status <STATUS>
 ```
 - Election event id - the election event to be associated with - required*
@@ -340,7 +340,7 @@ cli step tally-sheet recount \
 
 ## Render Template
 > This can be used to renders a handlerbars file into html
-```bash 
+```bash
 cli step render-template [--base-template <PATH_TO_TEMPLATE_FILE>] --template <PATH_TO_TEMPLATE_FILE> --vars <PATH_TO_VARIABLES_FILE> --output  <PATH_TO_OUTPUT_FILE>
 ```
 - template = path to the handlebars-rs template file can be example.hbs
@@ -349,9 +349,9 @@ cli step render-template [--base-template <PATH_TO_TEMPLATE_FILE>] --template <P
 
 
 ## Generate voters
-> This can be used to create csv file with voters. 
+> This can be used to create csv file with voters.
 > This action require to have export_election_event-<id>.json file in working-directory.
-```bash 
+```bash
 cli step generate-voters --working-directory <PATH_FOR_INPUT_OUTPUT> --num-users <NUMBER_VOTERS_TO_GENERATE>
 ```
 - working-directory = path to the config.json files and output directoty (workspaces/step/packages/step-cli/data)
@@ -361,7 +361,7 @@ cli step generate-voters --working-directory <PATH_FOR_INPUT_OUTPUT> --num-users
 ## Duplicate votes
 > This can be used to duplicate existing cast_vote row.
 > This required additional confituration at config.json in working-directory
-```bash 
+```bash
 cli step duplicate-votes --working-directory <PATH_FOR_INPUT_OUTPUT> --num-votes <NUMBER_VOTES_TO_DUPLICATE>
 ```
 - working-directory = path to the config.json files and output directoty (workspaces/step/packages/step-cli/data)
@@ -370,7 +370,7 @@ cli step duplicate-votes --working-directory <PATH_FOR_INPUT_OUTPUT> --num-votes
 ## Create Applications
 > This can be used to create applicaiton.
 > This required additional confituration at config.json in working-directory
-```bash 
+```bash
 cli step create-applications --working-directory <PATH_FOR_INPUT_OUTPUT> --num-applications <NUMBER_APPLICATIONS_TO_CREATE> --status <STATUS> --type <TYPE>
 ```
 - working-directory = path to the config.json files and output directoty (workspaces/step/packages/step-cli/data)
@@ -379,40 +379,40 @@ cli step create-applications --working-directory <PATH_FOR_INPUT_OUTPUT> --num-a
 - type:  OPTIONAL, should be AUTOMATIC or MANUAL
 
 ## Create Electoral Logs
-> This can be used to create electoral logs in immudb.
+> This can be used to create electoral logs in native wbraid audit storage.
 > This required additional confituration at config.json in working-directory (like area_id and election_id)
-```bash 
+```bash
 cli step create-electoral-logs --working-directory <PATH_FOR_INPUT_OUTPUT> --num-logs <NUMBER_LOGS_TO_CREATE>
 ```
 - working-directory = path to the config.json files and output directoty (workspaces/step/packages/step-cli/data)
 - num-logs - how much logs to create
 
 ## Hash password csv
-> This takes a voter_list.csv as input where the input has password column and outputs a voter_list.csv with hashed passwords and salts for the passwords to make it faster to import. 
-```bash 
+> This takes a voter_list.csv as input where the input has password column and outputs a voter_list.csv with hashed passwords and salts for the passwords to make it faster to import.
+```bash
 cli step hash-passwords --input-file <PATH_FOR_INPUT_OUTPUT> --output-file <PATH_TO_OUTPUT_FILE> --iterations <NUMBER_OF_HASHING_ITERATIONS>
 ```
 ## Export cast votes csv
-> This accesses immudb bulletin board and exports in a csv file the casted ballots ballot_id.
-```bash 
-cli step export-cast-votes --server-url http://immudb:3322 --username immudb --password immudb --board-db tenant90505c8a23a94cdfaevent3a9fcf6515c4478db32105e02b509899
+> This accesses native wbraid audit storage bulletin board and exports in a csv file the casted ballots ballot_id.
+```bash
+cli step export-cast-votes --database-url postgres://postgres@audit-postgres:5432/sequent_audit --board-db event-board
 ```
 - iterations = number of iterations for the hashing where the default if 600000
 
-## Compiling and Using the CLI 
+## Compiling and Using the CLI
 
-> The CLI will be compilied using github action into a binray on every push/pull request or realease 
+> The CLI will be compilied using github action into a binray on every push/pull request or realease
 > The CLI will be compiled to both MAC use or L
->  In order to run on Linux: 
+>  In order to run on Linux:
 > go Open a terminal, navigate to the folder where the binary is located, and run:
-  ```bash 
+  ```bash
   chmod +x seq
   ```
-> Execute a commend by running by running: 
-  ```bash 
+> Execute a commend by running by running:
+  ```bash
   ./seq <COMMAND> [OPTIONS]
   ```
-   for Example: 
+   for Example:
    ./seq step hash-passwords --input-file <PATH_FOR_INPUT_OUTPUT> --output-file <PATH_TO_OUTPUT_FILE> --iterations <NUMBER_OF_HASHING_ITERATIONS>
 
 ```

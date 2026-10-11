@@ -34,7 +34,7 @@ pub async fn post_signing_log_outbox() -> Result<()> {
         .get()
         .await
         .map_err(|error| anyhow!("Error getting hasura client: {error}"))?;
-    let mut board = BoardSigningLog::immudb();
+    let mut board = BoardSigningLog::wbraid();
     post_signing_log_outboxes(
         &mut client,
         &mut board,

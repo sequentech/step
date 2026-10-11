@@ -42,12 +42,24 @@ struct Batch {
 
 impl BoardClient {
     pub async fn new(url: &str) -> Result<Self> {
-        let board = BoardDb::open_url(url).await?;
+        let mut options: sqlx::postgres::PgConnectOptions = url.parse()?;
+        if let Ok(password) = std::env::var("WBRAID_AUDIT_PG_PASSWORD") {
+            options = options.password(&password);
+        }
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .max_connections(5)
+            .connect_with(options)
+            .await?;
+        let board = BoardDb::from_postgres_pool(pool).await?;
         let pool = board
             .postgres_pool()
             .context("audit indexing requires PostgreSQL")?
             .clone();
-        sqlx::raw_sql(r#"
+        let mut transaction = pool.begin().await?;
+        sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended('sequent-audit-schema',0))")
+            .execute(&mut *transaction)
+            .await?;
+        let schema = r#"
             CREATE SCHEMA IF NOT EXISTS sequent_audit;
             CREATE TABLE IF NOT EXISTS sequent_audit.checkpoints (
                 board_name TEXT PRIMARY KEY REFERENCES boards(name),
@@ -65,13 +77,22 @@ impl BoardClient {
                 id BIGINT NOT NULL, created BIGINT NOT NULL,
                 sender_pk TEXT NOT NULL, statement_timestamp BIGINT NOT NULL,
                 statement_kind TEXT NOT NULL, message BYTEA NOT NULL, version TEXT NOT NULL,
-                user_id TEXT, username TEXT, election_id TEXT, area_id TEXT, ballot_id TEXT,
+                user_id TEXT, username TEXT, election_id TEXT, area_id TEXT, ballot_id TEXT, database_metadata JSONB,
                 PRIMARY KEY(board_name, id)
             );
+            ALTER TABLE sequent_audit.records ADD COLUMN IF NOT EXISTS database_metadata JSONB;
             CREATE INDEX IF NOT EXISTS audit_records_actor ON sequent_audit.records(board_name, user_id, id);
             CREATE INDEX IF NOT EXISTS audit_records_kind_time ON sequent_audit.records(board_name, statement_kind, statement_timestamp, id);
             CREATE INDEX IF NOT EXISTS audit_records_box ON sequent_audit.records(board_name, election_id, area_id, id);
-        "#).execute(&pool).await?;
+        "#;
+        for statement in schema
+            .split(';')
+            .map(str::trim)
+            .filter(|statement| !statement.is_empty())
+        {
+            sqlx::query(statement).execute(&mut *transaction).await?;
+        }
+        transaction.commit().await?;
         Ok(Self { board, pool })
     }
 
@@ -174,13 +195,25 @@ impl BoardClient {
                         .bind(name).bind(&delivery.id).bind(&delivery.payload_hash).bind(blob_id)
                         .execute(&mut **tx).await?;
                     for row in delivery.messages {
+                        let database_metadata = if matches!(
+                            row.statement_kind.as_str(),
+                            "pgaudit_hasura" | "pgaudit_keycloak"
+                        ) {
+                            Some(serde_json::to_value(serde_json::from_slice::<
+                                super::database_audit::DatabaseAuditRow,
+                            >(
+                                &row.message
+                            )?)?)
+                        } else {
+                            None
+                        };
                         sqlx::query(r#"INSERT INTO sequent_audit.records
-                            (board_name,blob_id,id,created,sender_pk,statement_timestamp,statement_kind,message,version,user_id,username,election_id,area_id,ballot_id)
-                            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)"#)
+                            (board_name,blob_id,id,created,sender_pk,statement_timestamp,statement_kind,message,version,user_id,username,election_id,area_id,ballot_id,database_metadata)
+                            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)"#)
                             .bind(name).bind(blob_id).bind(row.id).bind(row.created).bind(row.sender_pk)
                             .bind(row.statement_timestamp).bind(row.statement_kind).bind(row.message)
                             .bind(row.version).bind(row.user_id).bind(row.username).bind(row.election_id)
-                            .bind(row.area_id).bind(row.ballot_id).execute(&mut **tx).await?;
+                            .bind(row.area_id).bind(row.ballot_id).bind(database_metadata).execute(&mut **tx).await?;
                     }
                 }
                 after = blob_id;
@@ -283,11 +316,7 @@ impl BoardClient {
             .context("audit delivery result missing")
     }
 
-    pub async fn count_electoral_log_messages(
-        &mut self,
-        name: &str,
-        filter: Option<&AuditQuery>,
-    ) -> Result<i64> {
+    pub async fn count_query(&mut self, name: &str, filter: Option<&AuditQuery>) -> Result<i64> {
         self.refresh_index(name).await?;
         let default = AuditQuery::default();
         let mut query = filter.unwrap_or(&default).build(name, true)?;
@@ -343,5 +372,14 @@ fn validate_delivery(id: &str, hash: &str, messages: &[ElectoralLogMessage]) -> 
         "audit delivery identities must be SHA-256 digests"
     );
     ensure!(!messages.is_empty(), "audit delivery has no messages");
+    for row in messages {
+        if matches!(
+            row.statement_kind.as_str(),
+            "pgaudit_hasura" | "pgaudit_keycloak"
+        ) {
+            serde_json::from_slice::<super::database_audit::DatabaseAuditRow>(&row.message)
+                .context("invalid database audit record")?;
+        }
+    }
     Ok(())
 }

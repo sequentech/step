@@ -261,6 +261,22 @@ services:
   # the address the *clients* fetch bodies from: the localstack service name,
   # which the host browser resolves through a hosts-file entry (TESTING.md).
   # The SQLite file lives in a named volume, b4.sh --reset clears it.
+  audit-postgres:
+    profiles: ["full", "base"]
+    image: postgres:16-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: sequent_audit
+      POSTGRES_PASSWORD: ${WBRAID_AUDIT_PG_PASSWORD:?set the private audit database password}
+    volumes:
+      - wbraid_audit_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sequent_audit"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
   b4v6:
     profiles: ["full", "base", "wbraid"]
     image: sequentech.local/cargo-packages
@@ -494,28 +510,6 @@ services:
   #   volumes:
   #      - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
 
-  immudb:
-    profiles: ["full", "base"]
-    container_name: ${DEVCONTAINER_NAME_PREFIX:-}immudb
-    image: sequentech.local/immudb
-    build:
-      context: ../packages/
-      dockerfile: ./Dockerfile.immudb
-    restart: always
-    environment:
-      - IMMUDB_PGSQL_SERVER=true
-    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
-    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
-    ports:
-      - 3322:3322 # immudb service
-      - 3324:9497 # prometheus
-      - 3325:8080 # web console
-    volumes:
-      - immudb_data:/var/lib/immudb
-      - immudb_logs:/var/log/immudb
-    depends_on:
-      - immudb-init
-
   mock_server:
     profiles: ["full"]
     stdin_open: true
@@ -670,9 +664,6 @@ services:
       # The wrapper preserves debug flags and uses cc when bundled LLD is absent.
       CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/.devcontainer/scripts/rust-lld-cc.sh
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
-      IMMUDB_USER: ${IMMUDB_USER}
-      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-      IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
       SMS_TRANSPORT_NAME: ${SMS_TRANSPORT_NAME}
       AWS_SNS_ATTRIBUTES: ${AWS_SNS_ATTRIBUTES}
       EMAIL_TRANSPORT_NAME: ${EMAIL_TRANSPORT_NAME}
@@ -736,6 +727,8 @@ services:
       CUSTOM_URLS_IP_DNS_CONTENT: ${CUSTOM_URLS_IP_DNS_CONTENT}
       WBRAID_B4_URL: http://b4v6:3005
       WBRAID_BOARD_DATABASE_URL: postgres://postgres@postgres-b4v6:5432/b4
+      WBRAID_AUDIT_DATABASE_URL: postgres://postgres@audit-postgres:5432/sequent_audit
+      WBRAID_AUDIT_PG_PASSWORD: ${WBRAID_AUDIT_PG_PASSWORD}
       WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       ENV_SLUG: ${ENV_SLUG}
@@ -902,41 +895,20 @@ services:
       retries: 60
       start_period: 10s
 
-  immudb-init:
+  audit-init:
     profiles: ["full", "base"]
-    stdin_open: true
     image: sequentech.local/cargo-packages
-    container_name: ${DEVCONTAINER_NAME_PREFIX:-}immudb-init
-    # make sure to depend on the `harvest` container to ensure
-    # that the `sequentech.local/cargo-packages` image is locally build, so
-    # that we can reuse it:
     depends_on:
       harvest:
         condition: service_started
-    volumes:
-      - ../packages/:/app:z
-    restart: always
-    working_dir: /app/immu-board
-    entrypoint: [
-      "cargo",
-      "run",
-      "--bin",
-      "bb_helper",
-      "--",
-      "--server-url",
-      "${IMMUDB_SERVER_URL}",
-      "--username",
-      "${IMMUDB_USER}",
-      "--password",
-      "${IMMUDB_PASSWORD}",
-      "--board-dbname",
-      "${IMMUDB_BOARD_DB_NAME}",
-      "--cache-dir",
-      "/tmp/immu-board",
-      "upsert-board-db"
-    ]
-    env_file:
-      - .env
+      audit-postgres:
+        condition: service_healthy
+    volumes: ["../packages/:/app:z"]
+    working_dir: /app/electoral-log
+    entrypoint: ["cargo", "run", "--bin", "bb_helper", "--", "--board-name", "audit-index", "upsert-board"]
+    environment:
+      WBRAID_AUDIT_DATABASE_URL: postgres://postgres@audit-postgres:5432/sequent_audit
+      WBRAID_AUDIT_PG_PASSWORD: ${WBRAID_AUDIT_PG_PASSWORD}
 
   registry:
     profiles: ["full", "lambdas"]
@@ -1051,10 +1023,6 @@ services:
       AMQP_ADDR: ${AMQP_ADDR}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
       KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS: ${KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS:-30}
-      IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
-      IMMUDB_USER: ${IMMUDB_USER}
-      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-      IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
       AWS_S3_PRIVATE_URI: ${AWS_S3_PRIVATE_URI}
       AWS_S3_PUBLIC_URI: ${AWS_S3_PUBLIC_URI}
       AWS_S3_BUCKET: ${AWS_S3_BUCKET}
@@ -1122,6 +1090,8 @@ services:
       DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
       WBRAID_B4_URL: http://b4v6:3005
       WBRAID_BOARD_DATABASE_URL: postgres://postgres@postgres-b4v6:5432/b4
+      WBRAID_AUDIT_DATABASE_URL: postgres://postgres@audit-postgres:5432/sequent_audit
+      WBRAID_AUDIT_PG_PASSWORD: ${WBRAID_AUDIT_PG_PASSWORD}
       WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       BALLOT_VERIFIER_URL: ${BALLOT_VERIFIER_URL}
@@ -1188,11 +1158,7 @@ volumes:
   db_data:
   db_logs:
   keycloak_db_logs:
-  immudb_log_audit_data:
-  keycloak_immudb_log_audit_data:
   keycloak_db_data:
-  immudb_data:
-  immudb_logs:
   minio_storage:
   trustee1_data:
   trustee2_data:
@@ -1211,3 +1177,5 @@ volumes:
   devcontainer-cargo:
     name: ${DEVCONTAINER_CARGO_VOLUME:?run .devcontainer/scripts/initialize-command.sh}
     external: true
+
+  wbraid_audit_data:

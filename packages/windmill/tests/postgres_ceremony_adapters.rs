@@ -2246,28 +2246,59 @@ async fn an_event_without_protocol_boards_needs_no_native_archive_connection() {
 }
 
 #[tokio::test]
-async fn restrictive_metadata_refuses_deletion_before_opening_the_native_archive() {
+async fn restrictive_protocol_metadata_is_explicitly_deleted_only_for_its_event() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
-    keys_ceremony_row(&tx, &w.tenant, &w.event, &w.id(10)).await;
-    tx.execute(
-        "INSERT INTO sequent_backend.protocol_board
-            (tenant_id, election_event_id, keys_ceremony_id, name, manager_message)
-         VALUES ($1::text::uuid, $2::text::uuid, $3::text::uuid, $4, ''::bytea)",
-        &[&w.tenant, &w.event, &w.id(10), &w.id(11)],
-    )
-    .await
-    .unwrap();
-    let error = windmill::services::delete_election_event::archive_protocol_boards(
-        &tx, &w.tenant, &w.event,
-    )
-    .await
-    .unwrap_err();
-    assert_eq!(
-        error.to_string(),
-        "protocol board metadata currently restricts election event deletion"
-    );
+    let namespace = Uuid::new_v4().simple().to_string();
+    let board_name = |kind: &str, event: &str| format!("{kind}-{event}-{namespace}");
+    for (index, event) in [&w.event, &w.other_event].into_iter().enumerate() {
+        let ceremony = w.id(10 + index as u32);
+        let session = w.id(20 + index as u32);
+        keys_ceremony_row(&tx, &w.tenant, event, &ceremony).await;
+        tally_session_row(&tx, &w.tenant, event, &session, H10).await;
+        let parent = tx.query_one("INSERT INTO sequent_backend.protocol_board (tenant_id,election_event_id,keys_ceremony_id,name,manager_message) VALUES ($1::text::uuid,$2::text::uuid,$3::text::uuid,$4,''::bytea) RETURNING id", &[&w.tenant,event,&ceremony,&board_name("dkg", event)]).await.unwrap().get::<_,uuid::Uuid>(0);
+        tx.execute("INSERT INTO sequent_backend.protocol_board (tenant_id,election_event_id,keys_ceremony_id,tally_session_id,parent_id,batch,name,manager_message) VALUES ($1::text::uuid,$2::text::uuid,$3::text::uuid,$4::text::uuid,$5,0,$6,''::bytea)", &[&w.tenant,event,&ceremony,&session,&parent,&board_name("tally", event)]).await.unwrap();
+    }
+    let restrictive: bool = tx.query_one("SELECT bool_and(confdeltype='r') FROM pg_constraint WHERE conrelid='sequent_backend.protocol_board'::regclass AND contype='f'", &[]).await.unwrap().get(0);
+    assert!(restrictive);
+    let url = std::env::var("WBRAID_AUDIT_TEST_DATABASE_URL")
+        .or_else(|_| std::env::var("WBRAID_AUDIT_DATABASE_URL"))
+        .expect("isolated native archive database");
+    let pool = sqlx::PgPool::connect(&url).await.unwrap();
+    let native = wbraid_b4::db::BoardDb::from_postgres_pool(pool.clone())
+        .await
+        .unwrap();
+    for event in [&w.event, &w.other_event] {
+        for kind in ["dkg", "tally"] {
+            let name = board_name(kind, event);
+            native.create_board(&name).await.unwrap();
+            native
+                .insert_message(&name, Some(b"retained-signed-record"), None, "test")
+                .await
+                .unwrap();
+        }
+    }
+    windmill::services::delete_election_event::archive_protocol_boards(&tx, &w.tenant, &w.event)
+        .await
+        .unwrap();
+    for (event, status) in [(&w.event, "archived"), (&w.other_event, "active")] {
+        for kind in ["dkg", "tally"] {
+            let name = board_name(kind, event);
+            assert_eq!(
+                native.get_board(&name).await.unwrap().unwrap().status,
+                status
+            );
+            assert_eq!(native.list_messages(&name).await.unwrap().len(), 1);
+        }
+    }
+    windmill::postgres::protocol_board::delete_event_protocol_metadata(&tx, &w.tenant, &w.event)
+        .await
+        .unwrap();
+    for (event, expected) in [(&w.event, 0i64), (&w.other_event, 2)] {
+        let count:i64=tx.query_one("SELECT count(*) FROM sequent_backend.protocol_board WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid", &[&w.tenant,event]).await.unwrap().get(0);
+        assert_eq!(count, expected);
+    }
     tx.rollback().await.unwrap();
 }
 

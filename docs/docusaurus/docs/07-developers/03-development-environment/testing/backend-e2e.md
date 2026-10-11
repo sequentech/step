@@ -5,7 +5,7 @@ title: Backend E2E journeys
 <!-- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io> -->
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
-The backend journeys use real PostgreSQL, Hasura, Keycloak, RabbitMQ, ImmuDB,
+The backend journeys use real PostgreSQL, Hasura, Keycloak, RabbitMQ, native wbraid audit storage,
 MinIO, B4 and two trustees. They exercise administrator commands and the voting
 portal's GraphQL protocol, including ballot encryption and tallying.
 

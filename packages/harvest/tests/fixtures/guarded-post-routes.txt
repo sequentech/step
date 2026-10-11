@@ -74,8 +74,8 @@
 /get-user-profile-configuration
 /get-user-template
 /get-users
-/immudb/electoral-log
-/immudb/pgaudit-list
+/audit/electoral-log
+/audit/pgaudit-list
 /import-application
 /import-areas
 /import-candidates
@@ -171,3 +171,4 @@
 /preview-schedule-import
 /preview-scheduled-outcome-change
 /save-lifecycle-policies
+/trustee/boards/report

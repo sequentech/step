@@ -39,12 +39,12 @@ export STEP_E2E_BIN_DIR=${STEP_E2E_BIN_DIR:-$default_bin}
 DEVCONTAINER=$ROOT/.devcontainer
 SERVICES=(
     devcontainer postgres postgres-keycloak postgres-b4v6 minio configure-minio rabbitmq
-    immudb immudb-init data-connector-agent graphql-engine keycloak harvest windmill beat b4v6
+    audit-postgres audit-init data-connector-agent graphql-engine keycloak harvest windmill beat b4v6
     trustee1 trustee2 localstack configure-localstack
 )
 IMAGES=(postgres postgres-b4v6 minio configure-minio keycloak harvest)
 # Services with an LLVM_PROFILE_FILE in docker-compose-ci-coverage.yml.
-INSTRUMENTED=(immudb-init harvest windmill beat b4v6 trustee1 trustee2)
+INSTRUMENTED=(audit-init harvest windmill beat b4v6 trustee1 trustee2)
 
 original_args=("$@")
 keep=false images=true build=true down_only=false bootstrap_only=false pattern=()

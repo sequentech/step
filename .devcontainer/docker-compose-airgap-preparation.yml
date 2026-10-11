@@ -294,26 +294,6 @@ services:
       - 3004:8000
     stdin_open: true
 
-  immudb:
-    profiles: ["full", "base"]
-    container_name: immudb
-    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/immudb:STEP_VERSION
-    platform: linux/amd64
-    restart: always
-    environment:
-      - IMMUDB_PGSQL_SERVER=true
-    ports:
-      - 3322:3322 # immudb service
-      - 3324:9497 # prometheus
-      - 3325:8080 # web console
-    depends_on:
-      - immudb-init
-    healthcheck:
-      test: /usr/local/bin/immuadmin status
-      interval: 30s
-      timeout: 30s
-      retries: 3
-
   harvest:
     profiles: ["full", "base"]
     stdin_open: true
@@ -331,9 +311,6 @@ services:
       ROCKET_PORT: ${HARVEST_PORT}
       RUSTFLAGS: ${RUSTFLAGS}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
-      IMMUDB_USER: ${IMMUDB_USER}
-      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-      IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
       SMS_TRANSPORT_NAME: ${SMS_TRANSPORT_NAME}
       AWS_SNS_ATTRIBUTES: ${AWS_SNS_ATTRIBUTES}
       EMAIL_TRANSPORT_NAME: ${EMAIL_TRANSPORT_NAME}
@@ -394,6 +371,8 @@ services:
       CUSTOM_URLS_IP_DNS_CONTENT: ${CUSTOM_URLS_IP_DNS_CONTENT}
       WBRAID_B4_URL: http://b4v6:3005
       WBRAID_BOARD_DATABASE_URL: postgres://postgres@postgres-b4v6:5432/wbraid_board
+      WBRAID_AUDIT_DATABASE_URL: postgres://postgres@audit-postgres:5432/sequent_audit
+      WBRAID_AUDIT_PG_PASSWORD: ${WBRAID_AUDIT_PG_PASSWORD}
       WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
       # The monitoring renderer, reached on the internal monitoring-renderer
       # network only.
@@ -447,6 +426,22 @@ services:
       - wbraid_board_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d wbraid_board"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  audit-postgres:
+    profiles: ["full", "base"]
+    image: postgres:16-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: sequent_audit
+      POSTGRES_PASSWORD: ${WBRAID_AUDIT_PG_PASSWORD:?set the private audit database password}
+    volumes:
+      - wbraid_audit_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sequent_audit"]
       interval: 5s
       timeout: 5s
       retries: 30
@@ -518,7 +513,7 @@ services:
       TRUSTEE_KEYCLOAK_CLIENT_ID: ${TRUSTEE_KEYCLOAK_CLIENT_ID}
       TRUSTEE_KEYCLOAK_CLIENT_SECRET: ${TRUSTEE_KEYCLOAK_CLIENT_SECRET}
 
-  # Create collection in immudb
+  # Create collection in native audit
   rabbitmq:
     profiles: ["full", "base"]
     image: rabbitmq:3.12.11-management
@@ -536,19 +531,16 @@ services:
       timeout: 30s
       retries: 3
 
-  immudb-init:
+  audit-init:
     profiles: ["full", "base"]
-    stdin_open: true
-    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/immudb-init:STEP_VERSION
-    platform: linux/amd64
-    container_name: immudb-init
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/audit-ingest:STEP_VERSION
+    depends_on:
+      audit-postgres:
+        condition: service_healthy
+    entrypoint: ["/usr/bin/bb_helper", "--board-name", "audit-index", "upsert-board"]
     environment:
-      IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
-      IMMUDB_USER: ${IMMUDB_USER}
-      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-      IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
-      IMMUDB_BOARD_DB_NAME: ${IMMUDB_BOARD_DB_NAME}
-    restart: always
+      WBRAID_AUDIT_DATABASE_URL: postgres://postgres@audit-postgres:5432/sequent_audit
+      WBRAID_AUDIT_PG_PASSWORD: ${WBRAID_AUDIT_PG_PASSWORD}
 
   windmill:
     profiles: ["full", "base"]
@@ -572,10 +564,6 @@ services:
       AMQP_ADDR: ${AMQP_ADDR}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
       KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS: ${KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS:-30}
-      IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
-      IMMUDB_USER: ${IMMUDB_USER}
-      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-      IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
       AWS_S3_PRIVATE_URI: ${AWS_S3_PRIVATE_URI}
       AWS_S3_PUBLIC_URI: ${AWS_S3_PUBLIC_URI}
       AWS_S3_BUCKET: ${AWS_S3_BUCKET}
@@ -667,3 +655,5 @@ networks:
 
 volumes:
   wbraid_board_data:
+
+  wbraid_audit_data:

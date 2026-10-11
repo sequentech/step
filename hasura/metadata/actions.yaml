@@ -1465,7 +1465,7 @@ actions:
     - name: listElectoralLog
       definition:
           kind: ""
-          handler: http://{{HARVEST_DOMAIN}}/immudb/electoral-log
+          handler: http://{{HARVEST_DOMAIN}}/audit/electoral-log
           forward_client_headers: true
           request_transform:
               body:
@@ -1482,13 +1482,13 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
-          - role: immudb:log:read
+          - role: native wbraid audit storage:log:read
           - role: admin-user
       comment: List Electoral Log
     - name: listPgaudit
       definition:
           kind: ""
-          handler: http://{{HARVEST_DOMAIN}}/immudb/pgaudit-list
+          handler: http://{{HARVEST_DOMAIN}}/audit/pgaudit-list
           forward_client_headers: true
           headers:
               - name: X-Hasura-Admin-Secret
@@ -1509,7 +1509,7 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
-          - role: immudb:log:read
+          - role: native wbraid audit storage:log:read
           - role: admin-user
       comment: List PostgreSQL audit logs
     - name: list_cast_vote_messages
@@ -1570,7 +1570,7 @@ actions:
     - name: logEvent
       definition:
           kind: ""
-          handler: http://{{HARVEST_DOMAIN}}/immudb/log-event
+          handler: http://{{HARVEST_DOMAIN}}/native wbraid audit storage/log-event
           request_transform:
               body:
                   action: transform
@@ -1579,7 +1579,7 @@ actions:
               version: 2
       permissions:
           - role: service-account
-      comment: log an event in immudb
+      comment: log an event in native wbraid audit storage
     - name: manage_election_dates
       definition:
           kind: synchronous

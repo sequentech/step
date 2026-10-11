@@ -62,7 +62,19 @@ impl PostgresBackend {
         Ok(new_obj)
     }
 
+    /// Initialize storage using an explicit application-owned pool. This does
+    /// not apply the board server's environment overrides to another database.
+    pub async fn from_pool(pool: sqlx::PgPool) -> Result<Self> {
+        let backend = Self { pool };
+        backend.ensure_init().await?;
+        Ok(backend)
+    }
+
     async fn ensure_init(&self) -> Result<()> {
+        let mut transaction = self.pool.begin().await?;
+        sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended('wbraid-storage-schema',0))")
+            .execute(&mut *transaction)
+            .await?;
         // Boards are independent: just a name + creation time + lifecycle status.
         sqlx::query(
             r#"
@@ -73,7 +85,7 @@ impl PostgresBackend {
             )
         "#,
         )
-        .execute(&self.pool)
+        .execute(&mut *transaction)
         .await?;
 
         // Messages are opaque blobs keyed by (board, autoincrement id). No slot
@@ -98,7 +110,7 @@ impl PostgresBackend {
             )
         "#,
         )
-        .execute(&self.pool)
+        .execute(&mut *transaction)
         .await?;
 
         // Index for efficient per-board ordered scans / range queries.
@@ -108,9 +120,10 @@ impl PostgresBackend {
             ON messages(board_name, id)
         "#,
         )
-        .execute(&self.pool)
+        .execute(&mut *transaction)
         .await?;
 
+        transaction.commit().await?;
         Ok(())
     }
 }

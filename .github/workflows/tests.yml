@@ -223,10 +223,10 @@ jobs:
       DEFAULT_SQL_LIMIT: "20"
       DEFAULT_SQL_BATCH_SIZE: "1000"
       CARGO_BUILD_JOBS: "2"
+      WBRAID_AUDIT_DATABASE_URL: postgres://test:test@127.0.0.1:3323/sequent_audit
+      WBRAID_BOARD_DATABASE_URL: postgres://test:test@127.0.0.1:3323/sequent_audit
+      WBRAID_AUDIT_TEST_DATABASE_URL: postgres://test:test@127.0.0.1:3323/sequent_audit
       # The ballot box seal tests post to boards of their own on this server.
-      IMMUDB_USER: "immudb"
-      IMMUDB_PASSWORD: "immudb"
-      IMMUDB_SERVER_URL: "http://127.0.0.1:3323"
     services:
       postgres:
         image: postgres:16
@@ -241,14 +241,16 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-      immudb:
-        image: codenotary/immudb:1.9.6
-        ports:
-          - 3323:3322
+      audit-postgres:
+        image: postgres:16-bookworm
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: sequent_audit
+        ports: ["3323:5432"]
         options: >-
-          --health-interval 2s
-          --health-timeout 10s
-          --health-retries 60
+          --health-cmd "pg_isready -U test -d sequent_audit"
+          --health-interval 2s --health-timeout 5s --health-retries 30
     steps:
       # The test binaries of this package fill the runner's disk, which then
       # has no room for the broker image of the audit delivery tests.
@@ -277,17 +279,9 @@ jobs:
         run: cargo test
         working-directory: packages/windmill
 
-      - name: Install the pinned audit database fixture
-        run: |
-          curl --fail --location --silent --show-error --output "$RUNNER_TEMP/immudb" https://github.com/codenotary/immudb/releases/download/v1.9.6/immudb-v1.9.6-linux-amd64
-          echo "26a26b68c02a86b3464e669710bd77fb06ccdbbaca03f481c4706c3526c2c5f8  $RUNNER_TEMP/immudb" | sha256sum --check
-          chmod +x "$RUNNER_TEMP/immudb"
-
       - name: Audit delivery survives broker redelivery and uncertain commits
         run: cargo test --locked -p windmill --features rabbitmq-tests --test electoral_log_delivery
         working-directory: packages
-        env:
-          ELECTORAL_LOG_TEST_IMMUDB_BINARY: ${{ runner.temp }}/immudb
 
       - name: Run PostgreSQL-backed voter-channel regression
         run: >-

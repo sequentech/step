@@ -107,7 +107,7 @@ bucket were needed only at tally time. With Seal at close, every close needs:
   capacity during close windows;
 - the Keycloak database;
 - the key store (see below) and its master secret;
-- immudb;
+- native wbraid audit storage;
 - the public documents bucket.
 
 When you upgrade a deployment and enable Seal at close, check that its worker
@@ -177,7 +177,7 @@ The trigger on the bulletin board reference makes this one more trigger to
 bypass, not impossible. What still catches it:
 
 - the **original** `BallotBoxSealed` entry, which stays on the original board in
-  immudb;
+  native wbraid audit storage;
 - the **copies** of the seal records and seal hashes that observers kept;
 - an auditor running `step-cli step verify-ballot-box-seal` with
   `--expected-key` set to the event key's fingerprint **obtained before** the
@@ -195,20 +195,20 @@ and the superuser and owner logins apart and alerted, is what prevents it.
 ## Keep the database and the electoral log consistent
 
 A seal is written to Postgres (the seal row) and, about half a second later, to
-immudb (the `BallotBoxSealed` entry). If the two are recovered to different
+native wbraid audit storage (the `BallotBoxSealed` entry). If the two are recovered to different
 points, the seal breaks, and the product has no way to repair it:
 
 - Postgres loses the seal (an asynchronous replica is promoted, or a
-  point-in-time restore) while immudb keeps the entry: the box is re-sealed,
+  point-in-time restore) while native wbraid audit storage keeps the entry: the box is re-sealed,
   finds the entry and fails ("A seal for this ballot box is already on the
   bulletin board").
-- immudb is restored to before the entry while Postgres keeps the published
+- native wbraid audit storage is restored to before the entry while Postgres keeps the published
   seal: the tally rejects the box.
 
 A common close seals every box at the same moment, so one such event can hit
 all of them. So:
 
-- back up and restore Postgres and immudb to consistent points, never one
+- back up and restore Postgres and native wbraid audit storage to consistent points, never one
   without the other;
 - during close and seal windows, use synchronous replication, or a failover
   that loses no committed transactions;

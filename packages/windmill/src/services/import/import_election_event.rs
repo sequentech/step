@@ -427,7 +427,7 @@ pub async fn insert_election_event_db(
         encryption_protocol: object
             .encryption_protocol
             .clone()
-            .unwrap_or("RSA256".to_string()),
+            .unwrap_or("WBRAID".to_string()),
         is_audit: object.is_audit.clone(),
         audit_election_event_id: object.audit_election_event_id.clone(),
         statistics: Some(json!({

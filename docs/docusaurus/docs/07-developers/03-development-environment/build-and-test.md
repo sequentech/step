@@ -25,7 +25,7 @@ block below states its own working directory.
 | Java | `keycloak-extensions` (Keycloak providers and themes) |
 
 Hasura exposes PostgreSQL over GraphQL; Keycloak has one realm per tenant and
-one per election event; RabbitMQ feeds the Celery workers; ImmuDB stores
+one per election event; RabbitMQ feeds the Celery workers; native wbraid audit storage stores
 tamper-evident logs; MinIO provides S3 storage.
 
 ## Toolchain
@@ -130,7 +130,7 @@ hold comments, and run `reuse lint` from the repository root.
 | Hasura | http://127.0.0.1:8080 | admin secret `admin` |
 | Voting portal | http://127.0.0.1:3000 | |
 | Admin portal | http://127.0.0.1:3002 | |
-| ImmuDB | http://127.0.0.1:3325 | `immudb` / `immudb` |
+| Native audit database | `audit-postgres:5432/sequent_audit` | `WBRAID_AUDIT_PG_PASSWORD` |
 | MinIO console | http://127.0.0.1:9001 | |
 | RabbitMQ | http://127.0.0.1:15672 | |
 

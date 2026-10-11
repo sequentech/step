@@ -17,4 +17,4 @@ These are application-level actions being recorded. Access the system log to mon
 
 ## Immutability
 
-The Logs tab is implemented using Immudb, a tamper-evident database. Each entry is inserted into a SQL table of actions. The immutability allows to verify that no change has been performed, for anyone with credentials to access to the immutable log.
+The Logs tab is implemented using native wbraid audit storage, a tamper-evident database. Each entry is inserted into a SQL table of actions. The immutability allows to verify that no change has been performed, for anyone with credentials to access to the immutable log.

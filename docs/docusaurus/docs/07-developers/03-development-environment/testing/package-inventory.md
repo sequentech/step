@@ -13,7 +13,7 @@ Cargo workspaces and Maven reactors before interpreting a package test run.
 | Area | Test entry point | Separate boundary |
 | --- | --- | --- |
 | Bulletin board and trustee protocol | [B4](./b4.md), [Braid](./braid.md) | Browser storage and remote transport |
-| ImmuDB client and board mapping | [Client](./immudb-rs.md), [row mapping](./immu-board.md) | Server/storage compatibility |
+| Native board audit storage | [Electoral log](./electoral-log.md) | PostgreSQL recovery, signatures and receipt contracts |
 | Frontends | [Results Portal](./results-portal.md), [Ballot Verifier](./ballot-verifier.md), [Admin Portal](./admin-portal.md) | Browser flows and live services |
 | Java utilities and extensions | [ECIES](./ecies-encryption.md), [Keycloak](./keycloak-extensions.md) | Certificate chains and deployed authentication |
 | Load-test helpers | [E2E helpers](./e2e-helpers.md) | Remote browser/load scenarios |
@@ -33,14 +33,6 @@ Read that workspace's feature and integration-test prerequisites before enabling
 additional backends. Ignored external-service/JVM cases and the live B4/LocalStack
 fixtures remain separate obligations; enabling a feature alone does not prove
 its external boundary was exercised.
-
-`board-messages/src/electoral_log/mod.rs` is a dormant source fragment: the
-directory has no Cargo manifest or workspace member, and its declared artifact,
-message, newtypes and statement submodules are absent. Its ignored historical
-ImmuDB tests therefore are not executable tests. Do not claim consumer coverage
-or count this fragment as compiled source. Restoring a manifest, those modules,
-or a consumer invalidates this inventory exception and requires a fresh test
-and source-scope review.
 
 Use the coverage profiles only for their named configurations. A passing package
 suite without an instrumented source inventory has no implied percentage.

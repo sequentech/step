@@ -85,7 +85,6 @@ aws-smithy-types = { version = "1.3" }
 aws-sdk-secretsmanager = "1.66"
 
 wrap-map-err = { path = "../wrap-map-err" }
-immudb-rs = { path = "../immudb-rs" }
 electoral-log = { path = "../electoral-log" }
 messaging = { path = "../messaging" }
 sequent-core = { path = "../sequent-core", features = ["reports", "s3", "keycloak", "log", "probe", "areas", "default_features", "plugins_wit", "sqlite", "monitoring", "election_config_signing"] }
@@ -150,7 +149,6 @@ google-calendar3 = { version = "6.0.0", features = ["yup-oauth2"] }
 rustls = { version = "0.23.32", features = ["ring"] }
 
 [dev-dependencies]
-tonic = "0.13"
 dhat = "0.3"
 hmac = "0.12"
 messaging = { path = "../messaging", features = ["test-support"] }

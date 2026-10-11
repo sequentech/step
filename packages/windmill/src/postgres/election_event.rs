@@ -481,6 +481,12 @@ pub async fn delete_election_event(
         return Err(SealedEventDeleteRefusal.into());
     }
     super::trusted_write::trusted_write(hasura_transaction).await?;
+    super::protocol_board::delete_event_protocol_metadata(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+    )
+    .await?;
     // Children before the rows their ON DELETE RESTRICT foreign keys name:
     // tally_sheet_import_item references tally_sheet, tally_sheet_import,
     // election, area and contest; tally_sheet references tally_sheet_import,
@@ -613,7 +619,7 @@ pub async fn get_batch_election_events(
     let statement = hasura_transaction
         .prepare(
             r#"
-            SELECT 
+            SELECT
                 *
             FROM sequent_backend.election_event
             WHERE is_archived = false

@@ -5351,7 +5351,7 @@ export type Query_Root = {
   list_cast_vote_messages?: Maybe<ListCastVoteMessagesOutput>;
   list_keys_ceremony?: Maybe<ListKeysCeremonyOutput>;
   list_user_roles: Array<KeycloakRole>;
-  /** log an event in immudb */
+  /** log an event in native wbraid audit storage */
   logEvent?: Maybe<LogEventOutput>;
   /** Resolve the active results website publication for authenticated viewers */
   resolveResultsPublication?: Maybe<ResolveResultsPublicationOutput>;

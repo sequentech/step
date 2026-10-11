@@ -72,8 +72,7 @@
         "data-connector-agent",
         "graphql-engine",
         "rabbitmq",
-        "immudb",
-        "immudb-init",
+        "audit-init",
         "keycloak",
         "keycloak-nginx",
         "harvest",
@@ -82,7 +81,8 @@
         "beat",
         "b4v6",
         "localstack",
-        "configure-localstack"
+        "configure-localstack",
+        "audit-postgres"
       ],
       "servers": [],
       "defaultServers": [],
@@ -107,8 +107,7 @@
         "data-connector-agent",
         "graphql-engine",
         "rabbitmq",
-        "immudb",
-        "immudb-init",
+        "audit-init",
         "keycloak",
         "keycloak-nginx",
         "harvest",
@@ -117,7 +116,8 @@
         "beat",
         "b4v6",
         "localstack",
-        "configure-localstack"
+        "configure-localstack",
+        "audit-postgres"
       ],
       "servers": [
         "voting-portal",
@@ -272,7 +272,7 @@
       "readyWhen": "exited"
     },
     {
-      "name": "immudb-init",
+      "name": "audit-init",
       "readyWhen": "exited"
     },
     {
@@ -298,10 +298,6 @@
     {
       "name": "minio",
       "url": "http://127.0.0.1:9001"
-    },
-    {
-      "name": "immudb",
-      "url": "http://127.0.0.1:3325"
     },
     {
       "name": "rabbitmq",

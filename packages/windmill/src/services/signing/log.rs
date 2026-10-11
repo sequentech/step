@@ -42,7 +42,6 @@ use electoral_log::messages::newtypes::{
 };
 use electoral_log::messages::statement::{StatementEventType, StatementLogType};
 use electoral_log::{BoardClient, ElectoralLogMessage};
-use immudb_rs::TxMode;
 use serde::Serialize;
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
@@ -756,51 +755,35 @@ impl SigningLogKeys for ElectoralLogKeys {
 
 /// The board operations a delivery takes; [`BoardClient`] has them.
 pub trait BoardConnection: Send {
-    fn open_session(&mut self, board: &str) -> impl Future<Output = Result<()>> + Send;
-    fn ensure_receipts(&mut self) -> impl Future<Output = Result<()>> + Send;
-    fn begin(&mut self) -> impl Future<Output = Result<String>> + Send;
-    fn insert_delivery(
+    fn append(
         &mut self,
-        transaction_id: &String,
-        delivery: &SigningLogDelivery,
-    ) -> impl Future<Output = Result<bool>> + Send;
-    fn commit(&mut self, transaction_id: &String) -> impl Future<Output = Result<()>> + Send;
-    fn close_session(&mut self) -> impl Future<Output = Result<()>> + Send;
+        board: &str,
+        deliveries: &[SigningLogDelivery],
+    ) -> impl Future<Output = Result<Vec<bool>>> + Send;
 }
 
 impl BoardConnection for BoardClient {
-    async fn open_session(&mut self, board: &str) -> Result<()> {
-        BoardClient::open_session(self, board).await
-    }
-
-    async fn ensure_receipts(&mut self) -> Result<()> {
-        self.ensure_electoral_log_delivery_receipts().await
-    }
-
-    async fn begin(&mut self) -> Result<String> {
-        self.new_tx(TxMode::ReadWrite).await
-    }
-
-    async fn insert_delivery(
+    async fn append(
         &mut self,
-        transaction_id: &String,
-        delivery: &SigningLogDelivery,
-    ) -> Result<bool> {
-        self.insert_electoral_log_delivery(
-            transaction_id,
-            &delivery.delivery_id,
-            &delivery.payload_hash,
-            std::slice::from_ref(&delivery.message),
-        )
-        .await
-    }
-
-    async fn commit(&mut self, transaction_id: &String) -> Result<()> {
-        BoardClient::commit(self, transaction_id).await.map(|_| ())
-    }
-
-    async fn close_session(&mut self) -> Result<()> {
-        BoardClient::close_session(self).await
+        board: &str,
+        deliveries: &[SigningLogDelivery],
+    ) -> Result<Vec<bool>> {
+        let rows: Vec<_> = deliveries
+            .iter()
+            .map(|delivery| std::slice::from_ref(&delivery.message))
+            .collect();
+        let batch: Vec<_> = deliveries
+            .iter()
+            .zip(&rows)
+            .map(|(delivery, rows)| {
+                (
+                    delivery.delivery_id.as_str(),
+                    delivery.payload_hash.as_str(),
+                    *rows,
+                )
+            })
+            .collect();
+        self.append_deliveries(board, &batch).await
     }
 }
 
@@ -826,8 +809,8 @@ impl<C> BoardSigningLog<C> {
 }
 
 impl BoardSigningLog<BoardClient> {
-    /// The immudb boards.
-    pub fn immudb() -> Self {
+    /// Native wbraid audit boards.
+    pub fn wbraid() -> Self {
         Self::new(Box::new(|| Box::pin(get_board_client())))
     }
 }
@@ -843,27 +826,8 @@ impl<C: BoardConnection> SigningLogBoard for BoardSigningLog<C> {
             Some(connection) => connection,
             None => (self.connect)().await?,
         };
-        let written = async {
-            connection.open_session(board).await?;
-            connection.ensure_receipts().await?;
-            let transaction_id = connection.begin().await?;
-            let mut written = Vec::with_capacity(deliveries.len());
-            for delivery in deliveries {
-                written.push(
-                    connection
-                        .insert_delivery(&transaction_id, delivery)
-                        .await?,
-                );
-            }
-            connection.commit(&transaction_id).await?;
-            Ok(written)
-        }
-        .await;
-        let closed = connection.close_session().await;
-        if let Err(error) = &closed {
-            warn!(%board, "Error closing the electoral log session: {error:#}");
-        }
-        if written.is_ok() && closed.is_ok() {
+        let written = connection.append(board, deliveries).await;
+        if written.is_ok() {
             self.connection = Some(connection);
         }
         written

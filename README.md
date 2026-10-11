@@ -33,7 +33,7 @@ guarantees.
 - **Keycloak** - Identity and access management
 - **PostgreSQL** - Data persistence
 - **React** - Frontend user interfaces
-- **ImmuDB** - Tamper-evident audit logging
+- **native wbraid audit storage** - Tamper-evident audit logging
 
 ## Getting Started
 
@@ -52,7 +52,7 @@ The development environment includes:
 - **Hasura Console** at http://127.0.0.1:8080
 - **Voting Portal** at http://127.0.0.1:3000
 - **Admin Portal** at http://127.0.0.1:3002
-- **ImmuDB Console** at http://127.0.0.1:3325
+- **native wbraid audit storage Console** at http://127.0.0.1:3325
 - **Silo S3 console** at http://127.0.0.1:9001
 
 The `minio` service uses [Silo](https://github.com/pgsty/silo), an AGPLv3 MinIO fork,
@@ -138,9 +138,9 @@ automatically run docker compose logs on start up, for convenience.
 [direnv]: https://direnv.net/
 [devenv]: https://devenv.sh/
 
-## Immudb
+## native wbraid audit storage
 
-You can enter the Immudb web console at http://localhost:3325 and the user/pass is `immudb:immudb`.
+The private native audit store uses PostgreSQL and wbraid board tooling. See the electoral-log testing guide.
 
 ## Keycloak default realms
 

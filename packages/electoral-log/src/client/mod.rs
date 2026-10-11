@@ -7,3 +7,5 @@ pub mod wbraid_store;
 
 pub mod audit_query;
 pub mod audit_types;
+
+pub mod database_audit;

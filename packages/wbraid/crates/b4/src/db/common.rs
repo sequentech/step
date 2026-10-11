@@ -32,6 +32,14 @@ impl BoardDb {
         }
     }
 
+    /// Open PostgreSQL storage with an explicitly configured application pool.
+    #[cfg(feature = "postgres")]
+    pub async fn from_postgres_pool(pool: sqlx::PgPool) -> Result<Self> {
+        Ok(Self::Postgres(
+            super::postgres::PostgresBackend::from_pool(pool).await?,
+        ))
+    }
+
     /// Open the matching board db, init'ed and ready to use.
     pub async fn open_url(url: &str) -> Result<Self> {
         let scheme = url

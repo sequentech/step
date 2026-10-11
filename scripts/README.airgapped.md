@@ -91,7 +91,7 @@ This creates a file like /step/airgapped-artifacts/YYYY-MM-DD.tar. It prints som
 0. They build the project:
 
     ```
-    sudo ./offline_trusted_build.sh 
+    sudo ./offline_trusted_build.sh
     ```
 
 0. They retag some images:
@@ -99,7 +99,7 @@ This creates a file like /step/airgapped-artifacts/YYYY-MM-DD.tar. It prints som
     ```
     export TAG=<tag>
     export DESIRED_PREFIX="581718213778.dkr.ecr.us-east-1.amazonaws.com"
-    for component in harvest windmill admin-portal trustee voting-portal b4v6 immudb-init keycloak immudb; do
+    for component in harvest windmill admin-portal trustee voting-portal b4v6 audit-ingest keycloak; do
         docker tag ${component}-build:latest $DESIRED_PREFIX/$component:$TAG
     done
     ```
@@ -117,7 +117,7 @@ This creates a file like /step/airgapped-artifacts/YYYY-MM-DD.tar. It prints som
     ```
     export TAG=<tag>
     export DESIRED_PREFIX="581718213778.dkr.ecr.us-east-1.amazonaws.com"
-    for component in harvest windmill admin-portal trustee voting-portal b4v6 immudb-init keycloak immudb; do
+    for component in harvest windmill admin-portal trustee voting-portal b4v6 audit-ingest keycloak; do
         docker save $DESIRED_PREFIX/$component:$TAG > out/images/$component:$TAG.tar
     done
     ```

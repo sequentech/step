@@ -7,7 +7,7 @@ use crate::services::celery_app::get_celery_app;
 use crate::services::database::{get_hasura_pool, PgConfig};
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log_board::{
-    create_named_param, get_board_client, get_board_signing_key, get_event_board, get_immudb_client,
+    get_board_client, get_board_signing_key, get_event_board,
 };
 use crate::services::insert_cast_vote::hash_voter_id;
 use crate::services::vault;
@@ -19,14 +19,13 @@ use anyhow::{anyhow, ensure, Context, Result};
 use base64::engine::general_purpose;
 use base64::Engine;
 use deadpool_postgres::Transaction;
-use electoral_log::assign_value;
 use electoral_log::messages::message::{Message, SigningData};
 use electoral_log::messages::newtypes::{CertificateAuthEventAction, *};
 use electoral_log::messages::statement::{StatementBody, StatementType};
 use electoral_log::{
-    ElectoralLogMessage, ElectoralLogVarCharColumn, SqlCompOperators, WhereClauseBTreeMap,
+    AuditColumn, AuditPredicate, AuditQuery, AuditValue, ElectoralLogMessage,
+    ElectoralLogVarCharColumn, SqlCompOperators, WhereClauseBTreeMap,
 };
-use immudb_rs::{sql_value::Value, Client, NamedParam, Row, TxMode};
 use rust_decimal::prelude::ToPrimitive;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::date::ISO8601;
@@ -38,7 +37,6 @@ use std::collections::HashMap;
 use std::time::Duration;
 use strum_macros::{Display, EnumString};
 use tempfile::NamedTempFile;
-use tokio_stream::StreamExt;
 use tracing::{event, info, instrument, warn, Level};
 use velvet::pipes::report_manifest::csv_report_reader;
 use voting_crypto::hash::HashWrapper;
@@ -47,7 +45,7 @@ use voting_crypto::signing::{SigningKey, VerificationKey};
 use voting_crypto::RecordDeserialize;
 use voting_crypto::RistrettoCtx;
 
-pub const IMMUDB_ROWS_LIMIT: usize = 2500;
+pub const AUDIT_ROWS_LIMIT: usize = 2500;
 pub const MAX_ROWS_PER_PAGE: usize = 50;
 
 /// Ballot_id input is the first half of the original hash which is stored in the electoral log.
@@ -210,7 +208,7 @@ fn same_electoral_log_message(left: &ElectoralLogMessage, right: &ElectoralLogMe
 
 /// Prepares a signed password-change audit entry using the caller's Hasura
 /// transaction. The caller can therefore commit its document and durable task
-/// state before performing the external Immudb write.
+/// state before performing the external native audit write.
 #[instrument(skip_all, err)]
 pub async fn prepare_voter_password_change(
     hasura_transaction: &Transaction<'_>,
@@ -1534,47 +1532,49 @@ impl ElectoralLog {
     #[instrument(skip(self))]
     pub async fn import_from_csv(&self, logs_file: &NamedTempFile) -> Result<()> {
         let batch_size: usize = PgConfig::from_env()?.default_sql_batch_size.try_into()?;
-        let mut rdr = exported_log_reader(logs_file)?;
+        let key = self.sd.system_public_key()?;
+        // Validate the entire backup before any external append. Separate file
+        // handles keep this bounded in memory and preserve the caller's cursor.
+        let mut validation = exported_log_reader(logs_file.reopen()?)?;
+        for row in validation.deserialize() {
+            imported_log_row(row.context("Failed to read CSV row")?, &key)
+                .context("Invalid imported electoral log row")?;
+        }
+        let mut rdr = exported_log_reader(logs_file.reopen()?)?;
 
         let mut client = get_board_client().await?;
-        client.open_session(self.elog_database.as_str()).await?;
-        let tx = client.new_tx(TxMode::ReadWrite).await?;
-
-        // Allocate a vector with capacity equal to the batch size.
-        let mut messages: Vec<ElectoralLogMessage> = Vec::with_capacity(batch_size);
-
+        let batch_size = batch_size.clamp(1, 1000);
+        let mut messages = Vec::with_capacity(batch_size);
         for result in rdr.deserialize() {
-            let row: ElectoralLogRow =
-                result.map_err(|err| anyhow::Error::new(err).context("Failed to read CSV row"))?;
-            let message: &Message =
-                &Message::record_deserialize(&general_purpose::STANDARD_NO_PAD.decode(&row.data)?)
-                    .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
-            let electoral_log_message: ElectoralLogMessage = message.try_into()?;
-            messages.push(electoral_log_message);
-
-            // Once we reach the batch size, flush the batch.
+            let row: ElectoralLogRow = result.context("Failed to read CSV row")?;
+            messages.push(imported_log_row(row, &key)?);
             if messages.len() >= batch_size {
                 client
-                    .insert_electoral_log_messages_batch(&tx, &messages)
+                    .insert_electoral_log_messages(&self.elog_database, &messages)
                     .await?;
                 messages.clear();
             }
         }
-
-        // Flush any remaining messages that didn't complete a full batch.
         if !messages.is_empty() {
             client
-                .insert_electoral_log_messages_batch(&tx, &messages)
+                .insert_electoral_log_messages(&self.elog_database, &messages)
                 .await?;
         }
 
-        client.commit(&tx).await?;
-        client.close_session().await?;
         Ok(())
     }
 }
 
-// Enumeration for the valid fields in the immudb table
+fn imported_log_row(row: ElectoralLogRow, key: &VerificationKey) -> Result<ElectoralLogMessage> {
+    let message =
+        Message::record_deserialize(&general_purpose::STANDARD_NO_PAD.decode(&row.data)?)?;
+    message.verify(key)?;
+    let mut stored = ElectoralLogMessage::try_from(&message)?;
+    stored.created = row.created;
+    Ok(stored)
+}
+
+// Enumeration for the valid fields in the native audit table
 #[derive(Debug, Deserialize, Hash, PartialEq, Eq, EnumString, Display, Clone)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -1685,182 +1685,113 @@ pub struct GetElectoralLogBody {
 }
 
 impl GetElectoralLogBody {
-    /// `ORDER BY` over the requested columns; the filter-only range keys
-    /// never sort.
-    fn order_by_clause(&self) -> Option<String> {
-        let order_by_clauses: Vec<String> = self
-            .order_by
-            .as_ref()?
-            .iter()
-            .filter(|(field, _)| field.is_column())
-            .map(|(field, direction)| format!("{field} {direction}"))
-            .collect();
-        (!order_by_clauses.is_empty()).then(|| format!("ORDER BY {}", order_by_clauses.join(", ")))
-    }
-
-    // Returns the SQL clauses related to the request along with the parameters
-    #[instrument(ret)]
-    fn as_sql(&self, to_count: bool) -> Result<(String, Vec<NamedParam>)> {
-        let mut clauses = Vec::new();
-        let mut params = Vec::new();
-
-        // Handle filters
-        if let Some(filters_map) = &self.filter {
-            let mut where_clauses = Vec::new();
-
-            for (field, value) in filters_map {
-                info!("field = ?: {field}, value = ?: {value}");
-                let param_name = format!("param_{field}");
-                match field {
-                    OrderField::Id => { // sql INTEGER type
-                        let int_value: i64 = value.parse()?;
-                        where_clauses.push(format!("id = @{}", param_name));
-                        params.push(create_named_param(param_name, Value::N(int_value)));
-                    }
-                    OrderField::SenderPk | OrderField::UserId | OrderField::Username | OrderField::BallotId | OrderField::StatementKind | OrderField::Version => { // sql VARCHAR type
-                        where_clauses.push(format!("{field} LIKE @{}", param_name));
-                        params.push(create_named_param(param_name, Value::S(value.to_string())));
-                    }
-                    OrderField::StatementTimestamp | OrderField::Created => { // sql TIMESTAMP type
-                        // These have their own column (and are inside the message too).
-                        // A single value means its minute.
-                        if let MinuteRange { start: Some(start), end: Some(end) } = MinuteRange::minute_of(value)? {
-                            let param_name_end = format!("{param_name}_end");
-                            where_clauses.push(format!("{field} >= @{} AND {field} < @{}", param_name, param_name_end));
-                            params.push(create_named_param(param_name, Value::Ts(start)));
-                            params.push(create_named_param(param_name_end, Value::Ts(end)));
-                        }
-                    }
-                    OrderField::CreatedFrom | OrderField::StatementTimestampFrom => {
-                        let column = if *field == OrderField::CreatedFrom { OrderField::Created } else { OrderField::StatementTimestamp };
-                        if let Some(start) = MinuteRange::parse(Some(value), None)?.start {
-                            where_clauses.push(format!("{column} >= @{}", param_name));
-                            params.push(create_named_param(param_name, Value::Ts(start)));
-                        }
-                    }
-                    OrderField::CreatedTo | OrderField::StatementTimestampTo => {
-                        let column = if *field == OrderField::CreatedTo { OrderField::Created } else { OrderField::StatementTimestamp };
-                        if let Some(end) = MinuteRange::parse(None, Some(value))?.end {
-                            where_clauses.push(format!("{column} < @{}", param_name));
-                            params.push(create_named_param(param_name, Value::Ts(end)));
-                        }
-                    }
-                    OrderField::EventType | OrderField::LogType | OrderField::Description // these have no column but are inside of Message
-                    | OrderField::Message => {} // Message column is sql BLOB type and it´s encrypted so we can't search it without expensive operations
-                }
-            }
-
-            if !where_clauses.is_empty() {
-                clauses.push(format!("WHERE {}", where_clauses.join(" AND ")));
-            }
+    pub fn audit_query(&self) -> Result<AuditQuery> {
+        let mut query = AuditQuery {
+            election_id: self
+                .election_id
+                .as_ref()
+                .filter(|value| !value.is_empty())
+                .cloned(),
+            area_ids: self
+                .area_ids
+                .clone()
+                .unwrap_or_default()
+                .into_iter()
+                .filter(|value| !value.is_empty())
+                .collect(),
+            scoped: self.election_id.is_some() || self.area_ids.is_some(),
+            only_with_user: self.only_with_user.unwrap_or(false),
+            limit: Some(
+                self.limit
+                    .unwrap_or(PgConfig::from_env()?.default_sql_limit.into())
+                    .clamp(0, PgConfig::from_env()?.low_sql_limit.into()),
+            ),
+            offset: Some(self.offset.unwrap_or(0).max(0)),
+            ..Default::default()
         };
-
-        // Build a single extra clause.
-        // This clause returns rows if:
-        // - @election_filter is non-empty and matches election_id, OR
-        // - @area_filter is non-empty and matches area_id, OR
-        // - Both election_id and area_id are either '' or NULL. (General to all elections log)
-        let mut extra_where_clauses = Vec::new();
-        if self.election_id.is_some() || self.area_ids.is_some() {
-            let mut conds = Vec::new();
-
-            if let Some(election) = &self.election_id {
-                if !election.is_empty() {
-                    params.push(create_named_param(
-                        "param_election".to_string(),
-                        Value::S(election.clone()),
-                    ));
-                    conds.push("election_id LIKE @param_election".to_string());
-                }
-            }
-
-            if let Some(area_ids) = &self.area_ids {
-                if !area_ids.is_empty() {
-                    let placeholders: Vec<String> = area_ids
-                        .iter()
-                        .enumerate()
-                        .map(|(i, _)| format!("@param_area{}", i))
-                        .collect();
-                    for (i, area) in area_ids.into_iter().enumerate() {
-                        let param_name = format!("param_area{}", i);
-                        params.push(create_named_param(
-                            param_name.clone(),
-                            Value::S(area.clone()),
-                        ));
+        for (field, value) in self.filter.as_ref().into_iter().flatten() {
+            let (column, range) = match field {
+                OrderField::Created => (
+                    Some(AuditColumn::Created),
+                    Some(MinuteRange::minute_of(value)?),
+                ),
+                OrderField::StatementTimestamp => (
+                    Some(AuditColumn::StatementTimestamp),
+                    Some(MinuteRange::minute_of(value)?),
+                ),
+                OrderField::CreatedFrom => (
+                    Some(AuditColumn::Created),
+                    Some(MinuteRange::parse(Some(value), None)?),
+                ),
+                OrderField::CreatedTo => (
+                    Some(AuditColumn::Created),
+                    Some(MinuteRange::parse(None, Some(value))?),
+                ),
+                OrderField::StatementTimestampFrom => (
+                    Some(AuditColumn::StatementTimestamp),
+                    Some(MinuteRange::parse(Some(value), None)?),
+                ),
+                OrderField::StatementTimestampTo => (
+                    Some(AuditColumn::StatementTimestamp),
+                    Some(MinuteRange::parse(None, Some(value))?),
+                ),
+                OrderField::EventType
+                | OrderField::LogType
+                | OrderField::Description
+                | OrderField::Message => (None, None),
+                _ => (Some(field.to_string().parse()?), None),
+            };
+            let Some(column) = column else {
+                continue;
+            };
+            if let Some(range) = range {
+                for (value, operator) in [
+                    (range.start, SqlCompOperators::GreaterThanOrEqual),
+                    (range.end, SqlCompOperators::LessThan),
+                ] {
+                    if let Some(value) = value {
+                        query.predicates.push(AuditPredicate {
+                            column,
+                            operator,
+                            value: AuditValue::Integer(value),
+                        });
                     }
-                    conds.push(format!(
-                        "(@param_area0 <> '' AND area_id IN ({}))",
-                        placeholders.join(", ")
-                    ));
                 }
-            }
-
-            // if neither filter matches, return logs where both fields are empty or NULL.
-            conds.push(
-                "((election_id = '' OR election_id IS NULL) AND (area_id = '' OR area_id IS NULL))"
-                    .to_string(),
-            );
-
-            extra_where_clauses.push(format!("({})", conds.join(" OR ")));
-        }
-
-        // Handle only_with_user
-        if self.only_with_user.unwrap_or(false) {
-            extra_where_clauses.push("(user_id IS NOT NULL AND user_id <> '')".to_string());
-        }
-
-        // Handle
-        if let Some(statement_kind) = &self.statement_kind {
-            params.push(create_named_param(
-                "param_statement_kind".to_string(),
-                Value::S(statement_kind.to_string()),
-            ));
-            extra_where_clauses.push("(statement_kind = @param_statement_kind)".to_string());
-        }
-
-        if !extra_where_clauses.is_empty() {
-            match clauses.len() {
-                0 => {
-                    clauses.push(format!("WHERE {}", extra_where_clauses.join(" AND ")));
-                }
-                _ => {
-                    let where_clause = clauses.pop().ok_or(anyhow!("Empty clause"))?;
-                    clauses.push(format!(
-                        "{} AND {}",
-                        where_clause,
-                        extra_where_clauses.join(" AND ")
-                    ));
-                }
+            } else {
+                let (operator, value) = if column == AuditColumn::Id {
+                    (SqlCompOperators::Equal, AuditValue::Integer(value.parse()?))
+                } else {
+                    (SqlCompOperators::Like, AuditValue::Text(value.clone()))
+                };
+                query.predicates.push(AuditPredicate {
+                    column,
+                    operator,
+                    value,
+                });
             }
         }
-
-        // Handle order_by
-        if !to_count {
-            if let Some(order_by) = self.order_by_clause() {
-                clauses.push(order_by);
-            }
+        if let Some(kind) = &self.statement_kind {
+            query.predicates.push(AuditPredicate {
+                column: AuditColumn::Text(ElectoralLogVarCharColumn::StatementKind),
+                operator: SqlCompOperators::Equal,
+                value: AuditValue::Text(kind.to_string()),
+            });
         }
-
-        // Handle limit
-        if !to_count {
-            let limit_param_name = String::from("limit");
-            let limit_value = self
-                .limit
-                .unwrap_or(PgConfig::from_env()?.default_sql_limit.into());
-            let limit = std::cmp::min(limit_value, PgConfig::from_env()?.low_sql_limit.into());
-            clauses.push(format!("LIMIT @{limit_param_name}"));
-            params.push(create_named_param(limit_param_name, Value::N(limit)));
+        let mut order: Vec<_> = self
+            .order_by
+            .as_ref()
+            .into_iter()
+            .flatten()
+            .filter(|(field, _)| field.is_column())
+            .map(|(field, direction)| (field.to_string(), direction))
+            .collect();
+        order.sort_by(|a, b| a.0.cmp(&b.0));
+        for (field, direction) in order {
+            query
+                .order
+                .push((field.parse()?, matches!(direction, OrderDirection::Desc)));
         }
-
-        // Handle offset
-        if !to_count && self.offset.is_some() {
-            let offset_param_name = String::from("offset");
-            let offset = std::cmp::max(self.offset.unwrap_or(0), 0);
-            clauses.push(format!("OFFSET @{}", offset_param_name));
-            params.push(create_named_param(offset_param_name, Value::N(offset)));
-        }
-
-        Ok((clauses.join(" "), params))
+        Ok(query)
     }
 }
 
@@ -1965,72 +1896,6 @@ impl TryFrom<ElectoralLogMessage> for ElectoralLogRow {
     }
 }
 
-impl TryFrom<&Row> for ElectoralLogRow {
-    type Error = anyhow::Error;
-
-    fn try_from(row: &Row) -> Result<Self, Self::Error> {
-        let mut id = 0;
-        let mut created: i64 = 0;
-        let mut sender_pk = String::from("");
-        let mut statement_timestamp: i64 = 0;
-        let mut statement_kind = String::from("");
-        let mut message = vec![];
-        let mut user_id = None;
-        let mut username = None;
-
-        for (column, value) in row.columns.iter().zip(row.values.iter()) {
-            match column.as_str() {
-                c if c.ends_with(".id)") => {
-                    assign_value!(Value::N, value, id)
-                }
-                c if c.ends_with(".created)") => {
-                    assign_value!(Value::Ts, value, created)
-                }
-                c if c.ends_with(".sender_pk)") => {
-                    assign_value!(Value::S, value, sender_pk)
-                }
-                c if c.ends_with(".statement_timestamp)") => {
-                    assign_value!(Value::Ts, value, statement_timestamp)
-                }
-                c if c.ends_with(".statement_kind)") => {
-                    assign_value!(Value::S, value, statement_kind)
-                }
-                c if c.ends_with(".message)") => {
-                    assign_value!(Value::Bs, value, message)
-                }
-                c if c.ends_with(".user_id)") => match value.value.as_ref() {
-                    Some(Value::S(inner)) => user_id = Some(inner.clone()),
-                    Some(Value::Null(_)) => user_id = None,
-                    None => user_id = None,
-                    _ => return Err(anyhow!("invalid column value for 'user_id'")),
-                },
-                c if c.ends_with(".username)") => match value.value.as_ref() {
-                    Some(Value::S(inner)) => username = Some(inner.clone()),
-                    Some(Value::Null(_)) => username = None,
-                    None => username = None,
-                    _ => return Err(anyhow!("invalid column value for 'username'")),
-                },
-                _ => return Err(anyhow!("invalid column found '{}'", column.as_str())),
-            }
-        }
-
-        let deserialized_message =
-            Message::record_deserialize(&message).with_context(|| "Error deserializing message")?;
-        let serialized = general_purpose::STANDARD_NO_PAD.encode(message);
-        Ok(ElectoralLogRow {
-            id,
-            created,
-            statement_timestamp,
-            statement_kind,
-            message: serde_json::to_string_pretty(&deserialized_message)
-                .with_context(|| "Error serializing message to json")?,
-            data: serialized,
-            user_id,
-            username,
-        })
-    }
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct CastVoteEntry {
     pub statement_timestamp: i64,
@@ -2086,76 +1951,21 @@ impl CastVoteEntry {
 
 #[instrument(err)]
 pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<ElectoralLogRow>> {
-    let mut client: Client = get_immudb_client().await?;
-    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-    let board_name = get_event_board(
-        input.tenant_id.as_str(),
-        input.election_event_id.as_str(),
-        &slug,
-    );
-
-    event!(Level::INFO, "database name = {board_name}");
-    client.open_session(&board_name).await?;
-    let (clauses, params) = input.as_sql(false)?;
-    let (clauses_to_count, count_params) = input.as_sql(true)?;
-    info!("clauses ?:= {clauses}");
-    let sql = format!(
-        r#"
-        SELECT
-            id,
-            created,
-            sender_pk,
-            statement_timestamp,
-            statement_kind,
-            message,
-            user_id,
-            username
-        FROM electoral_log_messages
-        {clauses}
-        "#,
-    );
-    info!("query: {sql}");
-    let sql_query_response = client.streaming_sql_query(&sql, params).await?;
-
-    let limit: usize = input.limit.unwrap_or(IMMUDB_ROWS_LIMIT as i64).try_into()?;
-    info!("list_electoral_log: limit = {}", limit);
-    let mut rows: Vec<ElectoralLogRow> = Vec::with_capacity(limit);
-    let mut resp_stream = sql_query_response.into_inner();
-    while let Some(streaming_batch) = resp_stream.next().await {
-        let items = streaming_batch?
-            .rows
-            .iter()
-            .map(ElectoralLogRow::try_from)
-            .collect::<Result<Vec<ElectoralLogRow>>>()?;
-        rows.extend(items);
-    }
-
-    let sql = format!(
-        r#"
-        SELECT
-            COUNT(*)
-        FROM electoral_log_messages
-        {clauses_to_count}
-        "#,
-    );
-    let sql_query_response = client.sql_query(&sql, count_params).await?;
-    let mut rows_iter = sql_query_response
-        .get_ref()
-        .rows
-        .iter()
-        .map(Aggregate::try_from);
-
-    let aggregate = rows_iter
-        // get the first item
-        .next()
-        // unwrap the Result and Option
-        .ok_or(anyhow!("No aggregate found"))??;
-
-    client.close_session().await?;
+    let mut client = get_board_client().await?;
+    let slug = std::env::var("ENV_SLUG").context("missing env var ENV_SLUG")?;
+    let board = get_event_board(&input.tenant_id, &input.election_event_id, &slug);
+    let query = input.audit_query()?;
+    let rows = client
+        .query_messages(&board, &query)
+        .await?
+        .into_iter()
+        .map(ElectoralLogRow::try_from)
+        .collect::<Result<_>>()?;
+    let count = client.count_query(&board, Some(&query)).await?;
     Ok(DataList {
         items: rows,
         total: TotalAggregate {
-            aggregate: aggregate,
+            aggregate: Aggregate { count },
         },
     })
 }
@@ -2220,7 +2030,7 @@ pub async fn list_cast_vote_messages(
     let election_id = input.election_id.clone().unwrap_or_default();
 
     let limit: i64 = match ballot_id_filter.is_empty() {
-        false => IMMUDB_ROWS_LIMIT as i64, // When there is a filter, need to fetch all entries by batches.
+        false => AUDIT_ROWS_LIMIT as i64, // When there is a filter, need to fetch all entries by batches.
         true => input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64),
     };
     let mut offset: i64 = input.offset.unwrap_or(0);
@@ -2275,41 +2085,12 @@ pub async fn list_cast_vote_messages(
 
 #[instrument(err)]
 pub async fn count_electoral_log(input: GetElectoralLogBody) -> Result<i64> {
-    let mut client = get_immudb_client().await?;
-    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-    let board_name = get_event_board(
-        input.tenant_id.as_str(),
-        input.election_event_id.as_str(),
-        &slug,
-    );
-
-    info!("board name: {board_name}");
-    client.open_session(&board_name).await?;
-
-    let (clauses_to_count, count_params) = input.as_sql(true)?;
-    let sql = format!(
-        r#"
-        SELECT COUNT(*)
-        FROM electoral_log_messages
-        {clauses_to_count}
-        "#,
-    );
-
-    info!("query: {sql}");
-
-    let sql_query_response = client.sql_query(&sql, count_params).await?;
-
-    let mut rows_iter = sql_query_response
-        .get_ref()
-        .rows
-        .iter()
-        .map(Aggregate::try_from);
-    let aggregate = rows_iter
-        .next()
-        .ok_or_else(|| anyhow!("No aggregate found"))??;
-
-    client.close_session().await?;
-    Ok(aggregate.count as i64)
+    let mut client = get_board_client().await?;
+    let slug = std::env::var("ENV_SLUG").context("missing env var ENV_SLUG")?;
+    let board = get_event_board(&input.tenant_id, &input.election_event_id, &slug);
+    client
+        .count_query(&board, Some(&input.audit_query()?))
+        .await
 }
 
 #[cfg(test)]
@@ -2398,7 +2179,7 @@ mod password_change_tests {
     }
 
     #[test]
-    fn duplicate_detection_ignores_immudb_row_id_but_compares_signed_message() {
+    fn duplicate_detection_ignores_audit_row_id_but_compares_signed_message() {
         let prepared = prepared_message();
         let mut inserted = prepared.clone();
         inserted.id = 42;
@@ -2579,17 +2360,6 @@ mod range_filter_tests {
         }
     }
 
-    fn param(params: &[NamedParam], name: &str) -> i64 {
-        let found = params
-            .iter()
-            .find(|param| param.name == name)
-            .unwrap_or_else(|| panic!("no parameter {name}"));
-        match found.value.as_ref().and_then(|value| value.value.as_ref()) {
-            Some(Value::Ts(ts)) => *ts,
-            other => panic!("{name} isn't a timestamp: {other:?}"),
-        }
-    }
-
     /// Two configurations: the wall times are entered in the chosen zone
     /// (Manila, +08:00; Kathmandu, +05:45) and arrive as instants.
     #[test]
@@ -2627,84 +2397,123 @@ mod range_filter_tests {
         assert!(MinuteRange::parse(None, Some(" ")).unwrap().is_unbounded());
     }
 
-    #[test]
-    fn the_list_filters_created_from_and_to_inclusive_to_the_minute() {
-        let (sql, params) = body(&[
-            (OrderField::CreatedFrom, "2028-04-08T00:00:00+08:00"),
-            (OrderField::CreatedTo, "2028-04-09T23:59:00+08:00"),
-        ])
-        .as_sql(true)
-        .unwrap();
-
-        assert!(sql.contains("created >= @param_created_from"), "{sql}");
-        assert!(sql.contains("created < @param_created_to"), "{sql}");
-        assert_eq!(
-            param(&params, "param_created_from"),
-            ts("2028-04-07T16:00:00Z")
-        );
-        assert_eq!(
-            param(&params, "param_created_to"),
-            ts("2028-04-09T16:00:00Z")
-        );
+    fn bounds(query: AuditQuery, column: AuditColumn) -> (Option<i64>, Option<i64>) {
+        let mut bounds = (None, None);
+        for predicate in query.predicates {
+            if predicate.column != column {
+                continue;
+            }
+            if let AuditValue::Integer(value) = predicate.value {
+                match predicate.operator {
+                    SqlCompOperators::GreaterThanOrEqual => bounds.0 = Some(value),
+                    SqlCompOperators::LessThan => bounds.1 = Some(value),
+                    _ => panic!("wrong timestamp operator"),
+                }
+            }
+        }
+        bounds
     }
-
     #[test]
-    fn the_list_filters_the_statement_timestamp_range() {
-        let (sql, params) = body(&[
+    fn native_list_preserves_inclusive_created_and_statement_minute_ranges() {
+        for (from, to, column) in [
+            (
+                OrderField::CreatedFrom,
+                OrderField::CreatedTo,
+                AuditColumn::Created,
+            ),
             (
                 OrderField::StatementTimestampFrom,
-                "2028-04-08T09:30:00-04:00",
+                OrderField::StatementTimestampTo,
+                AuditColumn::StatementTimestamp,
+            ),
+        ] {
+            let query = body(&[
+                (from, "2028-04-08T09:30:00-04:00"),
+                (to, "2028-04-08T09:30:00-04:00"),
+            ])
+            .audit_query()
+            .unwrap();
+            assert_eq!(
+                bounds(query, column),
+                (
+                    Some(ts("2028-04-08T13:30:00Z")),
+                    Some(ts("2028-04-08T13:31:00Z"))
+                )
+            );
+        }
+    }
+    #[test]
+    fn native_single_value_covers_its_minute_and_range_keys_never_sort() {
+        assert_eq!(
+            bounds(
+                body(&[(OrderField::Created, "2028-04-08T10:15:42Z")])
+                    .audit_query()
+                    .unwrap(),
+                AuditColumn::Created
             ),
             (
-                OrderField::StatementTimestampTo,
-                "2028-04-08T09:30:00-04:00",
-            ),
-        ])
-        .as_sql(true)
-        .unwrap();
-
-        assert!(
-            sql.contains("statement_timestamp >= @param_statement_timestamp_from"),
-            "{sql}"
+                Some(ts("2028-04-08T10:15:00Z")),
+                Some(ts("2028-04-08T10:16:00Z"))
+            )
         );
-        assert!(
-            sql.contains("statement_timestamp < @param_statement_timestamp_to"),
-            "{sql}"
-        );
+        let request: GetElectoralLogBody = serde_json::from_value(serde_json::json!({
+            "tenant_id":"tenant", "election_event_id":"event", "filter":{"created_from":"2028-04-08T00:00:00+08:00"},
+            "order_by":{"created_from":"desc"}})).unwrap();
+        let query = request.audit_query().unwrap();
+        assert!(query.order.is_empty());
         assert_eq!(
-            param(&params, "param_statement_timestamp_to")
-                - param(&params, "param_statement_timestamp_from"),
-            60
+            bounds(query, AuditColumn::Created).0,
+            Some(ts("2028-04-07T16:00:00Z"))
         );
     }
+}
 
-    #[test]
-    fn a_single_value_still_means_its_minute() {
-        let (sql, params) = body(&[(OrderField::Created, "2028-04-08T10:15:42Z")])
-            .as_sql(true)
+#[cfg(test)]
+mod csv_import_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn malformed_csv_is_rejected_before_contacting_the_audit_store() {
+        let key = SigningKey::generate().unwrap();
+        let log = ElectoralLog::for_system_with_signing_key("invalid-import-test", &key);
+        let file = NamedTempFile::new().unwrap();
+        let mut writer = csv::Writer::from_writer(file.reopen().unwrap());
+        let message = log
+            .election_published_message(
+                "event".into(),
+                None,
+                "publication".into(),
+                None,
+                None,
+                None,
+            )
             .unwrap();
+        let valid =
+            ElectoralLogRow::try_from(ElectoralLogMessage::try_from(&message).unwrap()).unwrap();
+        for _ in 0..PgConfig::from_env()
+            .unwrap()
+            .default_sql_batch_size
+            .clamp(1, 1000)
+        {
+            writer.serialize(&valid).unwrap();
+        }
+        writer
+            .serialize(ElectoralLogRow {
+                id: 1,
+                created: 42,
+                statement_timestamp: 42,
+                statement_kind: "fixture".into(),
+                message: "invalid".into(),
+                data: "not base64!".into(),
+                user_id: None,
+                username: None,
+            })
+            .unwrap();
+        writer.flush().unwrap();
+        let error = log.import_from_csv(&file).await.unwrap_err();
         assert!(
-            sql.contains("created >= @param_created AND created < @param_created_end"),
-            "{sql}"
+            format!("{error:#}").contains("Invalid imported electoral log row"),
+            "{error:#}"
         );
-        assert_eq!(param(&params, "param_created"), ts("2028-04-08T10:15:00Z"));
-        assert_eq!(
-            param(&params, "param_created_end"),
-            ts("2028-04-08T10:16:00Z")
-        );
-    }
-
-    #[test]
-    fn the_range_keys_arrive_in_the_filter_and_never_sort() {
-        let body: GetElectoralLogBody = serde_json::from_value(serde_json::json!({
-            "tenant_id": "tenant",
-            "election_event_id": "event",
-            "filter": {"created_from": "2028-04-08T00:00:00+08:00"},
-            "order_by": {"created_from": "desc"},
-        }))
-        .unwrap();
-        let (sql, _) = body.as_sql(true).unwrap();
-        assert!(sql.contains("created >= @param_created_from"), "{sql}");
-        assert_eq!(body.order_by_clause(), None);
     }
 }

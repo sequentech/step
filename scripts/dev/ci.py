@@ -21,8 +21,6 @@ RUST = (
     "voting-crypto",
     "protocol-board",
     "trustee",
-    "immu-board",
-    "immudb-rs",
     "sequent-core",
     "step-cli",
     "velvet",

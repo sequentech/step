@@ -325,3 +325,16 @@ pub async fn get_trustee_board(
         .map(|row| row.try_into().map(|res: ProtocolBoardWrapper| res.0))
         .transpose()
 }
+
+/// Explicitly remove scoped metadata children before their DKG parent rows.
+/// The separate native boards have already been archived; signed blobs remain.
+pub async fn delete_event_protocol_metadata(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    event_id: &str,
+) -> Result<()> {
+    for child in [true, false] {
+        transaction.execute("DELETE FROM sequent_backend.protocol_board WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid AND (parent_id IS NOT NULL)=$3", &[&tenant_id, &event_id, &child]).await?;
+    }
+    Ok(())
+}

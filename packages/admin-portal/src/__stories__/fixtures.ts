@@ -178,7 +178,7 @@ export function eventRecord(
         voting_channels: {online: true, kiosk: false, early_voting: false, telephone: false},
         statistics: {num_emails_sent: 12, num_sms_sent: 3},
         bulletin_board_reference: {},
-        encryption_protocol: "RSA256",
+        encryption_protocol: "WBRAID",
         public_key:
             isPublished(workflow) || workflow === EStoryWorkflow.KEYS ? "c3ludGhldGlj" : null,
         ...overrides,

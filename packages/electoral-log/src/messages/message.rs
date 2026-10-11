@@ -932,6 +932,9 @@ pub struct SigningData {
     system_sk: SigningKey,
 }
 impl SigningData {
+    pub fn system_public_key(&self) -> Result<VerificationKey> {
+        VerificationKey::from_sk(&self.system_sk)
+    }
     pub fn new(sender_sk: SigningKey, sender_name: &str, system_sk: SigningKey) -> SigningData {
         SigningData {
             sender_sk,

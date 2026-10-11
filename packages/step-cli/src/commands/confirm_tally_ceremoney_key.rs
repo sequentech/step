@@ -78,6 +78,13 @@ fn confirm_key_with_keys(
 
     let request = get_private_key_content(election_event_id, &config.username)?;
     let mut custody: protocol_board::CustodyRequest = serde_json::from_str(&request)?;
+    if custody.tenant_id != config.tenant_id
+        || custody.election_event_id != election_event_id
+        || custody.trustee_name != config.username
+        || custody.tally_session_id.is_some()
+    {
+        return Err("custody request does not match this trustee and election event".into());
+    }
     custody.tally_session_id = Some(tally_id.to_owned());
     let secrets = protocol_board::TrusteeSecrets::parse(&std::fs::read_to_string(keys_file)?)?;
     let key = custody.attest(&secrets)?;

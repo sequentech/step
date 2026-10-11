@@ -27,7 +27,7 @@ cli step <command> --help
 ## Configuration
 
 Configure CLI with your environment credentials:
-This is a mandatory first command to setup the credentials in order to use the CLI 
+This is a mandatory first command to setup the credentials in order to use the CLI
 
 ```bash
 cli step step config \
@@ -189,7 +189,7 @@ cli step export-election-event \
 * `--tally` – Include election event tally *(optional)*
 * `--encrypted `– Encrypt the exported package *(optional)*
 * `--output-dir` – Directory where the export will be saved *(optional, default: ./data)*
-  
+
 > Note: The export is forced to be encrypted if you include any sensitive data flags, specifically: `--bulletin-board`, `--reports`, `--applications`, or `--tally`.
 
 ---
@@ -477,7 +477,7 @@ cli step render-template \
 ---
 
 ## Generate Voters
-This command create csv file with voters within the `working-directory` path. 
+This command create csv file with voters within the `working-directory` path.
 > Required additional confituration at `external_config.json` in the `working-directory` (election_event_json_file and generate_voters fields)
 
 ```bash
@@ -525,7 +525,7 @@ cli step create-applications \
 ---
 
 ## Create Electoral Logs
-Create electoral logs in immudb.
+Create electoral logs in native wbraid audit storage.
 > Required additional confituration at `external_config.json` in the `working-directory` (tenant_id, election_event_id, election_id, area_id and realm_name fields)
 
 ```bash
@@ -555,16 +555,12 @@ cli step hash-passwords \
 ---
 
 ## Export Cast Votes CSV
-This command accesses immudb bulletin board and exports in a csv file the casted ballots ballot_id.
+This command accesses native wbraid audit storage bulletin board and exports in a csv file the casted ballots ballot_id.
 ```bash
 cli step export-cast-votes \
-  --server-url <IMMUDB_URL> \
-  --username <USERNAME> \
-  --password <PASSWORD> \
+  --database-url <PRIVATE_AUDIT_POSTGRES_URL> \
   --board-db <BOARD_DB_NAME>
 ```
 
-* `--server-url` – ImmuDB server URL (`IMMUDB_SERVER_URL`) **(required)**
-* `--username` – ImmuDB username (`IMMUDB_USER`) **(required)**
-* `--password` – ImmuDB password (`IMMUDB_PASSWORD`) **(required)**
+* `--database-url` – Private native audit PostgreSQL connection URL **(required)**
 * `--board-db` – Bulletin board database name **(required)**

@@ -6,8 +6,8 @@
 //! it, the public record verifies offline, and the tally counts the box from
 //! that seal and records its hash in the contest annotations.
 //!
-//! Needs `HASURA_DB__*` and `IMMUDB_*` (the stack's `.devcontainer/.env`,
-//! or the immudb service of the CI jobs) and sets its own `MASTER_SECRET`.
+//! Needs `HASURA_DB__*` and `WBRAID_AUDIT_DATABASE_URL` (the stack's `.devcontainer/.env`,
+//! or the native audit service of the CI jobs) and sets its own `MASTER_SECRET`.
 //! The census and the public bucket are the test's own; the signing key is
 //! the event's protocol manager key.
 
@@ -406,5 +406,5 @@ async fn a_closed_box_is_sealed_published_verified_and_counted_from_its_seal() {
         .unwrap();
     assert_eq!(verified.len(), 1);
     drop(tx);
-    let _ = board_client.delete_database(&board).await;
+    let _ = board_client.archive_board(&board).await;
 }
