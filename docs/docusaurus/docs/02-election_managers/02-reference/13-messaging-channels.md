@@ -372,6 +372,13 @@ voter pages.
 
 ## Voters
 
+In an election event's **Voters** list, open **Columns** and select
+**Messaging channel** to show each voter's channel. The column uses the same
+channel rules as the voter details panel, including legacy email/SMS records,
+and displays `-` when no usable channel is recorded. It shows only the channel
+name and icon; contact details stay in the voter details panel. The column is
+hidden by default and can be toggled with the other list columns.
+
 ### What voters see
 
 - **Enrollment**: under *Get codes and updates by*, the voter picks one of
