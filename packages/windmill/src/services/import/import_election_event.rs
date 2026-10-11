@@ -1678,7 +1678,18 @@ pub async fn process_document(
         }
     };
 
-    verify_imported_keys_ceremonies(hasura_transaction, &election_event_schema).await?;
+    let election_keys_ceremony_ids: HashSet<&str> = election_event_schema
+        .elections
+        .iter()
+        .filter_map(|election| election.keys_ceremony_id.as_deref())
+        .collect();
+    verify_imported_keys_ceremonies(
+        hasura_transaction,
+        &election_event_schema.tenant_id.to_string(),
+        &election_event_schema.election_event.id,
+        &election_keys_ceremony_ids,
+    )
+    .await?;
 
     if let Some(package) = package {
         configuration_package::record(hasura_transaction, &tenant_id, &election_event_id, &package)
@@ -1698,20 +1709,22 @@ pub async fn process_document(
 
 /// Drops each imported keys ceremony whose public key is not the one on its
 /// board. An import whose tally sessions use such a ceremony is rejected.
+/// Only the default ceremony and those of `election_keys_ceremony_ids` have a
+/// board to compare with.
 #[instrument(err, skip_all)]
-async fn verify_imported_keys_ceremonies(
+pub async fn verify_imported_keys_ceremonies(
     hasura_transaction: &Transaction<'_>,
-    data: &ImportElectionEventSchema,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_keys_ceremony_ids: &HashSet<&str>,
 ) -> Result<()> {
-    let tenant_id = data.tenant_id.to_string();
-    let election_event_id = data.election_event.id.as_str();
     let keys_ceremonies =
-        keys_ceremony::get_keys_ceremonies(hasura_transaction, &tenant_id, election_event_id)
+        keys_ceremony::get_keys_ceremonies(hasura_transaction, tenant_id, election_event_id)
             .await?;
 
     let tally_keys_ceremony_ids: HashSet<String> = get_tally_sessions_by_election_event_id(
         hasura_transaction,
-        &tenant_id,
+        tenant_id,
         election_event_id,
         false,
     )
@@ -1722,13 +1735,11 @@ async fn verify_imported_keys_ceremonies(
 
     for keys_ceremony in &keys_ceremonies {
         let has_board = keys_ceremony.is_default()
-            || data.elections.iter().any(|election| {
-                election.keys_ceremony_id.as_deref() == Some(keys_ceremony.id.as_str())
-            });
+            || election_keys_ceremony_ids.contains(keys_ceremony.id.as_str());
         let state = if has_board {
             verify_keys_ceremony_public_key(
                 hasura_transaction,
-                &tenant_id,
+                tenant_id,
                 election_event_id,
                 keys_ceremony,
             )
@@ -1750,14 +1761,14 @@ async fn verify_imported_keys_ceremonies(
                 );
                 clear_election_keys_ceremony(
                     hasura_transaction,
-                    &tenant_id,
+                    tenant_id,
                     election_event_id,
                     &keys_ceremony.id,
                 )
                 .await?;
                 keys_ceremony::delete_keys_ceremony(
                     hasura_transaction,
-                    &tenant_id,
+                    tenant_id,
                     election_event_id,
                     &keys_ceremony.id,
                 )
