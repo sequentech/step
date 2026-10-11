@@ -5566,7 +5566,8 @@ const frenchTranslation: TranslationType = {
                 providerTemplate: "Nom ou ID du modèle du fournisseur",
                 providerLanguage: "Code de langue du fournisseur",
                 providerLanguageHelp: {
-                    WHATSAPP: "Le code de langue exact du modèle WhatsApp approuvé, comme en_US.",
+                    WHATSAPP:
+                        "Utilisez le code de langue exact du modèle WhatsApp approuvé, comme en ou en_US. Un code régional est nécessaire uniquement si le modèle a été approuvé avec ce code.",
                     VIBER: "Le code de langue sous lequel le fournisseur Viber connaît le modèle, lorsqu'il en faut un.",
                     MESSENGER: "Le code de langue du modèle utilitaire approuvé, comme en_US.",
                 },
@@ -5582,13 +5583,7 @@ const frenchTranslation: TranslationType = {
                 noAccount: "Aucun compte",
                 missingContent: "Cette notification n'a pas de contenu pour {{channels}}.",
                 approvedTemplateHelp:
-                    "Envoyé avec le modèle approuvé par le fournisseur. Modifiez-le dans Modèles.",
-                providerTemplate: "Modèle du fournisseur {{channel}}",
-                providerTemplateHelp:
-                    "Facultatif. S'il est vide, le modèle de l'événement lié à l'alias du modèle choisi est utilisé, ou le modèle par défaut de l'événement pour les avis.",
-                providerLanguage: "Langue du fournisseur {{channel}}",
-                providerLanguageHelp:
-                    "Le code de langue du fournisseur pour ce modèle, comme en_US.",
+                    "Les modèles {{channel}} sont approuvés par le fournisseur : leur texte, le modèle du fournisseur et la langue ne peuvent pas être modifiés ici. Choisissez un autre modèle enregistré pour utiliser un autre contenu approuvé.",
                 voters: "Électeurs",
                 environment: "L'expéditeur par défaut du déploiement",
                 noNoticeChannels:

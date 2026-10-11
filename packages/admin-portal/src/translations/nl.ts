@@ -5552,7 +5552,7 @@ const dutchTranslation: TranslationType = {
                 providerLanguage: "Taalcode van de provider",
                 providerLanguageHelp: {
                     WHATSAPP:
-                        "De exacte taalcode van de goedgekeurde WhatsApp-sjabloon, zoals en_US.",
+                        "Gebruik de exacte taalcode van het goedgekeurde WhatsApp-sjabloon, zoals en of en_US. Een regiocode is alleen nodig als het sjabloon daarmee is goedgekeurd.",
                     VIBER: "De taalcode waaronder de Viber-provider de sjabloon kent, wanneer er een nodig is.",
                     MESSENGER:
                         "De taalcode van de goedgekeurde hulpprogrammasjabloon, zoals en_US.",
@@ -5569,12 +5569,7 @@ const dutchTranslation: TranslationType = {
                 noAccount: "Geen account",
                 missingContent: "Deze melding heeft geen inhoud voor {{channels}}.",
                 approvedTemplateHelp:
-                    "Verzonden met de door de provider goedgekeurde sjabloon. Bewerk deze in Sjablonen.",
-                providerTemplate: "Sjabloon van de provider voor {{channel}}",
-                providerTemplateHelp:
-                    "Optioneel. Indien leeg wordt de sjabloon van het evenement gebruikt die aan de alias van de gekozen sjabloon is gekoppeld, of de standaard van het evenement voor berichten.",
-                providerLanguage: "Taal van de provider voor {{channel}}",
-                providerLanguageHelp: "De taalcode van de provider voor die sjabloon, zoals en_US.",
+                    "Omdat {{channel}}-sjablonen door de provider zijn goedgekeurd, kunnen de tekst, het providersjabloon en de taal hier niet worden gewijzigd. Kies een ander opgeslagen sjabloon om andere goedgekeurde inhoud te gebruiken.",
                 voters: "Kiezers",
                 environment: "De standaardafzender van de installatie",
                 noNoticeChannels:

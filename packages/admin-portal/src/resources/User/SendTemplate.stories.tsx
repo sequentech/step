@@ -39,6 +39,8 @@ interface Scenario {
     roles?: string[]
     /** The audience preview's rows, or `"FAIL"` when it can't be read. */
     preview?: IAudienceChannel[] | "FAIL"
+    /** The saved WhatsApp template’s exact provider language. */
+    providerLanguage?: string
 }
 
 const welcome = {
@@ -69,6 +71,8 @@ const template = (
 const whatsappReminder = {
     message: "Hello {{1}}, voting opens tomorrow.",
     parameters: ["user.first_name"],
+    provider_template: "voting_opens",
+    provider_language: "en_US",
 }
 
 const templates = [
@@ -238,7 +242,22 @@ const meta = {
         )
         // The event's zones: the schedule is entered in its primary timezone.
         data = resourceBoundary({
-            sequent_backend_template: templates,
+            sequent_backend_template: args.providerLanguage
+                ? templates.map((entry, index) =>
+                      index === 2
+                          ? {
+                                ...entry,
+                                template: {
+                                    ...entry.template,
+                                    whatsapp: {
+                                        ...whatsappReminder,
+                                        provider_language: args.providerLanguage,
+                                    },
+                                },
+                            }
+                          : entry
+                  )
+                : templates,
             sequent_backend_election_event: [electionEvent],
             sequent_backend_election: [],
         })
@@ -457,9 +476,8 @@ export const WhatsAppContentOfATemplate: Story = {
             await within(document.body).findByRole("option", {name: "voting-opens"})
         )
         await userEvent.click(canvas.getByRole("button", {name: "WhatsApp"}))
-        await expect(await canvas.findByRole("textbox", {name: "WhatsApp"})).toHaveValue(
-            whatsappReminder.message
-        )
+        await expect(canvas.getByText(whatsappReminder.message)).toBeVisible()
+        expect(canvas.queryByRole("textbox", {name: "WhatsApp"})).toBeNull()
         await send(canvasElement)
         await waitFor(() => expect(args.close).toHaveBeenCalledTimes(1))
         expect(sent()?.eventPayload).toMatchObject({
@@ -480,27 +498,27 @@ export const WhatsAppWithItsProviderTemplate: Story = {
             await within(document.body).findByRole("option", {name: "voting-opens"})
         )
         await userEvent.click(canvas.getByRole("button", {name: "WhatsApp"}))
+        const section = within(canvas.getByRole("region", {name: "WhatsApp"}))
         await expect(
-            within(canvas.getByRole("region", {name: "WhatsApp"})).getByText(
-                /the event's template bound to the chosen template's alias is used/
-            )
+            section.getByText(/approved by the provider.*cannot be changed here/)
         ).toBeVisible()
-        await userEvent.type(
-            await canvas.findByRole("textbox", {name: "WhatsApp provider template"}),
-            "voting_opens"
-        )
-        await userEvent.type(
-            canvas.getByRole("textbox", {name: "WhatsApp provider language"}),
-            "en_US"
-        )
+        await expect(section.getByText(whatsappReminder.message)).toBeVisible()
+        expect(section.queryByRole("textbox")).toBeNull()
+        expect(section.queryByText("WhatsApp provider template")).toBeNull()
+        expect(section.queryByText("WhatsApp provider language")).toBeNull()
         await send(canvasElement)
         await waitFor(() => expect(args.close).toHaveBeenCalledTimes(1))
         expect(sent()?.eventPayload).toHaveProperty("whatsapp", {
             ...whatsappReminder,
             provider_template: "voting_opens",
-            provider_language: "en_US",
+            provider_language: args.providerLanguage ?? "en_US",
         })
     },
+}
+
+export const WhatsAppWithLanguageOnlyCode: Story = {
+    ...WhatsAppWithItsProviderTemplate,
+    args: {providerLanguage: "en"},
 }
 
 export const MissingChannelContent: Story = {
@@ -672,7 +690,13 @@ export const CollapsibleChannelsPreserveSendOverrides: Story = {
         }
         for (const channel of ["WhatsApp", "Viber"]) {
             await userEvent.click(canvas.getByRole("button", {name: channel}))
-            await expect(canvas.getByRole("textbox", {name: channel})).toHaveAttribute("readonly")
+            const section = within(canvas.getByRole("region", {name: channel}))
+            expect(section.queryByRole("textbox")).toBeNull()
+            await expect(
+                section.getByText(
+                    channel === "WhatsApp" ? whatsappReminder.message : "Approved Viber reminder"
+                )
+            ).toBeVisible()
             await userEvent.click(canvas.getByRole("button", {name: channel}))
         }
         await send(canvasElement)
