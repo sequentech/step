@@ -476,6 +476,9 @@ class MessagingSetupTest(unittest.TestCase):
         return FakeHasura(
             {
                 m.ACCOUNTS: lambda _: {"sequent_backend_messaging_account": rows},
+                m.NOTICE_TEMPLATES: lambda _: {
+                    "sequent_backend_template": [{"id": "notice"}]
+                },
                 m.DEFAULT_ACCOUNTS: lambda _: {
                     "sequent_backend_messaging_account": [
                         {"name": name, "channel": channel} for name, channel in defaults
@@ -541,6 +544,9 @@ class MessagingSetupTest(unittest.TestCase):
         admin = FakeHasura(
             {
                 m.RENAME_ACCOUNT: rename,
+                m.NOTICE_TEMPLATES: lambda _: {
+                    "sequent_backend_template": [{"id": "notice"}]
+                },
                 m.ACCOUNTS: lambda _: {
                     "sequent_backend_messaging_account": [
                         {
@@ -651,6 +657,42 @@ class MessagingSetupTest(unittest.TestCase):
     def test_the_scenarios_say_their_accounts_stay_after_reset(self):
         for name in ("messaging", "messaging-second-organization"):
             self.assertIn("stay after reset", find_scenario(name).summary)
+
+
+class MessagingNoticeTemplateTest(unittest.TestCase):
+    def test_missing_demo_template_has_content_and_approved_names_for_every_channel(
+        self,
+    ):
+        from scripts.dev.scenario import messaging as m
+
+        admin = mock.Mock()
+        admin.query.side_effect = [
+            {"sequent_backend_template": []},
+            {"insert_sequent_backend_template_one": {"id": "notice"}},
+        ]
+        m.ensure_notice_template(admin, "tenant")
+        row = admin.query.call_args.args[1]["object"]
+        self.assertEqual(row["tenant_id"], "tenant")
+        self.assertEqual(row["alias"], "Demo notification")
+        content = row["template"]
+        self.assertEqual(
+            set(content["selected_methods"]),
+            {"EMAIL", "SMS", "WHATSAPP", "VIBER", "MESSENGER"},
+        )
+        self.assertTrue(content["email"]["plaintext_body"])
+        self.assertTrue(content["sms"]["message"])
+        for key in ("whatsapp", "viber", "messenger"):
+            self.assertTrue(content[key]["message"])
+            self.assertEqual(content[key]["provider_template"], "step_notice")
+            self.assertEqual(content[key]["provider_language"], "en")
+
+    def test_existing_demo_template_is_kept_without_writing(self):
+        from scripts.dev.scenario import messaging as m
+
+        admin = mock.Mock()
+        admin.query.return_value = {"sequent_backend_template": [{"id": "existing"}]}
+        m.ensure_notice_template(admin, "tenant")
+        self.assertEqual(admin.query.call_count, 1)
 
 
 class MessagingServiceAccountTest(unittest.TestCase):

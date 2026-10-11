@@ -203,6 +203,13 @@ missing credentials again, keeps settings and default accounts the tenant
 already has (and says so), and only adds what is missing. `scenario reset`
 deletes the event only; the accounts, and the second tenant, stay.
 
+Both scenarios also seed **Demo notification** in Settings > Templates, with
+content for all five channels and `step_notice` as the approved provider template.
+Existing templates are kept. To send a manual demo notice, select a voter,
+open Send Notification, choose Demo notification and send. Sent messages shows
+what the local provider received; a notice refused before delivery appears in
+the event's Messaging failure count and Logs instead.
+
 ## Capacity benchmark
 
 `step-dev bench messaging-otp` measures code latency (p50, p95, p99) while
