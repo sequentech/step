@@ -114,7 +114,11 @@ pub async fn load_round_envelope(
         &round.envelope_sha256,
     )
     .await?;
-    let file = File::open(temp_file.path())?;
+    read_envelope(temp_file.path())
+}
+
+fn read_envelope(path: &Path) -> Result<ReconciliationApplyEnvelope> {
+    let file = File::open(path)?;
     Ok(serde_json::from_reader(BufReader::new(file))?)
 }
 
@@ -131,7 +135,7 @@ fn verify_sha256(path: &Path, expected_sha256: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::services::external::reconciliation::patch::sha256_hex;
+    use crate::services::external::reconciliation::patch::{sha256_file_hex, sha256_hex};
     use chrono::Local;
     use sequent_core::types::hasura::extra::TasksExecutionStatus;
     use std::io::Write;
@@ -197,5 +201,54 @@ mod tests {
 
         let changed = temp_file_with(br#"{"sequence":8}"#);
         assert!(verify_sha256(changed.path(), &sha256_hex(content)).is_err());
+    }
+
+    #[test]
+    fn envelope_is_read_without_its_review_items() {
+        let file = temp_file_with(
+            br#"{
+                "sequence": 7,
+                "generated_at": 1700000000,
+                "source_sha256": "source",
+                "external_patch_document_id": null,
+                "sequent_patch_document_id": "patch-id",
+                "items": [{"unused": true}]
+            }"#,
+        );
+        let envelope = read_envelope(file.path()).unwrap();
+        assert_eq!(envelope.sequence, 7);
+        assert_eq!(envelope.sequent_patch_document_id, "patch-id");
+        assert!(envelope.external_patch_document_id.is_none());
+        assert!(envelope.apply_allowed);
+    }
+
+    #[test]
+    fn malformed_envelope_is_rejected() {
+        let file = temp_file_with(br#"{"sequence":"not a number"}"#);
+        assert!(read_envelope(file.path()).is_err());
+        assert!(read_envelope(Path::new("/nonexistent/envelope.json")).is_err());
+    }
+
+    #[test]
+    fn missing_document_fails_hash_verification() {
+        let error = verify_sha256(Path::new("/nonexistent/document.json"), "any").unwrap_err();
+        assert!(error.downcast_ref::<std::io::Error>().is_some());
+    }
+
+    #[test]
+    fn streamed_file_hash_matches_the_in_memory_hash() {
+        let content = b"round document";
+        let file = temp_file_with(content);
+        assert_eq!(sha256_file_hex(file.path()).unwrap(), sha256_hex(content));
+    }
+
+    #[test]
+    fn annotations_with_non_string_hashes_are_not_applicable() {
+        let task = generate_task(Some(serde_json::json!({
+            "document_id": "envelope-id",
+            "envelope_sha256": 1,
+            "sequent_patch_sha256": "sequent-patch-sha256",
+        })));
+        assert!(GeneratedReconciliationRound::from_task(&task).is_err());
     }
 }
