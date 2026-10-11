@@ -951,7 +951,7 @@ export const ChannelGroupsFitNarrowScreens: Story = {
         ) as HTMLElement
         const original = container.style.width
         try {
-            for (const width of [600, 240]) {
+            for (const width of [600, 224]) {
                 container.style.width = `${width}px`
                 await waitFor(() => {
                     const right = toggle.getBoundingClientRect().right
@@ -960,6 +960,13 @@ export const ChannelGroupsFitNarrowScreens: Story = {
                     ).toBeLessThanOrEqual(right)
                     expect(
                         within(toggle).getByText("0").getBoundingClientRect().right
+                    ).toBeLessThanOrEqual(right)
+                    expect(within(toggle).getByTestId("ExpandMoreIcon")).toBeVisible()
+                    expect(
+                        within(toggle).getByTestId("ExpandMoreIcon").getBoundingClientRect().width
+                    ).toBeGreaterThanOrEqual(20)
+                    expect(
+                        within(toggle).getByTestId("ExpandMoreIcon").getBoundingClientRect().right
                     ).toBeLessThanOrEqual(right)
                 })
             }

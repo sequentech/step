@@ -473,11 +473,24 @@ export const MessagingTemplateBindings: React.FC<MessagingTemplateBindingsProps>
                                 aria-label={channelName}
                                 id={`template-channel-${channel}-header`}
                                 aria-controls={`template-channel-${channel}-content`}
+                                sx={{
+                                    "& .MuiAccordionSummary-content": {minWidth: 0},
+                                    "& .MuiAccordionSummary-expandIconWrapper": {flexShrink: 0},
+                                }}
                             >
-                                <Box sx={{display: "flex", alignItems: "center", gap: 1}}>
+                                <ElectionHeaderStyles.AccordionTitle
+                                    sx={{
+                                        "display": "flex",
+                                        "alignItems": "center",
+                                        "flexWrap": "wrap",
+                                        "gap": 1,
+                                        "minWidth": 0,
+                                        "& > span": {whiteSpace: "normal", maxWidth: "100%"},
+                                    }}
+                                >
                                     <ChannelLabel channel={channel} label={channelName} />
                                     <Chip size="small" label={bindings.length} />
-                                </Box>
+                                </ElectionHeaderStyles.AccordionTitle>
                             </AccordionSummary>
                             <AccordionDetails
                                 sx={{display: "flex", flexDirection: "column", gap: 1.5}}
