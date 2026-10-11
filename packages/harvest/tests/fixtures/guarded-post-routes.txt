@@ -136,6 +136,7 @@
 /save-approval-matrix
 /scheduled-event
 /set-custom-url
+/set-google-service-account-key
 /set-role-permission
 /set-user-role
 /set-voter-authentication

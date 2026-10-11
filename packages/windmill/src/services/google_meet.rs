@@ -22,9 +22,15 @@ use strum_macros::EnumString;
 use tracing::{error, info, instrument};
 
 pub const SERVICE_ACCOUNT_KEY_SETTING: &str = "gapi_key";
-const SERVICE_ACCOUNT_KEY_SECRET: &str = "google_service_account_key";
+const SERVICE_ACCOUNT_KEY_SECRET_PREFIX: &str = "google_service_account_key";
 const TOKEN_URI_SCHEME: &str = "https";
 const TOKEN_URI_HOSTS: [&str; 2] = ["oauth2.googleapis.com", "accounts.google.com"];
+
+/// The vault key of a tenant's service account key. Vault keys are unique
+/// across tenants, so the tenant is part of the name.
+pub fn service_account_key_secret_name(tenant_id: &str) -> String {
+    format!("{SERVICE_ACCOUNT_KEY_SECRET_PREFIX}-{tenant_id}")
+}
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct GenerateGoogleMeetBody {
@@ -101,7 +107,7 @@ pub async fn generate_google_meet_link_impl(
         hasura_transaction,
         tenant_id,
         None,
-        SERVICE_ACCOUNT_KEY_SECRET,
+        &service_account_key_secret_name(tenant_id),
     )
     .await
     .map_err(|e| GoogleMeetError::ClientSecret(e.to_string()))?;
@@ -234,7 +240,7 @@ pub async fn store_service_account_key(
     replace_secret(
         hasura_transaction,
         tenant_id,
-        SERVICE_ACCOUNT_KEY_SECRET,
+        &service_account_key_secret_name(tenant_id),
         &stored_key,
     )
     .await
@@ -402,6 +408,15 @@ mod tests {
         assert_eq!(key.client_email, "meet@project.iam.gserviceaccount.com");
         assert!(resolve_service_account_key(None, &json!({})).is_err());
         assert!(resolve_service_account_key(None, &json!({"gapi_key": null})).is_err());
+    }
+
+    #[test]
+    fn service_account_key_secret_name_is_unique_per_tenant() {
+        assert_ne!(
+            service_account_key_secret_name("tenant-a"),
+            service_account_key_secret_name("tenant-b")
+        );
+        assert!(service_account_key_secret_name("tenant-a").ends_with("tenant-a"));
     }
 
     #[test]
