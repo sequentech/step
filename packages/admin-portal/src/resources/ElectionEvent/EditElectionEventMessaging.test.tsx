@@ -387,6 +387,8 @@ describe("MessagingTemplateBindings", () => {
         return onChange
     }
     const group = () => {
+        const channel = screen.getByRole("button", {name: "messaging.channel.WHATSAPP"})
+        if (channel.getAttribute("aria-expanded") === "false") fireEvent.click(channel)
         const row = within(
             screen.getByRole("group", {name: /messagingEvent.templates.row.*"position":1/})
         )
@@ -394,6 +396,24 @@ describe("MessagingTemplateBindings", () => {
         if (toggle.getAttribute("aria-expanded") === "false") fireEvent.click(toggle)
         return row
     }
+
+    it("starts channel groups closed without mounting binding editors", () => {
+        const onChange = renderBindings(bound())
+        const channel = screen.getByRole("button", {name: "messaging.channel.WHATSAPP"})
+        expect(channel).toHaveAttribute("aria-expanded", "false")
+        expect(screen.queryByRole("group")).toBeNull()
+        fireEvent.click(channel)
+        expect(channel).toHaveAttribute("aria-expanded", "true")
+        expect(screen.getByRole("group", {name: /messagingEvent.templates.row/})).toBeVisible()
+        group()
+        fireEvent.click(channel)
+        expect(screen.queryByRole("group")).toBeNull()
+        fireEvent.click(channel)
+        expect(group().getByLabelText(/messagingEvent.column.template/)).toHaveValue(
+            "vote_reminder"
+        )
+        expect(onChange).not.toHaveBeenCalled()
+    })
 
     it("edits the bindings of the channels that use approved templates", () => {
         const onChange = renderBindings(bound())
@@ -412,6 +432,7 @@ describe("MessagingTemplateBindings", () => {
 
     it("adds a row for the channel's first purpose and language, and removes rows", () => {
         const onChange = renderBindings(bound())
+        fireEvent.click(screen.getByRole("button", {name: "messaging.channel.WHATSAPP"}))
         fireEvent.click(screen.getByRole("button", {name: /messagingEvent.templates.add/}))
         expect(onChange.mock.calls[0][0].channels[1].templates[1]).toEqual({
             purpose: EMessagePurpose.NOTICE,
@@ -430,11 +451,37 @@ describe("MessagingTemplateBindings", () => {
             incomplete: [{channel: EMessageChannel.WHATSAPP, index: 0}],
         })
         expect(screen.getByText("messagingEvent.templates.order")).toBeVisible()
+        expect(screen.getByRole("button", {name: "messaging.channel.WHATSAPP"})).toHaveAttribute(
+            "aria-expanded",
+            "true"
+        )
         expect(group().getByRole("alert")).toHaveTextContent("messagingEvent.templates.incomplete")
+    })
+
+    it("shows approval problems while the channel is closed", () => {
+        renderBindings(bound(), {
+            errors: [
+                {
+                    kind: "TEMPLATE_NOT_APPROVED",
+                    channel: EMessageChannel.WHATSAPP,
+                    purpose: EMessagePurpose.NOTICE,
+                    language: "en",
+                },
+            ],
+        })
+        expect(screen.getByRole("button", {name: "messaging.channel.WHATSAPP"})).toHaveAttribute(
+            "aria-expanded",
+            "false"
+        )
+        expect(screen.queryByRole("group")).toBeNull()
+        expect(screen.getByRole("alert")).toHaveTextContent(
+            "messagingEvent.error.TEMPLATE_NOT_APPROVED"
+        )
     })
 
     it("offers Messenger its templates for utility messages", () => {
         renderBindings(configWith([[EMessageChannel.MESSENGER, "page-1", []]]))
+        fireEvent.click(screen.getByRole("button", {name: "messaging.channel.MESSENGER"}))
         expect(screen.getByText(/messagingEvent.templates.noneOptional/)).toBeVisible()
     })
 

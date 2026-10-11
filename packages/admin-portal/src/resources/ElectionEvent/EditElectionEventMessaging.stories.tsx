@@ -532,12 +532,14 @@ export const Populated: Story = {
             ).map((row) => row.getAttribute("data-channel"))
         ).toEqual(["WHATSAPP", "VIBER", "MESSENGER", "SMS", "EMAIL"])
         await expect(canvas.getByText(/^For each message the most specific row wins/)).toBeVisible()
+        await userEvent.click(canvas.getByRole("button", {name: "Viber"}))
         const viberTemplate = within(canvas.getByRole("group", {name: "Viber template 1"}))
         await userEvent.click(viberTemplate.getByRole("button", {name: "Viber template 1"}))
         await expect(viberTemplate.getByRole("combobox", {name: "Provider template"})).toHaveValue(
             "otp_en_88213"
         )
         await expect(viberTemplate.getByText("Approved")).toBeVisible()
+        await userEvent.click(canvas.getByRole("button", {name: "WhatsApp"}))
         await expect(canvas.getByText(/^WhatsApp sends only approved templates/)).toBeVisible()
         const delivery = within(
             canvasElement.querySelector('table[aria-label="Delivery status"]') as HTMLElement
@@ -736,6 +738,7 @@ export const MessengerUtilityTemplate: Story = {
         await expect(
             within(messenger).getByText(/sends notices with the approved utility template/)
         ).toBeVisible()
+        await userEvent.click(canvas.getByRole("button", {name: "Facebook Messenger"}))
         await expect(
             canvas.getByText(/^No templates are bound for Facebook Messenger/)
         ).toBeVisible()
@@ -773,6 +776,7 @@ export const IncompleteTemplateRow: Story = {
     parameters: {widgets: ["MessagingTemplateBindings"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
+        await userEvent.click(await canvas.findByRole("button", {name: "WhatsApp"}))
         await userEvent.click(await canvas.findByRole("button", {name: "Add WhatsApp template"}))
         const row = within(await canvas.findByRole("group", {name: "WhatsApp template 1"}))
         await userEvent.type(row.getByRole("combobox", {name: "For message"}), "otp")
@@ -886,7 +890,16 @@ export const ManyTemplates: Story = {
     args: {manyTemplates: true},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await expect(await canvas.findByRole("group", {name: "WhatsApp template 16"})).toBeVisible()
+        await expect(await canvas.findByRole("button", {name: "WhatsApp"})).toHaveAttribute(
+            "aria-expanded",
+            "false"
+        )
+        expect(canvas.queryByRole("group")).toBeNull()
+        await userEvent.click(canvas.getByRole("button", {name: "WhatsApp"}))
+        await expect(canvas.getByRole("group", {name: "WhatsApp template 16"})).toBeVisible()
+        expect(canvas.queryByRole("group", {name: "Viber template 16"})).toBeNull()
+        await userEvent.click(canvas.getByRole("button", {name: "WhatsApp"}))
+        await userEvent.click(canvas.getByRole("button", {name: "Viber"}))
         expect(canvas.queryByRole("combobox", {name: "Provider template"})).toBeNull()
         await expect(canvas.getByRole("button", {name: "Save"})).toBeDisabled()
         const row = within(canvas.getByRole("group", {name: "Viber template 16"}))
@@ -905,6 +918,14 @@ export const ManyTemplates: Story = {
         await expect(row.getByRole("combobox", {name: "Provider template"})).toHaveValue(
             "changed_reminder"
         )
+        await userEvent.click(canvas.getByRole("button", {name: "Viber"}))
+        expect(canvas.queryByRole("group", {name: "Viber template 16"})).toBeNull()
+        await userEvent.click(canvas.getByRole("button", {name: "Viber"}))
+        await expect(
+            within(canvas.getByRole("group", {name: "Viber template 16"})).getByRole("combobox", {
+                name: "Provider template",
+            })
+        ).toHaveValue("changed_reminder")
         expect(canvas.getAllByRole("combobox", {name: "Provider template"})).toHaveLength(1)
         await userEvent.click(canvas.getByRole("button", {name: "Save"}))
         await notified("Messaging settings saved.")
@@ -918,5 +939,32 @@ export const ManyTemplates: Story = {
             config.channels.find(({channel}) => channel === EMessageChannel.WHATSAPP)?.templates[15]
                 .provider_template
         ).toBe("reminder_15")
+    },
+}
+
+export const ChannelGroupsFitNarrowScreens: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const toggle = await canvas.findByRole("button", {name: "Facebook Messenger"})
+        const container = canvasElement.querySelector(
+            '[data-template-channel="MESSENGER"]'
+        ) as HTMLElement
+        const original = container.style.width
+        try {
+            for (const width of [600, 240]) {
+                container.style.width = `${width}px`
+                await waitFor(() => {
+                    const right = toggle.getBoundingClientRect().right
+                    expect(
+                        within(toggle).getByText("Facebook Messenger").getBoundingClientRect().right
+                    ).toBeLessThanOrEqual(right)
+                    expect(
+                        within(toggle).getByText("0").getBoundingClientRect().right
+                    ).toBeLessThanOrEqual(right)
+                })
+            }
+        } finally {
+            container.style.width = original
+        }
     },
 }
