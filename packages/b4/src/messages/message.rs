@@ -334,6 +334,18 @@ impl Message {
         }
         assert_eq!(config_hash, st_cfg_h);
 
+        if trustee != PROTOCOL_MANAGER_INDEX {
+            match kind {
+                StatementType::Configuration => {
+                    return Err(anyhow!("Configuration must be signed by protocol manager"))
+                }
+                StatementType::Ballots => {
+                    return Err(anyhow!("Ballots must be signed by protocol manager"))
+                }
+                _ => {}
+            }
+        }
+
         // Statement-only message
         if self.artifact.is_none() {
             return Ok(VerifiedMessage::new(trustee, self.statement.clone(), None));
@@ -353,9 +365,6 @@ impl Message {
                     "A configuration artifact requires a Configuration statement"
                 ));
             }
-            if trustee != PROTOCOL_MANAGER_INDEX as usize {
-                return Err(anyhow!("Configuration must be signed by protocol manager"));
-            }
 
             // FIXME remove this potentially expensive clone
             // See above line: let artifact = self.artifact.take().unwrap();
@@ -370,13 +379,7 @@ impl Message {
                 return Err(anyhow!("Mismatched configuration artifact hash"));
             }
 
-            if kind == StatementType::Ballots {
-                if trustee != PROTOCOL_MANAGER_INDEX as usize {
-                    return Err(anyhow!("Ballots must be signed by protocol manager"));
-                }
-            }
-
-            let _ = verify_artifact(&configuration, &kind, &artifact)?;
+            verify_artifact(&self.statement, artifact_hash)?;
             // FIXME remove this potentially expensive clone
             // See above line: let artifact = self.artifact.take().unwrap();
             Ok(VerifiedMessage::new(
@@ -402,24 +405,21 @@ impl Message {
     }
 }
 
-// Placeholder for possible further verifications
-fn verify_artifact<C: Ctx>(
-    _cfg: &Configuration<C>,
-    kind: &StatementType,
-    _data: &Vec<u8>,
-) -> Result<()> {
-    match kind {
-        StatementType::Ballots => {}
-        StatementType::Channel => {}
-        StatementType::DecryptionFactors => {}
-        StatementType::Mix => {}
-        StatementType::Plaintexts => {}
-        StatementType::PublicKey => {}
-        StatementType::Shares => {}
-        StatementType::Configuration => {}
-        _ => {}
+/// The artifact of a statement must hash to the value the statement signs.
+fn verify_artifact(statement: &Statement, artifact_hash: [u8; 64]) -> Result<()> {
+    let expected = match statement {
+        Statement::Channel(_, _, h) => h.0,
+        Statement::Shares(_, _, h) => h.0,
+        Statement::PublicKey(_, _, h, _, _) => h.0,
+        Statement::Ballots(_, _, _, h, _, _) => h.0,
+        Statement::Mix(_, _, _, _, h, _) => h.0,
+        Statement::DecryptionFactors(_, _, _, h, _, _) => h.0,
+        Statement::Plaintexts(_, _, _, h, _, _, _) => h.0,
+        _ => return Err(anyhow!("Artifact is not allowed for this statement type")),
+    };
+    if artifact_hash != expected {
+        return Err(anyhow!("Artifact does not match its signed hash"));
     }
-
     Ok(())
 }
 
