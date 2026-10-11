@@ -54,7 +54,7 @@ test("publication eligibility cannot be borrowed from another tenant or event", 
     })
 })
 
-test("publication managers keep drafts and deleted styles within their tenant and permission labels", () => {
+test("publication managers keep drafts and deleted styles within their labels", () => {
     for (const role of ["admin-user", "publish-read", "publish-write"]) {
         const {permission} = metadata.select_permissions.find(
             (item) => item.role === role
