@@ -6,8 +6,6 @@ import React, {useContext, useMemo} from "react"
 import {useParams} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import Stack from "@mui/material/Stack"
-import Box from "@mui/material/Box"
-import Button from "@mui/material/Button"
 import Snackbar from "@mui/material/Snackbar"
 import Alert, {type AlertColor} from "@mui/material/Alert"
 import ContactPhoneOutlinedIcon from "@mui/icons-material/ContactPhoneOutlined"
@@ -65,28 +63,6 @@ const StyledAppWrapper = styled(Stack)<{customCss: string}>`
     ${({customCss}) => customCss}
 `
 
-/** "Change how we contact you", next to the voter's profile and sign-out. */
-const ChangeContactButton: React.FC<{onClick: () => void}> = ({onClick}) => {
-    const {t} = useTranslation()
-    return (
-        <Button
-            className="change-contact-button"
-            onClick={onClick}
-            aria-label={t("contactChannel.change")}
-            startIcon={<ContactPhoneOutlinedIcon className="change-contact-icon" aria-hidden />}
-            sx={{textTransform: "none", minWidth: 0}}
-        >
-            <Box
-                component="span"
-                className="change-contact-label"
-                sx={{display: {xs: "none", md: "inline"}}}
-            >
-                {t("contactChannel.change")}
-            </Box>
-        </Button>
-    )
-}
-
 const OUTCOME_NOTICES: Record<ContactChangeOutcome, {key: string; severity: AlertColor}> = {
     [ContactChangeOutcome.Success]: {key: "contactChannel.updated", severity: "success"},
     [ContactChangeOutcome.Cancelled]: {key: "contactChannel.cancelled", severity: "info"},
@@ -129,6 +105,7 @@ const ContactChangeNotice: React.FC = () => {
 }
 
 const HeaderWithContext: React.FC = () => {
+    const {t} = useTranslation()
     // Offered only to a signed-in voter, when the event has a channel for codes. A context
     // without these (one that can't reach Keycloak, such as the embedded preview) offers none.
     const authContext: AuthContextValues = useContext(AuthContext)
@@ -176,6 +153,16 @@ const HeaderWithContext: React.FC = () => {
                 username: authContext.username,
                 email: authContext.email,
                 openLink: showUserProfile ? authContext.openProfileLink : undefined,
+                menuActions: showContactChange
+                    ? [
+                          {
+                              id: "contact-method",
+                              label: t("contactChannel.change"),
+                              icon: <ContactPhoneOutlinedIcon aria-hidden />,
+                              onSelect: () => void changeContactChannel(),
+                          },
+                      ]
+                    : undefined,
             }}
             languagesList={languagesList}
             logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
@@ -189,11 +176,6 @@ const HeaderWithContext: React.FC = () => {
             }}
             onChangeLanguage={onChangeLanguage}
             accessibilitySettingsPolicy={presentation?.voter_accessibility_settings_policy}
-            actions={
-                showContactChange ? (
-                    <ChangeContactButton onClick={() => void changeContactChannel()} />
-                ) : undefined
-            }
         />
     )
 }
