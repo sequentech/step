@@ -50,11 +50,19 @@ NOTICE_TEMPLATE = "step_notice"
 NOTICE_ALIAS = "Demo notification"
 NOTICE_TEMPLATES = """query($tenant: uuid!, $alias: String!) {
   sequent_backend_template(
-    where: {tenant_id: {_eq: $tenant}, alias: {_eq: $alias}}) { id }
+    where: {tenant_id: {_eq: $tenant}, alias: {_eq: $alias}}) { id created_by template }
 }"""
 INSERT_NOTICE_TEMPLATE = """mutation($object: sequent_backend_template_insert_input!) {
   insert_sequent_backend_template_one(object: $object,
     on_conflict: {constraint: communication_template_pkey, update_columns: []}) { id }
+}"""
+UPDATE_NOTICE_TEMPLATE = """mutation(
+  $tenant: uuid!, $id: uuid!, $previous: jsonb!, $template: jsonb!
+) {
+  update_sequent_backend_template(
+    where: {tenant_id: {_eq: $tenant}, id: {_eq: $id},
+      created_by: {_eq: "demo-setup"}, template: {_eq: $previous}},
+    _set: {template: $template}) { affected_rows }
 }"""
 LANGUAGES = ("en", "es", "ca", "eu", "fr", "gl", "nl", "tl")
 OTP = "OTP"
@@ -590,41 +598,81 @@ def election_ids(admin: Any, event_id: str) -> dict[str, str]:
     }
 
 
-def ensure_notice_template(admin: Any, tenant_id: str) -> None:
-    """Seed an editable demo notification without replacing an existing template."""
-    if admin.query(NOTICE_TEMPLATES, {"tenant": tenant_id, "alias": NOTICE_ALIAS})[
-        "sequent_backend_template"
-    ]:
-        return
-    message = "Hello {{user.first_name}}, voting is open. Visit {{vote_url}} to vote."
+def notice_content(message: str, parameters: list[str], subject: str) -> dict[str, Any]:
+    """The same demo message and approved parameters on every channel."""
     instant = {
         "message": message,
-        "parameters": ["{{user.first_name}}", "{{vote_url}}"],
+        "parameters": parameters,
         "provider_template": NOTICE_TEMPLATE,
         "provider_language": "en",
     }
-    content = {
+    return {
         "alias": NOTICE_ALIAS,
         "selected_methods": dict.fromkeys(
             ("EMAIL", "SMS", "WHATSAPP", "VIBER", "MESSENGER"), True
         ),
         "email": {
-            "subject": "Voting is open",
+            "subject": subject,
             "plaintext_body": message,
-            "html_body": "<p>" + message + "</p>",
+            "html_body": "".join(
+                "<p>" + paragraph.replace("\n", "<br>") + "</p>"
+                for paragraph in message.split("\n\n")
+            ),
         },
         "sms": {"message": message},
         "whatsapp": instant,
         "viber": instant,
         "messenger": instant,
     }
+
+
+def ensure_notice_template(admin: Any, tenant_id: str) -> None:
+    """Seed realistic voting copy; upgrade only the untouched demo-owned seed."""
+    rows = admin.query(NOTICE_TEMPLATES, {"tenant": tenant_id, "alias": NOTICE_ALIAS})[
+        "sequent_backend_template"
+    ]
+    message = (
+        "Voting reminder\n\n"
+        "Hello {{user.first_name}}, voting is now open for {{election_event.name}}.\n\n"
+        "Sign in to the voting portal to review your ballot and cast your vote:\n"
+        "{{vote_url}}\n\n"
+        "Do not share your sign-in code with anyone. If you have already voted, "
+        "no further action is needed."
+    )
+    content = notice_content(
+        message,
+        ["{{user.first_name}}", "{{election_event.name}}", "{{vote_url}}"],
+        "Voting reminder: {{election_event.name}}",
+    )
+    template_id = str(uuid.uuid5(uuid.NAMESPACE_URL, "step-demo-notice:" + tenant_id))
+    if rows:
+        previous = notice_content(
+            "Hello {{user.first_name}}, voting is open. Visit {{vote_url}} to vote.",
+            ["{{user.first_name}}", "{{vote_url}}"],
+            "Voting is open",
+        )
+        # Older seeds used one paragraph, so this is also their exact HTML body.
+        for row in rows:
+            if (
+                row["id"] == template_id
+                and row.get("created_by") == "demo-setup"
+                and row.get("template") == previous
+            ):
+                admin.query(
+                    UPDATE_NOTICE_TEMPLATE,
+                    {
+                        "tenant": tenant_id,
+                        "id": template_id,
+                        "previous": previous,
+                        "template": content,
+                    },
+                )
+        return
     admin.query(
         INSERT_NOTICE_TEMPLATE,
         {
             "object": {
-                "id": str(
-                    uuid.uuid5(uuid.NAMESPACE_URL, "step-demo-notice:" + tenant_id)
-                ),
+                "id": template_id,
                 "tenant_id": tenant_id,
                 "alias": NOTICE_ALIAS,
                 "communication_method": "EMAIL",

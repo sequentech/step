@@ -679,10 +679,16 @@ class MessagingNoticeTemplateTest(unittest.TestCase):
             set(content["selected_methods"]),
             {"EMAIL", "SMS", "WHATSAPP", "VIBER", "MESSENGER"},
         )
-        self.assertTrue(content["email"]["plaintext_body"])
-        self.assertTrue(content["sms"]["message"])
+        self.assertIn("Voting reminder", content["email"]["plaintext_body"])
+        self.assertIn("{{election_event.name}}", content["email"]["subject"])
+        self.assertIn("Do not share", content["sms"]["message"])
         for key in ("whatsapp", "viber", "messenger"):
-            self.assertTrue(content[key]["message"])
+            self.assertIn("{{election_event.name}}", content[key]["message"])
+            self.assertIn("{{vote_url}}", content[key]["message"])
+            self.assertEqual(
+                content[key]["parameters"],
+                ["{{user.first_name}}", "{{election_event.name}}", "{{vote_url}}"],
+            )
             self.assertEqual(content[key]["provider_template"], "step_notice")
             self.assertEqual(content[key]["provider_language"], "en")
 
@@ -693,6 +699,62 @@ class MessagingNoticeTemplateTest(unittest.TestCase):
         admin.query.return_value = {"sequent_backend_template": [{"id": "existing"}]}
         m.ensure_notice_template(admin, "tenant")
         self.assertEqual(admin.query.call_count, 1)
+
+    def test_untouched_demo_seed_is_upgraded_with_a_conditional_update(self):
+        import uuid
+
+        from scripts.dev.scenario import messaging as m
+
+        message = (
+            "Hello {{user.first_name}}, voting is open. Visit {{vote_url}} to vote."
+        )
+        instant = {
+            "message": message,
+            "parameters": ["{{user.first_name}}", "{{vote_url}}"],
+            "provider_template": "step_notice",
+            "provider_language": "en",
+        }
+        previous = {
+            "alias": "Demo notification",
+            "selected_methods": dict.fromkeys(
+                ["EMAIL", "SMS", "WHATSAPP", "VIBER", "MESSENGER"], True
+            ),
+            "email": {
+                "subject": "Voting is open",
+                "plaintext_body": message,
+                "html_body": "<p>" + message + "</p>",
+            },
+            "sms": {"message": message},
+            "whatsapp": instant,
+            "viber": instant,
+            "messenger": instant,
+        }
+        row = {
+            "id": str(uuid.uuid5(uuid.NAMESPACE_URL, "step-demo-notice:tenant")),
+            "created_by": "demo-setup",
+            "template": previous,
+        }
+        admin = mock.Mock()
+        admin.query.return_value = {"sequent_backend_template": [row]}
+        m.ensure_notice_template(admin, "tenant")
+        self.assertEqual(admin.query.call_count, 2)
+        query, variables = admin.query.call_args.args
+        self.assertIn("template: {_eq: $previous}", query)
+        self.assertEqual(variables["previous"], previous)
+        self.assertIn("Voting reminder", variables["template"]["whatsapp"]["message"])
+        for changed in (
+            {"id": "custom"},
+            {"created_by": "administrator"},
+            {"template": {**previous, "sms": {"message": "Custom reminder"}}},
+            {"template": variables["template"]},
+        ):
+            with self.subTest(changed=changed):
+                admin.reset_mock()
+                admin.query.return_value = {
+                    "sequent_backend_template": [{**row, **changed}]
+                }
+                m.ensure_notice_template(admin, "tenant")
+                self.assertEqual(admin.query.call_count, 1)
 
 
 class MessagingServiceAccountTest(unittest.TestCase):
