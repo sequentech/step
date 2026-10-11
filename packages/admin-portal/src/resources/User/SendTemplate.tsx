@@ -6,6 +6,7 @@ import React, {useContext, useMemo, useState} from "react"
 import {SaveButton, SimpleForm, useNotify, Toolbar, Identifier, useGetList} from "react-admin"
 import {
     Alert,
+    Accordion,
     AccordionDetails,
     AccordionSummary,
     MenuItem,
@@ -14,6 +15,7 @@ import {
     Switch,
     Typography,
 } from "@mui/material"
+import {ChannelIcon} from "@sequentech/ui-essentials"
 import {useMutation} from "@apollo/client"
 import {FieldValues, SubmitHandler} from "react-hook-form"
 import MailIcon from "@mui/icons-material/Mail"
@@ -29,13 +31,7 @@ import {getReferencedSecretAttributeNames} from "@/services/secretAttributeTempl
 import {CreateScheduledEventMutation, Sequent_Backend_Template} from "@/gql/graphql"
 import {ScheduledEventType} from "@/services/ScheduledEvent"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {
-    ITemplateMethod,
-    IEmail,
-    IMethods,
-    ISmsConfig,
-    MESSAGE_TEMPLATE_METHODS,
-} from "@/types/templates"
+import {IEmail, IMethods, ISmsConfig} from "@/types/templates"
 import {EMessageChannel, IInstantMessageConfig} from "@/types/messaging"
 import {useMessagingAccounts} from "@/hooks/useMessagingAccounts"
 import {useEventMessagingConfig} from "@/hooks/useEventMessagingConfig"
@@ -65,17 +61,21 @@ export enum AudienceSelection {
 }
 
 // Without an event configuration, notices go by SMS or email, in channel order.
-const INSTANT_METHODS = [ITemplateMethod.WHATSAPP, ITemplateMethod.VIBER, ITemplateMethod.MESSENGER]
+const INSTANT_METHODS = [
+    EMessageChannel.WHATSAPP,
+    EMessageChannel.VIBER,
+    EMessageChannel.MESSENGER,
+] as const
 
 type InstantContentKey = "whatsapp" | "viber" | "messenger"
 
-const instantKey = (method: ITemplateMethod): InstantContentKey | undefined => {
+const instantKey = (method: EMessageChannel): InstantContentKey | undefined => {
     switch (method) {
-        case ITemplateMethod.WHATSAPP:
+        case EMessageChannel.WHATSAPP:
             return "whatsapp"
-        case ITemplateMethod.VIBER:
+        case EMessageChannel.VIBER:
             return "viber"
-        case ITemplateMethod.MESSENGER:
+        case EMessageChannel.MESSENGER:
             return "messenger"
         default:
             return undefined
@@ -110,6 +110,36 @@ interface ITemplateContents {
     whatsapp?: IInstantMessageConfig
     viber?: IInstantMessageConfig
     messenger?: IInstantMessageConfig
+}
+
+/** Closing a channel keeps its editor mounted and its content in the send. */
+const SendChannelSection: React.FC<{
+    channel: EMessageChannel
+    children: React.ReactNode
+}> = ({channel, children}) => {
+    const {t} = useTranslation()
+    const id = React.useId()
+    return (
+        <Accordion sx={{width: "100%", minWidth: 0}}>
+            <AccordionSummary
+                id={`${id}-summary`}
+                aria-controls={`${id}-content`}
+                expandIcon={<ExpandMoreIcon />}
+                // The always-open outer sections hide their arrows, including descendants.
+                sx={{"&& .MuiAccordionSummary-expandIconWrapper": {display: "flex"}}}
+            >
+                <ElectionHeaderStyles.AccordionTitle
+                    sx={{display: "flex", alignItems: "center", gap: 1}}
+                >
+                    <ChannelIcon channel={channel} fontSize="small" />
+                    {t(`template.method.${channel.toLowerCase()}`)}
+                </ElectionHeaderStyles.AccordionTitle>
+            </AccordionSummary>
+            <AccordionDetails sx={{display: "flex", flexDirection: "column", gap: 2, minWidth: 0}}>
+                {children}
+            </AccordionDetails>
+        </Accordion>
+    )
 }
 
 interface SendTemplateProps {
@@ -322,7 +352,6 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
     }
 
     // Every voter gets this notification on their own channel: there's no other choice.
-    const shows = (method: ITemplateMethod) => MESSAGE_TEMPLATE_METHODS.includes(method)
     const audienceChannels = audiencePreview
         ? audiencePreview.channels.flatMap((row) =>
               row.channel &&
@@ -476,10 +505,12 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                                 })}
                             </Alert>
                         ) : null}
-                        {shows(ITemplateMethod.EMAIL) && content.email && (
-                            <EmailEditor record={content.email} setRecord={setEmail} />
+                        {content.email && (
+                            <SendChannelSection channel={EMessageChannel.EMAIL}>
+                                <EmailEditor record={content.email} setRecord={setEmail} />
+                            </SendChannelSection>
                         )}
-                        {shows(ITemplateMethod.SMS) && (
+                        <SendChannelSection channel={EMessageChannel.SMS}>
                             <FormStyles.TextField
                                 name="sms"
                                 label={String(t("sendCommunication.smsMessage"))}
@@ -488,20 +519,20 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                                 multiline={true}
                                 minRows={4}
                             />
-                        )}
-                        {INSTANT_METHODS.filter(shows).map((method) => {
+                        </SendChannelSection>
+                        {INSTANT_METHODS.map((method) => {
                             const key = instantKey(method)
                             if (!key) {
                                 return null
                             }
                             const value = content[key]
-                            const editable = method === ITemplateMethod.MESSENGER
+                            const editable = method === EMessageChannel.MESSENGER
                             if (!value) {
                                 return null
                             }
                             const channel = t(`template.method.${key}`)
                             return (
-                                <React.Fragment key={method}>
+                                <SendChannelSection key={method} channel={method}>
                                     <FormStyles.TextField
                                         name={key}
                                         label={String(channel)}
@@ -542,7 +573,7 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                                             t("messaging.send.providerLanguageHelp")
                                         )}
                                     />
-                                </React.Fragment>
+                                </SendChannelSection>
                             )
                         })}
                     </AccordionDetails>
