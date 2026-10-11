@@ -2951,7 +2951,7 @@ const galegoTranslation: TranslationType = {
             languages: "Idiomas",
             smsMessage: "Mensaxe SMS",
             errorSending: "Erro ao enviar a notificación: {{error}}",
-            successSending: "Notificación programada/enviada correctamente",
+            successSending: "Notificación programada correctamente",
             method: "Método do Modelo",
             type: "Tipo de Comunicación",
             alias: "Alias do Modelo",

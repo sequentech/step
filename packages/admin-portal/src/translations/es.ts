@@ -2951,7 +2951,7 @@ const spanishTranslation: TranslationType = {
             languages: "Idiomas",
             smsMessage: "Mensaje SMS",
             errorSending: "Error enviando la notificación: {{error}}",
-            successSending: "Notificación programada/enviada con éxito",
+            successSending: "Notificación programada con éxito",
             method: "Método de Plantillas",
             type: "Tipo de Comunicación",
             alias: "Alias de la Plantilla",

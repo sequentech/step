@@ -2912,7 +2912,7 @@ const englishTranslation = {
             languages: "Languages",
             smsMessage: "SMS Message",
             errorSending: "Error sending the notification: {{error}}",
-            successSending: "Notification programmed/sent successfully",
+            successSending: "Notification scheduled successfully",
             method: "Template Method",
             type: "Communication Type",
             alias: "Template Alias",

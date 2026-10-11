@@ -2970,7 +2970,7 @@ const frenchTranslation: TranslationType = {
             languages: "Langues",
             smsMessage: "Message SMS",
             errorSending: "Erreur lors de l'envoi de la notification : {{error}}",
-            successSending: "Notification programmée/envoyée avec succès",
+            successSending: "Notification programmée avec succès",
             method: "Méthode de Modèles",
             type: "Type de Communication",
             alias: "Alias de la Modèle",

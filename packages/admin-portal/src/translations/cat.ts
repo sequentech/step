@@ -2962,7 +2962,7 @@ const catalanTranslation: TranslationType = {
             languages: "Idiomes",
             smsMessage: "Missatge SMS",
             errorSending: "Error enviant la notificació: {{error}}",
-            successSending: "Notificació programada/enviada amb èxit",
+            successSending: "Notificació programada amb èxit",
             method: "Mètode de Plantilles",
             type: "Tipus de Comunicació",
             alias: "Àlies de la Plantilla",

@@ -2940,7 +2940,7 @@ const basqueTranslation: TranslationType = {
             languages: "Hizkuntzak",
             smsMessage: "SMS Mezua",
             errorSending: "Errorea jakinarazpena bidaltzerakoan: {{error}}",
-            successSending: "Jakinarazpena arrakastaz programatu/bidali da",
+            successSending: "Jakinarazpena arrakastaz programatu da",
             method: "Txantiloi Metodoa",
             type: "Komunikazio Mota",
             alias: "Txantiloi Ezizena",
