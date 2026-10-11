@@ -451,7 +451,7 @@ taken. A channel the voter never verified is never taken.
 
 ### Changing the channel
 
-A signed-in voter changes the channel from **Change how we contact you** in
+A signed-in voter changes the channel from **Contact method** in
 the voting portal's user menu; the item appears only when the event offers
 at least one channel for codes (the portal reads the realm's public
 `GET /realms/<realm>/messaging-channels`, which lists only channel names). The voter must have signed in within the
