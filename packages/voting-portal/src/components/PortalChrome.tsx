@@ -8,6 +8,7 @@ import {styled} from "@mui/material/styles"
 import Stack from "@mui/material/Stack"
 import Box from "@mui/material/Box"
 import Button from "@mui/material/Button"
+import Tooltip from "@mui/material/Tooltip"
 import Snackbar from "@mui/material/Snackbar"
 import Alert, {type AlertColor} from "@mui/material/Alert"
 import ContactPhoneOutlinedIcon from "@mui/icons-material/ContactPhoneOutlined"
@@ -69,21 +70,48 @@ const StyledAppWrapper = styled(Stack)<{customCss: string}>`
 const ChangeContactButton: React.FC<{onClick: () => void}> = ({onClick}) => {
     const {t} = useTranslation()
     return (
-        <Button
-            className="change-contact-button"
-            onClick={onClick}
-            aria-label={t("contactChannel.change")}
-            startIcon={<ContactPhoneOutlinedIcon className="change-contact-icon" aria-hidden />}
-            sx={{textTransform: "none", minWidth: 0}}
-        >
-            <Box
-                component="span"
-                className="change-contact-label"
-                sx={{display: {xs: "none", md: "inline"}}}
+        <Tooltip title={t("contactChannel.change")} describeChild>
+            <Button
+                className="change-contact-button"
+                onClick={onClick}
+                aria-label={t("contactChannel.change")}
+                startIcon={<ContactPhoneOutlinedIcon className="change-contact-icon" aria-hidden />}
+                variant="text"
+                sx={(theme) => ({
+                    "color": `${theme.palette.brandColor} !important`,
+                    "bgcolor": "transparent !important",
+                    "border": 0,
+                    "borderRadius": 1,
+                    "minWidth": 44,
+                    "minHeight": 44,
+                    "width": {xs: 44, md: "auto"},
+                    "px": {xs: 0, md: 1.5},
+                    "gap": {xs: 0, md: 1},
+                    "flexShrink": 0,
+                    "textTransform": "none",
+                    "whiteSpace": "nowrap",
+                    "& .MuiButton-startIcon": {m: 0},
+                    "&:hover, &:focus, &:active": {
+                        color: `${theme.palette.white} !important`,
+                        bgcolor: `${theme.palette.brandColor} !important`,
+                        border: 0,
+                        boxShadow: "none",
+                    },
+                    "&:focus-visible": {
+                        outline: `2px solid ${theme.palette.brandColor}`,
+                        outlineOffset: 2,
+                    },
+                })}
             >
-                {t("contactChannel.change")}
-            </Box>
-        </Button>
+                <Box
+                    component="span"
+                    className="change-contact-label"
+                    sx={{display: {xs: "none", md: "inline"}}}
+                >
+                    {t("contactChannel.change")}
+                </Box>
+            </Button>
+        </Tooltip>
     )
 }
 
