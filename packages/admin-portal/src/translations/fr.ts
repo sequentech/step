@@ -6159,6 +6159,13 @@ const frenchTranslation: TranslationType = {
                 unavailable: "Pas de rapports de remise sur ce canal",
             },
             content: {
+                demoCode:
+                    "{{code}} est votre code de vérification. Pour votre sécurité, ne le partagez avec personne.",
+                demoNotice:
+                    "Rappel de vote\n\nBonjour {{name}}, le vote est ouvert pour {{event}}.\n\nConnectez-vous au portail de vote pour vérifier votre bulletin et voter :\n{{url}}\n\nNe partagez votre code de connexion avec personne. Si vous avez déjà voté, aucune autre action n’est nécessaire.",
+                demoLegacyNotice:
+                    "Rappel de vote\n\nBonjour {{name}}, le vote est ouvert. Connectez-vous au portail de vote pour voter :\n{{url}}\n\nNe partagez votre code de connexion avec personne.",
+
                 template: "Modèle {{name}} ({{language}})",
                 noText: "(aucun texte)",
                 code: "Code",

@@ -70,7 +70,8 @@ export const fullMessages = (): IFakeProviderMessage[] => [
             template_language: "en",
             parameters: [
                 {name: null, value: "Ana"},
-                {name: "post", value: "Manila"},
+                {name: null, value: "Council Election 2026"},
+                {name: null, value: "https://vote.example.org/council"},
             ],
         }),
         // The component refused the report: visible, not silent.
@@ -99,7 +100,7 @@ export const fullMessages = (): IFakeProviderMessage[] => [
         sender: "Council",
         recipient: VIBER_VOTER,
         content: content({
-            template_name: "tpl-otp-en",
+            template_name: "step_code",
             template_language: "en",
             parameters: [{name: "pin", value: VIBER_PIN}],
             code: VIBER_PIN,
@@ -114,9 +115,13 @@ export const fullMessages = (): IFakeProviderMessage[] => [
         sender: "Council",
         recipient: VIBER_VOTER,
         content: content({
-            template_name: "tpl-enrollment-en",
+            template_name: "step_notice",
             template_language: "en",
-            parameters: [{name: "1", value: "Ana"}],
+            parameters: [
+                {name: null, value: "Ana"},
+                {name: null, value: "Council Election 2026"},
+                {name: null, value: "https://vote.example.org/council"},
+            ],
         }),
         report: report({
             state: EFakeReportState.UNREACHABLE,
