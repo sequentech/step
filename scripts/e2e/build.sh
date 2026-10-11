@@ -92,6 +92,7 @@ $DOCKER run --rm \
         build() { echo "::group::cargo build $*"; cargo build --locked "$@"; echo "::endgroup::"; }
         build -p windmill --bin main --bin beat
         build -p harvest --bin harvest
+        build -p messaging-webhooks --bin messaging-webhooks
         build -p immu-board --bin bb_helper
         build -p step-cli --bin step-cli
         build --release -p b4 --bin b4 --features native
@@ -99,6 +100,7 @@ $DOCKER run --rm \
         install -m 0755 "$CARGO_TARGET_DIR/debug/main" /out/windmill
         install -m 0755 "$CARGO_TARGET_DIR/debug/beat" /out/beat
         install -m 0755 "$CARGO_TARGET_DIR/debug/harvest" /out/harvest
+        install -m 0755 "$CARGO_TARGET_DIR/debug/messaging-webhooks" /out/messaging-webhooks
         install -m 0755 "$CARGO_TARGET_DIR/debug/bb_helper" /out/bb_helper
         install -m 0755 "$CARGO_TARGET_DIR/debug/step-cli" /out/step-cli
         install -m 0755 "$CARGO_TARGET_DIR/release/b4" /out/b4

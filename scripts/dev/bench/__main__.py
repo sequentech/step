@@ -8,6 +8,7 @@ import argparse
 import os
 import signal
 import sys
+import uuid
 from collections.abc import Sequence
 from dataclasses import replace
 from pathlib import Path
@@ -15,6 +16,7 @@ from pathlib import Path
 from . import (
     ci,
     focused_test,
+    messaging_otp,
     monitoring_viewers,
     rust,
     summarize,
@@ -710,6 +712,118 @@ def run_monitoring_viewers(arguments: argparse.Namespace) -> Path:
     return monitoring_viewers.run_viewers(options)
 
 
+def uuid_text(value: str) -> str:
+    """An id the bench writes into SQL: only a UUID gets through."""
+    try:
+        return str(uuid.UUID(value))
+    except ValueError:
+        raise argparse.ArgumentTypeError("must be a UUID") from None
+
+
+def positive_float(value: str) -> float:
+    number = float(value)
+    if number <= 0:
+        raise argparse.ArgumentTypeError("must be above 0")
+    return number
+
+
+def add_messaging_otp(
+    subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
+) -> None:
+    parser = subparsers.add_parser(
+        "messaging-otp",
+        help="OTP latency (p50/p95) during a saturated bulk send on the same messaging "
+        "account, with harvest, windmill and a loopback provider as separate processes",
+        description=messaging_otp.__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    common_options(parser)
+    parser.add_argument(
+        "--tenant-id", required=True, type=uuid_text, help="a dev tenant"
+    )
+    parser.add_argument(
+        "--account-id",
+        required=True,
+        type=uuid_text,
+        help="a WhatsApp, Messenger or Viber account harvest picks for codes",
+    )
+    parser.add_argument(
+        "--election-event-id",
+        type=uuid_text,
+        help="the event whose configuration names the account",
+    )
+    parser.add_argument("--messages-per-second", type=positive_int, default=50)
+    parser.add_argument("--otp-reserved-per-second", type=int, default=10)
+    parser.add_argument(
+        "--otp-rate",
+        type=positive_float,
+        default=5.0,
+        help="codes per second during each window (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--duration", type=positive_float, default=60.0, help="seconds of each window"
+    )
+    parser.add_argument(
+        "--warmup",
+        type=float,
+        default=10.0,
+        help="seconds of bulk sending before codes are measured",
+    )
+    parser.add_argument(
+        "--no-baseline", action="store_true", help="skip the codes-alone window"
+    )
+    parser.add_argument("--bulk-workers", type=positive_int, default=16)
+    parser.add_argument("--provider-latency-ms", type=int, default=150)
+    parser.add_argument(
+        "--profile", default="dev", help="cargo profile of the binaries (default: dev)"
+    )
+    parser.add_argument(
+        "--no-build", action="store_true", help="use the binaries already built"
+    )
+    parser.add_argument(
+        "--keep-rows",
+        action="store_true",
+        help="keep the run's ledger rows instead of deleting them",
+    )
+    parser.add_argument(
+        "--token-command",
+        help="shell command printing Keycloak's service token for the tenant "
+        "(default: client credentials of KEYCLOAK_CLIENT_ID)",
+    )
+    parser.add_argument("--timeout", type=float, default=30.0, help="per code request")
+    parser.add_argument("--backend-db-container", default="postgres")
+    parser.add_argument("--backend-db", default="postgres")
+
+
+def run_messaging_otp(arguments: argparse.Namespace) -> Path:
+    return messaging_otp.run_messaging_otp(
+        messaging_otp.OtpOptions(
+            label=arguments.label,
+            checkout=arguments.checkout,
+            tenant_id=arguments.tenant_id,
+            account_id=arguments.account_id,
+            election_event_id=arguments.election_event_id,
+            messages_per_second=arguments.messages_per_second,
+            otp_reserved_per_second=arguments.otp_reserved_per_second,
+            otp_rate=arguments.otp_rate,
+            duration=arguments.duration,
+            warmup=arguments.warmup,
+            baseline=not arguments.no_baseline,
+            bulk_workers=arguments.bulk_workers,
+            provider_latency_ms=arguments.provider_latency_ms,
+            profile=arguments.profile,
+            build=not arguments.no_build,
+            keep_rows=arguments.keep_rows,
+            token_command=arguments.token_command,
+            timeout=arguments.timeout,
+            database=messaging_otp.Database(
+                arguments.backend_db_container, arguments.backend_db
+            ),
+            output_dir=arguments.output_dir,
+        )
+    )
+
+
 def add_summarize(
     subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
 ) -> None:
@@ -762,6 +876,7 @@ def parser() -> argparse.ArgumentParser:
     add_rust(subparsers)
     add_ci(subparsers)
     add_monitoring_viewers(subparsers)
+    add_messaging_otp(subparsers)
     add_summarize(subparsers)
     add_clean(subparsers)
     return root
@@ -791,6 +906,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "rust": run_rust,
             "ci": run_ci,
             "monitoring-viewers": run_monitoring_viewers,
+            "messaging-otp": run_messaging_otp,
         }
         written = runners[arguments.scenario](arguments)
     except (IsolationError, ProbeError, ValueError) as error:

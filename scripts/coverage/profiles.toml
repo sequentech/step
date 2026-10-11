@@ -61,6 +61,7 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/monitoring/sources_tests.rs" = "Standalone unit-test module under cfg(test); the data source catalogue remains measured."
 "src/monitoring/voter_tests.rs" = "Standalone unit-test module under cfg(test); the voter-facing view remains measured."
 "src/types/permissions_tests.rs" = "Standalone unit-test module under cfg(test); the permission names remain measured."
+"src/types/voter_channel_tests.rs" = "Standalone unit-test module under cfg(test); the channel rule remains measured."
 "src/signing/canonical_tests.rs" = "Standalone unit-test module under cfg(test); the canonical payload remains measured."
 "src/signing/code_tests.rs" = "Standalone unit-test module under cfg(test); the signing code remains measured."
 "src/signing/types_tests.rs" = "Standalone unit-test module under cfg(test); the signing types remain measured."
@@ -140,6 +141,7 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/monitoring/sources_tests.rs" = "Standalone unit-test module under cfg(test); the data source catalogue remains measured."
 "src/monitoring/voter_tests.rs" = "Standalone unit-test module under cfg(test); the voter-facing view remains measured."
 "src/types/permissions_tests.rs" = "Standalone unit-test module under cfg(test); the permission names remain measured."
+"src/types/voter_channel_tests.rs" = "Standalone unit-test module under cfg(test); the channel rule remains measured."
 "src/signing/canonical_tests.rs" = "Standalone unit-test module under cfg(test); the canonical payload remains measured."
 "src/signing/code_tests.rs" = "Standalone unit-test module under cfg(test); the signing code remains measured."
 "src/signing/types_tests.rs" = "Standalone unit-test module under cfg(test); the signing types remain measured."
@@ -236,6 +238,20 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 
 [profiles.wrap-map-err.scope_exceptions]
 
+[profiles.messaging-webhooks]
+package = "messaging-webhooks"
+features = []
+limitations = [
+    "Library tests drive the component through Rocket's local client against a loopback stand-in for harvest; the relay envelope and signature are measured in the messaging crate.",
+    "Process startup (environment and launch) is excluded; the configuration it reads and the Rocket it launches are measured through the library.",
+    "Branch coverage and a deployed harvest are separate scopes.",
+]
+issue = "https://github.com/sequentech/meta/issues/13755"
+
+[profiles.messaging-webhooks.excluded_files]
+"src/main.rs" = "Process startup only: reads the environment and launches the library's Rocket; Config::from_vars and build are measured."
+"src/tests.rs" = "Standalone unit-test module under cfg(test); the routes, relay and configuration remain measured."
+
 [profiles.harvest]
 package = "harvest"
 features = []
@@ -258,6 +274,7 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/ports/identity.rs" = "Identity admin trait declaration only; implementations are measured in adapters."
 "src/ports/mod.rs" = "Module declarations only."
 "src/ports/monitoring_snapshots.rs" = "Monitoring snapshot trait declaration and Windmill re-exports only; implementations are measured in adapters."
+"src/ports/service_keys.rs" = "Service key source trait declaration only; implementations are measured in adapters."
 "src/ports/task_ledger.rs" = "Task ledger trait declaration only; implementations are measured in adapters."
 "src/ports/user_tasks.rs" = "User task trait and data declarations only; implementations are measured in adapters."
 "src/ports/vault.rs" = "Secret vault trait declaration only; implementations are measured in adapters."
@@ -306,6 +323,7 @@ IMMUDB_PASSWORD = "immudb"
 IMMUDB_SERVER_URL = "http://127.0.0.1:3323"
 
 [profiles.windmill.excluded_files]
+"src/services/messaging/insights_tests.rs" = "Standalone unit-test module under cfg(test); the messaging audience preview and stats remain measured."
 "src/services/ceremonies/keys_ceremony_tests.rs" = "Standalone unit-test module under cfg(test); the keys ceremony use cases remain measured."
 "src/services/ceremonies/tally_ceremony_creation_tests.rs" = "Standalone unit-test module under cfg(test); the tally creation use case remains measured."
 "src/services/ceremonies/tally_ceremony_state_tests.rs" = "Standalone unit-test module under cfg(test); the tally ceremony use case remains measured."

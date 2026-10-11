@@ -10,6 +10,7 @@ first imported, so import this module after setting it up.
 
 from __future__ import annotations
 
+import copy
 import json
 import shutil
 import socket
@@ -40,6 +41,7 @@ from scripts.e2e.journeys.client import (
 from scripts.e2e.journeys.voting import Portal
 from scripts.e2e.ui.seed import allow_portals
 
+from . import messaging, tenants
 from .catalog import Scenario, Stage, census, census_usernames, voter_username
 from .runner import Say, ScenarioError
 from .settings import PORTAL_CLIENTS, Portals, accepts
@@ -167,8 +169,13 @@ class StackBackend:
         state_directory: Path,
         say: Say,
         timeout: float | None = None,
+        organization: tenants.Organization | None = None,
     ) -> None:
-        self.tenant_id = TENANT_ID
+        # A scenario of an organization with its own tenant runs there; the
+        # tenant's ID is found by its slug (authenticate creates it).
+        self.organization = organization
+        self._tenant_id: str | None = None if organization else TENANT_ID
+        self._client_secret: str | None = None
         self.project = checkout.project
         self.checkout = checkout
         self.manifest = manifest
@@ -179,6 +186,49 @@ class StackBackend:
         self.admin = Hasura.admin()
         self.keycloak = Keycloak()
         self.cli: StepCli | None = None
+
+    @property
+    def tenant_id(self) -> str:
+        if self._tenant_id is None:
+            assert self.organization is not None
+            self._tenant_id = tenants.find_tenant_id(self.admin, self.organization.slug)
+            if self._tenant_id is None:
+                raise ScenarioError(
+                    f"tenant {self.organization.slug} does not exist yet; "
+                    "scripts/dev/step-dev scenario up creates it"
+                )
+        return self._tenant_id
+
+    @property
+    def realm(self) -> str:
+        return TENANT_REALM if self.organization is None else tenants.tenant_realm(
+            self.tenant_id
+        )
+
+    def _event_realm(self, event_id: str) -> str:
+        if self.organization is None:
+            return event_realm(event_id)
+        return tenants.event_realm(self.tenant_id, event_id)
+
+    def _admin_token(self) -> str:
+        """The administrator of the scenario's tenant, from the API key client."""
+        if self.organization is None:
+            return bootstrap.admin_token(self.keycloak)
+        if self._client_secret is None:
+            self._client_secret = tenants.api_key_client_secret(
+                self.keycloak, self.realm
+            )
+        return tenants.admin_token(self.keycloak, self.realm, self._client_secret)
+
+    def _configure_cli(self) -> None:
+        if self.cli is None:
+            raise ScenarioError("step-cli is not open")
+        if self.organization is None:
+            bootstrap.configure_step_cli(self.cli)
+            return
+        self._admin_token()  # reads the client secret
+        assert self._client_secret is not None
+        tenants.configure_step_cli(self.cli, self.tenant_id, self._client_secret)
 
     # Readiness
 
@@ -347,6 +397,118 @@ class StackBackend:
             "hasura",
             hint=f"restart Hasura: docker restart {self.checkout.name_prefix}hasura",
         )
+        if self.organization is not None:
+            try:
+                self._prepare_organization(self.organization)
+            except (tenants.TenantError, messaging.MessagingError) as error:
+                raise ScenarioError(
+                    f"tenant {self.organization.slug}: {error}"
+                ) from error
+
+    def _prepare_organization(self, organization: tenants.Organization) -> None:
+        """Creates the organization's tenant if it is missing, as the super
+        tenant's administrator, then signs its own administrator in and gives
+        the tenant the organization's name and languages where it has none
+        (its own stay, and are named)."""
+        tenant_id = tenants.find_tenant_id(self.admin, organization.slug)
+        if tenant_id is None:
+            graphql = messaging.Graphql(
+                Http(), HASURA_URL, bootstrap.admin_token(self.keycloak)
+            )
+            created, task_id = tenants.create_tenant(graphql, organization.slug)
+            self.say(f"creating tenant {organization.slug} ({created})")
+
+            def exists() -> tuple[bool, str]:
+                found = tenants.find_tenant_id(self.admin, organization.slug)
+                if found is not None:
+                    return True, "created"
+                if task_id is None:
+                    return False, "no tenant row"
+                status, last = tenants.task_status(self.admin, task_id)
+                if status in FAILED_EXECUTIONS:
+                    raise ScenarioError(
+                        f"creating tenant {organization.slug} {status}: {last}; see "
+                        f"docker logs {self.checkout.name_prefix}windmill"
+                    )
+                return False, f"task {status}"
+
+            self._wait(f"tenant {organization.slug}", exists, "tenant")
+            tenant_id = tenants.find_tenant_id(self.admin, organization.slug)
+        self._tenant_id = tenant_id
+        realm = self.realm
+
+        def keys_published() -> tuple[bool, str]:
+            kids = tenants.realm_signing_kids(realm)
+            published = bootstrap.published_kids()
+            return (
+                bool(kids) and kids <= published,
+                f"realm keys {sorted(kids)}, published {sorted(published)}",
+            )
+
+        self._wait(
+            f"the {organization.slug} realm keys in the published JWKS",
+            keys_published,
+            "tenant",
+        )
+        try:
+            token = self._admin_token()
+        except LoginError as error:
+            if NOT_SET_UP not in str(error):
+                raise ScenarioError(
+                    f"the {organization.slug} administrator cannot sign in ({error})"
+                ) from error
+            self._enroll_organization_administrator(realm)
+            token = self._admin_token()
+        self._wait(
+            f"Hasura to accept {organization.slug} administrator tokens",
+            lambda: (tenants.hasura_accepts(self._admin_token(), self.tenant_id),
+                     "tokens rejected"),
+            "hasura",
+            hint=f"restart Hasura: docker restart {self.checkout.name_prefix}hasura",
+        )
+        kept = tenants.reconcile_settings(
+            messaging.Graphql(Http(), HASURA_URL, token),
+            self.admin,
+            self.tenant_id,
+            organization,
+        )
+        if kept:
+            self.say(
+                f"tenant {organization.slug} keeps its own {', '.join(kept)} "
+                "(not the scenario's)"
+            )
+
+    def _enroll_organization_administrator(self, realm: str) -> None:
+        """The organization's administrator enrolls the email code, as the
+        super tenant's does: the realm's code test mode is on for one login."""
+        config = tenants.email_otp_config(self.keycloak, realm)
+        self._write_otp_marker(realm, config)
+        enabled = copy.deepcopy(config)
+        enabled["config"]["test-mode"] = "true"
+        self.keycloak.admin(
+            "PUT",
+            f"{realm}/authentication/config/{config['id']}",
+            enabled,
+            expect=(204,),
+        )
+        try:
+            tenants.enroll_admin_mfa(self.keycloak, realm, enabled)
+        finally:
+            self._restore_otp_test_mode()
+        self.say(f"enrolled the {realm} administrator's email code")
+
+    def _write_otp_marker(self, realm: str, config: dict[str, Any]) -> None:
+        self.state_directory.mkdir(parents=True, exist_ok=True)
+        self._otp_marker().write_text(
+            json.dumps(
+                {
+                    "realm": realm,
+                    "configId": config["id"],
+                    "testMode": config["config"].get("test-mode", "false"),
+                }
+            ),
+            encoding="utf-8",
+        )
 
     def _otp_marker(self) -> Path:
         return self.state_directory / OTP_MARKER
@@ -383,12 +545,13 @@ class StackBackend:
         if not marker.is_file():
             return
         recorded = json.loads(marker.read_text(encoding="utf-8"))
-        path = f"{TENANT_REALM}/authentication/config/{recorded['configId']}"
+        realm = recorded.get("realm", TENANT_REALM)
+        path = f"{realm}/authentication/config/{recorded['configId']}"
         config = self.keycloak.admin("GET", path)
         if config["config"].get("test-mode", "false") != recorded["testMode"]:
             config["config"]["test-mode"] = recorded["testMode"]
             self.keycloak.admin("PUT", path, config, expect=(204,))
-            self.say("restored the tenant realm's email code test mode")
+            self.say(f"restored the {realm} realm's email code test mode")
         marker.unlink()
 
     def open_cli(self, binary: Path) -> None:
@@ -401,9 +564,8 @@ class StackBackend:
 
     def _step(self, *args: str, timeout: float = 900) -> str:
         """An administrator command with a fresh login, as the journeys run them."""
-        if self.cli is None:
-            raise ScenarioError("step-cli is not open")
-        bootstrap.configure_step_cli(self.cli)
+        self._configure_cli()
+        assert self.cli is not None
         return self.cli.step(*args, timeout=timeout)
 
     # Queries
@@ -432,7 +594,8 @@ class StackBackend:
         """User IDs by username in the event's realm."""
         users = self.keycloak.admin(
             "GET",
-            f"{event_realm(event_id)}/users?briefRepresentation=true&max={MAX_REALM_USERS}",
+            f"{self._event_realm(event_id)}/users?briefRepresentation=true"
+            f"&max={MAX_REALM_USERS}",
         )
         return {user["username"]: user["id"] for user in users}
 
@@ -473,7 +636,7 @@ class StackBackend:
 
     def _realm_exists(self, event_id: str) -> bool:
         response = Http().get(
-            f"{KEYCLOAK_URL}/admin/realms/{event_realm(event_id)}",
+            f"{KEYCLOAK_URL}/admin/realms/{self._event_realm(event_id)}",
             headers={"Authorization": f"Bearer {self.keycloak.admin_token()}"},
         )
         return response.status == 200
@@ -486,6 +649,10 @@ class StackBackend:
             return False
         if stage is Stage.EVENT:
             return self._event(event_id) is not None
+        if stage is Stage.MESSAGING:
+            return messaging.configured(
+                self.admin, self.tenant_id, event_id, messaging.PROFILES[scenario.name]
+            )
         if stage is Stage.VOTERS:
             expected = [
                 name for names in census_usernames(scenario).values() for name in names
@@ -531,6 +698,8 @@ class StackBackend:
             raise ScenarioError(f"{stage.value} needs the scenario's event")
         if stage is Stage.VOTERS:
             self._import_voters(scenario, state, event_id)
+        elif stage is Stage.MESSAGING:
+            self._configure_messaging(scenario, state, event_id)
         elif stage is Stage.KEYS:
             self._keys_ceremony(scenario, event_id)
         elif stage is Stage.BALLOTS:
@@ -556,7 +725,7 @@ class StackBackend:
         """
         if state.event_id is None:
             return
-        realm = event_realm(state.event_id)
+        realm = self._event_realm(state.event_id)
         for client_id in PORTAL_CLIENTS:
             (client,) = self.keycloak.admin(
                 "GET", f"{realm}/clients?clientId={client_id}"
@@ -579,6 +748,14 @@ class StackBackend:
         document["keycloak_event_realm"]["attributes"]["credential-input-policy"] = (
             "standard"
         )
+        if self.organization is not None:
+            # The organization's elections, languages and timezones.
+            document = tenants.organization_event(document, self.organization)
+        if scenario.name in messaging.PROFILES:
+            # The development realm, with the single-channel sign-in step.
+            document["keycloak_event_realm"] = messaging.dev_event_realm(
+                document["keycloak_event_realm"]
+            )
         path = self.cli.directory / "event.json"
         path.write_text(json.dumps(document), encoding="utf-8")
         state.event_id = StepCli.last_id(
@@ -638,10 +815,24 @@ class StackBackend:
             "--is-local",
         )
 
+    def _configure_messaging(
+        self, scenario: Scenario, state: State, event_id: str
+    ) -> None:
+        graphql = messaging.Graphql(Http(), HASURA_URL, self._admin_token())
+        try:
+            messaging.configure(
+                graphql,
+                self.admin,
+                self.tenant_id,
+                event_id,
+                messaging.PROFILES[scenario.name],
+                self.say,
+            )
+        except messaging.MessagingError as error:
+            raise ScenarioError(f"messaging setup: {error}") from error
+
     def _keys_ceremony(self, scenario: Scenario, event_id: str) -> None:
-        if self.cli is None:
-            raise ScenarioError("step-cli is not open")
-        bootstrap.configure_step_cli(self.cli)
+        self._configure_cli()
         bootstrap.seed_trustees(self.cli)
         ceremonies = self._keys_ceremonies(event_id)
         active = [

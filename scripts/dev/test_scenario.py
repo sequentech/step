@@ -170,11 +170,211 @@ class CatalogTest(unittest.TestCase):
         names = [scenario.name for scenario in SCENARIOS]
         self.assertEqual(len(names), len(set(names)))
         self.assertEqual(
-            names, ["kiosk-voter", "completed-ceremony", "published-results"]
+            names,
+            [
+                "kiosk-voter",
+                "completed-ceremony",
+                "messaging",
+                "messaging-second-organization",
+                "published-results",
+            ],
         )
         for name in names:
             self.assertRegex(name, r"^[a-z]+(-[a-z]+)*$")
             self.assertEqual(find_scenario(name).name, name)
+
+    def test_messaging_scenarios_have_a_profile_and_the_single_channel_realm(self):
+        from scripts.dev.scenario import messaging
+
+        named = {s.name for s in SCENARIOS if Stage.MESSAGING in s.stages}
+        self.assertEqual(named, set(messaging.PROFILES))
+        realm = fixtures.election_event("http://127.0.0.1:3000", "m")[
+            "keycloak_event_realm"
+        ]
+        self.assertFalse(messaging.has_single_channel_step(realm))
+        dev = messaging.dev_event_realm(realm)
+        self.assertTrue(messaging.has_single_channel_step(dev))
+        self.assertNotIn("users", dev)
+        self.assertEqual(dev["realm"], realm["realm"])
+
+    def test_messaging_realm_keeps_all_fixture_portal_clients(self):
+        from scripts.dev.scenario import messaging
+        from scripts.dev.scenario.settings import PORTAL_CLIENTS
+
+        fixture = fixtures.election_event("http://127.0.0.1:3000", "messaging")[
+            "keycloak_event_realm"
+        ]
+        realm = messaging.dev_event_realm(fixture)
+        imported = {client["clientId"]: client for client in realm["clients"]}
+        originals = {client["clientId"]: client for client in fixture["clients"]}
+        for client_id in PORTAL_CLIENTS:
+            with self.subTest(client=client_id):
+                self.assertIn(client_id, imported)
+                self.assertEqual(
+                    imported[client_id]["redirectUris"],
+                    originals[client_id]["redirectUris"],
+                )
+                self.assertIsNot(imported[client_id], originals[client_id])
+        self.assertFalse(
+            imported["voting-portal-kiosk"].get("authenticationFlowBindingOverrides")
+        )
+
+    def test_every_scenario_tenant_is_a_known_organization(self):
+        from scripts.dev.scenario import tenants
+
+        for scenario in SCENARIOS:
+            if scenario.tenant is not None:
+                self.assertIn(scenario.tenant, tenants.ORGANIZATIONS)
+        self.assertEqual(
+            find_scenario("messaging-second-organization").tenant,
+            tenants.STAFF_ASSOCIATION.slug,
+        )
+        self.assertIsNone(find_scenario("messaging").tenant)
+
+
+class OrganizationTest(unittest.TestCase):
+    """The second organization: its own tenant, elections and accounts."""
+
+    def setUp(self):
+        from scripts.dev.scenario import messaging, tenants
+
+        self.messaging = messaging
+        self.tenants = tenants
+        self.organization = tenants.STAFF_ASSOCIATION
+        self.document = fixtures.election_event("http://127.0.0.1:3000", "org")
+
+    def names(self, items):
+        return [fixtures.display_name(item) for item in items]
+
+    def test_the_event_has_the_organization_elections_languages_and_timezones(self):
+        event = self.tenants.organization_event(self.document, self.organization)
+        self.assertEqual(
+            self.names(event["elections"]),
+            [
+                "Council: Central office",
+                "Council: Canary Islands office",
+                "Pension board",
+            ],
+        )
+        self.assertEqual(
+            set(self.names(event["elections"])), set(self.organization.elections)
+        )
+        # The fixture's contests stay, so the voters and the other stages work.
+        self.assertEqual(
+            self.names(event["contests"]),
+            [area.contest for area in fixtures.AREAS] + ["Pension board"],
+        )
+        board = event["elections"][2]
+        (contest,) = [c for c in event["contests"] if c["election_id"] == board["id"]]
+        self.assertIsNone(board["external_id"])
+        self.assertEqual(
+            [link["area_id"] for link in event["area_contests"]
+             if link["contest_id"] == contest["id"]],
+            [event["areas"][0]["id"]],
+        )  # fmt: skip
+        self.assertTrue(
+            [c for c in event["candidates"] if c["contest_id"] == contest["id"]]
+        )
+        ids = [
+            item["id"]
+            for key in ("elections", "contests", "candidates", "area_contests")
+            for item in event[key]
+        ]
+        self.assertEqual(len(ids), len(set(ids)))
+        presentation = event["election_event"]["presentation"]
+        self.assertEqual(
+            presentation["language_conf"]["enabled_language_codes"], ["en", "es"]
+        )
+        self.assertEqual(presentation["language_conf"]["default_language_code"], "en")
+        self.assertEqual(
+            presentation["timezones"],
+            {"configured": ["Europe/Madrid", "Atlantic/Canary"],
+             "primary": "Europe/Madrid"},
+        )  # fmt: skip
+        for election in event["elections"]:
+            self.assertEqual(
+                election["presentation"]["language_conf"]["enabled_language_codes"],
+                ["en", "es"],
+            )
+        # The fixture document itself is unchanged.
+        self.assertEqual(len(self.document["elections"]), 2)
+
+    def test_the_tenant_gets_the_organization_name_and_languages(self):
+        self.assertEqual(
+            self.tenants.tenant_settings(self.organization),
+            {
+                "display_name": "Staff Association",
+                "language_conf": {
+                    "enabled_language_codes": ["en", "es"],
+                    "default_language_code": "en",
+                },
+            },
+        )
+
+    def test_restrictions_name_the_organization_elections(self):
+        profile = self.messaging.SECOND_ORGANIZATION
+        self.assertLessEqual(
+            set(profile.election_channels), set(self.organization.elections)
+        )
+        elections = {name: f"id-{name}" for name in self.organization.elections}
+        ids = {account.key: f"id-{account.key}" for account in profile.accounts}
+        config = self.messaging.event_config(profile, ids, elections)
+        self.assertEqual(
+            config["election_channels"],
+            {
+                "id-Council: Canary Islands office": ["WHATSAPP", "SMS", "EMAIL"],
+                "id-Pension board": ["EMAIL"],
+            },
+        )
+        self.assertEqual(
+            {t["language"] for c in config["channels"] for t in c["templates"]},
+            {"en", "es"},
+        )
+        with self.assertRaisesRegex(self.messaging.MessagingError, "Pension board"):
+            self.messaging.event_config(profile, ids, {"Council: Central office": "x"})
+
+    def test_every_profile_config_has_one_entry_per_channel(self):
+        for profile in self.messaging.PROFILES.values():
+            ids = {account.key: f"id-{account.key}" for account in profile.accounts}
+            elections = {name: name for name in profile.election_channels}
+            config = self.messaging.event_config(profile, ids, elections)
+            channels = [channel["channel"] for channel in config["channels"]]
+            self.assertEqual(len(channels), len(set(channels)))
+            for channel in config["channels"]:
+                self.assertTrue(channel["purposes"])
+                self.assertTrue(channel["account_id"].startswith("id-"))
+
+    def test_the_second_organization_sends_from_its_own_senders(self):
+        """The fake provider reports a message only when exactly one account
+        has its sender and credential, and a tenant lists only the messages
+        its accounts alone sent: the two organizations share the synthetic
+        credentials, so their senders must differ."""
+
+        def senders(profile):
+            keys = ("phone_number_id", "business_account_id", "sender", "page_id",
+                    "page_username", "sender_id", "from_address")  # fmt: skip
+            return {
+                (account.channel, key, account.sender[key])
+                for account in profile.accounts
+                for key in keys
+                if key in account.sender
+            }
+
+        first = self.messaging.FIRST_ORGANIZATION
+        second = self.messaging.SECOND_ORGANIZATION
+        self.assertFalse(senders(first) & senders(second))
+        self.assertEqual(
+            sorted(account.channel for account in second.accounts),
+            ["EMAIL", "MESSENGER", "SMS", "VIBER", "WHATSAPP"],
+        )
+        # Its own tenant: each account is that tenant's default.
+        self.assertTrue(all(account.is_default for account in second.accounts))
+        self.assertFalse(
+            {a.name for a in first.accounts} & {a.name for a in second.accounts}
+        )
+        # Other purposes than the first organization's.
+        purposes = lambda profile: {c.account: c.purposes for c in profile.channels}  # noqa: E731
+        self.assertNotEqual(purposes(first), purposes(second))
 
     def test_unknown_name_lists_the_known_ones(self):
         with self.assertRaisesRegex(CatalogError, "kiosk-voter, completed-ceremony"):
@@ -229,6 +429,225 @@ class CatalogTest(unittest.TestCase):
             [f"e2e-kiosk-voter-a{index}" for index in range(1, CENSUS["A"] + 1)],
         )
         self.assertEqual(sum(map(len, usernames.values())), sum(CENSUS.values()))
+
+
+class FakeGraphql:
+    """Hasura actions: answers each document with a function of its
+    variables, and records the calls."""
+
+    def __init__(self, answers):
+        self.answers = answers
+        self.calls = []
+
+    def run(self, role, query, variables):
+        self.calls.append((role, query, variables))
+        return self.answers[query](variables)
+
+    def documents(self, query):
+        return [variables for _, document, variables in self.calls if document == query]
+
+
+class MessagingSetupTest(unittest.TestCase):
+    """The scenario's accounts: repaired when a run stopped half-way, and
+    never taking over a tenant's own defaults."""
+
+    def setUp(self):
+        from scripts.dev.scenario import messaging
+
+        self.messaging = messaging
+        self.profile = messaging.SECOND_ORGANIZATION
+        self.said = []
+        self.checks = {}
+
+    def admin(self, stored, defaults=()):
+        """`stored`: account key -> its credential names (None: not stored)."""
+        m = self.messaging
+        rows = [
+            {
+                "id": f"id-{account.key}",
+                "name": account.name,
+                "channel": account.channel,
+                "is_default": account.is_default,
+                "credentials": {name: "ref" for name in stored[account.key]},
+            }
+            for account in self.profile.accounts
+            if stored.get(account.key) is not None
+        ]
+        return FakeHasura(
+            {
+                m.ACCOUNTS: lambda _: {"sequent_backend_messaging_account": rows},
+                m.DEFAULT_ACCOUNTS: lambda _: {
+                    "sequent_backend_messaging_account": [
+                        {"name": name, "channel": channel} for name, channel in defaults
+                    ]
+                },
+                m.ELECTIONS: lambda _: {
+                    "sequent_backend_election": [
+                        {
+                            "id": f"election-{n}",
+                            "presentation": {"i18n": {"en": {"name": name}}},
+                        }
+                        for n, name in enumerate(self.profile.election_channels)
+                    ]
+                },
+            }
+        )
+
+    def graphql(self):
+        m = self.messaging
+        ready = {"connected": True, "production_access": True, "reason": None}
+        return FakeGraphql(
+            {
+                m.UPSERT: lambda v: {
+                    "upsert_messaging_account": {"id": f"new-{v['name']}"}
+                },
+                m.CREDENTIALS: lambda v: {
+                    "replace_messaging_account_credentials": {"replaced": True}
+                },
+                m.CHECK: lambda v: {
+                    "check_messaging_account": {
+                        "status": self.checks.get(v["id"], ready),
+                        "callback_reason": None,
+                    }
+                },
+                m.SAVE_CONFIG: lambda v: {
+                    "update_event_messaging_config": {"errors": []}
+                },
+            }
+        )
+
+    def complete(self):
+        return {
+            account.key: self.messaging.expected_credentials(account)
+            for account in self.profile.accounts
+        }
+
+    def configure(self, admin, graphql):
+        return self.messaging.configure(
+            graphql, admin, "tenant", "event", self.profile, self.said.append
+        )
+
+    def test_an_account_left_without_credentials_gets_them_and_is_checked(self):
+        stored = self.complete()
+        viber = next(a for a in self.profile.accounts if a.channel == "VIBER")
+        stored[viber.key] = set()
+        graphql = self.graphql()
+        self.configure(self.admin(stored), graphql)
+        replaced = graphql.documents(self.messaging.CREDENTIALS)
+        self.assertEqual(
+            replaced,
+            [
+                {
+                    "id": f"id-{viber.key}",
+                    "credentials": viber.credentials,
+                    "verify": False,
+                    "report": True,
+                }
+            ],
+        )
+        self.assertFalse(graphql.documents(self.messaging.UPSERT))
+        self.assertIn(
+            f"id-{viber.key}",
+            [v["id"] for v in graphql.documents(self.messaging.CHECK)],
+        )
+        self.assertTrue(any("REPORT_PASSWORD" in line for line in self.said))
+
+    def test_generated_credentials_count(self):
+        whatsapp = next(a for a in self.profile.accounts if a.channel == "WHATSAPP")
+        viber = next(a for a in self.profile.accounts if a.channel == "VIBER")
+        self.assertIn("VERIFY_TOKEN", self.messaging.expected_credentials(whatsapp))
+        self.assertLessEqual(
+            {"REPORT_USERNAME", "REPORT_PASSWORD", "API_KEY"},
+            self.messaging.expected_credentials(viber),
+        )
+
+    def test_a_failed_check_names_its_own_reason(self):
+        sms = next(a for a in self.profile.accounts if a.channel == "SMS")
+        self.checks[f"id-{sms.key}"] = {
+            "connected": False,
+            "reason": "The account is in the SMS sandbox",
+        }
+        with self.assertRaises(self.messaging.MessagingError) as raised:
+            self.configure(self.admin(self.complete()), self.graphql())
+        message = str(raised.exception)
+        self.assertIn("The account is in the SMS sandbox", message)
+        self.assertNotIn("MESSAGING_FAKE_PROVIDER_ROUTES", message)
+
+    def test_a_connection_failure_asks_about_the_fake_provider_routes(self):
+        sms = next(a for a in self.profile.accounts if a.channel == "SMS")
+        self.checks[f"id-{sms.key}"] = {
+            "connected": False,
+            "reason": "The provider couldn't be reached",
+        }
+        with self.assertRaisesRegex(
+            self.messaging.MessagingError,
+            "The provider couldn't be reached.*MESSAGING_FAKE_PROVIDER_ROUTES",
+        ):
+            self.configure(self.admin(self.complete()), self.graphql())
+
+    def test_a_tenant_default_is_kept_and_named(self):
+        graphql = self.graphql()
+        self.configure(self.admin({}, defaults=[("Their own SMS", "SMS")]), graphql)
+        upserts = {
+            v["name"]: v["is_default"] for v in graphql.documents(self.messaging.UPSERT)
+        }
+        sms = next(a for a in self.profile.accounts if a.channel == "SMS")
+        email = next(a for a in self.profile.accounts if a.channel == "EMAIL")
+        self.assertIs(upserts[sms.name], False)
+        self.assertIs(upserts[email.name], True)
+        self.assertTrue(any("Their own SMS" in line for line in self.said))
+
+    def test_the_scenarios_say_their_accounts_stay_after_reset(self):
+        for name in ("messaging", "messaging-second-organization"):
+            self.assertIn("stay after reset", find_scenario(name).summary)
+
+
+class TenantSettingsTest(unittest.TestCase):
+    """The organization's settings: written only where the tenant has none."""
+
+    def setUp(self):
+        from scripts.dev.scenario import tenants
+
+        self.tenants = tenants
+        self.organization = tenants.STAFF_ASSOCIATION
+
+    def reconcile(self, settings):
+        graphql = FakeGraphql({self.tenants.APPEND_SETTINGS: lambda v: {}})
+        admin = FakeHasura(
+            {
+                self.tenants.TENANT_SETTINGS: lambda _: {
+                    "sequent_backend_tenant_by_pk": {"settings": settings}
+                }
+            }
+        )
+        kept = self.tenants.reconcile_settings(graphql, admin, "t", self.organization)
+        written = [
+            v["settings"] for v in graphql.documents(self.tenants.APPEND_SETTINGS)
+        ]
+        return written, kept
+
+    def test_a_new_tenant_gets_the_organization_settings(self):
+        written, kept = self.reconcile(None)
+        self.assertEqual(written, [self.tenants.tenant_settings(self.organization)])
+        self.assertEqual(kept, [])
+
+    def test_the_tenant_own_settings_are_kept_and_named(self):
+        written, kept = self.reconcile({"display_name": "Renamed by hand", "other": 1})
+        self.assertEqual(
+            written,
+            [
+                {
+                    "language_conf": self.tenants.tenant_settings(self.organization)[
+                        "language_conf"
+                    ]
+                }
+            ],
+        )
+        self.assertEqual(kept, ["display_name"])
+
+    def test_nothing_is_written_when_the_settings_match(self):
+        written, kept = self.reconcile(self.tenants.tenant_settings(self.organization))
+        self.assertEqual((written, kept), ([], []))
 
 
 class StateTest(StoreTestCase):
@@ -810,7 +1229,7 @@ class CommandTest(StoreTestCase):
                     self.assertEqual(second["eventId"], first["eventId"])
                     self.assertEqual(second["outcome"], "reused")
                     self.assertEqual(second["stages"], {})
-        self.assertEqual(backend.close.call_count, 6)
+        self.assertEqual(backend.close.call_count, 2 * len(SCENARIOS))
 
     def test_commands_close_the_backend_when_preparation_fails(self):
         state = new_state(KIOSK.name, PROJECT, TENANT)
@@ -1329,6 +1748,66 @@ class StackTest(StoreTestCase):
         self.assertEqual(put.args[0], "PUT")
         self.assertEqual(put.args[2]["config"]["test-mode"], "false")
         self.assertFalse((self.store.directory / backend_module.OTP_MARKER).exists())
+
+    def organization_backend(self, tenant_rows):
+        from scripts.dev.scenario import tenants
+
+        backend = backend_module.StackBackend(
+            Checkout(self.root, {"COMPOSE_PROJECT_NAME": PROJECT}),
+            load_manifest(REPOSITORY_ROOT),
+            Portals("http://localhost:3000", "http://localhost:3001", "x"),
+            self.store.directory,
+            self.say,
+            timeout=0,
+            organization=tenants.STAFF_ASSOCIATION,
+        )
+        backend.admin = FakeHasura(
+            {tenants.TENANT_BY_SLUG: lambda _: {"sequent_backend_tenant": tenant_rows}}
+        )
+        return backend
+
+    def test_an_organization_scenario_runs_in_its_own_tenant(self):
+        from scripts.dev.scenario import tenants
+
+        backend = self.organization_backend([{"id": "org"}])
+        self.assertEqual(backend.tenant_id, "org")
+        self.assertEqual(backend.realm, "tenant-org")
+        self.assertEqual(backend._event_realm("e"), "tenant-org-event-e")
+        backend.keycloak = FakeKeycloak(
+            {
+                "tenant-org/clients?": [{"id": "client"}],
+                "tenant-org/clients/client/client-secret": {"value": "secret"},
+            }
+        )
+        backend.keycloak.password_grant = mock.Mock(
+            return_value={"access_token": "token"}
+        )
+        backend.cli = mock.Mock()
+        backend._configure_cli()
+        args = backend.cli.step.call_args.args
+        self.assertEqual(args[args.index("--tenant-id") + 1], "org")
+        self.assertEqual(args[args.index("--keycloak-client-secret") + 1], "secret")
+        self.assertEqual(
+            backend.keycloak.password_grant.call_args.args[:2],
+            ("tenant-org", tenants.API_KEY_CLIENT),
+        )
+
+    def test_a_missing_organization_tenant_is_named(self):
+        backend = self.organization_backend([])
+        with self.assertRaisesRegex(ScenarioError, "staff-association does not exist"):
+            backend.tenant_id
+
+    def test_the_test_mode_is_restored_in_the_recorded_realm(self):
+        config = {"id": "c", "config": {"test-mode": "true"}}
+        self.backend.keycloak = FakeKeycloak({"tenant-org/": config})
+        self.store.directory.mkdir(parents=True)
+        (self.store.directory / backend_module.OTP_MARKER).write_text(
+            json.dumps({"realm": "tenant-org", "configId": "c", "testMode": "false"})
+        )
+        self.backend._restore_otp_test_mode()
+        (method, path, body) = self.backend.keycloak.requests[-1]
+        self.assertEqual((method, path), ("PUT", "tenant-org/authentication/config/c"))
+        self.assertEqual(body["config"]["test-mode"], "false")
 
     def test_required_services_belong_to_the_backend_mode(self):
         manifest = load_manifest(REPOSITORY_ROOT)
