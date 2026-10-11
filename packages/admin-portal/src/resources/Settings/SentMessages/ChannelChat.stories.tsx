@@ -141,12 +141,29 @@ export const WhatsAppCode: Story = {
         ).toBeVisible()
         await expect(within(bubbles[1]).getByText("post: Manila")).toBeVisible()
         await expect(within(bubbles[1]).getByText("Report refused: HTTP 401")).toBeVisible()
-        await userEvent.click(within(bubbles[0]).getByRole("button", {name: "Copy code"}))
+        const bubble = bubbles[0].firstElementChild as HTMLElement
+        const copyButton = within(bubbles[0]).getByRole("button", {name: "Copy code"})
+        // Template messages use the chat width; the copy action fills their footer.
+        expect(bubble.getBoundingClientRect().width).toBeGreaterThan(
+            bubbles[0].getBoundingClientRect().width * 0.8
+        )
+        expect(copyButton.getBoundingClientRect().width).toBeGreaterThan(
+            bubble.getBoundingClientRect().width * 0.95
+        )
+        expect(getComputedStyle(copyButton).backgroundColor).toBe("rgba(0, 0, 0, 0)")
+        copyButton.focus()
+        expect(getComputedStyle(copyButton).backgroundColor).toBe("rgba(0, 0, 0, 0)")
+        await userEvent.click(copyButton)
         await expect(await canvas.findByText("Code copied")).toBeVisible()
         expect(copied).toEqual([WHATSAPP_CODE])
         await userEvent.click(canvas.getByRole("button", {name: "Back to the chats"}))
         await expect(canvas.getByText("WhatsApp chats")).toBeVisible()
     },
+}
+
+export const WhatsAppCodeOnPhone: Story = {
+    ...WhatsAppCode,
+    globals: {viewport: {value: "mobile1", isRotated: false}},
 }
 
 export const CopyDenied: Story = {
