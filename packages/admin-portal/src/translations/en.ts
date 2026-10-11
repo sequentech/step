@@ -5459,7 +5459,7 @@ const englishTranslation = {
                 providerLanguage: "Provider language code",
                 providerLanguageHelp: {
                     WHATSAPP:
-                        "The exact language code of the approved WhatsApp template, such as en_US.",
+                        "Use the exact language code of the approved WhatsApp template, such as en or en_US. A regional code is needed only when that template was approved with it.",
                     VIBER: "The language code the Viber provider knows the template by, when it needs one.",
                     MESSENGER: "The language code of the approved utility template, such as en_US.",
                 },
@@ -5475,13 +5475,7 @@ const englishTranslation = {
                 noAccount: "No account",
                 missingContent: "This notification has no content for {{channels}}.",
                 approvedTemplateHelp:
-                    "Sent with the provider-approved template. Edit it in Templates.",
-                providerTemplate: "{{channel}} provider template",
-                providerTemplateHelp:
-                    "Optional. When empty, the event's template bound to the chosen template's alias is used, or the event's default for notices.",
-                providerLanguage: "{{channel}} provider language",
-                providerLanguageHelp:
-                    "The provider's language code of that template, such as en_US.",
+                    "Because {{channel}} templates are approved by the provider, their wording, provider template and language cannot be changed here. Choose another saved template to use different approved content.",
                 voters: "Voters",
                 environment: "The deployment's default sender",
                 noNoticeChannels:

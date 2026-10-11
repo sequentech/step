@@ -5525,7 +5525,7 @@ const basqueTranslation: TranslationType = {
                 providerLanguage: "Hornitzailearen hizkuntza-kodea",
                 providerLanguageHelp: {
                     WHATSAPP:
-                        "Onartutako WhatsApp txantiloiaren hizkuntza-kode zehatza, adibidez en_US.",
+                        "Erabili onartutako WhatsApp txantiloiaren hizkuntza-kode zehatza, adibidez en edo en_US. Eskualde-kodea txantiloia kode horrekin onartu bazen soilik behar da.",
                     VIBER: "Viber hornitzaileak txantiloia ezagutzeko erabiltzen duen hizkuntza-kodea, behar duenean.",
                     MESSENGER:
                         "Onartutako utilitate-txantiloiaren hizkuntza-kodea, adibidez en_US.",
@@ -5541,13 +5541,7 @@ const basqueTranslation: TranslationType = {
                 noAccount: "Konturik ez",
                 missingContent: "Jakinarazpen honek ez du edukirik honetarako: {{channels}}.",
                 approvedTemplateHelp:
-                    "Hornitzaileak onartutako txantiloiarekin bidaltzen da. Editatu Txantiloiak atalean.",
-                providerTemplate: "{{channel}} hornitzailearen txantiloia",
-                providerTemplateHelp:
-                    "Aukerakoa. Hutsik badago, aukeratutako txantiloiaren aliasari lotutako gertaeraren txantiloia erabiltzen da, edo gertaeraren jakinarazpenetarako lehenetsia.",
-                providerLanguage: "{{channel}} hornitzailearen hizkuntza",
-                providerLanguageHelp:
-                    "Hornitzaileak txantiloi horretarako duen hizkuntza-kodea, adibidez en_US.",
+                    "{{channel}} txantiloiak hornitzaileak onartu dituenez, haien testua, hornitzailearen txantiloia eta hizkuntza ezin dira hemen aldatu. Hautatu gordetako beste txantiloi bat onartutako beste eduki bat erabiltzeko.",
                 voters: "Hautesleak",
                 environment: "Instalazioaren igorle lehenetsia",
                 noNoticeChannels:

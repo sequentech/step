@@ -5562,7 +5562,7 @@ const tagalogTranslation: TranslationType = {
                 providerLanguage: "Language code ng provider",
                 providerLanguageHelp: {
                     WHATSAPP:
-                        "Ang eksaktong language code ng aprubadong template ng WhatsApp, gaya ng en_US.",
+                        "Gamitin ang eksaktong code ng wika ng aprubadong WhatsApp template, gaya ng en o en_US. Kailangan lang ng code ng rehiyon kung iyon ang ginamit sa pag-apruba ng template.",
                     VIBER: "Ang language code kung saan kilala ng provider ng Viber ang template, kapag kailangan nito.",
                     MESSENGER: "Ang language code ng aprubadong utility template, gaya ng en_US.",
                 },
@@ -5578,13 +5578,7 @@ const tagalogTranslation: TranslationType = {
                 noAccount: "Walang account",
                 missingContent: "Walang nilalaman ang abisong ito para sa {{channels}}.",
                 approvedTemplateHelp:
-                    "Ipinapadala gamit ang template na inaprubahan ng provider. I-edit ito sa Templates.",
-                providerTemplate: "Template ng provider ng {{channel}}",
-                providerTemplateHelp:
-                    "Opsyonal. Kapag walang laman, ginagamit ang template ng event na nakaugnay sa alias ng napiling template, o ang default ng event para sa mga abiso.",
-                providerLanguage: "Wika ng provider ng {{channel}}",
-                providerLanguageHelp:
-                    "Ang language code ng provider para sa template na iyon, gaya ng en_US.",
+                    "Dahil aprubado ng provider ang mga template ng {{channel}}, hindi mababago rito ang teksto, template ng provider, at wika. Pumili ng ibang naka-save na template para gumamit ng ibang aprubadong nilalaman.",
                 voters: "Mga botante",
                 environment: "Ang default na nagpapadala ng deployment",
                 noNoticeChannels:
