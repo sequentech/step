@@ -150,6 +150,7 @@ describe("findPublishedBallotStyle", () => {
             },
             {...ballotStyle("draft-style", "generated-draft"), ballot_eml: '{"id":"draft-style"}'},
             {...ballotStyle("unreadable-style", "published"), ballot_eml: "{"},
+            {...ballotStyle("missing-eml-style", "published"), ballot_eml: null},
             {
                 ...ballotStyle("other-event-style", "published-elsewhere"),
                 election_event_id: "event-b",
@@ -178,6 +179,12 @@ describe("findPublishedBallotStyle", () => {
 
     it("reports a published ballot style that cannot be read apart from an unpublished one", () => {
         expect(findPublishedBallotStyle(data, "unreadable-style", "event-a")).toEqual({
+            status: EPublishedBallotStyleLookup.UNREADABLE,
+        })
+    })
+
+    it("reports a published ballot style without EML as unreadable", () => {
+        expect(findPublishedBallotStyle(data, "missing-eml-style", "event-a")).toEqual({
             status: EPublishedBallotStyleLookup.UNREADABLE,
         })
     })

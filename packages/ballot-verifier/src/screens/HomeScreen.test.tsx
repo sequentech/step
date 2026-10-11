@@ -252,6 +252,32 @@ describe("importing an audited ballot", () => {
         expect(nextButton()).toBeDisabled()
     })
 
+    it("rejects a ballot that sequent-core decodes to nothing", async () => {
+        const single = singleContestBallot()
+        recordSequentCore(single)
+        sequentCore.decode_auditable_ballot_js.mockReturnValue(undefined)
+        const {lastReported} = renderImportStep(single)
+
+        await importFile(JSON.stringify(single.ballot))
+
+        await expectRejected()
+        expect(lastReported()).toBeNull()
+        expect(nextButton()).toBeDisabled()
+    })
+
+    it("ignores an empty file", async () => {
+        const single = singleContestBallot()
+        recordSequentCore(single)
+        const {reported} = renderImportStep(single)
+
+        await importFile("", "empty.json")
+
+        expect(importError()).not.toBeInTheDocument()
+        expect(screen.queryByText("Uploaded", {exact: true})).not.toBeInTheDocument()
+        expect(reported).not.toHaveBeenCalled()
+        expect(nextButton()).toBeDisabled()
+    })
+
     // sequent-core rejects a signature without its public key, and the reverse
     // (INCOMPLETE_BALLOT_SIGNATURE_ERROR), in either ballot format.
     it.each([
