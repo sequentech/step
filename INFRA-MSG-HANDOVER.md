@@ -276,3 +276,18 @@ covers the final outstanding code changes. W3 acceptance remains as listed above
   capacity settings log an error and fall back; the relay rejects invalid values.
 - Provider-number-change deduplication relies on the provider timestamp.
 - No new external crates or npm packages were introduced in this continuation.
+
+## Local demo provider follow-up (2026-10-11)
+
+All ten configured accounts across the two demo tenants passed their connection
+checks, and all five local delivery paths passed in each tenant. Meta/Infobip
+signed reports returned HTTP 200; Messenger completed Get Started, code delivery
+and confirmation using tenant-scoped service-account tokens. Local endpoints
+and synthetic credentials are described in INFRA-MSG-USER-TESTING.md.
+
+The main demo realm's service-account user was missing its tenant attribute.
+It was repaired locally, and scenario setup now detects and repairs that state
+without replacing unrelated user attributes. All 598 Python tooling tests passed,
+including three new regression tests; focused Ruff and REUSE checks passed.
+This is provider/service-API smoke evidence; browser acceptance, real Meta and
+saturated OTP load checks remain outstanding. No service was restarted.

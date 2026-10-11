@@ -602,6 +602,48 @@ class MessagingSetupTest(unittest.TestCase):
             self.assertIn("stay after reset", find_scenario(name).summary)
 
 
+class MessagingServiceAccountTest(unittest.TestCase):
+    def test_missing_tenant_attribute_is_repaired_without_losing_other_attributes(self):
+        from scripts.dev.scenario import tenants
+
+        keycloak = mock.Mock()
+        keycloak.admin.side_effect = [
+            [{"id": "client"}],
+            {"id": "user", "attributes": {"other": ["keep"]}},
+            None,
+        ]
+        self.assertTrue(tenants.configure_messaging_service_account(keycloak, "tenant"))
+        keycloak.admin.assert_called_with(
+            "PUT",
+            "tenant-tenant/users/user",
+            json_body={"attributes": {"other": ["keep"], "tenant-id": ["tenant"]}},
+            expect=(204,),
+        )
+
+    def test_correct_service_account_needs_no_write(self):
+        from scripts.dev.scenario import tenants
+
+        keycloak = mock.Mock()
+        keycloak.admin.side_effect = [
+            [{"id": "client"}],
+            {"id": "user", "attributes": {"tenant-id": ["tenant"]}},
+        ]
+        self.assertFalse(
+            tenants.configure_messaging_service_account(keycloak, "tenant")
+        )
+        self.assertEqual(keycloak.admin.call_count, 2)
+
+    def test_missing_service_attribute_prevents_reporting_setup_complete(self):
+        from scripts.dev.scenario import tenants
+
+        keycloak = mock.Mock()
+        keycloak.admin.side_effect = [[{"id": "client"}], {"id": "user"}]
+        self.assertFalse(
+            tenants.messaging_service_account_configured(keycloak, "tenant")
+        )
+        self.assertEqual(keycloak.admin.call_count, 2)
+
+
 class TenantSettingsTest(unittest.TestCase):
     """The organization's settings: written only where the tenant has none."""
 
