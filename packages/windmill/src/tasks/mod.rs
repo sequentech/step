@@ -62,6 +62,7 @@ pub mod scheduled_reports;
 pub mod send_template;
 pub mod sequence_ballot_box;
 pub mod set_public_key;
+pub mod tag_jwks_realms;
 pub mod update_election_event_ballot_styles;
 pub mod upsert_areas;
 pub mod voter_information_letter;

@@ -75,6 +75,9 @@ pub struct JwtClaims {
     pub trustee: Option<String>,
 }
 
+/// Reads a token's claims without verifying its signature, so only for tokens
+/// obtained from Keycloak by this process. Requests' tokens are verified with
+/// `jwks::verify_jwt`.
 #[instrument(err, skip_all)]
 pub fn decode_jwt(token: &str) -> Result<JwtClaims> {
     let parts: Vec<&str> = token.split('.').collect();

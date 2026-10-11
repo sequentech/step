@@ -43,7 +43,11 @@ pub fn retention() -> anyhow::Result<Duration> {
         .with_context(|| format!("{RETENTION_ENV} is too large, got {hours}"))
 }
 
-fn positive_setting(name: &str, value: Option<&str>, default: u64) -> anyhow::Result<u64> {
+pub(crate) fn positive_setting(
+    name: &str,
+    value: Option<&str>,
+    default: u64,
+) -> anyhow::Result<u64> {
     match value.map(str::trim).filter(|value| !value.is_empty()) {
         None => Ok(default),
         Some(value) => value
