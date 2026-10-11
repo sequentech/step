@@ -506,7 +506,8 @@ impl Stack {
             .with_messaging_webhooks_url(&component);
         let event = rows::event(&services.hasura).await;
         serve(
-            crate::build_application_with(services.harvest_services()),
+            crate::build_application_with(services.harvest_services())
+                .manage(crate::test_claims::signing::issuers()),
             harvest_port,
         )
         .await;

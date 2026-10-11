@@ -1,0 +1,94 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# crepe 0.1.8 generates its code while walking std hash maps, whose seed is
+# random per process, so the braid crate compiled differently on every build.
+# This gives the generator a fixed seed. Applied to the vendored copy by
+# Dockerfile.offline-dependencies (sequentech/meta#13625).
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -17,7 +17,9 @@
+ use proc_macro::TokenStream;
+ use proc_macro_error::{abort, emit_error, proc_macro_error};
+ use quote::{format_ident, quote, quote_spanned};
+-use std::collections::{HashMap, HashSet};
++type FixedState = std::hash::BuildHasherDefault<std::collections::hash_map::DefaultHasher>;
++type HashMap<K, V> = std::collections::HashMap<K, V, FixedState>;
++type HashSet<K> = std::collections::HashSet<K, FixedState>;
+ use std::fmt::{self, Display, Formatter};
+ use syn::{parse_macro_input, spanned::Spanned, Expr, Ident, Lifetime, Pat, Type};
+ 
+@@ -301,10 +303,10 @@
+ impl Context {
+     fn new(program: Program) -> Self {
+         // Read in relations, ensure no duplicates
+-        let mut rels_input = HashMap::new();
+-        let mut rels_output = HashMap::new();
+-        let mut rels_intermediate = HashMap::new();
+-        let mut rel_names = HashSet::new();
++        let mut rels_input = HashMap::default();
++        let mut rels_output = HashMap::default();
++        let mut rels_intermediate = HashMap::default();
++        let mut rel_names = HashSet::default();
+         let mut output_order = Vec::new();
+ 
+         let mut has_input_lifetime = false;
+@@ -372,7 +374,7 @@
+         // relations declared with incorrect arity.
+         //
+         // Also generate dependency edges between relations for stratification.
+-        let mut dependencies = HashSet::new();
++        let mut dependencies = HashSet::default();
+         let check = |fact: &Fact| {
+             let name = fact.relation.to_string();
+             if !rel_names.contains(&fact.relation) {
+@@ -718,7 +720,7 @@
+ /// Please note that this example uses naive evaluation for simplicity, but we
+ /// actually generate code for semi-naive evaluation.
+ fn make_run(context: &Context) -> proc_macro2::TokenStream {
+-    let mut indices: HashSet<Index> = HashSet::new();
++    let mut indices: HashSet<Index> = HashSet::default();
+ 
+     let main_loops = {
+         let mut loop_wrappers = Vec::new();
+@@ -959,7 +961,7 @@
+         .collect();
+     if fact_positions.is_empty() {
+         // Will not change, so we only need to evaluate it once
+-        let mut datalog_vars: HashSet<String> = HashSet::new();
++        let mut datalog_vars: HashSet<String> = HashSet::default();
+         #[allow(clippy::needless_collect)]
+         let fragments: Vec<_> = rule
+             .clauses
+@@ -977,7 +979,7 @@
+         // Rule has one or more facts, so we use semi-naive evaluation
+         let mut variants = Vec::new();
+         for update_position in fact_positions {
+-            let mut datalog_vars: HashSet<String> = HashSet::new();
++            let mut datalog_vars: HashSet<String> = HashSet::default();
+             #[allow(clippy::needless_collect)]
+             let fragments: Vec<_> = rule
+                 .clauses
+--- a/src/strata.rs
++++ b/src/strata.rs
+@@ -1,7 +1,9 @@
+ //! Handles stratification of Datalog programs
+ 
+ use petgraph::{algo, graphmap::DiGraphMap};
+-use std::collections::{HashMap, HashSet};
++type FixedState = std::hash::BuildHasherDefault<std::collections::hash_map::DefaultHasher>;
++type HashMap<K, V> = std::collections::HashMap<K, V, FixedState>;
++type HashSet<K> = std::collections::HashSet<K, FixedState>;
+ use std::slice::Iter;
+ use syn::Ident;
+ 
+@@ -27,7 +29,7 @@
+         let scc = algo::kosaraju_scc(&graph);
+ 
+         let mut list = Vec::new();
+-        let mut index = HashMap::new();
++        let mut index = HashMap::default();
+         for (i, stratum) in scc.into_iter().enumerate() {
+             let mut current = Vec::new();
+             for ident in stratum {
