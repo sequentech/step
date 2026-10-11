@@ -5658,6 +5658,7 @@ const frenchTranslation: TranslationType = {
                 },
             },
             voter: {
+                listChannel: "Canal de messagerie",
                 title: "Messagerie",
                 notSet: "Non défini",
                 channel: "Canal",

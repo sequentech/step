@@ -5550,6 +5550,7 @@ const englishTranslation = {
                 },
             },
             voter: {
+                listChannel: "Messaging channel",
                 title: "Messaging",
                 notSet: "Not set",
                 channel: "Channel",

@@ -5644,6 +5644,7 @@ const dutchTranslation: TranslationType = {
                 },
             },
             voter: {
+                listChannel: "Berichtenkanaal",
                 title: "Berichten",
                 notSet: "Niet ingesteld",
                 channel: "Kanaal",

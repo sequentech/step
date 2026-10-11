@@ -5654,6 +5654,7 @@ const tagalogTranslation: TranslationType = {
                 },
             },
             voter: {
+                listChannel: "Channel ng mensahe",
                 title: "Pagmemensahe",
                 notSet: "Hindi nakatakda",
                 channel: "Channel",
