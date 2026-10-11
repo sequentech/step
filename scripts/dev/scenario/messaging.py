@@ -28,6 +28,7 @@ import argparse
 import copy
 import json
 import sys
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -46,6 +47,15 @@ DEV_REALM = (
 # language (harvest routes/fake_provider.rs FAKE_TEMPLATES).
 CODE_TEMPLATE = "step_code"
 NOTICE_TEMPLATE = "step_notice"
+NOTICE_ALIAS = "Demo notification"
+NOTICE_TEMPLATES = """query($tenant: uuid!, $alias: String!) {
+  sequent_backend_template(
+    where: {tenant_id: {_eq: $tenant}, alias: {_eq: $alias}}) { id }
+}"""
+INSERT_NOTICE_TEMPLATE = """mutation($object: sequent_backend_template_insert_input!) {
+  insert_sequent_backend_template_one(object: $object,
+    on_conflict: {constraint: communication_template_pkey, update_columns: []}) { id }
+}"""
 LANGUAGES = ("en", "es", "ca", "eu", "fr", "gl", "nl", "tl")
 OTP = "OTP"
 NOTICE = "NOTICE"
@@ -580,6 +590,52 @@ def election_ids(admin: Any, event_id: str) -> dict[str, str]:
     }
 
 
+def ensure_notice_template(admin: Any, tenant_id: str) -> None:
+    """Seed an editable demo notification without replacing an existing template."""
+    if admin.query(NOTICE_TEMPLATES, {"tenant": tenant_id, "alias": NOTICE_ALIAS})[
+        "sequent_backend_template"
+    ]:
+        return
+    message = "Hello {{user.first_name}}, voting is open. Visit {{vote_url}} to vote."
+    instant = {
+        "message": message,
+        "parameters": ["{{user.first_name}}", "{{vote_url}}"],
+        "provider_template": NOTICE_TEMPLATE,
+        "provider_language": "en",
+    }
+    content = {
+        "alias": NOTICE_ALIAS,
+        "selected_methods": dict.fromkeys(
+            ("EMAIL", "SMS", "WHATSAPP", "VIBER", "MESSENGER"), True
+        ),
+        "email": {
+            "subject": "Voting is open",
+            "plaintext_body": message,
+            "html_body": "<p>" + message + "</p>",
+        },
+        "sms": {"message": message},
+        "whatsapp": instant,
+        "viber": instant,
+        "messenger": instant,
+    }
+    admin.query(
+        INSERT_NOTICE_TEMPLATE,
+        {
+            "object": {
+                "id": str(
+                    uuid.uuid5(uuid.NAMESPACE_URL, "step-demo-notice:" + tenant_id)
+                ),
+                "tenant_id": tenant_id,
+                "alias": NOTICE_ALIAS,
+                "communication_method": "EMAIL",
+                "type": "CREDENTIALS",
+                "created_by": "demo-setup",
+                "template": content,
+            }
+        },
+    )
+
+
 def configured(admin: Any, tenant_id: str, event_id: str, profile: Profile) -> bool:
     """Whether the accounts exist and the event has a messaging configuration."""
     rows = stored_rows(admin, tenant_id, profile)
@@ -595,6 +651,10 @@ def configured(admin: Any, tenant_id: str, event_id: str, profile: Profile) -> b
     return bool(
         admin.query(EVENT_CONFIG, {"event": event_id})[
             "sequent_backend_messaging_event_config"
+        ]
+    ) and bool(
+        admin.query(NOTICE_TEMPLATES, {"tenant": tenant_id, "alias": NOTICE_ALIAS})[
+            "sequent_backend_template"
         ]
     )
 
@@ -710,6 +770,7 @@ def configure(
         raise MessagingError(
             f"the event configuration was refused: {json.dumps(errors)}"
         )
+    ensure_notice_template(admin, tenant_id)
     return ids
 
 

@@ -542,6 +542,12 @@ event's Scheduled Events list and can't be edited there.
 
 Sending to selected voters with no voter chosen is refused.
 
+The form checks that the notification has content for the audience's channels
+before scheduling it. For WhatsApp or Viber, choose a saved message template
+with content and an approved provider template or event binding. Email and SMS
+text alone cannot be delivered to a WhatsApp voter. The success notice confirms
+scheduling; delivery results appear in the event's Messaging tab and Logs.
+
 ## Delivery
 
 | State | Meaning |
