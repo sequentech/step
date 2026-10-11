@@ -503,13 +503,20 @@ administrator's language.
 
 The event's Messaging tab groups approved template bindings into collapsed
 channel sections, each showing its channel and binding count. Expand a channel
-to see compact binding summaries: purpose, language, message key, provider
+to see compact binding summaries: purpose, language, message type or template, provider
 template and approval status. Expand a binding to inspect or edit it. Closing a
 channel retains its changes. Approval problems remain visible when a channel is
 closed, and Save opens channels with incomplete bindings. Opening another
 binding closes the previous editor and retains its changes. Add opens the new
 binding immediately; saving highlights and opens incomplete bindings. Save includes all bindings,
 including those whose editors are closed.
+
+The **Message type or template** field offers translated names for built-in
+messages, such as **Verification code** or **Enrollment rejected**, and the
+administrator-defined aliases from **Templates**. Custom aliases can also be
+entered. Leave the field empty for **Default for this purpose**. Built-in names
+are translated in the editor and compact summaries; saving retains the message
+identifier used for routing (for example, `otp` for a verification code).
 
 ### Send Notification
 
