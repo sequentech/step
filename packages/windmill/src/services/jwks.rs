@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
-use sequent_core::services::jwks::{fetch_jwks, get_jwks_secret_path, JWKKey, JwksOutput};
+use sequent_core::services::jwks::{
+    fetch_jwks, get_jwks_secret_path, key_realm, JWKKey, JwksOutput,
+};
 use sequent_core::services::s3;
 use sequent_core::util::temp_path::generate_temp_file;
 use std::env;
@@ -106,7 +108,7 @@ pub async fn remove_realm_jwks(realm: &str) -> Result<()> {
     let new_jwks: Vec<JWKKey> = existing_jwks
         .clone()
         .into_iter()
-        .filter(|key| key.realm.as_deref() != Some(realm) && !realm_kids.contains(&key.kid))
+        .filter(|key| key_realm(key).as_deref() != Some(realm) && !realm_kids.contains(&key.kid))
         .collect();
 
     let jwks_output = JwksOutput { keys: new_jwks };

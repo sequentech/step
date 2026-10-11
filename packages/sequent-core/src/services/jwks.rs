@@ -20,13 +20,13 @@ use std::env;
 use std::str::FromStr;
 use std::sync::{Arc, LazyLock};
 use std::time::{Duration, Instant};
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::{Mutex, MutexGuard, RwLock};
 use tracing::{instrument, warn};
 use x509_cert::der::Decode;
 use x509_cert::Certificate;
 
-pub const JWKS_FETCH_TIMEOUT_ENV: &str = "AWS_S3_JWKS_FETCH_TIMEOUT_SECS";
-pub const JWKS_MIN_REFRESH_ENV: &str = "AWS_S3_JWKS_MIN_REFRESH_SECS";
+const JWKS_FETCH_TIMEOUT_ENV: &str = "AWS_S3_JWKS_FETCH_TIMEOUT_SECS";
+const JWKS_MIN_REFRESH_ENV: &str = "AWS_S3_JWKS_MIN_REFRESH_SECS";
 const DEFAULT_JWKS_FETCH_TIMEOUT_SECS: u64 = 5;
 const DEFAULT_JWKS_MIN_REFRESH_SECS: u64 = 10;
 
@@ -89,10 +89,16 @@ fn max_age(cache_control: Option<&HeaderValue>) -> Duration {
 
 static HTTP_CLIENT: LazyLock<reqwest::Client> =
     LazyLock::new(reqwest::Client::new);
+static FETCH_TIMEOUT: LazyLock<Duration> = LazyLock::new(|| {
+    seconds_setting(JWKS_FETCH_TIMEOUT_ENV, DEFAULT_JWKS_FETCH_TIMEOUT_SECS)
+});
+static MIN_REFRESH: LazyLock<Duration> = LazyLock::new(|| {
+    seconds_setting(JWKS_MIN_REFRESH_ENV, DEFAULT_JWKS_MIN_REFRESH_SECS)
+});
 
 /// Reads `certs.json` from `AWS_S3_PRIVATE_URI`/`AWS_S3_PUBLIC_BUCKET`, where
 /// Windmill writes it. A missing file has no keys.
-#[instrument(err)]
+#[instrument]
 pub async fn fetch_jwks() -> Result<Jwks> {
     let url = format!(
         "{}/{}/{}",
@@ -104,10 +110,7 @@ pub async fn fetch_jwks() -> Result<Jwks> {
     );
     let response = HTTP_CLIENT
         .get(url)
-        .timeout(seconds_setting(
-            JWKS_FETCH_TIMEOUT_ENV,
-            DEFAULT_JWKS_FETCH_TIMEOUT_SECS,
-        ))
+        .timeout(*FETCH_TIMEOUT)
         .send()
         .await
         .context("Error requesting the JWKS")?;
@@ -137,8 +140,8 @@ struct CachedKeys {
 /// `certs.json`, kept for its `max-age`. Known keys are used right away; once
 /// expired, it is refreshed in the background. Only a token signed with a key
 /// that is not cached waits for a refresh. Refreshes happen at most once every
-/// `AWS_S3_JWKS_MIN_REFRESH_SECS`, and when one fails the cached keys stay in
-/// use.
+/// `AWS_S3_JWKS_MIN_REFRESH_SECS`, and when one fails, or finds no keys, the
+/// cached keys stay in use.
 struct JwksCache {
     cached: RwLock<Arc<CachedKeys>>,
     /// When the last refresh started. Held while refreshing.
@@ -153,16 +156,28 @@ static JWKS_CACHE: LazyLock<JwksCache> = LazyLock::new(|| JwksCache {
     last_refresh: Mutex::new(None),
 });
 
+/// Whether the minimum interval has passed since the last refresh.
+fn refresh_due(last_refresh: &Option<Instant>) -> bool {
+    last_refresh.is_none_or(|at| at.elapsed() >= *MIN_REFRESH)
+}
+
 impl JwksCache {
     async fn key(&'static self, kid: &str) -> Result<JWKKey> {
         let cached = self.cached.read().await.clone();
         if let Some(key) = cached.keys.get(kid) {
             if Instant::now() >= cached.expires_at {
-                tokio::spawn(self.refresh(false));
+                if let Ok(last_refresh) = self.last_refresh.try_lock() {
+                    if refresh_due(&last_refresh) {
+                        tokio::spawn(self.refresh(last_refresh));
+                    }
+                }
             }
             return Ok(key.clone());
         }
-        self.refresh(true).await;
+        let last_refresh = self.last_refresh.lock().await;
+        if refresh_due(&last_refresh) {
+            self.refresh(last_refresh).await;
+        }
         self.cached
             .read()
             .await
@@ -172,50 +187,39 @@ impl JwksCache {
             .ok_or_else(|| anyhow!("Unknown key id {kid}"))
     }
 
-    /// Reads `certs.json` again, unless it was read within the minimum
-    /// interval. With `wait`, waits for a refresh in progress instead of
-    /// leaving it to finish.
-    async fn refresh(&self, wait: bool) {
-        let mut last_refresh = if wait {
-            self.last_refresh.lock().await
-        } else {
-            match self.last_refresh.try_lock() {
-                Ok(last_refresh) => last_refresh,
-                Err(_) => return,
-            }
-        };
-        let min_refresh = seconds_setting(
-            JWKS_MIN_REFRESH_ENV,
-            DEFAULT_JWKS_MIN_REFRESH_SECS,
-        );
-        if last_refresh.is_some_and(|at| at.elapsed() < min_refresh) {
-            return;
-        }
+    async fn refresh(&self, mut last_refresh: MutexGuard<'_, Option<Instant>>) {
         *last_refresh = Some(Instant::now());
-        match fetch_jwks().await {
-            Ok(jwks) => {
-                *self.cached.write().await = Arc::new(CachedKeys {
-                    expires_at: Instant::now()
-                        .checked_add(jwks.max_age)
-                        .unwrap_or_else(Instant::now),
-                    keys: jwks
-                        .keys
-                        .into_iter()
-                        .map(|key| (key.kid.clone(), key))
-                        .collect(),
-                });
+        let jwks = match fetch_jwks().await {
+            Ok(jwks) if !jwks.keys.is_empty() => jwks,
+            Ok(_) => {
+                warn!("Keeping the cached JWKS, certs.json has no keys");
+                return;
             }
             Err(err) => {
-                warn!("Keeping the cached JWKS, refresh failed: {err:?}")
+                warn!("Keeping the cached JWKS, refresh failed: {err:?}");
+                return;
             }
-        }
+        };
+        *self.cached.write().await = Arc::new(CachedKeys {
+            expires_at: Instant::now()
+                .checked_add(jwks.max_age)
+                .unwrap_or_else(Instant::now),
+            keys: jwks
+                .keys
+                .into_iter()
+                .map(|key| {
+                    let realm = key_realm(&key);
+                    (key.kid.clone(), JWKKey { realm, ..key })
+                })
+                .collect(),
+        });
     }
 }
 
 /// The key's realm: its `realm` member, or for keys written before Windmill
 /// added it, the subject of its certificate, which Keycloak issues as
 /// `CN=<realm>`.
-fn key_realm(key: &JWKKey) -> Option<String> {
+pub fn key_realm(key: &JWKKey) -> Option<String> {
     if let Some(realm) = &key.realm {
         return Some(realm.clone());
     }
@@ -271,7 +275,7 @@ fn verify_with_key(token: &str, key: &JWKKey) -> Result<JwtClaims> {
 /// Verifies a token's signature and expiry with the key of `certs.json` its
 /// header names, and that the token and its tenant and election event claims
 /// are of that key's realm.
-#[instrument(err, skip_all)]
+#[instrument(skip_all)]
 pub async fn verify_jwt(token: &str) -> Result<JwtClaims> {
     let kid = decode_header(token)
         .context("Invalid token header")?
@@ -412,14 +416,14 @@ mod tests {
 
     #[test]
     fn untagged_keys_have_their_certificate_realm() {
-        // A certificate that Keycloak issued for a development realm's key.
-        const CERTIFICATE: &str = "MIIC5TCCAc0CBgGhJ+Y2ezANBgkqhkiG9w0BAQsFADA2MTQwMgYDVQQDDCt0ZW5hbnQtOTA1MDVjOGEtMjNhOS00Y2RmLWEyNmItNGUxOWY2YTA5N2Q1MB4XDTI2MTAxMDIyMTc0MVoXDTM2MTAxMDIyMTkyMVowNjE0MDIGA1UEAwwrdGVuYW50LTkwNTA1YzhhLTIzYTktNGNkZi1hMjZiLTRlMTlmNmEwOTdkNTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKeVqyvQBwiF7/hUGAHMtdq4Pjd/00ReUaHUOOvP9PM6MmVHVaUDdJ4gjedDgvD+Aa9Gm/KsHwVHvQ/Vl3ZWfG6zmVdyZwSon5ogamKJxBQNc+YViadjZtnh3+TZdgAmny/KUanlaLbkqxRYo3r2KwEqH8QQDyKMXhrKrSuX8F2R2uU43uhUY8iUiffwHgkNKSk0u+YxRngniTQieSaE2aTYu645g2ufUcXzN2o1qwjxCYSGRYGN29ofjaAMC+4jJFWeGGefmaeNbo6kagQj4YA1dLG1YE+qCVSkvG4KCQNSpCHxoMcQASTWwg9Q1ul25Jiq96Z/RR73KD3NTBzeMpMCAwEAATANBgkqhkiG9w0BAQsFAAOCAQEAdmy5ISrIf6hPTOJOd6Hi/c7+0Jd3URlVR/wHRro4ArSEtqyz/LEhfsMXtxVBofWU1i3VZCZv4T8Ie7pwEXugMRLMapqkHl+DT1b2sKW8SzFwf7mnNX53Kidy2oYXP1kzm9a7+y7imidu1NnyZjJ2r26RoQ++/xhSISeAAd4+wVxNKrrcXPQH45yz4yfsVrXg+2vlY8qfsNc8yX6yZC6WrML8YJ3vNFNmh6gJGR0Ya/GtrLCVgIRO1z7e+V/YGI76C6YTZhrAezvjsK5wvCzj6zlLmN7stjiX8MVK2EB7Cmwyj8klafe1kB4unMJ874ako2BT9Ee9a6671J7aZavdOQ==";
+        // A certificate that Keycloak issued for a development event realm's key.
+        const CERTIFICATE: &str = "MIIDOzCCAiMCBgGhKATBxDANBgkqhkiG9w0BAQsFADBhMV8wXQYDVQQDDFZ0ZW5hbnQtOTA1MDVjOGEtMjNhOS00Y2RmLWEyNmItNGUxOWY2YTA5N2Q1LWV2ZW50LTc1ZjQzOWYzLTBjNmItNDFlMC05ZDBjLTRlNDNiYzdlNzA0YjAeFw0yNjEwMTAyMjUxMDJaFw0zNjEwMTAyMjUyNDJaMGExXzBdBgNVBAMMVnRlbmFudC05MDUwNWM4YS0yM2E5LTRjZGYtYTI2Yi00ZTE5ZjZhMDk3ZDUtZXZlbnQtNzVmNDM5ZjMtMGM2Yi00MWUwLTlkMGMtNGU0M2JjN2U3MDRiMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtFAh7jRLraKuz7YSMMpwT10w0p481UDcH5j++ya9R3rCNAbPFt/v2i404LS5BMmVn6QAm3hRvEWGf58K95cHJFjv8ANJT0JUpb6fweDz8Rrpz/NBObKdN1y3Py1BczbHJ8mv4kfvCf+2M0xMNJuOxH/eSxDVMW8CxkbQmFC3rteXx0Xv/Z5DXk3o+UHfuNYINF7nmIm7Q/Ayz6nJWhhBNDvD677OFKnqrWsAgdtA8JFIKbImvm80w1xJhYdIEQAKYnc7B1tGI2WH8fobDMTm0ay7+7Xdj7pW1YoIeH8wNVVizCjo9VxI+MvolEgT83mvvrFbdZd0kqrQo/ApEp/H3QIDAQABMA0GCSqGSIb3DQEBCwUAA4IBAQCOqX9WJqm65m40TZXdyI65LM2SI3DiWKRHZjKwEBbqaB4ccoyBdoc7NZgWKTozRPT1URPZ5UQaXFaPmMHY4Z1n6gzL6xjvRCLQOKd2l3V/tMe5rfr7gJ6rpFBXXnwuQTBKkb6LXYoGFzweEjAD0pcsKSJNQA89lnvI8LwXh3kr65IiSUGlORBhWzutBt9GrK2bkwqTJWPFn2P/D5cg9/ySZCOYQCVnn+ML6bnGcXURHF2bPtE7bnmBv5EbjSQN8dP0yCK+E9lX62IWiWYPOaF529QbW4Kn4gN06kqrdbVwqYUH8jNXuvS1DfFciPfs7Ez39/6MDL9oosanLOuEm6Z1";
         let (_, mut jwk) = key_pair("ignored");
         jwk.realm = None;
         jwk.x5c = vec![CERTIFICATE.into()];
         assert_eq!(
             key_realm(&jwk).as_deref(),
-            Some("tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5")
+            Some("tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-75f439f3-0c6b-41e0-9d0c-4e43bc7e704b")
         );
         jwk.realm = Some("tenant-t1".into());
         assert_eq!(key_realm(&jwk).as_deref(), Some("tenant-t1"));

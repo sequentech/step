@@ -37,8 +37,38 @@ Windmill tags each key it adds to `certs.json` with its realm, in a `realm`
 member. JWKS consumers ignore unknown members, so Hasura reads the file as
 before. Keys added by earlier releases have no `realm`. For those, Harvest takes
 the realm from the key's certificate, which Keycloak issues with the subject
-`CN=<realm>`. Realm imports drop key material, so Keycloak generates every key
-in `certs.json`.
+`CN=<realm>` when it generates the key. Realm imports drop key material, so
+Keycloak generates the keys of new realms.
+
+## Upgrading
+
+Before step#1887 (August 2025), the tenant and election-event realm templates
+carried a fixed RSA key, and realms created from them still sign with it unless
+their keys were rotated. Its private key is public in this repository's
+history, so anyone can forge those realms' tokens. Its certificate is not
+issued for the realm, so Harvest refuses them, and those realms' users get 401
+from Harvest after the upgrade.
+
+Before upgrading, list the keys of `certs.json` with their certificate
+subjects:
+
+```bash
+curl -s "$AWS_S3_PRIVATE_URI/$AWS_S3_PUBLIC_BUCKET/certs.json" \
+  | jq -r '.keys[] | [.kid, .x5c[0]] | @tsv' \
+  | while IFS="$(printf '\t')" read -r kid cert; do
+      printf '%s ' "$kid"
+      printf '%s' "$cert" | base64 -d | openssl x509 -inform DER -noout -subject
+    done
+```
+
+Keys whose subject is not `CN = tenant-...`, such as `CN = electoral-process`,
+come from the old templates. A realm still uses one when its
+`<keycloak>/realms/<realm>/protocol/openid-connect/certs` lists that `kid`.
+For each such realm, in Keycloak's **Realm settings → Keys → Providers**, add
+an `rsa-generated` provider with a higher priority than the existing `rsa`
+one, then delete the `rsa` provider. Add the realm's new keys from its `certs`
+endpoint to `certs.json`. Once no realm lists the template keys, remove them
+from `certs.json`.
 
 ## Cache
 
@@ -48,7 +78,7 @@ Requests with a cached key never wait for the file. Once it expires, one
 request refreshes it in the background. A token signed with a key that is not
 cached waits for a refresh, so new realms' keys are used right away. Refreshes
 happen at most once every `AWS_S3_JWKS_MIN_REFRESH_SECS`. If the file cannot
-be read, Harvest keeps the keys it has.
+be read, or has no keys, Harvest keeps the keys it has.
 
 | Variable | Service | Default |
 | --- | --- | --- |
