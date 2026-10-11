@@ -295,7 +295,9 @@ export const ChangeMessengerPage: Story = {
         await userEvent.clear(page)
         await userEvent.type(page, "999")
         await expect(
-            canvas.getByText(/voters connected to Council Elections get codes only after/)
+            canvas.getByText(
+                /codes and notices to the voters connected to Council Elections aren't sent until they connect again/
+            )
         ).toBeVisible()
         await expect(await canvas.findByText(/who must connect again: 37/)).toBeVisible()
         await userEvent.click(canvas.getByRole("button", {name: "Save"}))
@@ -438,5 +440,57 @@ export const ReadOnly: Story = {
         await expect(canvas.getByRole("textbox", {name: /Phone number ID/})).toBeDisabled()
         expect(canvas.queryByRole("button", {name: "Save"})).toBeNull()
         expect(canvas.queryByRole("button", {name: "Replace"})).toBeNull()
+    },
+}
+
+const checkViberTemplateLayout = async (canvasElement: HTMLElement) => {
+    const section = within(canvasElement).getByRole("heading", {name: "Approved templates"})
+        .parentElement as HTMLElement
+    const originalWidth = section.style.width
+    try {
+        for (const width of [320, 512]) {
+            section.style.width = `${width}px`
+            await waitFor(() => {
+                const bounds = section.getBoundingClientRect()
+                for (const field of Array.from(section.querySelectorAll(".MuiFormControl-root"))) {
+                    const rect = field.getBoundingClientRect()
+                    expect(rect.width).toBeGreaterThanOrEqual(100)
+                    expect(rect.left).toBeGreaterThanOrEqual(bounds.left)
+                    expect(rect.right).toBeLessThanOrEqual(bounds.right + 1)
+                }
+                const template = within(section)
+                    .getAllByRole("textbox", {
+                        name: "Partner template ID",
+                    })[0]
+                    .closest(".MuiFormControl-root") as HTMLElement
+                expect(template.getBoundingClientRect().width).toBeGreaterThanOrEqual(180)
+            })
+        }
+    } finally {
+        section.style.width = originalWidth
+    }
+}
+
+export const ResponsiveViberEdit: Story = {
+    args: {account: EStoryAccount.VIBER},
+    play: async ({canvasElement}) => {
+        await checkViberTemplateLayout(canvasElement)
+    },
+}
+
+export const ResponsiveViberCreate: Story = {
+    args: {account: EStoryAccount.NEW},
+    play: async ({canvasElement}) => {
+        await choose(canvasElement, "Channel", "Viber")
+        await userEvent.click(within(canvasElement).getByRole("button", {name: "Add template"}))
+        await checkViberTemplateLayout(canvasElement)
+        const canvas = within(canvasElement)
+        await userEvent.type(canvas.getByRole("textbox", {name: "Language"}), "en")
+        await userEvent.type(canvas.getByRole("textbox", {name: "Partner template ID"}), "otp_en")
+        await expect(canvas.getByRole("textbox", {name: "Partner template ID"})).toHaveValue(
+            "otp_en"
+        )
+        await userEvent.click(canvas.getByRole("button", {name: "Remove template"}))
+        expect(canvas.queryByRole("textbox", {name: "Partner template ID"})).toBeNull()
     },
 }

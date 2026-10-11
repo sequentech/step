@@ -615,7 +615,7 @@ export const ViberTemplatesEditor: React.FC<IViberTemplatesEditorProps> = ({
             viberTemplates: rows.map((row, i) => (i === index ? {...row, ...patch} : row)),
         })
     return (
-        <Box sx={{display: "flex", flexDirection: "column", gap: 2}}>
+        <Box sx={{display: "flex", flexDirection: "column", gap: 2, containerType: "inline-size"}}>
             <Typography variant="subtitle2" component="h3">
                 {t("messagingAccounts.viber.title")}
             </Typography>
@@ -625,7 +625,19 @@ export const ViberTemplatesEditor: React.FC<IViberTemplatesEditorProps> = ({
             {rows.map((row, index) => {
                 const error = errors[`viberTemplates.${index}`]
                 return (
-                    <Box key={index} sx={{display: "flex", gap: 1, alignItems: "flex-start"}}>
+                    <Box
+                        key={index}
+                        sx={{
+                            "display": "grid",
+                            "gridTemplateColumns": "minmax(0, 1fr) minmax(0, 1fr) auto",
+                            "gap": 1.5,
+                            "alignItems": "start",
+                            "@container (min-width: 480px)": {
+                                gridTemplateColumns:
+                                    "minmax(0, 1fr) minmax(0, 0.8fr) minmax(0, 1.6fr) auto",
+                            },
+                        }}
+                    >
                         <TextField
                             select
                             label={t("messagingAccounts.viber.purpose")}
@@ -634,7 +646,7 @@ export const ViberTemplatesEditor: React.FC<IViberTemplatesEditorProps> = ({
                             onChange={(event) =>
                                 update(index, {purpose: event.target.value as EMessagePurpose})
                             }
-                            sx={{minWidth: 140}}
+                            fullWidth
                         >
                             {MESSAGE_PURPOSES.map((purpose) => (
                                 <MenuItem key={purpose} value={purpose}>
@@ -648,7 +660,7 @@ export const ViberTemplatesEditor: React.FC<IViberTemplatesEditorProps> = ({
                             disabled={disabled}
                             error={!!error}
                             onChange={(event) => update(index, {language: event.target.value})}
-                            sx={{width: 120}}
+                            fullWidth
                         />
                         <TextField
                             label={t("messagingAccounts.viber.templateId")}
@@ -657,11 +669,25 @@ export const ViberTemplatesEditor: React.FC<IViberTemplatesEditorProps> = ({
                             error={!!error}
                             helperText={error ? t(`messagingAccounts.error.${error}`) : undefined}
                             onChange={(event) => update(index, {templateId: event.target.value})}
-                            sx={{flex: 1}}
+                            fullWidth
+                            sx={{
+                                "gridColumn": "1 / 3",
+                                "@container (min-width: 480px)": {gridColumn: "auto"},
+                            }}
                         />
                         {!disabled && (
                             <IconButton
                                 aria-label={t("messagingAccounts.viber.remove")}
+                                sx={{
+                                    "gridColumn": 3,
+                                    "gridRow": "1 / 3",
+                                    "alignSelf": "start",
+                                    "mt": 1,
+                                    "@container (min-width: 480px)": {
+                                        gridColumn: "auto",
+                                        gridRow: "auto",
+                                    },
+                                }}
                                 onClick={() =>
                                     onChange({
                                         ...values,
