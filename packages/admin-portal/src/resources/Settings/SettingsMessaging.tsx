@@ -199,7 +199,7 @@ const MessagingAccountList: React.FC = () => {
                     gap: 2,
                 }}
             >
-                <Typography variant="body2" color="text.secondary" sx={{maxWidth: 900}}>
+                <Typography variant="body2" color="text.secondary" sx={{flex: 1, minWidth: 0}}>
                     {t("messagingAccounts.description")}
                 </Typography>
                 {canWrite && (

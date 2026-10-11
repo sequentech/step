@@ -446,6 +446,30 @@ const notified = async (text: string) => {
 
 const saveCall = () => graphql.calls.find(({name}) => name === "UpdateEventMessagingConfig")
 
+export const FluidIntro: Story = {
+    play: async ({canvasElement}) => {
+        const intro = await within(canvasElement).findByText(
+            /^The channels voters of this event can choose/
+        )
+        const container = intro.parentElement as HTMLElement
+        const channels = container.querySelector("#messaging-channels") as HTMLElement
+        const originalWidth = container.style.width
+        try {
+            for (const width of [1200, 600]) {
+                container.style.width = `${width}px`
+                await waitFor(() =>
+                    expect(intro.getBoundingClientRect().width).toBeCloseTo(
+                        channels.getBoundingClientRect().width,
+                        0
+                    )
+                )
+            }
+        } finally {
+            container.style.width = originalWidth
+        }
+    },
+}
+
 export const Populated: Story = {
     parameters: {
         widgets: [

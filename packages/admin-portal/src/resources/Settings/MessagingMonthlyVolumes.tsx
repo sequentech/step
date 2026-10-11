@@ -140,7 +140,7 @@ export const MessagingMonthlyVolumes: React.FC<MessagingMonthlyVolumesProps> = (
             <Typography id="messaging-monthly-volumes" variant="h6">
                 {t("messaging.volumes.title")}
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{maxWidth: 900}}>
+            <Typography variant="body2" color="text.secondary">
                 {t("messaging.volumes.intro")}
             </Typography>
             {!role ? (

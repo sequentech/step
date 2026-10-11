@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
 import type {Meta, StoryObj} from "@storybook/react-vite"
-import {expect, fn, userEvent, within} from "storybook/test"
+import {expect, fn, userEvent, waitFor, within} from "storybook/test"
 import {AdminStoryProvider, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import {EMessageChannel} from "@/types/messaging"
 import {SentMessages} from "./SentMessages"
@@ -147,5 +147,28 @@ export const RefreshFailed: Story = {
                 "The messages could not be refreshed. The list shown is the last one read."
             )
         ).toBeVisible()
+    },
+}
+
+export const FluidDescription: Story = {
+    play: async ({canvasElement}) => {
+        const intro = await within(canvasElement).findByText(
+            /Messages the fake provider of this development stack received/
+        )
+        const container = intro.parentElement as HTMLElement
+        const originalWidth = container.style.width
+        try {
+            for (const width of [1200, 600]) {
+                container.style.width = `${width}px`
+                await waitFor(() => {
+                    expect(intro.getBoundingClientRect().width).toBeCloseTo(
+                        container.getBoundingClientRect().width,
+                        0
+                    )
+                })
+            }
+        } finally {
+            container.style.width = originalWidth
+        }
     },
 }

@@ -196,3 +196,29 @@ export const WithoutAReadPermission: Story = {
         expect(graphql.calls).toEqual([])
     },
 }
+
+export const FluidDescription: Story = {
+    play: async ({canvasElement}) => {
+        const intro = await within(canvasElement).findByText(
+            /Attempts handed to a provider each month/
+        )
+        const container = intro.parentElement as HTMLElement
+        const originalWidth = container.style.width
+        try {
+            for (const width of [1200, 600]) {
+                container.style.width = `${width}px`
+                await waitFor(() => {
+                    const heading = within(container).getByRole("heading", {
+                        name: "Monthly volumes",
+                    })
+                    expect(intro.getBoundingClientRect().width).toBeCloseTo(
+                        heading.getBoundingClientRect().width,
+                        0
+                    )
+                })
+            }
+        } finally {
+            container.style.width = originalWidth
+        }
+    },
+}

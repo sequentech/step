@@ -117,7 +117,7 @@ export const SentMessages: React.FC<ISentMessagesProps> = ({
     const shown = mode === "ALL" ? messages : messages.filter(({channel}) => channel === mode)
     return (
         <Box sx={{display: "flex", flexDirection: "column", gap: 2}}>
-            <Typography variant="body2" color="text.secondary" sx={{maxWidth: 900}}>
+            <Typography variant="body2" color="text.secondary">
                 {t("sentMessages.description")}
             </Typography>
             <Box

@@ -153,7 +153,7 @@ const Section: React.FC<React.PropsWithChildren<{title: string; id: string}>> = 
 )
 
 const Helper: React.FC<React.PropsWithChildren> = ({children}) => (
-    <Typography variant="body2" sx={{color: "text.secondary", maxWidth: 900}}>
+    <Typography variant="body2" sx={{color: "text.secondary"}}>
         {children}
     </Typography>
 )

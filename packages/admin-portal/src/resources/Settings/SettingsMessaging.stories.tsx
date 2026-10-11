@@ -233,3 +233,28 @@ export const LoadError: Story = {
         ).toBeVisible()
     },
 }
+
+export const FluidDescription: Story = {
+    play: async ({canvasElement}) => {
+        const intro = await within(canvasElement).findByText(
+            /Accounts that send voters their codes and notices/
+        )
+        const container = intro.parentElement as HTMLElement
+        const originalWidth = container.style.width
+        try {
+            for (const width of [1200, 600]) {
+                container.style.width = `${width}px`
+                await waitFor(() => {
+                    const button = within(container).getByRole("button", {name: "Add account"})
+                    const gap = parseFloat(getComputedStyle(container).columnGap)
+                    expect(intro.getBoundingClientRect().right).toBeCloseTo(
+                        button.getBoundingClientRect().left - gap,
+                        0
+                    )
+                })
+            }
+        } finally {
+            container.style.width = originalWidth
+        }
+    },
+}
