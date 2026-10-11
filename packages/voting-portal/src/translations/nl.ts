@@ -10,7 +10,7 @@ const dutchTranslation: TranslationType = {
             retry: "Opnieuw proberen",
         },
         contactChannel: {
-            change: "Wijzigen hoe we contact met u opnemen",
+            change: "Contactmethode",
             updated: "Uw contactgegeven is gewijzigd. Codes en berichten gaan nu daarheen.",
             cancelled: "Uw contactgegeven is niet gewijzigd.",
             failed: "We konden niet wijzigen hoe we contact met u opnemen. Probeer het later opnieuw of neem contact op met de ondersteuning.",
