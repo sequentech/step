@@ -261,6 +261,8 @@ fn compute_pk_<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
     threshold: &TrusteeCount,
     trustee: &Trustee<C, S>,
 ) -> Result<(C::E, Vec<C::E>), ProtocolError> {
+    datalog::verify_shares_hashes(shares_hs, num_t)?;
+
     let ctx = C::default();
     let cfg = trustee.get_configuration(cfg_h)?;
     let mut pk = C::E::mul_identity();
