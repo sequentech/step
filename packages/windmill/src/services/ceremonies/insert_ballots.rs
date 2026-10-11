@@ -229,8 +229,9 @@ pub async fn insert_ballots_messages(
     let mut board_client = get_b3_pgsql_client().await?;
     let board_messages =
         Arc::new(get_board_messages::<RistrettoCtx>(board_name, &mut board_client).await?);
-    let configuration = get_configuration(&board_messages)?;
-    let public_key_hash = get_public_key_hash::<RistrettoCtx>(&board_messages)?;
+    let manager_pk = strand::signature::StrandSignaturePk::from_sk(&protocol_manager.signing_key)?;
+    let configuration = get_configuration(&board_messages, &manager_pk)?;
+    let public_key_hash = get_public_key_hash::<RistrettoCtx>(&board_messages, &configuration)?;
     let selected_trustees: TrusteeSet =
         generate_trustee_set(&configuration, deserialized_trustee_pks.clone());
 
