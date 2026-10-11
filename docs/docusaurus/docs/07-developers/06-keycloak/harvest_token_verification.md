@@ -48,10 +48,11 @@ Each Harvest process keeps `certs.json` for the `max-age` of its
 Requests with a cached key never wait for the file. Once it expires, one
 request refreshes it in the background. A token signed with a key that is not
 cached waits for a refresh, so new realms' keys are used right away. Refreshes
-happen at most once every `AWS_S3_JWKS_MIN_REFRESH_SECS`. If the file cannot
-be read, or has no keys, Harvest keeps the keys it has, so emptying it takes
-effect only when Harvest restarts. After a restart, Harvest refuses every token
-until it can read the file.
+happen at most once every `AWS_S3_JWKS_MIN_REFRESH_SECS`, so a key added less
+than that after the last refresh is refused until the next one. If the file
+cannot be read, or has no keys, Harvest keeps the keys it has, so emptying it
+takes effect only when Harvest restarts. After a restart, Harvest refuses every
+token until it can read the file.
 
 | Variable | Service | Default |
 | --- | --- | --- |

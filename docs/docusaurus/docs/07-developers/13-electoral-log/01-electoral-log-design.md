@@ -582,7 +582,7 @@ The import then stores the published checkpoints for the new event, with the sou
 
 ### 9.4 Proof API
 
-These Harvest routes use the same JWT and `logs-read` authorization as listing; users of the super-admin tenant can name any tenant. Harvest decodes the token's claims without verifying its signature or expiry, so these checks hold only for requests that reach Harvest through a component that verifies the token (section 12.3). They are not exposed through Hasura, and no portal screen calls them, so voters cannot request proofs. An auditor with a `logs-read` token calls them over HTTP, and an operator with database access uses `electoral-log-admin` (section 9.5).
+These Harvest routes use the same JWT and `logs-read` authorization as listing; users of the super-admin tenant can name any tenant. Harvest verifies the token's signature, expiry and realm first (see [Harvest token verification](../06-keycloak/harvest_token_verification.md)). They are not exposed through Hasura, and no portal screen calls them, so voters cannot request proofs. An auditor with a `logs-read` token calls them over HTTP, and an operator with database access uses `electoral-log-admin` (section 9.5).
 
 | Route (`POST`) | JSON body | Response |
 | --- | --- | --- |
@@ -803,7 +803,6 @@ The table assumes the change is made directly in an election event's database, u
 ### 12.3 Limits
 
 - **The backend controls both anchors.** Windmill and Harvest each hold credentials for the electoral-log and Hasura databases and load the protocol-manager key. Whoever controls either of them, or both databases and the master secret, can rewrite the log, the published checkpoints and their signatures. Harvest is the HTTP API. Only checkpoints kept outside Step's databases detect such a rewrite: auditors' own copies (section 8.4) and, for the history they cover, write-once copies in compliance mode, which the backend can add to but not change or delete (section 8.5).
-- **Harvest trusts token claims.** It decodes JWTs without verifying their signature or expiry. The permissions in section 12.1 therefore hold only when every path to Harvest verifies tokens first, as Hasura does for its actions. The proof routes are not Hasura actions, so reach them only through a gateway that verifies tokens.
 - **The newest records have no outside anchor.** Records appended after the latest published checkpoint, at most one checkpoint interval of them while voting is open, can be changed consistently by whoever controls the electoral-log database, until the next checkpoint covers them.
 - **Audits and proofs show integrity, not completeness at the source.** An event that a producer never delivered is not in the log. Known gaps: a Keycloak event whose request rolls back is not in the log. With `ELECTORAL_LOG_PUBLISH_FAILURE_POLICY=fail-request`, the default, a failed enqueue fails its request, and if Keycloak's own commit fails after the event was enqueued, the log holds the event of a request that did not complete; with `log-and-continue`, a failed enqueue loses the event; refused votes' records are queued on a best-effort basis; and dead-lettered events stay out of the log until someone replays them (section 14.7).
 - **Signatures are server signatures.** They show that the backend built a statement, not that a voter or Keycloak produced it, and Step does not verify them.
@@ -993,7 +992,6 @@ Performance and operation:
 - Several admin portal sorts, filters, counts and deep pages read the whole board; section 13 lists them, and the load test page measures the fixes that were tried.
 - Appends to a board are serialized, and a large dispatcher batch holds the board for its whole transaction.
 - A dispatcher run that cannot finish one batch within 30 seconds stops the event queue from draining. A very large `ELECTORAL_LOG_BATCH_MAX_BYTES` makes the handoff transaction slow, and its statements time out after 10 seconds.
-- Harvest does not verify JWT signatures; it relies on Hasura or a gateway to do so.
 - Direct appends block their actions while the log is unavailable or a board refuses appends.
 - Windmill shares each event's pool, without a wait timeout, between appends and audits.
 - Every process keeps up to `ELECTORAL_LOG_PG_EVENT_POOL_SIZE` × `ELECTORAL_LOG_PG_OPEN_EVENTS` connections to event databases; many processes need `max_connections` or a pooler sized for them.
