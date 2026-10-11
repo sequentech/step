@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres;
 use crate::postgres::area::get_area_by_id;
-use crate::postgres::cast_vote::CastVoteReceipt;
 use crate::postgres::ballot_style::get_published_ballot_emls;
+use crate::postgres::cast_vote::CastVoteReceipt;
 use crate::postgres::election::{get_cast_vote_configuration, CastVoteConfiguration};
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::cast_ballot::{
@@ -37,6 +37,7 @@ use sequent_core::ballot::ContestEncryptionPolicy;
 // `ballot_box_seal::deadline::grace_period`.
 #[cfg(test)]
 use sequent_core::ballot::EGracePeriodPolicy;
+use sequent_core::ballot::ElectionEventPresentation;
 use sequent_core::ballot::LEGACY_TYPES_VERSION;
 use sequent_core::ballot::{
     AreaPresentation, EarlyVotingPolicy, ElectionPresentation, ElectionStatus, VoterSigningPolicy,
@@ -409,9 +410,6 @@ pub enum CastVoteError {
     BallotIdMismatch(String),
     #[serde(rename = "get_ballot_style_failed")]
     GetBallotStyleFailed(String),
-    #[serde(rename = "ballot_style_mismatch")]
-    #[strum(to_string = "ballot_style_mismatch")]
-    BallotStyleMismatch(String),
     #[serde(rename = "unknown_error")]
     UnknownError(String),
 }
@@ -538,22 +536,15 @@ pub(crate) async fn try_cast(
         }
     };
 
-    let ballot_tracker_policy = presentation_opt
-        .as_ref()
-        .and_then(|presentation| presentation.ballot_tracker_policy.clone())
-        .unwrap_or_default();
-    let published_ballot_styles = get_published_ballot_emls(
+    let (ballot_tracker_policy, published_ballot_styles) = ballot_tracker_context(
         &hasura_transaction,
+        Some(&presentation),
         tenant_id,
         election_event_id,
         area_id,
         &input.election_id.to_string(),
     )
-    .await
-    .map_err(|e| CastVoteError::GetBallotStyleFailed(e.to_string()))?
-    .iter()
-    .map(|ballot_eml| PublishedBallotStyleHash::from_ballot_eml(ballot_eml))
-    .collect::<Result<Vec<_>, _>>()?;
+    .await?;
 
     let hash_result = if is_multi_contest {
         deserialize_and_check_multi_ballot(
@@ -719,6 +710,35 @@ pub(crate) async fn try_cast(
             skip_or_propagate(cast_vote_err).map(CastOutcome::refused_result)
         }
     }
+}
+
+/// The ballot tracker policy of the election event and the ballot styles a
+/// ballot can be encrypted with to be accepted for the voter's area and
+/// election.
+pub async fn ballot_tracker_context(
+    hasura_transaction: &Transaction<'_>,
+    presentation: Option<&ElectionEventPresentation>,
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &str,
+    election_id: &str,
+) -> Result<(BallotTrackerPolicy, Vec<PublishedBallotStyleHash>), CastVoteError> {
+    let ballot_tracker_policy = presentation
+        .and_then(|presentation| presentation.ballot_tracker_policy.clone())
+        .unwrap_or_default();
+    let published_ballot_styles = get_published_ballot_emls(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        area_id,
+        election_id,
+    )
+    .await
+    .map_err(|e| CastVoteError::GetBallotStyleFailed(e.to_string()))?
+    .iter()
+    .map(|ballot_eml| PublishedBallotStyleHash::from_ballot_eml(ballot_eml))
+    .collect::<Result<Vec<_>, _>>()?;
+    Ok((ballot_tracker_policy, published_ballot_styles))
 }
 
 /// The id and hash of a ballot style a ballot can be encrypted with to be

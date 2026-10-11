@@ -43,7 +43,7 @@ ballots is in use.
 ## Rejected ballots
 
 A ballot that fails these checks is rejected and the voting portal shows the
-`CAST_VOTE_DeserializeBallotFailed` message. The most common cause is a voting
+`CAST_VOTE_PokValidationFailed` message. The most common cause is a voting
 portal that was loaded before a new ballot publication: reloading the voting
 portal loads the current ballot style.
 

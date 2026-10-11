@@ -348,11 +348,6 @@ pub(crate) fn cast_vote_error_response(
             ErrorCode::InternalServerError.to_string().as_str(),
             ErrorCode::InternalServerError,
         ),
-        CastVoteError::BallotStyleMismatch(_) => ErrorResponse::new(
-            Status::BadRequest,
-            ErrorCode::DeserializeBallotFailed.to_string().as_str(),
-            ErrorCode::DeserializeBallotFailed,
-        ),
     }
 }
 

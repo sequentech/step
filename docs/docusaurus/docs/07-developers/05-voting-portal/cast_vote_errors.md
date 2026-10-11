@@ -231,7 +231,6 @@ The system also handles specific GraphQL error codes with dynamic error messages
 - Corrupted ballot data
 - Version compatibility issues
 - JSON/serialization parsing errors
-- The ballot was not encrypted with the ballot style published for the voter's area and election, for example because the voting portal was loaded before a new ballot publication (see the ballot tracker policy)
 
 #### CAST_VOTE_DeserializeContestsFailed
 **Translation**: "An error occurred reading your selections. Please try again later or contact support for assistance."
@@ -267,6 +266,7 @@ The system also handles specific GraphQL error codes with dynamic error messages
 - Encryption validation errors
 - The voter's signature on the ballot does not verify
 - In election events with [receipts signed by the ballot box](../../02-election_managers/02-reference/13-ballot-receipts.md): the ballot is not signed by its voter, it names another ballot style than the one published for the voter, or the ballot box has not received it. `RECEIVE_BALLOT` reports these on the review screen before the voter can cast. At the cast (`CAST_BALLOT`): the voter's Cast signature does not verify, or the ballot was already cast or audited.
+- The ballot was not encrypted with the ballot style published for the voter's area and election, for example because the voting portal was loaded before a new ballot publication (see the ballot tracker policy)
 
 #### CAST_VOTE_BallotSignFailed
 **Translation**: "Failed to sign your ballot. Please try again later or contact support for assistance."

@@ -696,376 +696,22 @@ mod tests {
         );
     }
 
-    mod ciphertext_reconstruction {
-        use crate::ballot::BallotStyle;
-        use crate::ballot::{AuditableBallot, PublicKeyConfig};
-        use crate::encrypt::{
-            encrypt_decoded_contest, encrypt_decoded_multi_contest,
-            encrypt_plaintext_candidate, recreate_encrypt_cyphertext,
-            recreate_encrypt_multi_ballot_cyphertext,
-            verify_auditable_ballot_ciphertexts,
-            verify_auditable_multi_ballot_ciphertext, DEFAULT_PLAINTEXT_LABEL,
-        };
-        use crate::error::BallotError;
-        use crate::fixtures::ballot_codec::{
-            get_test_contest, get_test_decoded_vote_contest,
-            get_writein_ballot_style,
-        };
-        use crate::multi_ballot::AuditableMultiBallot;
-        use strand::backend::ristretto::RistrettoCtx;
-        use strand::context::Ctx;
-        use strand::rng::StrandRng;
-
-        /// A plurality contest with three candidates under a ballot style
-        /// that carries a public key, so both codecs can encrypt it.
-        pub(super) fn ballot_style() -> BallotStyle {
-            BallotStyle {
-                contests: vec![get_test_contest()],
-                ..get_writein_ballot_style()
-            }
-        }
-
-        pub(super) fn single_ballot() -> AuditableBallot {
-            encrypt_decoded_contest::<RistrettoCtx>(
-                &RistrettoCtx,
-                &vec![get_test_decoded_vote_contest()],
-                &ballot_style(),
-            )
-            .unwrap()
-        }
-
-        pub(super) fn multi_ballot() -> AuditableMultiBallot {
-            encrypt_decoded_multi_contest::<RistrettoCtx>(
-                &RistrettoCtx,
-                &vec![get_test_decoded_vote_contest()],
-                &ballot_style(),
-            )
-            .unwrap()
-        }
-
-        fn assert_cryptographic_check(result: Result<(), BallotError>) {
-            match result {
-                Err(BallotError::CryptographicCheck(_)) => {}
-                other => {
-                    panic!("expected a ciphertext mismatch, got {other:?}")
-                }
-            }
-        }
-
-        fn assert_consistency_check(result: Result<(), BallotError>) {
-            match result {
-                Err(BallotError::ConsistencyCheck(_)) => {}
-                other => panic!("expected a consistency error, got {other:?}"),
-            }
-        }
-
-        #[test]
-        fn valid_single_ballot_reproduces_its_ciphertexts() {
-            let ballot = single_ballot();
-            let contests =
-                ballot.deserialize_contests::<RistrettoCtx>().unwrap();
-
-            let recreated =
-                recreate_encrypt_cyphertext(&RistrettoCtx, &ballot).unwrap();
-
-            assert_eq!(recreated.len(), contests.len());
-            for (contest, choice) in contests.iter().zip(recreated.iter()) {
-                assert_eq!(contest.choice, *choice);
-            }
-            assert!(verify_auditable_ballot_ciphertexts(
-                &RistrettoCtx,
-                &ballot
-            )
-            .is_ok());
-        }
-
-        #[test]
-        fn single_ballot_with_modified_plaintext_is_rejected() {
-            let ballot = single_ballot();
-            let mut contests =
-                ballot.deserialize_contests::<RistrettoCtx>().unwrap();
-            contests[0].choice.plaintext[0] ^= 0x01;
-            let tampered = AuditableBallot {
-                contests: AuditableBallot::serialize_contests(&contests)
-                    .unwrap(),
-                ..ballot
-            };
-
-            assert_cryptographic_check(verify_auditable_ballot_ciphertexts(
-                &RistrettoCtx,
-                &tampered,
-            ));
-        }
-
-        #[test]
-        fn single_ballot_with_modified_randomness_is_rejected() {
-            let ballot = single_ballot();
-            let mut contests =
-                ballot.deserialize_contests::<RistrettoCtx>().unwrap();
-            contests[0].choice.randomness =
-                RistrettoCtx.rnd_exp(&mut StrandRng);
-            let tampered = AuditableBallot {
-                contests: AuditableBallot::serialize_contests(&contests)
-                    .unwrap(),
-                ..ballot
-            };
-
-            assert_cryptographic_check(verify_auditable_ballot_ciphertexts(
-                &RistrettoCtx,
-                &tampered,
-            ));
-        }
-
-        #[test]
-        fn single_ballot_with_modified_ciphertext_is_rejected() {
-            let ballot = single_ballot();
-            let mut contests =
-                ballot.deserialize_contests::<RistrettoCtx>().unwrap();
-            let public_key = crate::encrypt::parse_public_key::<RistrettoCtx>(
-                &ballot.config,
-            )
-            .unwrap();
-            // A fresh encryption of the same plaintext uses new randomness,
-            // so its ciphertext cannot match the recorded randomness.
-            let (other_choice, _) = encrypt_plaintext_candidate(
-                &RistrettoCtx,
-                public_key,
-                contests[0].choice.plaintext,
-                &DEFAULT_PLAINTEXT_LABEL,
-            )
-            .unwrap();
-            contests[0].choice.ciphertext = other_choice.ciphertext;
-            let tampered = AuditableBallot {
-                contests: AuditableBallot::serialize_contests(&contests)
-                    .unwrap(),
-                ..ballot
-            };
-
-            assert_cryptographic_check(verify_auditable_ballot_ciphertexts(
-                &RistrettoCtx,
-                &tampered,
-            ));
-        }
-
-        #[test]
-        fn single_ballot_with_malformed_public_key_is_an_error() {
-            let mut ballot = single_ballot();
-            ballot.config.public_key = Some(PublicKeyConfig {
-                public_key: "not a public key".to_string(),
-                is_demo: true,
-            });
-
-            assert!(
-                recreate_encrypt_cyphertext(&RistrettoCtx, &ballot).is_err()
-            );
-            assert!(verify_auditable_ballot_ciphertexts(
-                &RistrettoCtx,
-                &ballot
-            )
-            .is_err());
-        }
-
-        #[test]
-        fn single_ballot_without_public_key_is_an_error() {
-            let mut ballot = single_ballot();
-            ballot.config.public_key = None;
-
-            assert_consistency_check(verify_auditable_ballot_ciphertexts(
-                &RistrettoCtx,
-                &ballot,
-            ));
-        }
-
-        #[test]
-        fn single_ballot_with_inconsistent_contest_count_is_an_error() {
-            let ballot = single_ballot();
-            let mut contests =
-                ballot.deserialize_contests::<RistrettoCtx>().unwrap();
-            contests.push(contests[0].clone());
-            let duplicated = AuditableBallot {
-                contests: AuditableBallot::serialize_contests(&contests)
-                    .unwrap(),
-                ..ballot.clone()
-            };
-            let empty = AuditableBallot {
-                contests: vec![],
-                ..ballot
-            };
-
-            assert_consistency_check(verify_auditable_ballot_ciphertexts(
-                &RistrettoCtx,
-                &duplicated,
-            ));
-            assert_consistency_check(verify_auditable_ballot_ciphertexts(
-                &RistrettoCtx,
-                &empty,
-            ));
-        }
-
-        #[test]
-        fn valid_multi_ballot_reproduces_its_ciphertext() {
-            let ballot = multi_ballot();
-            let contests =
-                ballot.deserialize_contests::<RistrettoCtx>().unwrap();
-
-            let recreated = recreate_encrypt_multi_ballot_cyphertext(
-                &RistrettoCtx,
-                &ballot,
-            )
-            .unwrap();
-
-            assert_eq!(contests.choice, recreated);
-            assert!(verify_auditable_multi_ballot_ciphertext(
-                &RistrettoCtx,
-                &ballot
-            )
-            .is_ok());
-        }
-
-        #[test]
-        fn multi_ballot_with_modified_plaintext_is_rejected() {
-            let ballot = multi_ballot();
-            let mut contests =
-                ballot.deserialize_contests::<RistrettoCtx>().unwrap();
-            contests.choice.plaintext[0] ^= 0x01;
-            let tampered = AuditableMultiBallot {
-                contests: AuditableMultiBallot::serialize_contests(&contests)
-                    .unwrap(),
-                ..ballot
-            };
-
-            assert_cryptographic_check(
-                verify_auditable_multi_ballot_ciphertext(
-                    &RistrettoCtx,
-                    &tampered,
-                ),
-            );
-        }
-
-        #[test]
-        fn multi_ballot_with_modified_randomness_is_rejected() {
-            let ballot = multi_ballot();
-            let mut contests =
-                ballot.deserialize_contests::<RistrettoCtx>().unwrap();
-            contests.choice.randomness = RistrettoCtx.rnd_exp(&mut StrandRng);
-            let tampered = AuditableMultiBallot {
-                contests: AuditableMultiBallot::serialize_contests(&contests)
-                    .unwrap(),
-                ..ballot
-            };
-
-            assert_cryptographic_check(
-                verify_auditable_multi_ballot_ciphertext(
-                    &RistrettoCtx,
-                    &tampered,
-                ),
-            );
-        }
-
-        #[test]
-        fn multi_ballot_with_modified_ciphertext_is_rejected() {
-            let ballot = multi_ballot();
-            let mut contests =
-                ballot.deserialize_contests::<RistrettoCtx>().unwrap();
-            let public_key = crate::encrypt::parse_public_key::<RistrettoCtx>(
-                &ballot.config,
-            )
-            .unwrap();
-            let (other_choice, _) = encrypt_plaintext_candidate(
-                &RistrettoCtx,
-                public_key,
-                contests.choice.plaintext,
-                &DEFAULT_PLAINTEXT_LABEL,
-            )
-            .unwrap();
-            contests.choice.ciphertext = other_choice.ciphertext;
-            let tampered = AuditableMultiBallot {
-                contests: AuditableMultiBallot::serialize_contests(&contests)
-                    .unwrap(),
-                ..ballot
-            };
-
-            assert_cryptographic_check(
-                verify_auditable_multi_ballot_ciphertext(
-                    &RistrettoCtx,
-                    &tampered,
-                ),
-            );
-        }
-
-        #[test]
-        fn multi_ballot_with_malformed_public_key_is_an_error() {
-            let mut ballot = multi_ballot();
-            ballot.config.public_key = Some(PublicKeyConfig {
-                public_key: "not a public key".to_string(),
-                is_demo: true,
-            });
-
-            assert!(recreate_encrypt_multi_ballot_cyphertext(
-                &RistrettoCtx,
-                &ballot
-            )
-            .is_err());
-        }
-
-        #[test]
-        fn multi_ballot_with_inconsistent_contest_ids_is_an_error() {
-            let ballot = multi_ballot();
-            let mut contests =
-                ballot.deserialize_contests::<RistrettoCtx>().unwrap();
-            contests.contest_ids.push(contests.contest_ids[0].clone());
-            let tampered = AuditableMultiBallot {
-                contests: AuditableMultiBallot::serialize_contests(&contests)
-                    .unwrap(),
-                ..ballot
-            };
-
-            assert_consistency_check(verify_auditable_multi_ballot_ciphertext(
-                &RistrettoCtx,
-                &tampered,
-            ));
-        }
-
-        /// A ballot style that lists the same votable contest twice collapses
-        /// to a single id in the expected set, so a ballot naming it once
-        /// would otherwise cover fewer contests than the style encodes.
-        #[test]
-        fn ballot_style_with_duplicate_contest_ids_is_rejected() {
-            let mut ballot = single_ballot();
-            ballot.config.contests =
-                vec![get_test_contest(), get_test_contest()];
-
-            assert_consistency_check(verify_auditable_ballot_ciphertexts(
-                &RistrettoCtx,
-                &ballot,
-            ));
-        }
-
-        /// Same hole on the multi-contest side.
-        #[test]
-        fn multi_ballot_style_with_duplicate_contest_ids_is_rejected() {
-            let mut ballot = multi_ballot();
-            ballot.config.contests =
-                vec![get_test_contest(), get_test_contest()];
-
-            assert_consistency_check(verify_auditable_multi_ballot_ciphertext(
-                &RistrettoCtx,
-                &ballot,
-            ));
-        }
-    }
-
     mod ballot_tracker {
-        use super::ciphertext_reconstruction::{
-            ballot_style, multi_ballot, single_ballot,
-        };
+        use crate::ballot::BallotStyle;
         use crate::ballot::{
             AuditableBallot, HashableBallot, HashableBallotContest,
             PublicKeyConfig, RawHashableBallot, SignedHashableBallot,
             LEGACY_TYPES_VERSION, TYPES_VERSION,
         };
         use crate::encrypt::{
+            encrypt_decoded_contest, encrypt_decoded_multi_contest,
+        };
+        use crate::encrypt::{
             hash_ballot, hash_ballot_style, hash_multi_ballot, shorten_hash,
+        };
+        use crate::fixtures::ballot_codec::{
+            get_test_contest, get_test_decoded_vote_contest,
+            get_writein_ballot_style,
         };
         use crate::multi_ballot::{
             AuditableMultiBallot, HashableMultiBallot,
@@ -1074,6 +720,33 @@ mod tests {
         use strand::backend::ristretto::RistrettoCtx;
         use strand::hash::hash_to_array;
         use strand::serialization::StrandSerialize;
+
+        /// A plurality contest with three candidates under a ballot style
+        /// that carries a public key, so both codecs can encrypt it.
+        fn ballot_style() -> BallotStyle {
+            BallotStyle {
+                contests: vec![get_test_contest()],
+                ..get_writein_ballot_style()
+            }
+        }
+
+        fn single_ballot() -> AuditableBallot {
+            encrypt_decoded_contest::<RistrettoCtx>(
+                &RistrettoCtx,
+                &vec![get_test_decoded_vote_contest()],
+                &ballot_style(),
+            )
+            .unwrap()
+        }
+
+        fn multi_ballot() -> AuditableMultiBallot {
+            encrypt_decoded_multi_contest::<RistrettoCtx>(
+                &RistrettoCtx,
+                &vec![get_test_decoded_vote_contest()],
+                &ballot_style(),
+            )
+            .unwrap()
+        }
 
         fn single_tracker(ballot: &AuditableBallot) -> String {
             let signed = SignedHashableBallot::try_from(ballot).unwrap();
