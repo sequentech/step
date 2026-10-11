@@ -6086,7 +6086,7 @@ const spanishTranslation: TranslationType = {
             accountsTab: "Cuentas",
             tabsLabel: "Secciones de mensajería",
             description:
-                "Mensajes que recibió el proveedor simulado de este entorno de desarrollo, tal como los mostrarían las aplicaciones de los votantes. Ninguno llegó a un votante real. Esta pestaña solo aparece donde las rutas del proveedor simulado están habilitadas.",
+                "Mensajes que recibió el proveedor de demostración de este entorno de desarrollo, tal como los mostrarían las aplicaciones de los votantes. Ninguno llegó a un votante real. Esta pestaña solo aparece donde las rutas del proveedor de demostración están habilitadas.",
             modeLabel: "Mostrar mensajes de",
             all: "Todos",
             refresh: "Actualizar",
@@ -6120,7 +6120,7 @@ const spanishTranslation: TranslationType = {
                 copied: "Código copiado",
                 copyFailed: "No se pudo copiar el código",
                 truncated:
-                    "Recortado: el proveedor simulado solo conserva los primeros 64 KiB de cada campo.",
+                    "Recortado: el proveedor de demostración solo conserva los primeros 64 KiB de cada campo.",
             },
             chat: {
                 phone: "{{channel}} en un teléfono",
@@ -6152,7 +6152,7 @@ const spanishTranslation: TranslationType = {
                 noContent: "Este correo no tiene contenido.",
                 loading: "Cargando el correo…",
                 loadError:
-                    "No se pudo leer el HTML del correo: puede que el proveedor simulado ya no lo conserve.",
+                    "No se pudo leer el HTML del correo: puede que el proveedor de demostración ya no lo conserve.",
             },
             reason: {
                 SEVERAL_ACCOUNTS: "Varias cuentas usan este remitente",

@@ -6121,7 +6121,7 @@ const tagalogTranslation: TranslationType = {
             accountsTab: "Mga account",
             tabsLabel: "Mga seksyon ng pagmemensahe",
             description:
-                "Mga mensaheng natanggap ng pekeng provider ng development stack na ito, gaya ng ipapakita ng mga app ng mga botante. Wala sa mga ito ang nakarating sa tunay na botante. Lumalabas lang ang tab na ito kung saan naka-enable ang mga ruta ng pekeng provider.",
+                "Mga mensaheng natanggap ng demo provider ng development stack na ito, gaya ng ipapakita ng mga app ng mga botante. Wala sa mga ito ang nakarating sa tunay na botante. Lumalabas lang ang tab na ito kung saan naka-enable ang mga ruta ng demo provider.",
             modeLabel: "Ipakita ang mga mensahe mula sa",
             all: "Lahat",
             refresh: "I-refresh",
@@ -6155,7 +6155,7 @@ const tagalogTranslation: TranslationType = {
                 copied: "Nakopya ang code",
                 copyFailed: "Hindi makopya ang code",
                 truncated:
-                    "Pinutol: ang unang 64 KiB lang ng bawat field ang itinatago ng pekeng provider.",
+                    "Pinutol: ang unang 64 KiB lang ng bawat field ang itinatago ng demo provider.",
             },
             chat: {
                 phone: "{{channel}} sa isang telepono",
@@ -6187,7 +6187,7 @@ const tagalogTranslation: TranslationType = {
                 noContent: "Walang nilalaman ang email na ito.",
                 loading: "Nilo-load ang email…",
                 loadError:
-                    "Hindi mabasa ang HTML ng email: maaaring hindi na ito itinatago ng pekeng provider.",
+                    "Hindi mabasa ang HTML ng email: maaaring hindi na ito itinatago ng demo provider.",
             },
             reason: {
                 SEVERAL_ACCOUNTS: "Maraming account ang gumagamit ng nagpadalang ito",

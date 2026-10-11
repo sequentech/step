@@ -6,6 +6,13 @@ import {EMessageChannel} from "@/types/messaging"
 import {reasonText} from "@/services/messagingReasons"
 import {IFakeMessageContent, IFakeProviderMessage, IFakeTemplateParameter} from "./types"
 
+/** Historic synthetic senders keep their entries, shown with the demo labels. */
+export const demoLabel = (value: string): string =>
+    value
+        .replace(/^Fake(?=[ A-Z])/, "Demo")
+        .replace(/fake-(?=provider\.example\.org|wa-number-|waba-|infobip\.example\.org)/g, "demo-")
+        .replace(/fake\.(?=elections|staff\.association)/g, "demo.")
+
 /** A template parameter as written: `name: value` for a named one. */
 export const parameterText = ({name, value}: IFakeTemplateParameter): string =>
     name ? `${name}: ${value}` : value

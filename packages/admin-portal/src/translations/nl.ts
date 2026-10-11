@@ -6112,7 +6112,7 @@ const dutchTranslation: TranslationType = {
             accountsTab: "Verzendaccounts",
             tabsLabel: "Onderdelen van berichten",
             description:
-                "Berichten die de gesimuleerde provider van deze ontwikkelomgeving ontving, zoals de apps van de kiezers ze zouden tonen. Geen ervan heeft een echte kiezer bereikt. Dit tabblad verschijnt alleen waar de routes van de gesimuleerde provider zijn ingeschakeld.",
+                "Berichten die de demoprovider van deze ontwikkelomgeving ontving, zoals de apps van de kiezers ze zouden tonen. Geen ervan heeft een echte kiezer bereikt. Dit tabblad verschijnt alleen waar de routes van de demoprovider zijn ingeschakeld.",
             modeLabel: "Berichten tonen van",
             all: "Alle",
             refresh: "Vernieuwen",
@@ -6146,7 +6146,7 @@ const dutchTranslation: TranslationType = {
                 copied: "Code gekopieerd",
                 copyFailed: "De code kon niet worden gekopieerd",
                 truncated:
-                    "Ingekort: de gesimuleerde provider bewaart alleen de eerste 64 KiB van elk veld.",
+                    "Ingekort: de demoprovider bewaart alleen de eerste 64 KiB van elk veld.",
             },
             chat: {
                 phone: "{{channel}} op een telefoon",
@@ -6178,7 +6178,7 @@ const dutchTranslation: TranslationType = {
                 noContent: "Deze e-mail heeft geen inhoud.",
                 loading: "E-mail laden…",
                 loadError:
-                    "De HTML van de e-mail kon niet worden gelezen: de gesimuleerde provider bewaart hem misschien niet meer.",
+                    "De HTML van de e-mail kon niet worden gelezen: de demoprovider bewaart hem misschien niet meer.",
             },
             reason: {
                 SEVERAL_ACCOUNTS: "Meerdere accounts gebruiken deze afzender",
