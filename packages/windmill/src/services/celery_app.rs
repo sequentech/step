@@ -77,7 +77,6 @@ use crate::tasks::scheduled_reports::scheduled_reports;
 use crate::tasks::send_template::send_template;
 use crate::tasks::sequence_ballot_box::{schedule_ballot_box_sequencers, sequence_ballot_box};
 use crate::tasks::set_public_key::set_public_key;
-use crate::tasks::tag_jwks_realms::tag_jwks_realms;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 use crate::tasks::voter_information_letter::generate_voter_information_letter;
 
@@ -299,7 +298,6 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             publish_electoral_log_checkpoint,
             publish_periodic_electoral_log_checkpoints,
             purge_queue_archives,
-            tag_jwks_realms,
             manage_electoral_log_dead_letters,
             export_certificate_authority,
             create_transmission_package_task,
@@ -357,7 +355,6 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             publish_electoral_log_checkpoint::NAME => Queue::Short.queue_name(),
             publish_periodic_electoral_log_checkpoints::NAME => Queue::Beat.queue_name(),
             purge_queue_archives::NAME => Queue::Beat.queue_name(),
-            tag_jwks_realms::NAME => Queue::Beat.queue_name(),
             manage_electoral_log_dead_letters::NAME => Queue::Short.queue_name(),
             generate_activity_logs_report::NAME => Queue::Reports.queue_name(), // Using reports queue because there is more memory allocated for that queue
             export_tasks_execution::NAME => Queue::ImportExport.queue_name(),

@@ -9020,6 +9020,7 @@ dependencies = [
  "wasmtime",
  "wasmtime-wasi",
  "web-sys",
+ "x509-cert",
 ]
 
 [[package]]

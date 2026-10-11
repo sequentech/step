@@ -234,9 +234,6 @@ Finally, you can start the Docker Compose stack with the Nginx reverse proxy.
       "
     
     rm -f /tmp/certs_temp.json
-
-    # Beat tags the keys with their realm when it starts; Harvest requires it
-    docker compose -f .devcontainer/docker-compose-remote.yml restart beat
     
     # Verify upload
     docker compose -f .devcontainer/docker-compose-remote.yml run --rm --entrypoint="" -T configure-minio \

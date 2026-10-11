@@ -29,9 +29,6 @@ use windmill::tasks::review_cast_votes::review_cast_votes;
 use windmill::tasks::scheduled_events::scheduled_events;
 use windmill::tasks::scheduled_reports::scheduled_reports;
 use windmill::tasks::sequence_ballot_box::schedule_ballot_box_sequencers;
-use windmill::tasks::tag_jwks_realms::{
-    tag_interval_secs, tag_jwks_realms, DEFAULT_TAG_INTERVAL_SECS,
-};
 
 #[derive(Debug, Parser)]
 #[command(name = "beat", about = "Windmill's periodic task scheduler.")]
@@ -61,7 +58,6 @@ async fn main() -> Result<()> {
     // Refuse to start on an invalid interval; the schedule below cannot return errors.
     checkpoint_interval_secs()?;
     purge_interval_secs()?;
-    tag_interval_secs()?;
 
     // A dedicated pooled session holds leadership for this environment's scheduler.
     let pool = get_queue_pool().await;
@@ -147,13 +143,6 @@ async fn main() -> Result<()> {
                 )),
                 args = (),
             },
-            tag_jwks_realms::NAME => {
-                tag_jwks_realms,
-                schedule = DeltaSchedule::new(Duration::from_secs(
-                    tag_interval_secs().unwrap_or(DEFAULT_TAG_INTERVAL_SECS),
-                )),
-                args = (),
-            },
         ],
         task_routes = [
             review_boards::NAME => Queue::Beat.queue_name(),
@@ -164,7 +153,6 @@ async fn main() -> Result<()> {
             publish_periodic_electoral_log_checkpoints::NAME => Queue::Beat.queue_name(),
             schedule_ballot_box_sequencers::NAME => Queue::ElectoralLogBeat.queue_name(),
             purge_queue_archives::NAME => Queue::Beat.queue_name(),
-            tag_jwks_realms::NAME => Queue::Beat.queue_name(),
         ],
         default_queue = Queue::Beat.queue_name(),
     ).await?;

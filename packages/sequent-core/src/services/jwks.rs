@@ -3,12 +3,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Verifies Keycloak access tokens with `certs.json`, the JWKS that Windmill
-//! publishes for Hasura. Each key there names the realm it belongs to, so a
-//! token is only trusted for the realm whose key signed it.
+//! publishes for Hasura. A token is only trusted for the realm of the key that
+//! signed it.
 
 use crate::services::jwt::JwtClaims;
-use crate::services::keycloak::{get_event_realm, get_tenant_realm};
+use crate::services::keycloak::parse_realm;
 use anyhow::{anyhow, bail, Context, Result};
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
 use jsonwebtoken::{decode, decode_header, Algorithm, DecodingKey, Validation};
 use reqwest::header::{HeaderValue, CACHE_CONTROL};
 use reqwest::StatusCode;
@@ -20,6 +22,8 @@ use std::sync::{Arc, LazyLock};
 use std::time::{Duration, Instant};
 use tokio::sync::{Mutex, RwLock};
 use tracing::{instrument, warn};
+use x509_cert::der::Decode;
+use x509_cert::Certificate;
 
 pub const JWKS_FETCH_TIMEOUT_ENV: &str = "AWS_S3_JWKS_FETCH_TIMEOUT_SECS";
 pub const JWKS_MIN_REFRESH_ENV: &str = "AWS_S3_JWKS_MIN_REFRESH_SECS";
@@ -56,13 +60,18 @@ pub fn get_jwks_secret_path() -> String {
     env::var("AWS_S3_JWKS_CERTS_PATH").unwrap_or("certs.json".to_string())
 }
 
+/// A positive number of seconds from the environment, else the default.
 fn seconds_setting(name: &str, default: u64) -> Duration {
-    Duration::from_secs(
-        env::var(name)
-            .ok()
-            .and_then(|value| value.trim().parse().ok())
-            .unwrap_or(default),
-    )
+    let Ok(value) = env::var(name) else {
+        return Duration::from_secs(default);
+    };
+    match value.trim().parse::<u64>() {
+        Ok(seconds) if seconds > 0 => Duration::from_secs(seconds),
+        _ => {
+            warn!("{name} must be a positive integer, got {value:?}; using {default}");
+            Duration::from_secs(default)
+        }
+    }
 }
 
 /// The `max-age` of a `Cache-Control` header, zero when there is none.
@@ -78,8 +87,11 @@ fn max_age(cache_control: Option<&HeaderValue>) -> Duration {
         .unwrap_or_default()
 }
 
-/// Reads `certs.json` from the public bucket, as Hasura does. A missing file
-/// has no keys.
+static HTTP_CLIENT: LazyLock<reqwest::Client> =
+    LazyLock::new(reqwest::Client::new);
+
+/// Reads `certs.json` from `AWS_S3_PRIVATE_URI`/`AWS_S3_PUBLIC_BUCKET`, where
+/// Windmill writes it. A missing file has no keys.
 #[instrument(err)]
 pub async fn fetch_jwks() -> Result<Jwks> {
     let url = format!(
@@ -90,7 +102,7 @@ pub async fn fetch_jwks() -> Result<Jwks> {
             .context("AWS_S3_PUBLIC_BUCKET must be set")?,
         get_jwks_secret_path()
     );
-    let response = reqwest::Client::new()
+    let response = HTTP_CLIENT
         .get(url)
         .timeout(seconds_setting(
             JWKS_FETCH_TIMEOUT_ENV,
@@ -122,13 +134,14 @@ struct CachedKeys {
     expires_at: Instant,
 }
 
-/// `certs.json`, kept for its `max-age`. A token signed with a key that is
-/// not cached, or that has no realm yet, refreshes it, at most once every
-/// `AWS_S3_JWKS_MIN_REFRESH_SECS`. When a refresh fails the cached keys stay
-/// in use.
+/// `certs.json`, kept for its `max-age`. Known keys are used right away; once
+/// expired, it is refreshed in the background. Only a token signed with a key
+/// that is not cached waits for a refresh. Refreshes happen at most once every
+/// `AWS_S3_JWKS_MIN_REFRESH_SECS`, and when one fails the cached keys stay in
+/// use.
 struct JwksCache {
     cached: RwLock<Arc<CachedKeys>>,
-    /// Held while refreshing, so that one request refreshes for all.
+    /// When the last refresh started. Held while refreshing.
     last_refresh: Mutex<Option<Instant>>,
 }
 
@@ -141,58 +154,74 @@ static JWKS_CACHE: LazyLock<JwksCache> = LazyLock::new(|| JwksCache {
 });
 
 impl JwksCache {
-    async fn key(&self, kid: &str) -> Result<JWKKey> {
-        if let Some(key) = self.current_key(kid).await {
-            return Ok(key);
-        }
-        let mut last_refresh = self.last_refresh.lock().await;
-        if let Some(key) = self.current_key(kid).await {
-            return Ok(key);
-        }
-        let min_refresh = seconds_setting(
-            JWKS_MIN_REFRESH_ENV,
-            DEFAULT_JWKS_MIN_REFRESH_SECS,
-        );
-        if last_refresh.is_none_or(|at| at.elapsed() >= min_refresh) {
-            *last_refresh = Some(Instant::now());
-            match fetch_jwks().await {
-                Ok(jwks) => {
-                    *self.cached.write().await = Arc::new(CachedKeys {
-                        expires_at: Instant::now()
-                            .checked_add(jwks.max_age)
-                            .unwrap_or_else(Instant::now),
-                        keys: jwks
-                            .keys
-                            .into_iter()
-                            .map(|key| (key.kid.clone(), key))
-                            .collect(),
-                    });
-                }
-                Err(err) => {
-                    warn!("Keeping the cached JWKS, refresh failed: {err:?}")
-                }
-            }
-        }
+    async fn key(&'static self, kid: &str) -> Result<JWKKey> {
         let cached = self.cached.read().await.clone();
-        cached
+        if let Some(key) = cached.keys.get(kid) {
+            if Instant::now() >= cached.expires_at {
+                tokio::spawn(self.refresh(false));
+            }
+            return Ok(key.clone());
+        }
+        self.refresh(true).await;
+        self.cached
+            .read()
+            .await
             .keys
             .get(kid)
             .cloned()
             .ok_or_else(|| anyhow!("Unknown key id {kid}"))
     }
 
-    /// The key, if it is cached, unexpired and has its realm.
-    async fn current_key(&self, kid: &str) -> Option<JWKKey> {
-        let cached = self.cached.read().await;
-        if Instant::now() >= cached.expires_at {
-            return None;
+    /// Reads `certs.json` again, unless it was read within the minimum
+    /// interval. With `wait`, waits for a refresh in progress instead of
+    /// leaving it to finish.
+    async fn refresh(&self, wait: bool) {
+        let mut last_refresh = if wait {
+            self.last_refresh.lock().await
+        } else {
+            match self.last_refresh.try_lock() {
+                Ok(last_refresh) => last_refresh,
+                Err(_) => return,
+            }
+        };
+        let min_refresh = seconds_setting(
+            JWKS_MIN_REFRESH_ENV,
+            DEFAULT_JWKS_MIN_REFRESH_SECS,
+        );
+        if last_refresh.is_some_and(|at| at.elapsed() < min_refresh) {
+            return;
         }
-        cached
-            .keys
-            .get(kid)
-            .filter(|key| key.realm.is_some())
-            .cloned()
+        *last_refresh = Some(Instant::now());
+        match fetch_jwks().await {
+            Ok(jwks) => {
+                *self.cached.write().await = Arc::new(CachedKeys {
+                    expires_at: Instant::now()
+                        .checked_add(jwks.max_age)
+                        .unwrap_or_else(Instant::now),
+                    keys: jwks
+                        .keys
+                        .into_iter()
+                        .map(|key| (key.kid.clone(), key))
+                        .collect(),
+                });
+            }
+            Err(err) => {
+                warn!("Keeping the cached JWKS, refresh failed: {err:?}")
+            }
+        }
     }
+}
+
+/// The key's realm: its `realm` member, or for keys written before Windmill
+/// added it, the subject of its certificate, which Keycloak issues as
+/// `CN=<realm>`.
+fn key_realm(key: &JWKKey) -> Option<String> {
+    if let Some(realm) = &key.realm {
+        return Some(realm.clone());
+    }
+    let der = STANDARD.decode(key.x5c.first()?).ok()?;
+    let subject = Certificate::from_der(&der).ok()?.tbs_certificate.subject;
+    subject.to_string().strip_prefix("CN=").map(str::to_string)
 }
 
 /// The realm in a Keycloak issuer, `<url>/realms/<realm>`.
@@ -203,21 +232,19 @@ fn issuer_realm(iss: &str) -> Option<&str> {
 /// Whether the claimed tenant, and election event when there is one, are
 /// those of the realm. Voters of an event realm may have no event claim.
 fn claims_match_realm(claims: &JwtClaims, realm: &str) -> bool {
-    let tenant_id = &claims.hasura_claims.tenant_id;
-    let tenant_realm = get_tenant_realm(tenant_id);
-    match &claims.hasura_claims.election_event_id {
-        Some(event_id) => realm == get_event_realm(tenant_id, event_id),
-        None => {
-            realm == tenant_realm
-                || realm.starts_with(&format!("{tenant_realm}-event-"))
-        }
-    }
+    let Some((tenant_id, event_id)) = parse_realm(realm) else {
+        return false;
+    };
+    let claims = &claims.hasura_claims;
+    claims.tenant_id == tenant_id
+        && claims
+            .election_event_id
+            .as_ref()
+            .is_none_or(|claimed| Some(claimed) == event_id.as_ref())
 }
 
 fn verify_with_key(token: &str, key: &JWKKey) -> Result<JwtClaims> {
-    let realm = key
-        .realm
-        .as_deref()
+    let realm = key_realm(key)
         .ok_or_else(|| anyhow!("Key {} has no realm", key.kid))?;
     let algorithm = Algorithm::from_str(&key.alg)
         .with_context(|| format!("Key {} is not for signing", key.kid))?;
@@ -228,10 +255,10 @@ fn verify_with_key(token: &str, key: &JWKKey) -> Result<JwtClaims> {
     let claims = decode::<JwtClaims>(token, &decoding_key, &validation)
         .context("Invalid token")?
         .claims;
-    if issuer_realm(&claims.iss) != Some(realm) {
+    if issuer_realm(&claims.iss) != Some(realm.as_str()) {
         bail!("Token from {} signed with a key of {realm}", claims.iss);
     }
-    if !claims_match_realm(&claims, realm) {
+    if !claims_match_realm(&claims, &realm) {
         bail!(
             "Token of realm {realm} claims tenant {} and election event {:?}",
             claims.hasura_claims.tenant_id,
@@ -257,6 +284,7 @@ pub async fn verify_jwt(token: &str) -> Result<JwtClaims> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::keycloak::{get_event_realm, get_tenant_realm};
     use aws_lc_rs::encoding::AsDer;
     use aws_lc_rs::rsa::{KeyPair, KeySize, PublicKeyComponents};
     use aws_lc_rs::signature::KeyPair as _;
@@ -374,12 +402,27 @@ mod tests {
         let other_tenant =
             sign(&key, &claims(&other_realm, None, valid_until()));
         assert!(verify_with_key(&other_tenant, &jwk).is_err());
-        // A key without a realm.
+        // A key without a realm or certificate.
         let realm = get_tenant_realm(TENANT);
         let (key, mut jwk) = key_pair(&realm);
         jwk.realm = None;
         let token = sign(&key, &claims(&realm, None, valid_until()));
         assert!(verify_with_key(&token, &jwk).is_err());
+    }
+
+    #[test]
+    fn untagged_keys_have_their_certificate_realm() {
+        // A certificate that Keycloak issued for a development realm's key.
+        const CERTIFICATE: &str = "MIIC5TCCAc0CBgGhJ+Y2ezANBgkqhkiG9w0BAQsFADA2MTQwMgYDVQQDDCt0ZW5hbnQtOTA1MDVjOGEtMjNhOS00Y2RmLWEyNmItNGUxOWY2YTA5N2Q1MB4XDTI2MTAxMDIyMTc0MVoXDTM2MTAxMDIyMTkyMVowNjE0MDIGA1UEAwwrdGVuYW50LTkwNTA1YzhhLTIzYTktNGNkZi1hMjZiLTRlMTlmNmEwOTdkNTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKeVqyvQBwiF7/hUGAHMtdq4Pjd/00ReUaHUOOvP9PM6MmVHVaUDdJ4gjedDgvD+Aa9Gm/KsHwVHvQ/Vl3ZWfG6zmVdyZwSon5ogamKJxBQNc+YViadjZtnh3+TZdgAmny/KUanlaLbkqxRYo3r2KwEqH8QQDyKMXhrKrSuX8F2R2uU43uhUY8iUiffwHgkNKSk0u+YxRngniTQieSaE2aTYu645g2ufUcXzN2o1qwjxCYSGRYGN29ofjaAMC+4jJFWeGGefmaeNbo6kagQj4YA1dLG1YE+qCVSkvG4KCQNSpCHxoMcQASTWwg9Q1ul25Jiq96Z/RR73KD3NTBzeMpMCAwEAATANBgkqhkiG9w0BAQsFAAOCAQEAdmy5ISrIf6hPTOJOd6Hi/c7+0Jd3URlVR/wHRro4ArSEtqyz/LEhfsMXtxVBofWU1i3VZCZv4T8Ie7pwEXugMRLMapqkHl+DT1b2sKW8SzFwf7mnNX53Kidy2oYXP1kzm9a7+y7imidu1NnyZjJ2r26RoQ++/xhSISeAAd4+wVxNKrrcXPQH45yz4yfsVrXg+2vlY8qfsNc8yX6yZC6WrML8YJ3vNFNmh6gJGR0Ya/GtrLCVgIRO1z7e+V/YGI76C6YTZhrAezvjsK5wvCzj6zlLmN7stjiX8MVK2EB7Cmwyj8klafe1kB4unMJ874ako2BT9Ee9a6671J7aZavdOQ==";
+        let (_, mut jwk) = key_pair("ignored");
+        jwk.realm = None;
+        jwk.x5c = vec![CERTIFICATE.into()];
+        assert_eq!(
+            key_realm(&jwk).as_deref(),
+            Some("tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5")
+        );
+        jwk.realm = Some("tenant-t1".into());
+        assert_eq!(key_realm(&jwk).as_deref(), Some("tenant-t1"));
     }
 
     #[test]
