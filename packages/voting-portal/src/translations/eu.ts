@@ -10,7 +10,7 @@ const basqueTranslation: TranslationType = {
             retry: "Saiatu berriro",
         },
         contactChannel: {
-            change: "Aldatu zurekin harremanetan jartzeko modua",
+            change: "Harremanetarako modua",
             updated: "Zure kontaktua aldatu da. Kodeak eta abisuak hara bidaltzen dira orain.",
             cancelled: "Zure kontaktua ez da aldatu.",
             failed: "Ezin izan dugu aldatu zurekin harremanetan jartzeko modua. Saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin.",

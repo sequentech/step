@@ -20,12 +20,24 @@ import {PortalChrome} from "./PortalChrome"
 
 // keycloak-js is an ES module jest can't load; the provider's own Keycloak is never created here.
 jest.mock("keycloak-js", () => ({__esModule: true, default: jest.fn()}))
-// Only the header's actions slot matters here: the shared header has its own tests.
+// The real user-menu placement and interactions are covered by the browser stories.
 jest.mock("@sequentech/ui-essentials", () => ({
     ...jest.requireActual("../../../ui-essentials/src/ballot/presentation"),
     ...jest.requireActual("../../../ui-essentials/src/ballot/engine"),
     ...jest.requireActual("../../../ui-essentials/src/ballot/selection"),
-    Header: ({actions}: {actions?: React.ReactNode}) => <header>{actions}</header>,
+    Header: ({
+        userProfile,
+    }: {
+        userProfile?: {menuActions?: Array<{id: string; label: string; onSelect: () => void}>}
+    }) => (
+        <header>
+            {userProfile?.menuActions?.map((action) => (
+                <button role="menuitem" key={action.id} onClick={action.onSelect}>
+                    {action.label}
+                </button>
+            ))}
+        </header>
+    ),
     Footer: () => null,
     PageBanner: ({children}: React.PropsWithChildren) => <main>{children}</main>,
 }))
@@ -48,7 +60,7 @@ jest.mock("react-i18next", () => {
     }
 })
 
-const CHANGE = "Change how we contact you"
+const CHANGE = "Contact method"
 
 const auth = (values: Partial<AuthContextValues> = {}): AuthContextValues => ({
     isAuthContextInitialized: true,
@@ -87,28 +99,28 @@ describe("the contact change entry", () => {
     test("is hidden while the event offers no channel for codes", () => {
         renderChrome(auth({contactChangeAvailable: false}))
         expect(screen.getByText("screen")).toBeInTheDocument()
-        expect(screen.queryByRole("button", {name: CHANGE})).toBeNull()
+        expect(screen.queryByRole("menuitem", {name: CHANGE})).toBeNull()
     })
 
     test("is hidden when the context can't tell (an older or offline context)", () => {
         renderChrome(auth({contactChangeAvailable: undefined}))
-        expect(screen.queryByRole("button", {name: CHANGE})).toBeNull()
+        expect(screen.queryByRole("menuitem", {name: CHANGE})).toBeNull()
     })
 
     test("is hidden for a voter who isn't signed in", () => {
         renderChrome(auth({isAuthenticated: false, contactChangeAvailable: true}))
-        expect(screen.queryByRole("button", {name: CHANGE})).toBeNull()
+        expect(screen.queryByRole("menuitem", {name: CHANGE})).toBeNull()
     })
 
     test("is hidden without a way to start the change", () => {
         renderChrome(auth({contactChangeAvailable: true, changeContactChannel: undefined}))
-        expect(screen.queryByRole("button", {name: CHANGE})).toBeNull()
+        expect(screen.queryByRole("menuitem", {name: CHANGE})).toBeNull()
     })
 
     test("is shown when the event offers a channel, and starts the change", () => {
         const changeContactChannel = jest.fn(async () => undefined)
         renderChrome(auth({contactChangeAvailable: true, changeContactChannel}))
-        fireEvent.click(screen.getByRole("button", {name: CHANGE}))
+        fireEvent.click(screen.getByRole("menuitem", {name: CHANGE}))
         expect(changeContactChannel).toHaveBeenCalledTimes(1)
     })
 })

@@ -11,7 +11,7 @@ const galegoTranslation: TranslationType = {
             retry: "Tentar de novo",
         },
         contactChannel: {
-            change: "Cambiar como contactamos con vostede",
+            change: "Método de contacto",
             updated: "Cambiouse o seu contacto. Os códigos e os avisos envíanse agora alí.",
             cancelled: "O seu contacto non se cambiou.",
             failed: "Non puidemos cambiar como contactamos con vostede. Ténteo de novo máis tarde ou contacte co soporte.",
