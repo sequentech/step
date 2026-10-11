@@ -386,8 +386,14 @@ describe("MessagingTemplateBindings", () => {
         )
         return onChange
     }
-    const group = () =>
-        within(screen.getByRole("group", {name: /messagingEvent.templates.row.*"position":1/}))
+    const group = () => {
+        const row = within(
+            screen.getByRole("group", {name: /messagingEvent.templates.row.*"position":1/})
+        )
+        const toggle = row.getByRole("button", {name: /messagingEvent.templates.row/})
+        if (toggle.getAttribute("aria-expanded") === "false") fireEvent.click(toggle)
+        return row
+    }
 
     it("edits the bindings of the channels that use approved templates", () => {
         const onChange = renderBindings(bound())
@@ -414,6 +420,7 @@ describe("MessagingTemplateBindings", () => {
             provider_template: "",
             provider_language: null,
         })
+        group()
         fireEvent.click(screen.getByRole("button", {name: /messagingEvent.templates.remove/}))
         expect(onChange.mock.calls[1][0].channels[1].templates).toEqual([])
     })

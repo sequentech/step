@@ -420,6 +420,7 @@ export const MessagingTemplateBindings: React.FC<MessagingTemplateBindingsProps>
     onChange,
 }) => {
     const {t} = useTranslation()
+    const [editing, setEditing] = useState<IBindingPosition | null>(null)
     const summaries = useMemo(() => accounts.map(accountSummary), [accounts])
     const channels = templateChannels(config, summaries)
     if (!channels.length) {
@@ -471,6 +472,8 @@ export const MessagingTemplateBindings: React.FC<MessagingTemplateBindingsProps>
                                     position.channel === channel && position.index === index
                             )
                             const approval = bindingApproval(summary, binding)
+                            const expanded =
+                                missing || (editing?.channel === channel && editing.index === index)
                             const group = t("messagingEvent.templates.row", {
                                 channel: channelName,
                                 position: index + 1,
@@ -482,128 +485,194 @@ export const MessagingTemplateBindings: React.FC<MessagingTemplateBindingsProps>
                                     aria-label={group}
                                     sx={{display: "flex", flexDirection: "column", gap: 0.5}}
                                 >
-                                    <Box
-                                        sx={{
-                                            display: "flex",
-                                            gap: 1,
-                                            flexWrap: "wrap",
-                                            alignItems: "center",
-                                        }}
+                                    <Accordion
+                                        disableGutters
+                                        expanded={expanded}
+                                        onChange={(_event, open) =>
+                                            setEditing(open ? {channel, index} : null)
+                                        }
+                                        sx={{width: "100%", minWidth: 0}}
                                     >
-                                        <TextField
-                                            select
-                                            size="small"
-                                            label={t("messagingEvent.column.purpose")}
-                                            value={binding.purpose}
-                                            disabled={!canEdit}
-                                            onChange={(event) =>
-                                                update({
-                                                    purpose: event.target.value as EMessagePurpose,
-                                                })
-                                            }
-                                            sx={{width: 130}}
+                                        <AccordionSummary
+                                            expandIcon={<ExpandMoreIcon />}
+                                            aria-label={group}
+                                            id={`binding-${channel}-${index}-header`}
+                                            aria-controls={`binding-${channel}-${index}-content`}
                                         >
-                                            {MESSAGE_PURPOSES.map((purpose) => (
-                                                <MenuItem key={purpose} value={purpose}>
-                                                    {t(`messaging.purpose.${purpose}`)}
-                                                </MenuItem>
-                                            ))}
-                                        </TextField>
-                                        <Autocomplete
-                                            freeSolo
-                                            size="small"
-                                            disabled={!canEdit}
-                                            options={keyOptions(binding.purpose)}
-                                            inputValue={binding.key ?? ""}
-                                            onInputChange={(_event, value) => update({key: value})}
-                                            renderInput={(params) => (
-                                                <TextField
-                                                    {...params}
-                                                    label={t("messagingEvent.column.key")}
-                                                    placeholder={t(
-                                                        "messagingEvent.templates.keyDefault"
+                                            <Box
+                                                sx={{
+                                                    display: "flex",
+                                                    flexWrap: "wrap",
+                                                    gap: 1,
+                                                    alignItems: "center",
+                                                    minWidth: 0,
+                                                }}
+                                            >
+                                                <Typography
+                                                    variant="body2"
+                                                    sx={{overflowWrap: "anywhere"}}
+                                                >
+                                                    {t(`messaging.purpose.${binding.purpose}`)}
+                                                    {" · "}
+                                                    {binding.language || "–"}
+                                                    {" · "}
+                                                    {binding.key ||
+                                                        t("messagingEvent.templates.keyDefault")}
+                                                    {" · "}
+                                                    {binding.provider_template || "–"}
+                                                </Typography>
+                                                <Chip
+                                                    size="small"
+                                                    color={APPROVAL_COLOR[approval]}
+                                                    label={t(
+                                                        `messagingEvent.templates.approval.${approval}`
                                                     )}
                                                 />
-                                            )}
-                                            sx={{width: 220}}
-                                        />
-                                        <Autocomplete
-                                            freeSolo
-                                            size="small"
-                                            disabled={!canEdit}
-                                            options={languages}
-                                            inputValue={binding.language}
-                                            onInputChange={(_event, value) =>
-                                                update({language: value})
-                                            }
-                                            renderInput={(params) => (
-                                                <TextField
-                                                    {...params}
-                                                    required
-                                                    error={missing && !binding.language.trim()}
-                                                    label={t("messagingEvent.column.language")}
-                                                />
-                                            )}
-                                            sx={{width: 150}}
-                                        />
-                                        <Autocomplete
-                                            freeSolo
-                                            size="small"
-                                            disabled={!canEdit}
-                                            options={templateOptions(binding.purpose)}
-                                            inputValue={binding.provider_template}
-                                            onInputChange={(_event, value) =>
-                                                update({provider_template: value})
-                                            }
-                                            renderInput={(params) => (
-                                                <TextField
-                                                    {...params}
-                                                    required
-                                                    error={
-                                                        missing && !binding.provider_template.trim()
-                                                    }
-                                                    label={t("messagingEvent.column.template")}
-                                                />
-                                            )}
-                                            sx={{width: 240}}
-                                        />
-                                        <TextField
-                                            size="small"
-                                            label={t("messagingEvent.column.providerLanguage")}
-                                            value={binding.provider_language ?? ""}
-                                            disabled={!canEdit}
-                                            onChange={(event) =>
-                                                update({provider_language: event.target.value})
-                                            }
-                                            sx={{width: 190}}
-                                        />
-                                        <Chip
-                                            size="small"
-                                            color={APPROVAL_COLOR[approval]}
-                                            label={t(
-                                                `messagingEvent.templates.approval.${approval}`
-                                            )}
-                                        />
-                                        {canEdit ? (
-                                            <IconButton
-                                                aria-label={t("messagingEvent.templates.remove", {
-                                                    channel: channelName,
-                                                    position: index + 1,
-                                                })}
-                                                onClick={() =>
-                                                    onChange(
-                                                        removeTemplateBinding(
-                                                            config,
-                                                            channel,
-                                                            index
-                                                        )
-                                                    )
-                                                }
-                                            >
-                                                <DeleteOutlineIcon />
-                                            </IconButton>
-                                        ) : null}
-                                    </Box>
+                                            </Box>
+                                        </AccordionSummary>
+                                        <AccordionDetails>
+                                            {/* Mount only the editor being inspected, not every saved binding. */}
+                                            {expanded ? (
+                                                <Box
+                                                    sx={{
+                                                        display: "flex",
+                                                        gap: 1,
+                                                        flexWrap: "wrap",
+                                                        alignItems: "center",
+                                                    }}
+                                                >
+                                                    <TextField
+                                                        select
+                                                        size="small"
+                                                        label={t("messagingEvent.column.purpose")}
+                                                        value={binding.purpose}
+                                                        disabled={!canEdit}
+                                                        onChange={(event) =>
+                                                            update({
+                                                                purpose: event.target
+                                                                    .value as EMessagePurpose,
+                                                            })
+                                                        }
+                                                        sx={{width: 130}}
+                                                    >
+                                                        {MESSAGE_PURPOSES.map((purpose) => (
+                                                            <MenuItem key={purpose} value={purpose}>
+                                                                {t(`messaging.purpose.${purpose}`)}
+                                                            </MenuItem>
+                                                        ))}
+                                                    </TextField>
+                                                    <Autocomplete
+                                                        freeSolo
+                                                        size="small"
+                                                        disabled={!canEdit}
+                                                        options={keyOptions(binding.purpose)}
+                                                        inputValue={binding.key ?? ""}
+                                                        onInputChange={(_event, value) =>
+                                                            update({key: value})
+                                                        }
+                                                        renderInput={(params) => (
+                                                            <TextField
+                                                                {...params}
+                                                                label={t(
+                                                                    "messagingEvent.column.key"
+                                                                )}
+                                                                placeholder={t(
+                                                                    "messagingEvent.templates.keyDefault"
+                                                                )}
+                                                            />
+                                                        )}
+                                                        sx={{width: 220}}
+                                                    />
+                                                    <Autocomplete
+                                                        freeSolo
+                                                        size="small"
+                                                        disabled={!canEdit}
+                                                        options={languages}
+                                                        inputValue={binding.language}
+                                                        onInputChange={(_event, value) =>
+                                                            update({language: value})
+                                                        }
+                                                        renderInput={(params) => (
+                                                            <TextField
+                                                                {...params}
+                                                                required
+                                                                error={
+                                                                    missing &&
+                                                                    !binding.language.trim()
+                                                                }
+                                                                label={t(
+                                                                    "messagingEvent.column.language"
+                                                                )}
+                                                            />
+                                                        )}
+                                                        sx={{width: 150}}
+                                                    />
+                                                    <Autocomplete
+                                                        freeSolo
+                                                        size="small"
+                                                        disabled={!canEdit}
+                                                        options={templateOptions(binding.purpose)}
+                                                        inputValue={binding.provider_template}
+                                                        onInputChange={(_event, value) =>
+                                                            update({provider_template: value})
+                                                        }
+                                                        renderInput={(params) => (
+                                                            <TextField
+                                                                {...params}
+                                                                required
+                                                                error={
+                                                                    missing &&
+                                                                    !binding.provider_template.trim()
+                                                                }
+                                                                label={t(
+                                                                    "messagingEvent.column.template"
+                                                                )}
+                                                            />
+                                                        )}
+                                                        sx={{width: 240}}
+                                                    />
+                                                    <TextField
+                                                        size="small"
+                                                        label={t(
+                                                            "messagingEvent.column.providerLanguage"
+                                                        )}
+                                                        value={binding.provider_language ?? ""}
+                                                        disabled={!canEdit}
+                                                        onChange={(event) =>
+                                                            update({
+                                                                provider_language:
+                                                                    event.target.value,
+                                                            })
+                                                        }
+                                                        sx={{width: 190}}
+                                                    />
+
+                                                    {canEdit ? (
+                                                        <IconButton
+                                                            aria-label={t(
+                                                                "messagingEvent.templates.remove",
+                                                                {
+                                                                    channel: channelName,
+                                                                    position: index + 1,
+                                                                }
+                                                            )}
+                                                            onClick={() =>
+                                                                onChange(
+                                                                    removeTemplateBinding(
+                                                                        config,
+                                                                        channel,
+                                                                        index
+                                                                    )
+                                                                )
+                                                            }
+                                                        >
+                                                            <DeleteOutlineIcon />
+                                                        </IconButton>
+                                                    ) : null}
+                                                </Box>
+                                            ) : null}
+                                        </AccordionDetails>
+                                    </Accordion>
                                     {missing ? (
                                         <Typography
                                             variant="caption"
@@ -636,7 +705,8 @@ export const MessagingTemplateBindings: React.FC<MessagingTemplateBindingsProps>
                             <Box>
                                 <Button
                                     startIcon={<AddIcon />}
-                                    onClick={() =>
+                                    onClick={() => {
+                                        setEditing({channel, index: bindings.length})
                                         onChange(
                                             addTemplateBinding(
                                                 config,
@@ -647,7 +717,7 @@ export const MessagingTemplateBindings: React.FC<MessagingTemplateBindingsProps>
                                                 languages[0] ?? ""
                                             )
                                         )
-                                    }
+                                    }}
                                 >
                                     {t("messagingEvent.templates.add", {channel: channelName})}
                                 </Button>

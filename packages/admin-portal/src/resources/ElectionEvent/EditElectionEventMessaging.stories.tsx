@@ -57,6 +57,8 @@ interface Scenario {
     voterCounts?: IVoterCounts | "NEVER"
     /** The event has no message yet. */
     noMessages?: boolean
+    /** Forty bindings, matching a multilingual demo event. */
+    manyTemplates?: boolean
 }
 
 const account = (
@@ -356,7 +358,33 @@ const meta = {
                               {
                                   __typename: "sequent_backend_messaging_event_config",
                                   election_event_id: EVENT_ID,
-                                  config: STORED_CONFIG,
+                                  config: args.manyTemplates
+                                      ? {
+                                            ...STORED_CONFIG,
+                                            channels: CONFIG.channels.map((entry) => ({
+                                                ...entry,
+                                                templates: Array.from(
+                                                    {
+                                                        length:
+                                                            entry.channel ===
+                                                                EMessageChannel.WHATSAPP ||
+                                                            entry.channel === EMessageChannel.VIBER
+                                                                ? 16
+                                                                : entry.channel ===
+                                                                    EMessageChannel.MESSENGER
+                                                                  ? 8
+                                                                  : 0,
+                                                    },
+                                                    (_, index) => ({
+                                                        purpose: EMessagePurpose.NOTICE,
+                                                        language: "en",
+                                                        key: `notice-${index}`,
+                                                        provider_template: `reminder_${index}`,
+                                                    })
+                                                ),
+                                            })),
+                                        }
+                                      : STORED_CONFIG,
                                   version: 1,
                                   updated_at: FIXED_TIME,
                               },
@@ -505,6 +533,7 @@ export const Populated: Story = {
         ).toEqual(["WHATSAPP", "VIBER", "MESSENGER", "SMS", "EMAIL"])
         await expect(canvas.getByText(/^For each message the most specific row wins/)).toBeVisible()
         const viberTemplate = within(canvas.getByRole("group", {name: "Viber template 1"}))
+        await userEvent.click(viberTemplate.getByRole("button", {name: "Viber template 1"}))
         await expect(viberTemplate.getByRole("combobox", {name: "Provider template"})).toHaveValue(
             "otp_en_88213"
         )
@@ -850,5 +879,44 @@ export const AccountNotCheckedSinceItsNumberChanged: Story = {
         // The other channels keep their own readiness.
         const email = await channelRow(canvasElement, EMessageChannel.EMAIL)
         expect(within(email).queryByText(/Not checked for its current/)).toBeNull()
+    },
+}
+
+export const ManyTemplates: Story = {
+    args: {manyTemplates: true},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByRole("group", {name: "WhatsApp template 16"})).toBeVisible()
+        expect(canvas.queryByRole("combobox", {name: "Provider template"})).toBeNull()
+        await expect(canvas.getByRole("button", {name: "Save"})).toBeDisabled()
+        const row = within(canvas.getByRole("group", {name: "Viber template 16"}))
+        await userEvent.click(row.getByRole("button", {name: "Viber template 16"}))
+        await expect(row.getByRole("combobox", {name: "Provider template"})).toHaveValue(
+            "reminder_15"
+        )
+        await expect(canvas.getByRole("button", {name: "Save"})).toBeDisabled()
+        await userEvent.clear(row.getByRole("combobox", {name: "Provider template"}))
+        await userEvent.type(
+            row.getByRole("combobox", {name: "Provider template"}),
+            "changed_reminder"
+        )
+        await userEvent.click(row.getByRole("button", {name: "Viber template 16"}))
+        await userEvent.click(row.getByRole("button", {name: "Viber template 16"}))
+        await expect(row.getByRole("combobox", {name: "Provider template"})).toHaveValue(
+            "changed_reminder"
+        )
+        expect(canvas.getAllByRole("combobox", {name: "Provider template"})).toHaveLength(1)
+        await userEvent.click(canvas.getByRole("button", {name: "Save"}))
+        await notified("Messaging settings saved.")
+        const config = saveCall()?.variables.config as IEventMessagingConfig
+        expect(config.channels.flatMap((channel) => channel.templates)).toHaveLength(40)
+        expect(
+            config.channels.find(({channel}) => channel === EMessageChannel.VIBER)?.templates[15]
+                .provider_template
+        ).toBe("changed_reminder")
+        expect(
+            config.channels.find(({channel}) => channel === EMessageChannel.WHATSAPP)?.templates[15]
+                .provider_template
+        ).toBe("reminder_15")
     },
 }
