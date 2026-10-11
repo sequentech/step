@@ -284,9 +284,8 @@ fn cases() -> Vec<Case> {
         // The task row is written before the permission check.
         case!(Admin, "/import-candidates", {"election_event_id": EVENT_ID, "document_id": "test-document"}, [ADMIN_USER], BACKEND, BACKEND),
         case!(UuidTenant, "/import-certificate-authority", {"election_event_id": UUID_EVENT_ID, "pem_content": PEM}, [CA_WRITE], BACKEND, UNAUTHORIZED),
-        // The permission list is empty, so only the body tenant is checked.
-        case!(Admin, "/import-election-event", {"tenant_id": TENANT_ID, "document_id": "test-document"}, [], BACKEND),
-        case!(Admin, "/import-election-event", {"tenant_id": OTHER_TENANT_ID, "document_id": "test-document"}, [], UNAUTHORIZED),
+        case!(Admin, "/import-election-event", {"tenant_id": TENANT_ID, "document_id": "test-document"}, [ELECTION_EVENT_CREATE], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/import-election-event", {"tenant_id": OTHER_TENANT_ID, "document_id": "test-document"}, [ELECTION_EVENT_CREATE], UNAUTHORIZED, UNAUTHORIZED),
         // The task row is written before the permission check.
         case!(Admin, "/import-templates", {"tenant_id": TENANT_ID, "document_id": "test-document"}, [TEMPLATE_WRITE], BACKEND, BACKEND),
         case!(Admin, "/import-tenant-config", {"tenant_id": TENANT_ID, "document_id": "test-document", "import_configurations": {}}, [TENANT_WRITE], BACKEND, UNAUTHORIZED),
