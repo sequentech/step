@@ -542,6 +542,14 @@ event's Scheduled Events list and can't be edited there.
 
 Sending to selected voters with no voter chosen is refused.
 
+The channel sections start collapsed, as in the template editor. Expand a
+channel to review its content or make changes for this notification. Closing a
+section keeps its content and edits; it does not turn off delivery on that
+channel. Email, SMS and Messenger text can be edited after choosing a template,
+without changing the saved template. WhatsApp and Viber approved message text
+is read-only. Their provider template and language can be overridden for the
+send; the chosen provider template must be approved for the sending account.
+
 The form checks that the notification has content for the audience's channels
 before scheduling it. For WhatsApp or Viber, choose a saved message template
 with content and an approved provider template or event binding. Email and SMS
