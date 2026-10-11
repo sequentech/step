@@ -27,7 +27,7 @@ const AREA_ID: &str = "test-area";
 const USERNAME: &str = "test-username";
 const VOTING_PORTAL_CLIENT: &str = "voting-portal";
 // Some routes parse these ids as UUIDs before reaching a backend.
-const UUID_TENANT_ID: &str = "00000000-0000-0000-0000-00000000000a";
+pub(super) const UUID_TENANT_ID: &str = "00000000-0000-0000-0000-00000000000a";
 const UUID_EVENT_ID: &str = "00000000-0000-0000-0000-00000000000e";
 const ELECTION_ID: &str = "00000000-0000-0000-0000-000000000001";
 const PEM: &str =
