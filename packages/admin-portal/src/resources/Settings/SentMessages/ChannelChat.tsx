@@ -28,6 +28,7 @@ import {ReportResult} from "./ReportResult"
 import {
     IConversation,
     contentPreview,
+    demoMessageText,
     conversations,
     fakeReasonText,
     formatTime,
@@ -171,30 +172,52 @@ const TemplateBody: React.FC<{content: IFakeMessageContent; channel: ChatChannel
     channel,
 }) => {
     const {t} = useTranslation()
+    const messageText = demoMessageText(content, t)
     return (
         <Box sx={{display: "flex", flexDirection: "column", gap: 0.5}}>
-            <Typography variant="caption" sx={{opacity: 0.8}}>
-                {templateLabel(content, t)}
-            </Typography>
-            {content.code ? (
-                <>
-                    <Typography variant="caption">{t("sentMessages.content.code")}</Typography>
-                    <Typography
-                        sx={{fontFamily: "monospace", fontSize: "1.5rem", letterSpacing: "0.15em"}}
-                    >
-                        {content.code}
-                    </Typography>
-                    {channel === EMessageChannel.WHATSAPP ? (
-                        <CopyCodeButton code={content.code} />
-                    ) : null}
-                </>
+            {messageText ? (
+                <Typography variant="body2" sx={{whiteSpace: "pre-wrap"}}>
+                    {content.code && messageText.startsWith(content.code) ? (
+                        <>
+                            <Box component="strong">{content.code}</Box>
+                            {messageText.slice(content.code.length)}
+                        </>
+                    ) : (
+                        messageText
+                    )}
+                </Typography>
             ) : (
-                (content.parameters ?? []).map((parameter, index) => (
-                    <Typography key={index} variant="body2" sx={{whiteSpace: "pre-wrap"}}>
-                        {parameterText(parameter)}
+                <>
+                    <Typography variant="caption" sx={{opacity: 0.8}}>
+                        {templateLabel(content, t)}
                     </Typography>
-                ))
+                    {content.code ? (
+                        <>
+                            <Typography variant="caption">
+                                {t("sentMessages.content.code")}
+                            </Typography>
+                            <Typography
+                                sx={{
+                                    fontFamily: "monospace",
+                                    fontSize: "1.5rem",
+                                    letterSpacing: "0.15em",
+                                }}
+                            >
+                                {content.code}
+                            </Typography>
+                        </>
+                    ) : (
+                        (content.parameters ?? []).map((parameter, index) => (
+                            <Typography key={index} variant="body2" sx={{whiteSpace: "pre-wrap"}}>
+                                {parameterText(parameter)}
+                            </Typography>
+                        ))
+                    )}
+                </>
             )}
+            {content.code && channel === EMessageChannel.WHATSAPP ? (
+                <CopyCodeButton code={content.code} />
+            ) : null}
         </Box>
     )
 }

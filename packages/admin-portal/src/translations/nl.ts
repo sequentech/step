@@ -6148,6 +6148,13 @@ const dutchTranslation: TranslationType = {
                 unavailable: "Geen afleverrapporten op dit kanaal",
             },
             content: {
+                demoCode:
+                    "{{code}} is uw verificatiecode. Deel deze code voor uw veiligheid met niemand.",
+                demoNotice:
+                    "Stemherinnering\n\nHallo {{name}}, de stemming voor {{event}} is geopend.\n\nMeld u aan bij het stemportaal om uw stembiljet te bekijken en uw stem uit te brengen:\n{{url}}\n\nDeel uw aanmeldcode met niemand. Als u al hebt gestemd, hoeft u niets meer te doen.",
+                demoLegacyNotice:
+                    "Stemherinnering\n\nHallo {{name}}, de stemming is geopend. Meld u aan bij het stemportaal om uw stem uit te brengen:\n{{url}}\n\nDeel uw aanmeldcode met niemand.",
+
                 template: "Sjabloon {{name}} ({{language}})",
                 noText: "(geen tekst)",
                 code: "Code",

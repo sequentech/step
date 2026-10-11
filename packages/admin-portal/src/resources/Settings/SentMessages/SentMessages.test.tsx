@@ -15,7 +15,7 @@ import {EmailInbox} from "./EmailInbox"
 import {MessagingTabs} from "./MessagingTabs"
 import {AllMessagesTable} from "./SentMessages"
 import {emailSrcDoc} from "./emailFrame"
-import {FAKE_PROVIDER_REASONS, conversations, demoLabel} from "./messageContent"
+import {FAKE_PROVIDER_REASONS, conversations, demoLabel, demoMessageText} from "./messageContent"
 import {FAKE_PROVIDER_MESSAGE, FAKE_PROVIDER_MESSAGES} from "./queries"
 import {IFakeProviderMessage, parseMode} from "./types"
 import {channelMessages, fullMessage, sentMessages} from "./__stories__/SentMessagesFixture"
@@ -380,5 +380,78 @@ describe("fix round 3 (R7)", () => {
                 .map(([, text]) => text)
                 .sort()
         )
+    })
+})
+
+describe("Demo approved message copy", () => {
+    const translator = jest.requireActual<typeof import("i18next")>("i18next").createInstance()
+    beforeAll(async () => {
+        await translator.init({
+            lng: "en",
+            fallbackLng: "en",
+            showSupportNotice: false,
+            resources: {
+                en: {translation: jest.requireActual("@/translations/en").default.translations},
+                es: {translation: jest.requireActual("@/translations/es").default.translations},
+            },
+            interpolation: {escapeValue: false},
+        })
+    })
+    it("renders complete voting copy from the approved demo parameters", () => {
+        const message = {
+            ...fullMessage("fake-2")!.content,
+            text: null,
+            parameters: [
+                {name: null, value: "Ana"},
+                {name: null, value: "Council Election 2026"},
+                {name: null, value: "https://vote.example.org/council"},
+            ],
+        }
+        expect(demoMessageText(message, translator.t)).toBe(
+            "Voting reminder\n\nHello Ana, voting is now open for Council Election 2026.\n\nSign in to the voting portal to review your ballot and cast your vote:\nhttps://vote.example.org/council\n\nDo not share your sign-in code with anyone. If you have already voted, no further action is needed."
+        )
+        expect(demoMessageText({...message, text: "Captured original copy"}, translator.t)).toBe(
+            "Captured original copy"
+        )
+        expect(
+            demoMessageText({...message, template_name: "another_provider_template"}, translator.t)
+        ).toBeNull()
+        expect(
+            demoMessageText({...message, parameters: [{name: null, value: "Ana"}]}, translator.t)
+        ).toBeNull()
+    })
+    it("uses the captured language for verification copy and supports locale codes", () => {
+        const content = fullMessage("fake-1")!.content
+        expect(demoMessageText({...content, template_language: "en_US"}, translator.t)).toBe(
+            "482913 is your verification code. For your security, do not share this code with anyone."
+        )
+        expect(demoMessageText({...content, template_language: "es"}, translator.t)).toBe(
+            "482913 es su código de verificación. Por su seguridad, no lo comparta con nadie."
+        )
+        expect(demoMessageText({...content, code: null}, translator.t)).toBeNull()
+    })
+    it("reads old two-parameter reminders without treating a post name as a portal URL", () => {
+        const content = fullMessage("fake-2")!.content
+        const old = {
+            ...content,
+            parameters: [
+                {name: null, value: "Ana"},
+                {name: null, value: "https://vote.example.org/council"},
+            ],
+        }
+        expect(demoMessageText(old, translator.t)).toContain("Hello Ana, voting is now open.")
+        expect(demoMessageText(old, translator.t)).toContain("https://vote.example.org/council")
+        expect(
+            demoMessageText(
+                {
+                    ...old,
+                    parameters: [
+                        {name: null, value: "Ana"},
+                        {name: "post", value: "Manila"},
+                    ],
+                },
+                translator.t
+            )
+        ).toBeNull()
     })
 })

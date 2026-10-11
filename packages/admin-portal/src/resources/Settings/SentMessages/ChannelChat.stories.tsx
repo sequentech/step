@@ -139,7 +139,11 @@ export const WhatsAppCode: Story = {
                 name: "Report accepted by the webhook component (HTTP 200)",
             })
         ).toBeVisible()
-        await expect(within(bubbles[1]).getByText("post: Manila")).toBeVisible()
+        await expect(within(bubbles[0]).getByText(/is your verification code/)).toBeVisible()
+        await expect(within(bubbles[0]).getByText(/do not share/i)).toBeVisible()
+        await expect(within(bubbles[1]).getByText(/Voting reminder/)).toBeVisible()
+        await expect(within(bubbles[1]).getByText(/Council Election 2026/)).toBeVisible()
+        await expect(within(bubbles[1]).getByText(/Hello Ana/)).toBeVisible()
         await expect(within(bubbles[1]).getByText("Report refused: HTTP 401")).toBeVisible()
         const bubble = bubbles[0].firstElementChild as HTMLElement
         const copyButton = within(bubbles[0]).getByRole("button", {name: "Copy code"})
@@ -182,6 +186,8 @@ export const ViberCode: Story = {
         const canvas = within(canvasElement)
         await userEvent.click(canvas.getByRole("button", {name: chatButton(VIBER_VOTER)}))
         await expect(canvas.getByText(VIBER_PIN)).toBeVisible()
+        await expect(canvas.getByText(/Voting reminder/)).toBeVisible()
+        await expect(canvas.getByText(/Council Election 2026/)).toBeVisible()
         await expect(
             canvas.getByText("The report got no answer: The webhook component didn't answer")
         ).toBeVisible()

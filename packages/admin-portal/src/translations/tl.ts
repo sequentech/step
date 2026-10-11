@@ -6156,6 +6156,13 @@ const tagalogTranslation: TranslationType = {
                 unavailable: "Walang ulat ng paghahatid sa channel na ito",
             },
             content: {
+                demoCode:
+                    "{{code}} ang iyong code ng pagpapatunay. Para sa iyong seguridad, huwag itong ibahagi kaninuman.",
+                demoNotice:
+                    "Paalala sa pagboto\n\nKumusta {{name}}, bukas na ang pagboto para sa {{event}}.\n\nMag-sign in sa portal ng pagboto upang suriin ang iyong balota at bumoto:\n{{url}}\n\nHuwag ibahagi ang iyong code sa pag-sign in kaninuman. Kung nakaboto ka na, wala ka nang kailangang gawin.",
+                demoLegacyNotice:
+                    "Paalala sa pagboto\n\nKumusta {{name}}, bukas na ang pagboto. Mag-sign in sa portal ng pagboto upang bumoto:\n{{url}}\n\nHuwag ibahagi ang iyong code sa pag-sign in kaninuman.",
+
                 template: "Template na {{name}} ({{language}})",
                 noText: "(walang teksto)",
                 code: "Code",

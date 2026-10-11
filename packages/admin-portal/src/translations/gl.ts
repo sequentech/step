@@ -6090,6 +6090,13 @@ const galegoTranslation: TranslationType = {
                 unavailable: "Esta canle non ten informes de entrega",
             },
             content: {
+                demoCode:
+                    "{{code}} é o seu código de verificación. Pola súa seguridade, non o comparta con ninguén.",
+                demoNotice:
+                    "Recordatorio de votación\n\nOla {{name}}, a votación de {{event}} xa está aberta.\n\nAcceda ao portal de votación para revisar a súa papeleta e emitir o seu voto:\n{{url}}\n\nNon comparta o seu código de acceso con ninguén. Se xa votou, non precisa facer nada máis.",
+                demoLegacyNotice:
+                    "Recordatorio de votación\n\nOla {{name}}, a votación xa está aberta. Acceda ao portal de votación para emitir o seu voto:\n{{url}}\n\nNon comparta o seu código de acceso con ninguén.",
+
                 template: "Modelo {{name}} ({{language}})",
                 noText: "(sen texto)",
                 code: "Código",
