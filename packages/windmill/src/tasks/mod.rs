@@ -42,6 +42,7 @@ pub mod manage_election_event_enrollment;
 pub mod manage_election_event_lockdown;
 pub mod manage_election_init_report;
 pub mod manage_election_voting_period_end;
+pub mod manage_electoral_log_dead_letters;
 pub mod manual_verification_report;
 pub mod miru_plugin_tasks;
 pub mod plugins_tasks;

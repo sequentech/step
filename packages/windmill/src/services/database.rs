@@ -157,22 +157,49 @@ pub async fn generate_hasura_pool() -> Result<Arc<Pool>> {
 }
 
 /// Connection and pool limits of the task-queue database unless `QUEUE_DB__*` sets them, so
-/// a request that enqueues fails fast instead of waiting on an unreachable database.
+/// a request fails fast instead of waiting on an unreachable database.
 const QUEUE_DB_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// The user of read-only queue inspection (the reader role), for Harvest.
+pub const QUEUE_DB_READER_USER_ENV: &str = "QUEUE_DB_READER_USER";
+pub const QUEUE_DB_READER_PASSWORD_ENV: &str = "QUEUE_DB_READER_PASSWORD";
+
+fn queue_db_config() -> Result<deadpool_postgres::Config> {
+    Ok(Config::builder()
+        .add_source(Environment::default().separator("__"))
+        .build()?
+        .get("queue_db")?)
+}
 
 /// The environment's task-queue database (`QUEUE_DB__*`), where PGMQ keeps the queues.
 #[instrument(err)]
 pub async fn generate_queue_pool() -> Result<Arc<Pool>> {
-    let mut config: deadpool_postgres::Config = Config::builder()
-        .add_source(Environment::default().separator("__"))
-        .build()?
-        .get("queue_db")?;
+    create_queue_pool(queue_db_config()?)
+}
+
+/// The task-queue database as its reader role (`QUEUE_DB_READER_USER` and
+/// `QUEUE_DB_READER_PASSWORD`), for the Task Queues page.
+#[instrument(err)]
+pub async fn generate_queue_reader_pool() -> Result<Arc<Pool>> {
+    let mut config = queue_db_config()?;
+    // Compose passes an unset variable as an empty one.
+    let required = |name: &str| {
+        env::var(name)
+            .ok()
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| anyhow!("{name} is not set"))
+    };
+    config.user = Some(required(QUEUE_DB_READER_USER_ENV)?);
+    config.password = Some(required(QUEUE_DB_READER_PASSWORD_ENV)?);
+    create_queue_pool(config)
+}
+
+fn create_queue_pool(mut config: deadpool_postgres::Config) -> Result<Arc<Pool>> {
     config.connect_timeout.get_or_insert(QUEUE_DB_TIMEOUT);
     let timeouts = &mut config.pool.get_or_insert_with(PoolConfig::default).timeouts;
     timeouts.wait.get_or_insert(QUEUE_DB_TIMEOUT);
     timeouts.create.get_or_insert(QUEUE_DB_TIMEOUT);
     timeouts.recycle.get_or_insert(QUEUE_DB_TIMEOUT);
-
     cfg_if::cfg_if! {
         if #[cfg(any(feature = "fips_core", feature = "fips_full"))] {
             if  config.ssl_mode == Some(SslMode::Prefer) ||
@@ -222,6 +249,8 @@ static KEYCLOAK_POOL: OnceCell<Arc<Pool>> = OnceCell::const_new();
 
 static QUEUE_POOL: OnceCell<Arc<Pool>> = OnceCell::const_new();
 
+static QUEUE_READER_POOL: OnceCell<Arc<Pool>> = OnceCell::const_new();
+
 static HASURA_POOL: OnceCell<Arc<Pool>> = OnceCell::const_new();
 
 pub async fn get_keycloak_pool() -> Arc<Pool> {
@@ -254,6 +283,28 @@ pub async fn try_get_queue_pool() -> Result<Arc<Pool>> {
                 .map_err(|error| {
                     anyhow!("Task-queue DB: standard_conforming_strings check failed: {error}")
                 })?;
+            Ok::<_, anyhow::Error>(pool)
+        })
+        .await
+        .cloned()
+}
+
+/// The reader pool, or an error when the reader role is not configured; a later call
+/// tries again.
+pub async fn get_queue_reader_pool() -> Result<Arc<Pool>> {
+    QUEUE_READER_POOL
+        .get_or_try_init(|| async {
+            let pool = generate_queue_reader_pool().await?;
+            // Refuse a task-queue database of another environment, as the brokers do.
+            let environment = env::var("ENV_SLUG").map_err(|_| anyhow!("ENV_SLUG is not set"))?;
+            tokio::time::timeout(QUEUE_DB_TIMEOUT, async {
+                let client = pool.get().await?;
+                pgmq_broker::verify_environment(&**client, &environment)
+                    .await
+                    .map_err(|error| anyhow!("{error}"))
+            })
+            .await
+            .map_err(|_| anyhow!("Task-queue DB: the environment check timed out"))??;
             Ok::<_, anyhow::Error>(pool)
         })
         .await
