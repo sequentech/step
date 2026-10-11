@@ -317,6 +317,7 @@ const CreateEvent: FC<CreateEventProps> = ({
         try {
             const variables: IManageElectionDatesVariables = {
                 electionEventId: electionEventId,
+                scheduledEventId: isEditEvent ? selectedEventId : undefined,
                 electionId:
                     targetsElection(eventType) && electionId && electionId.length > 0
                         ? electionId
@@ -334,9 +335,13 @@ const CreateEvent: FC<CreateEventProps> = ({
             const {data, errors} = await manageElectionDates({
                 variables,
             })
-            setIsLoading(false)
-            if (data?.manage_election_dates?.error_msg || errors) {
-                notify(t("eventsScreen.messages.createError"), {type: "error"})
+            if (data?.manage_election_dates?.error_msg || errors?.length) {
+                notify(
+                    data?.manage_election_dates?.error_msg ??
+                        getGraphQLActionErrorReason({graphQLErrors: errors}) ??
+                        t("eventsScreen.messages.createError"),
+                    {type: "error"}
+                )
             } else {
                 setIsOpenDrawer(false)
                 refresh()
@@ -370,10 +375,11 @@ const CreateEvent: FC<CreateEventProps> = ({
                 )
             }
         } catch (error) {
-            setIsLoading(false)
             notify(getGraphQLActionErrorReason(error) ?? t("eventsScreen.messages.createError"), {
                 type: "error",
             })
+        } finally {
+            setIsLoading(false)
         }
     }
     return (

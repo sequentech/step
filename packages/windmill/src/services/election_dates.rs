@@ -407,6 +407,7 @@ pub async fn save_schedule(
     input: &ScheduleInput,
     voting_channels: Option<Vec<VotingStatusChannel>>,
     actor: &Actor,
+    scheduled_event_id: Option<&str>,
 ) -> Result<SavedSchedule> {
     if election_id.is_none() && is_election_scoped_only(event_processor) {
         return Err(invalid(format!("{event_processor} needs an election")));
@@ -461,6 +462,7 @@ pub async fn save_schedule(
                 cron_config,
                 &event_processor.to_string(),
                 voting_channels,
+                scheduled_event_id,
             )
             .await?
         }
@@ -472,6 +474,7 @@ pub async fn save_schedule(
                 cron_config,
                 &event_processor.to_string(),
                 voting_channels,
+                scheduled_event_id,
             )
             .await?
         }
@@ -514,6 +517,7 @@ pub async fn manage_dates(
     cron_config: Option<CronConfig>,
     event_processor: &str,
     voting_channels: Option<Vec<VotingStatusChannel>>,
+    scheduled_event_id: Option<&str>,
 ) -> Result<()> {
     let found_election = get_election_by_id(
         hasura_transaction,
@@ -533,63 +537,18 @@ pub async fn manage_dates(
             anyhow!("Error mapping {event_processor:?} into an EventProcessor: {err:?}")
         })?;
 
-    let task_id = generate_manage_date_task_name(
+    crate::services::scheduled_event_dates::manage_dates(
+        hasura_transaction,
         tenant_id,
         election_event_id,
         Some(election_id),
+        cron_config,
         &event_processor_val,
-    );
-
-    let old_scheduled_event_opt =
-        find_scheduled_event_by_task_id(hasura_transaction, tenant_id, election_event_id, &task_id)
-            .await
-            .map_err(|e| anyhow!("scheduled event by task id not found: {e:?}"))?;
-
-    // if there's an schedule date, we have to either insert or create this
-    if let Some(cron_config) = cron_config {
-        match old_scheduled_event_opt {
-            Some(old_scheduled_event) if old_scheduled_event.archived_at.is_none() => {
-                update_scheduled_event(
-                    hasura_transaction,
-                    tenant_id,
-                    &old_scheduled_event.id,
-                    cron_config,
-                    voting_channels.as_ref(),
-                )
-                .await
-                .map_err(|e| anyhow!("error updating scheduled event: {e:?}"))?;
-            }
-            _ => {
-                let payload = ManageElectionDatePayload {
-                    election_id: Some(election_id.to_string()),
-                    voting_channels,
-                };
-
-                insert_scheduled_event(
-                    hasura_transaction,
-                    tenant_id,
-                    election_event_id,
-                    event_processor_val,
-                    &task_id,
-                    cron_config,
-                    serde_json::to_value(payload)
-                        .map_err(|e| anyhow!("error deserializing payload: {e:?}"))?,
-                )
-                .await
-                .map_err(|e| anyhow!("error inserting scheduled event: {e:?}"))?;
-            }
-        };
-    } else {
-        // Archive previous task if the date is set to null and we found some
-        // task
-        if let Some(old_scheduled_event) = old_scheduled_event_opt {
-            archive_scheduled_event(hasura_transaction, tenant_id, &old_scheduled_event.id)
-                .await
-                .map_err(|e| anyhow!("error archiving scheduled event: {e:?}"))?;
-        }
-    }
-
-    Ok(())
+        voting_channels,
+        scheduled_event_id,
+    )
+    .await
+    .map_err(|err| invalid(err.to_string()))
 }
 
 #[instrument(err, skip_all)]

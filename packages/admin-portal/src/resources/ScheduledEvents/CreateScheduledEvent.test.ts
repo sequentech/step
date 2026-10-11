@@ -399,3 +399,41 @@ describe("new save warnings", () => {
         })
     })
 })
+
+it("edits the selected row even when its task name is custom", async () => {
+    mockEvent = {
+        id: "manual-kiosk-stop",
+        task_id: "custom-kiosk-stop",
+        event_processor: "END_VOTING_PERIOD",
+        event_payload: {voting_channels: ["KIOSK"]},
+        cron_config: {scheduled_date: "2027-01-01T12:00:00Z"},
+    }
+    render(
+        React.createElement(CreateEvent, {
+            ...props,
+            isEditEvent: true,
+            selectedEventId: "manual-kiosk-stop",
+        })
+    )
+    enterTime()
+    fireEvent.click(screen.getByText("Save"))
+    await waitFor(() =>
+        expect(mockSave).toHaveBeenCalledWith({
+            variables: expect.objectContaining({
+                scheduledEventId: "manual-kiosk-stop",
+                votingChannels: ["KIOSK"],
+            }),
+        })
+    )
+})
+
+it("keeps the editor open and displays a schedule conflict returned by Harvest", async () => {
+    const close = jest.fn()
+    const reason = "Another schedule already targets KIOSK for this action."
+    mockSave.mockResolvedValueOnce({data: {manage_election_dates: {error_msg: reason}}})
+    render(React.createElement(CreateEvent, {...props, setIsOpenDrawer: close}))
+    enterTime()
+    fireEvent.click(screen.getByText("Save"))
+    await waitFor(() => expect(mockNotify).toHaveBeenCalledWith(reason, {type: "error"}))
+    expect(close).not.toHaveBeenCalled()
+})

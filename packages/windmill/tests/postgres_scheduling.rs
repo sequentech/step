@@ -283,6 +283,7 @@ async fn saving_a_wall_time_stores_the_instant_in_the_posts_zone_and_answers_war
             },
             Some(vec![VotingStatusChannel::ONLINE]),
             &admin(),
+            None,
         )
         .await
         .unwrap();
@@ -322,6 +323,7 @@ async fn saving_a_wall_time_stores_the_instant_in_the_posts_zone_and_answers_war
             },
             None,
             &admin(),
+            None,
         )
         .await
         .unwrap();
@@ -365,6 +367,7 @@ async fn saving_a_wall_time_stores_the_instant_in_the_posts_zone_and_answers_war
                 &input,
                 None,
                 &admin(),
+                None,
             )
             .await
             .unwrap_err();
@@ -845,7 +848,7 @@ async fn stopped_schedule_rejects_nonfuture_edits_and_rearms_only_for_the_future
     ] {
         let cron = serde_json::from_value(json!({"scheduled_date": date})).unwrap();
         assert_eq!(
-            update_scheduled_event(&tx, &e.t(), &id.to_string(), cron, None)
+            update_scheduled_event(&tx, &e.t(), &id.to_string(), cron, None, None)
                 .await
                 .unwrap(),
             0
@@ -854,7 +857,7 @@ async fn stopped_schedule_rejects_nonfuture_edits_and_rearms_only_for_the_future
     }
     let cron = serde_json::from_value(json!({"scheduled_date": "2099-01-01T00:00:00Z"})).unwrap();
     assert_eq!(
-        update_scheduled_event(&tx, &e.t(), &id.to_string(), cron, None)
+        update_scheduled_event(&tx, &e.t(), &id.to_string(), cron, None, None)
             .await
             .unwrap(),
         1
@@ -869,7 +872,7 @@ async fn stopped_schedule_rejects_nonfuture_edits_and_rearms_only_for_the_future
     let archived = row(&tx, "scheduled_event", id).await;
     let cron = serde_json::from_value(json!({"scheduled_date": "2099-02-01T00:00:00Z"})).unwrap();
     assert_eq!(
-        update_scheduled_event(&tx, &e.t(), &id.to_string(), cron, None)
+        update_scheduled_event(&tx, &e.t(), &id.to_string(), cron, None, None)
             .await
             .unwrap(),
         0

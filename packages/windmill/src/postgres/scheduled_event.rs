@@ -278,6 +278,7 @@ pub async fn update_scheduled_event(
     id: &str,
     cron_config: CronConfig,
     voting_channels: Option<&Vec<sequent_core::ballot::VotingStatusChannel>>,
+    task_id: Option<&str>,
 ) -> Result<u64> {
     let tenant_uuid: uuid::Uuid =
         parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
@@ -302,6 +303,7 @@ pub async fn update_scheduled_event(
                 "sequent_backend".scheduled_event
             SET
                 cron_config = $3,
+                task_id = COALESCE($6, task_id),
                 event_payload = CASE WHEN $4::jsonb IS NULL THEN event_payload
                     ELSE COALESCE(event_payload, '{}'::jsonb) || jsonb_build_object('voting_channels', $4::jsonb) END,
                 stopped_at = CASE WHEN $5::timestamptz > NOW() THEN NULL ELSE stopped_at END,
@@ -325,6 +327,7 @@ pub async fn update_scheduled_event(
                 &cron_config_js,
                 &voting_channels.map(serde_json::to_value).transpose()?,
                 &instant,
+                &task_id,
             ],
         )
         .await
@@ -724,5 +727,19 @@ pub async fn lock_elections(
         )
         .await
         .map_err(|err| anyhow!("Error locking elections: {err}"))?;
+    Ok(())
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn rename_scheduled_event_task(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    id: &str,
+    task_id: &str,
+) -> Result<()> {
+    hasura_transaction.execute(
+        "UPDATE sequent_backend.scheduled_event SET task_id = $3 WHERE tenant_id = $1 AND id = $2 AND archived_at IS NULL AND task_id IS DISTINCT FROM $3",
+        &[&parse_uuid_v4(tenant_id)?, &parse_uuid_v4(id)?, &task_id],
+    ).await?;
     Ok(())
 }

@@ -266,6 +266,7 @@ async fn every_post_opens_at_local_midnight_and_the_event_wide_close_ends_them_a
                 &wall_time(OPENS),
                 None,
                 &admin(),
+                None,
             )
             .await
             .unwrap_or_else(|err| panic!("{}: {err:?}", post.name));
@@ -286,6 +287,7 @@ async fn every_post_opens_at_local_midnight_and_the_event_wide_close_ends_them_a
             &wall_time(CLOSES),
             None,
             &admin(),
+            None,
         )
         .await
         .unwrap();

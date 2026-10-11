@@ -7,6 +7,7 @@ export const MANAGE_ELECTION_DATES = gql`
     mutation ManageElectionDates(
         $electionEventId: uuid!
         $electionId: uuid
+        $scheduledEventId: uuid
         $scheduledDate: String
         $localDateTime: String
         $timeZone: String
@@ -16,6 +17,7 @@ export const MANAGE_ELECTION_DATES = gql`
         manage_election_dates(
             election_event_id: $electionEventId
             election_id: $electionId
+            scheduled_event_id: $scheduledEventId
             scheduled_date: $scheduledDate
             local_date_time: $localDateTime
             time_zone: $timeZone

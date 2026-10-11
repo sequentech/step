@@ -29972,6 +29972,18 @@
                 "deprecationReason": null
               },
               {
+                "name": "scheduled_event_id",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "uuid",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "time_zone",
                 "description": null,
                 "type": {
