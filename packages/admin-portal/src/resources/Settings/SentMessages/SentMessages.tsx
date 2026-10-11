@@ -1,12 +1,13 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React from "react"
+import React, {useEffect, useId, useRef, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {
     Alert,
     Box,
     Button,
+    Link,
     Table,
     TableBody,
     TableCell,
@@ -21,9 +22,15 @@ import RefreshIcon from "@mui/icons-material/Refresh"
 import {ChannelIcon, ChannelLabel} from "@sequentech/ui-essentials"
 import {EMessageChannel} from "@/types/messaging"
 import {ChannelChat} from "./ChannelChat"
-import {EmailInbox} from "./EmailInbox"
+import {EmailInbox, EmailReadingPane} from "./EmailInbox"
 import {ReportResult} from "./ReportResult"
-import {contentPreview, formatTime, newestFirst} from "./messageContent"
+import {
+    contentPreview,
+    formatTime,
+    newestFirst,
+    parameterText,
+    templateLabel,
+} from "./messageContent"
 import {
     IFakeGetStartedAnswer,
     IFakeProviderMessage,
@@ -31,9 +38,141 @@ import {
     SentMessagesMode,
 } from "./types"
 
+const MessageDetails: React.FC<{message: IFakeProviderMessage}> = ({message}) => {
+    const {t} = useTranslation()
+    const {content} = message
+    if (message.channel === EMessageChannel.EMAIL) {
+        return <EmailReadingPane message={message} />
+    }
+    return (
+        <Box
+            sx={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 1,
+                p: 2,
+                overflowWrap: "anywhere",
+                whiteSpace: "pre-wrap",
+            }}
+        >
+            {content.template_name ? (
+                <Typography variant="subtitle2" component="p">
+                    {templateLabel(content, t)}
+                </Typography>
+            ) : null}
+            {content.text ? (
+                <Typography variant="body2" sx={{whiteSpace: "pre-wrap"}}>
+                    {content.text}
+                </Typography>
+            ) : null}
+            {(content.parameters ?? []).map((parameter, index) => (
+                <Typography key={index} variant="body2">
+                    {parameterText(parameter)}
+                </Typography>
+            ))}
+            {content.code ? (
+                <Typography variant="body2">
+                    {t("sentMessages.content.code")}: {content.code}
+                </Typography>
+            ) : null}
+            {!content.text && !content.template_name && !content.code ? (
+                <Typography variant="body2">{t("sentMessages.content.noText")}</Typography>
+            ) : null}
+            {content.truncated ? (
+                <Typography variant="caption" color="text.secondary">
+                    {t("sentMessages.content.truncated")}
+                </Typography>
+            ) : null}
+        </Box>
+    )
+}
+
+const MessageRow: React.FC<{message: IFakeProviderMessage}> = ({message}) => {
+    const {t, i18n} = useTranslation()
+    const [expanded, setExpanded] = useState(false)
+    const detailsId = useId()
+    const detailsRef = useRef<HTMLDivElement>(null)
+    const toggleRef = useRef<HTMLButtonElement>(null)
+    useEffect(() => {
+        if (expanded) detailsRef.current?.scrollIntoView?.({block: "nearest", inline: "start"})
+    }, [expanded])
+    const collapse = () => {
+        setExpanded(false)
+        toggleRef.current?.focus()
+    }
+    return (
+        <>
+            <TableRow>
+                <TableCell sx={{whiteSpace: "nowrap"}}>
+                    {formatTime(message.received_at, i18n.language)}
+                </TableCell>
+                <TableCell>
+                    <ChannelLabel
+                        channel={message.channel}
+                        label={t(`messaging.channel.${message.channel}`)}
+                    />
+                </TableCell>
+                <TableCell sx={{overflowWrap: "anywhere"}}>{message.sender}</TableCell>
+                <TableCell sx={{overflowWrap: "anywhere"}}>{message.recipient}</TableCell>
+                <TableCell
+                    sx={{
+                        maxWidth: 420,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                    }}
+                >
+                    <Box sx={{overflow: "hidden", textOverflow: "ellipsis"}}>
+                        {contentPreview(message, t)}
+                    </Box>
+                    <Link
+                        component="button"
+                        type="button"
+                        underline="hover"
+                        ref={toggleRef}
+                        onClick={() => (expanded ? collapse() : setExpanded(true))}
+                        aria-expanded={expanded}
+                        aria-controls={detailsId}
+                        sx={{display: "block", mt: 0.5}}
+                    >
+                        {t(expanded ? "sentMessages.showLess" : "sentMessages.showMore")}
+                    </Link>
+                </TableCell>
+                <TableCell>
+                    <ReportResult report={message.report} />
+                </TableCell>
+            </TableRow>
+            {expanded ? (
+                <TableRow>
+                    <TableCell colSpan={6} sx={{p: 0}}>
+                        <Box
+                            id={detailsId}
+                            ref={detailsRef}
+                            role="group"
+                            aria-label={t("sentMessages.column.message")}
+                            sx={{maxWidth: "calc(100vw - 64px)", minWidth: 0}}
+                        >
+                            <Link
+                                component="button"
+                                type="button"
+                                underline="hover"
+                                onClick={collapse}
+                                sx={{m: 2, mb: 0}}
+                            >
+                                {t("sentMessages.showLess")}
+                            </Link>
+                            <MessageDetails message={message} />
+                        </Box>
+                    </TableCell>
+                </TableRow>
+            ) : null}
+        </>
+    )
+}
+
 /** Every message, newest first: Time | Channel | From | To | Message, and its report. */
 export const AllMessagesTable: React.FC<{messages: IFakeProviderMessage[]}> = ({messages}) => {
-    const {t, i18n} = useTranslation()
+    const {t} = useTranslation()
     if (messages.length === 0) {
         return <Typography color="text.secondary">{t("sentMessages.empty")}</Typography>
     }
@@ -52,34 +191,7 @@ export const AllMessagesTable: React.FC<{messages: IFakeProviderMessage[]}> = ({
                 </TableHead>
                 <TableBody>
                     {newestFirst(messages).map((message) => (
-                        <TableRow key={message.id}>
-                            <TableCell sx={{whiteSpace: "nowrap"}}>
-                                {formatTime(message.received_at, i18n.language)}
-                            </TableCell>
-                            <TableCell>
-                                <ChannelLabel
-                                    channel={message.channel}
-                                    label={t(`messaging.channel.${message.channel}`)}
-                                />
-                            </TableCell>
-                            <TableCell sx={{overflowWrap: "anywhere"}}>{message.sender}</TableCell>
-                            <TableCell sx={{overflowWrap: "anywhere"}}>
-                                {message.recipient}
-                            </TableCell>
-                            <TableCell
-                                sx={{
-                                    maxWidth: 420,
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
-                                }}
-                            >
-                                {contentPreview(message, t)}
-                            </TableCell>
-                            <TableCell>
-                                <ReportResult report={message.report} />
-                            </TableCell>
-                        </TableRow>
+                        <MessageRow key={message.id} message={message} />
                     ))}
                 </TableBody>
             </Table>

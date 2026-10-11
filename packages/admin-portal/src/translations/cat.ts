@@ -6094,6 +6094,8 @@ const catalanTranslation: TranslationType = {
             },
         },
         sentMessages: {
+            showMore: "Mostra més",
+            showLess: "Mostra menys",
             tab: "Missatges enviats",
             accountsTab: "Comptes",
             tabsLabel: "Seccions de missatgeria",

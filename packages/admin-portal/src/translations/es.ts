@@ -6083,6 +6083,8 @@ const spanishTranslation: TranslationType = {
             },
         },
         sentMessages: {
+            showMore: "Mostrar más",
+            showLess: "Mostrar menos",
             tab: "Mensajes enviados",
             accountsTab: "Cuentas",
             tabsLabel: "Secciones de mensajería",

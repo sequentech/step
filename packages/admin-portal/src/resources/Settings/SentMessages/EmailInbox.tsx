@@ -24,7 +24,7 @@ import {IFakeProviderMessage} from "./types"
 
 type EBodyView = "HTML" | "TEXT"
 
-const ReadingPane: React.FC<{message: IFakeProviderMessage}> = ({message}) => {
+export const EmailReadingPane: React.FC<{message: IFakeProviderMessage}> = ({message}) => {
     const {t, i18n} = useTranslation()
     const {content} = message
     const withHtml = hasHtml(message)
@@ -167,7 +167,7 @@ export const EmailInbox: React.FC<{messages: IFakeProviderMessage[]}> = ({messag
                     </ListItem>
                 ))}
             </List>
-            <ReadingPane key={open.id} message={open} />
+            <EmailReadingPane key={open.id} message={open} />
         </Paper>
     )
 }
