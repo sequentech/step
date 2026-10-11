@@ -8,6 +8,8 @@ use serde_json::json;
 
 const ISSUER: &str =
     "https://keycloak.example/realms/tenant-one-event-election";
+const KIOSK_KEYCLOAK_URL: &str = "KIOSK_KEYCLOAK_URL";
+const HARVEST_JWT_ISSUER_URLS: &str = "HARVEST_JWT_ISSUER_URLS";
 
 fn claims() -> Value {
     json!({"iss": ISSUER, "exp": 4102444800_u64, "sub": "voter", "iat": 1,
@@ -351,8 +353,8 @@ fn in_child_process(test: &str) -> bool {
             &format!("services::jwt_verification::tests::{test}"),
         ])
         .env(CHILD, "1")
-        .env("KIOSK_KEYCLOAK_URL", "not-a-url")
-        .env("HARVEST_JWT_ISSUER_URLS", "not-a-url")
+        .env(KIOSK_KEYCLOAK_URL, "not-a-url")
+        .env(HARVEST_JWT_ISSUER_URLS, "not-a-url")
         .output()
         .unwrap();
     assert!(
@@ -365,7 +367,7 @@ fn in_child_process(test: &str) -> bool {
 }
 
 fn clear_optional_issuer_settings() {
-    for variable in ["KIOSK_KEYCLOAK_URL", "HARVEST_JWT_ISSUER_URLS"] {
+    for variable in [KIOSK_KEYCLOAK_URL, HARVEST_JWT_ISSUER_URLS] {
         std::env::remove_var(variable);
     }
 }
@@ -415,12 +417,12 @@ async fn request_guard_rejects_forged_tokens_and_accepts_signed_tokens() {
             .status(),
         Status::Ok
     );
-    std::env::set_var("KIOSK_KEYCLOAK_URL", "");
-    std::env::set_var("HARVEST_JWT_ISSUER_URLS", " , ");
+    std::env::set_var(KIOSK_KEYCLOAK_URL, "");
+    std::env::set_var(HARVEST_JWT_ISSUER_URLS, " , ");
     assert!(verify_bearer(&valid).await.is_ok());
-    std::env::set_var("KIOSK_KEYCLOAK_URL", "not-a-url");
+    std::env::set_var(KIOSK_KEYCLOAK_URL, "not-a-url");
     let error = verify_bearer(&valid).await.unwrap_err();
-    assert!(format!("{error:#}").contains("KIOSK_KEYCLOAK_URL"));
+    assert!(format!("{error:#}").contains(KIOSK_KEYCLOAK_URL));
 }
 
 struct Sink<'a>(&'a std::sync::Mutex<String>);
