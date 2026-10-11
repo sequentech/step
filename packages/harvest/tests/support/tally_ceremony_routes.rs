@@ -415,15 +415,15 @@ fn trustee_header(
     event: &Event,
     trustee: &str,
 ) -> rocket::http::Header<'static> {
-    use base64::Engine;
     let mut claims = admin(event, Permissions::TRUSTEE_CEREMONY).build();
     claims.trustee = Some(trustee.to_owned());
-    let payload = serde_json::to_vec(&claims).unwrap();
     rocket::http::Header::new(
         "Authorization",
         format!(
-            "Bearer fixture.{}.fixture",
-            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(payload)
+            "Bearer {}",
+            crate::test_claims::signing::token(
+                &serde_json::to_value(&claims).unwrap()
+            )
         ),
     )
 }
