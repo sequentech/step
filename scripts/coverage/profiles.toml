@@ -265,7 +265,6 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/ports/vault.rs" = "Secret vault trait declaration only; implementations are measured in adapters."
 "src/routes/mod.rs" = "Module declarations only; registered route implementations are inventoried separately."
 "src/services/mod.rs" = "Module declarations only."
-"src/services/authorization.rs" = "Imports and re-exports of Sequent Core authorization; no handwritten executable methods."
 "src/types/mod.rs" = "Module declarations only."
 "src/types/optional.rs" = "Struct and derives only; no handwritten executable methods or LLVM line regions."
 
