@@ -386,10 +386,19 @@ pub enum StatementType {
 }
 
 /// The configuration member that signs each statement type.
-#[derive(Clone, Copy, PartialEq, Eq, Display, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum StatementSigner {
     ProtocolManager,
     Trustee,
+}
+
+impl std::fmt::Display for StatementSigner {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StatementSigner::ProtocolManager => write!(f, "protocol manager"),
+            StatementSigner::Trustee => write!(f, "trustee"),
+        }
+    }
 }
 
 impl StatementSigner {

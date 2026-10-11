@@ -355,8 +355,7 @@ impl Message {
         if st_cfg_h == artifact_hash {
             if kind != StatementType::Configuration {
                 return Err(anyhow!(
-                    "{} must not carry the configuration artifact",
-                    kind
+                    "A configuration artifact requires a Configuration statement"
                 ));
             }
 
@@ -370,9 +369,7 @@ impl Message {
         } else {
             // If the statement type were configuration, cfg_hash should have matched the artifact above
             if kind == StatementType::Configuration {
-                return Err(anyhow!(
-                    "Configuration artifact does not match its configuration hash"
-                ));
+                return Err(anyhow!("Mismatched configuration artifact hash"));
             }
 
             let _ = verify_artifact(&configuration, &kind, &artifact)?;
