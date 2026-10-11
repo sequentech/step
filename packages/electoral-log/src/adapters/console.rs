@@ -159,6 +159,8 @@ const QUERY_FETCH_ROWS: i32 = 100;
 /// Read-only queries that run at once in a process, which bounds the memory their rows
 /// take in a service that also does other work, such as Harvest.
 static RUNNING_QUERIES: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(4);
+/// How much longer than its time limit a read-only query may take on the client.
+const QUERY_CLIENT_MARGIN: Duration = Duration::from_secs(2);
 
 fn table_query(table: ConsoleTable) -> TableQuery {
     match table {
@@ -643,14 +645,15 @@ pub async fn run_read_only_query(
     max_bytes: usize,
     timeout: Duration,
 ) -> Result<QueryResult> {
-    // The limit covers the whole query, also its parsing, planning and a connection that
-    // stops answering; the server's statement timeout only covers each step.
-    tokio::time::timeout(timeout, async {
+    // The server's statement timeouts count down to the same deadline, so they normally
+    // end the query; this bounds it also when the connection stops answering.
+    let started = Instant::now();
+    tokio::time::timeout(timeout + QUERY_CLIENT_MARGIN, async {
         let _running = RUNNING_QUERIES
             .acquire()
             .await
             .context("Error waiting for a query slot")?;
-        read_only_query(client, sql, max_rows, max_bytes, timeout).await
+        read_only_query(client, sql, max_rows, max_bytes, timeout, started).await
     })
     .await
     .map_err(|_| anyhow!("The query took longer than {timeout:?}"))?
@@ -662,17 +665,19 @@ async fn read_only_query(
     max_rows: usize,
     max_bytes: usize,
     timeout: Duration,
+    started: Instant,
 ) -> Result<QueryResult> {
     let sql = sql
         .trim()
         .trim_end_matches(|c: char| c == ';' || c.is_whitespace());
     ensure!(!sql.is_empty(), "The query is empty");
-    let started = Instant::now();
+    let left = timeout.saturating_sub(started.elapsed());
+    ensure!(!left.is_zero(), "The query took longer than {timeout:?}");
     let transaction = client.build_transaction().read_only(true).start().await?;
     transaction
         .batch_execute(&format!(
             "SET LOCAL statement_timeout = {}",
-            timeout.as_millis()
+            left.as_millis().max(1)
         ))
         .await?;
     let statement = transaction

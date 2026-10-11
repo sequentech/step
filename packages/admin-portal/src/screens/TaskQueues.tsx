@@ -481,24 +481,21 @@ const Messages: React.FC<{queue: string; canWrite: boolean}> = ({queue, canWrite
                 variables: {operation, messageIds: ids.map(String)},
             })
             const result = answer?.task_queues_dead_letters as DeadLettersResult | undefined
-            if (version !== listVersion.current) {
-                return
-            }
             setNotice(
                 t(`taskQueues.deadLetters.queued.${operation}`, {
                     count: result?.requested ?? ids.length,
                     taskId: result?.task_id ?? "",
                 })
             )
+            if (version !== listVersion.current) {
+                return
+            }
             setSelection(NO_SELECTION)
             window.clearTimeout(refreshTimer.current)
             refreshTimer.current = window.setTimeout(() => {
                 refresh()
             }, REFRESH_AFTER_OPERATION_MS)
         } catch (operationFailure) {
-            if (version !== listVersion.current) {
-                return
-            }
             setFailure(
                 getGraphQLActionErrorReason(operationFailure) ?? t("taskQueues.deadLetters.failed")
             )
