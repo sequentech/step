@@ -343,3 +343,44 @@ export const MessagingChannelColumnOnPhone: Story = {
     ...MessagingChannelColumn,
     globals: {viewport: {value: "mobile1", isRotated: false}},
 }
+
+export const SelectionReplacesTopActions: Story = {
+    args: {
+        permissions: [
+            "voter-create",
+            "voter-write",
+            "voter-delete",
+            "voter-import",
+            "voter-export",
+            "ee-voters-columns",
+        ],
+        messagingRecords: "channels",
+    },
+    play: async ({canvasElement}) => {
+        const canvas = await loaded(canvasElement)
+        const actions = ["Columns", "Add", "Import", "Export"].map((name) =>
+            canvas.getByRole("button", {name})
+        )
+        for (const action of actions) await expect(action).toBeVisible()
+        const alice = canvas.getByText("alice").closest("tr")
+        if (!alice) throw new Error("Missing voter row")
+        const checkbox = within(alice).getByRole("checkbox")
+        await userEvent.click(checkbox)
+        await expect(checkbox).toBeChecked()
+        for (const action of actions) await expect(action).not.toBeVisible()
+        await expect(canvas.getByRole("button", {name: "Delete"})).toBeVisible()
+        await userEvent.click(checkbox)
+        for (const action of actions) await expect(action).toBeVisible()
+        const selectPage = within(canvas.getAllByRole("row")[0]).getByRole("checkbox")
+        await userEvent.click(selectPage)
+        for (const action of actions) await expect(action).not.toBeVisible()
+        await expect(canvas.getByRole("button", {name: "Delete"})).toBeVisible()
+        await userEvent.click(selectPage)
+        for (const action of actions) await expect(action).toBeVisible()
+    },
+}
+
+export const SelectionReplacesTopActionsOnPhone: Story = {
+    ...SelectionReplacesTopActions,
+    globals: {viewport: {value: "mobile1", isRotated: false}},
+}

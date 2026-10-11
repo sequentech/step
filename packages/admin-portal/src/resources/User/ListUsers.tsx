@@ -164,6 +164,16 @@ const StyledNull = styled("div")`
     padding-left: 18px;
 `
 
+const SelectionAwareListActions: React.FC<React.ComponentProps<typeof ListActions>> = (props) => {
+    const {selectedIds} = useListContext()
+    // Keep the toolbar space and mounted dialogs while bulk actions replace it.
+    return (
+        <Box sx={{visibility: selectedIds.length ? "hidden" : "visible"}}>
+            <ListActions {...props} />
+        </Box>
+    )
+}
+
 export interface ListUsersProps {
     aside?: ReactElement
     electionEventId?: string
@@ -1584,7 +1594,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     }}
                     empty={hasCustomFilter ? false : <Empty />}
                     actions={
-                        <ListActions
+                        <SelectionAwareListActions
                             withColumns={showVotersColumns}
                             preferenceKey={getPreferenceKey(location.pathname, "voters")}
                             withFilter={showVotersFilters}
