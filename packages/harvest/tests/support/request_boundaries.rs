@@ -947,7 +947,9 @@ async fn deleting_an_event_that_must_be_kept_is_refused_before_its_task() {
     let open_id = uuid::Uuid::parse_str(&open.election_event_id).unwrap();
     rows::execute(
         &services.hasura,
-        "UPDATE sequent_backend.election_event SET status = $1 WHERE id = $2",
+        "UPDATE sequent_backend.election_event SET status = $1
+         WHERE id = $2
+           AND set_config('sequent.trusted_write', 'on', true) = 'on'",
         &[&json!({"voting_status": "OPEN"}), &open_id],
     )
     .await;
@@ -989,7 +991,9 @@ async fn deleting_an_event_that_must_be_kept_is_refused_before_its_task() {
     let locked_id = uuid::Uuid::parse_str(&locked.election_event_id).unwrap();
     rows::execute(
         &services.hasura,
-        "UPDATE sequent_backend.election_event SET presentation = $1 WHERE id = $2",
+        "UPDATE sequent_backend.election_event SET presentation = $1
+         WHERE id = $2
+           AND set_config('sequent.trusted_write', 'on', true) = 'on'",
         &[&json!({"locked_down": "locked-down"}), &locked_id],
     )
     .await;
@@ -1018,7 +1022,9 @@ async fn deleting_an_event_that_must_be_kept_is_refused_before_its_task() {
         uuid::Uuid::parse_str(&unreadable.election_event_id).unwrap();
     rows::execute(
         &services.hasura,
-        "UPDATE sequent_backend.election_event SET status = $1 WHERE id = $2",
+        "UPDATE sequent_backend.election_event SET status = $1
+         WHERE id = $2
+           AND set_config('sequent.trusted_write', 'on', true) = 'on'",
         &[&json!({"voting_status": "NOT-A-STATUS"}), &unreadable_id],
     )
     .await;
