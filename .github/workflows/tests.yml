@@ -142,7 +142,7 @@ jobs:
           # The tests install PGMQ and their queues themselves, as the setup job does.
           docker exec ${{ job.services.postgres.id }} createdb -U test pgmq_test
           cargo test -p pgmq-broker --manifest-path packages/Cargo.toml -- --include-ignored --test-threads=1
-          cargo test -p windmill --manifest-path packages/Cargo.toml --lib tasks::electoral_log::pgmq_tests -- --ignored --test-threads=1
+          cargo test -p windmill --manifest-path packages/Cargo.toml --lib pgmq_tests -- --ignored --test-threads=1
 
       - name: Run Windmill tests
         run: cargo test

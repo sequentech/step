@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useContext, useEffect, useMemo, useState} from "react"
-import {ApolloError, useApolloClient, useMutation, useQuery} from "@apollo/client"
+import {ApolloError, NetworkStatus, useApolloClient, useMutation, useQuery} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {
     Alert,
@@ -187,7 +187,7 @@ const Overview: React.FC<{
     )
 }
 
-const chartOptions = (base: ApexOptions, locale: string): ApexOptions => ({
+const chartOptions = (base: ApexOptions, locale: string, hours: number): ApexOptions => ({
     ...base,
     chart: {
         ...base.chart,
@@ -202,7 +202,8 @@ const chartOptions = (base: ApexOptions, locale: string): ApexOptions => ({
         labels: {
             datetimeUTC: false,
             formatter: (value: string) =>
-                new Date(Number(value)).toLocaleTimeString(locale, {
+                new Date(Number(value)).toLocaleString(locale, {
+                    ...(hours > 24 ? {month: "short", day: "numeric"} : {}),
                     hour: "2-digit",
                     minute: "2-digit",
                 }),
@@ -293,7 +294,8 @@ const Graphs: React.FC<{queue: string; live: boolean}> = ({queue, live}) => {
                                         labels: {formatter: (value) => String(Math.round(value))},
                                     },
                                 },
-                                locale
+                                locale,
+                                range.hours
                             )}
                         />
                     </Box>
@@ -326,7 +328,8 @@ const Graphs: React.FC<{queue: string; live: boolean}> = ({queue, live}) => {
                                             },
                                         },
                                     },
-                                    locale
+                                    locale,
+                                    range.hours
                                 )}
                             />
                         </Box>
@@ -394,6 +397,11 @@ const Messages: React.FC<{queue: string; canWrite: boolean}> = ({queue, canWrite
         setFailure(null)
     }, [queue, state])
 
+    // A selection belongs to the page it was made on.
+    useEffect(() => {
+        setSelection(NO_SELECTION)
+    }, [before])
+
     const {data, error, loading, refetch} = useQuery(TASK_QUEUES_MESSAGES, {
         variables: {queue, state, before, limit: MESSAGE_PAGE_SIZE},
         fetchPolicy: "network-only",
@@ -411,6 +419,7 @@ const Messages: React.FC<{queue: string; canWrite: boolean}> = ({queue, canWrite
 
     const refresh = async () => {
         setSelection(NO_SELECTION)
+        setFailure(null)
         try {
             await refetch()
         } catch (refreshFailure) {
@@ -778,14 +787,22 @@ export const TaskQueues: React.FC = () => {
     const [tab, setTab] = useState<PageTab>("queues")
     const [live, setLive] = useState(true)
     const [queue, setQueue] = useState<string | null>(null)
-    const {data, error} = useQuery(TASK_QUEUES_OVERVIEW, {
+    const {data, error, networkStatus} = useQuery(TASK_QUEUES_OVERVIEW, {
         fetchPolicy: "network-only",
+        // Each poll then renders, also when its result is unchanged, so the time moves.
+        notifyOnNetworkStatusChange: true,
         pollInterval: live && tab === "queues" ? OVERVIEW_POLL_MS : 0,
         skip: !canRead || tab !== "queues",
         context: readHeaders,
     })
     const overview = data?.task_queues_overview as OverviewResult | undefined
-    const updatedAt = useMemo(() => (overview ? new Date() : null), [overview])
+    const [updatedAt, setUpdatedAt] = useState<Date | null>(null)
+
+    useEffect(() => {
+        if (overview && networkStatus === NetworkStatus.ready) {
+            setUpdatedAt(new Date())
+        }
+    }, [overview, networkStatus])
 
     useEffect(() => {
         if (!queue && overview && overview.queues.length > 0) {

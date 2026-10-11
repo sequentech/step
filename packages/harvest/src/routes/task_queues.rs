@@ -35,6 +35,7 @@ const MAX_DEAD_LETTER_IDS: usize = 1_000;
 /// The most rows a query returns, its time limit and its longest text.
 const QUERY_MAX_ROWS: usize = 1_000;
 const QUERY_TIMEOUT: Duration = Duration::from_secs(30);
+const QUERY_MAX_BYTES: usize = 10 * 1024 * 1024;
 const QUERY_MAX_CHARACTERS: usize = 20_000;
 
 fn internal_error(error: impl std::fmt::Debug) -> JsonError {
@@ -286,10 +287,13 @@ pub async fn task_queues_dead_letters(
     )?;
     let (operation, ids) = dead_letter_request(&body.into_inner())?;
     let requested = ids.len();
-    let requested_by = claims
-        .name
-        .clone()
-        .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
+    let requested_by = claims.hasura_claims.user_id.clone();
+    tracing::info!(
+        user_id = %requested_by,
+        operation = ?operation,
+        messages = requested,
+        "Dead-lettered electoral-log events"
+    );
     let task = get_celery_app()
         .await
         .send_task(manage_electoral_log_dead_letters::new(
@@ -328,7 +332,13 @@ pub async fn task_queues_query(
     body: Json<QueryInput>,
     claims: JwtClaims,
 ) -> Result<Json<ConsoleQueryOutput>, JsonError> {
-    authorize_super_admin(&claims, vec![Permissions::TASK_QUEUES_QUERY])?;
+    authorize_super_admin(
+        &claims,
+        vec![
+            Permissions::TASK_QUEUES_READ,
+            Permissions::TASK_QUEUES_QUERY,
+        ],
+    )?;
     let sql = body.into_inner().sql;
     check_query(&sql)?;
     tracing::info!(
@@ -337,11 +347,14 @@ pub async fn task_queues_query(
         sql = %sql,
         "Task-queue query"
     );
-    let mut client = reader().await?;
+    // A connection of its own, closed afterwards, so that nothing the query sets, such
+    // as an advisory lock, outlives it.
+    let mut client = deadpool_postgres::Object::take(reader().await?);
     let output = match run_read_only_query(
         &mut client,
         &sql,
         QUERY_MAX_ROWS,
+        QUERY_MAX_BYTES,
         QUERY_TIMEOUT,
     )
     .await

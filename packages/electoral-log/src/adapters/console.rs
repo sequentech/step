@@ -682,6 +682,16 @@ pub async fn run_read_only_query(
     let mut bytes = 0;
     let mut truncated = false;
     'fetch: loop {
+        // Each fetch arms the statement timeout anew from the setting, which the query
+        // itself could change, so it is set again to the time left.
+        let left = timeout.saturating_sub(started.elapsed());
+        ensure!(!left.is_zero(), "The query took longer than {timeout:?}");
+        transaction
+            .batch_execute(&format!(
+                "SET LOCAL statement_timeout = {}",
+                left.as_millis().max(1)
+            ))
+            .await?;
         let batch = transaction
             .query_portal(&portal, QUERY_FETCH_ROWS)
             .await

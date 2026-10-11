@@ -42,7 +42,7 @@ pub async fn manage_electoral_log_dead_letters(
         .await
         .context("Error committing the dead-letter operation")?;
     info!(
-        "{requested_by} applied {operation} to {found} of {} dead-lettered electoral-log events",
+        "User {requested_by} applied {operation} to {found} of {} dead-lettered electoral-log events",
         message_ids.len()
     );
     Ok(())

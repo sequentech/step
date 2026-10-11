@@ -6,6 +6,7 @@
 //! never returned, because they can carry voters' data.
 
 use crate::{decode, validate_queue_name, OUTCOME_HEADER};
+use celery::protocol::MessageHeaders;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use serde_json::Value;
@@ -19,8 +20,11 @@ pub const SHOWN_HEADERS: [&str; 3] = [
     "x-electoral-log-stage",
     "x-electoral-log-error",
 ];
-/// Longest header value returned.
-const MAX_HEADER_CHARS: usize = 500;
+/// Longest header value returned, as long as the dead-letter reasons are stored.
+const MAX_HEADER_CHARS: usize = 2_000;
+/// Largest task body read to show an electoral-log event's fields; larger ones, such as
+/// batches, are not loaded.
+const MAX_SUMMARIZED_BODY_BYTES: i32 = 64 * 1024;
 /// Arguments shown for electoral-log events: they identify the event, not the voter.
 const SHOWN_EVENT_FIELDS: [&str; 3] = ["tenant_id", "election_event_id", "message_type"];
 /// Outcome reported for an archived message without the header.
@@ -99,7 +103,7 @@ pub async fn overview<C: GenericClient + Sync>(
                 &format!(
                     "SELECT COALESCE(headers->>'{OUTCOME_HEADER}', '{UNKNOWN_OUTCOME}'), count(*) \
                      FROM pgmq.a_{queue} \
-                     WHERE archived_at > clock_timestamp() - interval '1 hour' GROUP BY 1"
+                     WHERE archived_at > now() - interval '1 hour' GROUP BY 1"
                 ),
                 &[],
             )
@@ -152,7 +156,7 @@ pub async fn throughput<C: GenericClient + Sync>(
                  avg(extract(epoch FROM archived_at - last_read_at))::float8, \
                  avg(extract(epoch FROM last_read_at - enqueued_at))::float8 \
                  FROM pgmq.a_{queue} \
-                 WHERE archived_at > clock_timestamp() - make_interval(secs => $1::float8) \
+                 WHERE archived_at > now() - make_interval(secs => $1::float8) \
                  GROUP BY 1, 2 ORDER BY 1, 2"
             ),
             &[&period.as_secs_f64(), &bucket.as_secs_f64()],
@@ -260,10 +264,12 @@ pub async fn messages<C: GenericClient + Sync>(
         .query(
             &format!(
                 "SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, {archived_at}, \
-                 message, headers FROM pgmq.{table}_{queue} \
+                 CASE WHEN octet_length(message->>'body') <= $3 THEN message \
+                 ELSE message - 'body' END, \
+                 headers, octet_length(message::text) FROM pgmq.{table}_{queue} \
                  WHERE $1::bigint IS NULL OR msg_id < $1 ORDER BY msg_id DESC LIMIT $2"
             ),
-            &[&before, &limit],
+            &[&before, &limit, &MAX_SUMMARIZED_BODY_BYTES],
         )
         .await?;
     Ok(rows.iter().map(summarize).collect())
@@ -272,11 +278,18 @@ pub async fn messages<C: GenericClient + Sync>(
 fn summarize(row: &Row) -> MessageSummary {
     let message: Option<Value> = row.get(6);
     let headers: Option<Value> = row.get(7);
-    let size_bytes = message
-        .as_ref()
-        .map(|message| message.to_string().len())
+    let size_bytes = row
+        .get::<_, Option<i32>>(8)
+        .and_then(|size| usize::try_from(size).ok())
         .unwrap_or_default();
-    let decoded = message.and_then(|message| decode(message).ok());
+    let envelope: Option<MessageHeaders> = message
+        .as_ref()
+        .and_then(|message| serde_json::from_value(message.get("headers")?.clone()).ok());
+    let event = message
+        .filter(|message| message.get("body").is_some())
+        .and_then(|message| decode(message).ok())
+        .map(|message| event_fields(&message.raw_body))
+        .unwrap_or_default();
     MessageSummary {
         msg_id: row.get(0),
         read_count: row.get(1),
@@ -284,16 +297,14 @@ fn summarize(row: &Row) -> MessageSummary {
         last_read_at: row.get(3),
         visible_at: row.get(4),
         archived_at: row.get(5),
-        task: decoded.as_ref().map(|message| message.headers.task.clone()),
-        task_id: decoded.as_ref().map(|message| message.headers.id.clone()),
-        retries: decoded.as_ref().and_then(|message| message.headers.retries),
-        eta: decoded.as_ref().and_then(|message| message.headers.eta),
-        expires: decoded.as_ref().and_then(|message| message.headers.expires),
+        task: envelope.as_ref().map(|headers| headers.task.clone()),
+        task_id: envelope.as_ref().map(|headers| headers.id.clone()),
+        retries: envelope.as_ref().and_then(|headers| headers.retries),
+        eta: envelope.as_ref().and_then(|headers| headers.eta),
+        expires: envelope.as_ref().and_then(|headers| headers.expires),
         size_bytes,
         headers: shown_headers(headers.as_ref()),
-        event: decoded
-            .map(|message| event_fields(&message.raw_body))
-            .unwrap_or_default(),
+        event,
     }
 }
 

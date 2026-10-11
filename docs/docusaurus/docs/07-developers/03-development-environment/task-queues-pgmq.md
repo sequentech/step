@@ -241,7 +241,7 @@ The focused suites run against a disposable database, which they set up themselv
 ```sh
 PGMQ_TEST_DATABASE_URL=postgres://... cargo test -p pgmq-broker -- --include-ignored
 PGMQ_TEST_DATABASE_URL=postgres://... cargo test -p windmill --lib \
-  tasks::electoral_log::pgmq_tests -- --ignored --test-threads=1
+  pgmq_tests -- --ignored --test-threads=1
 ```
 
 Set `PGMQ_TEST_DATABASE_URL` through the test environment, not committed

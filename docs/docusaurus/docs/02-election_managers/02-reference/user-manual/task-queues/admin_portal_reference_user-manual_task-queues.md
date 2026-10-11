@@ -80,8 +80,11 @@ Users with the `task-queues-write` permission can select events in the queue's
 - **Replay** them: they go back to the electoral-log event queue, to be stored. Events
   that fail again come back to this queue. Replaying an event that was already stored
   does not store it twice.
-- **Discard** them: they move to the archive with the **Discarded** outcome and are not
-  added to the electoral log. Discarded events stay in the archive.
+- **Discard** them: they move to the archive with the **Discarded** outcome, and this
+  queue no longer tries to store them. Discarded events stay in the archive. An earlier
+  attempt may already have stored an event, because a batch that fails every retry is
+  set aside whole, and an event can be set aside more than once; discarding does not
+  remove it from the electoral log.
 
 Both ask for confirmation. A worker applies the operation shortly after; the page
 refreshes the list after a few seconds.
