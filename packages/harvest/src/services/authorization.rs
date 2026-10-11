@@ -14,7 +14,7 @@ use tracing::{error, info, instrument};
 use windmill::postgres::election::{
     get_elections_permission_labels, ElectionPermissionLabel,
 };
-use windmill::postgres::tally_session::get_tally_session_by_id;
+use windmill::postgres::tally_session::get_tally_session_by_id_if_exist;
 
 pub use sequent_core::services::authorization::*;
 
@@ -90,7 +90,8 @@ pub async fn authorize_election_permission_labels(
 }
 
 /// Refuses unless the caller's permission labels allow every election of the
-/// tally session.
+/// tally session. A session that does not exist has no elections to protect:
+/// the step that uses it reports it as missing.
 #[instrument(skip(hasura_transaction, claims))]
 pub async fn authorize_tally_session_permission_labels(
     hasura_transaction: &Transaction<'_>,
@@ -98,19 +99,17 @@ pub async fn authorize_tally_session_permission_labels(
     election_event_id: &str,
     tally_session_id: &str,
 ) -> Result<(), (Status, String)> {
-    let tally_session = get_tally_session_by_id(
+    let Some(tally_session) = get_tally_session_by_id_if_exist(
         hasura_transaction,
         &claims.hasura_claims.tenant_id,
         election_event_id,
         tally_session_id,
     )
     .await
-    .map_err(|_| {
-        (
-            Status::NotFound,
-            format!("Could not find tally session by id {tally_session_id}"),
-        )
-    })?;
+    .map_err(|error| (Status::InternalServerError, format!("{error:?}")))?
+    else {
+        return Ok(());
+    };
     authorize_election_permission_labels(
         hasura_transaction,
         claims,
