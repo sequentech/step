@@ -25,6 +25,10 @@ use tracing::{instrument, warn};
 use x509_cert::der::Decode;
 use x509_cert::Certificate;
 
+const JWKS_CERTS_PATH_ENV: &str = "AWS_S3_JWKS_CERTS_PATH";
+const DEFAULT_JWKS_CERTS_PATH: &str = "certs.json";
+const PRIVATE_URI_ENV: &str = "AWS_S3_PRIVATE_URI";
+const PUBLIC_BUCKET_ENV: &str = "AWS_S3_PUBLIC_BUCKET";
 const JWKS_FETCH_TIMEOUT_ENV: &str = "AWS_S3_JWKS_FETCH_TIMEOUT_SECS";
 const JWKS_MIN_REFRESH_ENV: &str = "AWS_S3_JWKS_MIN_REFRESH_SECS";
 const DEFAULT_JWKS_FETCH_TIMEOUT_SECS: u64 = 5;
@@ -57,7 +61,8 @@ pub struct Jwks {
 }
 
 pub fn get_jwks_secret_path() -> String {
-    env::var("AWS_S3_JWKS_CERTS_PATH").unwrap_or("certs.json".to_string())
+    env::var(JWKS_CERTS_PATH_ENV)
+        .unwrap_or_else(|_| DEFAULT_JWKS_CERTS_PATH.to_string())
 }
 
 /// A positive number of seconds from the environment, else the default.
@@ -80,7 +85,8 @@ fn max_age(cache_control: Option<&HeaderValue>) -> Duration {
         .and_then(|value| value.to_str().ok())
         .and_then(|value| {
             value.split(',').find_map(|directive| {
-                directive.trim().strip_prefix("max-age=")?.parse().ok()
+                let directive = directive.trim().to_ascii_lowercase();
+                directive.strip_prefix("max-age=")?.parse().ok()
             })
         })
         .map(Duration::from_secs)
@@ -102,10 +108,10 @@ static MIN_REFRESH: LazyLock<Duration> = LazyLock::new(|| {
 pub async fn fetch_jwks() -> Result<Jwks> {
     let url = format!(
         "{}/{}/{}",
-        env::var("AWS_S3_PRIVATE_URI")
-            .context("AWS_S3_PRIVATE_URI must be set")?,
-        env::var("AWS_S3_PUBLIC_BUCKET")
-            .context("AWS_S3_PUBLIC_BUCKET must be set")?,
+        env::var(PRIVATE_URI_ENV)
+            .with_context(|| format!("{PRIVATE_URI_ENV} must be set"))?,
+        env::var(PUBLIC_BUCKET_ENV)
+            .with_context(|| format!("{PUBLIC_BUCKET_ENV} must be set"))?,
         get_jwks_secret_path()
     );
     let response = HTTP_CLIENT
@@ -433,7 +439,7 @@ mod tests {
     fn reads_max_age() {
         let header = |value| Some(HeaderValue::from_static(value));
         assert_eq!(
-            max_age(header("public, max-age=30").as_ref()),
+            max_age(header("public, Max-Age=30").as_ref()),
             Duration::from_secs(30)
         );
         assert_eq!(max_age(header("no-cache").as_ref()), Duration::ZERO);
