@@ -8,7 +8,8 @@ use crate::encrypt::hash_ballot_style;
 use crate::error::BallotError;
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use crate::serialization::deserialize_with_path::deserialize_value;
-use crate::types::hasura::core::{self, ElectionEvent};
+use crate::types::hasura::core as hasura_core;
+use crate::types::hasura::core::ElectionEvent;
 use crate::types::scheduled_event::EventProcessors;
 use borsh::{BorshDeserialize, BorshSerialize};
 use chrono::DateTime;
@@ -985,7 +986,7 @@ pub struct ElectionPresentation {
     pub initialization_report_policy: Option<EInitializeReportPolicy>,
 }
 
-impl core::Election {
+impl hasura_core::Election {
     pub fn get_presentation(&self) -> Option<ElectionPresentation> {
         let election_presentation: Option<ElectionPresentation> = self
             .presentation
@@ -1533,7 +1534,7 @@ pub enum VotingStatusChannel {
 impl VotingStatusChannel {
     pub fn channel_from(
         &self,
-        channels: &core::VotingChannels,
+        channels: &hasura_core::VotingChannels,
     ) -> Option<bool> {
         match self {
             &VotingStatusChannel::ONLINE => channels.online.clone(),
@@ -1861,17 +1862,6 @@ impl ElectionStatus {
         };
         period_dates.update_period_dates(&new_status);
     }
-
-    #[test]
-    fn ballot_tracker_policy_does_not_change_borsh_bytes() {
-        let event_bytes =
-            borsh::to_vec(&ElectionEventPresentation::default()).unwrap();
-        let event_with_policy = ElectionEventPresentation {
-            ballot_tracker_policy: Some(BallotTrackerPolicy::ALLOW_LEGACY),
-            ..ElectionEventPresentation::default()
-        };
-        assert_eq!(borsh::to_vec(&event_with_policy).unwrap(), event_bytes);
-    }
 }
 
 #[derive(
@@ -1917,4 +1907,20 @@ pub struct CustomUrls {
     pub login: Option<String>,
     pub enrollment: Option<String>,
     pub saml: Option<String>,
+}
+
+#[cfg(test)]
+mod ballot_tracker_policy_tests {
+    use super::*;
+
+    #[test]
+    fn ballot_tracker_policy_does_not_change_borsh_bytes() {
+        let event_bytes =
+            borsh::to_vec(&ElectionEventPresentation::default()).unwrap();
+        let event_with_policy = ElectionEventPresentation {
+            ballot_tracker_policy: Some(BallotTrackerPolicy::ALLOW_LEGACY),
+            ..ElectionEventPresentation::default()
+        };
+        assert_eq!(borsh::to_vec(&event_with_policy).unwrap(), event_bytes);
+    }
 }

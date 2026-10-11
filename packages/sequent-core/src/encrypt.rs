@@ -1014,8 +1014,8 @@ mod tests {
         };
         use crate::ballot::{
             AuditableBallot, HashableBallot, HashableBallotContest,
-            PublicKeyConfig, RawHashableBallot, SignedHashableBallot,
-            LEGACY_TYPES_VERSION, TYPES_VERSION,
+            PublicKeyConfig, RawHashableBallot, LEGACY_TYPES_VERSION,
+            TYPES_VERSION,
         };
         use crate::encrypt::{
             hash_ballot, hash_ballot_style, hash_multi_ballot, shorten_hash,
@@ -1029,8 +1029,7 @@ mod tests {
         use strand::serialization::StrandSerialize;
 
         fn single_tracker(ballot: &AuditableBallot) -> String {
-            let signed = SignedHashableBallot::try_from(ballot).unwrap();
-            hash_ballot(&HashableBallot::try_from(&signed).unwrap()).unwrap()
+            hash_ballot(&HashableBallot::try_from(ballot).unwrap()).unwrap()
         }
 
         fn multi_tracker(ballot: &AuditableMultiBallot) -> String {
@@ -1156,8 +1155,7 @@ mod tests {
         fn legacy_single_ballot_keeps_its_tracker() {
             let mut ballot = single_ballot();
             ballot.version = LEGACY_TYPES_VERSION;
-            let signed = SignedHashableBallot::try_from(&ballot).unwrap();
-            let hashable = HashableBallot::try_from(&signed).unwrap();
+            let hashable = HashableBallot::try_from(&ballot).unwrap();
             let raw =
                 RawHashableBallot::<RistrettoCtx>::try_from(&hashable).unwrap();
 
@@ -1191,13 +1189,11 @@ mod tests {
             let mut multi = multi_ballot();
             multi.version = 99;
 
-            assert!(SignedHashableBallot::try_from(&single).is_err());
+            assert!(HashableBallot::try_from(&single).is_err());
             assert!(HashableMultiBallot::try_from(&multi).is_err());
 
-            let mut hashable_single = HashableBallot::try_from(
-                &SignedHashableBallot::try_from(&single_ballot()).unwrap(),
-            )
-            .unwrap();
+            let mut hashable_single =
+                HashableBallot::try_from(&single_ballot()).unwrap();
             hashable_single.version = 99;
             let mut hashable_multi =
                 HashableMultiBallot::try_from(&multi_ballot()).unwrap();

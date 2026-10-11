@@ -34,12 +34,12 @@ use sequent_core::ballot::EGracePeriodPolicy;
 
 use sequent_core::ballot::ElectionEventPresentation;
 use sequent_core::ballot::ElectionPresentation;
-use sequent_core::ballot::LEGACY_TYPES_VERSION;
 use sequent_core::ballot::ElectionStatus;
 use sequent_core::ballot::VoterSigningPolicy;
 use sequent_core::ballot::VotingPeriodDates;
 use sequent_core::ballot::VotingStatus;
 use sequent_core::ballot::VotingStatusChannel;
+use sequent_core::ballot::LEGACY_TYPES_VERSION;
 use sequent_core::ballot::{HashableBallot, HashableBallotContest};
 use sequent_core::encrypt::hash_ballot_sha512;
 use sequent_core::encrypt::hash_ballot_style;
