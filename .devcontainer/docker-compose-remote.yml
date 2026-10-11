@@ -34,7 +34,6 @@ services:
         beyond: ../beyond
     restart: always
     environment:
-      AMQP_ADDR: ${AMQP_ADDR}
       MASTER_SECRET: ${MASTER_SECRET}
       KC_HOSTNAME: ${KC_HOSTNAME}
       KC_HOSTNAME_STRICT: ${KC_HOSTNAME_STRICT}
@@ -66,6 +65,12 @@ services:
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
       TWILIO_SERVICE_SID: ${TWILIO_SERVICE_SID}
       ENV_SLUG: ${ENV_SLUG}
+      QUEUE_DB__HOST: ${QUEUE_DB__HOST}
+      QUEUE_DB__PORT: ${QUEUE_DB__PORT}
+      QUEUE_DB__DBNAME: ${QUEUE_DB__DBNAME}
+      QUEUE_DB__USER: ${QUEUE_DB_PRODUCER_USER}
+      QUEUE_DB__PASSWORD: ${QUEUE_DB_PRODUCER_PASSWORD}
+      ELECTORAL_LOG_PUBLISH_FAILURE_POLICY: ${ELECTORAL_LOG_PUBLISH_FAILURE_POLICY:-fail-request}
       KC_SPI_TRUSTSTORE_PROVIDER: ${KC_SPI_TRUSTSTORE_PROVIDER:-}
       KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS: ${KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS:-0}
     volumes:
@@ -89,6 +94,8 @@ services:
       --spi-sms-sender-aws-enabled=false
       --import-realm
     depends_on:
+      postgres:
+        condition: service_healthy
       postgres-keycloak:
         condition: service_healthy
       harvest:
@@ -166,6 +173,7 @@ services:
     volumes:
       - ./postgresql/init-electoral-log.sh:/docker-entrypoint-initdb.d/20-electoral-log.sh:ro
       - ../packages/electoral-log/catalog.sql:/electoral-log-catalog.sql:ro
+      - ./postgresql/init-task-queues.sh:/docker-entrypoint-initdb.d/30-task-queues.sh:ro
       - db_data:/var/lib/postgresql
       - db_logs:/logs
     environment:
@@ -177,6 +185,15 @@ services:
       ELECTORAL_LOG_PG_READER_USER: ${ELECTORAL_LOG_PG_READER_USER:-electoral_log_reader}
       ELECTORAL_LOG_PG_READER_PASSWORD: ${ELECTORAL_LOG_PG_READER_PASSWORD:-electoral_log_reader_dev}
       ELECTORAL_LOG_PG_DATABASE: ${ELECTORAL_LOG_PG_DATABASE}
+      QUEUE_DB__DBNAME: ${QUEUE_DB__DBNAME}
+      QUEUE_DB_OWNER_USER: ${QUEUE_DB_OWNER_USER}
+      QUEUE_DB_OWNER_PASSWORD: ${QUEUE_DB_OWNER_PASSWORD}
+      QUEUE_DB_WORKER_USER: ${QUEUE_DB_WORKER_USER}
+      QUEUE_DB_WORKER_PASSWORD: ${QUEUE_DB_WORKER_PASSWORD}
+      QUEUE_DB_PRODUCER_USER: ${QUEUE_DB_PRODUCER_USER}
+      QUEUE_DB_PRODUCER_PASSWORD: ${QUEUE_DB_PRODUCER_PASSWORD}
+      QUEUE_DB_READER_USER: ${QUEUE_DB_READER_USER}
+      QUEUE_DB_READER_PASSWORD: ${QUEUE_DB_READER_PASSWORD}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -388,6 +405,9 @@ services:
       "-x",
       "run"
     ]
+    depends_on:
+      task-queues-setup:
+        condition: service_started
     environment:
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
@@ -419,7 +439,12 @@ services:
       KEYCLOAK_DB__PORT: ${KEYCLOAK_DB__PORT}
       KEYCLOAK_DB__DBNAME: ${KEYCLOAK_DB__DBNAME}
       KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}
-      AMQP_ADDR: ${AMQP_ADDR}
+      QUEUE_DB__HOST: ${QUEUE_DB__HOST}
+      QUEUE_DB__PORT: ${QUEUE_DB__PORT}
+      QUEUE_DB__DBNAME: ${QUEUE_DB__DBNAME}
+      QUEUE_DB__USER: ${QUEUE_DB_PRODUCER_USER}
+      QUEUE_DB__PASSWORD: ${QUEUE_DB_PRODUCER_PASSWORD}
+      QUEUE_DB__MANAGER__RECYCLING_METHOD: ${QUEUE_DB__MANAGER__RECYCLING_METHOD}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
       KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS: ${KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS:-30}
       KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
@@ -508,19 +533,6 @@ services:
         VAULT_TOKEN: ${VAULT_TOKEN}
         B4_URL: ${B4_URL}
 
-  rabbitmq:
-    profiles: ["full", "base"]
-    image: rabbitmq:3.12.11-management
-    container_name: rabbitmq
-    healthcheck:
-      test: ["CMD-SHELL", "rabbitmq-diagnostics -q check_running && rabbitmq-diagnostics -q check_port_connectivity"]
-      interval: 5s
-      timeout: 10s
-      retries: 12
-      start_period: 20s
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
 
   registry:
     profiles: ["full", "lambdas"]
@@ -582,6 +594,35 @@ services:
     env_file:
       - .env
 
+  # Installs PGMQ and the queues in the task-queue database, as the database owner,
+  # like the setup job of a deployment. It is idempotent. Windmill and Beat retry until it
+  # has run, so the stack does not wait for its build.
+  task-queues-setup:
+    profiles: ["full", "base"]
+    image: sequentech.local/cargo-packages
+    container_name: task-queues-setup
+    volumes:
+      - ..:/workspaces/step:z
+    depends_on:
+      postgres:
+        condition: service_healthy
+    working_dir: /workspaces/step/packages/windmill
+    entrypoint: ["/usr/local/bin/entrypoint.sh"]
+    command: ["cargo", "run", "--bin", "main", "--", "setup-queue-database"]
+    environment:
+      RUSTFLAGS: ${RUSTFLAGS}
+      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
+      ENV_SLUG: ${ENV_SLUG}
+      LOG_LEVEL: ${LOG_LEVEL}
+      QUEUE_DB__HOST: ${QUEUE_DB__HOST}
+      QUEUE_DB__PORT: ${QUEUE_DB__PORT}
+      QUEUE_DB__DBNAME: ${QUEUE_DB__DBNAME}
+      QUEUE_DB__USER: ${QUEUE_DB_OWNER_USER}
+      QUEUE_DB__PASSWORD: ${QUEUE_DB_OWNER_PASSWORD}
+      QUEUE_DB_WORKER_ROLE: ${QUEUE_DB_WORKER_USER}
+      QUEUE_DB_PRODUCER_ROLE: ${QUEUE_DB_PRODUCER_USER}
+      QUEUE_DB_READER_ROLE: ${QUEUE_DB_READER_USER}
+
   windmill:
     profiles: ["full", "base"]
     stdin_open: true
@@ -598,13 +639,16 @@ services:
       "rust-local-target/",
       "--ignore",
       "windmill/core",
-      "-x",
-      "run --bin main consume -q beat short_queue tally_queue reports_queue communication_queue import_export_queue electoral_log_batch_queue electoral_log_beat_queue --prefetch-count 1"
+      # Build first, so a compile error waits for the next change instead of the restart loop.
+      "-x", "build --bin main",
+      "-s", "sh ../../.devcontainer/restart-worker.sh ../target/debug/main consume -q beat short_queue tally_queue reports_queue communication_queue import_export_queue electoral_log_batch_queue electoral_log_beat_queue --prefetch-count 1"
     ]
     volumes:
       - ..:/workspaces/step:z
     depends_on:
-      rabbitmq:
+      task-queues-setup:
+        condition: service_started
+      postgres-keycloak:
         condition: service_healthy
       configure-minio:
         condition: service_completed_successfully
@@ -614,7 +658,6 @@ services:
       LOG_LEVEL: ${LOG_LEVEL}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}
-      AMQP_ADDR: ${AMQP_ADDR}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
       KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS: ${KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS:-30}
       ELECTORAL_LOG_PG_HOST: ${ELECTORAL_LOG_PG_HOST}
@@ -669,6 +712,12 @@ services:
       KEYCLOAK_DB__PORT: ${KEYCLOAK_DB__PORT}
       KEYCLOAK_DB__DBNAME: ${KEYCLOAK_DB__DBNAME}
       KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}
+      QUEUE_DB__HOST: ${QUEUE_DB__HOST}
+      QUEUE_DB__PORT: ${QUEUE_DB__PORT}
+      QUEUE_DB__DBNAME: ${QUEUE_DB__DBNAME}
+      QUEUE_DB__USER: ${QUEUE_DB_WORKER_USER}
+      QUEUE_DB__PASSWORD: ${QUEUE_DB_WORKER_PASSWORD}
+      QUEUE_DB__MANAGER__RECYCLING_METHOD: ${QUEUE_DB__MANAGER__RECYCLING_METHOD}
       HASURA_DB__USER: ${HASURA_DB__USER}
       HASURA_DB__PASSWORD: ${HASURA_DB__PASSWORD}
       HASURA_DB__HOST: ${HASURA_DB__HOST}
@@ -679,6 +728,7 @@ services:
       DEFAULT_SQL_LIMIT: ${DEFAULT_SQL_LIMIT}
       DEFAULT_SQL_BATCH_SIZE: ${DEFAULT_SQL_BATCH_SIZE}
       ELECTORAL_LOG_BATCH_SIZE: ${ELECTORAL_LOG_BATCH_SIZE:-1000}
+      QUEUE_ARCHIVE_RETENTION_HOURS: ${QUEUE_ARCHIVE_RETENTION_HOURS:-168}
       ELECTORAL_LOG_BATCH_MAX_BYTES: ${ELECTORAL_LOG_BATCH_MAX_BYTES:-16777216}
       ELECTORAL_LOG_CHECKPOINT_COPY: ${ELECTORAL_LOG_CHECKPOINT_COPY:-best-effort}
       ELECTORAL_LOG_CHECKPOINT_BUCKET: ${ELECTORAL_LOG_CHECKPOINT_BUCKET:-electoral-log-checkpoints}
@@ -706,10 +756,11 @@ services:
     stdin_open: true
     image: sequentech.local/cargo-packages
     container_name: beat
+    restart: unless-stopped
     volumes:
       - ..:/workspaces/step:z
     depends_on:
-      rabbitmq:
+      task-queues-setup:
         condition: service_started
       harvest:
         condition: service_started
@@ -721,20 +772,26 @@ services:
       "--why",
       "--ignore",
       "rust-local-target/",
-      "-x",
-      "run --bin beat"
+      "-x", "build --bin beat",
+      "-s", "sh ../../.devcontainer/restart-worker.sh ../target/debug/beat"
     ]
     environment:
+      QUEUE_DB__HOST: ${QUEUE_DB__HOST}
+      QUEUE_DB__PORT: ${QUEUE_DB__PORT}
+      QUEUE_DB__DBNAME: ${QUEUE_DB__DBNAME}
+      QUEUE_DB__USER: ${QUEUE_DB_WORKER_USER}
+      QUEUE_DB__PASSWORD: ${QUEUE_DB_WORKER_PASSWORD}
+      QUEUE_DB__MANAGER__RECYCLING_METHOD: ${QUEUE_DB__MANAGER__RECYCLING_METHOD}
       RUSTFLAGS: ${RUSTFLAGS}
       LOG_LEVEL: ${LOG_LEVEL}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}
-      AMQP_ADDR: ${AMQP_ADDR}
       BEAT_PROBE_ADDR: ${BEAT_PROBE_ADDR}
       BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
       ENV_SLUG: ${ENV_SLUG}
       ELECTORAL_LOG_CHECKPOINT_INTERVAL_SECS: ${ELECTORAL_LOG_CHECKPOINT_INTERVAL_SECS:-300}
+      QUEUE_ARCHIVE_PURGE_INTERVAL_SECS: ${QUEUE_ARCHIVE_PURGE_INTERVAL_SECS:-3600}
 
   postgres-b3:
     profiles: ["full", "base"]

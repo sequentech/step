@@ -1,0 +1,18 @@
+{
+  "body": "W1tdLHsiaW5wdXQiOnsiZWxlY3Rpb25fZXZlbnRfaWQiOiI2ZjFjM2E2ZS0yYTYxLTRkNmItOWE1Mi0zZjBmOGEzYzJiMTAiLCJtZXNzYWdlX3R5cGUiOiJMT0dJTiIsImJvZHkiOiJudWxsIiwidXNlcl9pZCI6IjBiOWY2YzVlLTdkM2EtNGExZS04YzJmLTVlNGQzYzJiMWEwOSIsInRlbmFudF9pZCI6IjkwNTA1YzhhLTIzYTktNGNkZi1hMjZiLTRlMTlmNmEwOTdkNSIsInVzZXJuYW1lIjoidm90ZXJAZXhhbXBsZS5jb20ifX0seyJjYWxsYmFja3MiOm51bGwsImVycmJhY2tzIjpudWxsLCJjaGFpbiI6bnVsbCwiY2hvcmQiOm51bGx9XQ==",
+  "content-encoding": "utf-8",
+  "content-type": "application/json",
+  "headers": {
+    "id": "9d5e2c1b-contract-delivery",
+    "task": "enqueue_electoral_log_event",
+    "timelimit": [
+      null,
+      null
+    ]
+  },
+  "properties": {
+    "correlation_id": "9d5e2c1b-contract-delivery",
+    "delivery_tag": "9d5e2c1b-contract-delivery",
+    "body_encoding": "base64"
+  }
+}

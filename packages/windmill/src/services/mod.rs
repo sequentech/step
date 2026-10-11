@@ -63,6 +63,7 @@ pub mod sql_utils;
 pub mod support_materials;
 pub mod tally_sheet_import;
 pub mod tally_sheets;
+pub mod task_queues;
 pub mod tasks_execution;
 pub mod tasks_semaphore;
 pub mod temp_path;

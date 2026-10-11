@@ -1828,7 +1828,7 @@ dependencies = [
 [[package]]
 name = "celery"
 version = "0.5.5"
-source = "git+https://github.com/Findeton/rusty-celery.git?rev=b4145925aaaf742b7ba54499fff45313bcadfca1#b4145925aaaf742b7ba54499fff45313bcadfca1"
+source = "git+https://github.com/Findeton/rusty-celery.git?rev=7dfe34739d21a95754e34dedb5f10aa0a4f356ce#7dfe34739d21a95754e34dedb5f10aa0a4f356ce"
 dependencies = [
  "async-trait",
  "base64 0.21.7",
@@ -1857,7 +1857,7 @@ dependencies = [
 [[package]]
 name = "celery-codegen"
 version = "0.5.5"
-source = "git+https://github.com/Findeton/rusty-celery.git?rev=b4145925aaaf742b7ba54499fff45313bcadfca1#b4145925aaaf742b7ba54499fff45313bcadfca1"
+source = "git+https://github.com/Findeton/rusty-celery.git?rev=7dfe34739d21a95754e34dedb5f10aa0a4f356ce#7dfe34739d21a95754e34dedb5f10aa0a4f356ce"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6900,6 +6900,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "pgmq-broker"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "celery",
+ "chrono",
+ "deadpool-postgres",
+ "futures",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-postgres",
+ "tokio-stream",
+ "tokio-util",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "phf"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10326,6 +10345,7 @@ dependencies = [
  "bytes",
  "futures-core",
  "futures-sink",
+ "futures-util",
  "pin-project-lite",
  "tokio",
 ]
@@ -11850,7 +11870,6 @@ dependencies = [
  "handlebars",
  "hex",
  "keycloak",
- "lapin",
  "lettre",
  "lopdf 0.38.0",
  "num_cpus",
@@ -11858,6 +11877,7 @@ dependencies = [
  "openssl",
  "ordered-float 5.1.0",
  "ouroboros 0.18.5",
+ "pgmq-broker",
  "postgres-openssl",
  "quick-error",
  "rand 0.9.3",

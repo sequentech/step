@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::services::celery_app::get_celery_app;
+use crate::services::celery_app::try_get_celery_app;
 use crate::services::database::{get_hasura_pool, PgConfig};
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log_checkpoint_copies::{
@@ -724,7 +724,7 @@ impl ElectoralLog {
             ),
         };
 
-        let celery_app = get_celery_app().await;
+        let celery_app = try_get_celery_app().await?;
         celery_app
             .send_task(enqueue_electoral_log_event::new(input))
             .await?;
@@ -836,7 +836,7 @@ impl ElectoralLog {
                     .with_context(|| "Error serializing post cast vote")?,
             ),
         };
-        let celery_app = get_celery_app().await;
+        let celery_app = try_get_celery_app().await?;
         celery_app
             .send_task(enqueue_electoral_log_event::new(input))
             .await?;
@@ -924,7 +924,7 @@ impl ElectoralLog {
                     .with_context(|| "Error serializing ElectoralLogMessage")?,
             ),
         };
-        let celery_app = get_celery_app().await;
+        let celery_app = try_get_celery_app().await?;
         celery_app
             .send_task(enqueue_electoral_log_event::new(input))
             .await?;
