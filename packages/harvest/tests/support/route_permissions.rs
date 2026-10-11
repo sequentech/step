@@ -352,9 +352,8 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/revoke-results-publication", {"election_event_id": EVENT_ID, "publication_id": "test-publication"}, [PUBLISH_RESULTS_WRITE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/save-approval-matrix", {"election_event_id": EVENT_ID, "matrix": {"compared_fields": ["firstName"], "rules": [], "otherwise": {"decision": "REJECTED", "reason": "NO_VOTER"}}}, [APPROVAL_MATRIX_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/scheduled-event", {"tenant_id": TENANT_ID, "event_processor": "SEND_TEMPLATE", "event_payload": {}}, [NOTIFICATION_SEND], BACKEND, UNAUTHORIZED),
-        // An empty permission list checked in the caller's tenant; the body
-        // tenant, which the report task receives, is not checked.
-        case!(Admin, "/scheduled-event", {"tenant_id": OTHER_TENANT_ID, "election_event_id": EVENT_ID, "event_processor": "CREATE_REPORT", "event_payload": {}}, [], BACKEND),
+        case!(Admin, "/scheduled-event", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "event_processor": "CREATE_REPORT", "event_payload": {}}, [REPORT_GENERATE], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/scheduled-event", {"tenant_id": OTHER_TENANT_ID, "election_event_id": EVENT_ID, "event_processor": "CREATE_REPORT", "event_payload": {}}, [REPORT_GENERATE], UNAUTHORIZED, UNAUTHORIZED),
         // The other processors are not authorized, and only return an id.
         case!(Admin, "/scheduled-event", {"tenant_id": OTHER_TENANT_ID, "event_processor": "START_VOTING_PERIOD", "event_payload": {}}, [], BACKEND),
         case!(Admin, "/set-custom-url", {"origin": "https://origin.invalid", "redirect_to": "https://redirect.invalid", "dns_prefix": "test", "election_id": EVENT_ID, "key": "login"}, [ELECTION_EVENT_WRITE], BACKEND, FORBIDDEN),
@@ -377,7 +376,7 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/update-realm-attributes", {"election_event_id": EVENT_ID, "attributes": {}}, [KEYCLOAK_REALM_ATTRIBUTES_WRITE], BACKEND, FORBIDDEN_JSON),
         case!(Admin, "/update-realm-password-policy", {"election_event_id": EVENT_ID, "minimum_length": 8, "maximum_length": 64, "include_uppercase": true, "include_lowercase": true, "include_digits": true, "include_special_characters": false}, [ELECTION_EVENT_WRITE], BACKEND, FORBIDDEN_JSON),
         case!(Admin, "/update-tally-ceremony", {"election_event_id": EVENT_ID, "tally_session_id": "test-session", "status": "IN_PROGRESS"}, [ADMIN_CEREMONY], BACKEND, UNAUTHORIZED_JSON),
-        case!(Admin, "/upsert-area", {"name": "test-area", "election_event_id": UUID_EVENT_ID, "tenant_id": UUID_TENANT_ID, "area_contest_ids": []}, [AREA_CREATE], BACKEND, UNAUTHORIZED),
+        case!(UuidTenant, "/upsert-area", {"name": "test-area", "election_event_id": UUID_EVENT_ID, "tenant_id": UUID_TENANT_ID, "area_contest_ids": []}, [AREA_CREATE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/upsert-areas", {"election_event_id": EVENT_ID, "document_id": "test-document"}, [AREA_WRITE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/verify-application", {"applicant_id": "test-applicant", "applicant_data": {}, "tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "annotations": {}}, [SERVICE_ACCOUNT], BACKEND, UNAUTHORIZED_JSON),
         // Who may act on a request depends on the request: the requester, its
