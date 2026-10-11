@@ -555,9 +555,16 @@ The channel sections start collapsed, as in the template editor. Expand a
 channel to review its content or make changes for this notification. Closing a
 section keeps its content and edits; it does not turn off delivery on that
 channel. Email, SMS and Messenger text can be edited after choosing a template,
-without changing the saved template. WhatsApp and Viber approved message text
-is read-only. Their provider template and language can be overridden for the
-send; the chosen provider template must be approved for the sending account.
+without changing the saved template. WhatsApp and Viber wording appears as a
+plain preview with a notice explaining that provider-approved content cannot
+be changed here. The send drawer has no provider-template or language inputs:
+those values come from the saved template, or the event's binding when absent.
+Choose another saved template to use different approved content.
+
+WhatsApp accepts language codes and regional locale codes. Use the exact code
+of the approved template, such as `en` or `en_US`; do not replace one with the
+other just to match an example. The demo's `en` defaults are supported by its
+approved templates. See [Meta's language object reference](https://whatsapp.github.io/WhatsApp-Nodejs-SDK/api-reference/types/language_object/).
 
 The form checks that the notification has content for the audience's channels
 before scheduling it. For WhatsApp or Viber, choose a saved message template
