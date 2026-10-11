@@ -5599,6 +5599,7 @@ const galegoTranslation: TranslationType = {
                 },
             },
             voter: {
+                listChannel: "Canle de mensaxería",
                 title: "Mensaxería",
                 notSet: "Sen definir",
                 channel: "Canle",

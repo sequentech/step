@@ -5619,6 +5619,7 @@ const spanishTranslation: TranslationType = {
                 },
             },
             voter: {
+                listChannel: "Canal de mensajería",
                 title: "Mensajería",
                 notSet: "Sin definir",
                 channel: "Canal",

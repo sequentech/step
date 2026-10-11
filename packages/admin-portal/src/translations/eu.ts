@@ -5617,6 +5617,7 @@ const basqueTranslation: TranslationType = {
                 },
             },
             voter: {
+                listChannel: "Mezularitza kanala",
                 title: "Mezularitza",
                 notSet: "Ezarri gabe",
                 channel: "Kanala",

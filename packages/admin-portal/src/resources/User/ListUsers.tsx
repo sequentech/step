@@ -45,7 +45,7 @@ import {
     Stack,
     Typography,
 } from "@mui/material"
-import {Dialog, theme} from "@sequentech/ui-essentials"
+import {ChannelLabel, Dialog, theme} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {Action} from "@/components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
@@ -119,6 +119,8 @@ import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import SelectArea from "@/components/area/SelectArea"
 import {WidgetProps} from "@/components/Widget"
 import {ResetFilters} from "@/components/ResetFilters"
+import {VOTER_ATTR_MESSAGE_CHANNEL} from "@/types/messaging"
+import {voterChannel} from "./voterMessaging"
 import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {UserActionTypes} from "@/components/types"
@@ -1213,21 +1215,23 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const listFields = useMemo(() => {
         const basicInfoFields: UserProfileAttribute[] = []
         const attributesFields: UserProfileAttribute[] = []
-        const omitFields = ["id", "email_verified", "email"]
+        const omitFields = ["id", "email_verified", "email", "messaging_channel"]
 
         visibleUserAttributes?.forEach((attr) => {
             if (attr.name && userBasicInfo.includes(attr.name)) {
                 basicInfoFields.push(attr)
-            } else if (attr.name === SUPPORT_MATERIALS_ACKNOWLEDGED) {
-                // Has its own dedicated boolean column below; must not be
-                // auto-omitted like other Keycloak-attribute-derived columns.
+            } else if (
+                attr.name === SUPPORT_MATERIALS_ACKNOWLEDGED ||
+                (electionEventId && attr.name === VOTER_ATTR_MESSAGE_CHANNEL)
+            ) {
+                // These have dedicated columns instead of generic attribute fields.
             } else {
                 omitFields.push(`attributes['${attr.name}']`)
                 attributesFields.push(attr)
             }
         })
         return {basicInfoFields, attributesFields, omitFields}
-    }, [visibleUserAttributes])
+    }, [electionEventId, visibleUserAttributes])
 
     const renderFields = (fields: UserProfileAttribute[]) => {
         const allFields = fields.map((attr) => {
@@ -1524,6 +1528,27 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                 <WrapperField source="actions" label="Actions">
                                     <ListActionsMenu actions={actions} />
                                 </WrapperField>
+                            )}
+                            {electionEventId && (
+                                <FunctionField<IUser>
+                                    source="messaging_channel"
+                                    label={String(t("messaging.voter.listChannel"))}
+                                    sortable={false}
+                                    render={(record) => {
+                                        const channel = voterChannel(
+                                            record.email,
+                                            record.attributes
+                                        )
+                                        return channel ? (
+                                            <ChannelLabel
+                                                channel={channel.channel}
+                                                label={t(`messaging.channel.${channel.channel}`)}
+                                            />
+                                        ) : (
+                                            "-"
+                                        )
+                                    }}
+                                />
                             )}
                         </DataGridContainerStyle>
                     </ThemeProvider>
