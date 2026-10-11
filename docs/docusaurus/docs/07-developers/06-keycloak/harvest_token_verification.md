@@ -43,48 +43,55 @@ Keycloak generates the keys of new realms.
 
 ## Upgrading
 
-Before step#1887 (August 2025), the tenant and election-event realm templates
-carried fixed keys: the RSA keys of their `rsa-generated` and
-`rsa-enc-generated` providers, and the secrets of their `hmac-generated`,
-`hmac-generated-hs512` and `aes-generated` providers. Realms created from them
-keep those keys unless they were rotated. The keys are public in this
-repository's history, so anyone can forge those realms' tokens, including the
-action tokens Keycloak signs with the HMAC secret. Harvest refuses tokens
-signed with the template RSA key, so those realms' users get 401 from Harvest
-after the upgrade. Rotate their keys before upgrading.
+Until step#1887 (August 2025), Windmill created realms with the fixed keys of
+the tenant and election-event realm templates: the RSA keys of their
+`rsa-generated` and `rsa-enc-generated` providers, the secrets of their
+`hmac-generated`, `hmac-generated-hs512` and `aes-generated` providers, and,
+in tenant realms, the secrets of the `service-account` and `api-key-client`
+clients. Realms created then keep them unless they were rotated. They are
+public in this repository's history, so anyone can forge those realms' tokens,
+including the action tokens Keycloak signs with the HMAC secret. Harvest
+refuses tokens signed with the template RSA keys, so those realms' users get
+401 from Harvest after the upgrade. Rotate their keys before upgrading.
 
-A key of `certs.json` is its realm's own when its certificate subject is
-exactly `CN = <realm>`, for the realm whose
-`<keycloak>/realms/<realm>/protocol/openid-connect/certs` lists its `kid`. List
-the subjects with:
+A realm uses only its own keys when every certificate on its
+`<keycloak>/realms/<realm>/protocol/openid-connect/certs` endpoint has the
+subject `CN = <realm>`. With `kcadm.sh` logged in to the master realm, and
+`KEYCLOAK_URL` set, this prints the keys of other subjects:
 
 ```bash
-curl -s "$AWS_S3_PRIVATE_URI/$AWS_S3_PUBLIC_BUCKET/${AWS_S3_JWKS_CERTS_PATH:-certs.json}" \
-  | jq -r '.keys[] | [.kid, .x5c[0]] | @tsv' \
-  | while IFS="$(printf '\t')" read -r kid cert; do
-      printf '%s ' "$kid"
-      printf '%s' "$cert" | base64 -d | openssl x509 -inform DER -noout -subject
-    done
+for realm in $(kcadm.sh get realms --fields realm --format csv --noquotes); do
+  curl -s "$KEYCLOAK_URL/realms/$realm/protocol/openid-connect/certs" \
+    | jq -r '.keys[].x5c[0]' \
+    | while read -r cert; do
+        subject=$(printf '%s' "$cert" | base64 -d | openssl x509 -inform DER -noout -subject)
+        [ "$subject" = "subject=CN = $realm" ] || echo "$realm: $subject"
+      done
+done
 ```
 
 The template keys have the subjects `CN = electoral-process` (tenant realms)
 and `CN = tenant90505c8a23a94cdfa26b4e19f6a097d533f18502a67c48538333a58630663559`
-(election-event realms). For each realm whose `certs` endpoint lists one of
-them:
+(election-event realms). For each realm listed:
 
 1. In Keycloak's **Realm settings → Keys → Providers**, add `rsa-generated`,
    `rsa-enc-generated`, `hmac-generated` (HS256 and HS512) and `aes-generated`
-   providers with a lower priority than the template's. Keycloak keeps using
-   the template keys and lists the new RSA keys on the realm's `certs`
-   endpoint.
-2. Add those keys to `certs.json`. Upload it with the `Cache-Control` of
-   `AWS_S3_JWKS_CACHE_POLICY` and the content type `application/json`, for
-   instance with
+   providers with distinct names and a priority below the template's 100.
+   Keycloak keeps using the template keys and lists the new RSA keys on the
+   realm's `certs` endpoint.
+2. Add the new RSA keys to `certs.json`, while no tenant or election event is
+   being created or deleted, since Windmill rewrites the file then. Upload it
+   with the `Cache-Control` of `AWS_S3_JWKS_CACHE_POLICY` and the content type
+   `application/json`, for instance with
    `mc cp --attr "Cache-Control=$AWS_S3_JWKS_CACHE_POLICY;Content-Type=application/json"`;
    without that header Hasura stops refreshing the file. Wait for its
    `max-age`.
-3. Delete the template's providers, so that Keycloak uses the new keys. The
-   realm's users have to log in again.
+3. Delete the template's providers, the ones with priority 100, so that
+   Keycloak uses the new keys. The realm's sessions, offline tokens and
+   emailed action links stop working, so its users have to log in again.
+4. In tenant realms, regenerate the credentials of the `service-account` and
+   `api-key-client` clients, and update the services that use them, such as
+   `KEYCLOAK_CLIENT_SECRET`.
 
 Once no realm lists the template keys, remove them from `certs.json` the same
 way.
