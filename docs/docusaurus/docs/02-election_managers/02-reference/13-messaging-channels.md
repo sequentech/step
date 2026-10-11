@@ -520,6 +520,9 @@ identifier used for routing (for example, `otp` for a verification code).
 
 ### Send Notification
 
+Selecting voters replaces the list's regular top actions with the bulk action
+bar. Clearing the selection restores the regular actions.
+
 Send Notification has no channel choice: every notice goes to each voter's
 own channel. The **Each voter's channel** table shows, for the voters the
 notification is for:
