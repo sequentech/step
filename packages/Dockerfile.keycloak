@@ -31,6 +31,9 @@ FROM maven:3-amazoncorretto-17@sha256:046784a9c83821fc3e9ded94c2f18155e0daf1981c
 # every build -- including offline ones, where it cannot succeed.
 RUN command -v find >/dev/null 2>&1 || { dnf install -y findutils && dnf clean all; }
 COPY ./keycloak-extensions/ /build/context/packages/keycloak-extensions/
+# OTP contract tests compare Java values with the shared Rust definitions.
+COPY ./sequent-core/src/types/messaging.rs /build/context/packages/sequent-core/src/types/
+COPY ./sequent-core/src/types/dial_codes.rs /build/context/packages/sequent-core/src/types/
 COPY --from=vendor / /vendor/
 WORKDIR /build/context
 RUN --mount=from=beyond,source=.,target=/build/beyond-context,readonly \
