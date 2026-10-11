@@ -345,27 +345,17 @@ pub enum VoterMultiplicityColumn {
     VoteWeight,
 }
 
-#[instrument(skip(keycloak_transaction, voters_with_valid_ballot), err)]
-pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
-    keycloak_transaction: &Transaction<'_>,
-    realm: &str,
-    area_id: &str,
-    election_alias: &str,
-    output_file: &PathBuf,
+/// The extra column of the voters CSV, if any.
+///
+/// At most one extra column is emitted, always at index 1. Both variants are
+/// correlated scalar subqueries rather than joins so that `GROUP BY u.id`
+/// still holds.
+fn multiplicity_select(
     multiplicity_column: VoterMultiplicityColumn,
-    voters_with_valid_ballot: &[String],
-) -> Result<()> {
-    // COPY does not support parameters so we have to add them using format.
-    // Validate area_id as v4 UUID before interpolating into SQL.
-    parse_uuid_v4(area_id)?;
-    let realm_escaped = escape_sql_literal(realm);
-    let area_id_escaped = escape_sql_literal(area_id);
-    let election_alias_escaped = escape_sql_literal(election_alias);
-
-    // At most one extra column is emitted, always at index 1. Both variants are
-    // correlated scalar subqueries rather than joins so that `GROUP BY u.id`
-    // still holds.
-    let multiplicity_statement = match multiplicity_column {
+    area_id_escaped: &str,
+    election_alias_escaped: &str,
+) -> String {
+    match multiplicity_column {
         VoterMultiplicityColumn::DelegateCount => {
             // A delegator must be a voter of this realm, area and election who
             // names only this delegate and has no valid ballot of their own.
@@ -431,7 +421,31 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
             )
         }
         VoterMultiplicityColumn::None => "".to_string(),
-    };
+    }
+}
+
+#[instrument(skip(keycloak_transaction, voters_with_valid_ballot), err)]
+pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    area_id: &str,
+    election_alias: &str,
+    output_file: &PathBuf,
+    multiplicity_column: VoterMultiplicityColumn,
+    voters_with_valid_ballot: &[String],
+) -> Result<()> {
+    // COPY does not support parameters so we have to add them using format.
+    // Validate area_id as v4 UUID before interpolating into SQL.
+    parse_uuid_v4(area_id)?;
+    let realm_escaped = escape_sql_literal(realm);
+    let area_id_escaped = escape_sql_literal(area_id);
+    let election_alias_escaped = escape_sql_literal(election_alias);
+
+    let multiplicity_statement = multiplicity_select(
+        multiplicity_column,
+        &area_id_escaped,
+        &election_alias_escaped,
+    );
 
     if multiplicity_column == VoterMultiplicityColumn::DelegateCount {
         keycloak_transaction
@@ -1967,6 +1981,38 @@ pub async fn list_users_has_voted(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const AREA: &str = "10000000-0000-4000-8000-00000000000a";
+
+    #[test]
+    fn the_delegate_count_only_counts_eligible_delegators_without_a_ballot() {
+        let select =
+            multiplicity_select(VoterMultiplicityColumn::DelegateCount, AREA, "election-a");
+
+        assert!(select.contains("COUNT(DISTINCT delegator.id)"));
+        assert!(select.contains("delegator.realm_id = u.realm_id"));
+        assert!(select.contains(&format!("ua_delegator_area.value = '{AREA}'")));
+        assert!(select.contains("ua_delegator_elections.value = 'election-a'"));
+        assert!(select.contains(&format!("pg_temp.{VOTERS_WITH_VALID_BALLOT_TABLE}")));
+        assert!(select.contains("AS delegate_count"));
+    }
+
+    #[test]
+    fn the_vote_weight_column_defaults_a_missing_attribute() {
+        let select = multiplicity_select(VoterMultiplicityColumn::VoteWeight, AREA, "election-a");
+
+        assert!(select.contains(&format!("{DEFAULT_VOTE_WEIGHT})")));
+        assert!(select.contains("AS vote_weight"));
+        assert!(!select.contains(VOTERS_WITH_VALID_BALLOT_TABLE));
+    }
+
+    #[test]
+    fn no_multiplicity_adds_no_column() {
+        assert_eq!(
+            multiplicity_select(VoterMultiplicityColumn::None, AREA, "election-a"),
+            ""
+        );
+    }
 
     #[test]
     fn test_sql_boolean_operator_and_format() {

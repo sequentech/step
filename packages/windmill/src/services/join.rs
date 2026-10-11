@@ -966,4 +966,31 @@ mod tests {
         );
         Ok(())
     }
+
+    #[test]
+    fn test_read_valid_ballot_voter_ids_rejects_missing_columns() -> Result<()> {
+        let mut ballots = NamedTempFile::new()?;
+        writeln!(ballots, "alice,content-a,ONLINE,valid")?;
+        ballots.flush()?;
+
+        let missing_status = read_valid_ballot_voter_ids(&ballots.reopen()?, 0, 4).unwrap_err();
+        assert!(missing_status
+            .to_string()
+            .contains("Missing ballot status column 4"));
+        let missing_voter = read_valid_ballot_voter_ids(&ballots.reopen()?, 5, 3).unwrap_err();
+        assert!(missing_voter
+            .to_string()
+            .contains("Missing ballot voter id column 5"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_valid_ballot_voter_ids_ignores_unknown_statuses() -> Result<()> {
+        let mut ballots = NamedTempFile::new()?;
+        writeln!(ballots, "alice,content-a,ONLINE,not-a-status")?;
+        ballots.flush()?;
+
+        assert!(read_valid_ballot_voter_ids(&ballots.reopen()?, 0, 3)?.is_empty());
+        Ok(())
+    }
 }
