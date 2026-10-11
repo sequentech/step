@@ -10,6 +10,7 @@ import {
     ESendsFrom,
     GET_MESSAGING_AUDIENCE_PREVIEW,
     IAudienceChannel,
+    IAudiencePreview,
     IGetMessagingAudiencePreviewResult,
 } from "@/queries/GetMessagingAudiencePreview"
 import {roleContext, useMessagingReadRole} from "@/hooks/useMessagingReadRole"
@@ -28,6 +29,7 @@ export interface SendTemplateAudienceProps {
     channels: EMessageChannel[]
     /** Who sends `channel`'s notices, as the configuration says. */
     sendsFrom: (channel: EMessageChannel) => string
+    onPreview?: (preview: IAudiencePreview | undefined) => void
 }
 
 /**
@@ -47,6 +49,7 @@ export const SendTemplateAudience: React.FC<SendTemplateAudienceProps> = ({
     voterIds,
     channels,
     sendsFrom,
+    onPreview,
 }) => {
     const {t} = useTranslation()
     const formatCount = useFormatCount()
@@ -72,6 +75,7 @@ export const SendTemplateAudience: React.FC<SendTemplateAudienceProps> = ({
         answer?.status?.outcome === ERecountOutcome.TIMED_OUT &&
         !answer.status.computed_at
     const preview = selectedTimedOut ? undefined : answer
+    useEffect(() => onPreview?.(preview ?? undefined), [onPreview, preview])
     const rows: IAudienceChannel[] = preview?.channels ?? []
     const pending = !selected && !!preview?.status?.pending
     useEffect(() => {

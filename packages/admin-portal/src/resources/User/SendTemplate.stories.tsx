@@ -345,9 +345,7 @@ export const SendNowToTheSelectedVoters: Story = {
                 secret_attribute_names: [],
             },
         })
-        const notice = await within(document.body).findByText(
-            "Notification programmed/sent successfully"
-        )
+        const notice = await within(document.body).findByText("Notification scheduled successfully")
         await waitFor(() => expect(notice).toBeVisible())
     },
 }
@@ -502,6 +500,51 @@ export const MissingChannelContent: Story = {
         const smsMessage = await canvas.findByRole("textbox", {name: "SMS Message"})
         await userEvent.clear(smsMessage)
         await expect(await canvas.findByText(/has no content for SMS/)).toBeVisible()
+        await send(canvasElement)
+        expect(sent()).toBeUndefined()
+    },
+}
+
+export const WhatsAppAudienceWithoutContent: Story = {
+    args: {
+        config: {
+            ...messagingConfig,
+            channels: [
+                ...messagingConfig.channels,
+                {
+                    channel: EMessageChannel.WHATSAPP,
+                    account_id: storyId(9, 22),
+                    purposes: [EMessagePurpose.NOTICE],
+                    templates: [],
+                    out_of_window: EOutOfWindowPolicy.DISABLED,
+                },
+            ],
+        },
+        preview: [
+            {
+                channel: EMessageChannel.WHATSAPP,
+                voters: 1,
+                not_offered: 0,
+                sends_from: ESendsFrom.ACCOUNT,
+                account_name: "Demo WhatsApp",
+            },
+        ],
+    },
+    play: async ({args, canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByText(/has no content for WhatsApp/)).toBeVisible()
+        await send(canvasElement)
+        expect(sent()).toBeUndefined()
+        expect(args.close).not.toHaveBeenCalled()
+        await userEvent.click(aliasSelect(canvasElement))
+        await userEvent.click(
+            await within(document.body).findByRole("option", {name: "voting-opens"})
+        )
+        // Missing content on unused channels must not stop this WhatsApp-only audience.
+        await userEvent.clear(canvas.getByRole("textbox", {name: "SMS Message"}))
+        await send(canvasElement)
+        await waitFor(() => expect(args.close).toHaveBeenCalledTimes(1))
+        expect(sent()?.eventPayload).toMatchObject({whatsapp: whatsappReminder})
     },
 }
 

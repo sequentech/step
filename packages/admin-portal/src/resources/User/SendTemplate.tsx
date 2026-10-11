@@ -49,6 +49,7 @@ import {
     sendingAccountFor,
 } from "./sendTemplatePayload"
 import {SendTemplateAudience} from "./SendTemplateAudience"
+import {ESendsFrom, type IAudiencePreview} from "@/queries/GetMessagingAudiencePreview"
 import {
     ZonedDateTimeInput,
     type IStoredZonedDateTime,
@@ -134,6 +135,7 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
     const [errors, setErrors] = useState<String | null>(null)
     const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
     const [showProgress, setShowProgress] = useState(false)
+    const [audiencePreview, setAudiencePreview] = useState<IAudiencePreview>()
     // A time is entered in the event's primary zone, else the viewer's.
     const zones = useTimeZoneContext(electionEventId)
     const timeZones = useTimeZoneService()
@@ -211,6 +213,12 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
             setErrors(t("messaging.send.noNoticeChannels"))
             return
         }
+        if (missing.length > 0) {
+            setErrors(
+                t("messaging.send.missingContent", {channels: missing.map(channelName).join(", ")})
+            )
+            return
+        }
         setShowProgress(true)
         try {
             const {errors} = await createScheduledEvent({
@@ -262,11 +270,13 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                 },
             })
 
-    const handleSelectChange = (e: SelectChangeEvent<unknown>) =>
+    const handleSelectChange = (e: SelectChangeEvent<unknown>) => {
+        setAudiencePreview(undefined)
         setTemplate({
             ...template,
             audience: {...template.audience, selection: e.target.value as AudienceSelection},
         })
+    }
 
     const {data: receipts} = useGetList<Sequent_Backend_Template>("sequent_backend_template", {
         filter: {
@@ -313,7 +323,17 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
 
     // Every voter gets this notification on their own channel: there's no other choice.
     const shows = (method: ITemplateMethod) => MESSAGE_TEMPLATE_METHODS.includes(method)
-    const missing = missingChannelContent(content, noticeChannels)
+    const audienceChannels = audiencePreview
+        ? audiencePreview.channels.flatMap((row) =>
+              row.channel &&
+              row.voters > row.not_offered &&
+              row.sends_from &&
+              row.sends_from !== ESendsFrom.NONE
+                  ? [row.channel]
+                  : []
+          )
+        : noticeChannels
+    const missing = missingChannelContent(content, audienceChannels)
     const channelName = (channel: EMessageChannel) => t(`messaging.channel.${channel}`)
 
     return (
@@ -429,6 +449,7 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                                 voterIds={template.audience.voter_ids}
                                 channels={noticeChannels}
                                 sendsFrom={sendsFrom}
+                                onPreview={setAudiencePreview}
                             />
                         ) : null}
                         <Typography variant="caption" color="text.secondary" component="p">
