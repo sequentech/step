@@ -54,13 +54,23 @@ test("publication eligibility cannot be borrowed from another tenant or event", 
     })
 })
 
-test("publication managers retain tenant-scoped access to drafts and deleted styles", () => {
+test("publication managers keep drafts and deleted styles within their tenant and permission labels", () => {
     for (const role of ["admin-user", "publish-read", "publish-write"]) {
         const {permission} = metadata.select_permissions.find(
             (item) => item.role === role
         )
         assert.deepEqual(permission.filter, {
-            tenant_id: {_eq: "X-Hasura-Tenant-Id"},
+            _and: [
+                {tenant_id: {_eq: "X-Hasura-Tenant-Id"}},
+                {
+                    election: {
+                        _or: [
+                            {permission_label: {_is_null: true}},
+                            {permission_label: {_in: "X-Hasura-Permission-Labels"}},
+                        ],
+                    },
+                },
+            ],
         })
     }
 })

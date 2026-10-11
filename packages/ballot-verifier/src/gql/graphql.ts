@@ -10783,6 +10783,13 @@ export type Sequent_Backend_Election_Mutation_Response = {
     returning: Array<Sequent_Backend_Election>
 }
 
+/** input type for inserting object relation for remote table "sequent_backend.election" */
+export type Sequent_Backend_Election_Obj_Rel_Insert_Input = {
+  data: Sequent_Backend_Election_Insert_Input;
+  /** upsert condition */
+  on_conflict?: InputMaybe<Sequent_Backend_Election_On_Conflict>;
+};
+
 /** on_conflict condition type for table "sequent_backend.election" */
 export type Sequent_Backend_Election_On_Conflict = {
     constraint: Sequent_Backend_Election_Constraint
