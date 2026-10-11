@@ -924,3 +924,121 @@ async fn deleting_an_event_with_ballot_box_seals_is_refused_before_its_task() {
         "{error}"
     );
 }
+
+#[rocket::async_test]
+async fn deleting_an_event_that_must_be_kept_is_refused_before_its_task() {
+    const TEST: &str = "request_boundaries::deleting_an_event_that_must_be_kept_is_refused_before_its_task";
+    if !is_isolated_child() {
+        run_isolated_with_postgres(TEST, "http://127.0.0.1:9", true);
+        return;
+    }
+    use crate::route_services::{
+        json as response_json, post, rows, text, Services,
+    };
+    let services = Services::on_test_database().await;
+    let database: String =
+        rows::query(&services.hasura, "SELECT current_database() AS name", &[])
+            .await[0]
+            .get("name");
+    std::env::set_var("HASURA_DB__DBNAME", database);
+    let client = services.client().await;
+
+    let open = rows::event(&services.hasura).await;
+    let open_id = uuid::Uuid::parse_str(&open.election_event_id).unwrap();
+    rows::execute(
+        &services.hasura,
+        "UPDATE sequent_backend.election_event SET status = $1 WHERE id = $2",
+        &[&json!({"voting_status": "OPEN"}), &open_id],
+    )
+    .await;
+    let deleter = Claims::new(&open.tenant_id, USER_ID)
+        .roles([Permissions::ELECTION_EVENT_DELETE]);
+    let (status, output) = response_json(
+        post(
+            &client,
+            "/delete-election-event",
+            &deleter,
+            &json!({"election_event_id": open.election_event_id}),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{output}");
+    assert_eq!(output["id"], json!(open.election_event_id));
+    let message = output["error_msg"].as_str().unwrap();
+    assert!(message.contains("Voting is open or paused"), "{message}");
+    let task =
+        uuid::Uuid::parse_str(output["task_execution"]["id"].as_str().unwrap())
+            .unwrap();
+    let stored = rows::query(
+        &services.hasura,
+        "SELECT execution_status FROM sequent_backend.tasks_execution WHERE id = $1",
+        &[&task],
+    )
+    .await;
+    assert_eq!(stored[0].get::<_, String>("execution_status"), "FAILED");
+    let events = rows::query(
+        &services.hasura,
+        "SELECT count(*) AS n FROM sequent_backend.election_event WHERE id = $1",
+        &[&open_id],
+    )
+    .await;
+    assert_eq!(events[0].get::<_, i64>("n"), 1);
+
+    let locked = rows::event(&services.hasura).await;
+    let locked_id = uuid::Uuid::parse_str(&locked.election_event_id).unwrap();
+    rows::execute(
+        &services.hasura,
+        "UPDATE sequent_backend.election_event SET presentation = $1 WHERE id = $2",
+        &[&json!({"locked_down": "locked-down"}), &locked_id],
+    )
+    .await;
+    let deleter = Claims::new(&locked.tenant_id, USER_ID)
+        .roles([Permissions::ELECTION_EVENT_DELETE]);
+    let (status, output) = response_json(
+        post(
+            &client,
+            "/delete-election-event",
+            &deleter,
+            &json!({"election_event_id": locked.election_event_id}),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{output}");
+    assert_eq!(
+        output["error_msg"],
+        json!("The election event is locked down")
+    );
+
+    // A status that cannot be read means the checks cannot run: a server
+    // error, not a delete.
+    let unreadable = rows::event(&services.hasura).await;
+    let unreadable_id =
+        uuid::Uuid::parse_str(&unreadable.election_event_id).unwrap();
+    rows::execute(
+        &services.hasura,
+        "UPDATE sequent_backend.election_event SET status = $1 WHERE id = $2",
+        &[&json!({"voting_status": "NOT-A-STATUS"}), &unreadable_id],
+    )
+    .await;
+    let deleter = Claims::new(&unreadable.tenant_id, USER_ID)
+        .roles([Permissions::ELECTION_EVENT_DELETE]);
+    let (status, error) = text(
+        post(
+            &client,
+            "/delete-election-event",
+            &deleter,
+            &json!({"election_event_id": unreadable.election_event_id}),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::InternalServerError);
+    assert!(
+        error.starts_with(
+            "Failed to check whether the election event can be deleted"
+        ),
+        "{error}"
+    );
+}
