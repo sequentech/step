@@ -5630,6 +5630,7 @@ const catalanTranslation: TranslationType = {
                 },
             },
             voter: {
+                listChannel: "Canal de missatgeria",
                 title: "Missatgeria",
                 notSet: "Sense definir",
                 channel: "Canal",
