@@ -75,10 +75,12 @@ const templates = [
     template(1, ITemplateMethod.EMAIL, "welcome", {email: welcome}),
     template(2, ITemplateMethod.SMS, "reminder", {sms: {message: "Remember to vote"}}),
     template(3, ITemplateMethod.EMAIL, "voting-opens", {
-        selected_methods: {EMAIL: true, SMS: true, WHATSAPP: true},
+        selected_methods: {EMAIL: true, SMS: true, WHATSAPP: true, VIBER: true, MESSENGER: true},
         email: welcome,
         sms: {message: "Voting opens tomorrow"},
         whatsapp: whatsappReminder,
+        viber: {message: "Approved Viber reminder", parameters: []},
+        messenger: {message: "Voting opens tomorrow", parameters: []},
     }),
 ]
 
@@ -291,6 +293,7 @@ export const Populated: Story = {
         await expect(canvas.getByText("Send a notification to voters.")).toBeVisible()
         expect(canvas.getByText("To 2 Selected voters")).toBeVisible()
         expect(canvas.getByRole("switch", {name: "Send now"})).toBeChecked()
+        await userEvent.click(canvas.getByRole("button", {name: "Email"}))
         expect(canvas.getByRole("textbox", {name: "Email Subject"})).toHaveValue(
             defaultEmail.subject
         )
@@ -396,6 +399,7 @@ export const EmailTemplateWithSecretAttribute: Story = {
         const alias = aliasSelect(canvasElement)
         await userEvent.click(alias)
         await userEvent.click(await within(document.body).findByRole("option", {name: "welcome"}))
+        await userEvent.click(canvas.getByRole("button", {name: "Email"}))
         await waitFor(() =>
             expect(canvas.getByRole("textbox", {name: "Email Subject"})).toHaveValue(
                 welcome.subject
@@ -415,6 +419,7 @@ export const EmailTemplateWithSecretAttribute: Story = {
 export const SmsMessage: Story = {
     play: async ({args, canvasElement}) => {
         const canvas = within(canvasElement)
+        await userEvent.click(canvas.getByRole("button", {name: "SMS"}))
         const message = await canvas.findByRole("textbox", {name: "SMS Message"})
         await userEvent.clear(message)
         await userEvent.type(message, "Polls close at 20:00")
@@ -451,6 +456,7 @@ export const WhatsAppContentOfATemplate: Story = {
         await userEvent.click(
             await within(document.body).findByRole("option", {name: "voting-opens"})
         )
+        await userEvent.click(canvas.getByRole("button", {name: "WhatsApp"}))
         await expect(await canvas.findByRole("textbox", {name: "WhatsApp"})).toHaveValue(
             whatsappReminder.message
         )
@@ -473,8 +479,11 @@ export const WhatsAppWithItsProviderTemplate: Story = {
         await userEvent.click(
             await within(document.body).findByRole("option", {name: "voting-opens"})
         )
+        await userEvent.click(canvas.getByRole("button", {name: "WhatsApp"}))
         await expect(
-            canvas.getByText(/the event's template bound to the chosen template's alias is used/)
+            within(canvas.getByRole("region", {name: "WhatsApp"})).getByText(
+                /the event's template bound to the chosen template's alias is used/
+            )
         ).toBeVisible()
         await userEvent.type(
             await canvas.findByRole("textbox", {name: "WhatsApp provider template"}),
@@ -497,6 +506,7 @@ export const WhatsAppWithItsProviderTemplate: Story = {
 export const MissingChannelContent: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
+        await userEvent.click(canvas.getByRole("button", {name: "SMS"}))
         const smsMessage = await canvas.findByRole("textbox", {name: "SMS Message"})
         await userEvent.clear(smsMessage)
         await expect(await canvas.findByText(/has no content for SMS/)).toBeVisible()
@@ -541,6 +551,7 @@ export const WhatsAppAudienceWithoutContent: Story = {
             await within(document.body).findByRole("option", {name: "voting-opens"})
         )
         // Missing content on unused channels must not stop this WhatsApp-only audience.
+        await userEvent.click(canvas.getByRole("button", {name: "SMS"}))
         await userEvent.clear(canvas.getByRole("textbox", {name: "SMS Message"}))
         await send(canvasElement)
         await waitFor(() => expect(args.close).toHaveBeenCalledTimes(1))
@@ -623,5 +634,63 @@ export const WithoutTheReadPermission: Story = {
         ).toBeVisible()
         expect(canvas.queryByRole("table", {name: "Each voter's channel"})).toBeNull()
         expect(graphql.calls.filter((call) => READS.includes(call.name))).toEqual([])
+    },
+}
+
+export const CollapsibleChannelsPreserveSendOverrides: Story = {
+    play: async ({args, canvasElement}) => {
+        const canvas = within(canvasElement)
+        await userEvent.click(aliasSelect(canvasElement))
+        await userEvent.click(
+            await within(document.body).findByRole("option", {name: "voting-opens"})
+        )
+        for (const name of ["Email", "SMS", "WhatsApp", "Viber", "Facebook Messenger"]) {
+            await expect(canvas.getByRole("button", {name})).toHaveAttribute(
+                "aria-expanded",
+                "false"
+            )
+            await expect(
+                within(canvas.getByRole("button", {name})).getByTestId("ExpandMoreIcon")
+            ).toBeVisible()
+        }
+        expect(canvas.queryByRole("textbox", {name: "Email Subject"})).toBeNull()
+        for (const [channel, field, value] of [
+            ["Email", "Email Subject", "Polls close tonight"],
+            ["SMS", "SMS Message", "SMS override for this send"],
+            ["Facebook Messenger", "Facebook Messenger", "Messenger override for this send"],
+        ]) {
+            const toggle = canvas.getByRole("button", {name: channel})
+            await userEvent.click(toggle)
+            const input = await canvas.findByRole("textbox", {name: field})
+            await userEvent.clear(input)
+            await userEvent.type(input, value)
+            await userEvent.click(toggle)
+            await expect(toggle).toHaveAttribute("aria-expanded", "false")
+            await userEvent.click(toggle)
+            await expect(input).toHaveValue(value)
+            await userEvent.click(toggle)
+        }
+        for (const channel of ["WhatsApp", "Viber"]) {
+            await userEvent.click(canvas.getByRole("button", {name: channel}))
+            await expect(canvas.getByRole("textbox", {name: channel})).toHaveAttribute("readonly")
+            await userEvent.click(canvas.getByRole("button", {name: channel}))
+        }
+        await send(canvasElement)
+        await waitFor(() => expect(args.close).toHaveBeenCalledTimes(1))
+        expect(sent()?.eventPayload).toMatchObject({
+            alias: "voting-opens",
+            email: {...welcome, subject: "Polls close tonight"},
+            sms: {message: "SMS override for this send"},
+            messenger: {message: "Messenger override for this send", parameters: []},
+            whatsapp: whatsappReminder,
+            viber: {message: "Approved Viber reminder", parameters: []},
+        })
+        // These are overrides of this send, not changes to the saved template.
+        expect(templates[2].template).toMatchObject({
+            email: welcome,
+            sms: {message: "Voting opens tomorrow"},
+            messenger: {message: "Voting opens tomorrow"},
+        })
+        expect(data.writes).toHaveLength(0)
     },
 }
