@@ -261,9 +261,9 @@ async fn public_realm_writers_refuse_closed_database_pools_before_identity_acces
     let client = services.client().await;
     let tenant_id = uuid::Uuid::new_v4().to_string();
     let event_id = uuid::Uuid::new_v4().to_string();
-    for (path, permission, body) in [
+    for (path, permission, body, message) in [
         ("/update-realm-attributes", sequent_core::types::permissions::Permissions::KEYCLOAK_REALM_ATTRIBUTES_WRITE,
-            json!({"election_event_id": event_id, "attributes": {"operator_note": "new"}})),
+            json!({"election_event_id": event_id, "attributes": {"operator_note": "new"}}), "Failed to update realm attributes"),
         ("/update-realm-password-policy", sequent_core::types::permissions::Permissions::ELECTION_EVENT_WRITE,
             password_policy_body(&event_id), "Failed to update realm password policy"),
     ] {
@@ -376,7 +376,7 @@ async fn public_realm_writers_report_identity_read_and_write_failures() {
     let client = services.client().await;
     for (route, permission, body, message) in [
         ("/update-realm-attributes", sequent_core::types::permissions::Permissions::KEYCLOAK_REALM_ATTRIBUTES_WRITE,
-            json!({"election_event_id": event.election_event_id, "attributes": {"operator_note": "new"}})),
+            json!({"election_event_id": event.election_event_id, "attributes": {"operator_note": "new"}}), "Failed to update realm attributes"),
         ("/update-realm-password-policy", sequent_core::types::permissions::Permissions::ELECTION_EVENT_WRITE,
             password_policy_body(&event.election_event_id), "Failed to update realm password policy"),
     ] {
