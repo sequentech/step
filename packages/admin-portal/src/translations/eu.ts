@@ -6076,6 +6076,8 @@ const basqueTranslation: TranslationType = {
             },
         },
         sentMessages: {
+            showMore: "Erakutsi gehiago",
+            showLess: "Erakutsi gutxiago",
             tab: "Bidalitako mezuak",
             accountsTab: "Kontuak",
             tabsLabel: "Mezularitzaren atalak",

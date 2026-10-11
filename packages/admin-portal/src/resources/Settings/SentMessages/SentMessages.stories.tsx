@@ -76,6 +76,61 @@ export const All: Story = {
     },
 }
 
+const FULL_TEXT =
+    "Voting is open.\n" +
+    "Please review every candidate before casting your ballot. ".repeat(20) +
+    "End of notification."
+const expandedMessages = sentMessages().map((message) =>
+    message.channel === EMessageChannel.SMS
+        ? {...message, content: {...message.content, text: FULL_TEXT}}
+        : message
+)
+
+export const ExpandMessage: Story = {
+    args: {messages: expandedMessages},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const row = canvas.getAllByRole("row").find((row) => row.textContent?.includes(SMS_VOTER))
+        if (!row) throw new Error("SMS row is missing")
+        const expand = within(row).getByRole("button", {name: "Show more"})
+        await userEvent.click(expand)
+        expect(expand).toHaveAttribute("aria-expanded", "true")
+        const details = canvas.getByRole("group", {name: "Message"})
+        expect(details).toHaveTextContent("End of notification.")
+        const text = within(details).getByText(/End of notification\./)
+        expect(text.textContent).toBe(FULL_TEXT)
+        expect(getComputedStyle(text).whiteSpace).toBe("pre-wrap")
+        if (window.innerWidth < 600) {
+            const bounds = text.getBoundingClientRect()
+            expect(bounds.left).toBeGreaterThanOrEqual(0)
+            expect(bounds.right).toBeLessThanOrEqual(window.innerWidth)
+        }
+        await userEvent.click(within(row).getByRole("button", {name: "Show less"}))
+        expect(canvas.queryByRole("group", {name: "Message"})).toBeNull()
+    },
+}
+
+export const ExpandMessagePhone: Story = {
+    ...ExpandMessage,
+    globals: {viewport: {value: "mobile1", isRotated: false}},
+}
+
+export const ExpandEmailAndTemplate: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const rows = canvas.getAllByRole("row")
+        const email = rows.find((row) => row.textContent?.includes(EMAIL_VOTER))
+        const whatsapp = rows.find((row) => row.textContent?.includes(WHATSAPP_CODE))
+        if (!email || !whatsapp) throw new Error("Email or WhatsApp row is missing")
+        await userEvent.click(within(email).getByRole("button", {name: "Show more"}))
+        expect(await canvas.findByTitle("Email content")).toHaveAttribute("sandbox", "")
+        await userEvent.click(within(whatsapp).getByRole("button", {name: "Show more"}))
+        const details = canvas.getAllByRole("group", {name: "Message"})
+        expect(within(details[1]).getByText(WHATSAPP_CODE, {exact: true})).toBeVisible()
+        expect(details[1]).toHaveTextContent("Template step_code (en)")
+    },
+}
+
 export const WhatsApp: Story = {
     args: {mode: EMessageChannel.WHATSAPP},
     play: async ({canvasElement}) => {
@@ -153,7 +208,7 @@ export const RefreshFailed: Story = {
 export const FluidDescription: Story = {
     play: async ({canvasElement}) => {
         const intro = await within(canvasElement).findByText(
-            /Messages the fake provider of this development stack received/
+            /Messages the demo provider of this development stack received/
         )
         const container = intro.parentElement as HTMLElement
         const originalWidth = container.style.width
