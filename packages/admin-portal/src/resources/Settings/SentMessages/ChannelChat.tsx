@@ -117,19 +117,46 @@ const CopyCodeButton: React.FC<{code: string}> = ({code}) => {
         }
     }
     return (
-        <Box sx={{display: "flex", flexDirection: "column", gap: 0.5}}>
+        <Box
+            sx={{
+                display: "flex",
+                flexDirection: "column",
+                mt: 1,
+                mx: -1.5,
+                mb: -1,
+                borderTop: "1px solid",
+                borderColor: lightGreen[300],
+                color: green[900],
+            }}
+        >
             <Button
+                fullWidth
                 size="small"
-                variant="outlined"
+                variant="text"
                 color="inherit"
                 startIcon={<ContentCopyIcon />}
                 onClick={copy}
-                sx={{bgcolor: "#fff", textTransform: "none"}}
+                sx={{
+                    "bgcolor": "transparent",
+                    "color": green[900],
+                    "border": 0,
+                    "minHeight": 40,
+                    "borderRadius": 0,
+                    "textTransform": "none",
+                    "&:hover": {
+                        bgcolor: lightGreen[200],
+                        color: green[900],
+                        border: 0,
+                        boxShadow: "none",
+                    },
+                    "&:focus": {bgcolor: "transparent", color: green[900], border: 0},
+                    "&:focus-visible": {outline: `2px solid ${green[900]}`, outlineOffset: -3},
+                }}
             >
                 {t("sentMessages.content.copyCode")}
             </Button>
             {copied === "IDLE" ? null : (
-                <Typography variant="caption" role="status">
+                <Typography variant="caption" role="status" sx={{px: 1.5, pb: 1}}>
                     {copied === "COPIED"
                         ? t("sentMessages.content.copied")
                         : t("sentMessages.content.copyFailed")}
@@ -186,7 +213,9 @@ const ChatBubble: React.FC<{
         >
             <Box
                 sx={{
-                    maxWidth: "85%",
+                    minWidth: content.template_name ? "85%" : undefined,
+                    maxWidth: "92%",
+                    overflow: "hidden",
                     bgcolor: theme.bubble,
                     color: theme.bubbleText,
                     borderRadius: channel === EMessageChannel.MESSENGER ? "18px" : "10px",
