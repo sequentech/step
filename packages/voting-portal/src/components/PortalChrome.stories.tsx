@@ -10,7 +10,7 @@ import {PreviewScreen} from "../preview/screens"
 import {PortalChrome} from "./PortalChrome"
 
 const changeContact = fn(async () => undefined)
-const LABEL = "Change how we contact you"
+const LABEL = "Contact method"
 function Fixture() {
     const auth = useContext(AuthContext)
     return (
@@ -20,6 +20,11 @@ function Fixture() {
                 isAuthenticated: true,
                 contactChangeAvailable: true,
                 changeContactChannel: changeContact,
+                firstName: "Demo voter",
+                username: "demo-voter",
+                email: "voter@example.test",
+                openProfileLink: async () => undefined,
+                logout: () => undefined,
             }}
         >
             <PortalChrome>
@@ -44,28 +49,37 @@ export default meta
 type Story = StoryObj<typeof meta>
 export const Desktop: Story = {
     play: async ({canvasElement}) => {
-        const button = within(canvasElement).getByRole("button", {name: LABEL})
-        expect(getComputedStyle(button).backgroundColor).toBe("rgba(0, 0, 0, 0)")
-        await userEvent.click(button)
+        expect(within(canvasElement).queryByRole("button", {name: LABEL})).toBeNull()
+        const trigger = canvasElement.querySelector<HTMLElement>(".profile-menu-button")
+        if (!trigger) throw new Error("User menu trigger is missing")
+        await userEvent.click(trigger)
+        const body = within(canvasElement.ownerDocument.body)
+        const menu = await body.findByRole("menu")
+        const item = within(menu).getByRole("menuitem", {name: LABEL})
+        expect(within(menu).queryByRole("button")).toBeNull()
+        expect(menu.querySelector(".user-details")).not.toHaveAttribute("role", "menuitem")
+        expect(menu.querySelector(".user-details")).not.toHaveAttribute("tabindex")
+        await userEvent.click(item)
         expect(changeContact).toHaveBeenCalledTimes(1)
+        await expect(body.queryByRole("menu")).toBeNull()
+        await userEvent.click(trigger)
+        await userEvent.click(body.getByRole("menuitem", {name: "Logout"}))
+        await expect(body.getByRole("dialog")).toHaveTextContent("Are you sure you want to logout?")
     },
 }
 export const Phone: Story = {
     globals: {viewport: {value: "mobile1", isRotated: false}},
     play: async ({canvasElement}) => {
-        const button = within(canvasElement).getByRole("button", {name: LABEL})
-        const icon = button.querySelector("svg")
-        if (!icon) throw new Error("Contact icon is missing")
-        const bounds = button.getBoundingClientRect()
-        const glyph = icon.getBoundingClientRect()
-        expect(bounds.width).toBeGreaterThanOrEqual(44)
-        expect(bounds.width).toBeLessThanOrEqual(48)
-        expect(Math.abs(glyph.x + glyph.width / 2 - bounds.x - bounds.width / 2)).toBeLessThan(1)
-        await userEvent.hover(button)
-        await expect(
-            await within(canvasElement.ownerDocument.body).findByRole("tooltip")
-        ).toHaveTextContent(LABEL)
-        await userEvent.click(button)
+        const trigger = canvasElement.querySelector<HTMLElement>(".profile-menu-button")
+        if (!trigger) throw new Error("User menu trigger is missing")
+        await userEvent.click(trigger)
+        const menu = await within(canvasElement.ownerDocument.body).findByRole("menu")
+        const item = within(menu).getByRole("menuitem", {name: LABEL})
+        const bounds = menu.getBoundingClientRect()
+        expect(bounds.x).toBeGreaterThanOrEqual(0)
+        expect(bounds.right).toBeLessThanOrEqual(window.innerWidth)
+        item.focus()
+        await userEvent.keyboard("{Enter}")
         expect(changeContact).toHaveBeenCalledTimes(1)
     },
 }
