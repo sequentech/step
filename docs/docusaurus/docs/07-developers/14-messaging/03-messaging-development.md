@@ -209,7 +209,17 @@ deletes the event only; the accounts, and the second tenant, stay.
 
 Both scenarios also seed **Demo notification** in Settings > Templates, with
 content for all five channels and `step_notice` as the approved provider template.
-Existing templates are kept. To send a manual demo notice, select a voter,
+The sample is a voting reminder with the voter's name, event name, portal URL,
+and sign-in security guidance. Setup upgrades only the unchanged template
+originally created by `demo-setup`, using a conditional update; administrator
+edits and other templates are kept. The instant-message parameters are the
+voter's first name, event name and portal URL, in that order. The demo chat
+viewer resolves the known `step_code` and `step_notice` examples into readable
+copy in the captured message's language; unknown provider templates retain
+their captured identifiers and parameters. Earlier two-parameter demo reminders
+remain readable without changing captured history.
+
+To send a manual demo notice, select a voter,
 open Send Notification, choose Demo notification and send. Sent messages shows
 what the local provider received; a notice refused before delivery appears in
 the event's Messaging failure count and Logs instead.
