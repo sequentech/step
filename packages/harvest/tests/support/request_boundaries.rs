@@ -225,10 +225,26 @@ fn status_failure(code: u16) -> Status {
 }
 
 async fn client() -> Client {
+    // Both guards verify the signed user fixtures before the service guard
+    // rejects them for not belonging to the service client.
+    let service_keys = std::sync::Arc::new(
+        crate::adapters::memory::service_keys::StaticServiceKeys::default(),
+    );
+    service_keys.publish(
+        &crate::route_services::service_tokens::realm(
+            route_permissions::UUID_TENANT_ID,
+        ),
+        crate::services::service_auth::parse_key_set(
+            &crate::test_claims::signing::key_set(),
+        ),
+    );
     // The production services as a deployment that leaves
     // MESSAGING_FAKE_PROVIDER_ROUTES unset has them, whatever the developer's
     // environment says: the fake provider routes have their own case.
     let services = crate::services::dependencies::HarvestServices {
+        service_keys: std::sync::Arc::new(
+            crate::services::service_auth::ServiceKeys::new(service_keys),
+        ),
         messaging_fake_provider_routes:
             crate::routes::fake_provider::FakeProviderRoutes::DISABLED,
         ..crate::services::dependencies::HarvestServices::production()
