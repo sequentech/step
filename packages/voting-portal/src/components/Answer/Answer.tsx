@@ -36,6 +36,7 @@ import {SettingsContext} from "../../providers/SettingsContextProvider"
 import {IDecodedVoteContest} from "sequent-core"
 import {provideBallotService} from "../../services/BallotService"
 import {writeInErrorId} from "../InvalidErrorsList/InvalidErrorsList"
+import {useCandidateSlateLabel} from "../../providers/BallotSlatesProvider"
 import {ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
 
 export interface IAnswerProps {
@@ -103,6 +104,7 @@ export const Answer: React.FC<IAnswerProps> = ({
     const imageUrl = getImageUrl(answer)
     const infoUrl = getLinkUrl(answer)
     const {i18n} = useTranslation()
+    const slateLabel = useCandidateSlateLabel(ballotStyle, contest, answer)
     const ballotService = provideBallotService()
     const isInvalidVote = useMemo(
         () => isInvalidVoteInput ?? checkIsInvalidVote(answer),
@@ -266,6 +268,7 @@ export const Answer: React.FC<IAnswerProps> = ({
             totalCandidates={totalCandidates}
             maxVotes={contest.max_votes}
             title={translate(answer, "name", i18n.language)}
+            subtitle={slateLabel}
             description={stringToHtml(translate(answer, "description", i18n.language) || "")}
             isSelectable={isSelectable}
             checked={isChecked()}
