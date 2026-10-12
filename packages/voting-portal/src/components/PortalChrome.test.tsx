@@ -57,6 +57,12 @@ jest.mock("@sequentech/ui-essentials", () => ({
     Footer: () => null,
     PageBanner: ({children}: React.PropsWithChildren) => <main>{children}</main>,
 }))
+jest.mock("../../../ui-essentials/src/components/Footer/Footer", () => ({
+    __esModule: true, default: () => null,
+}))
+jest.mock("../../../ui-essentials/src/components/PageBanner/PageBanner", () => ({
+    __esModule: true, default: ({children}: React.PropsWithChildren) => <main>{children}</main>,
+}))
 jest.mock("./WaterMark/Watermark", () => ({__esModule: true, default: () => null}))
 jest.mock("./ScreenAudioInstructions/ScreenAudioInstructions", () => ({
     ScreenAudioInstructions: () => null,

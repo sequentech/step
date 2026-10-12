@@ -27,10 +27,14 @@ const pendingTenantFilter = {
     _and: [
         {status: {_eq: "PENDING"}},
         {tenant_id: {_eq: "X-Hasura-Tenant-Id"}},
-        {election: {_or: [
-            {permission_label: {_is_null: true}},
-            {permission_label: {_in: "X-Hasura-Permission-Labels"}},
-        ]}},
+        {
+            election: {
+                _or: [
+                    {permission_label: {_is_null: true}},
+                    {permission_label: {_in: "X-Hasura-Permission-Labels"}},
+                ],
+            },
+        },
     ],
 }
 
