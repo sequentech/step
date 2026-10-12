@@ -559,7 +559,7 @@ type InsertCastVoteOutput {
   annotations: jsonb
   area_id: uuid!
   ballot_id: String
-  cast_ballot_signature: bytea!
+  cast_ballot_signature: bytea
   content: String
   created_at: timestamptz
   election_event_id: uuid!
