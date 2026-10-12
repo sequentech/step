@@ -180,12 +180,13 @@ jobs:
       - name: Build the sequent-core WebAssembly package
         uses: ./.github/actions/build-sequent-core-wasm
 
-      - name: Upload the package
-        uses: actions/upload-artifact@v4
+      # The test jobs receive the package through the Actions cache rather than
+      # an artifact, so the account's artifact storage quota cannot block them.
+      - name: Save the package for the test jobs
+        uses: actions/cache/save@v4
         with:
-          name: sequent-core-wasm
           path: packages/sequent-core/pkg
-          retention-days: 1
+          key: sequent-core-wasm-pkg-${{ github.run_id }}
 
   run-frontend-tests:
     name: Run frontend tests
@@ -220,11 +221,12 @@ jobs:
           cache: yarn
           cache-dependency-path: packages/yarn.lock
 
-      - name: Download the sequent-core WebAssembly package
-        uses: actions/download-artifact@v4
+      - name: Restore the sequent-core WebAssembly package
+        uses: actions/cache/restore@v4
         with:
-          name: sequent-core-wasm
           path: packages/sequent-core/pkg
+          key: sequent-core-wasm-pkg-${{ github.run_id }}
+          fail-on-cache-miss: true
 
       - name: Place it where the workspace packages expect it
         working-directory: packages
