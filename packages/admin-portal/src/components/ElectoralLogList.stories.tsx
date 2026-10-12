@@ -214,8 +214,17 @@ async function exportAs(canvasElement: HTMLElement, format: "CSV" | "PDF") {
     return dialog
 }
 
+const ledgerReads = [
+    {
+        name: "GetLedgerMessageStates",
+        variables: {tenantId: STORY_IDS.tenant, ids: [MESSAGE_ID]},
+        headers: {"x-hasura-role": "messaging-config-read"},
+    },
+]
+
 /** Without a range, the whole log in the event's primary zone (UTC without zones). */
 const exported = (electionEventId: string, format: string) => [
+    ...ledgerReads,
     {
         name: "ExportElectionEventLogs",
         variables: {electionEventId, format, createdFrom: null, createdTo: null, timeZone: "UTC"},
@@ -244,7 +253,7 @@ export const Populated: Story = {
                 sort: {field: "id", order: "DESC"},
             }),
         ])
-        expect(graphql.calls).toEqual([])
+        await waitFor(() => expect(graphql.calls).toEqual(ledgerReads))
     },
 }
 
@@ -392,7 +401,7 @@ export const ExportAsCsv: Story = {
         const dialog = await exportAs(canvasElement, "CSV")
         const title = dialog.getByText("Export logs")
         await waitFor(() => expect(title).toBeVisible())
-        expect(graphql.calls).toEqual([])
+        await waitFor(() => expect(graphql.calls).toEqual(ledgerReads))
         await userEvent.click(dialog.getByRole("button", {name: "Export"}))
         await waitFor(() => expect(graphql.calls).toEqual(exported(EVENT_ID, "CSV")))
     },
@@ -405,7 +414,7 @@ export const CancelThePdfExport: Story = {
         await waitFor(() => expect(title).toBeVisible())
         await userEvent.click(dialog.getByRole("button", {name: "Cancel"}))
         await waitFor(() => expect(within(document.body).queryByRole("dialog")).toBeNull())
-        expect(graphql.calls).toEqual([])
+        await waitFor(() => expect(graphql.calls).toEqual(ledgerReads))
     },
 }
 
