@@ -53,7 +53,7 @@ const Row: React.FC = () => {
 
 const meta = {
     title: "Admin/Logs/LedgerStatusField",
-    component: LedgerStatusField,
+    component: LedgerStates,
     args: {roles: ["logs-read", "messaging-config-read"], current: EMessageAttemptState.FAILED},
     beforeEach: async ({args}) => {
         // The messaging operations are not in the generated schema yet.
@@ -89,7 +89,7 @@ type Story = StoryObj<Scenario>
 
 /** Logged as accepted, failed since: the column shows the current state. */
 export const CurrentStateFromTheLedger: Story = {
-    parameters: {widgets: ["LedgerStates"]},
+    parameters: {widgets: ["LedgerStatusField"]},
     play: async ({canvasElement}) => {
         await expect(await within(canvasElement).findByText("Failed")).toBeVisible()
         expect(graphql.calls).toEqual([
