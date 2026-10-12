@@ -481,10 +481,21 @@ const dutchTranslation: TranslationType = {
                 replaceDialog: {
                     title: "Uw huidige keuzes vervangen?",
                     content:
-                        "Als u {{slate}} kiest, worden uw keuzes in de onderstaande verkiezingen vervangen. Uw andere keuzes blijven ongewijzigd.",
+                        "Als u {{slate}} kiest, wordt uw hele stembiljet gevuld met de kandidaten van die lijst. Verkiezingen waarin de lijst geen kandidaat heeft, blijven leeg. Deze keuzes veranderen:",
                     removed: "Verwijderd:",
                     added: "In plaats daarvan geselecteerd:",
                     ok: "Keuzes vervangen",
+                    cancel: "Mijn keuzes behouden",
+                },
+            },
+            clear: {
+                button: "Selecties wissen",
+                cleared: "Al uw keuzes zijn gewist.",
+                dialog: {
+                    title: "Al uw keuzes wissen?",
+                    content:
+                        "Wissen verwijdert alle keuzes op uw stembiljet. Deze keuzes worden verwijderd:",
+                    ok: "Keuzes wissen",
                     cancel: "Mijn keuzes behouden",
                 },
             },

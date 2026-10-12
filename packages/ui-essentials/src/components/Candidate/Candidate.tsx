@@ -48,7 +48,7 @@ export const BorderBox = styled("li")<{
     border-radius: 10px;
     break-inside: avoid;
     padding: 8px;
-    height: 64px;
+    min-height: 64px;
     display: flex;
     flex-direction: row;
     gap: 10px;
@@ -220,7 +220,12 @@ const Candidate: React.FC<CandidateProps> = ({
             className={`candidate-item ${className}`}
         >
             <ImageBox className="image-box">{children}</ImageBox>
-            <Box className="candidate-text" flexGrow={2}>
+            <Box
+                className="candidate-text"
+                flexGrow={2}
+                minWidth={0}
+                sx={{overflowWrap: "anywhere"}}
+            >
                 <UnselectableTypography
                     className="candidate-title"
                     id={nameId}
@@ -246,16 +251,18 @@ const Candidate: React.FC<CandidateProps> = ({
                         {subtitle}
                     </UnselectableTypography>
                 ) : null}
-                <UnselectableTypography
-                    className="candidate-description"
-                    component="div"
-                    color={theme.palette.customGrey.dark}
-                    fontSize="16px"
-                    marginTop="4px"
-                    marginBottom="4px"
-                >
-                    {description}
-                </UnselectableTypography>
+                {description ? (
+                    <UnselectableTypography
+                        className="candidate-description"
+                        component="div"
+                        color={theme.palette.customGrey.dark}
+                        fontSize="16px"
+                        marginTop="4px"
+                        marginBottom="4px"
+                    >
+                        {description}
+                    </UnselectableTypography>
+                ) : null}
                 {isWriteIn ? (
                     <Box className="candidate-write-in">
                         <VisuallyHidden className="candidate-write-in-label" id={writeInLabelId}>

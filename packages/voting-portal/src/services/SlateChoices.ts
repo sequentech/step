@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {applySlate, BallotSelection, ISlate, ISlateProblem} from "@sequentech/ui-core"
+import {applySlate, BallotSelection, IContest, ISlate, ISlateProblem} from "@sequentech/ui-core"
 import {exceedsMaximum} from "./SelectionLimits"
 import type {IResolvedSlate, ISlateContest} from "./Slates"
 
@@ -47,14 +47,15 @@ export class SlateOverMaximumError extends SlateChoicesError {
 /**
  * The ballot that choosing a slate produces, and what it changes.
  *
- * The rule is sequent-core's: in each contest the slate covers, its candidates
- * replace the current marks, and contests it does not cover keep their choices.
- * The result is an ordinary selection, the same one marking those candidates
- * by hand gives. A slate that cannot be applied in full throws and applies
- * nothing.
+ * The rule is sequent-core's: every contest of the ballot ends with exactly
+ * the slate's candidates, and a contest the slate has no candidate in is left
+ * blank. Acclaimed contests keep their entries. The result is an ordinary
+ * selection, the same one marking those candidates by hand gives. A slate
+ * that cannot be applied in full throws and applies nothing.
  */
 export const computeSlateChoices = (
     slate: IResolvedSlate,
+    contests: Array<IContest>,
     current: BallotSelection
 ): ISlateChoices => {
     const members: ISlate["members"] = {}
@@ -71,15 +72,18 @@ export const computeSlateChoices = (
     try {
         const {selection, changes} = applySlate(
             {id: slate.id, name: slate.name, members},
-            slate.contests.map(({contest}) => contest),
+            contests,
             current
         )
-        const covered = new Set(Object.keys(members))
+        const marked = new Set([
+            ...Object.keys(members),
+            ...changes.map((change) => change.contest_id),
+        ])
         return {
             // Choices exactly as the voting screen writes them when a candidate
             // is marked by hand.
             selection: selection.map((contest) =>
-                covered.has(contest.contest_id)
+                marked.has(contest.contest_id)
                     ? {
                           ...contest,
                           choices: contest.choices.map(({id, selected}) => ({id, selected})),

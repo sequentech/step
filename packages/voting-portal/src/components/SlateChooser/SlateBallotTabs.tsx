@@ -83,7 +83,12 @@ export const SlateBallotTabs: React.FC<SlateBallotTabsProps> = ({
                         value={ESlateBallotTab.SLATES}
                         id={tabId(ESlateBallotTab.SLATES)}
                         aria-controls={panelId(ESlateBallotTab.SLATES)}
-                        sx={{minHeight: "44px", textTransform: "none"}}
+                        sx={{
+                            minHeight: "44px",
+                            minWidth: 0,
+                            textTransform: "none",
+                            overflowWrap: "anywhere",
+                        }}
                     />
                     <Tab
                         className="slate-ballot-tab-candidates"
@@ -91,7 +96,12 @@ export const SlateBallotTabs: React.FC<SlateBallotTabsProps> = ({
                         value={ESlateBallotTab.CANDIDATES}
                         id={tabId(ESlateBallotTab.CANDIDATES)}
                         aria-controls={panelId(ESlateBallotTab.CANDIDATES)}
-                        sx={{minHeight: "44px", textTransform: "none"}}
+                        sx={{
+                            minHeight: "44px",
+                            minWidth: 0,
+                            textTransform: "none",
+                            overflowWrap: "anywhere",
+                        }}
                     />
                 </Tabs>
             </Box>

@@ -114,6 +114,8 @@ export interface ISlateChooserProps {
     ) => React.ReactNode
     /** What a voter can do with the slate. */
     renderActions?: (slate: IResolvedSlate) => React.ReactNode
+    /** What a voter can do with the whole ballot, under the slates. */
+    footer?: React.ReactNode
 }
 
 /**
@@ -127,6 +129,7 @@ export const SlateChooser: React.FC<ISlateChooserProps> = ({
     renderMemberLists,
     renderMember,
     renderActions,
+    footer,
 }) => {
     const {t, i18n} = useTranslation()
     const id = useId()
@@ -274,6 +277,7 @@ export const SlateChooser: React.FC<ISlateChooserProps> = ({
                     )
                 })}
             </SlateList>
+            {footer}
         </Box>
     )
 }

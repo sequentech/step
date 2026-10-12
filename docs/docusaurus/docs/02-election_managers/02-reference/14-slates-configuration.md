@@ -41,13 +41,30 @@ A slate that covers only some contests, or lists fewer candidates than a contest
 
 ---
 
+## Listing order
+
+Election rules often require a fixed listing: full slates first, then partial slates, then independent candidates, with the order among full slates and among partial slates drawn by lot. The configuration expresses it in two places:
+
+- **The order of the `slates` array** is the order of the slate cards: left to right on wide screens, top to bottom on phones. List the full slates first, in the drawn order, then the partial slates.
+- **Each contest's candidate order** is the order of the individual candidates. In the contest's **Ballot Design**, set the candidate order to **Custom** and use **Reorder candidates** to list the candidates of the first slate first, then those of the next slate, and the independent candidates last.
+
+The Admin Portal shows a warning, and still saves the configuration, when:
+
+- a partial slate is listed before a full slate;
+- in a contest, an independent candidate is listed before a slate member, or members of a later slate are listed before those of an earlier one, in the order the voter sees (alphabetical or custom);
+- a contest with slate members shows its candidates in random order, so the listing cannot be guaranteed.
+
+Whether a slate is full or partial is derived from the Election's contests as described in [Named Slates](./13-named-slates.md#complete-and-partial-slates). The warnings are advice: the platform does not impose a listing order.
+
+---
+
 ## When it is checked
 
 The same rules apply at every step, so a configuration cannot pass one and fail the next:
 
 | Step | What happens on a problem |
 | --- | --- |
-| Saving the Election in the Admin Portal | The field shows every problem and the Election is not saved. |
+| Saving the Election in the Admin Portal | The field shows every problem and the Election is not saved. Listing order warnings are shown separately and do not prevent saving. |
 | Importing an Election Event | The import is refused and reports the problems. Contest and candidate identifiers inside the configuration are regenerated together with the rest of the Election Event, so imported slates keep pointing at the imported candidates. |
 | Generating a ballot publication | The generation task fails with the problems. The configuration is checked against the whole Election first and then against each area's ballot. |
 | Publishing a generated publication | Publishing is rejected with the problems. This also covers publications generated before an upgrade. |

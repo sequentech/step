@@ -111,16 +111,25 @@ export const get_ballot_style_slates_coverage_js = (ballotStyle: unknown): unkno
 interface StubChoice {
     id: string
     selected: number
+    write_in_text?: string | null
 }
 interface StubDecodedContest {
     contest_id: string
     is_explicit_invalid: boolean
+    invalid_errors: Array<unknown>
+    invalid_alerts: Array<unknown>
     choices: Array<StubChoice>
 }
 interface StubContest {
     id: string
     max_votes: number
+    is_acclaimed?: boolean | null
     candidates: Array<{id: string; presentation?: {is_explicit_invalid?: boolean} | null}>
+}
+interface StubContestChange {
+    contest_id: string
+    added: Array<string>
+    removed: Array<string>
 }
 
 const slateProblem = (code: string, contestId: string, message: string) => ({
@@ -130,23 +139,54 @@ const slateProblem = (code: string, contestId: string, message: string) => ({
     message,
 })
 
+/** The marks of a contest, with its explicit invalid option when it is marked. */
+const selectedIds = (contest: StubContest, entry: StubDecodedContest): Array<string> => {
+    const ids = entry.choices.filter((choice) => choice.selected > -1).map((choice) => choice.id)
+    const invalidCandidate = contest.candidates.find(
+        (candidate) => candidate.presentation?.is_explicit_invalid
+    )
+    if (entry.is_explicit_invalid && invalidCandidate && !ids.includes(invalidCandidate.id)) {
+        ids.push(invalidCandidate.id)
+    }
+    return ids
+}
+
+const markOnly = (entry: StubDecodedContest, memberIds: Set<string>): void => {
+    Object.assign(entry, {
+        is_explicit_invalid: false,
+        invalid_errors: [],
+        invalid_alerts: [],
+        choices: entry.choices.map((choice) => ({
+            id: choice.id,
+            selected: memberIds.has(choice.id) ? 0 : -1,
+            write_in_text: null,
+        })),
+    })
+}
+
 /**
- * Choosing a slate: in each contest the slate lists, its candidates replace the
- * current marks; the other contests keep their choices. It carries the rule
- * because the chooser's confirmation and the reducer are only observable
- * through its result.
+ * Choosing a slate: every contest of the ballot ends with exactly the slate's
+ * candidates, blank where it has none. Acclaimed contests and contests outside
+ * the ballot keep their entries. It carries the rule because the chooser's
+ * confirmation and the reducer are only observable through its result.
  */
 export const apply_slate_js = (slateJson: unknown, contestsJson: unknown, currentJson: unknown) => {
     const slate = slateJson as {id: string; members: Record<string, Array<string>>}
     const contests = contestsJson as Array<StubContest>
     const selection = structuredClone(currentJson) as Array<StubDecodedContest>
     const problems: Array<ReturnType<typeof slateProblem>> = []
-    const changes: Array<{contest_id: string; added: Array<string>; removed: Array<string>}> = []
+    const changes: Array<StubContestChange> = []
     let covered = 0
 
-    for (const contest of contests) {
+    for (const contest of contests.filter((entry) => !entry.is_acclaimed)) {
         const members = slate.members[contest.id]
         if (members === undefined) {
+            const entry = selection.find((item) => item.contest_id === contest.id)
+            const removed = entry ? selectedIds(contest, entry) : []
+            if (entry && removed.length > 0) {
+                markOnly(entry, new Set())
+                changes.push({contest_id: contest.id, added: [], removed})
+            }
             continue
         }
         covered += 1
@@ -211,33 +251,12 @@ export const apply_slate_js = (slateJson: unknown, contestsJson: unknown, curren
         const wasSelected = new Set(
             entry.choices.filter((choice) => choice.selected > -1).map((choice) => choice.id)
         )
-        const removed = entry.choices
-            .filter((choice) => wasSelected.has(choice.id) && !memberIds.has(choice.id))
-            .map((choice) => choice.id)
-        const invalidCandidate = contest.candidates.find(
-            (candidate) => candidate.presentation?.is_explicit_invalid
-        )
-        if (
-            entry.is_explicit_invalid &&
-            invalidCandidate &&
-            !removed.includes(invalidCandidate.id)
-        ) {
-            removed.push(invalidCandidate.id)
-        }
         const added = members.filter((member) => !wasSelected.has(member))
+        const removed = selectedIds(contest, entry).filter((id) => !memberIds.has(id))
+        markOnly(entry, memberIds)
         if (added.length > 0 || removed.length > 0) {
             changes.push({contest_id: contest.id, added, removed})
         }
-        Object.assign(entry, {
-            is_explicit_invalid: false,
-            invalid_errors: [],
-            invalid_alerts: [],
-            choices: entry.choices.map((choice) => ({
-                id: choice.id,
-                selected: memberIds.has(choice.id) ? 0 : -1,
-                write_in_text: null,
-            })),
-        })
     }
 
     if (covered === 0) {

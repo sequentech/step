@@ -15,6 +15,7 @@ const SummaryBox = styled("section")(({theme}) => ({
     borderRadius: "8px",
     border: `1px solid ${theme.palette.customGrey.light}`,
     backgroundColor: theme.palette.lightBackground,
+    overflowWrap: "anywhere",
 }))
 
 const SummaryList = styled("ul")({

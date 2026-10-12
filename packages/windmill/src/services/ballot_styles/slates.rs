@@ -293,6 +293,34 @@ mod tests {
     }
 
     #[test]
+    fn listing_order_warnings_do_not_block_publication() {
+        let mut contests = contests();
+        let trustees = contests
+            .iter_mut()
+            .find(|contest| contest.id == TRUSTEES)
+            .unwrap();
+        trustees.presentation = Some(json!({"candidates_order": "random"}));
+        let annotations = json!({SLATES_ANNOTATION: slates().to_string()});
+        let elections = elections(annotations);
+        let problems = check_election(
+            &elections[ELECTION],
+            &contests,
+            &candidates(),
+            &slates_path(ELECTION),
+        );
+        assert!(!problems.is_empty());
+        assert!(problems.iter().all(|problem| !problem.is_error()));
+
+        assert!(validate_elections_slates(
+            &[ELECTION.to_string()],
+            &elections,
+            &contests,
+            &candidates()
+        )
+        .is_ok());
+    }
+
+    #[test]
     fn generation_rejects_a_missing_candidate() {
         let mut slates = slates();
         slates["slates"][0]["members"][TRUSTEES] = json!(["trustee-gone"]);

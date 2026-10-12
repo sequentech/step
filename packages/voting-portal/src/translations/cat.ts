@@ -483,10 +483,21 @@ const catalanTranslation: TranslationType = {
                 replaceDialog: {
                     title: "Vols substituir les teves opcions actuals?",
                     content:
-                        "Triar {{slate}} substitueix les teves opcions a les conteses següents. La resta de les teves opcions no canvia.",
+                        "Triar {{slate}} fixa tota la teva papereta amb els seus candidats. Les conteses on no té candidats queden en blanc. Aquestes opcions canvien:",
                     removed: "Es treu:",
                     added: "Se selecciona en el seu lloc:",
                     ok: "Substitueix les opcions",
+                    cancel: "Mantén les meves opcions",
+                },
+            },
+            clear: {
+                button: "Esborra les seleccions",
+                cleared: "S'han esborrat totes les teves opcions.",
+                dialog: {
+                    title: "Vols esborrar totes les teves opcions?",
+                    content:
+                        "Esborrar treu totes les opcions de la teva papereta. Es treuen aquestes opcions:",
+                    ok: "Esborra les opcions",
                     cancel: "Mantén les meves opcions",
                 },
             },

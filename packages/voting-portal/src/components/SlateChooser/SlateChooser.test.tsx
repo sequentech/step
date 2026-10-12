@@ -152,6 +152,18 @@ describe("the offices of the slates on a phone", () => {
 
         expect(officeOf("Forward Together", "trustees").style.gridRow).toBe("")
     })
+
+    it("list the slates top to bottom in the configured order", () => {
+        mount()
+
+        const cards = Array.from(
+            document.querySelectorAll<HTMLElement>(".slate-list > .slate-card")
+        )
+        expect(cards.map((card) => card.dataset.slateId)).toEqual(
+            SLATES.slates.map((slate) => slate.id)
+        )
+        expect(cards.every((card) => card.style.gridRow === "")).toBe(true)
+    })
 })
 
 describe("the names of the slates", () => {

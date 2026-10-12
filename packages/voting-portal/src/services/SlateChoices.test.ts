@@ -45,11 +45,13 @@ const selectedIds = (selection: BallotSelection, contestId: string): string[] =>
 
 describe("computeSlateChoices", () => {
     const ballot = buildSlatesBallot()
+    const CONTESTS = ballot.contests
     const forward = buildSlate(ballot, "forward")
     const voices = buildSlate(ballot, "independent-voices")
+    const members = buildSlate(ballot, "members-first")
 
     it("selects every member of a full slate and nothing else", () => {
-        const result = computeSlateChoices(forward, emptySelection(ballot))
+        const result = computeSlateChoices(forward, CONTESTS, emptySelection(ballot))
         expect(selectedIds(result.selection, PRESIDENT)).toEqual(["p-forward"])
         expect(selectedIds(result.selection, SECRETARY)).toEqual(["s-forward"])
         expect(selectedIds(result.selection, TRUSTEES)).toEqual([
@@ -72,23 +74,58 @@ describe("computeSlateChoices", () => {
     it("does not change the selection it was given", () => {
         const current = emptySelection(ballot)
         const before = structuredClone(current)
-        computeSlateChoices(forward, current)
+        computeSlateChoices(forward, CONTESTS, current)
         expect(current).toEqual(before)
     })
 
-    it("leaves contests a partial slate does not cover untouched", () => {
+    it("leaves the contests a partial slate does not cover blank", () => {
         const current = select(emptySelection(ballot), PRESIDENT, ["p-independent"])
-        const result = computeSlateChoices(voices, current)
-        expect(selectedIds(result.selection, PRESIDENT)).toEqual(["p-independent"])
+        const result = computeSlateChoices(voices, CONTESTS, current)
+        expect(selectedIds(result.selection, PRESIDENT)).toEqual([])
         expect(selectedIds(result.selection, SECRETARY)).toEqual([])
         expect(selectedIds(result.selection, TRUSTEES)).toEqual(["t-voices-1", "t-voices-2"])
+        expect(result.changes).toEqual([
+            {contestId: PRESIDENT, added: [], removed: ["p-independent"]},
+            {contestId: TRUSTEES, added: ["t-voices-1", "t-voices-2"], removed: []},
+        ])
+        expect(slateRemovesChoices(result)).toBe(true)
+    })
+
+    it("removes nothing when a partial slate is chosen on an empty ballot", () => {
+        const result = computeSlateChoices(voices, CONTESTS, emptySelection(ballot))
         expect(result.changes.map((change) => change.contestId)).toEqual([TRUSTEES])
+        expect(slateRemovesChoices(result)).toBe(false)
+    })
+
+    it("keeps nothing of a slate chosen before", () => {
+        const first = computeSlateChoices(forward, CONTESTS, emptySelection(ballot)).selection
+        const afterMembers = computeSlateChoices(members, CONTESTS, first)
+        expect(selectedIds(afterMembers.selection, PRESIDENT)).toEqual(["p-members"])
+        expect(selectedIds(afterMembers.selection, SECRETARY)).toEqual(["s-members"])
+        expect(selectedIds(afterMembers.selection, TRUSTEES)).toEqual([
+            "t-members-1",
+            "t-members-2",
+            "t-members-3",
+        ])
+        const afterVoices = computeSlateChoices(voices, CONTESTS, first)
+        expect(selectedIds(afterVoices.selection, PRESIDENT)).toEqual([])
+        expect(selectedIds(afterVoices.selection, SECRETARY)).toEqual([])
+        expect(selectedIds(afterVoices.selection, TRUSTEES)).toEqual(["t-voices-1", "t-voices-2"])
+    })
+
+    it("leaves an acclaimed contest as it is", () => {
+        const contests = CONTESTS.map((contest) =>
+            contest.id === SECRETARY ? {...contest, is_acclaimed: true} : contest
+        )
+        const current = select(emptySelection(ballot), SECRETARY, ["s-members"])
+        const result = computeSlateChoices(voices, contests, current)
+        expect(selectedIds(result.selection, SECRETARY)).toEqual(["s-members"])
     })
 
     it("replaces the marks of covered contests so no contest exceeds its maximum", () => {
         let current = select(emptySelection(ballot), PRESIDENT, ["p-independent"])
         current = select(current, TRUSTEES, ["t-independent", "t-members-1", "t-forward-1"])
-        const result = computeSlateChoices(forward, current)
+        const result = computeSlateChoices(forward, CONTESTS, current)
         for (const contest of ballot.contests) {
             expect(selectedIds(result.selection, contest.id).length).toBeLessThanOrEqual(
                 contest.max_votes
@@ -108,8 +145,8 @@ describe("computeSlateChoices", () => {
     })
 
     it("reports no change for contests that already match the slate", () => {
-        const applied = computeSlateChoices(forward, emptySelection(ballot)).selection
-        expect(computeSlateChoices(forward, applied).changes).toEqual([])
+        const applied = computeSlateChoices(forward, CONTESTS, emptySelection(ballot)).selection
+        expect(computeSlateChoices(forward, CONTESTS, applied).changes).toEqual([])
     })
 
     it("drops the text of a write-in it deselects", () => {
@@ -125,7 +162,7 @@ describe("computeSlateChoices", () => {
                   }
                 : contest
         )
-        const president = computeSlateChoices(forward, current).selection.find(
+        const president = computeSlateChoices(forward, CONTESTS, current).selection.find(
             (contest) => contest.contest_id === PRESIDENT
         )
         expect(president?.choices).toEqual([
@@ -143,7 +180,7 @@ describe("computeSlateChoices", () => {
             is_blank_ballot: true,
             invalid_errors: [{message: "errors.implicit.underVote"}],
         })) as BallotSelection
-        const result = computeSlateChoices(voices, current)
+        const result = computeSlateChoices(voices, CONTESTS, current)
         const trustees = result.selection.find((contest) => contest.contest_id === TRUSTEES)
         expect(trustees?.is_explicit_invalid).toBe(false)
         expect(trustees?.invalid_errors).toEqual([])
@@ -164,7 +201,11 @@ describe("computeSlateChoices", () => {
         const current = emptySelection(invalidBallot).map((contest) =>
             contest.contest_id === PRESIDENT ? {...contest, is_explicit_invalid: true} : contest
         )
-        const result = computeSlateChoices(buildSlate(invalidBallot, "forward"), current)
+        const result = computeSlateChoices(
+            buildSlate(invalidBallot, "forward"),
+            invalidBallot.contests,
+            current
+        )
         expect(result.changes[0]).toEqual({
             contestId: PRESIDENT,
             added: ["p-forward"],
@@ -176,28 +217,34 @@ describe("computeSlateChoices", () => {
         const withoutContest = emptySelection(ballot).filter(
             (contest) => contest.contest_id !== TRUSTEES
         )
-        expect(() => computeSlateChoices(forward, withoutContest)).toThrow(SlateChoicesError)
+        expect(() => computeSlateChoices(forward, CONTESTS, withoutContest)).toThrow(
+            SlateChoicesError
+        )
         const withoutChoice = emptySelection(ballot).map((contest) => ({
             ...contest,
             choices: contest.choices.filter((choice) => choice.id !== "p-forward"),
         }))
-        expect(() => computeSlateChoices(forward, withoutChoice)).toThrow(SlateChoicesError)
+        expect(() => computeSlateChoices(forward, CONTESTS, withoutChoice)).toThrow(
+            SlateChoicesError
+        )
     })
 
     it("refuses a slate that would exceed a contest's maximum", () => {
         const overCapacity = structuredClone(forward)
         overCapacity.contests[2].contest.max_votes = 2
-        expect(() => computeSlateChoices(overCapacity, emptySelection(ballot))).toThrow(
+        expect(() => computeSlateChoices(overCapacity, CONTESTS, emptySelection(ballot))).toThrow(
             SlateChoicesError
         )
     })
 
     it("refuses a slate with nothing to select or the same candidate twice", () => {
         const empty = {...forward, contests: []}
-        expect(() => computeSlateChoices(empty, emptySelection(ballot))).toThrow(SlateChoicesError)
+        expect(() => computeSlateChoices(empty, CONTESTS, emptySelection(ballot))).toThrow(
+            SlateChoicesError
+        )
         const repeated = structuredClone(buildSlate(ballot, "independent-voices"))
         repeated.contests[0].candidates.push(repeated.contests[0].candidates[0])
-        expect(() => computeSlateChoices(repeated, emptySelection(ballot))).toThrow(
+        expect(() => computeSlateChoices(repeated, CONTESTS, emptySelection(ballot))).toThrow(
             SlateChoicesError
         )
     })

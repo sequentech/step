@@ -19,6 +19,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 pub mod coverage;
 mod election;
+pub mod order;
 pub mod problem;
 pub mod selection;
 
@@ -32,6 +33,7 @@ pub use election::{
     check_ballot_style_config, check_default_language_names, check_election,
     check_membership_policies, election_contests, InvalidSlates,
 };
+pub use order::check_listing_order;
 
 /// The election annotation holding the slate configuration.
 pub const SLATES_ANNOTATION: &str = "sequent.slates";

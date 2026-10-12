@@ -481,10 +481,21 @@ const tagalogTranslation: TranslationType = {
                 replaceDialog: {
                     title: "Palitan ang iyong kasalukuyang mga pinili?",
                     content:
-                        "Kapag pinili ang {{slate}}, mapapalitan ang iyong mga pinili sa mga paligsahan sa ibaba. Hindi magbabago ang iba mo pang pinili.",
+                        "Kapag pinili ang {{slate}}, ang buong balota mo ay mapupunan ng mga kandidato nito. Mananatiling blangko ang mga paligsahang walang kandidato nito. Magbabago ang mga piniling ito:",
                     removed: "Aalisin:",
                     added: "Pipiliin bilang kapalit:",
                     ok: "Palitan ang mga pinili",
+                    cancel: "Panatilihin ang aking mga pinili",
+                },
+            },
+            clear: {
+                button: "I-clear ang mga pinili",
+                cleared: "Na-clear na ang lahat ng iyong pinili.",
+                dialog: {
+                    title: "I-clear ang lahat ng iyong pinili?",
+                    content:
+                        "Aalisin ng pag-clear ang lahat ng pinili sa iyong balota. Aalisin ang mga piniling ito:",
+                    ok: "I-clear ang mga pinili",
                     cancel: "Panatilihin ang aking mga pinili",
                 },
             },

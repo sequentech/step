@@ -12,6 +12,7 @@ import {
 } from "@sequentech/ui-core"
 import {IBallotStyle} from "../ballotStyles/ballotStylesSlice"
 import {computeSlateChoices} from "../../services/SlateChoices"
+import {computeClearChoices} from "../../services/ClearSelections"
 import {
     countSelections,
     exceedsMaximum,
@@ -325,11 +326,26 @@ export const ballotSelectionsSlice = createSlice({
             try {
                 state[action.payload.ballotStyle.election_id] = computeSlateChoices(
                     action.payload.slate,
+                    action.payload.ballotStyle.ballot_eml.contests,
                     current(currentElection)
                 ).selection
             } catch (error) {
                 console.log(`Error applying slate: ${error}`)
             }
+            return state
+        },
+        clearBallotSelectionChoices: (
+            state,
+            action: PayloadAction<{ballotStyle: IBallotStyle}>
+        ): BallotSelectionsState => {
+            const currentElection = state[action.payload.ballotStyle.election_id]
+            if (isUndefined(currentElection)) {
+                return state
+            }
+            state[action.payload.ballotStyle.election_id] = computeClearChoices(
+                action.payload.ballotStyle.ballot_eml.contests,
+                current(currentElection)
+            ).selection
             return state
         },
         setAllBallotSelectionsDeclineToVote: (
@@ -401,6 +417,7 @@ export const {
     setBallotSelectionBlankVote,
     setBallotSelectionVoteChoice,
     applySlateSelection,
+    clearBallotSelectionChoices,
     setAllBallotSelectionsDeclineToVote,
     setAllBallotSelectionsBlankBallot,
 } = ballotSelectionsSlice.actions

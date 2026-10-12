@@ -315,9 +315,9 @@ describe("contest external-ID CSS hooks", () => {
     it.each(["vote", "review"])(
         "preserves legacy classes and sanitizes external IDs on %s",
         (path) => {
-            const contests = mockState.ballotStyles["election-1"].ballot_eml.contests
+            const contests = mockState.ballotStyles["election-1"]!.ballot_eml.contests
             const externalIds = ["1001", " A /B_2- ", undefined, null, "", " / ", "x".repeat(50)]
-            mockState.ballotStyles["election-1"].ballot_eml.contests = externalIds.map(
+            mockState.ballotStyles["election-1"]!.ballot_eml.contests = externalIds.map(
                 (external_id, index) => ({
                     ...contests[0],
                     id: `imported-${index}`,
@@ -342,7 +342,7 @@ describe("contest external-ID CSS hooks", () => {
     )
 
     it("keeps external IDs across voting pages and reordered review contests", async () => {
-        const contests = mockState.ballotStyles["election-1"].ballot_eml.contests
+        const contests = mockState.ballotStyles["election-1"]!.ballot_eml.contests
         Object.assign(contests[0], {external_id: "1001"})
         Object.assign(contests[1], {external_id: "1002"})
         const vote = renderRoute(<VotingScreen />, "vote")
@@ -1039,6 +1039,15 @@ describe("slate ballot tabs", () => {
         expect(container.querySelector(".slate-ballot-panel-candidates")).toHaveAttribute("hidden")
     })
 
+    it("lets long tab labels wrap instead of overflowing", () => {
+        configureSlate()
+        renderRoute(<VotingScreen />, "vote")
+
+        for (const tab of screen.getAllByRole("tab")) {
+            expect(getComputedStyle(tab)).toHaveProperty("overflowWrap", "anywhere")
+        }
+    })
+
     it("shows the contests when the voter picks the individual candidates", async () => {
         configureSlate()
         const {container} = renderRoute(<VotingScreen />, "vote")
@@ -1093,6 +1102,39 @@ describe("slate ballot tabs", () => {
         await userEvent.setup().click(screen.getByRole("button", {name: "slates.selection.edit"}))
 
         expect(selectedTab()).toBe("slates.tabs.candidates")
+    })
+
+    it("offers to clear the selections on the slates, and asks before clearing", async () => {
+        const {contest, member} = configureSlate()
+        mockState.ballotSelections = {
+            "election-1": [
+                {
+                    contest_id: contest.id,
+                    is_explicit_invalid: false,
+                    is_decline_to_vote: false,
+                    is_blank_ballot: false,
+                    invalid_errors: [],
+                    invalid_alerts: [],
+                    choices: contest.candidates.map((candidate) => ({
+                        id: candidate.id,
+                        selected: candidate.id === member.id ? 0 : -1,
+                    })),
+                },
+            ],
+        }
+        const user = userEvent.setup()
+        renderRoute(<VotingScreen />, "vote")
+
+        await user.click(screen.getByRole("button", {name: "slates.clear.button"}))
+
+        expect(await screen.findByTestId("open-dialog")).toHaveClass("slate-clear-dialog")
+        expect(mockDispatch).not.toHaveBeenCalledWith(
+            expect.objectContaining({type: "ballotSelections/clearBallotSelectionChoices"})
+        )
+        await user.click(screen.getByRole("button", {name: "slates.clear.dialog.ok"}))
+        expect(mockDispatch).toHaveBeenCalledWith(
+            expect.objectContaining({type: "ballotSelections/clearBallotSelectionChoices"})
+        )
     })
 })
 

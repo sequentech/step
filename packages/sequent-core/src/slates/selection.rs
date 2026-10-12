@@ -4,8 +4,8 @@
 
 //! What choosing a slate does to a ballot.
 //!
-//! Choosing a slate marks its candidates in their contests and nothing else.
-//! The result is the same per-contest selection a voter builds by marking
+//! Choosing a slate marks its candidates in their contests and nothing else:
+//! a contest the slate has no candidate in is left blank. The result is the same per-contest selection a voter builds by marking
 //! those candidates one by one, so the ballot is reviewed, encoded, cast and
 //! counted as any other. Nothing in it says a slate was chosen.
 
@@ -45,9 +45,9 @@ impl SlateChoices {
 /// The selection that choosing `slate` produces from `current`.
 ///
 /// `contests` are the contests of the voter's ballot, and `current` holds one
-/// entry for each. In every contest the slate covers, its candidates replace
-/// the current marks, so no contest ends above its maximum. Contests the slate
-/// does not cover, and contests outside this ballot, keep their choices.
+/// entry for each. Every contest on the ballot ends with exactly the slate's
+/// candidates: its members where it has some, and nothing where it has none.
+/// Acclaimed contests and contests outside this ballot keep their entries.
 /// Everything is checked first: a slate that cannot be applied in full
 /// returns its problems and no selection.
 pub fn apply_slate(
@@ -60,8 +60,16 @@ pub fn apply_slate(
     let mut changes = Vec::new();
     let mut covered = 0_usize;
 
-    for contest in contests {
+    for contest in contests.iter().filter(|contest| !contest.is_acclaimed()) {
         let Some(members) = slate.members.get(&contest.id) else {
+            let entry = selection
+                .iter_mut()
+                .find(|entry| entry.contest_id == contest.id);
+            if let Some(change) =
+                entry.and_then(|entry| clear_contest(contest, entry))
+            {
+                changes.push(change);
+            }
             continue;
         };
         covered += 1;
@@ -105,6 +113,53 @@ pub fn apply_slate(
         entry.is_decline_to_vote = false;
     }
     Ok(SlateChoices { selection, changes })
+}
+
+/// The marks of `entry`, with the explicit invalid option when it is marked.
+fn selected_ids(contest: &Contest, entry: &DecodedVoteContest) -> Vec<String> {
+    let mut ids: Vec<String> = entry
+        .choices
+        .iter()
+        .filter(|choice| choice.is_selected())
+        .map(|choice| choice.id.clone())
+        .collect();
+    if entry.is_explicit_invalid {
+        let invalid_candidate = contest
+            .candidates
+            .iter()
+            .find(|candidate| candidate.is_explicit_invalid());
+        if let Some(candidate) = invalid_candidate {
+            if !ids.contains(&candidate.id) {
+                ids.push(candidate.id.clone());
+            }
+        }
+    }
+    ids
+}
+
+/// Leave a contest the slate has no candidate in without any mark.
+fn clear_contest(
+    contest: &Contest,
+    entry: &mut DecodedVoteContest,
+) -> Option<SlateContestChange> {
+    let removed = selected_ids(contest, entry);
+    if removed.is_empty() {
+        return None;
+    }
+
+    entry.is_explicit_invalid = false;
+    entry.invalid_errors.clear();
+    entry.invalid_alerts.clear();
+    for choice in &mut entry.choices {
+        choice.selected = UNSELECTED;
+        choice.write_in_text = None;
+    }
+
+    Some(SlateContestChange {
+        contest_id: contest.id.clone(),
+        added: Vec::new(),
+        removed,
+    })
 }
 
 fn apply_to_contest(
@@ -185,25 +240,10 @@ fn apply_to_contest(
         .filter(|member| !was_selected.contains(member.as_str()))
         .cloned()
         .collect();
-    let mut removed: Vec<String> = entry
-        .choices
-        .iter()
-        .filter(|choice| {
-            choice.is_selected() && !member_ids.contains(choice.id.as_str())
-        })
-        .map(|choice| choice.id.clone())
+    let removed: Vec<String> = selected_ids(contest, entry)
+        .into_iter()
+        .filter(|id| !member_ids.contains(id.as_str()))
         .collect();
-    if entry.is_explicit_invalid {
-        let invalid_candidate = contest
-            .candidates
-            .iter()
-            .find(|candidate| candidate.is_explicit_invalid());
-        if let Some(candidate) = invalid_candidate {
-            if !removed.contains(&candidate.id) {
-                removed.push(candidate.id.clone());
-            }
-        }
-    }
 
     entry.is_explicit_invalid = false;
     entry.invalid_errors.clear();

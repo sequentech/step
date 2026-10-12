@@ -481,10 +481,21 @@ const galegoTranslation: TranslationType = {
                 replaceDialog: {
                     title: "Substituír as túas opcións actuais?",
                     content:
-                        "Elixir {{slate}} substitúe as túas opcións nas contendas seguintes. O resto das túas opcións non cambia.",
+                        "Elixir {{slate}} fixa toda a túa papeleta cos seus candidatos. As contendas nas que non ten candidatos quedan en branco. Estas opcións cambian:",
                     removed: "Quítase:",
                     added: "Selecciónase no seu lugar:",
                     ok: "Substituír opcións",
+                    cancel: "Manter as miñas opcións",
+                },
+            },
+            clear: {
+                button: "Borrar seleccións",
+                cleared: "Borráronse todas as túas opcións.",
+                dialog: {
+                    title: "Borrar todas as túas opcións?",
+                    content:
+                        "Borrar quita todas as opcións da túa papeleta. Quítanse estas opcións:",
+                    ok: "Borrar opcións",
                     cancel: "Manter as miñas opcións",
                 },
             },

@@ -194,14 +194,15 @@ fn choosing_a_slate_equals_marking_its_members_by_hand() {
 }
 
 #[test]
-fn a_partial_slate_leaves_the_contests_it_does_not_cover() {
+fn a_partial_slate_leaves_the_contests_it_does_not_cover_blank() {
     let mut current = empty_selection();
     mark(&mut current, PRESIDENT, "p-independent");
+    mark(&mut current, TRUSTEES, "t-independent");
 
     let choices = apply_slate(&voices(), &contests(), &current)
         .expect("the slate applies");
 
-    assert_eq!(selected(&choices.selection, PRESIDENT), ["p-independent"]);
+    assert!(selected(&choices.selection, PRESIDENT).is_empty());
     assert!(selected(&choices.selection, SECRETARY).is_empty());
     assert_eq!(
         selected(&choices.selection, TRUSTEES),
@@ -209,8 +210,89 @@ fn a_partial_slate_leaves_the_contests_it_does_not_cover() {
     );
     assert_eq!(
         choices.changes,
+        [
+            change(PRESIDENT, &[], &["p-independent"]),
+            change(TRUSTEES, &["t-voices-1", "t-voices-2"], &["t-independent"]),
+        ]
+    );
+    assert!(choices.removes_choices());
+}
+
+#[test]
+fn a_partial_slate_on_an_empty_ballot_removes_nothing() {
+    let choices = apply_slate(&voices(), &contests(), &empty_selection())
+        .expect("the slate applies");
+
+    assert_eq!(
+        choices.changes,
         [change(TRUSTEES, &["t-voices-1", "t-voices-2"], &[])]
     );
+    assert!(!choices.removes_choices());
+}
+
+#[test]
+fn choosing_a_slate_after_another_keeps_none_of_the_first() {
+    let first = apply_slate(&forward(), &contests(), &empty_selection())
+        .expect("the slate applies");
+
+    let second = apply_slate(&voices(), &contests(), &first.selection)
+        .expect("the slate applies");
+
+    assert_eq!(
+        second.selection,
+        apply_slate(&voices(), &contests(), &empty_selection())
+            .expect("the slate applies")
+            .selection
+    );
+    assert_eq!(
+        second.changes,
+        [
+            change(PRESIDENT, &[], &["p-forward"]),
+            change(SECRETARY, &[], &["s-forward"]),
+            change(
+                TRUSTEES,
+                &["t-voices-1", "t-voices-2"],
+                &["t-forward-1", "t-forward-2", "t-forward-3"]
+            ),
+        ]
+    );
+}
+
+#[test]
+fn an_explicit_invalid_mark_in_an_uncovered_contest_is_removed() {
+    let mut contests = contests();
+    contests[0].candidates.push(Candidate {
+        id: "p-invalid".to_string(),
+        contest_id: PRESIDENT.to_string(),
+        presentation: Some(CandidatePresentation {
+            is_explicit_invalid: Some(true),
+            ..Default::default()
+        }),
+        ..Default::default()
+    });
+    let mut current = empty_selection();
+    current[0].is_explicit_invalid = true;
+    current[0].invalid_errors = vec![an_error()];
+
+    let choices =
+        apply_slate(&voices(), &contests, &current).expect("the slate applies");
+
+    assert!(!choices.selection[0].is_explicit_invalid);
+    assert!(choices.selection[0].invalid_errors.is_empty());
+    assert_eq!(choices.changes[0], change(PRESIDENT, &[], &["p-invalid"]));
+}
+
+#[test]
+fn an_acclaimed_contest_is_left_as_it_is() {
+    let mut contests = contests();
+    contests[1].is_acclaimed = Some(true);
+    let mut current = empty_selection();
+    mark(&mut current, SECRETARY, "s-members");
+
+    let choices =
+        apply_slate(&voices(), &contests, &current).expect("the slate applies");
+
+    assert_eq!(selected(&choices.selection, SECRETARY), ["s-members"]);
 }
 
 #[test]
@@ -292,7 +374,8 @@ fn invalid_decline_and_blank_markers_are_cleared() {
         .selection
         .iter()
         .all(|entry| !entry.is_blank_ballot && !entry.is_decline_to_vote));
-    // A contest the slate does not cover keeps its own validation state.
+    // A contest the slate does not cover and that has nothing to clear keeps
+    // its own validation state.
     assert_eq!(choices.selection[0].invalid_errors, [an_error()]);
 }
 

@@ -480,10 +480,21 @@ const englishTranslation = {
                 replaceDialog: {
                     title: "Replace your current choices?",
                     content:
-                        "Choosing {{slate}} replaces your choices in the contests below. Your other choices stay as they are.",
+                        "Choosing {{slate}} sets your whole ballot to its candidates. Any contest where it has no candidate is left blank. These choices change:",
                     removed: "Removed:",
                     added: "Selected instead:",
                     ok: "Replace choices",
+                    cancel: "Keep my choices",
+                },
+            },
+            clear: {
+                button: "Clear selections",
+                cleared: "All your choices have been cleared.",
+                dialog: {
+                    title: "Clear all your choices?",
+                    content:
+                        "Clearing removes every choice on your ballot. These choices are removed:",
+                    ok: "Clear choices",
                     cancel: "Keep my choices",
                 },
             },

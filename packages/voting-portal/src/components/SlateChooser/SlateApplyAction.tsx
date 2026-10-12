@@ -4,9 +4,7 @@
 
 import React, {useId, useMemo, useState} from "react"
 import {Box, Button, Typography} from "@mui/material"
-import {Dialog} from "@sequentech/ui-essentials"
 import {translate} from "@sequentech/ui-core"
-import type {ICandidate} from "@sequentech/ui-core"
 import {useTranslation} from "react-i18next"
 import {
     computeSlateChoices,
@@ -21,6 +19,7 @@ import {
 } from "../../store/ballotSelections/ballotSelectionsSlice"
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../../store/hooks"
+import {SlateChangesDialog} from "./SlateChangesDialog"
 
 export interface SlateApplyActionProps {
     ballotStyle: IBallotStyle
@@ -47,12 +46,12 @@ export const SlateApplyAction: React.FC<SlateApplyActionProps> = ({ballotStyle, 
             return {}
         }
         try {
-            return {choices: computeSlateChoices(slate, selection)}
+            return {choices: computeSlateChoices(slate, ballotStyle.ballot_eml.contests, selection)}
         } catch (error) {
             console.log(`Error computing slate choices: ${error}`)
             return {problem: error}
         }
-    }, [slate, selection])
+    }, [slate, ballotStyle, selection])
 
     const unavailableReason = useMemo(() => {
         if (!problem) {
@@ -93,14 +92,6 @@ export const SlateApplyAction: React.FC<SlateApplyActionProps> = ({ballotStyle, 
         }
     }
 
-    const candidateNames = (candidates: ICandidate[], ids: string[]): string =>
-        ids
-            .map((id) => {
-                const candidate = candidates.find((entry) => entry.id === id)
-                return candidate ? (translate(candidate, "name", i18n.language) ?? id) : id
-            })
-            .join(", ")
-
     const isSelection = wasChosen && choices?.changes.length === 0
     const candidatesCount = slate.contests.reduce(
         (total, entry) => total + entry.candidates.length,
@@ -133,58 +124,16 @@ export const SlateApplyAction: React.FC<SlateApplyActionProps> = ({ballotStyle, 
                     {unavailableReason}
                 </Typography>
             )}
-            <Dialog
+            <SlateChangesDialog
                 className="slate-replace-dialog"
-                open={!!pending}
+                pending={pending}
+                contests={ballotStyle.ballot_eml.contests}
                 handleClose={handleClose}
                 title={t("slates.apply.replaceDialog.title")}
+                content={t("slates.apply.replaceDialog.content", {slate: slateName})}
                 ok={t("slates.apply.replaceDialog.ok")}
                 cancel={t("slates.apply.replaceDialog.cancel")}
-                variant="action"
-            >
-                <Typography className="slate-replace-content">
-                    {t("slates.apply.replaceDialog.content", {slate: slateName})}
-                </Typography>
-                {(pending?.changes ?? [])
-                    .filter((change) => change.removed.length > 0)
-                    .map((change) => {
-                        const contest = slate.contests.find(
-                            (entry) => entry.contest.id === change.contestId
-                        )?.contest
-                        if (!contest) {
-                            return null
-                        }
-                        return (
-                            <Box
-                                key={change.contestId}
-                                className="slate-replace-contest"
-                                sx={{marginTop: 2}}
-                            >
-                                <Typography
-                                    className="slate-replace-contest-name"
-                                    variant="h6"
-                                    component="h3"
-                                >
-                                    {translate(contest, "name", i18n.language) ?? contest.id}
-                                </Typography>
-                                <Typography className="slate-replace-removed">
-                                    {t("slates.apply.replaceDialog.removed")}{" "}
-                                    <strong className="slate-replace-candidates">
-                                        {candidateNames(contest.candidates, change.removed)}
-                                    </strong>
-                                </Typography>
-                                {change.added.length > 0 && (
-                                    <Typography className="slate-replace-added">
-                                        {t("slates.apply.replaceDialog.added")}{" "}
-                                        <strong className="slate-replace-candidates">
-                                            {candidateNames(contest.candidates, change.added)}
-                                        </strong>
-                                    </Typography>
-                                )}
-                            </Box>
-                        )
-                    })}
-            </Dialog>
+            />
         </Box>
     )
 }

@@ -46,3 +46,39 @@ describe("the slate line of a candidate", () => {
         expect(screen.getByRole("checkbox", {name: "Alice Okonjo"})).toBeInTheDocument()
     })
 })
+
+describe("a candidate without details", () => {
+    it("draws only the name and the slate", () => {
+        const {container} = show({subtitle: "Independent Voices"})
+
+        expect(container.querySelector(".candidate-title")).toHaveTextContent("Alice Okonjo")
+        expect(container.querySelector(".candidate-subtitle")).toHaveTextContent(
+            "Independent Voices"
+        )
+        expect(container.querySelector(".image-box")).toBeEmptyDOMElement()
+        expect(container.querySelector(".candidate-description")).toBeNull()
+        expect(container.querySelector(".candidate-link")).toBeNull()
+    })
+
+    it("still draws the details that are configured", () => {
+        const {container} = show({
+            description: "Steward, Local 12",
+            url: "https://example.org",
+            children: <img alt="" src="photo.png" />,
+        })
+
+        expect(container.querySelector(".image-box")).not.toBeNull()
+        expect(container.querySelector(".candidate-description")).toHaveTextContent(
+            "Steward, Local 12"
+        )
+        expect(container.querySelector(".candidate-link")).not.toBeNull()
+    })
+
+    it("lets a long name wrap instead of overflowing", () => {
+        const {container} = show({})
+
+        expect(
+            getComputedStyle(container.querySelector(".candidate-text") as Element)
+        ).toHaveProperty("overflowWrap", "anywhere")
+    })
+})

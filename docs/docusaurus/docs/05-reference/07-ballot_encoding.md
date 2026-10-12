@@ -588,9 +588,9 @@ not part of the ballot:
    selection has the same form, and the same encoding, as marking those
    candidates one by one. The rule has one implementation,
    `slates::selection::apply_slate` in `sequent-core`, which
-   the Voting Portal calls through WebAssembly: in each contest the slate
-   covers, its candidates replace the current marks; other contests keep
-   theirs.
+   the Voting Portal calls through WebAssembly: every contest on the ballot
+   ends with exactly the slate's candidates, and contests the slate has no
+   candidate in are left blank. Acclaimed contests are not changed.
 3. The encoded ballot has no slate identifier or slate flag, and choosing a
    slate adds no vote of its own. A cast ballot still carries one ciphertext
    per contest, or the single multi-contest ciphertext.

@@ -387,22 +387,32 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
         }
     }
 
-    const handleCloseUnfilledContestsDialog = (value: boolean) => {
+    const castBallot = async () => {
+        try {
+            await castBallotAction()
+        } catch (error) {
+            isCastingBallot.current = false
+            console.error(error)
+            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNKNOWN_ERROR}`))
+        }
+    }
+
+    const handleCloseUnfilledContestsDialog = async (value: boolean) => {
         setUnfilledContestsModal(false)
         if (value) {
-            castBallotAction()
+            await castBallot()
         }
     }
 
     // Asked again on every cast: the answer is not kept, so a voter who goes
     // back to edit and returns with unfilled positions confirms them anew.
-    const onCast = () => {
+    const onCast = async () => {
         if (unfilledContests.length > 0) {
             setUnfilledContestsModal(true)
         } else if (castVoteConfirmModal && !isFullyAcclaimed) {
             setConfirmCastVoteModal(true)
         } else {
-            castBallotAction()
+            await castBallot()
         }
     }
 

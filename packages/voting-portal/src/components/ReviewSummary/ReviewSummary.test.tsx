@@ -57,6 +57,14 @@ describe("the summary of the selections in review", () => {
         expect(region).toHaveTextContent("Candidates selected: 3 of 4")
     })
 
+    it("lets long slate names wrap instead of overflowing", () => {
+        mountSummary(ballot(["f-president"], ["f-t1", "f-t2"]))
+
+        expect(
+            getComputedStyle(screen.getByRole("region", {name: "Your selections"}))
+        ).toHaveProperty("overflowWrap", "anywhere")
+    })
+
     it("says a slate is fully selected", () => {
         mountSummary(ballot(["f-president"], ["f-t1", "f-t2"]))
 

@@ -481,10 +481,21 @@ const basqueTranslation: TranslationType = {
                 replaceDialog: {
                     title: "Zure uneko aukerak ordeztu nahi dituzu?",
                     content:
-                        "{{slate}} aukeratzeak beheko lehietako zure aukerak ordezten ditu. Gainerako aukerak ez dira aldatzen.",
+                        "{{slate}} aukeratzeak zure boto-txartel osoa bere hautagaiekin betetzen du. Hautagairik ez duen lehiak zuri geratzen dira. Aukera hauek aldatzen dira:",
                     removed: "Kenduko da:",
                     added: "Horren ordez hautatuko da:",
                     ok: "Ordeztu aukerak",
+                    cancel: "Mantendu nire aukerak",
+                },
+            },
+            clear: {
+                button: "Garbitu hautaketak",
+                cleared: "Zure aukera guztiak garbitu dira.",
+                dialog: {
+                    title: "Zure aukera guztiak garbitu?",
+                    content:
+                        "Garbitzeak zure boto-txarteleko aukera guztiak kentzen ditu. Aukera hauek kentzen dira:",
+                    ok: "Garbitu aukerak",
                     cancel: "Mantendu nire aukerak",
                 },
             },

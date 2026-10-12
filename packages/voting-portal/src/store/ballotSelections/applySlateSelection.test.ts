@@ -12,6 +12,7 @@ import {
 } from "../../fixtures/slateChoices"
 import {
     applySlateSelection,
+    clearBallotSelectionChoices,
     ballotSelectionsSlice,
     BallotSelectionsState,
     resetBallotSelection,
@@ -63,14 +64,29 @@ describe("applySlateSelection", () => {
         expect(bySlate).toEqual(byHand)
     })
 
-    it("keeps the contests a partial slate does not cover", () => {
+    it("clears an independent's choice in a contest a partial slate does not cover", () => {
         let state = mark(initState(), PRESIDENT, "p-independent")
         state = mark(state, TRUSTEES, "t-independent")
         state = ballotSelectionsSlice.reducer(
             state,
             applySlateSelection({ballotStyle, slate: voices})
         )
-        expect(selected(state, PRESIDENT)).toEqual(["p-independent"])
+        expect(selected(state, PRESIDENT)).toEqual([])
+        expect(selected(state, SECRETARY)).toEqual([])
+        expect(selected(state, TRUSTEES)).toEqual(["t-voices-1", "t-voices-2"])
+    })
+
+    it("keeps nothing of a slate chosen before", () => {
+        let state = ballotSelectionsSlice.reducer(
+            initState(),
+            applySlateSelection({ballotStyle, slate: forward})
+        )
+        state = ballotSelectionsSlice.reducer(
+            state,
+            applySlateSelection({ballotStyle, slate: voices})
+        )
+        expect(selected(state, PRESIDENT)).toEqual([])
+        expect(selected(state, SECRETARY)).toEqual([])
         expect(selected(state, TRUSTEES)).toEqual(["t-voices-1", "t-voices-2"])
     })
 
@@ -100,6 +116,26 @@ describe("applySlateSelection", () => {
     it("changes nothing for an election without selections", () => {
         expect(
             ballotSelectionsSlice.reducer({}, applySlateSelection({ballotStyle, slate: forward}))
+        ).toEqual({})
+    })
+})
+
+describe("clearBallotSelectionChoices", () => {
+    it("removes every choice of the election", () => {
+        let state = ballotSelectionsSlice.reducer(
+            initState(),
+            applySlateSelection({ballotStyle, slate: forward})
+        )
+        state = mark(state, TRUSTEES, "t-independent")
+        state = ballotSelectionsSlice.reducer(state, clearBallotSelectionChoices({ballotStyle}))
+        expect(selected(state, PRESIDENT)).toEqual([])
+        expect(selected(state, SECRETARY)).toEqual([])
+        expect(selected(state, TRUSTEES)).toEqual([])
+    })
+
+    it("changes nothing for an election without selections", () => {
+        expect(
+            ballotSelectionsSlice.reducer({}, clearBallotSelectionChoices({ballotStyle}))
         ).toEqual({})
     })
 })

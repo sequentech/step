@@ -483,10 +483,21 @@ const spanishTranslation: TranslationType = {
                 replaceDialog: {
                     title: "¿Reemplazar tus opciones actuales?",
                     content:
-                        "Elegir {{slate}} reemplaza tus opciones en las contiendas siguientes. El resto de tus opciones no cambia.",
+                        "Elegir {{slate}} fija toda tu papeleta con sus candidatos. Las contiendas en las que no tiene candidatos quedan en blanco. Estas opciones cambian:",
                     removed: "Se quita:",
                     added: "Se selecciona en su lugar:",
                     ok: "Reemplazar opciones",
+                    cancel: "Mantener mis opciones",
+                },
+            },
+            clear: {
+                button: "Borrar selecciones",
+                cleared: "Se han borrado todas tus opciones.",
+                dialog: {
+                    title: "¿Borrar todas tus opciones?",
+                    content:
+                        "Borrar quita todas las opciones de tu papeleta. Se quitan estas opciones:",
+                    ok: "Borrar opciones",
                     cancel: "Mantener mis opciones",
                 },
             },

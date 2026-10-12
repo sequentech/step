@@ -480,11 +480,22 @@ const frenchTranslation: TranslationType = {
                 replaceDialog: {
                     title: "Remplacer vos choix actuels ?",
                     content:
-                        "Choisir {{slate}} remplace vos choix dans les scrutins ci-dessous. Vos autres choix ne changent pas.",
+                        "Choisir {{slate}} remplit tout votre bulletin avec ses candidats. Les scrutins où elle n'a pas de candidat restent vides. Ces choix changent :",
                     removed: "Retiré :",
                     added: "Sélectionné à la place :",
                     ok: "Remplacer les choix",
                     cancel: "Conserver mes choix",
+                },
+            },
+            clear: {
+                button: "Effacer les sélections",
+                cleared: "Tous vos choix ont été effacés.",
+                dialog: {
+                    title: "Effacer tous vos choix ?",
+                    content:
+                        "Effacer retire tous les choix de votre bulletin. Ces choix sont retirés :",
+                    ok: "Effacer les choix",
+                    cancel: "Garder mes choix",
                 },
             },
         },

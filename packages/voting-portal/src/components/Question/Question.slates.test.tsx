@@ -105,6 +105,18 @@ describe("the slate of a candidate on the ballot", () => {
     })
 })
 
+describe("a candidate without extra details", () => {
+    it("is shown by name and slate only", () => {
+        mountContest(TRUSTEES, {slates: SLATES})
+
+        const row = rowOf("Rowan Scott")
+        expect(row.querySelector(".candidate-description")).toBeNull()
+        expect(row.querySelector(".image-box")).toBeEmptyDOMElement()
+        expect(row.querySelector(".candidate-link")).toBeNull()
+        expect(row).toHaveTextContent(/^Rowan ScottForward Together$/)
+    })
+})
+
 describe("the slate of a selected candidate in review", () => {
     it("is shown next to each selected candidate", () => {
         mountContest(TRUSTEES, {
