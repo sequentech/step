@@ -5,16 +5,12 @@
 package sequent.keycloak.authenticator.messaging;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
-import org.keycloak.models.UserModel;
 
 class VoterChannelsTest {
   private static final String MOBILE = "sequent.read-only.mobile-number";
@@ -37,99 +33,33 @@ class VoterChannelsTest {
           java.time.Duration.ofSeconds(1));
   private static final MessageSenderProvider DEFAULT = new DefaultMessageSenderProvider();
 
-  private static final Map<MessageChannel, String> ALL_CONTACTS =
-      Map.of(
-          MessageChannel.EMAIL, "voter@example.test",
-          MessageChannel.SMS, "+15550123456",
-          MessageChannel.WHATSAPP, "+15550123456");
-
   @Test
   void withoutAProjectionOnlyEmailAndSmsAreOffered() {
     assertEquals(
         List.of(MessageChannel.EMAIL, MessageChannel.SMS),
-        VoterChannels.eligibleForOtp(
-            VoterChannels.offeredForOtp(Optional.empty(), Set.of()),
-            HARVEST,
-            ALL_CONTACTS,
-            Optional.empty()));
+        VoterChannels.offeredForOtp(Optional.empty(), Set.of()));
   }
 
   @Test
-  void theDefaultSenderOffersNoMessagingAppChannels() {
+  void theDefaultSenderDeliversNoMessagingApp() {
+    assertEquals(true, VoterChannels.deliverable(DEFAULT, MessageChannel.EMAIL));
+    assertEquals(true, VoterChannels.deliverable(DEFAULT, MessageChannel.SMS));
+    assertEquals(false, VoterChannels.deliverable(DEFAULT, MessageChannel.WHATSAPP));
+    assertEquals(true, VoterChannels.deliverable(HARVEST, MessageChannel.MESSENGER));
+  }
+
+  @Test
+  void aPostsChannelsComeInTheTicketsOrder() {
     assertEquals(
-        List.of(MessageChannel.EMAIL, MessageChannel.SMS),
-        VoterChannels.eligibleForOtp(
-            VoterChannels.offeredForOtp(PROJECTION, Set.of("election-other")),
-            DEFAULT,
-            ALL_CONTACTS,
-            Optional.empty()));
-  }
-
-  @Test
-  void enrollmentOffersThePostsChannelsAndMessengerNeedsNoContactYet() {
+        List.of(MessageChannel.WHATSAPP, MessageChannel.MESSENGER, MessageChannel.EMAIL),
+        VoterChannels.offeredForOtp(PROJECTION, Set.of("election-a")));
     assertEquals(
-        List.of(MessageChannel.EMAIL, MessageChannel.WHATSAPP, MessageChannel.MESSENGER),
-        VoterChannels.eligibleForOtp(
-            VoterChannels.offeredForOtp(PROJECTION, Set.of("election-a")),
-            HARVEST,
-            ALL_CONTACTS,
-            Optional.empty()));
-  }
-
-  @Test
-  void signInOffersOnlyVerifiedContacts() {
-    assertEquals(
-        List.of(MessageChannel.WHATSAPP),
-        VoterChannels.eligibleForOtp(
-            VoterChannels.offeredForOtp(PROJECTION, Set.of("election-a")),
-            HARVEST,
-            ALL_CONTACTS,
-            Optional.of(Set.of(MessageChannel.WHATSAPP, MessageChannel.MESSENGER))));
-  }
-
-  @Test
-  void aChannelWithoutAContactIsNotOffered() {
-    assertEquals(
-        List.of(MessageChannel.EMAIL),
-        VoterChannels.eligibleForOtp(
-            VoterChannels.offeredForOtp(PROJECTION, Set.of("election-a")),
-            HARVEST,
-            Map.of(MessageChannel.EMAIL, "voter@example.test"),
-            Optional.of(Set.of(MessageChannel.EMAIL, MessageChannel.WHATSAPP))));
-  }
-
-  @Test
-  void votersFromBeforeVerifiedChannelsKeepTheirEmailAndMobile() {
-    UserModel user = mock(UserModel.class);
-    when(user.getEmail()).thenReturn("voter@example.test");
-    when(user.getFirstAttribute(MOBILE)).thenReturn("+15550123456");
-    when(user.getAttributeStream(MessagingAttributes.VERIFIED_CHANNELS))
-        .thenAnswer(i -> java.util.stream.Stream.of());
-    assertEquals(
-        Set.of(MessageChannel.EMAIL, MessageChannel.SMS), VoterChannels.verified(user, MOBILE));
-  }
-
-  @Test
-  void verifiedChannelsAreReadAndUnknownValuesIgnored() {
-    UserModel user = mock(UserModel.class);
-    when(user.getAttributeStream(MessagingAttributes.VERIFIED_CHANNELS))
-        .thenAnswer(i -> java.util.stream.Stream.of("VIBER", "smoke-signal"));
-    assertEquals(Set.of(MessageChannel.VIBER), VoterChannels.verified(user, MOBILE));
-  }
-
-  @Test
-  void contactsComeFromTheVoter() {
-    UserModel user = mock(UserModel.class);
-    when(user.getEmail()).thenReturn("voter@example.test");
-    when(user.getFirstAttribute(MOBILE)).thenReturn(" ");
-    when(user.getFirstAttribute(MessagingAttributes.VIBER_NUMBER)).thenReturn("+15550100");
-    when(user.getFirstAttribute(MessagingAttributes.MESSENGER_ID)).thenReturn("psid-1");
-    assertEquals(
-        Map.of(
-            MessageChannel.EMAIL, "voter@example.test",
-            MessageChannel.VIBER, "+15550100",
-            MessageChannel.MESSENGER, "psid-1"),
-        VoterChannels.contacts(user, MOBILE));
+        List.of(
+            MessageChannel.WHATSAPP,
+            MessageChannel.MESSENGER,
+            MessageChannel.SMS,
+            MessageChannel.EMAIL),
+        VoterChannels.offeredForOtp(PROJECTION, Set.of("election-other")));
   }
 
   @Test
@@ -141,12 +71,85 @@ class VoterChannelsTest {
     assertEquals(false, VoterChannels.isE164(null));
   }
 
+  private static final String B = "\u2022";
+  private static final String HIDDEN = B.repeat(3);
+
+  /**
+   * R7-11: the same vectors as Rust's {@code messaging::destination} tests. Fixed groups ({@code
+   * ••• •••}) and eight email bullets, so the mask never reveals the length; the calling code comes
+   * from sequent-core's table.
+   */
   @Test
-  void destinationsAreMaskedForDisplay() {
-    assertEquals("+155*****456", VoterChannels.mask(MessageChannel.WHATSAPP, "+15550123456"));
+  void destinationsAreMaskedExactlyLikeRust() {
     assertEquals(
-        "vo***@*****le.test", VoterChannels.mask(MessageChannel.EMAIL, "voter@example.test"));
-    assertEquals("****", VoterChannels.mask(MessageChannel.SMS, "+123"));
-    assertEquals("", VoterChannels.mask(MessageChannel.MESSENGER, "psid-1"));
+        "+63 " + HIDDEN + " " + HIDDEN + " 567",
+        VoterChannels.mask(MessageChannel.WHATSAPP, "+63 (917) 123-4567"));
+    assertEquals(
+        "+1 " + HIDDEN + " " + HIDDEN + " 456",
+        VoterChannels.mask(MessageChannel.SMS, "+15550123456"));
+    assertEquals(
+        "+44 " + HIDDEN + " " + HIDDEN + " 123",
+        VoterChannels.mask(MessageChannel.SMS, "+447700900123"));
+    assertEquals(
+        "+971 " + HIDDEN + " " + HIDDEN + " 567",
+        VoterChannels.mask(MessageChannel.VIBER, "+971501234567"));
+    assertEquals(
+        "+966 " + HIDDEN + " " + HIDDEN + " 567",
+        VoterChannels.mask(MessageChannel.WHATSAPP, "+966501234567"));
+    assertEquals(
+        "vo" + B.repeat(8) + "@example.org",
+        VoterChannels.mask(MessageChannel.EMAIL, " Voter@Example.ORG "));
+    assertEquals(
+        "a" + B.repeat(8) + "@example.org",
+        VoterChannels.mask(MessageChannel.EMAIL, "ab@example.org"));
+    assertEquals(
+        B.repeat(8) + "@example.org", VoterChannels.mask(MessageChannel.EMAIL, "a@example.org"));
+    assertEquals(
+        "ma" + B.repeat(8) + "@example.com",
+        VoterChannels.mask(MessageChannel.EMAIL, "maria.cruz@example.com"));
+    assertEquals(HIDDEN + " 321", VoterChannels.mask(MessageChannel.MESSENGER, "6543210987654321"));
+    assertEquals("", VoterChannels.mask(MessageChannel.SMS, null));
+    assertEquals("", VoterChannels.mask(MessageChannel.EMAIL, " "));
+  }
+
+  /** What Rust refuses to parse is never shown: only bullets. */
+  @Test
+  void anAddressRustWouldRefuseShowsNothing() {
+    for (String number : List.of("09171234567", "+63abc", "+1234", "+0123456789")) {
+      assertEquals(HIDDEN, VoterChannels.mask(MessageChannel.SMS, number), number);
+    }
+    for (String email : List.of("voter", "a b@example.org", "@example.org", "voter@example")) {
+      assertEquals(HIDDEN, VoterChannels.mask(MessageChannel.EMAIL, email), email);
+    }
+    assertEquals(HIDDEN, VoterChannels.mask(MessageChannel.MESSENGER, "+639171234567"));
+  }
+
+  /** Voter pages name the Messenger Page instead: a Page-scoped ID means nothing to the voter. */
+  @Test
+  void votersSeeNoMessengerId() {
+    assertEquals("", VoterChannels.display(MessageChannel.MESSENGER, "6543210987654321"));
+    assertEquals(
+        "+63 " + HIDDEN + " " + HIDDEN + " 567",
+        VoterChannels.display(MessageChannel.SMS, "+639171234567"));
+  }
+
+  /** The calling codes are sequent-core's table, read from the Rust source. */
+  @Test
+  void callingCodesAreSequentCoresTable() throws Exception {
+    String rust =
+        java.nio.file.Files.readString(
+            java.nio.file.Path.of("../../sequent-core/src/types/dial_codes.rs"));
+    java.util.Set<String> codes = new java.util.TreeSet<>();
+    for (String table : List.of("pub const CALLING_CODES", "pub const NON_GEOGRAPHIC_CODES")) {
+      int from = rust.indexOf(table);
+      String block = rust.substring(from, rust.indexOf("];", from));
+      java.util.regex.Matcher code =
+          java.util.regex.Pattern.compile("\"([0-9]{1,3})\"").matcher(block);
+      while (code.find()) {
+        codes.add(code.group(1));
+      }
+    }
+    assertEquals(216, codes.size());
+    assertEquals(codes, new java.util.TreeSet<>(VoterChannels.CALLING_CODES));
   }
 }

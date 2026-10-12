@@ -10,15 +10,21 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.util.JsonSerialization;
 
 /**
  * Obtains a service-account access token with the client-credentials grant, so extensions can call
- * harvest and Hasura. Neither the client secret nor the tokens are ever logged.
+ * harvest and Hasura. Tokens are cached per realm until shortly before they expire, and the token
+ * endpoint is called with 5 s to connect and 10 s to answer, so a slow Keycloak never holds a
+ * sign-in. Neither the client secret nor the tokens are ever logged.
  */
 @JBossLog
 public class ServiceAccountTokenClient {
@@ -26,15 +32,45 @@ public class ServiceAccountTokenClient {
   private static final String CLIENT_SECRET_ENV = "KEYCLOAK_CLIENT_SECRET";
   private static final String KEYCLOAK_URL_ENV = "KEYCLOAK_URL";
 
-  private final HttpClient httpClient = HttpClient.newHttpClient();
+  static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
+  static final Duration READ_TIMEOUT = Duration.ofSeconds(10);
+
+  /** A cached token is replaced this long before it expires. */
+  static final Duration EXPIRY_MARGIN = Duration.ofSeconds(30);
+
+  private static volatile ServiceAccountTokenClient shared;
+
+  private final HttpClient httpClient =
+      HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
   private final String keycloakUrl;
   private final String clientId;
   private final String clientSecret;
+  private final Clock clock;
+  private final Map<String, CachedToken> cache = new ConcurrentHashMap<>();
+
+  private record CachedToken(String token, Instant renewAt) {}
 
   public ServiceAccountTokenClient(String keycloakUrl, String clientId, String clientSecret) {
+    this(keycloakUrl, clientId, clientSecret, Clock.systemUTC());
+  }
+
+  ServiceAccountTokenClient(String keycloakUrl, String clientId, String clientSecret, Clock clock) {
     this.keycloakUrl = keycloakUrl;
     this.clientId = clientId;
     this.clientSecret = clientSecret;
+    this.clock = clock;
+  }
+
+  /** One client for the process, configured from the environment, so its cache is shared. */
+  public static ServiceAccountTokenClient shared() {
+    if (shared == null) {
+      synchronized (ServiceAccountTokenClient.class) {
+        if (shared == null) {
+          shared = fromEnvironment();
+        }
+      }
+    }
+    return shared;
   }
 
   public static ServiceAccountTokenClient fromEnvironment() {
@@ -48,8 +84,16 @@ public class ServiceAccountTokenClient {
     return "tenant-" + tenantId;
   }
 
-  /** Returns an access token issued by the given realm. */
+  /** Returns an access token issued by the given realm, from the cache while it is fresh. */
   public String fetchAccessToken(String realmName) throws IOException {
+    CachedToken cached = cache.get(realmName);
+    if (cached != null && clock.instant().isBefore(cached.renewAt())) {
+      return cached.token();
+    }
+    return requestAccessToken(realmName);
+  }
+
+  private String requestAccessToken(String realmName) throws IOException {
     Map<String, String> form = new LinkedHashMap<>();
     form.put("client_id", clientId);
     form.put("client_secret", clientSecret);
@@ -64,6 +108,7 @@ public class ServiceAccountTokenClient {
             .uri(
                 URI.create(keycloakUrl + "/realms/" + realmName + "/protocol/openid-connect/token"))
             .header("Content-Type", "application/x-www-form-urlencoded")
+            .timeout(READ_TIMEOUT)
             .POST(HttpRequest.BodyPublishers.ofString(body))
             .build();
 
@@ -81,10 +126,16 @@ public class ServiceAccountTokenClient {
       throw new IOException(
           "Service-account token request failed with status " + response.statusCode());
     }
-    Object accessToken =
-        JsonSerialization.readValue(response.body(), Map.class).get("access_token");
+    Map<?, ?> json = JsonSerialization.readValue(response.body(), Map.class);
+    Object accessToken = json.get("access_token");
     if (!(accessToken instanceof String token) || token.isEmpty()) {
       throw new IOException("Service-account token response has no access_token");
+    }
+    if (json.get("expires_in") instanceof Number expiresIn) {
+      Instant renewAt = clock.instant().plusSeconds(expiresIn.longValue()).minus(EXPIRY_MARGIN);
+      if (renewAt.isAfter(clock.instant())) {
+        cache.put(realmName, new CachedToken(token, renewAt));
+      }
     }
     return token;
   }

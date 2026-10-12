@@ -78,7 +78,7 @@
       {
         "id": "89f2e054-8f27-480a-80fc-b5ed6b0af2da",
         "name": "messaging-account-read",
-        "description": "",
+        "description": "Read messaging accounts",
         "composite": false,
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
@@ -87,7 +87,7 @@
       {
         "id": "3e155ea9-0f8a-48b5-b9a7-79d21607933f",
         "name": "messaging-account-write",
-        "description": "",
+        "description": "Manage messaging accounts",
         "composite": false,
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
@@ -96,7 +96,16 @@
       {
         "id": "cec178ea-90e7-468c-b18b-d12a76a87851",
         "name": "messaging-config-write",
-        "description": "",
+        "description": "Configure election event messaging",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "6d0f3b52-8e4a-4c71-9a2e-5b7c1d9e3f80",
+        "name": "messaging-config-read",
+        "description": "Read election event messaging",
         "composite": false,
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
@@ -2712,6 +2721,7 @@
         "messaging-account-read",
         "messaging-account-write",
         "messaging-config-write",
+        "messaging-config-read",
         "tally-write",
         "trustee-write",
         "notification-send",
@@ -2914,6 +2924,7 @@
         "admin-dashboard-view",
         "monitoring-view",
         "messaging-account-read",
+        "messaging-config-read",
         "support-material-write",
         "tally-write",
         "user-write",
@@ -3074,9 +3085,6 @@
       "lastName": "admin",
       "emailVerified": false,
       "attributes": {
-        "sequent.read-only.otp-method": [
-          "email-or-sms"
-        ],
         "permission_labels": [],
         "tenant-id": [
           "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
@@ -3103,9 +3111,6 @@
       "username": "api-user",
       "emailVerified": false,
       "attributes": {
-        "sequent.read-only.otp-method": [
-          "email-or-sms"
-        ],
         "locale": [
           "en"
         ],
@@ -3176,9 +3181,6 @@
       "firstName": "Test Trustee",
       "emailVerified": false,
       "attributes": {
-        "sequent.read-only.otp-method": [
-          "email-or-sms"
-        ],
         "trustee": [
           "trustee1"
         ],
@@ -5154,7 +5156,7 @@
         "subComponents": {},
         "config": {
           "kc.user.profile.config": [
-            "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"trustee\",\"displayName\":\"trustee\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"permission_labels\",\"displayName\":\"Permission Labels\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":true},{\"name\":\"title\",\"displayName\":\"Title\",\"validations\":{\"length\":{\"max\":255}},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false}],\"groups\":[]}"
+            "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"trustee\",\"displayName\":\"trustee\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"permission_labels\",\"displayName\":\"Permission Labels\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":true},{\"name\":\"title\",\"displayName\":\"Title\",\"validations\":{\"length\":{\"max\":255}},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false}],\"groups\":[]}"
           ]
         }
       }
@@ -6246,14 +6248,6 @@
   ],
   "authenticatorConfig": [
     {
-      "id": "a96a1258-b1bb-4468-9254-ff8bc3e28bce",
-      "alias": "Has email-or-sms otp-method",
-      "config": {
-        "attribute_expected_value": "email-or-sms",
-        "attribute_name": "sequent.read-only.otp-method"
-      }
-    },
-    {
       "id": "959c7fad-9092-499a-ac3a-dd27cfdafc48",
       "alias": "SMS Auth Config",
       "config": {
@@ -6290,6 +6284,7 @@
       "id": "0495d7fa-718e-42ed-9208-d1fba496c8f1",
       "alias": "email-sms",
       "config": {
+        "code-page-disclosure": "NAMED",
         "senderId": "Keycloak",
         "simulation": "true",
         "telUserAttribute": "sequent.read-only.mobile-number",
@@ -6310,6 +6305,7 @@
       "id": "31b33e7f-781d-4b4f-b8cf-23987c87ea56",
       "alias": "email-sms",
       "config": {
+        "code-page-disclosure": "NAMED",
         "senderId": "Keycloak",
         "simulation": "true",
         "telUserAttribute": "sequent.read-only.mobile-number",
@@ -6436,6 +6432,7 @@
       "id": "349c13f5-8407-4a01-b4d5-b21692ca07a9",
       "alias": "sms-otp",
       "config": {
+        "code-page-disclosure": "NAMED",
         "test-mode-code": "123456",
         "senderId": "Keycloak",
         "deferredUserAttribute": "false",

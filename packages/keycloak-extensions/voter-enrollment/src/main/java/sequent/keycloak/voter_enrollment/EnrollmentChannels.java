@@ -7,16 +7,21 @@ import jakarta.ws.rs.core.MultivaluedMap;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.utils.FormMessage;
+import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.services.messages.Messages;
 import org.keycloak.sessions.AuthenticationSessionModel;
+import org.keycloak.userprofile.UserProfileProvider;
 import sequent.keycloak.authenticator.messaging.MessageChannel;
 import sequent.keycloak.authenticator.messaging.MessageSenderProvider;
 import sequent.keycloak.authenticator.messaging.MessagingAttributes;
@@ -94,9 +99,9 @@ public class EnrollmentChannels {
     if (channel.get() == MessageChannel.EMAIL && trimmed(formData.getFirst("email")) == null) {
       errors.add(new FormMessage("email", Messages.MISSING_EMAIL));
     }
-    if (VerifiedContacts.MESSAGING_APPS.contains(channel.get())
-        && !consentValue(consentVersion, channel.get())
-            .equals(formData.getFirst(MessagingAttributes.FORM_MESSAGE_CONSENT))) {
+    // Consent names the organization and the channel, and is needed for every channel.
+    if (!consentValue(consentVersion, channel.get())
+        .equals(formData.getFirst(MessagingAttributes.FORM_MESSAGE_CONSENT))) {
       errors.add(
           new FormMessage(MessagingAttributes.FORM_MESSAGE_CONSENT, "messaging.consent.required"));
     }
@@ -108,15 +113,74 @@ public class EnrollmentChannels {
   }
 
   /**
-   * Saves the contact the enrollment code verified. The notice channel only changes when the voter
-   * explicitly asked for notices on the verified channel; consent is recorded with its wording.
+   * Keeps the consent the validated form gave, in a note only Keycloak sets, for when the voter's
+   * contact is saved.
+   */
+  public void recordConsent(
+      AuthenticationSessionModel authSession,
+      MultivaluedMap<String, String> formData,
+      String consentVersion) {
+    Optional<MessageChannel> channel =
+        MessageChannel.parse(formData.getFirst(MessagingAttributes.FORM_OTP_CHANNEL));
+    if (channel.isPresent()
+        && consentValue(consentVersion, channel.get())
+            .equals(formData.getFirst(MessagingAttributes.FORM_MESSAGE_CONSENT))) {
+      authSession.setAuthNote(
+          MessagingAttributes.NOTE_VERIFIED_CONSENT, consentValue(consentVersion, channel.get()));
+    } else {
+      authSession.removeAuthNote(MessagingAttributes.NOTE_VERIFIED_CONSENT);
+    }
+  }
+
+  /**
+   * The values the Post attribute can take: the options of its profile attribute, in their order.
+   */
+  public List<String> postOptions(KeycloakSession session, String postAttribute) {
+    if (postAttribute == null || postAttribute.isBlank()) {
+      return List.of();
+    }
+    UserProfileProvider profiles = session.getProvider(UserProfileProvider.class);
+    UPAttribute attribute =
+        profiles == null ? null : profiles.getConfiguration().getAttribute(postAttribute);
+    if (attribute == null || attribute.getValidations() == null) {
+      return List.of();
+    }
+    Map<String, Object> options = attribute.getValidations().get("options");
+    Object values = options == null ? null : options.get("options");
+    List<String> result = new ArrayList<>();
+    if (values instanceof Collection<?> list) {
+      for (Object value : list) {
+        if (value != null && !value.toString().isBlank()) {
+          result.add(value.toString());
+        }
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Each Post's channels, keyed by the Post's option value, for the enrollment page to show the
+   * selected Post's channels and refresh them when the Post changes.
+   */
+  public Map<String, List<String>> channelsByPost(
+      KeycloakSession session, RealmModel realm, String postAttribute) {
+    Map<String, List<String>> byPost = new LinkedHashMap<>();
+    for (String post : postOptions(session, postAttribute)) {
+      byPost.put(post, VoterChannels.names(offered(session, realm, Set.of(post))));
+    }
+    return byPost;
+  }
+
+  /**
+   * Saves the contact the enrollment code verified, replacing the voter's channel; consent is
+   * recorded with its wording and the organization it named.
    */
   public void persist(
       UserModel user,
       AuthenticationSessionModel authSession,
-      String mobileAttribute,
+      String organization,
       String consentVersion,
       Instant now) {
-    VerifiedContacts.persist(user, authSession, mobileAttribute, consentVersion, now);
+    VerifiedContacts.persist(user, authSession, organization, consentVersion, now);
   }
 }

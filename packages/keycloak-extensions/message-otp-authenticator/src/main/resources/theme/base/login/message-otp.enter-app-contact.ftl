@@ -34,7 +34,11 @@ SPDX-License-Identifier: AGPL-3.0-only
                 <div class="app-channel-fields ${properties.kcFormGroupClass!}" data-channel="${option}">
                     <#if option == "MESSENGER">
                         <#if messagingPage??>
-                            <p>${msg("messageOtp.messenger.intro", messagingPage)}</p>
+                            <p>${msg("messageOtp.messenger.connectHelp", messagingPage)}</p>
+                        </#if>
+                    <#elseif option == "EMAIL">
+                        <#if messagingEmail??>
+                            <p>${msg("messaging.email.account", messagingEmail)}</p>
                         </#if>
                     <#else>
                         <label for="app-contact-${option}" class="${properties.kcLabelClass!}">
@@ -64,17 +68,6 @@ SPDX-License-Identifier: AGPL-3.0-only
                         />
                         <label for="app-consent-${option}">
                             ${msg("messaging.consent", messagingOrganization, msg("messageChannel." + option))}
-                        </label>
-                    </div>
-                    <div>
-                        <input
-                          type="checkbox"
-                          id="app-notice-${option}"
-                          name="sequent.notice-channel"
-                          value="${option}"
-                        />
-                        <label for="app-notice-${option}">
-                            ${msg("messaging.noticeChannel", msg("messageChannel." + option))}
                         </label>
                     </div>
                 </div>

@@ -35,6 +35,9 @@ RUN command -v find >/dev/null 2>&1 || { dnf install -y findutils && dnf clean a
 # same on every build; without it nothing changes.
 ARG SOURCE_DATE_EPOCH
 COPY ./keycloak-extensions/ /build/context/packages/keycloak-extensions/
+# OTP contract tests compare Java values with the shared Rust definitions.
+COPY ./sequent-core/src/types/messaging.rs /build/context/packages/sequent-core/src/types/
+COPY ./sequent-core/src/types/dial_codes.rs /build/context/packages/sequent-core/src/types/
 COPY --from=vendor / /vendor/
 WORKDIR /build/context
 RUN --mount=from=beyond,source=.,target=/build/beyond-context,readonly \

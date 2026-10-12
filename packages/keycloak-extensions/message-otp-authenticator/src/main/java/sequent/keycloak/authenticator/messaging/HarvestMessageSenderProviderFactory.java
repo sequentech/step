@@ -35,6 +35,9 @@ public class HarvestMessageSenderProviderFactory implements MessageSenderProvide
       EnumSet.of(MessageChannel.WHATSAPP, MessageChannel.VIBER, MessageChannel.MESSENGER);
   private static final long DEFAULT_TIMEOUT_SECONDS = 10;
 
+  /** Connecting to harvest waits at most this long; the request then has its own timeout. */
+  private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
+
   private Optional<URI> harvest;
   private Set<MessageChannel> channels;
   private Duration timeout;
@@ -59,8 +62,8 @@ public class HarvestMessageSenderProviderFactory implements MessageSenderProvide
     Long seconds = config.getLong("timeout-seconds");
     timeout =
         Duration.ofSeconds(seconds == null || seconds <= 0 ? DEFAULT_TIMEOUT_SECONDS : seconds);
-    httpClient = HttpClient.newBuilder().connectTimeout(timeout).build();
-    tokens = ServiceAccountTokenClient.fromEnvironment();
+    httpClient = HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
+    tokens = ServiceAccountTokenClient.shared();
     if (harvest.isEmpty()) {
       log.warn("init(): no harvest URL configured; the harvest message sender sends nothing");
     } else {

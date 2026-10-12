@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The Keycloak image ships the React login themes the realms select."""
+"""The Keycloak image provides extension test inputs and realm login themes."""
 
 from __future__ import annotations
 
@@ -34,9 +34,29 @@ def comelec_realm() -> dict:
 
 
 class KeycloakImageTests(unittest.TestCase):
+    def test_the_extension_build_provides_the_shared_rust_contract_sources(self):
+        # Maven's OTP contract tests read these siblings of keycloak-extensions.
+        dockerfile = DOCKERFILE.read_text().split("AS oid4vp-build", 1)[0]
+        ignore = (ROOT / "packages/Dockerfile.keycloak.dockerignore").read_text()
+        for filename in ("messaging.rs", "dial_codes.rs"):
+            source = f"sequent-core/src/types/{filename}"
+            with self.subTest(source=source):
+                self.assertTrue((ROOT / "packages" / source).is_file())
+                self.assertIn(f"!{source}", ignore.splitlines())
+                self.assertRegex(
+                    dockerfile,
+                    rf"COPY\s+\./{re.escape(source)}\s+"
+                    r"/build/context/packages/sequent-core/src/types/",
+                )
+        for directory in ("sequent-core", "sequent-core/src", "sequent-core/src/types"):
+            with self.subTest(directory=directory):
+                self.assertIn(f"!{directory}", ignore.splitlines())
+
     def test_the_image_installs_the_prepared_react_themes(self):
         dockerfile = DOCKERFILE.read_text()
-        self.assertIn("python3 -m scripts.dev.keycloak prepare --runtime built", dockerfile)
+        self.assertIn(
+            "python3 -m scripts.dev.keycloak prepare --runtime built", dockerfile
+        )
         self.assertRegex(
             dockerfile,
             rf"COPY [^\n]*--from=themes-build [^\n]*/{re.escape(str(THEMES))}/ "

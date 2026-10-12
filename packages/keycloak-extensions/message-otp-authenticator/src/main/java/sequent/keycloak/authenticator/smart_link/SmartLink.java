@@ -9,6 +9,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import lombok.extern.jbosslog.JBossLog;
@@ -29,6 +30,9 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.provider.ProviderFactory;
+import sequent.keycloak.authenticator.messaging.MessageChannel;
+import sequent.keycloak.authenticator.messaging.MessageReason;
+import sequent.keycloak.authenticator.messaging.VoterChannel;
 import sequent.keycloak.login_bridge.LoginBridgeActionToken;
 
 /** Common utilities Smart Link authentication, used by the authenticator and resource */
@@ -52,7 +56,6 @@ public class SmartLink {
             .event(EventType.REGISTER)
             .detail(Details.REGISTER_METHOD, LoginBridgeActionToken.TOKEN_TYPE)
             .detail(Details.USERNAME, user.getUsername())
-            .detail(Details.EMAIL, user.getEmail())
             .user(user)
             .success();
       }
@@ -86,9 +89,39 @@ public class SmartLink {
     return user;
   }
 
-  // TODO: send sms too
+  /**
+   * Why the sign-in link can't go to the voter, if it can't. It is sent only by email, so only to a
+   * voter whose one channel is email, or who has no messaging channel (the realm's rule for them).
+   * Any other voter's link is refused with the reason, never emailed (R7-15).
+   */
+  public static Optional<MessageReason> refusal(UserModel user) {
+    if (VoterChannel.shape(user) != VoterChannel.Source.LEGACY) {
+      Optional<VoterChannel> channel = VoterChannel.of(user);
+      if (channel.isEmpty()) {
+        return Optional.of(MessageReason.NO_CONTACT_CHANNEL);
+      }
+      if (channel.get().channel() != MessageChannel.EMAIL) {
+        return Optional.of(MessageReason.SMART_LINK_ONLY_BY_EMAIL);
+      }
+    }
+    if (Strings.isNullOrEmpty(user.getEmail())) {
+      return Optional.of(MessageReason.NO_CONTACT_CHANNEL);
+    }
+    return Optional.empty();
+  }
+
+  /**
+   * Emails the sign-in link when {@link #refusal} allows it.
+   *
+   * @return whether it was sent; a refusal or a failure is logged with its reason
+   */
   public static boolean sendSmartLinkNotification(
       KeycloakSession session, UserModel user, String link) {
+    Optional<MessageReason> refused = refusal(user);
+    if (refused.isPresent()) {
+      log.warnv("Smart link not sent to user {0}: {1}", user.getId(), refused.get().reason());
+      return false;
+    }
     RealmModel realm = session.getContext().getRealm();
     try {
       EmailTemplateProvider emailTemplateProvider =

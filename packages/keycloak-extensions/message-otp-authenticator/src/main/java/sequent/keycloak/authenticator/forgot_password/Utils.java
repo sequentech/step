@@ -43,6 +43,8 @@ import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.userprofile.UserProfileProvider;
 import org.keycloak.util.JsonSerialization;
 import sequent.keycloak.authenticator.MessageOTPAuthenticator;
+import sequent.keycloak.authenticator.gateway.SmsSenderProvider;
+import sequent.keycloak.authenticator.messaging.MessageReason;
 import sequent.keycloak.authenticator.messaging.NoticeRecipient;
 
 @UtilityClass
@@ -396,35 +398,74 @@ public class Utils {
     return Strings.isNullOrEmpty(realm.getDisplayName()) ? realm.getName() : realm.getDisplayName();
   }
 
-  public static void sendNewPasswordNotification(
-      KeycloakSession session, UserModel user, String temporaryPassword) throws EmailException {
-    log.infov("sendNewPasswordNotification(): to user with email={0}", user.getEmail());
+  /**
+   * Sends a temporary password on the voter's one channel. A failure is recorded and the password
+   * is never sent elsewhere.
+   *
+   * @return empty when the password was handed over (harvest took it or may have sent it: ACCEPTED,
+   *     QUEUED, DELIVERED, UNKNOWN; or Keycloak's provider sent it); otherwise the reason it
+   *     wasn't, and the caller must not set it
+   */
+  public static Optional<String> sendNewPasswordNotification(
+      KeycloakSession session, UserModel user, String temporaryPassword)
+      throws EmailException, IOException {
+    log.info("sendNewPasswordNotification(): start");
     RealmModel realm = session.getContext().getRealm();
     String realmName = getRealmName(realm);
-    try {
-      if (sequent.keycloak.authenticator.Utils.sendNotice(
-          session,
-          realm,
-          user,
-          NoticeRecipient.fromUser(user, MessageOTPAuthenticator.MOBILE_NUMBER_FIELD),
-          NEW_PASSWORD_MESSAGE_KEY,
-          () -> List.of(realmName, temporaryPassword),
-          null)) {
-        return;
-      }
-    } catch (IOException e) {
-      log.warn("sendNewPasswordNotification(): not sent on the chosen channel; sending email");
+    sequent.keycloak.authenticator.Utils.NoticeOutcome outcome =
+        sequent.keycloak.authenticator.Utils.sendNotice(
+            session,
+            realm,
+            user,
+            NoticeRecipient.fromUser(user, MessageOTPAuthenticator.MOBILE_NUMBER_FIELD),
+            sequent.keycloak.authenticator.Utils.MessageCourier.CHOSEN,
+            user.getEmail(),
+            user.getFirstAttribute(MessageOTPAuthenticator.MOBILE_NUMBER_FIELD),
+            NEW_PASSWORD_MESSAGE_KEY,
+            () -> List.of(realmName, temporaryPassword),
+            null);
+    if (outcome.keycloak().isEmpty()) {
+      return outcome.handedOver() ? Optional.empty() : Optional.of(outcome.failureReason());
     }
-    EmailTemplateProvider emailTemplateProvider = session.getProvider(EmailTemplateProvider.class);
-    List<Object> subjAttr = ImmutableList.of(realmName);
-    Map<String, Object> bodyAttr = Maps.newHashMap();
-    bodyAttr.put("realmName", realmName);
-    bodyAttr.put("temporaryPassword", temporaryPassword);
-    emailTemplateProvider
-        .setRealm(realm)
-        .setUser(user)
-        .setAttribute("realmName", realmName)
-        .send(Utils.NEW_PASSWORD_EMAIL_SUBJECT, subjAttr, Utils.NEW_PASSWORD_EMAIL_FTL, bodyAttr);
+    sequent.keycloak.authenticator.Utils.KeycloakNotice notice = outcome.keycloak().get();
+    switch (notice.courier()) {
+      case EMAIL -> {
+        EmailTemplateProvider emailTemplateProvider =
+            session.getProvider(EmailTemplateProvider.class);
+        List<Object> subjAttr = ImmutableList.of(realmName);
+        Map<String, Object> bodyAttr = Maps.newHashMap();
+        bodyAttr.put("realmName", realmName);
+        bodyAttr.put("temporaryPassword", temporaryPassword);
+        emailTemplateProvider
+            .setRealm(realm)
+            .setUser(user)
+            .setAttribute("realmName", realmName)
+            .send(
+                Utils.NEW_PASSWORD_EMAIL_SUBJECT, subjAttr, Utils.NEW_PASSWORD_EMAIL_FTL, bodyAttr);
+        return Optional.empty();
+      }
+      case SMS -> {
+        SmsSenderProvider sms = session.getProvider(SmsSenderProvider.class);
+        if (sms.sendsOnlyCodes()) {
+          log.warnv(
+              "sendNewPasswordNotification(): not sent: {0}",
+              MessageReason.SMS_PROVIDER_SENDS_ONLY_CODES.reason());
+          return Optional.of(MessageReason.SMS_PROVIDER_SENDS_ONLY_CODES.reason());
+        }
+        sms.send(
+            notice.mobileNumber(),
+            NEW_PASSWORD_MESSAGE_KEY,
+            List.of(realmName, temporaryPassword),
+            realm,
+            user,
+            session);
+        return Optional.empty();
+      }
+      default -> {
+        log.warn("sendNewPasswordNotification(): no channel; not sent");
+        return Optional.of(MessageReason.NO_CONTACT_CHANNEL.reason());
+      }
+    }
   }
 
   public boolean validateRecaptcha(

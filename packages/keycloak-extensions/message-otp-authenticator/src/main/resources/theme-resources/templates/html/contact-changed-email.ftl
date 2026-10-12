@@ -1,4 +1,4 @@
 <#import "template.ftl" as layout>
 <@layout.emailLayout>
-${kcSanitize(msg("messageErrorEmailHtmlBody", errorCode))?no_esc}
+<p>${msg("contactChanged.notice.text", organization, channel)}</p>
 </@layout.emailLayout>
