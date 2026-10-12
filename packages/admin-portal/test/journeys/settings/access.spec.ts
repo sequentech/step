@@ -161,6 +161,12 @@ test.describe("with messaging account access", () => {
         portal.graphql.on("GetMessagingAccounts", () => ({
             data: {sequent_backend_messaging_account: []},
         }))
+        portal.graphql.on("GetMessagingCallbackStatus", () => ({
+            data: {messaging_callback_status: {accounts: []}},
+        }))
+        portal.graphql.on("GetMessagingMonthlyVolumes", ({variables}) => ({
+            data: {messaging_monthly_volumes: {month: variables.month, rows: []}},
+        }))
         await openSettings(page, portal, "MESSAGING")
         await expect(page.getByRole("tab")).toHaveText([
             ...TABS.slice(0, 2),

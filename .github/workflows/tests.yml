@@ -223,6 +223,10 @@ jobs:
       DEFAULT_SQL_LIMIT: "20"
       DEFAULT_SQL_BATCH_SIZE: "1000"
       CARGO_BUILD_JOBS: "2"
+      # Each integration target links the service; full debug symbols exhaust runners.
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
+      CARGO_INCREMENTAL: "0"
       # The ballot box seal tests post to boards of their own on this server.
       IMMUDB_USER: "immudb"
       IMMUDB_PASSWORD: "immudb"
