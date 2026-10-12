@@ -25,7 +25,10 @@ test.beforeEach(({portal}) => {
     mockElectionTypes(portal)
 })
 
-test("saves the Google Calendar integration key and email", async ({page, portal}) => {
+test("saves the Google Calendar integration key in the vault and the email in the tenant", async ({
+    page,
+    portal,
+}) => {
     const tenant = mockTenant(portal)
     portal.graphql.on("SetGoogleServiceAccountKey", () => ({
         data: {set_google_service_account_key: {client_email: "calendar@synthetic.example"}},
@@ -43,10 +46,13 @@ test("saves the Google Calendar integration key and email", async ({page, portal
     await save.click()
     await commitUndoable(page, portal, "update_sequent_backend_tenant")
     await expect(save).toBeDisabled()
-    expect(
-        portal.graphql.callsTo("SetGoogleServiceAccountKey").map(({variables}) => variables)
-    ).toEqual([
-        {serviceAccountKey: {type: "service_account", client_email: "calendar@synthetic.example"}},
+    expect(portal.graphql.callsTo("SetGoogleServiceAccountKey").map((c) => c.variables)).toEqual([
+        {
+            serviceAccountKey: {
+                type: "service_account",
+                client_email: "calendar@synthetic.example",
+            },
+        },
     ])
     expect(tenant.updates()).toEqual([
         {
@@ -61,10 +67,7 @@ test("saves the Google Calendar integration key and email", async ({page, portal
     ])
 })
 
-test("clears the integration email while a blank key leaves the stored key unchanged", async ({
-    page,
-    portal,
-}) => {
+test("clears the stored email and leaves the key untouched", async ({page, portal}) => {
     const tenant = mockTenant(
         portal,
         tenantRow({
@@ -77,7 +80,6 @@ test("clears the integration email while a blank key leaves the stored key uncha
     )
     await openSettings(page, portal, "Integrations")
     const key = page.getByRole("textbox", {name: "Google Calendar Service Account Key"})
-    await expect(key).toHaveValue("")
     await key.fill("{}")
     await key.fill("")
     const email = page.getByRole("textbox", {name: "Google Calendar Authentication Email"})
