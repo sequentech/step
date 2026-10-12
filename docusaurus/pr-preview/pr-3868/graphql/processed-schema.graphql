@@ -1398,6 +1398,10 @@ type SetCustomUrlsOutput {
   success: Boolean!
 }
 
+type SetGoogleServiceAccountKeyOutput {
+  client_email: String!
+}
+
 type SetRolePermissionOutput {
   id: String
 }
@@ -3603,6 +3607,8 @@ type mutation_root {
   save_lifecycle_policies(election_event_id: uuid!, policies: jsonb!): SaveLifecyclePoliciesOutput!
   send_transmission_package(area_id: uuid!, election_id: uuid!, tally_session_id: uuid!): OptionalId
   set_custom_urls(dns_prefix: String!, election_id: String!, key: String!, origin: String!, redirect_to: String!): SetCustomUrlsOutput
+  """store the tenant Google service account key in the vault"""
+  set_google_service_account_key(service_account_key: jsonb!): SetGoogleServiceAccountKeyOutput
   set_role_permission(permission_name: String!, role_id: String!, tenant_id: String!): SetRolePermissionOutput
   set_user_role(role_id: String!, tenant_id: String!, user_id: String!): SetUserRoleOutput
   set_voter_authentication(election_event_id: uuid!, enrollment: String!, otp: String!): SetVoterAuthenticationOutput
@@ -10610,6 +10616,10 @@ type ballot_publication {
   created_at: timestamptz!
   created_by_user_id: String
   deleted_at: timestamptz
+  """An object relationship"""
+  election: election
+  """An object relationship"""
+  election_event: election_event
   election_event_id: uuid!
   election_id: uuid
   election_ids: [uuid!]
@@ -10657,6 +10667,8 @@ input ballot_publication_bool_exp {
   created_at: timestamptz_comparison_exp
   created_by_user_id: String_comparison_exp
   deleted_at: timestamptz_comparison_exp
+  election: election_bool_exp
+  election_event: election_event_bool_exp
   election_event_id: uuid_comparison_exp
   election_id: uuid_comparison_exp
   election_ids: uuid_array_comparison_exp
@@ -10709,6 +10721,8 @@ input ballot_publication_insert_input {
   created_at: timestamptz
   created_by_user_id: String
   deleted_at: timestamptz
+  election: election_obj_rel_insert_input
+  election_event: election_event_obj_rel_insert_input
   election_event_id: uuid
   election_id: uuid
   election_ids: [uuid!]
@@ -10781,6 +10795,8 @@ input ballot_publication_order_by {
   created_at: order_by
   created_by_user_id: order_by
   deleted_at: order_by
+  election: election_order_by
+  election_event: election_event_order_by
   election_event_id: order_by
   election_id: order_by
   election_ids: order_by
@@ -11298,6 +11314,8 @@ type candidate {
     """JSON select path"""
     path: String
   ): jsonb
+  """An object relationship"""
+  contest: contest
   contest_id: uuid
   created_at: timestamptz
   description: String
@@ -11396,6 +11414,7 @@ input candidate_bool_exp {
   _not: candidate_bool_exp
   _or: [candidate_bool_exp!]
   annotations: jsonb_comparison_exp
+  contest: contest_bool_exp
   contest_id: uuid_comparison_exp
   created_at: timestamptz_comparison_exp
   description: String_comparison_exp
@@ -11453,6 +11472,7 @@ input type for inserting data into table "sequent_backend.candidate"
 """
 input candidate_insert_input {
   annotations: jsonb
+  contest: contest_obj_rel_insert_input
   contest_id: uuid
   created_at: timestamptz
   description: String
@@ -11550,6 +11570,7 @@ input candidate_on_conflict {
 """Ordering options when selecting data from "sequent_backend.candidate"."""
 input candidate_order_by {
   annotations: order_by
+  contest: contest_order_by
   contest_id: order_by
   created_at: order_by
   description: order_by
@@ -11748,6 +11769,8 @@ type cast_vote {
   cast_receipt_signature: String
   content: String
   created_at: timestamptz
+  """An object relationship"""
+  election: election
   election_event_id: uuid!
   election_id: uuid
   id: uuid!
@@ -11799,6 +11822,7 @@ input cast_vote_bool_exp {
   cast_receipt_signature: String_comparison_exp
   content: String_comparison_exp
   created_at: timestamptz_comparison_exp
+  election: election_bool_exp
   election_event_id: uuid_comparison_exp
   election_id: uuid_comparison_exp
   id: uuid_comparison_exp
@@ -11855,6 +11879,7 @@ input cast_vote_insert_input {
   cast_receipt_signature: String
   content: String
   created_at: timestamptz
+  election: election_obj_rel_insert_input
   election_event_id: uuid
   election_id: uuid
   id: uuid
@@ -11928,6 +11953,7 @@ input cast_vote_order_by {
   cast_receipt_signature: order_by
   content: order_by
   created_at: order_by
+  election: election_order_by
   election_event_id: order_by
   election_id: order_by
   id: order_by
@@ -12447,6 +12473,8 @@ type contest {
   counting_algorithm: String
   created_at: timestamptz
   description: String
+  """An object relationship"""
+  election: election
   election_event_id: uuid!
   election_id: uuid!
   external_id: String
@@ -12592,6 +12620,7 @@ input contest_bool_exp {
   counting_algorithm: String_comparison_exp
   created_at: timestamptz_comparison_exp
   description: String_comparison_exp
+  election: election_bool_exp
   election_event_id: uuid_comparison_exp
   election_id: uuid_comparison_exp
   external_id: String_comparison_exp
@@ -12673,6 +12702,7 @@ input contest_insert_input {
   counting_algorithm: String
   created_at: timestamptz
   description: String
+  election: election_obj_rel_insert_input
   election_event_id: uuid
   election_id: uuid
   external_id: String
@@ -12804,6 +12834,7 @@ input contest_order_by {
   counting_algorithm: order_by
   created_at: order_by
   description: order_by
+  election: election_order_by
   election_event_id: order_by
   election_id: order_by
   external_id: order_by
@@ -14042,6 +14073,15 @@ type election_event_mutation_response {
   affected_rows: Int!
   """data from the rows affected by the mutation"""
   returning: [election_event!]!
+}
+
+"""
+input type for inserting object relation for remote table "sequent_backend.election_event"
+"""
+input election_event_obj_rel_insert_input {
+  data: election_event_insert_input!
+  """upsert condition"""
+  on_conflict: election_event_on_conflict
 }
 
 """
@@ -18437,6 +18477,8 @@ type notification {
     path: String
   ): jsonb
   created_at: timestamptz!
+  """An object relationship"""
+  election: election
   election_event_id: uuid!
   election_id: uuid
   id: uuid!
@@ -18484,6 +18526,7 @@ input notification_bool_exp {
   alias: String_comparison_exp
   annotations: jsonb_comparison_exp
   created_at: timestamptz_comparison_exp
+  election: election_bool_exp
   election_event_id: uuid_comparison_exp
   election_id: uuid_comparison_exp
   id: uuid_comparison_exp
@@ -18536,6 +18579,7 @@ input notification_insert_input {
   alias: String
   annotations: jsonb
   created_at: timestamptz
+  election: election_obj_rel_insert_input
   election_event_id: uuid
   election_id: uuid
   id: uuid
@@ -18601,6 +18645,7 @@ input notification_order_by {
   alias: order_by
   annotations: order_by
   created_at: order_by
+  election: election_order_by
   election_event_id: order_by
   election_id: order_by
   id: order_by
@@ -19629,6 +19674,8 @@ type results_area_contest {
     """JSON select path"""
     path: String
   ): jsonb
+  """An object relationship"""
+  election: election
   election_event_id: uuid!
   election_id: uuid!
   elegible_census: Int
@@ -19727,6 +19774,7 @@ input results_area_contest_bool_exp {
   contest_id: uuid_comparison_exp
   created_at: timestamptz_comparison_exp
   documents: jsonb_comparison_exp
+  election: election_bool_exp
   election_event_id: uuid_comparison_exp
   election_id: uuid_comparison_exp
   elegible_census: Int_comparison_exp
@@ -19773,6 +19821,8 @@ type results_area_contest_candidate {
     """JSON select path"""
     path: String
   ): jsonb
+  """An object relationship"""
+  election: election
   election_event_id: uuid!
   election_id: uuid!
   id: uuid!
@@ -19842,6 +19892,7 @@ input results_area_contest_candidate_bool_exp {
   contest_id: uuid_comparison_exp
   created_at: timestamptz_comparison_exp
   documents: jsonb_comparison_exp
+  election: election_bool_exp
   election_event_id: uuid_comparison_exp
   election_id: uuid_comparison_exp
   id: uuid_comparison_exp
@@ -19912,6 +19963,7 @@ input results_area_contest_candidate_insert_input {
   contest_id: uuid
   created_at: timestamptz
   documents: jsonb
+  election: election_obj_rel_insert_input
   election_event_id: uuid
   election_id: uuid
   id: uuid
@@ -19990,6 +20042,7 @@ input results_area_contest_candidate_order_by {
   contest_id: order_by
   created_at: order_by
   documents: order_by
+  election: election_order_by
   election_event_id: order_by
   election_id: order_by
   id: order_by
@@ -20304,6 +20357,7 @@ input results_area_contest_insert_input {
   contest_id: uuid
   created_at: timestamptz
   documents: jsonb
+  election: election_obj_rel_insert_input
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
@@ -20424,6 +20478,7 @@ input results_area_contest_order_by {
   contest_id: order_by
   created_at: order_by
   documents: order_by
+  election: election_order_by
   election_event_id: order_by
   election_id: order_by
   elegible_census: order_by
@@ -20888,6 +20943,8 @@ type results_contest {
     """JSON select path"""
     path: String
   ): jsonb
+  """An object relationship"""
+  election: election
   election_event_id: uuid!
   election_id: uuid!
   elegible_census: Int
@@ -20988,6 +21045,7 @@ input results_contest_bool_exp {
   counting_algorithm: String_comparison_exp
   created_at: timestamptz_comparison_exp
   documents: jsonb_comparison_exp
+  election: election_bool_exp
   election_event_id: uuid_comparison_exp
   election_id: uuid_comparison_exp
   elegible_census: Int_comparison_exp
@@ -21035,6 +21093,8 @@ type results_contest_candidate {
     """JSON select path"""
     path: String
   ): jsonb
+  """An object relationship"""
+  election: election
   election_event_id: uuid!
   election_id: uuid!
   id: uuid!
@@ -21103,6 +21163,7 @@ input results_contest_candidate_bool_exp {
   contest_id: uuid_comparison_exp
   created_at: timestamptz_comparison_exp
   documents: jsonb_comparison_exp
+  election: election_bool_exp
   election_event_id: uuid_comparison_exp
   election_id: uuid_comparison_exp
   id: uuid_comparison_exp
@@ -21172,6 +21233,7 @@ input results_contest_candidate_insert_input {
   contest_id: uuid
   created_at: timestamptz
   documents: jsonb
+  election: election_obj_rel_insert_input
   election_event_id: uuid
   election_id: uuid
   id: uuid
@@ -21247,6 +21309,7 @@ input results_contest_candidate_order_by {
   contest_id: order_by
   created_at: order_by
   documents: order_by
+  election: election_order_by
   election_event_id: order_by
   election_id: order_by
   id: order_by
@@ -21555,6 +21618,7 @@ input results_contest_insert_input {
   counting_algorithm: String
   created_at: timestamptz
   documents: jsonb
+  election: election_obj_rel_insert_input
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
@@ -21681,6 +21745,7 @@ input results_contest_order_by {
   counting_algorithm: order_by
   created_at: order_by
   documents: order_by
+  election: election_order_by
   election_event_id: order_by
   election_id: order_by
   elegible_census: order_by
@@ -22157,6 +22222,8 @@ type results_election {
     """JSON select path"""
     path: String
   ): jsonb
+  """An object relationship"""
+  election: election
   election_event_id: uuid!
   election_id: uuid!
   elegible_census: Int
@@ -22217,6 +22284,8 @@ type results_election_area {
     """JSON select path"""
     path: String
   ): jsonb
+  """An object relationship"""
+  election: election
   election_event_id: uuid!
   election_id: uuid!
   id: uuid!
@@ -22274,6 +22343,7 @@ input results_election_area_bool_exp {
   blank_ballots_percent: numeric_comparison_exp
   created_at: timestamptz_comparison_exp
   documents: jsonb_comparison_exp
+  election: election_bool_exp
   election_event_id: uuid_comparison_exp
   election_id: uuid_comparison_exp
   id: uuid_comparison_exp
@@ -22335,6 +22405,7 @@ input results_election_area_insert_input {
   blank_ballots_percent: numeric
   created_at: timestamptz
   documents: jsonb
+  election: election_obj_rel_insert_input
   election_event_id: uuid
   election_id: uuid
   id: uuid
@@ -22402,6 +22473,7 @@ input results_election_area_order_by {
   blank_ballots_percent: order_by
   created_at: order_by
   documents: order_by
+  election: election_order_by
   election_event_id: order_by
   election_id: order_by
   id: order_by
@@ -22618,6 +22690,7 @@ input results_election_bool_exp {
   blank_ballots_percent: numeric_comparison_exp
   created_at: timestamptz_comparison_exp
   documents: jsonb_comparison_exp
+  election: election_bool_exp
   election_event_id: uuid_comparison_exp
   election_id: uuid_comparison_exp
   elegible_census: Int_comparison_exp
@@ -22688,6 +22761,7 @@ input results_election_insert_input {
   blank_ballots_percent: numeric
   created_at: timestamptz
   documents: jsonb
+  election: election_obj_rel_insert_input
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
@@ -22763,6 +22837,7 @@ input results_election_order_by {
   blank_ballots_percent: order_by
   created_at: order_by
   documents: order_by
+  election: election_order_by
   election_event_id: order_by
   election_id: order_by
   elegible_census: order_by
@@ -27601,6 +27676,8 @@ type tally_session_contest {
   area_id: uuid!
   contest_id: uuid
   created_at: timestamptz
+  """An object relationship"""
+  election: election
   election_event_id: uuid!
   election_id: uuid!
   id: uuid!
@@ -27661,6 +27738,7 @@ input tally_session_contest_bool_exp {
   area_id: uuid_comparison_exp
   contest_id: uuid_comparison_exp
   created_at: timestamptz_comparison_exp
+  election: election_bool_exp
   election_event_id: uuid_comparison_exp
   election_id: uuid_comparison_exp
   id: uuid_comparison_exp
@@ -27720,6 +27798,7 @@ input tally_session_contest_insert_input {
   area_id: uuid
   contest_id: uuid
   created_at: timestamptz
+  election: election_obj_rel_insert_input
   election_event_id: uuid
   election_id: uuid
   id: uuid
@@ -27785,6 +27864,7 @@ input tally_session_contest_order_by {
   area_id: order_by
   contest_id: order_by
   created_at: order_by
+  election: election_order_by
   election_event_id: order_by
   election_id: order_by
   id: order_by
@@ -28030,6 +28110,8 @@ type tally_session_execution {
     """JSON select path"""
     path: String
   ): jsonb
+  """An object relationship"""
+  tally_session: tally_session
   tally_session_id: uuid!
   tenant_id: uuid!
 }
@@ -28091,6 +28173,7 @@ input tally_session_execution_bool_exp {
   run_reason: String_comparison_exp
   session_ids: Int_array_comparison_exp
   status: jsonb_comparison_exp
+  tally_session: tally_session_bool_exp
   tally_session_id: uuid_comparison_exp
   tenant_id: uuid_comparison_exp
 }
@@ -28159,6 +28242,7 @@ input tally_session_execution_insert_input {
   run_reason: String
   session_ids: [Int!]
   status: jsonb
+  tally_session: tally_session_obj_rel_insert_input
   tally_session_id: uuid
   tenant_id: uuid
 }
@@ -28228,6 +28312,7 @@ input tally_session_execution_order_by {
   run_reason: order_by
   session_ids: order_by
   status: order_by
+  tally_session: tally_session_order_by
   tally_session_id: order_by
   tenant_id: order_by
 }
@@ -29188,6 +29273,8 @@ type tally_sheet {
   created_at: timestamptz!
   created_by_user_id: String!
   deleted_at: timestamptz
+  """An object relationship"""
+  election: election
   election_event_id: uuid!
   election_id: uuid!
   id: uuid!
@@ -29258,6 +29345,7 @@ input tally_sheet_bool_exp {
   created_at: timestamptz_comparison_exp
   created_by_user_id: String_comparison_exp
   deleted_at: timestamptz_comparison_exp
+  election: election_bool_exp
   election_event_id: uuid_comparison_exp
   election_id: uuid_comparison_exp
   id: uuid_comparison_exp
@@ -29511,6 +29599,8 @@ type tally_sheet_import_item {
   channel: String!
   contest_id: uuid!
   created_at: timestamptz!
+  """An object relationship"""
+  election: election
   election_event_id: uuid!
   election_id: uuid!
   """An object relationship"""
@@ -29638,6 +29728,7 @@ input tally_sheet_import_item_bool_exp {
   channel: String_comparison_exp
   contest_id: uuid_comparison_exp
   created_at: timestamptz_comparison_exp
+  election: election_bool_exp
   election_event_id: uuid_comparison_exp
   election_id: uuid_comparison_exp
   generated_tally_sheet: tally_sheet_bool_exp
@@ -29720,6 +29811,7 @@ input tally_sheet_import_item_insert_input {
   channel: String
   contest_id: uuid
   created_at: timestamptz
+  election: election_obj_rel_insert_input
   election_event_id: uuid
   election_id: uuid
   generated_tally_sheet: tally_sheet_obj_rel_insert_input
@@ -29866,6 +29958,7 @@ input tally_sheet_import_item_order_by {
   channel: order_by
   contest_id: order_by
   created_at: order_by
+  election: election_order_by
   election_event_id: order_by
   election_id: order_by
   generated_tally_sheet: tally_sheet_order_by
@@ -30456,6 +30549,7 @@ input tally_sheet_insert_input {
   created_at: timestamptz
   created_by_user_id: String
   deleted_at: timestamptz
+  election: election_obj_rel_insert_input
   election_event_id: uuid
   election_id: uuid
   id: uuid
@@ -30550,6 +30644,7 @@ input tally_sheet_order_by {
   created_at: order_by
   created_by_user_id: order_by
   deleted_at: order_by
+  election: election_order_by
   election_event_id: order_by
   election_id: order_by
   id: order_by
