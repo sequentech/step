@@ -3,14 +3,16 @@
 
 //! Keeps the task queues' archives to a retention period. Every processed message is
 //! archived with its outcome, so the archives show what ran and how it ended; old entries
-//! are deleted. The archives of the electoral log's event, batch and dead-letter queues are
-//! never purged, so an event that could be neither stored nor dead-lettered stays in them.
+//! are deleted. The archives of the electoral log's event and batch queues lose only the
+//! messages that succeeded, so an event that could be neither stored nor dead-lettered
+//! stays in them, and the dead-letter queue's archive is never purged.
 
 use crate::services::celery_app::Queue;
 use crate::services::database::get_queue_pool;
 use crate::types::error::Result;
 use anyhow::Context;
 use celery::error::TaskError;
+use pgmq_broker::PurgedOutcomes;
 use std::time::Duration;
 use strum::IntoEnumIterator;
 use tracing::{info, instrument};
@@ -55,16 +57,20 @@ fn positive_setting(name: &str, value: Option<&str>, default: u64) -> anyhow::Re
     }
 }
 
-/// The queues whose archives are kept.
-const KEPT_ARCHIVES: [Queue; 3] = [
-    Queue::ElectoralLogEvent,
-    Queue::ElectoralLogBatch,
-    Queue::ElectoralLogDeadLetter,
-];
-
-/// The queues whose archives are purged.
-fn purged_queues() -> impl Iterator<Item = Queue> {
-    Queue::iter().filter(|queue| !KEPT_ARCHIVES.contains(queue))
+/// Which old messages of a queue's archive are purged; none when it is kept whole.
+fn purged_outcomes(queue: Queue) -> Option<PurgedOutcomes> {
+    match queue {
+        Queue::Beat
+        | Queue::Short
+        | Queue::Communication
+        | Queue::Tally
+        | Queue::Reports
+        | Queue::ImportExport
+        | Queue::ElectoralLogBeat
+        | Queue::Monitoring => Some(PurgedOutcomes::All),
+        Queue::ElectoralLogEvent | Queue::ElectoralLogBatch => Some(PurgedOutcomes::Succeeded),
+        Queue::ElectoralLogDeadLetter => None,
+    }
 }
 
 /// Delete archived messages older than the retention period. Windmill beat schedules it
@@ -79,11 +85,18 @@ pub async fn purge_queue_archives() -> Result<()> {
         .get()
         .await
         .context("Error connecting to the task-queue database")?;
-    for queue in purged_queues() {
-        let deleted =
-            pgmq_broker::purge_archive(&**client, queue.queue_name(), retention, PURGE_BATCH)
-                .await
-                .with_context(|| format!("Error purging the archive of {}", queue.queue_name()))?;
+    for (queue, outcomes) in
+        Queue::iter().filter_map(|queue| purged_outcomes(queue).map(|outcomes| (queue, outcomes)))
+    {
+        let deleted = pgmq_broker::purge_archive(
+            &**client,
+            queue.queue_name(),
+            retention,
+            outcomes,
+            PURGE_BATCH,
+        )
+        .await
+        .with_context(|| format!("Error purging the archive of {}", queue.queue_name()))?;
         if deleted > 0 {
             info!(
                 "Purged {deleted} archived messages of {} older than {}h",
@@ -113,17 +126,20 @@ mod tests {
     }
 
     #[test]
-    fn the_electoral_log_archives_are_never_purged() {
-        let purged: Vec<Queue> = purged_queues().collect();
-        for kept in [
-            Queue::ElectoralLogEvent,
-            Queue::ElectoralLogBatch,
-            Queue::ElectoralLogDeadLetter,
-        ] {
-            assert!(!purged.contains(&kept), "{kept:?}");
+    fn the_electoral_log_archives_keep_what_did_not_succeed() {
+        assert_eq!(purged_outcomes(Queue::ElectoralLogDeadLetter), None);
+        for queue in [Queue::ElectoralLogEvent, Queue::ElectoralLogBatch] {
+            assert_eq!(
+                purged_outcomes(queue),
+                Some(PurgedOutcomes::Succeeded),
+                "{queue:?}"
+            );
         }
-        assert!(purged.contains(&Queue::ElectoralLogBeat));
-        assert!(purged.contains(&Queue::Monitoring));
-        assert_eq!(purged.len(), Queue::iter().count() - 3);
+        let purged_whole: Vec<Queue> = Queue::iter()
+            .filter(|queue| purged_outcomes(*queue) == Some(PurgedOutcomes::All))
+            .collect();
+        assert!(purged_whole.contains(&Queue::ElectoralLogBeat));
+        assert!(purged_whole.contains(&Queue::Monitoring));
+        assert_eq!(purged_whole.len(), Queue::iter().count() - 3);
     }
 }

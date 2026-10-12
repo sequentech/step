@@ -166,13 +166,13 @@ Workers poll each consumed queue every 200 ms when it is empty.
 Beat schedules `purge_queue_archives` every `QUEUE_ARCHIVE_PURGE_INTERVAL_SECS`
 seconds (3600 by default). It deletes archived messages older than
 `QUEUE_ARCHIVE_RETENTION_HOURS` hours (168, seven days, by default), a few thousand
-rows per statement. It never deletes waiting messages, and never purges the archives
-of the electoral-log raw-event, batch and dead-letter queues: a batch that could be
-neither stored nor dead-lettered stays in its archive. Those three archives grow with
-every electoral-log event, so size the task-queue database for them as for the
-electoral-log databases. Beat refuses to start with an
-invalid interval, and a worker consuming `beat` refuses to start with an invalid
-retention.
+rows per statement. It never deletes waiting messages. From the archives of the
+electoral-log raw-event and batch queues it deletes only messages archived as
+`succeeded`: one that failed, expired, was rejected or has no outcome, such as a batch
+that could be neither stored nor dead-lettered, stays in its archive until an operator
+sends it again or deletes it. The dead-letter queue's archive is never purged. Beat
+refuses to start with an invalid interval, and a worker consuming `beat` refuses to
+start with an invalid retention.
 
 ## Migrating an environment from RabbitMQ
 

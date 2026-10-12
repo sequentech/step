@@ -495,9 +495,15 @@ async fn purge_deletes_only_archived_messages_past_the_retention() {
         .await
         .unwrap();
 
-    let deleted = purge_archive(&**client, &queue, Duration::from_secs(3600), 1)
-        .await
-        .unwrap();
+    let deleted = purge_archive(
+        &**client,
+        &queue,
+        Duration::from_secs(3600),
+        PurgedOutcomes::All,
+        1,
+    )
+    .await
+    .unwrap();
     assert_eq!(deleted, 2);
     let count = |table: String| {
         let client = &client;
@@ -512,16 +518,122 @@ async fn purge_deletes_only_archived_messages_past_the_retention() {
     assert_eq!(count(format!("a_{queue}")).await, 1);
     assert_eq!(count(format!("q_{queue}")).await, 1);
     assert_eq!(
-        purge_archive(&**client, &queue, Duration::from_secs(3600), 100)
-            .await
-            .unwrap(),
+        purge_archive(
+            &**client,
+            &queue,
+            Duration::from_secs(3600),
+            PurgedOutcomes::All,
+            100
+        )
+        .await
+        .unwrap(),
         0
     );
-    assert!(
-        purge_archive(&**client, "Not-A-Queue", Duration::from_secs(1), 1)
+    assert!(purge_archive(
+        &**client,
+        "Not-A-Queue",
+        Duration::from_secs(1),
+        PurgedOutcomes::All,
+        1
+    )
+    .await
+    .is_err());
+    client
+        .query_one("SELECT pgmq.drop_queue($1)", &[&queue])
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+#[ignore = "requires a disposable PostgreSQL database"]
+async fn purging_succeeded_messages_keeps_every_other_outcome() {
+    let pool = test_pool();
+    let queue = unique_queue("purge_outcomes");
+    set_up(&pool, &[&queue]).await;
+    let client = pool.get().await.unwrap();
+    // Archived past the retention with each outcome, or none; then one succeeded within it.
+    let old = [
+        Some("succeeded"),
+        Some("failed"),
+        Some("expired"),
+        Some("rejected"),
+        None,
+    ];
+    for (index, outcome) in old.iter().copied().chain([Some("succeeded")]).enumerate() {
+        let id: i64 = client
+            .query_one("SELECT pgmq.send($1, '{}')", &[&queue])
             .await
-            .is_err()
+            .unwrap()
+            .get(0);
+        client
+            .query_one("SELECT pgmq.archive($1, $2::bigint)", &[&queue, &id])
+            .await
+            .unwrap();
+        client
+            .execute(
+                &format!(
+                    "UPDATE pgmq.a_{queue} SET \
+                     headers = CASE WHEN $2::text IS NULL THEN headers \
+                     ELSE jsonb_build_object('{OUTCOME_HEADER}', $2::text) END, \
+                     archived_at = CASE WHEN $3 THEN now() - interval '2 hours' \
+                     ELSE archived_at END \
+                     WHERE msg_id = $1"
+                ),
+                &[&id, &outcome, &(index < old.len())],
+            )
+            .await
+            .unwrap();
+    }
+    let outcomes = || {
+        let client = &client;
+        let queue = &queue;
+        async move {
+            client
+                .query(
+                    &format!(
+                        "SELECT headers->>'{OUTCOME_HEADER}' FROM pgmq.a_{queue} ORDER BY msg_id"
+                    ),
+                    &[],
+                )
+                .await
+                .unwrap()
+                .iter()
+                .map(|row| row.get::<_, Option<String>>(0))
+                .collect::<Vec<_>>()
+        }
+    };
+
+    let deleted = purge_archive(
+        &**client,
+        &queue,
+        Duration::from_secs(3600),
+        PurgedOutcomes::Succeeded,
+        1,
+    )
+    .await
+    .unwrap();
+    assert_eq!(deleted, 1);
+    assert_eq!(
+        outcomes().await,
+        [
+            Some("failed".to_string()),
+            Some("expired".to_string()),
+            Some("rejected".to_string()),
+            None,
+            Some("succeeded".to_string()),
+        ]
     );
+    let deleted = purge_archive(
+        &**client,
+        &queue,
+        Duration::from_secs(3600),
+        PurgedOutcomes::All,
+        100,
+    )
+    .await
+    .unwrap();
+    assert_eq!(deleted, 4);
+    assert_eq!(outcomes().await, [Some("succeeded".to_string())]);
     client
         .query_one("SELECT pgmq.drop_queue($1)", &[&queue])
         .await
