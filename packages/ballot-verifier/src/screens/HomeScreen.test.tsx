@@ -323,6 +323,37 @@ describe("importing an audited ballot", () => {
         expect(nextButton()).toBeDisabled()
     })
 
+    it.each([
+        ["single-contest", singleContestBallot, "verify_ballot_signature_js", false],
+        ["single-contest", singleContestBallot, "verify_ballot_signature_js", null],
+        ["combined-contest", multiContestBallot, "verify_multi_ballot_signature_js", false],
+        ["combined-contest", multiContestBallot, "verify_multi_ballot_signature_js", null],
+    ] as const)(
+        "rejects a signed %s ballot when verification does not succeed",
+        async (_format, recorded, binding, answer) => {
+            const valid = recorded()
+            recordSequentCore(valid)
+            const {lastReported} = renderImportStep(valid)
+            await importFile(JSON.stringify(valid.ballot))
+            await expectAccepted("audited-ballot.json")
+            sequentCore[binding].mockReturnValue(answer)
+            await importFile(JSON.stringify(valid.ballot), "unverified.json")
+            await expectRejected()
+            expect(lastReported()).toBeNull()
+            expect(nextButton()).toBeDisabled()
+        }
+    )
+
+    it("selects the combined ballot decoder without trying the single-contest decoder", async () => {
+        const valid = multiContestBallot()
+        recordSequentCore(valid)
+        renderImportStep(valid)
+        await importFile(JSON.stringify(valid.ballot))
+        await expectAccepted("audited-ballot.json")
+        expect(sequentCore.decode_auditable_multi_ballot_js).toHaveBeenCalledWith(valid.ballot)
+        expect(sequentCore.decode_auditable_ballot_js).not.toHaveBeenCalled()
+    })
+
     it("ignores an empty file", async () => {
         const single = singleContestBallot()
         recordSequentCore(single)

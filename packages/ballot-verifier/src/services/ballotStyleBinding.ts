@@ -26,6 +26,14 @@ const layoutOf = (ballotStyle: IBallotStyle): string =>
         election_id: ballotStyle.election_id,
         area_id: ballotStyle.area_id,
         public_key: ballotStyle.public_key?.public_key ?? null,
+        is_demo: ballotStyle.public_key?.is_demo ?? null,
+        configuration_id: ballotStyle.public_key?.configuration_id ?? null,
+        // Recovery can remap the ceremony UUID while preserving Configuration.id.
+        // The UUID defines the native domain only without that immutable ID.
+        keys_ceremony_id:
+            ballotStyle.public_key?.configuration_id == null
+                ? (ballotStyle.public_key?.keys_ceremony_id ?? null)
+                : null,
         contests: ballotStyle.contests.map((contest) => ({
             id: contest.id,
             candidates: contest.candidates.map((candidate) => candidate.id),
@@ -33,7 +41,7 @@ const layoutOf = (ballotStyle: IBallotStyle): string =>
     })
 
 /**
- * Compares the election, area, public key and the order of contests and
+ * Compares the election, area, native key/domain and the order of contests and
  * candidates of the ballot style carried by an auditable ballot with the
  * published ballot style that has the same id. Only MATCHES lets the ballot
  * through, so the caller fails closed on the other two outcomes.

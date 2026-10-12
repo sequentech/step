@@ -109,6 +109,50 @@ for (const invalid of ["signature", "multi-signature", "json"] as const) {
     })
 }
 
+for (const multiple of [false, true]) {
+    for (const corruption of ["configuration", "missing-configuration", "ciphertext"] as const) {
+        test(`native ${multiple ? "combined" : "single"} audit rejects ${corruption} substitution and recovers`, async ({
+            page,
+            portal,
+        }) => {
+            const {ballot, hash} = await signedBallot(multiple)
+            expect(ballot.config.public_key?.configuration_id).toBe(
+                BigInt(`0x${IDS.keysCeremony.replaceAll("-", "")}`).toString()
+            )
+            await verify(page, portal, ballot, hash)
+            await page.getByRole("link", {name: "Back", exact: true}).click()
+            const broken = structuredClone(ballot)
+            if (corruption === "configuration") {
+                broken.config.public_key!.configuration_id = (
+                    BigInt(broken.config.public_key!.configuration_id!) + 1n
+                ).toString()
+            } else if (corruption === "missing-configuration") {
+                delete broken.config.public_key!.configuration_id
+            } else if (Array.isArray(broken.contests)) {
+                broken.contests[0] = Buffer.from(broken.contests[0], "base64")
+                    .subarray(0, -1)
+                    .toString("base64")
+            } else {
+                broken.contests = Buffer.from(broken.contests, "base64")
+                    .subarray(0, -1)
+                    .toString("base64")
+            }
+            await page.getByTestId("drop-input-file").setInputFiles({
+                name: "substituted-native-audit.json",
+                mimeType: "application/json",
+                buffer: Buffer.from(JSON.stringify(broken)),
+            })
+            await expect(page.getByRole("alert")).toBeVisible()
+            await expect(page.getByRole("button", {name: "Next", exact: true})).toBeDisabled()
+            await expect(page.getByText("Alice Example", {exact: true})).toHaveCount(0)
+            await upload(page, ballot, hash)
+            await expect(page.getByRole("alert")).toBeHidden()
+            await page.getByRole("button", {name: "Next", exact: true}).click()
+            await expect(page.getByText("Alice Example", {exact: true})).toBeVisible()
+        })
+    }
+}
+
 test("mobile import and verification preserve the ballot ID and selected candidate", async ({
     page,
     portal,
