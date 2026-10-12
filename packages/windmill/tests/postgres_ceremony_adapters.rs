@@ -1394,6 +1394,27 @@ async fn get_tally_session_by_id_reports_a_session_of_another_event_as_not_found
 }
 
 #[tokio::test]
+async fn get_tally_session_by_id_if_exist_returns_the_session_or_none() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, ids!()).await;
+    tally_session_row(&tx, &w.tenant, &w.event, &w.id(10), H10).await;
+    tally_session_row(&tx, &w.tenant, &w.other_event, &w.id(11), H10).await;
+
+    let found =
+        tally_session::get_tally_session_by_id_if_exist(&tx, &w.tenant, &w.event, &w.id(10))
+            .await
+            .unwrap();
+    assert_eq!(found.map(|session| session.id), Some(w.id(10)));
+    let of_another_event =
+        tally_session::get_tally_session_by_id_if_exist(&tx, &w.tenant, &w.event, &w.id(11))
+            .await
+            .unwrap();
+    assert_eq!(of_another_event, None);
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
 async fn get_tally_session_by_id_fails_on_a_configuration_it_cannot_read() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();

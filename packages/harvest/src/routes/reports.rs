@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::routes::signing::{signing_failure, SigningReply};
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_permission_labels,
+};
 use crate::services::dependencies::HarvestServices;
 use crate::services::signing_http::SigningError as SigningFailure;
 use anyhow::{anyhow, Result};
@@ -341,6 +343,13 @@ pub async fn generate_report(
         )
     })?
     .ok_or_else(|| (Status::NotFound, "Report not found".to_string()))?;
+    authorize_election_permission_labels(
+        &hasura_transaction,
+        &claims,
+        &report.election_event_id,
+        report.election_id.as_ref().map(std::slice::from_ref),
+    )
+    .await?;
     let report_type =
         ReportType::from_str(&report.report_type).map_err(|error| {
             (Status::BadRequest, format!("Invalid report type: {error}"))
