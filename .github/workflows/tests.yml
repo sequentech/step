@@ -215,9 +215,9 @@ jobs:
     if: fromJSON(needs.plan.outputs.selection).jobs.run-windmill-tests
     name: Run Windmill tests
     runs-on: ubuntu-24.04
-    # Hosts main's PGMQ and electoral-log contracts and ovcs's database checks; a
-    # cold compiler cache, saved only by a run that finishes, needs more than 35.
-    timeout-minutes: 50
+    # Hosts main's PGMQ and electoral-log contracts and ovcs's database checks, each
+    # building its own test targets: together they take 45 to 55 minutes.
+    timeout-minutes: 70
     env:
       RUST_BACKTRACE: "full"
       PROTOC: "/usr/bin/protoc"
