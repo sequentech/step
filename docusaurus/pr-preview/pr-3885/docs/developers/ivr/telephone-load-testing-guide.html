@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Telephone Load Testing Guide | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3885/docs/developers/ivr/telephone-load-testing-guide"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Telephone Load Testing Guide | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3885/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3885/docs/developers/ivr/telephone-load-testing-guide"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3885/docs/developers/ivr/telephone-load-testing-guide" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3885/docs/developers/ivr/telephone-load-testing-guide" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Telephone Load Testing Guide","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3885/docs/developers/ivr/telephone-load-testing-guide"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3885/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3885/assets/js/runtime~main.68c60d64.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3885/assets/js/runtime~main.b713ed5f.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3885/assets/js/main.8d0a2bd8.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -87,7 +87,7 @@ in place (true for any tenant <code>new_tenants</code> itself created previously
 Looking up each one&#x27;s <code>api-key-client</code> secret needs
 <code>keycloak_admin_user</code>/<code>keycloak_admin_password</code>, same as <code>new_tenants &gt; 0</code>.</p>
 <p>The keys ceremony defaults to <code>setup.ceremony_policy: AUTOMATIC</code>: each
-trustee&#x27;s <code>braid</code> service still does its DKG round the same way, but nothing
+trustee&#x27;s native wbraid runner still does its DKG round, but nothing
 needs to log in as <code>trustee1</code>/<code>trustee2</code> to confirm it — the ceremony&#x27;s
 status flips to done on its own once every trustee&#x27;s public key is on the
 board, matching the Admin Portal&#x27;s &quot;automatic ceremony&quot; option. Set it to

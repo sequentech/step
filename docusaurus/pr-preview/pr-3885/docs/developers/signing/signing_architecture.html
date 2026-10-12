@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Signing Protected Actions Architecture | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3885/docs/developers/signing/signing_architecture"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Signing Protected Actions Architecture | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3885/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3885/docs/developers/signing/signing_architecture"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3885/docs/developers/signing/signing_architecture" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3885/docs/developers/signing/signing_architecture" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Architecture","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3885/docs/developers/signing/signing_architecture"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3885/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3885/assets/js/runtime~main.68c60d64.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3885/assets/js/runtime~main.b713ed5f.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3885/assets/js/main.8d0a2bd8.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -101,6 +101,11 @@ logging <code>SigningRequestExpired</code> with the requester as the USER.</p>
 <p>Gate actions: the trustee route first answers <code>signing_request</code>; once it is completed the
 portal calls the route again with <code>signing_request_id</code>, and the route calls <code>consume_gate</code>
 (same caller, same subject) to mark it executed in the transaction that runs the step.</p>
+<p>Trustee gates validate a public wbraid custody proof scoped to the trustee and
+ceremony, and to the tally session when authorizing a tally. The signed subject&#x27;s
+retained <code>key_share_sha256</code> field binds the exact public proof text. This approval
+signature is separate from the trustee identity signature inside the proof.
+The routes never receive the trustee&#x27;s identity file or election shares.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="locking-and-ordering">Locking and ordering<a href="#locking-and-ordering" class="hash-link" aria-label="Direct link to Locking and ordering" title="Direct link to Locking and ordering" translate="no">​</a></h3>
 <ul>
 <li class="">Every signing write transaction takes the per-event advisory lock (<code>lock_signing_event</code>)
