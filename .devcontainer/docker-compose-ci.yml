@@ -269,9 +269,10 @@ services:
     build: !reset null
     container_name: !reset null
     working_dir: /opt/trustee
-    volumes:
+    volumes: !override
       - *e2e-binaries
       - ../packages/trustee/dev/trustee1.toml:/etc/step-e2e/trustee.toml:ro
+      - trustee1_data:/opt/trustee/message_store
     entrypoint: ["/opt/step-e2e/bin/trustee", "start", "--b4-url", "http://b4v6:3005", "--trustee-config", "/etc/step-e2e/trustee.toml"]
     depends_on: !override
       b4v6:
@@ -281,9 +282,10 @@ services:
     image: ${STEP_E2E_RUNTIME_IMAGE:-step-backend-e2e-cargo-packages:local}
     container_name: !reset null
     working_dir: /opt/trustee
-    volumes:
+    volumes: !override
       - *e2e-binaries
       - ../packages/trustee/dev/trustee2.toml:/etc/step-e2e/trustee.toml:ro
+      - trustee2_data:/opt/trustee/message_store
     entrypoint: ["/opt/step-e2e/bin/trustee", "start", "--b4-url", "http://b4v6:3005", "--trustee-config", "/etc/step-e2e/trustee.toml"]
     depends_on: !override
       b4v6:
