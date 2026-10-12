@@ -17,7 +17,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import type {Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony} from "@/gql/graphql"
 import {CUSTODY_REQUEST as REQUEST_FIXTURE} from "./__stories__/KeysCeremonyFixture"
-import {sha256} from "./__stories__/KeyShareSigningFixture"
+import {sha256} from "./__stories__/CustodyProofSigningFixture"
 import {TrusteeWizard} from "./TrusteeWizard"
 
 const KEYS_ID = "44444444-4444-4444-8444-444444444444"
@@ -99,20 +99,20 @@ const meta = {
         goBack.mockClear()
         let attempts = 0
         boundary = graphqlBoundary({
-            GetPrivateKey: () => {
+            GetCustodyRequest: () => {
                 if (args.download === "fail-once" && attempts++ === 0)
                     throw new Error("Synthetic download unavailable")
                 return {
                     data: {
-                        get_private_key: {
-                            private_key_base64: args.download === "empty" ? "" : CUSTODY_REQUEST,
+                        get_custody_request: {
+                            custody_request_json: args.download === "empty" ? "" : CUSTODY_REQUEST,
                         },
                     },
                 }
             },
-            CheckPrivateKey: ({variables}) => {
+            ConfirmKeyCustody: ({variables}) => {
                 if (args.checkFailure) throw new Error("Synthetic check service unavailable")
-                return {data: {check_private_key: {is_valid: variables.privateKeyBase64 === KEY}}}
+                return {data: {confirm_key_custody: {is_valid: variables.custodyProofJson === KEY}}}
             },
         })
         data = dataBoundary({
@@ -177,7 +177,7 @@ async function downloadKey(canvasElement: HTMLElement) {
     expect(blobs[0].type).toBe("application/json")
     expect(boundary.calls).toEqual([
         {
-            name: "GetPrivateKey",
+            name: "GetCustodyRequest",
             variables: {electionEventId: EVENT_ID, keysCeremonyId: KEYS_ID},
             headers: {"x-hasura-role": "trustee-ceremony"},
         },
@@ -233,12 +233,12 @@ export const ValidBackupIsVerified: Story = {
         )
         expect(canvas.getByRole("button", {name: "Next"})).toBeEnabled()
         expect(boundary.calls[1]).toEqual({
-            name: "CheckPrivateKey",
+            name: "ConfirmKeyCustody",
             variables: {
                 electionEventId: EVENT_ID,
                 keysCeremonyId: KEYS_ID,
-                privateKeyBase64: KEY,
-                keyShareSha256: await sha256(KEY),
+                custodyProofJson: KEY,
+                custodyProofSha256: await sha256(KEY),
             },
             headers: {"x-hasura-role": "trustee-ceremony"},
         })
@@ -253,10 +253,10 @@ export const WrongBackupCanBeReplaced: Story = {
             expect(canvas.getByText("Invalid custody proof, please try again")).toBeVisible()
         )
         expect(canvas.getByRole("button", {name: "Next"})).toBeDisabled()
-        expect(boundary.calls[1].variables.privateKeyBase64).toBe("wrong trustee backup")
+        expect(boundary.calls[1].variables.custodyProofJson).toBe("wrong trustee backup")
         await uploadKey(canvasElement, KEY)
         await waitFor(() => expect(canvas.getByRole("button", {name: "Next"})).toBeEnabled())
-        expect(boundary.calls.filter((call) => call.name === "CheckPrivateKey")).toHaveLength(2)
+        expect(boundary.calls.filter((call) => call.name === "ConfirmKeyCustody")).toHaveLength(2)
     },
 }
 export const DownloadErrorCanBeRetried: Story = {

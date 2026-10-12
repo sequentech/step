@@ -20,9 +20,9 @@ use std::{
 const TRUSTEE: &str = "trustee1";
 const ELECTION_EVENT_ID: &str = "synthetic-event";
 const KEY_CEREMONY_ID: &str = "synthetic-ceremony";
-const DOWNLOAD_UNAVAILABLE: &str = r#"{"errors":[{"message":"Private key download is no longer available","extensions":{"code":"PrivateKeyDownloadUnavailable"}}]}"#;
+const DOWNLOAD_UNAVAILABLE: &str = r#"{"errors":[{"message":"Custody request download is no longer available","extensions":{"code":"CustodyRequestDownloadUnavailable"}}]}"#;
 /// The same answer when Hasura could not parse it and kept it as text.
-const DOWNLOAD_UNAVAILABLE_UNPARSED: &str = r#"{"errors":[{"message":"unexpected","extensions":{"code":"unexpected","internal":{"response":{"status":409,"body":"{\"message\":\"Private key download is no longer available\",\"extensions\":{\"code\":\"PrivateKeyDownloadUnavailable\"}}"}}}}]}"#;
+const DOWNLOAD_UNAVAILABLE_UNPARSED: &str = r#"{"errors":[{"message":"unexpected","extensions":{"code":"unexpected","internal":{"response":{"status":409,"body":"{\"message\":\"Custody request download is no longer available\",\"extensions\":{\"code\":\"CustodyRequestDownloadUnavailable\"}}"}}}}]}"#;
 
 struct Request {
     operation: String,
@@ -96,10 +96,10 @@ impl Cli {
         }
     }
 
-    fn store(&self, key_ceremony_id: Option<&str>, private_key: &str) {
+    fn store(&self, key_ceremony_id: Option<&str>, custody_request: &str) {
         let path = self.key_path(key_ceremony_id);
         fs::create_dir_all(path.parent().unwrap()).unwrap();
-        fs::write(path, private_key).unwrap();
+        fs::write(path, custody_request).unwrap();
     }
 
     fn stored(&self, key_ceremony_id: Option<&str>) -> Option<String> {
@@ -134,7 +134,7 @@ impl Cli {
                 tally_id,
             ],
             KEY_CEREMONY_ID,
-            vec![json!({"data": {"restore_private_key": {"is_valid": true}}}).to_string()],
+            vec![json!({"data": {"authorize_tally_custody": {"is_valid": true}}}).to_string()],
         )
     }
 
@@ -229,12 +229,12 @@ impl Cli {
     }
 }
 
-fn downloaded(private_key: &str) -> String {
-    json!({"data": {"get_private_key": {"private_key_base64": private_key}}}).to_string()
+fn downloaded(custody_request: &str) -> String {
+    json!({"data": {"get_custody_request": {"custody_request_json": custody_request}}}).to_string()
 }
 
 fn checked(is_valid: bool) -> String {
-    json!({"data": {"check_private_key": {"is_valid": is_valid}}}).to_string()
+    json!({"data": {"confirm_key_custody": {"is_valid": is_valid}}}).to_string()
 }
 
 #[test]
@@ -245,9 +245,9 @@ fn stores_the_public_request_before_submitting_a_native_custody_proof() {
     let secrets_before = fs::read_to_string(&cli.keys_file).unwrap();
     let run = cli.complete(KEY_CEREMONY_ID, vec![downloaded(&encoded), checked(true)]);
     assert!(run.output.contains("Success!"), "{}", run.output);
-    assert_eq!(run.operations(), ["GetPrivateKey", "CheckPrivateKey"]);
+    assert_eq!(run.operations(), ["GetCustodyRequest", "ConfirmKeyCustody"]);
     let check = &run.requests[1];
-    let proof = check.variables["privateKeyBase64"].as_str().unwrap();
+    let proof = check.variables["custodyProofJson"].as_str().unwrap();
     assert!(request.verifies(proof).unwrap());
     assert_ne!(proof, encoded);
     assert_eq!(check.ceremony_key.as_deref(), Some(encoded.as_str()));
@@ -293,10 +293,10 @@ fn reuses_only_this_ceremonys_public_request_when_download_is_unavailable() {
         cli.store(None, &other);
         let run = cli.complete(KEY_CEREMONY_ID, vec![unavailable.into(), checked(true)]);
         assert!(run.output.contains("Success!"), "{}", run.output);
-        assert_eq!(run.operations(), ["GetPrivateKey", "CheckPrivateKey"]);
+        assert_eq!(run.operations(), ["GetCustodyRequest", "ConfirmKeyCustody"]);
         assert!(request
             .verifies(
-                run.requests[1].variables["privateKeyBase64"]
+                run.requests[1].variables["custodyProofJson"]
                     .as_str()
                     .unwrap()
             )
@@ -313,7 +313,7 @@ fn does_not_reuse_another_ceremonys_public_request() {
     cli.store(None, &other);
     let run = cli.complete(KEY_CEREMONY_ID, vec![DOWNLOAD_UNAVAILABLE.into()]);
     assert!(run.output.contains("Error!"), "{}", run.output);
-    assert_eq!(run.operations(), ["GetPrivateKey"]);
+    assert_eq!(run.operations(), ["GetCustodyRequest"]);
     assert_eq!(cli.stored(Some(KEY_CEREMONY_ID)), None);
     assert_eq!(cli.stored(None).as_deref(), Some(other.as_str()));
 }
@@ -333,7 +333,7 @@ fn does_not_use_cached_requests_for_unrelated_download_errors() {
         ],
     );
     assert!(run.output.contains("Error!"), "{}", run.output);
-    assert_eq!(run.operations(), ["GetPrivateKey"]);
+    assert_eq!(run.operations(), ["GetCustodyRequest"]);
 }
 
 #[test]
@@ -346,7 +346,7 @@ fn does_not_promote_a_rejected_custody_request_to_the_event() {
         "{}",
         run.output
     );
-    assert_eq!(run.operations(), ["GetPrivateKey", "CheckPrivateKey"]);
+    assert_eq!(run.operations(), ["GetCustodyRequest", "ConfirmKeyCustody"]);
     assert_eq!(cli.stored(None), None);
 }
 
@@ -370,7 +370,7 @@ fn refuses_requests_that_do_not_match_both_local_public_keys() {
         "{}",
         run.output
     );
-    assert_eq!(run.operations(), ["GetPrivateKey"]);
+    assert_eq!(run.operations(), ["GetCustodyRequest"]);
     assert_eq!(cli.stored(None), None);
 }
 
@@ -399,7 +399,7 @@ fn refuses_requests_for_another_trustee_tenant_event_ceremony_or_tally() {
             "scope {scope}: {}",
             run.output
         );
-        assert_eq!(run.operations(), ["GetPrivateKey"]);
+        assert_eq!(run.operations(), ["GetCustodyRequest"]);
         assert_eq!(cli.stored(None), None);
     }
 }
@@ -413,13 +413,13 @@ fn tally_attests_for_the_requested_session_without_changing_cached_requests_or_s
     let original_keys = fs::read_to_string(&cli.keys_file).unwrap();
     let run = cli.tally("synthetic-tally");
     assert!(run.output.contains("Success!"), "{}", run.output);
-    assert_eq!(run.operations(), ["RestorePrivateKey"]);
+    assert_eq!(run.operations(), ["AuthorizeTallyCustody"]);
     assert_eq!(
         run.requests[0].variables["tallySessionId"],
         "synthetic-tally"
     );
     request.tally_session_id = Some("synthetic-tally".into());
-    let proof = run.requests[0].variables["privateKeyBase64"]
+    let proof = run.requests[0].variables["custodyProofJson"]
         .as_str()
         .unwrap();
     assert!(request.verifies(proof).unwrap());

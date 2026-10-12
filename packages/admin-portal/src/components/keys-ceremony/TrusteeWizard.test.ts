@@ -112,7 +112,7 @@ afterEach(cleanup)
 
 describe("TrusteeWizard terminal routing", () => {
     it.each([
-        [EStatus.SUCCESS, TStatus.KEY_CHECKED],
+        [EStatus.SUCCESS, TStatus.CUSTODY_CONFIRMED],
         [EStatus.CANCELLED, TStatus.KEY_GENERATED],
         [EStatus.FAILED, TStatus.HALTED],
     ])(
@@ -147,7 +147,7 @@ describe("TrusteeWizard terminal routing", () => {
     it("sends a participating trustee with generated keys to the start step", () => {
         renderWizard(
             buildCeremony(EStatus.IN_PROGRESS, [
-                {name: TRUSTEE_NAME, status: TStatus.KEY_RETRIEVED},
+                {name: TRUSTEE_NAME, status: TStatus.CUSTODY_REQUEST_RETRIEVED},
             ])
         )
 

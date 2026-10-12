@@ -4801,7 +4801,7 @@ const tagalogTranslation: TranslationType = {
                 keys_ceremony_id: "Seremonya",
                 tally_session_id: "Tally session",
                 trustee_id: "Trustee",
-                key_share_sha256: "SHA-256 ng patunay ng pag-iingat",
+                custody_proof_sha256: "SHA-256 ng patunay ng pag-iingat",
                 channel: "Channel",
                 channels: "Mga channel",
                 publication_id: "Paglalathala ng balota",
@@ -4906,14 +4906,14 @@ const tagalogTranslation: TranslationType = {
                 afterApproval: "Pagkatapos ng pag-apruba",
                 afterApprovalValue:
                     "Ibinibigay at ipinapadala sa botante ang kanyang mga credential",
-                keyShare: "Ang iyong patunay ng pag-iingat",
-                keyShareChecked:
+                custodyProof: "Ang iyong patunay ng pag-iingat",
+                custodyProofChecked:
                     "Nasuri: ito ang iyong patunay ng pag-iingat para sa seremonyang ito",
                 recordedIn: "Itinatala sa",
                 recordedInCeremony: "Ang seremonya ng mga susi at ang bulletin board",
                 recordedInTally: "Ang tally session",
             },
-            keyShare: {
+            custodyProof: {
                 signing:
                     "Pirmahan ang iyong patunay ng pag-iingat sa panel ng pagpirma. Itatala ito kapag napirmahan mo na.",
                 record: "Itala ang aking patunay ng pag-iingat",

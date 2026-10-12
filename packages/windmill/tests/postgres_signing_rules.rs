@@ -990,8 +990,8 @@ async fn a_trustee_rule_needs_manual_ceremonies() {
         .await
         .unwrap();
         for action in [
-            SigningAction::ConfirmKeyShare,
-            SigningAction::ContributeKeyShare,
+            SigningAction::ConfirmCustodyProof,
+            SigningAction::ContributeCustodyProof,
         ] {
             let mut required = input(1, 0);
             required.action = action;
@@ -1021,7 +1021,7 @@ async fn a_trustee_rule_needs_manual_ceremonies() {
         .await
         .unwrap();
         let mut required = input(1, 1);
-        required.action = SigningAction::ConfirmKeyShare;
+        required.action = SigningAction::ConfirmCustodyProof;
         save_rule(&htx, &ktx, &manager, w.tenant, w.event, &required)
             .await
             .unwrap();

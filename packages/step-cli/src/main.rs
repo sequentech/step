@@ -66,7 +66,7 @@ enum StepCommands {
     UpdateTally(commands::update_tally_status::UpdateTallyStatus),
     SubmitTallyResolution(commands::submit_tally_resolution::SubmitTallyResolution),
     TallySheet(commands::tally_sheet::TallySheetCommand),
-    ConfirmKeyTally(commands::confirm_tally_ceremoney_key::ConfirmKeyForTally),
+    ConfirmKeyTally(commands::authorize_tally_custody::AuthorizeTallyCustodyCommand),
     RenderTemplate(commands::render_template::RenderTemplate),
     GenerateVoters(commands::generate_voters::GenerateVoters),
     DuplicateVotes(commands::duplicate_votes::DuplicateVotes),

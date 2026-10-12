@@ -100,7 +100,7 @@ cli step confirm-key-tally \
 
 The command uses the public custody request retained by `complete-key-ceremony`
 to create a proof bound to this tally session. Private keys remain local. See
-[trustee configuration](../../09-braid/braid_trustees_configuration.md) for manual
+[trustee configuration](../../09-wbraid/trustee-configuration.md) for manual
 proof generation and browser trustees.
 
 ### Repeat for the Next Trustee

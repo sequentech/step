@@ -7,7 +7,7 @@ use crate::{
     utils::{
         read_config::read_config,
         trustees::{
-            get_trustee_private_key::{self, get_private_key::GetPrivateKeyInput},
+            get_trustee_custody_request::{self, get_custody_request::GetCustodyRequestInput},
             trustee_graphql_request,
         },
     },
@@ -15,10 +15,10 @@ use crate::{
 use graphql_client::{GraphQLQuery, Response};
 use serde_json::Value;
 use std::error::Error;
-use windmill::services::ceremonies::keys_ceremony::PrivateKeyDownloadUnavailable;
+use windmill::services::ceremonies::keys_ceremony::CustodyRequestDownloadUnavailable;
 
 // The code Harvest answers with once the key can no longer be downloaded
-const PRIVATE_KEY_DOWNLOAD_UNAVAILABLE_CODE: &str = "PrivateKeyDownloadUnavailable";
+const CUSTODY_REQUEST_DOWNLOAD_UNAVAILABLE_CODE: &str = "CustodyRequestDownloadUnavailable";
 
 /// Whether a GraphQL error says the key can no longer be downloaded. Hasura
 /// promotes Harvest's code when it can parse the answer, and otherwise keeps
@@ -26,7 +26,7 @@ const PRIVATE_KEY_DOWNLOAD_UNAVAILABLE_CODE: &str = "PrivateKeyDownloadUnavailab
 fn is_download_unavailable(error: &Value) -> bool {
     let has_code = |value: &Value| {
         value.pointer("/extensions/code").and_then(Value::as_str)
-            == Some(PRIVATE_KEY_DOWNLOAD_UNAVAILABLE_CODE)
+            == Some(CUSTODY_REQUEST_DOWNLOAD_UNAVAILABLE_CODE)
     };
 
     has_code(error)
@@ -40,30 +40,30 @@ fn is_download_unavailable(error: &Value) -> bool {
 #[derive(GraphQLQuery)]
 #[graphql(
     schema_path = "src/graphql/schema.json",
-    query_path = "src/graphql/get_private_key.graphql",
+    query_path = "src/graphql/get_custody_request.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
 
-pub struct GetPrivateKey;
+pub struct GetCustodyRequest;
 
-pub struct GetTrusteePrivateKey;
+pub struct GetTrusteeCustodyRequest;
 
-impl GetTrusteePrivateKey {
-    pub fn get_trustee_private_key(
+impl GetTrusteeCustodyRequest {
+    pub fn get_trustee_custody_request(
         election_event_id: &str,
         key_ceremony_id: &str,
     ) -> Result<String, Box<dyn std::error::Error>> {
         let config = read_config()?;
         let client = reqwest::blocking::Client::new();
 
-        let variables = get_private_key::Variables {
-            object: GetPrivateKeyInput {
+        let variables = get_custody_request::Variables {
+            object: GetCustodyRequestInput {
                 election_event_id: election_event_id.to_string(),
                 keys_ceremony_id: key_ceremony_id.to_string(),
             },
         };
 
-        let request_body = GetPrivateKey::build_query(variables);
+        let request_body = GetCustodyRequest::build_query(variables);
 
         let response = trustee_graphql_request(&client, &config.endpoint_url, &config.auth_token)
             .json(&request_body)
@@ -76,7 +76,7 @@ impl GetTrusteePrivateKey {
             })?;
             if let Some(errors) = json.get("errors").and_then(Value::as_array) {
                 if errors.iter().any(is_download_unavailable) {
-                    return Err(Box::new(PrivateKeyDownloadUnavailable));
+                    return Err(Box::new(CustodyRequestDownloadUnavailable));
                 }
 
                 let error_statuses: Vec<String> = errors
@@ -97,11 +97,11 @@ impl GetTrusteePrivateKey {
             }
 
             // Continue normally
-            let response_body: Response<get_private_key::ResponseData> =
+            let response_body: Response<get_custody_request::ResponseData> =
                 serde_json::from_value(json)?;
             if let Some(data) = response_body.data {
-                if let Some(e) = data.get_private_key {
-                    Ok(e.private_key_base64)
+                if let Some(e) = data.get_custody_request {
+                    Ok(e.custody_request_json)
                 } else {
                     Err(Box::from("Failed to get key"))
                 }

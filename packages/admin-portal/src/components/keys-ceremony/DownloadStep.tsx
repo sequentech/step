@@ -11,13 +11,13 @@ import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 import {Trans, useTranslation} from "react-i18next"
 
 import {
-    GetPrivateKeyMutation,
+    GetCustodyRequestMutation,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,
 } from "@/gql/graphql"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {WizardStyles} from "@/components/styles/WizardStyles"
-import {GET_PRIVATE_KEY} from "@/queries/GetPrivateKey"
+import {GET_CUSTODY_REQUEST} from "@/queries/GetCustodyRequest"
 import {Dialog} from "@sequentech/ui-essentials"
 import {useGetOne, useNotify} from "react-admin"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
@@ -26,7 +26,7 @@ import {
     IKeysCeremonyExecutionStatus as EStatus,
     IKeysCeremonyTrusteeStatus as TStatus,
 } from "@/services/KeyCeremony"
-import {isPrivateKeyDownloadUnavailableError} from "@/services/privateKeyDownloadError"
+import {isCustodyRequestDownloadUnavailableError} from "@/services/custodyRequestDownloadError"
 
 export interface DownloadStepProps {
     electionEvent: Sequent_Backend_Election_Event
@@ -73,18 +73,21 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
     )?.status
     const isDownloadUnavailable =
         downloadUnavailable ||
-        trusteeStatus === TStatus.KEY_CHECKED ||
+        trusteeStatus === TStatus.CUSTODY_CONFIRMED ||
         !hasGeneratedCeremonyKeys(latestCeremony?.status ?? currentCeremony.status) ||
         (latestCeremony?.execution_status ?? currentCeremony.execution_status) !==
             EStatus.IN_PROGRESS
     const downloadUnavailableMessage =
-        trusteeStatus === TStatus.KEY_CHECKED
+        trusteeStatus === TStatus.CUSTODY_CONFIRMED
             ? "keysGeneration.downloadStep.alreadyVerified"
             : "keysGeneration.downloadStep.unavailable"
 
-    const [getPrivateKeysMutation] = useMutation<GetPrivateKeyMutation>(GET_PRIVATE_KEY, {
-        context: {headers: {"x-hasura-role": IPermissions.TRUSTEE_CEREMONY}},
-    })
+    const [getCustodyRequestMutation] = useMutation<GetCustodyRequestMutation>(
+        GET_CUSTODY_REQUEST,
+        {
+            context: {headers: {"x-hasura-role": IPermissions.TRUSTEE_CEREMONY}},
+        }
+    )
     const download = async () => {
         setErrors(null)
         setDownloaded(false)
@@ -93,7 +96,7 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
         }
         setDownloading(true)
         try {
-            const {data, errors} = await getPrivateKeysMutation({
+            const {data, errors} = await getCustodyRequestMutation({
                 variables: {
                     electionEventId: electionEvent.id,
                     keysCeremonyId: currentCeremony.id,
@@ -101,19 +104,19 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
             })
             setDownloading(false)
             if (errors) {
-                if (isPrivateKeyDownloadUnavailableError({graphQLErrors: errors})) {
+                if (isCustodyRequestDownloadUnavailableError({graphQLErrors: errors})) {
                     setDownloadUnavailable(true)
                 } else {
                     setErrors(t("keysGeneration.downloadStep.unexpectedError"))
                 }
                 return null
             } else {
-                const privateKey = data?.get_private_key?.private_key_base64
-                if (!privateKey) {
+                const custodyRequest = data?.get_custody_request?.custody_request_json
+                if (!custodyRequest) {
                     setErrors(t("keysGeneration.downloadStep.errorEmptyKey"))
                     return
                 }
-                const blob = new Blob([privateKey], {type: "application/json"})
+                const blob = new Blob([custodyRequest], {type: "application/json"})
                 const blobUrl = window.URL.createObjectURL(blob)
                 const fileName = "custody-request.json"
                 const tempLink = document.createElement("a")
@@ -125,7 +128,7 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
             }
         } catch (exception: unknown) {
             setDownloading(false)
-            if (isPrivateKeyDownloadUnavailableError(exception)) {
+            if (isCustodyRequestDownloadUnavailableError(exception)) {
                 setDownloadUnavailable(true)
             } else {
                 setErrors(t("keysGeneration.downloadStep.unexpectedError"))

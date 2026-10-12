@@ -4764,7 +4764,7 @@ const galegoTranslation: TranslationType = {
                 keys_ceremony_id: "Cerimonia",
                 tally_session_id: "Sesión de escrutinio",
                 trustee_id: "Fiduciario",
-                key_share_sha256: "SHA-256 do proba de custodia",
+                custody_proof_sha256: "SHA-256 do proba de custodia",
                 channel: "Canle",
                 channels: "Canles",
                 publication_id: "Publicación de papeletas",
@@ -4868,13 +4868,13 @@ const galegoTranslation: TranslationType = {
             notes: {
                 afterApproval: "Despois da aprobación",
                 afterApprovalValue: "Emítense as credenciais do votante e envíanselle",
-                keyShare: "O seu proba de custodia",
-                keyShareChecked: "Comprobado: é o seu proba de custodia para esta cerimonia",
+                custodyProof: "O seu proba de custodia",
+                custodyProofChecked: "Comprobado: é o seu proba de custodia para esta cerimonia",
                 recordedIn: "Anótase en",
                 recordedInCeremony: "A cerimonia de chaves e o taboleiro de anuncios",
                 recordedInTally: "A sesión de escrutinio",
             },
-            keyShare: {
+            custodyProof: {
                 signing:
                     "Asine o seu proba de custodia no panel de sinatura. Anótase unha vez que o asine.",
                 record: "Anotar o meu proba de custodia",

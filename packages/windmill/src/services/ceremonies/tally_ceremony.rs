@@ -12,10 +12,10 @@ use crate::adapters::tally_ceremony::{
     PgTallyCreationReader, PgTallySessions,
 };
 use crate::domain::tally_ceremony::{
-    check_key_restore_status, check_status_change, check_trustee_quorum, is_recount_eligible,
-    reaches_key_threshold, recount_elections_status, restore_trustee_key, restored_trustee_count,
-    restoring_trustee, tally_executer, tally_execution_status, EXECUTER_USERNAME_ANNOTATION,
-    EXECUTER_USER_ID_ANNOTATION,
+    authorize_trustee_custody, authorized_trustee_count, authorizing_trustee,
+    check_custody_authorization_status, check_status_change, check_trustee_quorum,
+    is_recount_eligible, reaches_key_threshold, recount_elections_status, tally_executer,
+    tally_execution_status, EXECUTER_USERNAME_ANNOTATION, EXECUTER_USER_ID_ANNOTATION,
 };
 use crate::domain::tally_creation::{
     check_weighted_voting_ballot_styles, check_weighted_voting_policies,
@@ -942,7 +942,7 @@ pub async fn update_tally_ceremony_with(
     let status = get_tally_ceremony_status(tally_session_execution.status)?;
     check_trustee_quorum(
         tally_session.threshold,
-        restored_trustee_count(&status),
+        authorized_trustee_count(&status),
         &new_execution_status,
     )?;
 
@@ -983,47 +983,47 @@ pub async fn update_tally_ceremony_with(
     Ok(())
 }
 
-/// A trustee's request to restore their private key for a tally session.
-pub struct TrusteeKeyRestore<'a> {
+/// A trustee's request to authorize their custody for a tally session.
+pub struct TrusteeCustodyAuthorization<'a> {
     pub claims: &'a JwtClaims,
     pub tenant_id: &'a str,
     pub election_event_id: &'a str,
     pub tally_session_id: &'a str,
-    pub private_key_base64: &'a str,
+    pub custody_proof_json: &'a str,
     /// Which restores count, when the rule makes trustees sign.
     pub signatures: &'a TrusteeSignatures,
 }
 
-#[instrument(err, skip(transaction, claims, private_key_base64, signatures))]
-pub async fn set_private_key(
+#[instrument(err, skip(transaction, claims, custody_proof_json, signatures))]
+pub async fn authorize_tally_custody(
     transaction: &Transaction<'_>,
     claims: &JwtClaims,
     tenant_id: &str,
     election_event_id: &str,
     tally_session_id: &str,
-    private_key_base64: &str,
+    custody_proof_json: &str,
     signatures: &TrusteeSignatures,
 ) -> Result<bool> {
-    set_private_key_with(
+    authorize_tally_custody_with(
         &PgTallySessions::new(transaction),
         &PgKeysCeremonies::new(transaction),
         &NativeTrusteeCustody::new(transaction),
         &PgElectionEvents::new(transaction),
         &ElectoralLogTallyAudit::new(transaction),
-        TrusteeKeyRestore {
+        TrusteeCustodyAuthorization {
             claims,
             tenant_id,
             election_event_id,
             tally_session_id,
-            private_key_base64,
+            custody_proof_json,
             signatures,
         },
     )
     .await
 }
 
-/// What restoring a trustee's key reads before it writes anything.
-struct KeyRestore {
+/// What authorizing a trustee's custody reads before it writes anything.
+struct CustodyAuthorization {
     trustee_name: String,
     tally_session: TallySession,
     tally_session_execution: TallySessionExecution,
@@ -1033,19 +1033,19 @@ struct KeyRestore {
     custody_valid: bool,
 }
 
-/// Reads the session, its last execution and the trustee's stored key,
-/// failing when the trustee can't restore their key now.
-async fn read_key_restore(
+/// Reads the session, its last execution and the trustee's registered custody,
+/// failing when the trustee can't confirm custody now.
+async fn read_custody_authorization(
     sessions: &impl TallySessions,
     keys_ceremonies: &impl KeysCeremonyReader,
-    private_keys: &impl TrusteeCustody,
+    custody: &impl TrusteeCustody,
     claims: &JwtClaims,
     tenant_id: &str,
     election_event_id: &str,
     tally_session_id: &str,
     signatures: &TrusteeSignatures,
     proof: &str,
-) -> Result<KeyRestore> {
+) -> Result<CustodyAuthorization> {
     let tally_session = sessions
         .get(tenant_id, election_event_id, tally_session_id)
         .await?;
@@ -1070,7 +1070,7 @@ async fn read_key_restore(
         ));
     };
 
-    check_key_restore_status(&tally_execution_status(
+    check_custody_authorization_status(&tally_execution_status(
         tally_session.execution_status.as_deref(),
     ))?;
 
@@ -1085,10 +1085,10 @@ async fn read_key_restore(
 
     let tally_ceremony_status = get_tally_ceremony_status(tally_session_execution.status.clone())?;
     let found_trustee =
-        restoring_trustee(&tally_ceremony_status, &trustee_name, signatures)?.clone();
+        authorizing_trustee(&tally_ceremony_status, &trustee_name, signatures)?.clone();
 
-    // get the encrypted private key
-    let custody_valid = private_keys
+    // verify the public custody proof
+    let custody_valid = custody
         .verifies(
             tenant_id,
             election_event_id,
@@ -1099,7 +1099,7 @@ async fn read_key_restore(
         )
         .await?;
 
-    Ok(KeyRestore {
+    Ok(CustodyAuthorization {
         trustee_name,
         tally_session,
         tally_session_execution,
@@ -1110,76 +1110,76 @@ async fn read_key_restore(
     })
 }
 
-/// Whether the key share is the one the trustee would restore, compared as
-/// [`set_private_key_with`] compares it, recording nothing. Fails as the
-/// restore fails when the trustee can't restore their key now.
-pub async fn trustee_key_share_matches_with(
+/// Whether the custody proof is the one the trustee would restore, compared as
+/// [`authorize_tally_custody_with`] compares it, recording nothing. Fails as the
+/// restore fails when the trustee can't confirm custody now.
+pub async fn trustee_custody_proof_matches_with(
     sessions: &impl TallySessions,
     keys_ceremonies: &impl KeysCeremonyReader,
-    private_keys: &impl TrusteeCustody,
-    request: TrusteeKeyRestore<'_>,
+    custody: &impl TrusteeCustody,
+    request: TrusteeCustodyAuthorization<'_>,
 ) -> Result<bool> {
-    let restore = read_key_restore(
+    let restore = read_custody_authorization(
         sessions,
         keys_ceremonies,
-        private_keys,
+        custody,
         request.claims,
         request.tenant_id,
         request.election_event_id,
         request.tally_session_id,
         request.signatures,
-        request.private_key_base64,
+        request.custody_proof_json,
     )
     .await?;
     Ok(restore.custody_valid)
 }
 
-/// [`trustee_key_share_matches_with`] on the database and the board.
-#[instrument(err, skip(transaction, claims, private_key_base64, signatures))]
-pub async fn key_share_matches(
+/// [`trustee_custody_proof_matches_with`] on the database and the board.
+#[instrument(err, skip(transaction, claims, custody_proof_json, signatures))]
+pub async fn custody_proof_matches(
     transaction: &Transaction<'_>,
     claims: &JwtClaims,
     tenant_id: &str,
     election_event_id: &str,
     tally_session_id: &str,
-    private_key_base64: &str,
+    custody_proof_json: &str,
     signatures: &TrusteeSignatures,
 ) -> Result<bool> {
-    trustee_key_share_matches_with(
+    trustee_custody_proof_matches_with(
         &PgTallySessions::new(transaction),
         &PgKeysCeremonies::new(transaction),
         &NativeTrusteeCustody::new(transaction),
-        TrusteeKeyRestore {
+        TrusteeCustodyAuthorization {
             claims,
             tenant_id,
             election_event_id,
             tally_session_id,
-            private_key_base64,
+            custody_proof_json,
             signatures,
         },
     )
     .await
 }
 
-/// Returns `false`, writing nothing, if the key is not the one the trustee
-/// stored on the board in the keys ceremony.
-pub async fn set_private_key_with(
+/// Returns `false`, writing nothing, if the proof does not verify against the
+/// trustee's registered identity and ceremony.
+pub async fn authorize_tally_custody_with(
     sessions: &impl TallySessions,
     keys_ceremonies: &impl KeysCeremonyReader,
-    private_keys: &impl TrusteeCustody,
+    custody: &impl TrusteeCustody,
     election_events: &impl ElectionEventReader,
     audit: &impl TallyCeremonyAudit,
-    request: TrusteeKeyRestore<'_>,
+    request: TrusteeCustodyAuthorization<'_>,
 ) -> Result<bool> {
-    let TrusteeKeyRestore {
+    let TrusteeCustodyAuthorization {
         claims,
         tenant_id,
         election_event_id,
         tally_session_id,
-        private_key_base64,
+        custody_proof_json,
         signatures,
     } = request;
-    let KeyRestore {
+    let CustodyAuthorization {
         trustee_name,
         tally_session,
         tally_session_execution,
@@ -1187,23 +1187,24 @@ pub async fn set_private_key_with(
         keys_ceremony,
         found_trustee,
         custody_valid,
-    } = read_key_restore(
+    } = read_custody_authorization(
         sessions,
         keys_ceremonies,
-        private_keys,
+        custody,
         claims,
         tenant_id,
         election_event_id,
         tally_session_id,
         signatures,
-        private_key_base64,
+        custody_proof_json,
     )
     .await?;
 
     if !custody_valid {
         return Ok(false);
     }
-    let mut new_status = restore_trustee_key(tally_ceremony_status.clone(), &found_trustee.name);
+    let mut new_status =
+        authorize_trustee_custody(tally_ceremony_status.clone(), &found_trustee.name);
     new_status.logs = append_tally_trustee_log(&tally_ceremony_status.logs, &trustee_name);
     sessions
         .append_execution(
@@ -1236,7 +1237,7 @@ pub async fn set_private_key_with(
         .with_context(|| "missing bulletin board")?;
 
     audit
-        .key_restored(
+        .custody_authorized(
             &board_name,
             tenant_id,
             election_event_id,

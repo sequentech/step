@@ -68,8 +68,8 @@ Before initiating the tally process:
    tally, or an earlier key ceremony proof, cannot authorize this tally.
 7. Once the ceremony is **CONNECTED**, the administrator selects **Start Tally**.
 
-See [trustee setup and recovery](../../../07-developers/09-braid/braid_trustees_configuration.md)
-and [independent public verification](../../../07-developers/09-braid/public-verification.md)
+See [trustee setup and recovery](../../../07-developers/09-wbraid/trustee-configuration.md)
+and [independent public verification](../../../07-developers/09-wbraid/public-verification.md)
 for checking the DKG and tally transcript without trustee keys.
 
 ## Reviewing Results

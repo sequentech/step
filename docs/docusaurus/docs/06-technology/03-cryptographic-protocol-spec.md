@@ -35,7 +35,7 @@ cryptographic protocol. Both require the selected trustees' runners to participa
 The platform receives neither trustee identity files nor election shares, and
 threshold decryption does not reconstruct the private key.
 
-See [native and browser trustee configuration](../07-developers/09-braid/braid_trustees_configuration.md)
+See [native and browser trustee configuration](../07-developers/09-wbraid/trustee-configuration.md)
 for setup, backups and recovery.
 
 ## Verification evidence
@@ -53,7 +53,7 @@ as its trust anchor. Incomplete evidence does not pass verification.
 Cryptographic transcript verification checks the published tally input. Checking
 how that input was selected from the sealed ballot box, including revotes and
 weights, also requires ballot-box evidence and the platform's batching and counting
-checks. See [public verification](../07-developers/09-braid/public-verification.md)
+checks. See [public verification](../07-developers/09-wbraid/public-verification.md)
 and [ballot-box seal verification](../04-election_auditors/02-tutorials/06-auditor_verify-ballot-box-seal.md).
 
 The detailed supplied protocol and canonical serialization specification live in

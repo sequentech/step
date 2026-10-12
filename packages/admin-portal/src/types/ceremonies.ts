@@ -17,8 +17,8 @@ export interface ILog {
 export enum ITrusteeStatus {
     WAITING = "WAITING",
     KEY_GENERATED = "KEY_GENERATED",
-    KEY_RETRIEVED = "KEY_RETRIEVED",
-    KEY_CHECKED = "KEY_CHECKED",
+    CUSTODY_REQUEST_RETRIEVED = "CUSTODY_REQUEST_RETRIEVED",
+    CUSTODY_CONFIRMED = "CUSTODY_CONFIRMED",
     HALTED = "HALTED",
 }
 
@@ -47,8 +47,7 @@ export enum ITallyExecutionStatus {
 
 export enum ITallyTrusteeStatus {
     WAITING = "WAITING",
-    KEY_RESTORED = "KEY_RESTORED",
-    KEY_CHECKED = "KEY_CHECKED",
+    CUSTODY_CONFIRMED = "CUSTODY_CONFIRMED",
     HALTED = "HALTED",
 }
 

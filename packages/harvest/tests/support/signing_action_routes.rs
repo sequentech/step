@@ -588,15 +588,15 @@ async fn markers(client: &deadpool_postgres::Object) -> i64 {
         .get(0)
 }
 
-/// A key step whose key share is not the trustee's records nothing and
+/// A key step whose custody proof is not the trustee's records nothing and
 /// answers `is_valid: false`; a step that ran, or that waits for the
 /// trustee's signature, commits what it recorded and answers the request
 /// to sign, if any.
 #[rocket::async_test]
 async fn a_key_step_commits_its_outcome_and_answers_the_request_to_sign() {
-    use crate::routes::keys_ceremony::finish_key_share_step;
+    use crate::routes::keys_ceremony::finish_custody_proof_step;
+    use windmill::services::signing::custody_proofs::CustodyProofOutcome;
     use windmill::services::signing::guard::SigningRequestSummary;
-    use windmill::services::signing::key_shares::KeyShareOutcome;
 
     let services = Services::on_test_database().await;
     let mut client = services.hasura.get().await.unwrap();
@@ -611,17 +611,17 @@ async fn a_key_step_commits_its_outcome_and_answers_the_request_to_sign() {
         expires_at: Some(Utc::now()),
     };
     for (step, outcome, answer, recorded) in [
-        ("invalid", KeyShareOutcome::Invalid, (false, None), 0),
-        ("done", KeyShareOutcome::Done(None), (true, None), 1),
+        ("invalid", CustodyProofOutcome::Invalid, (false, None), 0),
+        ("done", CustodyProofOutcome::Done(None), (true, None), 1),
         (
             "done with a request",
-            KeyShareOutcome::Done(Some(json!({"request_id": summary.id}))),
+            CustodyProofOutcome::Done(Some(json!({"request_id": summary.id}))),
             (true, None),
             2,
         ),
         (
             "waiting for a signature",
-            KeyShareOutcome::SigningRequired(summary.clone()),
+            CustodyProofOutcome::SigningRequired(summary.clone()),
             (true, Some(summary.clone())),
             3,
         ),
@@ -631,7 +631,7 @@ async fn a_key_step_commits_its_outcome_and_answers_the_request_to_sign() {
             .execute("INSERT INTO key_step_marker VALUES ($1)", &[&step])
             .await
             .unwrap();
-        let answered = finish_key_share_step(transaction, outcome).await;
+        let answered = finish_custody_proof_step(transaction, outcome).await;
         assert_eq!(answered, Ok(answer), "{step}");
         assert_eq!(markers(&client).await, recorded, "{step}");
     }

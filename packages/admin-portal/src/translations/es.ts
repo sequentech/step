@@ -4774,7 +4774,7 @@ const spanishTranslation: TranslationType = {
                 keys_ceremony_id: "Ceremonia",
                 tally_session_id: "Sesión de recuento",
                 trustee_id: "Autoridad",
-                key_share_sha256: "SHA-256 del prueba de custodia",
+                custody_proof_sha256: "SHA-256 del prueba de custodia",
                 channel: "Canal",
                 channels: "Canales",
                 publication_id: "Publicación de papeletas",
@@ -4878,13 +4878,13 @@ const spanishTranslation: TranslationType = {
             notes: {
                 afterApproval: "Tras la aprobación",
                 afterApprovalValue: "Se emiten las credenciales del votante y se le envían",
-                keyShare: "Su prueba de custodia",
-                keyShareChecked: "Comprobado: es su prueba de custodia para esta ceremonia",
+                custodyProof: "Su prueba de custodia",
+                custodyProofChecked: "Comprobado: es su prueba de custodia para esta ceremonia",
                 recordedIn: "Se registra en",
                 recordedInCeremony: "La ceremonia de claves y el tablón de anuncios",
                 recordedInTally: "La sesión de recuento",
             },
-            keyShare: {
+            custodyProof: {
                 signing:
                     "Firme su prueba de custodia en el panel de firma. Se registra una vez que lo haya firmado.",
                 record: "Registrar mi prueba de custodia",

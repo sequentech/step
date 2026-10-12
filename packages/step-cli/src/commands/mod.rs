@@ -2,12 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+pub mod authorize_tally_custody;
 pub mod build_election_event;
 pub mod cast_vote;
 pub mod compile_plan;
 pub mod complete_key_ceremony;
 pub mod configure;
-pub mod confirm_tally_ceremoney_key;
 pub mod create_applications;
 pub mod create_area;
 pub mod create_area_contest;

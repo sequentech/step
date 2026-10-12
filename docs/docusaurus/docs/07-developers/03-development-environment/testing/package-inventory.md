@@ -12,7 +12,7 @@ Cargo workspaces and Maven reactors before interpreting a package test run.
 
 | Area | Test entry point | Separate boundary |
 | --- | --- | --- |
-| Bulletin board and trustee protocol | [Wbraid board storage](./b4.md), [native protocol](./braid.md) | Trustee transport, custody and persistent storage |
+| Bulletin board and trustee protocol | [Wbraid board storage](./wbraid-board.md), [native protocol](./wbraid-protocol.md) | Trustee transport, custody and persistent storage |
 | Native board audit storage | [Electoral log](./electoral-log.md) | PostgreSQL recovery, signatures and receipt contracts |
 | Frontends | [Results Portal](./results-portal.md), [Ballot Verifier](./ballot-verifier.md), [Admin Portal](./admin-portal.md) | Browser flows and live services |
 | Java utilities and extensions | [ECIES](./ecies-encryption.md), [Keycloak](./keycloak-extensions.md) | Certificate chains and deployed authentication |

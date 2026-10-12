@@ -1,5 +1,5 @@
 ---
-id: b4
+id: wbraid-board
 title: Wbraid board storage tests
 ---
 

@@ -431,7 +431,7 @@ docker compose -f docker-compose-remote.yml up -d
 
 Generate each trustee's native identity with `trustee generate --trustee-config trustee.toml`, provision that file at `TRUSTEE_CONFIG_PATH`, and register both keys printed by `trustee public-keys` in the Admin Portal. The runner reads an existing identity and refuses to replace it or generate a new one at startup. Keep the identity and its `message_store` directory in persistent storage.
 
-Configure the trustee's Keycloak account and Harvest endpoint using the variables in the [wbraid trustee guide](../../07-developers/09-braid/braid_trustees_configuration.md). The trustee discovers its assigned boards through Harvest and connects to the native board service at `B4_URL`. Use newly generated identities for deployments; the files under `packages/trustee/dev/` are development fixtures.
+Configure the trustee's Keycloak account and Harvest endpoint using the variables in the [wbraid trustee guide](../../07-developers/09-wbraid/trustee-configuration.md). The trustee discovers its assigned boards through Harvest and connects to the native board service at `B4_URL`. Use newly generated identities for deployments; the files under `packages/trustee/dev/` are development fixtures.
 
 ### Fixing Nginx Proxy Issues
 

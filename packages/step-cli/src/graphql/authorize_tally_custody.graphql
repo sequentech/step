@@ -1,13 +1,13 @@
-mutation RestorePrivateKey(
+mutation AuthorizeTallyCustody(
         $electionEventId: String!
         $tallySessionId: String!
-        $privateKeyBase64: String!
+        $custodyProofJson: String!
     ) {
-        restore_private_key(
+        authorize_tally_custody(
             object: {
                 election_event_id: $electionEventId
                 tally_session_id: $tallySessionId
-                private_key_base64: $privateKeyBase64
+                custody_proof_json: $custodyProofJson
             }
         ) {
             is_valid

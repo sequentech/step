@@ -4,7 +4,7 @@
 
 use crate::adapters::keys_ceremony::{ElectoralLogKeysCeremonyAudit, PgKeysCeremonyStore};
 use crate::adapters::system::{RandomIds, SystemClock};
-pub use crate::domain::keys_ceremony::PrivateKeyDownloadUnavailable;
+pub use crate::domain::keys_ceremony::CustodyRequestDownloadUnavailable;
 use crate::domain::keys_ceremony::{
     ceremony_policy, ceremony_settings, covers_permission_labels, parse_user_permission_labels,
     unique_permission_labels, validate_election_without_ceremony,
@@ -67,14 +67,16 @@ pub async fn custody_request(
 
 /// Download the public challenge for the native trustee tool.
 #[instrument(skip(transaction, claims), err)]
-pub async fn get_private_key(
+pub async fn get_custody_request(
     transaction: &Transaction<'_>,
     claims: JwtClaims,
     tenant_id: String,
     election_event_id: String,
     keys_ceremony_id: String,
 ) -> Result<String> {
-    use crate::domain::keys_ceremony::{validate_private_key_download, with_key_retrieved};
+    use crate::domain::keys_ceremony::{
+        validate_custody_request_download, with_custody_request_retrieved,
+    };
     let name = claims
         .trustee
         .ok_or_else(|| anyhow!("trustee name not found"))?;
@@ -85,7 +87,7 @@ pub async fn get_private_key(
         &keys_ceremony_id,
     )
     .await?;
-    let status = validate_private_key_download(&ceremony, &name)?;
+    let status = validate_custody_request_download(&ceremony, &name)?;
     let request = custody_request(
         transaction,
         &tenant_id,
@@ -95,7 +97,7 @@ pub async fn get_private_key(
         None,
     )
     .await?;
-    let next = with_key_retrieved(
+    let next = with_custody_request_retrieved(
         &status,
         &name,
         append_keys_trustee_download_log(&status.logs, &name),
@@ -113,7 +115,7 @@ pub async fn get_private_key(
 }
 
 /// Check a scoped native custody proof without recording a status change.
-pub async fn key_share_matches(
+pub async fn custody_proof_matches(
     transaction: &Transaction<'_>,
     trustee_name: Option<String>,
     tenant_id: &str,
@@ -129,7 +131,7 @@ pub async fn key_share_matches(
         keys_ceremony_id,
     )
     .await?;
-    crate::domain::keys_ceremony::validate_private_key_check(&ceremony, &name)?;
+    crate::domain::keys_ceremony::validate_custody_confirmation(&ceremony, &name)?;
     custody_request(
         transaction,
         tenant_id,
@@ -144,7 +146,7 @@ pub async fn key_share_matches(
 
 /// Record confirmed custody, preserving the event's trustee-signature rule.
 #[instrument(skip(transaction, claims, proof, signatures), err)]
-pub async fn check_private_key(
+pub async fn confirm_key_custody(
     transaction: &Transaction<'_>,
     claims: JwtClaims,
     tenant_id: String,
@@ -153,7 +155,7 @@ pub async fn check_private_key(
     proof: String,
     signatures: &crate::domain::trustee_signatures::TrusteeSignatures,
 ) -> Result<bool> {
-    use crate::domain::keys_ceremony::{validate_private_key_check, with_key_checked};
+    use crate::domain::keys_ceremony::{validate_custody_confirmation, with_custody_confirmed};
     let name = claims
         .trustee
         .ok_or_else(|| anyhow!("trustee name not found"))?;
@@ -164,7 +166,7 @@ pub async fn check_private_key(
         &keys_ceremony_id,
     )
     .await?;
-    let status = validate_private_key_check(&ceremony, &name)?;
+    let status = validate_custody_confirmation(&ceremony, &name)?;
     if !custody_request(
         transaction,
         &tenant_id,
@@ -178,7 +180,7 @@ pub async fn check_private_key(
     {
         return Ok(false);
     }
-    let (next, execution) = with_key_checked(
+    let (next, execution) = with_custody_confirmed(
         &status,
         &name,
         append_keys_trustee_check_log(&status.logs, &name),

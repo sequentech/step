@@ -1,5 +1,5 @@
 ---
-id: braid
+id: wbraid-protocol
 title: Native wbraid protocol tests
 ---
 

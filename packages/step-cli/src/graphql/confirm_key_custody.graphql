@@ -1,13 +1,13 @@
-mutation CheckPrivateKey(
+mutation ConfirmKeyCustody(
         $electionEventId: String!
         $keysCeremonyId: String!
-        $privateKeyBase64: String!
+        $custodyProofJson: String!
     ) {
-        check_private_key(
+        confirm_key_custody(
             object: {
                 election_event_id: $electionEventId
                 keys_ceremony_id: $keysCeremonyId
-                private_key_base64: $privateKeyBase64
+                custody_proof_json: $custodyProofJson
             }
         ) {
             is_valid

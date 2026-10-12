@@ -18,7 +18,7 @@ Before creating a ceremony, register each trustee's signing public key and share
 encryption public key in **Settings → Trustees**. Start the registered trustees'
 runners and preserve their local identities and protocol state. See the
 [key ceremony tutorial](../../01-tutorials/10-admin_portal_tutorials_key-ceremony.md)
-and [native and browser trustee setup](../../../07-developers/09-braid/braid_trustees_configuration.md).
+and [native and browser trustee setup](../../../07-developers/09-wbraid/trustee-configuration.md).
 
 
 ## Opening Key Distribution Ceremony

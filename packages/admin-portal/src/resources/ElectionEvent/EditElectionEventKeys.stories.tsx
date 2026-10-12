@@ -60,7 +60,7 @@ function keysCeremony(workflow: EStoryWorkflow) {
             public_key: generating ? undefined : "synthetic-public-key",
             trustees: trustees.map(({name}, index) => ({
                 name,
-                status: generating && index !== 1 ? TStatus.WAITING : TStatus.KEY_CHECKED,
+                status: generating && index !== 1 ? TStatus.WAITING : TStatus.CUSTODY_CONFIRMED,
             })),
             logs: [],
         },

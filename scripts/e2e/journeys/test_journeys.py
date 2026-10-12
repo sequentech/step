@@ -1422,10 +1422,10 @@ class BackendJourneys(unittest.TestCase):
             apis[name] = Hasura(token=token, role="trustee-ceremony")
             request = apis[name].query(
                 """mutation ($event: String!, $ceremony: String!) {
-                  get_private_key(object: {election_event_id: $event, keys_ceremony_id: $ceremony}) { private_key_base64 }
+                  get_custody_request(object: {election_event_id: $event, keys_ceremony_id: $ceremony}) { custody_request_json }
                 }""",
                 {"event": event_id, "ceremony": ceremony_id},
-            )["get_private_key"]["private_key_base64"]
+            )["get_custody_request"]["custody_request_json"]
             requests[name] = request
             self.assertEqual(
                 json.loads(request),
@@ -1468,8 +1468,8 @@ class BackendJourneys(unittest.TestCase):
             return proof_path.read_text()
 
         check_query = """mutation ($event: String!, $ceremony: String!, $proof: String!) {
-          check_private_key(object: {election_event_id: $event, keys_ceremony_id: $ceremony,
-                                    private_key_base64: $proof}) { is_valid }
+          confirm_key_custody(object: {election_event_id: $event, keys_ceremony_id: $ceremony,
+                                    custody_proof_json: $proof}) { is_valid }
         }"""
         # A valid proof from the other trustee must not complete this trustee's step.
         wrong = apis["trustee1"].query(
@@ -1479,10 +1479,10 @@ class BackendJourneys(unittest.TestCase):
                 "ceremony": ceremony_id,
                 "proof": attest("trustee2", requests["trustee2"]),
             },
-        )["check_private_key"]
+        )["confirm_key_custody"]
         self.assertFalse(wrong["is_valid"])
         self.assertEqual(
-            {t["status"] for t in ceremony()["status"]["trustees"]}, {"KEY_RETRIEVED"}
+            {t["status"] for t in ceremony()["status"]["trustees"]}, {"CUSTODY_REQUEST_RETRIEVED"}
         )
         for index, name in enumerate(bootstrap.TRUSTEES):
             if browser_url:
@@ -1494,7 +1494,7 @@ class BackendJourneys(unittest.TestCase):
                             "ceremony": ceremony_id,
                             "proof": attest(name, requests[name]),
                         },
-                    )["check_private_key"]["is_valid"]
+                    )["confirm_key_custody"]["is_valid"]
                 )
             else:
                 output = trustee_clients[name].step(
@@ -1522,7 +1522,7 @@ class BackendJourneys(unittest.TestCase):
                         "ceremony": ceremony_id,
                         "proof": attest(name, requests[name]),
                     },
-                )["check_private_key"]
+                )["confirm_key_custody"]
                 self.assertTrue(result["is_valid"])
             # Resume one identity from IndexedDB; restore the other in a completely
             # fresh browser, preserving the DKG commitments used by tally union.
@@ -1541,7 +1541,7 @@ class BackendJourneys(unittest.TestCase):
                         "ceremony": ceremony_id,
                         "proof": attest("trustee1", requests["trustee1"]),
                     },
-                )["check_private_key"]["is_valid"]
+                )["confirm_key_custody"]["is_valid"]
             )
         else:
             self.assertIn(
@@ -1557,7 +1557,7 @@ class BackendJourneys(unittest.TestCase):
                 ),
             )
         self.assertEqual(
-            {t["status"] for t in ceremony()["status"]["trustees"]}, {"KEY_CHECKED"}
+            {t["status"] for t in ceremony()["status"]["trustees"]}, {"CUSTODY_CONFIRMED"}
         )
 
         voters = fixtures.census(self.tag + "-manual", {"A": 1})
@@ -1649,11 +1649,11 @@ class BackendJourneys(unittest.TestCase):
                 proof = attest(name, json.dumps(request))
                 result = apis[name].query(
                     """mutation ($event: String!, $tally: String!, $proof: String!) {
-                  restore_private_key(object: {election_event_id: $event, tally_session_id: $tally,
-                    private_key_base64: $proof}) { is_valid }
+                  authorize_tally_custody(object: {election_event_id: $event, tally_session_id: $tally,
+                    custody_proof_json: $proof}) { is_valid }
                 }""",
                     {"event": event_id, "tally": tally_id, "proof": proof},
-                )["restore_private_key"]
+                )["authorize_tally_custody"]
                 self.assertTrue(result["is_valid"])
 
         self.step(

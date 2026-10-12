@@ -4767,7 +4767,7 @@ const basqueTranslation: TranslationType = {
                 keys_ceremony_id: "Zeremonia",
                 tally_session_id: "Zenbaketa-saioa",
                 trustee_id: "Fideikomisarioa",
-                key_share_sha256: "Zaintza-frogaaren SHA-256",
+                custody_proof_sha256: "Zaintza-frogaaren SHA-256",
                 channel: "Kanala",
                 channels: "Kanalak",
                 publication_id: "Boto-txartelen argitalpena",
@@ -4871,13 +4871,13 @@ const basqueTranslation: TranslationType = {
             notes: {
                 afterApproval: "Onartu ondoren",
                 afterApprovalValue: "Hautesleari kredentzialak igorri eta bidaltzen zaizkio",
-                keyShare: "Zure zaintza-frogaa",
-                keyShareChecked: "Egiaztatuta: zeremonia honetarako zure zaintza-frogaa da",
+                custodyProof: "Zure zaintza-frogaa",
+                custodyProofChecked: "Egiaztatuta: zeremonia honetarako zure zaintza-frogaa da",
                 recordedIn: "Non jasotzen den",
                 recordedInCeremony: "Giltzen zeremonia eta iragarki-taula",
                 recordedInTally: "Zenbaketa-saioa",
             },
-            keyShare: {
+            custodyProof: {
                 signing:
                     "Sinatu zure zaintza-frogaa sinadura-panelean. Sinatu ondoren erregistratzen da.",
                 record: "Erregistratu nire zaintza-frogaa",

@@ -4809,7 +4809,7 @@ const frenchTranslation: TranslationType = {
                 keys_ceremony_id: "Cérémonie",
                 tally_session_id: "Session de dépouillement",
                 trustee_id: "Autorité",
-                key_share_sha256: "SHA-256 du preuve de garde",
+                custody_proof_sha256: "SHA-256 du preuve de garde",
                 channel: "Canal",
                 channels: "Canaux",
                 publication_id: "Publication des bulletins",
@@ -4914,13 +4914,13 @@ const frenchTranslation: TranslationType = {
                 afterApproval: "Après l'approbation",
                 afterApprovalValue:
                     "Les identifiants de l'électeur sont délivrés et lui sont envoyés",
-                keyShare: "Votre preuve de garde",
-                keyShareChecked: "Vérifié : c'est votre preuve de garde pour cette cérémonie",
+                custodyProof: "Votre preuve de garde",
+                custodyProofChecked: "Vérifié : c'est votre preuve de garde pour cette cérémonie",
                 recordedIn: "Consigné dans",
                 recordedInCeremony: "La cérémonie des clés et le tableau d'affichage",
                 recordedInTally: "La session de dépouillement",
             },
-            keyShare: {
+            custodyProof: {
                 signing:
                     "Signez votre preuve de garde dans le panneau de signature. Il est consigné une fois signé.",
                 record: "Consigner mon preuve de garde",

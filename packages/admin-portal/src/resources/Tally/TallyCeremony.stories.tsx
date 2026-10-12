@@ -183,8 +183,8 @@ const meta = {
                             id: "execution",
                             status: {
                                 trustees: [
-                                    {name: "Alice", status: "KEY_CHECKED"},
-                                    {name: "Bob", status: "KEY_CHECKED"},
+                                    {name: "Alice", status: "CUSTODY_CONFIRMED"},
+                                    {name: "Bob", status: "CUSTODY_CONFIRMED"},
                                 ],
                                 elections_status: [],
                                 logs: [],
@@ -347,7 +347,9 @@ export const SelectAndCreateManualCeremony: Story = {
         await waitFor(() =>
             expect(within(document.body).queryByRole("dialog")).not.toBeInTheDocument()
         )
-        await expect(await canvas.findByText("Key fragment import status")).toBeVisible()
+        await expect(
+            await canvas.findByRole("columnheader", {name: "Custody confirmation status"})
+        ).toBeVisible()
         expect(canvas.getByRole("button", {name: "Start Tally"})).toBeDisabled()
     },
 }

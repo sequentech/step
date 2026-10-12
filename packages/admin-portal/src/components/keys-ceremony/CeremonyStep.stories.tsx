@@ -22,12 +22,12 @@ interface Scenario {
     execution: EStatus
     /** Whether both the event and the ceremony follow the automated policy. */
     automated: boolean
-    /** Whether the caller offers the next step and private key verification. */
+    /** Whether the caller offers the next step and custody proof confirmation. */
     withNext: boolean
     isNextDisabled: boolean
     goBack: () => void
     goNext: () => void
-    verifyPrivateKey: () => void
+    confirmCustody: () => void
     setCurrentCeremony: () => void
 }
 
@@ -44,8 +44,8 @@ const storyCeremony = ({execution, automated}: Pick<Scenario, "execution" | "aut
         execution,
         // Listed out of order: the table sorts the trustees by name.
         execution === EStatus.SUCCESS
-            ? [TStatus.KEY_CHECKED, TStatus.KEY_CHECKED, TStatus.KEY_CHECKED]
-            : [TStatus.KEY_RETRIEVED, TStatus.WAITING, TStatus.KEY_CHECKED],
+            ? [TStatus.CUSTODY_CONFIRMED, TStatus.CUSTODY_CONFIRMED, TStatus.CUSTODY_CONFIRMED]
+            : [TStatus.CUSTODY_REQUEST_RETRIEVED, TStatus.WAITING, TStatus.CUSTODY_CONFIRMED],
         {settings: {policy: policyOf(automated)}}
     )
 
@@ -60,7 +60,7 @@ const meta = {
         isNextDisabled: false,
         goBack: fn(),
         goNext: fn(),
-        verifyPrivateKey: fn(),
+        confirmCustody: fn(),
         setCurrentCeremony: fn(),
     },
     argTypes: {
@@ -84,7 +84,7 @@ const meta = {
                 setCurrentCeremony={args.setCurrentCeremony}
                 isNextDisabled={args.isNextDisabled}
                 goNext={withNext ? args.goNext : undefined}
-                verifyPrivateKey={withNext ? args.verifyPrivateKey : undefined}
+                confirmCustody={withNext ? args.confirmCustody : undefined}
             />
         </AdminStoryProvider>
     ),
@@ -206,7 +206,7 @@ export const Navigation: Story = {
     play: async ({canvasElement, args}) => {
         const canvas = within(canvasElement)
         await userEvent.click(await canvas.findByRole("button", {name: "Verify Custody Proof"}))
-        expect(args.verifyPrivateKey).toHaveBeenCalledTimes(1)
+        expect(args.confirmCustody).toHaveBeenCalledTimes(1)
         await userEvent.click(canvas.getByRole("button", {name: "Next"}))
         expect(args.goNext).toHaveBeenCalledTimes(1)
         await userEvent.click(canvas.getByRole("button", {name: "Back"}))

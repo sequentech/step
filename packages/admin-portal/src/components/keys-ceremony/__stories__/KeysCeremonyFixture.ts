@@ -55,8 +55,8 @@ export function ceremony(
         trustees.every((status) =>
             [
                 IKeysCeremonyTrusteeStatus.KEY_GENERATED,
-                IKeysCeremonyTrusteeStatus.KEY_RETRIEVED,
-                IKeysCeremonyTrusteeStatus.KEY_CHECKED,
+                IKeysCeremonyTrusteeStatus.CUSTODY_REQUEST_RETRIEVED,
+                IKeysCeremonyTrusteeStatus.CUSTODY_CONFIRMED,
             ].includes(status)
         )
     return {

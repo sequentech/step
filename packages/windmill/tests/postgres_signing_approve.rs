@@ -866,7 +866,7 @@ async fn overdue_requests_expire_for_their_requester() {
 
 #[tokio::test]
 async fn a_trustee_gate_completes_and_only_its_trustee_consumes_it() {
-    let action = SigningAction::ConfirmKeyShare;
+    let action = SigningAction::ConfirmCustodyProof;
     let w = world("madrid-pe").await;
     // A trustee step needs its trustee's signature, whatever the number.
     w.rule(action, 3, RequesterSigning::NotAllowed, None).await;
@@ -888,8 +888,8 @@ async fn a_trustee_gate_completes_and_only_its_trustee_consumes_it() {
     w.register("trustee-user-2", &certificate, Some("trustee-user"))
         .await;
     let services = services(FakeVerifier::knowing(&[&certificate]), vec![]);
-    let key_share = json!({"keys_ceremony_id": "k", "trustee_id": trustee_id, "key_share_sha256": sha("share")});
-    let request = GuardRequestBuilder::trustee(&w, action, trustee_id, key_share.clone());
+    let custody_proof = json!({"keys_ceremony_id": "k", "trustee_id": trustee_id, "custody_proof_sha256": sha("share")});
+    let request = GuardRequestBuilder::trustee(&w, action, trustee_id, custody_proof.clone());
     let summary = match w
         .guard_request(&trustee, &request.build(), at(0))
         .await
@@ -918,23 +918,23 @@ async fn a_trustee_gate_completes_and_only_its_trustee_consumes_it() {
             &trustee,
             w.tenant,
             w.event,
-            SigningAction::ContributeKeyShare,
+            SigningAction::ContributeCustodyProof,
             summary.id,
-            &key_share
+            &custody_proof
         )
         .await,
         Err(SigningError::NotFound(_))
     ));
     drop(tx);
     for (who, expected, subject) in [
-        (&other, "forbidden", key_share.clone()),
+        (&other, "forbidden", custody_proof.clone()),
         (
             &trustee,
             "conflict",
-            json!({"keys_ceremony_id": "k", "trustee_id": trustee_id, "key_share_sha256": sha("other")}),
+            json!({"keys_ceremony_id": "k", "trustee_id": trustee_id, "custody_proof_sha256": sha("other")}),
         ),
-        (&trustee, "executed", key_share.clone()),
-        (&trustee, "closed", key_share.clone()),
+        (&trustee, "executed", custody_proof.clone()),
+        (&trustee, "closed", custody_proof.clone()),
     ] {
         let tx = client.transaction().await.unwrap();
         let result = consume_gate(&tx, who, w.tenant, w.event, action, summary.id, &subject).await;

@@ -79,11 +79,6 @@ Update the `FROM rust:X.Y.Z` line in **all** Dockerfiles:
   FROM rust:1.90.0-slim-bookworm  # ← Update this
   ```
 
-- **`packages/trustee/Dockerfile`** (line 5)
-  ```dockerfile
-  FROM rust:1.90.0-slim-bookworm  # ← Update this
-  ```
-
 - **`packages/trustee/Dockerfile.prod`**
 - **`packages/trustee/Dockerfile.prod-vstl-dependencies`**
 - **`packages/windmill/Dockerfile`**
@@ -317,9 +312,8 @@ Here's the complete list of files that need updating:
 - `devenv.nix`
 - `packages/sequent-core/flake.nix` (plus `packages/sequent-core/flake.lock` if `rust-overlay` needs updating)
 
-### Dockerfiles (19 files)
+### Dockerfiles
 - `packages/Dockerfile.cargo-packages`
-- `packages/trustee/Dockerfile`
 - `packages/trustee/Dockerfile.prod`
 - `packages/trustee/Dockerfile.prod-vstl-dependencies`
 - `packages/windmill/Dockerfile`

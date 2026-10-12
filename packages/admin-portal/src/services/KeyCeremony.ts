@@ -20,8 +20,8 @@ export enum IKeysCeremonyTrusteeStatus {
     WAITING = "WAITING",
     SHARES_POSTED = "SHARES_POSTED",
     KEY_GENERATED = "KEY_GENERATED",
-    KEY_RETRIEVED = "KEY_RETRIEVED",
-    KEY_CHECKED = "KEY_CHECKED",
+    CUSTODY_REQUEST_RETRIEVED = "CUSTODY_REQUEST_RETRIEVED",
+    CUSTODY_CONFIRMED = "CUSTODY_CONFIRMED",
     HALTED = "HALTED",
 }
 
@@ -44,18 +44,18 @@ export interface IExecutionStatus {
     trustees: Array<IKeysCeremonyTrustee>
 }
 
-interface CanTrusteeRecheckPrivateKeyParams {
+interface CanTrusteeReconfirmCustodyParams {
     executionStatus: IKeysCeremonyExecutionStatus
     trusteeStatus?: IKeysCeremonyTrusteeStatus
     isAutomaticCeremony: boolean
 }
 
-export const canTrusteeRecheckPrivateKey = ({
+export const canTrusteeReconfirmCustody = ({
     executionStatus,
     trusteeStatus,
     isAutomaticCeremony,
-}: CanTrusteeRecheckPrivateKeyParams): boolean => {
-    if (isAutomaticCeremony || trusteeStatus !== IKeysCeremonyTrusteeStatus.KEY_CHECKED) {
+}: CanTrusteeReconfirmCustodyParams): boolean => {
+    if (isAutomaticCeremony || trusteeStatus !== IKeysCeremonyTrusteeStatus.CUSTODY_CONFIRMED) {
         return false
     }
 
@@ -72,7 +72,7 @@ export const hasGeneratedCeremonyKeys = (status: IExecutionStatus): boolean =>
     status.trustees.every((trustee) =>
         [
             IKeysCeremonyTrusteeStatus.KEY_GENERATED,
-            IKeysCeremonyTrusteeStatus.KEY_RETRIEVED,
-            IKeysCeremonyTrusteeStatus.KEY_CHECKED,
+            IKeysCeremonyTrusteeStatus.CUSTODY_REQUEST_RETRIEVED,
+            IKeysCeremonyTrusteeStatus.CUSTODY_CONFIRMED,
         ].includes(trustee.status)
     )

@@ -55,9 +55,9 @@ pub enum TrusteeStatus {
     /// Posted its derivation of the joint public key (`PublicKey`).
     KEY_GENERATED,
     /// Downloaded its public custody request.
-    KEY_RETRIEVED,
+    CUSTODY_REQUEST_RETRIEVED,
     /// Uploaded a valid custody proof bound to this ceremony.
-    KEY_CHECKED,
+    CUSTODY_CONFIRMED,
     /// Halted its session over the board and reported it.
     HALTED,
 }
@@ -200,7 +200,7 @@ pub enum TallyRunReason {
 pub enum TallyTrusteeStatus {
     #[default]
     WAITING,
-    KEY_RESTORED,
+    CUSTODY_CONFIRMED,
     /// Halted its session over one of the tally's boards and reported it.
     HALTED,
 }

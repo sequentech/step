@@ -14,22 +14,22 @@ import type {ISigningPanelData} from "@/lib/signing/api"
 import {hex} from "@/lib/signing/der"
 import {SigningRequestStatus} from "@/lib/signing/types"
 
-/** Public custody-proof JSON and its hash or approval request; API field names are retained. */
-export interface IKeyShareSubmission {
-    privateKeyBase64: string
-    keyShareSha256?: string
+/** Public custody-proof JSON and its hash or approval request. */
+export interface ICustodyProofSubmission {
+    custodyProofJson: string
+    custodyProofSha256?: string
     signingRequestId?: string
 }
 
 /**
- * What `/check-private-key` and `/restore-private-key` answer; `signing_request`
+ * What `/confirm-key-custody` and `/authorize-tally-custody` answer; `signing_request`
  * is the request the trustee signs before the step is recorded.
  */
-export interface IKeyShareAnswer extends ISigningRequiredReply {
+export interface ICustodyProofAnswer extends ISigningRequiredReply {
     is_valid: boolean
 }
 
-export enum KeyShareCheck {
+export enum CustodyProofCheck {
     /** The step was recorded. */
     Verified = "verified",
     /** The proof does not match the trustee and ceremony. */
@@ -39,11 +39,11 @@ export enum KeyShareCheck {
 }
 
 /** SHA-256 of the public custody-proof text (UTF-8), lowercase hex: what the approval binds. */
-export const keyShareSha256 = async (text: string): Promise<string> =>
+export const custodyProofSha256 = async (text: string): Promise<string> =>
     hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)))
 
-export interface IKeyShareSigningOptions {
-    submit: (submission: IKeyShareSubmission) => Promise<IKeyShareAnswer>
+export interface ICustodyProofSigningOptions {
+    submit: (submission: ICustodyProofSubmission) => Promise<ICustodyProofAnswer>
     /** The step was recorded with the trustee's signature. */
     onRecorded: () => void
     /** Recording the signed step failed; `error` says why. */
@@ -58,30 +58,34 @@ export interface IKeyShareSigningOptions {
  * request. The public proof goes to the step's route; the approval binds its hash.
  * Private identities and election shares remain with the trustee.
  */
-export const useKeyShareSigning = ({submit, onRecorded, onFailed}: IKeyShareSigningOptions) => {
+export const useCustodyProofSigning = ({
+    submit,
+    onRecorded,
+    onFailed,
+}: ICustodyProofSigningOptions) => {
     const {t} = useTranslation()
     const signing = useOptionalSigningRequest()
     const openSigned = useSignedAction()
     // The file's text stays in memory only until the signed step is taken.
-    const keyShare = useRef<string | null>(null)
+    const custodyProof = useRef<string | null>(null)
     const finishing = useRef(false)
     const [waiting, setWaiting] = useState(false)
 
     const finish = useCallback(
         async (requestId: string) => {
             if (finishing.current) return
-            const text = keyShare.current
+            const text = custodyProof.current
             if (text === null) {
                 // E.g. after a reload: the file has to be dropped again.
-                onFailed(t("signing.keyShare.dropAgain"))
+                onFailed(t("signing.custodyProof.dropAgain"))
                 return
             }
             finishing.current = true
             try {
-                const answer = await submit({privateKeyBase64: text, signingRequestId: requestId})
+                const answer = await submit({custodyProofJson: text, signingRequestId: requestId})
                 setWaiting(false)
                 if (!answer.is_valid) {
-                    onFailed(t("signing.keyShare.notTaken"))
+                    onFailed(t("signing.custodyProof.notTaken"))
                     return
                 }
                 signing?.close()
@@ -90,7 +94,7 @@ export const useKeyShareSigning = ({submit, onRecorded, onFailed}: IKeyShareSign
                 setWaiting(false)
                 onFailed(error instanceof Error ? error.message : String(error))
             } finally {
-                keyShare.current = null
+                custodyProof.current = null
                 finishing.current = false
             }
         },
@@ -101,16 +105,16 @@ export const useKeyShareSigning = ({submit, onRecorded, onFailed}: IKeyShareSign
         data.request.status === SigningRequestStatus.Completed
 
     const check = useCallback(
-        async (text: string): Promise<KeyShareCheck> => {
-            keyShare.current = null
+        async (text: string): Promise<CustodyProofCheck> => {
+            custodyProof.current = null
             setWaiting(false)
             const answer = await submit({
-                privateKeyBase64: text,
-                keyShareSha256: await keyShareSha256(text),
+                custodyProofJson: text,
+                custodyProofSha256: await custodyProofSha256(text),
             })
-            if (!answer.is_valid) return KeyShareCheck.Invalid
-            if (!signingRequestOf(answer)) return KeyShareCheck.Verified
-            keyShare.current = text
+            if (!answer.is_valid) return CustodyProofCheck.Invalid
+            if (!signingRequestOf(answer)) return CustodyProofCheck.Verified
+            custodyProof.current = text
             // The panel opens with the signing dialog, as for every protected action.
             const opened = openSigned(answer, {
                 onChange: (data) => {
@@ -127,16 +131,16 @@ export const useKeyShareSigning = ({submit, onRecorded, onFailed}: IKeyShareSign
                                 finish(data.request.id).catch(() => undefined)
                             }}
                         >
-                            {t("signing.keyShare.record")}
+                            {t("signing.custodyProof.record")}
                         </Button>
                     ) : null,
             })
             if (!opened) {
-                keyShare.current = null
+                custodyProof.current = null
                 throw new Error(t("signing.widget.cantSign"))
             }
             setWaiting(true)
-            return KeyShareCheck.Signing
+            return CustodyProofCheck.Signing
         },
         [submit, openSigned, finish, t]
     )

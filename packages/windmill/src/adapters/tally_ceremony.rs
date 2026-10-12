@@ -537,7 +537,7 @@ impl TallyCeremonyAudit for ElectoralLogTallyAudit<'_> {
             .with_context(|| ELECTORAL_LOG_POST_FAILED)
     }
 
-    async fn key_restored(
+    async fn custody_authorized(
         &self,
         board_name: &str,
         tenant_id: &str,

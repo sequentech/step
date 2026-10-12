@@ -15,7 +15,7 @@ import {
     IKeysCeremonyExecutionStatus as EStatus,
     IKeysCeremonyTrusteeStatus as TStatus,
 } from "@/services/KeyCeremony"
-import {PRIVATE_KEY_DOWNLOAD_UNAVAILABLE_ERROR_CODE} from "@/services/privateKeyDownloadError"
+import {CUSTODY_REQUEST_DOWNLOAD_UNAVAILABLE_ERROR_CODE} from "@/services/custodyRequestDownloadError"
 import {EStoryPermissions} from "../../../../ui-essentials/.storybook/globals"
 import {DownloadStep} from "./DownloadStep"
 import {
@@ -62,21 +62,23 @@ const meta = {
         data = resourceBoundary({[KEYS_CEREMONY_RESOURCE]: [currentCeremony(args)]})
         graphql = graphqlBoundary(
             {
-                GetPrivateKey: () => {
+                GetCustodyRequest: () => {
                     if (args.key === "failure") throw new Error("Synthetic key service failure")
                     if (args.key === "unavailable") {
                         return {
                             errors: [
                                 new GraphQLError("The ceremony has moved on", {
-                                    extensions: {code: PRIVATE_KEY_DOWNLOAD_UNAVAILABLE_ERROR_CODE},
+                                    extensions: {
+                                        code: CUSTODY_REQUEST_DOWNLOAD_UNAVAILABLE_ERROR_CODE,
+                                    },
                                 }),
                             ],
                         }
                     }
                     return {
                         data: {
-                            get_private_key: {
-                                private_key_base64: args.key === "empty" ? "" : CUSTODY_REQUEST,
+                            get_custody_request: {
+                                custody_request_json: args.key === "empty" ? "" : CUSTODY_REQUEST,
                             },
                         },
                     }
@@ -116,7 +118,7 @@ async function download(canvasElement: HTMLElement) {
 }
 
 const keyRequest = {
-    name: "GetPrivateKey",
+    name: "GetCustodyRequest",
     variables: {electionEventId: EVENT_ID, keysCeremonyId: STORY_IDS.keysCeremony},
     headers: {"x-hasura-role": "trustee-ceremony"},
 }
@@ -231,7 +233,7 @@ export const ServiceReportsTheCeremonyMovedOn: Story = {
 }
 
 export const AlreadyVerified: Story = {
-    args: {trustee: TStatus.KEY_CHECKED},
+    args: {trustee: TStatus.CUSTODY_CONFIRMED},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(
@@ -243,7 +245,7 @@ export const AlreadyVerified: Story = {
 }
 
 export const CeremonyFinished: Story = {
-    args: {execution: EStatus.SUCCESS, trustee: TStatus.KEY_RETRIEVED},
+    args: {execution: EStatus.SUCCESS, trustee: TStatus.CUSTODY_REQUEST_RETRIEVED},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(

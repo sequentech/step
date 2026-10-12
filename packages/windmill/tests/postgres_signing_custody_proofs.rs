@@ -3,9 +3,9 @@
 
 //! The trustees' key steps behind their own signature (Gate mode): with
 //! the rule off they run as they always did; with it on they wait for a
-//! request that names the key share's SHA-256, which the trustee signs and
-//! then uses exactly once, with the same key share. The signature is kept
-//! with the ceremony, and the key share never reaches a signing table or
+//! request that names the custody proof's SHA-256, which the trustee signs and
+//! then uses exactly once, with the same custody proof. The signature is kept
+//! with the ceremony, and the custody proof never reaches a signing table or
 //! the log.
 //!
 //! Each test runs under two configurations (ceremony and trustee names,
@@ -28,17 +28,18 @@ use std::sync::Mutex;
 use uuid::Uuid;
 use windmill::domain::trustee_signatures::TrusteeSignatures;
 use windmill::services::signing::approve::SigningServices;
-use windmill::services::signing::guard::SigningRequestSummary;
-use windmill::services::signing::key_shares::{
-    key_share_labels, key_share_signature_status, take_key_share_step, trustee_signatures,
-    KeyShareCeremony, KeyShareError, KeyShareInput, KeyShareKind, KeyShareOutcome, KeyShareStep,
-    KeysCeremonyKeyShare, TallyKeyShare, KEY_SHARE_SIGNATURE_ANNOTATION,
+use windmill::services::signing::custody_proofs::{
+    custody_proof_labels, custody_proof_signature_status, take_custody_proof_step,
+    trustee_signatures, CustodyProofCeremony, CustodyProofError, CustodyProofInput,
+    CustodyProofKind, CustodyProofOutcome, CustodyProofStep, KeysCeremonyCustodyProof,
+    TallyCustodyProof, CUSTODY_PROOF_SIGNATURE_ANNOTATION,
 };
+use windmill::services::signing::guard::SigningRequestSummary;
 use windmill::services::signing::{SigningCaller, SigningError};
 
-/// The key share files: distinctive text that must never be stored.
-const KEY_SHARE: &str = "ENCRYPTED-KEY-SHARE-of-the-trustee-7b1f0c";
-const OTHER_KEY_SHARE: &str = "ENCRYPTED-KEY-SHARE-of-someone-else-e93a";
+/// The custody proof files: distinctive text that must never be stored.
+const CUSTODY_PROOF: &str = "PUBLIC-CUSTODY-PROOF-of-the-trustee-7b1f0c";
+const OTHER_CUSTODY_PROOF: &str = "PUBLIC-CUSTODY-PROOF-of-someone-else-e93a";
 
 /// A configuration: the ceremony's name and the trustee's.
 struct Config {
@@ -63,7 +64,7 @@ const CONFIGS: [Config; 2] = [
     },
 ];
 
-/// The ceremony side: the stored key share, how often the step ran and
+/// The ceremony side: the stored custody proof, how often the step ran and
 /// which trustees counted when it last ran or matched.
 struct FakeCeremony {
     stored: Mutex<String>,
@@ -74,7 +75,7 @@ struct FakeCeremony {
 impl FakeCeremony {
     fn new() -> Self {
         FakeCeremony {
-            stored: Mutex::new(KEY_SHARE.into()),
+            stored: Mutex::new(CUSTODY_PROOF.into()),
             runs: AtomicUsize::new(0),
             signatures: Mutex::new(None),
         }
@@ -88,31 +89,31 @@ impl FakeCeremony {
         self.runs.load(Ordering::SeqCst)
     }
 
-    fn is_stored(&self, key_share: &str) -> bool {
-        *self.stored.lock().unwrap() == key_share
+    fn is_stored(&self, custody_proof: &str) -> bool {
+        *self.stored.lock().unwrap() == custody_proof
     }
 }
 
 #[async_trait]
-impl KeyShareCeremony for FakeCeremony {
+impl CustodyProofCeremony for FakeCeremony {
     async fn matches(
         &self,
         _: &Transaction<'_>,
-        key_share: &str,
+        custody_proof: &str,
         signatures: &TrusteeSignatures,
     ) -> anyhow::Result<bool> {
         *self.signatures.lock().unwrap() = Some(signatures.clone());
-        Ok(self.is_stored(key_share))
+        Ok(self.is_stored(custody_proof))
     }
 
     async fn run(
         &self,
         _: &Transaction<'_>,
-        key_share: &str,
+        custody_proof: &str,
         signatures: &TrusteeSignatures,
     ) -> anyhow::Result<bool> {
         *self.signatures.lock().unwrap() = Some(signatures.clone());
-        if !self.is_stored(key_share) {
+        if !self.is_stored(custody_proof) {
             return Ok(false);
         }
         self.runs.fetch_add(1, Ordering::SeqCst);
@@ -185,8 +186,8 @@ async fn ceremonies(config: &'static Config) -> Ceremonies {
         .await
         .unwrap();
     let roles = [
-        SigningAction::ConfirmKeyShare.sign_permission(),
-        SigningAction::ContributeKeyShare.sign_permission(),
+        SigningAction::ConfirmCustodyProof.sign_permission(),
+        SigningAction::ContributeCustodyProof.sign_permission(),
     ];
     let mut trustee = caller(&format!("{}-user", config.trustee_name), &roles, &[]);
     trustee.trustee = Some(config.trustee_name.into());
@@ -223,20 +224,20 @@ async fn ceremonies(config: &'static Config) -> Ceremonies {
 }
 
 impl Ceremonies {
-    fn steps(&self) -> [KeyShareStep; 2] {
+    fn steps(&self) -> [CustodyProofStep; 2] {
         [
-            KeyShareStep {
-                kind: KeyShareKind::Confirm,
+            CustodyProofStep {
+                kind: CustodyProofKind::Confirm,
                 id: self.keys_ceremony_id,
             },
-            KeyShareStep {
-                kind: KeyShareKind::Contribute,
+            CustodyProofStep {
+                kind: CustodyProofKind::Contribute,
                 id: self.tally_session_id,
             },
         ]
     }
 
-    async fn require(&self, step: KeyShareStep) {
+    async fn require(&self, step: CustodyProofStep) {
         // The stored count doesn't matter: the trustee signs their own step.
         self.w
             .rule(step.action(), 2, RequesterSigning::NotAllowed, None)
@@ -244,16 +245,16 @@ impl Ceremonies {
     }
 
     /// Takes the step as the route does: committed unless refused or not
-    /// the trustee's key share.
+    /// the trustee's custody proof.
     async fn take(
         &self,
         who: &SigningCaller,
         ceremony: &FakeCeremony,
-        step: KeyShareStep,
-        key_share: &str,
+        step: CustodyProofStep,
+        custody_proof: &str,
         signing_request_id: Option<Uuid>,
-    ) -> Result<KeyShareOutcome, KeyShareError> {
-        self.take_hashed(who, ceremony, step, key_share, None, signing_request_id)
+    ) -> Result<CustodyProofOutcome, CustodyProofError> {
+        self.take_hashed(who, ceremony, step, custody_proof, None, signing_request_id)
             .await
     }
 
@@ -261,11 +262,11 @@ impl Ceremonies {
         &self,
         who: &SigningCaller,
         ceremony: &FakeCeremony,
-        step: KeyShareStep,
-        key_share: &str,
-        key_share_sha256: Option<&str>,
+        step: CustodyProofStep,
+        custody_proof: &str,
+        custody_proof_sha256: Option<&str>,
         signing_request_id: Option<Uuid>,
-    ) -> Result<KeyShareOutcome, KeyShareError> {
+    ) -> Result<CustodyProofOutcome, CustodyProofError> {
         let mut client = self.w.pool.get().await.unwrap();
         let tx = client.transaction().await.unwrap();
         let (tenant_id, election_event_id, target_id) = (
@@ -273,24 +274,24 @@ impl Ceremonies {
             self.w.event.to_string(),
             step.id.to_string(),
         );
-        let outcome = take_key_share_step(
+        let outcome = take_custody_proof_step(
             &tx,
             who,
             ceremony,
-            &KeyShareInput {
+            &CustodyProofInput {
                 tenant_id: &tenant_id,
                 election_event_id: &election_event_id,
                 kind: step.kind,
                 target_id: &target_id,
-                key_share,
-                key_share_sha256,
+                custody_proof,
+                custody_proof_sha256,
                 signing_request_id,
             },
         )
         .await;
         if matches!(
             outcome,
-            Ok(KeyShareOutcome::Done(_) | KeyShareOutcome::SigningRequired(_))
+            Ok(CustodyProofOutcome::Done(_) | CustodyProofOutcome::SigningRequired(_))
         ) {
             tx.commit().await.unwrap();
         }
@@ -298,19 +299,27 @@ impl Ceremonies {
     }
 
     /// Starts the trustee's request for `step`.
-    async fn start(&self, ceremony: &FakeCeremony, step: KeyShareStep) -> SigningRequestSummary {
+    async fn start(
+        &self,
+        ceremony: &FakeCeremony,
+        step: CustodyProofStep,
+    ) -> SigningRequestSummary {
         match self
-            .take(&self.trustee, ceremony, step, KEY_SHARE, None)
+            .take(&self.trustee, ceremony, step, CUSTODY_PROOF, None)
             .await
             .unwrap()
         {
-            KeyShareOutcome::SigningRequired(summary) => summary,
+            CustodyProofOutcome::SigningRequired(summary) => summary,
             other => panic!("{step:?}: expected a request, got {other:?}"),
         }
     }
 
     /// Starts and signs the trustee's request for `step`.
-    async fn signed(&self, ceremony: &FakeCeremony, step: KeyShareStep) -> SigningRequestSummary {
+    async fn signed(
+        &self,
+        ceremony: &FakeCeremony,
+        step: CustodyProofStep,
+    ) -> SigningRequestSummary {
         let summary = self.start(ceremony, step).await;
         let outcome = self
             .w
@@ -328,23 +337,23 @@ impl Ceremonies {
     }
 
     /// What the trustee's request for `step` signs: exactly the contract's subject.
-    fn subject(&self, step: KeyShareStep, key_share: &str) -> Value {
+    fn subject(&self, step: CustodyProofStep, custody_proof: &str) -> Value {
         let id_field = match step.kind {
-            KeyShareKind::Confirm => "keys_ceremony_id",
-            KeyShareKind::Contribute => "tally_session_id",
+            CustodyProofKind::Confirm => "keys_ceremony_id",
+            CustodyProofKind::Contribute => "tally_session_id",
         };
         json!({
             id_field: step.id.to_string(),
             "trustee_id": self.trustee_id.to_string(),
-            "key_share_sha256": sha(key_share),
+            "custody_proof_sha256": sha(custody_proof),
         })
     }
 
     /// The step's ceremony annotations.
-    async fn annotations(&self, step: KeyShareStep) -> Value {
+    async fn annotations(&self, step: CustodyProofStep) -> Value {
         let (table, id) = match step.kind {
-            KeyShareKind::Confirm => ("keys_ceremony", step.id),
-            KeyShareKind::Contribute => ("tally_session", step.id),
+            CustodyProofKind::Confirm => ("keys_ceremony", step.id),
+            CustodyProofKind::Contribute => ("tally_session", step.id),
         };
         let client = self.w.pool.get().await.unwrap();
         client
@@ -374,9 +383,9 @@ impl Ceremonies {
     }
 }
 
-fn signing_error(result: Result<KeyShareOutcome, KeyShareError>) -> SigningError {
+fn signing_error(result: Result<CustodyProofOutcome, CustodyProofError>) -> SigningError {
     match result {
-        Err(KeyShareError::Signing(error)) => error,
+        Err(CustodyProofError::Signing(error)) => error,
         other => panic!("expected a signing refusal, got {other:?}"),
     }
 }
@@ -388,19 +397,19 @@ async fn with_the_rule_off_the_steps_run_as_today_and_start_nothing() {
         for step in c.steps() {
             let ceremony = FakeCeremony::new();
             assert_eq!(
-                c.take(&c.trustee, &ceremony, step, KEY_SHARE, None)
+                c.take(&c.trustee, &ceremony, step, CUSTODY_PROOF, None)
                     .await
                     .unwrap(),
-                KeyShareOutcome::Done(None),
+                CustodyProofOutcome::Done(None),
                 "{}: {step:?}",
                 config.label
             );
             assert_eq!(ceremony.runs(), 1);
             assert_eq!(
-                c.take(&c.trustee, &ceremony, step, OTHER_KEY_SHARE, None)
+                c.take(&c.trustee, &ceremony, step, OTHER_CUSTODY_PROOF, None)
                     .await
                     .unwrap(),
-                KeyShareOutcome::Invalid
+                CustodyProofOutcome::Invalid
             );
             assert_eq!(ceremony.runs(), 1);
         }
@@ -411,7 +420,7 @@ async fn with_the_rule_off_the_steps_run_as_today_and_start_nothing() {
 }
 
 #[tokio::test]
-async fn with_the_rule_on_a_step_waits_for_a_request_naming_the_key_share_hash() {
+async fn with_the_rule_on_a_step_waits_for_a_request_naming_the_custody_proof_hash() {
     for config in &CONFIGS {
         let c = ceremonies(config).await;
         for step in c.steps() {
@@ -430,7 +439,7 @@ async fn with_the_rule_on_a_step_waits_for_a_request_naming_the_key_share_hash()
             assert_eq!(request.action, step.action());
             assert_eq!(request.status, SigningRequestStatus::Waiting);
             assert_eq!(request.trustee_id, Some(c.trustee_id));
-            assert_eq!(request.subject, c.subject(step, KEY_SHARE));
+            assert_eq!(request.subject, c.subject(step, CUSTODY_PROOF));
             assert_eq!(request.requested_by, c.trustee.user_id);
 
             // Starting again with the same file answers the same request.
@@ -441,13 +450,13 @@ async fn with_the_rule_on_a_step_waits_for_a_request_naming_the_key_share_hash()
                     &c.trustee,
                     &ceremony,
                     step,
-                    KEY_SHARE,
-                    Some(&sha(KEY_SHARE).to_uppercase()),
+                    CUSTODY_PROOF,
+                    Some(&sha(CUSTODY_PROOF).to_uppercase()),
                     None
                 )
                 .await
                 .unwrap(),
-                KeyShareOutcome::SigningRequired(_)
+                CustodyProofOutcome::SigningRequired(_)
             ));
         }
         assert_eq!(c.request_count().await, 2);
@@ -455,17 +464,17 @@ async fn with_the_rule_on_a_step_waits_for_a_request_naming_the_key_share_hash()
 }
 
 #[tokio::test]
-async fn a_file_that_is_not_the_trustees_key_share_starts_nothing() {
+async fn a_file_that_is_not_the_trustees_custody_proof_starts_nothing() {
     for config in &CONFIGS {
         let c = ceremonies(config).await;
         for step in c.steps() {
             c.require(step).await;
             let ceremony = FakeCeremony::new();
             assert_eq!(
-                c.take(&c.trustee, &ceremony, step, OTHER_KEY_SHARE, None)
+                c.take(&c.trustee, &ceremony, step, OTHER_CUSTODY_PROOF, None)
                     .await
                     .unwrap(),
-                KeyShareOutcome::Invalid,
+                CustodyProofOutcome::Invalid,
                 "{}: {step:?}",
                 config.label
             );
@@ -476,8 +485,8 @@ async fn a_file_that_is_not_the_trustees_key_share_starts_nothing() {
                         &c.trustee,
                         &ceremony,
                         step,
-                        KEY_SHARE,
-                        Some(&sha(OTHER_KEY_SHARE)),
+                        CUSTODY_PROOF,
+                        Some(&sha(OTHER_CUSTODY_PROOF)),
                         None
                     )
                     .await
@@ -502,7 +511,7 @@ async fn a_request_that_is_not_signed_yet_does_not_open_the_step() {
             // Nobody signed it: it holds no signature of the trustee's.
             assert!(matches!(
                 signing_error(
-                    c.take(&c.trustee, &ceremony, step, KEY_SHARE, Some(summary.id))
+                    c.take(&c.trustee, &ceremony, step, CUSTODY_PROOF, Some(summary.id))
                         .await
                 ),
                 SigningError::Forbidden(_)
@@ -517,7 +526,7 @@ async fn a_request_that_is_not_signed_yet_does_not_open_the_step() {
 }
 
 #[tokio::test]
-async fn a_signed_request_with_the_same_key_share_opens_the_step_once_and_is_recorded() {
+async fn a_signed_request_with_the_same_custody_proof_opens_the_step_once_and_is_recorded() {
     for config in &CONFIGS {
         let c = ceremonies(config).await;
         for step in c.steps() {
@@ -526,11 +535,11 @@ async fn a_signed_request_with_the_same_key_share_opens_the_step_once_and_is_rec
             let summary = c.signed(&ceremony, step).await;
 
             let record = match c
-                .take(&c.trustee, &ceremony, step, KEY_SHARE, Some(summary.id))
+                .take(&c.trustee, &ceremony, step, CUSTODY_PROOF, Some(summary.id))
                 .await
                 .unwrap()
             {
-                KeyShareOutcome::Done(Some(record)) => record,
+                CustodyProofOutcome::Done(Some(record)) => record,
                 other => panic!("{}: {step:?}: {other:?}", config.label),
             };
             assert_eq!(ceremony.runs(), 1);
@@ -540,7 +549,7 @@ async fn a_signed_request_with_the_same_key_share_opens_the_step_once_and_is_rec
             // The ceremony keeps a reference to the signed step, as a JSON
             // string: an index, without the signature or the signer.
             let annotations = c.annotations(step).await;
-            let key = format!("{KEY_SHARE_SIGNATURE_ANNOTATION}{}", c.trustee_id);
+            let key = format!("{CUSTODY_PROOF_SIGNATURE_ANNOTATION}{}", c.trustee_id);
             let stored: Value =
                 serde_json::from_str(annotations[&key].as_str().expect("a string")).unwrap();
             assert_eq!(stored, record);
@@ -562,7 +571,7 @@ async fn a_signed_request_with_the_same_key_share_opens_the_step_once_and_is_rec
                     signing: Some(config.trustee_name.into()),
                 })
             );
-            if step.kind == KeyShareKind::Contribute {
+            if step.kind == CustodyProofKind::Contribute {
                 // The tally session's other annotations are kept.
                 assert_eq!(annotations["miru:existing"], json!("kept"));
             }
@@ -570,7 +579,7 @@ async fn a_signed_request_with_the_same_key_share_opens_the_step_once_and_is_rec
             // Used once: a second step with it is refused and runs nothing.
             assert!(matches!(
                 signing_error(
-                    c.take(&c.trustee, &ceremony, step, KEY_SHARE, Some(summary.id))
+                    c.take(&c.trustee, &ceremony, step, CUSTODY_PROOF, Some(summary.id))
                         .await
                 ),
                 SigningError::Closed {
@@ -595,7 +604,7 @@ async fn a_signed_request_with_the_same_key_share_opens_the_step_once_and_is_rec
 }
 
 #[tokio::test]
-async fn another_key_share_cannot_use_the_signed_request() {
+async fn another_custody_proof_cannot_use_the_signed_request() {
     for config in &CONFIGS {
         let c = ceremonies(config).await;
         for step in c.steps() {
@@ -608,7 +617,7 @@ async fn another_key_share_cannot_use_the_signed_request() {
                         &c.trustee,
                         &ceremony,
                         step,
-                        OTHER_KEY_SHARE,
+                        OTHER_CUSTODY_PROOF,
                         Some(summary.id)
                     )
                     .await
@@ -632,14 +641,14 @@ async fn a_step_the_ceremony_refuses_leaves_the_request_unused() {
             c.require(step).await;
             let ceremony = FakeCeremony::new();
             let summary = c.signed(&ceremony, step).await;
-            // The ceremony no longer takes this key share (e.g. its stored
+            // The ceremony no longer takes this custody proof (e.g. its stored
             // copy changed): the step is refused and rolled back.
-            *ceremony.stored.lock().unwrap() = OTHER_KEY_SHARE.into();
+            *ceremony.stored.lock().unwrap() = OTHER_CUSTODY_PROOF.into();
             assert_eq!(
-                c.take(&c.trustee, &ceremony, step, KEY_SHARE, Some(summary.id))
+                c.take(&c.trustee, &ceremony, step, CUSTODY_PROOF, Some(summary.id))
                     .await
                     .unwrap(),
-                KeyShareOutcome::Invalid
+                CustodyProofOutcome::Invalid
             );
             assert_eq!(
                 c.w.request(summary.id).await.status,
@@ -648,18 +657,19 @@ async fn a_step_the_ceremony_refuses_leaves_the_request_unused() {
                 config.label
             );
             assert_eq!(
-                c.annotations(step)
-                    .await
-                    .get(format!("{KEY_SHARE_SIGNATURE_ANNOTATION}{}", c.trustee_id)),
+                c.annotations(step).await.get(format!(
+                    "{CUSTODY_PROOF_SIGNATURE_ANNOTATION}{}",
+                    c.trustee_id
+                )),
                 None
             );
             // Once the ceremony takes it again, the request still opens the step.
-            *ceremony.stored.lock().unwrap() = KEY_SHARE.into();
+            *ceremony.stored.lock().unwrap() = CUSTODY_PROOF.into();
             assert!(matches!(
-                c.take(&c.trustee, &ceremony, step, KEY_SHARE, Some(summary.id))
+                c.take(&c.trustee, &ceremony, step, CUSTODY_PROOF, Some(summary.id))
                     .await
                     .unwrap(),
-                KeyShareOutcome::Done(Some(_))
+                CustodyProofOutcome::Done(Some(_))
             ));
         }
     }
@@ -689,7 +699,7 @@ async fn another_trustee_can_neither_sign_nor_use_the_request() {
                 .unwrap();
             assert!(matches!(
                 signing_error(
-                    c.take(&c.other, &ceremony, step, KEY_SHARE, Some(summary.id))
+                    c.take(&c.other, &ceremony, step, CUSTODY_PROOF, Some(summary.id))
                         .await
                 ),
                 SigningError::Forbidden(_)
@@ -699,7 +709,7 @@ async fn another_trustee_can_neither_sign_nor_use_the_request() {
             stranger.trustee = None;
             assert!(matches!(
                 signing_error(
-                    c.take(&stranger, &ceremony, step, KEY_SHARE, Some(summary.id))
+                    c.take(&stranger, &ceremony, step, CUSTODY_PROOF, Some(summary.id))
                         .await
                 ),
                 SigningError::Forbidden(_)
@@ -714,14 +724,14 @@ async fn another_trustee_can_neither_sign_nor_use_the_request() {
 }
 
 #[tokio::test]
-async fn the_key_share_never_reaches_the_signing_tables_or_the_log() {
+async fn the_custody_proof_never_reaches_the_signing_tables_or_the_log() {
     for config in &CONFIGS {
         let c = ceremonies(config).await;
         for step in c.steps() {
             c.require(step).await;
             let ceremony = FakeCeremony::new();
             // A wrong file, a refused hash and the whole flow.
-            c.take(&c.trustee, &ceremony, step, OTHER_KEY_SHARE, None)
+            c.take(&c.trustee, &ceremony, step, OTHER_CUSTODY_PROOF, None)
                 .await
                 .unwrap();
             let summary = c.signed(&ceremony, step).await;
@@ -730,11 +740,11 @@ async fn the_key_share_never_reaches_the_signing_tables_or_the_log() {
                     &c.trustee,
                     &ceremony,
                     step,
-                    OTHER_KEY_SHARE,
+                    OTHER_CUSTODY_PROOF,
                     Some(summary.id),
                 )
                 .await;
-            c.take(&c.trustee, &ceremony, step, KEY_SHARE, Some(summary.id))
+            c.take(&c.trustee, &ceremony, step, CUSTODY_PROOF, Some(summary.id))
                 .await
                 .unwrap();
         }
@@ -761,9 +771,13 @@ async fn the_key_share_never_reaches_the_signing_tables_or_the_log() {
                 stored.push_str(&row.get::<_, String>(0));
             }
         }
-        assert!(stored.contains(&sha(KEY_SHARE)), "{}", config.label);
-        for key_share in [KEY_SHARE, OTHER_KEY_SHARE] {
-            assert!(!stored.contains(key_share), "{}: {key_share}", config.label);
+        assert!(stored.contains(&sha(CUSTODY_PROOF)), "{}", config.label);
+        for custody_proof in [CUSTODY_PROOF, OTHER_CUSTODY_PROOF] {
+            assert!(
+                !stored.contains(custody_proof),
+                "{}: {custody_proof}",
+                config.label
+            );
         }
     }
 }
@@ -792,13 +806,13 @@ async fn the_ceremony_services_refuse_a_step_their_state_does_not_allow_before_t
             c.keys_ceremony_id.to_string(),
             c.tally_session_id.to_string(),
         );
-        let keys = KeysCeremonyKeyShare {
+        let keys = KeysCeremonyCustodyProof {
             claims: &claims,
             tenant_id: &tenant,
             election_event_id: &event,
             keys_ceremony_id: &keys_ceremony_id,
         };
-        let tally = TallyKeyShare {
+        let tally = TallyCustodyProof {
             claims: &claims,
             tenant_id: &tenant,
             election_event_id: &event,
@@ -811,18 +825,18 @@ async fn the_ceremony_services_refuse_a_step_their_state_does_not_allow_before_t
         // always refused them.
         for (ceremony, message) in [
             (
-                &keys as &dyn KeyShareCeremony,
+                &keys as &dyn CustodyProofCeremony,
                 "Keys ceremony not in ExecutionStatus::IN_PROCESS",
             ),
             (
-                &tally as &dyn KeyShareCeremony,
+                &tally as &dyn CustodyProofCeremony,
                 "Can't find tally session or tally session execution",
             ),
         ] {
             let none = TrusteeSignatures::NotNeeded;
             for result in [
-                ceremony.matches(&tx, KEY_SHARE, &none).await,
-                ceremony.run(&tx, KEY_SHARE, &none).await,
+                ceremony.matches(&tx, CUSTODY_PROOF, &none).await,
+                ceremony.run(&tx, CUSTODY_PROOF, &none).await,
             ] {
                 let error = result.unwrap_err();
                 assert!(
@@ -836,22 +850,22 @@ async fn the_ceremony_services_refuse_a_step_their_state_does_not_allow_before_t
 }
 
 #[tokio::test]
-async fn a_signed_request_for_another_key_share_is_replaced_so_the_trustee_is_never_stuck() {
+async fn a_signed_request_for_another_custody_proof_is_replaced_so_the_trustee_is_never_stuck() {
     for config in &CONFIGS {
         let c = ceremonies(config).await;
         for step in c.steps() {
             c.require(step).await;
             let ceremony = FakeCeremony::new();
             let stale = c.signed(&ceremony, step).await;
-            // The ceremony now holds another key share (e.g. a new ceremony
+            // The ceremony now holds another custody proof (e.g. a new ceremony
             // copy): the signed request can never be used with it.
-            *ceremony.stored.lock().unwrap() = OTHER_KEY_SHARE.into();
+            *ceremony.stored.lock().unwrap() = OTHER_CUSTODY_PROOF.into();
             let fresh = match c
-                .take(&c.trustee, &ceremony, step, OTHER_KEY_SHARE, None)
+                .take(&c.trustee, &ceremony, step, OTHER_CUSTODY_PROOF, None)
                 .await
                 .unwrap()
             {
-                KeyShareOutcome::SigningRequired(summary) => summary,
+                CustodyProofOutcome::SigningRequired(summary) => summary,
                 other => panic!("{}: {step:?}: {other:?}", config.label),
             };
             assert_ne!(fresh.id, stale.id);
@@ -865,10 +879,16 @@ async fn a_signed_request_for_another_key_share_is_replaced_so_the_trustee_is_ne
                 .await
                 .unwrap();
             assert!(matches!(
-                c.take(&c.trustee, &ceremony, step, OTHER_KEY_SHARE, Some(fresh.id))
-                    .await
-                    .unwrap(),
-                KeyShareOutcome::Done(Some(_))
+                c.take(
+                    &c.trustee,
+                    &ceremony,
+                    step,
+                    OTHER_CUSTODY_PROOF,
+                    Some(fresh.id)
+                )
+                .await
+                .unwrap(),
+                CustodyProofOutcome::Done(Some(_))
             ));
         }
     }
@@ -898,7 +918,7 @@ async fn with_the_rule_on_only_used_signed_steps_count_for_the_ceremony() {
 
             let ceremony = FakeCeremony::new();
             let summary = c.signed(&ceremony, step).await;
-            c.take(&c.trustee, &ceremony, step, KEY_SHARE, Some(summary.id))
+            c.take(&c.trustee, &ceremony, step, CUSTODY_PROOF, Some(summary.id))
                 .await
                 .unwrap();
             let signed_trustee: std::collections::HashSet<String> =
@@ -915,10 +935,10 @@ async fn with_the_rule_on_only_used_signed_steps_count_for_the_ceremony() {
 
             // The other trustee's step sees the first one's as signed.
             let other = c
-                .take(&c.other, &ceremony, step, KEY_SHARE, None)
+                .take(&c.other, &ceremony, step, CUSTODY_PROOF, None)
                 .await
                 .unwrap();
-            assert!(matches!(other, KeyShareOutcome::SigningRequired(_)));
+            assert!(matches!(other, CustodyProofOutcome::SigningRequired(_)));
             assert_eq!(
                 ceremony.signatures(),
                 Some(TrusteeSignatures::Needed {
@@ -941,7 +961,7 @@ async fn the_panel_names_the_ceremony_and_the_trustee_beside_their_ids() {
             let request = c.w.request(summary.id).await;
             let mut client = c.w.pool.get().await.unwrap();
             let tx = client.transaction().await.unwrap();
-            let labels = key_share_labels(&tx, &request).await.unwrap();
+            let labels = custody_proof_labels(&tx, &request).await.unwrap();
             assert_eq!(
                 labels.ceremony_id,
                 Some(step.id),
@@ -960,29 +980,31 @@ async fn without_signatures_ids_that_are_not_uuids_reach_the_step_as_before() {
     let ceremony = FakeCeremony::new();
     let tenant = c.w.tenant.to_string();
     let event = c.w.event.to_string();
-    let input = |target_id| KeyShareInput {
+    let input = |target_id| CustodyProofInput {
         tenant_id: &tenant,
         election_event_id: &event,
-        kind: KeyShareKind::Confirm,
+        kind: CustodyProofKind::Confirm,
         target_id,
-        key_share: KEY_SHARE,
-        key_share_sha256: None,
+        custody_proof: CUSTODY_PROOF,
+        custody_proof_sha256: None,
         signing_request_id: None,
     };
     let mut client = c.w.pool.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     // The ceremony answers about its own id, as it always did.
     assert_eq!(
-        take_key_share_step(&tx, &c.trustee, &ceremony, &input("not-a-uuid"))
+        take_custody_proof_step(&tx, &c.trustee, &ceremony, &input("not-a-uuid"))
             .await
             .unwrap(),
-        KeyShareOutcome::Done(None)
+        CustodyProofOutcome::Done(None)
     );
     drop(tx);
     c.require(c.steps()[0]).await;
     let tx = client.transaction().await.unwrap();
     assert!(matches!(
-        signing_error(take_key_share_step(&tx, &c.trustee, &ceremony, &input("not-a-uuid")).await),
+        signing_error(
+            take_custody_proof_step(&tx, &c.trustee, &ceremony, &input("not-a-uuid")).await
+        ),
         SigningError::Invalid { .. }
     ));
 }
@@ -1006,7 +1028,7 @@ impl std::io::Write for Captured {
 /// writes into the capture: a scoped one misses spans whose interest another
 /// test's thread cached first.
 #[tokio::test]
-async fn the_key_share_never_reaches_the_tracing_output() {
+async fn the_custody_proof_never_reaches_the_tracing_output() {
     let captured = Captured::default();
     let writer = captured.clone();
     let subscriber = tracing_subscriber::fmt()
@@ -1026,9 +1048,9 @@ async fn the_key_share_never_reaches_the_tracing_output() {
     let tally_session_id = c.tally_session_id.to_string();
     for step in c.steps() {
         c.require(step).await;
-        // The whole signed flow, a wrong file and another key share.
+        // The whole signed flow, a wrong file and another custody proof.
         let ceremony = FakeCeremony::new();
-        c.take(&c.trustee, &ceremony, step, OTHER_KEY_SHARE, None)
+        c.take(&c.trustee, &ceremony, step, OTHER_CUSTODY_PROOF, None)
             .await
             .unwrap();
         let summary = c.signed(&ceremony, step).await;
@@ -1037,11 +1059,11 @@ async fn the_key_share_never_reaches_the_tracing_output() {
                 &c.trustee,
                 &ceremony,
                 step,
-                OTHER_KEY_SHARE,
+                OTHER_CUSTODY_PROOF,
                 Some(summary.id),
             )
             .await;
-        c.take(&c.trustee, &ceremony, step, KEY_SHARE, Some(summary.id))
+        c.take(&c.trustee, &ceremony, step, CUSTODY_PROOF, Some(summary.id))
             .await
             .unwrap();
     }
@@ -1049,31 +1071,31 @@ async fn the_key_share_never_reaches_the_tracing_output() {
     let mut client = c.w.pool.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let none = TrusteeSignatures::NotNeeded;
-    let keys = KeysCeremonyKeyShare {
+    let keys = KeysCeremonyCustodyProof {
         claims: &claims,
         tenant_id: &tenant,
         election_event_id: &event,
         keys_ceremony_id: &keys_ceremony_id,
     };
-    let tally = TallyKeyShare {
+    let tally = TallyCustodyProof {
         claims: &claims,
         tenant_id: &tenant,
         election_event_id: &event,
         tally_session_id: &tally_session_id,
     };
-    for ceremony in [&keys as &dyn KeyShareCeremony, &tally] {
-        let _ = ceremony.matches(&tx, KEY_SHARE, &none).await;
-        let _ = ceremony.run(&tx, KEY_SHARE, &none).await;
+    for ceremony in [&keys as &dyn CustodyProofCeremony, &tally] {
+        let _ = ceremony.matches(&tx, CUSTODY_PROOF, &none).await;
+        let _ = ceremony.run(&tx, CUSTODY_PROOF, &none).await;
     }
 
     let output = String::from_utf8(captured.0.lock().unwrap().clone()).unwrap();
     // The capture works: the steps' spans are in it.
-    assert!(output.contains("take_key_share_step"), "{output}");
-    assert!(output.contains("check_private_key"), "{output}");
-    for key_share in [KEY_SHARE, OTHER_KEY_SHARE] {
+    assert!(output.contains("take_custody_proof_step"), "{output}");
+    assert!(output.contains("confirm_key_custody"), "{output}");
+    for custody_proof in [CUSTODY_PROOF, OTHER_CUSTODY_PROOF] {
         assert!(
-            !output.contains(key_share),
-            "{key_share} in the tracing output"
+            !output.contains(custody_proof),
+            "{custody_proof} in the tracing output"
         );
     }
 }
@@ -1088,7 +1110,7 @@ async fn a_trustee_learns_whether_their_step_needs_a_signature_and_has_one() {
                 async move {
                     let mut client = c.w.pool.get().await.unwrap();
                     let tx = client.transaction().await.unwrap();
-                    let status = key_share_signature_status(
+                    let status = custody_proof_signature_status(
                         &tx,
                         &who,
                         &c.w.tenant.to_string(),
@@ -1108,7 +1130,7 @@ async fn a_trustee_learns_whether_their_step_needs_a_signature_and_has_one() {
             let summary = c.signed(&ceremony, step).await;
             // Signed but not used yet: the step still has to be taken.
             assert_eq!(status(c.trustee.clone()).await, (true, false));
-            c.take(&c.trustee, &ceremony, step, KEY_SHARE, Some(summary.id))
+            c.take(&c.trustee, &ceremony, step, CUSTODY_PROOF, Some(summary.id))
                 .await
                 .unwrap();
             assert_eq!(

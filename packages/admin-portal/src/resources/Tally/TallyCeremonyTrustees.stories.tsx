@@ -24,18 +24,18 @@ import {TallyCeremonyTrustees} from "./TallyCeremonyTrustees"
 import type {ISigningApi} from "@/lib/signing/api"
 import {SigningAction} from "@/lib/signing/types"
 import {
-    KEY_SHARE_ORGANIZATIONS,
-    KeyShareOrganization,
-    KeyShareRule,
+    CUSTODY_PROOF_ORGANIZATIONS,
+    CustodyProofOrganization,
+    CustodyProofRule,
     SIGNING_REQUEST,
     TRUSTEE_ROLES,
-    applyKeyShareOverrides,
-    keyShareApi,
+    applyCustodyProofOverrides,
+    custodyProofApi,
     sha256,
-    signKeyShare,
+    signCustodyProof,
     signingNote,
     trusteeAuth,
-} from "@/components/keys-ceremony/__stories__/KeyShareSigningFixture"
+} from "@/components/keys-ceremony/__stories__/CustodyProofSigningFixture"
 import {
     EStoryPermissions,
     EStoryWorkflow,
@@ -48,27 +48,27 @@ interface Scenario {
     /** Whether the key the trustee uploads matches its fragment. */
     validKey: boolean
     /** Whether the event's rule makes the trustee sign the contribution. */
-    rule: KeyShareRule
-    organization: KeyShareOrganization
+    rule: CustodyProofRule
+    organization: CustodyProofOrganization
     onSetTallyId: (tallyId: string | null) => void
 }
 
 let graphql: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof resourceBoundary>
-let api: Awaited<ReturnType<typeof keyShareApi>>
+let api: Awaited<ReturnType<typeof custodyProofApi>>
 
 /** The signed-in trustee's name in the tally: the organization's when the rule is on. */
 const trusteeName = ({rule, organization}: Pick<Scenario, "rule" | "organization">) =>
-    rule === KeyShareRule.Required
-        ? KEY_SHARE_ORGANIZATIONS[organization].trusteeName
+    rule === CustodyProofRule.Required
+        ? CUSTODY_PROOF_ORGANIZATIONS[organization].trusteeName
         : STORY_TRUSTEE
 
 function Fixture({onSetTallyId, rule, organization}: Scenario) {
     const {permissions, workflow} = useStoryGlobals()
     // With the rule on, Jose signs in with the organization's trustee account.
     const signing =
-        rule === KeyShareRule.Required
-            ? {roles: TRUSTEE_ROLES, auth: trusteeAuth(KEY_SHARE_ORGANIZATIONS[organization])}
+        rule === CustodyProofRule.Required
+            ? {roles: TRUSTEE_ROLES, auth: trusteeAuth(CUSTODY_PROOF_ORGANIZATIONS[organization])}
             : {}
     return (
         <AdminStoryProvider
@@ -93,14 +93,14 @@ const meta = {
     args: {
         trusteeStatus: ITallyTrusteeStatus.WAITING,
         validKey: true,
-        rule: KeyShareRule.NotRequired,
-        organization: KeyShareOrganization.Overseas,
+        rule: CustodyProofRule.NotRequired,
+        organization: CustodyProofOrganization.Overseas,
         onSetTallyId: fn(),
     },
     argTypes: {
         trusteeStatus: {control: "inline-radio", options: Object.values(ITallyTrusteeStatus)},
-        rule: {control: "inline-radio", options: Object.values(KeyShareRule)},
-        organization: {control: "inline-radio", options: Object.values(KeyShareOrganization)},
+        rule: {control: "inline-radio", options: Object.values(CustodyProofRule)},
+        organization: {control: "inline-radio", options: Object.values(CustodyProofOrganization)},
         onSetTallyId: {table: {disable: true}},
     },
     // A trustee restores its key fragment while the tally ceremony runs.
@@ -127,9 +127,9 @@ const meta = {
             sequent_backend_keys_ceremony: [keysCeremonyRecord()],
             sequent_backend_trustee: trusteeRecords,
         })
-        const organization = KEY_SHARE_ORGANIZATIONS[args.organization]
-        api = await keyShareApi(
-            SigningAction.ContributeKeyShare,
+        const organization = CUSTODY_PROOF_ORGANIZATIONS[args.organization]
+        api = await custodyProofApi(
+            SigningAction.ContributeCustodyProof,
             {tally_session_id: STORY_IDS.tallySession},
             organization,
             KEY,
@@ -138,22 +138,22 @@ const meta = {
         graphql = graphqlBoundary(
             {
                 // A restored trustee learns whether they must contribute again, signed.
-                KeyShareSignatureStatus: () => ({
+                CustodyProofSignatureStatus: () => ({
                     data: {
-                        key_share_signature_status: {
-                            signature_needed: args.rule === KeyShareRule.Required,
+                        custody_proof_signature_status: {
+                            signature_needed: args.rule === CustodyProofRule.Required,
                             signed: false,
                         },
                     },
                 }),
-                RestorePrivateKey: ({variables}) => ({
+                AuthorizeTallyCustody: ({variables}) => ({
                     data: {
-                        restore_private_key: {
+                        authorize_tally_custody: {
                             is_valid: args.validKey,
                             // The rule makes a right key wait for the trustee's signature.
                             signing_request:
                                 args.validKey &&
-                                args.rule === KeyShareRule.Required &&
+                                args.rule === CustodyProofRule.Required &&
                                 !variables.signingRequestId
                                     ? SIGNING_REQUEST
                                     : null,
@@ -164,8 +164,8 @@ const meta = {
             {schema: true}
         )
         await graphql.ready
-        return args.rule === KeyShareRule.Required
-            ? applyKeyShareOverrides(organization)
+        return args.rule === CustodyProofRule.Required
+            ? applyCustodyProofOverrides(organization)
             : undefined
     },
     render: (args, {globals}) => <Fixture key={JSON.stringify(globals)} {...args} />,
@@ -196,7 +196,7 @@ export const Populated: Story = {
     },
 }
 
-export const RestoreKeyAndContinue: Story = {
+export const AuthorizeCustodyAndContinue: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await canvas.findByRole("checkbox", {name: "Council"})
@@ -206,12 +206,12 @@ export const RestoreKeyAndContinue: Story = {
         ).toBeVisible()
         expect(graphql.calls.map(({name, variables}) => ({name, variables}))).toEqual([
             {
-                name: "RestorePrivateKey",
+                name: "AuthorizeTallyCustody",
                 variables: {
                     electionEventId: EVENT_ID,
                     tallySessionId: STORY_IDS.tallySession,
-                    privateKeyBase64: KEY,
-                    keyShareSha256: await sha256(KEY),
+                    custodyProofJson: KEY,
+                    custodyProofSha256: await sha256(KEY),
                 },
             },
         ])
@@ -233,13 +233,13 @@ export const InvalidKeyIsRejected: Story = {
                 i18n.t("keysGeneration.checkStep.errorUploading", {error: "empty"})
             )
         ).toBeVisible()
-        expect(graphql.calls.map(({name}) => name)).toEqual(["RestorePrivateKey"])
+        expect(graphql.calls.map(({name}) => name)).toEqual(["AuthorizeTallyCustody"])
         await expect(nextButton(canvasElement)).toBeDisabled()
     },
 }
 
-export const KeyAlreadyRestored: Story = {
-    args: {trusteeStatus: ITallyTrusteeStatus.KEY_RESTORED},
+export const CustodyAlreadyAuthorized: Story = {
+    args: {trusteeStatus: ITallyTrusteeStatus.CUSTODY_CONFIRMED},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await canvas.findByRole("row", {name: /trustee2/})).toBeVisible()
@@ -258,18 +258,18 @@ export const CancelReturnsToTheTallies: Story = {
     },
 }
 
-/** The rule needs the trustee's signature: the key share is contributed once they have signed. */
+/** The rule needs the trustee's signature: the custody proof is contributed once they have signed. */
 export const SignedContributionIsRecorded: Story = {
-    args: {rule: KeyShareRule.Required},
+    args: {rule: CustodyProofRule.Required},
     play: async ({canvasElement, args}) => {
         const canvas = within(canvasElement)
-        const organization = KEY_SHARE_ORGANIZATIONS[args.organization]
+        const organization = CUSTODY_PROOF_ORGANIZATIONS[args.organization]
         await canvas.findByRole("checkbox", {name: "Council"})
         await uploadKey(canvasElement)
         await expect(await canvas.findByText(signingNote(organization))).toBeVisible()
         await expect(api.getRequest).toHaveBeenCalledWith(SIGNING_REQUEST.id)
 
-        await signKeyShare(organization, KEY, {tally_session_id: STORY_IDS.tallySession})
+        await signCustodyProof(organization, KEY, {tally_session_id: STORY_IDS.tallySession})
 
         await expect(
             await canvas.findByText(
@@ -282,17 +282,17 @@ export const SignedContributionIsRecorded: Story = {
             {
                 electionEventId: EVENT_ID,
                 tallySessionId: STORY_IDS.tallySession,
-                privateKeyBase64: KEY,
-                keyShareSha256: await sha256(KEY),
+                custodyProofJson: KEY,
+                custodyProofSha256: await sha256(KEY),
             },
             {
                 electionEventId: EVENT_ID,
                 tallySessionId: STORY_IDS.tallySession,
-                privateKeyBase64: KEY,
+                custodyProofJson: KEY,
                 signingRequestId: SIGNING_REQUEST.id,
             },
         ])
-        // The key share goes to the restore only, never to the signing service.
+        // The custody proof goes to the restore only, never to the signing service.
         const sent = JSON.stringify(Object.values(api).map((call) => call.mock.calls))
         expect(sent).not.toContain(KEY)
         await expect(nextButton(canvasElement)).toBeEnabled()
@@ -302,23 +302,23 @@ export const SignedContributionIsRecorded: Story = {
 /** The same flow for an organization that renames the labels in its translations. */
 export const SignedContributionForAnotherOrganization: Story = {
     ...SignedContributionIsRecorded,
-    args: {rule: KeyShareRule.Required, organization: KeyShareOrganization.StudentCouncil},
+    args: {rule: CustodyProofRule.Required, organization: CustodyProofOrganization.StudentCouncil},
 }
 
 /** The rule needs signatures and the trustee restored their key unsigned before: they contribute it again, signed. */
-export const RestoredWithoutSignatureContributesAgain: Story = {
-    args: {rule: KeyShareRule.Required, trusteeStatus: ITallyTrusteeStatus.KEY_RESTORED},
+export const CustodyWithoutSignatureContributesAgain: Story = {
+    args: {rule: CustodyProofRule.Required, trusteeStatus: ITallyTrusteeStatus.CUSTODY_CONFIRMED},
     play: async ({canvasElement, args}) => {
         const canvas = within(canvasElement)
-        const organization = KEY_SHARE_ORGANIZATIONS[args.organization]
-        await expect(await canvas.findByText(i18n.t("signing.keyShare.redo"))).toBeVisible()
+        const organization = CUSTODY_PROOF_ORGANIZATIONS[args.organization]
+        await expect(await canvas.findByText(i18n.t("signing.custodyProof.redo"))).toBeVisible()
         await expect(canvas.getByText(i18n.t("tally.trusteeTitle"))).toBeVisible()
         expect(graphql.calls.map(({name, variables}) => ({name, variables}))).toContainEqual({
-            name: "KeyShareSignatureStatus",
+            name: "CustodyProofSignatureStatus",
             variables: {electionEventId: EVENT_ID, tallySessionId: STORY_IDS.tallySession},
         })
         await uploadKey(canvasElement)
-        await signKeyShare(organization, KEY, {tally_session_id: STORY_IDS.tallySession})
+        await signCustodyProof(organization, KEY, {tally_session_id: STORY_IDS.tallySession})
         await expect(
             await canvas.findByText(
                 i18n.t("keysGeneration.checkStep.verified"),
@@ -328,19 +328,19 @@ export const RestoredWithoutSignatureContributesAgain: Story = {
         ).toBeVisible()
         expect(
             graphql.calls
-                .filter(({name}) => name === "RestorePrivateKey")
+                .filter(({name}) => name === "AuthorizeTallyCustody")
                 .map(({variables}) => variables.signingRequestId)
         ).toEqual([undefined, SIGNING_REQUEST.id])
     },
 }
 
 /** Without the rule a restored trustee sees the tally's status, as before. */
-export const RestoredWithoutTheRuleIsUnchanged: Story = {
-    args: {trusteeStatus: ITallyTrusteeStatus.KEY_RESTORED},
+export const CustodyWithoutTheRuleIsUnchanged: Story = {
+    args: {trusteeStatus: ITallyTrusteeStatus.CUSTODY_CONFIRMED},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await canvas.findByRole("row", {name: /trustee2/})).toBeVisible()
         expect(canvas.queryByText(i18n.t("tally.trusteeTitle"))).toBeNull()
-        expect(canvas.queryByText(i18n.t("signing.keyShare.redo"))).toBeNull()
+        expect(canvas.queryByText(i18n.t("signing.custodyProof.redo"))).toBeNull()
     },
 }

@@ -49,7 +49,7 @@ pub fn append_tally_trustee_log(current_logs: &Vec<Log>, trustee_name: &str) -> 
     let mut logs: Vec<Log> = current_logs.clone();
     logs.push(Log {
         created_date: ISO8601::to_string(&ISO8601::now()),
-        log_text: format!("Restored private key for trustee {}", trustee_name,),
+        log_text: format!("Authorized tally custody for trustee {}", trustee_name,),
     });
     sort_logs(&logs)
 }
@@ -68,7 +68,7 @@ pub fn append_keys_trustee_download_log_at(
     let mut logs: Vec<Log> = current_logs.clone();
     logs.push(Log {
         created_date: ISO8601::to_string(&now),
-        log_text: format!("Downloaded private key for trustee {}", trustee_name,),
+        log_text: format!("Downloaded custody request for trustee {}", trustee_name,),
     });
     sort_logs(&logs)
 }
@@ -87,7 +87,7 @@ pub fn append_keys_trustee_check_log_at(
     let mut logs: Vec<Log> = current_logs.clone();
     logs.push(Log {
         created_date: ISO8601::to_string(&now),
-        log_text: format!("Checked private key for trustee {}", trustee_name,),
+        log_text: format!("Confirmed custody proof for trustee {}", trustee_name,),
     });
     sort_logs(&logs)
 }

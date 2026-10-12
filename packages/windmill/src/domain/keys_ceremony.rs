@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Keys ceremony rules: who may create a ceremony, when trustees may download
-//! and check their private keys, and how a ceremony advances while the
+//! and confirm custody, and how a ceremony advances while the
 //! bulletin board generates the election keys.
 
 use crate::domain::trustee_signatures::TrusteeSignatures;
@@ -19,8 +19,8 @@ use std::collections::HashSet;
 
 /// Harvest answers this error with 409 Conflict.
 #[derive(Debug, thiserror::Error)]
-#[error("Private key download is no longer available")]
-pub struct PrivateKeyDownloadUnavailable;
+#[error("Custody request download is no longer available")]
+pub struct CustodyRequestDownloadUnavailable;
 
 /// The fewest trustees a ceremony can require to decrypt.
 pub const MIN_THRESHOLD: usize = 2;
@@ -190,13 +190,13 @@ pub fn covers_permission_labels(
         .all(|label| user_permission_labels.contains(label))
 }
 
-pub fn validate_private_key_download(
+pub fn validate_custody_request_download(
     keys_ceremony: &KeysCeremony,
     trustee_name: &str,
 ) -> Result<KeysCeremonyStatus> {
     // check keys_ceremony has correct execution status
     if keys_ceremony.execution_status()? != KeysCeremonyExecutionStatus::IN_PROGRESS {
-        return Err(PrivateKeyDownloadUnavailable.into());
+        return Err(CustodyRequestDownloadUnavailable.into());
     }
 
     // get ceremony status
@@ -217,18 +217,18 @@ pub fn validate_private_key_download(
         || current_status.public_key_hash.is_none()
         || !matches!(
             trustee.status,
-            TrusteeStatus::KEY_GENERATED | TrusteeStatus::KEY_RETRIEVED
+            TrusteeStatus::KEY_GENERATED | TrusteeStatus::CUSTODY_REQUEST_RETRIEVED
         )
     {
-        return Err(PrivateKeyDownloadUnavailable.into());
+        return Err(CustodyRequestDownloadUnavailable.into());
     }
 
     Ok(current_status)
 }
 
-/// A trustee can check its private key once the board generated it, also
+/// A trustee can confirm custody once the board generated its key, also
 /// after the ceremony succeeded.
-pub fn validate_private_key_check(
+pub fn validate_custody_confirmation(
     keys_ceremony: &KeysCeremony,
     trustee_name: &str,
 ) -> Result<KeysCeremonyStatus> {
@@ -254,8 +254,8 @@ pub fn validate_private_key_check(
             && matches!(
                 trustee.status,
                 TrusteeStatus::KEY_GENERATED
-                    | TrusteeStatus::KEY_RETRIEVED
-                    | TrusteeStatus::KEY_CHECKED
+                    | TrusteeStatus::CUSTODY_REQUEST_RETRIEVED
+                    | TrusteeStatus::CUSTODY_CONFIRMED
             )
     });
     if !can_check {
@@ -267,29 +267,39 @@ pub fn validate_private_key_check(
     Ok(current_status)
 }
 
-/// The status after the trustee downloads its private key.
-pub fn with_key_retrieved(
+/// The status after the trustee downloads its public custody request.
+pub fn with_custody_request_retrieved(
     status: &KeysCeremonyStatus,
     trustee_name: &str,
     logs: Vec<Log>,
 ) -> KeysCeremonyStatus {
-    with_trustee_status(status, trustee_name, &TrusteeStatus::KEY_RETRIEVED, logs)
+    with_trustee_status(
+        status,
+        trustee_name,
+        &TrusteeStatus::CUSTODY_REQUEST_RETRIEVED,
+        logs,
+    )
 }
 
-/// The status after the trustee checks its private key. The ceremony
-/// succeeds once every trustee has checked theirs.
-pub fn with_key_checked(
+/// The status after the trustee confirms custody. The ceremony
+/// succeeds once every trustee has confirmed theirs.
+pub fn with_custody_confirmed(
     status: &KeysCeremonyStatus,
     trustee_name: &str,
     logs: Vec<Log>,
     signatures: &TrusteeSignatures,
 ) -> (KeysCeremonyStatus, KeysCeremonyExecutionStatus) {
-    let new_status = with_trustee_status(status, trustee_name, &TrusteeStatus::KEY_CHECKED, logs);
+    let new_status = with_trustee_status(
+        status,
+        trustee_name,
+        &TrusteeStatus::CUSTODY_CONFIRMED,
+        logs,
+    );
     // When the rule makes trustees sign, an unsigned check doesn't count.
     let execution_status = if new_status.public_key.is_some()
         && new_status.public_key_hash.is_some()
         && new_status.trustees.iter().all(|trustee| {
-            trustee.status == TrusteeStatus::KEY_CHECKED && signatures.counts(&trustee.name)
+            trustee.status == TrusteeStatus::CUSTODY_CONFIRMED && signatures.counts(&trustee.name)
         }) {
         KeysCeremonyExecutionStatus::SUCCESS
     } else {
@@ -655,20 +665,23 @@ mod tests {
 
     #[test]
     fn custody_download_requires_a_verified_joint_key_and_a_generated_trustee_key() {
-        for trustee_status in [TrusteeStatus::KEY_GENERATED, TrusteeStatus::KEY_RETRIEVED] {
+        for trustee_status in [
+            TrusteeStatus::KEY_GENERATED,
+            TrusteeStatus::CUSTODY_REQUEST_RETRIEVED,
+        ] {
             let ceremony = keys_ceremony(KeysCeremonyExecutionStatus::IN_PROGRESS, trustee_status);
-            assert!(validate_private_key_download(&ceremony, TRUSTEE).is_ok());
+            assert!(validate_custody_request_download(&ceremony, TRUSTEE).is_ok());
         }
         for trustee_status in [
             TrusteeStatus::WAITING,
             TrusteeStatus::SHARES_POSTED,
             TrusteeStatus::HALTED,
-            TrusteeStatus::KEY_CHECKED,
+            TrusteeStatus::CUSTODY_CONFIRMED,
         ] {
             let ceremony = keys_ceremony(KeysCeremonyExecutionStatus::IN_PROGRESS, trustee_status);
-            let error = validate_private_key_download(&ceremony, TRUSTEE).unwrap_err();
+            let error = validate_custody_request_download(&ceremony, TRUSTEE).unwrap_err();
             assert!(error
-                .downcast_ref::<PrivateKeyDownloadUnavailable>()
+                .downcast_ref::<CustodyRequestDownloadUnavailable>()
                 .is_some());
         }
         for missing in ["public_key", "public_key_hash"] {
@@ -677,10 +690,10 @@ mod tests {
                 TrusteeStatus::KEY_GENERATED,
             );
             ceremony.status.as_mut().unwrap()[missing] = serde_json::Value::Null;
-            let error = validate_private_key_download(&ceremony, TRUSTEE).unwrap_err();
+            let error = validate_custody_request_download(&ceremony, TRUSTEE).unwrap_err();
             assert!(
                 error
-                    .downcast_ref::<PrivateKeyDownloadUnavailable>()
+                    .downcast_ref::<CustodyRequestDownloadUnavailable>()
                     .is_some(),
                 "{missing}"
             );
@@ -695,12 +708,12 @@ mod tests {
         ] {
             for trustee_status in [
                 TrusteeStatus::KEY_GENERATED,
-                TrusteeStatus::KEY_RETRIEVED,
-                TrusteeStatus::KEY_CHECKED,
+                TrusteeStatus::CUSTODY_REQUEST_RETRIEVED,
+                TrusteeStatus::CUSTODY_CONFIRMED,
             ] {
                 let ceremony = keys_ceremony(execution_status.clone(), trustee_status);
 
-                assert!(validate_private_key_check(&ceremony, TRUSTEE).is_ok());
+                assert!(validate_custody_confirmation(&ceremony, TRUSTEE).is_ok());
             }
         }
     }
@@ -712,10 +725,11 @@ mod tests {
             KeysCeremonyExecutionStatus::STARTED,
             KeysCeremonyExecutionStatus::CANCELLED,
         ] {
-            let ceremony = keys_ceremony(execution_status, TrusteeStatus::KEY_RETRIEVED);
+            let ceremony =
+                keys_ceremony(execution_status, TrusteeStatus::CUSTODY_REQUEST_RETRIEVED);
 
             assert_eq!(
-                error_message(validate_private_key_check(&ceremony, TRUSTEE)),
+                error_message(validate_custody_confirmation(&ceremony, TRUSTEE)),
                 "Keys ceremony not in ExecutionStatus::IN_PROCESS or  ExecutionStatus::SUCCESS"
             );
         }
@@ -729,7 +743,7 @@ mod tests {
         );
         for (ceremony, trustee_name) in [(&waiting, TRUSTEE), (&waiting, "trustee3")] {
             assert_eq!(
-                error_message(validate_private_key_check(ceremony, trustee_name)),
+                error_message(validate_custody_confirmation(ceremony, trustee_name)),
                 "Trustee not part of the keys ceremony or has invalid state"
             );
         }
@@ -741,12 +755,12 @@ mod tests {
             status: Some(json!({"trustees": "invalid"})),
             ..keys_ceremony(
                 KeysCeremonyExecutionStatus::IN_PROGRESS,
-                TrusteeStatus::KEY_RETRIEVED,
+                TrusteeStatus::CUSTODY_REQUEST_RETRIEVED,
             )
         };
 
         assert!(
-            error_message(validate_private_key_check(&ceremony, TRUSTEE))
+            error_message(validate_custody_confirmation(&ceremony, TRUSTEE))
                 .starts_with("error parsing keys ceremony current status: ")
         );
     }
@@ -758,12 +772,12 @@ mod tests {
             (OTHER_TRUSTEE, TrusteeStatus::KEY_GENERATED),
         ]);
 
-        let new_status = with_key_retrieved(&current, TRUSTEE, vec![log("downloaded")]);
+        let new_status = with_custody_request_retrieved(&current, TRUSTEE, vec![log("downloaded")]);
 
         assert_eq!(
             statuses(&new_status),
             vec![
-                (TRUSTEE, TrusteeStatus::KEY_RETRIEVED),
+                (TRUSTEE, TrusteeStatus::CUSTODY_REQUEST_RETRIEVED),
                 (OTHER_TRUSTEE, TrusteeStatus::KEY_GENERATED),
             ]
         );
@@ -776,11 +790,11 @@ mod tests {
     #[test]
     fn a_check_keeps_the_ceremony_in_progress_while_another_trustee_has_not_checked() {
         let current = status(&[
-            (TRUSTEE, TrusteeStatus::KEY_RETRIEVED),
-            (OTHER_TRUSTEE, TrusteeStatus::KEY_RETRIEVED),
+            (TRUSTEE, TrusteeStatus::CUSTODY_REQUEST_RETRIEVED),
+            (OTHER_TRUSTEE, TrusteeStatus::CUSTODY_REQUEST_RETRIEVED),
         ]);
 
-        let (new_status, execution_status) = with_key_checked(
+        let (new_status, execution_status) = with_custody_confirmed(
             &current,
             TRUSTEE,
             vec![log("checked")],
@@ -790,8 +804,8 @@ mod tests {
         assert_eq!(
             statuses(&new_status),
             vec![
-                (TRUSTEE, TrusteeStatus::KEY_CHECKED),
-                (OTHER_TRUSTEE, TrusteeStatus::KEY_RETRIEVED),
+                (TRUSTEE, TrusteeStatus::CUSTODY_CONFIRMED),
+                (OTHER_TRUSTEE, TrusteeStatus::CUSTODY_REQUEST_RETRIEVED),
             ]
         );
         assert_eq!(execution_status, KeysCeremonyExecutionStatus::IN_PROGRESS);
@@ -802,12 +816,12 @@ mod tests {
     #[test]
     fn the_ceremony_succeeds_when_the_last_trustee_checks_its_key() {
         let current = status(&[
-            (TRUSTEE, TrusteeStatus::KEY_RETRIEVED),
-            (OTHER_TRUSTEE, TrusteeStatus::KEY_CHECKED),
+            (TRUSTEE, TrusteeStatus::CUSTODY_REQUEST_RETRIEVED),
+            (OTHER_TRUSTEE, TrusteeStatus::CUSTODY_CONFIRMED),
         ]);
 
         let (_, execution_status) =
-            with_key_checked(&current, TRUSTEE, vec![], &TrusteeSignatures::NotNeeded);
+            with_custody_confirmed(&current, TRUSTEE, vec![], &TrusteeSignatures::NotNeeded);
 
         assert_eq!(execution_status, KeysCeremonyExecutionStatus::SUCCESS);
     }
@@ -820,27 +834,27 @@ mod tests {
             let current = KeysCeremonyStatus {
                 public_key,
                 public_key_hash,
-                ..status(&[(TRUSTEE, TrusteeStatus::KEY_RETRIEVED)])
+                ..status(&[(TRUSTEE, TrusteeStatus::CUSTODY_REQUEST_RETRIEVED)])
             };
             let (_, execution) =
-                with_key_checked(&current, TRUSTEE, vec![], &TrusteeSignatures::NotNeeded);
+                with_custody_confirmed(&current, TRUSTEE, vec![], &TrusteeSignatures::NotNeeded);
             assert_eq!(execution, KeysCeremonyExecutionStatus::IN_PROGRESS);
             let ceremony = KeysCeremony {
                 status: Some(json!(current)),
                 ..keys_ceremony(
                     KeysCeremonyExecutionStatus::IN_PROGRESS,
-                    TrusteeStatus::KEY_RETRIEVED,
+                    TrusteeStatus::CUSTODY_REQUEST_RETRIEVED,
                 )
             };
-            assert!(validate_private_key_check(&ceremony, TRUSTEE).is_err());
+            assert!(validate_custody_confirmation(&ceremony, TRUSTEE).is_err());
         }
     }
 
     #[test]
     fn with_signatures_needed_the_ceremony_succeeds_only_when_every_check_was_signed() {
         let current = status(&[
-            (TRUSTEE, TrusteeStatus::KEY_RETRIEVED),
-            (OTHER_TRUSTEE, TrusteeStatus::KEY_CHECKED),
+            (TRUSTEE, TrusteeStatus::CUSTODY_REQUEST_RETRIEVED),
+            (OTHER_TRUSTEE, TrusteeStatus::CUSTODY_CONFIRMED),
         ]);
         let signed = |others: &[&str]| TrusteeSignatures::Needed {
             signed: others.iter().map(|name| name.to_string()).collect(),
@@ -848,10 +862,10 @@ mod tests {
         };
 
         // The other trustee checked before the rule: they check again, signed.
-        let (_, unsigned_other) = with_key_checked(&current, TRUSTEE, vec![], &signed(&[]));
+        let (_, unsigned_other) = with_custody_confirmed(&current, TRUSTEE, vec![], &signed(&[]));
         assert_eq!(unsigned_other, KeysCeremonyExecutionStatus::IN_PROGRESS);
         let (_, all_signed) =
-            with_key_checked(&current, TRUSTEE, vec![], &signed(&[OTHER_TRUSTEE]));
+            with_custody_confirmed(&current, TRUSTEE, vec![], &signed(&[OTHER_TRUSTEE]));
         assert_eq!(all_signed, KeysCeremonyExecutionStatus::SUCCESS);
     }
 

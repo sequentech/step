@@ -57,7 +57,7 @@ use crate::services::reports::template_renderer::{
 };
 use crate::services::reports::utils::get_public_asset_template;
 use crate::services::signing::actions::reports::start_held_tally_reports;
-use crate::services::signing::key_shares::tally_trustee_signatures;
+use crate::services::signing::custody_proofs::tally_trustee_signatures;
 use crate::services::tally_sheets::validation::validate_tally_sheet;
 use crate::services::tasks_semaphore::acquire_semaphore;
 use crate::services::temp_path::{

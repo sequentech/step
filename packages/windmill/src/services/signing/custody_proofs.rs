@@ -2,12 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! The trustees' key steps behind their own signature (`Gate` mode):
-//! confirming a key share in the keys ceremony and contributing it to a
+//! The trustees' custody steps behind their own signature (`Gate` mode):
+//! confirming a custody proof in the keys ceremony and contributing it to a
 //! tally.
 //!
 //! With the action's rule `Required`, a trustee first starts a request whose
-//! subject names the SHA-256 of their key share (never the key share
+//! subject names the SHA-256 of their custody proof (never the custody proof
 //! itself), signs it, and then takes the step with the request's id: the
 //! step consumes the completed request, keeps a reference to it with the
 //! ceremony and runs. While the rule is `Required`, only signed steps count
@@ -43,69 +43,69 @@ use uuid::Uuid;
 /// step, followed by the trustee's id. The annotation is only an index: a
 /// verifier reads and checks the signature from the request and its
 /// approval, never from the annotation.
-pub const KEY_SHARE_SIGNATURE_ANNOTATION: &str = "signing:key-share:";
+pub const CUSTODY_PROOF_SIGNATURE_ANNOTATION: &str = "signing:custody-proof:";
 
 /// Which of the trustees' key steps.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum KeyShareKind {
-    /// Confirm a key share: the trustee checks it in the keys ceremony.
+pub enum CustodyProofKind {
+    /// Confirm a custody proof: the trustee checks it in the keys ceremony.
     Confirm,
-    /// Contribute a key share: the trustee restores it for a tally session.
+    /// Authorize a tally session with the trustee's custody proof.
     Contribute,
 }
 
-impl KeyShareKind {
+impl CustodyProofKind {
     pub fn action(&self) -> SigningAction {
         match self {
-            KeyShareKind::Confirm => SigningAction::ConfirmKeyShare,
-            KeyShareKind::Contribute => SigningAction::ContributeKeyShare,
+            CustodyProofKind::Confirm => SigningAction::ConfirmCustodyProof,
+            CustodyProofKind::Contribute => SigningAction::ContributeCustodyProof,
         }
     }
 
     /// The subject field naming the keys ceremony or the tally session.
     fn id_field(&self) -> &'static str {
         match self {
-            KeyShareKind::Confirm => "keys_ceremony_id",
-            KeyShareKind::Contribute => "tally_session_id",
+            CustodyProofKind::Confirm => "keys_ceremony_id",
+            CustodyProofKind::Contribute => "tally_session_id",
         }
     }
 
     /// The table the step's ceremony is kept in.
     fn table(&self) -> &'static str {
         match self {
-            KeyShareKind::Confirm => "keys_ceremony",
-            KeyShareKind::Contribute => "tally_session",
+            CustodyProofKind::Confirm => "keys_ceremony",
+            CustodyProofKind::Contribute => "tally_session",
         }
     }
 }
 
 /// A trustee's key step and the keys ceremony or tally session it belongs to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct KeyShareStep {
-    pub kind: KeyShareKind,
+pub struct CustodyProofStep {
+    pub kind: CustodyProofKind,
     /// The keys ceremony or the tally session.
     pub id: Uuid,
 }
 
-impl KeyShareStep {
+impl CustodyProofStep {
     pub fn action(&self) -> SigningAction {
         self.kind.action()
     }
 
     /// What the trustee signs: exactly the action's subject.
-    fn subject(&self, trustee_id: Uuid, key_share_sha256: &str) -> anyhow::Result<Value> {
+    fn subject(&self, trustee_id: Uuid, custody_proof_sha256: &str) -> anyhow::Result<Value> {
         let trustee_id = trustee_id.to_string();
-        let key_share_sha256 = key_share_sha256.to_owned();
+        let custody_proof_sha256 = custody_proof_sha256.to_owned();
         Ok(match self.kind {
-            KeyShareKind::Confirm => serde_json::to_value(KeyCeremonySubject {
+            CustodyProofKind::Confirm => serde_json::to_value(KeyCeremonySubject {
                 keys_ceremony_id: self.id.to_string(),
                 trustee_id,
-                key_share_sha256,
+                custody_proof_sha256,
             })?,
-            KeyShareKind::Contribute => serde_json::to_value(TallyKeySubject {
+            CustodyProofKind::Contribute => serde_json::to_value(TallyKeySubject {
                 tally_session_id: self.id.to_string(),
                 trustee_id,
-                key_share_sha256,
+                custody_proof_sha256,
             })?,
         })
     }
@@ -126,7 +126,7 @@ impl KeyShareStep {
              WHERE tenant_id = $1 AND election_event_id = $2 AND id = $3",
             self.kind.table()
         );
-        let key = format!("{KEY_SHARE_SIGNATURE_ANNOTATION}{trustee_id}");
+        let key = format!("{CUSTODY_PROOF_SIGNATURE_ANNOTATION}{trustee_id}");
         let updated = hasura_transaction
             .execute(
                 &sql,
@@ -147,31 +147,31 @@ impl KeyShareStep {
     }
 }
 
-/// The ceremony side of a key step: the existing check or restore.
+/// The ceremony side of custody confirmation or tally authorization.
 #[async_trait]
-pub trait KeyShareCeremony: Send + Sync {
-    /// Whether `key_share` is the trustee's, recording nothing. Fails as the
+pub trait CustodyProofCeremony: Send + Sync {
+    /// Whether `custody_proof` is the trustee's, recording nothing. Fails as the
     /// step fails when the trustee can't take it now.
     async fn matches(
         &self,
         hasura_transaction: &Transaction<'_>,
-        key_share: &str,
+        custody_proof: &str,
         signatures: &TrusteeSignatures,
     ) -> anyhow::Result<bool>;
 
     /// Takes the step as it always did: `false`, recording nothing, when
-    /// `key_share` is not the trustee's. `signatures` says which trustees'
+    /// `custody_proof` is not the trustee's. `signatures` says which trustees'
     /// steps count.
     async fn run(
         &self,
         hasura_transaction: &Transaction<'_>,
-        key_share: &str,
+        custody_proof: &str,
         signatures: &TrusteeSignatures,
     ) -> anyhow::Result<bool>;
 }
 
-/// The keys ceremony's private key check.
-pub struct KeysCeremonyKeyShare<'a> {
+/// The keys ceremony's custody confirmation.
+pub struct KeysCeremonyCustodyProof<'a> {
     pub claims: &'a JwtClaims,
     pub tenant_id: &'a str,
     pub election_event_id: &'a str,
@@ -179,21 +179,21 @@ pub struct KeysCeremonyKeyShare<'a> {
 }
 
 #[async_trait]
-impl KeyShareCeremony for KeysCeremonyKeyShare<'_> {
+impl CustodyProofCeremony for KeysCeremonyCustodyProof<'_> {
     async fn matches(
         &self,
         hasura_transaction: &Transaction<'_>,
-        key_share: &str,
+        custody_proof: &str,
         _signatures: &TrusteeSignatures,
     ) -> anyhow::Result<bool> {
-        // A trustee may check their key share again, signed or not.
-        keys_ceremony::key_share_matches(
+        // A trustee may check their custody proof again, signed or not.
+        keys_ceremony::custody_proof_matches(
             hasura_transaction,
             self.claims.trustee.clone(),
             self.tenant_id,
             self.election_event_id,
             self.keys_ceremony_id,
-            key_share,
+            custody_proof,
         )
         .await
     }
@@ -201,24 +201,24 @@ impl KeyShareCeremony for KeysCeremonyKeyShare<'_> {
     async fn run(
         &self,
         hasura_transaction: &Transaction<'_>,
-        key_share: &str,
+        custody_proof: &str,
         signatures: &TrusteeSignatures,
     ) -> anyhow::Result<bool> {
-        keys_ceremony::check_private_key(
+        keys_ceremony::confirm_key_custody(
             hasura_transaction,
             self.claims.clone(),
             self.tenant_id.to_owned(),
             self.election_event_id.to_owned(),
             self.keys_ceremony_id.to_owned(),
-            key_share.to_owned(),
+            custody_proof.to_owned(),
             signatures,
         )
         .await
     }
 }
 
-/// The tally's private key restore.
-pub struct TallyKeyShare<'a> {
+/// The tally's custody authorization.
+pub struct TallyCustodyProof<'a> {
     pub claims: &'a JwtClaims,
     pub tenant_id: &'a str,
     pub election_event_id: &'a str,
@@ -226,20 +226,20 @@ pub struct TallyKeyShare<'a> {
 }
 
 #[async_trait]
-impl KeyShareCeremony for TallyKeyShare<'_> {
+impl CustodyProofCeremony for TallyCustodyProof<'_> {
     async fn matches(
         &self,
         hasura_transaction: &Transaction<'_>,
-        key_share: &str,
+        custody_proof: &str,
         signatures: &TrusteeSignatures,
     ) -> anyhow::Result<bool> {
-        tally_ceremony::key_share_matches(
+        tally_ceremony::custody_proof_matches(
             hasura_transaction,
             self.claims,
             self.tenant_id,
             self.election_event_id,
             self.tally_session_id,
-            key_share,
+            custody_proof,
             signatures,
         )
         .await
@@ -248,16 +248,16 @@ impl KeyShareCeremony for TallyKeyShare<'_> {
     async fn run(
         &self,
         hasura_transaction: &Transaction<'_>,
-        key_share: &str,
+        custody_proof: &str,
         signatures: &TrusteeSignatures,
     ) -> anyhow::Result<bool> {
-        tally_ceremony::set_private_key(
+        tally_ceremony::authorize_tally_custody(
             hasura_transaction,
             self.claims,
             self.tenant_id,
             self.election_event_id,
             self.tally_session_id,
-            key_share,
+            custody_proof,
             signatures,
         )
         .await
@@ -267,23 +267,23 @@ impl KeyShareCeremony for TallyKeyShare<'_> {
 /// What a trustee sends with a key step. The ids are the route's, parsed
 /// only once the step needs signatures, so a step without them answers as
 /// it always did.
-pub struct KeyShareInput<'a> {
+pub struct CustodyProofInput<'a> {
     pub tenant_id: &'a str,
     pub election_event_id: &'a str,
-    pub kind: KeyShareKind,
+    pub kind: CustodyProofKind,
     /// The keys ceremony or the tally session.
     pub target_id: &'a str,
-    /// The key share file's text, as the step always took it.
-    pub key_share: &'a str,
-    /// The SHA-256 the browser computed of `key_share`, lowercase hex.
-    pub key_share_sha256: Option<&'a str>,
+    /// The custody proof file's text, as the step always took it.
+    pub custody_proof: &'a str,
+    /// The SHA-256 the browser computed of `custody_proof`, lowercase hex.
+    pub custody_proof_sha256: Option<&'a str>,
     /// The trustee's completed request, to take the step with.
     pub signing_request_id: Option<Uuid>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum KeyShareOutcome {
-    /// The key share is not the trustee's: the caller rolls back, so
+pub enum CustodyProofOutcome {
+    /// The custody proof is not the trustee's: the caller rolls back, so
     /// nothing is recorded and no request is used.
     Invalid,
     /// The step ran. With a request, the reference kept with the ceremony.
@@ -294,7 +294,7 @@ pub enum KeyShareOutcome {
 
 /// Why a key step was not taken.
 #[derive(Debug)]
-pub enum KeyShareError {
+pub enum CustodyProofError {
     /// The ceremony refused the step (or couldn't read the rule), as the
     /// route always answered.
     Step(anyhow::Error),
@@ -302,42 +302,42 @@ pub enum KeyShareError {
     Signing(SigningError),
 }
 
-impl fmt::Display for KeyShareError {
+impl fmt::Display for CustodyProofError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            KeyShareError::Step(error) => write!(f, "{error:?}"),
-            KeyShareError::Signing(error) => write!(f, "{error}"),
+            CustodyProofError::Step(error) => write!(f, "{error:?}"),
+            CustodyProofError::Signing(error) => write!(f, "{error}"),
         }
     }
 }
 
-impl From<SigningError> for KeyShareError {
+impl From<SigningError> for CustodyProofError {
     fn from(error: SigningError) -> Self {
-        KeyShareError::Signing(error)
+        CustodyProofError::Signing(error)
     }
 }
 
-fn internal(error: anyhow::Error) -> KeyShareError {
-    KeyShareError::Signing(SigningError::Internal(error))
+fn internal(error: anyhow::Error) -> CustodyProofError {
+    CustodyProofError::Signing(SigningError::Internal(error))
 }
 
 /// The ids of a step that needs signatures.
 struct Ids {
     tenant_id: Uuid,
     election_event_id: Uuid,
-    step: KeyShareStep,
+    step: CustodyProofStep,
 }
 
-fn parse(input: &KeyShareInput<'_>) -> Result<Ids, KeyShareError> {
+fn parse(input: &CustodyProofInput<'_>) -> Result<Ids, CustodyProofError> {
     let uuid = |text: &str, name: &str| {
         Uuid::parse_str(text).map_err(|_| {
-            KeyShareError::from(SigningError::bad_input(format!("{name} is not a UUID")))
+            CustodyProofError::from(SigningError::bad_input(format!("{name} is not a UUID")))
         })
     };
     Ok(Ids {
         tenant_id: uuid(input.tenant_id, "tenant_id")?,
         election_event_id: uuid(input.election_event_id, "election_event_id")?,
-        step: KeyShareStep {
+        step: CustodyProofStep {
             kind: input.kind,
             id: uuid(input.target_id, input.kind.id_field())?,
         },
@@ -354,7 +354,7 @@ async fn caller_trustee(
     hasura_transaction: &Transaction<'_>,
     caller: &SigningCaller,
     tenant_id: Uuid,
-) -> Result<Trustee, KeyShareError> {
+) -> Result<Trustee, CustodyProofError> {
     let not_a_trustee = || SigningError::Forbidden("You are not a trustee.".into());
     let name = caller.trustee.clone().ok_or_else(not_a_trustee)?;
     let id = find_signing_trustee_id(hasura_transaction, tenant_id, &name)
@@ -370,7 +370,7 @@ async fn signed_trustee_names(
     hasura_transaction: &Transaction<'_>,
     tenant_id: Uuid,
     election_event_id: Uuid,
-    step: KeyShareStep,
+    step: CustodyProofStep,
     excluding: Option<Uuid>,
 ) -> anyhow::Result<HashSet<String>> {
     Ok(hasura_transaction
@@ -407,7 +407,7 @@ pub async fn trustee_signatures(
     hasura_transaction: &Transaction<'_>,
     tenant_id: Uuid,
     election_event_id: Uuid,
-    step: KeyShareStep,
+    step: CustodyProofStep,
     signing: Option<(Uuid, String)>,
 ) -> anyhow::Result<TrusteeSignatures> {
     let rule = effective_rule(
@@ -453,8 +453,8 @@ pub async fn tally_trustee_signatures(
         hasura_transaction,
         tenant_id,
         election_event_id,
-        KeyShareStep {
-            kind: KeyShareKind::Contribute,
+        CustodyProofStep {
+            kind: CustodyProofKind::Contribute,
             id: tally_session_id,
         },
         None,
@@ -465,36 +465,36 @@ pub async fn tally_trustee_signatures(
 /// The step as it always ran.
 async fn run_unsigned(
     hasura_transaction: &Transaction<'_>,
-    ceremony: &dyn KeyShareCeremony,
-    input: &KeyShareInput<'_>,
-) -> Result<KeyShareOutcome, KeyShareError> {
+    ceremony: &dyn CustodyProofCeremony,
+    input: &CustodyProofInput<'_>,
+) -> Result<CustodyProofOutcome, CustodyProofError> {
     if ceremony
         .run(
             hasura_transaction,
-            input.key_share,
+            input.custody_proof,
             &TrusteeSignatures::NotNeeded,
         )
         .await
-        .map_err(KeyShareError::Step)?
+        .map_err(CustodyProofError::Step)?
     {
-        Ok(KeyShareOutcome::Done(None))
+        Ok(CustodyProofOutcome::Done(None))
     } else {
-        Ok(KeyShareOutcome::Invalid)
+        Ok(CustodyProofOutcome::Invalid)
     }
 }
 
 /// Takes a trustee's key step (see the module documentation), in the
 /// caller's transaction. The caller commits unless the outcome is
-/// [`KeyShareOutcome::Invalid`] or an error.
+/// [`CustodyProofOutcome::Invalid`] or an error.
 #[instrument(skip_all, fields(action = %input.kind.action()), err)]
-pub async fn take_key_share_step(
+pub async fn take_custody_proof_step(
     hasura_transaction: &Transaction<'_>,
     caller: &SigningCaller,
-    ceremony: &dyn KeyShareCeremony,
-    input: &KeyShareInput<'_>,
-) -> Result<KeyShareOutcome, KeyShareError> {
+    ceremony: &dyn CustodyProofCeremony,
+    input: &CustodyProofInput<'_>,
+) -> Result<CustodyProofOutcome, CustodyProofError> {
     let action = input.kind.action();
-    let key_share_sha256 = sha256_hex(input.key_share.as_bytes());
+    let custody_proof_sha256 = sha256_hex(input.custody_proof.as_bytes());
 
     let Some(request_id) = input.signing_request_id else {
         // Without signatures the step answers as it always did: the ids
@@ -506,7 +506,7 @@ pub async fn take_key_share_step(
             (Ok(tenant_id), Ok(election_event_id)) => {
                 effective_rule(hasura_transaction, tenant_id, election_event_id, action)
                     .await
-                    .map_err(KeyShareError::Step)?
+                    .map_err(CustodyProofError::Step)?
                     .is_required()
             }
             _ => false,
@@ -519,7 +519,7 @@ pub async fn take_key_share_step(
             caller,
             ceremony,
             input,
-            &key_share_sha256,
+            &custody_proof_sha256,
         )
         .await;
     };
@@ -528,7 +528,7 @@ pub async fn take_key_share_step(
     let trustee = caller_trustee(hasura_transaction, caller, ids.tenant_id).await?;
     let subject = ids
         .step
-        .subject(trustee.id, &key_share_sha256)
+        .subject(trustee.id, &custody_proof_sha256)
         .map_err(internal)?;
     let request = consume_gate(
         hasura_transaction,
@@ -563,30 +563,30 @@ pub async fn take_key_share_step(
     .await
     .map_err(internal)?;
     if !ceremony
-        .run(hasura_transaction, input.key_share, &signatures)
+        .run(hasura_transaction, input.custody_proof, &signatures)
         .await
-        .map_err(KeyShareError::Step)?
+        .map_err(CustodyProofError::Step)?
     {
-        return Ok(KeyShareOutcome::Invalid);
+        return Ok(CustodyProofOutcome::Invalid);
     }
-    Ok(KeyShareOutcome::Done(Some(reference)))
+    Ok(CustodyProofOutcome::Done(Some(reference)))
 }
 
-/// The rule needs the trustee's signature: checks the key share without
+/// The rule needs the trustee's signature: checks the custody proof without
 /// recording anything and starts the request naming its SHA-256.
 async fn start(
     hasura_transaction: &Transaction<'_>,
     caller: &SigningCaller,
-    ceremony: &dyn KeyShareCeremony,
-    input: &KeyShareInput<'_>,
-    key_share_sha256: &str,
-) -> Result<KeyShareOutcome, KeyShareError> {
+    ceremony: &dyn CustodyProofCeremony,
+    input: &CustodyProofInput<'_>,
+    custody_proof_sha256: &str,
+) -> Result<CustodyProofOutcome, CustodyProofError> {
     let ids = parse(input)?;
-    if let Some(sent) = input.key_share_sha256 {
-        if !sent.eq_ignore_ascii_case(key_share_sha256) {
+    if let Some(sent) = input.custody_proof_sha256 {
+        if !sent.eq_ignore_ascii_case(custody_proof_sha256) {
             return Err(SigningError::invalid(
-                InvalidReason::KeyShareHash,
-                "The key share's SHA-256 is not the uploaded key share's.",
+                InvalidReason::CustodyProofHash,
+                "The custody proof's SHA-256 is not the uploaded custody proof's.",
             )
             .into());
         }
@@ -600,13 +600,13 @@ async fn start(
     )
     .await
     .map_err(internal)?;
-    // A file that is not the trustee's key share starts nothing.
+    // A file that is not the trustee's custody proof starts nothing.
     if !ceremony
-        .matches(hasura_transaction, input.key_share, &signatures)
+        .matches(hasura_transaction, input.custody_proof, &signatures)
         .await
-        .map_err(KeyShareError::Step)?
+        .map_err(CustodyProofError::Step)?
     {
-        return Ok(KeyShareOutcome::Invalid);
+        return Ok(CustodyProofOutcome::Invalid);
     }
     let trustee = caller_trustee(hasura_transaction, caller, ids.tenant_id).await?;
     let outcome = guard(
@@ -624,7 +624,7 @@ async fn start(
             },
             subject: ids
                 .step
-                .subject(trustee.id, key_share_sha256)
+                .subject(trustee.id, custody_proof_sha256)
                 .map_err(internal)?,
             document: None,
             config_revision: None,
@@ -632,7 +632,7 @@ async fn start(
     )
     .await?;
     match outcome {
-        GuardOutcome::SigningRequired(summary) => Ok(KeyShareOutcome::SigningRequired(summary)),
+        GuardOutcome::SigningRequired(summary) => Ok(CustodyProofOutcome::SigningRequired(summary)),
         // The rule was switched off meanwhile.
         GuardOutcome::Proceed => run_unsigned(hasura_transaction, ceremony, input).await,
     }
@@ -645,7 +645,7 @@ async fn signed_step_reference(
     hasura_transaction: &Transaction<'_>,
     caller: &SigningCaller,
     request: &SigningRequestRow,
-) -> Result<Value, KeyShareError> {
+) -> Result<Value, CustodyProofError> {
     let approval = list_signing_approvals(
         hasura_transaction,
         request.tenant_id,
@@ -669,25 +669,25 @@ async fn signed_step_reference(
 /// are labels, not signed: the dialog shows each only next to the id it
 /// names, when that id is the signed one.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
-pub struct KeyShareLabels {
+pub struct CustodyProofLabels {
     /// The keys ceremony or tally session the names belong to.
     pub ceremony_id: Option<Uuid>,
-    /// The keys ceremony's name (for a tally, the ceremony whose key share
+    /// The keys ceremony's name (for a tally, the ceremony whose custody proof
     /// is contributed).
     pub ceremony_name: Option<String>,
     /// The name of the request's trustee.
     pub trustee_name: Option<String>,
 }
 
-/// [`KeyShareLabels`] of a trustee's request; empty for other actions.
-pub async fn key_share_labels(
+/// [`CustodyProofLabels`] of a trustee's request; empty for other actions.
+pub async fn custody_proof_labels(
     hasura_transaction: &Transaction<'_>,
     request: &SigningRequestRow,
-) -> anyhow::Result<KeyShareLabels> {
+) -> anyhow::Result<CustodyProofLabels> {
     let kind = match request.action {
-        SigningAction::ConfirmKeyShare => KeyShareKind::Confirm,
-        SigningAction::ContributeKeyShare => KeyShareKind::Contribute,
-        _ => return Ok(KeyShareLabels::default()),
+        SigningAction::ConfirmCustodyProof => CustodyProofKind::Confirm,
+        SigningAction::ContributeCustodyProof => CustodyProofKind::Contribute,
+        _ => return Ok(CustodyProofLabels::default()),
     };
     let ceremony_id = request
         .subject
@@ -697,11 +697,11 @@ pub async fn key_share_labels(
     let ceremony_name = match ceremony_id {
         Some(id) => {
             let sql = match kind {
-                KeyShareKind::Confirm => {
+                CustodyProofKind::Confirm => {
                     "SELECT name FROM sequent_backend.keys_ceremony
                      WHERE tenant_id = $1 AND election_event_id = $2 AND id = $3"
                 }
-                KeyShareKind::Contribute => {
+                CustodyProofKind::Contribute => {
                     "SELECT keys_ceremony.name
                      FROM sequent_backend.tally_session
                      JOIN sequent_backend.keys_ceremony
@@ -727,7 +727,7 @@ pub async fn key_share_labels(
         }
         None => None,
     };
-    Ok(KeyShareLabels {
+    Ok(CustodyProofLabels {
         ceremony_id: ceremony_name.as_ref().and(ceremony_id),
         ceremony_name,
         trustee_name,
@@ -738,29 +738,29 @@ pub async fn key_share_labels(
 /// have a used signed step for it: a trustee who took the step unsigned
 /// before the rule needed signatures takes it again, signed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-pub struct KeyShareSignatureStatus {
+pub struct CustodyProofSignatureStatus {
     pub signature_needed: bool,
     pub signed: bool,
 }
 
-/// [`KeyShareSignatureStatus`] of the caller for a keys ceremony or tally
+/// [`CustodyProofSignatureStatus`] of the caller for a keys ceremony or tally
 /// session.
 #[instrument(skip(hasura_transaction, caller), err)]
-pub async fn key_share_signature_status(
+pub async fn custody_proof_signature_status(
     hasura_transaction: &Transaction<'_>,
     caller: &SigningCaller,
     tenant_id: &str,
     election_event_id: &str,
-    kind: KeyShareKind,
+    kind: CustodyProofKind,
     target_id: &str,
-) -> Result<KeyShareSignatureStatus, KeyShareError> {
-    let ids = parse(&KeyShareInput {
+) -> Result<CustodyProofSignatureStatus, CustodyProofError> {
+    let ids = parse(&CustodyProofInput {
         tenant_id,
         election_event_id,
         kind,
         target_id,
-        key_share: "",
-        key_share_sha256: None,
+        custody_proof: "",
+        custody_proof_sha256: None,
         signing_request_id: None,
     })?;
     let signatures = trustee_signatures(
@@ -773,11 +773,11 @@ pub async fn key_share_signature_status(
     .await
     .map_err(internal)?;
     Ok(match signatures {
-        TrusteeSignatures::NotNeeded => KeyShareSignatureStatus {
+        TrusteeSignatures::NotNeeded => CustodyProofSignatureStatus {
             signature_needed: false,
             signed: false,
         },
-        TrusteeSignatures::Needed { signed, .. } => KeyShareSignatureStatus {
+        TrusteeSignatures::Needed { signed, .. } => CustodyProofSignatureStatus {
             signature_needed: true,
             signed: caller
                 .trustee

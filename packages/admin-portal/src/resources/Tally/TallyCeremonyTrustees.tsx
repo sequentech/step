@@ -16,12 +16,12 @@ import {TallyTrusteesList} from "./TallyTrusteesList"
 import {TallyStyles} from "@/components/styles/TallyStyles"
 import {useGetList, useGetOne, useRecordContext} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
-import {RESTORE_PRIVATE_KEY} from "@/queries/RestorePrivateKey"
+import {AUTHORIZE_TALLY_CUSTODY} from "@/queries/AuthorizeTallyCustody"
 import {
-    KEY_SHARE_SIGNATURE_STATUS,
-    type IKeyShareSignatureStatusQuery,
-    type IKeyShareSignatureStatusVariables,
-} from "@/queries/KeyShareSignatureStatus"
+    CUSTODY_PROOF_SIGNATURE_STATUS,
+    type ICustodyProofSignatureStatusQuery,
+    type ICustodyProofSignatureStatusVariables,
+} from "@/queries/CustodyProofSignatureStatus"
 import {useMutation, useQuery} from "@apollo/client"
 import {
     ICeremonyStatus,
@@ -31,8 +31,8 @@ import {
 } from "@/types/ceremonies"
 import {Alert, Box, Typography} from "@mui/material"
 import {
-    RestorePrivateKeyMutation,
-    RestorePrivateKeyMutationVariables,
+    AuthorizeTallyCustodyMutation,
+    AuthorizeTallyCustodyMutationVariables,
     Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Tally_Session,
@@ -42,11 +42,11 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {
-    KeyShareCheck,
-    useKeyShareSigning,
-    type IKeyShareAnswer,
-    type IKeyShareSubmission,
-} from "@/components/keys-ceremony/useKeyShareSigning"
+    CustodyProofCheck,
+    useCustodyProofSigning,
+    type ICustodyProofAnswer,
+    type ICustodyProofSubmission,
+} from "@/components/keys-ceremony/useCustodyProofSigning"
 
 const WizardSteps = {
     Start: 0,
@@ -144,26 +144,27 @@ export const TallyCeremonyTrustees: React.FC = () => {
         }
     }, [tallySessionExecutions])
 
-    // A trustee who restored their key unsigned before the rule made trustees
+    // A trustee who confirmed custody unsigned before the rule made trustees
     // sign contributes it again, signed.
     // The state holds the tally trustee's status.
-    const restored = (trusteeStatus as string | null) === ITallyTrusteeStatus.KEY_RESTORED
+    const custodyConfirmed =
+        (trusteeStatus as string | null) === ITallyTrusteeStatus.CUSTODY_CONFIRMED
     const {data: signatureStatus, refetch: refetchSignatureStatus} = useQuery<
-        IKeyShareSignatureStatusQuery,
-        IKeyShareSignatureStatusVariables
-    >(KEY_SHARE_SIGNATURE_STATUS, {
+        ICustodyProofSignatureStatusQuery,
+        ICustodyProofSignatureStatusVariables
+    >(CUSTODY_PROOF_SIGNATURE_STATUS, {
         variables: {electionEventId: tally?.election_event_id ?? "", tallySessionId: tally?.id},
         skip:
-            !restored ||
+            !custodyConfirmed ||
             !tally ||
             tally.execution_status === ITallyExecutionStatus.CANCELLED ||
             !!tally.is_execution_completed,
         fetchPolicy: "network-only",
     })
     const redoSigned =
-        restored &&
-        !!signatureStatus?.key_share_signature_status?.signature_needed &&
-        !signatureStatus.key_share_signature_status.signed
+        custodyConfirmed &&
+        !!signatureStatus?.custody_proof_signature_status?.signature_needed &&
+        !signatureStatus.custody_proof_signature_status.signed
 
     useEffect(() => {
         setPage(
@@ -199,13 +200,15 @@ export const TallyCeremonyTrustees: React.FC = () => {
         }
     `
 
-    const [restorePrivateKeyMutation] = useMutation<
-        RestorePrivateKeyMutation,
-        RestorePrivateKeyMutationVariables
-    >(RESTORE_PRIVATE_KEY, {context: {headers: {"x-hasura-role": IPermissions.TRUSTEE_CEREMONY}}})
+    const [authorizeTallyCustodyMutation] = useMutation<
+        AuthorizeTallyCustodyMutation,
+        AuthorizeTallyCustodyMutationVariables
+    >(AUTHORIZE_TALLY_CUSTODY, {
+        context: {headers: {"x-hasura-role": IPermissions.TRUSTEE_CEREMONY}},
+    })
     const submit = useCallback(
-        async (submission: IKeyShareSubmission): Promise<IKeyShareAnswer> => {
-            const {data, errors} = await restorePrivateKeyMutation({
+        async (submission: ICustodyProofSubmission): Promise<ICustodyProofAnswer> => {
+            const {data, errors} = await authorizeTallyCustodyMutation({
                 variables: {
                     electionEventId: tally?.election_event_id ?? "",
                     tallySessionId: tally?.id ?? "",
@@ -213,11 +216,11 @@ export const TallyCeremonyTrustees: React.FC = () => {
                 },
             })
             if (errors) throw new Error(errors.toString())
-            return data?.restore_private_key ?? {is_valid: false}
+            return data?.authorize_tally_custody ?? {is_valid: false}
         },
-        [restorePrivateKeyMutation, tally?.election_event_id, tally?.id]
+        [authorizeTallyCustodyMutation, tally?.election_event_id, tally?.id]
     )
-    const keyShareSigning = useKeyShareSigning({
+    const custodyProofSigning = useCustodyProofSigning({
         submit,
         onRecorded: useCallback(() => {
             setVerified(true)
@@ -225,12 +228,12 @@ export const TallyCeremonyTrustees: React.FC = () => {
             if (redoSigned) refetchSignatureStatus().catch(() => undefined)
         }, [redoSigned, refetchSignatureStatus]),
         onFailed: useCallback(
-            (error: string) => setErrors(t("signing.keyShare.failed", {error})),
+            (error: string) => setErrors(t("signing.custodyProof.failed", {error})),
             [t]
         ),
     })
 
-    const uploadPrivateKey = async (files: FileList | null) => {
+    const uploadCustodyProof = async (files: FileList | null) => {
         setErrors(null)
         setVerified(false)
         setUploading(false)
@@ -255,11 +258,11 @@ export const TallyCeremonyTrustees: React.FC = () => {
                 return
             }
             setUploading(true)
-            const checked = await keyShareSigning.check(fileContent)
+            const checked = await custodyProofSigning.check(fileContent)
             setUploading(false)
-            if (checked === KeyShareCheck.Invalid) {
+            if (checked === CustodyProofCheck.Invalid) {
                 setErrors(t("keysGeneration.checkStep.errorUploading", {error: "empty"}))
-            } else if (checked === KeyShareCheck.Verified) {
+            } else if (checked === CustodyProofCheck.Verified) {
                 setVerified(true)
             }
         } catch (exception) {
@@ -304,7 +307,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
                                 />
                                 {redoSigned && !verified ? (
                                     <Typography variant="body1">
-                                        {t("signing.keyShare.redo")}
+                                        {t("signing.custodyProof.redo")}
                                     </Typography>
                                 ) : null}
 
@@ -316,7 +319,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
                                     Upload custody-proof.json. Keep trustee.toml on your trustee
                                     machine.
                                 </Alert>
-                                <DropFile handleFiles={uploadPrivateKey} />
+                                <DropFile handleFiles={uploadCustodyProof} />
 
                                 <WizardStyles.StatusBox>
                                     {uploading ? <WizardStyles.DownloadProgress /> : null}
@@ -325,9 +328,9 @@ export const TallyCeremonyTrustees: React.FC = () => {
                                             {errors}
                                         </WizardStyles.ErrorMessage>
                                     ) : null}
-                                    {keyShareSigning.waiting && !errors ? (
+                                    {custodyProofSigning.waiting && !errors ? (
                                         <Typography variant="body1">
-                                            {t("signing.keyShare.signing")}
+                                            {t("signing.custodyProof.signing")}
                                         </Typography>
                                     ) : null}
                                     {verified && (

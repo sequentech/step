@@ -25,48 +25,54 @@ import {applyTenantTranslationOverrides} from "@/providers/TenantContextProvider
 import {IPermissions} from "@/types/keycloak"
 import {EStoryPermissions} from "../../../../../ui-essentials/.storybook/globals"
 
-export enum KeyShareRule {
+export enum CustodyProofRule {
     NotRequired = "not-required",
     Required = "required",
 }
 
-export enum KeyShareOrganization {
+export enum CustodyProofOrganization {
     Overseas = "overseas",
     StudentCouncil = "student-council",
 }
 
-export interface IKeyShareOrganization {
+export interface ICustodyProofOrganization {
     ceremonyName: string
     trusteeName: string
     /** Tenant translation overrides (English), as stored in the tenant's settings. */
     overrides: Record<string, string>
 }
 
-export const KEY_SHARE_ORGANIZATIONS: Record<KeyShareOrganization, IKeyShareOrganization> = {
-    [KeyShareOrganization.Overseas]: {
+export const CUSTODY_PROOF_ORGANIZATIONS: Record<
+    CustodyProofOrganization,
+    ICustodyProofOrganization
+> = {
+    [CustodyProofOrganization.Overseas]: {
         ceremonyName: "Madrid PE keys",
         trusteeName: STORY_TRUSTEE,
         overrides: {},
     },
-    [KeyShareOrganization.StudentCouncil]: {
+    [CustodyProofOrganization.StudentCouncil]: {
         ceremonyName: "Student council keys",
         trusteeName: "returning-officer-1",
         overrides: {
             "adminPortal:signing.details.keys_ceremony_id": "Electoral commission ceremony",
             "adminPortal:signing.details.tally_session_id": "Count",
             "adminPortal:signing.details.trustee_id": "Returning officer",
-            "adminPortal:signing.keyShare.signing":
+            "adminPortal:signing.custodyProof.signing":
                 "Sign your share with your certificate to record it.",
         },
     },
 }
 
 /** The label the dialog shows for a subject field, from the organization's overrides. */
-export const detailLabel = (organization: IKeyShareOrganization, key: string, fallback: string) =>
-    organization.overrides[`adminPortal:signing.details.${key}`] ?? fallback
+export const detailLabel = (
+    organization: ICustodyProofOrganization,
+    key: string,
+    fallback: string
+) => organization.overrides[`adminPortal:signing.details.${key}`] ?? fallback
 
 /** Applies the organization's overrides for one story; the returned cleanup removes them. */
-export function applyKeyShareOverrides(organization: IKeyShareOrganization) {
+export function applyCustodyProofOverrides(organization: ICustodyProofOrganization) {
     if (!Object.keys(organization.overrides).length) return undefined
     applyTenantTranslationOverrides({i18n: {en: organization.overrides}})
     return () => applyTenantTranslationOverrides(undefined)
@@ -79,7 +85,7 @@ export const TRUSTEE_ROLES = [
     IPermissions.SIGN_TALLY_KEY,
 ]
 /** Jose, signed in with the trustee account of the organization (a trustee's username is its name). */
-export const trusteeAuth = (organization: IKeyShareOrganization) => ({
+export const trusteeAuth = (organization: ICustodyProofOrganization) => ({
     ...signedInAs(JOSE),
     username: organization.trusteeName,
     trustee: organization.trusteeName,
@@ -96,19 +102,19 @@ export const SIGNING_REQUEST = {id: REQUEST_ID, code: CODE, required: 1, expires
 /**
  * The trustee's request as the signing panel loads it: its subject is the
  * contract's (`target` = `keys_ceremony_id` or `tally_session_id`, the
- * trustee and the key share's SHA-256), the panel names the ceremony and
+ * trustee and the custody proof's SHA-256), the panel names the ceremony and
  * the trustee beside their ids, and Jose signs it.
  */
-export async function keySharePanel(
+export async function custodyProofPanel(
     action: SigningAction,
     target: Record<string, string>,
-    organization: IKeyShareOrganization,
-    keyShare: string,
+    organization: ICustodyProofOrganization,
+    custodyProof: string,
     status: SigningRequestStatus
 ) {
     const subject = {
         ...target,
-        key_share_sha256: await sha256(keyShare),
+        custody_proof_sha256: await sha256(custodyProof),
         trustee_id: TRUSTEE_ID,
     }
     const done = status !== SigningRequestStatus.Waiting
@@ -133,28 +139,28 @@ export async function keySharePanel(
 }
 
 /** The fake signing service: the request waits (or was signed earlier) and Jose's signature completes it. */
-export async function keyShareApi(
+export async function custodyProofApi(
     action: SigningAction,
     target: Record<string, string>,
-    organization: IKeyShareOrganization,
-    keyShare: string,
+    organization: ICustodyProofOrganization,
+    custodyProof: string,
     signedEarlier: boolean
 ) {
-    const completed = await keySharePanel(
+    const completed = await custodyProofPanel(
         action,
         target,
         organization,
-        keyShare,
+        custodyProof,
         SigningRequestStatus.Completed
     )
     return signedEarlier
         ? fakeApi(completed)
         : fakeApi(
-              await keySharePanel(
+              await custodyProofPanel(
                   action,
                   target,
                   organization,
-                  keyShare,
+                  custodyProof,
                   SigningRequestStatus.Waiting
               ),
               {after: completed}
@@ -163,12 +169,12 @@ export async function keyShareApi(
 
 /**
  * In the signing dialog that opened: checks the details table names the
- * ceremony, the trustee and the key share's hash, then signs with Jose's
+ * ceremony, the trustee and the custody proof's hash, then signs with Jose's
  * certificate.
  */
-export async function signKeyShare(
-    organization: IKeyShareOrganization,
-    keyShare: string,
+export async function signCustodyProof(
+    organization: ICustodyProofOrganization,
+    custodyProof: string,
     target: Record<string, string>
 ) {
     const dialog = await within(document.body).findByRole("dialog", {name: /^Sign /})
@@ -184,7 +190,7 @@ export async function signKeyShare(
     const trusteeRow = row(detailLabel(organization, "trustee_id", "Trustee"))
     await expect(trusteeRow).toHaveTextContent(organization.trusteeName)
     await expect(trusteeRow).toHaveTextContent(TRUSTEE_ID)
-    await expect(row("Key share SHA-256")).toHaveTextContent(await sha256(keyShare))
+    await expect(row("Custody proof SHA-256")).toHaveTextContent(await sha256(custodyProof))
     const continueButton = view.getByRole("button", {name: "Continue"})
     await waitFor(() => expect(continueButton).toBeEnabled())
     await userEvent.click(continueButton)
@@ -197,6 +203,6 @@ export async function signKeyShare(
 }
 
 /** What the step says while it waits for the signature, in the organization's words. */
-export const signingNote = (organization: IKeyShareOrganization) =>
-    organization.overrides["adminPortal:signing.keyShare.signing"] ??
-    "Sign your key share in the signing panel. It is recorded once you have signed."
+export const signingNote = (organization: ICustodyProofOrganization) =>
+    organization.overrides["adminPortal:signing.custodyProof.signing"] ??
+    "Sign your custody proof in the signing panel. It is recorded once you have signed."

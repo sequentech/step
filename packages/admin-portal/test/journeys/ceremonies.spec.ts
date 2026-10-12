@@ -97,8 +97,8 @@ test("automatic keys ceremony completes with the selected trustee threshold", as
         status: {
             public_key: "synthetic-public-key",
             trustees: [
-                {name: "Alice", status: "KEY_CHECKED"},
-                {name: "Bob", status: "KEY_CHECKED"},
+                {name: "Alice", status: "CUSTODY_CONFIRMED"},
+                {name: "Bob", status: "CUSTODY_CONFIRMED"},
             ],
             logs: [],
         },
@@ -634,14 +634,14 @@ test.describe("manual native trustee ceremony", () => {
                 request: JSON.parse(request),
                 signature: "synthetic-scoped-signature",
             })
-            portal.graphql.on("GetPrivateKey", () => {
-                ceremony.status.trustees[0].status = "KEY_RETRIEVED"
-                return {data: {get_private_key: {private_key_base64: request}}}
+            portal.graphql.on("GetCustodyRequest", () => {
+                ceremony.status.trustees[0].status = "CUSTODY_REQUEST_RETRIEVED"
+                return {data: {get_custody_request: {custody_request_json: request}}}
             })
-            portal.graphql.on("CheckPrivateKey", ({variables}) => {
-                const valid = variables.privateKeyBase64 === proof
-                if (valid) ceremony.status.trustees[0].status = "KEY_CHECKED"
-                return {data: {check_private_key: {is_valid: valid, signing_request: null}}}
+            portal.graphql.on("ConfirmKeyCustody", ({variables}) => {
+                const valid = variables.custodyProofJson === proof
+                if (valid) ceremony.status.trustees[0].status = "CUSTODY_CONFIRMED"
+                return {data: {confirm_key_custody: {is_valid: valid, signing_request: null}}}
             })
             await page.goto(`${portal.origin}/sequent_backend_election_event/${EVENT_ID}?lang=en`)
             await page.locator(".keys-view-trustee-icon").click()
@@ -649,7 +649,7 @@ test.describe("manual native trustee ceremony", () => {
             await expect(page.getByRole("button", {name: "Next", exact: true})).toBeDisabled()
             const aliceRow = page.getByRole("row", {name: "Alice"})
             await expect(aliceRow.getByRole("img", {name: "Waiting", exact: true})).toHaveCount(3)
-            expect(portal.graphql.callsTo("GetPrivateKey")).toHaveLength(0)
+            expect(portal.graphql.callsTo("GetCustodyRequest")).toHaveLength(0)
             ceremony.status.public_key = "synthetic-joint-key"
             ceremony.status.public_key_hash = "synthetic-joint-key-hash"
             ceremony.status.trustees.forEach((trustee) => {
@@ -689,18 +689,18 @@ test.describe("manual native trustee ceremony", () => {
                 buffer: Buffer.from(proof),
             })
             await expect(page.getByText("Trustee custody confirmed successfully.")).toBeVisible()
-            const checks = portal.graphql.callsTo("CheckPrivateKey")
+            const checks = portal.graphql.callsTo("ConfirmKeyCustody")
             expect(checks).toHaveLength(2)
             expect(checks[1].variables).toMatchObject({
                 electionEventId: EVENT_ID,
                 keysCeremonyId: KEYS_ID,
-                privateKeyBase64: proof,
-                keyShareSha256: createHash("sha256").update(proof).digest("hex"),
+                custodyProofJson: proof,
+                custodyProofSha256: createHash("sha256").update(proof).digest("hex"),
             })
             expect(checks[1].headers["x-hasura-role"]).toBe("trustee-ceremony")
             await page.getByRole("button", {name: "Next", exact: true}).click()
             await expect(page.getByText("Status: IN_PROGRESS", {exact: true})).toBeVisible()
-            ceremony.status.trustees[1].status = "KEY_CHECKED"
+            ceremony.status.trustees[1].status = "CUSTODY_CONFIRMED"
             ceremony.execution_status = "SUCCESS"
             await page.clock.runFor(101)
             await expect(page.getByText("Status: SUCCESS", {exact: true})).toBeVisible()

@@ -63,10 +63,10 @@ actions:
               version: 2
       permissions:
           - role: admin-user
-    - name: check_private_key
+    - name: confirm_key_custody
       definition:
           kind: synchronous
-          handler: http://{{HARVEST_DOMAIN}}/check-private-key
+          handler: http://{{HARVEST_DOMAIN}}/confirm-key-custody
           forward_client_headers: true
           headers:
               - name: X-Hasura-Admin-Secret
@@ -80,7 +80,7 @@ actions:
       permissions:
           - role: trustee-ceremony
           - role: admin-user
-      comment: check private key
+      comment: confirm trustee custody with a public proof
     - name: count_users
       definition:
           kind: ""
@@ -1304,10 +1304,10 @@ actions:
       permissions:
           - role: admin-user
           - role: document-password-read
-    - name: get_private_key
+    - name: get_custody_request
       definition:
           kind: synchronous
-          handler: http://{{HARVEST_DOMAIN}}/get-private-key
+          handler: http://{{HARVEST_DOMAIN}}/get-custody-request
           forward_client_headers: true
           headers:
               - name: X-Hasura-Admin-Secret
@@ -1321,7 +1321,7 @@ actions:
       permissions:
           - role: trustee-ceremony
           - role: admin-user
-      comment: get private key
+      comment: download the public trustee custody request
     - name: get_roles
       definition:
           kind: ""
@@ -1804,10 +1804,10 @@ actions:
               version: 2
       permissions:
           - role: report-read
-    - name: restore_private_key
+    - name: authorize_tally_custody
       definition:
           kind: synchronous
-          handler: http://{{HARVEST_DOMAIN}}/restore-private-key
+          handler: http://{{HARVEST_DOMAIN}}/authorize-tally-custody
           forward_client_headers: true
           request_transform:
               body:
@@ -1818,10 +1818,10 @@ actions:
       permissions:
           - role: trustee-ceremony
           - role: admin-user
-    - name: key_share_signature_status
+    - name: custody_proof_signature_status
       definition:
           kind: ""
-          handler: http://{{HARVEST_DOMAIN}}/key-share-signature-status
+          handler: http://{{HARVEST_DOMAIN}}/custody-proof-signature-status
           forward_client_headers: true
           request_transform:
               body:
@@ -2867,8 +2867,8 @@ custom_types:
         - name: CreateKeysCeremonyInput
         - name: ElectionEventStatsInput
         - name: ElectionStatsInput
-        - name: GetPrivateKeyInput
-        - name: CheckPrivateKeyInput
+        - name: GetCustodyRequestInput
+        - name: ConfirmKeyCustodyInput
         - name: GetPermissionsInput
         - name: GetRolesInput
         - name: EditUsersInput
@@ -2879,8 +2879,8 @@ custom_types:
         - name: CreatePermissionInput
         - name: GetManualVerificationInput
         - name: KeycloakRole2
-        - name: RestorePrivateKeyInput
-        - name: KeyShareSignatureStatusInput
+        - name: AuthorizeTallyCustodyInput
+        - name: CustodyProofSignatureStatusInput
         - name: UserProfileAttributesInput
         - name: EventListFilter
         - name: EventListOrderBy
@@ -2921,12 +2921,12 @@ custom_types:
         - name: GetRealmAttributesOutput
         - name: UpdateRealmAttributesOutput
         - name: CreateKeysCeremonyOutput
-        - name: GetPrivateKeyOutput
+        - name: GetCustodyRequestOutput
         - name: CastVotesPerDay
         - name: VotersByChannel
         - name: ElectionEventStatsOutput
         - name: ElectionStatsOutput
-        - name: CheckPrivateKeyOutput
+        - name: ConfirmKeyCustodyOutput
         - name: TemplateOutput
         - name: FetchDocumentOutput
         - name: ScheduledEventOutput
@@ -2973,8 +2973,8 @@ custom_types:
         - name: UpdateElectionVotingStatusOutput
         - name: BallotPublicationStyles
         - name: GetBallotPublicationChangesOutput
-        - name: RestorePrivateKeyOutput
-        - name: KeyShareSignatureStatusOutput
+        - name: AuthorizeTallyCustodyOutput
+        - name: CustodyProofSignatureStatusOutput
         - name: InsertCastVoteOutput
         - name: ReceiveBallotOutput
         - name: CastBallotOutput

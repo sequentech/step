@@ -5,6 +5,9 @@ import {IPermissions} from "@/types/keycloak"
 import {GraphQLRequest} from "@apollo/client"
 
 const AdminOperationMap: Record<string, IPermissions> = {
+    ConfirmKeyCustody: IPermissions.TRUSTEE_CEREMONY,
+    AuthorizeTallyCustody: IPermissions.TRUSTEE_CEREMONY,
+    GetCustodyRequest: IPermissions.TRUSTEE_CEREMONY,
     // area
     sequent_backend_area: IPermissions.AREA_READ,
     sequent_backend_areas: IPermissions.AREA_READ,
@@ -248,7 +251,7 @@ const TrusteeOperationMap: Record<string, IPermissions> = {
     sequent_backend_tally_session_executions: IPermissions.TRUSTEE_CEREMONY,
     getUsers: IPermissions.VOTER_READ,
     // Whether the trustee's key step needs their signature
-    KeyShareSignatureStatus: IPermissions.TRUSTEE_CEREMONY,
+    CustodyProofSignatureStatus: IPermissions.TRUSTEE_CEREMONY,
 }
 
 /**

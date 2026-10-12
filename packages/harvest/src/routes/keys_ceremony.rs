@@ -26,37 +26,38 @@ use uuid::Uuid;
 use windmill::postgres;
 use windmill::postgres::election::get_elections;
 use windmill::services::ceremonies::keys_ceremony::{
-    self, validate_permission_labels, PrivateKeyDownloadUnavailable,
+    self, validate_permission_labels, CustodyRequestDownloadUnavailable,
 };
 use windmill::services::database::get_hasura_pool;
-use windmill::services::signing::guard::SigningRequestSummary;
-use windmill::services::signing::key_shares::{
-    take_key_share_step, KeyShareError, KeyShareInput, KeyShareKind,
-    KeyShareOutcome, KeyShareSignatureStatus, KeysCeremonyKeyShare,
+use windmill::services::signing::custody_proofs::{
+    take_custody_proof_step, CustodyProofError, CustodyProofInput,
+    CustodyProofKind, CustodyProofOutcome, CustodyProofSignatureStatus,
+    KeysCeremonyCustodyProof,
 };
+use windmill::services::signing::guard::SigningRequestSummary;
 use windmill::services::signing::SigningCaller;
 use windmill::tasks::signing_log_outbox::kick_signing_log_outbox;
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Endpoint: /check-private-key
+/// Endpoint: /confirm-key-custody
 ////////////////////////////////////////////////////////////////////////////////
 
 #[derive(Serialize, Deserialize)]
-pub struct CheckPrivateKeyInput {
+pub struct ConfirmKeyCustodyInput {
     election_event_id: String,
     keys_ceremony_id: String,
-    private_key_base64: String,
-    /// The SHA-256 the browser computed of the key share.
+    custody_proof_json: String,
+    /// The SHA-256 the browser computed of the custody proof.
     #[serde(default)]
-    key_share_sha256: Option<String>,
+    custody_proof_sha256: Option<String>,
     /// The trustee's completed signing request, when the step needs it.
     #[serde(default)]
     signing_request_id: Option<Uuid>,
 }
 
 #[derive(Serialize, Debug)]
-pub struct CheckPrivateKeyOutput {
-    /// Whether the key share is the trustee's.
+pub struct ConfirmKeyCustodyOutput {
+    /// Whether the custody proof is the trustee's.
     is_valid: bool,
     /// The request the trustee signs before the check is recorded.
     signing_request: Option<SigningRequestSummary>,
@@ -64,26 +65,28 @@ pub struct CheckPrivateKeyOutput {
 
 /// A refused key step: the ceremony's refusals as the routes always
 /// answered them, signing refusals in the signing contract's body.
-pub fn key_share_failure(error: KeyShareError) -> Guarded<(Status, String)> {
+pub fn custody_proof_failure(
+    error: CustodyProofError,
+) -> Guarded<(Status, String)> {
     match error {
-        KeyShareError::Step(error) => {
+        CustodyProofError::Step(error) => {
             Guarded::Route((Status::BadRequest, format!("{:?}", error)))
         }
-        KeyShareError::Signing(error) => Guarded::from(error),
+        CustodyProofError::Signing(error) => Guarded::from(error),
     }
 }
 
 /// What a key step answers: `is_valid`, and the request to sign while the
-/// step waits for it. Commits unless the key share was not the trustee's.
-pub async fn finish_key_share_step(
+/// step waits for it. Commits unless the custody proof was not the trustee's.
+pub async fn finish_custody_proof_step(
     hasura_transaction: deadpool_postgres::Transaction<'_>,
-    outcome: KeyShareOutcome,
+    outcome: CustodyProofOutcome,
 ) -> Result<(bool, Option<SigningRequestSummary>), (Status, String)> {
     let (answer, staged) = match outcome {
         // Nothing is recorded and no request is used.
-        KeyShareOutcome::Invalid => return Ok((false, None)),
-        KeyShareOutcome::Done(record) => ((true, None), record.is_some()),
-        KeyShareOutcome::SigningRequired(summary) => {
+        CustodyProofOutcome::Invalid => return Ok((false, None)),
+        CustodyProofOutcome::Done(record) => ((true, None), record.is_some()),
+        CustodyProofOutcome::SigningRequired(summary) => {
             ((true, Some(summary)), true)
         }
     };
@@ -97,14 +100,14 @@ pub async fn finish_key_share_step(
     Ok(answer)
 }
 
-// The main function to get the private key
+// The trustee custody action
 #[instrument(skip(body, claims, services))]
-#[post("/check-private-key", format = "json", data = "<body>")]
-pub async fn check_private_key(
-    body: Json<CheckPrivateKeyInput>,
+#[post("/confirm-key-custody", format = "json", data = "<body>")]
+pub async fn confirm_key_custody(
+    body: Json<ConfirmKeyCustodyInput>,
     claims: JwtClaims,
     services: &State<HarvestServices>,
-) -> Result<Json<CheckPrivateKeyOutput>, Guarded<(Status, String)>> {
+) -> Result<Json<ConfirmKeyCustodyOutput>, Guarded<(Status, String)>> {
     authorize(
         &claims,
         true,
@@ -127,56 +130,56 @@ pub async fn check_private_key(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    let outcome = take_key_share_step(
+    let outcome = take_custody_proof_step(
         &hasura_transaction,
         &SigningCaller::from_claims(&claims),
-        &KeysCeremonyKeyShare {
+        &KeysCeremonyCustodyProof {
             claims: &claims,
             tenant_id: &tenant_id,
             election_event_id: &input.election_event_id,
             keys_ceremony_id: &input.keys_ceremony_id,
         },
-        &KeyShareInput {
+        &CustodyProofInput {
             tenant_id: &tenant_id,
             election_event_id: &input.election_event_id,
-            kind: KeyShareKind::Confirm,
+            kind: CustodyProofKind::Confirm,
             target_id: &input.keys_ceremony_id,
-            key_share: &input.private_key_base64,
-            key_share_sha256: input.key_share_sha256.as_deref(),
+            custody_proof: &input.custody_proof_json,
+            custody_proof_sha256: input.custody_proof_sha256.as_deref(),
             signing_request_id: input.signing_request_id,
         },
     )
     .await
-    .map_err(key_share_failure)?;
+    .map_err(custody_proof_failure)?;
     let (is_valid, signing_request) =
-        finish_key_share_step(hasura_transaction, outcome).await?;
+        finish_custody_proof_step(hasura_transaction, outcome).await?;
 
     event!(
         Level::INFO,
-        "Checking given private key, electionEventId={}, keysCeremonyId={}, is_valid={}, signing_request={:?}",
+        "Confirming public custody proof, electionEventId={}, keysCeremonyId={}, is_valid={}, signing_request={:?}",
         input.election_event_id,
         input.keys_ceremony_id,
         is_valid,
         signing_request.as_ref().map(|request| request.id),
     );
 
-    Ok(Json(CheckPrivateKeyOutput {
+    Ok(Json(ConfirmKeyCustodyOutput {
         is_valid,
         signing_request,
     }))
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Endpoint: /key-share-signature-status
+/// Endpoint: /custody-proof-signature-status
 ////////////////////////////////////////////////////////////////////////////////
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct KeyShareSignatureStatusInput {
+pub struct CustodyProofSignatureStatusInput {
     election_event_id: String,
-    /// The keys ceremony, for confirming a key share.
+    /// The keys ceremony, for confirming a custody proof.
     #[serde(default)]
     keys_ceremony_id: Option<String>,
-    /// The tally session, for contributing a key share.
+    /// The tally session, for contributing a custody proof.
     #[serde(default)]
     tally_session_id: Option<String>,
 }
@@ -184,12 +187,12 @@ pub struct KeyShareSignatureStatusInput {
 /// Whether the signed-in trustee's key step needs their signature, and
 /// whether they already have a used signed step for it.
 #[instrument(skip(claims, services))]
-#[post("/key-share-signature-status", format = "json", data = "<body>")]
-pub async fn key_share_signature_status(
-    body: Json<KeyShareSignatureStatusInput>,
+#[post("/custody-proof-signature-status", format = "json", data = "<body>")]
+pub async fn custody_proof_signature_status(
+    body: Json<CustodyProofSignatureStatusInput>,
     claims: JwtClaims,
     services: &State<HarvestServices>,
-) -> Result<Json<KeyShareSignatureStatus>, Guarded<(Status, String)>> {
+) -> Result<Json<CustodyProofSignatureStatus>, Guarded<(Status, String)>> {
     // A signing route: a missing permission is 403 with the signing error body.
     authorize_403(
         &claims,
@@ -199,8 +202,8 @@ pub async fn key_share_signature_status(
     let input = body.into_inner();
     let (kind, target_id) =
         match (&input.keys_ceremony_id, &input.tally_session_id) {
-            (Some(id), None) => (KeyShareKind::Confirm, id),
-            (None, Some(id)) => (KeyShareKind::Contribute, id),
+            (Some(id), None) => (CustodyProofKind::Confirm, id),
+            (None, Some(id)) => (CustodyProofKind::Contribute, id),
             _ => {
                 return Err(Guarded::Route((
                     Status::BadRequest,
@@ -221,7 +224,7 @@ pub async fn key_share_signature_status(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     let status =
-        windmill::services::signing::key_shares::key_share_signature_status(
+        windmill::services::signing::custody_proofs::custody_proof_signature_status(
             &hasura_transaction,
             &SigningCaller::from_claims(&claims),
             &claims.hasura_claims.tenant_id,
@@ -230,68 +233,68 @@ pub async fn key_share_signature_status(
             target_id,
         )
         .await
-        .map_err(key_share_failure)?;
+        .map_err(custody_proof_failure)?;
     Ok(Json(status))
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Endpoint: /get-private-key
+/// Endpoint: /get-custody-request
 ////////////////////////////////////////////////////////////////////////////////
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct GetPrivateKeyInput {
+pub struct GetCustodyRequestInput {
     election_event_id: String,
     keys_ceremony_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct GetPrivateKeyOutput {
-    private_key_base64: String,
+pub struct GetCustodyRequestOutput {
+    custody_request_json: String,
 }
 
-fn private_key_download_unavailable() -> JsonError {
+fn custody_request_download_unavailable() -> JsonError {
     ErrorResponse::new(
         Status::Conflict,
-        "Private key download is no longer available",
-        ErrorCode::PrivateKeyDownloadUnavailable,
+        "Custody request download is no longer available",
+        ErrorCode::CustodyRequestDownloadUnavailable,
     )
 }
 
-fn private_key_download_internal_error() -> JsonError {
+fn custody_request_download_internal_error() -> JsonError {
     ErrorResponse::new(
         Status::InternalServerError,
-        "Failed to download private key",
+        "Failed to download custody request",
         ErrorCode::InternalServerError,
     )
 }
 
-fn private_key_download_error(
+fn custody_request_download_error(
     error: anyhow::Error,
     election_event_id: &str,
     keys_ceremony_id: &str,
 ) -> JsonError {
     if error
-        .downcast_ref::<PrivateKeyDownloadUnavailable>()
+        .downcast_ref::<CustodyRequestDownloadUnavailable>()
         .is_some()
     {
-        private_key_download_unavailable()
+        custody_request_download_unavailable()
     } else {
         error!(
             election_event_id = %election_event_id,
             keys_ceremony_id = %keys_ceremony_id,
-            "Failed to download private key: {error:#}"
+            "Failed to download custody request: {error:#}"
         );
-        private_key_download_internal_error()
+        custody_request_download_internal_error()
     }
 }
 
-// The main function to get the private key
+// The trustee custody action
 #[instrument(skip(claims))]
-#[post("/get-private-key", format = "json", data = "<body>")]
-pub async fn get_private_key(
-    body: Json<GetPrivateKeyInput>,
+#[post("/get-custody-request", format = "json", data = "<body>")]
+pub async fn get_custody_request(
+    body: Json<GetCustodyRequestInput>,
     claims: JwtClaims,
-) -> Result<Json<GetPrivateKeyOutput>, JsonError> {
+) -> Result<Json<GetCustodyRequestOutput>, JsonError> {
     authorize(
         &claims,
         true,
@@ -315,19 +318,19 @@ pub async fn get_private_key(
         .get()
         .await
         .map_err(|error| {
-            error!("Failed to get database client for private key download: {error:#}");
-            private_key_download_internal_error()
+            error!("Failed to get database client for custody request download: {error:#}");
+            custody_request_download_internal_error()
         })?;
 
     let hasura_transaction =
         hasura_db_client.transaction().await.map_err(|error| {
             error!(
-                "Failed to start private key download transaction: {error:#}"
+                "Failed to start custody request download transaction: {error:#}"
             );
-            private_key_download_internal_error()
+            custody_request_download_internal_error()
         })?;
 
-    let encrypted_private_key = keys_ceremony::get_private_key(
+    let custody_request_json = keys_ceremony::get_custody_request(
         &hasura_transaction,
         claims,
         tenant_id,
@@ -336,7 +339,7 @@ pub async fn get_private_key(
     )
     .await
     .map_err(|error| {
-        private_key_download_error(
+        custody_request_download_error(
             error,
             &input.election_event_id,
             &input.keys_ceremony_id,
@@ -345,18 +348,20 @@ pub async fn get_private_key(
 
     event!(
         Level::INFO,
-        "get_private_key: electionEventId={}, keysCeremonyId={}",
+        "get_custody_request: electionEventId={}, keysCeremonyId={}",
         input.election_event_id.clone(),
         input.keys_ceremony_id.clone(),
     );
 
     hasura_transaction.commit().await.map_err(|error| {
-        error!("Failed to commit private key download transaction: {error:#}");
-        private_key_download_internal_error()
+        error!(
+            "Failed to commit custody request download transaction: {error:#}"
+        );
+        custody_request_download_internal_error()
     })?;
 
-    Ok(Json(GetPrivateKeyOutput {
-        private_key_base64: encrypted_private_key,
+    Ok(Json(GetCustodyRequestOutput {
+        custody_request_json,
     }))
 }
 
@@ -559,5 +564,5 @@ pub async fn list_keys_ceremonies(
 }
 
 #[cfg(test)]
-#[path = "../../tests/support/private_key_errors.rs"]
-mod private_key_errors;
+#[path = "../../tests/support/custody_request_errors.rs"]
+mod custody_request_errors;

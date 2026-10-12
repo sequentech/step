@@ -70,7 +70,7 @@ export interface CeremonyStepProps {
     goNext?: () => void
     isNextDisabled?: boolean
     goBack: () => void
-    verifyPrivateKey?: () => void
+    confirmCustody?: () => void
 }
 
 export const CeremonyStep: React.FC<CeremonyStepProps> = ({
@@ -81,7 +81,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     goBack,
     goNext,
     isNextDisabled = false,
-    verifyPrivateKey,
+    confirmCustody,
 }) => {
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
@@ -234,7 +234,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                                                 TStatus.WAITING,
                                                                 TStatus.SHARES_POSTED,
                                                                 TStatus.KEY_GENERATED,
-                                                                TStatus.KEY_RETRIEVED,
+                                                                TStatus.CUSTODY_REQUEST_RETRIEVED,
                                                             ])}
                                                         </TableCell>
                                                     </>
@@ -257,8 +257,8 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                         <ArrowBackIosIcon />
                         {t("common.label.back")}
                     </CancelButton>
-                    {!!verifyPrivateKey && (
-                        <CancelButton onClick={verifyPrivateKey} className="list-actions">
+                    {!!confirmCustody && (
+                        <CancelButton onClick={confirmCustody} className="list-actions">
                             <CheckCircleOutlineIcon />
                             {t("keysGeneration.checkStep.verifyButton")}
                         </CancelButton>

@@ -3,13 +3,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::utils::trustees::{
-    check_private_key::CheckPrivateKey,
-    get_trustee_private_key::GetTrusteePrivateKey,
-    store_private_key::{download_private_key, read_stored_private_key, store_event_private_key},
+    confirm_key_custody::ConfirmKeyCustody,
+    get_trustee_custody_request::GetTrusteeCustodyRequest,
+    store_custody_request::{
+        download_custody_request, read_stored_custody_request, store_event_custody_request,
+    },
 };
 use clap::Args;
 use colored::Colorize;
-use windmill::services::ceremonies::keys_ceremony::PrivateKeyDownloadUnavailable;
+use windmill::services::ceremonies::keys_ceremony::CustodyRequestDownloadUnavailable;
 
 #[derive(Args)]
 #[command(about = "Complete Key Ceremony", long_about = None)]
@@ -69,17 +71,19 @@ fn complete_ceremony_with_keys(
     key_ceremony_id: &str,
     keys_file: &std::path::Path,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    let (request, path) =
-        match GetTrusteePrivateKey::get_trustee_private_key(election_event_id, key_ceremony_id) {
-            Ok(request) => {
-                let path = download_private_key(election_event_id, key_ceremony_id, &request)?;
-                (request, path)
-            }
-            Err(error) if error.is::<PrivateKeyDownloadUnavailable>() => {
-                read_stored_private_key(election_event_id, key_ceremony_id)?
-            }
-            Err(error) => return Err(error),
-        };
+    let (request, path) = match GetTrusteeCustodyRequest::get_trustee_custody_request(
+        election_event_id,
+        key_ceremony_id,
+    ) {
+        Ok(request) => {
+            let path = download_custody_request(election_event_id, key_ceremony_id, &request)?;
+            (request, path)
+        }
+        Err(error) if error.is::<CustodyRequestDownloadUnavailable>() => {
+            read_stored_custody_request(election_event_id, key_ceremony_id)?
+        }
+        Err(error) => return Err(error),
+    };
     let custody: protocol_board::CustodyRequest = serde_json::from_str(&request)?;
     let config = crate::utils::read_config::read_config()?;
     if custody.tenant_id != config.tenant_id
@@ -92,9 +96,9 @@ fn complete_ceremony_with_keys(
     }
     let secrets = protocol_board::TrusteeSecrets::parse(&std::fs::read_to_string(keys_file)?)?;
     let proof = custody.attest(&secrets)?;
-    if !CheckPrivateKey::check(election_event_id, key_ceremony_id, &proof)? {
+    if !ConfirmKeyCustody::check(election_event_id, key_ceremony_id, &proof)? {
         return Err("Failed to confirm native key custody".into());
     }
-    store_event_private_key(election_event_id, &request)?;
+    store_event_custody_request(election_event_id, &request)?;
     Ok(path.to_string_lossy().into_owned())
 }

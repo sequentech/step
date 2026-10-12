@@ -1,5 +1,5 @@
 ---
-id: braid_trustees_configuration
+id: trustee-configuration
 title: Wbraid trustee configuration
 sidebar_label: Wbraid trustees
 ---

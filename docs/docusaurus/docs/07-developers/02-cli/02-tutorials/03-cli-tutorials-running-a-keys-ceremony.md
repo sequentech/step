@@ -75,7 +75,7 @@ You will need it in Step 2.
 After the ceremony has started, wait for the native trustee runners to verify
 the joint public key. Each trustee must then complete it **individually** using
 the same local native keys file as its runner. See
-[Wbraid trustee configuration](../../09-braid/braid_trustees_configuration.md)
+[Wbraid trustee configuration](../../09-wbraid/trustee-configuration.md)
 for identity generation, public key registration, and runner setup.
 
 The default ceremony is manual. Add `--automatic` to `start-key-ceremony` for

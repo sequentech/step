@@ -1596,8 +1596,8 @@ const englishTranslation = {
                 "sign-transmit-results": "Sign: transmit results",
                 "sign-approve-voter": "Sign: approve a voter manually",
                 "sign-approve-configuration": "Sign: approve a configuration version",
-                "sign-key-ceremony": "Sign: confirm a key share",
-                "sign-tally-key": "Sign: contribute a key share",
+                "sign-key-ceremony": "Sign: confirm custody",
+                "sign-tally-key": "Sign: authorize tally custody",
                 "application-export": "Application Export",
                 "application-import": "Application Import",
                 "tenant-create": "Create Tenant",
@@ -4345,19 +4345,19 @@ const englishTranslation = {
                     description: "Started in Publish. Publishes the configuration version.",
                 },
                 "key-ceremony": {
-                    label: "Confirm a key share (key ceremony)",
-                    short: "Key share",
-                    permissionName: "confirm a key share",
-                    object: "key share",
+                    label: "Confirm custody (key ceremony)",
+                    short: "Custody proof",
+                    permissionName: "confirm custody",
+                    object: "custody proof",
                     appliesTo: "Each trustee",
                     description:
                         "Started in Keys by each trustee. Records the trustee's signature with the ceremony and the bulletin board.",
                 },
                 "tally-key": {
-                    label: "Contribute a key share (tally)",
-                    short: "Key share contribution",
-                    permissionName: "contribute a key share",
-                    object: "key share contribution",
+                    label: "Authorize tally custody (tally)",
+                    short: "Tally custody proof",
+                    permissionName: "authorize tally custody",
+                    object: "tally custody proof",
                     appliesTo: "Each trustee",
                     description:
                         "Started in Tally by each trustee. Records the trustee's contribution.",
@@ -4756,7 +4756,7 @@ const englishTranslation = {
                 keys_ceremony_id: "Ceremony",
                 tally_session_id: "Tally session",
                 trustee_id: "Trustee",
-                key_share_sha256: "Custody proof SHA-256",
+                custody_proof_sha256: "Custody proof SHA-256",
                 channel: "Channel",
                 channels: "Channels",
                 publication_id: "Ballot publication",
@@ -4840,8 +4840,8 @@ const englishTranslation = {
             notes: {
                 afterApproval: "After approval",
                 afterApprovalValue: "The voter's credentials are issued and sent to them",
-                keyShare: "Your custody proof",
-                keyShareChecked: "Checked: it is your custody proof for this ceremony",
+                custodyProof: "Your custody proof",
+                custodyProofChecked: "Checked: it is your custody proof for this ceremony",
                 recordedIn: "Recorded in",
                 recordedInCeremony: "The keys ceremony and the bulletin board",
                 recordedInTally: "The tally session",
@@ -4866,7 +4866,7 @@ const englishTranslation = {
                     ended: "This package's signing request ended. Create the package again to sign it.",
                 },
             },
-            keyShare: {
+            custodyProof: {
                 signing:
                     "Sign your custody proof in the signing panel. It is recorded once you have signed.",
                 record: "Record my custody proof",

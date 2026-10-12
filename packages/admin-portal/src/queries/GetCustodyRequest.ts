@@ -3,12 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {gql} from "@apollo/client"
 
-export const GET_PRIVATE_KEY = gql`
-    mutation GetPrivateKey($electionEventId: String!, $keysCeremonyId: String!) {
-        get_private_key(
+export const GET_CUSTODY_REQUEST = gql`
+    mutation GetCustodyRequest($electionEventId: String!, $keysCeremonyId: String!) {
+        get_custody_request(
             object: {election_event_id: $electionEventId, keys_ceremony_id: $keysCeremonyId}
         ) {
-            private_key_base64
+            custody_request_json
         }
     }
 `

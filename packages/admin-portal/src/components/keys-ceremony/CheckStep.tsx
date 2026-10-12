@@ -10,21 +10,21 @@ import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 import {Trans, useTranslation} from "react-i18next"
 
 import {
-    CheckPrivateKeyMutation,
-    CheckPrivateKeyMutationVariables,
+    ConfirmKeyCustodyMutation,
+    ConfirmKeyCustodyMutationVariables,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,
 } from "@/gql/graphql"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {WizardStyles} from "@/components/styles/WizardStyles"
-import {CHECK_PRIVATE_KEY} from "@/queries/CheckPrivateKey"
+import {CONFIRM_KEY_CUSTODY} from "@/queries/ConfirmKeyCustody"
 import {DropFile} from "@sequentech/ui-essentials"
 import {
-    KeyShareCheck,
-    useKeyShareSigning,
-    type IKeyShareAnswer,
-    type IKeyShareSubmission,
-} from "./useKeyShareSigning"
+    CustodyProofCheck,
+    useCustodyProofSigning,
+    type ICustodyProofAnswer,
+    type ICustodyProofSubmission,
+} from "./useCustodyProofSigning"
 
 export interface DownloadStepProps {
     electionEvent: Sequent_Backend_Election_Event
@@ -45,13 +45,13 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
     const [uploading, setUploading] = useState<boolean>(false)
     const [errors, setErrors] = useState<String | null>(null)
 
-    const [checkPrivateKeysMutation] = useMutation<
-        CheckPrivateKeyMutation,
-        CheckPrivateKeyMutationVariables
-    >(CHECK_PRIVATE_KEY, {context: {headers: {"x-hasura-role": IPermissions.TRUSTEE_CEREMONY}}})
+    const [confirmKeyCustodyMutation] = useMutation<
+        ConfirmKeyCustodyMutation,
+        ConfirmKeyCustodyMutationVariables
+    >(CONFIRM_KEY_CUSTODY, {context: {headers: {"x-hasura-role": IPermissions.TRUSTEE_CEREMONY}}})
     const submit = useCallback(
-        async (submission: IKeyShareSubmission): Promise<IKeyShareAnswer> => {
-            const {data, errors} = await checkPrivateKeysMutation({
+        async (submission: ICustodyProofSubmission): Promise<ICustodyProofAnswer> => {
+            const {data, errors} = await confirmKeyCustodyMutation({
                 variables: {
                     electionEventId: electionEvent.id,
                     keysCeremonyId: currentCeremony.id,
@@ -59,20 +59,20 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
                 },
             })
             if (errors) throw new Error(errors.toString())
-            return data?.check_private_key ?? {is_valid: false}
+            return data?.confirm_key_custody ?? {is_valid: false}
         },
-        [checkPrivateKeysMutation, electionEvent.id, currentCeremony.id]
+        [confirmKeyCustodyMutation, electionEvent.id, currentCeremony.id]
     )
-    const keyShareSigning = useKeyShareSigning({
+    const custodyProofSigning = useCustodyProofSigning({
         submit,
         onRecorded: useCallback(() => setVerified(true), []),
         onFailed: useCallback(
-            (error: string) => setErrors(t("signing.keyShare.failed", {error})),
+            (error: string) => setErrors(t("signing.custodyProof.failed", {error})),
             [t]
         ),
     })
 
-    const uploadPrivateKey = async (files: FileList | null) => {
+    const uploadCustodyProof = async (files: FileList | null) => {
         setErrors(null)
         setVerified(false)
         setUploading(false)
@@ -97,11 +97,11 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
                 return
             }
             setUploading(true)
-            const checked = await keyShareSigning.check(fileContent)
+            const checked = await custodyProofSigning.check(fileContent)
             setUploading(false)
-            if (checked === KeyShareCheck.Invalid) {
+            if (checked === CustodyProofCheck.Invalid) {
                 setErrors(t("keysGeneration.checkStep.errorUploading", {error: "empty"}))
-            } else if (checked === KeyShareCheck.Verified) {
+            } else if (checked === CustodyProofCheck.Verified) {
                 setVerified(true)
             }
         } catch (exception) {
@@ -127,7 +127,7 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
                         ></Trans>
                     </Typography>
 
-                    <DropFile handleFiles={uploadPrivateKey} />
+                    <DropFile handleFiles={uploadCustodyProof} />
                     <WizardStyles.StatusBox>
                         {uploading ? <WizardStyles.DownloadProgress /> : null}
                         {errors ? (
@@ -135,8 +135,10 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
                                 {errors}
                             </WizardStyles.ErrorMessage>
                         ) : null}
-                        {keyShareSigning.waiting && !errors ? (
-                            <Typography variant="body1">{t("signing.keyShare.signing")}</Typography>
+                        {custodyProofSigning.waiting && !errors ? (
+                            <Typography variant="body1">
+                                {t("signing.custodyProof.signing")}
+                            </Typography>
                         ) : null}
                         {verified && (
                             <WizardStyles.SucessMessage variant="body1">

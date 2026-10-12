@@ -349,7 +349,7 @@ export function keysCeremonyRecord(
                 status:
                     generating && index !== 1
                         ? IKeysCeremonyTrusteeStatus.WAITING
-                        : IKeysCeremonyTrusteeStatus.KEY_CHECKED,
+                        : IKeysCeremonyTrusteeStatus.CUSTODY_CONFIRMED,
             })),
             logs: [],
         },

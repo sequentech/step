@@ -296,7 +296,7 @@ describe("signedView", () => {
                     (p) =>
                         (p.subject = {
                             keys_ceremony_id: "kc-1",
-                            key_share_sha256: "ab",
+                            custody_proof_sha256: "ab",
                             trustee_id: "tr-1",
                         }),
                     {trustee_id: trusteeId},
@@ -305,7 +305,7 @@ describe("signedView", () => {
             ).rows
         const names = {ceremony_id: "kc-1", ceremony_name: "Madrid PE keys", trustee_name: "Jose"}
         expect(trustee(names)).toEqual([
-            {key: "key_share_sha256", label: null, value: "ab"},
+            {key: "custody_proof_sha256", label: null, value: "ab"},
             {key: "keys_ceremony_id", label: null, value: "kc-1", name: "Madrid PE keys"},
             {key: "trustee_id", label: null, value: "tr-1", name: "Jose"},
         ])

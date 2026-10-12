@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::routes::keys_ceremony::{finish_key_share_step, key_share_failure};
+use crate::routes::keys_ceremony::{
+    custody_proof_failure, finish_custody_proof_step,
+};
 use crate::services::authorization::{
     authorize, authorize_election_permission_labels,
     authorize_tally_session_permission_labels,
@@ -32,10 +34,11 @@ use windmill::services::ceremonies::tally_resolution;
 use windmill::services::ceremonies::tally_validation::TallyValidationError;
 use windmill::services::providers::transactions_provider::provide_hasura_transaction;
 use windmill::services::signing::actions::initialize::gate_tally_creation;
-use windmill::services::signing::guard::SigningRequestSummary;
-use windmill::services::signing::key_shares::{
-    take_key_share_step, KeyShareInput, KeyShareKind, TallyKeyShare,
+use windmill::services::signing::custody_proofs::{
+    take_custody_proof_step, CustodyProofInput, CustodyProofKind,
+    TallyCustodyProof,
 };
+use windmill::services::signing::guard::SigningRequestSummary;
 use windmill::services::signing::SigningCaller;
 use windmill::tasks::execute_tally_session::execute_tally_session;
 use windmill::tasks::signing_log_outbox::kick_signing_log_outbox;
@@ -445,38 +448,38 @@ pub async fn recount_tally_session(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Endpoint: /restore-private-key
+/// Endpoint: /authorize-tally-custody
 ////////////////////////////////////////////////////////////////////////////////
 
 #[derive(Serialize, Deserialize)]
-pub struct SetPrivateKeyInput {
+pub struct AuthorizeTallyCustodyInput {
     election_event_id: String,
-    private_key_base64: String,
+    custody_proof_json: String,
     tally_session_id: String,
-    /// The SHA-256 the browser computed of the key share.
+    /// The SHA-256 the browser computed of the custody proof.
     #[serde(default)]
-    key_share_sha256: Option<String>,
+    custody_proof_sha256: Option<String>,
     /// The trustee's completed signing request, when the step needs it.
     #[serde(default)]
     signing_request_id: Option<Uuid>,
 }
 
 #[derive(Serialize, Debug)]
-pub struct SetPrivateKeyOutput {
-    /// Whether the key share is the trustee's.
+pub struct AuthorizeTallyCustodyOutput {
+    /// Whether the custody proof is the trustee's.
     is_valid: bool,
-    /// The request the trustee signs before the key share is contributed.
+    /// The request the trustee signs before the custody proof is contributed.
     signing_request: Option<SigningRequestSummary>,
 }
 
 // The main function to restore the private key
 #[instrument(skip(body, claims, services))]
-#[post("/restore-private-key", format = "json", data = "<body>")]
-pub async fn restore_private_key(
-    body: Json<SetPrivateKeyInput>,
+#[post("/authorize-tally-custody", format = "json", data = "<body>")]
+pub async fn authorize_tally_custody(
+    body: Json<AuthorizeTallyCustodyInput>,
     claims: JwtClaims,
     services: &State<HarvestServices>,
-) -> Result<Json<SetPrivateKeyOutput>, Guarded<(Status, String)>> {
+) -> Result<Json<AuthorizeTallyCustodyOutput>, Guarded<(Status, String)>> {
     authorize(
         &claims,
         true,
@@ -514,29 +517,29 @@ pub async fn restore_private_key(
     )
     .await?;
 
-    let outcome = take_key_share_step(
+    let outcome = take_custody_proof_step(
         &hasura_transaction,
         &SigningCaller::from_claims(&claims),
-        &TallyKeyShare {
+        &TallyCustodyProof {
             claims: &claims,
             tenant_id: &tenant_id,
             election_event_id: &input.election_event_id,
             tally_session_id: &input.tally_session_id,
         },
-        &KeyShareInput {
+        &CustodyProofInput {
             tenant_id: &tenant_id,
             election_event_id: &input.election_event_id,
-            kind: KeyShareKind::Contribute,
+            kind: CustodyProofKind::Contribute,
             target_id: &input.tally_session_id,
-            key_share: &input.private_key_base64,
-            key_share_sha256: input.key_share_sha256.as_deref(),
+            custody_proof: &input.custody_proof_json,
+            custody_proof_sha256: input.custody_proof_sha256.as_deref(),
             signing_request_id: input.signing_request_id,
         },
     )
     .await
-    .map_err(key_share_failure)?;
+    .map_err(custody_proof_failure)?;
     let (is_valid, signing_request) =
-        finish_key_share_step(hasura_transaction, outcome).await?;
+        finish_custody_proof_step(hasura_transaction, outcome).await?;
 
     event!(
         Level::INFO,
@@ -547,7 +550,7 @@ pub async fn restore_private_key(
         signing_request.as_ref().map(|request| request.id),
     );
 
-    Ok(Json(SetPrivateKeyOutput {
+    Ok(Json(AuthorizeTallyCustodyOutput {
         is_valid,
         signing_request,
     }))

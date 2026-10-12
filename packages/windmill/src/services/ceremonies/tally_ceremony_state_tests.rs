@@ -283,8 +283,8 @@ fn ceremony(
     ceremony.add_session(tally_session(execution_status));
     ceremony.add_execution(execution(Some(&ceremony_status(trustees))));
     ceremony.add_keys_ceremony(keys_ceremony(2));
-    ceremony.add_private_key(KEYS_CEREMONY, "alice", STORED_KEY);
-    ceremony.add_private_key(KEYS_CEREMONY, "bob", STORED_KEY);
+    ceremony.add_custody_proof(KEYS_CEREMONY, "alice", STORED_KEY);
+    ceremony.add_custody_proof(KEYS_CEREMONY, "bob", STORED_KEY);
     ceremony.add_election(election("CLOSED"));
     ceremony.add_election_event(election_event(Some(
         json!({"id": 1, "database_name": EVENT_BOARD, "is_archived": false}),
@@ -295,8 +295,8 @@ fn ceremony(
 
 fn restored_pair() -> [(&'static str, TallyTrusteeStatus); 2] {
     [
-        ("alice", TallyTrusteeStatus::KEY_RESTORED),
-        ("bob", TallyTrusteeStatus::KEY_RESTORED),
+        ("alice", TallyTrusteeStatus::CUSTODY_CONFIRMED),
+        ("bob", TallyTrusteeStatus::CUSTODY_CONFIRMED),
     ]
 }
 
@@ -332,41 +332,41 @@ async fn change_status(
 async fn restore_key(
     ceremony: &InMemoryTallyCeremony,
     claims: &JwtClaims,
-    private_key_base64: &str,
+    custody_proof_json: &str,
 ) -> Result<bool> {
-    set_private_key_with(
+    authorize_tally_custody_with(
         ceremony,
         ceremony,
         ceremony,
         ceremony,
         ceremony,
-        TrusteeKeyRestore {
+        TrusteeCustodyAuthorization {
             claims,
             tenant_id: TENANT,
             election_event_id: EVENT,
             tally_session_id: SESSION,
-            private_key_base64,
+            custody_proof_json,
             signatures: &TrusteeSignatures::NotNeeded,
         },
     )
     .await
 }
 
-async fn key_share_matches(
+async fn custody_proof_matches(
     ceremony: &InMemoryTallyCeremony,
     claims: &JwtClaims,
-    private_key_base64: &str,
+    custody_proof_json: &str,
 ) -> Result<bool> {
-    trustee_key_share_matches_with(
+    trustee_custody_proof_matches_with(
         ceremony,
         ceremony,
         ceremony,
-        TrusteeKeyRestore {
+        TrusteeCustodyAuthorization {
             claims,
             tenant_id: TENANT,
             election_event_id: EVENT,
             tally_session_id: SESSION,
-            private_key_base64,
+            custody_proof_json,
             signatures: &TrusteeSignatures::NotNeeded,
         },
     )
@@ -570,8 +570,8 @@ async fn a_session_without_executions_is_left_unchanged() {
 #[tokio::test]
 async fn starting_the_tally_needs_the_session_threshold_of_restored_trustees() {
     let trustees = [
-        ("alice", TallyTrusteeStatus::KEY_RESTORED),
-        ("bob", TallyTrusteeStatus::KEY_RESTORED),
+        ("alice", TallyTrusteeStatus::CUSTODY_CONFIRMED),
+        ("bob", TallyTrusteeStatus::CUSTODY_CONFIRMED),
         ("carol", TallyTrusteeStatus::WAITING),
     ];
     let ceremony = ceremony(&CONNECTED, &trustees);
@@ -661,7 +661,7 @@ async fn restoring_the_stored_key_marks_the_trustee_restored() {
     assert_eq!(
         trustee_statuses(&status),
         vec![
-            ("alice".to_string(), TallyTrusteeStatus::KEY_RESTORED),
+            ("alice".to_string(), TallyTrusteeStatus::CUSTODY_CONFIRMED),
             ("bob".to_string(), TallyTrusteeStatus::WAITING),
         ]
     );
@@ -669,7 +669,7 @@ async fn restoring_the_stored_key_marks_the_trustee_restored() {
         log_texts(&status),
         vec![
             "Created Tally Ceremony",
-            "Restored private key for trustee alice"
+            "Authorized tally custody for trustee alice"
         ]
     );
     assert_eq!(status.elections_status.len(), 1);
@@ -692,25 +692,25 @@ async fn restoring_a_key_that_does_not_match_the_board_writes_nothing() {
 }
 
 #[tokio::test]
-async fn a_key_share_is_matched_as_the_restore_matches_it_without_recording_anything() {
+async fn a_custody_proof_is_matched_as_the_restore_matches_it_without_recording_anything() {
     let ceremony = ceremony(&STARTED, &waiting_pair());
     let alice = trustee_claims(Some("alice"));
-    assert!(key_share_matches(&ceremony, &alice, STORED_KEY)
+    assert!(custody_proof_matches(&ceremony, &alice, STORED_KEY)
         .await
         .unwrap());
-    assert!(!key_share_matches(&ceremony, &alice, "another-key")
+    assert!(!custody_proof_matches(&ceremony, &alice, "another-key")
         .await
         .unwrap());
     assert_nothing_written(&ceremony, &STARTED);
 }
 
 #[tokio::test]
-async fn a_key_share_is_not_matched_when_the_restore_would_be_refused() {
+async fn a_custody_proof_is_not_matched_when_the_restore_would_be_refused() {
     let cases = [
         (
             ceremony(&STARTED, &restored_pair()),
             Some("alice"),
-            "Unexpected trustee status KEY_RESTORED",
+            "Unexpected trustee status CUSTODY_CONFIRMED",
         ),
         (
             ceremony(&IN_PROGRESS, &waiting_pair()),
@@ -729,7 +729,7 @@ async fn a_key_share_is_not_matched_when_the_restore_would_be_refused() {
         ),
     ];
     for (ceremony, trustee, message) in cases {
-        let error = key_share_matches(&ceremony, &trustee_claims(trustee), STORED_KEY)
+        let error = custody_proof_matches(&ceremony, &trustee_claims(trustee), STORED_KEY)
             .await
             .unwrap_err();
         assert_eq!(error.to_string(), message);
@@ -741,7 +741,7 @@ async fn a_key_share_is_not_matched_when_the_restore_would_be_refused() {
 #[tokio::test]
 async fn the_session_connects_when_the_keys_ceremony_threshold_is_reached() {
     let trustees = [
-        ("alice", TallyTrusteeStatus::KEY_RESTORED),
+        ("alice", TallyTrusteeStatus::CUSTODY_CONFIRMED),
         ("bob", TallyTrusteeStatus::WAITING),
     ];
     let ceremony = ceremony(&STARTED, &trustees);
@@ -761,7 +761,7 @@ async fn the_connection_threshold_is_the_keys_ceremony_threshold() {
     ceremony.add_session(tally_session);
     ceremony.add_execution(execution(Some(&ceremony_status(&waiting_pair()))));
     ceremony.add_keys_ceremony(keys_ceremony(1));
-    ceremony.add_private_key(KEYS_CEREMONY, "alice", STORED_KEY);
+    ceremony.add_custody_proof(KEYS_CEREMONY, "alice", STORED_KEY);
     ceremony.add_election_event(election_event(Some(
         json!({"id": 1, "database_name": EVENT_BOARD, "is_archived": false}),
     )));
@@ -774,18 +774,21 @@ async fn the_connection_threshold_is_the_keys_ceremony_threshold() {
 #[tokio::test]
 async fn a_connected_session_still_accepts_the_remaining_keys() {
     let trustees = [
-        ("alice", TallyTrusteeStatus::KEY_RESTORED),
-        ("bob", TallyTrusteeStatus::KEY_RESTORED),
+        ("alice", TallyTrusteeStatus::CUSTODY_CONFIRMED),
+        ("bob", TallyTrusteeStatus::CUSTODY_CONFIRMED),
         ("carol", TallyTrusteeStatus::WAITING),
     ];
     let ceremony = ceremony(&CONNECTED, &trustees);
-    ceremony.add_private_key(KEYS_CEREMONY, "carol", STORED_KEY);
+    ceremony.add_custody_proof(KEYS_CEREMONY, "carol", STORED_KEY);
     let restored = restore_key(&ceremony, &trustee_claims(Some("carol")), STORED_KEY)
         .await
         .unwrap();
     assert!(restored);
     assert_eq!(stored_status(&ceremony), Some(CONNECTED.to_string()));
-    assert_eq!(restored_trustee_count(&last_ceremony_status(&ceremony)), 3);
+    assert_eq!(
+        authorized_trustee_count(&last_ceremony_status(&ceremony)),
+        3
+    );
 }
 
 #[tokio::test]
@@ -796,7 +799,7 @@ async fn restoring_a_key_posts_a_key_insertion_entry_on_the_event_bulletin_board
         .unwrap();
     assert_eq!(
         ceremony.audit_entries(),
-        vec![TallyAuditEntry::KeyRestored {
+        vec![TallyAuditEntry::CustodyAuthorizationd {
             board_name: EVENT_BOARD.into(),
             tenant_id: TENANT.into(),
             election_event_id: EVENT.into(),
@@ -863,7 +866,7 @@ async fn a_session_with_an_unknown_status_accepts_keys_like_a_started_one() {
     ceremony.add_session(tally_session);
     ceremony.add_execution(execution(Some(&ceremony_status(&waiting_pair()))));
     ceremony.add_keys_ceremony(keys_ceremony(2));
-    ceremony.add_private_key(KEYS_CEREMONY, "alice", STORED_KEY);
+    ceremony.add_custody_proof(KEYS_CEREMONY, "alice", STORED_KEY);
     ceremony.add_election_event(election_event(Some(
         json!({"id": 1, "database_name": EVENT_BOARD, "is_archived": false}),
     )));
@@ -909,18 +912,24 @@ async fn a_trustee_outside_the_ceremony_cannot_restore_a_key() {
 
 #[tokio::test]
 async fn a_trustee_cannot_restore_their_key_twice() {
-    let ceremony = ceremony(&STARTED, &[("alice", TallyTrusteeStatus::KEY_RESTORED)]);
+    let ceremony = ceremony(
+        &STARTED,
+        &[("alice", TallyTrusteeStatus::CUSTODY_CONFIRMED)],
+    );
     let error = restore_key(&ceremony, &trustee_claims(Some("alice")), STORED_KEY)
         .await
         .unwrap_err();
-    assert_eq!(error.to_string(), "Unexpected trustee status KEY_RESTORED");
+    assert_eq!(
+        error.to_string(),
+        "Unexpected trustee status CUSTODY_CONFIRMED"
+    );
     assert_nothing_written(&ceremony, &STARTED);
 }
 
 #[tokio::test]
 async fn a_key_that_cannot_be_read_from_the_board_writes_nothing() {
     let ceremony = ceremony(&STARTED, &waiting_pair());
-    ceremony.fail(TallyCall::GetPrivateKey, "board unavailable");
+    ceremony.fail(TallyCall::VerifyCustodyProof, "board unavailable");
     let error = restore_key(&ceremony, &trustee_claims(Some("alice")), STORED_KEY)
         .await
         .unwrap_err();
@@ -931,14 +940,14 @@ async fn a_key_that_cannot_be_read_from_the_board_writes_nothing() {
 #[tokio::test]
 async fn a_restored_key_is_stored_before_the_bulletin_board_is_resolved() {
     let trustees = [
-        ("alice", TallyTrusteeStatus::KEY_RESTORED),
+        ("alice", TallyTrusteeStatus::CUSTODY_CONFIRMED),
         ("bob", TallyTrusteeStatus::WAITING),
     ];
     let ceremony = InMemoryTallyCeremony::default();
     ceremony.add_session(tally_session(&STARTED));
     ceremony.add_execution(execution(Some(&ceremony_status(&trustees))));
     ceremony.add_keys_ceremony(keys_ceremony(2));
-    ceremony.add_private_key(KEYS_CEREMONY, "bob", STORED_KEY);
+    ceremony.add_custody_proof(KEYS_CEREMONY, "bob", STORED_KEY);
     ceremony.add_election_event(election_event(None));
     let error = restore_key(&ceremony, &trustee_claims(Some("bob")), STORED_KEY)
         .await
@@ -1103,7 +1112,7 @@ async fn a_recount_appends_a_recount_execution_and_reopens_the_session() {
         ]
     );
     assert_eq!(trustee_statuses(&status).len(), 2);
-    assert_eq!(restored_trustee_count(&status), 2);
+    assert_eq!(authorized_trustee_count(&status), 2);
     assert_eq!(
         log_texts(&status),
         vec![

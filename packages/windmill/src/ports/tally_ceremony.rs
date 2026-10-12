@@ -250,7 +250,7 @@ pub trait TallyCeremonyAudit: Sync {
     ) -> impl Future<Output = anyhow::Result<()>> + Send;
 
     /// Signed by the trustee's user, identified by `claims`.
-    fn key_restored(
+    fn custody_authorized(
         &self,
         board_name: &str,
         tenant_id: &str,

@@ -4792,7 +4792,7 @@ const dutchTranslation: TranslationType = {
                 keys_ceremony_id: "Ceremonie",
                 tally_session_id: "Telsessie",
                 trustee_id: "Trustee",
-                key_share_sha256: "SHA-256 van het bewijs van bewaring",
+                custody_proof_sha256: "SHA-256 van het bewijs van bewaring",
                 channel: "Kanaal",
                 channels: "Kanalen",
                 publication_id: "Publicatie stembiljet",
@@ -4898,13 +4898,14 @@ const dutchTranslation: TranslationType = {
             notes: {
                 afterApproval: "Na goedkeuring",
                 afterApprovalValue: "De inloggegevens van de kiezer worden uitgegeven en verzonden",
-                keyShare: "Uw bewijs van bewaring",
-                keyShareChecked: "Gecontroleerd: het is uw bewijs van bewaring voor deze ceremonie",
+                custodyProof: "Uw bewijs van bewaring",
+                custodyProofChecked:
+                    "Gecontroleerd: het is uw bewijs van bewaring voor deze ceremonie",
                 recordedIn: "Vastgelegd in",
                 recordedInCeremony: "De sleutelceremonie en het bulletinboard",
                 recordedInTally: "De telsessie",
             },
-            keyShare: {
+            custodyProof: {
                 signing:
                     "Onderteken uw bewijs van bewaring in het ondertekeningspaneel. Het wordt vastgelegd zodra u het hebt ondertekend.",
                 record: "Mijn bewijs van bewaring vastleggen",

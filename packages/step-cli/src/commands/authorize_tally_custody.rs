@@ -6,7 +6,7 @@ use crate::{
     types::hasura_types::*,
     utils::{
         read_config::read_config,
-        trustees::{store_private_key::get_private_key_content, trustee_graphql_request},
+        trustees::{store_custody_request::get_custody_request_content, trustee_graphql_request},
     },
 };
 use clap::Args;
@@ -14,8 +14,8 @@ use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
 
 #[derive(Args)]
-#[command(about = "Confirm trustee key for tally ceremony", long_about = None)]
-pub struct ConfirmKeyForTally {
+#[command(about = "Authorize trustee custody for a tally ceremony", long_about = None)]
+pub struct AuthorizeTallyCustodyCommand {
     /// Election event id - the election event to start the key ceremony for
     #[arg(long)]
     election_event_id: String,
@@ -32,12 +32,12 @@ pub struct ConfirmKeyForTally {
 #[derive(GraphQLQuery)]
 #[graphql(
     schema_path = "src/graphql/schema.json",
-    query_path = "src/graphql/restore_private_key.graphql",
+    query_path = "src/graphql/authorize_tally_custody.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
-pub struct RestorePrivateKey;
+pub struct AuthorizeTallyCustody;
 
-impl ConfirmKeyForTally {
+impl AuthorizeTallyCustodyCommand {
     pub fn run(&self) {
         match confirm_key_with_keys(
             &self.election_event_id,
@@ -79,7 +79,7 @@ fn confirm_key_with_keys(
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
-    let request = get_private_key_content(election_event_id, &config.username)?;
+    let request = get_custody_request_content(election_event_id, &config.username)?;
     let mut custody: protocol_board::CustodyRequest = serde_json::from_str(&request)?;
     if custody.tenant_id != config.tenant_id
         || custody.election_event_id != election_event_id
@@ -92,22 +92,22 @@ fn confirm_key_with_keys(
     let secrets = protocol_board::TrusteeSecrets::parse(&std::fs::read_to_string(keys_file)?)?;
     let key = custody.attest(&secrets)?;
 
-    let variables = restore_private_key::Variables {
+    let variables = authorize_tally_custody::Variables {
         election_event_id: election_event_id.to_string(),
         tally_session_id: tally_id.to_string(),
-        private_key_base64: key,
+        custody_proof_json: key,
     };
 
-    let request_body = RestorePrivateKey::build_query(variables);
+    let request_body = AuthorizeTallyCustody::build_query(variables);
 
     let response = trustee_graphql_request(&client, &config.endpoint_url, &config.auth_token)
         .json(&request_body)
         .send()?;
 
     if response.status().is_success() {
-        let response_body: Response<restore_private_key::ResponseData> = response.json()?;
+        let response_body: Response<authorize_tally_custody::ResponseData> = response.json()?;
         if let Some(data) = response_body.data {
-            if let Some(e) = data.restore_private_key {
+            if let Some(e) = data.authorize_tally_custody {
                 Ok(e.is_valid)
             } else {
                 Err(Box::from("failed updating status"))

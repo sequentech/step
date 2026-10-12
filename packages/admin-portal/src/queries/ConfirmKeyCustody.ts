@@ -3,20 +3,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {gql} from "@apollo/client"
 
-export const RESTORE_PRIVATE_KEY = gql`
-    mutation RestorePrivateKey(
+export const CONFIRM_KEY_CUSTODY = gql`
+    mutation ConfirmKeyCustody(
         $electionEventId: String!
-        $tallySessionId: String!
-        $privateKeyBase64: String!
-        $keyShareSha256: String
+        $keysCeremonyId: String!
+        $custodyProofJson: String!
+        $custodyProofSha256: String
         $signingRequestId: uuid
     ) {
-        restore_private_key(
+        confirm_key_custody(
             object: {
                 election_event_id: $electionEventId
-                tally_session_id: $tallySessionId
-                private_key_base64: $privateKeyBase64
-                key_share_sha256: $keyShareSha256
+                keys_ceremony_id: $keysCeremonyId
+                custody_proof_json: $custodyProofJson
+                custody_proof_sha256: $custodyProofSha256
                 signing_request_id: $signingRequestId
             }
         ) {

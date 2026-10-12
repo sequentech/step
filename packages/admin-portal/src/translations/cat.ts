@@ -4786,7 +4786,7 @@ const catalanTranslation: TranslationType = {
                 keys_ceremony_id: "Cerimònia",
                 tally_session_id: "Sessió de recompte",
                 trustee_id: "Autoritat",
-                key_share_sha256: "SHA-256 del prova de custòdia",
+                custody_proof_sha256: "SHA-256 del prova de custòdia",
                 channel: "Canal",
                 channels: "Canals",
                 publication_id: "Publicació de paperetes",
@@ -4891,14 +4891,14 @@ const catalanTranslation: TranslationType = {
             notes: {
                 afterApproval: "Després de l'aprovació",
                 afterApprovalValue: "S'emeten les credencials del votant i se li envien",
-                keyShare: "El vostre prova de custòdia",
-                keyShareChecked:
+                custodyProof: "El vostre prova de custòdia",
+                custodyProofChecked:
                     "Comprovat: és el vostre prova de custòdia per a aquesta cerimònia",
                 recordedIn: "S'anota a",
                 recordedInCeremony: "La cerimònia de claus i el tauler d'anuncis",
                 recordedInTally: "La sessió de recompte",
             },
-            keyShare: {
+            custodyProof: {
                 signing:
                     "Signeu el vostre prova de custòdia al tauler de signatura. Queda anotat un cop l'hàgiu signat.",
                 record: "Anotar el meu prova de custòdia",

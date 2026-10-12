@@ -29,7 +29,7 @@ and MFA enrollment, configure the runner, and start it:
 trustee start --trustee-config trustee.toml
 ```
 
-See [Wbraid trustee configuration](../../07-developers/09-braid/braid_trustees_configuration.md)
+See [Wbraid trustee configuration](../../07-developers/09-wbraid/trustee-configuration.md)
 for runner authentication and service settings. Securely back up `trustee.toml`
 and the runner's `message_store` directory. The protocol state contains the
 trustee's election shares; preserving just its identity file is insufficient
@@ -72,7 +72,7 @@ and the runner's private protocol state on the trustee machine.
 
 A proof is scoped to its tenant, election event, ceremony, and trustee. A proof
 from another trustee or ceremony is rejected. Confirming custody changes that
-trustee to **KEY_CHECKED**. Once every trustee has confirmed custody and any
+trustee to **CUSTODY_CONFIRMED**. Once every trustee has confirmed custody and any
 required approval signatures are complete, the ceremony becomes **SUCCESS**.
 The administrator can then publish ballot styles and open voting.
 
@@ -90,5 +90,5 @@ Browser trustees can generate or import their identity and participate from the
 portal's `/trustee` screen. Keep the page open while its runner is active. Use
 **Create custody proof** with the downloaded public request, then upload the
 result to the ceremony wizard. Keep private backups of both the keys and browser
-sessions. See [browser trustee setup](../../07-developers/09-braid/braid_trustees_configuration.md#browser-trustees)
+sessions. See [browser trustee setup](../../07-developers/09-wbraid/trustee-configuration.md#browser-trustees)
 for key registration, browser storage recovery, and tally restore instructions.

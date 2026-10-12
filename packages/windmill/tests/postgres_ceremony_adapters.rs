@@ -2433,7 +2433,7 @@ fn ceremony_status(election_id: &str) -> TallyCeremonyStatus {
         }],
         trustees: vec![TallyTrustee {
             name: "trustee-1".into(),
-            status: TallyTrusteeStatus::KEY_RESTORED,
+            status: TallyTrusteeStatus::CUSTODY_CONFIRMED,
         }],
         elections_status: vec![TallyElection {
             election_id: election_id.into(),
@@ -2450,7 +2450,7 @@ fn ceremony_status_json(election_id: &str) -> Value {
         "failure": null,
         "stop_date": null,
         "logs": [{"created_date": H10, "log_text": "Mixing"}],
-        "trustees": [{"name": "trustee-1", "status": "KEY_RESTORED"}],
+        "trustees": [{"name": "trustee-1", "status": "CUSTODY_CONFIRMED"}],
         "elections_status": [
             {"election_id": election_id, "status": "MIXING", "progress": 0.5}
         ],
@@ -2492,9 +2492,7 @@ async fn restrictive_protocol_metadata_is_explicitly_deleted_only_for_its_event(
     }
     let restrictive: bool = tx.query_one("SELECT bool_and(confdeltype='r') FROM pg_constraint WHERE conrelid='sequent_backend.protocol_board'::regclass AND contype='f'", &[]).await.unwrap().get(0);
     assert!(restrictive);
-    let url = std::env::var("WBRAID_AUDIT_TEST_DATABASE_URL")
-        .or_else(|_| std::env::var("WBRAID_AUDIT_DATABASE_URL"))
-        .expect("isolated native archive database");
+    let url = std::env::var("WBRAID_BOARD_DATABASE_URL").expect("isolated native archive database");
     let pool = sqlx::PgPool::connect(&url).await.unwrap();
     let native = wbraid_b4::db::BoardDb::from_postgres_pool(pool.clone())
         .await

@@ -266,8 +266,8 @@ fn progress(status: &TrusteeStatus) -> u8 {
         TrusteeStatus::WAITING => 0,
         TrusteeStatus::SHARES_POSTED => 1,
         TrusteeStatus::KEY_GENERATED => 2,
-        TrusteeStatus::KEY_RETRIEVED => 3,
-        TrusteeStatus::KEY_CHECKED => 4,
+        TrusteeStatus::CUSTODY_REQUEST_RETRIEVED => 3,
+        TrusteeStatus::CUSTODY_CONFIRMED => 4,
         TrusteeStatus::HALTED => 5,
     }
 }
@@ -481,8 +481,8 @@ mod tests {
         TrusteeStatus::WAITING,
         TrusteeStatus::SHARES_POSTED,
         TrusteeStatus::KEY_GENERATED,
-        TrusteeStatus::KEY_RETRIEVED,
-        TrusteeStatus::KEY_CHECKED,
+        TrusteeStatus::CUSTODY_REQUEST_RETRIEVED,
+        TrusteeStatus::CUSTODY_CONFIRMED,
         TrusteeStatus::HALTED,
     ];
 
