@@ -30,6 +30,11 @@ import JsonImg from "../public/json.png"
 import Image from "mui-image"
 import {TenantEventContext} from "../providers/TenantEventContext"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
+import {
+    EBallotStyleCheck,
+    LEGACY_BALLOT_VERSION,
+    checkAuditedBallotStyle,
+} from "../services/ballotStyleBinding"
 import {useAppDispatch} from "../store/hooks"
 import {
     EPublishedBallotStyleLookup,
@@ -143,6 +148,8 @@ export const HomeScreen: React.FC<IProps> = ({
 }) => {
     const {t} = useTranslation()
     const [showError, setShowError] = useState(false)
+    const [showStyleError, setShowStyleError] = useState(false)
+    const [showLegacyWarning, setShowLegacyWarning] = useState(false)
     const [styleLookupFailure, setStyleLookupFailure] =
         useState<EPublishedBallotStyleLookup | null>(null)
     const [openStep1Help, setOpenStep1Help] = useState(false)
@@ -175,12 +182,15 @@ export const HomeScreen: React.FC<IProps> = ({
     ) => {
         setShowError(showImportError)
         setStyleLookupFailure(failure)
+        setShowStyleError(false)
+        setShowLegacyWarning(false)
         setConfirmationBallot(null)
     }
 
     const handleAuditableBallot = (
         file: IAuditableBallot | null,
-        ballotStyleLookup: PublishedBallotStyleLookup
+        ballotStyleLookup: PublishedBallotStyleLookup,
+        isPublishedBallot: boolean = true
     ) => {
         if (!file?.config?.id) {
             rejectBallot(true)
@@ -191,6 +201,15 @@ export const HomeScreen: React.FC<IProps> = ({
             return
         }
         const {ballotStyle} = ballotStyleLookup
+        const mustMatchPublishedStyle = isPublishedBallot && !globalSettings.DISABLE_AUTH
+        if (
+            mustMatchPublishedStyle &&
+            EBallotStyleCheck.MATCHES !== checkAuditedBallotStyle(file.config, [ballotStyle])
+        ) {
+            rejectBallot(false)
+            setShowStyleError(true)
+            return
+        }
         // The ballot is decoded and shown with the published ballot style,
         // never with the copy of it that the file carries.
         const auditableBallot: IAuditableBallot = {...file, config: ballotStyle}
@@ -214,6 +233,7 @@ export const HomeScreen: React.FC<IProps> = ({
             rejectBallot(true)
             return
         }
+        setShowLegacyWarning(isPublishedBallot && LEGACY_BALLOT_VERSION === auditableBallot.version)
         let ballotHash = isMultiContest
             ? ballotService.hashMultiBallot(auditableBallot as IAuditableMultiBallot)
             : ballotService.hashBallot512(auditableBallot as IAuditableSingleBallot)
@@ -249,6 +269,7 @@ export const HomeScreen: React.FC<IProps> = ({
         })
         setShowError(false)
         setStyleLookupFailure(null)
+        setShowStyleError(false)
     }
 
     const handleFiles = async (files: FileList) => {
@@ -287,10 +308,14 @@ export const HomeScreen: React.FC<IProps> = ({
         }
         // The sample is generated here rather than uploaded, so the ballot
         // style it carries is the one to check it against.
-        handleAuditableBallot(auditableBallot, {
-            status: EPublishedBallotStyleLookup.FOUND,
-            ballotStyle: auditableBallot.config,
-        })
+        handleAuditableBallot(
+            auditableBallot,
+            {
+                status: EPublishedBallotStyleLookup.FOUND,
+                ballotStyle: auditableBallot.config,
+            },
+            false
+        )
         let ballotHash = ballotService.hashBallot512(auditableBallot)
         setBallotId(ballotHash)
     }
@@ -341,6 +366,21 @@ export const HomeScreen: React.FC<IProps> = ({
                 >
                     {t("homeScreen.importErrorMoreInfo")}
                 </RouterLink>
+            </Alert>
+            <Alert
+                severity="error"
+                style={{display: showStyleError ? undefined : "none"}}
+                data-testid="style-error"
+            >
+                <AlertTitle>{t("homeScreen.verificationErrorTitle")}</AlertTitle>
+                <Typography variant="body2">{t("homeScreen.styleErrorDescription")}</Typography>
+            </Alert>
+            <Alert
+                severity="warning"
+                style={{display: showLegacyWarning ? undefined : "none"}}
+                data-testid="legacy-ballot-warning"
+            >
+                <Typography variant="body2">{t("homeScreen.legacyBallotWarning")}</Typography>
             </Alert>
             <Alert
                 severity="error"

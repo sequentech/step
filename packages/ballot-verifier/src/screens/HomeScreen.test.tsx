@@ -17,6 +17,7 @@ import ballotStyles from "../store/ballotStyles/ballotStylesSlice"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {resetSequentCore, sequentCore} from "../__mocks__/sequentCore"
 import {
+    ballotStyle,
     IDS,
     multiContestBallot,
     recordSequentCore,
@@ -152,6 +153,36 @@ beforeEach(() => {
     jest.spyOn(console, "info").mockImplementation(() => undefined)
 })
 afterEach(() => jest.restoreAllMocks())
+
+describe("comparing the audited ballot style with the published one", () => {
+    it("rejects a ballot whose ballot style carries another public key", async () => {
+        const single = singleContestBallot()
+        const forged = {
+            ...single.ballot,
+            config: {...single.ballot.config, public_key: {public_key: "forged", is_demo: false}},
+        }
+        recordSequentCore(single)
+        const {lastReported} = renderImportStep(single)
+
+        await importFile(JSON.stringify(forged))
+
+        await waitFor(() => expect(screen.getByTestId("style-error")).toBeVisible())
+        expect(lastReported()).toBeNull()
+        expect(nextButton()).toBeDisabled()
+    })
+
+    it("accepts a ballot of the legacy version with a warning", async () => {
+        const single = singleContestBallot()
+        const legacy = {...single.ballot, version: 2}
+        recordSequentCore(single)
+        const {lastReported} = renderImportStep(single)
+
+        await importFile(JSON.stringify(legacy))
+
+        await waitFor(() => expect(screen.getByTestId("legacy-ballot-warning")).toBeVisible())
+        expect(lastReported()).toEqual(confirmationOf(single))
+    })
+})
 
 describe("importing an audited ballot", () => {
     it("verifies a signed single-contest ballot and continues once its ballot ID is entered", async () => {
