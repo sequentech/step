@@ -227,6 +227,7 @@ class BackendJourneys(unittest.TestCase):
               sequent_backend_area(where: {election_event_id: {_eq: $event}}) { id name }
               sequent_backend_area_contest(where: {election_event_id: {_eq: $event}}) { area_id contest_id }
               sequent_backend_candidate(where: {election_event_id: {_eq: $event}}) { id contest_id presentation }
+              sequent_backend_protocol_board(where: {election_event_id: {_eq: $event}}) { id }
             }"""
         )
         (event,) = data["sequent_backend_election_event"]
@@ -280,10 +281,9 @@ class BackendJourneys(unittest.TestCase):
             ["SUCCESS"],
         )
 
-        board = event["bulletin_board_reference"]["database_name"]
-        self.state.board = board
-
-        self.assertEqual(boards.get(board), "active")
+        self.assertTrue(event["bulletin_board_reference"]["database_name"])
+        # Protocol boards are created by the native key ceremony, after import.
+        self.assertEqual(data["sequent_backend_protocol_board"], [])
 
         self.assertEqual(
             self.keycloak.admin("GET", event_realm(event_id))["realm"],
@@ -455,12 +455,15 @@ class BackendJourneys(unittest.TestCase):
         self.assertTrue(board["manager_message"])
         self.assertTrue(ceremony["status"]["public_key_hash"])
         self.state.board = board["name"]
-        messages = http_get(f"{B4_URL}/boards/{self.state.board}/messages/list").json()["messages"]
+        messages = http_get(f"{B4_URL}/boards/{self.state.board}/messages/list").json()[
+            "messages"
+        ]
         self.assertGreater(len(messages), len(bootstrap.TRUSTEES))
         self.assertEqual({message["version"] for message in messages}, {"2"})
 
         self.wait_for_log(event_id, {"KeyGeneration": 1})
         self.state.public_key = public_key
+        self.state.keys_ceremony_id = ceremony_id
         self.passed("journey 4")
 
     def test_5_publish_ballot_styles(self):
@@ -532,7 +535,12 @@ class BackendJourneys(unittest.TestCase):
             )
             self.assertEqual(
                 style["public_key"],
-                {"public_key": self.state.public_key, "is_demo": False},
+                {
+                    "public_key": self.state.public_key,
+                    "is_demo": False,
+                    "keys_ceremony_id": self.state.keys_ceremony_id,
+                    "configuration_id": str(uuid.UUID(self.state.keys_ceremony_id).int),
+                },
             )
             self.assertEqual(wrapper["id"], files[0]["id"])
             # Ballot files are private: the same object without a signature is refused.

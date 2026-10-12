@@ -81,45 +81,54 @@ def email_otp_config(keycloak):
     raise AssertionError(f"No email OTP step in the {flow} flow")
 
 
-def set_admin_password(keycloak):
-    """Give the seeded administrator its password, as an operator would.
+def set_password(keycloak, username, password):
+    """Give a seeded platform account its initial password, as an operator would.
 
-    The realm template carries no passwords and asks the administrator to choose
+    The realm template carries no passwords and asks the account owner to choose
     one. A password that is already set stays.
     """
-    admin = keycloak.user(TENANT_REALM, ENV["ADMIN_USERNAME"])
-    path = f"{TENANT_REALM}/users/{admin['id']}"
+    user = keycloak.user(TENANT_REALM, username)
+    path = f"{TENANT_REALM}/users/{user['id']}"
     credentials = keycloak.admin("GET", f"{path}/credentials")
     if any(credential["type"] == "password" for credential in credentials):
         return
     keycloak.admin(
         "PUT",
         f"{path}/reset-password",
-        {"type": "password", "value": ENV["ADMIN_PASSWORD"], "temporary": False},
+        {"type": "password", "value": password, "temporary": False},
         expect=(204,),
     )
 
 
-def enroll_admin_mfa(keycloak):
-    """Complete the seeded administrator's first login, as an operator would.
+def set_admin_password(keycloak):
+    set_password(keycloak, ENV["ADMIN_USERNAME"], ENV["ADMIN_PASSWORD"])
+
+
+def enroll_mfa(keycloak, username, password):
+    """Complete a seeded platform account's first login, as an operator would.
 
     Tenants require two-factor enrollment, and a password grant fails with
-    "Account is not fully set up" until it is done. The administrator gets an
-    email address, and one browser login passes the email OTP step using the
+    "Account is not fully set up" until it is done. Complete the required profile
+    fields, then one browser login passes the email OTP step using the
     authenticator's own test mode, which then records the message-otp
     credential. The test mode is switched back off afterwards.
     """
-    admin = keycloak.user(TENANT_REALM, ENV["ADMIN_USERNAME"])
-    path = f"{TENANT_REALM}/users/{admin['id']}"
+    user = keycloak.user(TENANT_REALM, username)
+    path = f"{TENANT_REALM}/users/{user['id']}"
     if any(
         c["type"] == "message-otp" for c in keycloak.admin("GET", f"{path}/credentials")
     ):
         return False
-    if not admin.get("email"):
+    if any(not user.get(field) for field in ("email", "firstName", "lastName")):
         profile = {
-            key: value for key, value in admin.items() if key != "userProfileMetadata"
+            key: value for key, value in user.items() if key != "userProfileMetadata"
         }
-        profile.update(email="admin@example.invalid", emailVerified=True)
+        profile.update(
+            email=user.get("email") or f"{username}@example.invalid",
+            emailVerified=True,
+            firstName=user.get("firstName") or username,
+            lastName=user.get("lastName") or "E2E",
+        )
         keycloak.admin("PUT", path, profile, expect=(204,))
     config = email_otp_config(keycloak)
     original = config["config"].get("test-mode", "false")
@@ -135,8 +144,8 @@ def enroll_admin_mfa(keycloak):
             TENANT_REALM,
             "admin-portal",
             "http://127.0.0.1:3002/",
-            ENV["ADMIN_USERNAME"],
-            ENV["ADMIN_PASSWORD"],
+            username,
+            password,
             otp=config["config"].get("test-mode-code", "123456"),
         )
     finally:
@@ -150,9 +159,28 @@ def enroll_admin_mfa(keycloak):
     credentials = keycloak.admin("GET", f"{path}/credentials")
     if not any(c["type"] == "message-otp" for c in credentials):
         raise AssertionError(
-            f"Admin login did not enroll a message-otp credential: {credentials}"
+            f"Login for {username} did not enroll a message-otp credential: {credentials}"
         )
     return True
+
+
+def enroll_admin_mfa(keycloak):
+    return enroll_mfa(keycloak, ENV["ADMIN_USERNAME"], ENV["ADMIN_PASSWORD"])
+
+
+def enroll_trustees(keycloak):
+    """Complete the first login required by the unattended trustee daemons."""
+    for name in TRUSTEES:
+        password = ENV[f"{name.upper()}_PASSWORD"]
+        set_password(keycloak, name, password)
+        enroll_mfa(keycloak, name, password)
+        keycloak.password_grant(
+            TENANT_REALM,
+            ENV["TRUSTEE_KEYCLOAK_CLIENT_ID"],
+            name,
+            password,
+            ENV.get("TRUSTEE_KEYCLOAK_CLIENT_SECRET") or None,
+        )
 
 
 def admin_token(keycloak):
@@ -193,7 +221,12 @@ def configure_step_cli(cli):
 def trustee_public_keys(name):
     binary = Path(os.environ.get("STEP_E2E_BIN_DIR", "/opt/step-e2e/bin")) / "trustee"
     config = ROOT / f"packages/trustee/dev/{name}.toml"
-    result = subprocess.run([str(binary), "public-keys", "--trustee-config", str(config)], check=True, capture_output=True, text=True)
+    result = subprocess.run(
+        [str(binary), "public-keys", "--trustee-config", str(config)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
     return json.loads(result.stdout)
 
 
@@ -252,7 +285,8 @@ def main():
     cli = StepCli()
     configure_step_cli(cli)
     seed_trustees(cli)
-    mark("trustees registered")
+    enroll_trustees(keycloak)
+    mark("trustees registered and enrolled")
     (OUTPUT / "bootstrap.json").write_text(
         json.dumps({"seconds": timings, "admin_enrolled": enrolled}, indent=2)
     )

@@ -33,6 +33,11 @@ keys when its configured identity is missing.
 | `TRUSTEE_KEYCLOAK_CLIENT_ID`, `TRUSTEE_KEYCLOAK_CLIENT_SECRET` | Authentication client; omit the secret for a public client |
 | `LOG_LEVEL` | Runner tracing filter |
 
+Set an initial password for each trustee account and complete its required
+profile fields and MFA enrollment through the tenant portal before starting
+the unattended runner. The account must belong to the trustee group and its
+`trustee` attribute must match `TRUSTEE_NAME`.
+
 The runner discovers DKG and tally boards through Harvest, verifies signed
 configuration and message lineage, and resumes its local protocol sessions.
 Containers use `http://b4v6:3005` for the supplied native board service.

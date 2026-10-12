@@ -188,6 +188,96 @@ class BootstrapAdminContracts(unittest.TestCase):
             {"type": "password", "value": "synthetic-password", "temporary": False},
         )
 
+    def test_enrollment_completes_required_names_when_email_already_exists(self):
+        keycloak = MagicMock()
+        keycloak.user.return_value = {
+            "id": "trustee-id",
+            "email": "trustee@example.invalid",
+            "firstName": "Trustee",
+        }
+        credentials = iter(
+            [[{"type": "password"}], [{"type": "password"}, {"type": "message-otp"}]]
+        )
+        keycloak.admin.side_effect = lambda method, *args, **kwargs: (
+            next(credentials) if method == "GET" else None
+        )
+        config = {
+            "id": "otp-id",
+            "config": {"test-mode": "false", "test-mode-code": "123456"},
+        }
+        with patch.object(bootstrap, "email_otp_config", return_value=config):
+            self.assertTrue(
+                bootstrap.enroll_mfa(keycloak, "trustee1", "synthetic-password")
+            )
+        profile = keycloak.admin.call_args_list[1].args[2]
+        self.assertEqual(
+            profile,
+            {
+                "id": "trustee-id",
+                "email": "trustee@example.invalid",
+                "emailVerified": True,
+                "firstName": "Trustee",
+                "lastName": "E2E",
+            },
+        )
+        keycloak.browser_login.assert_called_once_with(
+            bootstrap.TENANT_REALM,
+            "admin-portal",
+            "http://127.0.0.1:3002/",
+            "trustee1",
+            "synthetic-password",
+            otp="123456",
+        )
+        self.assertEqual(config["config"]["test-mode"], "false")
+
+    def test_trustees_complete_enrollment_before_password_grants(self):
+        keycloak = MagicMock()
+        with patch.dict(
+            os.environ,
+            {
+                "TRUSTEE1_PASSWORD": "trustee-one",
+                "TRUSTEE2_PASSWORD": "trustee-two",
+                "TRUSTEE_KEYCLOAK_CLIENT_ID": "trustee-client",
+                "TRUSTEE_KEYCLOAK_CLIENT_SECRET": "synthetic-secret",
+            },
+        ), patch.object(bootstrap, "enroll_mfa") as enroll, patch.object(
+            bootstrap, "set_password"
+        ) as passwords:
+            bootstrap.enroll_trustees(keycloak)
+        self.assertEqual(
+            passwords.call_args_list,
+            [
+                unittest.mock.call(keycloak, "trustee1", "trustee-one"),
+                unittest.mock.call(keycloak, "trustee2", "trustee-two"),
+            ],
+        )
+        self.assertEqual(
+            enroll.call_args_list,
+            [
+                unittest.mock.call(keycloak, "trustee1", "trustee-one"),
+                unittest.mock.call(keycloak, "trustee2", "trustee-two"),
+            ],
+        )
+        self.assertEqual(
+            keycloak.password_grant.call_args_list,
+            [
+                unittest.mock.call(
+                    bootstrap.TENANT_REALM,
+                    "trustee-client",
+                    "trustee1",
+                    "trustee-one",
+                    "synthetic-secret",
+                ),
+                unittest.mock.call(
+                    bootstrap.TENANT_REALM,
+                    "trustee-client",
+                    "trustee2",
+                    "trustee-two",
+                    "synthetic-secret",
+                ),
+            ],
+        )
+
     def test_an_administrator_without_a_password_gets_the_configured_one(self):
         keycloak = FakeKeycloak([])
         bootstrap.set_admin_password(keycloak)
@@ -208,6 +298,7 @@ class BootstrapAdminContracts(unittest.TestCase):
             StepCli=MagicMock(),
             configure_step_cli=MagicMock(),
             seed_trustees=MagicMock(),
+            enroll_trustees=MagicMock(),
             set_admin_password=MagicMock(
                 side_effect=lambda keycloak: calls.append("password")
             ),
@@ -229,12 +320,23 @@ class CoverageExitContracts(unittest.TestCase):
             binary = binaries / "harvest"
             binary.write_text("instrumented binary placeholder")
             binary.chmod(0o700)
-            for name in ("audit-init", "harvest", "windmill", "beat", "b4v6",
-                         "trustee1", "trustee2", "step-cli", "messaging-webhooks"):
+            for name in (
+                "audit-init",
+                "harvest",
+                "windmill",
+                "beat",
+                "b4v6",
+                "trustee1",
+                "trustee2",
+                "step-cli",
+                "messaging-webhooks",
+            ):
                 (directory / "profiles" / f"{name}-123.profraw").write_bytes(b"profile")
             rows = [{"Service": name, "ExitCode": code} for name, code in codes.items()]
             (directory / "services.json").write_text(
-                "\n".join(json.dumps(row) for row in rows) if json_lines else json.dumps(rows)
+                "\n".join(json.dumps(row) for row in rows)
+                if json_lines
+                else json.dumps(rows)
             )
 
             def llvm(*command):
@@ -245,31 +347,55 @@ class CoverageExitContracts(unittest.TestCase):
                 self.assertEqual(command[1], "merge")
                 return ""
 
-            with patch.object(coverage, "llvm_tool", side_effect=lambda name: name), \
-                    patch.object(coverage, "run", side_effect=llvm), \
-                    patch("sys.argv", ["coverage.py", str(directory), str(binaries)]), \
-                    contextlib.redirect_stdout(io.StringIO()):
+            with patch.object(
+                coverage, "llvm_tool", side_effect=lambda name: name
+            ), patch.object(coverage, "run", side_effect=llvm), patch(
+                "sys.argv", ["coverage.py", str(directory), str(binaries)]
+            ), contextlib.redirect_stdout(
+                io.StringIO()
+            ):
                 status = coverage.main()
-            return status, json.loads((directory / "summary.json").read_text()), \
-                (directory / "summary.md").read_text()
+            return (
+                status,
+                json.loads((directory / "summary.json").read_text()),
+                (directory / "summary.md").read_text(),
+            )
 
     @staticmethod
     def normal_codes():
-        return {"audit-init": 0, "harvest": 0, "windmill": 0,
-                "beat": 143, "b4v6": 143, "trustee1": 143, "trustee2": 143, "messaging-webhooks": 0}
+        return {
+            "audit-init": 0,
+            "harvest": 0,
+            "windmill": 0,
+            "beat": 143,
+            "b4v6": 143,
+            "trustee1": 143,
+            "trustee2": 143,
+            "messaging-webhooks": 0,
+        }
 
     def test_normal_shutdown_and_removed_driver_accept_nonempty_profiles(self):
         for json_lines in (False, True):
             with self.subTest(json_lines=json_lines):
-                status, report, _ = self.report(self.normal_codes(), json_lines=json_lines)
+                status, report, _ = self.report(
+                    self.normal_codes(), json_lines=json_lines
+                )
                 self.assertEqual(status, 0)
                 self.assertEqual(report["failures"], [])
                 self.assertEqual(len(report["profiles"]), 9)
-                self.assertTrue(all(row["executed_functions"] == 12 for row in report["profiles"]))
+                self.assertTrue(
+                    all(row["executed_functions"] == 12 for row in report["profiles"])
+                )
 
     def test_worker_crash_fails_even_when_its_profile_executed_code(self):
-        for service, code in (("windmill", 101), ("harvest", 143), ("beat", 137),
-                              ("b4v6", 1), ("audit-init", 143), ("trustee1", 101)):
+        for service, code in (
+            ("windmill", 101),
+            ("harvest", 143),
+            ("beat", 137),
+            ("b4v6", 1),
+            ("audit-init", 143),
+            ("trustee1", 101),
+        ):
             with self.subTest(service=service, code=code):
                 codes = self.normal_codes()
                 codes[service] = code

@@ -252,6 +252,8 @@ services:
     volumes:
       - *e2e-binaries
     entrypoint: ["/opt/step-e2e/bin/b4v6"]
+    environment:
+      AWS_ENDPOINT_URL: http://localstack:4566
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3005/boards"]
       interval: 2s
@@ -273,6 +275,7 @@ services:
       - *e2e-binaries
       - ../packages/trustee/dev/trustee1.toml:/etc/step-e2e/trustee.toml:ro
       - trustee1_data:/opt/trustee/message_store
+    command: !reset []
     entrypoint: ["/opt/step-e2e/bin/trustee", "start", "--b4-url", "http://b4v6:3005", "--trustee-config", "/etc/step-e2e/trustee.toml"]
     depends_on: !override
       b4v6:
@@ -286,6 +289,7 @@ services:
       - *e2e-binaries
       - ../packages/trustee/dev/trustee2.toml:/etc/step-e2e/trustee.toml:ro
       - trustee2_data:/opt/trustee/message_store
+    command: !reset []
     entrypoint: ["/opt/step-e2e/bin/trustee", "start", "--b4-url", "http://b4v6:3005", "--trustee-config", "/etc/step-e2e/trustee.toml"]
     depends_on: !override
       b4v6:
@@ -318,6 +322,10 @@ services:
       ADMIN_USERNAME: ${ADMIN_PORTAL_TEST_USERNAME}
       ADMIN_PASSWORD: ${ADMIN_PORTAL_TEST_PASSWORD}
       API_KEY_CLIENT_SECRET: ${API_KEY_CLIENT_SECRET}
+      TRUSTEE1_PASSWORD: ${TRUSTEE1_PASSWORD}
+      TRUSTEE2_PASSWORD: ${TRUSTEE2_PASSWORD}
+      TRUSTEE_KEYCLOAK_CLIENT_ID: ${TRUSTEE_KEYCLOAK_CLIENT_ID}
+      TRUSTEE_KEYCLOAK_CLIENT_SECRET: ${TRUSTEE_KEYCLOAK_CLIENT_SECRET}
       AWS_S3_PRIVATE_URI: ${AWS_S3_PRIVATE_URI}
       AWS_S3_PUBLIC_BUCKET: ${AWS_S3_PUBLIC_BUCKET}
       AWS_S3_BUCKET: ${AWS_S3_BUCKET}

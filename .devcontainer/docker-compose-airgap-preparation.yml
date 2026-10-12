@@ -497,11 +497,17 @@ services:
     container_name: trustee1
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/trustee:STEP_VERSION
     platform: linux/amd64
+    working_dir: /opt/trustee
+    volumes:
+      - trustee1_data:/opt/trustee
     environment:
       LOG_LEVEL: ${LOG_LEVEL}
       TRUSTEE_NAME: trustee1
-      TRUSTEE_CONFIG: ${TRUSTEE1_CONFIG}
+      TRUSTEE_CONFIG_PATH: ${TRUSTEE1_CONFIG:-/opt/trustee/trustee.toml}
+      TRUSTEE_CONFIG: ${TRUSTEE1_CONFIG_DATA:-}
       SECRETS_BACKEND: ${SECRETS_BACKEND}
+      AWS_SM_KEY_PREFIX: ${AWS_SM_KEY_PREFIX}
+      AWS_REGION: ${AWS_REGION}
       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
       VAULT_TOKEN: ${VAULT_TOKEN}
       B4_URL: http://b4v6:3005
@@ -524,11 +530,17 @@ services:
     depends_on:
       harvest:
         condition: service_started
+    working_dir: /opt/trustee
+    volumes:
+      - trustee2_data:/opt/trustee
     environment:
       LOG_LEVEL: ${LOG_LEVEL}
       TRUSTEE_NAME: trustee2
-      TRUSTEE_CONFIG: ${TRUSTEE2_CONFIG}
+      TRUSTEE_CONFIG_PATH: ${TRUSTEE2_CONFIG:-/opt/trustee/trustee.toml}
+      TRUSTEE_CONFIG: ${TRUSTEE2_CONFIG_DATA:-}
       SECRETS_BACKEND: ${SECRETS_BACKEND}
+      AWS_SM_KEY_PREFIX: ${AWS_SM_KEY_PREFIX}
+      AWS_REGION: ${AWS_REGION}
       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
       VAULT_TOKEN: ${VAULT_TOKEN}
       B4_URL: http://b4v6:3005
@@ -685,6 +697,8 @@ networks:
     internal: true
 
 volumes:
+  trustee1_data:
+  trustee2_data:
   wbraid_board_data:
 
   wbraid_audit_data:

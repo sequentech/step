@@ -250,17 +250,7 @@ services:
     depends_on:
       - postgres-volume-init
 
-  # wbraid's bulletin board (packages/wbraid/crates/b4, binary b4v6), built and
-  # run from the mounted checkout like the other Rust services: cargo-watch
-  # rebuilds it when crates/b4 changes. Same opt-in `wbraid` profile as
-  # localstack; packages/wbraid/b4.sh brings it up by name. Reachable as
-  # http://b4v6:3005 on the project network (WBRAID_B4_URL for the live tests)
-  # and, forwarded by devcontainer.json, as http://127.0.0.1:3005 on the host
-  # for emulator.html.
-  # b4 only presigns S3 URLs, it never calls S3 itself, so AWS_ENDPOINT_URL is
-  # the address the *clients* fetch bodies from: the localstack service name,
-  # which the host browser resolves through a hosts-file entry (TESTING.md).
-  # The SQLite file lives in a named volume, b4.sh --reset clears it.
+  # Audit records use a separate database from the native protocol boards.
   audit-postgres:
     profiles: ["full", "base"]
     image: postgres:16-bookworm
@@ -277,6 +267,10 @@ services:
       timeout: 5s
       retries: 30
 
+  # The supplied wbraid board server stores protocol rows in PostgreSQL.
+  # AWS_ENDPOINT_URL is embedded in presigned URLs fetched by workers and
+  # trustees, so it must be reachable from those clients. Host browser tools
+  # resolve localstack through the hosts-file entry described in TESTING.md.
   b4v6:
     profiles: ["full", "base", "wbraid"]
     image: sequentech.local/cargo-packages
@@ -856,7 +850,7 @@ services:
 
   # Native trustees discover their assigned boards through Harvest.
   trustee1:
-    profiles: ["wbraid"]
+    profiles: ["full", "wbraid"]
     stdin_open: true
     image: sequentech.local/cargo-packages
     container_name: ${DEVCONTAINER_NAME_PREFIX:-}trustee1
@@ -903,7 +897,7 @@ services:
       TRUSTEE_KEYCLOAK_CLIENT_SECRET: ${TRUSTEE_KEYCLOAK_CLIENT_SECRET}
 
   trustee2:
-    profiles: ["wbraid"]
+    profiles: ["full", "wbraid"]
     stdin_open: true
     image: sequentech.local/cargo-packages
     container_name: ${DEVCONTAINER_NAME_PREFIX:-}trustee2
