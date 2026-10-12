@@ -11,7 +11,7 @@ use super::{
 };
 use crate::adapters::memory::service_keys::StaticServiceKeys;
 use crate::route_services::service_tokens::{issued, realm, RealmSigner, KID};
-use crate::route_services::{post, post_as, Services};
+use crate::route_services::{post_as, Services};
 use crate::test_claims::Claims;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
@@ -29,6 +29,17 @@ fn keycloak(tenant_id: &str) -> Claims {
     Claims::new(tenant_id, "service-account-keycloak")
         .roles([Permissions::SERVICE_ACCOUNT])
         .azp(DEFAULT_SERVICE_CLIENT)
+}
+
+/// An unsigned service token, independent of the shared signed fixture.
+fn unsigned(tenant_id: &str) -> String {
+    format!(
+        "Bearer {}.{}.",
+        URL_SAFE_NO_PAD
+            .encode(r#"{"alg":"none","typ":"JWT","kid":"realm-signing-key"}"#),
+        URL_SAFE_NO_PAD
+            .encode(issued(&keycloak(tenant_id), tenant_id).to_string()),
+    )
 }
 
 fn notice(tenant_id: &str) -> Value {
@@ -73,9 +84,13 @@ async fn a_forged_unsigned_service_token_cannot_send() {
     let services = Services::without_database();
     let client = services.client().await;
     let tenant_id = Uuid::new_v4().to_string();
-    let forged = keycloak(&tenant_id);
-    let response =
-        post(&client, "/messages/send", &forged, &notice(&tenant_id)).await;
+    let response = post_as(
+        &client,
+        "/messages/send",
+        &unsigned(&tenant_id),
+        &notice(&tenant_id),
+    )
+    .await;
     assert_eq!(response.status(), Status::Unauthorized);
 }
 
@@ -257,7 +272,7 @@ async fn tokens_are_refused_for_one_reason_each() {
     for (authorization, refusal) in [
         ("".to_string(), MALFORMED_TOKEN),
         ("Basic dXNlcjpwYXNz".to_string(), MALFORMED_TOKEN),
-        (keycloak(&tenant_id).bearer(), MALFORMED_TOKEN),
+        (unsigned(&tenant_id), MALFORMED_TOKEN),
         ("Bearer fixture.e30.fixture".to_string(), MALFORMED_TOKEN),
         (unsigned, MALFORMED_TOKEN),
         (hmac, UNSUPPORTED_ALGORITHM),
@@ -330,7 +345,7 @@ async fn nothing_is_fetched_for_a_token_that_cannot_be_read() {
     let keys = ServiceKeys::new(source.clone());
     let tenant_id = Uuid::new_v4().to_string();
     for authorization in [
-        keycloak(&tenant_id).bearer(),
+        unsigned(&tenant_id),
         "Bearer fixture.e30.fixture".to_string(),
     ] {
         assert!(verify(&keys, &authorization).await.is_err());
