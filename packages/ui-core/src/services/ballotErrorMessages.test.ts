@@ -140,7 +140,7 @@ describe("i18next plural selection", () => {
 
     it("skips plural handling when count is a string", () => {
         expect(t.t("selected", {count: 2})).toBe("2 candidates selected")
-        expect(t.t("selected", {count: "2"})).not.toBe("2 candidates selected")
+        expect(t.t("selected", {count: "2" as unknown as number})).not.toBe("2 candidates selected")
     })
 
     it("uses the plural rules of the language, which are not always count === 1", async () => {
