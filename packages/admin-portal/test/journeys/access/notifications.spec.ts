@@ -66,6 +66,7 @@ for (const method of ["EMAIL", "SMS"] as const) {
         }
         await selects.nth(2).click()
         await page.getByRole("option", {name: "Council reminder", exact: true}).click()
+        await drawer.getByRole("button", {name: method === "SMS" ? "SMS" : "Email", exact: true}).click()
         if (method === "SMS") {
             await expect(drawer.getByRole("textbox", {name: "SMS Message"})).toHaveValue(
                 "Please vote today"
