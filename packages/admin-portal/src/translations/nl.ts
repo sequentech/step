@@ -399,9 +399,13 @@ const dutchTranslation: TranslationType = {
             common: {
                 gapiKey: "Google Calendar Service Account Sleutel",
                 gapiEmail: "Google Calendar Authenticatie E-mail",
+                gapiKeyHelper:
+                    "De opgeslagen sleutel wordt niet getoond. Plak een nieuwe sleutel om deze te vervangen.",
+                gapiKeySaved: "Google Calendar Service Account Sleutel opgeslagen",
             },
             errors: {
                 invalidGapiKey: "Ongeldig formaat voor Google Calendar Service Account Sleutel",
+                saveGapiKey: "Kon de Google Calendar Service Account Sleutel niet opslaan",
             },
         },
         lookAndFeelScreen: {
@@ -946,6 +950,15 @@ const dutchTranslation: TranslationType = {
                     options: {
                         enabled: "Ingeschakeld",
                         disabled: "Uitgeschakeld",
+                    },
+                },
+                batchAnonymityPolicy: {
+                    policyLabel: "Beleid voor Anonimiteit van Batches",
+                    helperText:
+                        "Weigeren stopt de telling wanneer de stembiljettenbatch van een gebied minder dan vijf kiezers heeft, of verschilt van de batch die een andere telling al voor hetzelfde gebied en dezelfde verkiezing heeft gepubliceerd.",
+                    options: {
+                        warn: "Waarschuwen",
+                        refuse: "Weigeren",
                     },
                 },
                 languageDetectionPolicy: {

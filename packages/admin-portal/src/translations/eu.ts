@@ -400,9 +400,13 @@ const basqueTranslation: TranslationType = {
             common: {
                 gapiKey: "Google Calendar Zerbitzu Kontu Giltza",
                 gapiEmail: "Google Calendar Autentifikazio Helbide Elektronikoa",
+                gapiKeyHelper:
+                    "Gordetako giltza ez da erakusten. Itsatsi giltza berri bat ordezkatzeko.",
+                gapiKeySaved: "Google Calendar Zerbitzu Kontu Giltza gorde da",
             },
             errors: {
                 invalidGapiKey: "Google Calendar Zerbitzu Kontu Giltza formatu baliogabea",
+                saveGapiKey: "Ezin izan da Google Calendar Zerbitzu Kontu Giltza gorde",
             },
         },
         lookAndFeelScreen: {
@@ -940,6 +944,15 @@ const basqueTranslation: TranslationType = {
                     options: {
                         enabled: "Gaituta",
                         disabled: "Desgaituta",
+                    },
+                },
+                batchAnonymityPolicy: {
+                    policyLabel: "Loteen Anonimotasun Politika",
+                    helperText:
+                        "Baztertu aukerak zenbaketa geldiarazten du eremu bateko boto-paperen loteak bost bozkatzaile baino gutxiago dituenean, edo beste zenbaketa batek eremu eta lehiaketa bererako argitaratutako lotearen desberdina denean.",
+                    options: {
+                        warn: "Ohartarazi",
+                        refuse: "Baztertu",
                     },
                 },
                 languageDetectionPolicy: {

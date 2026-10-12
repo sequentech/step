@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_permission_labels,
+};
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::{anyhow, Result};
 use chrono::Utc;
@@ -100,6 +102,22 @@ pub async fn manage_election_dates(
                 ErrorCode::InternalServerError,
             )
         })?;
+
+    authorize_election_permission_labels(
+        &hasura_transaction,
+        &claims,
+        &input.election_event_id,
+        input.election_id.as_ref().map(std::slice::from_ref),
+    )
+    .await
+    .map_err(|(status, message)| {
+        let code = if status == Status::Forbidden {
+            ErrorCode::Unauthorized
+        } else {
+            ErrorCode::InternalServerError
+        };
+        ErrorResponse::new(status, &message, code)
+    })?;
 
     let actor = actor(&claims);
     let schedule = ScheduleInput {
