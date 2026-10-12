@@ -45,6 +45,7 @@ mod tally_view;
 mod trustee_api;
 pub mod trustee_sessions;
 mod trustee_transport;
+pub mod verification;
 mod view;
 
 #[cfg(test)]

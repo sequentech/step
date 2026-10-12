@@ -66,6 +66,9 @@ class RunnerContracts(DriverOutput):
             def test_7_tally_matches_cast_ballots(self):
                 observed.append("tally")
 
+            def test_a_combined_contest_weighted_voting(self):
+                observed.append("weighted")
+
             def test_8_native_archive_preserves_crypto_and_results(self):
                 self.fail("Archive recovery is outside this ceremony run")
 
@@ -78,9 +81,11 @@ class RunnerContracts(DriverOutput):
             ),
         ):
             self.assertEqual(browser_driver.main(), 0)
-        self.assertEqual(observed, ["manual", "automatic", "voting", "tally"])
+        self.assertEqual(
+            observed, ["manual", "automatic", "voting", "tally", "weighted"]
+        )
         records = json.loads((self.output / "browser-journey.json").read_text())
-        self.assertEqual([r["outcome"] for r in records], ["pass"] * 4)
+        self.assertEqual([r["outcome"] for r in records], ["pass"] * 5)
 
     def test_browser_run_cannot_pass_when_manual_ceremony_is_skipped(self):
         browser_driver = importlib.import_module("scripts.e2e.journeys.browser_journey")
@@ -88,6 +93,30 @@ class RunnerContracts(DriverOutput):
         class Journeys(unittest.TestCase):
             @unittest.skip("browser ceremony prerequisite unavailable")
             def test_b_manual_key_ceremony_and_tally(self):
+                pass
+
+            def test_a_combined_contest_weighted_voting(self):
+                pass
+
+        with (
+            patch.object(browser_driver, "BackendJourneys", Journeys),
+            patch.object(browser_driver, "OUTPUT", self.output),
+            patch.dict(
+                browser_driver.ENV,
+                {"STEP_E2E_BROWSER_TRUSTEES_URL": "https://browser.invalid"},
+            ),
+        ):
+            self.assertEqual(browser_driver.main(), 1)
+
+    def test_browser_run_cannot_pass_when_weighted_voting_is_skipped(self):
+        browser_driver = importlib.import_module("scripts.e2e.journeys.browser_journey")
+
+        class Journeys(unittest.TestCase):
+            def test_b_manual_key_ceremony_and_tally(self):
+                pass
+
+            @unittest.skip("weighted voting prerequisite unavailable")
+            def test_a_combined_contest_weighted_voting(self):
                 pass
 
         with (

@@ -23,7 +23,11 @@ def main():
         if test._testMethodName < "test_8"
     ]
     suite = unittest.TestSuite(
-        [BackendJourneys("test_b_manual_key_ceremony_and_tally"), *automatic]
+        [
+            BackendJourneys("test_b_manual_key_ceremony_and_tally"),
+            *automatic,
+            BackendJourneys("test_a_combined_contest_weighted_voting"),
+        ]
     )
     result = unittest.TextTestRunner(verbosity=2, resultclass=JourneyResult).run(suite)
     (OUTPUT / "browser-journey.json").write_text(json.dumps(result.records, indent=2))

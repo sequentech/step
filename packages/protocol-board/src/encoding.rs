@@ -163,6 +163,25 @@ impl fmt::Display for HashHex {
     }
 }
 
+impl serde::Serialize for HashHex {
+    fn serialize<S: serde::Serializer>(
+        &self,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for HashHex {
+    fn deserialize<D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Self, D::Error> {
+        let encoded =
+            <String as serde::Deserialize>::deserialize(deserializer)?;
+        Self::parse(&encoded).map_err(serde::de::Error::custom)
+    }
+}
+
 /// The 30 bytes a plaintext element encodes: what a voter's client packed into
 /// one ballot, as the trustees decrypted it.
 pub type ElementPayload = [u8; 30];

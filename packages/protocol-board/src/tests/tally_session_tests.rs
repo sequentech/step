@@ -49,6 +49,9 @@ use crate::tally_view::TallyView;
 use crate::view::DkgStatus;
 use crate::{Ctx, Element};
 
+#[path = "verification_tests.rs"]
+mod verification_tests;
+
 /// Rounds of every trustee taking a cycle before a tally is given up on.
 const MAX_ROUNDS: usize = 50;
 

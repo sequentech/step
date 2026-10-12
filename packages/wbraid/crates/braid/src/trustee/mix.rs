@@ -250,7 +250,7 @@ impl<C: Context> Trustee<C> {
 /// every verifier before the proof is fixed, and the datalog errors on two
 /// mixes sharing an input, so this is a deterministic, agreed, per-instance
 /// domain separator.
-fn shuffle_generators_seed(
+pub(crate) fn shuffle_generators_seed(
     cfg_hash: &ConfigurationHash,
     tally_id: u128,
     input: &CiphertextsHash,
@@ -263,7 +263,7 @@ fn shuffle_generators_seed(
 /// Fiat–Shamir label for a shuffle proof, bound to the tally-scoped label and
 /// the input hash like the generator seed so the mixer and every verifier
 /// derive an identical context.
-fn shuffle_proof_label(
+pub(crate) fn shuffle_proof_label(
     cfg_hash: &ConfigurationHash,
     tally_id: u128,
     input: &CiphertextsHash,

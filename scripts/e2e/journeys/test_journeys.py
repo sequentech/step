@@ -80,6 +80,93 @@ class BackendJourneys(unittest.TestCase):
     def passed(self, journey):
         self.state.passed.add(journey)
 
+    def verify_public_transcripts(self, event_id, ballot_ciphertexts=None):
+        """An anonymous Chromium observer verifies all real public proofs."""
+        controller = ENV.get("STEP_E2E_BROWSER_TRUSTEES_URL")
+        if not controller:
+            return
+        boards = self.admin.query(
+            """query ($event: uuid!) {
+              sequent_backend_protocol_board(where: {election_event_id: {_eq: $event}}) {
+                id name parent_id manager_message
+              }
+            }""",
+            {"event": event_id},
+        )["sequent_backend_protocol_board"]
+        parents = {b["id"]: b for b in boards if b["parent_id"] is None}
+        self.assertTrue(parents)
+        children = [b for b in boards if b["parent_id"] is not None]
+        self.assertTrue(children)
+        inclusion_checked = False
+
+        def encoded(message):
+            self.assertTrue(message.startswith("\\x"))
+            return base64.b64encode(bytes.fromhex(message[2:])).decode()
+
+        for child in children:
+            parent = parents[child["parent_id"]]
+            anchors = {
+                "tally_id": str(uuid.UUID(child["id"]).int),
+                "ballot_ciphertexts": [],
+            }
+            result = Http().request(
+                "POST",
+                controller + "/verify",
+                json_body={
+                    "boardUrl": B4_URL,
+                    "dkgBoard": parent["name"],
+                    "tallyBoard": child["name"],
+                    "configurationMessage": encoded(parent["manager_message"]),
+                    "ballotsMessage": encoded(child["manager_message"]),
+                    "anchors": anchors,
+                },
+            )
+            self.assertEqual(result.status, 200, result.text)
+            result = result.json()
+            self.assertEqual(result["report"]["status"], "verified", result["report"])
+            self.assertEqual(
+                result["report"]["ballot_count"], len(result["report"]["plaintexts"])
+            )
+            self.assertEqual(result["wrongAnchor"]["status"], "invalid")
+            self.assertEqual(result["truncated"]["status"], "incomplete")
+            if ballot_ciphertexts and result["report"]["ballot_count"]:
+                anchors["ballot_ciphertexts"] = ballot_ciphertexts
+                response = Http().request(
+                    "POST",
+                    controller + "/verify",
+                    json_body={
+                        "boardUrl": B4_URL,
+                        "dkgBoard": parent["name"],
+                        "tallyBoard": child["name"],
+                        "configurationMessage": encoded(parent["manager_message"]),
+                        "ballotsMessage": encoded(child["manager_message"]),
+                        "anchors": anchors,
+                    },
+                )
+                self.assertEqual(response.status, 200, response.text)
+                result = response.json()
+                self.assertEqual(
+                    result["report"]["status"], "verified", result["report"]
+                )
+                self.assertTrue(
+                    all(
+                        b["occurrences"] == 1
+                        for b in result["report"]["ballot_inclusions"]
+                    )
+                )
+                inclusion_checked = True
+            evidence = OUTPUT / "public-verifier" / child["name"]
+            evidence.mkdir(parents=True, exist_ok=True)
+            for name in ("transcript", "anchors", "report"):
+                (evidence / f"{name}.json").write_text(
+                    json.dumps(result[name], indent=2)
+                )
+        if ballot_ciphertexts:
+            self.assertTrue(
+                inclusion_checked,
+                "the cast ballot must occur in a nonempty verified batch",
+            )
+
     def step(self, *args, **kwargs):
         """Run an administrator command with a fresh login (gold operations need one)."""
         bootstrap.configure_step_cli(self.cli)
@@ -804,6 +891,7 @@ class BackendJourneys(unittest.TestCase):
             self.assertEqual(contest["total_valid_votes"], sum(expected.values()))
             self.assertEqual(contest["total_votes"], sum(expected.values()))
         self.wait_for_log(self.state.event_id, {"TallyClose": 1})
+        self.verify_public_transcripts(self.state.event_id)
         self.passed("journey 7")
 
     def test_7b_tally_counts_voters_listed_by_election_id(self):
@@ -1221,6 +1309,7 @@ class BackendJourneys(unittest.TestCase):
         self.assertEqual(
             by_name, {"Alice": 3, "Bob": 5, "Carol": 0, "Dave": 3, "Erin": 5}
         )
+        self.verify_public_transcripts(event_id)
 
     def test_b_manual_key_ceremony_and_tally(self):
         """Each trustee proves local custody before publication and a manual tally."""
@@ -1501,9 +1590,28 @@ class BackendJourneys(unittest.TestCase):
             style["public_key"]["configuration_id"], str(uuid.UUID(ceremony_id).int)
         )
         ballot = portal.encrypt(style, "Alice")
+        locate_query = """query ($event: uuid!, $election: uuid!, $ballot: String!) {
+          locate_ballot(election_event_id: $event, election_id: $election, ballot_id: $ballot) {
+            status ballot_id content
+          }
+        }"""
+        locate_variables = {
+            "event": event_id,
+            "election": ballot["electionId"],
+            "ballot": ballot["ballotId"],
+        }
+        voter_api = Hasura(token=token)
+        self.assertEqual(
+            voter_api.query(locate_query, locate_variables)["locate_ballot"]["status"],
+            "not-found",
+        )
         receipt, errors = portal.cast(token, ballot)
         self.assertIsNone(errors)
         self.assertEqual(receipt["ballot_id"], ballot["ballotId"])
+        located = voter_api.query(locate_query, locate_variables)["locate_ballot"]
+        self.assertEqual(located["status"], "found")
+        self.assertEqual(located["ballot_id"], ballot["ballotId"])
+        self.assertEqual(json.loads(located["content"]), json.loads(ballot["content"]))
         self.step(
             "update-event-voting-status",
             "--election-event-id",
@@ -1600,4 +1708,6 @@ class BackendJourneys(unittest.TestCase):
                 self.assertTrue(
                     any(board.startswith("tally_") for board in status["boards"])
                 )
+            cast_content = json.loads(ballot["content"])
+            self.verify_public_transcripts(event_id, cast_content["contests"])
         self.passed("manual ceremony")

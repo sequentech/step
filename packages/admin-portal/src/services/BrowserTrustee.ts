@@ -19,12 +19,34 @@ export interface TrusteeEngine {
     restoreBackup(contents: string): Promise<string>
     free(): void
 }
+export interface VerificationAnchors {
+    configuration_hash: string
+    tally_id: string | null
+    ballots_hash?: string | null
+    ballot_ciphertexts?: string[]
+}
+export interface PublicVerificationReport {
+    status: "verified" | "incomplete" | "invalid"
+    detail: string
+    configuration_hash: string
+    tally_id: string | null
+    public_key_hash: string | null
+    ballot_count: number | null
+    plaintexts: string[]
+    ballot_inclusions: {ciphertext_hash: string; occurrences: number}[]
+}
 interface TrusteeModule {
     default(options: {module_or_path: string}): Promise<unknown>
     initThreadPool(threads: number): Promise<void>
     BrowserTrustee: {
         new (name: string, keys: string, boardUrl: string): TrusteeEngine
         generateKeys(): string
+    }
+    WasmVerifier: {
+        fetchTranscript(boardUrl: string, dkgBoard: string, tallyBoard?: string): Promise<string>
+        verifyTranscript(evidence: string, anchors: string): string
+        configurationHash(trustedConfigurationMessage: string): string
+        ballotsHash(trustedBallotsMessage: string): string
     }
 }
 let loading: Promise<TrusteeModule> | undefined

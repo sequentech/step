@@ -139,3 +139,7 @@ ballot publication, voting admission, revotes and grace-period checks. Reports a
 `.cache/backend-e2e/<project>/browser-journey.json`. `--skip-images --skip-build`
 reuses prebuilt backend fixtures; browser bindings must already match the source.
 The runner cleans up only its own stack and controller.
+
+[Public ceremony and tally verification](./public-verification.md) describes
+the independent native and browser verifier, public exports, trust anchors and
+the distinction between ballot tracking and tally-input inclusion.

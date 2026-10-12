@@ -14,6 +14,7 @@ mod daemon;
 mod identity;
 mod login;
 mod platform;
+mod verify;
 
 use std::env;
 use std::path::PathBuf;
@@ -43,6 +44,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Verify a public DKG/tally transcript without trustee keys.
+    Verify(verify::Verify),
     /// Print both public keys of an existing local keys file as JSON.
     PublicKeys {
         #[arg(long)]
@@ -82,6 +85,7 @@ enum Command {
 
 fn main() -> Result<()> {
     match Cli::parse().command {
+        Command::Verify(verify) => verify.run(),
         Command::PublicKeys { trustee_config } => {
             let keys = identity::load(&trustee_config)?.public_keys()?;
             println!(
