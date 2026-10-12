@@ -77,7 +77,7 @@ use zip::read::ZipArchive;
 const KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY: &str =
     "KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY";
 
-use super::import_users::import_users_file;
+use super::import_users::{import_users_file, ImportUsersPrivileges};
 use crate::postgres;
 use crate::postgres::area::insert_areas;
 use crate::postgres::area_contest::insert_area_contests;
@@ -233,6 +233,7 @@ pub async fn read_default_election_event_realm() -> Result<RealmRepresentation> 
 #[instrument(skip(realm))]
 pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<RealmRepresentation> {
     let mut realm_copy = realm.clone();
+    super::realm_identity_providers::remove_demo_identity_providers(&mut realm_copy);
 
     // Collect well-known clients and their secrets to set.
     let keycloak_client_id = env::var("KEYCLOAK_CLIENT_ID")
@@ -945,6 +946,7 @@ async fn process_voters_file(
     is_admin: bool,
     may_write_secret_attributes: bool,
     secret_write_initiator: Option<&ElectoralLogAdminContext>,
+    privileges: ImportUsersPrivileges,
 ) -> Result<()> {
     let separator = if file_name.ends_with(".tsv") {
         b'\t'
@@ -961,6 +963,7 @@ async fn process_voters_file(
         is_admin,
         may_write_secret_attributes,
         secret_write_initiator,
+        privileges,
     )
     .await
     .map_err(|err| anyhow!("Error importing users file: {err}"))?;
@@ -1352,6 +1355,7 @@ pub async fn process_document(
 
     let may_write_secret_attributes = object.may_write_secret_attributes;
     let secret_write_initiator = object.secret_write_initiator.clone();
+    let privileges = object.privileges;
     let (election_event_schema, replacement_map) = process_election_event_file(
         hasura_transaction,
         &document_type,
@@ -1409,6 +1413,7 @@ pub async fn process_document(
                     false,
                     may_write_secret_attributes,
                     secret_write_initiator.as_ref(),
+                    privileges,
                 )
                 .await
                 .context("Failed to import voters")?;
