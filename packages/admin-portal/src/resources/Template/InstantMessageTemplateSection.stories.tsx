@@ -79,7 +79,7 @@ const meta = {
     },
     beforeEach: async ({args}) => {
         graphql = graphqlBoundary({
-            GetMessagingAccounts: () => ({
+            GetMessagingAccountSummaries: () => ({
                 data: {
                     sequent_backend_messaging_account: args.withAccount
                         ? [
