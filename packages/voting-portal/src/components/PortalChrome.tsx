@@ -158,7 +158,12 @@ const HeaderWithContext: React.FC = () => {
                           {
                               id: "contact-method",
                               label: t("contactChannel.change"),
-                              icon: <ContactPhoneOutlinedIcon aria-hidden />,
+                              icon: (
+                                  <ContactPhoneOutlinedIcon
+                                      className="contact-method-icon"
+                                      aria-hidden
+                                  />
+                              ),
                               onSelect: () => void changeContactChannel(),
                           },
                       ]
