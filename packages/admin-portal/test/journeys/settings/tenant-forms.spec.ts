@@ -43,7 +43,9 @@ test("saves the Google Calendar integration key and email", async ({page, portal
     await save.click()
     await commitUndoable(page, portal, "update_sequent_backend_tenant")
     await expect(save).toBeDisabled()
-    expect(portal.graphql.callsTo("SetGoogleServiceAccountKey").map(({variables}) => variables)).toEqual([
+    expect(
+        portal.graphql.callsTo("SetGoogleServiceAccountKey").map(({variables}) => variables)
+    ).toEqual([
         {serviceAccountKey: {type: "service_account", client_email: "calendar@synthetic.example"}},
     ])
     expect(tenant.updates()).toEqual([
@@ -59,7 +61,10 @@ test("saves the Google Calendar integration key and email", async ({page, portal
     ])
 })
 
-test("clears the integration email while a blank key leaves the stored key unchanged", async ({page, portal}) => {
+test("clears the integration email while a blank key leaves the stored key unchanged", async ({
+    page,
+    portal,
+}) => {
     const tenant = mockTenant(
         portal,
         tenantRow({
@@ -81,7 +86,10 @@ test("clears the integration email while a blank key leaves the stored key uncha
     await page.getByRole("button", {name: "Save", exact: true}).click()
     await commitUndoable(page, portal, "update_sequent_backend_tenant")
     expect(tenant.updates()).toEqual([
-        {_set: {settings: {language_conf: LANGUAGE_CONF, gapi_key: {type: "service_account"}}}, where: TENANT_WHERE},
+        {
+            _set: {settings: {language_conf: LANGUAGE_CONF, gapi_key: {type: "service_account"}}},
+            where: TENANT_WHERE,
+        },
     ])
 })
 
