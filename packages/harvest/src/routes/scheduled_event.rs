@@ -17,6 +17,9 @@ use rocket::serde::json::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::instrument;
+use uuid::Uuid;
+use windmill::postgres::messaging::record_bulk_send;
+use windmill::services::database::get_hasura_pool;
 use windmill::services::electoral_log::{
     post_voter_secret_attribute_audit, ElectoralLogAdminContext,
     VoterSecretAttributeAction, VoterSecretAttributeAudit,
@@ -38,6 +41,56 @@ pub struct CreateEventOutput {
     pub id: String,
 }
 
+/// Stores the send's payload as a stopped, archived `SEND_TEMPLATE`
+/// scheduled event and returns the payload with its `send_id`.
+async fn record_send(
+    input: &CreateEventBody,
+    claims: &JwtClaims,
+) -> Result<Value, (Status, String)> {
+    let internal = |error: anyhow::Error| {
+        tracing::error!("could not record the send: {error:#}");
+        (
+            Status::InternalServerError,
+            "could not record the send".to_string(),
+        )
+    };
+    let tenant_id = Uuid::parse_str(&input.tenant_id)
+        .map_err(|_| (Status::BadRequest, "invalid tenant_id".to_string()))?;
+    let election_event_id = input
+        .election_event_id
+        .as_deref()
+        .map(Uuid::parse_str)
+        .transpose()
+        .map_err(|_| {
+            (Status::BadRequest, "invalid election_event_id".to_string())
+        })?;
+    let mut client = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|error| internal(anyhow::anyhow!("{error}")))?;
+    let tx = client
+        .transaction()
+        .await
+        .map_err(|error| internal(error.into()))?;
+    let send_id = record_bulk_send(
+        &tx,
+        &tenant_id,
+        election_event_id.as_ref(),
+        Some(&claims.hasura_claims.user_id),
+        &input.event_payload,
+    )
+    .await
+    .map_err(internal)?;
+    tx.commit().await.map_err(|error| internal(error.into()))?;
+    let mut payload = input.event_payload.clone();
+    if let Some(object) = payload.as_object_mut() {
+        object
+            .insert("send_id".to_string(), Value::String(send_id.to_string()));
+    }
+    Ok(payload)
+}
+
 fn authorize_create_report(
     claims: &JwtClaims,
     input: &CreateEventBody,
@@ -56,7 +109,7 @@ pub async fn create_scheduled_event(
     body: Json<CreateEventBody>,
     claims: JwtClaims,
 ) -> Result<Json<CreateEventOutput>, (Status, String)> {
-    let input = body.into_inner();
+    let mut input = body.into_inner();
     match input.event_processor.clone() {
         EventProcessors::SEND_TEMPLATE => {
             authorize(
@@ -74,6 +127,10 @@ pub async fn create_scheduled_event(
                     format!("Invalid send-template payload: {error}"),
                 )
             })?;
+            // Refused here, with a 400, rather than when the task runs.
+            if let Some(reason) = payload.audience_refusal() {
+                return Err((Status::BadRequest, reason.to_string()));
+            }
             if !payload.secret_attribute_names.is_empty() {
                 authorize(
                     &claims,
@@ -109,6 +166,10 @@ pub async fn create_scheduled_event(
                     )
                 })?;
             }
+            // What the administrator sent is kept, so a notice that fails
+            // for a moment is sent again with that content, never with the
+            // template as stored now. Its ID is the send's ID.
+            input.event_payload = record_send(&input, &claims).await?;
         }
         EventProcessors::CREATE_REPORT => {
             authorize_create_report(&claims, &input)?;

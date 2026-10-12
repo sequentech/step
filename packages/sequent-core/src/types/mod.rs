@@ -4,6 +4,7 @@
 
 pub mod ceremonies;
 pub mod date_time;
+pub mod dial_codes;
 pub mod error;
 #[cfg(feature = "default_features")]
 pub mod hasura;
@@ -21,5 +22,6 @@ pub mod tally_sheet_import;
 pub mod tally_sheets;
 #[cfg(feature = "reports")]
 pub mod templates;
+pub mod voter_channel;
 
 pub mod to_map;

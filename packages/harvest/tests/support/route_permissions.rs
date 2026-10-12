@@ -27,7 +27,7 @@ const AREA_ID: &str = "test-area";
 const USERNAME: &str = "test-username";
 const VOTING_PORTAL_CLIENT: &str = "voting-portal";
 // Some routes parse these ids as UUIDs before reaching a backend.
-const UUID_TENANT_ID: &str = "00000000-0000-0000-0000-00000000000a";
+pub(super) const UUID_TENANT_ID: &str = "00000000-0000-0000-0000-00000000000a";
 const UUID_EVENT_ID: &str = "00000000-0000-0000-0000-00000000000e";
 const ELECTION_ID: &str = "00000000-0000-0000-0000-000000000001";
 const PEM: &str =
@@ -174,6 +174,7 @@ fn cases() -> Vec<Case> {
         case!(UuidTenant, "/preview-schedule-import", {"election_event_id": UUID_EVENT_ID, "document_id": ELECTION_ID}, [SCHEDULED_EVENT_WRITE], BACKEND, UNAUTHORIZED),
         case!(UuidTenant, "/preview-scheduled-outcome-change", {"election_event_id": UUID_EVENT_ID, "change": {"policies": {"initialization_scope": "post", "unsigned_scheduled_close": "refuse"}}}, [ELECTION_EVENT_READ], BACKEND, UNAUTHORIZED_JSON),
         case!(UuidTenant, "/save-lifecycle-policies", {"election_event_id": UUID_EVENT_ID, "policies": {"initialization_scope": "post-and-country", "unsigned_scheduled_close": "refuse"}}, [ELECTION_EVENT_WRITE], BACKEND, UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/applications/support-reference", {"election_event_id": UUID_EVENT_ID, "reference": "65SR-MSSD"}, [APPLICATION_READ], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/apply-reconciliation-changes", {"election_event_id": EVENT_ID, "diff_document_id": "test-document"}, [ELECTION_EVENT_VOTER_LIST_SYNC], BACKEND, FORBIDDEN),
         case!(Voter, "/cast-ballot", {"ballot_id": "FTBE-MHRX", "election_id": ELECTION_ID, "cast_signature": "test-signature"}, [CAST_VOTE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/change-application-status", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "id": "test-application", "user_id": USER_ID}, [APPLICATION_WRITE], BACKEND, UNAUTHORIZED_JSON),
@@ -307,16 +308,38 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/list-user-roles", {"tenant_id": TENANT_ID, "election_event_id": UUID_EVENT_ID, "user_id": USER_ID}, [VOTER_READ, ROLE_READ], BACKEND_TEXT, UNAUTHORIZED),
         case!(Voter, "/locate-ballot", {"election_event_id": EVENT_ID, "election_id": ELECTION_ID, "ballot_id": "0abc12"}, [CAST_VOTE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/manage-election-dates", {"election_event_id": EVENT_ID, "event_processor": "START_VOTING_PERIOD"}, [SCHEDULED_EVENT_WRITE], BACKEND, UNAUTHORIZED_JSON),
-        case!(UuidTenant, "/messages/link", {"tenant_id": UUID_TENANT_ID, "election_event_id": UUID_EVENT_ID, "auth_session": "s", "challenge": "c", "code": "123456", "language": "en", "content": {"text": "123456", "template_parameters": []}, "expires_at": "2099-01-01T00:00:00Z"}, [SERVICE_ACCOUNT], BACKEND, UNAUTHORIZED),
-        case!(UuidTenant, "/messages/link/confirm", {"tenant_id": UUID_TENANT_ID, "reference": "r", "auth_session": "s", "challenge": "c"}, [SERVICE_ACCOUNT], BACKEND, UNAUTHORIZED),
-        case!(UuidTenant, "/messages/link/status", {"tenant_id": UUID_TENANT_ID, "reference": "r", "auth_session": "s", "challenge": "c"}, [SERVICE_ACCOUNT], BACKEND, UNAUTHORIZED),
-        case!(UuidTenant, "/messages/send", {"tenant_id": UUID_TENANT_ID, "election_event_id": UUID_EVENT_ID, "voter_id": USER_ID, "channel": "SMS", "purpose": "NOTICE", "destination": "+34600000000", "language": "en", "content": {"text": "hello", "template_parameters": []}, "logical_key": "k"}, [SERVICE_ACCOUNT], BACKEND, UNAUTHORIZED),
-        case!(UuidTenant, "/messaging/accounts/check", {"id": ELECTION_ID}, [MESSAGING_ACCOUNT_WRITE], BACKEND, UNAUTHORIZED),
-        case!(UuidTenant, "/messaging/accounts/credentials", {"id": ELECTION_ID, "credentials": {}}, [MESSAGING_ACCOUNT_WRITE], BACKEND, UNAUTHORIZED),
-        case!(UuidTenant, "/messaging/accounts/delete", {"id": ELECTION_ID}, [MESSAGING_ACCOUNT_WRITE], BACKEND, UNAUTHORIZED),
-        case!(UuidTenant, "/messaging/accounts/test", {"id": ELECTION_ID, "purpose": "NOTICE", "destination": "+34600000000"}, [MESSAGING_ACCOUNT_WRITE], BACKEND, UNAUTHORIZED),
-        case!(UuidTenant, "/messaging/accounts/upsert", {"name": "SMS", "sender": {"provider": "AWS_SNS", "sender_id": null, "origination_number": null, "region": null}}, [MESSAGING_ACCOUNT_WRITE], BACKEND, UNAUTHORIZED),
+        // Only a token its tenant realm signed passes (service_auth tests);
+        // an unsigned one never does, whatever roles it names.
+        case!(UuidTenant, "/messages/link", {"tenant_id": UUID_TENANT_ID, "election_event_id": UUID_EVENT_ID, "auth_session": "s", "challenge": "c", "code": "123456", "language": "en", "content": {"text": "123456", "template_parameters": []}, "expires_at": "2099-01-01T00:00:00Z"}, [], UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/messages/link/confirm", {"tenant_id": UUID_TENANT_ID, "reference": "r", "auth_session": "s", "challenge": "c"}, [], UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/messages/link/status", {"tenant_id": UUID_TENANT_ID, "reference": "r", "auth_session": "s", "challenge": "c"}, [], UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/messages/send", {"tenant_id": UUID_TENANT_ID, "election_event_id": UUID_EVENT_ID, "voter_id": USER_ID, "channel": "SMS", "purpose": "NOTICE", "destination": "+34600000000", "language": "en", "content": {"text": "hello", "template_parameters": []}, "logical_key": "k"}, [], UNAUTHORIZED_JSON),
+        case!(
+            UuidTenant,
+            "/messaging/accounts/callback-status",
+            {},
+            [MESSAGING_CONFIG_READ],
+            BACKEND,
+            UNAUTHORIZED_JSON
+        ),
+        case!(UuidTenant, "/messaging/accounts/callback-url", {"id": ELECTION_ID}, [MESSAGING_ACCOUNT_WRITE], BACKEND, UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/messaging/accounts/change-impact", {"account_id": ELECTION_ID}, [MESSAGING_ACCOUNT_WRITE], BACKEND, UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/messaging/accounts/check", {"id": ELECTION_ID}, [MESSAGING_ACCOUNT_WRITE], BACKEND, UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/messaging/accounts/credentials", {"id": ELECTION_ID, "credentials": {}}, [MESSAGING_ACCOUNT_WRITE], BACKEND, UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/messaging/accounts/delete", {"id": ELECTION_ID}, [MESSAGING_ACCOUNT_WRITE], BACKEND, UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/messaging/accounts/test", {"id": ELECTION_ID, "purpose": "NOTICE", "destination": "+34600000000"}, [MESSAGING_ACCOUNT_WRITE], BACKEND, UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/messaging/accounts/upsert", {"name": "SMS", "sender": {"provider": "AWS_SNS", "sender_id": null, "origination_number": null, "region": null}}, [MESSAGING_ACCOUNT_WRITE], BACKEND, UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/messaging/audience-preview", {"election_event_id": UUID_EVENT_ID, "audience_selection": "ALL_USERS"}, [MESSAGING_CONFIG_READ], BACKEND, UNAUTHORIZED_JSON),
+        // Signed by the webhook component's relay secret, never by claims:
+        // any bearer is refused before the body is read.
+        case!(Admin, "/messaging/callbacks", {}, [], UNAUTHORIZED_JSON),
         case!(UuidTenant, "/messaging/event-config", {"election_event_id": UUID_EVENT_ID, "config": {"version": 1}}, [MESSAGING_CONFIG_WRITE], BACKEND, UNAUTHORIZED),
+        case!(UuidTenant, "/messaging/event-stats", {"election_event_id": UUID_EVENT_ID}, [MESSAGING_CONFIG_READ], BACKEND, UNAUTHORIZED_JSON),
+        // Either read permission is enough.
+        case!(UuidTenant, "/messaging/monthly-volumes", {"month": "2026-10"}, [MESSAGING_ACCOUNT_READ], BACKEND, UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/messaging/monthly-volumes", {"month": "2026-10"}, [MESSAGING_CONFIG_READ], BACKEND, UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/messaging/voter-counts", {"election_event_id": UUID_EVENT_ID}, [MESSAGING_CONFIG_READ], BACKEND, UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/messaging/recount-voters", {"election_event_id": UUID_EVENT_ID}, [MESSAGING_CONFIG_READ], BACKEND, UNAUTHORIZED_JSON),
         // The task row is written before the permission check.
         case!(Admin, "/miru/create-transmission-package", {"election_event_id": EVENT_ID, "election_id": "test-election", "area_id": AREA_ID, "tally_session_id": "test-session", "force": false}, [MIRU_CREATE], BACKEND, BACKEND),
         case!(Admin, "/miru/send-transmission-package", {"election_id": "test-election", "area_id": AREA_ID, "tally_session_id": "test-session"}, [MIRU_SEND], BACKEND, UNAUTHORIZED),
@@ -352,7 +375,8 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/review-tally-sheet-import", {"election_event_id": EVENT_ID, "import_id": "test-import", "decision": "DISAPPROVE"}, [TALLY_SHEET_IMPORT_REVIEW], BACKEND, UNAUTHORIZED),
         case!(Admin, "/revoke-results-publication", {"election_event_id": EVENT_ID, "publication_id": "test-publication"}, [PUBLISH_RESULTS_WRITE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/save-approval-matrix", {"election_event_id": EVENT_ID, "matrix": {"compared_fields": ["firstName"], "rules": [], "otherwise": {"decision": "REJECTED", "reason": "NO_VOTER"}}}, [APPROVAL_MATRIX_WRITE], BACKEND, UNAUTHORIZED_JSON),
-        case!(Admin, "/scheduled-event", {"tenant_id": TENANT_ID, "event_processor": "SEND_TEMPLATE", "event_payload": {}}, [NOTIFICATION_SEND], BACKEND, UNAUTHORIZED),
+        // A valid send: it reaches the backend, which records what is sent.
+        case!(UuidTenant, "/scheduled-event", {"tenant_id": UUID_TENANT_ID, "event_processor": "SEND_TEMPLATE", "event_payload": {"audience_selection": "ALL_USERS"}}, [NOTIFICATION_SEND], BACKEND, UNAUTHORIZED),
         case!(Admin, "/scheduled-event", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "event_processor": "CREATE_REPORT", "event_payload": {}}, [REPORT_GENERATE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/scheduled-event", {"tenant_id": OTHER_TENANT_ID, "election_event_id": EVENT_ID, "event_processor": "CREATE_REPORT", "event_payload": {}}, [REPORT_GENERATE], UNAUTHORIZED, UNAUTHORIZED),
         // The other processors are not authorized, and only return an id.

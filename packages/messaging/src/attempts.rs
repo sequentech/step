@@ -3,21 +3,29 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Decisions about delivery attempts of one logical message: whether to
-//! send, wait, retry or fall back. Attempts are persisted before dispatch,
-//! so a replayed job sees what an earlier run did.
+//! send, wait or stop. Attempts are persisted before dispatch, so a
+//! replayed job sees what an earlier run did. A message only ever goes to
+//! its one channel: there is no fallback to another one.
 
 use crate::sender::FailureKind;
-use chrono::Duration;
-use sequent_core::types::messaging::{MessageAttemptState, MessageChannel, MessagePurpose};
+use chrono::{DateTime, Duration, Utc};
+use sequent_core::types::messaging::{
+    MessageAttemptState, MessageChannel, MessagePurpose, LATE_FAILURE_RETRY_HOURS,
+};
 
 /// What the ledger holds about one earlier attempt.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AttemptRecord {
     pub attempt: i32,
-    pub channel: MessageChannel,
+    /// `None` for a message recorded without any channel ("No contact
+    /// channel"), which is never retried.
+    pub channel: Option<MessageChannel>,
     pub state: MessageAttemptState,
     /// For failed attempts.
     pub failure: Option<FailureKind>,
+    /// For transient failures that will be retried: when the next attempt
+    /// is due. `None` when no retry is scheduled.
+    pub next_retry_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -32,46 +40,57 @@ pub enum Dispatch {
     /// An earlier attempt may have reached the provider. Reconcile before
     /// anything else; never resend blindly.
     AwaitReconciliation,
-    /// Retry the same channel after `after`.
-    RetryLater { after: Duration },
-    /// Nothing more to try.
+    /// A retry on the same channel is scheduled for `at`; nothing is sent
+    /// before then.
+    RetryLater { at: DateTime<Utc> },
+    /// Nothing more to try: the last attempt's failure is final.
     GiveUp,
 }
 
-/// Transient failures on one channel are retried this many times in total.
-pub const MAX_TRANSIENT_ATTEMPTS_PER_CHANNEL: usize = 3;
+/// A message is tried at most this many times, all on its one channel.
+pub const MAX_ATTEMPTS: i32 = 3;
 
-fn backoff(failures: usize) -> Duration {
-    match failures {
-        0 | 1 => Duration::seconds(30),
-        2 => Duration::minutes(2),
-        _ => Duration::minutes(10),
+/// The wait after a transient failure of attempt `attempt`, before the next
+/// one: 1 minute after the first, 5 minutes after the second. The third
+/// failure is final.
+pub fn backoff(attempt: i32) -> Option<Duration> {
+    match attempt {
+        1 => Some(Duration::minutes(1)),
+        2 => Some(Duration::minutes(5)),
+        _ => None,
     }
 }
 
-/// Where a notice may go next.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NoticeRoute<'a> {
-    /// The voter's channel, or the single channel of the send.
-    pub first: MessageChannel,
-    /// The event's notice fallback order.
-    pub fallback: &'a [MessageChannel],
-    /// Channels the voter verified.
-    pub verified: &'a [MessageChannel],
-    /// Channels the event and the voter's election offer for notices.
-    pub eligible: &'a [MessageChannel],
+/// When the attempt after `attempt` is due, if a failure of `kind` at `now`
+/// is to be retried. Codes are never retried: the voter asks for another
+/// code, and Keycloak issues a new challenge.
+pub fn next_retry_at(
+    purpose: MessagePurpose,
+    attempt: i32,
+    kind: FailureKind,
+    now: DateTime<Utc>,
+) -> Option<DateTime<Utc>> {
+    if purpose == MessagePurpose::OTP || kind != FailureKind::TRANSIENT {
+        return None;
+    }
+    backoff(attempt).map(|wait| now + wait)
 }
 
-/// Decides the next step for a logical message given its attempts so far.
-///
-/// Codes are never retried or moved to another channel here: the voter
-/// asks for another code explicitly, and Keycloak issues a new challenge.
+/// Whether a failure reported at `now` for an attempt made at
+/// `attempted_at` came too late to be retried: sent again so late, the
+/// message could reach the voter after it stopped being useful.
+pub fn reported_too_late(attempted_at: DateTime<Utc>, now: DateTime<Utc>) -> bool {
+    now - attempted_at >= Duration::hours(LATE_FAILURE_RETRY_HOURS)
+}
+
+/// Decides the next step for a logical message on `channel`, given its
+/// attempts so far, at `now`.
 pub fn decide(
     purpose: MessagePurpose,
-    route: &NoticeRoute<'_>,
+    channel: MessageChannel,
     attempts: &[AttemptRecord],
+    now: DateTime<Utc>,
 ) -> Dispatch {
-    let next_attempt = attempts.iter().map(|a| a.attempt).max().unwrap_or(0) + 1;
     if attempts.iter().any(|a| {
         matches!(
             a.state,
@@ -89,55 +108,30 @@ pub fn decide(
         return Dispatch::AwaitReconciliation;
     }
     let Some(last) = attempts.iter().max_by_key(|a| a.attempt) else {
-        return if route.eligible.contains(&route.first) {
-            Dispatch::Send {
-                attempt: next_attempt,
-                channel: route.first,
-            }
-        } else {
-            next_fallback(purpose, route, attempts, next_attempt)
+        return Dispatch::Send {
+            attempt: 1,
+            channel,
         };
     };
-    if purpose == MessagePurpose::OTP {
+    if purpose == MessagePurpose::OTP
+        || last.failure != Some(FailureKind::TRANSIENT)
+        || last.attempt >= MAX_ATTEMPTS
+    {
         return Dispatch::GiveUp;
     }
-    if last.failure == Some(FailureKind::TRANSIENT) {
-        let failures_on_channel = attempts
-            .iter()
-            .filter(|a| a.channel == last.channel)
-            .count();
-        if failures_on_channel < MAX_TRANSIENT_ATTEMPTS_PER_CHANNEL {
-            return Dispatch::RetryLater {
-                after: backoff(failures_on_channel),
-            };
-        }
+    match (last.next_retry_at, last.channel) {
+        // The same channel as the failed attempt, whatever was asked now.
+        (Some(at), Some(channel)) if at <= now => Dispatch::Send {
+            attempt: last.attempt + 1,
+            channel,
+        },
+        // Recorded without a channel: nothing to send it on.
+        (Some(_), None) => Dispatch::GiveUp,
+        (Some(at), Some(_)) => Dispatch::RetryLater { at },
+        // No retry was scheduled, such as for a message without a stored
+        // template: its failure is final.
+        (None, _) => Dispatch::GiveUp,
     }
-    next_fallback(purpose, route, attempts, next_attempt)
-}
-
-fn next_fallback(
-    purpose: MessagePurpose,
-    route: &NoticeRoute<'_>,
-    attempts: &[AttemptRecord],
-    next_attempt: i32,
-) -> Dispatch {
-    if purpose == MessagePurpose::OTP {
-        return Dispatch::GiveUp;
-    }
-    route
-        .fallback
-        .iter()
-        .find(|channel| {
-            **channel != route.first
-                && route.verified.contains(channel)
-                && route.eligible.contains(channel)
-                && !attempts.iter().any(|a| a.channel == **channel)
-        })
-        .map(|channel| Dispatch::Send {
-            attempt: next_attempt,
-            channel: *channel,
-        })
-        .unwrap_or(Dispatch::GiveUp)
 }
 
 /// The state an attempt moves to when a provider report or reconciliation
@@ -156,39 +150,41 @@ mod tests {
     use MessageAttemptState::*;
     use MessageChannel::*;
 
+    fn now() -> DateTime<Utc> {
+        DateTime::parse_from_rfc3339("2026-10-09T12:00:00Z")
+            .unwrap()
+            .with_timezone(&Utc)
+    }
+
     fn record(attempt: i32, channel: MessageChannel, state: MessageAttemptState) -> AttemptRecord {
         AttemptRecord {
             attempt,
-            channel,
+            channel: Some(channel),
             state,
             failure: None,
+            next_retry_at: None,
         }
     }
 
-    fn failed(attempt: i32, channel: MessageChannel, kind: FailureKind) -> AttemptRecord {
+    fn failed(
+        attempt: i32,
+        channel: MessageChannel,
+        kind: FailureKind,
+        retry_in: Option<Duration>,
+    ) -> AttemptRecord {
         AttemptRecord {
             attempt,
-            channel,
+            channel: Some(channel),
             state: FAILED,
             failure: Some(kind),
-        }
-    }
-
-    const ALL: &[MessageChannel] = &[EMAIL, SMS, WHATSAPP, VIBER, MESSENGER];
-
-    fn route(first: MessageChannel) -> NoticeRoute<'static> {
-        NoticeRoute {
-            first,
-            fallback: &[VIBER, SMS, EMAIL],
-            verified: &[WHATSAPP, SMS, EMAIL],
-            eligible: ALL,
+            next_retry_at: retry_in.map(|wait| now() + wait),
         }
     }
 
     #[test]
-    fn a_new_message_is_sent_on_its_first_channel() {
+    fn a_new_message_is_sent_on_its_channel() {
         assert_eq!(
-            decide(MessagePurpose::NOTICE, &route(WHATSAPP), &[]),
+            decide(MessagePurpose::NOTICE, WHATSAPP, &[], now()),
             Dispatch::Send {
                 attempt: 1,
                 channel: WHATSAPP
@@ -202,8 +198,9 @@ mod tests {
             assert_eq!(
                 decide(
                     MessagePurpose::NOTICE,
-                    &route(WHATSAPP),
-                    &[record(1, WHATSAPP, state)]
+                    WHATSAPP,
+                    &[record(1, WHATSAPP, state)],
+                    now()
                 ),
                 Dispatch::AlreadySent
             );
@@ -215,7 +212,7 @@ mod tests {
         for state in [UNKNOWN, QUEUED] {
             for purpose in [MessagePurpose::NOTICE, MessagePurpose::OTP] {
                 assert_eq!(
-                    decide(purpose, &route(WHATSAPP), &[record(1, WHATSAPP, state)]),
+                    decide(purpose, WHATSAPP, &[record(1, WHATSAPP, state)], now()),
                     Dispatch::AwaitReconciliation
                 );
             }
@@ -223,119 +220,112 @@ mod tests {
     }
 
     #[test]
-    fn transient_failures_are_retried_with_bounded_backoff() {
-        let one = [failed(1, WHATSAPP, FailureKind::TRANSIENT)];
+    fn the_backoff_is_one_then_five_minutes_and_the_third_failure_is_final() {
+        assert_eq!(backoff(1), Some(Duration::minutes(1)));
+        assert_eq!(backoff(2), Some(Duration::minutes(5)));
+        assert_eq!(backoff(3), None);
+        let at = |attempt| {
+            next_retry_at(
+                MessagePurpose::NOTICE,
+                attempt,
+                FailureKind::TRANSIENT,
+                now(),
+            )
+        };
+        assert_eq!(at(1), Some(now() + Duration::minutes(1)));
+        assert_eq!(at(2), Some(now() + Duration::minutes(5)));
+        assert_eq!(at(3), None);
+    }
+
+    #[test]
+    fn a_transient_failure_is_retried_on_the_same_channel_only_once_due() {
+        // Not due yet: a job running now sends nothing.
+        let pending = [failed(
+            1,
+            VIBER,
+            FailureKind::TRANSIENT,
+            Some(Duration::seconds(30)),
+        )];
         assert_eq!(
-            decide(MessagePurpose::NOTICE, &route(WHATSAPP), &one),
+            decide(MessagePurpose::NOTICE, VIBER, &pending, now()),
             Dispatch::RetryLater {
-                after: Duration::seconds(30)
+                at: now() + Duration::seconds(30)
             }
         );
-        let two = [
-            failed(1, WHATSAPP, FailureKind::TRANSIENT),
-            failed(2, WHATSAPP, FailureKind::TRANSIENT),
-        ];
+        // Due: the next attempt goes to the same channel, even when asked
+        // for another one.
+        let due = [failed(
+            1,
+            VIBER,
+            FailureKind::TRANSIENT,
+            Some(Duration::zero()),
+        )];
         assert_eq!(
-            decide(MessagePurpose::NOTICE, &route(WHATSAPP), &two),
-            Dispatch::RetryLater {
-                after: Duration::minutes(2)
-            }
-        );
-        let three = [
-            failed(1, WHATSAPP, FailureKind::TRANSIENT),
-            failed(2, WHATSAPP, FailureKind::TRANSIENT),
-            failed(3, WHATSAPP, FailureKind::TRANSIENT),
-        ];
-        assert_eq!(
-            decide(MessagePurpose::NOTICE, &route(WHATSAPP), &three),
+            decide(MessagePurpose::NOTICE, SMS, &due, now()),
             Dispatch::Send {
-                attempt: 4,
-                channel: SMS
+                attempt: 2,
+                channel: VIBER
             }
         );
     }
 
     #[test]
-    fn confirmed_failures_fall_back_to_verified_eligible_channels_in_order() {
-        // VIBER is first in the fallback order but not verified.
-        let attempts = [failed(1, WHATSAPP, FailureKind::PERMANENT)];
-        assert_eq!(
-            decide(MessagePurpose::NOTICE, &route(WHATSAPP), &attempts),
-            Dispatch::Send {
-                attempt: 2,
-                channel: SMS
-            }
-        );
+    fn three_attempts_then_the_failure_is_final() {
         let attempts = [
-            failed(1, WHATSAPP, FailureKind::PERMANENT),
-            failed(2, SMS, FailureKind::PERMANENT),
+            failed(1, VIBER, FailureKind::TRANSIENT, None),
+            failed(2, VIBER, FailureKind::TRANSIENT, None),
+            failed(3, VIBER, FailureKind::TRANSIENT, Some(Duration::zero())),
         ];
         assert_eq!(
-            decide(MessagePurpose::NOTICE, &route(WHATSAPP), &attempts),
-            Dispatch::Send {
-                attempt: 3,
-                channel: EMAIL
-            }
-        );
-        let attempts = [
-            failed(1, WHATSAPP, FailureKind::PERMANENT),
-            failed(2, SMS, FailureKind::PERMANENT),
-            failed(3, EMAIL, FailureKind::PERMANENT),
-        ];
-        assert_eq!(
-            decide(MessagePurpose::NOTICE, &route(WHATSAPP), &attempts),
+            decide(MessagePurpose::NOTICE, VIBER, &attempts, now()),
             Dispatch::GiveUp
         );
     }
 
     #[test]
-    fn fallback_skips_channels_the_voters_election_does_not_offer() {
-        let route = NoticeRoute {
-            eligible: &[WHATSAPP, EMAIL],
-            ..route(WHATSAPP)
-        };
-        let attempts = [failed(1, WHATSAPP, FailureKind::PERMANENT)];
-        assert_eq!(
-            decide(MessagePurpose::NOTICE, &route, &attempts),
-            Dispatch::Send {
-                attempt: 2,
-                channel: EMAIL
-            }
-        );
+    fn permanent_failures_and_unscheduled_retries_are_final_and_never_change_channel() {
+        for attempts in [
+            vec![failed(1, WHATSAPP, FailureKind::PERMANENT, None)],
+            vec![failed(1, WHATSAPP, FailureKind::TRANSIENT, None)],
+        ] {
+            assert_eq!(
+                decide(MessagePurpose::NOTICE, WHATSAPP, &attempts, now()),
+                Dispatch::GiveUp
+            );
+        }
     }
 
     #[test]
-    fn an_ineligible_first_channel_starts_with_the_fallback() {
-        let route = NoticeRoute {
-            eligible: &[SMS, EMAIL],
-            ..route(WHATSAPP)
-        };
-        assert_eq!(
-            decide(MessagePurpose::NOTICE, &route, &[]),
-            Dispatch::Send {
-                attempt: 1,
-                channel: SMS
-            }
-        );
-    }
-
-    #[test]
-    fn codes_never_retry_or_fall_back_on_their_own() {
+    fn codes_are_never_retried() {
         for kind in [FailureKind::TRANSIENT, FailureKind::PERMANENT] {
             assert_eq!(
                 decide(
                     MessagePurpose::OTP,
-                    &route(WHATSAPP),
-                    &[failed(1, WHATSAPP, kind)]
+                    WHATSAPP,
+                    &[failed(1, WHATSAPP, kind, Some(Duration::zero()))],
+                    now()
                 ),
                 Dispatch::GiveUp
             );
+            assert_eq!(next_retry_at(MessagePurpose::OTP, 1, kind, now()), None);
         }
-        let route = NoticeRoute {
-            eligible: &[SMS],
-            ..route(WHATSAPP)
-        };
-        assert_eq!(decide(MessagePurpose::OTP, &route, &[]), Dispatch::GiveUp);
+    }
+
+    #[test]
+    fn a_message_without_a_channel_is_never_sent_again() {
+        let mut no_channel = failed(1, WHATSAPP, FailureKind::TRANSIENT, Some(Duration::zero()));
+        no_channel.channel = None;
+        assert_eq!(
+            decide(MessagePurpose::NOTICE, SMS, &[no_channel], now()),
+            Dispatch::GiveUp
+        );
+    }
+
+    #[test]
+    fn failures_reported_an_hour_after_the_attempt_are_too_late() {
+        assert!(!reported_too_late(now() - Duration::minutes(59), now()));
+        assert!(reported_too_late(now() - Duration::hours(1), now()));
+        assert!(reported_too_late(now() - Duration::hours(48), now()));
     }
 
     #[test]
@@ -343,6 +333,7 @@ mod tests {
         assert_eq!(apply_report(DELIVERED, FAILED), None);
         assert_eq!(apply_report(DELIVERED, ACCEPTED), None);
         assert_eq!(apply_report(ACCEPTED, DELIVERED), Some(DELIVERED));
+        assert_eq!(apply_report(QUEUED, DELIVERED), Some(DELIVERED));
         assert_eq!(apply_report(UNKNOWN, ACCEPTED), Some(ACCEPTED));
         assert_eq!(apply_report(FAILED, DELIVERED), Some(DELIVERED));
     }

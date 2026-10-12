@@ -70,8 +70,8 @@ impl MessageChannel {
     Ord,
 )]
 pub enum MessagePurpose {
-    /// One-time codes. Never retried after expiry, never fall back on their
-    /// own: the voter explicitly chooses another method.
+    /// One-time codes. Never retried by the server and never sent after
+    /// expiry: the voter asks for another code on the same channel.
     OTP,
     /// Enrollment results, credentials, reminders and other notices.
     NOTICE,
@@ -118,12 +118,44 @@ pub enum MessagingProvider {
     /// Viber Business Messages through Infobip. This is not Viber's bot
     /// API.
     VIBER_INFOBIP,
-    /// A provider described by configuration, for any channel: another
-    /// Viber partner, a WhatsApp Solution Provider's own API, an SMS
-    /// gateway.
+    /// Removed: a provider described by configuration. Parses so stored
+    /// accounts load; see [`MessagingProvider::support`].
     HTTP_API,
-    /// Prints messages instead of sending them. Development only.
+    /// Removed: printed messages instead of sending them. Parses so stored
+    /// accounts load; see [`MessagingProvider::support`].
     CONSOLE,
+}
+
+/// Whether accounts of a provider may be created and send.
+#[allow(non_camel_case_types)]
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+)]
+pub enum ProviderSupport {
+    SUPPORTED,
+    /// The provider was removed. Its accounts still load and are shown with
+    /// [`MessageReason::UNSUPPORTED_PROVIDER`]; creating one, or sending,
+    /// checking or testing through one, is refused with that reason.
+    UNSUPPORTED,
+}
+
+impl MessagingProvider {
+    pub fn support(&self) -> ProviderSupport {
+        match self {
+            MessagingProvider::HTTP_API | MessagingProvider::CONSOLE => {
+                ProviderSupport::UNSUPPORTED
+            }
+            _ => ProviderSupport::SUPPORTED,
+        }
+    }
 }
 
 #[allow(non_camel_case_types)]
@@ -304,7 +336,8 @@ impl MessageAttemptState {
     pub fn can_transition_to(&self, next: MessageAttemptState) -> bool {
         use MessageAttemptState::*;
         match (self, next) {
-            (QUEUED, ACCEPTED | FAILED | UNKNOWN) => true,
+            // A fast report can arrive before the send's answer is recorded.
+            (QUEUED, ACCEPTED | DELIVERED | FAILED | UNKNOWN) => true,
             (ACCEPTED, DELIVERED | FAILED) => true,
             (UNKNOWN, ACCEPTED | DELIVERED | FAILED) => true,
             (FAILED, DELIVERED) => true,
@@ -333,7 +366,303 @@ impl MessageAttemptState {
 )]
 pub enum MessageDirection {
     OUTBOUND,
+    /// Rows the first release wrote for messages voters sent. Read only:
+    /// incoming messages are no longer kept, and the migration deleted
+    /// them.
     INBOUND,
+}
+
+/// The reason of every conditional outcome of a message, as stored in the
+/// ledger's `error`, written to the electoral log and shown to staff. One
+/// string per outcome, shared by the sender, the log and the screens; the
+/// screens translate it by matching [`MessageReason::as_str`].
+///
+/// Provider refusals keep the provider's sanitized reason instead.
+#[allow(non_camel_case_types)]
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    Clone,
+    Copy,
+    EnumString,
+    EnumIter,
+)]
+pub enum MessageReason {
+    /// The voter's record has no channel with a destination.
+    #[strum(serialize = "No contact channel")]
+    NO_CONTACT_CHANNEL,
+    /// The event, or the voter's Post (election), doesn't offer the
+    /// voter's channel for notices. Nothing is sent on another channel.
+    #[strum(serialize = "Channel not offered for notices")]
+    CHANNEL_NOT_OFFERED_FOR_NOTICES,
+    /// The same, for codes.
+    #[strum(serialize = "Channel not offered for codes")]
+    CHANNEL_NOT_OFFERED_FOR_CODES,
+    /// The send has no content for the voter's channel.
+    #[strum(serialize = "No content for the channel")]
+    NO_CONTENT_FOR_CHANNEL,
+    /// Neither the event nor the tenant has a sending account for the
+    /// channel.
+    #[strum(serialize = "No sending account for the channel")]
+    NO_ACCOUNT_FOR_CHANNEL,
+    /// The voter's destination isn't a valid address for the channel.
+    #[strum(serialize = "Invalid destination for the channel")]
+    INVALID_DESTINATION,
+    /// A transient failure that can't be retried: the ledger keeps no
+    /// content, and the message has no stored template to render again.
+    #[strum(serialize = "Can't be retried: no stored template")]
+    NO_STORED_TEMPLATE,
+    /// A retry is due, but the voter changed their channel since: the
+    /// message isn't sent on the new one.
+    #[strum(serialize = "The voter's channel changed: not retried")]
+    CHANNEL_CHANGED,
+    /// The worker stopped after recording the attempt and before handing it
+    /// to the provider: never sent, so it may be retried.
+    #[strum(serialize = "The worker stopped before sending")]
+    WORKER_STOPPED_BEFORE_SENDING,
+    /// The worker stopped after handing the attempt to the provider and
+    /// before recording its answer: the outcome is unknown.
+    #[strum(serialize = "The worker stopped before recording the outcome")]
+    WORKER_STOPPED_AFTER_SENDING,
+    /// A code that expired while waiting to be sent.
+    #[strum(serialize = "The code expired before it could be sent")]
+    CODE_EXPIRED_BEFORE_SENDING,
+    /// An unknown outcome older than [`UNRESOLVED_AFTER_HOURS`]. Shown as
+    /// Unresolved: delivery couldn't be confirmed. Never a failure.
+    #[strum(serialize = "Delivery couldn't be confirmed")]
+    UNRESOLVED,
+    /// A send to selected voters that names none. Refused when scheduled.
+    #[strum(serialize = "Select at least one voter")]
+    SELECTED_WITHOUT_VOTERS,
+    /// The account's provider was removed (`HTTP_API`, `CONSOLE`).
+    #[strum(serialize = "Unsupported provider: replace this account")]
+    UNSUPPORTED_PROVIDER,
+    /// A notice whose send used encrypted voter attributes. A retry would
+    /// need them decrypted again, which only the administrator's send
+    /// approves, and their content is never stored: it isn't retried.
+    #[strum(serialize = "Can't be retried: contains protected fields")]
+    PROTECTED_FIELDS,
+    /// A failure the provider reported more than
+    /// [`LATE_FAILURE_RETRY_HOURS`] after the attempt: sending it again so
+    /// late could reach the voter after it stopped being useful.
+    #[strum(serialize = "Reported too late to retry")]
+    REPORTED_TOO_LATE,
+    /// A due retry whose message couldn't be prepared again for
+    /// [`RETRY_PREPARE_HOURS`] (template, voter or event unreadable).
+    #[strum(
+        serialize = "Can't be retried: the message couldn't be prepared again"
+    )]
+    RETRY_NOT_PREPARED,
+    /// A notice asked for on a channel other than the voter's recorded
+    /// one. Nothing is sent on either channel.
+    #[strum(serialize = "Not the voter's channel")]
+    NOT_THE_VOTERS_CHANNEL,
+    /// A Messenger message whose voter is connected to another Page than
+    /// the sending account's: their Page-scoped ID belongs to that Page,
+    /// so nothing is handed to the provider and it isn't retried. The
+    /// voter connects Messenger again at their next sign-in.
+    #[strum(
+        serialize = "Not sent: the voter is connected to another Messenger Page"
+    )]
+    MESSENGER_PAGE_CHANGED,
+}
+
+impl MessageReason {
+    /// The refusal of a message whose channel the event or the voter's
+    /// Post doesn't offer for `purpose`.
+    pub fn channel_not_offered(purpose: MessagePurpose) -> MessageReason {
+        match purpose {
+            MessagePurpose::NOTICE => {
+                MessageReason::CHANNEL_NOT_OFFERED_FOR_NOTICES
+            }
+            MessagePurpose::OTP => MessageReason::CHANNEL_NOT_OFFERED_FOR_CODES,
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        use MessageReason::*;
+        match self {
+            NO_CONTACT_CHANNEL => "No contact channel",
+            CHANNEL_NOT_OFFERED_FOR_NOTICES => {
+                "Channel not offered for notices"
+            }
+            CHANNEL_NOT_OFFERED_FOR_CODES => "Channel not offered for codes",
+            NO_CONTENT_FOR_CHANNEL => "No content for the channel",
+            NO_ACCOUNT_FOR_CHANNEL => "No sending account for the channel",
+            INVALID_DESTINATION => "Invalid destination for the channel",
+            NO_STORED_TEMPLATE => "Can't be retried: no stored template",
+            CHANNEL_CHANGED => "The voter's channel changed: not retried",
+            WORKER_STOPPED_BEFORE_SENDING => {
+                "The worker stopped before sending"
+            }
+            WORKER_STOPPED_AFTER_SENDING => {
+                "The worker stopped before recording the outcome"
+            }
+            CODE_EXPIRED_BEFORE_SENDING => {
+                "The code expired before it could be sent"
+            }
+            UNRESOLVED => "Delivery couldn't be confirmed",
+            SELECTED_WITHOUT_VOTERS => "Select at least one voter",
+            UNSUPPORTED_PROVIDER => {
+                "Unsupported provider: replace this account"
+            }
+            PROTECTED_FIELDS => "Can't be retried: contains protected fields",
+            REPORTED_TOO_LATE => "Reported too late to retry",
+            RETRY_NOT_PREPARED => {
+                "Can't be retried: the message couldn't be prepared again"
+            }
+            NOT_THE_VOTERS_CHANNEL => "Not the voter's channel",
+            MESSENGER_PAGE_CHANGED => {
+                "Not sent: the voter is connected to another Messenger Page"
+            }
+        }
+    }
+
+    /// Why a failure isn't retried, recorded next to the failure's own
+    /// reason (`"<failure>; <why not retried>"`), never in its place, so
+    /// staff still see what went wrong.
+    pub fn not_retried_after(&self, failure: Option<&str>) -> String {
+        match failure.map(str::trim).filter(|f| !f.is_empty()) {
+            Some(failure) => {
+                format!("{failure}{REASON_SEPARATOR}{}", self.as_str())
+            }
+            None => self.as_str().to_string(),
+        }
+    }
+
+    /// The parts of a stored reason: the failure, and why it wasn't
+    /// retried when [`MessageReason::not_retried_after`] added that.
+    pub fn split_stored(stored: &str) -> (&str, Option<MessageReason>) {
+        if let Ok(reason) = stored.parse::<MessageReason>() {
+            return ("", Some(reason));
+        }
+        match stored.rsplit_once(REASON_SEPARATOR) {
+            Some((failure, reason)) => match reason.parse::<MessageReason>() {
+                Ok(reason) => (failure, Some(reason)),
+                Err(_) => (stored, None),
+            },
+            None => (stored, None),
+        }
+    }
+}
+
+/// Separates a failure's reason from why it isn't retried in a stored
+/// reason (see [`MessageReason::not_retried_after`]).
+pub const REASON_SEPARATOR: &str = "; ";
+
+/// A failure reported this many hours or more after its attempt isn't
+/// retried ([`MessageReason::REPORTED_TOO_LATE`]).
+pub const LATE_FAILURE_RETRY_HOURS: i64 = 1;
+
+/// A due retry that can't be prepared again for this many hours stops
+/// waiting ([`MessageReason::RETRY_NOT_PREPARED`]).
+pub const RETRY_PREPARE_HOURS: i64 = 1;
+
+/// Whose channel a notice from Keycloak goes to. Harvest checks the
+/// notice against the voter's record unless it is about the previous
+/// channel.
+#[allow(non_camel_case_types)]
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Hash,
+    Clone,
+    Copy,
+    EnumString,
+    EnumIter,
+)]
+pub enum NoticeRecipient {
+    /// The voter's recorded channel, resolved by harvest when the request
+    /// names none. A request naming another recorded channel is refused
+    /// ([`MessageReason::NOT_THE_VOTERS_CHANNEL`]).
+    #[default]
+    VOTER_CHANNEL,
+    /// The channel the voter just replaced, for the notice that it was
+    /// changed. Sent to the channel and destination the request names.
+    PREVIOUS_CHANNEL,
+}
+
+/// An unknown outcome older than this is shown as Unresolved, and the sweep
+/// stops asking the provider about it. It never becomes FAILED.
+pub const UNRESOLVED_AFTER_HOURS: i64 = 24;
+
+/// How a provider bills a message, for monthly reconciliation. Recorded
+/// with each attempt; a provider report may replace it. No prices.
+#[allow(non_camel_case_types)]
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    Clone,
+    Copy,
+    EnumString,
+    EnumIter,
+)]
+pub enum BillingCategory {
+    /// WhatsApp authentication templates (codes).
+    AUTHENTICATION,
+    /// WhatsApp and Messenger utility templates (notices).
+    UTILITY,
+    /// A Messenger reply within the 24-hour window.
+    SERVICE,
+    /// SMS and Viber business messages.
+    TRANSACTIONAL,
+    /// Email.
+    EMAIL,
+}
+
+impl BillingCategory {
+    /// The category expected when a message is sent. `in_window`: a
+    /// Messenger message inside the 24-hour window.
+    pub fn expected(
+        channel: MessageChannel,
+        purpose: MessagePurpose,
+        in_window: bool,
+    ) -> BillingCategory {
+        match (channel, purpose) {
+            (MessageChannel::WHATSAPP, MessagePurpose::OTP) => {
+                BillingCategory::AUTHENTICATION
+            }
+            (MessageChannel::WHATSAPP, MessagePurpose::NOTICE) => {
+                BillingCategory::UTILITY
+            }
+            (MessageChannel::MESSENGER, _) if in_window => {
+                BillingCategory::SERVICE
+            }
+            (MessageChannel::MESSENGER, _) => BillingCategory::UTILITY,
+            (MessageChannel::SMS | MessageChannel::VIBER, _) => {
+                BillingCategory::TRANSACTIONAL
+            }
+            (MessageChannel::EMAIL, _) => BillingCategory::EMAIL,
+        }
+    }
+
+    /// The category a provider reported, such as WhatsApp's
+    /// `pricing.category`.
+    pub fn from_report(category: &str) -> Option<BillingCategory> {
+        match category.to_ascii_lowercase().as_str() {
+            "authentication" | "authentication_international" => {
+                Some(BillingCategory::AUTHENTICATION)
+            }
+            "utility" => Some(BillingCategory::UTILITY),
+            "service" => Some(BillingCategory::SERVICE),
+            _ => None,
+        }
+    }
 }
 
 /// Whether the provider has approved this account for its use case. Meta
@@ -373,8 +702,9 @@ pub enum ProviderApproval {
     Default,
 )]
 pub enum OutOfWindowPolicy {
-    /// Only within the window. Outside it, notices use another eligible
-    /// channel and codes need a fresh interaction.
+    /// Only within the window. Outside it, codes need a fresh Get Started.
+    /// Not allowed for Messenger notices, which use
+    /// [`OutOfWindowPolicy::UTILITY_MESSAGES`]: there is no other channel.
     #[default]
     DISABLED,
     /// Meta's utility messages, once approved for the Page.
@@ -396,11 +726,43 @@ pub enum OutOfWindowPolicy {
     EnumString,
 )]
 pub enum ReadinessBlocker {
+    /// The account's provider was removed: replace the account.
+    UNSUPPORTED_PROVIDER,
+    /// The account's last check was of another identity (another WhatsApp
+    /// number or business account, Messenger Page, Viber sender, SNS or SES
+    /// identity): nothing it said counts until the account is checked as
+    /// it is now ([`AccountCheck::is_for`]).
+    UNCHECKED,
     NOT_CONNECTED,
     UNSUPPORTED_PURPOSE,
     NEEDS_PROVIDER_APPROVAL,
     NEEDS_PRODUCTION_ACCESS,
     NEEDS_APPROVED_TEMPLATE,
+    /// Messenger codes need Get Started, which reaches Step only through
+    /// the webhook component: without its public address
+    /// (`MESSAGING_WEBHOOKS_PUBLIC_URL`) Messenger isn't ready for codes.
+    /// Reason: "Callback address not configured".
+    CALLBACK_NOT_CONFIGURED,
+    /// A Viber (Infobip) account without generated report credentials: the
+    /// subscription's reports are refused, so receipts are unavailable.
+    /// Reason: "Generate the report credentials and create the Infobip
+    /// subscription". Blocks no purpose.
+    REPORT_CREDENTIALS_MISSING,
+}
+
+/// The blocker callbacks add to `purpose` on `channel`: Messenger codes
+/// need the callback address, because the code goes out only after Get
+/// Started, which arrives as a callback. Other purposes and channels work
+/// without one (their receipts are then unavailable).
+pub fn callback_blocker(
+    channel: MessageChannel,
+    purpose: MessagePurpose,
+    callback_configured: bool,
+) -> Option<ReadinessBlocker> {
+    (channel == MessageChannel::MESSENGER
+        && purpose == MessagePurpose::OTP
+        && !callback_configured)
+        .then_some(ReadinessBlocker::CALLBACK_NOT_CONFIGURED)
 }
 
 /// Result of the last connection check of an account.
@@ -414,6 +776,226 @@ pub struct AccountCheck {
     pub checked_at: Option<String>,
     /// Short, non-sensitive reason when not connected.
     pub reason: Option<String>,
+    /// What the provider reported beyond connection, for the account and
+    /// the event tab. Checks stored before it existed read as empty.
+    #[serde(default)]
+    pub details: AccountCheckDetails,
+}
+
+impl AccountCheck {
+    /// Whether this check describes an account whose identity is
+    /// `current`. A check that doesn't name its identity was stored before
+    /// identities were recorded; it describes the identity the account had
+    /// then, which an identity change records, so it counts until then.
+    pub fn is_for(&self, current: &AccountIdentity) -> bool {
+        self.details
+            .identity
+            .as_ref()
+            .map_or(true, |checked| checked == current)
+    }
+
+    /// The provider approval readiness uses: the one the check reported,
+    /// where the provider has an API for it, else the one an administrator
+    /// entered, with where it came from.
+    pub fn approval(
+        &self,
+        entered: ProviderApproval,
+    ) -> (ProviderApproval, ApprovalSource) {
+        match self.details.provider_approval {
+            Some(reported) => (reported, ApprovalSource::PROVIDER_CHECK),
+            None => (entered, ApprovalSource::ADMIN_ENTERED),
+        }
+    }
+}
+
+/// Where an account's provider approval comes from.
+#[allow(non_camel_case_types)]
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+)]
+pub enum ApprovalSource {
+    /// The provider reports it, and the check read it.
+    PROVIDER_CHECK,
+    /// The provider has no API for it: an administrator entered it, and it
+    /// is shown as such.
+    ADMIN_ENTERED,
+}
+
+/// The provider's details from a check. Every part is optional: a provider
+/// reports only some of them, and a part it couldn't read is absent, never
+/// guessed.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Default)]
+pub struct AccountCheckDetails {
+    /// Meta's `debug_token`: the access token's validity and expiry.
+    #[serde(default)]
+    pub token: Option<TokenStatus>,
+    /// WhatsApp: the number's status, quality rating and messaging limit.
+    #[serde(default)]
+    pub whatsapp_number: Option<WhatsAppNumberStatus>,
+    /// Templates at the provider, with their category and status per
+    /// language (WhatsApp, Messenger). Absent for providers without an API
+    /// for them (Viber's partner templates are entered by an administrator).
+    #[serde(default)]
+    pub templates: Vec<TemplateStatus>,
+    /// Why `templates` couldn't be read, when the provider has an API for
+    /// them.
+    #[serde(default)]
+    pub templates_reason: Option<String>,
+    /// Messenger: the `pages_messaging` permission, the app's subscription
+    /// to the Page and its Get Started button.
+    #[serde(default)]
+    pub messenger: Option<MessengerPageStatus>,
+    /// Viber (Infobip): whether the partner accepted the account's login.
+    #[serde(default)]
+    pub partner_login: Option<PartnerLogin>,
+    /// The account's callback address at the check (`callback_readiness`).
+    #[serde(default)]
+    pub callback: Option<CallbackStatus>,
+    /// The provider's approval, where its API reports it (the WhatsApp
+    /// number's status and display name). Absent where there is no API:
+    /// the administrator's entry is used then ([`AccountCheck::approval`]).
+    #[serde(default)]
+    pub provider_approval: Option<ProviderApproval>,
+    /// Why `provider_approval` is `PENDING`, as the provider said it.
+    #[serde(default)]
+    pub provider_approval_reason: Option<String>,
+    /// WhatsApp `user_changed_number` signals: voters to verify again.
+    /// Logged and shown; nothing changes automatically. Kept across checks,
+    /// newest first, at most [`NUMBER_CHANGES_KEPT`].
+    #[serde(default)]
+    pub number_changes: Vec<NumberChange>,
+    /// The identity the check checked. Absent in checks stored before it
+    /// existed: they describe the identity the account had then, and an
+    /// identity change records it here, so they stop counting.
+    #[serde(default)]
+    pub identity: Option<AccountIdentity>,
+    /// When the check started (RFC 3339). Its result is stored only if the
+    /// account's identity and credentials are what the check started with.
+    #[serde(default)]
+    pub started_at: Option<String>,
+    /// When a check of the account was last attempted, whether or not its
+    /// result could be stored (RFC 3339). The daily pass orders by it, so
+    /// an account whose check fails to run backs off.
+    #[serde(default)]
+    pub attempted_at: Option<String>,
+    /// Meta: whether the app secret matched the app of the account's token
+    /// (`appsecret_proof`). Absent where it wasn't checked.
+    #[serde(default)]
+    pub app_secret: Option<AppSecretStatus>,
+}
+
+/// Whether an account's Meta app secret matched its app.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub struct AppSecretStatus {
+    /// `Some(false)`: Meta refused the secret's proof. `None`: the proof
+    /// couldn't be checked; `reason` says why.
+    pub valid: Option<bool>,
+    #[serde(default)]
+    pub reason: Option<String>,
+}
+
+/// What a check is a check of: the provider and the sender's identifying
+/// ids. Two checks describe the same sender only if their identities are
+/// equal; names and labels are not part of it.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub struct AccountIdentity {
+    pub provider: MessagingProvider,
+    /// The identifying ids by name, trimmed; absent ids are left out.
+    #[serde(default)]
+    pub ids: BTreeMap<String, String>,
+}
+
+/// How many [`NumberChange`]s an account keeps.
+pub const NUMBER_CHANGES_KEPT: usize = 50;
+
+/// An access token as Meta's `debug_token` describes it.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Default)]
+pub struct TokenStatus {
+    pub valid: bool,
+    /// RFC 3339; absent when the token doesn't expire.
+    #[serde(default)]
+    pub expires_at: Option<String>,
+    /// Permissions the account needs that the token lacks.
+    #[serde(default)]
+    pub missing_scopes: Vec<String>,
+}
+
+/// A WhatsApp number as the Cloud API describes it. Values are Meta's.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Default)]
+pub struct WhatsAppNumberStatus {
+    /// `CONNECTED`, `PENDING`, `FLAGGED`, `RESTRICTED`, ...
+    #[serde(default)]
+    pub status: Option<String>,
+    /// The display name's review: `APPROVED`, `PENDING_REVIEW`, ...
+    #[serde(default)]
+    pub name_status: Option<String>,
+    /// `GREEN`, `YELLOW`, `RED` or `UNKNOWN`.
+    #[serde(default)]
+    pub quality_rating: Option<String>,
+    /// Business-initiated conversations per day, such as `TIER_1K`.
+    #[serde(default)]
+    pub messaging_limit: Option<String>,
+}
+
+/// A template at the provider, for one language.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Default)]
+pub struct TemplateStatus {
+    pub name: String,
+    pub language: String,
+    /// `AUTHENTICATION`, `UTILITY`, `MARKETING`.
+    #[serde(default)]
+    pub category: Option<String>,
+    /// `APPROVED`, `PENDING`, `REJECTED`, `PAUSED`, ...
+    pub status: String,
+}
+
+/// A Messenger Page as the Graph API describes it. `None`: not reported.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Default)]
+pub struct MessengerPageStatus {
+    #[serde(default)]
+    pub pages_messaging: Option<bool>,
+    pub subscribed: bool,
+    #[serde(default)]
+    pub get_started: Option<bool>,
+}
+
+/// A partner login check.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Default)]
+pub struct PartnerLogin {
+    pub accepted: bool,
+    #[serde(default)]
+    pub reason: Option<String>,
+}
+
+/// The callback address at the check: its URL, or why there is none.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Default)]
+pub struct CallbackStatus {
+    #[serde(default)]
+    pub url: Option<String>,
+    #[serde(default)]
+    pub reason: Option<String>,
+}
+
+/// A WhatsApp `user_changed_number` signal. Only masked numbers are kept.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Default)]
+pub struct NumberChange {
+    pub masked_old_number: String,
+    #[serde(default)]
+    pub masked_new_number: Option<String>,
+    /// Voters the account sent to at the old number (from the ledger's
+    /// keyed digest), to verify again.
+    #[serde(default)]
+    pub voter_ids: Vec<String>,
+    /// RFC 3339.
+    pub reported_at: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
@@ -443,33 +1025,55 @@ impl PurposeReadiness {
     Default,
 )]
 pub enum ReadinessPolicy {
-    /// From the provider's answers to the connection check.
+    /// From the provider's answers to the connection check. Rows a
+    /// development build stored as `UNCHECKED` read as this: "needs a
+    /// check" is the check's identity ([`AccountCheck::is_for`]), never a
+    /// stored policy, so older binaries parse every row.
     #[default]
+    #[serde(alias = "UNCHECKED")]
+    #[strum(to_string = "PROVIDER_CHECK", serialize = "UNCHECKED")]
     PROVIDER_CHECK,
-    /// An administrator confirmed with the provider that the account is
-    /// connected, in production and has its templates approved. For
-    /// providers whose check cannot tell, or tells differently than
-    /// expected. Provider approval is still confirmed separately.
+    /// Removed: an administrator's statement replaced the provider check.
+    /// It no longer bypasses anything. Stored accounts still parse, and
+    /// are checked like [`ReadinessPolicy::PROVIDER_CHECK`].
     ADMIN_CONFIRMED,
 }
 
-/// Readiness of `purpose` for `language` on an account.
+impl ReadinessPolicy {
+    /// The policy readiness is computed with: always the provider check.
+    pub fn effective(self) -> ReadinessPolicy {
+        ReadinessPolicy::PROVIDER_CHECK
+    }
+}
+
+/// Readiness of `purpose` for `language` on an account whose identity is
+/// `identity` (`None`: not known, so the check is taken as the account's).
+/// The same function decides at config save and at send time.
 pub fn purpose_readiness(
     capabilities: &ProviderCapabilities,
     approval: ProviderApproval,
-    policy: ReadinessPolicy,
+    identity: Option<&AccountIdentity>,
     check: &AccountCheck,
     purpose: MessagePurpose,
     language: Option<&str>,
 ) -> PurposeReadiness {
     let mut blockers = vec![];
-    let checked = policy == ReadinessPolicy::PROVIDER_CHECK;
+    // A check of another identity (an earlier number or Page) says nothing
+    // about this one: none of it counts until the account is checked as it
+    // is now.
+    let unchecked = check.checked_at.is_some()
+        && identity.is_some_and(|current| !check.is_for(current));
+    if unchecked {
+        blockers.push(ReadinessBlocker::UNCHECKED);
+    }
+    let checked = !unchecked;
     if checked && !check.connected {
         blockers.push(ReadinessBlocker::NOT_CONNECTED);
     }
     if !capabilities.purposes.contains(&purpose) {
         blockers.push(ReadinessBlocker::UNSUPPORTED_PURPOSE);
     }
+    let (approval, _) = check.approval(approval);
     if capabilities.requires_provider_approval
         && approval != ProviderApproval::CONFIRMED
     {
@@ -507,10 +1111,21 @@ pub struct AccountSummary {
     pub provider_approval: ProviderApproval,
     pub readiness: ReadinessPolicy,
     pub check: AccountCheck,
+    /// The account's identity now; `check` counts only if it is of this
+    /// identity ([`AccountCheck::is_for`]).
+    #[serde(default)]
+    pub identity: Option<AccountIdentity>,
     /// Public, non-secret label shown to voters (sender name, Page name).
     pub public_label: Option<String>,
     /// Messenger only: the Page voters open to connect.
     pub messenger_page: Option<MessengerPage>,
+    /// What stops the account's callbacks (delivery reports, Messenger's
+    /// Get Started) from reaching Step: `CALLBACK_NOT_CONFIGURED`,
+    /// `REPORT_CREDENTIALS_MISSING`. Receipts are unavailable while any is
+    /// set, and Messenger isn't ready for codes without the callback
+    /// address ([`callback_blocker`]).
+    #[serde(default)]
+    pub callback_blockers: Vec<ReadinessBlocker>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
@@ -558,24 +1173,21 @@ pub struct EventChannelConfig {
     pub out_of_window: OutOfWindowPolicy,
 }
 
-/// Stored as JSON in the event annotation [`MESSAGING_CONFIG_ANNOTATION`].
-/// Holds references only: no credentials or recipient data.
+/// Stored as JSON in `messaging_event_config` (first copied from the event
+/// annotation [`MESSAGING_CONFIG_ANNOTATION`]). Holds references only: no
+/// credentials or recipient data.
+///
+/// The first release's `notice_fallback` and `reply_text` still parse and
+/// are dropped: there is no fallback and no automatic reply.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct EventMessagingConfig {
     pub version: u32,
     #[serde(default)]
     pub channels: Vec<EventChannelConfig>,
-    /// Channels tried, in order, when a notice fails on the voter's channel.
-    /// Never used for codes.
-    #[serde(default)]
-    pub notice_fallback: Vec<MessageChannel>,
     /// Per election, the channels it offers. Elections not listed offer
     /// every enabled channel.
     #[serde(default)]
     pub election_channels: BTreeMap<String, Vec<MessageChannel>>,
-    /// Automatic reply to incoming messages, per language.
-    #[serde(default)]
-    pub reply_text: BTreeMap<String, String>,
 }
 
 impl Default for EventMessagingConfig {
@@ -583,9 +1195,7 @@ impl Default for EventMessagingConfig {
         EventMessagingConfig {
             version: EVENT_MESSAGING_CONFIG_VERSION,
             channels: vec![],
-            notice_fallback: vec![],
             election_channels: BTreeMap::new(),
-            reply_text: BTreeMap::new(),
         }
     }
 }
@@ -624,10 +1234,9 @@ pub enum MessagingConfigError {
     OUT_OF_WINDOW_NOT_SUPPORTED {
         channel: MessageChannel,
     },
-    FALLBACK_CHANNEL_NOT_ENABLED {
-        channel: MessageChannel,
-    },
-    DUPLICATE_FALLBACK_CHANNEL {
+    /// Messenger notices reach voters outside the 24-hour window only as
+    /// an approved utility template: bind one for notices.
+    UTILITY_TEMPLATE_MISSING {
         channel: MessageChannel,
     },
     ELECTION_CHANNEL_NOT_ENABLED {
@@ -637,6 +1246,34 @@ pub enum MessagingConfigError {
     UNKNOWN_ELECTION {
         election_id: String,
     },
+}
+
+impl EventChannelConfig {
+    /// The out-of-window policy in force. Messenger always uses the
+    /// approved utility template outside the 24-hour window: "do not send"
+    /// is gone, since nothing else would reach the voter. Stored values of
+    /// the first release still parse.
+    pub fn effective_out_of_window(&self) -> OutOfWindowPolicy {
+        match self.channel {
+            MessageChannel::MESSENGER => OutOfWindowPolicy::UTILITY_MESSAGES,
+            _ => self.out_of_window,
+        }
+    }
+
+    /// Why this channel can't carry notices as configured, if it can't: a
+    /// Messenger channel with notices needs a bound utility template.
+    pub fn notice_blocker(&self) -> Option<MessagingConfigError> {
+        let template_bound = self
+            .templates
+            .iter()
+            .any(|binding| binding.purpose == MessagePurpose::NOTICE);
+        (self.channel == MessageChannel::MESSENGER
+            && self.purposes.contains(&MessagePurpose::NOTICE)
+            && !template_bound)
+            .then_some(MessagingConfigError::UTILITY_TEMPLATE_MISSING {
+                channel: self.channel,
+            })
+    }
 }
 
 impl EventMessagingConfig {
@@ -706,7 +1343,7 @@ impl EventMessagingConfig {
     }
 
     /// Checks references, tenant ownership, readiness of enabled purposes,
-    /// template approvals, fallback entries and election restrictions.
+    /// template approvals, Messenger notices and election restrictions.
     pub fn validate(
         &self,
         tenant_id: &str,
@@ -751,15 +1388,32 @@ impl EventMessagingConfig {
                 });
                 continue;
             }
+            if account.provider.support() == ProviderSupport::UNSUPPORTED {
+                for purpose in &channel_config.purposes {
+                    errors.push(MessagingConfigError::PURPOSE_NOT_READY {
+                        channel,
+                        purpose: *purpose,
+                        blockers: vec![ReadinessBlocker::UNSUPPORTED_PROVIDER],
+                    });
+                }
+                continue;
+            }
             for purpose in &channel_config.purposes {
-                let readiness = purpose_readiness(
+                let mut readiness = purpose_readiness(
                     &account.capabilities,
                     account.provider_approval,
-                    account.readiness,
+                    account.identity.as_ref(),
                     &account.check,
                     *purpose,
                     None,
                 );
+                readiness.blockers.extend(callback_blocker(
+                    channel,
+                    *purpose,
+                    !account
+                        .callback_blockers
+                        .contains(&ReadinessBlocker::CALLBACK_NOT_CONFIGURED),
+                ));
                 if !readiness.is_ready() {
                     errors.push(MessagingConfigError::PURPOSE_NOT_READY {
                         channel,
@@ -770,9 +1424,7 @@ impl EventMessagingConfig {
             }
             let template_purposes = &account.capabilities.template_required_for;
             for binding in &channel_config.templates {
-                if !template_purposes.contains(&binding.purpose)
-                    || account.readiness == ReadinessPolicy::ADMIN_CONFIRMED
-                {
+                if !template_purposes.contains(&binding.purpose) {
                     continue;
                 }
                 let approved = account
@@ -799,7 +1451,8 @@ impl EventMessagingConfig {
             let free_text_in_a_window =
                 account.capabilities.conversation_window_hours.is_some()
                     && !template_purposes.contains(&MessagePurpose::NOTICE);
-            if channel_config.out_of_window != OutOfWindowPolicy::DISABLED
+            if channel_config.effective_out_of_window()
+                != OutOfWindowPolicy::DISABLED
                 && !free_text_in_a_window
             {
                 errors.push(
@@ -809,22 +1462,9 @@ impl EventMessagingConfig {
                 );
             }
         }
-        let notice_channels: HashSet<MessageChannel> = self
-            .enabled_channels(MessagePurpose::NOTICE, None)
-            .into_iter()
-            .collect();
-        let mut seen_fallback = HashSet::new();
-        for channel in &self.notice_fallback {
-            if !seen_fallback.insert(*channel) {
-                errors.push(MessagingConfigError::DUPLICATE_FALLBACK_CHANNEL {
-                    channel: *channel,
-                });
-            } else if !notice_channels.contains(channel) {
-                errors.push(
-                    MessagingConfigError::FALLBACK_CHANNEL_NOT_ENABLED {
-                        channel: *channel,
-                    },
-                );
+        for channel_config in &self.channels {
+            if let Some(reason) = channel_config.notice_blocker() {
+                errors.push(reason);
             }
         }
         let enabled: HashSet<MessageChannel> =
@@ -1229,6 +1869,68 @@ pub struct HttpApiSender {
 }
 
 impl AccountSender {
+    /// What identifies the sender to its provider: a check of another
+    /// identity says nothing about this one. Names, labels, API versions
+    /// and templates are not part of it.
+    pub fn identity(&self) -> AccountIdentity {
+        let ids: Vec<(&str, Option<&str>)> = match self {
+            AccountSender::AWS_SES {
+                from_address,
+                region,
+                ..
+            } => vec![
+                ("from_address", Some(from_address.as_str())),
+                ("region", region.as_deref()),
+            ],
+            AccountSender::SMTP {
+                from_address,
+                server_url,
+                ..
+            } => vec![
+                ("from_address", Some(from_address.as_str())),
+                ("server_url", Some(server_url.as_str())),
+            ],
+            AccountSender::AWS_SNS {
+                sender_id,
+                origination_number,
+                region,
+            } => vec![
+                ("sender_id", sender_id.as_deref()),
+                ("origination_number", origination_number.as_deref()),
+                ("region", region.as_deref()),
+            ],
+            AccountSender::WHATSAPP_CLOUD_API {
+                business_account_id,
+                phone_number_id,
+                ..
+            } => vec![
+                ("business_account_id", Some(business_account_id.as_str())),
+                ("phone_number_id", Some(phone_number_id.as_str())),
+            ],
+            AccountSender::MESSENGER_SEND_API { page_id, .. } => {
+                vec![("page_id", Some(page_id.as_str()))]
+            }
+            AccountSender::VIBER_INFOBIP {
+                base_url, sender, ..
+            } => vec![
+                ("base_url", Some(base_url.trim_end_matches('/'))),
+                ("sender", Some(sender.as_str())),
+            ],
+            AccountSender::HTTP_API(_) | AccountSender::CONSOLE {} => vec![],
+        };
+        AccountIdentity {
+            provider: self.provider(),
+            ids: ids
+                .into_iter()
+                .filter_map(|(name, value)| {
+                    let value = value?.trim();
+                    (!value.is_empty())
+                        .then(|| (name.to_string(), value.to_string()))
+                })
+                .collect(),
+        }
+    }
+
     /// What this account can do on `channel`.
     pub fn capabilities(
         &self,
@@ -1246,6 +1948,19 @@ impl AccountSender {
                 DeliveryFeedback::UNAVAILABLE
             };
             capabilities.reconciliation = api.reconcile.is_some();
+        }
+        // SES reports deliveries only through its SNS notification topic.
+        if let AccountSender::AWS_SES {
+            notification_topic_arn,
+            ..
+        } = self
+        {
+            if notification_topic_arn
+                .as_deref()
+                .map_or(true, |topic| topic.trim().is_empty())
+            {
+                capabilities.delivery_feedback = DeliveryFeedback::UNAVAILABLE;
+            }
         }
         Some(capabilities)
     }
@@ -1356,6 +2071,24 @@ pub enum CredentialName {
     PASSWORD,
     /// Shared secret a configurable provider's callbacks are checked with.
     WEBHOOK_SECRET,
+    /// Basic auth user name Infobip's report subscription sends. Generated
+    /// by Step and shown once.
+    REPORT_USERNAME,
+    /// Basic auth password Infobip's report subscription sends. Generated
+    /// by Step and shown once.
+    REPORT_PASSWORD,
+}
+
+impl CredentialName {
+    /// Credentials Step generates; an administrator can't enter them.
+    pub fn is_generated(&self) -> bool {
+        matches!(
+            self,
+            CredentialName::VERIFY_TOKEN
+                | CredentialName::REPORT_USERNAME
+                | CredentialName::REPORT_PASSWORD
+        )
+    }
 }
 
 impl MessagingProvider {
@@ -1391,6 +2124,11 @@ impl MessagingProvider {
                 CredentialName::APP_SECRET,
                 CredentialName::VERIFY_TOKEN,
             ],
+            MessagingProvider::VIBER_INFOBIP => vec![
+                CredentialName::API_KEY,
+                CredentialName::REPORT_USERNAME,
+                CredentialName::REPORT_PASSWORD,
+            ],
             MessagingProvider::HTTP_API => vec![
                 CredentialName::API_KEY,
                 CredentialName::API_SECRET,
@@ -1420,6 +2158,11 @@ pub struct AccountLimits {
     /// phone messages to. Empty: any.
     #[serde(default)]
     pub allowed_calling_codes: Vec<String>,
+    /// Sends Keycloak asks for (codes and notices) this account may have in
+    /// flight at once per harvest process; empty (or 0) means 8. The
+    /// account's bucket is the limit across processes.
+    #[serde(default)]
+    pub otp_concurrency: Option<u32>,
 }
 
 /// Internal request from Keycloak or windmill to send one message.
@@ -1428,16 +2171,29 @@ pub struct SendMessageRequest {
     pub tenant_id: String,
     pub election_event_id: Option<String>,
     pub voter_id: Option<String>,
-    pub channel: MessageChannel,
+    /// Codes: required. Notices to a voter may leave it out: harvest then
+    /// sends on the voter's recorded channel, or records "No contact
+    /// channel".
+    #[serde(default)]
+    pub channel: Option<MessageChannel>,
     pub purpose: MessagePurpose,
-    /// Phone number (E.164), email address or Page-scoped ID.
-    pub destination: String,
+    /// Phone number (E.164), email address or Page-scoped ID. Optional
+    /// like `channel`.
+    #[serde(default)]
+    pub destination: Option<String>,
+    /// Whose channel a notice goes to.
+    #[serde(default)]
+    pub recipient: NoticeRecipient,
     pub language: Option<String>,
     pub content: MessageContent,
     /// Which message this is, such as Keycloak's message key, to pick its
     /// approved template among the event's bindings.
     #[serde(default)]
     pub template_key: Option<String>,
+    /// The voter's elections, so per-election (Post) channel restrictions
+    /// apply to this message too.
+    #[serde(default)]
+    pub election_ids: Vec<String>,
     /// Identifies the logical message across retries. A second request with
     /// the same key does not send again once the first was accepted.
     pub logical_key: String,
@@ -1485,16 +2241,34 @@ pub struct CreateMessengerLinkRequest {
     pub content: MessageContent,
     /// When the code expires (RFC 3339). The reference never outlives it.
     pub expires_at: String,
+    /// The saved voter's Page-scoped ID (sign-in, reset). The code then
+    /// goes only to that conversation: Get Started from any other one
+    /// consumes the link without sending, answered as an unknown reference
+    /// is. Absent while enrolling. Held encrypted with the code, never
+    /// logged.
+    #[serde(default)]
+    pub expected_recipient: Option<String>,
+    /// The Page `expected_recipient` belongs to (the voter's
+    /// `messenger-page`). When it isn't the Page of the event's Messenger
+    /// account any more, the saved conversation can't be reached and the
+    /// link is refused with [`MessageReason::MESSENGER_PAGE_CHANGED`]: the
+    /// caller may then start a reconnect, a link without
+    /// `expected_recipient` whose confirmation names the new Page-scoped ID
+    /// and Page. Absent: not checked (callers before this field).
+    #[serde(default)]
+    pub expected_page: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct CreateMessengerLinkResponse {
     pub reference: String,
-    /// `m.me` link with the reference.
+    /// `m.me` link with the reference. The only way to complete the link:
+    /// there is no word to type in the chat.
     pub link: String,
-    /// Word the voter can type in the chat instead of using the link.
-    pub link_word: String,
     pub expires_at: String,
+    /// The Page the link opens: the event's Messenger account's Page now.
+    #[serde(default)]
+    pub page_id: Option<String>,
 }
 
 #[allow(non_camel_case_types)]
@@ -1560,6 +2334,7 @@ mod tests {
             approved_templates,
             checked_at: Some("2026-10-02T00:00:00Z".to_string()),
             reason: None,
+            details: AccountCheckDetails::default(),
         }
     }
 
@@ -1578,8 +2353,10 @@ mod tests {
             provider_approval: ProviderApproval::PENDING,
             readiness: ReadinessPolicy::PROVIDER_CHECK,
             check,
+            identity: None,
             public_label: Some(format!("{id} label")),
             messenger_page: None,
+            callback_blockers: vec![],
         }
     }
 
@@ -1605,25 +2382,276 @@ mod tests {
     }
 
     #[test]
-    fn admin_confirmed_readiness_replaces_the_provider_check_only() {
-        let readiness = |approval| {
+    fn an_admin_confirmation_no_longer_bypasses_the_provider_check() {
+        let readiness = purpose_readiness(
+            &caps(
+                MessagingProvider::WHATSAPP_CLOUD_API,
+                MessageChannel::WHATSAPP,
+            ),
+            ProviderApproval::CONFIRMED,
+            None,
+            &AccountCheck::default(),
+            MessagePurpose::OTP,
+            Some("en"),
+        );
+        assert_eq!(
+            readiness.blockers,
+            vec![
+                ReadinessBlocker::NOT_CONNECTED,
+                ReadinessBlocker::NEEDS_PRODUCTION_ACCESS,
+                ReadinessBlocker::NEEDS_APPROVED_TEMPLATE,
+            ]
+        );
+        // Stored accounts with the removed policy still parse, and count
+        // as the provider check.
+        assert_eq!(
+            "ADMIN_CONFIRMED".parse::<ReadinessPolicy>(),
+            Ok(ReadinessPolicy::ADMIN_CONFIRMED)
+        );
+        assert_eq!(
+            ReadinessPolicy::ADMIN_CONFIRMED.effective(),
+            ReadinessPolicy::PROVIDER_CHECK
+        );
+    }
+
+    fn whatsapp_sender(phone_number_id: &str) -> AccountSender {
+        AccountSender::WHATSAPP_CLOUD_API {
+            business_account_id: " 100 ".to_string(),
+            phone_number_id: phone_number_id.to_string(),
+            display_phone_number: "+1 555 0100".to_string(),
+            display_name: Some("Elections".to_string()),
+            api_version: "v23.0".to_string(),
+            api_base_url: None,
+        }
+    }
+
+    /// AP-B3, R5-09: a check of another identity (an earlier number or
+    /// Page) makes the account ready for nothing until it is checked as it
+    /// is now. "Needs a check" is the check's identity, not a stored
+    /// policy.
+    #[test]
+    fn a_check_of_another_identity_is_ready_for_nothing() {
+        let old = whatsapp_sender("200");
+        let new = whatsapp_sender("300");
+        let mut check = ready_check(&[(MessagePurpose::OTP, "en")]);
+        check.details.identity = Some(old.identity());
+        let readiness = |identity: Option<&AccountIdentity>,
+                         check: &AccountCheck| {
             purpose_readiness(
                 &caps(
                     MessagingProvider::WHATSAPP_CLOUD_API,
                     MessageChannel::WHATSAPP,
                 ),
-                approval,
-                ReadinessPolicy::ADMIN_CONFIRMED,
-                &AccountCheck::default(),
+                ProviderApproval::CONFIRMED,
+                identity,
+                check,
+                MessagePurpose::OTP,
+                Some("en"),
+            )
+        };
+        assert!(readiness(Some(&old.identity()), &check).is_ready());
+        assert!(readiness(None, &check).is_ready());
+        assert_eq!(
+            readiness(Some(&new.identity()), &check).blockers,
+            vec![ReadinessBlocker::UNCHECKED]
+        );
+        // A check stored before identities were recorded counts for the
+        // identity the account has.
+        check.details.identity = None;
+        assert!(readiness(Some(&new.identity()), &check).is_ready());
+    }
+
+    /// R5-09: a development row stored as `UNCHECKED` reads as the provider
+    /// check, and nothing writes the value again.
+    #[test]
+    fn stored_unchecked_rows_read_as_the_provider_check() {
+        for (text, policy) in [
+            ("PROVIDER_CHECK", ReadinessPolicy::PROVIDER_CHECK),
+            ("ADMIN_CONFIRMED", ReadinessPolicy::ADMIN_CONFIRMED),
+            ("UNCHECKED", ReadinessPolicy::PROVIDER_CHECK),
+        ] {
+            assert_eq!(text.parse::<ReadinessPolicy>(), Ok(policy));
+            assert_eq!(
+                serde_json::from_value::<ReadinessPolicy>(serde_json::json!(
+                    text
+                ))
+                .unwrap(),
+                policy
+            );
+        }
+        assert_eq!(
+            ReadinessPolicy::PROVIDER_CHECK.to_string(),
+            "PROVIDER_CHECK"
+        );
+        assert_eq!(
+            serde_json::to_value(ReadinessPolicy::PROVIDER_CHECK).unwrap(),
+            serde_json::json!("PROVIDER_CHECK")
+        );
+    }
+
+    /// The identity is the provider and the identifying ids, trimmed;
+    /// names, labels and API versions are not part of it.
+    #[test]
+    fn an_identity_is_the_identifying_ids() {
+        let mut renamed = whatsapp_sender("200");
+        if let AccountSender::WHATSAPP_CLOUD_API {
+            display_name,
+            api_version,
+            business_account_id,
+            ..
+        } = &mut renamed
+        {
+            *display_name = Some("Other".to_string());
+            *api_version = "v24.0".to_string();
+            *business_account_id = "100".to_string();
+        }
+        assert_eq!(whatsapp_sender("200").identity(), renamed.identity());
+        assert_ne!(
+            whatsapp_sender("200").identity(),
+            whatsapp_sender("300").identity()
+        );
+        assert_eq!(
+            serde_json::to_value(whatsapp_sender("200").identity()).unwrap(),
+            serde_json::json!({
+                "provider": "WHATSAPP_CLOUD_API",
+                "ids": {"business_account_id": "100", "phone_number_id": "200"}
+            })
+        );
+        let sns = AccountSender::AWS_SNS {
+            sender_id: Some("Elections".to_string()),
+            origination_number: None,
+            region: Some(" ".to_string()),
+        };
+        assert_eq!(
+            sns.identity().ids,
+            BTreeMap::from([(
+                "sender_id".to_string(),
+                "Elections".to_string()
+            )])
+        );
+    }
+
+    /// A check stored before `details` existed still parses.
+    #[test]
+    fn checks_stored_without_details_parse() {
+        let check: AccountCheck = serde_json::from_value(serde_json::json!({
+            "connected": true,
+            "production_access": true,
+            "checked_at": "2026-10-01T00:00:00Z",
+            "reason": null
+        }))
+        .unwrap();
+        assert_eq!(check.details, AccountCheckDetails::default());
+    }
+
+    /// The provider's approval comes from the check where it reports one;
+    /// the administrator's entry only where it doesn't.
+    #[test]
+    fn a_reported_approval_wins_over_the_entered_one() {
+        let mut check = ready_check(&[(MessagePurpose::OTP, "en")]);
+        let readiness = |check: &AccountCheck, entered| {
+            purpose_readiness(
+                &caps(
+                    MessagingProvider::WHATSAPP_CLOUD_API,
+                    MessageChannel::WHATSAPP,
+                ),
+                entered,
+                None,
+                check,
                 MessagePurpose::OTP,
                 Some("en"),
             )
         };
         assert_eq!(
-            readiness(ProviderApproval::PENDING).blockers,
+            check.approval(ProviderApproval::CONFIRMED),
+            (ProviderApproval::CONFIRMED, ApprovalSource::ADMIN_ENTERED)
+        );
+        assert!(readiness(&check, ProviderApproval::CONFIRMED).is_ready());
+        check.details.provider_approval = Some(ProviderApproval::PENDING);
+        assert_eq!(
+            check.approval(ProviderApproval::CONFIRMED),
+            (ProviderApproval::PENDING, ApprovalSource::PROVIDER_CHECK)
+        );
+        assert_eq!(
+            readiness(&check, ProviderApproval::CONFIRMED).blockers,
             vec![ReadinessBlocker::NEEDS_PROVIDER_APPROVAL]
         );
-        assert!(readiness(ProviderApproval::CONFIRMED).is_ready());
+        check.details.provider_approval = Some(ProviderApproval::CONFIRMED);
+        assert!(readiness(&check, ProviderApproval::PENDING).is_ready());
+    }
+
+    #[test]
+    fn removed_providers_parse_and_are_unsupported() {
+        for (sender, provider) in [
+            (
+                serde_json::json!({"provider": "CONSOLE"}),
+                MessagingProvider::CONSOLE,
+            ),
+            (
+                serde_json::json!({"provider": "HTTP_API", "send": {"url": "https://gateway.example.org/send"}}),
+                MessagingProvider::HTTP_API,
+            ),
+        ] {
+            let sender: AccountSender = serde_json::from_value(sender).unwrap();
+            assert_eq!(sender.provider(), provider);
+            assert_eq!(provider.support(), ProviderSupport::UNSUPPORTED);
+        }
+        for provider in MessagingProvider::iter().filter(|p| {
+            !matches!(
+                p,
+                MessagingProvider::CONSOLE | MessagingProvider::HTTP_API
+            )
+        }) {
+            assert_eq!(
+                provider.support(),
+                ProviderSupport::SUPPORTED,
+                "{provider}"
+            );
+        }
+    }
+
+    #[test]
+    fn an_event_cannot_enable_purposes_on_an_unsupported_account() {
+        let config = EventMessagingConfig {
+            channels: vec![EventChannelConfig {
+                channel: MessageChannel::SMS,
+                account_id: "console".to_string(),
+                purposes: vec![MessagePurpose::NOTICE],
+                ..serde_json::from_value(serde_json::json!({
+                    "channel": "SMS", "account_id": "console",
+                }))
+                .unwrap()
+            }],
+            ..Default::default()
+        };
+        let account = account(
+            "console",
+            MessageChannel::SMS,
+            MessagingProvider::CONSOLE,
+            ready_check(&[]),
+        );
+        assert_eq!(
+            config.validate(TENANT, &[account], &[]),
+            Err(vec![MessagingConfigError::PURPOSE_NOT_READY {
+                channel: MessageChannel::SMS,
+                purpose: MessagePurpose::NOTICE,
+                blockers: vec![ReadinessBlocker::UNSUPPORTED_PROVIDER],
+            }])
+        );
+    }
+
+    #[test]
+    fn report_credentials_are_generated_never_entered() {
+        let accepted = MessagingProvider::VIBER_INFOBIP.accepted_credentials();
+        for name in [
+            CredentialName::REPORT_USERNAME,
+            CredentialName::REPORT_PASSWORD,
+        ] {
+            assert!(accepted.contains(&name));
+            assert!(name.is_generated());
+        }
+        assert!(CredentialName::VERIFY_TOKEN.is_generated());
+        assert!(!CredentialName::API_KEY.is_generated());
     }
 
     #[test]
@@ -1759,6 +2787,8 @@ mod tests {
         assert!(!DELIVERED.can_transition_to(UNKNOWN));
         assert!(!ACCEPTED.can_transition_to(UNKNOWN));
         assert!(!ACCEPTED.can_transition_to(QUEUED));
+        // A fast report may arrive before the send's answer is recorded.
+        assert!(QUEUED.can_transition_to(DELIVERED));
         assert!(FAILED.can_transition_to(DELIVERED));
         assert!(!FAILED.can_transition_to(ACCEPTED));
     }
@@ -1805,7 +2835,7 @@ mod tests {
                 MessageChannel::WHATSAPP,
             ),
             ProviderApproval::PENDING,
-            ReadinessPolicy::PROVIDER_CHECK,
+            None,
             &ready_check(&[]),
             MessagePurpose::OTP,
             Some("en"),
@@ -1826,7 +2856,7 @@ mod tests {
             purpose_readiness(
                 &caps(MessagingProvider::VIBER_INFOBIP, MessageChannel::VIBER),
                 ProviderApproval::PENDING,
-                ReadinessPolicy::PROVIDER_CHECK,
+                None,
                 &check,
                 MessagePurpose::OTP,
                 Some(language),
@@ -1845,7 +2875,7 @@ mod tests {
         let readiness = purpose_readiness(
             &caps(MessagingProvider::AWS_SNS, MessageChannel::SMS),
             ProviderApproval::PENDING,
-            ReadinessPolicy::PROVIDER_CHECK,
+            None,
             &check,
             MessagePurpose::NOTICE,
             None,
@@ -1897,7 +2927,6 @@ mod tests {
                     )
                 },
             ],
-            notice_fallback: vec![MessageChannel::VIBER, MessageChannel::SMS],
             election_channels: BTreeMap::from([(
                 "election-1".to_string(),
                 vec![MessageChannel::SMS],
@@ -1960,7 +2989,6 @@ mod tests {
                     &[MessagePurpose::OTP],
                 ),
             ],
-            notice_fallback: vec![MessageChannel::SMS],
             election_channels: BTreeMap::from([(
                 "unknown-election".to_string(),
                 vec![MessageChannel::SMS],
@@ -1987,9 +3015,6 @@ mod tests {
                 },
                 MessagingConfigError::DUPLICATE_CHANNEL {
                     channel: MessageChannel::VIBER
-                },
-                MessagingConfigError::FALLBACK_CHANNEL_NOT_ENABLED {
-                    channel: MessageChannel::SMS
                 },
                 MessagingConfigError::UNKNOWN_ELECTION {
                     election_id: "unknown-election".to_string()
@@ -2063,7 +3088,6 @@ mod tests {
                 "election-1".to_string(),
                 vec![MessageChannel::VIBER],
             )]),
-            notice_fallback: vec![MessageChannel::SMS, MessageChannel::SMS],
             ..Default::default()
         };
         let errors = config
@@ -2071,15 +3095,10 @@ mod tests {
             .expect_err("x");
         assert_eq!(
             errors,
-            vec![
-                MessagingConfigError::DUPLICATE_FALLBACK_CHANNEL {
-                    channel: MessageChannel::SMS
-                },
-                MessagingConfigError::ELECTION_CHANNEL_NOT_ENABLED {
-                    election_id: "election-1".to_string(),
-                    channel: MessageChannel::VIBER
-                },
-            ]
+            vec![MessagingConfigError::ELECTION_CHANNEL_NOT_ENABLED {
+                election_id: "election-1".to_string(),
+                channel: MessageChannel::VIBER
+            },]
         );
     }
 
@@ -2197,6 +3216,249 @@ mod tests {
             config.channels[0].out_of_window,
             OutOfWindowPolicy::DISABLED
         );
-        assert!(config.notice_fallback.is_empty());
+    }
+
+    #[test]
+    fn first_release_fallback_and_reply_fields_parse_and_are_dropped() {
+        let config: EventMessagingConfig = serde_json::from_str(
+            r#"{"version":1,"channels":[],"notice_fallback":["SMS","EMAIL"],
+                "reply_text":{"en":"Thanks"}}"#,
+        )
+        .expect("parse");
+        let written = serde_json::to_value(&config).expect("serialize");
+        assert!(written.get("notice_fallback").is_none());
+        assert!(written.get("reply_text").is_none());
+    }
+
+    #[test]
+    fn messenger_notices_need_the_utility_template() {
+        let accounts = vec![account(
+            "messenger-1",
+            MessageChannel::MESSENGER,
+            MessagingProvider::MESSENGER_SEND_API,
+            ready_check(&[]),
+        )];
+        let notices = channel_config(
+            MessageChannel::MESSENGER,
+            "messenger-1",
+            &[MessagePurpose::NOTICE],
+        );
+        let blocked = MessagingConfigError::UTILITY_TEMPLATE_MISSING {
+            channel: MessageChannel::MESSENGER,
+        };
+        let validate = |channel: EventChannelConfig| {
+            EventMessagingConfig {
+                channels: vec![channel],
+                ..Default::default()
+            }
+            .validate(TENANT, &accounts, &[])
+        };
+        // "Do not send" outside the window is gone: Messenger always uses
+        // the utility template, which must be bound.
+        assert_eq!(
+            notices.effective_out_of_window(),
+            OutOfWindowPolicy::UTILITY_MESSAGES
+        );
+        assert_eq!(validate(notices.clone()), Err(vec![blocked]));
+        assert_eq!(
+            validate(EventChannelConfig {
+                templates: vec![TemplateBinding {
+                    purpose: MessagePurpose::NOTICE,
+                    ..binding(None, "en", "voting_reminder")
+                }],
+                ..notices.clone()
+            }),
+            Ok(())
+        );
+        // Codes only: nothing to send outside the window.
+        assert_eq!(
+            validate(channel_config(
+                MessageChannel::MESSENGER,
+                "messenger-1",
+                &[MessagePurpose::OTP],
+            )),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn ses_receipts_need_the_notification_topic() {
+        let ses = |topic: Option<&str>| AccountSender::AWS_SES {
+            from_address: "noreply@example.org".to_string(),
+            from_name: None,
+            region: None,
+            notification_topic_arn: topic.map(str::to_string),
+        };
+        let feedback = |sender: AccountSender| {
+            sender
+                .capabilities(MessageChannel::EMAIL)
+                .unwrap()
+                .delivery_feedback
+        };
+        assert_eq!(feedback(ses(None)), DeliveryFeedback::UNAVAILABLE);
+        assert_eq!(feedback(ses(Some(" "))), DeliveryFeedback::UNAVAILABLE);
+        assert_eq!(
+            feedback(ses(Some("arn:aws:sns:eu-west-1:1:ses"))),
+            DeliveryFeedback::PROVIDER_RECEIPTS
+        );
+    }
+
+    /// Regression (R1-06): the callback blocker reached no readiness, so a
+    /// save enabled Messenger codes no voter could receive.
+    #[test]
+    fn a_save_refuses_messenger_codes_without_the_callback_address() {
+        let ready = AccountCheck {
+            connected: true,
+            production_access: true,
+            ..Default::default()
+        };
+        let mut page = account(
+            "page",
+            MessageChannel::MESSENGER,
+            MessagingProvider::MESSENGER_SEND_API,
+            ready,
+        );
+        page.provider_approval = ProviderApproval::CONFIRMED;
+        page.callback_blockers =
+            vec![ReadinessBlocker::CALLBACK_NOT_CONFIGURED];
+        let config: EventMessagingConfig = serde_json::from_value(serde_json::json!({
+            "version": 1,
+            "channels": [{"channel": "MESSENGER", "account_id": "page", "purposes": ["OTP"]}],
+        }))
+        .unwrap();
+        let errors = config
+            .validate(TENANT, std::slice::from_ref(&page), &[])
+            .unwrap_err();
+        assert!(errors.iter().any(|error| matches!(
+            error,
+            MessagingConfigError::PURPOSE_NOT_READY { blockers, .. }
+                if blockers.contains(&ReadinessBlocker::CALLBACK_NOT_CONFIGURED)
+        )), "{errors:?}");
+        page.callback_blockers = vec![];
+        assert!(config
+            .validate(TENANT, std::slice::from_ref(&page), &[])
+            .is_ok());
+    }
+
+    #[test]
+    fn messenger_codes_need_the_callback_address() {
+        assert_eq!(
+            callback_blocker(
+                MessageChannel::MESSENGER,
+                MessagePurpose::OTP,
+                false
+            ),
+            Some(ReadinessBlocker::CALLBACK_NOT_CONFIGURED)
+        );
+        assert_eq!(
+            callback_blocker(
+                MessageChannel::MESSENGER,
+                MessagePurpose::OTP,
+                true
+            ),
+            None
+        );
+        assert_eq!(
+            callback_blocker(
+                MessageChannel::MESSENGER,
+                MessagePurpose::NOTICE,
+                false
+            ),
+            None
+        );
+        assert_eq!(
+            callback_blocker(
+                MessageChannel::WHATSAPP,
+                MessagePurpose::OTP,
+                false
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn a_reason_not_to_retry_is_kept_next_to_the_failure() {
+        let reason = MessageReason::NO_STORED_TEMPLATE;
+        let stored = reason.not_retried_after(Some("rate limited (429)"));
+        assert_eq!(
+            stored,
+            "rate limited (429); Can't be retried: no stored template"
+        );
+        assert_eq!(
+            MessageReason::split_stored(&stored),
+            ("rate limited (429)", Some(reason))
+        );
+        assert_eq!(reason.not_retried_after(None), reason.as_str());
+        assert_eq!(reason.not_retried_after(Some(" ")), reason.as_str());
+        assert_eq!(
+            MessageReason::split_stored(reason.as_str()),
+            ("", Some(reason))
+        );
+        assert_eq!(
+            MessageReason::split_stored("provider code 7; other"),
+            ("provider code 7; other", None)
+        );
+    }
+
+    #[test]
+    fn notices_without_a_channel_parse_and_go_to_the_voter() {
+        let request: SendMessageRequest =
+            serde_json::from_value(serde_json::json!({
+                "tenant_id": "t", "election_event_id": null,
+                "voter_id": "v", "purpose": "NOTICE",
+                "language": null, "logical_key": "k", "expires_at": null,
+                "content": {"subject": null, "text": "x", "html": null,
+                            "code": null}
+            }))
+            .unwrap();
+        assert_eq!(request.channel, None);
+        assert_eq!(request.destination, None);
+        assert_eq!(request.recipient, NoticeRecipient::VOTER_CHANNEL);
+    }
+
+    #[test]
+    fn every_reason_has_one_string() {
+        use strum::IntoEnumIterator;
+        let mut seen = HashSet::new();
+        for reason in MessageReason::iter() {
+            assert_eq!(reason.to_string(), reason.as_str());
+            assert_eq!(reason.as_str().parse::<MessageReason>(), Ok(reason));
+            assert!(seen.insert(reason.as_str()));
+        }
+    }
+
+    #[test]
+    fn billing_categories_follow_channel_purpose_and_window() {
+        use BillingCategory::*;
+        let expected = BillingCategory::expected;
+        assert_eq!(
+            expected(MessageChannel::WHATSAPP, MessagePurpose::OTP, false),
+            AUTHENTICATION
+        );
+        assert_eq!(
+            expected(MessageChannel::WHATSAPP, MessagePurpose::NOTICE, true),
+            UTILITY
+        );
+        assert_eq!(
+            expected(MessageChannel::MESSENGER, MessagePurpose::NOTICE, true),
+            SERVICE
+        );
+        assert_eq!(
+            expected(MessageChannel::MESSENGER, MessagePurpose::NOTICE, false),
+            UTILITY
+        );
+        assert_eq!(
+            expected(MessageChannel::SMS, MessagePurpose::OTP, false),
+            TRANSACTIONAL
+        );
+        assert_eq!(
+            expected(MessageChannel::EMAIL, MessagePurpose::NOTICE, false),
+            EMAIL
+        );
+        assert_eq!(
+            BillingCategory::from_report("authentication"),
+            Some(AUTHENTICATION)
+        );
+        assert_eq!(BillingCategory::from_report("marketing"), None);
     }
 }

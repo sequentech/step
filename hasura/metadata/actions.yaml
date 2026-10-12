@@ -487,6 +487,176 @@ actions:
               version: 2
       permissions:
           - role: messaging-config-write
+    - name: messaging_account_callback_url
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/messaging/accounts/callback-url
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: '{"id": {{$body.input.account_id}}}'
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-account-write
+      comment: The full callback URL of an account, or why there is none
+    - name: messaging_account_change_impact
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/messaging/accounts/change-impact
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-account-write
+      comment: How many voters must connect again if a Messenger account's Page changes
+    - name: messaging_callback_status
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/messaging/accounts/callback-status
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-config-read
+          - role: messaging-account-read
+      comment: Per account, what stops its delivery reports (and Messenger's Get Started) from reaching Step
+    - name: messaging_fake_provider_messages
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/fake-provider/messages
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-account-write
+      comment: Development only. The messages harvest's fake provider routes took, with their delivery reports, without email HTML (has_html says there is one); fails when the routes aren't mounted (MESSAGING_FAKE_PROVIDER_ROUTES)
+    - name: messaging_fake_provider_message
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/fake-provider/message
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: '{"id": {{$body.input.id}}}'
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-account-write
+      comment: Development only. One message the fake provider routes took, with its email HTML (capped); fails when it is no longer in the list or the routes aren't mounted
+    - name: messaging_fake_provider_get_started
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/fake-provider/meta/messenger/get-started
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: '{"link": {{$body.input.link}}}'
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-account-write
+      comment: Development only. Stands in for a voter's Get Started tap on an m.me link; answers with the webhook component's status
+    - name: messaging_event_stats
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/messaging/event-stats
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-config-read
+      comment: Per-channel delivery counts of an election event, by latest attempt
+    - name: messaging_voter_counts
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/messaging/voter-counts
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-config-read
+      comment: An election event's voters per channel, as last counted, with when
+    - name: messaging_recount_voters
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/messaging/recount-voters
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-config-read
+      comment: Asks for a recount of an election event's voters per channel
+    - name: messaging_audience_preview
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/messaging/audience-preview
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-config-read
+      comment: Per channel, the voters a notice reaches and the account it sends from (Send Notification)
+    - name: messaging_monthly_volumes
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/messaging/monthly-volumes
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-account-read
+          - role: messaging-config-read
+      comment: Attempts handed to a provider in a month, by channel, account, country and billing category
+    - name: find_applications_by_support_reference
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/applications/support-reference
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: application-read
+      comment: The applications of an event whose support reference is the one searched
     - name: delete_role
       definition:
           kind: synchronous
@@ -2908,4 +3078,24 @@ custom_types:
         - name: CheckMessagingAccountOutput
         - name: TestMessagingAccountOutput
         - name: UpdateEventMessagingConfigOutput
+        - name: MessagingAccountCallbackUrlOutput
+        - name: MessagingCallbackStatusOutput
+        - name: MessagingAccountCallbackStatus
+        - name: MessagingEventStatsOutput
+        - name: MessagingChannelStats
+        - name: MessagingAudiencePreviewOutput
+        - name: MessagingAudienceChannel
+        - name: MessagingVoterCountStatus
+        - name: MessagingVoterCountsOutput
+        - name: MessagingVoterChannel
+        - name: MessagingRecountVotersOutput
+        - name: MessagingMonthlyVolumesOutput
+        - name: MessagingMonthlyVolume
+        - name: FindApplicationsBySupportReferenceOutput
+        - name: MessagingFakeProviderMessagesOutput
+        - name: MessagingFakeProviderMessage
+        - name: MessagingFakeProviderContent
+        - name: MessagingFakeProviderParameter
+        - name: MessagingFakeProviderReport
+        - name: MessagingFakeProviderGetStartedOutput
     scalars: []

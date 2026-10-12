@@ -3,34 +3,35 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Messenger links. A voter proves a Messenger contact by opening the
-//! event's Page with a one-time reference, receiving the code there and
-//! entering it in the original authentication session. Keycloak stays the
-//! authority on the code; Step only holds it, encrypted, until it is sent.
+//! event's Page with a one-time reference (Get Started or a referral),
+//! receiving the code there and entering it in the original authentication
+//! session. There is no word to type. Keycloak stays the authority on the
+//! code; Step only holds it, encrypted, until it is sent.
 
+use super::accounts::{callback_readiness_with, CallbackReadiness};
+use super::audit::post_attempt_outcomes_or_warn;
 use super::config::get_event_messaging_config;
-use super::dispatch::{deliver, Delivery, Dispatcher, FallbackPolicy, Recipient};
+use super::dispatch::{
+    deliver_within, Delivery, DeliveryResult, Dispatcher, Recipient, SendPolicy,
+};
 use super::keys::{tenant_key, TenantKey};
 use crate::postgres::messaging::{
     get_messaging_account, get_messenger_link_by_reference, get_pending_messenger_link,
-    insert_messenger_link, list_messaging_accounts, update_messenger_link, MessagingAccount,
-    NewMessengerLink,
+    insert_messenger_link, list_messaging_accounts, lock_messaging_account, update_messenger_link,
+    MessagingAccount, NewMessengerLink,
 };
 use crate::services::vault::{decrypt_with_master_secret, encrypt_with_master_secret};
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Duration, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
-use messaging::link::{
-    check_link, digest, messenger_link, new_link_word, new_reference, normalize_link_word,
-    LinkCheck,
-};
+use messaging::link::{check_link, digest, messenger_link, new_reference, LinkCheck};
 use messaging::webhooks::MessengerReferral;
 use sequent_core::types::messaging::{
     CreateMessengerLinkRequest, CreateMessengerLinkResponse, MessageAttemptState, MessageChannel,
-    MessageContent, MessagePurpose, MessengerLinkRequest, MessengerLinkState, MessengerLinkStatus,
-    OTP_TEMPLATE_KEY,
+    MessageContent, MessagePurpose, MessageReason, MessengerLinkRequest, MessengerLinkState,
+    MessengerLinkStatus, OTP_TEMPLATE_KEY,
 };
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
@@ -41,6 +42,9 @@ pub const MAX_LINK_LIFETIME_MINUTES: i64 = 10;
 #[derive(Serialize, Deserialize)]
 struct HeldCode {
     content: MessageContent,
+    /// The only conversation the code may go to, for a saved voter.
+    #[serde(default)]
+    expected_recipient: Option<String>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -49,6 +53,15 @@ pub enum LinkError {
     MessengerNotEnabled,
     /// Unknown reference, or one that belongs to another session or code.
     NotFound,
+    /// The webhook component's public address isn't configured, so Get
+    /// Started can't reach Step and no code could be sent:
+    /// "Callback address not configured"
+    /// ([`super::accounts::CALLBACK_NOT_CONFIGURED`]).
+    CallbackNotConfigured,
+    /// The saved voter's Page (`expected_page`) isn't the Page of the
+    /// event's Messenger account: their conversation can't be reached
+    /// ([`MessageReason::MESSENGER_PAGE_CHANGED`]).
+    MessengerPageChanged,
 }
 
 async fn messenger_account(
@@ -86,10 +99,15 @@ fn parse_time(value: &str) -> Result<DateTime<Utc>> {
         .with_timezone(&Utc))
 }
 
+/// Starts a Messenger link. `webhooks_public_url` is the webhook
+/// component's public address (`MESSAGING_WEBHOOKS_PUBLIC_URL`, passed in
+/// by the caller): without it Get Started can't reach Step, so the link is
+/// refused.
 #[instrument(skip_all, err)]
 pub async fn create_link(
     client: &mut DbClient,
     request: &CreateMessengerLinkRequest,
+    webhooks_public_url: Option<&str>,
 ) -> Result<std::result::Result<CreateMessengerLinkResponse, LinkError>> {
     let tenant_id = Uuid::parse_str(&request.tenant_id)?;
     let event_id = request
@@ -111,15 +129,48 @@ pub async fn create_link(
         tx.commit().await?;
         return Ok(Err(LinkError::MessengerNotEnabled));
     };
+    let Some(account) = lock_messaging_account(&tx, &tenant_id, &account.id).await? else {
+        tx.commit().await?;
+        return Ok(Err(LinkError::MessengerNotEnabled));
+    };
+    if matches!(
+        callback_readiness_with(webhooks_public_url, account.provider, &account.webhook_key),
+        CallbackReadiness::NotConfigured
+    ) {
+        tx.commit().await?;
+        return Ok(Err(LinkError::CallbackNotConfigured));
+    }
     let Some(page) = account.sender.messenger_page() else {
         return Err(anyhow!("the Messenger account has no Page"));
     };
+    // The saved conversation belongs to another Page: it can't be reached
+    // through this one, so the link would expire on any Get Started.
+    if request
+        .expected_page
+        .as_deref()
+        .map(str::trim)
+        .filter(|expected| !expected.is_empty())
+        .is_some_and(|expected| expected != page.page_id.trim())
+    {
+        tx.commit().await?;
+        info!(account = %account.id, "{}", MessageReason::MESSENGER_PAGE_CHANGED);
+        return Ok(Err(LinkError::MessengerPageChanged));
+    }
     let key = tenant_key(&tx, &tenant_id, TenantKey::MessengerLink).await?;
     let reference = new_reference();
-    let link_word = new_link_word();
     let mut content = request.content.clone();
     content.code = Some(request.code.clone());
-    let payload = encrypt_with_master_secret(&serde_json::to_vec(&HeldCode { content })?).await?;
+    let expected_recipient = request
+        .expected_recipient
+        .as_deref()
+        .map(str::trim)
+        .filter(|psid| !psid.is_empty())
+        .map(str::to_string);
+    let payload = encrypt_with_master_secret(&serde_json::to_vec(&HeldCode {
+        content,
+        expected_recipient,
+    })?)
+    .await?;
     insert_messenger_link(
         &tx,
         &NewMessengerLink {
@@ -127,7 +178,6 @@ pub async fn create_link(
             election_event_id: event_id,
             account_id: account.id,
             reference_digest: digest(&key, &reference)?,
-            link_word_digest: digest(&key, &link_word)?,
             auth_session_digest: request.auth_session.clone(),
             challenge_digest: request.challenge.clone(),
             encrypted_payload: payload,
@@ -140,8 +190,8 @@ pub async fn create_link(
     Ok(Ok(CreateMessengerLinkResponse {
         link: messenger_link(&page, &reference),
         reference,
-        link_word,
         expires_at: expires_at.to_rfc3339(),
+        page_id: Some(page.page_id.clone()),
     }))
 }
 
@@ -152,8 +202,18 @@ async fn checked_link(
 {
     let tenant_id = Uuid::parse_str(&request.tenant_id)?;
     let key = tenant_key(tx, &tenant_id, TenantKey::MessengerLink).await?;
-    let Some(link) =
-        get_messenger_link_by_reference(tx, &tenant_id, &digest(&key, &request.reference)?).await?
+    // Read the immutable account ID without locking the link, then lock
+    // account before link: the same order as an account Page change.
+    let reference_digest = digest(&key, &request.reference)?;
+    let Some(row) = tx.query_opt(
+        "SELECT account_id FROM sequent_backend.messenger_link WHERE tenant_id = $1 AND reference_digest = $2",
+        &[&tenant_id, &reference_digest],
+    ).await? else {
+        return Ok(Err(LinkError::NotFound));
+    };
+    let account_id: Uuid = row.try_get("account_id")?;
+    lock_messaging_account(tx, &tenant_id, &account_id).await?;
+    let Some(link) = get_messenger_link_by_reference(tx, &tenant_id, &reference_digest).await?
     else {
         return Ok(Err(LinkError::NotFound));
     };
@@ -231,40 +291,51 @@ pub async fn confirm_link(
     Ok(result)
 }
 
-/// A voter opened the Page with a reference or typed a link word: bind the
-/// conversation to the pending link and send the held code there.
+/// A code a Get Started released: the link it was held by, now bound to
+/// the voter's conversation, and the code's delivery. Sent by
+/// [`send_bound_code`], after the provider's callback is answered.
+#[derive(Debug, Clone)]
+pub struct BoundCode {
+    pub link_id: Uuid,
+    /// The Page's account the code goes through.
+    pub account: MessagingAccount,
+    pub delivery: Delivery,
+}
+
+/// A voter opened the Page with a reference: bind the conversation to the
+/// pending link, and return the held code to send there. The caller
+/// recorded the conversation's Get Started first, so the code goes out
+/// inside the 24-hour window. `None` when no link matched.
 #[instrument(skip_all, err)]
 pub async fn bind_referral(
     client: &mut DbClient,
-    dispatcher: &Dispatcher,
     account: &MessagingAccount,
     referral: &MessengerReferral,
-) -> Result<bool> {
+) -> Result<Option<BoundCode>> {
+    if referral.reference.is_empty() {
+        return Ok(None);
+    }
     let tx = client.transaction().await?;
-    let key = tenant_key(&tx, &account.tenant_id, TenantKey::MessengerLink).await?;
-    let reference_digest = (!referral.reference.is_empty())
-        .then(|| digest(&key, &referral.reference))
-        .transpose()?;
-    let word_digest = referral
-        .linking_word
-        .as_deref()
-        .map(|word| digest(&key, &normalize_link_word(word)))
-        .transpose()?;
-    let Some(link) = get_pending_messenger_link(
-        &tx,
-        &account.id,
-        reference_digest.as_deref(),
-        word_digest.as_deref(),
-    )
-    .await?
-    else {
+    let Some(current) = lock_messaging_account(&tx, &account.tenant_id, &account.id).await? else {
         tx.commit().await?;
-        return Ok(false);
+        return Ok(None);
+    };
+    // The callback was verified/parsed before this transaction: do not
+    // bind a conversation from an account identity that changed since.
+    if current.sender.identity() != account.sender.identity() {
+        tx.commit().await?;
+        return Ok(None);
+    }
+    let key = tenant_key(&tx, &account.tenant_id, TenantKey::MessengerLink).await?;
+    let reference_digest = digest(&key, &referral.reference)?;
+    let Some(link) = get_pending_messenger_link(&tx, &account.id, &reference_digest).await? else {
+        tx.commit().await?;
+        return Ok(None);
     };
     if link.expires_at <= Utc::now() {
         update_messenger_link(&tx, &link.id, MessengerLinkState::EXPIRED, None, None).await?;
         tx.commit().await?;
-        return Ok(false);
+        return Ok(None);
     }
     // A link binds one conversation: a replay from another one is ignored.
     if link
@@ -273,13 +344,26 @@ pub async fn bind_referral(
         .is_some_and(|bound| *bound != referral.page_scoped_id)
     {
         tx.commit().await?;
-        return Ok(false);
+        return Ok(None);
     }
     let Some(payload) = &link.encrypted_payload else {
         tx.commit().await?;
-        return Ok(false);
+        return Ok(None);
     };
     let held: HeldCode = serde_json::from_slice(&decrypt_with_master_secret(payload).await?)?;
+    if held
+        .expected_recipient
+        .as_ref()
+        .is_some_and(|expected| *expected != referral.page_scoped_id)
+    {
+        // Not the saved voter's conversation: the link is used up and
+        // nothing is sent, answered exactly as an unknown reference, so a
+        // live link can't be told from a decoy.
+        update_messenger_link(&tx, &link.id, MessengerLinkState::EXPIRED, None, None).await?;
+        tx.commit().await?;
+        info!(link = %link.id, "Messenger link opened from another conversation: not sent");
+        return Ok(None);
+    }
     update_messenger_link(
         &tx,
         &link.id,
@@ -289,36 +373,48 @@ pub async fn bind_referral(
     )
     .await?;
     tx.commit().await?;
-
-    let result = deliver(
-        client,
-        dispatcher,
-        &Delivery {
+    info!(link = %link.id, "Messenger link bound: its code is sent next");
+    Ok(Some(BoundCode {
+        link_id: link.id,
+        account: account.clone(),
+        delivery: Delivery {
             tenant_id: link.tenant_id,
             election_event_id: link.election_event_id,
             purpose: MessagePurpose::OTP,
-            first_channel: MessageChannel::MESSENGER,
-            fallback: FallbackPolicy::NONE,
             recipient: Recipient {
                 voter_id: None,
-                destinations: BTreeMap::from([(
-                    MessageChannel::MESSENGER,
-                    referral.page_scoped_id.clone(),
-                )]),
-                verified: vec![MessageChannel::MESSENGER],
+                channel: MessageChannel::MESSENGER,
+                destination: referral.page_scoped_id.clone(),
                 election_ids: vec![],
+                // The conversation came through this account's Page.
+                messenger_page: account.sender.messenger_page().map(|page| page.page_id),
             },
-            contents: BTreeMap::from([(MessageChannel::MESSENGER, held.content)]),
+            content: Some(held.content),
             language: link.language.clone(),
             template_alias: None,
             logical_key: format!("messenger-link:{}", link.id),
             expires_at: Some(link.expires_at),
             account_id: Some(link.account_id),
             template_key: Some(OTP_TEMPLATE_KEY.to_string()),
-            provider_templates: BTreeMap::new(),
+            provider_template: None,
         },
-    )
-    .await?;
+    }))
+}
+
+/// Sends a code [`bind_referral`] released, under `policy` (harvest: its
+/// own place and budget, after the callback was answered). Marks the link
+/// CODE_SENT when the code may have reached the provider, and hands the
+/// attempt's outcome to the electoral log. If this never runs (the process
+/// stopped first), the link stays bound without CODE_SENT and the voter
+/// taps Get Started again.
+#[instrument(skip_all, fields(link = %code.link_id), err)]
+pub async fn send_bound_code(
+    client: &mut DbClient,
+    dispatcher: &Dispatcher,
+    code: &BoundCode,
+    policy: SendPolicy,
+) -> Result<DeliveryResult> {
+    let result = deliver_within(client, dispatcher, &code.delivery, policy).await?;
     let sent = matches!(
         result.state,
         MessageAttemptState::ACCEPTED
@@ -326,17 +422,19 @@ pub async fn bind_referral(
             | MessageAttemptState::UNKNOWN
     );
     let tx = client.transaction().await?;
+    lock_messaging_account(&tx, &code.account.tenant_id, &code.account.id).await?;
     if sent {
         update_messenger_link(
             &tx,
-            &link.id,
+            &code.link_id,
             MessengerLinkState::CODE_SENT,
             None,
             result.message_id.as_ref(),
         )
         .await?;
     }
+    post_attempt_outcomes_or_warn(&tx, &result.recorded, None, None).await;
     tx.commit().await?;
-    info!(link = %link.id, state = %result.state, "Messenger link interaction");
-    Ok(sent)
+    info!(link = %code.link_id, state = %result.state, "Messenger link interaction");
+    Ok(result)
 }

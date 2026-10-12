@@ -561,6 +561,7 @@ fn messaging_permissions_have_stable_names() {
             "messaging-config-write",
             Permissions::MESSAGING_CONFIG_WRITE,
         ),
+        ("messaging-config-read", Permissions::MESSAGING_CONFIG_READ),
     ] {
         assert_eq!(Permissions::from_str(name), Ok(permission.clone()));
         assert_eq!(permission.to_string(), name);
@@ -568,7 +569,7 @@ fn messaging_permissions_have_stable_names() {
 }
 
 /// Administrators manage sending accounts and event messaging; a light
-/// administrator may only see the accounts.
+/// administrator may only see the accounts and the event's messaging.
 #[test]
 fn every_realm_grants_messaging_to_its_administrators_only() {
     let names = |groups: &[&str]| -> BTreeSet<String> {
@@ -590,6 +591,10 @@ fn every_realm_grants_messaging_to_its_administrators_only() {
             ),
             (Permissions::MESSAGING_ACCOUNT_WRITE, names(&["admin"])),
             (Permissions::MESSAGING_CONFIG_WRITE, names(&["admin"])),
+            (
+                Permissions::MESSAGING_CONFIG_READ,
+                names(&["admin", "admin-light"]),
+            ),
         ] {
             let permission = permission.to_string();
             assert!(

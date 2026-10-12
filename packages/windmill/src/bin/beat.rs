@@ -13,15 +13,22 @@ use sequent_core::monitoring::cadence::{Cadence, SNAPSHOT_INTERVAL_ENV, VOTER_FU
 use sequent_core::util::init_log::init_log;
 use tokio::time::Duration;
 use windmill::services::celery_app::{set_is_app_active, Queue};
+use windmill::services::messaging::checks::{
+    check_messaging_accounts, CHECK_PASS_INTERVAL_SECONDS,
+};
 use windmill::services::monitoring::cadence;
 use windmill::services::probe::{setup_probe, AppName};
 use windmill::tasks::electoral_log::electoral_log_batch_dispatcher;
+use windmill::tasks::migrate_messaging_attributes::migrate_messaging_attributes;
 use windmill::tasks::migrate_realm_permissions::{migrate_realm_permissions, RunOnce};
 use windmill::tasks::migrate_registration_flows::migrate_registration_flows;
 use windmill::tasks::recompute_schedule_instants::{
     recompute_schedule_instants, RECOMPUTE_INTERVAL_SECONDS,
 };
 use windmill::tasks::reconcile_messages::reconcile_messages;
+use windmill::tasks::recount_messaging_voters::{
+    recount_messaging_voters_due, RECOUNT_PASS_INTERVAL_SECONDS,
+};
 use windmill::tasks::refresh_monitoring_snapshot::{
     refresh_monitoring_snapshots, scheduled_fan_out,
 };
@@ -49,8 +56,9 @@ struct CeleryOpt {
     review_cast_votes_interval: u64,
     #[arg(short = 'e', long, default_value = "5")]
     electoral_log_interval: u64,
-    /// Seconds between two passes resolving messages whose outcome is unknown.
-    #[arg(long, default_value = "300")]
+    /// Seconds between two passes of the messaging sweep (retries,
+    /// reconciliation, unresolved outcomes, Messenger link expiry).
+    #[arg(long, default_value = "60")]
     reconcile_messages_interval: u64,
     /// Seconds between two monitoring snapshot passes; bounds and default
     /// in `sequent_core::monitoring::cadence`.
@@ -139,6 +147,19 @@ async fn main() -> Result<()> {
                 schedule = DeltaSchedule::new(Duration::from_secs(SEAL_BALLOT_BOXES_INTERVAL_SECONDS)),
                 args = (),
             },
+            // Hourly passes; each checks only the accounts due (daily, or
+            // after an identity change).
+            check_messaging_accounts::NAME => {
+                check_messaging_accounts,
+                schedule = DeltaSchedule::new(Duration::from_secs(CHECK_PASS_INTERVAL_SECONDS)),
+                args = (),
+            },
+            // Hourly passes; each asks for the voter recounts due, staggered.
+            recount_messaging_voters_due::NAME => {
+                recount_messaging_voters_due,
+                schedule = DeltaSchedule::new(Duration::from_secs(RECOUNT_PASS_INTERVAL_SECONDS)),
+                args = (),
+            },
         ],
         task_routes = [
             review_boards::NAME => &Queue::Beat.queue_name(&slug),
@@ -149,13 +170,16 @@ async fn main() -> Result<()> {
             refresh_monitoring_snapshots::NAME => &Queue::Beat.queue_name(&slug),
             migrate_realm_permissions::NAME => &Queue::Short.queue_name(&slug),
             migrate_registration_flows::NAME => &Queue::Short.queue_name(&slug),
+            migrate_messaging_attributes::NAME => &Queue::Short.queue_name(&slug),
             post_signing_log_outbox::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
             expire_signing_requests::NAME => &Queue::Beat.queue_name(&slug),
             sweep_signing_executions::NAME => &Queue::Beat.queue_name(&slug),
             refresh_staff_crls::NAME => &Queue::Beat.queue_name(&slug),
             recompute_schedule_instants::NAME => &Queue::Beat.queue_name(&slug),
-            reconcile_messages::NAME => &Queue::Communication.queue_name(&slug),
+            reconcile_messages::NAME => &Queue::Beat.queue_name(&slug),
             seal_ballot_boxes::NAME => &Queue::Beat.queue_name(&slug),
+            check_messaging_accounts::NAME => &Queue::Beat.queue_name(&slug),
+            recount_messaging_voters_due::NAME => &Queue::Beat.queue_name(&slug),
         ],
     ).await?;
     // Scheduled outside the macro, which cannot give a message its expiry.
@@ -172,6 +196,9 @@ async fn main() -> Result<()> {
     // Event realms made before the per-Post enrollment check get it in their
     // registration form, once whenever beat starts (VOTE-LIFECYCLE).
     beat.schedule_task(migrate_registration_flows::new(), RunOnce);
+    // Voters of event realms get the single-channel attributes once,
+    // whenever beat starts (INFRA-MSG).
+    beat.schedule_task(migrate_messaging_attributes::new(), RunOnce);
 
     set_is_app_active(true);
     beat.start().await?;

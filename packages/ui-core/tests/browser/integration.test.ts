@@ -157,11 +157,17 @@ test("the real WebAssembly module generates, hashes and decodes its sample ballo
         return Buffer.concat([u32(bytes.length), bytes])
     }
     const ballot = result.publicBallot
-    // The receipt hashes RawHashableBallot: version, issue date and decoded
-    // contest records. Config metadata and voter signatures are outside it.
+    // Version 3 binds the single-contest format (Borsh enum tag 1) and
+    // ballot-style identity/hash alongside the issue date and contest records.
+    assert.equal(ballot.version, 3)
+    assert("ballot_style_hash" in ballot)
+    assert(typeof ballot.ballot_style_hash === "string")
     const envelope = Buffer.concat([
-        u32(ballot.version),
+        u32(3),
+        Buffer.from([1]),
         text(ballot.issue_date),
+        text(ballot.config),
+        text(ballot.ballot_style_hash),
         u32(ballot.contests.length),
         ...ballot.contests.map((contest) => Buffer.from(contest, "base64")),
     ])
