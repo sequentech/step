@@ -95,7 +95,7 @@ for (const method of ["EMAIL", "SMS"] as const) {
         ).toBeVisible()
         await drawer.getByRole("button", {name: "Send Notification", exact: true}).click()
         await expect(
-            page.getByText("Notification programmed/sent successfully", {exact: true})
+            page.getByText("Notification scheduled successfully", {exact: true})
         ).toBeVisible()
         await expect(drawer).toHaveCount(0)
         const expected = {
