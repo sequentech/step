@@ -154,10 +154,10 @@ update_permissions:
                   - tenant_id:
                         _eq: X-Hasura-Tenant-Id
                   - _or:
-                      - event_processor:
-                            _is_null: true
-                      - event_processor:
-                            _neq: SEND_TEMPLATE
+                        - event_processor:
+                              _is_null: true
+                        - event_processor:
+                              _neq: SEND_TEMPLATE
           columns:
               - created_by
               - event_processor
@@ -177,10 +177,10 @@ update_permissions:
                   - tenant_id:
                         _eq: X-Hasura-Tenant-Id
                   - _or:
-                      - event_processor:
-                            _is_null: true
-                      - event_processor:
-                            _neq: SEND_TEMPLATE
+                        - event_processor:
+                              _is_null: true
+                        - event_processor:
+                              _neq: SEND_TEMPLATE
       role: scheduled-event-write
     - comment: ""
       permission:
@@ -219,10 +219,10 @@ delete_permissions:
                   - tenant_id:
                         _eq: X-Hasura-Tenant-Id
                   - _or:
-                      - event_processor:
-                            _is_null: true
-                      - event_processor:
-                            _neq: SEND_TEMPLATE
+                        - event_processor:
+                              _is_null: true
+                        - event_processor:
+                              _neq: SEND_TEMPLATE
       role: scheduled-event-delete
     - comment: ""
       permission:
