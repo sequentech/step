@@ -79,83 +79,90 @@ async fn checkpoint(
     .await
 }
 
-#[rocket::async_test]
-async fn proofs_refuse_admins_whose_labels_leave_out_an_election() {
-    let services = Services::on_test_database().await;
-    let client = services.client().await;
-    let (event, record) = labelled_event(&services).await;
-    let north = logs_reader(&event.tenant_id).permission_labels(&["north"]);
-    let both =
-        logs_reader(&event.tenant_id).permission_labels(&["north", "south"]);
-    let (status, body) = checkpoint(&client, &both, &event).await;
-    assert_eq!(status, Status::Ok, "{body}");
-    let trusted = body["checkpoint"].clone();
+#[test]
+fn proofs_refuse_admins_whose_labels_leave_out_an_election() {
+    rows::run(async {
+        let services = Services::on_test_database().await;
+        let client = services.client().await;
+        let (event, record) = labelled_event(&services).await;
+        let north = logs_reader(&event.tenant_id).permission_labels(&["north"]);
+        let both = logs_reader(&event.tenant_id)
+            .permission_labels(&["north", "south"]);
+        let (status, body) = checkpoint(&client, &both, &event).await;
+        assert_eq!(status, Status::Ok, "{body}");
+        let trusted = body["checkpoint"].clone();
 
-    let requests = [
-        ("/electoral-log/checkpoint", request(&event)),
-        (
-            "/electoral-log/inclusion",
-            with(request(&event), "record_id", json!(record)),
-        ),
-        (
-            "/electoral-log/consistency",
-            with(request(&event), "checkpoint", trusted),
-        ),
-    ];
-    for (path, body) in &requests {
-        let (status, message) =
-            text(post(&client, path, &north, body).await).await;
-        assert_eq!(status, Status::Forbidden, "{path}: {message}");
-    }
+        let requests = [
+            ("/electoral-log/checkpoint", request(&event)),
+            (
+                "/electoral-log/inclusion",
+                with(request(&event), "record_id", json!(record)),
+            ),
+            (
+                "/electoral-log/consistency",
+                with(request(&event), "checkpoint", trusted),
+            ),
+        ];
+        for (path, body) in &requests {
+            let (status, message) =
+                text(post(&client, path, &north, body).await).await;
+            assert_eq!(status, Status::Forbidden, "{path}: {message}");
+        }
+    })
 }
 
-#[rocket::async_test]
-async fn proofs_answer_admins_whose_labels_allow_every_election() {
-    let services = Services::on_test_database().await;
-    let client = services.client().await;
-    let (event, record) = labelled_event(&services).await;
-    let both =
-        logs_reader(&event.tenant_id).permission_labels(&["north", "south"]);
+#[test]
+fn proofs_answer_admins_whose_labels_allow_every_election() {
+    rows::run(async {
+        let services = Services::on_test_database().await;
+        let client = services.client().await;
+        let (event, record) = labelled_event(&services).await;
+        let both = logs_reader(&event.tenant_id)
+            .permission_labels(&["north", "south"]);
 
-    let (status, body) = checkpoint(&client, &both, &event).await;
-    assert_eq!(status, Status::Ok, "{body}");
-    assert_eq!(body["checkpoint"]["tree_size"], 1, "{body}");
-    let trusted = body["checkpoint"].clone();
-    let (status, body) = json(
-        post(
-            &client,
-            "/electoral-log/inclusion",
-            &both,
-            &with(request(&event), "record_id", json!(record)),
+        let (status, body) = checkpoint(&client, &both, &event).await;
+        assert_eq!(status, Status::Ok, "{body}");
+        assert_eq!(body["checkpoint"]["tree_size"], 1, "{body}");
+        let trusted = body["checkpoint"].clone();
+        let (status, body) = json(
+            post(
+                &client,
+                "/electoral-log/inclusion",
+                &both,
+                &with(request(&event), "record_id", json!(record)),
+            )
+            .await,
         )
-        .await,
-    )
-    .await;
-    assert_eq!(status, Status::Ok, "{body}");
-    assert_eq!(body["entry"]["message"]["id"], record, "{body}");
-    let (status, body) = json(
-        post(
-            &client,
-            "/electoral-log/consistency",
-            &both,
-            &with(request(&event), "checkpoint", trusted),
+        .await;
+        assert_eq!(status, Status::Ok, "{body}");
+        assert_eq!(body["entry"]["message"]["id"], record, "{body}");
+        let (status, body) = json(
+            post(
+                &client,
+                "/electoral-log/consistency",
+                &both,
+                &with(request(&event), "checkpoint", trusted),
+            )
+            .await,
         )
-        .await,
-    )
-    .await;
-    assert_eq!(status, Status::Ok, "{body}");
+        .await;
+        assert_eq!(status, Status::Ok, "{body}");
+    })
 }
 
 /// Labels name elections of the user's own tenant, so users of the
 /// super-admin tenant read other tenants' logs whatever their labels.
-#[rocket::async_test]
-async fn super_admins_read_other_tenants_logs_whatever_their_labels() {
-    configure_super_admin_tenant();
-    let services = Services::on_test_database().await;
-    let client = services.client().await;
-    let (event, _) = labelled_event(&services).await;
+#[test]
+fn super_admins_read_other_tenants_logs_whatever_their_labels() {
+    rows::run(async {
+        configure_super_admin_tenant();
+        let services = Services::on_test_database().await;
+        let client = services.client().await;
+        let (event, _) = labelled_event(&services).await;
 
-    let (status, body) =
-        checkpoint(&client, &logs_reader(SUPER_ADMIN_TENANT_ID), &event).await;
-    assert_eq!(status, Status::Ok, "{body}");
+        let (status, body) =
+            checkpoint(&client, &logs_reader(SUPER_ADMIN_TENANT_ID), &event)
+                .await;
+        assert_eq!(status, Status::Ok, "{body}");
+    })
 }

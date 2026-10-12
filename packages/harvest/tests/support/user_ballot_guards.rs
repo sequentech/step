@@ -120,178 +120,198 @@ async fn edit_guard(
     .await
 }
 
-#[tokio::test]
-async fn a_voter_without_ballots_can_be_deleted() {
-    let services = Services::on_test_database().await;
-    let event = rows::event(&services.hasura).await;
-    event.ballot_box(&services.hasura).await;
+#[test]
+fn a_voter_without_ballots_can_be_deleted() {
+    rows::run(async {
+        let services = Services::on_test_database().await;
+        let event = rows::event(&services.hasura).await;
+        event.ballot_box(&services.hasura).await;
 
-    assert_eq!(
-        delete_guard(
-            &databases(&services),
-            &event.tenant_id,
-            &event.election_event_id
-        )
-        .await,
-        Ok(())
-    );
+        assert_eq!(
+            delete_guard(
+                &databases(&services),
+                &event.tenant_id,
+                &event.election_event_id
+            )
+            .await,
+            Ok(())
+        );
+    })
 }
 
-#[tokio::test]
-async fn a_voter_with_a_valid_or_in_progress_ballot_cannot_be_deleted() {
-    for status in [BallotStatus::Valid, BallotStatus::Pending] {
+#[test]
+fn a_voter_with_a_valid_or_in_progress_ballot_cannot_be_deleted() {
+    rows::run(async {
+        for status in [BallotStatus::Valid, BallotStatus::Pending] {
+            let services = Services::on_test_database().await;
+            let event = rows::event(&services.hasura).await;
+            let ballot_box = event.ballot_box(&services.hasura).await;
+            ballot(&services, &ballot_box, &event, status).await;
+
+            let (code, message) = delete_guard(
+                &databases(&services),
+                &event.tenant_id,
+                &event.election_event_id,
+            )
+            .await
+            .unwrap_err();
+            assert_eq!(code, Status::Conflict, "{status:?}");
+            assert_eq!(message, "Cannot delete a voter who has cast a ballot");
+        }
+    })
+}
+
+#[test]
+fn a_voter_whose_ballots_are_all_resolved_can_be_deleted() {
+    rows::run(async {
         let services = Services::on_test_database().await;
         let event = rows::event(&services.hasura).await;
         let ballot_box = event.ballot_box(&services.hasura).await;
-        ballot(&services, &ballot_box, &event, status).await;
+        ballot(&services, &ballot_box, &event, BallotStatus::Rejected).await;
 
+        assert_eq!(
+            delete_guard(
+                &databases(&services),
+                &event.tenant_id,
+                &event.election_event_id
+            )
+            .await,
+            Ok(())
+        );
+    })
+}
+
+#[test]
+fn deleting_with_malformed_ids_or_an_unreachable_database_is_an_error() {
+    rows::run(async {
+        let services = Services::on_test_database().await;
+        let event = rows::event(&services.hasura).await;
+        let pools = databases(&services);
+        let (code, _) =
+            delete_guard(&pools, "not-a-uuid", &event.election_event_id)
+                .await
+                .unwrap_err();
+        assert_eq!(code, Status::BadRequest);
+        let (code, _) = delete_guard(&pools, &event.tenant_id, "not-a-uuid")
+            .await
+            .unwrap_err();
+        assert_eq!(code, Status::BadRequest);
+
+        let down = Services::without_database();
         let (code, message) = delete_guard(
-            &databases(&services),
+            &databases(&down),
             &event.tenant_id,
             &event.election_event_id,
         )
         .await
         .unwrap_err();
-        assert_eq!(code, Status::Conflict, "{status:?}");
-        assert_eq!(message, "Cannot delete a voter who has cast a ballot");
-    }
+        assert_eq!(code, Status::InternalServerError);
+        assert!(
+            message.starts_with("Error checking the voter's ballots: "),
+            "{message}"
+        );
+    })
 }
 
-#[tokio::test]
-async fn a_voter_whose_ballots_are_all_resolved_can_be_deleted() {
-    let services = Services::on_test_database().await;
-    let event = rows::event(&services.hasura).await;
-    let ballot_box = event.ballot_box(&services.hasura).await;
-    ballot(&services, &ballot_box, &event, BallotStatus::Rejected).await;
+#[test]
+fn changing_a_census_attribute_of_a_voter_with_a_ballot_is_refused() {
+    rows::run(async {
+        for status in [BallotStatus::Valid, BallotStatus::Pending] {
+            let services = Services::on_test_database().await;
+            let event = rows::event(&services.hasura).await;
+            let ballot_box = event.ballot_box(&services.hasura).await;
+            ballot(&services, &ballot_box, &event, status).await;
 
-    assert_eq!(
-        delete_guard(
-            &databases(&services),
-            &event.tenant_id,
-            &event.election_event_id
-        )
-        .await,
-        Ok(())
-    );
-}
-
-#[tokio::test]
-async fn deleting_with_malformed_ids_or_an_unreachable_database_is_an_error() {
-    let services = Services::on_test_database().await;
-    let event = rows::event(&services.hasura).await;
-    let pools = databases(&services);
-    let (code, _) =
-        delete_guard(&pools, "not-a-uuid", &event.election_event_id)
+            let (code, message) = edit_guard(
+                &services,
+                &databases(&services),
+                &event,
+                "new-area",
+            )
             .await
             .unwrap_err();
-    assert_eq!(code, Status::BadRequest);
-    let (code, _) = delete_guard(&pools, &event.tenant_id, "not-a-uuid")
-        .await
-        .unwrap_err();
-    assert_eq!(code, Status::BadRequest);
-
-    let down = Services::without_database();
-    let (code, message) = delete_guard(
-        &databases(&down),
-        &event.tenant_id,
-        &event.election_event_id,
-    )
-    .await
-    .unwrap_err();
-    assert_eq!(code, Status::InternalServerError);
-    assert!(
-        message.starts_with("Error checking the voter's ballots: "),
-        "{message}"
-    );
+            assert_eq!(code, Status::Conflict, "{status:?}");
+            assert_eq!(
+                message,
+                format!(
+                    "Cannot change {AREA_ID_ATTR_NAME} of a voter who has cast a ballot"
+                )
+            );
+        }
+    })
 }
 
-#[tokio::test]
-async fn changing_a_census_attribute_of_a_voter_with_a_ballot_is_refused() {
-    for status in [BallotStatus::Valid, BallotStatus::Pending] {
+#[test]
+fn edits_that_keep_the_census_or_touch_a_voter_without_ballots_pass() {
+    rows::run(async {
         let services = Services::on_test_database().await;
         let event = rows::event(&services.hasura).await;
         let ballot_box = event.ballot_box(&services.hasura).await;
-        ballot(&services, &ballot_box, &event, status).await;
+        let pools = databases(&services);
+
+        assert_eq!(
+            edit_guard(&services, &pools, &event, "new-area").await,
+            Ok(())
+        );
+        ballot(&services, &ballot_box, &event, BallotStatus::Valid).await;
+        assert_eq!(
+            edit_guard(&services, &pools, &event, "old-area").await,
+            Ok(())
+        );
+    })
+}
+
+#[test]
+fn a_failed_census_check_is_an_internal_error() {
+    rows::run(async {
+        let services = Services::on_test_database().await;
+        let event = rows::event(&services.hasura).await;
+        let down = Services::without_database();
 
         let (code, message) =
-            edit_guard(&services, &databases(&services), &event, "new-area")
+            edit_guard(&services, &databases(&down), &event, "new-area")
                 .await
                 .unwrap_err();
-        assert_eq!(code, Status::Conflict, "{status:?}");
-        assert_eq!(
-            message,
-            format!(
-                "Cannot change {AREA_ID_ATTR_NAME} of a voter who has cast a ballot"
-            )
+        assert_eq!(code, Status::InternalServerError);
+        assert!(
+            message.starts_with("Error checking the voter's ballots: "),
+            "{message}"
         );
-    }
+    })
 }
 
-#[tokio::test]
-async fn edits_that_keep_the_census_or_touch_a_voter_without_ballots_pass() {
-    let services = Services::on_test_database().await;
-    let event = rows::event(&services.hasura).await;
-    let ballot_box = event.ballot_box(&services.hasura).await;
-    let pools = databases(&services);
+#[test]
+fn the_voter_is_loaded_from_the_event_realm() {
+    rows::run(async {
+        let services = Services::on_test_database().await;
+        let event = rows::event(&services.hasura).await;
+        let peer = http::HttpServer::start(vec![http::Exchange::json(
+            "GET",
+            &format!("/admin/realms/{}/users/{VOTER}", event.realm()),
+            200,
+            json!({"id": VOTER, "username": "voter", "enabled": true}),
+        )]);
+        let identity = LocalIdentityAdmin {
+            url: Some(peer.url.clone()),
+            ..Default::default()
+        };
 
-    assert_eq!(
-        edit_guard(&services, &pools, &event, "new-area").await,
-        Ok(())
-    );
-    ballot(&services, &ballot_box, &event, BallotStatus::Valid).await;
-    assert_eq!(
-        edit_guard(&services, &pools, &event, "old-area").await,
-        Ok(())
-    );
-}
-
-#[tokio::test]
-async fn a_failed_census_check_is_an_internal_error() {
-    let services = Services::on_test_database().await;
-    let event = rows::event(&services.hasura).await;
-    let down = Services::without_database();
-
-    let (code, message) =
-        edit_guard(&services, &databases(&down), &event, "new-area")
-            .await
-            .unwrap_err();
-    assert_eq!(code, Status::InternalServerError);
-    assert!(
-        message.starts_with("Error checking the voter's ballots: "),
-        "{message}"
-    );
-}
-
-#[tokio::test]
-async fn the_voter_is_loaded_from_the_event_realm() {
-    let services = Services::on_test_database().await;
-    let event = rows::event(&services.hasura).await;
-    let peer = http::HttpServer::start(vec![http::Exchange::json(
-        "GET",
-        &format!("/admin/realms/{}/users/{VOTER}", event.realm()),
-        200,
-        json!({"id": VOTER, "username": "voter", "enabled": true}),
-    )]);
-    let identity = LocalIdentityAdmin {
-        url: Some(peer.url.clone()),
-        ..Default::default()
-    };
-
-    let user = load_voter(
-        &identity,
-        &event.tenant_id,
-        &event.election_event_id,
-        VOTER,
-    )
-    .await
-    .unwrap();
-    assert_eq!(user.username.as_deref(), Some("voter"));
-    assert!(load_voter(
-        &LocalIdentityAdmin::default(),
-        &event.tenant_id,
-        &event.election_event_id,
-        VOTER
-    )
-    .await
-    .is_err());
+        let user = load_voter(
+            &identity,
+            &event.tenant_id,
+            &event.election_event_id,
+            VOTER,
+        )
+        .await
+        .unwrap();
+        assert_eq!(user.username.as_deref(), Some("voter"));
+        assert!(load_voter(
+            &LocalIdentityAdmin::default(),
+            &event.tenant_id,
+            &event.election_event_id,
+            VOTER
+        )
+        .await
+        .is_err());
+    })
 }

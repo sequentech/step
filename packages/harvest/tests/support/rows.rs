@@ -17,11 +17,31 @@ use electoral_log::messages::newtypes::{
 use electoral_log::ports::ElectoralLogStore;
 use electoral_log::{ElectoralLogMessage, LogEntry};
 use serde_json::json;
+use std::future::Future;
+use std::sync::OnceLock;
 use strand::signature::StrandSignatureSk;
+use tokio::runtime::Runtime;
 use tokio_postgres::types::ToSql;
 use uuid::Uuid;
 use windmill::services::ballot_box::BallotFormat;
 use windmill::services::protocol_manager::get_event_databases;
+
+/// Runs a test that reaches election events' electoral-log databases on the
+/// runtime those tests share. The services keep the event databases'
+/// connections in one pool per process, and a connection dies with the
+/// runtime that opened it, so such a test must not run on a runtime of its
+/// own that ends while another test still uses its connections.
+pub fn run<F: Future>(test: F) -> F::Output {
+    static RUNTIME: OnceLock<Runtime> = OnceLock::new();
+    RUNTIME
+        .get_or_init(|| {
+            tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .expect("the event database tests' runtime")
+        })
+        .block_on(test)
+}
 
 pub struct Event {
     pub tenant_id: String,

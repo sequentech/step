@@ -126,86 +126,99 @@ fn row_count(body: &Value) -> usize {
     body["rows"].as_array().map(Vec::len).unwrap_or_default()
 }
 
-#[rocket::async_test]
-async fn the_console_refuses_admins_whose_labels_leave_out_an_election() {
-    let services = Services::on_test_database().await;
-    let client = services.client().await;
-    let fixture =
-        labelled_event(&services, rows::event(&services.hasura).await).await;
-    let event = &fixture.event;
-    let north = reader(&event.tenant_id).permission_labels(&["north"]);
+#[test]
+fn the_console_refuses_admins_whose_labels_leave_out_an_election() {
+    rows::run(async {
+        let services = Services::on_test_database().await;
+        let client = services.client().await;
+        let fixture =
+            labelled_event(&services, rows::event(&services.hasura).await)
+                .await;
+        let event = &fixture.event;
+        let north = reader(&event.tenant_id).permission_labels(&["north"]);
 
-    for table in ["records", "ballots", "voters", "queue"] {
-        let (status, body) = page(&client, &north, event, table).await;
+        for table in ["records", "ballots", "voters", "queue"] {
+            let (status, body) = page(&client, &north, event, table).await;
+            assert_refused(status, &body);
+        }
+        let (status, body) = record(&client, &north, &fixture).await;
         assert_refused(status, &body);
-    }
-    let (status, body) = record(&client, &north, &fixture).await;
-    assert_refused(status, &body);
+    })
 }
 
-#[rocket::async_test]
-async fn the_console_answers_admins_whose_labels_allow_every_election() {
-    let services = Services::on_test_database().await;
-    let client = services.client().await;
-    let fixture =
-        labelled_event(&services, rows::event(&services.hasura).await).await;
-    let event = &fixture.event;
-    let both = reader(&event.tenant_id).permission_labels(&["north", "south"]);
+#[test]
+fn the_console_answers_admins_whose_labels_allow_every_election() {
+    rows::run(async {
+        let services = Services::on_test_database().await;
+        let client = services.client().await;
+        let fixture =
+            labelled_event(&services, rows::event(&services.hasura).await)
+                .await;
+        let event = &fixture.event;
+        let both =
+            reader(&event.tenant_id).permission_labels(&["north", "south"]);
 
-    let (status, body) = page(&client, &both, event, "ballots").await;
-    assert_eq!(status, Status::Ok, "{body}");
-    assert_eq!(row_count(&body), 2, "{body}");
-    let (status, body) = page(&client, &both, event, "records").await;
-    assert_eq!(status, Status::Ok, "{body}");
-    assert_eq!(row_count(&body), 1, "{body}");
-    let (status, body) = record(&client, &both, &fixture).await;
-    assert_eq!(status, Status::Ok, "{body}");
-    assert_eq!(body["position"], fixture.record, "{body}");
-    assert_eq!(body["kind"], "CastVote", "{body}");
+        let (status, body) = page(&client, &both, event, "ballots").await;
+        assert_eq!(status, Status::Ok, "{body}");
+        assert_eq!(row_count(&body), 2, "{body}");
+        let (status, body) = page(&client, &both, event, "records").await;
+        assert_eq!(status, Status::Ok, "{body}");
+        assert_eq!(row_count(&body), 1, "{body}");
+        let (status, body) = record(&client, &both, &fixture).await;
+        assert_eq!(status, Status::Ok, "{body}");
+        assert_eq!(body["position"], fixture.record, "{body}");
+        assert_eq!(body["kind"], "CastVote", "{body}");
+    })
 }
 
 /// Labels name elections of the user's own tenant, so users of the
 /// super-admin tenant browse other tenants' events whatever their labels.
-#[rocket::async_test]
-async fn super_admins_browse_other_tenants_events_whatever_their_labels() {
-    configure_super_admin_tenant();
-    let services = Services::on_test_database().await;
-    let client = services.client().await;
-    let fixture =
-        labelled_event(&services, rows::event(&services.hasura).await).await;
-    let super_admin = reader(SUPER_ADMIN_TENANT_ID);
+#[test]
+fn super_admins_browse_other_tenants_events_whatever_their_labels() {
+    rows::run(async {
+        configure_super_admin_tenant();
+        let services = Services::on_test_database().await;
+        let client = services.client().await;
+        let fixture =
+            labelled_event(&services, rows::event(&services.hasura).await)
+                .await;
+        let super_admin = reader(SUPER_ADMIN_TENANT_ID);
 
-    let (status, body) =
-        page(&client, &super_admin, &fixture.event, "ballots").await;
-    assert_eq!(status, Status::Ok, "{body}");
-    assert_eq!(row_count(&body), 2, "{body}");
-    let (status, body) = query(&client, &querier(&[]), &fixture.event).await;
-    assert_eq!(status, Status::Ok, "{body}");
+        let (status, body) =
+            page(&client, &super_admin, &fixture.event, "ballots").await;
+        assert_eq!(status, Status::Ok, "{body}");
+        assert_eq!(row_count(&body), 2, "{body}");
+        let (status, body) =
+            query(&client, &querier(&[]), &fixture.event).await;
+        assert_eq!(status, Status::Ok, "{body}");
+    })
 }
 
-#[rocket::async_test]
-async fn queries_need_labels_that_allow_every_election_of_the_event() {
-    configure_super_admin_tenant();
-    let services = Services::on_test_database().await;
-    let client = services.client().await;
-    let fixture = labelled_event(
-        &services,
-        rows::event_of(&services.hasura, SUPER_ADMIN_TENANT_ID).await,
-    )
-    .await;
-    let event = &fixture.event;
+#[test]
+fn queries_need_labels_that_allow_every_election_of_the_event() {
+    rows::run(async {
+        configure_super_admin_tenant();
+        let services = Services::on_test_database().await;
+        let client = services.client().await;
+        let fixture = labelled_event(
+            &services,
+            rows::event_of(&services.hasura, SUPER_ADMIN_TENANT_ID).await,
+        )
+        .await;
+        let event = &fixture.event;
 
-    let (status, body) = query(&client, &querier(&["north"]), event).await;
-    assert_refused(status, &body);
-    let (status, body) =
-        query(&client, &querier(&["north", "south"]), event).await;
-    assert_eq!(status, Status::Ok, "{body}");
-    // Without ELECTORAL_LOG_PG_READER_USER the console has no role to query as.
-    match body.get("error") {
-        Some(error) => assert_eq!(
-            error, "Queries are not available in this environment",
-            "{body}"
-        ),
-        None => assert_eq!(row_count(&body), 2, "{body}"),
-    }
+        let (status, body) = query(&client, &querier(&["north"]), event).await;
+        assert_refused(status, &body);
+        let (status, body) =
+            query(&client, &querier(&["north", "south"]), event).await;
+        assert_eq!(status, Status::Ok, "{body}");
+        // Without ELECTORAL_LOG_PG_READER_USER the console has no role to query as.
+        match body.get("error") {
+            Some(error) => assert_eq!(
+                error, "Queries are not available in this environment",
+                "{body}"
+            ),
+            None => assert_eq!(row_count(&body), 2, "{body}"),
+        }
+    })
 }
