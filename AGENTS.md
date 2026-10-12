@@ -2,9 +2,9 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to coding agents (Codex, Claude Code and others) working in this repository.
 
 ## Project Overview
 
