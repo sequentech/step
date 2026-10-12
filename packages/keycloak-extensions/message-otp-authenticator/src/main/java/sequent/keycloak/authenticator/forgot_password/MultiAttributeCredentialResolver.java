@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.extern.jbosslog.JBossLog;
@@ -560,7 +559,7 @@ public final class MultiAttributeCredentialResolver {
             candidate,
             context.getConnection(),
             context.getUri(),
-            Set.of(PasswordCredentialModel.TYPE));
+            PasswordCredentialModel.TYPE);
       }
     }
     return Resolution.failure();
