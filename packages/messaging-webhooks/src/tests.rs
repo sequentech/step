@@ -493,6 +493,7 @@ async fn log_of_callbacks(filter: tracing_subscriber::filter::Targets) -> String
     let harvest = TestServer::start(vec![
         harvest_answers(200, "text/plain; charset=utf-8", "1158201444"),
         harvest_answers(200, "text/plain; charset=utf-8", ""),
+        Peer::Json(401, serde_json::json!({"message": "Unauthorized"})),
     ])
     .await;
     let client = component(config(&harvest.base_url)).await;
@@ -509,6 +510,8 @@ async fn log_of_callbacks(filter: tracing_subscriber::filter::Targets) -> String
         assert_eq!(client.get(handshake).dispatch().await.status(), Status::Ok);
         let callback = format!("/webhooks/aws/{KEY}?token={TOKEN}");
         assert_eq!(client.post(callback).body("{}").dispatch().await.status(), Status::Ok);
+        let refused = format!("/webhooks/aws/{KEY}?token={TOKEN}");
+        assert_eq!(client.post(refused).body("{}").dispatch().await.status(), Status::ServiceUnavailable);
         let unmatched = format!("/webhooks/meta/{KEY}/extra?hub.verify_token={TOKEN}");
         assert_eq!(client.get(unmatched).dispatch().await.status(), Status::NotFound);
         let bad_key = format!("/webhooks/meta/{}?hub.verify_token={TOKEN}", &KEY[..63]);
@@ -544,6 +547,7 @@ async fn the_log_never_carries_the_webhook_key_or_query_values() {
         assert!(!log.contains(TOKEN), "{level}: {log}");
         assert!(!log.contains("hub.challenge"), "{level}: {log}");
         if level >= LevelFilter::INFO {
+            assert!(log.contains("callback not relayed"), "{level}: {log}");
             assert!(log.contains("callback relayed"), "{level}: {log}");
             assert!(log.contains(&KEY[..LOGGED_KEY_CHARS]), "{level}: {log}");
         }
