@@ -500,10 +500,46 @@ pub fn sort_candidates_list_js(
     let should_apply_random: bool =
         serde_wasm_bindgen::from_value(apply_random.clone()).unwrap_or(false);
 
-    order_field.sort(&mut all_candidates);
-    if order_field == CandidatesOrder::Random && should_apply_random {
-        let mut rng = thread_rng();
-        all_candidates.shuffle(&mut rng);
+    match order_field {
+        CandidatesOrder::Alphabetical => {
+            all_candidates.sort_by(|a, b| {
+                let name_a = a
+                    .alias
+                    .as_ref()
+                    .or(a.name.as_ref())
+                    .unwrap_or(&String::new())
+                    .to_lowercase();
+                let name_b = b
+                    .alias
+                    .as_ref()
+                    .or(b.name.as_ref())
+                    .unwrap_or(&String::new())
+                    .to_lowercase();
+                name_a.cmp(&name_b)
+            });
+        }
+        CandidatesOrder::Custom => {
+            all_candidates.sort_by(|a, b| {
+                let sort_order_a = a
+                    .presentation
+                    .as_ref()
+                    .and_then(|p| p.sort_order)
+                    .unwrap_or(-1);
+                let sort_order_b = b
+                    .presentation
+                    .as_ref()
+                    .and_then(|p| p.sort_order)
+                    .unwrap_or(-1);
+                sort_order_a.cmp(&sort_order_b)
+            });
+        }
+
+        CandidatesOrder::Random => {
+            if should_apply_random {
+                let mut rng = thread_rng();
+                all_candidates.shuffle(&mut rng);
+            }
+        }
     }
 
     let serializer = Serializer::json_compatible();

@@ -12,10 +12,7 @@
 //! importer, ballot style generation and publication all ask here, so they
 //! cannot disagree.
 
-use super::{
-    check_listing_order, check_references, parse, Scope, SlatesConfig,
-    SLATES_ANNOTATION,
-};
+use super::{check_references, parse, Scope, SlatesConfig, SLATES_ANNOTATION};
 use crate::ballot;
 use crate::ballot_style::create_contest;
 use crate::services::translations::DEFAULT_LANG;
@@ -270,9 +267,6 @@ fn check_config(
 
 /// Check a slate configuration against the contests and candidates of the
 /// election it belongs to. `contests` must be that election's contests only.
-///
-/// Besides the errors that stop the configuration, this reports listing order
-/// warnings (see [`check_listing_order`]).
 pub fn check_annotation(
     text: &str,
     default_language: &str,
@@ -285,17 +279,13 @@ pub fn check_annotation(
         Err(problems) => return problems,
     };
     match election_contests(contests, candidates, default_language, path) {
-        Ok(contests) => {
-            let mut problems = check_config(
-                &config,
-                default_language,
-                &contests,
-                Scope::Election,
-                path,
-            );
-            problems.extend(check_listing_order(&config, &contests, path));
-            problems
-        }
+        Ok(contests) => check_config(
+            &config,
+            default_language,
+            &contests,
+            Scope::Election,
+            path,
+        ),
         Err(problems) => problems,
     }
 }

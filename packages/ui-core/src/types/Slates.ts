@@ -17,6 +17,10 @@ export interface ISlate {
     name: Record<string, string>
     /** The candidate ids of this slate by contest id. */
     members: Record<string, Array<string>>
+    alias?: string
+    description?: string
+    /** An identifier from outside the platform. */
+    external_id?: string
 }
 
 /** The slates of one election, in the order they are shown. */

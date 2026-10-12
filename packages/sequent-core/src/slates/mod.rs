@@ -19,7 +19,6 @@ use std::collections::{BTreeMap, BTreeSet};
 
 pub mod coverage;
 mod election;
-pub mod order;
 pub mod problem;
 pub mod selection;
 
@@ -33,7 +32,6 @@ pub use election::{
     check_ballot_style_config, check_default_language_names, check_election,
     check_membership_policies, election_contests, InvalidSlates,
 };
-pub use order::check_listing_order;
 
 /// The election annotation holding the slate configuration.
 pub const SLATES_ANNOTATION: &str = "sequent.slates";
@@ -47,8 +45,14 @@ pub const MAX_CONFIG_BYTES: usize = 65_536;
 /// The longest slate identifier, in characters.
 pub const MAX_ID_CHARS: usize = 64;
 
-/// The longest slate name in one language, in characters.
+/// The longest slate name in one language, or alias, in characters.
 pub const MAX_NAME_CHARS: usize = 120;
+
+/// The longest slate description, in characters.
+pub const MAX_DESCRIPTION_CHARS: usize = 1_000;
+
+/// The longest slate external identifier, in characters.
+pub const MAX_EXTERNAL_ID_CHARS: usize = 255;
 
 const VERSION_FIELD: &str = "version";
 
@@ -81,6 +85,14 @@ pub struct Slate {
     pub name: BTreeMap<String, String>,
     /// The candidate ids of this slate by contest id.
     pub members: BTreeMap<String, Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub alias: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// An identifier from outside the platform, for example the election
+    /// authority's own reference for the slate.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub external_id: Option<String>,
 }
 
 /// What a list of contests is, when checking a configuration against it.
@@ -250,6 +262,7 @@ fn check_structure(config: &SlatesConfig, path: &str) -> Vec<Problem> {
         }
 
         check_name(slate, &slate_path, &mut names, &mut problems);
+        check_details(slate, &slate_path, &mut problems);
         check_members(slate, &slate_path, &mut candidate_slates, &mut problems);
     }
 
@@ -320,6 +333,55 @@ fn check_name(
                 Code::InvalidValue,
                 name_path,
                 format!("two slates are named '{trimmed}' in '{language}'"),
+            ));
+        }
+    }
+}
+
+/// Whether a slate's optional text fields fit and are plain text.
+fn check_details(slate: &Slate, slate_path: &str, problems: &mut Vec<Problem>) {
+    let fields = [
+        ("alias", &slate.alias, MAX_NAME_CHARS, false),
+        (
+            "description",
+            &slate.description,
+            MAX_DESCRIPTION_CHARS,
+            true,
+        ),
+        (
+            "external_id",
+            &slate.external_id,
+            MAX_EXTERNAL_ID_CHARS,
+            false,
+        ),
+    ];
+    for (field, value, limit, allows_lines) in fields {
+        let Some(value) = value else {
+            continue;
+        };
+        let field_path = format!("{slate_path}.{field}");
+        if value.chars().count() > limit {
+            problems.push(Problem::error(
+                Code::InvalidValue,
+                field_path.clone(),
+                format!(
+                    "the {field} of slate '{}' is longer than {limit} characters",
+                    slate.id
+                ),
+            ));
+        }
+        let is_plain = value.chars().all(|character| {
+            !character.is_control() || (allows_lines && character == '\n')
+        });
+        if !is_plain {
+            problems.push(Problem::error(
+                Code::InvalidValue,
+                field_path,
+                format!(
+                    "the {field} of slate '{}' must be plain text{}",
+                    slate.id,
+                    if allows_lines { "" } else { " on one line" }
+                ),
             ));
         }
     }

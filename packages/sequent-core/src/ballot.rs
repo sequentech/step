@@ -598,35 +598,6 @@ pub enum CandidatesOrder {
     Alphabetical,
 }
 
-impl CandidatesOrder {
-    /// Put `candidates` in the order a voter sees them. A random order is
-    /// drawn by the Voting Portal for each voter, so it is left as it is.
-    pub fn sort(&self, candidates: &mut [Candidate]) {
-        match self {
-            CandidatesOrder::Alphabetical => {
-                candidates.sort_by_key(|candidate| {
-                    candidate
-                        .alias
-                        .as_ref()
-                        .or(candidate.name.as_ref())
-                        .map(|name| name.to_lowercase())
-                        .unwrap_or_default()
-                });
-            }
-            CandidatesOrder::Custom => {
-                candidates.sort_by_key(|candidate| {
-                    candidate
-                        .presentation
-                        .as_ref()
-                        .and_then(|presentation| presentation.sort_order)
-                        .unwrap_or(-1)
-                });
-            }
-            CandidatesOrder::Random => {}
-        }
-    }
-}
-
 #[derive(
     Debug,
     BorshSerialize,

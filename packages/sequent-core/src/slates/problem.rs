@@ -37,8 +37,6 @@ pub enum Code {
     Unreadable,
     /// The configuration has a version this platform cannot read.
     IncompatibleVersion,
-    /// Slates or candidates are not in the order the listing rules expect.
-    ListingOrder,
 }
 
 /// One thing wrong with a slate configuration.

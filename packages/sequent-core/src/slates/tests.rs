@@ -455,3 +455,59 @@ fn a_ballot_style_refuses_a_candidate_it_does_not_have() {
 
     assert_eq!(problems[0].code, Code::DanglingReference);
 }
+
+#[test]
+fn a_slate_keeps_its_alias_description_and_external_id() {
+    let mut document = sample();
+    document["slates"][0]["alias"] = json!("Forward");
+    document["slates"][0]["description"] =
+        json!("Complete ticket for officers and trustees.\nSince 2014.");
+    document["slates"][0]["external_id"] = json!("slate-forward-2026");
+
+    let config = parse(&document.to_string(), PATH).expect("a valid slate");
+
+    let slate = &config.slates[0];
+    assert_eq!(slate.alias.as_deref(), Some("Forward"));
+    assert_eq!(
+        slate.description.as_deref(),
+        Some("Complete ticket for officers and trustees.\nSince 2014.")
+    );
+    assert_eq!(slate.external_id.as_deref(), Some("slate-forward-2026"));
+}
+
+#[test]
+fn a_slate_without_the_optional_fields_is_written_as_before() {
+    let config = parse(&sample().to_string(), PATH).expect("a valid slate");
+
+    let written = serde_json::to_value(&config).expect("serializable");
+
+    for field in ["alias", "description", "external_id"] {
+        assert!(written["slates"][0].get(field).is_none(), "{field}");
+    }
+}
+
+#[test]
+fn the_optional_fields_have_length_limits() {
+    for (field, limit) in [
+        ("alias", MAX_NAME_CHARS),
+        ("description", MAX_DESCRIPTION_CHARS),
+        ("external_id", MAX_EXTERNAL_ID_CHARS),
+    ] {
+        let mut document = sample();
+        document["slates"][0][field] = json!("a".repeat(limit));
+        assert!(parse(&document.to_string(), PATH).is_ok(), "{field}");
+
+        document["slates"][0][field] = json!("a".repeat(limit + 1));
+        assert_eq!(only_problem(document).code, Code::InvalidValue, "{field}");
+    }
+}
+
+#[test]
+fn an_alias_and_an_external_id_are_one_line_of_plain_text() {
+    for field in ["alias", "external_id"] {
+        let mut document = sample();
+        document["slates"][0][field] = json!("Forward\nTogether");
+
+        assert_eq!(only_problem(document).code, Code::InvalidValue, "{field}");
+    }
+}

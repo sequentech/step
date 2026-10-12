@@ -1753,24 +1753,6 @@ mod slates_import_tests {
     }
 
     #[test]
-    fn listing_order_warnings_do_not_block_the_import() {
-        let ids = ids();
-        let mut bundle = bundle(&ids, &slates(&ids));
-        bundle["contests"][1]["presentation"] = json!({"candidates_order": "random"});
-        let data = schema(&bundle);
-        let problems = check_election(
-            &data.elections[0],
-            &data.contests,
-            &data.candidates,
-            SLATES_ANNOTATION,
-        );
-        assert!(!problems.is_empty());
-        assert!(problems.iter().all(|problem| !problem.is_error()));
-
-        assert!(validate_imported_slates(&data).is_ok());
-    }
-
-    #[test]
     fn a_slate_member_missing_from_the_bundle_fails_the_import() {
         let ids = ids();
         let mut slates = slates(&ids);

@@ -60,6 +60,9 @@ fn slate(id: &str, members: &[(&str, &[&str])]) -> Slate {
                 )
             })
             .collect(),
+        alias: None,
+        description: None,
+        external_id: None,
     }
 }
 
