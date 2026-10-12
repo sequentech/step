@@ -427,6 +427,24 @@ test.describe("as a trustee", () => {
             {name: "synthetic-admin", status: "WAITING"},
             {name: TRUSTEES[1], status: "KEY_RESTORED"},
         ]
+        // The list invites a trustee whose latest execution still waits for their key.
+        portal.graphql.on("ListTallyKeyRestoreState", ({variables, headers}) => {
+            expect(variables).toEqual({tenantId: TENANT_ID, electionEventId: EVENT_ID})
+            expect(headers["x-hasura-role"]).toBe("trustee-ceremony")
+            return {
+                data: {
+                    sequent_backend_tally_session: [
+                        {id: world.session.id, execution_status: world.session.execution_status},
+                    ],
+                    sequent_backend_tally_session_execution: [
+                        {
+                            tally_session_id: world.execution.tally_session_id,
+                            status: world.execution.status,
+                        },
+                    ],
+                },
+            }
+        })
         portal.graphql.once("RestorePrivateKey", () => ({
             data: {restore_private_key: {is_valid: false, outcome: "INVALID"}},
         }))
