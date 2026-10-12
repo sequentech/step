@@ -744,11 +744,7 @@ async fn rows_without_their_identifiers_or_eml_fail_before_uploading() {
             vec![],
             "Missing election id",
         ),
-        (
-            vec![],
-            vec![json!({"id": STYLE})],
-            "Missing ballot EML",
-        ),
+        (vec![], vec![json!({"id": STYLE})], "Missing ballot EML"),
         (
             vec![],
             vec![json!({"id": STYLE, "ballot_eml": {"contests": []}})],
@@ -854,8 +850,18 @@ async fn malformed_publication_identifiers_are_rejected_before_any_upload() {
     for (tenant, event, id, lease) in [
         ("tenant", event.as_str(), id.as_str(), lease(&attempt)),
         (tenant.as_str(), "event", id.as_str(), lease(&attempt)),
-        (tenant.as_str(), event.as_str(), "publication", lease(&attempt)),
-        (tenant.as_str(), event.as_str(), id.as_str(), lease("attempt")),
+        (
+            tenant.as_str(),
+            event.as_str(),
+            "publication",
+            lease(&attempt),
+        ),
+        (
+            tenant.as_str(),
+            event.as_str(),
+            id.as_str(),
+            lease("attempt"),
+        ),
     ] {
         let (data, _) = generated(event_object(), two_elections(), consistent_styles());
         let error = prepare_publication_files(&pool, tenant, event, id, &lease, data)
@@ -1023,7 +1029,9 @@ async fn only_the_requested_elections_are_served() {
     ]);
     let objects = MemoryPublicationObjects::default();
 
-    let response = voter_files(&rows, &objects, &[OTHER_ELECTION]).await.unwrap();
+    let response = voter_files(&rows, &objects, &[OTHER_ELECTION])
+        .await
+        .unwrap();
     assert_eq!(response["files"].as_array().unwrap().len(), 1);
     assert_eq!(response["files"][0]["id"], json!(OTHER_STYLE));
     assert_eq!(
@@ -1036,9 +1044,13 @@ async fn only_the_requested_elections_are_served() {
 async fn no_files_are_signed_without_opening_the_bucket() {
     let rows = voter_rows(vec![published(STYLE, ELECTION, PUBLICATION, Some(ROOT))]);
     assert_eq!(
-        voter_files(&rows, &MemoryPublicationObjects::unavailable(), &[OTHER_ELECTION])
-            .await
-            .unwrap()["files"],
+        voter_files(
+            &rows,
+            &MemoryPublicationObjects::unavailable(),
+            &[OTHER_ELECTION]
+        )
+        .await
+        .unwrap()["files"],
         json!([])
     );
 }
