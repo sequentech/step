@@ -13,6 +13,7 @@ from scripts.dev.keycloak import PACKAGE, THEMES
 
 ROOT = Path(__file__).resolve().parents[2]
 DOCKERFILE = ROOT / "packages/Dockerfile.keycloak"
+OFFLINE_DEPENDENCIES = ROOT / "packages/Dockerfile.offline-dependencies"
 COMELEC = ROOT / "packages/windmill/external-bin/janitor/templates/COMELEC/keycloak.hbs"
 # Every build of the Keycloak image, and how each passes the scripts context.
 IMAGE_BUILDS = {
@@ -51,6 +52,20 @@ class KeycloakImageTests(unittest.TestCase):
         for directory in ("sequent-core", "sequent-core/src", "sequent-core/src/types"):
             with self.subTest(directory=directory):
                 self.assertIn(f"!{directory}", ignore.splitlines())
+
+    def test_the_offline_dependency_build_provides_the_shared_rust_contract_sources(self):
+        # Its Maven stage runs the same extension tests while vendoring, so
+        # airgap/prepare.sh fails when they cannot read these files.
+        dockerfile = OFFLINE_DEPENDENCIES.read_text()
+        stage = dockerfile.split("AS keycloak-m2", 1)[1].split("RUN mvn", 1)[0]
+        for filename in ("messaging.rs", "dial_codes.rs"):
+            source = f"sequent-core/src/types/{filename}"
+            with self.subTest(source=source):
+                self.assertRegex(
+                    stage,
+                    rf"COPY\s+\./{re.escape(source)}\s+"
+                    r"/build/packages/sequent-core/src/types/",
+                )
 
     def test_the_image_installs_the_prepared_react_themes(self):
         dockerfile = DOCKERFILE.read_text()
