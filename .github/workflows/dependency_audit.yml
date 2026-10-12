@@ -32,7 +32,7 @@ permissions:
 
 jobs:
   scan:
-    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.5.1
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.6.0
     with:
       # `beyond` is a separate private repository and its checkout needs
       # `secrets.PAT`, which cannot be passed into a reusable workflow. It needs
