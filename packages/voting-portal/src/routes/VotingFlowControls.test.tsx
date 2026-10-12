@@ -37,10 +37,13 @@ import {
 import {EReceiveBallotStatus} from "../hooks/useReceiveBallot"
 import type {IReceiveBallotState} from "../hooks/useReceiveBallot"
 import VotingScreen from "./VotingScreen"
+import StartScreen from "./StartScreen"
+import AuditScreen from "./AuditScreen"
 import {ReviewScreen} from "./ReviewScreen"
 import ConfirmationScreen from "./ConfirmationScreen"
 
 jest.mock("react-i18next", () => ({
+    Trans: ({i18nKey}: {i18nKey: string}) => i18nKey,
     useTranslation: () => ({
         t: (key: string, values?: {ballotId?: string}) =>
             key === "reviewScreen.error.INCONSISTENT_HASH" && mockEmptyHashTranslation
@@ -79,6 +82,7 @@ jest.mock("@sequentech/ui-essentials", () => ({
     ...jest.requireActual("../../../ui-essentials/src/components/ActionsRow/ActionsRow"),
     ...jest.requireActual("../../../ui-essentials/src/ballot/BallotScreenLayout"),
     ...jest.requireActual("../../../ui-essentials/src/ballot/BallotActions"),
+    ...jest.requireActual("../../../ui-essentials/src/ballot/StartLayout"),
     ...jest.requireActual("../../../ui-essentials/src/ballot/ReviewLayout"),
     ...jest.requireActual("../../../ui-essentials/src/ballot/ReviewActions"),
     ...jest.requireActual("../../../ui-essentials/src/ballot/ConfirmationLayout"),
@@ -120,6 +124,8 @@ jest.mock("@sequentech/ui-essentials", () => ({
     EWarnBoxAnnouncement: jest.requireActual(
         "../../../ui-essentials/src/components/WarnBox/WarnBox"
     ).EWarnBoxAnnouncement,
+    InfoDataBox: jest.requireActual("../../../ui-essentials/src/components/InfoDataBox/InfoDataBox")
+        .default,
     QRCode: jest.requireActual("../../../ui-essentials/src/components/QRCode/QRCode").default,
 }))
 jest.mock("../store/hooks", () => ({
@@ -1522,4 +1528,25 @@ describe("a ballot encrypted before the selections changed", () => {
 
         expect(router.state.location.pathname).toBe(`${ELECTION_PATH}/review`)
     })
+})
+
+it("exposes the three instruction steps as a named ordered list", () => {
+    renderRoute(<StartScreen />, "start")
+    const instructions = screen.getByRole("list", {name: "startScreen.instructionsTitle"})
+    expect(instructions.tagName).toBe("OL")
+    const steps = within(instructions).getAllByRole("listitem")
+    expect(steps).toHaveLength(3)
+    steps.forEach((step, index) => {
+        expect(within(step).getByRole("heading", {level: 3})).toHaveTextContent(
+            `startScreen.step${index + 1}Title`
+        )
+    })
+})
+
+it("keeps the audit download named when its mobile label is hidden", () => {
+    setUpState({})
+    renderRoute(<AuditScreen />, "audit")
+    const label = screen.getByText("auditScreen.downloadButton")
+    label.style.display = "none"
+    expect(screen.getByRole("button", {name: "auditScreen.downloadButton"})).toBeEnabled()
 })

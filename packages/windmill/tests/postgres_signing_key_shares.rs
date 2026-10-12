@@ -21,6 +21,7 @@ use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::signing::{RequesterSigning, SigningAction, SigningRequestStatus};
+use sequent_core::types::ceremonies::RestorePrivateKeyOutcome;
 use serde_json::{json, Value};
 use signing::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -100,9 +101,13 @@ impl KeyShareCeremony for FakeCeremony {
         _: &Transaction<'_>,
         key_share: &str,
         signatures: &TrusteeSignatures,
-    ) -> anyhow::Result<bool> {
+    ) -> anyhow::Result<RestorePrivateKeyOutcome> {
         *self.signatures.lock().unwrap() = Some(signatures.clone());
-        Ok(self.is_stored(key_share))
+        Ok(if self.is_stored(key_share) {
+            RestorePrivateKeyOutcome::Restored
+        } else {
+            RestorePrivateKeyOutcome::Invalid
+        })
     }
 
     async fn run(
@@ -110,13 +115,13 @@ impl KeyShareCeremony for FakeCeremony {
         _: &Transaction<'_>,
         key_share: &str,
         signatures: &TrusteeSignatures,
-    ) -> anyhow::Result<bool> {
+    ) -> anyhow::Result<RestorePrivateKeyOutcome> {
         *self.signatures.lock().unwrap() = Some(signatures.clone());
         if !self.is_stored(key_share) {
-            return Ok(false);
+            return Ok(RestorePrivateKeyOutcome::Invalid);
         }
         self.runs.fetch_add(1, Ordering::SeqCst);
-        Ok(true)
+        Ok(RestorePrivateKeyOutcome::Restored)
     }
 }
 

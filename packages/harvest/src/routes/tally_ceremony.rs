@@ -13,9 +13,11 @@ use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
 use sequent_core::services::jwt::decode_permission_labels;
-use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::ceremonies::TallyResolution;
 use sequent_core::types::ceremonies::TallyType;
+use sequent_core::types::ceremonies::{
+    RestorePrivateKeyOutcome, TallyExecutionStatus,
+};
 use sequent_core::types::permissions::Permissions;
 use sequent_core::{
     services::jwt::JwtClaims, types::hasura::core::TallySessionConfiguration,
@@ -31,7 +33,8 @@ use windmill::services::providers::transactions_provider::provide_hasura_transac
 use windmill::services::signing::actions::initialize::gate_tally_creation;
 use windmill::services::signing::guard::SigningRequestSummary;
 use windmill::services::signing::key_shares::{
-    take_key_share_step, KeyShareInput, KeyShareKind, TallyKeyShare,
+    take_key_share_step, KeyShareInput, KeyShareKind, KeyShareOutcome,
+    TallyKeyShare,
 };
 use windmill::services::signing::SigningCaller;
 use windmill::tasks::execute_tally_session::execute_tally_session;
@@ -450,6 +453,24 @@ pub struct SetPrivateKeyOutput {
     is_valid: bool,
     /// The request the trustee signs before the key share is contributed.
     signing_request: Option<SigningRequestSummary>,
+    /// What the key share amounts to. While `signing_request` waits for the
+    /// trustee's signature, it answers `Restored`.
+    outcome: RestorePrivateKeyOutcome,
+}
+
+/// The [`RestorePrivateKeyOutcome`] of a trustee's key step.
+fn restore_private_key_outcome(
+    outcome: &KeyShareOutcome,
+) -> RestorePrivateKeyOutcome {
+    match outcome {
+        KeyShareOutcome::Invalid => RestorePrivateKeyOutcome::Invalid,
+        KeyShareOutcome::AlreadyTaken => {
+            RestorePrivateKeyOutcome::AlreadyRestored
+        }
+        KeyShareOutcome::Done(_) | KeyShareOutcome::SigningRequired(_) => {
+            RestorePrivateKeyOutcome::Restored
+        }
+    }
 }
 
 // The main function to restore the private key
@@ -510,21 +531,23 @@ pub async fn restore_private_key(
     )
     .await
     .map_err(key_share_failure)?;
+    let restore_outcome = restore_private_key_outcome(&outcome);
     let (is_valid, signing_request) =
         finish_key_share_step(hasura_transaction, outcome).await?;
 
     event!(
         Level::INFO,
-        "Restoring given private key, election_event_id={}, tally_session_id={}, is_valid={}, signing_request={:?}",
+        "Restoring given private key, election_event_id={}, tally_session_id={}, outcome={:?}, signing_request={:?}",
         input.election_event_id,
         input.tally_session_id,
-        is_valid,
+        restore_outcome,
         signing_request.as_ref().map(|request| request.id),
     );
 
     Ok(Json(SetPrivateKeyOutput {
         is_valid,
         signing_request,
+        outcome: restore_outcome,
     }))
 }
 
@@ -664,6 +687,34 @@ mod tally_error_tests {
             "Could not complete the tally operation."
         );
         assert_eq!(response.1.extensions.code, "InternalServerError");
+    }
+}
+
+#[cfg(test)]
+mod restore_private_key_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn a_key_step_answers_what_the_key_share_amounts_to() {
+        let summary = SigningRequestSummary {
+            id: Uuid::new_v4(),
+            code: "7F3A-91C2".to_string(),
+            required: 1,
+            expires_at: None,
+        };
+        for (outcome, expected) in [
+            (KeyShareOutcome::Invalid, "INVALID"),
+            (KeyShareOutcome::AlreadyTaken, "ALREADY_RESTORED"),
+            (KeyShareOutcome::Done(None), "RESTORED"),
+            (KeyShareOutcome::SigningRequired(summary), "RESTORED"),
+        ] {
+            assert_eq!(
+                json!(restore_private_key_outcome(&outcome)),
+                json!(expected),
+                "{outcome:?}"
+            );
+        }
     }
 }
 

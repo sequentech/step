@@ -331,7 +331,7 @@ async fn restore_key(
     ceremony: &InMemoryTallyCeremony,
     claims: &JwtClaims,
     private_key_base64: &str,
-) -> Result<bool> {
+) -> Result<RestorePrivateKeyOutcome> {
     set_private_key_with(
         ceremony,
         ceremony,
@@ -354,7 +354,7 @@ async fn key_share_matches(
     ceremony: &InMemoryTallyCeremony,
     claims: &JwtClaims,
     private_key_base64: &str,
-) -> Result<bool> {
+) -> Result<RestorePrivateKeyOutcome> {
     trustee_key_share_matches_with(
         ceremony,
         ceremony,
@@ -648,7 +648,7 @@ async fn restoring_the_stored_key_marks_the_trustee_restored() {
     let restored = restore_key(&ceremony, &trustee_claims(Some("alice")), STORED_KEY)
         .await
         .unwrap();
-    assert!(restored);
+    assert_eq!(restored, RestorePrivateKeyOutcome::Restored);
 
     let executions = ceremony.executions(SESSION);
     assert_eq!(executions.len(), 2);
@@ -685,7 +685,7 @@ async fn restoring_a_key_that_does_not_match_the_board_writes_nothing() {
     let restored = restore_key(&ceremony, &trustee_claims(Some("alice")), "another-key")
         .await
         .unwrap();
-    assert!(!restored);
+    assert_eq!(restored, RestorePrivateKeyOutcome::Invalid);
     assert_nothing_written(&ceremony, &STARTED);
 }
 
@@ -693,23 +693,24 @@ async fn restoring_a_key_that_does_not_match_the_board_writes_nothing() {
 async fn a_key_share_is_matched_as_the_restore_matches_it_without_recording_anything() {
     let ceremony = ceremony(&STARTED, &waiting_pair());
     let alice = trustee_claims(Some("alice"));
-    assert!(key_share_matches(&ceremony, &alice, STORED_KEY)
-        .await
-        .unwrap());
-    assert!(!key_share_matches(&ceremony, &alice, "another-key")
-        .await
-        .unwrap());
+    assert_eq!(
+        key_share_matches(&ceremony, &alice, STORED_KEY)
+            .await
+            .unwrap(),
+        RestorePrivateKeyOutcome::Restored
+    );
+    assert_eq!(
+        key_share_matches(&ceremony, &alice, "another-key")
+            .await
+            .unwrap(),
+        RestorePrivateKeyOutcome::Invalid
+    );
     assert_nothing_written(&ceremony, &STARTED);
 }
 
 #[tokio::test]
 async fn a_key_share_is_not_matched_when_the_restore_would_be_refused() {
     let cases = [
-        (
-            ceremony(&STARTED, &restored_pair()),
-            Some("alice"),
-            "Unexpected trustee status KEY_RESTORED",
-        ),
         (
             ceremony(&IN_PROGRESS, &waiting_pair()),
             Some("alice"),
@@ -734,6 +735,25 @@ async fn a_key_share_is_not_matched_when_the_restore_would_be_refused() {
         assert_eq!(ceremony.executions(SESSION).len(), 1);
         assert_eq!(ceremony.audit_entries(), vec![]);
     }
+}
+
+#[tokio::test]
+async fn a_key_share_already_restored_is_matched_as_already_restored() {
+    let ceremony = ceremony(&STARTED, &restored_pair());
+    let alice = trustee_claims(Some("alice"));
+    assert_eq!(
+        key_share_matches(&ceremony, &alice, STORED_KEY)
+            .await
+            .unwrap(),
+        RestorePrivateKeyOutcome::AlreadyRestored
+    );
+    assert_eq!(
+        key_share_matches(&ceremony, &alice, "another-key")
+            .await
+            .unwrap(),
+        RestorePrivateKeyOutcome::Invalid
+    );
+    assert_nothing_written(&ceremony, &STARTED);
 }
 
 #[tokio::test]
@@ -781,7 +801,7 @@ async fn a_connected_session_still_accepts_the_remaining_keys() {
     let restored = restore_key(&ceremony, &trustee_claims(Some("carol")), STORED_KEY)
         .await
         .unwrap();
-    assert!(restored);
+    assert_eq!(restored, RestorePrivateKeyOutcome::Restored);
     assert_eq!(stored_status(&ceremony), Some(CONNECTED.to_string()));
     assert_eq!(restored_trustee_count(&last_ceremony_status(&ceremony)), 3);
 }
@@ -865,21 +885,24 @@ async fn a_session_with_an_unknown_status_accepts_keys_like_a_started_one() {
     ceremony.add_election_event(election_event(Some(
         json!({"id": 1, "database_name": EVENT_BOARD, "is_archived": false}),
     )));
-    assert!(
+    assert_eq!(
         restore_key(&ceremony, &trustee_claims(Some("alice")), STORED_KEY)
             .await
-            .unwrap()
+            .unwrap(),
+        RestorePrivateKeyOutcome::Restored
     );
 }
 
 #[tokio::test]
-async fn the_status_is_checked_before_the_keys_ceremony_is_read() {
-    let ceremony = ceremony(&IN_PROGRESS, &waiting_pair());
-    ceremony.fail(TallyCall::GetKeysCeremony, "keys ceremony unavailable");
-    let error = restore_key(&ceremony, &trustee_claims(Some("alice")), STORED_KEY)
-        .await
-        .unwrap_err();
-    assert_eq!(error.to_string(), "Unexpected status IN_PROGRESS");
+async fn the_key_is_compared_before_the_status_is_checked() {
+    for status in [IN_PROGRESS, AWAITING_INPUT, SUCCESS, CANCELLED] {
+        let ceremony = ceremony(&status, &waiting_pair());
+        let restored = restore_key(&ceremony, &trustee_claims(Some("alice")), "another-key")
+            .await
+            .unwrap();
+        assert_eq!(restored, RestorePrivateKeyOutcome::Invalid);
+        assert_nothing_written(&ceremony, &status);
+    }
 }
 
 #[tokio::test]
@@ -906,12 +929,35 @@ async fn a_trustee_outside_the_ceremony_cannot_restore_a_key() {
 }
 
 #[tokio::test]
-async fn a_trustee_cannot_restore_their_key_twice() {
+async fn a_key_restored_again_is_already_restored_and_writes_nothing() {
+    for status in ALL_STATUSES {
+        let ceremony = ceremony(&status, &[("alice", TallyTrusteeStatus::KEY_RESTORED)]);
+        let restored = restore_key(&ceremony, &trustee_claims(Some("alice")), STORED_KEY)
+            .await
+            .unwrap();
+        assert_eq!(restored, RestorePrivateKeyOutcome::AlreadyRestored);
+        assert_nothing_written(&ceremony, &status);
+    }
+}
+
+#[tokio::test]
+async fn another_key_is_invalid_even_after_the_trustee_restored_theirs() {
     let ceremony = ceremony(&STARTED, &[("alice", TallyTrusteeStatus::KEY_RESTORED)]);
+    let restored = restore_key(&ceremony, &trustee_claims(Some("alice")), "another-key")
+        .await
+        .unwrap();
+    assert_eq!(restored, RestorePrivateKeyOutcome::Invalid);
+    assert_nothing_written(&ceremony, &STARTED);
+}
+
+#[tokio::test]
+async fn a_session_that_cannot_be_locked_restores_no_key() {
+    let ceremony = ceremony(&STARTED, &waiting_pair());
+    ceremony.fail(TallyCall::LockSession, "lock timeout");
     let error = restore_key(&ceremony, &trustee_claims(Some("alice")), STORED_KEY)
         .await
         .unwrap_err();
-    assert_eq!(error.to_string(), "Unexpected trustee status KEY_RESTORED");
+    assert_eq!(error.to_string(), "lock timeout");
     assert_nothing_written(&ceremony, &STARTED);
 }
 

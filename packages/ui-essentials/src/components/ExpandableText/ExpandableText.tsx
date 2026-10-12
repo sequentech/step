@@ -45,7 +45,6 @@ const LinkButton = styled(Button)(({theme}) => ({
         background: "none",
         padding: 0,
         color: theme.palette.primary.main,
-        outline: "none",
         border: "none",
         boxShadow: "none",
     },
@@ -58,7 +57,6 @@ const LinkButton = styled(Button)(({theme}) => ({
         color: theme.palette.primary.main,
         boxShadow: "none",
         border: "none",
-        outline: "none",
     },
 }))
 

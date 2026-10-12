@@ -1588,9 +1588,16 @@ type KeyShareSignatureStatusOutput {
     signed: Boolean!
 }
 
+enum RestorePrivateKeyOutcome {
+    RESTORED
+    INVALID
+    ALREADY_RESTORED
+}
+
 type RestorePrivateKeyOutput {
     is_valid: Boolean!
     signing_request: SigningRequestSummary
+    outcome: RestorePrivateKeyOutcome!
 }
 
 type InsertCastVoteOutput {

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useCallback, useContext, useEffect, useState} from "react"
+import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
 import Button from "@mui/material/Button"
 import {BreadCrumbSteps, BreadCrumbStepsVariant, DropFile} from "@sequentech/ui-essentials"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
@@ -23,15 +23,15 @@ import {
 } from "@/queries/KeyShareSignatureStatus"
 import {useMutation, useQuery} from "@apollo/client"
 import {
-    ICeremonyStatus,
+    ETallyKeyRestoreEligibility,
     ITallyExecutionStatus,
     ITallyTrusteeStatus,
-    ITrusteeStatus,
 } from "@/types/ceremonies"
-import {Box, Typography} from "@mui/material"
+import {Alert, Box, Typography} from "@mui/material"
 import {
     RestorePrivateKeyMutation,
     RestorePrivateKeyMutationVariables,
+    RestorePrivateKeyOutcome,
     Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Tally_Session,
@@ -46,6 +46,8 @@ import {
     type IKeyShareAnswer,
     type IKeyShareSubmission,
 } from "@/components/keys-ceremony/useKeyShareSigning"
+import {getTallyTrusteeStatus} from "@/services/tallyCeremonyParticipation"
+import {getTallyKeyRestoreEligibility} from "./utils"
 
 const WizardSteps = {
     Start: 0,
@@ -60,23 +62,29 @@ export const TallyCeremonyTrustees: React.FC = () => {
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
 
-    const [page, setPage] = useState<number>(WizardSteps.Start)
+    const [hasContinuedToStatus, setHasContinuedToStatus] = useState<boolean>(false)
     const [selectedElections, setSelectedElections] = useState<string[]>([])
     const [selectedTrustees, setSelectedTrustees] = useState<boolean>(false)
-    const [tally, setTally] = useState<Sequent_Backend_Tally_Session>()
     const [verified, setVerified] = useState<boolean>(false)
+    const [alreadyRestored, setAlreadyRestored] = useState<boolean>(false)
     const [uploading, setUploading] = useState<boolean>(false)
     const [errors, setErrors] = useState<String | null>(null)
-    const [trusteeStatus, setTrusteeStatus] = useState<ITrusteeStatus | null>(null)
     const {globalSettings} = useContext(SettingsContext)
     const [isTallyCompleted, setIsTallyCompleted] = useState<boolean>(false)
 
-    const {data} = useGetOne<Sequent_Backend_Tally_Session>(
+    // The execution status decides whether the key upload step is offered, so
+    // the session is polled while the ceremony is open. Otherwise a trustee
+    // who is still waiting keeps the upload step after the tally moves past
+    // key collection, and the backend rejects the key they upload there.
+    const {data: tally, isPending: isTallyPending} = useGetOne<Sequent_Backend_Tally_Session>(
         "sequent_backend_tally_session",
         {
             id: tallyId,
         },
         {
+            refetchInterval: isTallyCompleted
+                ? undefined
+                : globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
@@ -100,53 +108,47 @@ export const TallyCeremonyTrustees: React.FC = () => {
         },
     })
 
-    const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
-        "sequent_backend_tally_session_execution",
-        {
-            pagination: {page: 1, perPage: 1},
-            sort: {field: "created_at", order: "DESC"},
-            filter: {
-                tally_session_id: tallyId,
-                tenant_id: tenantId,
+    const {data: tallySessionExecutions, isPending: areExecutionsPending} =
+        useGetList<Sequent_Backend_Tally_Session_Execution>(
+            "sequent_backend_tally_session_execution",
+            {
+                pagination: {page: 1, perPage: 1},
+                sort: {field: "created_at", order: "DESC"},
+                filter: {
+                    tally_session_id: tallyId,
+                    tenant_id: tenantId,
+                },
             },
-        },
-        {
-            refetchInterval: isTallyCompleted
-                ? undefined
-                : globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
-    )
+            {
+                refetchInterval: isTallyCompleted
+                    ? undefined
+                    : globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
+                refetchOnWindowFocus: false,
+                refetchOnReconnect: false,
+                refetchOnMount: false,
+            }
+        )
 
     useEffect(() => {
-        if (data?.is_execution_completed && !isTallyCompleted) {
+        if (tally?.is_execution_completed && !isTallyCompleted) {
             setIsTallyCompleted(true)
         }
-    }, [data?.is_execution_completed, isTallyCompleted])
+    }, [tally?.is_execution_completed, isTallyCompleted])
 
-    useEffect(() => {
-        if (data) {
-            setTally(data)
-        }
-    }, [data])
+    // The tally session and its execution load separately, so the wizard waits
+    // for both before choosing a step. Otherwise the key upload step would show
+    // up while the participation of the trustee is still unknown. Without a
+    // tally id both queries stay disabled, so there is nothing to wait for.
+    const isCeremonyPending = !!tallyId && (isTallyPending || areExecutionsPending)
 
-    useEffect(() => {
-        if (tallySessionExecutions) {
-            const username = authContext?.username
-            const ceremonyStatus: ICeremonyStatus | undefined = tallySessionExecutions?.[0]?.status
-            const trusteeStatus = ceremonyStatus?.trustees.find(
-                (item) => item.name === username
-            )?.status
-            setTrusteeStatus(trusteeStatus ?? null)
-        }
-    }, [tallySessionExecutions])
+    const trusteeStatus = useMemo(
+        () => getTallyTrusteeStatus(tallySessionExecutions?.[0], authContext?.trustee),
+        [authContext?.trustee, tallySessionExecutions]
+    )
 
     // A trustee who restored their key unsigned before the rule made trustees
     // sign contributes it again, signed.
-    // The state holds the tally trustee's status.
-    const restored = (trusteeStatus as string | null) === ITallyTrusteeStatus.KEY_RESTORED
+    const restored = trusteeStatus === ITallyTrusteeStatus.KEY_RESTORED
     const {data: signatureStatus, refetch: refetchSignatureStatus} = useQuery<
         IKeyShareSignatureStatusQuery,
         IKeyShareSignatureStatusVariables
@@ -164,16 +166,20 @@ export const TallyCeremonyTrustees: React.FC = () => {
         !!signatureStatus?.key_share_signature_status?.signature_needed &&
         !signatureStatus.key_share_signature_status.signed
 
-    useEffect(() => {
-        setPage(
-            !trusteeStatus && tally?.execution_status !== ITallyExecutionStatus.CANCELLED
-                ? WizardSteps.Start
-                : (trusteeStatus === ITrusteeStatus.WAITING || redoSigned) &&
-                    tally?.execution_status !== ITallyExecutionStatus.CANCELLED
-                  ? WizardSteps.Start
-                  : WizardSteps.Status
-        )
-    }, [trusteeStatus, redoSigned])
+    // A trustee contributing their key again, signed, uploads it like one still waiting.
+    const keyRestoreEligibility = useMemo(
+        () =>
+            getTallyKeyRestoreEligibility(
+                redoSigned ? ITallyTrusteeStatus.WAITING : trusteeStatus,
+                tally?.execution_status
+            ),
+        [redoSigned, trusteeStatus, tally?.execution_status]
+    )
+
+    const page =
+        keyRestoreEligibility === ETallyKeyRestoreEligibility.ALLOWED && !hasContinuedToStatus
+            ? WizardSteps.Start
+            : WizardSteps.Status
 
     const CancelButton = styled(Button)`
         background-color: ${({theme}) => theme.palette.white};
@@ -212,6 +218,9 @@ export const TallyCeremonyTrustees: React.FC = () => {
                 },
             })
             if (errors) throw new Error(errors.toString())
+            setAlreadyRestored(
+                data?.restore_private_key?.outcome === RestorePrivateKeyOutcome.AlreadyRestored
+            )
             return data?.restore_private_key ?? {is_valid: false}
         },
         [restorePrivateKeyMutation, tally?.election_event_id, tally?.id]
@@ -232,6 +241,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
     const uploadPrivateKey = async (files: FileList | null) => {
         setErrors(null)
         setVerified(false)
+        setAlreadyRestored(false)
         setUploading(false)
         if (!files || files.length === 0) {
             setErrors(t("keysGeneration.checkStep.noFileSelected"))
@@ -257,7 +267,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
             const checked = await keyShareSigning.check(fileContent)
             setUploading(false)
             if (checked === KeyShareCheck.Invalid) {
-                setErrors(t("keysGeneration.checkStep.errorUploading", {error: "empty"}))
+                setErrors(t("keysGeneration.checkStep.errorUploading"))
             } else if (checked === KeyShareCheck.Verified) {
                 setVerified(true)
             }
@@ -271,87 +281,107 @@ export const TallyCeremonyTrustees: React.FC = () => {
         <TallyStyles.WizardContainer>
             <TallyStyles.ContentWrapper>
                 <WizardStyles.WizardWrapper>
-                    <TallyStyles.StyledHeader>
-                        <BreadCrumbSteps
-                            labels={["tally.breadcrumbSteps.start", "tally.breadcrumbSteps.finish"]}
-                            selected={page}
-                            variant={BreadCrumbStepsVariant.Circle}
-                            colorPreviousSteps={true}
-                        />
-                    </TallyStyles.StyledHeader>
-
-                    {page === WizardSteps.Start && (
+                    {isCeremonyPending ? (
+                        <WizardStyles.StatusBox
+                            sx={{display: "flex", justifyContent: "center", padding: "32px"}}
+                        >
+                            <WizardStyles.DownloadProgress />
+                        </WizardStyles.StatusBox>
+                    ) : (
                         <>
-                            <ElectionHeader
-                                title={"tally.ceremonyTitle"}
-                                subtitle={"tally.ceremonySubTitle"}
-                            />
-
-                            <TallyElectionsList
-                                elections={elections}
-                                electionEventPresentation={record?.presentation}
-                                electionEventId={record?.id}
-                                disabled={true}
-                                update={(elections) => setSelectedElections(elections)}
-                                keysCeremonyId={data?.keys_ceremony_id ?? null}
-                            />
-
-                            <Box>
-                                <ElectionHeader
-                                    title={"tally.trusteeTitle"}
-                                    subtitle={"tally.trusteeSubTitle"}
+                            <TallyStyles.StyledHeader>
+                                <BreadCrumbSteps
+                                    labels={[
+                                        "tally.breadcrumbSteps.start",
+                                        "tally.breadcrumbSteps.finish",
+                                    ]}
+                                    selected={page}
+                                    variant={BreadCrumbStepsVariant.Circle}
+                                    colorPreviousSteps={true}
                                 />
-                                {redoSigned && !verified ? (
-                                    <Typography variant="body1">
-                                        {t("signing.keyShare.redo")}
-                                    </Typography>
-                                ) : null}
+                            </TallyStyles.StyledHeader>
 
-                                <DropFile handleFiles={uploadPrivateKey} />
+                            {page === WizardSteps.Start && (
+                                <>
+                                    <ElectionHeader
+                                        title={"tally.ceremonyTitle"}
+                                        subtitle={"tally.ceremonySubTitle"}
+                                    />
 
-                                <WizardStyles.StatusBox>
-                                    {uploading ? <WizardStyles.DownloadProgress /> : null}
-                                    {errors ? (
-                                        <WizardStyles.ErrorMessage variant="body2">
-                                            {errors}
-                                        </WizardStyles.ErrorMessage>
-                                    ) : null}
-                                    {keyShareSigning.waiting && !errors ? (
-                                        <Typography variant="body1">
-                                            {t("signing.keyShare.signing")}
-                                        </Typography>
-                                    ) : null}
-                                    {verified && (
-                                        <WizardStyles.SucessMessage variant="body1">
-                                            {t("keysGeneration.checkStep.verified")}
-                                        </WizardStyles.SucessMessage>
-                                    )}
-                                </WizardStyles.StatusBox>
-                            </Box>
-                        </>
-                    )}
+                                    <TallyElectionsList
+                                        elections={elections}
+                                        electionEventPresentation={record?.presentation}
+                                        electionEventId={record?.id}
+                                        disabled={true}
+                                        update={(elections) => setSelectedElections(elections)}
+                                        keysCeremonyId={tally?.keys_ceremony_id ?? null}
+                                    />
 
-                    {page === WizardSteps.Status && (
-                        <>
-                            <ElectionHeader
-                                title={"tally.ceremonyTitle"}
-                                subtitle={"tally.ceremonySubTitle"}
-                            />
+                                    <Box>
+                                        <ElectionHeader
+                                            title={"tally.trusteeTitle"}
+                                            subtitle={"tally.trusteeSubTitle"}
+                                        />
+                                        {redoSigned && !verified ? (
+                                            <Typography variant="body1">
+                                                {t("signing.keyShare.redo")}
+                                            </Typography>
+                                        ) : null}
 
-                            <TallyElectionsList
-                                elections={elections}
-                                electionEventPresentation={record?.presentation}
-                                electionEventId={record?.id}
-                                disabled={true}
-                                update={(elections) => setSelectedElections(elections)}
-                                keysCeremonyId={data?.keys_ceremony_id ?? null}
-                            />
+                                        {!uploading && !verified ? (
+                                            <DropFile handleFiles={uploadPrivateKey} />
+                                        ) : null}
 
-                            <TallyTrusteesList
-                                tally={tally}
-                                update={(trustees) => setSelectedTrustees(trustees)}
-                                tallySessionExecutions={tallySessionExecutions}
-                            />
+                                        <WizardStyles.StatusBox>
+                                            {uploading ? <WizardStyles.DownloadProgress /> : null}
+                                            {errors ? (
+                                                <WizardStyles.ErrorMessage variant="body2">
+                                                    {errors}
+                                                </WizardStyles.ErrorMessage>
+                                            ) : null}
+                                            {keyShareSigning.waiting && !errors ? (
+                                                <Typography variant="body1">
+                                                    {t("signing.keyShare.signing")}
+                                                </Typography>
+                                            ) : null}
+                                            {verified && !alreadyRestored && (
+                                                <WizardStyles.SucessMessage variant="body1">
+                                                    {t("keysGeneration.checkStep.verified")}
+                                                </WizardStyles.SucessMessage>
+                                            )}
+                                            {alreadyRestored && (
+                                                <Alert severity="info">
+                                                    {t("keysGeneration.checkStep.alreadyRestored")}
+                                                </Alert>
+                                            )}
+                                        </WizardStyles.StatusBox>
+                                    </Box>
+                                </>
+                            )}
+
+                            {page === WizardSteps.Status && (
+                                <>
+                                    <ElectionHeader
+                                        title={"tally.ceremonyTitle"}
+                                        subtitle={"tally.ceremonySubTitle"}
+                                    />
+
+                                    <TallyElectionsList
+                                        elections={elections}
+                                        electionEventPresentation={record?.presentation}
+                                        electionEventId={record?.id}
+                                        disabled={true}
+                                        update={(elections) => setSelectedElections(elections)}
+                                        keysCeremonyId={tally?.keys_ceremony_id ?? null}
+                                    />
+
+                                    <TallyTrusteesList
+                                        tally={tally}
+                                        update={(trustees) => setSelectedTrustees(trustees)}
+                                        tallySessionExecutions={tallySessionExecutions}
+                                    />
+                                </>
+                            )}
                         </>
                     )}
                 </WizardStyles.WizardWrapper>
@@ -366,7 +396,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
                     {page < WizardSteps.Status && (
                         <NextButton
                             color="primary"
-                            onClick={() => setPage(WizardSteps.Status)}
+                            onClick={() => setHasContinuedToStatus(true)}
                             disabled={!verified}
                         >
                             <>

@@ -35,6 +35,9 @@ const spanishTranslation: TranslationType = {
                 "Hubo un problema al importar el voto auditable. ¿Elegiste el archivo correcto?",
             importErrorMoreInfo: "Más información",
             importErrorTitle: "Error",
+            ciphertextErrorTitle: "La verificación del voto ha fallado",
+            ciphertextErrorDescription:
+                "El texto cifrado de este voto auditable no es el cifrado del texto en claro y la aleatoriedad que contiene. No se puede confiar en el voto.",
             useSampleLink: "Use voto de ejemplo",
             nextButton: "Continuar",
             ballotIdLabel: "ID de papeleta",

@@ -27,6 +27,7 @@ export const RESTORE_PRIVATE_KEY = gql`
                 required
                 expires_at
             }
+            outcome
         }
     }
 `

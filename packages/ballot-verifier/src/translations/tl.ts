@@ -31,6 +31,9 @@ const tagalogTranslation = {
                 "Nagkaroon ng problema sa pag-import ng sinisiyasat na balota. Tama ba ang napili mong file?",
             importErrorMoreInfo: "Karagdagang impormasyon",
             importErrorTitle: "Error",
+            ciphertextErrorTitle: "Nabigo ang pagberipika ng balota",
+            ciphertextErrorDescription:
+                "Ang ciphertext ng sinisiyasat na balotang ito ay hindi ang pag-encrypt ng plaintext at randomness na nilalaman nito. Hindi mapagkakatiwalaan ang balota.",
             useSampleLink: "Gamitin ang sample na balota",
             nextButton: "Susunod",
             ballotIdLabel: "ID ng Balota",

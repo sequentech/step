@@ -32,6 +32,7 @@ use sequent_core::services::jwt::JwtClaims;
 use sequent_core::signing::{
     sha256_hex, KeyCeremonySubject, SigningAction, SigningRequestStatus, TallyKeySubject,
 };
+use sequent_core::types::ceremonies::RestorePrivateKeyOutcome;
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::collections::HashSet;
@@ -147,27 +148,38 @@ impl KeyShareStep {
     }
 }
 
-/// The ceremony side of a key step: the existing check or restore.
+/// The ceremony side of a key step: the existing check or restore. Both
+/// answer `Invalid` when `key_share` is not the trustee's and
+/// `AlreadyRestored` when the trustee already took the step with it (a keys
+/// ceremony check is never already taken).
 #[async_trait]
 pub trait KeyShareCeremony: Send + Sync {
-    /// Whether `key_share` is the trustee's, recording nothing. Fails as the
-    /// step fails when the trustee can't take it now.
+    /// What taking the step with `key_share` would amount to, recording
+    /// nothing. Fails as the step fails when the trustee can't take it now.
     async fn matches(
         &self,
         hasura_transaction: &Transaction<'_>,
         key_share: &str,
         signatures: &TrusteeSignatures,
-    ) -> anyhow::Result<bool>;
+    ) -> anyhow::Result<RestorePrivateKeyOutcome>;
 
-    /// Takes the step as it always did: `false`, recording nothing, when
-    /// `key_share` is not the trustee's. `signatures` says which trustees'
-    /// steps count.
+    /// Takes the step as it always did, recording nothing unless it answers
+    /// `Restored`. `signatures` says which trustees' steps count.
     async fn run(
         &self,
         hasura_transaction: &Transaction<'_>,
         key_share: &str,
         signatures: &TrusteeSignatures,
-    ) -> anyhow::Result<bool>;
+    ) -> anyhow::Result<RestorePrivateKeyOutcome>;
+}
+
+/// A keys ceremony check's answer: the key share is the trustee's or not.
+fn checked(is_valid: bool) -> RestorePrivateKeyOutcome {
+    if is_valid {
+        RestorePrivateKeyOutcome::Restored
+    } else {
+        RestorePrivateKeyOutcome::Invalid
+    }
 }
 
 /// The keys ceremony's private key check.
@@ -185,7 +197,7 @@ impl KeyShareCeremony for KeysCeremonyKeyShare<'_> {
         hasura_transaction: &Transaction<'_>,
         key_share: &str,
         _signatures: &TrusteeSignatures,
-    ) -> anyhow::Result<bool> {
+    ) -> anyhow::Result<RestorePrivateKeyOutcome> {
         // A trustee may check their key share again, signed or not.
         keys_ceremony::key_share_matches(
             hasura_transaction,
@@ -196,6 +208,7 @@ impl KeyShareCeremony for KeysCeremonyKeyShare<'_> {
             key_share,
         )
         .await
+        .map(checked)
     }
 
     async fn run(
@@ -203,7 +216,7 @@ impl KeyShareCeremony for KeysCeremonyKeyShare<'_> {
         hasura_transaction: &Transaction<'_>,
         key_share: &str,
         signatures: &TrusteeSignatures,
-    ) -> anyhow::Result<bool> {
+    ) -> anyhow::Result<RestorePrivateKeyOutcome> {
         keys_ceremony::check_private_key(
             hasura_transaction,
             self.claims.clone(),
@@ -214,6 +227,7 @@ impl KeyShareCeremony for KeysCeremonyKeyShare<'_> {
             signatures,
         )
         .await
+        .map(checked)
     }
 }
 
@@ -232,7 +246,7 @@ impl KeyShareCeremony for TallyKeyShare<'_> {
         hasura_transaction: &Transaction<'_>,
         key_share: &str,
         signatures: &TrusteeSignatures,
-    ) -> anyhow::Result<bool> {
+    ) -> anyhow::Result<RestorePrivateKeyOutcome> {
         tally_ceremony::key_share_matches(
             hasura_transaction,
             self.claims,
@@ -250,7 +264,7 @@ impl KeyShareCeremony for TallyKeyShare<'_> {
         hasura_transaction: &Transaction<'_>,
         key_share: &str,
         signatures: &TrusteeSignatures,
-    ) -> anyhow::Result<bool> {
+    ) -> anyhow::Result<RestorePrivateKeyOutcome> {
         tally_ceremony::set_private_key(
             hasura_transaction,
             self.claims,
@@ -286,6 +300,9 @@ pub enum KeyShareOutcome {
     /// The key share is not the trustee's: the caller rolls back, so
     /// nothing is recorded and no request is used.
     Invalid,
+    /// The trustee already took the step with this key share: the caller
+    /// rolls back, so nothing is recorded and no request is used.
+    AlreadyTaken,
     /// The step ran. With a request, the reference kept with the ceremony.
     Done(Option<Value>),
     /// The trustee signs the request first, then takes the step with it.
@@ -462,30 +479,37 @@ pub async fn tally_trustee_signatures(
     .await
 }
 
+/// The outcome of a step the ceremony ran; `reference` is kept with the
+/// ceremony when the step ran signed.
+fn ran(outcome: RestorePrivateKeyOutcome, reference: Option<Value>) -> KeyShareOutcome {
+    match outcome {
+        RestorePrivateKeyOutcome::Restored => KeyShareOutcome::Done(reference),
+        RestorePrivateKeyOutcome::Invalid => KeyShareOutcome::Invalid,
+        RestorePrivateKeyOutcome::AlreadyRestored => KeyShareOutcome::AlreadyTaken,
+    }
+}
+
 /// The step as it always ran.
 async fn run_unsigned(
     hasura_transaction: &Transaction<'_>,
     ceremony: &dyn KeyShareCeremony,
     input: &KeyShareInput<'_>,
 ) -> Result<KeyShareOutcome, KeyShareError> {
-    if ceremony
+    let outcome = ceremony
         .run(
             hasura_transaction,
             input.key_share,
             &TrusteeSignatures::NotNeeded,
         )
         .await
-        .map_err(KeyShareError::Step)?
-    {
-        Ok(KeyShareOutcome::Done(None))
-    } else {
-        Ok(KeyShareOutcome::Invalid)
-    }
+        .map_err(KeyShareError::Step)?;
+    Ok(ran(outcome, None))
 }
 
 /// Takes a trustee's key step (see the module documentation), in the
 /// caller's transaction. The caller commits unless the outcome is
-/// [`KeyShareOutcome::Invalid`] or an error.
+/// [`KeyShareOutcome::Invalid`], [`KeyShareOutcome::AlreadyTaken`] or an
+/// error.
 #[instrument(skip_all, fields(action = %input.kind.action()), err)]
 pub async fn take_key_share_step(
     hasura_transaction: &Transaction<'_>,
@@ -562,14 +586,11 @@ pub async fn take_key_share_step(
     )
     .await
     .map_err(internal)?;
-    if !ceremony
+    let outcome = ceremony
         .run(hasura_transaction, input.key_share, &signatures)
         .await
-        .map_err(KeyShareError::Step)?
-    {
-        return Ok(KeyShareOutcome::Invalid);
-    }
-    Ok(KeyShareOutcome::Done(Some(reference)))
+        .map_err(KeyShareError::Step)?;
+    Ok(ran(outcome, Some(reference)))
 }
 
 /// The rule needs the trustee's signature: checks the key share without
@@ -600,13 +621,16 @@ async fn start(
     )
     .await
     .map_err(internal)?;
-    // A file that is not the trustee's key share starts nothing.
-    if !ceremony
+    // A file that is not the trustee's key share, or one they already took
+    // the step with, starts nothing.
+    match ceremony
         .matches(hasura_transaction, input.key_share, &signatures)
         .await
         .map_err(KeyShareError::Step)?
     {
-        return Ok(KeyShareOutcome::Invalid);
+        RestorePrivateKeyOutcome::Restored => {}
+        RestorePrivateKeyOutcome::Invalid => return Ok(KeyShareOutcome::Invalid),
+        RestorePrivateKeyOutcome::AlreadyRestored => return Ok(KeyShareOutcome::AlreadyTaken),
     }
     let trustee = caller_trustee(hasura_transaction, caller, ids.tenant_id).await?;
     let outcome = guard(

@@ -34,6 +34,9 @@ const galegoTranslation: TranslationType = {
                 "Houbo un problema ao importar a papeleta auditábel. Escolléchelo arquivo correcto?",
             importErrorMoreInfo: "Máis información",
             importErrorTitle: "Erro",
+            ciphertextErrorTitle: "A verificación da papeleta fallou",
+            ciphertextErrorDescription:
+                "O texto cifrado desta papeleta auditábel non é o cifrado do texto en claro e a aleatoriedade que contén. Non se pode confiar na papeleta.",
             useSampleLink: "Usar unha papeleta de exemplo",
             nextButton: "Seguinte",
             ballotIdLabel: "ID de papeleta",

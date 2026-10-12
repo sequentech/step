@@ -414,6 +414,7 @@ test.describe("as a trustee", () => {
             "tally-read",
             "election-event-tally-tab",
         ],
+        trustee: "synthetic-admin",
     })
 
     test("restores a key fragment for a started tally after a rejected upload", async ({
@@ -427,10 +428,10 @@ test.describe("as a trustee", () => {
             {name: TRUSTEES[1], status: "KEY_RESTORED"},
         ]
         portal.graphql.once("RestorePrivateKey", () => ({
-            data: {restore_private_key: {is_valid: false}},
+            data: {restore_private_key: {is_valid: false, outcome: "INVALID"}},
         }))
         portal.graphql.on("RestorePrivateKey", () => ({
-            data: {restore_private_key: {is_valid: true}},
+            data: {restore_private_key: {is_valid: true, outcome: "RESTORED"}},
         }))
 
         const row = await openTallyList(page, portal)

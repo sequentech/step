@@ -2406,6 +2406,7 @@ const dutchTranslation: TranslationType = {
                 errorUploading: "Ongeldige Back-up van Versleutelde Privésleutel, probeer opnieuw",
                 errorEmptyFile: "Bestand leeg of niet gevonden",
                 verified: "Back-up succesvol geverifieerd.",
+                alreadyRestored: "Uw sleutel was al hersteld.",
             },
         },
         miruExport: {

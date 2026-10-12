@@ -512,8 +512,8 @@ pub async fn has_valid_cast_vote(
     Ok(row.get("found"))
 }
 
-/// Counts votes in a contest area whose Datafix outcome is not resolved.
-/// Tally extraction must wait because neither status is countable.
+/// Counts the `in-progress` votes in a contest area, whose Datafix outcome is
+/// not resolved yet. Tally extraction must wait because they are not countable.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn count_unresolved_cast_votes(
     hasura_transaction: &Transaction<'_>,

@@ -57,8 +57,10 @@ pub struct VoterSnapshot {
     /// doesn't resolve to a known area (or is unset).
     pub area_name: Option<String>,
     pub dob: Option<String>,
-    /// Raw `voted-channel` attribute value; `None` means not voted. File-side
-    /// comparisons normalize this value explicitly at the boundary.
+    /// Raw `voted-channel` attribute value; `None` means no channel is
+    /// recorded, which is not proof the voter has not voted (see
+    /// `has_valid_internet_vote`). File-side comparisons normalize this value
+    /// explicitly at the boundary.
     pub voted_channel: Option<String>,
     pub has_valid_internet_vote: bool,
     pub has_unresolved_internet_vote: bool,

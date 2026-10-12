@@ -999,7 +999,7 @@ pub async fn set_private_key(
     tally_session_id: &str,
     private_key_base64: &str,
     signatures: &TrusteeSignatures,
-) -> Result<bool> {
+) -> Result<RestorePrivateKeyOutcome> {
     set_private_key_with(
         &PgTallySessions::new(transaction),
         &PgKeysCeremonies::new(transaction),
@@ -1029,8 +1029,54 @@ struct KeyRestore {
     encrypted_private_key: String,
 }
 
+impl KeyRestore {
+    /// What restoring `private_key_base64` amounts to. The key is compared
+    /// before the session and the trustee are checked, so a key that is not
+    /// the trustee's is `Invalid` and one they already restored is
+    /// `AlreadyRestored` whatever the session's status. Fails when the key
+    /// is to be restored but the trustee can't restore it now.
+    fn outcome(
+        &self,
+        private_key_base64: &str,
+        signatures: &TrusteeSignatures,
+    ) -> Result<RestorePrivateKeyOutcome> {
+        let outcome = classify_private_key_restore(
+            &self.encrypted_private_key,
+            private_key_base64,
+            &self.found_trustee,
+            signatures,
+        );
+        if outcome == RestorePrivateKeyOutcome::Restored {
+            check_key_restore_status(&tally_execution_status(
+                self.tally_session.execution_status.as_deref(),
+            ))?;
+            restoring_trustee(&self.tally_ceremony_status, &self.trustee_name, signatures)?;
+        }
+        Ok(outcome)
+    }
+}
+
+/// `Invalid` if the trustee stored another key, `AlreadyRestored` if they
+/// restored this one before and may not restore it again signed.
+fn classify_private_key_restore(
+    expected_private_key: &str,
+    submitted_private_key: &str,
+    trustee: &TallyTrustee,
+    signatures: &TrusteeSignatures,
+) -> RestorePrivateKeyOutcome {
+    if expected_private_key != submitted_private_key {
+        RestorePrivateKeyOutcome::Invalid
+    } else if trustee.status == TallyTrusteeStatus::KEY_RESTORED
+        && !signatures.may_redo(&trustee.name)
+    {
+        RestorePrivateKeyOutcome::AlreadyRestored
+    } else {
+        RestorePrivateKeyOutcome::Restored
+    }
+}
+
 /// Reads the session, its last execution and the trustee's stored key,
-/// failing when the trustee can't restore their key now.
+/// failing when the trustee is not part of the ceremony.
 async fn read_key_restore(
     sessions: &impl TallySessions,
     keys_ceremonies: &impl KeysCeremonyReader,
@@ -1039,7 +1085,6 @@ async fn read_key_restore(
     tenant_id: &str,
     election_event_id: &str,
     tally_session_id: &str,
-    signatures: &TrusteeSignatures,
 ) -> Result<KeyRestore> {
     let tally_session = sessions
         .get(tenant_id, election_event_id, tally_session_id)
@@ -1065,10 +1110,6 @@ async fn read_key_restore(
         ));
     };
 
-    check_key_restore_status(&tally_execution_status(
-        tally_session.execution_status.as_deref(),
-    ))?;
-
     // get the keys ceremonies for this election event
     let keys_ceremony = keys_ceremonies
         .get(
@@ -1079,8 +1120,12 @@ async fn read_key_restore(
         .await?;
 
     let tally_ceremony_status = get_tally_ceremony_status(tally_session_execution.status.clone())?;
-    let found_trustee =
-        restoring_trustee(&tally_ceremony_status, &trustee_name, signatures)?.clone();
+    let found_trustee = tally_ceremony_status
+        .trustees
+        .iter()
+        .find(|trustee| trustee.name == trustee_name)
+        .cloned()
+        .ok_or_else(|| anyhow!("Trustee not part of the keys ceremony or has invalid state"))?;
 
     // get the encrypted private key
     let encrypted_private_key = private_keys
@@ -1098,15 +1143,15 @@ async fn read_key_restore(
     })
 }
 
-/// Whether the key share is the one the trustee would restore, compared as
-/// [`set_private_key_with`] compares it, recording nothing. Fails as the
+/// What restoring the key share would amount to, decided as
+/// [`set_private_key_with`] decides it, recording nothing. Fails as the
 /// restore fails when the trustee can't restore their key now.
 pub async fn trustee_key_share_matches_with(
     sessions: &impl TallySessions,
     keys_ceremonies: &impl KeysCeremonyReader,
     private_keys: &impl TrusteePrivateKeys,
     request: TrusteeKeyRestore<'_>,
-) -> Result<bool> {
+) -> Result<RestorePrivateKeyOutcome> {
     let restore = read_key_restore(
         sessions,
         keys_ceremonies,
@@ -1115,10 +1160,9 @@ pub async fn trustee_key_share_matches_with(
         request.tenant_id,
         request.election_event_id,
         request.tally_session_id,
-        request.signatures,
     )
     .await?;
-    Ok(restore.encrypted_private_key == request.private_key_base64)
+    restore.outcome(request.private_key_base64, request.signatures)
 }
 
 /// [`trustee_key_share_matches_with`] on the database and the board.
@@ -1131,7 +1175,7 @@ pub async fn key_share_matches(
     tally_session_id: &str,
     private_key_base64: &str,
     signatures: &TrusteeSignatures,
-) -> Result<bool> {
+) -> Result<RestorePrivateKeyOutcome> {
     trustee_key_share_matches_with(
         &PgTallySessions::new(transaction),
         &PgKeysCeremonies::new(transaction),
@@ -1148,8 +1192,9 @@ pub async fn key_share_matches(
     .await
 }
 
-/// Returns `false`, writing nothing, if the key is not the one the trustee
-/// stored on the board in the keys ceremony.
+/// Returns `Invalid` if the key is not the one the trustee stored on the
+/// board in the keys ceremony, and `AlreadyRestored` if the trustee already
+/// restored it, writing nothing either way.
 pub async fn set_private_key_with(
     sessions: &impl TallySessions,
     keys_ceremonies: &impl KeysCeremonyReader,
@@ -1157,7 +1202,7 @@ pub async fn set_private_key_with(
     election_events: &impl ElectionEventReader,
     audit: &impl TallyCeremonyAudit,
     request: TrusteeKeyRestore<'_>,
-) -> Result<bool> {
+) -> Result<RestorePrivateKeyOutcome> {
     let TrusteeKeyRestore {
         claims,
         tenant_id,
@@ -1166,15 +1211,12 @@ pub async fn set_private_key_with(
         private_key_base64,
         signatures,
     } = request;
-    let KeyRestore {
-        trustee_name,
-        tally_session,
-        tally_session_execution,
-        tally_ceremony_status,
-        keys_ceremony,
-        found_trustee,
-        encrypted_private_key,
-    } = read_key_restore(
+    // Restores of the same session wait for each other, so a key uploaded
+    // twice at once is restored once and then found already restored.
+    sessions
+        .lock_for_update(tenant_id, election_event_id, tally_session_id)
+        .await?;
+    let restore = read_key_restore(
         sessions,
         keys_ceremonies,
         private_keys,
@@ -1182,13 +1224,22 @@ pub async fn set_private_key_with(
         tenant_id,
         election_event_id,
         tally_session_id,
-        signatures,
     )
     .await?;
-
-    if encrypted_private_key != private_key_base64 {
-        return Ok(false);
+    let outcome = restore.outcome(private_key_base64, signatures)?;
+    if outcome != RestorePrivateKeyOutcome::Restored {
+        return Ok(outcome);
     }
+    let KeyRestore {
+        trustee_name,
+        tally_session,
+        tally_session_execution,
+        tally_ceremony_status,
+        keys_ceremony,
+        found_trustee,
+        ..
+    } = restore;
+
     let mut new_status = restore_trustee_key(tally_ceremony_status.clone(), &found_trustee.name);
     new_status.logs = append_tally_trustee_log(&tally_ceremony_status.logs, &trustee_name);
     sessions
@@ -1232,7 +1283,7 @@ pub async fn set_private_key_with(
         )
         .await?;
 
-    Ok(true)
+    Ok(RestorePrivateKeyOutcome::Restored)
 }
 
 #[instrument(err, skip(hasura_transaction))]
@@ -1478,6 +1529,91 @@ mod tests {
         assert_eq!(
             HashSet::from([("election".to_string(), "mixed-area".to_string(), None,)]),
             required_decryption_sets(&styles, ContestEncryptionPolicy::MULTIPLE_CONTESTS)
+        );
+    }
+
+    fn alice(status: TallyTrusteeStatus) -> TallyTrustee {
+        TallyTrustee {
+            name: "alice".to_string(),
+            status,
+        }
+    }
+
+    #[test]
+    fn private_key_restore_classifies_new_valid_key() {
+        assert_eq!(
+            RestorePrivateKeyOutcome::Restored,
+            classify_private_key_restore(
+                "private-key",
+                "private-key",
+                &alice(TallyTrusteeStatus::WAITING),
+                &TrusteeSignatures::NotNeeded,
+            )
+        );
+    }
+
+    #[test]
+    fn private_key_restore_classifies_matching_restored_key_as_idempotent() {
+        assert_eq!(
+            RestorePrivateKeyOutcome::AlreadyRestored,
+            classify_private_key_restore(
+                "private-key",
+                "private-key",
+                &alice(TallyTrusteeStatus::KEY_RESTORED),
+                &TrusteeSignatures::NotNeeded,
+            )
+        );
+    }
+
+    #[test]
+    fn private_key_restore_rejects_wrong_key_even_when_already_restored() {
+        assert_eq!(
+            RestorePrivateKeyOutcome::Invalid,
+            classify_private_key_restore(
+                "private-key",
+                "different-key",
+                &alice(TallyTrusteeStatus::KEY_RESTORED),
+                &TrusteeSignatures::NotNeeded,
+            )
+        );
+    }
+
+    #[test]
+    fn private_key_restore_restores_an_unsigned_restore_again_signed() {
+        let signing = TrusteeSignatures::Needed {
+            signed: HashSet::new(),
+            signing: Some("alice".to_string()),
+        };
+        assert_eq!(
+            RestorePrivateKeyOutcome::Restored,
+            classify_private_key_restore(
+                "private-key",
+                "private-key",
+                &alice(TallyTrusteeStatus::KEY_RESTORED),
+                &signing,
+            )
+        );
+        let signed = TrusteeSignatures::Needed {
+            signed: HashSet::from(["alice".to_string()]),
+            signing: None,
+        };
+        assert_eq!(
+            RestorePrivateKeyOutcome::AlreadyRestored,
+            classify_private_key_restore(
+                "private-key",
+                "private-key",
+                &alice(TallyTrusteeStatus::KEY_RESTORED),
+                &signed,
+            )
+        );
+        assert_eq!(
+            RestorePrivateKeyOutcome::Invalid,
+            classify_private_key_restore(
+                "private-key",
+                "different-key",
+                &alice(TallyTrusteeStatus::KEY_RESTORED),
+                &signing,
+            )
         );
     }
 }

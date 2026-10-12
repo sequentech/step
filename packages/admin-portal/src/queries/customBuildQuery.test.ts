@@ -6,6 +6,7 @@ import {type DocumentNode, type OperationDefinitionNode} from "graphql"
 import {introspectSchema} from "ra-data-graphql/dist/cjs/introspection"
 import {customBuildQuery} from "./customBuildQuery"
 import {electionSearchFilter} from "../services/ElectionSearch"
+import {Order_By} from "@/gql/graphql"
 
 // The log range filter reads its wall times with the timezone service.
 jest.mock("@sequentech/ui-core", () => ({
@@ -216,6 +217,63 @@ describe("resource list variables", () => {
             distinct_on: ["area_id", "contest_id", "channel"],
             order_by: [{area_id: "asc"}, {contest_id: "asc"}, {channel: "asc"}, {version: "desc"}],
         })
+    })
+})
+
+describe("latest tally session execution per session", () => {
+    const executions = (meta?: Params, params: Params = {}) =>
+        list("sequent_backend_tally_session_execution", {
+            filter: {
+                tally_session_id: {format: "hasura-raw-query", value: {_in: ["session-1"]}},
+                tenant_id: "tenant-1",
+            },
+            meta,
+            ...params,
+        })
+    const orderBy = (built: Built) => built.variables.order_by as Array<Record<string, string>>
+
+    it("orders by tally_session_id first so distinct_on is valid in Postgres", () => {
+        const built = executions({latestPerTallySession: true})
+        expect(built.variables.distinct_on).toEqual(["tally_session_id"])
+        expect(orderBy(built)[0]).toEqual({tally_session_id: "asc"})
+    })
+
+    it("orders nullable created_at with nulls last so a null-dated execution never wins", () => {
+        expect(executions({latestPerTallySession: true}).variables).toEqual({
+            where: {
+                _and: [{tally_session_id: {_in: ["session-1"]}}, {tenant_id: {_eq: "tenant-1"}}],
+            },
+            limit: 10,
+            offset: 0,
+            distinct_on: ["tally_session_id"],
+            order_by: [{tally_session_id: "asc"}, {created_at: "desc_nulls_last"}, {id: "desc"}],
+        })
+    })
+
+    it("uses an ordering direction the Hasura schema actually accepts", () => {
+        const directions = Object.values(Order_By) as string[]
+        orderBy(executions({latestPerTallySession: true})).forEach((entry) =>
+            Object.values(entry).forEach((direction) => expect(directions).toContain(direction))
+        )
+    })
+
+    it("does not order created_at with a nulls-first direction", () => {
+        const createdAtOrder = orderBy(executions({latestPerTallySession: true})).find(
+            (entry) => "created_at" in entry
+        )?.created_at
+        expect(["desc", "desc_nulls_first"]).not.toContain(createdAtOrder)
+    })
+
+    it("leaves the query untouched when the latestPerTallySession flag is absent", () => {
+        const built = executions()
+        expect(built.variables).not.toHaveProperty("distinct_on")
+        expect(built.variables.order_by).toEqual({created_at: "desc"})
+    })
+
+    it("adds no order to an unsorted list", () => {
+        const built = executions({latestPerTallySession: true}, {sort: undefined})
+        expect(built.variables.distinct_on).toEqual(["tally_session_id"])
+        expect(built.variables).not.toHaveProperty("order_by")
     })
 })
 

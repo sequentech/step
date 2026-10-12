@@ -150,6 +150,7 @@ const meta = {
                     data: {
                         restore_private_key: {
                             is_valid: args.validKey,
+                            outcome: args.validKey ? "RESTORED" : "INVALID",
                             // The rule makes a right key wait for the trustee's signature.
                             signing_request:
                                 args.validKey &&

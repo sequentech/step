@@ -137,8 +137,9 @@ export function withModifiedSignature<Ballot extends AuditableBallot>(ballot: Ba
 /**
  * Answers the sequent-core ballot bindings for the given ballots as the real
  * module does (src/wasm/wasm.rs, ballot.rs): single- and multi-contest
- * bindings reject each other's format, and a signature check returns false
- * without any signature, but throws for an incomplete or non-matching one.
+ * bindings reject each other's format, a recorded ballot's ciphertext is
+ * reproduced from its plaintext and randomness, and a signature check returns
+ * false without any signature, but throws for an incomplete or non-matching one.
  */
 export function recordSequentCore(...records: RecordedBallot[]) {
     const recordOf = (ballot: AuditableBallot, multiple: boolean) => {
@@ -179,5 +180,11 @@ export function recordSequentCore(...records: RecordedBallot[]) {
             (ballot: AuditableBallot) => recordOf(ballot, multiple).ballotId
         )
         sequentCore[`verify_${format}_signature_js`].mockImplementation(verify(multiple))
+        sequentCore[`verify_auditable_${format}_ciphertext_js`].mockImplementation(
+            (ballot: AuditableBallot) => {
+                recordOf(ballot, multiple)
+                return true
+            }
+        )
     }
 }
