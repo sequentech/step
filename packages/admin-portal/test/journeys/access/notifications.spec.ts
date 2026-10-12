@@ -60,13 +60,12 @@ for (const method of ["EMAIL", "SMS"] as const) {
         const selects = drawer.locator('[role="combobox"]:not(input)')
         await selects.nth(0).click()
         await page.getByRole("option", {name: "Those who didn't vote yet", exact: true}).click()
-        if (method === "SMS") {
-            await selects.nth(1).click()
-            await page.getByRole("option", {name: "SMS only", exact: true}).click()
-        }
-        await selects.nth(2).click()
+        // There's no channel choice: each voter is reached on their own channel.
+        await selects.nth(1).click()
         await page.getByRole("option", {name: "Council reminder", exact: true}).click()
-        await drawer.getByRole("button", {name: method === "SMS" ? "SMS" : "Email", exact: true}).click()
+        await drawer
+            .getByRole("button", {name: method === "SMS" ? "SMS" : "Email", exact: true})
+            .click()
         if (method === "SMS") {
             await expect(drawer.getByRole("textbox", {name: "SMS Message"})).toHaveValue(
                 "Please vote today"
@@ -105,18 +104,16 @@ for (const method of ["EMAIL", "SMS"] as const) {
             eventPayload: {
                 audience_selection: "NOT_VOTED",
                 audience_voter_ids: [],
-                // Without a single method, each voter is reached on their own channel.
-                ...(method === "SMS"
-                    ? {channel_selection: "SINGLE_CHANNEL", communication_method: method}
-                    : {channel_selection: "VOTER_PREFERENCE"}),
                 alias: "Council reminder",
                 schedule_now: false,
                 schedule_date: "2026-01-16T10:30:00Z",
                 schedule_local: "2026-01-16T10:30",
                 schedule_timezone: "UTC",
-                ...(method === "SMS"
-                    ? {sms: {message: "Council polls close at 18:00"}}
-                    : {email: EMAIL, sms: {message: "Please vote today"}}),
+                email: EMAIL,
+                sms: {
+                    message:
+                        method === "SMS" ? "Council polls close at 18:00" : "Please vote today",
+                },
                 secret_attribute_names: [],
             },
         }
