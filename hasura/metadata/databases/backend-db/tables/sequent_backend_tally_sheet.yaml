@@ -35,19 +35,14 @@ insert_permissions:
               - labels
               - channel
               - created_by_user_id
-              - reviewed_by_user_id
               - created_at
               - deleted_at
               - last_updated_at
-              - reviewed_at
               - area_id
               - contest_id
               - election_event_id
               - election_id
-              - id
-              - import_id
               - tenant_id
-              - status
               - version
           set:
               created_by_user_id: x-hasura-User-Id
@@ -101,7 +96,6 @@ insert_permissions:
               - contest_id
               - election_event_id
               - election_id
-              - id
               - tenant_id
               - version
           set:
@@ -238,48 +232,6 @@ select_permissions:
 update_permissions:
     - comment: ""
       permission:
-          check:
-              _and:
-                  - tenant_id:
-                        _eq: X-Hasura-Tenant-Id
-                  - election:
-                        _or:
-                            - permission_label:
-                                  _is_null: true
-                            - permission_label:
-                                  _in: X-Hasura-Permission-Labels
-          columns:
-              - annotations
-              - content
-              - labels
-              - channel
-              - created_by_user_id
-              - reviewed_by_user_id
-              - created_at
-              - deleted_at
-              - last_updated_at
-              - reviewed_at
-              - area_id
-              - contest_id
-              - election_event_id
-              - election_id
-              - id
-              - tenant_id
-              - status
-              - version
-          filter:
-              _and:
-                  - tenant_id:
-                        _eq: X-Hasura-Tenant-Id
-                  - election:
-                        _or:
-                            - permission_label:
-                                  _is_null: true
-                            - permission_label:
-                                  _in: X-Hasura-Permission-Labels
-      role: admin-user
-    - comment: ""
-      permission:
           check: {}
           columns:
               - annotations
@@ -302,50 +254,13 @@ update_permissions:
               - version
           filter: {}
       role: service-account
-    - comment: ""
-      permission:
-          check:
-              _and:
-                  - tenant_id:
-                        _eq: X-Hasura-Tenant-Id
-                  - election:
-                        _or:
-                            - permission_label:
-                                  _is_null: true
-                            - permission_label:
-                                  _in: X-Hasura-Permission-Labels
-          columns:
-              - annotations
-              - content
-              - labels
-              - channel
-              - created_by_user_id
-              - created_at
-              - deleted_at
-              - last_updated_at
-              - area_id
-              - contest_id
-              - election_event_id
-              - election_id
-              - id
-              - tenant_id
-              - version
-          filter:
-              _and:
-                  - tenant_id:
-                        _eq: X-Hasura-Tenant-Id
-                  - election:
-                        _or:
-                            - permission_label:
-                                  _is_null: true
-                            - permission_label:
-                                  _in: X-Hasura-Permission-Labels
-      role: tally-sheet-create
 delete_permissions:
     - comment: ""
       permission:
           filter:
               _and:
+                  - status:
+                        _eq: PENDING
                   - tenant_id:
                         _eq: X-Hasura-Tenant-Id
                   - election:
@@ -359,6 +274,8 @@ delete_permissions:
       permission:
           filter:
               _and:
+                  - status:
+                        _eq: PENDING
                   - tenant_id:
                         _eq: X-Hasura-Tenant-Id
                   - election:
