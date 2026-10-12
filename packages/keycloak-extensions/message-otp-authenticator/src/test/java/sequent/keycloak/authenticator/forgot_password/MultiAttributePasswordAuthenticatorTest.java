@@ -762,7 +762,7 @@ class MultiAttributePasswordAuthenticatorTest {
 
   private void verifyCharged(UserModel user) {
     verify(bruteForceProtector)
-        .failedLogin(realm, user, clientConnection, uriInfo, PasswordCredentialModel.TYPE);
+        .failedLogin(realm, user, clientConnection, uriInfo, Set.of(PasswordCredentialModel.TYPE));
   }
 
   private void verifyNotCharged(UserModel user) {
