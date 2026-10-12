@@ -130,10 +130,13 @@ A pass of an event:
      (`PostgresStore::first_valid_votes`: the earliest `accepted_at` of the
      voter's `valid` ballots, so revotes do not count). A pass reads only the
      ballots sequenced since the last read, up to the first ballot still
-     waiting for the sequencer (`first_votes_seq` in
-     `monitoring_snapshot_state.watermarks`); a full pass reads every ballot,
-     which also picks up the ballots whose status changed since, such as a
-     ballot Datafix rejected.
+     waiting for the sequencer. The next read starts there, or lower: never
+     above a ballot accepted less than a minute ago (`SEQUENCE_SETTLED_SECS`),
+     because a vote still committing may hold a lower sequence number. The
+     next pass reads those ballots again, and that vote once it commits
+     (`first_votes_seq` in `monitoring_snapshot_state.watermarks`). A full
+     pass reads every ballot, which also picks up the ballots whose status
+     changed since, such as a ballot Datafix rejected.
 2. **Records a RUNNING run** in `monitoring_snapshot_run`, in its own
    transaction, after marking FAILED any run a crash left RUNNING.
 3. **Counts** in one REPEATABLE READ transaction, which gives a coherent

@@ -11,7 +11,8 @@ use electoral_log::adapters::ballot_box::{
     AcceptBallot, AcceptOutcome, AcceptReceived, BallotStatus,
 };
 use electoral_log::adapters::ballot_box_reads::{
-    tally_ballots_query, BallotIdMatch, BucketRange, FirstValidVote, IpBallotsFilter, Participation,
+    tally_ballots_query, BallotIdMatch, BucketRange, FirstValidVote, FirstValidVotes,
+    IpBallotsFilter, Participation, SEQUENCE_SETTLED_SECS,
 };
 use electoral_log::adapters::ballot_box_received::{
     ReceiveBallot, ReceiveOutcome, ReceivedSignature, ReceivedStatus,
@@ -1730,6 +1731,7 @@ async fn first_valid_votes_are_read_up_to_the_sequencer() -> Result<()> {
         .accept(&store)
         .await?;
     store.remove_pending(&event, &sequenced).await?;
+    settle(&store, &event).await?;
     let accepted = store.voter_ballots(&event, "v1").await?[0].accepted_at;
 
     let read = store.first_valid_votes(&event, 0).await?;
@@ -1761,5 +1763,100 @@ async fn first_valid_votes_are_read_up_to_the_sequencer() -> Result<()> {
             .collect::<Vec<_>>(),
         ["v4"]
     );
+    drop_ballot_box(&store, &event).await
+}
+
+/// Moves the event's ballots back in time, as if they had been accepted
+/// [`SEQUENCE_SETTLED_SECS`] ago and more.
+async fn settle(store: &PostgresStore, event: &str) -> Result<()> {
+    store
+        .client()
+        .await?
+        .execute(
+            "UPDATE ballot_box_ballot SET accepted_at = accepted_at - make_interval(secs => $2) \
+             WHERE election_event_id = $1::text::uuid",
+            &[&event, &(SEQUENCE_SETTLED_SECS + 1.0)],
+        )
+        .await?;
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn first_valid_votes_are_read_again_while_a_vote_may_be_in_progress() -> Result<()> {
+    let store = store().await?;
+    let (event, election, area, _) = ids();
+    store.create_ballot_box(&event).await?;
+    let first = Vote::new(&event, &election, &area, "v1", 0)
+        .accept(&store)
+        .await?;
+    store.remove_pending(&event, &[first]).await?;
+    settle(&store, &event).await?;
+
+    // A vote in progress: it took its sequence number, but neither its ballot nor
+    // its place in the sequencer's queue is visible until it commits.
+    let in_progress = store.client().await?;
+    in_progress.batch_execute("BEGIN").await?;
+    let held: i64 = in_progress
+        .query_one(
+            "INSERT INTO ballot_box_ballot (election_event_id, ballot_id, election_id, \
+                 area_id, voter_id, format, content, pseudonym_hash, ballot_hash, \
+                 voting_channel, status) \
+             VALUES ($1::text::uuid, $2, $3::text::uuid, $4::text::uuid, 'v2', 'test', \
+                 'ciphertext', $5, $5, 'ONLINE', 'valid') \
+             RETURNING seq",
+            &[
+                &event,
+                &Uuid::new_v4().simple().to_string(),
+                &election,
+                &area,
+                &vec![3u8; 64],
+            ],
+        )
+        .await?
+        .try_get(0)?;
+    in_progress
+        .execute(
+            "INSERT INTO ballot_box_pending (election_event_id, seq) \
+             VALUES ($1::text::uuid, $2)",
+            &[&event, &held],
+        )
+        .await?;
+    // A later vote commits and is sequenced first.
+    let later = Vote::new(&event, &election, &area, "v3", 0)
+        .accept(&store)
+        .await?;
+    assert!(later > held);
+    store.remove_pending(&event, &[later]).await?;
+
+    let voters = |read: &FirstValidVotes| {
+        let mut voters: Vec<String> = read
+            .votes
+            .iter()
+            .map(|vote| vote.voter_id.clone())
+            .collect();
+        voters.sort();
+        voters
+    };
+    // The later vote is read, but the next read starts below the vote in progress.
+    let read = store.first_valid_votes(&event, 0).await?;
+    assert_eq!(voters(&read), ["v1", "v3"]);
+    assert_eq!(read.next_seq, first);
+
+    in_progress.batch_execute("COMMIT").await?;
+    store.remove_pending(&event, &[held]).await?;
+    let again = store.first_valid_votes(&event, read.next_seq).await?;
+    assert_eq!(voters(&again), ["v2", "v3"]);
+    assert_eq!(again.next_seq, first);
+
+    // Once no vote that started before them can still be running, the cursor
+    // passes them.
+    settle(&store, &event).await?;
+    let settled = store.first_valid_votes(&event, again.next_seq).await?;
+    assert_eq!(voters(&settled), ["v2", "v3"]);
+    assert_eq!(settled.next_seq, later);
+    let after = store.first_valid_votes(&event, settled.next_seq).await?;
+    assert!(after.votes.is_empty());
+    assert_eq!(after.next_seq, later);
     drop_ballot_box(&store, &event).await
 }

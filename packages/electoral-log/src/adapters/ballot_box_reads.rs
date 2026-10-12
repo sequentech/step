@@ -129,6 +129,13 @@ const VALID: &str = "valid";
 const PENDING: &str = "pending";
 const REJECTED: &str = "rejected";
 
+/// Seconds after a ballot's `accepted_at` by which every vote that took a lower
+/// sequence number has committed or failed. A vote is one statement, which takes
+/// its number after `accepted_at` and ends well within half of this; a vote that
+/// took a lower number started before this ballot's vote ended, so it has ended
+/// too.
+pub const SEQUENCE_SETTLED_SECS: f64 = 60.0;
+
 /// Query of the tally input of an election's area, as rows `(voter_id, content,
 /// voting_channel)`: each voter's latest valid ballot among those the sequencer has
 /// appended to the board, ordered by voter ID. The IDs are checked and written as
@@ -446,28 +453,36 @@ impl PostgresStore {
 impl PostgresStore {
     /// Each voter's earliest valid ballot per election among an event's ballots with
     /// a sequence number above `after_seq`, 0 to read them all, for monitoring. The
-    /// read stops below the first ballot still waiting for the sequencer; the next one
-    /// starts there. A ballot whose statement was still running, or whose status
-    /// became valid later, may be left out: a read from 0 counts them.
+    /// read stops below the first ballot still waiting for the sequencer. The next
+    /// one starts there, or lower: never above a ballot accepted less than
+    /// [`SEQUENCE_SETTLED_SECS`] ago, since a vote still running may hold a lower
+    /// sequence number, which a later read finds once that vote commits. A ballot
+    /// whose status became valid later may be left out: a read from 0 counts it.
     pub async fn first_valid_votes(
         &self,
         election_event_id: &str,
         after_seq: i64,
     ) -> Result<FirstValidVotes> {
         let client = self.client().await?;
-        let next_seq: i64 = client
+        let bounds = client
             .query_one(
-                "SELECT GREATEST($2, coalesce( \
-                     (SELECT min(seq) - 1 FROM ballot_box_pending \
-                      WHERE election_event_id = $1::text::uuid), \
-                     (SELECT max(seq) FROM ballot_box_ballot \
-                      WHERE election_event_id = $1::text::uuid), \
-                     $2))",
-                &[&election_event_id, &after_seq],
+                "SELECT GREATEST($2, read_to), GREATEST($2, LEAST(read_to, settled)) \
+                 FROM (SELECT coalesce( \
+                           (SELECT min(seq) - 1 FROM ballot_box_pending \
+                            WHERE election_event_id = $1::text::uuid), \
+                           (SELECT max(seq) FROM ballot_box_ballot \
+                            WHERE election_event_id = $1::text::uuid), \
+                           $2) AS read_to, \
+                         coalesce( \
+                           (SELECT max(seq) FROM ballot_box_ballot \
+                            WHERE election_event_id = $1::text::uuid \
+                              AND accepted_at <= now() - make_interval(secs => $3)), \
+                           $2) AS settled) AS bounds",
+                &[&election_event_id, &after_seq, &SEQUENCE_SETTLED_SECS],
             )
             .await
-            .context("Error reading the ballot box's sequence")?
-            .try_get(0)?;
+            .context("Error reading the ballot box's sequence")?;
+        let (read_to, next_seq): (i64, i64) = (bounds.try_get(0)?, bounds.try_get(1)?);
         let rows = client
             .query(
                 "SELECT election_id::text, voter_id, \
@@ -476,7 +491,7 @@ impl PostgresStore {
                  WHERE election_event_id = $1::text::uuid AND seq > $2 AND seq <= $3 \
                    AND status = $4 \
                  GROUP BY election_id, voter_id",
-                &[&election_event_id, &after_seq, &next_seq, &VALID],
+                &[&election_event_id, &after_seq, &read_to, &VALID],
             )
             .await
             .context("Error reading the voters' first valid ballots")?;
