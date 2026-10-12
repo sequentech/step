@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::validate_keycloak_path_segment;
 use crate::services::keycloak::KeycloakAdminClient;
 use crate::types::keycloak::*;
 use crate::types::permissions::RealmRolePolicy;
@@ -56,6 +57,7 @@ impl KeycloakAdminClient {
         limit: Option<usize>,
         offset: Option<usize>,
     ) -> Result<(Vec<Permission>, usize)> {
+        validate_keycloak_path_segment(realm)?;
         let role_representations: Vec<RoleRepresentation> = self
             .client
             .realm_roles_get(realm.clone(), None, None, None, search.clone())
@@ -83,6 +85,9 @@ impl KeycloakAdminClient {
         role_id: &str,
         permission_name: &str,
     ) -> Result<()> {
+        validate_keycloak_path_segment(realm)?;
+        validate_keycloak_path_segment(role_id)?;
+        validate_keycloak_path_segment(permission_name)?;
         RealmRolePolicy::require_ordinary(permission_name)?;
         let role_representation = self
             .client
@@ -108,7 +113,10 @@ impl KeycloakAdminClient {
         role_id: &str,
         permissions_name: &Vec<String>,
     ) -> Result<()> {
+        validate_keycloak_path_segment(realm)?;
+        validate_keycloak_path_segment(role_id)?;
         for permission_name in permissions_name {
+            validate_keycloak_path_segment(permission_name)?;
             RealmRolePolicy::require_ordinary(permission_name)?;
         }
         let permission_roles: Vec<_> = permissions_name
@@ -147,6 +155,9 @@ impl KeycloakAdminClient {
         role_id: &str,
         permission_name: &str,
     ) -> Result<()> {
+        validate_keycloak_path_segment(realm)?;
+        validate_keycloak_path_segment(role_id)?;
+        validate_keycloak_path_segment(permission_name)?;
         let role_representation = self
             .client
             .realm_roles_with_role_name_get(realm, permission_name)
@@ -169,6 +180,8 @@ impl KeycloakAdminClient {
         realm: &str,
         permission_name: &str,
     ) -> Result<()> {
+        validate_keycloak_path_segment(realm)?;
+        validate_keycloak_path_segment(permission_name)?;
         self.client
             .realm_roles_with_role_name_delete(realm, permission_name)
             .await
@@ -181,6 +194,7 @@ impl KeycloakAdminClient {
         realm: &str,
         permission: &Permission,
     ) -> Result<Permission> {
+        validate_keycloak_path_segment(realm)?;
         let role: RoleRepresentation = permission.clone().into();
         require_ordinary_role(&role)?;
         self.client
