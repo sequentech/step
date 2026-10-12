@@ -22,7 +22,6 @@ from .client import (
     S3_URL,
     TENANT_ID,
     TENANT_REALM,
-    GraphQLError,
     Hasura,
     Keycloak,
     StepCli,
@@ -292,10 +291,10 @@ class BackendJourneys(unittest.TestCase):
             self.keycloak.admin("GET", event_realm(event_id))["realm"],
             event_realm(event_id),
         )
-        # The event's electoral log database answers; an unknown event's does not.
+        # The event's electoral log starts empty. An event without an electoral-log
+        # database reads as empty too, never as another event's records.
         self.assertEqual(self.electoral_log(event_id), collections.Counter())
-        with self.assertRaises(GraphQLError):
-            self.electoral_log(str(uuid.uuid4()))
+        self.assertEqual(self.electoral_log(str(uuid.uuid4())), collections.Counter())
         self.passed("journey 2")
 
     def test_2b_invalid_event_document_is_rejected(self):
