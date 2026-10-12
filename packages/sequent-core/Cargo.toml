@@ -102,6 +102,7 @@ rocket = { version = "0.5", features = ["json"], optional = true }
 uuid = { version = "1.5", features = ["v4", "fast-rng"], optional = true }
 regex = { version = "1.10", optional = true }
 jsonwebtoken = { version = "10.3", features = ["aws_lc_rs"], optional = true }
+x509-cert = { version = "0.2", default-features = false, optional = true }
 
 # For converting rows into users
 tokio-postgres = { version = "0.7", features = ["with-uuid-1", "with-chrono-0_4", "with-serde_json-1"], optional = true }
@@ -142,7 +143,7 @@ areas = []
 reports = ["dep:handlebars", "dep:handlebars-chrono", "dep:headless_chrome", "dep:reqwest", "dep:tracing", "dep:tokio", "dep:num-format", "dep:urlencoding", "dep:aws-config", "dep:aws-sdk-sesv2", "dep:aws-sdk-sns", "dep:aws-sdk-s3", "dep:aws-smithy-types", "dep:sha256", "dep:ammonia"]
 reports_sync = []
 s3 = ["dep:reqwest", "dep:aws-config", "dep:aws-sdk-sesv2", "dep:aws-sdk-sns", "dep:aws-sdk-s3", "dep:aws-smithy-types"]
-keycloak = ["jwt", "dep:openid", "dep:reqwest", "dep:reqwest-retry", "dep:reqwest-middleware", "dep:serde_urlencoded", "dep:rocket", "dep:keycloak", "dep:tracing", "dep:uuid", "dep:regex", "dep:jsonwebtoken", "dep:tokio-postgres", "dep:time"]
+keycloak = ["jwt", "dep:openid", "dep:reqwest", "dep:reqwest-retry", "dep:reqwest-middleware", "dep:serde_urlencoded", "dep:rocket", "dep:keycloak", "dep:tracing", "dep:uuid", "dep:regex", "dep:jsonwebtoken", "dep:tokio", "dep:tokio-postgres", "dep:time", "dep:x509-cert"]
 log = ["dep:tracing", "dep:tracing-subscriber", "dep:tracing-tree", "dep:tracing-log"]
 probe = ["dep:tokio", "dep:warp"]
 # Lambda examples
@@ -156,6 +157,9 @@ sqlite = ["dep:tokio", "dep:rusqlite"]
 time = ["dep:time"]
 tracing = ["dep:tracing"]
 jwt = ["time", "tracing"]
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+aws-lc-rs = "1.18"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 ring = { version = "0.17", features = ["wasm32_unknown_unknown_js"] }
