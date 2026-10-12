@@ -17,3 +17,5 @@ pub mod template_renderer;
 pub mod template_time;
 pub mod utils;
 pub mod voter_information_letter;
+
+mod document_visibility;

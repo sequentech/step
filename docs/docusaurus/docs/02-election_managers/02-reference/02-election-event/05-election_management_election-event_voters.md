@@ -104,6 +104,25 @@ You can add additional fields like the voter's birthday or sex. [Check out the t
 
 **Important:** Additional attributes for voters must be added before the enrollment process. For instance, if the sex attribute is not added, this trait will not be reflected in the reports and statistics.
 
+### External system (i.e. Datafix) API client credentials
+
+The external-system voter API authenticates with the `datafix-account` Keycloak
+client of the tenant realm, using the client credentials grant. The client
+secret is a credential, so follow these rules:
+
+- Create the client in Keycloak and let Keycloak generate its secret
+  (Clients, `datafix-account`, Credentials, Regenerate). Never import a client
+  export file that carries a fixed `secret` value, and never commit one to a
+  repository.
+- Give the generated secret to the external system through a private channel.
+- If a client in a realm was ever created from an export file with a fixed
+  secret, regenerate its secret and give the new one to the external system.
+  The voter synchronization pauses until the external system uses the new
+  secret. Voting and tally are not affected.
+- To check a realm, request a `client_credentials` token for `datafix-account`
+  with the old secret. It must fail with `unauthorized_client` where the client
+  exists and with `invalid_client` where it does not.
+
 ### External system (i.e. Datafix) voter-list reconciliation
 
 Users with the `election-event-voter-list-reconciliation` permission can open
@@ -159,3 +178,32 @@ including a first synchronization where most voters are additions. For a
 backend peak memory, browser peak memory, wizard rendering responsiveness, and
 total Keycloak apply duration. These measurements determine the operational
 batch size and freeze-window duration for that deployment.
+
+### External system (i.e. Datafix) VoterView connection
+
+The `datafix:voterview_request` annotation of the election event holds the
+VoterView endpoint `url`, the `usr` and `psw` credentials and the
+`county_mun` code.
+
+The optional `transport_policy` field of that annotation sets which URL
+schemes are accepted:
+
+- `https-only` (default): the `url` must use `https`.
+- `allow-plaintext`: the `url` may use `https` or `http`. Use it only for test
+  endpoints.
+
+For example:
+
+```json
+{
+  "url": "https://voterview.example.org/service.asmx",
+  "usr": "user",
+  "psw": "password",
+  "county_mun": "county",
+  "transport_policy": "https-only"
+}
+```
+
+A request whose `url` does not match the transport policy is not sent.
+VoterView redirects are not followed, and responses larger than 1 MiB are
+rejected.
