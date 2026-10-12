@@ -49,7 +49,7 @@ async fn tenant_with_settings(tx: &Transaction<'_>, settings: &Value) -> String 
 
 async fn settings_of(tx: &Transaction<'_>, tenant: &str) -> Value {
     tx.query_one(
-        "SELECT settings FROM sequent_backend.tenant WHERE id = $1::uuid",
+        "SELECT settings FROM sequent_backend.tenant WHERE id = $1::text::uuid",
         &[&tenant],
     )
     .await
@@ -220,8 +220,8 @@ async fn importing_a_tenant_moves_the_exported_key_to_the_vault() {
     let record = csv::StringRecord::from(vec![
         tenant.as_str(),
         "imported-tenant",
-        "",
-        "",
+        "2026-01-01T00:00:00+00:00",
+        "2026-01-01T00:00:00+00:00",
         "{}",
         "{}",
         "true",
@@ -249,8 +249,8 @@ async fn importing_a_tenant_with_an_unusable_key_fails() {
     let record = csv::StringRecord::from(vec![
         tenant.as_str(),
         "imported-tenant",
-        "",
-        "",
+        "2026-01-01T00:00:00+00:00",
+        "2026-01-01T00:00:00+00:00",
         "{}",
         "{}",
         "true",
