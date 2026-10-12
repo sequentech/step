@@ -4,7 +4,7 @@
 use super::validate_keycloak_path_segment;
 use crate::serialization::deserialize_with_path::deserialize_str;
 use crate::services::connection;
-use crate::services::connection::PRE_EXPIRATION_SECS;
+use crate::services::connection::{PRE_EXPIRATION_SECS, REDACTED};
 use crate::services::keycloak::realm::get_tenant_realm;
 use anyhow::{anyhow, Result};
 use keycloak::{KeycloakAdmin, KeycloakAdminToken, KeycloakTokenSupplier};
@@ -19,7 +19,7 @@ use std::sync::RwLock;
 use std::time::{Duration, Instant};
 use tracing::{event, info, instrument, warn, Level};
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PubKeycloakAdminToken {
     pub access_token: String,
     pub expires_in: usize,
@@ -32,16 +32,41 @@ pub struct PubKeycloakAdminToken {
     pub token_type: String,
 }
 
+impl std::fmt::Debug for PubKeycloakAdminToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PubKeycloakAdminToken")
+            .field("access_token", &REDACTED)
+            .field("expires_in", &self.expires_in)
+            .field("not_before_policy", &self.not_before_policy)
+            .field("refresh_expires_in", &self.refresh_expires_in)
+            .field(
+                "refresh_token",
+                &self.refresh_token.as_ref().map(|_| REDACTED),
+            )
+            .field("scope", &self.scope)
+            .field("session_state", &self.session_state)
+            .field("token_type", &self.token_type)
+            .finish()
+    }
+}
+
+/// Error for a failed token conversion. It names the failed step but never
+/// includes the token, as the token is a secret.
+fn token_conversion_error(
+    step: &str,
+    err: impl std::fmt::Debug,
+) -> anyhow::Error {
+    anyhow!("Error {step} token: {err:?}")
+}
+
 impl TryFrom<KeycloakAdminToken> for PubKeycloakAdminToken {
     type Error = anyhow::Error;
 
     fn try_from(token: KeycloakAdminToken) -> Result<Self, Self::Error> {
-        let json = serde_json::to_string(&token).map_err(|err| {
-            anyhow!(format!("Error serializing: {err:?}, Token: {token:?}"))
-        })?;
-        deserialize_str(&json).map_err(|err| {
-            anyhow!(format!("Error deserializing: {err:?}, Token: {json:?}"))
-        })
+        let json = serde_json::to_string(&token)
+            .map_err(|err| token_conversion_error("serializing", err))?;
+        deserialize_str(&json)
+            .map_err(|err| token_conversion_error("deserializing", err))
     }
 }
 
@@ -50,20 +75,29 @@ impl TryFrom<PubKeycloakAdminToken> for KeycloakAdminToken {
 
     fn try_from(token: PubKeycloakAdminToken) -> Result<Self, Self::Error> {
         let json = serde_json::to_string(&token)
-            .map_err(|err| anyhow!(format!("{err:?}, Token: {token:?}")))?;
+            .map_err(|err| token_conversion_error("serializing", err))?;
 
-        deserialize_str(&json).map_err(|err| {
-            anyhow!(format!("Error deserializing: {err:?}, Token: {json:?}"))
-        })
+        deserialize_str(&json)
+            .map_err(|err| token_conversion_error("deserializing", err))
     }
 }
 
-#[derive(Debug)]
 struct KeycloakLoginConfig {
     url: String,
     client_id: String,
     client_secret: String,
     realm: String,
+}
+
+impl std::fmt::Debug for KeycloakLoginConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("KeycloakLoginConfig")
+            .field("url", &self.url)
+            .field("client_id", &self.client_id)
+            .field("client_secret", &REDACTED)
+            .field("realm", &self.realm)
+            .finish()
+    }
 }
 
 impl KeycloakLoginConfig {
@@ -359,5 +393,76 @@ impl KeycloakAdminClient {
             client: client,
             token_supplier: admin_token,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn token(refresh_token: Option<&str>) -> PubKeycloakAdminToken {
+        PubKeycloakAdminToken {
+            access_token: "AccessTokenValue8c4d".to_string(),
+            expires_in: 60,
+            not_before_policy: Some(0),
+            refresh_expires_in: Some(120),
+            refresh_token: refresh_token.map(str::to_string),
+            scope: "profile".to_string(),
+            session_state: Some("session".to_string()),
+            token_type: "Bearer".to_string(),
+        }
+    }
+
+    #[test]
+    fn token_debug_omits_access_and_refresh_tokens() {
+        let debug = format!("{:?}", token(Some("RefreshTokenValue5e2f")));
+
+        assert!(debug.contains("expires_in: 60"), "{debug}");
+        assert!(debug.contains(REDACTED), "{debug}");
+        assert!(!debug.contains("AccessTokenValue8c4d"), "{debug}");
+        assert!(!debug.contains("RefreshTokenValue5e2f"), "{debug}");
+    }
+
+    #[test]
+    fn token_debug_without_refresh_token_shows_none() {
+        let debug = format!("{:?}", token(None));
+
+        assert!(debug.contains("refresh_token: None"), "{debug}");
+        assert!(!debug.contains("AccessTokenValue8c4d"), "{debug}");
+    }
+
+    #[test]
+    fn token_round_trips_through_keycloak_admin_token() {
+        let original = token(Some("RefreshTokenValue5e2f"));
+
+        let keycloak_token = KeycloakAdminToken::try_from(original.clone())
+            .expect("conversion to keycloak token");
+        let converted = PubKeycloakAdminToken::try_from(keycloak_token)
+            .expect("conversion back");
+
+        assert_eq!(converted, original);
+    }
+
+    #[test]
+    fn token_conversion_error_names_the_step_only() {
+        let error = token_conversion_error("serializing", "bad shape");
+
+        assert_eq!(error.to_string(), "Error serializing token: \"bad shape\"");
+    }
+
+    #[test]
+    fn keycloak_login_config_debug_omits_client_secret() {
+        const CLIENT_SECRET: &str = "ClientSecretValue2a9c";
+        let login_config = KeycloakLoginConfig {
+            url: "http://keycloak".to_string(),
+            client_id: "client".to_string(),
+            client_secret: CLIENT_SECRET.to_string(),
+            realm: "realm".to_string(),
+        };
+
+        let debug = format!("{login_config:?}");
+
+        assert!(debug.contains("client_id"), "{debug}");
+        assert!(!debug.contains(CLIENT_SECRET), "{debug}");
     }
 }
