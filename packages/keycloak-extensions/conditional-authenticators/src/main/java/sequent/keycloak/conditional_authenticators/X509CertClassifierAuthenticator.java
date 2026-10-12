@@ -31,7 +31,8 @@ import org.keycloak.models.UserModel;
  * <p>The header name is configurable via the authenticator config key {@code cert-header-name} (see
  * {@link X509CertClassifierAuthenticatorFactory#CONF_CERT_HEADER_NAME}). It defaults to {@code
  * ssl-client-cert} (nginx default) but can be set to {@code Cf-Tls-Client-Cert} for Cloudflare or
- * {@code Client-Cert} for RFC 9440 proxies.
+ * {@code Client-Cert} for RFC 9440 proxies. The header is ignored unless the request satisfies the
+ * {@code cert-header-trust-policy} config (see {@link X509CertHeaderTrust}).
  *
  * <p>This authenticator runs first in the X.509 flow. Downstream conditional sub-flows use
  * Condition - Auth Note (cert-type = &lt;CN&gt;) to select the correct X509/Validate Username Form
@@ -49,7 +50,10 @@ public class X509CertClassifierAuthenticator implements Authenticator {
   @Override
   public void authenticate(AuthenticationFlowContext context) {
     String headerName = resolveHeaderName(context);
-    String certHeader = context.getHttpRequest().getHttpHeaders().getHeaderString(headerName);
+    String certHeader =
+        X509CertHeaderTrust.isTrusted(context)
+            ? context.getHttpRequest().getHttpHeaders().getHeaderString(headerName)
+            : null;
 
     if (certHeader == null || certHeader.isBlank()) {
       log.infov(
