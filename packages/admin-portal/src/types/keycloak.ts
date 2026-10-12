@@ -255,4 +255,5 @@ export enum IPermissions {
     MESSAGING_ACCOUNT_READ = "messaging-account-read",
     MESSAGING_ACCOUNT_WRITE = "messaging-account-write",
     MESSAGING_CONFIG_WRITE = "messaging-config-write",
+    MESSAGING_CONFIG_READ = "messaging-config-read",
 }

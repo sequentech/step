@@ -410,9 +410,13 @@ const tagalogTranslation: TranslationType = {
             common: {
                 gapiKey: "Service account key ng Google Calendar",
                 gapiEmail: "Email ng authentication sa Google Calendar",
+                gapiKeyHelper:
+                    "Hindi ipinapakita ang naka-save na key. Mag-paste ng bagong key para palitan ito.",
+                gapiKeySaved: "Na-save ang service account key ng Google Calendar",
             },
             errors: {
                 invalidGapiKey: "Hindi wastong format ng Google Calendar Service Account Key",
+                saveGapiKey: "Hindi ma-save ang Google Calendar Service Account Key",
             },
         },
         lookAndFeelScreen: {
@@ -965,6 +969,15 @@ const tagalogTranslation: TranslationType = {
                     options: {
                         enabled: "Pinagana",
                         disabled: "Hindi pinagana",
+                    },
+                },
+                batchAnonymityPolicy: {
+                    policyLabel: "Patakaran sa Pagiging Anonimo ng mga Batch",
+                    helperText:
+                        "Ang Tanggihan ay humihinto sa bilang kapag ang batch ng mga balota ng isang lugar ay may mas kaunti sa limang botante, o iba sa batch na nai-post na ng ibang bilang para sa parehong lugar at paligsahan.",
+                    options: {
+                        warn: "Magbabala",
+                        refuse: "Tanggihan",
                     },
                 },
                 languageDetectionPolicy: {
@@ -1871,6 +1884,7 @@ const tagalogTranslation: TranslationType = {
                 "messaging-account-read": "Basahin ang mga messaging account",
                 "messaging-account-write": "Pamahalaan ang mga messaging account",
                 "messaging-config-write": "I-configure ang messaging ng kaganapan ng halalan",
+                "messaging-config-read": "Basahin ang messaging ng kaganapan ng halalan",
             },
         },
         generalSettingsScreen: {
@@ -2988,7 +3002,7 @@ const tagalogTranslation: TranslationType = {
             title: "Ipadala ang Abiso",
             subtitle: "Magpadala ng abiso sa mga botante.",
             sendButton: "Ipadala ang Abiso",
-            voters: "Audience",
+            voters: "Mga tatanggap",
             schedule: "Iskedyul",
             nowInput: "Ipadala ngayon",
             dateInput: "Petsa at oras para magsimulang magpadala ng mga abiso",
@@ -2996,7 +3010,7 @@ const tagalogTranslation: TranslationType = {
             languages: "Mga Wika",
             smsMessage: "Mensaheng SMS",
             errorSending: "Error sa pagpapadala ng abiso: {{error}}",
-            successSending: "Nakaprograma/naipadala nang matagumpay ang abiso",
+            successSending: "Matagumpay na naiskedyul ang abiso",
             method: "Pamamaraan ng Mga Template",
             type: "Uri ng Komunikasyon",
             alias: "Alias ng Template",
@@ -3366,6 +3380,9 @@ const tagalogTranslation: TranslationType = {
                     title: "Walang laman dito",
                     text: "Lalabas dito ang mga pagpapatalang may ganitong katayuan. Subukan ang ibang paghahanap o katayuan.",
                 },
+                searchHelp:
+                    "Isang pangalan, email o numero ng ID, o ang reference para sa suporta na ibinigay sa botante, gaya ng Q5KW-8RFX.",
+                referenceError: "Hindi mahanap ang reference para sa suporta.",
             },
             flow: {
                 stepsLabel: "Mga hakbang ng pagsusuri",
@@ -5382,10 +5399,8 @@ const tagalogTranslation: TranslationType = {
             sections: {
                 channels: "Mga channel",
                 templates: "Mga aprubadong template",
-                fallback: "Pagkakasunod-sunod ng fallback para sa mga abiso",
                 posts: "Mga channel ayon sa Post",
                 postsCount: "Mga channel ayon sa Post ({{count}} Post)",
-                reply: "Sagot sa mga papasok na mensahe",
                 delivery: "Katayuan ng paghahatid",
             },
             column: {
@@ -5396,27 +5411,38 @@ const tagalogTranslation: TranslationType = {
                 template: "Template ng provider",
                 status: "Katayuan",
                 post: "Post",
-                key: "Para sa mensahe",
+                key: "Uri ng mensahe o template",
                 providerLanguage: "Wika ng provider",
+                voters: "Mga botanteng gumagamit nito",
+                sent24h: "Naipadala, huling 24 oras",
+                sent24hHelp:
+                    "Bawat mensahe na ang huling pagsubok ay nasa nakaraang 24 na oras, anuman ang estado, kasama ang mga nabigo. Binibilang ng mga column ng estado ang lahat ng mensahe ng event.",
             },
             outOfWindow: {
-                label: "Sa labas ng window ng usapan",
-                help: "Ipinapadala lamang ang mga abisong free text habang bukas ang window ng usapan: sa Messenger, sa loob ng 24 na oras mula sa huling mensahe ng botante. Piliin ang Mga utility message para makapagpadala ng mga abiso pagkatapos nito gamit ang aprubadong template. Dapat itong aprubahan ng Meta para sa Page (ang pahintulot na page_utility_messaging at isang aprubadong UTILITY template), at dapat nakaugnay ang template na iyon sa mga abiso sa ilalim ng Mga aprubadong template. Kapag Huwag ipadala, mapupunta ang abisong nasa labas ng window sa susunod na magagamit na channel ng botante.",
-                DISABLED: "Huwag ipadala",
-                UTILITY_MESSAGES: "Mga utility message",
-                noTemplate:
-                    "Wala pang template na nakaugnay sa mga abiso sa channel na ito. Magdagdag ng isa sa ilalim ng Mga aprubadong template; hanggang doon, mapupunta ang mga abisong nasa labas ng window sa susunod na magagamit na channel ng botante.",
+                utility:
+                    "Sa labas ng 24 na oras na window, ipinapadala ng {{channel}} ang mga abiso gamit ang aprubadong utility template na nakaugnay sa mga abiso sa Mga aprubadong template.",
+            },
+            messageTypes: {
+                otp: "Code ng pagpapatunay",
+                otl: "Link sa pag-sign in",
+                enrollmentAccepted: "Tinanggap ang pagpaparehistro",
+                enrollmentAcceptedKiosk: "Tinanggap ang pagpaparehistro (kiosk)",
+                enrollmentPending: "Naghihintay ng pag-apruba ang pagpaparehistro",
+                enrollmentRejected: "Tinanggihan ang pagpaparehistro",
+                passwordReset: "Pag-reset ng password",
+                temporaryPassword: "Pansamantalang password",
+                contactChanged: "Binago ang paraan ng pakikipag-ugnayan",
             },
             templates: {
                 empty: "Pumili ng account na nagpapadala ng mga aprubadong template, gaya ng WhatsApp, Viber o Messenger, para iugnay dito ang mga template nito.",
-                help: "Sinasabi ng bawat hilera kung aling aprubadong template ang ipinapadala ng provider para sa isang mensahe. Ang Para sa mensahe ay ang alias ng isang template sa Templates, para sa isang notification, o ang message key na ipinapadala ng Keycloak, gaya ng otp; iwanang walang laman para sa template na ginagamit bilang default para sa layunin. Ang Wika ay ang wika ng botante. Ang Template ng provider ay ang pangalan o ID ng template sa provider. Ang Wika ng provider ay ang code ng provider para sa template na iyon kapag iba ito sa wika ng botante: kailangan ng WhatsApp ang eksaktong code ng aprubadong template, gaya ng en_US.",
+                help: "Pumili ng uri ng mensahe ng sistema o alias mula sa Mga Template. Iwanang walang laman upang gamitin ang aprubadong template bilang default para sa layuning ito. Ang Wika ay ang wika ng botante. Ang Template ng provider ay ang pangalan o ID ng template sa provider. Ang Wika ng provider ay ang code ng provider para sa template na iyon kapag iba ito sa wika ng botante: kailangan ng WhatsApp ang eksaktong code ng aprubadong template, gaya ng en_US.",
                 order: "Para sa bawat mensahe, ang pinakatiyak na hilera ang nananaig: ang hilera para sa mensahe sa wika ng botante, pagkatapos ang hilera para sa mensahe sa anumang wika, pagkatapos ang default para sa layunin sa wika ng botante, at panghuli ang anumang default para sa layunin.",
                 noneRequired:
                     "Mga aprubadong template lamang ang ipinapadala ng {{channel}}. Magdagdag ng kahit isang default na template para sa bawat layuning ginagamit.",
                 noneOptional:
                     "Walang template na nakaugnay para sa {{channel}}. Kailangan lamang ang mga ito para magpadala ng mga abiso sa labas ng window ng usapan.",
                 row: "Template {{position}} ng {{channel}}",
-                keyDefault: "Default para sa layunin",
+                keyDefault: "Default para sa layuning ito",
                 add: "Magdagdag ng template ng {{channel}}",
                 remove: "Alisin ang template {{position}} ng {{channel}}",
                 incomplete:
@@ -5424,15 +5450,8 @@ const tagalogTranslation: TranslationType = {
                 approval: {
                     APPROVED: "Aprubado",
                     NOT_APPROVED: "Hindi aprubado",
-                    ADMIN_CONFIRMED: "Kinumpirma ng administrator",
                     NOT_CHECKED: "Hindi pa nasusuri ang pag-apruba",
                 },
-            },
-            fallback: {
-                help: "Kapag hindi maabot ng abiso ang botante sa kanyang channel, mapupunta ito sa susunod na channel sa pagkakasunod-sunod na ito na na-verify ng botante at inaalok ng kanyang Post. Hindi kailanman muling ipinapadala nang kusa ang mga code: ang botante ang pipili ng ibang paraan.",
-                empty: "I-on ang mga abiso ng isang channel para idagdag ito sa fallback.",
-                earlier: "Ilipat ang {{channel}} nang mas maaga",
-                later: "Ilipat ang {{channel}} nang mas huli",
             },
             posts: {
                 noChannels:
@@ -5447,13 +5466,18 @@ const tagalogTranslation: TranslationType = {
                 showing:
                     "Ipinapakita ang {{shown}} sa {{total}} Post. Maghanap para makita ang iba.",
             },
-            reply: {
-                help: "Ipinapadala kapag sumulat ang botante sa isa sa mga account ng event na ito, hindi hihigit sa isang beses bawat araw bawat botante.",
-                label: "Sagot ({{language}})",
-            },
             delivery: {
+                notConfigured: "Hindi iniaalok ng event na ito",
                 empty: "Walang channel na ginagamit.",
-                help: "Ang Tinanggap ay nangangahulugang tinanggap ng provider ang kahilingan, hindi na natanggap o na-verify ng botante ang code. Ang Hindi alam ay nangangahulugang hindi pa kumpirmado ang paghahatid. Ang provider na walang ulat ng paghahatid ay nagpapakita ng paghahatid bilang hindi available.",
+                help: "Bawat mensahe ang bilang, ayon sa katayuan ng huling pagsubok nito. Ang Tinanggap ay nangangahulugang tinanggap ng provider ang mensahe, hindi na natanggap ito ng botante. Ang Hindi alam ay nangangahulugang hindi pa kumpirmado ang paghahatid; pagkalipas ng 24 na oras, ipinapakita ito bilang Hindi nalutas, hindi kailanman bilang nabigo. Ang account na walang ulat ng paghahatid ay nagpapakita ng paghahatid bilang hindi available.",
+                loadError: "Hindi ma-load ang bilang ng mga mensahe.",
+                noReceipts:
+                    "Walang natatanggap na ulat ng paghahatid ang account na ito, kaya hindi maipapakita ang paghahatid.",
+                showFailed: "Ipakita sa Mga Log ang mga nabigong mensahe sa {{channel}}",
+                noChannelHelp:
+                    "Mga botanteng walang nakatalang channel para makipag-ugnayan. Nabibigo ang kanilang mga abiso at hindi kailanman ibinibilang sa isang channel.",
+                showFailedNoChannel:
+                    "Ipakita sa Mga Log ang mga nabigong mensahe ng mga botanteng walang channel para makipag-ugnayan",
             },
             error: {
                 UNSUPPORTED_VERSION:
@@ -5469,14 +5493,18 @@ const tagalogTranslation: TranslationType = {
                     "Hindi aprubado ng provider ang template ng {{channel}} para sa {{purpose}} sa {{language}}.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
                     "Hindi makakapagpadala ang {{channel}} sa labas ng window ng usapan gamit ang account na ito: wala itong window ng usapan, o kailangan na ng template ang mga abiso nito.",
-                FALLBACK_CHANNEL_NOT_ENABLED:
-                    "Nasa fallback ang {{channel}} pero hindi ito nagpapadala ng mga abiso.",
-                DUPLICATE_FALLBACK_CHANNEL:
-                    "Higit sa isang beses na nasa fallback ang {{channel}}.",
                 ELECTION_CHANNEL_NOT_ENABLED:
                     "Inaalok ng {{election}} ang {{channel}}, na hindi ginagamit ng event na ito.",
                 UNKNOWN_ELECTION: "Ang {{election}} ay hindi halalan ng event na ito.",
+                UTILITY_TEMPLATE_MISSING:
+                    "Kailangan ng mga abiso ng {{channel}} sa labas ng 24 na oras na window ang aprubadong utility template. Iugnay ito sa mga abiso sa Mga aprubadong template.",
             },
+            noReadPermission:
+                "Kailangan ang pahintulot na messaging-config-read para mabasa ang mga setting na ito.",
+            chooseAccount: "Pumili muna ng account.",
+            needsSavingAgain: "Kailangang i-save muli ang configuration.",
+            needsSavingAgainHelp:
+                "Kinopya ito mula sa dating storage at hindi ito pumasa sa mga pagsusuring ginagawa sa pag-save. Ayusin ang mga problemang ipinapakita, saka i-save itong muli.",
         },
         messaging: {
             channel: {
@@ -5488,13 +5516,13 @@ const tagalogTranslation: TranslationType = {
             },
             provider: {
                 AWS_SES: "Amazon SES",
-                SMTP: "SMTP server",
+                SMTP: "Server ng SMTP",
                 AWS_SNS: "Amazon SNS",
                 WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
-                CONSOLE: "Console (pagsubok lamang, walang ipinapadala)",
-                HTTP_API: "Custom na HTTP API",
+                CONSOLE: "Console (hindi na suportado)",
+                HTTP_API: "Pasadyang HTTP API (hindi na suportado)",
             },
             purpose: {
                 OTP: "Mga code",
@@ -5506,6 +5534,7 @@ const tagalogTranslation: TranslationType = {
                 DELIVERED: "Naihatid",
                 FAILED: "Nabigo",
                 UNKNOWN: "Hindi alam",
+                UNRESOLVED: "Hindi nalutas",
             },
             stateHelp: {
                 QUEUED: "Naghihintay na maipasa sa provider.",
@@ -5514,13 +5543,19 @@ const tagalogTranslation: TranslationType = {
                 DELIVERED: "Iniulat ng provider na naihatid ang mensahe.",
                 FAILED: "Kinumpirma ng provider na hindi naihatid ang mensahe.",
                 UNKNOWN: "Hindi pa kumpirmado ang paghahatid.",
+                UNRESOLVED:
+                    "Hindi nakumpirma ang paghahatid sa loob ng 24 na oras. Hindi ito nangangahulugang nabigo ito.",
             },
             blocker: {
+                UNCHECKED: "Hindi pa nasusuri para sa kasalukuyang numero, Page o sender nito",
                 NOT_CONNECTED: "Hindi nakakonekta",
                 UNSUPPORTED_PURPOSE: "Hindi sinusuportahan ng provider na ito",
                 NEEDS_PROVIDER_APPROVAL: "Kailangan ng pag-apruba ng provider",
                 NEEDS_PRODUCTION_ACCESS: "Kailangan ng production access",
                 NEEDS_APPROVED_TEMPLATE: "Kailangan ng aprubadong template",
+                UNSUPPORTED_PROVIDER: "Hindi suportadong provider: palitan ang account na ito",
+                CALLBACK_NOT_CONFIGURED: "Hindi naka-configure ang callback address",
+                REPORT_CREDENTIALS_MISSING: "Hindi pa nabubuo ang mga kredensyal para sa ulat",
             },
             readiness: {
                 connected: "Nakakonekta",
@@ -5530,25 +5565,21 @@ const tagalogTranslation: TranslationType = {
                 notReady: "Hindi pa handa",
                 lastCheck: "Sinuri {{date}}",
                 neverChecked: "Hindi pa nasusuri",
-                adminConfirmed: "Kinumpirma ng administrator",
-                checkNotUsed: "Hindi ginagamit ang pagsusuri",
             },
             approval: {
                 PENDING: "Hinihintay ang pag-apruba ng provider",
                 CONFIRMED: "Kumpirmado ang pag-apruba ng provider",
             },
             credential: {
-                ACCESS_TOKEN: "Access token",
-                APP_SECRET: "App secret",
-                VERIFY_TOKEN: "Verify token",
-                API_KEY: "API key",
-                SMTP_PASSWORD: "Password",
-                AWS_ACCESS_KEY_ID: "AWS access key ID",
-                AWS_SECRET_ACCESS_KEY: "AWS secret access key",
-                API_SECRET: "API secret",
-                USERNAME: "Username",
-                PASSWORD: "Password",
-                WEBHOOK_SECRET: "Webhook secret",
+                ACCESS_TOKEN: "Token sa pag-access",
+                APP_SECRET: "Lihim ng app",
+                VERIFY_TOKEN: "Token sa pag-verify",
+                API_KEY: "Susi ng API",
+                SMTP_PASSWORD: "Password ng server",
+                AWS_ACCESS_KEY_ID: "ID ng access key ng AWS",
+                AWS_SECRET_ACCESS_KEY: "Lihim na access key ng AWS",
+                REPORT_USERNAME: "Pangalan ng user para sa mga ulat",
+                REPORT_PASSWORD: "Password para sa mga ulat",
             },
             deliveryUnavailable: "Hindi available ang paghahatid",
             templates: {
@@ -5556,12 +5587,12 @@ const tagalogTranslation: TranslationType = {
                 parameters: "Mga parameter ng template",
                 parametersHelp:
                     "Kung ano ang pupuno sa bawat placeholder ng aprubadong template, ayon sa pagkakasunod, gaya ng user.first_name o vote_url. Para sa template na may mga pinangalanang parameter, isulat ang @pangalan=halaga, gaya ng @first_name=user.first_name; positional ang anumang ibang entry.",
-                parameter: "Parameter {{position}}",
+                parameter: "Parametro {{position}}",
                 removeParameter: "Alisin ang parameter {{position}}",
                 addParameter: "Magdagdag ng parameter",
                 noAccount:
                     "Wala pang {{channel}} account. Magdagdag sa Settings > Messaging para makita kung aling mga wika ang aprubado.",
-                account: "Account",
+                account: "Akawnt",
                 approvalTitle: "Mga aprubadong template",
                 language: "Wika",
                 approvalFor: "Aprubado para sa {{purpose}}",
@@ -5573,7 +5604,7 @@ const tagalogTranslation: TranslationType = {
                     "Sa loob ng 24 na oras mula sa huling mensahe ng botante, ipinapadala ng Messenger ang teksto sa ibaba.",
                 messengerMessage: "Mensahe sa loob ng 24 na oras",
                 messengerWindow:
-                    "Ang naka-save na Messenger recipient ay hindi pahintulot na magpadala. Sa labas ng 24 na oras na window, ipinapadala ang abisong ito bilang utility message kapag pinapayagan ito ng election event at may aprubadong template na nakatakda sa ibaba o nakaugnay sa event; kung hindi, mapupunta ito sa susunod na magagamit na channel ng botante. Kailangan ng mga utility message ang pahintulot na page_utility_messaging at isang aprubadong UTILITY template sa Page.",
+                    "Ang naka-save na Messenger recipient ay hindi pahintulot na magpadala. Sa labas ng 24 na oras na window, ipinapadala ang abisong ito gamit ang aprubadong utility template na nakatakda sa ibaba o nakaugnay sa election event; kung wala nito, hindi ito ipinapadala, at ipinapakita ang pagkabigo kasama ang dahilan. Kailangan ng mga utility message ang pahintulot na page_utility_messaging at isang aprubadong UTILITY template sa Page.",
                 intro: {
                     WHATSAPP:
                         "Nagpapadala lamang ang WhatsApp ng mga template na inaprubahan ng Meta para sa WhatsApp Business Account. Dapat tumugma ang mensahe sa aprubadong template; piliin kung ano ang pupuno sa mga parameter nito.",
@@ -5589,46 +5620,112 @@ const tagalogTranslation: TranslationType = {
                 providerLanguage: "Language code ng provider",
                 providerLanguageHelp: {
                     WHATSAPP:
-                        "Ang eksaktong language code ng aprubadong template ng WhatsApp, gaya ng en_US.",
+                        "Gamitin ang eksaktong code ng wika ng aprubadong WhatsApp template, gaya ng en o en_US. Kailangan lang ng code ng rehiyon kung iyon ang ginamit sa pag-apruba ng template.",
                     VIBER: "Ang language code kung saan kilala ng provider ng Viber ang template, kapag kailangan nito.",
                     MESSENGER: "Ang language code ng aprubadong utility template, gaya ng en_US.",
                 },
-                approvalAdminConfirmed:
-                    "Kinumpirma ng isang administrator sa provider na aprubado ang mga template ng account na ito, kaya hindi ginagamit ang mga pag-apruba mula sa pagsusuri ng koneksyon.",
+                noReadPermission:
+                    "Kailangan ang pahintulot na messaging-config-read para mabasa ang mga account.",
             },
             send: {
-                channel: "Channel",
                 eachVoter: "Channel ng bawat botante",
-                only: "{{channel}} lamang",
                 eachVoterHelp:
-                    "Ang mga kumpirmadong pagkabigo ay gagamit ng susunod na available na verified channel. Ang hindi kumpirmadong paghahatid ay ipinapakita bilang Hindi alam.",
-                onlyHelp: "Ipinapadala ang abisong ito sa bawat botante sa {{channel}}.",
+                    "Bawat botante ay tumatanggap ng isang mensahe sa sarili niyang channel. Kung mabigo ang paghahatid, susubukan itong muli sa channel na iyon at makikita ang pagkabigo sa tab na Pagmemensahe ng event. Ang hindi kumpirmadong paghahatid ay ipinapakita bilang Hindi alam.",
                 channelColumn: "Channel",
                 sendsFrom: "Ipinapadala mula sa",
                 noAccount: "Walang account",
                 missingContent: "Walang nilalaman ang abisong ito para sa {{channels}}.",
                 approvedTemplateHelp:
-                    "Ipinapadala gamit ang template na inaprubahan ng provider. I-edit ito sa Templates.",
-                providerTemplate: "Template ng provider ng {{channel}}",
-                providerTemplateHelp:
-                    "Opsyonal. Kapag walang laman, ginagamit ang template ng event na nakaugnay sa alias ng napiling template, o ang default ng event para sa mga abiso.",
-                providerLanguage: "Wika ng provider ng {{channel}}",
-                providerLanguageHelp:
-                    "Ang language code ng provider para sa template na iyon, gaya ng en_US.",
+                    "Dahil aprubado ng provider ang mga template ng {{channel}}, hindi mababago rito ang teksto, template ng provider, at wika. Pumili ng ibang naka-save na template para gumamit ng ibang aprubadong nilalaman.",
+                voters: "Mga botante",
+                environment: "Ang default na nagpapadala ng deployment",
+                noNoticeChannels:
+                    "Walang channel na naka-on para sa mga abiso sa mga setting ng pagmemensahe ng event na ito, kaya walang botanteng makakatanggap ng abisong ito. I-on ang mga abiso ng isang channel sa tab na Pagmemensahe ng event.",
+                noReadPermission:
+                    "Kailangan ang pahintulot na messaging-config-read para maipakita ang channel ng bawat botante. Matatanggap pa rin ng bawat botante ang abiso sa sarili niyang channel.",
+            },
+            audience: {
+                notOfferedRow:
+                    "Walang Post ng mga botanteng ito ang nag-aalok ng channel na ito para sa mga abiso, kaya walang isa man sa kanila ang makakatanggap: {{reason}}.",
+                willSend: "Makakatanggap ng abiso: {{willSend}}",
+                selectedTimedOut:
+                    "Masyadong natagalan ang pagbilang sa mga piniling botante, kaya walang ipinapakitang bilang. Matatanggap pa rin ng bawat botante ang abiso sa sarili niyang channel.",
+                notSent: "Hindi ipinapadala",
+                deletedAccount: "Binurang account",
+                notOffered: "{{notOffered}} sa kanila ang hindi makakatanggap: {{reason}}.",
+                noAccountHelp:
+                    "Walang account na nagpapadala sa channel na ito, kaya pumapalya ang mga abiso sa mga botanteng ito: {{reason}}.",
+                noChannelHelp:
+                    "Walang nakatalang contact channel ang mga botanteng ito. Wala silang natatanggap, at bawat isa ay lumalabas na pumalya: {{reason}}.",
+                total: "Mga botante sa audience na ito: {{total}}",
+                loadError:
+                    "Hindi ma-load ang bilang ng mga botante. Matatanggap pa rin ng bawat botante ang abiso sa sarili nilang channel.",
+            },
+            voterCount: {
+                countedAt: "Binilang: {{time}}.",
+                never: "Hindi pa nabibilang.",
+                pending: "May muling pagbilang na paparating.",
+                timedOut: "Masyadong natagalan ang huling muling pagbilang kaya itinigil ito.",
+                failed: "Pumalya ang huling muling pagbilang.",
+                previous: "Ang mga ipinapakitang bilang ay mula sa naunang pagbilang.",
+                recount: "Bilangin muli",
+                recountAsked:
+                    "Hiniling ang muling pagbilang. Maa-update ang mga bilang kapag natapos ito.",
+                recountAlreadyAsked: "May muling pagbilang na paparating na.",
+                recountError: "Hindi mahiling ang muling pagbilang.",
+                loadError: "Hindi ma-load ang bilang ng mga botante.",
+            },
+            volumes: {
+                title: "Buwanang dami",
+                intro: "Mga pagtatangkang ipinasa sa isang provider bawat buwan, ayon sa channel, account na nagpapadala, bansang pinadalhan at kategorya ng singil, para maitugma ang mga invoice ng mga provider. Binibilang ang bawat pagtatangka sa buwan kung kailan ito ginawa, kaya muling binibilang ang muling pagsubok. Ang kategorya ng singil ay ang inaasahan sa pagpapadala, o ang iniulat ng provider; kung may singil ang isang pagtatangka ay ayon sa iniulat ng provider. Walang ipinapakitang presyo.",
+                month: "Buwan",
+                monthHelp: "Binibilang ang mga buwan sa UTC.",
+                loading: "Nilo-load ang buwanang dami",
+                loadError: "Hindi ma-load ang dami.",
+                empty: "Walang pagtatangkang ipinasa sa isang provider noong {{month}}.",
+                noPermission:
+                    "Kailangan ang pahintulot na messaging-account-read o messaging-config-read para makita ang dami.",
+                notReported: "Hindi iniulat",
+                deploymentOrDeleted: "Nagpapadala ng deployment o binurang account",
+                category: {
+                    AUTHENTICATION: "Pagpapatunay",
+                    UTILITY: "Pang-utility",
+                    SERVICE: "Serbisyo",
+                    TRANSACTIONAL: "Transaksiyonal",
+                    EMAIL: "Pang-email",
+                },
+                billableYes: "May singil",
+                billableNo: "Walang singil",
+                total: "Lahat ng pagtatangka",
+                column: {
+                    account: "Ipinadala mula sa",
+                    country: "Bansang pinadalhan",
+                    category: "Kategorya ng singil",
+                    billable: "May singil?",
+                    messages: "Mga pagtatangka",
+                },
             },
             voter: {
-                title: "Messaging",
-                preferredChannel: "Gustong channel",
-                whatsappNumber: "WhatsApp number",
-                viberNumber: "Viber number",
-                messengerConnected: "Nakakonekta",
-                messengerNotConnected: "Hindi nakakonekta",
-                verifiedChannels: "Mga verified na channel",
-                noneVerified: "Walang verified na channel",
+                listChannel: "Channel ng mensahe",
+                title: "Pagmemensahe",
                 notSet: "Hindi nakatakda",
+                channel: "Channel",
+                destination: "Ipinapadala sa",
+                messengerPage: "Pahina sa Messenger",
+                consent: "Pagsang-ayon",
+                lastFailure: "Huling pagkabigo",
+                noFailure: "Wala",
+                failureNeedsPermission: "Makikita gamit ang pahintulot na messaging-config-read.",
+                noChannel: "Walang nakatalang paraan ng pakikipag-ugnayan",
+                notConfirmed: "Hindi pa kumpirmado ang paghahatid",
+                notConfirmedHelp:
+                    "Ang huling mensaheng hindi pa kumpirmado ang paghahatid. Pagkalipas ng 24 na oras, ipinapakita ito bilang Hindi nalutas, na hindi nangangahulugang nabigo ito.",
             },
             logs: {
                 channel: "Channel",
+                status: "Katayuan",
+                statusAsLogged:
+                    "Ang katayuan noong isinulat ang entry; kailangan ang pahintulot na messaging-config-read para sa kasalukuyang katayuan.",
             },
             stats: {
                 sent: {
@@ -5637,13 +5734,172 @@ const tagalogTranslation: TranslationType = {
                     MESSENGER: "Mga mensahe sa Messenger na naipadala",
                 },
             },
-            readinessPolicy: {
-                PROVIDER_CHECK: "Mula sa pagsusuri ng provider",
-                ADMIN_CONFIRMED: "Kinumpirma ng administrator",
+            reason: {
+                CANDIDATE_REFUSED:
+                    "Hindi nakakonekta ang mga bagong credential: pinanatili ang mga dati",
+                ACCOUNT_IN_USE:
+                    "Ginagamit ng mga setting sa messaging ng isang election event: alisin muna ito roon",
+                NUMBER_CHANGED:
+                    "Nagpalit ng numero sa WhatsApp ang isang botante: hilingin sa kanya na muling i-verify ang kanyang contact",
+                IDENTITY_CHANGED: "Nagbago ang sending identity ng account: muli itong sinusuri",
+                TEMPLATES_NOT_READ: "Hindi mabasa ang mga template ng provider",
+                PARTNER_LOGIN_REFUSED: "Tinanggihan ng Infobip ang API key ng account",
+                NO_PAGES_MESSAGING: "Walang pahintulot na pages_messaging ang token ng Page",
+                NOT_SUBSCRIBED: "Hindi naka-subscribe ang app sa Page",
+                NUMBER_STATUS_NOT_READ: "Hindi mabasa ang status ng numero",
+                CALLBACK_NOT_CONFIGURED: "Hindi naka-configure ang callback address",
+                UNSUPPORTED_PROVIDER: "Hindi suportadong provider: palitan ang account na ito",
+                CREDENTIALS_FOLLOW_ENDPOINT:
+                    "Ilagay muli ang mga kredensyal para sa bagong address",
+                NO_CONTACT_CHANNEL: "Walang channel para makipag-ugnayan",
+                NOT_RETRYABLE_NO_TEMPLATE: "Hindi masusubukang muli: walang naka-save na template",
+                CHANNEL_NOT_OFFERED_FOR_NOTICES: "Hindi inaalok ang channel para sa mga abiso",
+                CHANNEL_NOT_OFFERED_FOR_CODES: "Hindi inaalok ang channel para sa mga code",
+                NO_CONTENT_FOR_CHANNEL: "Walang nilalaman para sa channel",
+                NO_ACCOUNT_FOR_CHANNEL: "Walang account na nagpapadala para sa channel",
+                INVALID_DESTINATION: "Hindi wastong destinasyon para sa channel",
+                NOT_RETRYABLE_PROTECTED_FIELDS:
+                    "Hindi masusubukang muli: may mga protektadong field",
+                REPORTED_TOO_LATE: "Huli na ang ulat para subukang muli",
+                CHANNEL_CHANGED: "Nagbago ang channel ng botante: hindi na sinubukang muli",
+                WORKER_STOPPED_BEFORE_SENDING: "Huminto ang proseso bago magpadala",
+                WORKER_STOPPED_AFTER_SENDING: "Huminto ang proseso bago maitala ang resulta",
+                CODE_EXPIRED_BEFORE_SENDING: "Nag-expire ang code bago ito maipadala",
+                CAPACITY_BUSY:
+                    "Hindi naipadala: masyadong matagal na nasa limitasyon ng pagpapadala ang account",
+                PROVIDER_ANSWER_LATE:
+                    "Hindi sumagot sa oras ang provider: maaaring naipadala ang mensahe",
+                UNRESOLVED: "Hindi makumpirma ang paghahatid",
+                SELECTED_WITHOUT_VOTERS: "Pumili ng kahit isang botante",
+                WRONG_RECIPIENT_KIND:
+                    "Hindi ito ang uri ng destinasyong pinapadalhan ng channel na ito",
+                UNSUPPORTED_PURPOSE: "Hindi nagpapadala ang provider ng ganitong uri ng mensahe",
+                MISSING_APPROVED_TEMPLATE: "Walang aprubadong template para sa mensaheng ito",
+                OUTSIDE_CONVERSATION_WINDOW: "Nasa labas ng window ng usapan",
+                DESTINATION_NOT_ALLOWED:
+                    "Hindi nagpapadala ang account na ito sa bansa ng destinasyon",
+                CODE_EXPIRED: "Nag-expire na ang code",
+                MISSING_CODE: "Walang code na ipapadala",
+                ENDPOINT_NOT_HTTPS: "Dapat magsimula sa https:// ang address ng provider",
+                PROVIDER_CODE: "Error code ng provider: {{code}}",
+                CHECK_DROPPED: "Nagbago ang account habang sinusuri ito: suriin itong muli",
+                ACCOUNT_NOT_READY: "Hindi naipadala: hindi pa handa ang account ({{blocker}})",
+                PROVIDER_UNREACHABLE: "Hindi maabot ang provider",
+                PROVIDER_STATUS: "Sumagot ang provider nang may status na {{status}}",
+                MISSING_CREDENTIAL: "Kulang ang credential: {{credential}}",
+                PROVIDER_CHECK_FAILED: "Pumalya ang pagsusuri ng provider: {{detail}}",
+                NUMBER_STATUS: "Ang status ng numero ay {{status}}",
+                NUMBER_NAME_STATUS: "Ang display name ng numero ay {{status}}",
+                NUMBER_IN_SANDBOX: "Nasa sandbox mode ang numero",
+                NUMBER_NOT_VERIFIED: "Hindi pa beripikado ang code ng numero",
+                SMS_SANDBOX: "Nasa SMS sandbox ang account",
+                SES_SANDBOX: "Nasa SES sandbox ang account",
+                SES_SENDING_DISABLED: "Naka-disable ang pagpapadala para sa account na ito",
+                SMTP_REFUSED: "Hindi maabot ang SMTP server o tinanggihan ang mga credential",
+                TOKEN_INVALID: "Hindi valid o expired na ang access token",
+                TOKEN_CANNOT_SEND: "Walang pahintulot ang access token na magpadala",
+                TOKEN_NOT_CHECKED: "Hindi masuri ang access token",
+                APP_SECRET_REFUSED: "Tinanggihan ng Meta ang lihim ng app",
+                APP_SECRET_NOT_CHECKED: "Hindi masuri ang lihim ng app",
+                RETRY_NOT_PREPARED: "Hindi masusubukang muli: hindi maihanda muli ang mensahe",
+                NOT_THE_VOTERS_CHANNEL: "Hindi ito ang channel ng botante",
+                REPORT_CREDENTIALS_MISSING:
+                    "Bumuo ng mga kredensyal para sa ulat at gumawa ng subscription sa Infobip",
+                CALLBACK_NOT_HTTPS: "Dapat https ang callback address",
+                UNKNOWN_ACCOUNT:
+                    "Wala na ang account na ito: maaaring nabura ito sa ibang tab. I-reload ang listahan.",
+                INTERNAL_ERROR: "Hindi natapos ng server ang kahilingan. Subukang muli mamaya.",
+                VERIFY_TOKEN_GENERATED:
+                    "Ginagawa ng system ang token sa pag-verify; hindi ito inilalagay",
+                CREDENTIAL_GENERATED: "{{credential}}: ginagawa ng system; hindi ito inilalagay",
+                CREDENTIAL_NOT_USED:
+                    "Hindi gumagamit ng {{credential}} ang mga account ng {{provider}}",
+                CREDENTIAL_EMPTY: "Hindi maaaring walang laman ang {{credential}}",
+                NO_REPORT_CREDENTIALS:
+                    "Walang credential para sa mga ulat ang mga account ng {{provider}}",
+                UNKNOWN_AUDIENCE: "Hindi kilalang pagpili ng mga tatanggap",
+                INVALID_MONTH: "Dapat isulat ang buwan bilang YYYY-MM",
+                INVALID_SUPPORT_REFERENCE: "Hindi ito reference para sa suporta",
+                MESSENGER_PAGE_CHANGED:
+                    "Hindi naipadala: nakakonekta ang botante sa ibang Messenger Page",
             },
         },
         messagingAccounts: {
-            tab: "MESSAGING",
+            status: {
+                title: "Status sa provider",
+                daily: "Sinusuri ang mga account isang beses bawat araw at tuwing susuriin mo ang koneksyon.",
+                unchecked:
+                    "Nagbago ang numero, Page o sender mula sa huling pagsusuri. Hangga't hindi muling nasusuri ang account, pumapalya ang mga code at abiso na dumadaan dito dahil hindi pa ito handa; ipinapadala pa rin ang test message.",
+                notReported: "Hindi iniulat",
+                yes: "Oo",
+                no: "Hindi",
+                token: "Token sa pag-access",
+                tokenExpires: "Balido · mag-e-expire sa {{date}}",
+                tokenNoExpiry: "Balido · hindi nag-e-expire",
+                tokenInvalid: "Hindi balido",
+                missingScopes: "Kulang na pahintulot: {{scopes}}",
+                numberStatus: "Status ng numero",
+                nameStatus: "Pangalang ipinapakita: {{status}}",
+                qualityRating: "Marka ng kalidad",
+                quality: {
+                    GREEN: "Mataas",
+                    YELLOW: "Katamtaman",
+                    RED: "Mababa",
+                    UNKNOWN: "Hindi alam",
+                },
+                messagingLimit: "Limitasyon sa mensahe",
+                pagesMessaging: "Pahintulot na magpadala (pages_messaging)",
+                subscribed: "Naka-subscribe ang app sa Page",
+                getStarted: "Button na Magsimula",
+                getStartedMissing:
+                    "Kung walang button, hindi masisimulan ng mga botanteng hindi pa sumulat sa Page ang usapang magdadala ng kanilang code.",
+                partnerLogin: "Pag-login sa partner",
+                appSecret: "Lihim ng app",
+                notChecked: "Hindi masuri",
+                numberQualityWarning:
+                    "Babala sa kalidad mula sa Meta: nagpapadala pa rin ang numero, pero maaaring ibaba ng mababang kalidad ang messaging limit nito.",
+                accepted: "Tinanggap",
+                refused: "Tinanggihan",
+                callback: "Address ng callback",
+                callbackReady: "Naka-configure",
+                approvalFromCheck: "Iniulat ng pagsusuri ng provider",
+                approvalEntered:
+                    "Inilagay ng isang administrator: hindi ito iniulat ng pagsusuri ng provider",
+                approvalEnteredHelp:
+                    "Ginagamit lamang ito hanggang iulat ng pagsusuri ng provider ang pag-apruba.",
+                templates: {
+                    title: "Mga template sa provider",
+                    none: "Walang template",
+                    name: "Pangalan ng template",
+                    language: "Wika",
+                    category: "Kategorya",
+                    status: "Katayuan",
+                    entered:
+                        "Inilalagay ng isang administrator ang mga template ng Viber sa Mga aprubadong template: walang API ang partner para sa pag-apruba ng template.",
+                },
+                templateCategory: {
+                    AUTHENTICATION: "Pagpapatunay",
+                    UTILITY: "Pang-utility",
+                    MARKETING: "Marketing",
+                },
+                templateStatus: {
+                    APPROVED: "Aprubado",
+                    PENDING: "Sinusuri",
+                    REJECTED: "Tinanggihan",
+                    PAUSED: "Naka-pause",
+                    DISABLED: "Naka-disable",
+                },
+                numberChanges: {
+                    title: "Mga botanteng nagpalit ng numero sa WhatsApp",
+                    description:
+                        "Iniulat ng WhatsApp ang mga pagpapalit na ito ng numero. Hilingin sa mga botanteng ito na muling i-verify ang kanilang contact; walang binago nang awtomatiko.",
+                    item: "Napalitan ang {{old}} ng {{new}} noong {{date}}.",
+                    voters: "Mga botante: {{voters}}",
+                    noVoters:
+                        "Walang botanteng nakatanggap ng mensahe mula sa account na ito sa lumang numero.",
+                },
+            },
+            tab: "PAGMEMENSAHE",
             description:
                 "Mga account na nagpapadala sa mga botante ng kanilang mga code at abiso. Pinipili ng bawat election event ang account para sa bawat channel; nagsisimula ang mga bagong event sa default na account.",
             list: {
@@ -5655,10 +5911,10 @@ const tagalogTranslation: TranslationType = {
             },
             column: {
                 channel: "Channel",
-                name: "Account",
+                name: "Akawnt",
                 sender: "Nagpapadala bilang",
-                provider: "Provider",
-                default: "Default",
+                provider: "Tagapagbigay",
+                default: "Pangunahin",
                 isDefault: "Default na account",
                 lastCheck: "Huling pagsusuri",
                 actions: "Mga aksyon",
@@ -5680,6 +5936,7 @@ const tagalogTranslation: TranslationType = {
                 error: "Hindi masuri ang {{name}}.",
             },
             delete: {
+                refused: "Hindi nabura ang account: {{reason}}",
                 title: "Tanggalin ang account",
                 body: "Tanggalin ang {{name}}? Titigil sa pagpapadala sa channel nito ang mga election event na gumagamit nito.",
                 success: "Natanggal ang account",
@@ -5691,7 +5948,7 @@ const tagalogTranslation: TranslationType = {
                 subtitle:
                     "Tumatanggap ang mga botante ng mga code at abiso mula sa account na ito sa mga channel na gumagamit nito.",
                 channel: "Channel",
-                provider: "Provider",
+                provider: "Tagapagbigay",
                 save: "I-save",
                 cancel: "Kanselahin",
                 close: "Isara",
@@ -5701,26 +5958,24 @@ const tagalogTranslation: TranslationType = {
                 name: "Pangalan ng account",
                 from_address: "Address ng nagpadala",
                 from_name: "Pangalan ng nagpadala",
-                region: "AWS region",
+                region: "Rehiyon ng AWS",
                 notification_topic_arn: "Topic ng mga abiso sa paghahatid (SNS ARN)",
                 server_url: "Server at port",
-                sender_id: "Sender ID",
-                origination_number: "Origination number",
-                business_account_id: "WhatsApp Business Account ID",
-                phone_number_id: "Phone number ID",
+                sender_id: "ID ng nagpapadala",
+                origination_number: "Numerong pinagmumulan",
+                business_account_id: "ID ng WhatsApp Business Account",
+                phone_number_id: "ID ng numero ng telepono",
                 display_phone_number: "Numero",
-                display_name: "Display name",
+                display_name: "Pangalang ipinapakita",
                 api_version: "Bersyon ng Graph API",
-                page_id: "Facebook Page ID",
+                page_id: "ID ng Facebook Page",
                 page_name: "Pangalan ng Page",
                 page_username: "Username ng Page",
                 base_url: "Base URL ng API",
                 sender: "Pangalan ng nagpadala",
                 provider_approval: "Pag-apruba ng provider",
                 is_default: "Default na {{channel}} account para sa mga bagong election event",
-                readiness: "Kahandaan",
                 api_base_url: "Base URL ng Graph API",
-                label: "Nagpadalang ipinapakita sa mga botante",
             },
             fieldHelp: {
                 from_address:
@@ -5740,25 +5995,32 @@ const tagalogTranslation: TranslationType = {
                 sender: "Ang aprubadong nagpadala na nakikita ng mga botante.",
                 provider_approval:
                     "Pinapayagan lamang ng Meta ang pagmemensahe ng gobyerno sa WhatsApp sa pamamagitan ng aprubadong kaayusan. Piliin ang Kumpirmado ang pag-apruba ng provider kapag naaprubahan na ito ng Meta para sa account na ito; hanggang doon, hindi mapapagana ang mga OTP at abiso para dito.",
-                readiness:
-                    "Ginagamit ng Mula sa pagsusuri ng provider ang nakikita ng pagsusuri ng koneksyon: kung nakakonekta ang account, kung nasa production ito, at kung aling mga template ang aprubado. Ang Kinumpirma ng administrator ay para sa mga provider na hindi ito matutukoy ng pagsusuri: ito ang iyong pahayag na nakakonekta ang account, nasa production at aprubado ang mga template nito, at ito ang ginagamit sa halip ng pagsusuri.",
                 api_base_url:
                     "Kapag hindi sa Meta mismo ang Graph API lamang, gaya ng endpoint ng isang Solution Provider. Kapag walang laman, ang sa Meta ang ginagamit.",
-                label: "Ang pangalang nakikita ng mga botante bilang nagpadala ng account na ito.",
             },
             error: {
                 REQUIRED: "Kailangan",
                 NOT_A_COUNT: "Maglagay ng buong numero",
+                AT_LEAST_ONE: "Maglagay ng 1 o higit pa",
                 OTP_ABOVE_TOTAL: "Hindi maaaring lumampas sa mga mensahe bawat segundo",
                 INVALID_CALLING_CODE:
                     "Maglagay ng country calling code na 1 hanggang 3 numero, gaya ng 63",
                 DUPLICATE_LANGUAGE: "May template na ang wikang ito para sa layuning ito",
-                NOT_A_URL: "Maglagay ng address na nagsisimula sa https:// o http://",
-                INVALID_HTTP_CONFIG: "Ayusin ang mga ipinakitang problema",
+                NOT_A_URL: "Maglagay ng address na nagsisimula sa https://",
+                UNSUPPORTED_PROVIDER: "Hindi suportadong provider: palitan ang account na ito",
+                CREDENTIALS_FOLLOW_ENDPOINT:
+                    "Ilagay muli ang mga kredensyal para sa bagong address",
             },
             warning: {
+                pageChangeCount:
+                    "Mga botanteng nakakonekta sa {{page}} na kailangang muling kumonekta: {{count}}.",
+                pageChangeCounting: "Binibilang ang mga botanteng nakakonekta sa Page…",
+                pageChangeCountError:
+                    "Hindi mabasa ang bilang ng mga botanteng nakakonekta sa Page.",
+                recheck:
+                    "Sa pag-save, muling sinusuri ang account sa background. Hangga't hindi nagtatagumpay ang pagsusuring iyon, pumapalya ang mga code at abiso na dumadaan dito dahil hindi pa ito handa; ipinapadala pa rin ang test message.",
                 pageChange:
-                    "Ang mga usapan sa Messenger ay pag-aari ng isang Page. Pagkatapos palitan ang Page, makakatanggap lamang ng code ang mga botanteng nakakonekta sa {{page}} kapag muli nilang ikinonekta ang Messenger.",
+                    "Ang mga usapan sa Messenger ay pag-aari ng isang Page. Pagkatapos palitan ang Page, hindi ipinapadala ang mga code at abiso sa mga botanteng nakakonekta sa {{page}} hanggang muli silang kumonekta. Muling kumokonekta ang botante sa susunod niyang pag-sign in, pagkatapos ilagay ang kanyang password: ipinapakita ng pag-sign in ang hakbang sa pagkonekta para sa bagong Page, pinipindot ng botante ang Magsimula sa Messenger, at doon niya natatanggap ang code. Ang botanteng hindi makapag-sign in gamit ang password, halimbawa dahil nakalimutan niya ito, ay kailangang palitan ng staff ang kanyang channel.",
                 numberChange:
                     "Manggagaling sa ibang numero ang mga mensahe. Dapat aprubado ang mga template nito sa business account na iyon bago ito makapagpadala ng mga code, at makakakita ang mga botante ng bagong chat.",
             },
@@ -5775,8 +6037,13 @@ const tagalogTranslation: TranslationType = {
             limits: {
                 title: "Mga limitasyon sa pagpapadala",
                 messagesPerSecond: "Mga mensahe bawat segundo",
+                messagesPerSecondHelp: "Walang laman: hindi nililimitahan ang mga mensahe.",
                 otpReservedPerSecond: "Nakalaan para sa OTP bawat segundo",
-                otpReservedHelp: "Nakalaan para sa mga code habang may maramihang pagpapadala.",
+                otpReservedHelp:
+                    "Isang pinakamababang bahagi sa iisang pinaghahatiang badyet sa pagpapadala ng account: humihinto rito ang mga abiso at nauuna ang mga code. Kung walang ipinapadalang code, magagamit ng maramihang pagpapadala ang buong bilis.",
+                otpConcurrency: "Mga code na sabay-sabay na ipinapadala",
+                otpConcurrencyHelp:
+                    "Walang laman: 8. Bawat code at abiso ng Keycloak (mga link sa pag-reset, pansamantalang password) ay may hawak na isang puwesto habang ipinapadala. Binibilang bawat proseso ng server; naghihintay ng kanilang turno ang iba pang padala.",
                 allowedCallingCodes: "Mga pinapayagang destinasyon (country calling codes)",
                 allowedCallingCodesHelp:
                     "Pinaghihiwalay ng kuwit, halimbawa 63, 971. Kapag walang laman, pinapayagan ang anumang destinasyon.",
@@ -5788,6 +6055,7 @@ const tagalogTranslation: TranslationType = {
                 set: "Naitakda · pinalitan {{date}}. Naka-encrypt itong iniimbak at hindi kailanman ipinapakita.",
                 replace: "Palitan",
                 replaceNamed: "Palitan ang {{name}}",
+                reenter: "Nagbago ang address: ilagay muli ang kredensyal na ito.",
             },
             credentialHelp: {
                 AWS_SES: {
@@ -5815,41 +6083,37 @@ const tagalogTranslation: TranslationType = {
                 VIBER_INFOBIP: {
                     API_KEY: "Ang Infobip API key.",
                 },
-                HTTP_API: {
-                    API_KEY: "Opsyonal. Ginagamit ito ng mga request bilang kredensyal na API_KEY.",
-                    API_SECRET:
-                        "Opsyonal. Pangalawang secret, at ang key na pumipirma sa JWT: PEM private key para sa RS256, ang shared secret para sa HS256.",
-                    ACCESS_TOKEN:
-                        "Opsyonal. Ginagamit ito ng mga request bilang kredensyal na ACCESS_TOKEN.",
-                    USERNAME:
-                        "Opsyonal. Kasama ng password, binubuo nito ang placeholder na basic_auth.",
-                    PASSWORD:
-                        "Opsyonal. Kasama ng username, binubuo nito ang placeholder na basic_auth.",
-                    WEBHOOK_SECRET:
-                        "Opsyonal. Ang shared secret na ginagamit sa pagsusuri ng mga callback ng provider.",
-                },
             },
             webhook: {
-                title: "Mga ulat sa paghahatid at mga sagot",
-                description:
-                    "Ilagay ang callback na ito sa mga setting ng webhook ng provider. Doon dumarating ang mga ulat sa paghahatid at ang mga sagot ng mga botante.",
-                path: "Callback path",
-                pathHelp:
-                    "Idagdag ito sa pampublikong address ng mga messaging webhook ng platform na ito.",
+                title: "Mga ulat sa paghahatid",
+                description: {
+                    WHATSAPP_CLOUD_API:
+                        "Ilagay ang URL ng callback na ito sa mga setting ng webhook ng Meta. Dito dumarating ang mga ulat sa paghahatid at sinusuri ang mga ito gamit ang lihim ng app.",
+                    MESSENGER_SEND_API:
+                        "Ilagay ang URL ng callback na ito sa mga setting ng webhook ng Meta. Dito dumarating ang mga ulat sa paghahatid at ang pag-tap ng botante sa Magsimula, at sinusuri ang mga ito gamit ang lihim ng app.",
+                    VIBER_INFOBIP:
+                        "Ipinapadala ng Infobip ang mga ulat sa paghahatid ng Viber sa URL ng callback na ito sa pamamagitan ng isang subscription na may Basic authentication.",
+                    AWS_SES:
+                        "I-subscribe ang URL ng callback na ito (HTTPS) sa topic ng mga abiso sa paghahatid. Dito dumarating ang mga event ng paghahatid at bounce, at sinusuri ang mga ito gamit ang lagda ng Amazon.",
+                },
                 afterSaving: "Ipinapakita pagkatapos mag-save",
-                copyPath: "Kopyahin ang callback path",
                 tokenSet: "Naitakda · pinalitan {{date}}",
                 tokenMissing: "Hindi pa nabubuo",
                 tokenAfterSaving: "Bubuuin pagkatapos mag-save",
                 generate: "Bumuo ng verify token",
-                tokenTitle: "Verify token",
+                tokenTitle: "Token sa pag-verify",
                 tokenOnce:
                     "Ilagay na ngayon ang token na ito sa mga setting ng webhook ng Meta. Isang beses lamang ito ipinapakita.",
                 copyToken: "Kopyahin ang verify token",
                 tokenDone: "Tapos na",
                 tokenError: "Hindi mabuo ang verify token.",
-                httpHelp:
-                    "Maaaring i-post ng custom na HTTP API ang mga ulat nito bilang JSON, o ipadala ang mga ito bilang GET request; binabasa noon ang mga query parameter nito bilang flat na object, na may mga pointer gaya ng /status.",
+                url: "URL ng callback",
+                copyUrl: "Kopyahin ang URL ng callback",
+                needsWrite:
+                    "Ipinapakita sa mga administrator na maaaring mamahala ng mga messaging account.",
+                loading: "Naglo-load…",
+                unavailable: "Hindi magagamit",
+                loadError: "Hindi ma-load ang URL ng callback.",
             },
             copy: {
                 success: "Nakopya",
@@ -5858,6 +6122,7 @@ const tagalogTranslation: TranslationType = {
             save: {
                 success: "Na-save ang account",
                 error: "Hindi ma-save ang account.",
+                refused: "Hindi na-save ang account: {{reason}}",
             },
             test: {
                 title: "Magpadala ng test message mula sa {{name}}",
@@ -5865,9 +6130,9 @@ const tagalogTranslation: TranslationType = {
                     "Nagpapadala ng totoong mensahe para sa napiling layunin sa destinasyong ito. Ipinapakita ng resulta ang iniulat ng provider.",
                 purpose: "Layunin",
                 destination: {
-                    EMAIL_ADDRESS: "Email address",
+                    EMAIL_ADDRESS: "Address ng email",
                     PHONE_NUMBER: "Numero ng telepono (E.164)",
-                    PAGE_SCOPED_ID: "Page-scoped ID",
+                    PAGE_SCOPED_ID: "ID na saklaw ng Page",
                 },
                 language: "Wika",
                 send: "Magpadala ng test message",
@@ -5881,103 +6146,121 @@ const tagalogTranslation: TranslationType = {
                 languageHelp:
                     "Para sa provider na nagpapadala ng mga aprubadong template, ilagay ang language code ng provider para sa template, gaya ng en_US.",
             },
-            http: {
-                title: "Custom na HTTP API",
-                description:
-                    "Inilalarawan ang isang provider ayon sa mga HTTP request nito: ibang Viber partner, sariling API ng isang WhatsApp Solution Provider, isang SMS gateway. JSON ang mga request; maaaring maglaman ang URL, mga header at body ng mga ito ng mga placeholder mula sa reference sa ibaba.",
-                phoneFormat: "Format ng numero ng telepono",
-                phoneFormatHelp:
-                    "Kung paano isinusulat sa request ang numero ng telepono ng tatanggap.",
-                phoneFormatOption: {
-                    E164: "May plus sign: +639171234567",
-                    DIGITS: "Mga numero lamang: 639171234567",
+            unsupported:
+                "Hindi suportadong provider: palitan ang account na ito. Hindi na suportado ang provider nito, kaya hindi ito makakapagpadala. Magdagdag ng account para sa channel na ito na may suportadong provider, piliin ito sa mga election event na gumagamit nito, saka burahin ang account na ito.",
+            reports: {
+                label: "Mga kredensyal para sa ulat",
+                missing: "Hindi pa nabubuo",
+                generate: "Bumuo ng mga kredensyal para sa ulat",
+                title: "Mga kredensyal para sa ulat",
+                once: "Ilagay na ngayon ang mga ito sa subscription ng Infobip. Isang beses lamang ipinapakita ang mga ito; papalitan ang mga ito kapag bumuo ng bago.",
+                copyUsername: "Kopyahin ang pangalan ng user para sa mga ulat",
+                copyPassword: "Kopyahin ang password para sa mga ulat",
+                error: "Hindi mabuo ang mga kredensyal para sa ulat.",
+                step: {
+                    subscription:
+                        "Sa Infobip, gumawa ng subscription para sa mga ulat sa paghahatid ng Viber.",
+                    url: "Itakda ang URL nito sa URL ng callback ng account na ito.",
+                    auth: "Piliin ang Basic authentication at ilagay ang pangalan ng user at password para sa mga ulat.",
                 },
-                templateRequired: "Mga layuning nangangailangan ng aprubadong template",
-                templateRequiredHelp:
-                    "Ang layuning naka-tsek ay ipinapadala lamang gamit ang template na inaprubahan ng provider, na nakaugnay sa election event. Ipinapadala bilang free text ang iba pang layunin.",
-                approvedLanguages: "Mga wikang may aprubadong template para sa {{purpose}}",
-                approvedLanguagesHelp:
-                    "Ang mga language code na may aprubadong template, ayon sa kinumpirma sa provider, na pinaghihiwalay ng kuwit: en, tl. Iniuulat ang mga ito ng pagsusuri ng koneksyon.",
-                conversationWindow: "Window ng usapan (oras)",
-                conversationWindowHelp:
-                    "Mga oras pagkatapos ng huling mensahe ng tatanggap kung kailan maaaring magpadala ng free text. Walang laman kapag walang ganitong window ang provider.",
-                messageIdPointer: "Message ID sa sagot sa pagpapadala",
-                messageIdPointerHelp:
-                    "JSON pointer sa message ID ng provider sa sagot sa send request, gaya ng /message_id. Dito itinutugma ang mga ulat sa paghahatid.",
-                notConfigured: "Hindi naka-configure.",
-                thisSection: "Ang seksyong ito",
-                add: "Idagdag: {{section}}",
-                remove: "Alisin: {{section}}",
-                section: {
-                    SEND: "Send request",
-                    CHECK: "Request ng pagsusuri ng koneksyon",
-                    TOKEN: "Token request",
-                    JWT: "Pinirmahang token (JWT)",
-                    REPORTS: "Mga ulat sa paghahatid at mga sagot",
-                    RECONCILE: "Request ng paghahanap ng mensahe",
-                },
-                sectionHelp: {
-                    SEND: "Ang request na nagpapadala ng isang mensahe: method (POST kapag hindi inilagay), url, headers at body.",
-                    CHECK: "Opsyonal. Isang request na nagtatagumpay, na may sagot na 2xx, kapag gumagana ang mga kredensyal. Pinapatakbo ito ng pagsusuri ng koneksyon.",
-                    TOKEN: "Opsyonal. Kumukuha ng panandaliang token bago magpadala, gaya ng OAuth client credentials: request, token_pointer (kung nasaan ang token sa sagot) at lifetime_seconds. Ginagamit ito ng mga request sa pamamagitan ng placeholder na token.",
-                    JWT: "Opsyonal. Isang token na pinipirmahan para sa bawat request gamit ang kredensyal na API secret: algorithm (RS256 o HS256), claims (idinadagdag ang iat, exp at jti) at lifetime_seconds. Ginagamit ito ng mga request sa pamamagitan ng placeholder na jwt.",
-                    REPORTS:
-                        "Opsyonal. Kung paano babasahin ang ipinapadala ng provider sa callback: auth, items_pointer (kung nasaan ang listahan ng mga ulat; ang buong payload kapag hindi inilagay), status (message_id_pointer, state_pointer, states na nagtutugma ng bawat value ng provider sa QUEUED, ACCEPTED, DELIVERED, FAILED o UNKNOWN, at error_pointer) at inbound_from_pointer (kung nasaan ang nagpadala ng isang sagot). May kind ang auth: URL_KEY (ang lihim na address lamang ng callback), HEADER_SECRET (isang header na katumbas ng webhook secret), HMAC_SHA256 (isang header na may HMAC ng body gamit ang webhook secret, na may prefix, encoding na HEX o BASE64, at signed kapag higit pa sa body ang pinipirmahan) o JWT_HS256 (isang header na may bearer JWT na pinirmahan gamit ang webhook secret).",
-                    RECONCILE:
-                        "Opsyonal. Nagtatanong sa provider tungkol sa isang mensaheng hindi alam ang kinalabasan: request at status, na binabasa gaya ng status ng mga ulat sa paghahatid.",
-                },
-                problem: {
-                    NOT_AN_OBJECT: "Dapat object ang {{path}}.",
-                    MISSING_URL: "Kailangan ang {{path}}: ang address ng request.",
-                    INVALID_METHOD: "Dapat HTTP method ang {{path}}, gaya ng POST o GET.",
-                    INVALID_HEADERS:
-                        "Dapat text ang {{path}}: ang headers ay object ng mga pangalan ng header at mga text na value.",
-                    UNKNOWN_FIELD: "Hindi field ng seksyong ito ang {{path}}.",
-                    UNKNOWN_PLACEHOLDER:
-                        "Gumagamit ang {{path}} ng placeholder na hindi umiiral. Tingnan ang reference ng mga placeholder.",
-                    INVALID_POINTER:
-                        "Dapat JSON pointer na nagsisimula sa / ang {{path}}, gaya ng /data/id.",
-                    INVALID_STATES:
-                        "Dapat itugma ng {{path}} ang isang status value ng provider sa QUEUED, ACCEPTED, DELIVERED, FAILED o UNKNOWN; kailangan ng kahit isa.",
-                    INVALID_AUTH:
-                        "Hindi wasto ang {{path}}: ang kind ay URL_KEY, HEADER_SECRET, HMAC_SHA256 o JWT_HS256; kailangan ang header maliban sa URL_KEY; ang encoding ay HEX o BASE64.",
-                    INVALID_LIFETIME: "Dapat buong bilang ng segundo na higit sa 0 ang {{path}}.",
-                    INVALID_ALGORITHM: "Dapat RS256 o HS256 ang {{path}}.",
-                    INVALID_CLAIMS: "Dapat object ang {{path}}.",
-                    INVALID_HOURS: "Dapat buong bilang ng oras na higit sa 0 ang {{path}}.",
-                },
-                placeholders: {
-                    title: "Reference ng mga placeholder",
-                    help: "Isinusulat sa pagitan ng dobleng curly brace sa URL, sa value ng header o sa anumang text ng body. Pinapalitan ang bawat isa kapag ginawa ang request.",
-                },
-                placeholder: {
-                    to: "Ang tatanggap: numero ng telepono, email address o Page-scoped ID.",
-                    text: "Ang mensahe bilang plain text.",
-                    subject: "Ang paksa, para sa email.",
-                    html: "Ang mensahe bilang HTML, para sa email.",
-                    code: "Ang one-time code, para sa mga OTP.",
-                    template: "Ang template ng provider na nakaugnay sa election event.",
-                    language: "Ang language code ng provider para sa template.",
-                    message_id: "Ang message ID ng provider, sa request ng paghahanap ng mensahe.",
-                    callback_url: "Ang pampublikong address ng callback ng account na ito.",
-                    param: "Isang parameter ng template ayon sa posisyon nito: 1, 2, 3 at iba pa.",
-                    credential:
-                        "Isang kredensyal ng account na ito ayon sa pangalan: API_KEY, API_SECRET, ACCESS_TOKEN, USERNAME, PASSWORD o WEBHOOK_SECRET.",
-                    basic_auth:
-                        "Ang username at password, naka-encode para sa header na Authorization: Basic.",
-                    token: "Ang token na nakuha sa token request.",
-                    jwt: "Ang pinirmahang token na inilarawan sa Pinirmahang token (JWT).",
-                    parameters:
-                        "Kapag mag-isa bilang value sa body, nagiging listahan ito ng lahat ng parameter ng template.",
-                    named_parameters:
-                        "Kapag mag-isa bilang value sa body, nagiging object ito ng mga parameter na isinulat bilang @pangalan=halaga.",
-                },
-                example: {
-                    title: "Buong halimbawa: isang Viber partner",
-                    description:
-                        "Tumatanggap ang partner ng JSON POST na authenticated gamit ang API key bilang bearer token, sumasagot ng ID ng mensahe sa ilalim ng message_id, at nagpo-post ng mga ulat sa paghahatid na may lihim na header. Gamitin ito bilang panimula at palitan ang address at mga pangalan ng field ng sa provider.",
-                    use: "Gamitin ang halimbawang ito",
-                },
+                confirmTitle: "Palitan ang mga kredensyal para sa ulat?",
+                confirmBody:
+                    "Agad na hindi na gagana ang kasalukuyang pangalan ng user at password para sa mga ulat. Hangga't wala pa sa subscription ng Infobip ang mga bago, tatanggihan ang mga ulat ng paghahatid ng Viber at mananatiling Tinanggap ang mga mensahe.",
+                confirm: "Palitan",
+            },
+        },
+        sentMessages: {
+            showMore: "Ipakita pa",
+            showLess: "Ipakita ang mas kaunti",
+            tab: "Mga naipadalang mensahe",
+            accountsTab: "Mga account",
+            tabsLabel: "Mga seksyon ng pagmemensahe",
+            description:
+                "Mga mensaheng natanggap ng demo provider ng development stack na ito, gaya ng ipapakita ng mga app ng mga botante. Wala sa mga ito ang nakarating sa tunay na botante. Lumalabas lang ang tab na ito kung saan naka-enable ang mga ruta ng demo provider.",
+            modeLabel: "Ipakita ang mga mensahe mula sa",
+            all: "Lahat",
+            refresh: "I-refresh",
+            refreshing: "Nagre-refresh…",
+            refreshError:
+                "Hindi ma-refresh ang mga mensahe. Ang ipinapakitang listahan ay ang huling nabasa.",
+            empty: "Wala pang mensahe.",
+            emptyChannel: "Wala pang mensahe sa {{channel}}.",
+            column: {
+                time: "Oras",
+                channel: "Channel",
+                from: "Mula sa",
+                to: "Para sa",
+                message: "Mensahe",
+                report: "Ulat ng paghahatid",
+            },
+            report: {
+                accepted: "Tinanggap ng webhook component ang ulat (HTTP 200)",
+                refused: "Tinanggihan ang ulat: HTTP {{status}}",
+                pending: "Hindi pa naipapadala ang ulat",
+                notSent: "Hindi naipadala ang ulat: {{reason}}",
+                noAnswer: "Walang sagot sa ulat: {{reason}}",
+                noReason: "walang ibinigay na dahilan",
+                unavailable: "Walang ulat ng paghahatid sa channel na ito",
+            },
+            content: {
+                demoCode:
+                    "{{code}} ang iyong code ng pagpapatunay. Para sa iyong seguridad, huwag itong ibahagi kaninuman.",
+                demoNotice:
+                    "Paalala sa pagboto\n\nKumusta {{name}}, bukas na ang pagboto para sa {{event}}.\n\nMag-sign in sa portal ng pagboto upang suriin ang iyong balota at bumoto:\n{{url}}\n\nHuwag ibahagi ang iyong code sa pag-sign in kaninuman. Kung nakaboto ka na, wala ka nang kailangang gawin.",
+                demoLegacyNotice:
+                    "Paalala sa pagboto\n\nKumusta {{name}}, bukas na ang pagboto. Mag-sign in sa portal ng pagboto upang bumoto:\n{{url}}\n\nHuwag ibahagi ang iyong code sa pag-sign in kaninuman.",
+
+                template: "Template na {{name}} ({{language}})",
+                noText: "(walang teksto)",
+                code: "Code",
+                copyCode: "Kopyahin ang code",
+                copied: "Nakopya ang code",
+                copyFailed: "Hindi makopya ang code",
+                truncated:
+                    "Pinutol: ang unang 64 KiB lang ng bawat field ang itinatago ng demo provider.",
+            },
+            chat: {
+                phone: "{{channel}} sa isang telepono",
+                chats: "Mga chat sa {{channel}}",
+                open: "Buksan ang chat sa {{recipient}} mula sa {{sender}}",
+                back: "Bumalik sa mga chat",
+                from: "Mula sa {{sender}}",
+                messages: "Mga mensahe para sa {{recipient}}",
+            },
+            getStarted: {
+                title: "Magsimula",
+                help: "I-paste ang Messenger link na ipinapakita ng pahina ng pagpapatala, saka pindutin ang Magsimula, gaya ng gagawin ng botante sa Messenger. Pagkatapos, darating ang code sa chat.",
+                link: "Link ng Messenger",
+                submit: "Magsimula",
+                accepted: "Sumagot ng 200 ang webhook component. Darating ang code sa chat.",
+                answered: "Sumagot ng {{status}} ang webhook component.",
+                failed: "Hindi nakapagsimula: {{reason}}",
+            },
+            email: {
+                inbox: "Mga natanggap na email",
+                reading: "Napiling email",
+                noSubject: "(walang paksa)",
+                from: "Mula sa",
+                to: "Para sa",
+                view: "Ipakita ang email bilang",
+                html: "HTML",
+                text: "Payak na teksto",
+                htmlFrame: "Nilalaman ng email",
+                noContent: "Walang nilalaman ang email na ito.",
+                loading: "Nilo-load ang email…",
+                loadError:
+                    "Hindi mabasa ang HTML ng email: maaaring hindi na ito itinatago ng demo provider.",
+            },
+            reason: {
+                SEVERAL_ACCOUNTS: "Maraming account ang gumagamit ng nagpadalang ito",
+                ACCOUNTS_UNREADABLE: "Hindi mabasa ang mga account",
+                UNREACHABLE: "Hindi sumagot ang webhook component",
+                LINK_UNREADABLE: "I-paste ang m.me link mula sa pahina ng pagpapatala",
+                LINK_WITHOUT_REF: "Walang ref ang link: kopyahin ang buong link",
+                NO_PAGE_ACCOUNT:
+                    "Walang Messenger account ng organisasyong ito ang gumagamit ng Page na ito",
+                SEVERAL_PAGE_ACCOUNTS:
+                    "Maraming Messenger account ng organisasyong ito ang gumagamit ng Page na ito",
             },
         },
         electoralLogConsole: {

@@ -23,7 +23,9 @@ use crate::services::dependencies::HarvestServices;
 use deadpool_postgres::{Object, Transaction};
 use rocket::http::Status;
 use sequent_core::services::jwt::JwtClaims;
-use sequent_core::services::keycloak::get_tenant_realm;
+use sequent_core::services::keycloak::{
+    get_tenant_realm, validate_keycloak_path_segment,
+};
 use sequent_core::signing::SigningAction;
 use sequent_core::types::keycloak::Role;
 use sequent_core::types::permissions::Permissions;
@@ -71,6 +73,22 @@ fn tenant_uuid(tenant_id: &str) -> Result<Uuid, (Status, String)> {
     Uuid::parse_str(tenant_id).map_err(|error| {
         (Status::BadRequest, format!("Invalid tenant_id: {error}"))
     })
+}
+
+/// The realm and role id are interpolated into Keycloak admin paths, so each
+/// must be a single path segment.
+fn validate_role_path(
+    realm: &str,
+    role_id: &str,
+) -> Result<(), (Status, String)> {
+    validate_keycloak_path_segment(realm)
+        .and_then(|()| validate_keycloak_path_segment(role_id))
+        .map_err(|_| {
+            (
+                Status::BadRequest,
+                "Invalid tenant_id or role_id".to_string(),
+            )
+        })
 }
 
 fn editor(claims: &JwtClaims) -> Actor {
@@ -180,6 +198,7 @@ pub async fn change_role_permission(
     allowed_by: &[Permissions],
 ) -> Result<(), (Status, String)> {
     let realm = get_tenant_realm(tenant_id);
+    validate_role_path(&realm, role_id)?;
     let Some(action) = signing_action_of(permission) else {
         return apply_role_permission(
             services, &realm, role_id, permission, change,
@@ -329,6 +348,7 @@ pub async fn delete_role(
     role_id: &str,
 ) -> Result<(), (Status, String)> {
     let realm = get_tenant_realm(tenant_id);
+    validate_role_path(&realm, role_id)?;
     let held = held_permissions(services, &realm, role_id).await?;
     if signing_actions_in(held.iter().map(String::as_str)).is_empty() {
         let client = keycloak(services.identity.client()).await?;

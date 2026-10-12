@@ -2,27 +2,26 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent} from "react"
-import type {PageProps} from "keycloakify/login/pages/PageProps"
 import Box from "@mui/material/Box"
 import Button from "@mui/material/Button"
-import FormControlLabel from "@mui/material/FormControlLabel"
-import Radio from "@mui/material/Radio"
-import RadioGroup from "@mui/material/RadioGroup"
 import TextField from "@mui/material/TextField"
 import Typography from "@mui/material/Typography"
 import {QRCodeSVG} from "qrcode.react"
+import ChannelIcon from "../../../../ui-essentials/src/components/ChannelIcon/ChannelIcon"
 import {messageLanguage, type I18n} from "../i18n"
 import {
+    CodeDisclosure,
     DeliveryState,
     MessageChannel,
     MessageCourier,
     MessengerLinkState,
-    OtpView,
     type KcContext,
 } from "../KcContext"
 import {ArrowIcon} from "../icons"
+import type {EnrollmentPageProps} from "../enrollment/pageProps"
 
 type OtpContext = Extract<KcContext, {pageId: "message-otp.login.ftl"}>
+type OtpPageProps = EnrollmentPageProps<"message-otp.login.ftl">
 
 const DEFAULT_CODE_LENGTH = 6
 const DEFAULT_RESEND_SECONDS = 60
@@ -58,16 +57,34 @@ const MESSENGER_POLL_SECONDS = 5
 // Shared with messenger-status-poll.ftl: when the link of the current code was first shown.
 const MESSENGER_POLL_START_KEY = "messengerPollStart:"
 
-/** A code that was not sent starts no countdown, and ends the one of the code before it. */
-function useResendCountdown(seconds: number, codeJustSent: boolean, sendFailed: boolean): number {
-    const [remaining, setRemaining] = useState(() => {
-        if (sendFailed) {
-            localStorage.removeItem(RESEND_END_KEY)
-        } else if (codeJustSent) {
-            localStorage.setItem(RESEND_END_KEY, String(Date.now() + seconds * 1000))
-        }
+/** Starts the resend countdown: every send starts it, also one that failed. */
+function startResendCountdown(seconds: number) {
+    try {
+        localStorage.setItem(RESEND_END_KEY, String(Date.now() + seconds * 1000))
+    } catch {
+        // Without storage the server's own timer still refuses an early resend.
+    }
+}
+
+function resendSecondsLeft(): number {
+    try {
         const end = Number(localStorage.getItem(RESEND_END_KEY) ?? 0)
         return Math.max(Math.ceil((end - Date.now()) / 1000), 0)
+    } catch {
+        return 0
+    }
+}
+
+/**
+ * The seconds until the voter can ask for the code again. A send that just happened, delivered or
+ * not, starts the countdown; a failed send never lifts it, as Keycloak's own timer doesn't.
+ */
+function useResendCountdown(seconds: number, sendAttempted: boolean): number {
+    const [remaining, setRemaining] = useState(() => {
+        if (sendAttempted) {
+            startResendCountdown(seconds)
+        }
+        return resendSecondsLeft()
     })
     useEffect(() => {
         if (remaining === 0) {
@@ -77,59 +94,6 @@ function useResendCountdown(seconds: number, codeJustSent: boolean, sendFailed: 
         return () => clearTimeout(timer)
     }, [remaining])
     return remaining
-}
-
-/** Asks for a code on one of the voter's channels; a form of its own, so Enter submits codes. */
-function ChannelForm(props: {
-    id: string
-    labelledBy: string
-    action: string
-    channels: MessageChannel[]
-    addresses: Partial<Record<MessageChannel, string>>
-    disabled: boolean
-    i18n: I18n
-    kcContext: OtpContext
-}) {
-    const {id, labelledBy, action, channels, addresses, disabled, i18n, kcContext} = props
-    const {msgStr} = i18n
-    const [selected, setSelected] = useState<MessageChannel | undefined>(channels[0])
-    const optionLabel = (channel: MessageChannel) => {
-        const address = addresses[channel]
-        return address
-            ? msgStr("messageOtp.choose.option", msgStr(channelLabelKey(channel)), address)
-            : msgStr(channelLabelKey(channel))
-    }
-    return (
-        <Box component="form" id={id} action={action} method="post" className="auth-form">
-            <RadioGroup
-                name="channel"
-                value={selected ?? ""}
-                onChange={(event) => setSelected(event.target.value as MessageChannel)}
-                aria-labelledby={labelledBy}
-            >
-                {channels.map((channel) => (
-                    <FormControlLabel
-                        key={channel}
-                        value={channel}
-                        control={<Radio />}
-                        label={optionLabel(channel)}
-                        lang={messageLanguage(kcContext, i18n, "messageOtp.choose.option")}
-                    />
-                ))}
-            </RadioGroup>
-            <Button
-                type="submit"
-                variant="contained"
-                fullWidth
-                disabled={disabled || selected === undefined}
-                className="auth-submit"
-                endIcon={<ArrowIcon />}
-                lang={messageLanguage(kcContext, i18n, "messageOtp.otherWay.send")}
-            >
-                {msgStr("messageOtp.otherWay.send")}
-            </Button>
-        </Box>
-    )
 }
 
 /** When checking by itself ends: the code's lifetime after its link was first shown. */
@@ -197,60 +161,139 @@ function MessengerStatusPoll(props: {
     )
 }
 
-function MessengerConnect(props: {kcContext: OtpContext; i18n: I18n}) {
-    const {kcContext, i18n} = props
-    const {messengerPage, messengerLink, messengerWord, messengerState} = kcContext
+// Only an image Keycloak drew is shown; anything else is ignored.
+function qrImage(source: string | undefined): string | undefined {
+    return source !== undefined && source.startsWith("data:image/") ? source : undefined
+}
+
+// Only an absolute https link becomes a link (and a QR code); anything else gives none.
+export function httpsLink(link: string | undefined): string | undefined {
+    if (link === undefined) {
+        return undefined
+    }
+    try {
+        return new URL(link).protocol === "https:" ? link : undefined
+    } catch {
+        return undefined
+    }
+}
+
+/**
+ * Messenger: the Page may only write to a voter who tapped Get Started, so the page explains that
+ * and offers the chat: a QR code to scan on a computer, a button to open it on a phone.
+ *
+ * On a NEUTRAL page (`generic`) the box is the same for every account: it is headed "If you get
+ * your codes in Messenger" and says nothing about the link's state.
+ */
+function MessengerConnect(props: {kcContext: OtpContext; i18n: I18n; generic?: boolean}) {
+    const {kcContext, i18n, generic = false} = props
+    const {messengerPage, messengerLink, messagingOrganization} = kcContext
+    const messengerState = generic ? undefined : kcContext.messengerState
     const {msg, msgStr} = i18n
     const expired =
         messengerState === MessengerLinkState.Expired ||
         messengerState === MessengerLinkState.Replaced
+    const link = expired ? undefined : httpsLink(messengerLink)
+    const qr = qrImage(kcContext.messengerQr)
+    // The ticket's sentence names who sends the code; an older Keycloak names only the Page.
+    const intro = messagingOrganization
+        ? {
+              key: "messageOtp.messenger.introPage" as const,
+              args: [messagingOrganization, messengerPage ?? ""],
+          }
+        : {key: "messageOtp.messenger.intro" as const, args: [messengerPage ?? ""]}
     return (
         <Box
             component="section"
             className="auth-messenger"
-            aria-labelledby="messenger-title"
-            lang={messageLanguage(kcContext, i18n, "messageOtp.messenger.title")}
+            {...(generic
+                ? {
+                      "aria-labelledby": "messenger-if",
+                      lang: messageLanguage(kcContext, i18n, "messageOtp.messenger.ifMessenger"),
+                  }
+                : {
+                      "aria-label": msgStr("messageOtp.messenger.title"),
+                      lang: messageLanguage(kcContext, i18n, "messageOtp.messenger.title"),
+                  })}
         >
-            <Typography id="messenger-title" component="h2" className="auth-field-label">
-                {msg("messageOtp.messenger.title")}
-            </Typography>
-            {messengerPage && (
-                <Typography>{msg("messageOtp.messenger.intro", messengerPage)}</Typography>
+            {generic && (
+                <Typography id="messenger-if" component="h2" className="auth-panel-title">
+                    {msg("messageOtp.messenger.ifMessenger")}
+                </Typography>
             )}
-            <Box component="ol" className="auth-messenger-steps">
+            {messengerPage && (
+                <Typography
+                    id="messenger-intro"
+                    className="auth-instructions"
+                    lang={messageLanguage(kcContext, i18n, intro.key)}
+                >
+                    {msg(intro.key, ...intro.args)}
+                </Typography>
+            )}
+            {!generic && kcContext.messengerReconnect === true && (
+                <Typography
+                    id="messenger-reconnect"
+                    className="auth-instructions"
+                    lang={messageLanguage(kcContext, i18n, "messageOtp.messenger.reconnect")}
+                >
+                    {msg("messageOtp.messenger.reconnect")}
+                </Typography>
+            )}
+            {link !== undefined && (
+                <Box
+                    id="messenger-scan"
+                    className="auth-messenger-scan"
+                    sx={{display: {xs: "none", md: "flex"}}}
+                >
+                    <Box className="auth-messenger-qr">
+                        {qr !== undefined ? (
+                            <img
+                                src={qr}
+                                width={160}
+                                height={160}
+                                alt={msgStr("messageOtp.messenger.scan")}
+                            />
+                        ) : (
+                            <QRCodeSVG
+                                value={link}
+                                size={160}
+                                role="img"
+                                aria-label={msgStr("messageOtp.messenger.scan")}
+                            />
+                        )}
+                    </Box>
+                    <Box component="ol" className="auth-messenger-steps">
+                        <li>{msg("messageOtp.messenger.scanStep1")}</li>
+                        <li>{msg("messageOtp.messenger.scanStep2")}</li>
+                        <li>{msg("messageOtp.messenger.scanStep3")}</li>
+                    </Box>
+                </Box>
+            )}
+            <Box
+                id="messenger-steps"
+                component="ol"
+                className="auth-messenger-steps"
+                sx={link !== undefined ? {display: {xs: "block", md: "none"}} : undefined}
+            >
                 <li>{msg("messageOtp.messenger.step1")}</li>
                 <li>{msg("messageOtp.messenger.step2")}</li>
                 <li>{msg("messageOtp.messenger.step3")}</li>
             </Box>
-            {messengerLink && !expired && (
-                <>
-                    <Button
-                        id="messenger-connect"
-                        href={messengerLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        variant="contained"
-                        fullWidth
-                    >
-                        {msgStr("messageOtp.messenger.connect")}
-                    </Button>
-                    <Box
-                        className="auth-messenger-qr"
-                        sx={{display: {xs: "none", md: "flex"}}}
-                        role="img"
-                        aria-label={msgStr("messageOtp.messenger.scan")}
-                    >
-                        <QRCodeSVG value={messengerLink} size={160} />
-                        <Typography variant="body2" aria-hidden="true">
-                            {msg("messageOtp.messenger.scan")}
-                        </Typography>
-                    </Box>
-                </>
-            )}
-            {messengerWord && messengerPage && !expired && (
-                <Typography variant="body2">
-                    {msg("messageOtp.messenger.word", messengerWord, messengerPage)}
-                </Typography>
+            <Typography variant="body2" className="auth-instructions">
+                {msg("messageOtp.messenger.getStarted")}
+            </Typography>
+            {link !== undefined && (
+                <Button
+                    id="messenger-connect"
+                    href={link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    variant="outlined"
+                    fullWidth
+                    endIcon={<ArrowIcon />}
+                >
+                    {msgStr("messageOtp.messenger.open")}
+                </Button>
             )}
             {expired ? (
                 <Typography role="alert">{msg("messageOtp.messenger.expired")}</Typography>
@@ -265,24 +308,59 @@ function MessengerConnect(props: {kcContext: OtpContext; i18n: I18n}) {
     )
 }
 
-export default function MessageOtpLogin(props: PageProps<OtpContext, I18n>) {
+/** After too many wrong codes the authentication session is over: the voter starts again. */
+function TooManyAttempts(props: OtpPageProps & {flow: "otl" | "auth"}) {
+    const {kcContext, i18n, Template, doUseDefaultCss, classes, flow} = props
+    const {msg, msgStr} = i18n
+    const channel = isNeutral(kcContext) ? undefined : kcContext.channel
+    return (
+        <Template
+            kcContext={kcContext}
+            i18n={i18n}
+            doUseDefaultCss={doUseDefaultCss}
+            classes={classes}
+            displayMessage={false}
+            symbol={channel ? <ChannelIcon channel={channel} /> : undefined}
+            headerNode={msg(`messageOtp.${flow}.title`)}
+        >
+            <Typography
+                id="otp-exhausted"
+                role="alert"
+                className="auth-instructions"
+                lang={messageLanguage(kcContext, i18n, "messageOtp.auth.tooManyAttempts")}
+            >
+                {msg("messageOtp.auth.tooManyAttempts")}
+            </Typography>
+            <Box className="auth-actions">
+                <Button
+                    id="otp-restart"
+                    href={kcContext.url.loginRestartFlowUrl}
+                    variant="contained"
+                    fullWidth
+                    className="auth-submit"
+                    endIcon={<ArrowIcon />}
+                    lang={messageLanguage(kcContext, i18n, "messageOtp.auth.restart")}
+                >
+                    {msgStr("messageOtp.auth.restart")}
+                </Button>
+            </Box>
+        </Template>
+    )
+}
+
+// A NEUTRAL page (a password reset) never tells whether the account exists: it names no channel
+// or contact, whatever else the page data holds.
+function isNeutral(kcContext: OtpContext): boolean {
+    return kcContext.codeDisclosure === CodeDisclosure.Neutral
+}
+
+export default function MessageOtpLogin(props: OtpPageProps) {
     const {kcContext, i18n, Template, doUseDefaultCss, classes} = props
-    const {
-        url,
-        address,
-        courier,
-        isOtl,
-        codeJustSent,
-        resendTimer,
-        ttl,
-        codeLength,
-        otpView,
-        channel,
-        otherWayChannels,
-        channelAddresses,
-        deliveryState,
-        senderLabel,
-    } = kcContext
+    const {url, courier, isOtl, codeJustSent, resendTimer, ttl, codeLength} = kcContext
+    const neutral = isNeutral(kcContext)
+    const {address, channel, deliveryState, senderLabel} = neutral
+        ? {address: undefined, channel: undefined, deliveryState: undefined, senderLabel: undefined}
+        : kcContext
     const {codeRequest, codeRequests} = kcContext
     const {msg, msgStr} = i18n
     const flow = isOtl ? "otl" : "auth"
@@ -293,11 +371,10 @@ export default function MessageOtpLogin(props: PageProps<OtpContext, I18n>) {
     const codeError = kcContext.message?.type === "error"
     const unconfirmed = deliveryState === DeliveryState.Unknown
     const failed = deliveryState === DeliveryState.Failed
-    const [showOtherWay, setShowOtherWay] = useState(unconfirmed || failed)
+    const resendSeconds = Number(resendTimer ?? DEFAULT_RESEND_SECONDS)
     const remaining = useResendCountdown(
-        Number(resendTimer ?? DEFAULT_RESEND_SECONDS),
-        codeJustSent === true,
-        failed
+        resendSeconds,
+        kcContext.resendTimerStarted === true || codeJustSent === true
     )
 
     const focusInput = (index: number) => {
@@ -347,41 +424,28 @@ export default function MessageOtpLogin(props: PageProps<OtpContext, I18n>) {
         event.preventDefault()
         enterCode(event.clipboardData.getData("text"))
     }
-    const instruction = instructionFor(courier ?? MessageCourier.Both, channel)
-    const addresses = channelAddresses ?? {}
+    // The courier's instruction names SMS or email: a neutral page has its own line instead.
+    const instruction = neutral
+        ? undefined
+        : instructionFor(courier ?? MessageCourier.Both, channel)
 
-    if (otpView === OtpView.Choose) {
-        return (
-            <Template
-                kcContext={kcContext}
-                i18n={i18n}
-                doUseDefaultCss={doUseDefaultCss}
-                classes={classes}
-                headerNode={msg("messageOtp.choose.title")}
-            >
-                <Typography
-                    id="otp-choose-title"
-                    className="auth-instructions"
-                    lang={messageLanguage(kcContext, i18n, "messageOtp.choose.help")}
-                >
-                    {msg("messageOtp.choose.help")}
-                </Typography>
-                <ChannelForm
-                    id="otp-choose"
-                    labelledBy="otp-choose-title"
-                    action={url.loginAction}
-                    channels={otherWayChannels ?? []}
-                    addresses={addresses}
-                    disabled={false}
-                    i18n={i18n}
-                    kcContext={kcContext}
-                />
-            </Template>
-        )
+    if (kcContext.attemptsExhausted === true) {
+        return <TooManyAttempts {...props} flow={flow} />
     }
 
     const channelLabel = channel ? msgStr(channelLabelKey(channel)) : ""
     const deliveryLine = (() => {
+        if (neutral) {
+            return (
+                <Typography
+                    id="otp-neutral"
+                    className="auth-address"
+                    lang={messageLanguage(kcContext, i18n, "messageOtp.auth.neutralSent")}
+                >
+                    {msg("messageOtp.auth.neutralSent")}
+                </Typography>
+            )
+        }
         if (unconfirmed) {
             return (
                 <Typography id="otp-delivery" role="status" className="auth-address">
@@ -416,7 +480,7 @@ export default function MessageOtpLogin(props: PageProps<OtpContext, I18n>) {
                 className="auth-address"
                 lang={messageLanguage(kcContext, i18n, `messageOtp.${flow}.address`)}
             >
-                {msg(`messageOtp.${flow}.address`, address)}
+                {msg(`messageOtp.${flow}.address`, address ?? "")}
             </Typography>
         )
     })()
@@ -431,6 +495,7 @@ export default function MessageOtpLogin(props: PageProps<OtpContext, I18n>) {
         text: msgStr("messageOtp.auth.codeProgress", String(codeRequest), String(codeRequests)),
         lang: messageLanguage(kcContext, i18n, "messageOtp.auth.codeProgress"),
     }
+    const messenger = channel === MessageChannel.Messenger
     const codeNote =
         codeRequest === codeRequests
             ? {key: "messageOtp.auth.codeLast" as const, args: [] as string[]}
@@ -443,7 +508,13 @@ export default function MessageOtpLogin(props: PageProps<OtpContext, I18n>) {
             doUseDefaultCss={doUseDefaultCss}
             classes={classes}
             displayInfo={ttl !== undefined}
-            headerNode={msg(`messageOtp.${flow}.title`)}
+            symbol={channel ? <ChannelIcon channel={channel} /> : undefined}
+            {...(messenger
+                ? {
+                      headerNode: msg("messageOtp.messenger.title"),
+                      titleLang: messageLanguage(kcContext, i18n, "messageOtp.messenger.title"),
+                  }
+                : {headerNode: msg(`messageOtp.${flow}.title`)})}
             {...(counted
                 ? {
                       eyebrow: codeLabel,
@@ -495,6 +566,9 @@ export default function MessageOtpLogin(props: PageProps<OtpContext, I18n>) {
             )}
             {channel === MessageChannel.Messenger && (
                 <MessengerConnect kcContext={kcContext} i18n={i18n} />
+            )}
+            {neutral && kcContext.messengerConnect === true && (
+                <MessengerConnect kcContext={kcContext} i18n={i18n} generic />
             )}
             {channel === MessageChannel.Messenger &&
                 kcContext.messengerState === MessengerLinkState.Pending &&
@@ -603,6 +677,7 @@ export default function MessageOtpLogin(props: PageProps<OtpContext, I18n>) {
                     formNoValidate
                     variant="outlined"
                     disabled={remaining > 0}
+                    onClick={() => startResendCountdown(resendSeconds)}
                     className="auth-resend"
                     lang={messageLanguage(
                         kcContext,
@@ -628,40 +703,6 @@ export default function MessageOtpLogin(props: PageProps<OtpContext, I18n>) {
                     </Button>
                 )}
             </Box>
-            {otherWayChannels !== undefined && otherWayChannels.length > 0 && (
-                <Box component="section" className="auth-other-way">
-                    <Button
-                        id="otp-other-way-title"
-                        variant="text"
-                        aria-expanded={showOtherWay}
-                        aria-controls="otp-other-way"
-                        onClick={() => setShowOtherWay(!showOtherWay)}
-                        lang={messageLanguage(kcContext, i18n, "messageOtp.otherWay.title")}
-                    >
-                        {msgStr("messageOtp.otherWay.title")}
-                    </Button>
-                    {showOtherWay && (
-                        <Box id="otp-other-way">
-                            <Typography
-                                className="auth-instructions"
-                                lang={messageLanguage(kcContext, i18n, "messageOtp.otherWay.help")}
-                            >
-                                {msg("messageOtp.otherWay.help")}
-                            </Typography>
-                            <ChannelForm
-                                id="otp-other-way-form"
-                                labelledBy="otp-other-way-title"
-                                action={url.loginAction}
-                                channels={otherWayChannels}
-                                addresses={addresses}
-                                disabled={remaining > 0}
-                                i18n={i18n}
-                                kcContext={kcContext}
-                            />
-                        </Box>
-                    )}
-                </Box>
-            )}
         </Template>
     )
 }

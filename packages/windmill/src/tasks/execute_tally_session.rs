@@ -420,29 +420,15 @@ async fn process_plaintexts(
         found_area_contests.len()
     );
 
-    let filtered_area_contests: Vec<AreaContestDataType> = almost_vec
-        .clone()
-        .into_iter()
-        .filter(|area_contest| {
-            event!(Level::WARN, "find_path_to_area {}", area_contest.area.id);
-            let Some(tree_path) = areas_tree.find_path_to_area(&area_contest.area.id) else {
-                event!(Level::WARN, "NOT FOUND");
-                return false;
-            };
-            /*tree_path.iter().all(|tree_node| {
-                found_area_contests
-                    .contains(&(tree_node.id.clone(), area_contest.contest.id.clone()))
-            })*/
-            true
-        })
-        .collect();
-    event!(
-        Level::WARN,
-        "Num filtered_area_contests = {}",
-        filtered_area_contests.len()
-    );
+    if let Some(area_contest) = almost_vec.iter().find(|area_contest| {
+        areas_tree
+            .find_path_to_area(&area_contest.area.id)
+            .is_none()
+    }) {
+        return Err(anyhow!("Area {} not found in the area tree", area_contest.area.id).into());
+    }
 
-    Ok(filtered_area_contests)
+    Ok(almost_vec)
 }
 
 #[instrument]
@@ -545,6 +531,11 @@ pub async fn upsert_ballots_messages(
         .clone()
         .unwrap_or_default()
         .get_weighted_voting_policy();
+    let batch_anonymity_policy = tally_session_hasura
+        .configuration
+        .clone()
+        .unwrap_or_default()
+        .get_batch_anonymity_policy();
     // Every Ballots batch on the board. Deliberately not narrowed to the
     // batches this session expects: a contest area's batches are identified by
     // its recorded mask, and rows allocated before this layout existed sit one
@@ -607,6 +598,7 @@ pub async fn upsert_ballots_messages(
         delegated_voting_policy,
         weighted_voting_policy,
         tally_session_hasura,
+        batch_anonymity_policy,
     )
     .await?)
 }

@@ -23,6 +23,12 @@ services:
     environment:
       LLVM_PROFILE_FILE: /profiles/harvest-%m.profraw
 
+  messaging-webhooks:
+    volumes:
+      - *e2e-profiles
+    environment:
+      LLVM_PROFILE_FILE: /profiles/messaging-webhooks-%m.profraw
+
   windmill:
     volumes:
       - *e2e-profiles

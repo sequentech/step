@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_permission_labels,
+};
 use crate::services::dependencies::HarvestServices;
 use anyhow::{Context, Result};
 use deadpool_postgres::Client as DbClient;
@@ -127,6 +129,14 @@ pub async fn create_new_tally_sheet(
             format!("Contest {} not found ", input.contest_id),
         ));
     };
+
+    authorize_election_permission_labels(
+        &hasura_transaction,
+        &claims,
+        &input.election_event_id,
+        Some(std::slice::from_ref(&contest.election_id)),
+    )
+    .await?;
 
     let is_acclaimed = contest.is_acclaimed.unwrap_or(false);
     if is_acclaimed {
@@ -287,6 +297,19 @@ pub async fn review_tally_sheet(
     .await
     .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
+    if let tally_sheet::ReviewTallySheetOutcome::Reviewed(sheet)
+    | tally_sheet::ReviewTallySheetOutcome::NotPending(sheet) =
+        &review_outcome
+    {
+        authorize_election_permission_labels(
+            &hasura_transaction,
+            &claims,
+            &input.election_event_id,
+            Some(std::slice::from_ref(&sheet.election_id)),
+        )
+        .await?;
+    }
+
     let tally_sheet = match review_outcome {
         tally_sheet::ReviewTallySheetOutcome::Reviewed(t) => t,
         tally_sheet::ReviewTallySheetOutcome::NotPending(t) => {
@@ -383,6 +406,19 @@ pub async fn preview_tally_sheet_import(
     .await
     .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
+    let election_ids: Vec<String> = preview
+        .items
+        .iter()
+        .map(|item| item.election_id.clone())
+        .collect();
+    authorize_election_permission_labels(
+        &hasura_transaction,
+        &claims,
+        &input.election_event_id,
+        Some(&election_ids),
+    )
+    .await?;
+
     hasura_transaction
         .commit()
         .await
@@ -461,6 +497,14 @@ pub async fn create_tally_sheet_import(
     .await
     .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
+    authorize_import_permission_labels(
+        &hasura_transaction,
+        &claims,
+        &input.election_event_id,
+        &import.id,
+    )
+    .await?;
+
     hasura_transaction
         .commit()
         .await
@@ -504,6 +548,14 @@ pub async fn review_tally_sheet_import(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    authorize_import_permission_labels(
+        &hasura_transaction,
+        &claims,
+        &election_event_id,
+        &import_id,
+    )
+    .await?;
 
     let import = review_tally_sheet_import_service(
         &hasura_transaction,
@@ -559,6 +611,32 @@ pub async fn review_tally_sheet_import(
         import: serde_json::to_value(import)
             .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?,
     }))
+}
+
+async fn authorize_import_permission_labels(
+    hasura_transaction: &deadpool_postgres::Transaction<'_>,
+    claims: &JwtClaims,
+    election_event_id: &str,
+    import_id: &str,
+) -> Result<(), (Status, String)> {
+    let election_ids: Vec<String> = get_tally_sheet_import_items_for_review(
+        hasura_transaction,
+        &claims.hasura_claims.tenant_id,
+        election_event_id,
+        import_id,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?
+    .into_iter()
+    .map(|item| item.election_id)
+    .collect();
+    authorize_election_permission_labels(
+        hasura_transaction,
+        claims,
+        election_event_id,
+        Some(&election_ids),
+    )
+    .await
 }
 
 async fn maybe_trigger_automatic_recount_for_import(

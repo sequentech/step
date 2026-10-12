@@ -107,7 +107,7 @@ export const Populated: Story = {
         expect(email(canvasElement)).toHaveValue("alice@example.test")
         expect(canvas.getByRole("textbox", {name: "City"})).toHaveValue("Springfield")
         expect(canvas.getByRole("textbox", {name: /Username/})).toBeDisabled()
-        expect(graphql.calls[0]).toEqual({
+        expect(graphql.calls.find(({name}) => name === "ListUserRoles")).toEqual({
             name: "ListUserRoles",
             variables: {tenantId: TENANT_ID, userId: STORY_IDS.user, electionEventId: EVENT_ID},
             headers: {},
@@ -119,7 +119,11 @@ export const ReviewAndConfirm: Story = {
     play: async ({args, canvasElement}) => {
         const canvas = await reviewEmailChange(canvasElement)
         expect(canvas.getByText("alice@new.example.test")).toBeVisible()
-        expect(graphql.calls.map((call) => call.name)).toEqual(["ListUserRoles", "getUsers"])
+        expect(graphql.calls.map((call) => call.name)).toEqual([
+            "GetVoterUnsettledMessages",
+            "ListUserRoles",
+            "getUsers",
+        ])
         await userEvent.click(canvas.getByRole("button", {name: "Confirm changes"}))
         await waitFor(() => expect(args.close).toHaveBeenCalledTimes(1))
         expect(graphql.calls.find((call) => call.name === "EditUser")?.variables).toMatchObject({
@@ -141,7 +145,11 @@ export const BackToEditFromReview: Story = {
         await userEvent.click(canvas.getByRole("button", {name: "Edit"}))
         await waitFor(() => expect(email(canvasElement)).toBeVisible())
         expect(email(canvasElement)).toHaveValue("alice@new.example.test")
-        expect(graphql.calls.map((call) => call.name)).toEqual(["ListUserRoles", "getUsers"])
+        expect(graphql.calls.map((call) => call.name)).toEqual([
+            "GetVoterUnsettledMessages",
+            "ListUserRoles",
+            "getUsers",
+        ])
         expect(args.close).not.toHaveBeenCalled()
     },
 }
@@ -153,7 +161,11 @@ export const NothingChanged: Story = {
         const notice = await within(document.body).findByText("No changes to review")
         await waitFor(() => expect(notice).toBeVisible())
         expect(canvas.queryByRole("heading", {name: "Review changes"})).toBeNull()
-        expect(graphql.calls.map((call) => call.name)).toEqual(["ListUserRoles", "getUsers"])
+        expect(graphql.calls.map((call) => call.name)).toEqual([
+            "GetVoterUnsettledMessages",
+            "ListUserRoles",
+            "getUsers",
+        ])
     },
 }
 
@@ -165,6 +177,7 @@ export const EditFailure: Story = {
         const reports = await within(document.body).findAllByText(/Error editing voter/)
         await waitFor(() => expect(reports[0]).toBeVisible())
         expect(graphql.calls.map((call) => call.name)).toEqual([
+            "GetVoterUnsettledMessages",
             "ListUserRoles",
             "getUsers",
             "EditUser",

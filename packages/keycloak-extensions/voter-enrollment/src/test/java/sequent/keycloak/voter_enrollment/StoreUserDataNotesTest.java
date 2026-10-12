@@ -27,7 +27,9 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.UserProvider;
+import org.keycloak.representations.userprofile.config.UPConfig;
 import org.keycloak.sessions.AuthenticationSessionModel;
+import org.keycloak.userprofile.UserProfileProvider;
 import org.mockito.ArgumentCaptor;
 
 class StoreUserDataNotesTest {
@@ -93,7 +95,7 @@ class StoreUserDataNotesTest {
     AuthenticationSessionModel authSession = storeNotes(formData);
 
     verify(authSession).setAuthNote("keyUserdata", "");
-    verify(authSession).setAuthNote("userId", "voter-id");
+    verify(authSession).removeAuthNote("userId");
     AUTHENTICATOR_NOTES.forEach(
         note -> verify(authSession, never()).setAuthNote(eq(note), anyString()));
   }
@@ -127,7 +129,13 @@ class StoreUserDataNotesTest {
     when(users.searchForUserStream(eq(realm), anyMap())).thenReturn(Stream.of(user));
     when(user.getId()).thenReturn("voter-id");
 
-    Utils.storeUserDataInAuthSessionNotes(context, List.of(UserModel.FIRST_NAME));
+    UserProfileProvider profile = mock(UserProfileProvider.class);
+    UPConfig config = new UPConfig();
+    config.setAttributes(List.of());
+    when(session.getProvider(UserProfileProvider.class)).thenReturn(profile);
+    when(profile.getConfiguration()).thenReturn(config);
+    Utils.storeUserDataInAuthSessionNotes(
+        context, List.of(UserModel.FIRST_NAME), EnrollmentChannels.ChannelChoicePolicy.NONE);
     return authSession;
   }
 }

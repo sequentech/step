@@ -14,7 +14,7 @@ on:
       profile:
         description: Native profile supported by this hosted worker
         type: choice
-        options: [sequent-core, strand, velvet, wrap-map-err, harvest, windmill, step-cli, electoral-log-native, pgmq-broker, b4, braid]
+        options: [sequent-core, strand, velvet, wrap-map-err, harvest, messaging-webhooks, windmill, step-cli, electoral-log-native, pgmq-broker, b4, braid]
         default: sequent-core
         required: true
       base_ref:
@@ -77,7 +77,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        profile: ${{ fromJSON(inputs.profile && format('["{0}"]', inputs.profile) || '["sequent-core", "strand", "velvet", "wrap-map-err", "harvest", "windmill", "step-cli", "electoral-log-native", "pgmq-broker", "b4", "braid"]') }}
+        profile: ${{ fromJSON(inputs.profile && format('["{0}"]', inputs.profile) || '["sequent-core", "strand", "velvet", "wrap-map-err", "harvest", "messaging-webhooks", "windmill", "step-cli", "electoral-log-native", "pgmq-broker", "b4", "braid"]') }}
     # Synthetic local fixture, shared with the ordinary Windmill and Harvest
     # test jobs.
     services:
@@ -181,7 +181,7 @@ jobs:
         if: always()
         env:
           # The package-comparison matrix: a profile without a verdict is a row.
-          PROFILES: ${{ inputs.profile || 'sequent-core strand velvet wrap-map-err harvest windmill step-cli electoral-log-native pgmq-broker b4 braid' }}
+          PROFILES: ${{ inputs.profile || 'sequent-core strand velvet wrap-map-err harvest messaging-webhooks windmill step-cli electoral-log-native pgmq-broker b4 braid' }}
         run: |
           read -ra profiles <<< "$PROFILES"
           python3 head/scripts/coverage/summary.py "$RUNNER_TEMP/artifacts" \

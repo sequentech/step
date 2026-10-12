@@ -1,12 +1,14 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_permission_labels,
+};
 use crate::services::dependencies::HarvestServices;
 use crate::services::signing_gate::{caller, waiting, Guarded};
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::{Context, Result};
-use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::{Client as DbClient, Transaction};
 use electoral_log::messages::newtypes::BallotPublicationStage;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -22,7 +24,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::instrument;
 use windmill::{
-    postgres::election_event::get_election_event_by_id,
+    postgres::{
+        ballot_publication::get_ballot_publication_by_id,
+        election_event::get_election_event_by_id,
+    },
     services::ballot_styles::ballot_publication::{
         get_ballot_publication_diff, prepare_ballot_publication,
         update_publish_ballot, BallotPublicationValidationError,
@@ -126,6 +131,14 @@ async fn generate_ballot_publication_response(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    authorize_election_permission_labels(
+        &hasura_transaction,
+        &claims,
+        &input.election_event_id,
+        input.election_id.as_ref().map(std::slice::from_ref),
+    )
+    .await?;
 
     let election_event = get_election_event_by_id(
         &hasura_transaction,
@@ -239,6 +252,34 @@ async fn generate_ballot_publication_response(
     }))
 }
 
+async fn authorize_publication_permission_labels(
+    hasura_transaction: &Transaction<'_>,
+    claims: &JwtClaims,
+    election_event_id: &str,
+    ballot_publication_id: &str,
+) -> Result<(), (Status, String)> {
+    let publication = get_ballot_publication_by_id(
+        hasura_transaction,
+        &claims.hasura_claims.tenant_id,
+        election_event_id,
+        ballot_publication_id,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    match publication {
+        Some(publication) => {
+            authorize_election_permission_labels(
+                hasura_transaction,
+                claims,
+                election_event_id,
+                publication.election_ids.as_deref(),
+            )
+            .await
+        }
+        None => Ok(()),
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PublishBallotInput {
     election_event_id: String,
@@ -323,6 +364,21 @@ pub async fn publish_ballot(
                 ErrorCode::InternalServerError,
             )
         })?;
+    authorize_publication_permission_labels(
+        &hasura_transaction,
+        &claims,
+        &input.election_event_id,
+        &input.ballot_publication_id,
+    )
+    .await
+    .map_err(|(status, message)| {
+        let code = if status == Status::Forbidden {
+            ErrorCode::Unauthorized
+        } else {
+            ErrorCode::InternalServerError
+        };
+        ErrorResponse::new(status, &message, code)
+    })?;
     // Publishing a configuration version may need signatures first.
     let outcome = gate_publication(
         &hasura_transaction,
@@ -560,6 +616,14 @@ pub async fn get_ballot_publication_changes(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    authorize_publication_permission_labels(
+        &hasura_transaction,
+        &claims,
+        &input.election_event_id,
+        &input.ballot_publication_id,
+    )
+    .await?;
 
     let diff = get_ballot_publication_diff(
         &hasura_transaction,

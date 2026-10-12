@@ -9,6 +9,13 @@ const dutchTranslation: TranslationType = {
             error: "Het stemportaal kon niet worden gestart. Probeer het opnieuw.",
             retry: "Opnieuw proberen",
         },
+        contactChannel: {
+            change: "Contactmethode",
+            updated: "Uw contactgegeven is gewijzigd. Codes en berichten gaan nu daarheen.",
+            cancelled: "Uw contactgegeven is niet gewijzigd.",
+            failed: "We konden niet wijzigen hoe we contact met u opnemen. Probeer het later opnieuw of neem contact op met de ondersteuning.",
+            close: "Sluiten",
+        },
         common: {
             goBack: "Ga terug",
             showMore: "Toon meer",

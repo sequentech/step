@@ -127,7 +127,9 @@ scripts/dev/step-dev scenario urls completed-ceremony
 ```
 
 `completed-ceremony` imports a synthetic event with keys, published ballots
-and online voting open. Its main election has areas A (4 voters) and B (2);
+and online voting open (`messaging` and `messaging-second-organization` add
+messaging on the fake provider; see
+[Messaging development](../14-messaging/03-messaging-development.md#scenarios)). Its main election has areas A (4 voters) and B (2);
 its grace election has area C (2). `urls` prints the voting and admin links,
 the voter usernames and their shared password, and the administrator
 (`admin` / `admin`). `scenario up` also enrols the administrator's email code

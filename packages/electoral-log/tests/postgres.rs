@@ -273,6 +273,42 @@ async fn visibility_and_user_filters_apply_to_both_list_and_count() -> Result<()
     Ok(())
 }
 
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn election_scope_keeps_entries_of_no_election_and_of_its_elections() -> Result<()> {
+    let (client, board) = setup().await?;
+    let mut general = entry("general", 1, None);
+    general.message.election_id = None;
+    let mut blank = entry("blank", 2, None);
+    blank.message.election_id = Some(String::new());
+    let mut other = entry("other", 3, None);
+    other.message.election_id = Some("election-b".into());
+    client
+        .append(&board, &[general, blank, other, entry("match", 4, None)])
+        .await?;
+    let scoped = |elections: &[&str]| LogQuery {
+        filters: vec![Filter::ElectionScope(
+            elections.iter().map(|id| id.to_string()).collect(),
+        )],
+        ..LogQuery::default()
+    };
+    let created = |rows: Vec<ElectoralLogMessage>| {
+        let mut created: Vec<_> = rows.into_iter().map(|row| row.created).collect();
+        created.sort();
+        created
+    };
+    let query = scoped(&["election-a"]);
+    assert_eq!(created(client.query(&board, &query).await?), [1, 2, 4]);
+    assert_eq!(client.count(&board, &query).await?, 3);
+    let query = scoped(&[]);
+    assert_eq!(created(client.query(&board, &query).await?), [1, 2]);
+    assert_eq!(client.count(&board, &query).await?, 2);
+    let query = scoped(&["election-a", "election-b"]);
+    assert_eq!(client.count(&board, &query).await?, 4);
+    client.delete_board(&board).await?;
+    Ok(())
+}
+
 async fn trellis_store() -> Result<(PostgresStore, String, tokio_postgres::Client)> {
     use electoral_log::ports::ElectoralLogStore;
     let url = std::env::var("ELECTORAL_LOG_TEST_DATABASE_URL")?;

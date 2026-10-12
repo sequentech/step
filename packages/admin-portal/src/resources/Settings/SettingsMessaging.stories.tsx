@@ -11,7 +11,7 @@ import {IPermissions} from "@/types/keycloak"
 import {EMessageAttemptState, IMessagingAccount} from "@/types/messaging"
 import {SettingsMessaging} from "./SettingsMessaging"
 import {TENANT_RESOURCE, settingsTenant} from "./__stories__/SettingsFixture"
-import {SMS_ACCOUNT_ID, messagingAccounts} from "./__stories__/MessagingFixture"
+import {SMS_ACCOUNT_ID, callbackUrlHandler, messagingAccounts} from "./__stories__/MessagingFixture"
 
 type EReads = "records" | "loading" | "error"
 
@@ -41,6 +41,9 @@ const meta = {
         data = resourceBoundary({[TENANT_RESOURCE]: [settingsTenant()]})
         graphql = graphqlBoundary({
             GetMessagingAccounts: accountsReply(args.reads, args.empty ? [] : messagingAccounts()),
+            GetMessagingCallbackStatus: () => ({
+                data: {messaging_callback_status: {accounts: []}},
+            }),
             CheckMessagingAccount: () => ({
                 data: {check_messaging_account: {status: {connected: true}}},
             }),
@@ -56,6 +59,15 @@ const meta = {
             DeleteMessagingAccount: () => ({
                 data: {delete_messaging_account: {id: SMS_ACCOUNT_ID}},
             }),
+            MessagingAccountCallbackUrl: callbackUrlHandler,
+            GetMessagingMonthlyVolumes: ({variables}) => ({
+                data: {messaging_monthly_volumes: {month: variables.month, rows: []}},
+            }),
+            // The dev fake provider routes aren't mounted: no Sent messages tab
+            // (its stories are under Settings/Sent messages).
+            MessagingFakeProviderMessages: () => {
+                throw new Error("Synthetic http exception when calling webhook")
+            },
         })
         await graphql.ready
     },
@@ -72,7 +84,7 @@ const accountRow = (canvasElement: HTMLElement, name: string) =>
     within(canvasElement).findByRole("row", {name: new RegExp(name)})
 
 export const Accounts: Story = {
-    parameters: {widgets: ["ReadinessCell"]},
+    parameters: {widgets: ["ReadinessCell", "MessagingAccountList"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(
@@ -85,15 +97,34 @@ export const Accounts: Story = {
         const sms = await accountRow(canvasElement, "Council SMS")
         await expect(within(sms).getByText("The account is in the SMS sandbox.")).toBeVisible()
         await expect(within(sms).getAllByText("Needs production access").length).toBe(2)
+        // An account of a removed provider, once confirmed by an administrator: unsupported.
         const partner = await accountRow(canvasElement, "Partner gateway")
-        await expect(within(partner).getByText("Custom HTTP API")).toBeVisible()
-        await expect(within(partner).getByText("Confirmed by an administrator")).toBeVisible()
-        await expect(within(partner).getByText("Ready for OTP")).toBeVisible()
-        await expect(within(partner).getByText("Check not used")).toBeVisible()
-        expect(within(partner).queryByText("Not connected")).toBeNull()
+        await expect(within(partner).getByText("Not connected")).toBeVisible()
+        await expect(
+            within(partner).getAllByText("Unsupported provider: replace this account")
+        ).toHaveLength(3)
+        expect(within(partner).queryByText("Ready for OTP")).toBeNull()
+        expect(within(partner).queryByText("Confirmed by an administrator")).toBeNull()
+        expect(within(partner).queryByRole("button", {name: /Check the connection/})).toBeNull()
+        await expect(
+            within(partner).getByRole("button", {name: "Delete Partner gateway"})
+        ).toBeVisible()
         const messenger = await accountRow(canvasElement, "Council Page")
         await expect(within(messenger).getByText("Not checked yet")).toBeVisible()
-        expect(graphql.calls[0]).toMatchObject({
+        // Channel order: WhatsApp, Viber, Messenger, SMS, Email.
+        const names = within(canvasElement)
+            .getAllByRole("row")
+            .slice(1)
+            .map((row) => row.querySelectorAll("td")[1]?.textContent)
+        await expect(names).toEqual([
+            "Council WhatsApp",
+            "Council Viber",
+            "Partner gateway",
+            "Council Page",
+            "Council SMS",
+            "Council email",
+        ])
+        expect(graphql.calls.find(({name}) => name === "GetMessagingAccounts")).toMatchObject({
             name: "GetMessagingAccounts",
             variables: {tenantId: TENANT_ID},
             headers: {"x-hasura-role": IPermissions.MESSAGING_ACCOUNT_READ},
@@ -118,13 +149,18 @@ export const CheckConnection: Story = {
             within(row).getByRole("button", {name: "Check the connection of Council SMS"})
         )
         await waitFor(() =>
-            expect(graphql.calls.map(({name}) => name)).toEqual([
-                "GetMessagingAccounts",
-                "CheckMessagingAccount",
-                "GetMessagingAccounts",
-            ])
+            expect(
+                graphql.calls
+                    .map(({name}) => name)
+                    .filter(
+                        (name) =>
+                            name !== "GetMessagingCallbackStatus" &&
+                            name !== "MessagingFakeProviderMessages" &&
+                            name !== "GetMessagingMonthlyVolumes"
+                    )
+            ).toEqual(["GetMessagingAccounts", "CheckMessagingAccount", "GetMessagingAccounts"])
         )
-        expect(graphql.calls[1]).toMatchObject({
+        expect(graphql.calls.find(({name}) => name === "CheckMessagingAccount")).toMatchObject({
             variables: {id: SMS_ACCOUNT_ID},
             headers: {"x-hasura-role": IPermissions.MESSAGING_ACCOUNT_WRITE},
         })
@@ -165,7 +201,7 @@ export const AddAccount: Story = {
         await accountRow(canvasElement, "Council SMS")
         await userEvent.click(within(canvasElement).getByRole("button", {name: "Add account"}))
         const drawer = within(await within(document.body).findByRole("presentation"))
-        await expect(await drawer.findByRole("textbox", {name: /From address/})).toBeVisible()
+        await expect(await drawer.findByRole("textbox", {name: /Phone number ID/})).toBeVisible()
     },
 }
 
@@ -195,5 +231,30 @@ export const LoadError: Story = {
         await expect(
             await within(canvasElement).findByText("The sending accounts could not be loaded.")
         ).toBeVisible()
+    },
+}
+
+export const FluidDescription: Story = {
+    play: async ({canvasElement}) => {
+        const intro = await within(canvasElement).findByText(
+            /Accounts that send voters their codes and notices/
+        )
+        const container = intro.parentElement as HTMLElement
+        const originalWidth = container.style.width
+        try {
+            for (const width of [1200, 600]) {
+                container.style.width = `${width}px`
+                await waitFor(() => {
+                    const button = within(container).getByRole("button", {name: "Add account"})
+                    const gap = parseFloat(getComputedStyle(container).columnGap)
+                    expect(intro.getBoundingClientRect().right).toBeCloseTo(
+                        button.getBoundingClientRect().left - gap,
+                        0
+                    )
+                })
+            }
+        } finally {
+            container.style.width = originalWidth
+        }
     },
 }

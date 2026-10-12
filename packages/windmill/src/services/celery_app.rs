@@ -13,6 +13,7 @@ use strum_macros::{AsRefStr, EnumIter, EnumString, IntoStaticStr};
 use tokio::sync::OnceCell;
 use tracing::{event, instrument, Level};
 
+use crate::services::messaging::checks::check_messaging_accounts;
 use crate::services::plugins_manager::plugin_manager::init_plugin_manager;
 use crate::tasks::activity_logs_report::generate_activity_logs_report;
 use crate::tasks::apply_reconciliation_patch::apply_reconciliation_patch;
@@ -59,6 +60,7 @@ use crate::tasks::manage_election_lifecycle_window::manage_election_lifecycle_wi
 use crate::tasks::manage_election_voting_period_end::manage_election_voting_period_end;
 use crate::tasks::manage_electoral_log_dead_letters::manage_electoral_log_dead_letters;
 use crate::tasks::manual_verification_report::generate_manual_verification_report;
+use crate::tasks::migrate_messaging_attributes::migrate_messaging_attributes;
 use crate::tasks::migrate_realm_permissions::migrate_realm_permissions;
 use crate::tasks::migrate_registration_flows::migrate_registration_flows;
 use crate::tasks::miru_plugin_tasks::create_transmission_package_task;
@@ -75,6 +77,9 @@ use crate::tasks::publish_results_website::publish_results_website_task;
 use crate::tasks::purge_queue_archives::purge_queue_archives;
 use crate::tasks::recompute_schedule_instants::recompute_schedule_instants;
 use crate::tasks::reconcile_messages::reconcile_messages;
+use crate::tasks::recount_messaging_voters::{
+    recount_messaging_voters, recount_messaging_voters_due,
+};
 use crate::tasks::refresh_monitoring_snapshot::{
     refresh_monitoring_event_snapshot, refresh_monitoring_snapshots,
 };
@@ -291,6 +296,9 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             create_keys,
             review_boards,
             reconcile_messages,
+            check_messaging_accounts,
+            recount_messaging_voters,
+            recount_messaging_voters_due,
             process_board,
             render_report,
             generate_report,
@@ -363,6 +371,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             sweep_signing_executions,
             refresh_staff_crls,
             migrate_registration_flows,
+            migrate_messaging_attributes,
             run_signed_action,
             manage_election_lifecycle_window,
             enforce_signed_closes_task,
@@ -374,7 +383,14 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
         task_routes = [
             create_keys::NAME => Queue::Short.queue_name(),
             review_boards::NAME => Queue::Beat.queue_name(),
-            reconcile_messages::NAME => Queue::Communication.queue_name(),
+            // The messaging sweep must not wait behind bulk sends.
+            reconcile_messages::NAME => Queue::Beat.queue_name(),
+            // The daily account check: a few provider requests per account.
+            check_messaging_accounts::NAME => Queue::Beat.queue_name(),
+            // Voter recounts: long counts on the Keycloak database, kept off
+            // the sweep's queue; beat's pass only asks for them.
+            recount_messaging_voters::NAME => Queue::Monitoring.queue_name(),
+            recount_messaging_voters_due::NAME => Queue::Beat.queue_name(),
             process_board::NAME => Queue::Beat.queue_name(),
             render_report::NAME => Queue::Reports.queue_name(),
             create_ballot_receipt::NAME => Queue::Reports.queue_name(),
@@ -447,6 +463,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             generate_voter_information_letter::NAME => Queue::Reports.queue_name(),
             migrate_realm_permissions::NAME => Queue::Short.queue_name(),
             migrate_registration_flows::NAME => Queue::Short.queue_name(),
+            migrate_messaging_attributes::NAME => Queue::Short.queue_name(),
             post_signing_log_outbox::NAME => Queue::ElectoralLogBeat.queue_name(),
             expire_signing_requests::NAME => Queue::Beat.queue_name(),
             sweep_signing_executions::NAME => Queue::Beat.queue_name(),
@@ -471,4 +488,51 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
     )
     .await
     .map_err(|err| anyhow!("{:?}", err))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    /// `task::NAME => Queue::X` pairs of a `task_routes = [...]` list.
+    fn routes(source: &str) -> BTreeMap<String, String> {
+        let start = source.find("task_routes = [").expect("a task_routes list");
+        let list = &source[start..];
+        let end = list.find("\n        ],").expect("the end of the list");
+        list[..end]
+            .lines()
+            .filter_map(|line| {
+                let line = line.trim();
+                let (task, queue) = line.split_once("::NAME => Queue::")?;
+                let queue = queue.split('.').next()?;
+                Some((task.to_string(), queue.to_string()))
+            })
+            .collect()
+    }
+
+    /// Beat routes the tasks it schedules itself, and the workers route
+    /// every task: both must send a task to the same queue.
+    #[test]
+    fn beat_and_worker_routes_agree() {
+        let worker = routes(include_str!("celery_app.rs"));
+        let beat = routes(include_str!("../bin/beat.rs"));
+        assert!(beat.len() > 5, "{beat:?}");
+        for (task, queue) in &beat {
+            assert_eq!(
+                worker.get(task),
+                Some(queue),
+                "{task} goes to {queue} from beat but not from the workers"
+            );
+        }
+        assert_eq!(
+            worker.get("reconcile_messages").map(String::as_str),
+            Some("Beat")
+        );
+        for routes in [&worker, &beat] {
+            assert_eq!(
+                routes.get("check_messaging_accounts").map(String::as_str),
+                Some("Beat")
+            );
+        }
+    }
 }

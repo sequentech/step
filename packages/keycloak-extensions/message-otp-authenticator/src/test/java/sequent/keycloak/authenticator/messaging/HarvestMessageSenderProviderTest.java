@@ -147,6 +147,21 @@ class HarvestMessageSenderProviderTest {
   }
 
   @Test
+  void aFailedSendsReasonIsLogged() {
+    String reason = "Not sent: the account stayed at its sending limit for too long";
+    respond(
+        "/messages/send",
+        200,
+        "{\"message_id\":\"m-4\",\"state\":\"FAILED\",\"reason\":\"" + reason + "\"}");
+    try (CapturedLogs logs = new CapturedLogs(HarvestMessageSenderProvider.class)) {
+      SendMessageResponse response = sender(base).send(otp());
+      assertEquals(MessageAttemptState.FAILED, response.attemptState());
+      assertTrue(logs.text().contains(reason), logs.text());
+      assertFalse(logs.text().contains(DESTINATION));
+    }
+  }
+
+  @Test
   void anUnknownOutcomeStaysUnknown() {
     respond("/messages/send", 200, "{\"message_id\":\"m-2\",\"state\":\"UNKNOWN\"}");
     assertEquals(MessageAttemptState.UNKNOWN, sender(base).send(otp()).attemptState());

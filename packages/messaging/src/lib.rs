@@ -4,8 +4,9 @@
 
 //! Voter messaging shared by harvest and windmill: provider adapters for
 //! email, SMS, WhatsApp, Viber and Messenger, the decisions about delivery
-//! attempts, sending rates, Messenger link references and the verification
-//! of provider webhooks.
+//! attempts, sending rates, Messenger link references, the verification
+//! of provider webhooks and the relay envelope that carries them from the
+//! public webhook component to harvest.
 //!
 //! Persistence stays with the callers: this crate decides and talks to
 //! providers, and never stores message bodies or codes.
@@ -16,7 +17,9 @@ pub mod link;
 pub mod parameters;
 pub mod providers;
 pub mod rate_limit;
+pub mod relay;
 pub mod sender;
+pub mod sigv4;
 pub mod webhooks;
 
 #[cfg(any(test, feature = "test-support"))]

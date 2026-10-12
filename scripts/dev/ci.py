@@ -21,6 +21,8 @@ RUST = (
     "pgmq-broker",
     "harvest",
     "strand",
+    "messaging",
+    "messaging-webhooks",
     "sequent-core",
     "step-cli",
     "velvet",

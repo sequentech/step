@@ -11,6 +11,7 @@ COPY ./sequent-core ./sequent-core
 COPY ./windmill ./windmill
 COPY ./pgmq-broker ./pgmq-broker
 COPY ./wrap-map-err ./wrap-map-err
+COPY ./messaging ./messaging
 COPY ./velvet ./velvet
 
 RUN cp /app/windmill/external-bin/ecies-tool.jar /usr/local/bin/

@@ -10,7 +10,7 @@ use crate::{
     services::{
         delete_election_event::{
             delete_election_event_electoral_log, delete_election_event_related_documents,
-            delete_event_b3, delete_keycloak_realm,
+            delete_keycloak_realm, find_election_event_deletion_refusal,
         },
         providers::transactions_provider::provide_hasura_transaction,
     },
@@ -42,11 +42,23 @@ async fn delete_election_event(
     tenant_id: String,
     election_event_id: String,
     realm: String,
+    permission_labels: Vec<String>,
 ) -> AnyhowResult<()> {
     let tenant_id_cloned = tenant_id.clone();
     let election_event_id_cloned = election_event_id.clone();
     provide_hasura_transaction(|hasura_transaction| {
         Box::pin(async move {
+            if let Some(refusal) = find_election_event_deletion_refusal(
+                hasura_transaction,
+                &tenant_id_cloned,
+                &election_event_id_cloned,
+                &permission_labels,
+            )
+            .await?
+            {
+                return Err(refusal.into());
+            }
+
             delete_election_event_in(
                 hasura_transaction,
                 &tenant_id_cloned,
@@ -78,10 +90,6 @@ pub async fn delete_election_event_in(
 ) -> AnyhowResult<()> {
     refuse_sealed_event_delete(hasura_transaction, tenant_id, election_event_id).await?;
 
-    delete_event_b3(hasura_transaction, tenant_id, election_event_id)
-        .await
-        .map_err(|err| anyhow!("Error deleting election event from hasura db: {err}"))?;
-
     let election_ids = get_elections_ids(hasura_transaction, tenant_id, election_event_id).await?;
 
     delete_election_event_postgres(hasura_transaction, tenant_id, election_event_id)
@@ -103,8 +111,9 @@ pub async fn delete_election_event_t(
     election_event_id: String,
     realm: String,
     task_execution: TasksExecution,
+    permission_labels: Vec<String>,
 ) -> Result<()> {
-    let res = delete_election_event(tenant_id, election_event_id, realm).await;
+    let res = delete_election_event(tenant_id, election_event_id, realm, permission_labels).await;
 
     let _ = match res {
         Ok(_) => {

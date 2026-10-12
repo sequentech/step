@@ -22,6 +22,8 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 [profiles.sequent-core.excluded_files]
 "src/time_zones_tests.rs" = "Standalone unit-test module under cfg(test); timezone selection, lifecycle defaults and public policy wire contracts remain measured."
 "src/services/reports_time_zones_tests.rs" = "Standalone unit-test module under cfg(test); report timezone rendering remains measured."
+"src/services/keycloak/realm_scope_tests.rs" = "Standalone unit-test module under cfg(test); the Keycloak admin request path checks remain measured."
+"src/services/keycloak/path_segment_tests.rs" = "Standalone unit-test module under cfg(test); the Keycloak path segment checks remain measured."
 "src/fixtures/ballot_codec.rs" = "Synthetic ballots, expected vectors and test builders shared with test consumers; no ballot validation or cryptography implementations."
 "src/fixtures/encrypt.rs" = "Sample election data compiled only under cfg(test); no active test callers."
 "src/election_config/architect_tests.rs" = "Standalone unit-test module under cfg(test); the election blueprint planner remains measured."
@@ -61,6 +63,7 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/monitoring/sources_tests.rs" = "Standalone unit-test module under cfg(test); the data source catalogue remains measured."
 "src/monitoring/voter_tests.rs" = "Standalone unit-test module under cfg(test); the voter-facing view remains measured."
 "src/types/permissions_tests.rs" = "Standalone unit-test module under cfg(test); the permission names remain measured."
+"src/types/voter_channel_tests.rs" = "Standalone unit-test module under cfg(test); the channel rule remains measured."
 "src/signing/canonical_tests.rs" = "Standalone unit-test module under cfg(test); the canonical payload remains measured."
 "src/signing/code_tests.rs" = "Standalone unit-test module under cfg(test); the signing code remains measured."
 "src/signing/types_tests.rs" = "Standalone unit-test module under cfg(test); the signing types remain measured."
@@ -102,6 +105,8 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 [profiles.sequent-core-native.excluded_files]
 "src/time_zones_tests.rs" = "Standalone unit-test module under cfg(test); timezone selection, lifecycle defaults and public policy wire contracts remain measured."
 "src/services/reports_time_zones_tests.rs" = "Standalone unit-test module under cfg(test); report timezone rendering remains measured."
+"src/services/keycloak/realm_scope_tests.rs" = "Standalone unit-test module under cfg(test); the Keycloak admin request path checks remain measured."
+"src/services/keycloak/path_segment_tests.rs" = "Standalone unit-test module under cfg(test); the Keycloak path segment checks remain measured."
 "src/fixtures/ballot_codec.rs" = "Synthetic ballots, expected vectors and test builders shared with test consumers; no ballot validation or cryptography implementations."
 "src/fixtures/encrypt.rs" = "Sample election data compiled only under cfg(test); no active test callers."
 "src/election_config/architect_tests.rs" = "Standalone unit-test module under cfg(test); the election blueprint planner remains measured."
@@ -141,6 +146,7 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/monitoring/sources_tests.rs" = "Standalone unit-test module under cfg(test); the data source catalogue remains measured."
 "src/monitoring/voter_tests.rs" = "Standalone unit-test module under cfg(test); the voter-facing view remains measured."
 "src/types/permissions_tests.rs" = "Standalone unit-test module under cfg(test); the permission names remain measured."
+"src/types/voter_channel_tests.rs" = "Standalone unit-test module under cfg(test); the channel rule remains measured."
 "src/signing/canonical_tests.rs" = "Standalone unit-test module under cfg(test); the canonical payload remains measured."
 "src/signing/code_tests.rs" = "Standalone unit-test module under cfg(test); the signing code remains measured."
 "src/signing/types_tests.rs" = "Standalone unit-test module under cfg(test); the signing types remain measured."
@@ -238,6 +244,23 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 
 [profiles.wrap-map-err.scope_exceptions]
 
+[profiles.messaging-webhooks]
+package = "messaging-webhooks"
+features = []
+limitations = [
+    "Library tests drive the component through Rocket's local client against a loopback stand-in for harvest; the relay envelope and signature are measured in the messaging crate.",
+    "Process startup (environment and launch) is excluded; the configuration it reads and the Rocket it launches are measured through the library.",
+    "Branch coverage and a deployed harvest are separate scopes.",
+]
+issue = "https://github.com/sequentech/meta/issues/13755"
+
+[profiles.messaging-webhooks.excluded_files]
+"src/main.rs" = "Process startup only: reads the environment and launches the library's Rocket; Config::from_vars and build are measured."
+"src/tests.rs" = "Standalone unit-test module under cfg(test); the routes, relay and configuration remain measured."
+
+# Every measured file contains executable code; no scope exceptions.
+[profiles.messaging-webhooks.scope_exceptions]
+
 [profiles.harvest]
 package = "harvest"
 features = []
@@ -260,12 +283,12 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/ports/identity.rs" = "Identity admin trait declaration only; implementations are measured in adapters."
 "src/ports/mod.rs" = "Module declarations only."
 "src/ports/monitoring_snapshots.rs" = "Monitoring snapshot trait declaration and Windmill re-exports only; implementations are measured in adapters."
+"src/ports/service_keys.rs" = "Service key source trait declaration only; implementations are measured in adapters."
 "src/ports/task_ledger.rs" = "Task ledger trait declaration only; implementations are measured in adapters."
 "src/ports/user_tasks.rs" = "User task trait and data declarations only; implementations are measured in adapters."
 "src/ports/vault.rs" = "Secret vault trait declaration only; implementations are measured in adapters."
 "src/routes/mod.rs" = "Module declarations only; registered route implementations are inventoried separately."
 "src/services/mod.rs" = "Module declarations only."
-"src/services/authorization.rs" = "Imports and re-exports of Sequent Core authorization; no handwritten executable methods."
 "src/types/mod.rs" = "Module declarations only."
 "src/types/optional.rs" = "Struct and derives only; no handwritten executable methods or LLVM line regions."
 
@@ -319,6 +342,7 @@ ELECTORAL_LOG_PG_SSLMODE = "disable"
 ENV_SLUG = "electoral-log-tests"
 
 [profiles.windmill.excluded_files]
+"src/services/messaging/insights_tests.rs" = "Standalone unit-test module under cfg(test); the messaging audience preview and stats remain measured."
 "src/services/ceremonies/keys_ceremony_tests.rs" = "Standalone unit-test module under cfg(test); the keys ceremony use cases remain measured."
 "src/services/ceremonies/tally_ceremony_creation_tests.rs" = "Standalone unit-test module under cfg(test); the tally creation use case remains measured."
 "src/services/ceremonies/tally_ceremony_state_tests.rs" = "Standalone unit-test module under cfg(test); the tally ceremony use case remains measured."
@@ -431,7 +455,6 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/utils/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 "src/utils/publication/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 "src/utils/tally/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
-"src/utils/trustees/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 
 # These public settings prevent accidental inheritance of deployment endpoints.
 # The current file/input tests do not require a running database.

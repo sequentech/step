@@ -30,6 +30,8 @@ COPY ./e2e ./e2e
 COPY ./step-cli ./step-cli
 COPY ./orare ./orare
 COPY ./wrap-map-err ./wrap-map-err
+COPY ./messaging ./messaging
+COPY ./messaging-webhooks ./messaging-webhooks
 COPY ./braid/scripts ./braid/scripts
 COPY ./Cargo.toml ./Cargo.toml
 COPY ./Cargo.lock ./Cargo.lock

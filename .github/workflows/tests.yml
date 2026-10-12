@@ -243,6 +243,10 @@ jobs:
       ELECTORAL_LOG_PG_DATABASE: "test"
       ELECTORAL_LOG_PG_SSLMODE: "disable"
       ENV_SLUG: "electoral-log-tests"
+      # Each integration target links the service; full debug symbols exhaust runners.
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
+      CARGO_INCREMENTAL: "0"
     services:
       postgres:
         image: postgres:16
@@ -335,6 +339,13 @@ jobs:
       - name: Remove the voting-flow database fixture
         if: always() && steps.castvote-fixture.outputs.created == 'true'
         run: docker rm --force --volumes step-castvote-fixture
+
+      - name: Run PostgreSQL-backed delegate-count regression
+        run: >-
+          cargo test
+          services::users::tests::delegate_count_only_counts_eligible_delegators_without_a_ballot
+          -- --ignored --exact
+        working-directory: packages/windmill
 
   run-frontend-tests:
     name: ${{ matrix.package }} focused tests

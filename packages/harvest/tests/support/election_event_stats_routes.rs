@@ -78,6 +78,100 @@ async fn the_dashboard_counts_the_events_voters_elections_and_areas() {
     assert_eq!(votes, 3, "{body}");
 }
 
+/// As Hasura scoped the cast vote rows, the dashboards count only the ballots
+/// of the elections the admin's permission labels allow.
+#[rocket::async_test]
+async fn the_dashboards_count_only_the_ballots_of_permitted_elections() {
+    let services = Services::on_test_database().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let open = event.election(&services.hasura).await;
+    let labelled = event.election(&services.hasura).await;
+    rows::execute(
+        &services.hasura,
+        "UPDATE sequent_backend.election SET permission_label = $2 WHERE id = $1",
+        &[&uuid::Uuid::parse_str(&labelled).unwrap(), &"north"],
+    )
+    .await;
+    let area_id = event.area(&services.hasura, "North").await;
+    let ballot_box = event.ballot_box(&services.hasura).await;
+    event
+        .cast_vote(&ballot_box, &open, &area_id, "voter-1")
+        .await;
+    for voter in ["voter-2", "voter-3"] {
+        event
+            .cast_vote(&ballot_box, &labelled, &area_id, voter)
+            .await;
+    }
+    let south = dashboard(&event).permission_labels(&["south"]);
+    let north = dashboard(&event).permission_labels(&["north"]);
+    let votes = |body: &serde_json::Value| -> i64 {
+        body["votes_per_day"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|day| day["day_count"].as_i64().unwrap_or_default())
+            .sum()
+    };
+
+    for (claims, voters) in [(&south, 1), (&north, 3)] {
+        let (status, body) = json(
+            post(
+                &client,
+                "/election-event/stats",
+                claims,
+                &stats_request(&event),
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(status, Status::Ok, "{body}");
+        assert_eq!(body["total_distinct_voters"], voters, "{body}");
+        assert_eq!(votes(&body), voters, "{body}");
+    }
+
+    let mut labelled_stats = stats_request(&event);
+    labelled_stats["election_id"] = json!(labelled);
+    let (status, message) =
+        text(post(&client, "/election/stats", &south, &labelled_stats).await)
+            .await;
+    assert_eq!(status, Status::Forbidden, "{message}");
+    let (status, body) =
+        json(post(&client, "/election/stats", &north, &labelled_stats).await)
+            .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    assert_eq!(body["total_distinct_voters"], 2);
+
+    let (status, body) = json(
+        post(
+            &client,
+            "/election-event/top-votes-by-ip",
+            &south,
+            &json!({"election_event_id": event.election_event_id}),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    let items = body["items"].as_array().unwrap();
+    assert_eq!(items.len(), 1, "{body}");
+    assert_eq!(items[0]["election_id"], json!(open));
+    let (status, message) = text(
+        post(
+            &client,
+            "/election-event/top-votes-by-ip",
+            &south,
+            &json!({
+                "election_event_id": event.election_event_id,
+                "election_id": labelled,
+            }),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Forbidden, "{message}");
+}
+
 #[rocket::async_test]
 async fn the_top_voting_addresses_of_an_event_without_votes_are_empty() {
     let services = Services::on_test_database().await;

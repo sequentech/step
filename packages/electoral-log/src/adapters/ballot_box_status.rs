@@ -22,6 +22,13 @@ pub struct VoterBallotState {
     pub has_valid: bool,
 }
 
+impl VoterBallotState {
+    /// The voter has a ballot the tally will count or that is still resolving.
+    pub fn has_active_vote(&self) -> bool {
+        self.has_pending || self.has_valid
+    }
+}
+
 /// A ballot whose outcome is pending.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BallotToReview {

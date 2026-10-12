@@ -105,6 +105,8 @@ pub enum NumberComparison {
 pub enum Filter {
     Text(TextColumn, SqlCompOperators, String),
     Number(NumberColumn, NumberComparison, i64),
+    /// Entries of no election or of one of these elections.
+    ElectionScope(Vec<String>),
 }
 
 #[derive(Debug, Clone, Copy, Display, EnumString, PartialEq, Eq)]

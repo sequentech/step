@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::area::get_area_by_id;
+use crate::postgres::ballot_style::get_published_ballot_emls;
 use crate::postgres::election::{get_cast_vote_configuration, CastVoteConfiguration};
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::ballot_box::{accept_ballot, get_allowed_votes, BallotFormat};
@@ -30,11 +31,15 @@ use deadpool_postgres::Transaction;
 use electoral_log::adapters::ballot_box::{AcceptBallot, AcceptOutcome, BallotStatus};
 use electoral_log::messages::newtypes::*;
 use sequent_core::ballot::verify_ballot_signature;
+use sequent_core::ballot::BallotStyle;
+use sequent_core::ballot::BallotTrackerPolicy;
 use sequent_core::ballot::ContestEncryptionPolicy;
 // The tests build presentations with it; the grace period itself comes from
 // `ballot_box_seal::deadline::grace_period`.
 #[cfg(test)]
 use sequent_core::ballot::EGracePeriodPolicy;
+use sequent_core::ballot::ElectionEventPresentation;
+use sequent_core::ballot::LEGACY_TYPES_VERSION;
 use sequent_core::ballot::{
     AreaPresentation, EarlyVotingPolicy, ElectionPresentation, ElectionStatus, VoterSigningPolicy,
     VotingPeriodDates, VotingStatus, VotingStatusChannel,
@@ -43,6 +48,7 @@ use sequent_core::ballot::{HashableBallot, HashableBallotContest, SignedHashable
 use sequent_core::ballot_receipt::CastReceipt;
 use sequent_core::encrypt::hash_ballot;
 use sequent_core::encrypt::hash_ballot_sha512;
+use sequent_core::encrypt::hash_ballot_style;
 use sequent_core::encrypt::hash_multi_ballot;
 use sequent_core::encrypt::hash_multi_ballot_sha512;
 use sequent_core::encrypt::DEFAULT_PLAINTEXT_LABEL;
@@ -382,6 +388,8 @@ pub enum CastVoteError {
     #[serde(rename = "ballot_id_mismatch")]
     #[strum(to_string = "ballot_id_mismatch")]
     BallotIdMismatch(String),
+    #[serde(rename = "get_ballot_style_failed")]
+    GetBallotStyleFailed(String),
     #[serde(rename = "unknown_error")]
     UnknownError(String),
 }
@@ -508,10 +516,30 @@ pub(crate) async fn try_cast(
         }
     };
 
+    let (ballot_tracker_policy, published_ballot_styles) = ballot_tracker_context(
+        &hasura_transaction,
+        Some(&presentation),
+        tenant_id,
+        election_event_id,
+        area_id,
+        &input.election_id.to_string(),
+    )
+    .await?;
+
     let hash_result = if is_multi_contest {
-        deserialize_and_check_multi_ballot(&input, voter_id)
+        deserialize_and_check_multi_ballot(
+            &input,
+            voter_id,
+            &ballot_tracker_policy,
+            &published_ballot_styles,
+        )
     } else {
-        deserialize_and_check_ballot(&input, voter_id)
+        deserialize_and_check_ballot(
+            &input,
+            voter_id,
+            &ballot_tracker_policy,
+            &published_ballot_styles,
+        )
     };
 
     let (pseudonym_h, vote_h, voter_signature_data) = match hash_result {
@@ -633,10 +661,95 @@ pub(crate) async fn try_cast(
     }
 }
 
+/// The ballot tracker policy of the election event and the ballot styles a
+/// ballot can be encrypted with to be accepted for the voter's area and
+/// election.
+pub async fn ballot_tracker_context(
+    hasura_transaction: &Transaction<'_>,
+    presentation: Option<&ElectionEventPresentation>,
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &str,
+    election_id: &str,
+) -> Result<(BallotTrackerPolicy, Vec<PublishedBallotStyleHash>), CastVoteError> {
+    let ballot_tracker_policy = presentation
+        .and_then(|presentation| presentation.ballot_tracker_policy.clone())
+        .unwrap_or_default();
+    let published_ballot_styles = get_published_ballot_emls(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        area_id,
+        election_id,
+    )
+    .await
+    .map_err(|e| CastVoteError::GetBallotStyleFailed(e.to_string()))?
+    .iter()
+    .map(|ballot_eml| PublishedBallotStyleHash::from_ballot_eml(ballot_eml))
+    .collect::<Result<Vec<_>, _>>()?;
+    Ok((ballot_tracker_policy, published_ballot_styles))
+}
+
+/// The id and hash of a ballot style a ballot can be encrypted with to be
+/// accepted.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PublishedBallotStyleHash {
+    pub id: String,
+    pub hash: String,
+}
+
+impl PublishedBallotStyleHash {
+    pub fn from_ballot_eml(ballot_eml: &str) -> Result<Self, CastVoteError> {
+        let ballot_style: BallotStyle = deserialize_str(ballot_eml)
+            .map_err(|e| CastVoteError::GetBallotStyleFailed(e.to_string()))?;
+        let hash = hash_ballot_style(&ballot_style)
+            .map_err(|e| CastVoteError::GetBallotStyleFailed(e.to_string()))?;
+        Ok(PublishedBallotStyleHash {
+            id: ballot_style.id,
+            hash,
+        })
+    }
+}
+
+/// The tracker of a current ballot covers the ballot style it names, so that
+/// style must be one published for the voter's area and election. A legacy
+/// ballot's tracker does not cover it, and it is only accepted when the
+/// election event's [`BallotTrackerPolicy`] allows it.
+pub fn check_ballot_style_binding(
+    version: u32,
+    ballot_style_id: &str,
+    ballot_style_hash: &str,
+    ballot_tracker_policy: &BallotTrackerPolicy,
+    published_ballot_styles: &[PublishedBallotStyleHash],
+) -> Result<(), CastVoteError> {
+    if version == LEGACY_TYPES_VERSION {
+        return match ballot_tracker_policy {
+            BallotTrackerPolicy::ALLOW_LEGACY => Ok(()),
+            BallotTrackerPolicy::STYLE_BOUND => Err(CastVoteError::BallotStyleMismatch(format!(
+                "Ballot version {version} is not accepted by the ballot tracker policy \
+                 {ballot_tracker_policy}"
+            ))),
+        };
+    }
+
+    if published_ballot_styles
+        .iter()
+        .any(|published| published.id == ballot_style_id && published.hash == ballot_style_hash)
+    {
+        return Ok(());
+    }
+    Err(CastVoteError::BallotStyleMismatch(format!(
+        "Ballot style {ballot_style_id} with hash {ballot_style_hash} is not published for this \
+         election and area"
+    )))
+}
+
 #[instrument(skip(input), err)]
 pub fn deserialize_and_check_ballot(
     input: &InsertCastVoteInput,
     voter_id: &str,
+    ballot_tracker_policy: &BallotTrackerPolicy,
+    published_ballot_styles: &[PublishedBallotStyleHash],
 ) -> Result<
     (
         PseudonymHash,
@@ -666,6 +779,14 @@ pub fn deserialize_and_check_ballot(
             computed_hash, input.ballot_id
         )));
     }
+
+    check_ballot_style_binding(
+        hashable_ballot.version,
+        &hashable_ballot.config,
+        &hashable_ballot.ballot_style_hash,
+        ballot_tracker_policy,
+        published_ballot_styles,
+    )?;
 
     let pseudonym_hash_bytes = hash_voter_id(voter_id)
         .map_err(|e| CastVoteError::SerializeVoterIdFailed(e.to_string()))?;
@@ -705,6 +826,8 @@ pub fn deserialize_and_check_ballot(
 pub fn deserialize_and_check_multi_ballot(
     input: &InsertCastVoteInput,
     voter_id: &str,
+    ballot_tracker_policy: &BallotTrackerPolicy,
+    published_ballot_styles: &[PublishedBallotStyleHash],
 ) -> Result<
     (
         PseudonymHash,
@@ -735,6 +858,14 @@ pub fn deserialize_and_check_multi_ballot(
             computed_hash, input.ballot_id
         )));
     }
+
+    check_ballot_style_binding(
+        hashable_multi_ballot.version,
+        &hashable_multi_ballot.config,
+        &hashable_multi_ballot.ballot_style_hash,
+        ballot_tracker_policy,
+        published_ballot_styles,
+    )?;
 
     let pseudonym_hash_bytes = hash_voter_id(voter_id)
         .map_err(|e| CastVoteError::SerializeVoterIdFailed(e.to_string()))?;

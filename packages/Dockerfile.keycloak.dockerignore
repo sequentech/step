@@ -7,6 +7,12 @@
 !Dockerfile.keycloak
 !keycloak-extensions
 !keycloak-extensions/**
+# Shared Rust definitions read by the OTP contract tests
+!sequent-core
+!sequent-core/src
+!sequent-core/src/types
+!sequent-core/src/types/messaging.rs
+!sequent-core/src/types/dial_codes.rs
 # The React login themes and the workspace packages they build with
 !package.json
 !yarn.lock

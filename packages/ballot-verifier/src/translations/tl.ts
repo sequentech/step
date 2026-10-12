@@ -33,6 +33,15 @@ const tagalogTranslation = {
             ciphertextErrorTitle: "Nabigo ang pagberipika ng balota",
             ciphertextErrorDescription:
                 "Ang ciphertext ng sinisiyasat na balotang ito ay hindi ang pag-encrypt ng plaintext at randomness na nilalaman nito. Hindi mapagkakatiwalaan ang balota.",
+            verificationErrorTitle: "Nabigo ang pagberipika ng balota",
+            unpublishedStyleErrorDescription:
+                "Ang sinisiyasat na balotang ito ay hindi tumutugma sa alinmang balotang inilathala para sa election event na ito, kaya hindi ito maberipika.",
+            unavailableStyleErrorDescription:
+                "Hindi ma-load ang mga balotang inilathala para sa election event na ito, kaya hindi pa maberipika ang sinisiyasat na balotang ito. Pakisubukang muli.",
+            styleErrorDescription:
+                "Ang ballot style ng sinisiyasat na balotang ito ay hindi ang inilathala para sa halalan: iba ang public key o ang mga contest at kandidato nito, o hindi ito nailathala. Hindi mapagkakatiwalaan ang balota.",
+            legacyBallotWarning:
+                "Gumagamit ang sinisiyasat na balotang ito ng lumang format na ang Ballot ID ay hindi sumasaklaw sa ballot style. Hindi makukumpirma ng Ballot ID nito na na-encrypt ang balota gamit ang inilathalang susi ng halalan.",
             useSampleLink: "Gamitin ang sample na balota",
             nextButton: "Susunod",
             ballotIdLabel: "ID ng Balota",

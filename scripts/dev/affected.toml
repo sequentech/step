@@ -63,7 +63,7 @@ summary = "Editor, review-bot, release and repository settings that no check rea
 summary = "The devenv toolchain: Node, Yarn, Rust, Java and the tools every check runs with"
 
 [units.rust-toolchain]
-summary = "rust-toolchain.toml and packages/.cargo: compiler and Cargo configuration"
+summary = "Rust toolchain, Cargo configuration and vendored dependency patches"
 consumers = ["cargo:*"]
 
 [units.devcontainer]
@@ -83,8 +83,9 @@ summary = "GitHub workflows and composite actions; a workflow selects the checks
 
 [units.scripts-dev]
 summary = "step-dev developer commands and the selection model"
-# The signing organization and janitor preset tests read these.
-test_inputs = ["packages/windmill/external-bin/janitor/signing_preset.py", "packages/windmill/external-bin/janitor/approval_matrix_preset.py", "packages/windmill/external-bin/janitor/templates/COMELEC/**", "packages/windmill/external-bin/janitor/templates/association/**", "scripts/e2e/journeys/fixtures.py", "packages/voting-load/fixtures/election.json"]
+# The signing organization and janitor preset tests read these, and the
+# air-gap bundle test reads its files.
+test_inputs = ["scripts/airgap-files/**", "packages/windmill/external-bin/janitor/signing_preset.py", "packages/windmill/external-bin/janitor/approval_matrix_preset.py", "packages/windmill/external-bin/janitor/templates/COMELEC/**", "packages/windmill/external-bin/janitor/templates/association/**", "scripts/e2e/journeys/fixtures.py", "packages/voting-load/fixtures/election.json"]
 
 [units.scripts-coverage]
 summary = "Coverage runners and reporters"
@@ -126,6 +127,12 @@ summary = "Dormant source fragment without a manifest"
 
 [units.beyond]
 summary = "The beyond submodule, validated in its own repository"
+
+[units.messaging]
+summary = "Provider adapters, delivery attempt decisions, webhook verification and the relay envelope"
+
+[units.messaging-webhooks]
+summary = "The public webhook component: relays provider callbacks, signed, to harvest"
 
 [units.harvest]
 test_inputs = ["hasura/migrations/backend-db/**", ".devcontainer/postgresql/init.sh", "hasura/metadata/databases/backend-db/tables/**"]
@@ -169,7 +176,7 @@ units = ["scripts-dev"]
 broad = "the selection model changed"
 
 [[paths]]
-globs = ["rust-toolchain.toml", "packages/.cargo/**"]
+globs = ["rust-toolchain.toml", "packages/.cargo/**", "packages/patches/**"]
 units = ["rust-toolchain"]
 
 [[paths]]
@@ -228,7 +235,7 @@ globs = [
 units = ["repo-config"]
 
 [[paths]]
-globs = [".github/workflows/**", ".github/actions/**"]
+globs = [".github/workflows/**", ".github/actions/**", ".github/scripts/**"]
 units = ["ci"]
 
 [[paths]]
@@ -283,6 +290,11 @@ globs = [
     "scripts/update_license_headers.py",
 ]
 units = ["scripts-misc"]
+
+# The webhook component's image is also an image.
+[[paths]]
+globs = ["packages/messaging-webhooks/Dockerfile*"]
+units = ["messaging-webhooks", "docker-images"]
 
 [[paths]]
 globs = ["packages/test-support/**"]
@@ -564,7 +576,7 @@ workflows = ["wbraid.yml"]
 
 [[checks]]
 id = "cargo-test:{unit}"
-for_each = ["strand", "electoral-log", "pgmq-broker", "wrap-map-err", "step-cli"]
+for_each = ["strand", "electoral-log", "pgmq-broker", "wrap-map-err", "step-cli", "messaging", "messaging-webhooks"]
 kind = "test"
 runner = "cargo"
 cost = "fast"
@@ -662,7 +674,7 @@ runner = "cargo"
 cost = "fast"
 cwd = "packages"
 # Every election_config gate and monitoring, or their suites never run.
-command = "cargo test --locked -p sequent-core --features keycloak,default_features,election_config_xlsx,election_config_templates,election_config_archive,monitoring"
+command = "cargo test --locked -p sequent-core --features keycloak,default_features,election_config_xlsx,election_config_templates,election_config_archive,monitoring,areas"
 focus = ["cargo", "test", "--locked", "-p", "sequent-core", "--features", "keycloak,default_features,election_config_xlsx,election_config_templates,election_config_archive,monitoring"]
 workflows = ["tests.yml"]
 actions = ["setup-rust-tests", "setup-rust-cache"]

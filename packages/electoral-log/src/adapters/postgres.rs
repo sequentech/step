@@ -884,6 +884,10 @@ fn predicate(scope: LogScope<'_>, query: &LogQuery) -> (String, Parameters) {
                 format!("{column} {op} {}", params.push(value.clone()))
             }
             Filter::Number(column, op, value) => format!("{column} {op} {}", params.push(*value)),
+            Filter::ElectionScope(elections) => format!(
+                "(election_id IS NULL OR election_id = '' OR election_id = ANY({}))",
+                params.push(elections.clone())
+            ),
         });
     }
     if let Some(visibility) = &query.visibility {

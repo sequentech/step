@@ -590,10 +590,17 @@ async fn reads_cover_voters_administrators_and_reports() -> Result<()> {
     );
     assert_eq!(
         store
-            .voters_by_channel(&event, Some(second.as_str()))
+            .voters_by_channel(&event, Some(std::slice::from_ref(&second)))
             .await?,
         [("ONLINE".to_string(), 1)]
     );
+    assert_eq!(
+        store
+            .voters_by_channel(&event, Some(&[first.clone(), second.clone()]))
+            .await?,
+        store.voters_by_channel(&event, None).await?
+    );
+    assert!(store.voters_by_channel(&event, Some(&[])).await?.is_empty());
 
     let today: String = store
         .client()
@@ -631,7 +638,12 @@ async fn reads_cover_voters_administrators_and_reports() -> Result<()> {
         ..day.clone()
     };
     let buckets = store
-        .ballots_per_bucket(&event, Some(second.as_str()), &three_days, "ONLINE")
+        .ballots_per_bucket(
+            &event,
+            Some(std::slice::from_ref(&second)),
+            &three_days,
+            "ONLINE",
+        )
         .await?;
     assert_eq!(buckets.len(), 3);
     assert_eq!(
@@ -685,6 +697,28 @@ async fn reads_cover_voters_administrators_and_reports() -> Result<()> {
         )
         .await?;
     assert_eq!(second_page, by_ip[1..]);
+    let second_election = store
+        .ballots_by_ip(
+            &event,
+            &IpBallotsFilter {
+                elections: Some(std::slice::from_ref(&second)),
+                limit: 10,
+                ..Default::default()
+            },
+        )
+        .await?;
+    assert!(second_election.is_empty());
+    let first_election = store
+        .ballots_by_ip(
+            &event,
+            &IpBallotsFilter {
+                elections: Some(std::slice::from_ref(&first)),
+                limit: 10,
+                ..Default::default()
+            },
+        )
+        .await?;
+    assert_eq!(first_election, by_ip);
 
     let voters: Vec<String> = ["voter-a", "voter-d", "voter-e", "nobody"]
         .map(String::from)

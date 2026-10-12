@@ -47,6 +47,7 @@ const logRow = (
 })
 
 const SEAL_HASH = `ef187f0b${"3c".repeat(56)}22a65e5b`
+const MESSAGE_ID = "0f6f2a8e-3c1b-4d7e-9b2a-5e4d3c2b1a00"
 const SEALED = "Ballot box of Madrid Post, Spain sealed: 1,340 of 1,342 ballots counted."
 
 const logs = [
@@ -62,7 +63,16 @@ const logs = [
         "SendCommunications",
         {id: STORY_IDS.secondUser, name: "bob"},
         {event_type: "SEND_COMMUNICATIONS", log_type: "INFO", description: "Notification sent"},
-        {SendCommunications: {channel: "WHATSAPP", purpose: "NOTICE"}}
+        // As windmill writes it: the channel in lowercase, inside a JSON string.
+        {
+            SendCommunications: JSON.stringify({
+                channel: "whatsapp",
+                receiver: "+34 ••• ••• 214",
+                message_id: MESSAGE_ID,
+                attempt: 1,
+                outcome: "ACCEPTED",
+            }),
+        }
     ),
     logRow(
         2,
@@ -168,8 +178,24 @@ const meta = {
                         },
                     },
                 }),
+                GetLedgerMessageStates: () => ({
+                    data: {
+                        sequent_backend_message: [
+                            {
+                                id: MESSAGE_ID,
+                                channel: "WHATSAPP",
+                                state: "DELIVERED",
+                                attempt: 1,
+                                error: null,
+                                created_at: "2026-01-01T00:00:00.000Z",
+                                updated_at: "2026-01-01T00:01:00.000Z",
+                            },
+                        ],
+                    },
+                }),
             },
-            {schema: true}
+            // The ledger query is not in the generated schema yet.
+            {schema: true, unvalidated: ["GetLedgerMessageStates"]}
         )
         await graphql.ready
     },
@@ -188,8 +214,17 @@ async function exportAs(canvasElement: HTMLElement, format: "CSV" | "PDF") {
     return dialog
 }
 
+const ledgerReads = [
+    {
+        name: "GetLedgerMessageStates",
+        variables: {tenantId: STORY_IDS.tenant, ids: [MESSAGE_ID]},
+        headers: {"x-hasura-role": "messaging-config-read"},
+    },
+]
+
 /** Without a range, the whole log in the event's primary zone (UTC without zones). */
 const exported = (electionEventId: string, format: string) => [
+    ...ledgerReads,
     {
         name: "ExportElectionEventLogs",
         variables: {electionEventId, format, createdFrom: null, createdTo: null, timeZone: "UTC"},
@@ -218,6 +253,35 @@ export const Populated: Story = {
                 sort: {field: "id", order: "DESC"},
             }),
         ])
+        await waitFor(() => expect(graphql.calls).toEqual(ledgerReads))
+    },
+}
+
+/** The Status column reads the message's current state from the ledger. */
+export const StatusFromTheLedger: Story = {
+    args: {roles: ["logs-read", "messaging-config-read"]},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByText("bob")).toBeVisible()
+        await expect(canvas.getByText("WhatsApp")).toBeVisible()
+        await expect(await canvas.findByText("Delivered")).toBeVisible()
+        expect(graphql.calls).toEqual([
+            {
+                name: "GetLedgerMessageStates",
+                variables: {tenantId: STORY_IDS.tenant, ids: [MESSAGE_ID]},
+                headers: {"x-hasura-role": "messaging-config-read"},
+            },
+        ])
+    },
+}
+
+/** Without the ledger's role, the state the entry was written with. */
+export const StatusAsLogged: Story = {
+    args: {roles: ["logs-read"]},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByText("bob")).toBeVisible()
+        await expect(canvas.getByText("Accepted")).toBeVisible()
         expect(graphql.calls).toEqual([])
     },
 }
@@ -337,7 +401,7 @@ export const ExportAsCsv: Story = {
         const dialog = await exportAs(canvasElement, "CSV")
         const title = dialog.getByText("Export logs")
         await waitFor(() => expect(title).toBeVisible())
-        expect(graphql.calls).toEqual([])
+        await waitFor(() => expect(graphql.calls).toEqual(ledgerReads))
         await userEvent.click(dialog.getByRole("button", {name: "Export"}))
         await waitFor(() => expect(graphql.calls).toEqual(exported(EVENT_ID, "CSV")))
     },
@@ -350,7 +414,7 @@ export const CancelThePdfExport: Story = {
         await waitFor(() => expect(title).toBeVisible())
         await userEvent.click(dialog.getByRole("button", {name: "Cancel"}))
         await waitFor(() => expect(within(document.body).queryByRole("dialog")).toBeNull())
-        expect(graphql.calls).toEqual([])
+        await waitFor(() => expect(graphql.calls).toEqual(ledgerReads))
     },
 }
 

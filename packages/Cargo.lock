@@ -4585,6 +4585,7 @@ dependencies = [
  "keycloak",
  "lru",
  "messaging",
+ "messaging-webhooks",
  "openssl",
  "pgmq-broker",
  "quick-xml 0.32.0",
@@ -6224,6 +6225,7 @@ dependencies = [
  "aws-credential-types",
  "aws-sdk-sesv2",
  "aws-sdk-sns",
+ "base64 0.22.1",
  "chrono",
  "hex",
  "hmac",
@@ -6240,6 +6242,25 @@ dependencies = [
  "tokio",
  "tracing",
  "urlencoding",
+]
+
+[[package]]
+name = "messaging-webhooks"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "messaging",
+ "reqwest 0.12.24",
+ "rocket",
+ "sequent-core",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-log",
+ "tracing-subscriber",
+ "tracing-tree",
 ]
 
 [[package]]

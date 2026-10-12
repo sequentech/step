@@ -170,15 +170,18 @@ public final class PublicMessagingChannels {
   /**
    * Channels enabled for the purpose that the voter's Posts offer. A Post is the ID of its election
    * or any of its labels, compared without case or surrounding spaces. When no Post is known yet,
-   * only channels that every restricted election offers.
+   * only channels that every restricted election offers. Channels come in the ticket's order:
+   * WhatsApp, Viber, Messenger, SMS, Email.
    */
   public List<MessageChannel> channelsFor(
       MessagePurpose purpose, Collection<String> posts, UnmatchedPostPolicy unmatched) {
     List<MessageChannel> result = new ArrayList<>();
-    for (Map.Entry<MessageChannel, Channel> entry : channels.entrySet()) {
-      if (entry.getValue().purposes().contains(purpose)
-          && offeredTo(entry.getKey(), posts, unmatched)) {
-        result.add(entry.getKey());
+    for (MessageChannel channel : VoterChannel.CHANNEL_ORDER) {
+      Channel entry = channels.get(channel);
+      if (entry != null
+          && entry.purposes().contains(purpose)
+          && offeredTo(channel, posts, unmatched)) {
+        result.add(channel);
       }
     }
     return result;
@@ -209,6 +212,21 @@ public final class PublicMessagingChannels {
           || everyRestrictedElectionOffers(channel);
     }
     return elections.stream().allMatch(election -> electionOffers(channel, election));
+  }
+
+  /**
+   * Channels the event enables for the purpose, for at least one Post, in the ticket's order: what
+   * a voter of the event may be offered, before knowing their Post.
+   */
+  public List<MessageChannel> channelsWithPurpose(MessagePurpose purpose) {
+    List<MessageChannel> result = new ArrayList<>();
+    for (MessageChannel channel : VoterChannel.CHANNEL_ORDER) {
+      Channel entry = channels.get(channel);
+      if (entry != null && entry.purposes().contains(purpose)) {
+        result.add(channel);
+      }
+    }
+    return result;
   }
 
   public Optional<String> senderLabel(MessageChannel channel) {

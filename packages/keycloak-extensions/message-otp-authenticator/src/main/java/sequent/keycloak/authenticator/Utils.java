@@ -19,6 +19,7 @@ import java.security.NoSuchAlgorithmException;
 import java.text.Bidi;
 import java.text.MessageFormat;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -67,12 +68,16 @@ import org.keycloak.theme.beans.MessageFormatterMethod;
 import org.keycloak.theme.freemarker.FreeMarkerProvider;
 import org.keycloak.userprofile.UserProfileProvider;
 import sequent.keycloak.authenticator.gateway.SmsSenderProvider;
+import sequent.keycloak.authenticator.messaging.CodeChannels;
+import sequent.keycloak.authenticator.messaging.ContactDetails;
 import sequent.keycloak.authenticator.messaging.CreateMessengerLinkRequest;
 import sequent.keycloak.authenticator.messaging.CreateMessengerLinkResponse;
 import sequent.keycloak.authenticator.messaging.MessageAttemptState;
 import sequent.keycloak.authenticator.messaging.MessageChannel;
 import sequent.keycloak.authenticator.messaging.MessageContent;
 import sequent.keycloak.authenticator.messaging.MessagePurpose;
+import sequent.keycloak.authenticator.messaging.MessageReason;
+import sequent.keycloak.authenticator.messaging.MessageRecipient;
 import sequent.keycloak.authenticator.messaging.MessageSenderProvider;
 import sequent.keycloak.authenticator.messaging.MessagingAttributes;
 import sequent.keycloak.authenticator.messaging.MessengerLinkRequest;
@@ -82,6 +87,7 @@ import sequent.keycloak.authenticator.messaging.NoticeRecipient;
 import sequent.keycloak.authenticator.messaging.PublicMessagingChannels;
 import sequent.keycloak.authenticator.messaging.SendMessageRequest;
 import sequent.keycloak.authenticator.messaging.SendMessageResponse;
+import sequent.keycloak.authenticator.messaging.VoterChannel;
 import sequent.keycloak.authenticator.messaging.VoterChannels;
 import sequent.keycloak.authenticator.otl.OTLActionToken;
 
@@ -142,6 +148,142 @@ public class Utils {
     return sentAt + Long.parseLong(resendTimerSeconds) * 1000L < nowMillis;
   }
 
+  /** The most wrong codes a challenge takes; resends never reset the count. */
+  public int maxCodeAttempts(Map<String, String> configMap) {
+    String configured = configMap == null ? null : configMap.get(MAX_CODE_ATTEMPTS);
+    try {
+      return Integer.parseInt(
+          configured == null || configured.isBlank() ? MAX_CODE_ATTEMPTS_DEFAULT : configured);
+    } catch (NumberFormatException e) {
+      return Integer.parseInt(MAX_CODE_ATTEMPTS_DEFAULT);
+    }
+  }
+
+  /**
+   * The note counting one challenge's wrong codes. A challenge is one code step: a flow execution,
+   * or a required action. Each has its own count, so a sign-in step's wrong codes never use up a
+   * later step's, nor the contact change's; asking for a new code in the same step keeps it, and
+   * only a restart of the login (which clears every note) resets it.
+   *
+   * @param challenge the execution id or required action id; null for the session-wide note older
+   *     releases used
+   */
+  public String attemptsNote(String challenge) {
+    return challenge == null || challenge.isBlank()
+        ? CODE_ATTEMPTS
+        : CODE_ATTEMPTS + "." + challenge;
+  }
+
+  /** Wrong codes entered for the challenge in this authentication session. */
+  public int codeAttempts(AuthenticationSessionModel authSession, String challenge) {
+    String value = authSession.getAuthNote(attemptsNote(challenge));
+    try {
+      return value == null ? 0 : Integer.parseInt(value);
+    } catch (NumberFormatException e) {
+      return Integer.MAX_VALUE;
+    }
+  }
+
+  /**
+   * Whether the challenge used up its attempts: it then takes no more codes, and the voter starts
+   * again. Compared with the limit, never inferred from the counter's presence.
+   */
+  public boolean attemptsExhausted(
+      AuthenticationSessionModel authSession, Map<String, String> configMap, String challenge) {
+    return codeAttempts(authSession, challenge) >= maxCodeAttempts(configMap);
+  }
+
+  /**
+   * Counts a wrong code against the challenge. Once the configured maximum is reached the code is
+   * removed and the challenge takes no more codes: the voter starts again.
+   *
+   * @return true when this attempt used up the challenge's attempts
+   */
+  public boolean registerFailedAttempt(
+      AuthenticationSessionModel authSession, Map<String, String> configMap, String challenge) {
+    int attempts = codeAttempts(authSession, challenge) + 1;
+    authSession.setAuthNote(attemptsNote(challenge), Integer.toString(attempts));
+    if (attempts < maxCodeAttempts(configMap)) {
+      return false;
+    }
+    authSession.removeAuthNote(CODE);
+    return true;
+  }
+
+  /** Config key of {@link CodePageDisclosure}. */
+  public final String CODE_PAGE_DISCLOSURE = "code-page-disclosure";
+
+  /**
+   * What the code page tells about the account the code went to (policy enum, config key {@link
+   * #CODE_PAGE_DISCLOSURE}). The default is {@link #NEUTRAL}: a code step reveals nothing unless
+   * the realm says the voter is already known there.
+   */
+  public enum CodePageDisclosure {
+    /**
+     * The channel and the masked destination. For steps after the voter proved who they are (the
+     * sign-in after the password). Enrollment always names the channel: the voter just typed it.
+     */
+    NAMED,
+    /**
+     * Nothing about the account: "If an account exists, we sent a code to its contact." An unknown
+     * account gets the same page, timer and attempt limit, and nothing is sent. When the event
+     * offers Messenger for codes, every neutral page shows the Messenger box (QR and m.me link):
+     * the account's live link for a Messenger voter, a link whose reference binds to nothing
+     * otherwise. The default; for flows anyone can start with an identifier (reset).
+     */
+    NEUTRAL;
+
+    /** The configured policy; {@link #NEUTRAL} when absent or unknown. */
+    public static CodePageDisclosure fromConfig(Map<String, String> configMap) {
+      String value = configMap == null ? null : configMap.get(CODE_PAGE_DISCLOSURE);
+      if (value != null) {
+        for (CodePageDisclosure disclosure : values()) {
+          if (disclosure.name().equalsIgnoreCase(value.trim())) {
+            return disclosure;
+          }
+        }
+      }
+      return NEUTRAL;
+    }
+
+    /** The policy of a step: enrolling voters (deferred) always see the channel they entered. */
+    public static CodePageDisclosure of(Map<String, String> configMap, boolean deferredUser) {
+      return deferredUser ? NAMED : fromConfig(configMap);
+    }
+  }
+
+  /**
+   * An {@code m.me} link to the Page with a reference that binds to nothing: what a neutral page
+   * shows when the account has no live Messenger link, shaped like harvest's ({@code
+   * https://m.me/<username or Page id>?ref=<64 hex>}).
+   */
+  public String decoyMessengerLink(PublicMessagingChannels.MessengerPage page) {
+    String target =
+        page.username() != null && !page.username().isBlank() ? page.username() : page.pageId();
+    return "https://m.me/"
+        + java.net.URLEncoder.encode(target, StandardCharsets.UTF_8).replace("+", "%20")
+        + "?ref="
+        + SecretGenerator.getInstance().randomString(64, "0123456789abcdef".toCharArray());
+  }
+
+  /**
+   * Whether a Messenger link from harvest may be shown as a link: an absolute https URL with a
+   * host. Harvest is trusted; this is defence in depth against a scheme a browser would run.
+   */
+  public boolean isSafeLink(String link) {
+    if (link == null || link.isBlank()) {
+      return false;
+    }
+    try {
+      URI uri = URI.create(link.trim());
+      return "https".equalsIgnoreCase(uri.getScheme())
+          && uri.getHost() != null
+          && !uri.getHost().isBlank();
+    } catch (IllegalArgumentException e) {
+      return false;
+    }
+  }
+
   /** Template keys of codes and one-time links; a notice uses its message key. */
   public final String OTP_TEMPLATE_KEY = "otp";
 
@@ -165,8 +307,8 @@ public class Utils {
   }
 
   /**
-   * Whether the last code was not sent for certain. No code is kept then, so none can be guessed,
-   * and the voter may ask again without waiting for the resend timer.
+   * Whether the last code was not sent for certain. No code is kept then, so none can be guessed.
+   * The resend timer still applies, as after any send.
    */
   public boolean sendFailed(AuthenticationSessionModel authSession) {
     return MessageAttemptState.FAILED
@@ -200,13 +342,9 @@ public class Utils {
   public static final String SEND_SUCCESS_EMAIL_DIFF_POST_FTL = "success-email-diff-post.ftl";
   public static final String ERROR_MESSAGE_NOT_SENT = "messageNotSent";
 
-  public static final String SEND_ERROR_EMAIL_SUBJECT = "registrationErrorEmailSubject";
-  public static final String SEND_ERROR_EMAIL_FTL = "error-email.ftl";
   public static final String SEND_SUPPORT_ERROR_EMAIL_SUBJECT =
       "userRegistrationErrorNotificationSubject";
   public static final String SEND_SUPPORT_ERROR_EMAIL_FTL = "support-error-email.ftl";
-
-  public static final String SEND_REGISTER_FAILED_SMS_I18N_KEY = "messageFailedSMS";
 
   public static final String ID_NUMBER_ATTRIBUTE = "sequent.read-only.id-card-number";
   public static final String PHONE_NUMBER_ATTRIBUTE = "sequent.read-only.mobile-number";
@@ -271,13 +409,18 @@ public class Utils {
     String mobileNumber = null;
 
     // Handle deferred user
-    if (deferredUser) {
+    if (messageCourier == MessageCourier.CHOSEN) {
+      mobileNumber =
+          MessageChannel.parse(authSession.getAuthNote(MessagingAttributes.NOTE_CODE_CHANNEL))
+                  .equals(Optional.of(MessageChannel.SMS))
+              ? authSession.getAuthNote(MessagingAttributes.NOTE_CODE_DESTINATION)
+              : null;
+    } else if (deferredUser) {
       String mobileNumberAttribute = config.getConfig().get(Utils.TEL_USER_ATTRIBUTE);
       mobileNumber = authSession.getAuthNote(mobileNumberAttribute);
     } else {
       mobileNumber = Utils.getMobile(config, user);
     }
-    log.infov("sendFeedback(): mobileNumber=`{0}`", mobileNumber);
 
     if (isOtl) {
       log.info("sendFeedback(): isOtl so not sending feedback");
@@ -285,7 +428,10 @@ public class Utils {
     }
     RealmModel realm = authSession.getRealm();
     MessageCourier keycloakCourier =
-        keycloakCourier(messageCourier, authSession, VoterChannels.sender(session));
+        keycloakCourier(
+            messageCourier,
+            MessageChannel.parse(authSession.getAuthNote(MessagingAttributes.NOTE_CODE_CHANNEL)),
+            VoterChannels.sender(session));
 
     if (mobileNumber != null
         && mobileNumber.trim().length() > 0
@@ -351,18 +497,16 @@ public class Utils {
 
   /**
    * The courier Keycloak's own email and SMS providers serve. For {@link MessageCourier#CHOSEN}
-   * that is the chosen channel when it is email or SMS and the message sender does not deliver it,
+   * that is the code's channel when it is email or SMS and the message sender does not deliver it,
    * and NONE otherwise.
    */
   MessageCourier keycloakCourier(
       MessageCourier messageCourier,
-      AuthenticationSessionModel authSession,
+      Optional<MessageChannel> channel,
       MessageSenderProvider sender) {
     if (messageCourier != MessageCourier.CHOSEN) {
       return messageCourier;
     }
-    Optional<MessageChannel> channel =
-        MessageChannel.parse(authSession.getAuthNote(MessagingAttributes.FORM_OTP_CHANNEL));
     if (channel.isEmpty() || sender.delivers(channel.get())) {
       return MessageCourier.NONE;
     }
@@ -373,17 +517,141 @@ public class Utils {
     };
   }
 
+  /**
+   * The courier a code step uses for this voter (R7-01). A saved voter whose record holds a
+   * messaging channel (RECORDED, or a first-release VERIFIED_CHANNELS record) always gets the code
+   * on that channel, whatever the step's configured courier: {@link MessageCourier#CHOSEN}; when
+   * that channel can't be used, no code is sent and the refusal says why. The configured courier
+   * (EMAIL, SMS, BOTH) stays the realm's policy for LEGACY voters only, and while enrolling. NONE
+   * sends nothing, so it never reaches another channel either.
+   */
+  public MessageCourier codeCourier(
+      MessageCourier configured, UserModel user, boolean deferredUser) {
+    if (configured == MessageCourier.CHOSEN
+        || configured == MessageCourier.NONE
+        || deferredUser
+        || user == null) {
+      return configured;
+    }
+    VoterChannel.Source shape = VoterChannel.shape(user);
+    if (shape == VoterChannel.Source.LEGACY) {
+      return configured;
+    }
+    log.infov(
+        "codeCourier(): the voter's {0} record overrides the step's courier {1}: the code goes only"
+            + " to the voter's channel",
+        shape, configured);
+    return MessageCourier.CHOSEN;
+  }
+
+  /**
+   * The realm's message OTP steps that could send a code elsewhere than the voter's channel: steps
+   * that can run (reached from a top-level flow through sub-flows, neither the step nor a sub-flow
+   * on the way DISABLED) whose courier is neither {@link MessageCourier#CHOSEN} nor {@link
+   * MessageCourier#NONE} (which sends nothing). A step without its own configuration uses the
+   * default, BOTH. An orphan sub-flow never runs, so it doesn't count. Their execution ids, for the
+   * log.
+   */
+  public List<String> codeStepsNotOnVoterChannel(RealmModel realm) {
+    if (realm == null) {
+      return List.of();
+    }
+    List<String> steps = new ArrayList<>();
+    java.util.Set<String> visited = new java.util.HashSet<>();
+    java.util.Deque<String> pending = new java.util.ArrayDeque<>();
+    realm
+        .getAuthenticationFlowsStream()
+        .filter(org.keycloak.models.AuthenticationFlowModel::isTopLevel)
+        .map(org.keycloak.models.AuthenticationFlowModel::getId)
+        .forEach(pending::add);
+    while (!pending.isEmpty()) {
+      String flowId = pending.poll();
+      if (flowId == null || !visited.add(flowId)) {
+        continue;
+      }
+      realm
+          .getAuthenticationExecutionsStream(flowId)
+          .filter(
+              execution ->
+                  execution.getRequirement()
+                      != org.keycloak.models.AuthenticationExecutionModel.Requirement.DISABLED)
+          .forEach(
+              execution -> {
+                if (execution.isAuthenticatorFlow()) {
+                  pending.add(execution.getFlowId());
+                } else if (MessageOTPAuthenticatorFactory.PROVIDER_ID.equals(
+                        execution.getAuthenticator())
+                    && !sendsOnlyToTheVotersChannel(realm, execution)) {
+                  steps.add(String.valueOf(execution.getId()));
+                }
+              });
+    }
+    return steps;
+  }
+
+  /** Whether a code step's courier is CHOSEN, or NONE (it sends nothing). */
+  private boolean sendsOnlyToTheVotersChannel(
+      RealmModel realm, org.keycloak.models.AuthenticationExecutionModel execution) {
+    AuthenticatorConfigModel config =
+        execution.getAuthenticatorConfig() == null
+            ? null
+            : realm.getAuthenticatorConfigById(execution.getAuthenticatorConfig());
+    String courier =
+        MessageOTPAuthenticatorFactory.getConfigMap(config).get(MESSAGE_COURIER_ATTRIBUTE);
+    try {
+      MessageCourier parsed = MessageCourier.fromString(courier);
+      return parsed == MessageCourier.CHOSEN || parsed == MessageCourier.NONE;
+    } catch (IllegalArgumentException e) {
+      return false;
+    }
+  }
+
   /** Forgets the Messenger link of the previous code, so it cannot confirm a contact. */
   void clearMessengerLink(AuthenticationSessionModel authSession) {
     authSession.removeAuthNote(MessagingAttributes.NOTE_MESSENGER_REFERENCE);
     authSession.removeAuthNote(MessagingAttributes.NOTE_MESSENGER_LINK);
     authSession.removeAuthNote(MessagingAttributes.NOTE_MESSENGER_WORD);
     authSession.removeAuthNote(MessagingAttributes.NOTE_MESSENGER_STATE);
+    authSession.removeAuthNote(MessagingAttributes.NOTE_MESSENGER_RECONNECT);
+  }
+
+  /**
+   * The event's Messenger Page, when a saved Messenger voter's Page is another one: the voter's
+   * account on the old Page can't be reached any more (R7-10). Empty for any other voter, and when
+   * either Page is unknown.
+   */
+  public Optional<String> messengerPageChange(RealmModel realm, VoterChannel channel) {
+    if (channel.channel() != MessageChannel.MESSENGER
+        || channel.destination().isBlank()
+        || channel.messengerPage().isEmpty()) {
+      return Optional.empty();
+    }
+    return PublicMessagingChannels.fromRealm(realm)
+        .flatMap(PublicMessagingChannels::messengerPage)
+        .map(PublicMessagingChannels.MessengerPage::pageId)
+        .filter(page -> !page.equals(channel.messengerPage().get()));
+  }
+
+  /**
+   * Where a {@link MessageCourier#CHOSEN} code goes: the voter's one channel at sign-in, the
+   * channel and contact just entered otherwise.
+   */
+  public CodeChannels.Resolution codeChannel(
+      AuthenticatorConfigModel config,
+      KeycloakSession session,
+      UserModel user,
+      AuthenticationSessionModel authSession,
+      boolean deferredUser) {
+    return deferredUser
+        ? CodeChannels.forEnrollment(
+            session, authSession.getRealm(), authSession, telUserAttribute(config))
+        : CodeChannels.forSignIn(session, authSession.getRealm(), user);
   }
 
   /**
    * Sends code and also sets the auth notes related to the code. Issuing a code replaces the
-   * previous one, its attempt count and its Messenger link in the same authentication session.
+   * previous one and its Messenger link in the same authentication session; the session's attempt
+   * count is kept, so asking for codes never yields more attempts.
    *
    * @return the delivery outcome; email and SMS sent by Keycloak's providers are ACCEPTED
    */
@@ -398,31 +666,89 @@ public class Utils {
       String[] otlAuthNotesNames,
       Object context)
       throws IOException, EmailException {
+    return sendCode(
+        config,
+        session,
+        user,
+        authSession,
+        messageCourier,
+        deferredUser,
+        isOtl,
+        otlAuthNotesNames,
+        context,
+        MessengerLinkPolicy.VOTERS_ACCOUNT);
+  }
+
+  /**
+   * Whose Messenger account a saved voter's code link may reach: {@code VOTERS_ACCOUNT} (their
+   * saved account on their saved Page; harvest refuses the link when the Page changed), or {@code
+   * RECONNECT} (any account on the event's Page, after a Page change; only a sign-in step after a
+   * validated password asks for it, R7-10).
+   */
+  public enum MessengerLinkPolicy {
+    VOTERS_ACCOUNT,
+    RECONNECT
+  }
+
+  /** {@link #sendCode}, with the Messenger link's policy. */
+  MessageAttemptState sendCode(
+      AuthenticatorConfigModel config,
+      KeycloakSession session,
+      UserModel user,
+      AuthenticationSessionModel authSession,
+      MessageCourier messageCourier,
+      boolean deferredUser,
+      boolean isOtl,
+      String[] otlAuthNotesNames,
+      Object context,
+      MessengerLinkPolicy messengerLink)
+      throws IOException, EmailException {
     log.info("sendCode(): start");
     Map<String, String> configMap = MessageOTPAuthenticatorFactory.getConfigMap(config);
-    String mobileNumber = Utils.getMobileNumber(config, user, authSession, deferredUser);
-    String emailAddress = Utils.getEmailAddress(user, authSession, deferredUser);
+    String mobileNumber;
+    String emailAddress;
     String code = null;
     MessageSenderProvider sender = VoterChannels.sender(session);
-    MessageCourier keycloakCourier = keycloakCourier(messageCourier, authSession, sender);
-    Optional<MessageChannel> chosenChannel =
-        messageCourier == MessageCourier.CHOSEN
-            ? MessageChannel.parse(authSession.getAuthNote(MessagingAttributes.FORM_OTP_CHANNEL))
-            : Optional.empty();
-    if (messageCourier == MessageCourier.CHOSEN && chosenChannel.isEmpty()) {
-      throw new IOException("No channel was chosen for the code");
+    Optional<VoterChannel> target = Optional.empty();
+    if (messageCourier == MessageCourier.CHOSEN) {
+      CodeChannels.Resolution resolution =
+          codeChannel(config, session, user, authSession, deferredUser);
+      if (resolution.refusal().isPresent()) {
+        throw new IOException("No code sent: " + resolution.refusal().get().reason());
+      }
+      target = resolution.channel();
+      VoterChannel channel = target.get();
+      mobileNumber = channel.channel() == MessageChannel.SMS ? channel.destination() : null;
+      emailAddress = channel.channel() == MessageChannel.EMAIL ? channel.destination() : null;
+    } else {
+      mobileNumber = Utils.getMobileNumber(config, user, authSession, deferredUser);
+      emailAddress = Utils.getEmailAddress(user, authSession, deferredUser);
     }
+    Optional<MessageChannel> chosenChannel = target.map(VoterChannel::channel);
+    MessageCourier keycloakCourier = keycloakCourier(messageCourier, chosenChannel, sender);
 
-    log.infov("sendCode(): mobileNumber=`{0}`", mobileNumber);
-    log.infov("sendCode(): emailAddress=`{0}`", emailAddress);
+    if (isOtl
+        && (keycloakCourier == MessageCourier.SMS || keycloakCourier == MessageCourier.BOTH)
+        && session.getProvider(SmsSenderProvider.class).sendsOnlyCodes()) {
+      log.warn(MessageReason.SMS_PROVIDER_SENDS_ONLY_CODES.reason());
+      throw new IOException(MessageReason.SMS_PROVIDER_SENDS_ONLY_CODES.reason());
+    }
 
     int length = Integer.parseInt(configMap.get(Utils.CODE_LENGTH));
     int ttl = Integer.parseInt(configMap.get(Utils.CODE_TTL));
     authSession.setAuthNote(
         Utils.CODE_TTL, Long.toString(System.currentTimeMillis() + (ttl * 1000L)));
-    authSession.removeAuthNote(Utils.CODE_ATTEMPTS);
     authSession.setAuthNote(MessagingAttributes.NOTE_CODE_ID, UUID.randomUUID().toString());
     clearMessengerLink(authSession);
+    if (target.isPresent()) {
+      authSession.setAuthNote(MessagingAttributes.NOTE_CODE_CHANNEL, target.get().channel().name());
+      if (target.get().destination().isBlank()) {
+        authSession.removeAuthNote(MessagingAttributes.NOTE_CODE_DESTINATION);
+      } else {
+        authSession.setAuthNote(
+            MessagingAttributes.NOTE_CODE_DESTINATION, target.get().destination());
+      }
+    }
 
     // Handle OTL/OTP
     if (isOtl) {
@@ -443,27 +769,22 @@ public class Utils {
     RealmModel realm = authSession.getRealm();
     String realmName = getRealmName(realm);
 
-    if (mobileNumber != null) {
-      log.infov("sendCode(): mobileNumber TRIM=`{0}`", mobileNumber.trim());
-      log.infov("sendCode(): mobileNumber LENGTH=`{0}`", mobileNumber.trim().length());
-    }
-    log.infov("sendCode(): messageCourier=`{0}`", messageCourier);
+    log.infov("sendCode(): messageCourier=`{0}`, channel=`{1}`", messageCourier, chosenChannel);
 
-    if (chosenChannel.isPresent() && keycloakCourier == MessageCourier.NONE) {
+    if (target.isPresent() && keycloakCourier == MessageCourier.NONE) {
       return recordDelivery(
           authSession,
           sendCodeThroughSender(
               sender,
-              chosenChannel.get(),
-              config,
+              target.get(),
               session,
               user,
               authSession,
-              deferredUser,
               isOtl,
               code,
               ttl,
-              context));
+              context,
+              messengerLink));
     }
 
     // Sending via SMS
@@ -471,7 +792,7 @@ public class Utils {
         && mobileNumber.trim().length() > 0
         && (keycloakCourier == MessageCourier.SMS || keycloakCourier == MessageCourier.BOTH)) {
       SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
-      log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
+      log.info("sendCode(): sending SMS");
       List<String> smsAttributes =
           ImmutableList.of(realmName, code, String.valueOf(Math.floorDiv(ttl, 60)));
 
@@ -479,17 +800,16 @@ public class Utils {
       String formattedMessage =
           smsSenderProvider.send(
               mobileNumber.trim(), smsTemplateKey, smsAttributes, realm, user, session);
-      formattedMessage = maskCode(formattedMessage, code);
-      communicationsLog(context, formattedMessage);
+      keycloakSent(context, MessageChannel.SMS, mobileNumber.trim());
     } else {
-      log.infov("sendCode(): NOT Sending SMS to=`{0}`", mobileNumber);
+      log.info("sendCode(): no SMS for this code");
     }
 
     // Sending via Email
     if (emailAddress != null
         && emailAddress.trim().length() > 0
         && (keycloakCourier == MessageCourier.EMAIL || keycloakCourier == MessageCourier.BOTH)) {
-      log.infov("sendCode(): Sending email to=`{0}`", emailAddress.trim());
+      log.info("sendCode(): sending email");
       EmailTemplateProvider emailTemplateProvider =
           session.getProvider(EmailTemplateProvider.class);
 
@@ -516,32 +836,31 @@ public class Utils {
                 emailAddress.trim(),
                 deferredUser,
                 null);
-        textBody = maskCode(textBody, code);
-        communicationsLog(context, textBody);
+        keycloakSent(context, MessageChannel.EMAIL, emailAddress.trim());
       } catch (EmailException error) {
         log.debug("sendCode(): Exception sending email");
         throw error;
       }
     } else {
-      log.infov("sendCode(): NOT Sending email to=`{0}`", emailAddress);
+      log.info("sendCode(): no email for this code");
     }
     return recordDelivery(authSession, MessageAttemptState.ACCEPTED);
   }
 
   private MessageAttemptState sendCodeThroughSender(
       MessageSenderProvider sender,
-      MessageChannel channel,
-      AuthenticatorConfigModel config,
+      VoterChannel target,
       KeycloakSession session,
       UserModel user,
       AuthenticationSessionModel authSession,
-      boolean deferredUser,
       boolean isOtl,
       String code,
       int ttl,
-      Object context)
+      Object context,
+      MessengerLinkPolicy messengerLink)
       throws IOException {
     RealmModel realm = authSession.getRealm();
+    MessageChannel channel = target.channel();
     String minutes = String.valueOf(Math.floorDiv(ttl, 60));
     String textKey = isOtl ? Utils.SEND_LINK_SMS_I18N_KEY : Utils.SEND_CODE_MESSAGE_I18N_KEY;
     String text =
@@ -555,6 +874,17 @@ public class Utils {
     String codeId = authSession.getAuthNote(MessagingAttributes.NOTE_CODE_ID);
 
     if (channel == MessageChannel.MESSENGER) {
+      // A saved voter: only their own Messenger account, on their Page, may get the code. A
+      // reconnect after a Page change binds to the account that taps Get Started on the event's
+      // Page; its confirmation then replaces the saved one (R7-10).
+      boolean saved = user != null && !target.destination().isBlank();
+      Optional<String> reconnectPage =
+          saved && messengerLink == MessengerLinkPolicy.RECONNECT
+              ? messengerPageChange(realm, target)
+              : Optional.empty();
+      String expectedRecipient = saved && reconnectPage.isEmpty() ? target.destination() : null;
+      String expectedPage =
+          saved && reconnectPage.isEmpty() ? target.messengerPage().orElse(null) : null;
       try {
         CreateMessengerLinkResponse link =
             sender.createMessengerLink(
@@ -566,13 +896,20 @@ public class Utils {
                     code,
                     language,
                     content,
-                    expiresAt));
+                    expiresAt,
+                    expectedRecipient,
+                    expectedPage));
+        if (!isSafeLink(link.link())) {
+          log.warn("sendCode(): harvest's Messenger link is not an https link; not shown");
+          return MessageAttemptState.FAILED;
+        }
         authSession.setAuthNote(MessagingAttributes.NOTE_MESSENGER_REFERENCE, link.reference());
         authSession.setAuthNote(MessagingAttributes.NOTE_MESSENGER_LINK, link.link());
-        authSession.setAuthNote(MessagingAttributes.NOTE_MESSENGER_WORD, link.linkWord());
         authSession.setAuthNote(
             MessagingAttributes.NOTE_MESSENGER_STATE, MessengerLinkState.PENDING.name());
-        communicationsLog(context, sanitizedSend(channel, "", null, MessageAttemptState.QUEUED));
+        reconnectPage.ifPresent(
+            page -> authSession.setAuthNote(MessagingAttributes.NOTE_MESSENGER_RECONNECT, page));
+        // Harvest logs the code's send once the voter taps Get Started (R2-07).
         return MessageAttemptState.QUEUED;
       } catch (IOException e) {
         log.warn("sendCode(): the Messenger link could not be created");
@@ -580,12 +917,8 @@ public class Utils {
       }
     }
 
-    String destination =
-        (deferredUser
-                ? VoterChannels.enrollmentContacts(authSession, telUserAttribute(config))
-                : VoterChannels.contacts(user, telUserAttribute(config)))
-            .get(channel);
-    if (destination == null) {
+    String destination = target.destination();
+    if (destination == null || destination.isBlank()) {
       throw new IOException("The voter has no contact for the chosen channel");
     }
     String voterId = user != null ? user.getId() : authSession.getAuthNote(USER_ID);
@@ -603,26 +936,56 @@ public class Utils {
                 "otp:" + codeId,
                 expiresAt,
                 codeTemplateKey(isOtl)));
-    communicationsLog(
-        context,
-        sanitizedSend(
-            channel,
-            VoterChannels.mask(channel, destination),
-            response.messageId(),
-            response.attemptState()));
-    return response.attemptState();
+    // Harvest writes the attempt's one electoral-log entry (R2-07): none here.
+    return recordSendOutcome(context, channel, response);
+  }
+
+  /**
+   * A send harvest didn't accept: its state and reason go into the event's details ({@code
+   * send_state}, {@code send_reason}) and the log, so administrators see why. The page stays
+   * generic. Harvest's reason is short and never holds content or the destination.
+   *
+   * @return the send's state
+   */
+  MessageAttemptState recordSendOutcome(
+      Object context, MessageChannel channel, SendMessageResponse response) {
+    MessageAttemptState state = response.attemptState();
+    String reason = response.reason();
+    if (state == MessageAttemptState.ACCEPTED || reason == null || reason.isBlank()) {
+      return state;
+    }
+    log.warnv(
+        "sendCode(): not accepted: channel={0}, state={1}, reason={2}", channel, state, reason);
+    EventBuilder event = getEvent(context);
+    if (event != null) {
+      event.detail("send_state", state.name()).detail("send_reason", reason);
+    }
+    return state;
   }
 
   /** What the communications log keeps of a message sent by the sender: never its content. */
   String sanitizedSend(
       MessageChannel channel, String maskedTo, String messageId, MessageAttemptState state) {
+    return sanitizedSend(channel, maskedTo, messageId, state, null);
+  }
+
+  /** Same, with the reason a message was refused or failed. */
+  String sanitizedSend(
+      MessageChannel channel,
+      String maskedTo,
+      String messageId,
+      MessageAttemptState state,
+      String reason) {
     ObjectNode entry = new ObjectMapper().createObjectNode();
-    entry.put("channel", channel.name());
+    entry.put("channel", channel == null ? null : channel.name());
     entry.put("to", maskedTo);
     if (messageId != null) {
       entry.put("message_id", messageId);
     }
     entry.put("state", state.name());
+    if (reason != null) {
+      entry.put("reason", reason);
+    }
     return entry.toString();
   }
 
@@ -797,7 +1160,7 @@ public class Utils {
     String telUserAttribute = mapConfig.get(Utils.TEL_USER_ATTRIBUTE);
 
     String mobile = user.getFirstAttribute(telUserAttribute);
-    log.infov("getMobile(): telUserAttribute={0}, mobile={1}", telUserAttribute, mobile);
+    log.infov("getMobile(): telUserAttribute={0}", telUserAttribute);
     return mobile;
   }
 
@@ -1021,84 +1384,13 @@ public class Utils {
     }
   }
 
-  // Sending Email Or SMS based on the enrollment
-  public static void sendErrorNotificationToUser(
-      KeycloakSession session, String realmId, Event event) throws EmailException, IOException {
-
-    String email = event.getDetails().get("email");
-    String mobileNumber = event.getDetails().get("sequent.read-only.mobile-number");
-
-    boolean sendEmail = email != null && !email.isEmpty();
-    boolean sendSms = !sendEmail && mobileNumber != null && !mobileNumber.isEmpty();
-
-    if (sendEmail) {
-      // Send email to the user
-      sendErrorEmailToUser(session, realmId, email, event);
-    }
-
-    if (sendSms) {
-      // Send SMS to the user
-      sendErrorSmsToUser(session, realmId, mobileNumber, event);
-    }
-    // Send email to support
+  /**
+   * Tells support that a registration matched no voter. Nothing goes to the voter: the address or
+   * number typed in the form is unverified, and events don't carry it (R3-06, R7-18).
+   */
+  public static void sendRegistrationErrorToSupport(
+      KeycloakSession session, String realmId, Event event) throws EmailException {
     sendSupportNotificationEmail(session, realmId, event);
-  }
-
-  // Sends an email to the user based on the event
-  protected static void sendErrorEmailToUser(
-      KeycloakSession session, String realmId, String email, Event event) throws EmailException {
-    try {
-      RealmModel realm = session.realms().getRealm(realmId);
-      String errorCode = event.getDetails().get("code_id");
-
-      Map<String, Object> attributes = new HashMap<>();
-      attributes.put("errorCode", errorCode);
-
-      List<Object> subjectAttributes = Collections.emptyList();
-
-      sendEmail(
-          session,
-          realm,
-          null,
-          SEND_ERROR_EMAIL_SUBJECT,
-          subjectAttributes,
-          SEND_ERROR_EMAIL_FTL,
-          attributes,
-          email,
-          /* useEmailSender */ true,
-          /* username */ null);
-
-      log.info("Error email sent to: " + email);
-    } catch (EmailException error) {
-      log.error("sendErrorEmailToUser(): Exception sending email", error);
-      throw error;
-    }
-  }
-
-  // Sending SMS to the user based on the event
-  protected static void sendErrorSmsToUser(
-      KeycloakSession session, String realmId, String mobileNumber, Event event)
-      throws IOException {
-    try {
-      RealmModel realm = session.realms().getRealm(realmId);
-      String errorCode = event.getDetails().get("code_id");
-
-      SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
-      List<String> smsAttributes = ImmutableList.of(errorCode);
-
-      smsSenderProvider.send(
-          mobileNumber.trim(),
-          SEND_REGISTER_FAILED_SMS_I18N_KEY,
-          smsAttributes,
-          realm,
-          null,
-          session);
-
-      log.info("Error SMS sent to: " + mobileNumber);
-    } catch (IOException e) {
-      log.error("sendErrorSmsToUser(): Exception sending SMS", e);
-      throw e;
-    }
   }
 
   // Sending support email with event details
@@ -1167,7 +1459,9 @@ public class Utils {
     String mobileNumber = null;
     String emailAddress = null;
 
-    if (deferredUser) {
+    if (courier == Utils.MessageCourier.CHOSEN) {
+      // The channel the code went to, read below.
+    } else if (deferredUser) {
       String mobileNumberAttribute = config.getConfig().get(Utils.TEL_USER_ATTRIBUTE);
       mobileNumber = authSession.getAuthNote(mobileNumberAttribute);
       emailAddress = authSession.getAuthNote("email");
@@ -1175,70 +1469,38 @@ public class Utils {
       mobileNumber = Utils.getMobile(config, user);
       emailAddress = user.getEmail();
     }
+    // Masked like every record, log and screen (R7-11: Rust's rule).
     switch (courier) {
       case EMAIL:
-        return obscureEmail(emailAddress);
+        return VoterChannels.mask(MessageChannel.EMAIL, emailAddress);
       case SMS:
-        return obscurePhoneNumber(mobileNumber);
+        return VoterChannels.mask(MessageChannel.SMS, mobileNumber);
       case BOTH:
         return emailAddress != null && !emailAddress.isEmpty()
-            ? obscureEmail(emailAddress)
-            : obscurePhoneNumber(mobileNumber);
+            ? VoterChannels.mask(MessageChannel.EMAIL, emailAddress)
+            : VoterChannels.mask(MessageChannel.SMS, mobileNumber);
       case CHOSEN:
         Optional<MessageChannel> channel =
-            MessageChannel.parse(authSession.getAuthNote(MessagingAttributes.FORM_OTP_CHANNEL));
+            MessageChannel.parse(authSession.getAuthNote(MessagingAttributes.NOTE_CODE_CHANNEL));
         if (channel.isEmpty()) {
           return "";
         }
-        Map<MessageChannel, String> contacts =
-            deferredUser
-                ? VoterChannels.enrollmentContacts(authSession, telUserAttribute(config))
-                : VoterChannels.contacts(user, telUserAttribute(config));
-        return VoterChannels.mask(channel.get(), contacts.get(channel.get()));
+        return VoterChannels.display(
+            channel.get(), authSession.getAuthNote(MessagingAttributes.NOTE_CODE_DESTINATION));
       default:
         break;
     }
     return emailAddress;
   }
 
+  /** The masked number, as {@link VoterChannels#mask} shows it (R7-11). */
   public static String obscurePhoneNumber(String phoneNumber) {
-    if (phoneNumber == null) {
-      return phoneNumber;
-    }
-    if (phoneNumber.length() < 8) {
-      return "*".repeat(phoneNumber.length());
-    }
-    return phoneNumber.substring(0, 4)
-        + "*".repeat(phoneNumber.length() - 7)
-        + phoneNumber.substring(phoneNumber.length() - 3);
+    return phoneNumber == null ? null : VoterChannels.mask(MessageChannel.SMS, phoneNumber);
   }
 
+  /** The masked email address, as {@link VoterChannels#mask} shows it (R7-11). */
   public static String obscureEmail(String email) {
-    int atIndex = email.indexOf('@');
-    if (atIndex == -1 || atIndex < 2) {
-      return email;
-    }
-
-    String firstPart = email.substring(0, 2);
-    String domainPart = email.substring(atIndex + 1);
-    String maskedLocal = firstPart + "*".repeat(atIndex - 2);
-
-    int lastDotIndex = domainPart.lastIndexOf('.');
-    String domain, tld;
-
-    if (lastDotIndex != -1) {
-      domain = domainPart.substring(0, lastDotIndex);
-      tld = domainPart.substring(lastDotIndex);
-    } else {
-      domain = domainPart;
-      tld = "";
-    }
-
-    String maskedDomain = domain;
-    if (domain.length() >= 2) {
-      maskedDomain = "*".repeat(domain.length() - 2) + domain.substring(domain.length() - 2);
-    }
-    return maskedLocal + "@" + maskedDomain + tld;
+    return email == null ? null : VoterChannels.mask(MessageChannel.EMAIL, email);
   }
 
   /**
@@ -1300,68 +1562,202 @@ public class Utils {
   }
 
   /**
-   * Sends a notice on the voter's chosen messaging-app channel, when the voter chose and verified
-   * one that the event uses for notices and the sender delivers.
-   *
-   * @return true when it was handed over; false when it was not sent or failed for certain, so the
-   *     notice goes through email or SMS instead. An unknown outcome is never sent again.
+   * What Keycloak's own email and SMS providers still send for a notice: the courier and the
+   * addresses they use.
    */
-  public static boolean sendNotice(
-      KeycloakSession session,
-      RealmModel realm,
-      UserModel user,
-      NoticeRecipient recipient,
-      String textKey,
-      Supplier<List<String>> attributes,
-      Object context)
-      throws IOException {
-    return sendNoticeOn(session, realm, user, recipient, textKey, attributes, context).isPresent();
+  public record KeycloakNotice(MessageCourier courier, String email, String mobileNumber) {}
+
+  /**
+   * What happened to a notice. Refusals and failures are never collapsed into "handled": a caller
+   * that must know whether the voter may have received it (a temporary password, a reset link)
+   * reads {@link #handedOver()} and {@link #reason()}.
+   *
+   * @param kind who took the notice, or that nobody did
+   * @param state harvest's answer, for {@link Kind#HANDED_OVER}
+   * @param reason why it was refused or failed; the one reason string harvest or Keycloak gave
+   * @param keycloak what Keycloak's own providers must still send, for {@link Kind#KEYCLOAK}
+   */
+  public record NoticeOutcome(
+      Kind kind,
+      Optional<MessageAttemptState> state,
+      Optional<String> reason,
+      Optional<KeycloakNotice> keycloak) {
+
+    public enum Kind {
+      /** Harvest answered; {@link #state} says how. */
+      HANDED_OVER,
+      /** Keycloak's own email or SMS provider must send it: see {@link #keycloak}. */
+      KEYCLOAK,
+      /** Nobody sends it; {@link #reason} says why. */
+      NOT_SENT
+    }
+
+    static NoticeOutcome handedOver(MessageAttemptState state, String reason) {
+      return new NoticeOutcome(
+          Kind.HANDED_OVER,
+          Optional.of(state),
+          Optional.ofNullable(reason).filter(value -> !value.isBlank()),
+          Optional.empty());
+    }
+
+    static NoticeOutcome keycloak(KeycloakNotice notice) {
+      return new NoticeOutcome(
+          Kind.KEYCLOAK, Optional.empty(), Optional.empty(), Optional.of(notice));
+    }
+
+    static NoticeOutcome notSent(String reason) {
+      return new NoticeOutcome(
+          Kind.NOT_SENT, Optional.empty(), Optional.of(reason), Optional.empty());
+    }
+
+    /**
+     * Whether harvest took the notice or may have sent it: ACCEPTED, QUEUED, DELIVERED or UNKNOWN.
+     * FAILED and refusals are not; neither is a notice Keycloak's providers still have to send.
+     */
+    public boolean handedOver() {
+      return kind == Kind.HANDED_OVER
+          && state.orElse(MessageAttemptState.FAILED) != MessageAttemptState.FAILED;
+    }
+
+    /** The reason to record when the notice did not go out; a generic one when none was given. */
+    public String failureReason() {
+      return reason.orElse(state.map(Enum::name).orElse("not sent"));
+    }
   }
 
   /**
-   * Like {@link #sendNotice}, telling which channel took the notice. The message key of the text is
-   * the template key harvest binds an approved template to.
+   * Sends a notice on the voter's one channel, and nowhere else.
+   *
+   * <ul>
+   *   <li>A channel the message sender (harvest) carries is always handed to it; harvest decides
+   *       whether the event uses the channel for notices, refuses with its reason and records the
+   *       outcome. A voter without a channel is handed over too, without one, so harvest records
+   *       "No contact channel". FAILED and UNKNOWN are never sent elsewhere.
+   *   <li>Email and SMS that the sender doesn't carry use Keycloak's providers: the outcome says
+   *       which. With {@link MessageCourier#CHOSEN} only the voter's channel. A realm configured
+   *       with another courier (EMAIL, SMS, BOTH) keeps it for LEGACY voters only (no messaging
+   *       channel in the record): that courier is the realm's explicit policy, and it is logged. A
+   *       voter whose recorded channel can't be used gets nothing by that courier (R7-01).
+   *   <li>A channel nothing can carry is not sent, and the reason is logged.
+   * </ul>
    */
-  public static Optional<MessageChannel> sendNoticeOn(
+  public static NoticeOutcome sendNotice(
       KeycloakSession session,
       RealmModel realm,
       UserModel user,
       NoticeRecipient recipient,
+      MessageCourier configured,
+      String email,
+      String mobileNumber,
       String textKey,
       Supplier<List<String>> attributes,
       Object context)
       throws IOException {
+    return sendNotice(
+        session,
+        realm,
+        user,
+        recipient,
+        configured,
+        email,
+        mobileNumber,
+        textKey,
+        attributes,
+        context,
+        null);
+  }
+
+  /**
+   * {@link #sendNotice} to a chosen recipient: {@link MessageRecipient#PREVIOUS_CHANNEL} for the
+   * notice to the channel the voter just replaced; null for the voter's own channel.
+   */
+  public static NoticeOutcome sendNotice(
+      KeycloakSession session,
+      RealmModel realm,
+      UserModel user,
+      NoticeRecipient recipient,
+      MessageCourier configured,
+      String email,
+      String mobileNumber,
+      String textKey,
+      Supplier<List<String>> attributes,
+      Object context,
+      MessageRecipient recipientKind)
+      throws IOException {
     MessageSenderProvider sender = VoterChannels.sender(session);
-    Optional<MessageChannel> channel =
-        recipient.messagingApp(sender, PublicMessagingChannels.fromRealm(realm));
-    if (channel.isEmpty()) {
-      return Optional.empty();
+    Optional<VoterChannel> channel = recipient.channel();
+    if (configured != MessageCourier.CHOSEN && recipient.shape() == VoterChannel.Source.LEGACY) {
+      // A realm that doesn't use the voter's channel, for a voter without a messaging channel.
+      log.infov(
+          "sendNotice(): {0} notice by the realm's configured courier {1} (the voter has no"
+              + " messaging channel)",
+          textKey, configured);
+      return NoticeOutcome.keycloak(new KeycloakNotice(configured, email, mobileNumber));
     }
-    List<String> parameters = attributes.get();
-    String text = formatLoginMessage(session, realm, user, textKey, parameters);
-    String destination = recipient.contacts().get(channel.get());
-    SendMessageResponse response =
-        sender.send(
-            new SendMessageRequest(
-                tenantId(realm),
-                electionEventId(realm),
-                recipient.voterId(),
-                channel.get(),
-                MessagePurpose.NOTICE,
-                destination,
-                languageCode(session, realm, user),
-                new MessageContent(null, text, null, parameters, null),
-                "notice:" + UUID.randomUUID(),
+    NoticeRecipient.Delivery delivery = recipient.delivery(sender);
+    switch (delivery.route()) {
+      case SENDER -> {
+        List<String> parameters = attributes.get();
+        String text = formatLoginMessage(session, realm, user, textKey, parameters);
+        MessageChannel name = channel.map(VoterChannel::channel).orElse(null);
+        String destination = channel.map(VoterChannel::destination).orElse(null);
+        SendMessageResponse response =
+            sender.send(
+                new SendMessageRequest(
+                    tenantId(realm),
+                    electionEventId(realm),
+                    recipient.voterId(),
+                    name,
+                    MessagePurpose.NOTICE,
+                    destination,
+                    languageCode(session, realm, user),
+                    new MessageContent(null, text, null, parameters, null),
+                    "notice:" + UUID.randomUUID(),
+                    null,
+                    textKey,
+                    List.copyOf(recipient.electionIds()),
+                    recipientKind));
+        MessageAttemptState state = response.attemptState();
+        if (state == MessageAttemptState.FAILED) {
+          log.warnv(
+              "sendNotice(): {0} notice on {1} not sent: {2}; not sent elsewhere",
+              textKey, name, response.reason());
+        }
+        // Harvest writes the attempt's one electoral-log entry (R2-07): none here.
+        return NoticeOutcome.handedOver(state, response.reason());
+      }
+      case KEYCLOAK -> {
+        VoterChannel target = channel.get();
+        return NoticeOutcome.keycloak(
+            target.channel() == MessageChannel.EMAIL
+                ? new KeycloakNotice(MessageCourier.EMAIL, target.destination(), null)
+                : new KeycloakNotice(MessageCourier.SMS, null, target.destination()));
+      }
+      default -> {
+        String reason = delivery.refusal().map(MessageReason::reason).orElse("not sent");
+        log.warnv("sendNotice(): {0} notice not sent: {1}", textKey, reason);
+        communicationsLog(
+            context,
+            sanitizedSend(
+                channel.map(VoterChannel::channel).orElse(null),
+                channel.map(c -> VoterChannels.mask(c.channel(), c.destination())).orElse(""),
                 null,
-                textKey));
+                MessageAttemptState.FAILED,
+                reason));
+        return NoticeOutcome.notSent(reason);
+      }
+    }
+  }
+
+  /**
+   * Records a message Keycloak's own email or SMS provider sent: the channel and the masked
+   * destination, never its content (it may hold links, usernames or numbers).
+   */
+  static void keycloakSent(Object context, MessageChannel channel, String destination) {
     communicationsLog(
         context,
         sanitizedSend(
-            channel.get(),
-            VoterChannels.mask(channel.get(), destination),
-            response.messageId(),
-            response.attemptState()));
-    return response.attemptState() == MessageAttemptState.FAILED ? Optional.empty() : channel;
+            channel, VoterChannels.mask(channel, destination), null, MessageAttemptState.ACCEPTED));
   }
 
   public static void sendConfirmation(
@@ -1393,32 +1789,40 @@ public class Utils {
       throws EmailException, IOException {
     log.info("sendConfirmation(): start");
     String username = user.getEmail() != null ? user.getEmail() : mobileNumber;
-    if (sendNotice(
-        session,
-        realm,
-        user,
-        recipient,
-        successSmsKey(context),
-        () -> List.of(buildAuthUrl(session, realm.getId(), "login"), String.valueOf(username)),
-        context)) {
+    Optional<KeycloakNotice> keycloak =
+        sendNotice(
+                session,
+                realm,
+                user,
+                recipient,
+                messageCourier,
+                user.getEmail(),
+                mobileNumber,
+                successSmsKey(context),
+                () ->
+                    List.of(
+                        buildAuthUrl(session, realm.getId(), "login"), String.valueOf(username)),
+                context)
+            .keycloak();
+    if (keycloak.isEmpty()) {
       return;
     }
-    messageCourier = recipient.keycloakCourier(messageCourier);
+    messageCourier = keycloak.get().courier();
+    mobileNumber = keycloak.get().mobileNumber();
 
     String realName = realm.getName();
     // Send a confirmation email
     EmailTemplateProvider emailTemplateProvider = session.getProvider(EmailTemplateProvider.class);
 
-    log.infov("sendConfirmation(): username {0}", username);
     log.infov("sendConfirmation(): messageCourier {0}", messageCourier);
 
-    String email = user.getEmail();
+    String email = keycloak.get().email();
 
     if (email != null
         && email.trim().length() > 0
         && (MessageCourier.EMAIL.equals(messageCourier)
             || MessageCourier.BOTH.equals(messageCourier))) {
-      log.infov("sendConfirmation(): sending email", username);
+      log.info("sendConfirmation(): sending email");
       List<Object> subjAttr = ImmutableList.of(realName);
       Map<String, Object> messageAttributes = Maps.newHashMap();
       messageAttributes.put("realmName", realName);
@@ -1438,17 +1842,15 @@ public class Utils {
               email.trim(),
               false,
               username);
-      communicationsLog(context, textBody);
+      keycloakSent(context, MessageChannel.EMAIL, email.trim());
     }
 
     if (mobileNumber != null
         && mobileNumber.trim().length() > 0
         && (MessageCourier.SMS.equals(messageCourier)
             || MessageCourier.BOTH.equals(messageCourier))) {
-      log.infov("sendConfirmation(): sending sms", username);
+      log.info("sendConfirmation(): sending sms");
       SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
-      log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
-      log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
       String url = buildAuthUrl(session, realm.getId(), "login");
       List<String> smsAttributes = ImmutableList.of(url, mobileNumber.trim());
       String smsTranslationKey =
@@ -1458,7 +1860,7 @@ public class Utils {
       String formattedText =
           smsSenderProvider.send(
               mobileNumber.trim(), smsTranslationKey, smsAttributes, realm, user, session);
-      communicationsLog(context, formattedText);
+      keycloakSent(context, MessageChannel.SMS, mobileNumber.trim());
     }
   }
 
@@ -1500,34 +1902,41 @@ public class Utils {
     // going to be
     // either email or mobileNumber.
     String username = user.getEmail() != null ? user.getEmail() : mobileNumber;
-    if (sendNotice(
-        session,
-        realm,
-        user,
-        recipient,
-        successSmsKey(context),
-        () -> List.of(buildAuthUrl(session, realm.getId(), "login"), String.valueOf(username)),
-        context)) {
+    Optional<KeycloakNotice> keycloak =
+        sendNotice(
+                session,
+                realm,
+                user,
+                recipient,
+                messageCourier,
+                user.getEmail(),
+                mobileNumber,
+                successSmsKey(context),
+                () ->
+                    List.of(
+                        buildAuthUrl(session, realm.getId(), "login"), String.valueOf(username)),
+                context)
+            .keycloak();
+    if (keycloak.isEmpty()) {
       return;
     }
-    messageCourier = recipient.keycloakCourier(messageCourier);
+    messageCourier = keycloak.get().courier();
+    mobileNumber = keycloak.get().mobileNumber();
 
     String realName = realm.getName();
     // Send a confirmation email
     EmailTemplateProvider emailTemplateProvider = session.getProvider(EmailTemplateProvider.class);
 
-    log.infov("sendConfirmationDiffPost(): username {0}", username);
     log.infov("sendConfirmationDiffPost(): messageCourier {0}", messageCourier);
 
-    String email = user.getEmail();
+    String email = keycloak.get().email();
     String embassy = user.getFirstAttribute("embassy");
 
     if (email != null
         && email.trim().length() > 0
         && (MessageCourier.EMAIL.equals(messageCourier)
             || MessageCourier.BOTH.equals(messageCourier))) {
-      log.infov("sendConfirmationDiffPost(): sending email", username);
-      log.infov("sendConfirmationDiffPost(): embassy {0}", embassy);
+      log.info("sendConfirmationDiffPost(): sending email");
       List<Object> subjAttr = ImmutableList.of(realName);
       Map<String, Object> messageAttributes = Maps.newHashMap();
       messageAttributes.put("realmName", realName);
@@ -1548,18 +1957,16 @@ public class Utils {
               email.trim(),
               false,
               username);
-      communicationsLog(context, textBody);
+      keycloakSent(context, MessageChannel.EMAIL, email.trim());
     }
 
     if (mobileNumber != null
         && mobileNumber.trim().length() > 0
         && (MessageCourier.SMS.equals(messageCourier)
             || MessageCourier.BOTH.equals(messageCourier))) {
-      log.infov("sendConfirmation(): sending sms", username);
+      log.info("sendConfirmation(): sending sms");
 
       SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
-      log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
-      log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
       String url = buildAuthUrl(session, realm.getId(), "login");
       List<String> smsAttributes = ImmutableList.of(url, mobileNumber.trim());
       String smsTranslationKey =
@@ -1569,7 +1976,7 @@ public class Utils {
       String formattedText =
           smsSenderProvider.send(
               mobileNumber.trim(), smsTranslationKey, smsAttributes, realm, user, session);
-      communicationsLog(context, formattedText);
+      keycloakSent(context, MessageChannel.SMS, mobileNumber.trim());
     }
   }
 
@@ -1589,7 +1996,6 @@ public class Utils {
         .map(
             entry -> {
               String val = String.format(entryFormat, entry.getKey(), entry.getValue());
-              log.infov("convertToString(): val={0}", val);
               return val;
             })
         // Join entries with the specified separator
@@ -1630,18 +2036,28 @@ public class Utils {
       Object context)
       throws EmailException, IOException {
     log.info("sendManualCommunication(): start");
-    if (sendNotice(
-        session,
-        realm,
-        null,
-        recipient,
-        SEND_PENDING_SMS_I18N_KEY,
-        () ->
-            List.of(String.valueOf(rejectReasonKey), convertToString(mismatchedFields, ", ", null)),
-        context)) {
+    Optional<KeycloakNotice> keycloak =
+        sendNotice(
+                session,
+                realm,
+                null,
+                recipient,
+                messageCourier,
+                email,
+                mobileNumber,
+                SEND_PENDING_SMS_I18N_KEY,
+                () ->
+                    List.of(
+                        String.valueOf(rejectReasonKey),
+                        convertToString(mismatchedFields, ", ", null)),
+                context)
+            .keycloak();
+    if (keycloak.isEmpty()) {
       return;
     }
-    messageCourier = recipient.keycloakCourier(messageCourier);
+    messageCourier = keycloak.get().courier();
+    mobileNumber = keycloak.get().mobileNumber();
+    email = keycloak.get().email();
 
     String realName = realm.getName();
     // Send a confirmation email
@@ -1651,14 +2067,13 @@ public class Utils {
     // going to be
     // either email or mobileNumber.
     String username = email != null ? email : mobileNumber;
-    log.infov("sendManualCommunication(): username {0}", username);
     log.infov("sendManualCommunication(): messageCourier {0}", messageCourier);
 
     if (email != null
         && email.trim().length() > 0
         && (MessageCourier.EMAIL.equals(messageCourier)
             || MessageCourier.BOTH.equals(messageCourier))) {
-      log.infov("sendManualCommunication(): sending email", username);
+      log.info("sendManualCommunication(): sending email");
       List<Object> subjAttr = ImmutableList.of(realName);
       Map<String, Object> messageAttributes = Maps.newHashMap();
       messageAttributes.put("rejectReasonKey", rejectReasonKey);
@@ -1680,24 +2095,23 @@ public class Utils {
               email.trim(),
               true,
               username);
-      communicationsLog(context, textBody);
+      keycloakSent(context, MessageChannel.EMAIL, email.trim());
     }
 
     if (mobileNumber != null
         && mobileNumber.trim().length() > 0
         && (MessageCourier.SMS.equals(messageCourier)
             || MessageCourier.BOTH.equals(messageCourier))) {
-      log.infov("sendManualCommunication(): sending sms", username);
+      log.info("sendManualCommunication(): sending sms");
 
       SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
-      log.infov("sendManualCommunication(): Sending SMS to=`{0}`", mobileNumber.trim());
       List<String> smsAttributes =
           ImmutableList.of(rejectReasonKey, convertToString(mismatchedFields, ", ", null));
 
       String formattedText =
           smsSenderProvider.send(
               mobileNumber.trim(), SEND_PENDING_SMS_I18N_KEY, smsAttributes, realm, null, session);
-      communicationsLog(context, formattedText);
+      keycloakSent(context, MessageChannel.SMS, mobileNumber.trim());
     }
   }
 
@@ -1735,18 +2149,28 @@ public class Utils {
       Object context)
       throws EmailException, IOException {
     log.info("sendRejectCommunication(): start");
-    if (sendNotice(
-        session,
-        realm,
-        null,
-        recipient,
-        SEND_REJECT_SMS_I18N_KEY,
-        () ->
-            List.of(String.valueOf(rejectReasonKey), convertToString(mismatchedFields, ", ", null)),
-        context)) {
+    Optional<KeycloakNotice> keycloak =
+        sendNotice(
+                session,
+                realm,
+                null,
+                recipient,
+                messageCourier,
+                email,
+                mobileNumber,
+                SEND_REJECT_SMS_I18N_KEY,
+                () ->
+                    List.of(
+                        String.valueOf(rejectReasonKey),
+                        convertToString(mismatchedFields, ", ", null)),
+                context)
+            .keycloak();
+    if (keycloak.isEmpty()) {
       return;
     }
-    messageCourier = recipient.keycloakCourier(messageCourier);
+    messageCourier = keycloak.get().courier();
+    mobileNumber = keycloak.get().mobileNumber();
+    email = keycloak.get().email();
 
     String realName = realm.getName();
     // Send a confirmation email
@@ -1756,14 +2180,13 @@ public class Utils {
     // going to be
     // either email or mobileNumber.
     String username = email != null ? email : mobileNumber;
-    log.infov("sendRejectCommunication(): username {0}", username);
     log.infov("sendRejectCommunication(): messageCourier {0}", messageCourier);
 
     if (email != null
         && email.trim().length() > 0
         && (MessageCourier.EMAIL.equals(messageCourier)
             || MessageCourier.BOTH.equals(messageCourier))) {
-      log.infov("sendRejectCommunication(): sending email", username);
+      log.info("sendRejectCommunication(): sending email");
       List<Object> subjAttr = ImmutableList.of(realName);
       Map<String, Object> messageAttributes = Maps.newHashMap();
       messageAttributes.put("rejectReasonKey", rejectReasonKey);
@@ -1781,24 +2204,23 @@ public class Utils {
               email.trim(),
               true,
               username);
-      communicationsLog(context, textBody);
+      keycloakSent(context, MessageChannel.EMAIL, email.trim());
     }
 
     if (mobileNumber != null
         && mobileNumber.trim().length() > 0
         && (MessageCourier.SMS.equals(messageCourier)
             || MessageCourier.BOTH.equals(messageCourier))) {
-      log.infov("sendRejectCommunication(): sending sms", username);
+      log.info("sendRejectCommunication(): sending sms");
 
       SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
-      log.infov("sendRejectCommunication(): Sending SMS to=`{0}`", mobileNumber.trim());
       List<String> smsAttributes =
           ImmutableList.of(rejectReasonKey, convertToString(mismatchedFields, ", ", null));
 
       String formattedText =
           smsSenderProvider.send(
               mobileNumber.trim(), SEND_REJECT_SMS_I18N_KEY, smsAttributes, realm, null, session);
-      communicationsLog(context, formattedText);
+      keycloakSent(context, MessageChannel.SMS, mobileNumber.trim());
     }
   }
 
@@ -1811,6 +2233,10 @@ public class Utils {
         continue;
       }
       String authNoteValue = authSession.getAuthNote(attribute.getName());
+      // Events reach the electoral log: never a voter's number or email address.
+      if (ContactDetails.isContact(attribute.getName(), authNoteValue)) {
+        continue;
+      }
       context.getEvent().detail(attribute.getName(), authNoteValue);
     }
     if (user != null) {
@@ -1829,7 +2255,11 @@ public class Utils {
     ObjectNode attributesJson = mapper.createObjectNode();
 
     for (String attributeName : attributes.keySet()) {
-      String value = attributes.get(attributeName).get(0);
+      List<String> values = attributes.get(attributeName);
+      String value = values == null || values.isEmpty() ? null : values.get(0);
+      if (ContactDetails.isContact(attributeName, value)) {
+        continue;
+      }
       attributesJson.put(attributeName, value);
     }
 

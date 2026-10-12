@@ -93,6 +93,7 @@ Incrementality is mandatory both locally and in GitHub Actions, not merely optio
 
 **7. One-command repeatable scenarios.**
 - Reuse existing E2E seed/helpers to expose named synthetic scenarios: `kiosk-voter`, `completed-ceremony`, and `published-results` (names illustrative; follow existing command conventions).
+- Messaging adds `messaging` and `messaging-second-organization` (a second tenant), with accounts on the fake provider routes; see the messaging development page.
 - A command creates or reuses its own isolated resources, waits on actual readiness, prints direct URLs and fixture credentials where appropriate, and offers a targeted reset. Avoid fixed startup sleeps.
 - Support repeated invocation and actionable errors. Never reset a shared database, import production data, or delete another task's resources. Use real backend scenarios only when stories cannot answer the development question.
 

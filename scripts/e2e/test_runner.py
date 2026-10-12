@@ -11,7 +11,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 with patch.dict(
     os.environ,
@@ -24,6 +24,7 @@ with patch.dict(
     },
 ):
     driver = importlib.import_module("scripts.e2e.journeys.__main__")
+    bootstrap = importlib.import_module("scripts.e2e.journeys.bootstrap")
 summary = importlib.import_module("scripts.e2e.summary")
 coverage = importlib.import_module("scripts.e2e.coverage")
 ROOT = Path(__file__).resolve().parents[2]
@@ -158,6 +159,66 @@ class SummaryContracts(DriverOutput):
             self.assertIn(f".cache/backend-e2e/run/{name}", upload)
 
 
+class FakeKeycloak:
+    def __init__(self, credentials):
+        self.credentials = credentials
+        self.requests = []
+
+    def user(self, realm, username):
+        return {"id": "admin-id", "username": username}
+
+    def admin(self, method, path, json_body=None, expect=(200,)):
+        self.requests.append((method, path, json_body))
+        return self.credentials if method == "GET" else None
+
+
+class BootstrapAdminContracts(unittest.TestCase):
+    """The tenant template ships its administrator without a password."""
+
+    def setUp(self):
+        self.enterContext(
+            patch.dict(
+                os.environ,
+                {"ADMIN_USERNAME": "admin", "ADMIN_PASSWORD": "synthetic-password"},
+            )
+        )
+        self.reset = (
+            "PUT",
+            f"{bootstrap.TENANT_REALM}/users/admin-id/reset-password",
+            {"type": "password", "value": "synthetic-password", "temporary": False},
+        )
+
+    def test_an_administrator_without_a_password_gets_the_configured_one(self):
+        keycloak = FakeKeycloak([])
+        bootstrap.set_admin_password(keycloak)
+        self.assertIn(self.reset, keycloak.requests)
+
+    def test_an_existing_password_is_kept(self):
+        keycloak = FakeKeycloak([{"type": "password"}])
+        bootstrap.set_admin_password(keycloak)
+        self.assertNotIn(self.reset, keycloak.requests)
+
+    def test_the_password_is_set_before_the_administrator_first_signs_in(self):
+        calls = []
+        with tempfile.TemporaryDirectory() as directory, patch.multiple(
+            bootstrap,
+            OUTPUT=Path(directory),
+            Keycloak=MagicMock(),
+            wait_until=MagicMock(),
+            StepCli=MagicMock(),
+            configure_step_cli=MagicMock(),
+            seed_trustees=MagicMock(),
+            set_admin_password=MagicMock(
+                side_effect=lambda keycloak: calls.append("password")
+            ),
+            enroll_admin_mfa=MagicMock(
+                side_effect=lambda keycloak: calls.append("enroll")
+            ),
+        ), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(bootstrap.main(), 0)
+        self.assertEqual(calls, ["password", "enroll"])
+
+
 class CoverageExitContracts(unittest.TestCase):
     def report(self, codes, *, json_lines=False):
         with tempfile.TemporaryDirectory() as temporary:
@@ -169,7 +230,7 @@ class CoverageExitContracts(unittest.TestCase):
             binary.write_text("instrumented binary placeholder")
             binary.chmod(0o700)
             for name in ("harvest", "windmill", "beat", "b4", "trustee1", "trustee2",
-                         "step-cli"):
+                         "step-cli", "messaging-webhooks"):
                 (directory / "profiles" / f"{name}-123.profraw").write_bytes(b"profile")
             rows = [{"Service": name, "ExitCode": code} for name, code in codes.items()]
             (directory / "services.json").write_text(
@@ -195,7 +256,8 @@ class CoverageExitContracts(unittest.TestCase):
     @staticmethod
     def normal_codes():
         return {"harvest": 0, "windmill": 0,
-                "beat": 143, "b4": 143, "trustee1": 143, "trustee2": 143}
+                "beat": 143, "b4": 143, "trustee1": 143, "trustee2": 143,
+                "messaging-webhooks": 0}
 
     def test_normal_shutdown_and_removed_driver_accept_nonempty_profiles(self):
         for json_lines in (False, True):
@@ -203,7 +265,7 @@ class CoverageExitContracts(unittest.TestCase):
                 status, report, _ = self.report(self.normal_codes(), json_lines=json_lines)
                 self.assertEqual(status, 0)
                 self.assertEqual(report["failures"], [])
-                self.assertEqual(len(report["profiles"]), 7)
+                self.assertEqual(len(report["profiles"]), 8)
                 self.assertTrue(all(row["executed_functions"] == 12 for row in report["profiles"]))
 
     def test_worker_crash_fails_even_when_its_profile_executed_code(self):

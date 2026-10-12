@@ -6,6 +6,9 @@ import React, {useContext, useMemo} from "react"
 import {useParams} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import Stack from "@mui/material/Stack"
+import Snackbar from "@mui/material/Snackbar"
+import Alert, {type AlertColor} from "@mui/material/Alert"
+import ContactPhoneOutlinedIcon from "@mui/icons-material/ContactPhoneOutlined"
 import {useTranslation} from "react-i18next"
 import {Footer, Header, PageBanner} from "@sequentech/ui-essentials"
 import {
@@ -14,10 +17,15 @@ import {
     USER_LANGUAGE_COOKIE_NAME,
     setCookie,
     getValueFromCookie,
+    sanitizePresentationCss,
 } from "@sequentech/ui-core"
 import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
-import {AuthContext} from "../providers/AuthContextProvider"
+import {
+    AuthContext,
+    AuthContextValues,
+    ContactChangeOutcome,
+} from "../providers/AuthContextProvider"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {TenantEventType} from ".."
 import {useAppSelector} from "../store/hooks"
@@ -56,8 +64,57 @@ const StyledAppWrapper = styled(Stack)<{customCss: string}>`
     ${({customCss}) => customCss}
 `
 
+const OUTCOME_NOTICES: Record<ContactChangeOutcome, {key: string; severity: AlertColor}> = {
+    [ContactChangeOutcome.Success]: {key: "contactChannel.updated", severity: "success"},
+    [ContactChangeOutcome.Cancelled]: {key: "contactChannel.cancelled", severity: "info"},
+    [ContactChangeOutcome.Error]: {key: "contactChannel.failed", severity: "error"},
+}
+
+/**
+ * How the contact change ended, when the voter comes back from Keycloak. It stays until the voter
+ * closes it, so it can be read at any pace.
+ */
+const ContactChangeNotice: React.FC = () => {
+    const {t} = useTranslation()
+    const {contactChangeOutcome, clearContactChangeOutcome} = useContext(AuthContext)
+    if (contactChangeOutcome === undefined) {
+        return null
+    }
+    const notice = OUTCOME_NOTICES[contactChangeOutcome]
+    return (
+        <Snackbar
+            open
+            className="contact-change-notice"
+            anchorOrigin={{vertical: "top", horizontal: "center"}}
+            onClose={(_event, reason) => {
+                // Only the voter's own close dismisses it, never a click elsewhere.
+                if (reason !== "clickaway") {
+                    clearContactChangeOutcome?.()
+                }
+            }}
+        >
+            <Alert
+                className="contact-change-alert"
+                severity={notice.severity}
+                onClose={() => clearContactChangeOutcome?.()}
+                closeText={t("contactChannel.close")}
+            >
+                {t(notice.key)}
+            </Alert>
+        </Snackbar>
+    )
+}
+
 const HeaderWithContext: React.FC = () => {
-    const authContext = useContext(AuthContext)
+    const {t} = useTranslation()
+    // Offered only to a signed-in voter, when the event has a channel for codes. A context
+    // without these (one that can't reach Keycloak, such as the embedded preview) offers none.
+    const authContext: AuthContextValues = useContext(AuthContext)
+    const {changeContactChannel} = authContext
+    const showContactChange =
+        authContext.isAuthenticated &&
+        authContext.contactChangeAvailable === true &&
+        changeContactChannel !== undefined
     const {globalSettings} = useContext(SettingsContext)
     const {eventId} = useParams<TenantEventType>()
 
@@ -97,6 +154,21 @@ const HeaderWithContext: React.FC = () => {
                 username: authContext.username,
                 email: authContext.email,
                 openLink: showUserProfile ? authContext.openProfileLink : undefined,
+                menuActions: showContactChange
+                    ? [
+                          {
+                              id: "contact-method",
+                              label: t("contactChannel.change"),
+                              icon: (
+                                  <ContactPhoneOutlinedIcon
+                                      className="contact-method-icon"
+                                      aria-hidden
+                                  />
+                              ),
+                              onSelect: () => void changeContactChannel(),
+                          },
+                      ]
+                    : undefined,
             }}
             languagesList={languagesList}
             logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
@@ -134,6 +206,7 @@ export const PortalChrome: React.FC<PortalChromeProps> = ({
     children,
 }) => {
     const {t} = useTranslation()
+    const {globalSettings} = useContext(SettingsContext)
     const {eventId} = useParams<TenantEventType>()
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const electionIds = useAppSelector(selectElectionIds)
@@ -147,11 +220,20 @@ export const PortalChrome: React.FC<PortalChromeProps> = ({
 
     const presentation =
         ballotStyle?.ballot_eml.election_event_presentation ?? electionEvent?.presentation
+    const css = presentation?.css ?? ""
+    const customCss = useMemo(
+        () =>
+            sanitizePresentationCss(css, {
+                baseUrl: document.baseURI,
+                publicBucketUrl: globalSettings.PUBLIC_BUCKET_URL,
+            }),
+        [css, globalSettings.PUBLIC_BUCKET_URL]
+    )
 
     useElectionClassName()
 
     return (
-        <StyledAppWrapper className="voting-portal-wrapper" customCss={presentation?.css ?? ""}>
+        <StyledAppWrapper className="voting-portal-wrapper" customCss={customCss}>
             <StyledApp className="voting-portal app-root">
                 {before}
                 <nav className="skip-navigation" aria-label={t("a11y.skipToContent")}>
@@ -161,6 +243,7 @@ export const PortalChrome: React.FC<PortalChromeProps> = ({
                 </nav>
                 <Wrapper>
                     <HeaderWithContext />
+                    <ContactChangeNotice />
                     <PageBanner
                         marginBottom="auto"
                         sx={{

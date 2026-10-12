@@ -81,7 +81,8 @@ pub struct IpBallots {
 pub struct IpBallotsFilter<'a> {
     pub ip_pattern: Option<&'a str>,
     pub country_pattern: Option<&'a str>,
-    pub election_id: Option<&'a str>,
+    /// Only these elections' ballots; `None`, every election's.
+    pub elections: Option<&'a [String]>,
     pub limit: i64,
     pub offset: i64,
 }
@@ -227,11 +228,12 @@ impl PostgresStore {
             .collect()
     }
 
-    /// Voters with a valid ballot, by the voting channel of their latest one.
+    /// Voters with a valid ballot, by the voting channel of their latest one,
+    /// among the ballots of `elections` (`None`: every election).
     pub async fn voters_by_channel(
         &self,
         election_event_id: &str,
-        election_id: Option<&str>,
+        elections: Option<&[String]>,
     ) -> Result<Vec<(String, i64)>> {
         let rows = self
             .client()
@@ -241,11 +243,11 @@ impl PostgresStore {
                      SELECT DISTINCT ON (voter_id) voting_channel \
                      FROM ballot_box_ballot \
                      WHERE election_event_id = $1::text::uuid AND status = $3 \
-                       AND ($2::text IS NULL OR election_id = $2::text::uuid) \
+                       AND ($2::text[] IS NULL OR election_id = ANY($2::text[]::uuid[])) \
                      ORDER BY voter_id, seq DESC \
                  ) \
                  SELECT voting_channel, count(*) FROM latest GROUP BY 1 ORDER BY 1",
-                &[&election_event_id, &election_id, &VALID],
+                &[&election_event_id, &elections, &VALID],
             )
             .await
             .context("Error counting voters by channel")?;
@@ -254,12 +256,13 @@ impl PostgresStore {
             .collect()
     }
 
-    /// Valid ballots per time bucket and voting channel. Every bucket of the range
-    /// is listed; one without ballots has `default_channel` and a count of 0.
+    /// Valid ballots of `elections` (`None`: every election) per time bucket and
+    /// voting channel. Every bucket of the range is listed; one without ballots has
+    /// `default_channel` and a count of 0.
     pub async fn ballots_per_bucket(
         &self,
         election_event_id: &str,
-        election_id: Option<&str>,
+        elections: Option<&[String]>,
         range: &BucketRange<'_>,
         default_channel: &str,
     ) -> Result<Vec<BucketCount>> {
@@ -300,7 +303,7 @@ impl PostgresStore {
                 ) AS series(bucket)
                 LEFT JOIN ballot_box_ballot b
                     ON b.election_event_id = $1::text::uuid
-                    AND ($2::text IS NULL OR b.election_id = $2::text::uuid)
+                    AND ($2::text[] IS NULL OR b.election_id = ANY($2::text[]::uuid[]))
                     AND b.status = $9
                     AND date_trunc($6::text, b.accepted_at AT TIME ZONE $5::text) = series.bucket
                     AND (b.accepted_at AT TIME ZONE $5::text) >= bounds.start_bucket
@@ -311,7 +314,7 @@ impl PostgresStore {
                 "#,
                 &[
                     &election_event_id,
-                    &election_id,
+                    &elections,
                     &range.start,
                     &range.end,
                     &range.time_zone,
@@ -353,7 +356,7 @@ impl PostgresStore {
                    AND voter_ip IS NOT NULL AND voter_country IS NOT NULL \
                    AND ($2::text IS NULL OR voter_ip ILIKE $2) \
                    AND ($3::text IS NULL OR voter_country ILIKE $3) \
-                   AND ($4::text IS NULL OR election_id = $4::text::uuid) \
+                   AND ($4::text[] IS NULL OR election_id = ANY($4::text[]::uuid[])) \
                  GROUP BY voter_ip, voter_country, election_id \
                  ORDER BY ballots DESC, voter_ip, voter_country, election_id \
                  LIMIT $5 OFFSET $6",
@@ -361,7 +364,7 @@ impl PostgresStore {
                     &election_event_id,
                     &filter.ip_pattern,
                     &filter.country_pattern,
-                    &filter.election_id,
+                    &filter.elections,
                     &filter.limit,
                     &filter.offset,
                     &VALID,

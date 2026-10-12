@@ -32,6 +32,8 @@ COPY ./e2e/Cargo.toml ./e2e/Cargo.toml
 COPY ./e2e/src/mock_server/Cargo.toml ./e2e/src/mock_server/Cargo.toml
 COPY ./step-cli/Cargo.toml ./step-cli/Cargo.toml
 COPY ./wrap-map-err/Cargo.toml ./wrap-map-err/Cargo.toml
+COPY ./messaging/Cargo.toml ./messaging/Cargo.toml
+COPY ./messaging-webhooks/Cargo.toml ./messaging-webhooks/Cargo.toml
 COPY ./braid/scripts/Cargo.toml ./braid/scripts/Cargo.toml
 COPY ./orare/Cargo.toml ./orare/Cargo.toml
 COPY ./orare/doc_renderer/Cargo.toml ./orare/doc_renderer/Cargo.toml
@@ -69,6 +71,11 @@ RUN mkdir -p ./sequent-core/src \
     && echo "// dummy file" > ./sequent-core/examples/render_pdf.rs
 RUN mkdir -p ./wrap-map-err/src \
     && echo "// dummy file" > ./wrap-map-err/src/lib.rs
+RUN mkdir -p ./messaging/src \
+    && echo "// dummy file" > ./messaging/src/lib.rs
+RUN mkdir -p ./messaging-webhooks/src \
+    && echo "// dummy file" > ./messaging-webhooks/src/lib.rs \
+    && echo "fn main() {}" > ./messaging-webhooks/src/main.rs
 RUN mkdir -p ./braid/src \
     && echo "// dummy file" > ./braid/src/lib.rs
 RUN mkdir -p ./orare/src \

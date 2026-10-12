@@ -1263,10 +1263,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                                         !(
                                                             createMode ||
                                                             !electionEventId ||
-                                                            enabledByVoteNum ||
-                                                            (!hasVoted &&
-                                                                attr.name === "emailAndOrMobile" &&
-                                                                canEditVotersEmailTlf)
+                                                            enabledByVoteNum
                                                         )
                                                     }
                                                     checked={value && value.includes(choice.id)}
@@ -1589,7 +1586,12 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     >
                         {formFields}
                         {!createMode && electionEventId ? (
-                            <VoterMessagingSummary attributes={user?.attributes} />
+                            <VoterMessagingSummary
+                                attributes={user?.attributes}
+                                email={user?.email}
+                                userId={user?.id ?? id}
+                                electionEventId={electionEventId}
+                            />
                         ) : null}
                         <VoterField
                             name="enabled"
