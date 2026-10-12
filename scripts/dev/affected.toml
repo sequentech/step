@@ -228,7 +228,7 @@ globs = [
 units = ["repo-config"]
 
 [[paths]]
-globs = [".github/workflows/**", ".github/actions/**"]
+globs = [".github/workflows/**", ".github/actions/**", ".github/scripts/**"]
 units = ["ci"]
 
 [[paths]]
