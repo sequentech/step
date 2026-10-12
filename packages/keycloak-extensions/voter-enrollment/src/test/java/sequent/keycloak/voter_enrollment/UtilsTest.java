@@ -25,7 +25,9 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.UserProvider;
+import org.keycloak.representations.userprofile.config.UPConfig;
 import org.keycloak.sessions.AuthenticationSessionModel;
+import org.keycloak.userprofile.UserProfileProvider;
 
 class UtilsTest {
 
@@ -123,7 +125,13 @@ class UtilsTest {
     when(voter.getId()).thenReturn("voter-id");
     when(users.searchForUserStream(any(RealmModel.class), anyMap())).thenReturn(Stream.of(voter));
 
-    Utils.storeUserDataInAuthSessionNotes(context, List.of());
+    UserProfileProvider profile = mock(UserProfileProvider.class);
+    UPConfig config = new UPConfig();
+    config.setAttributes(List.of());
+    when(context.getSession().getProvider(UserProfileProvider.class)).thenReturn(profile);
+    when(profile.getConfiguration()).thenReturn(config);
+    Utils.storeUserDataInAuthSessionNotes(
+        context, List.of(), EnrollmentChannels.ChannelChoicePolicy.NONE);
 
     verify(authenticationSession).setAuthNote(UserModel.USERNAME, USERNAME_VALUE);
     verify(authenticationSession, never()).setAuthNote(eq(USER_ID_AUTH_NOTE), any());
