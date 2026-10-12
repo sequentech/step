@@ -15,7 +15,7 @@ A **slate** is a named group of candidates who run together across the contests 
 
 ## Configuration
 
-Slates are stored as a JSON text in the Election annotation `sequent.slates`:
+Slates are set up in the Admin Portal, in the Election's **Ballot Design** and on a page for each slate. See [Slate Configuration](./14-slates-configuration.md). The Admin Portal stores them as a JSON text in the Election annotation `sequent.slates`, which is also what an exported Election Event contains:
 
 ```json
 {
@@ -48,6 +48,9 @@ Slates are stored as a JSON text in the Election annotation `sequent.slates`:
 | `slates` | The slates, in the order voters see them. |
 | `slates[].id` | An identifier of up to 64 letters, digits, hyphens or underscores, starting with a letter or digit. Unique in the Election. |
 | `slates[].name` | The display name by language code. |
+| `slates[].alias` | Optional. A short name of up to 120 characters, on one line. |
+| `slates[].description` | Optional. A description of up to 1000 characters. |
+| `slates[].external_id` | Optional. An identifier from another system, of up to 255 characters, on one line. |
 | `slates[].members` | The candidates of the slate, by contest. Both are the identifiers of existing contests and candidates of the Election. |
 
 A slate does not need a candidate in every contest, and a candidate belongs to one slate at most. Candidates in no slate are independent.
@@ -56,14 +59,14 @@ A slate does not need a candidate in every contest, and a candidate belongs to o
 
 Each slate has a name per language. A name is one line of plain text of 1 to 120 characters, and can include a motto. Two slates cannot have the same name in the same language.
 
-Voters see the name in their language. If the slate has no name in that language, they see the name in the Election's default language, and otherwise the first name configured. Give every slate a name in the default language of the Election.
+Voters see the name in their language. If the slate has no name in that language, they see the name in the Election's default language, and otherwise the first name configured. Give every slate a name in the default language of the Election. The **Name** field of a slate in the Admin Portal is the name in that language; names in other languages are kept as they are.
 
 ### Validation
 
 The configuration is refused when:
 
 - it is not valid JSON, is larger than 64 KB, or has a `version` other than `1`;
-- it has a field that is not listed above;
+- it has a field that is not listed above, or an alias, description or external ID that is too long or, for the alias and external ID, more than one line;
 - a slate identifier is invalid or repeated;
 - a slate has no name, an empty name, a name that is too long or not plain text, or a name another slate already uses in that language;
 - a slate has no candidates, or lists a contest without candidates;
@@ -80,156 +83,158 @@ The Election adds rules of its own, such as contest limits, and the configuratio
 
 ## Voting Portal
 
-When the Election has slates:
+When the Election has slates, the voting screen has two tabs, **Choose a slate** and **Individual candidates**. Both work on the same ballot. Elections without slates show the ordinary ballot, without tabs.
 
-- The voting screen lists the slates in their configured order. Each slate shows its name and its candidates, grouped by contest.
-- In every contest where a slate has candidates, each candidate shows the name of their slate under their own name. Candidates in no slate show **Independent**. Write-in, blank and invalid options show no label.
-- The review screen shows the same slate name, or **Independent**, next to each selected candidate. See [Reviewing the ballot](#reviewing-the-ballot).
+Above the tabs, the number of selected candidates out of the most the ballot allows is shown, for example **3 / 7 candidates selected**. It is hidden on phones.
 
-The label always comes from the candidate, so the ballot, the list of slates and the review screen show the same name.
+In every contest where a slate has candidates, each candidate shows the name of their slate under their own name, on both tabs and on the review screen. Candidates in no slate show **Independent**. Write-in, blank and invalid options show no label. The label always comes from the candidate, so every screen shows the same name.
 
 ---
 
 ## Complete and partial slates
 
-A slate can name candidates in only some contests, for example only trustees, and fewer candidates than a contest has seats. Whether a slate is complete or partial is never configured: the platform derives it from the contests a voter can vote in, so a slate cannot claim an office it has no candidate for.
-
-### How coverage is derived
+A slate can name candidates in only some contests, for example only trustees, and fewer candidates than a contest has seats. Whether a slate is complete or partial is never configured: the platform derives it from the contests a voter can vote in.
 
 - A slate is **complete** when it has a candidate for every seat (the contest's maximum number of choices) of every contest on the voter's ballot.
 - Otherwise it is **partial**. A slate with one trustee out of three is partial even if it has a candidate in every office.
 - Coverage is computed for each ballot style. Contests that are not on a voter's ballot are ignored, so the same slate can be complete for one area and partial for another.
-- Acclaimed contests are displayed but not voted, so they count neither as covered nor as missing.
+- Acclaimed contests count neither as covered nor as missing.
 - Disabled candidates, write-in placeholders and the explicit blank or invalid options are not counted as members.
 - A slate with no candidate that the voter can choose is not shown to that voter.
 
-### What the voter sees
-
-Under its name, each slate states what it covers:
-
-| Text | Meaning |
-| --- | --- |
-| **Full slate** | A candidate for every seat of every contest. |
-| **_Contest_ only**, for example **Trustees only** | Candidates in a single contest, with other contests on the ballot. |
-| **Partial slate** | Any other partial slate. |
-
-The text is followed by the number of candidates and of offices the slate has candidates in, for example `Trustees only · 3 candidates · 1 office`.
-
-On wide screens the slate cards list the same contests in the same order, so that the same office is in the same position on each slate. An office the slate has no candidate for shows **No candidate**. On phones those offices are left out. See [Slate cards on wider screens](#slate-cards-on-wider-screens).
-
-Choosing a partial slate leaves the offices it has no candidate for empty: a slate choice sets every office on the ballot to exactly the slate's candidates. Any earlier choice in those offices is removed, after the voter confirms. See [Choosing a Slate](./13-choosing-a-slate.md).
-
 ---
 
-## Slates and individual choices
+## Choose a slate
 
-When an election has slates, the voting screen has two tabs:
+Each slate is a card, in the configured order. A card shows, from top to bottom:
 
-- **Choose a slate** shows the slates with their candidates by contest.
-- **Individual candidates** is the ordinary ballot, contest by contest.
+- A chip stating what the slate covers: **Full slate**, **_Contest_ only** (for example **Trustees only**) when it has candidates in one contest only, or **Partial slate**.
+- The slate name.
+- A sentence: **Candidates for every office.**, or **Candidates for _offices_. Other offices are left blank.**
+- The number of candidates and offices, for example **3 candidates · 1 office**.
+- How much of the slate is selected (see below).
+- Its candidates, office by office. An office the slate has no candidate for shows **No candidate**.
+- The **Select slate** button. See [Choosing a Slate](./13-choosing-a-slate.md).
 
-Both tabs work on the same ballot. A voter can choose a slate and then change it by hand: replace a candidate, deselect one, or add candidates of other slates and independent candidates, within each contest's limits. Slate members and independent candidates are selected with the same controls and count the same. See [Choosing a Slate](./13-choosing-a-slate.md) for what the **Choose this slate** button does.
+Under the cards a note says: *A slate selects its candidates and leaves offices without a slate candidate blank. You can change individual choices at any time.* Once something is selected, a strip under the note lists every office with its selected candidates, or **No selection**.
 
-Elections without slates show the ordinary ballot, without tabs.
+The cards list the contests of the voter's ballot that at least one slate has candidates for, in ballot order. Candidates are listed in the order the ballot shows them, following each contest's candidate order.
 
-### What Choose a slate shows
+### What a slate says about the ballot
 
-The slate cards always reflect the current ballot, however the candidates were selected:
-
-- Every selected member of a slate has a checkmark and a highlight. Screen readers announce it as selected.
-- Each slate states how much of it is selected:
+The cards always reflect the current ballot, however the candidates were selected. Every selected member has a checkmark and a highlight, and screen readers announce it as selected. Each slate states how much of it is selected, looking at the whole ballot:
 
 | Summary | Meaning |
 | --- | --- |
-| **All N selected** | In every contest the slate has candidates for, the selection is exactly the slate's candidates. |
-| **Mixed · n of N selected** | Some of its candidates are selected, and one of its contests also has a candidate from outside the slate or is marked as an invalid vote. |
-| **Partly selected · n of N** | Some of its candidates are selected and nothing else is selected in its contests. |
+| **All N selected** | The ballot holds exactly the slate's candidates, and nothing in the offices it has no candidate for. |
+| **Mixed · n of N selected** | Some of its candidates are selected, together with any other choice on the ballot, including an invalid vote mark. |
+| **Partly selected · n of N** | Some of its candidates are selected and nothing else is. |
 | No summary | None of its candidates is selected. |
 
-N is the number of candidates of the slate in the voter's ballot. Only the contests a slate has candidates for are taken into account, so a slate with only trustee candidates reads **All N selected** when exactly its trustees are selected, whatever the other contests hold.
+N is the number of candidates of the slate in the voter's ballot. A slate with only trustee candidates reads **All N selected** only while the other offices are blank. A voter who selects one trustee of each of three slates sees each slate as **Mixed** with its own count.
 
-A voter who selects one trustee of each of three slates sees that trustee marked in each card, and each slate reads **Mixed** with its own count.
+A card whose slate is **All N selected** has a dark border and a check instead of the people icon, and offers **Edit selections** instead of **Select slate**. **Edit selections** opens **Individual candidates**. A card with only some of its candidates selected has a lighter border.
 
-The marks and the summaries are computed from the ballot every time it changes. The Voting Portal does not remember which slate was chosen, so they stay correct after going to **Individual candidates** or to the review screen and coming back.
+The summaries are computed from the ballot every time it changes. The Voting Portal does not remember which slate was chosen, so they stay correct after going to **Individual candidates** or to the review screen and coming back.
 
-A slate that is fully selected offers **Edit selections** instead of **Choose this slate**. It opens the **Individual candidates** tab.
+### Wider screens
 
-### Moving to the next step
+On screens 750px wide or wider, the cards are side by side, up to three per row; more slates continue on the next row. Every candidate is visible without clicking. Each office starts at the same height in every card of a row, also when a name takes two lines, so a voter can read across the cards to compare the candidates for one office. The page never scrolls sideways.
 
-**Next** works on both tabs. On a ballot whose contests are split in several pages, pressing **Next** on **Choose a slate** opens **Individual candidates**, so the voter goes through every page before the review screen.
+### Phones
 
-### Slate cards on wider screens
+On screens narrower than 750px, the cards are stacked in the configured order and list only the offices their slate has candidates for. The candidates of each slate are in a list the voter can show or hide with **Show candidates** and **Hide candidates**. The **Mobile candidate lists** setting of the Election decides how the lists start:
 
-On screens 750px wide or wider, the slates are shown side by side, one card per slate. Every candidate of every slate is visible without clicking.
-
-The cards list the same contests in the same order: the contests of the voter's ballot that at least one slate has candidates for, in ballot order. Each contest starts at the same height in every card of a row, so a voter can read across the cards to compare the candidates for one office. The height of a contest follows the card that needs the most room, for example a slate with three trustees next to a slate with one, or a long name that takes two lines.
-
-A slate without candidates for one of those contests shows the contest with **No candidate**. A contest no slate has candidates for is not listed in the cards; it is on the **Individual candidates** tab.
-
-When there are more slates than fit in one row, the cards continue on the next row, and the contests line up within each row.
-
-### Reviewing the ballot
-
-When the Election has slates, the review screen lists every contest of the ballot and adds:
-
-- **Your selections**, above the contests: the number of selected candidates out of the maximum the ballot allows, one line for each slate that has selected candidates, and the number of selected independent candidates. The slate lines use the same words as **Choose a slate**: **All N selected**, **Mixed · n of N selected** or **Partly selected · n of N**.
-- Under each contest, the number of selected candidates out of the maximum of the contest, for example **2 of 3 selected**. A contest without a selection reads **0 of N selected**.
-- Under each contest, an **Edit** button. It opens **Individual candidates** on the page of that contest, with the contest in view.
-
-Like the slate cards, the summary is computed from the candidates on the ballot and not from the slate the voter pressed. A voter who chooses a slate and then replaces one of its candidates sees that slate as **Mixed**, and the replacement under its own slate or as **Independent**.
-
-Going back to the voting screen, with **Edit** or with **Back**, keeps every selection. Blank and invalid options are not counted as candidates. Acclaimed contests have no count and no **Edit** button, and a declined ballot shows neither the summary nor the counts.
-
-The review screen always shows the selections of the encrypted ballot it is about to cast. If the selections change after the ballot was encrypted, for example with the back and forward buttons of the browser, the Voting Portal returns to the voting screen with the current selections. The voter presses **Next** again to review them.
-
-Elections without slates keep the ordinary review screen.
-
-### Candidate lists on phones
-
-On screens narrower than 750px, the slate cards are stacked one under the other and list only the contests their slate has candidates for. The candidates of each slate are in a list that the voter can show or hide. The `mobile_candidate_lists` field of the configuration decides how the lists start:
-
-| `mobile_candidate_lists` | Lists start |
+| Mobile candidate lists | Lists start |
 | --- | --- |
-| `collapsed` (default) | Hidden, with a **Show candidates** button |
-| `expanded` | Shown, with a **Hide candidates** button |
+| **Collapsed** (default) | Hidden |
+| **Expanded** | Shown |
 
-Showing or hiding a list never changes the ballot. The voter's choice for each list is kept while moving between the tabs and the review screen. The summary of the slate stays visible above a hidden list.
+Showing or hiding a list never changes the ballot, and the voter's choice for each list is kept while moving between the tabs and the review screen. The summary of a slate stays visible above a hidden list.
 
-On wider screens the lists are always shown, whatever `mobile_candidate_lists` says.
+---
 
-### Screen sizes and keyboard
+## Individual candidates
 
-The slate cards, the individual candidates and the review screen fit the screen from 320px wide: long slate and candidate names continue on the next line and the page never scrolls sideways. On a phone the two tabs share the width of the screen.
+On a ballot with slates, **Individual candidates** shows one office at a time. A line at the top states what the ballot holds: the name of the slate it holds exactly, **Individual selections**, or **No candidates selected**, followed by the number of selected candidates.
+
+- On wider screens a list of the offices is on the left, each with its count, for example **1/1**, and a check when it is full. On phones the list is an **Office** drop-down.
+- Each office shows **Office n of N**, its name, **Select up to N candidates. k selected.**, and a **Clear** button that removes the choices of that office. **Clear** is disabled while the office has no choice.
+- **Previous office** and **Next office** move between offices; the last office says **Last office**.
+
+All offices stay on the voting screen, so **Next** at the bottom goes to the review screen from either tab. Ballots without slates keep their usual pages.
+
+---
+
+## Reviewing the ballot
+
+When the Election has slates, the review screen lists every contest as usual and adds:
+
+- Under each contest, the number of selected candidates out of the maximum, for example **2 of 3 selected**. A contest without a selection also reads **No candidate selected**.
+- Under each contest, an edit button named **Edit _contest_**. It opens **Individual candidates** at that office.
+- **Your selections**, next to the contests on wider screens: the number of selected candidates out of the most the ballot allows, the name of the slate the ballot holds exactly or **Individual selections** or **No candidates selected**, and the note *Your vote is recorded for each selected candidate.* It is not shown on phones.
+
+Going back with an edit button or **Back** keeps every selection. Acclaimed contests have no count and no edit button, and a declined ballot shows neither the summary nor the counts.
+
+The review screen always shows the selections of the encrypted ballot it is about to cast. If the selections change after the ballot was encrypted, for example with the back and forward buttons of the browser, the Voting Portal returns to the voting screen with the current selections.
+
+### Unfilled offices
+
+When a contest's **Under Vote Policy** is **Warn and Confirm in Review**, casting a ballot with fewer choices than allowed in that contest opens **Some selections are unfilled**. It lists each such office with, for example, **0 of 1 selected · No vote for this office**. **Review selections** closes it without casting; **Continue with these selections** casts. An entirely blank ballot is asked the same way. The answer is not kept: the question comes again on every cast.
+
+---
+
+## Screen sizes and keyboard
+
+The slate cards, the individual candidates, the dialogs and the review screen fit the screen from 320px wide: long slate and candidate names continue on the next line and the page never scrolls sideways.
 
 The tabs, the **Show candidates** and **Hide candidates** buttons and the buttons of each slate are at least 44px tall. All of them can be reached with the Tab key and operated with Enter or Space, and show which one has the focus.
 
-### Custom CSS
+---
+
+## Custom CSS
 
 | Class | Element |
 | --- | --- |
-| `slate-coverage` | The line stating what the slate covers. Its `data-coverage` attribute is `complete` or `partial`. |
-| `slate-coverage-kind` | **Full slate**, **_Contest_ only** or **Partial slate**. |
-| `slate-coverage-count` | The number of candidates and offices. |
-| `slate-contest-uncovered` | An office the slate has no candidate for. |
-| `slate-no-candidate` | The **No candidate** text. |
+| `slate-selection-count` | The number of selected candidates above the tabs and on the review screen |
 | `slate-ballot-tabs-container` | Container of the tabs and their panels |
-| `slate-ballot-tabs` | The tab list |
+| `slate-ballot-tabs-bar`, `slate-ballot-tabs` | The tab bar and the tab list |
 | `slate-ballot-tab-slates`, `slate-ballot-tab-candidates` | The two tabs |
 | `slate-ballot-panel`, `slate-ballot-panel-slates`, `slate-ballot-panel-candidates` | The panels |
-| `slate-selection-status` | The summary of a slate |
+| `slate-chooser`, `slate-list` | The slates and their list |
+| `slate-card` | A slate card |
+| `slate-card-none`, `slate-card-some`, `slate-card-exact` | A card with none, some or exactly its candidates selected |
+| `slate-card-header`, `slate-symbol`, `slate-mark` | The top of a card, its icon row and the round icon |
+| `slate-coverage-chip` | **Full slate**, **_Contest_ only** or **Partial slate**. Its `data-coverage` attribute is `complete` or `partial`. |
+| `slate-name` | The slate name |
+| `slate-coverage-sentence` | **Candidates for every office.** or the offices the slate covers |
+| `slate-count` | The number of candidates and offices |
+| `slate-summary`, `slate-selection-status` | The summary of a slate |
 | `slate-selection-status-all`, `slate-selection-status-mixed`, `slate-selection-status-partly` | The summary, by state |
-| `slate-member-selected` | A selected member of a slate |
-| `slate-member-check` | The checkmark of a selected member |
-| `slate-candidate-list-toggle` | The button that shows or hides the candidates on phones |
-| `slate-candidate-list` | The candidates of a slate |
-| `slate-card-actions` | Container of the actions of a slate |
+| `slate-member-lists`, `slate-candidate-list` | The offices of a card |
+| `slate-candidate-list-toggle` | **Show candidates** / **Hide candidates** on phones |
+| `slate-contest`, `slate-contest-name` | An office of a card and its name |
+| `slate-contest-uncovered` | An office the slate has no candidate for |
+| `slate-no-candidate` | The **No candidate** text |
+| `slate-members`, `slate-member`, `slate-member-name` | The candidates of an office |
+| `slate-member-selected`, `slate-member-check` | A selected member and its checkmark |
+| `slate-actions`, `slate-card-actions` | The actions of a card |
 | `slate-edit-selections-button` | The **Edit selections** button |
-| `review-selection-summary` | The **Your selections** summary of the review screen |
-| `review-selection-title`, `review-selection-total`, `review-selection-note` | The heading, the total and the closing note of the summary |
-| `review-selection-lines` | The list of slates and independent candidates in the summary |
-| `review-selection-slate` | The line of a slate in the summary |
-| `review-selection-slate-all`, `review-selection-slate-mixed`, `review-selection-slate-partly` | The line of a slate, by state |
-| `review-selection-independent` | The line of the independent candidates in the summary |
-| `review-contest-footer` | Container of the count and the **Edit** button of a contest in review |
-| `review-contest-count` | The count of selected candidates of a contest |
-| `review-contest-edit` | The **Edit** button of a contest |
+| `slate-note` | The note under the cards |
+| `slate-all-selections`, `slate-all-selections-office`, `slate-all-selections-name` | The strip of current selections |
+| `slate-selection-label` | The line at the top of **Individual candidates** |
+| `slate-office-navigator` | The office navigator |
+| `slate-office-list`, `slate-office-button`, `slate-office-count`, `slate-office-full` | The list of offices, an office, its count and its check |
+| `slate-office-picker`, `slate-office-select` | The **Office** drop-down on phones |
+| `slate-office-index` | **Office n of N** |
+| `slate-office-navigation`, `slate-office-previous`, `slate-office-next`, `slate-office-last` | **Previous office**, **Next office** and **Last office** |
+| `contest-selection-count` | **Select up to N candidates. k selected.** |
+| `contest-clear-button`, `contest-clear-status` | The **Clear** button of an office and its announcement |
+| `review-slate-layout`, `review-slate-contests`, `review-slate-aside` | The review screen with **Your selections** next to the contests |
+| `review-selection-summary` | **Your selections** |
+| `review-selection-title`, `review-selection-total`, `review-selection-caption`, `review-selection-note` | Its heading, total, caption and note |
+| `review-selection-label`, `review-selection-label-slate`, `review-selection-label-individual`, `review-selection-label-none` | What the ballot holds, by kind |
+| `review-contest-footer` | The count and edit button of a contest |
+| `review-contest-unfilled` | A contest with fewer choices than allowed |
+| `review-contest-count`, `review-contest-blank`, `review-contest-edit` | The count, **No candidate selected** and the edit button |
+| `unfilled-contests-dialog`, `unfilled-contest` | **Some selections are unfilled** and one of its offices |
