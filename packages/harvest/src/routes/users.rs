@@ -14,13 +14,14 @@ use crate::services::access::{
     read_permission, writes_secret_attributes, UserEdit, UserEditAccess,
     UserScope,
 };
-use crate::services::authorization::authorize;
+use crate::services::authorization::{authorize, permitted_event_election_ids};
 use crate::services::dependencies::HarvestServices;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use anyhow::{anyhow, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use electoral_log::adapters::ballot_box_status::VoterBallotState;
 use rocket::futures::future::join_all;
 use rocket::http::Status;
 use rocket::response::{Responder, Result as ResponseResult};
@@ -47,10 +48,8 @@ use std::collections::{HashMap, HashSet};
 use std::env;
 use tracing::{info, instrument};
 use uuid::Uuid;
-use windmill::postgres::cast_vote::{
-    get_voter_cast_vote_state, VoterCastVoteState,
-};
 use windmill::postgres::election_event::get_election_event_by_id;
+use windmill::services::ballot_box::get_voter_ballot_state;
 use windmill::services::cast_votes::get_users_with_vote_info;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
@@ -118,15 +117,15 @@ fn ballot_check_error(err: anyhow::Error) -> (Status, String) {
     )
 }
 
-async fn voter_cast_vote_state(
+async fn voter_ballot_state(
     databases: &dyn DatabasePools,
-    tenant_id: &Uuid,
-    election_event_id: &Uuid,
+    tenant_id: &str,
+    election_event_id: &str,
     user_id: &str,
-) -> Result<VoterCastVoteState> {
+) -> Result<VoterBallotState> {
     let mut hasura_db_client: DbClient = databases.hasura().await.get().await?;
     let hasura_transaction = hasura_db_client.transaction().await?;
-    get_voter_cast_vote_state(
+    get_voter_ballot_state(
         &hasura_transaction,
         tenant_id,
         election_event_id,
@@ -144,18 +143,14 @@ async fn ensure_voter_has_no_active_ballot(
     election_event_id: &str,
     user_id: &str,
 ) -> Result<(), (Status, String)> {
-    let tenant_uuid = parse_uuid_v4(tenant_id)
-        .map_err(|err| (Status::BadRequest, err.to_string()))?;
-    let election_event_uuid = parse_uuid_v4(election_event_id)
-        .map_err(|err| (Status::BadRequest, err.to_string()))?;
-    let state = voter_cast_vote_state(
-        databases,
-        &tenant_uuid,
-        &election_event_uuid,
-        user_id,
-    )
-    .await
-    .map_err(ballot_check_error)?;
+    for id in [tenant_id, election_event_id] {
+        parse_uuid_v4(id)
+            .map_err(|err| (Status::BadRequest, err.to_string()))?;
+    }
+    let state =
+        voter_ballot_state(databases, tenant_id, election_event_id, user_id)
+            .await
+            .map_err(ballot_check_error)?;
     if state.has_active_vote() {
         return Err((
             Status::Conflict,
@@ -710,6 +705,19 @@ pub async fn count_users(
     }))
 }
 
+/// Drops the votes of elections outside the caller's permission labels, as
+/// Hasura scoped the cast vote rows. Votes not tied to an election stay.
+fn keep_permitted_votes(user: &mut User, elections: Option<&[String]>) {
+    if let (Some(elections), Some(votes_info)) =
+        (elections, user.votes_info.as_mut())
+    {
+        votes_info.retain(|votes| {
+            votes.election_id.is_empty()
+                || elections.contains(&votes.election_id)
+        });
+    }
+}
+
 #[instrument(skip(claims, body), ret)]
 #[post("/get-users", format = "json", data = "<body>")]
 pub async fn get_users(
@@ -774,6 +782,22 @@ pub async fn get_users(
             )
         })?;
 
+    let vote_elections = match input.election_event_id.as_deref() {
+        Some(election_event_id)
+            if input.has_voted.is_some()
+                || input.show_votes_info.unwrap_or(false) =>
+        {
+            permitted_event_election_ids(
+                &hasura_transaction,
+                &claims,
+                &input.tenant_id,
+                election_event_id,
+            )
+            .await?
+        }
+        _ => None,
+    };
+
     let filter = ListUsersFilter {
         tenant_id: input.tenant_id.clone(),
         election_event_id: input.election_event_id.clone(),
@@ -812,6 +836,7 @@ pub async fn get_users(
         })?;
 
         for user in &mut users {
+            keep_permitted_votes(user, vote_elections.as_deref());
             redact_user(user, &secret_names);
         }
         return Ok(Json(DataList {
@@ -854,6 +879,7 @@ pub async fn get_users(
     };
 
     for user in &mut users {
+        keep_permitted_votes(user, vote_elections.as_deref());
         redact_user(user, &secret_names);
     }
     Ok(Json(DataList {
@@ -1699,7 +1725,7 @@ pub async fn edit_user(
     // For Datafix election events the edit is offloaded to the `edit_user`
     // task, which notifies VoterView (SetNotVoted) and reconciles the voter's
     // cast votes under the per-voter lock. Deferring it keeps the Save button
-    // from blocking on the (retried) VoterView round-trip, and the admin portal
+    // from blocking on the VoterView round-trip, and the admin portal
     // tracks the outcome in the returned task widget. Non-Datafix edits stay
     // synchronous.
     if !password_only {
@@ -2168,6 +2194,43 @@ pub async fn get_user_profile_configuration(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn listed_votes_keep_only_the_permitted_elections() {
+        let votes =
+            |election_id: &str| sequent_core::types::keycloak::VotesInfo {
+                election_id: election_id.to_string(),
+                num_votes: 1,
+                last_voted_at: String::new(),
+            };
+        let voter = || super::User {
+            votes_info: Some(vec![votes("north"), votes("south"), votes("")]),
+            ..Default::default()
+        };
+        let elections = |user: &super::User| -> Vec<String> {
+            user.votes_info
+                .iter()
+                .flatten()
+                .map(|votes| votes.election_id.clone())
+                .collect()
+        };
+
+        let mut user = voter();
+        super::keep_permitted_votes(&mut user, Some(&["north".to_string()]));
+        assert_eq!(elections(&user), ["north", ""]);
+
+        let mut user = voter();
+        super::keep_permitted_votes(&mut user, Some(&[]));
+        assert_eq!(elections(&user), [""]);
+
+        let mut user = voter();
+        super::keep_permitted_votes(&mut user, None);
+        assert_eq!(elections(&user), ["north", "south", ""]);
+
+        let mut user = super::User::default();
+        super::keep_permitted_votes(&mut user, Some(&[]));
+        assert!(user.votes_info.is_none());
+    }
+
     /// A new user always gets the id of the tenant it is created in, so a
     /// request that carries a `tenant-id` attribute, whatever its value, is
     /// refused while other attributes are accepted.

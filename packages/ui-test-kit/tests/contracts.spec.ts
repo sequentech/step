@@ -345,6 +345,20 @@ test("GraphQL response data must satisfy the schema and queued errors are consum
     expect(fixture.violations.list()).toHaveLength(1)
 })
 
+test("GraphQL mock data may answer an aliased field by its alias or its field name", async () => {
+    const fixture = graphqlFixture()
+    const query = "query Greeting($name: String!) { welcome: greeting(name: $name) }"
+    fixture.graphql.on("Greeting", () => ({data: {welcome: "Hello by alias"}}))
+    expect(bodyOf((await fixture.send(query)) as MockFulfillment)).toEqual({
+        data: {welcome: "Hello by alias"},
+    })
+    fixture.graphql.on("Greeting", () => ({data: {greeting: "Hello by field"}}))
+    expect(bodyOf((await fixture.send(query)) as MockFulfillment)).toEqual({
+        data: {welcome: "Hello by field"},
+    })
+    expect(fixture.violations.list()).toEqual([])
+})
+
 test("S3 delivers exact bytes, HEAD metadata, expiring URL overrides and detects missing objects", () => {
     const violations = new ViolationLog()
     const s3 = new S3Mock({origin, violations})

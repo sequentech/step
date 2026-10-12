@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use deadpool_postgres::Transaction;
+use electoral_log::messages::newtypes::BallotPublicationStage;
+use sequent_core::types::hasura::core::TasksExecution;
 use windmill::services::electoral_log::{
     ElectoralLogAdminContext, VoterSecretAttributeAction,
     VoterSecretAttributeAudit,
@@ -60,5 +62,15 @@ pub trait ElectoralLogs: Send + Sync {
         &self,
         transaction: &Transaction<'_>,
         entry: ApprovalMatrixLog<'_>,
+    ) -> anyhow::Result<()>;
+
+    /// Posted after the publication's transaction ended, so its rollback
+    /// cannot erase the entry.
+    async fn ballot_publication_failure(
+        &self,
+        task: &TasksExecution,
+        publication_id: &str,
+        stage: BallotPublicationStage,
+        message: &str,
     ) -> anyhow::Result<()>;
 }

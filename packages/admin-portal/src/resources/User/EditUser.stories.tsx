@@ -81,11 +81,9 @@ async function loaded(canvasElement: HTMLElement, voter = true) {
     const canvas = within(canvasElement)
     await canvas.findByDisplayValue("alice")
     await waitFor(() => expect(graphql.calls.map((call) => call.name)).toContain("ListUserRoles"))
-    // Fields of a voter stay locked until their cast votes show they have not voted.
+    // Fields of a voter stay locked until their votes show they have not voted.
     if (voter)
-        await waitFor(() =>
-            expect(data.calls.map(({args}) => args[0])).toContain("sequent_backend_cast_vote")
-        )
+        await waitFor(() => expect(graphql.calls.map((call) => call.name)).toContain("getUsers"))
     return canvas
 }
 
@@ -124,6 +122,7 @@ export const ReviewAndConfirm: Story = {
         expect(graphql.calls.map((call) => call.name)).toEqual([
             "GetVoterUnsettledMessages",
             "ListUserRoles",
+            "getUsers",
         ])
         await userEvent.click(canvas.getByRole("button", {name: "Confirm changes"}))
         await waitFor(() => expect(args.close).toHaveBeenCalledTimes(1))
@@ -149,6 +148,7 @@ export const BackToEditFromReview: Story = {
         expect(graphql.calls.map((call) => call.name)).toEqual([
             "GetVoterUnsettledMessages",
             "ListUserRoles",
+            "getUsers",
         ])
         expect(args.close).not.toHaveBeenCalled()
     },
@@ -164,6 +164,7 @@ export const NothingChanged: Story = {
         expect(graphql.calls.map((call) => call.name)).toEqual([
             "GetVoterUnsettledMessages",
             "ListUserRoles",
+            "getUsers",
         ])
     },
 }
@@ -178,6 +179,7 @@ export const EditFailure: Story = {
         expect(graphql.calls.map((call) => call.name)).toEqual([
             "GetVoterUnsettledMessages",
             "ListUserRoles",
+            "getUsers",
             "EditUser",
         ])
         // The review stays open to retry.

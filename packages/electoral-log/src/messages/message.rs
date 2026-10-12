@@ -572,6 +572,58 @@ impl Message {
         Self::from_body(event, body, sd, user_id, username, election_id, None, None)
     }
 
+    pub fn ballot_publication_failure_message(
+        event: EventIdString,
+        details: BallotPublicationFailure,
+        sd: &SigningData,
+        username: Option<String>,
+    ) -> Result<Self> {
+        Self::from_body(
+            event,
+            StatementBody::BallotPublicationFailure(details),
+            sd,
+            None,
+            username,
+            None,
+            None,
+            None,
+        )
+    }
+
+    pub fn electoral_log_checkpoint_message(
+        event: EventIdString,
+        details: ElectoralLogCheckpointV2,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        Self::from_body(
+            event,
+            StatementBody::ElectoralLogCheckpointV2(details),
+            sd,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+    }
+
+    pub fn electoral_log_continuation_message(
+        event: EventIdString,
+        details: ElectoralLogContinuation,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        Self::from_body(
+            event,
+            StatementBody::ElectoralLogContinuation(details),
+            sd,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+    }
+
     pub fn send_template(
         event: EventIdString,
         _election: ElectionIdString,
@@ -932,6 +984,16 @@ pub struct SigningData {
     system_sk: StrandSignatureSk,
 }
 impl SigningData {
+    /// Public key of the system signer (the event's protocol manager key).
+    pub fn system_pk(&self) -> Result<StrandSignaturePk> {
+        Ok(StrandSignaturePk::from_sk(&self.system_sk)?)
+    }
+
+    /// Sign arbitrary bytes with the system key.
+    pub fn system_sign(&self, msg: &[u8]) -> Result<StrandSignature> {
+        Ok(self.system_sk.sign(msg)?)
+    }
+
     pub fn new(
         sender_sk: StrandSignatureSk,
         sender_name: &str,

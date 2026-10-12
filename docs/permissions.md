@@ -46,6 +46,10 @@ CRUD endpoints for:
 - tally-resolution-submit
 - publish-read|write
 - logs-read
+- electoral-log-audit
+- electoral-log-console-read|query
+- electoral-log-personal-data-read
+- task-queues-read|write|query (super-admin tenant only)
 - keys-read
 - contest-create|read|write|delete
 - candidate-create|read|write|delete

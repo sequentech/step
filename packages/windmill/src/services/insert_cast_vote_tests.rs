@@ -101,29 +101,78 @@ fn administrative_pause_is_not_hidden_by_a_future_scheduled_close() {
 }
 
 #[test]
-fn ordinary_events_insert_valid_votes_without_async_processing() {
-    let status = initial_cast_vote_status(&election_event(None)).unwrap();
-    assert_eq!(status, CastVoteStatus::Valid);
+fn ordinary_events_accept_valid_ballots_without_async_processing() {
+    let status = initial_ballot_status(&election_event(None)).unwrap();
+    assert_eq!(status, BallotStatus::Valid);
 }
 
 #[test]
-fn configured_datafix_events_insert_pending_votes() {
+fn configured_datafix_events_accept_pending_ballots() {
     let annotations = json!({
         "datafix:id": "external-event",
         "datafix:password_policy": r#"{"base":"password-only","size":6,"characters":"numeric"}"#,
         "datafix:voterview_request": r#"{"url":"https://example.invalid","usr":"user","psw":"secret","county_mun":"county"}"#
     });
-    let status = initial_cast_vote_status(&election_event(Some(annotations))).unwrap();
-    assert_eq!(status, CastVoteStatus::InProgress);
+    let status = initial_ballot_status(&election_event(Some(annotations))).unwrap();
+    assert_eq!(status, BallotStatus::Pending);
 }
 
 #[test]
 fn malformed_datafix_configuration_fails_closed() {
     let annotations = json!({"datafix:id": "external-event"});
     assert!(matches!(
-        initial_cast_vote_status(&election_event(Some(annotations))),
+        initial_ballot_status(&election_event(Some(annotations))),
         Err(CastVoteError::InvalidDatafixConfiguration(_))
     ));
+}
+
+#[test]
+fn refusals_by_the_ballot_box_are_final_and_other_errors_are_retried() {
+    assert!(matches!(
+        skip_or_propagate(CastVoteError::InsertFailedExceedsAllowedRevotes),
+        Ok(InsertCastVoteResult::SkipRetryFailure(
+            CastVoteError::InsertFailedExceedsAllowedRevotes
+        ))
+    ));
+    assert!(matches!(
+        skip_or_propagate(CastVoteError::CheckVotesInOtherAreasFailed("area".into())),
+        Ok(InsertCastVoteResult::SkipRetryFailure(_))
+    ));
+    assert!(matches!(
+        skip_or_propagate(CastVoteError::CheckStatusFailed("closed".into())),
+        Ok(InsertCastVoteResult::SkipRetryFailure(_))
+    ));
+    assert!(matches!(
+        skip_or_propagate(CastVoteError::InsertFailed("database".into())),
+        Err(CastVoteError::InsertFailed(_))
+    ));
+}
+
+#[test]
+fn accepted_ballots_report_their_status_as_cast_vote_statuses() {
+    let vote = |status| CastVote {
+        id: "id".into(),
+        tenant_id: "tenant".into(),
+        election_id: None,
+        area_id: None,
+        created_at: None,
+        last_updated_at: None,
+        content: None,
+        voter_id_string: None,
+        election_event_id: "event".into(),
+        ballot_id: None,
+        cast_ballot_signature: None,
+        status: cast_vote_status(status),
+    };
+    assert!(matches!(
+        classify_inserted_cast_vote(vote(BallotStatus::Valid)),
+        Ok(InsertCastVoteResult::Success(_))
+    ));
+    assert!(matches!(
+        classify_inserted_cast_vote(vote(BallotStatus::Pending)),
+        Ok(InsertCastVoteResult::PendingDatafix(_))
+    ));
+    assert!(classify_inserted_cast_vote(vote(BallotStatus::Rejected)).is_err());
 }
 
 #[test]
@@ -340,6 +389,173 @@ fn signed_channel_deadlines_do_not_wait_for_the_scheduler() {
         check_signed_channel_deadline(at, VotingStatusChannel::KIOSK, Some("invalid")),
         Err(CastVoteError::CheckStatusInternalFailed(_))
     ));
+}
+
+#[test]
+fn kiosk_and_telephone_use_their_own_status_and_ignore_online_schedule() {
+    let now = ISO8601::to_date("2026-01-01T12:01:00Z").unwrap();
+    for channel in [VotingStatusChannel::KIOSK, VotingStatusChannel::TELEPHONE] {
+        for state in [
+            VotingStatus::OPEN,
+            VotingStatus::NOT_STARTED,
+            VotingStatus::PAUSED,
+            VotingStatus::CLOSED,
+        ] {
+            let status = ElectionStatus {
+                voting_status: VotingStatus::CLOSED,
+                kiosk_voting_status: state.clone(),
+                telephone_voting_status: state.clone(),
+                ..Default::default()
+            };
+            let result = check_status_with_loaded_election(
+                now,
+                now - Duration::minutes(2),
+                channel,
+                false,
+                VotingPeriodDates {
+                    start_date: None,
+                    end_date: Some("2026-01-01T12:00:00Z".into()),
+                },
+                &status,
+                &ElectionPresentation::default(),
+                "election",
+            );
+            if state == VotingStatus::OPEN {
+                assert_eq!(result.unwrap(), channel);
+            } else {
+                assert!(result.is_err(), "channel={channel:?}, status={state:?}");
+            }
+        }
+    }
+}
+
+#[test]
+fn scheduled_grace_preserves_deadline_and_authentication_boundaries() {
+    let close = ISO8601::to_date("2026-01-01T12:00:00Z").unwrap();
+    let presentation = ElectionPresentation {
+        grace_period_policy: Some(EGracePeriodPolicy::GRACE_PERIOD_WITHOUT_ALERT),
+        grace_period_secs: Some(120),
+        ..Default::default()
+    };
+    for seconds_after_close in [-1, 0, 1, 119, 120, 121] {
+        for auth_offset in [-1, 0, 1] {
+            let status = ElectionStatus {
+                voting_status: if seconds_after_close <= 0 {
+                    VotingStatus::OPEN
+                } else {
+                    VotingStatus::CLOSED
+                },
+                ..Default::default()
+            };
+            let result = check_status_with_loaded_election(
+                close + Duration::seconds(seconds_after_close),
+                close + Duration::seconds(auth_offset),
+                VotingStatusChannel::ONLINE,
+                false,
+                VotingPeriodDates {
+                    start_date: None,
+                    end_date: Some("2026-01-01T12:00:00Z".into()),
+                },
+                &status,
+                &presentation,
+                "election",
+            );
+            assert_eq!(
+                result.is_ok(),
+                seconds_after_close <= 120 && auth_offset <= 0,
+                "submission={seconds_after_close}, authentication={auth_offset}"
+            );
+        }
+    }
+}
+
+#[test]
+fn manual_grace_preserves_strict_stop_and_authentication_boundaries() {
+    let close = ISO8601::to_date("2026-01-01T12:00:00Z").unwrap();
+    let mut status = ElectionStatus {
+        voting_status: VotingStatus::CLOSED,
+        ..Default::default()
+    };
+    status.voting_period_dates.last_stopped_at = Some(close.into());
+    let presentation = ElectionPresentation {
+        grace_period_policy: Some(EGracePeriodPolicy::GRACE_PERIOD_WITHOUT_ALERT),
+        grace_period_secs: Some(120),
+        ..Default::default()
+    };
+    for offset in [0, 1, 119, 120, 121] {
+        for auth_offset in [-1, 0, 1] {
+            let result = check_status_with_loaded_election(
+                close + Duration::seconds(offset),
+                close + Duration::seconds(auth_offset),
+                VotingStatusChannel::ONLINE,
+                false,
+                VotingPeriodDates::default(),
+                &status,
+                &presentation,
+                "election",
+            );
+            assert_eq!(
+                result.is_ok(),
+                offset < 120 && auth_offset < 0,
+                "submission={offset}, authentication={auth_offset}"
+            );
+        }
+    }
+}
+
+#[test]
+fn grace_cannot_override_pause_disabled_policy_or_other_channels() {
+    let close = ISO8601::to_date("2026-01-01T12:00:00Z").unwrap();
+    for scheduled in [false, true] {
+        for channel in [
+            VotingStatusChannel::ONLINE,
+            VotingStatusChannel::KIOSK,
+            VotingStatusChannel::TELEPHONE,
+        ] {
+            for paused in [false, true] {
+                for enabled in [false, true] {
+                    let state = if paused {
+                        VotingStatus::PAUSED
+                    } else {
+                        VotingStatus::CLOSED
+                    };
+                    let mut status = ElectionStatus {
+                        voting_status: state.clone(),
+                        kiosk_voting_status: state.clone(),
+                        telephone_voting_status: state,
+                        ..Default::default()
+                    };
+                    status.voting_period_dates.last_stopped_at = Some(close.into());
+                    status.kiosk_voting_period_dates.last_stopped_at = Some(close.into());
+                    status.telephone_voting_period_dates.last_stopped_at = Some(close.into());
+                    let presentation = ElectionPresentation {
+                        grace_period_policy: Some(if enabled {
+                            EGracePeriodPolicy::GRACE_PERIOD_WITHOUT_ALERT
+                        } else {
+                            EGracePeriodPolicy::NO_GRACE_PERIOD
+                        }),
+                        grace_period_secs: Some(120),
+                        ..Default::default()
+                    };
+                    let result = check_status_with_loaded_election(
+                        close + Duration::seconds(1),
+                        close - Duration::seconds(1),
+                        channel,
+                        false,
+                        VotingPeriodDates {
+                            start_date: None,
+                            end_date: scheduled.then(|| "2026-01-01T12:00:00Z".into()),
+                        },
+                        &status,
+                        &presentation,
+                        "election",
+                    );
+                    assert_eq!(result.is_ok(), enabled && !paused && channel == VotingStatusChannel::ONLINE,
+                        "scheduled={scheduled}, channel={channel:?}, paused={paused}, enabled={enabled}");
+                }
+            }
+        }
+    }
 }
 
 mod ballot_style_binding {

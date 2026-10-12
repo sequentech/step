@@ -21,7 +21,6 @@ const writerRoles = [
     "voter-write",
     "voter-delete",
     "area-read",
-    "cast-vote-read",
     "ee-voters-columns",
 ]
 test.use({roles: writerRoles})
@@ -112,12 +111,6 @@ function voters(portal: PortalServices, existing = false) {
         data: {
             sequent_backend_election: [],
             sequent_backend_election_aggregate: {aggregate: {count: 0}},
-        },
-    }))
-    portal.graphql.on("sequent_backend_cast_vote", () => ({
-        data: {
-            sequent_backend_cast_vote: [],
-            sequent_backend_cast_vote_aggregate: {aggregate: {count: 0}},
         },
     }))
     portal.graphql.on("CreateUser", ({variables}) => {
@@ -253,14 +246,9 @@ test("creates, reviews an edit, and deletes an event voter with scoped mutations
             `${operation} role`
         ).toBe(true)
     }
-    for (const [operation, role] of [
-        ["sequent_backend_area", "area-read"],
-        ["sequent_backend_cast_vote", "cast-vote-read"],
-    ]) {
-        expect(portal.graphql.callsTo(operation).length).toBeGreaterThan(0)
-        for (const call of portal.graphql.callsTo(operation))
-            expect(call.headers["x-hasura-role"]).toBe(role)
-    }
+    expect(portal.graphql.callsTo("sequent_backend_area").length).toBeGreaterThan(0)
+    for (const call of portal.graphql.callsTo("sequent_backend_area"))
+        expect(call.headers["x-hasura-role"]).toBe("area-read")
     for (const call of portal.graphql.callsTo("getUsers"))
         expect(call.variables).toMatchObject({
             tenant_id: TENANT_ID,

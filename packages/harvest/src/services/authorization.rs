@@ -141,6 +141,41 @@ pub async fn permitted_event_election_ids(
     ))
 }
 
+/// The elections a read of the event's cast votes covers, scoped as Hasura
+/// scoped the cast vote rows: `election_id` alone, refused unless the
+/// caller's permission labels allow it, or else the elections the labels
+/// allow (`None` when they allow all of them).
+#[instrument(skip(hasura_transaction, claims))]
+pub async fn cast_vote_read_elections(
+    hasura_transaction: &Transaction<'_>,
+    claims: &JwtClaims,
+    election_event_id: &str,
+    election_id: Option<&str>,
+) -> Result<Option<Vec<String>>, (Status, String)> {
+    match election_id {
+        Some(election_id) => {
+            let elections = vec![election_id.to_string()];
+            authorize_election_permission_labels(
+                hasura_transaction,
+                claims,
+                election_event_id,
+                Some(&elections),
+            )
+            .await?;
+            Ok(Some(elections))
+        }
+        None => {
+            permitted_event_election_ids(
+                hasura_transaction,
+                claims,
+                &claims.hasura_claims.tenant_id,
+                election_event_id,
+            )
+            .await
+        }
+    }
+}
+
 #[cfg(test)]
 mod permission_label_tests {
     use super::*;

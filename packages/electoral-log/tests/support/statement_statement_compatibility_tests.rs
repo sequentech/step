@@ -92,9 +92,38 @@ fn statement_body_borsh_discriminants_are_append_only() {
     assert_eq!(borsh::to_vec(&external).unwrap()[0], 26);
     assert_eq!(borsh::to_vec(&cast_vote_with_channel).unwrap()[0], 27);
     assert_eq!(borsh::to_vec(&external_reconciliation).unwrap()[0], 28);
-    assert_eq!(borsh::to_vec(&monitoring_config_changed()).unwrap()[0], 29);
-    assert_eq!(borsh::to_vec(&signing()).unwrap()[0], 30);
-    for (body, tag) in ballot_box_bodies().iter().zip(35u8..) {
+    let ballot_publication_failure =
+        StatementBody::BallotPublicationFailure(BallotPublicationFailure {
+            publication_id: BallotPublicationIdString(String::new()),
+            task_id: String::new(),
+            stage: BallotPublicationStage::Generate,
+            error: ErrorMessageString(String::new()),
+        });
+    let checkpoint = StatementBody::ElectoralLogCheckpoint(ElectoralLogCheckpoint {
+        log_id: 1,
+        tree_size: 2,
+        root: String::new(),
+        reason: ElectoralLogCheckpointReason::TallyCompleted,
+    });
+    let checkpoint_v2 = StatementBody::ElectoralLogCheckpointV2(ElectoralLogCheckpointV2 {
+        log_uid: String::new(),
+        tree_size: 2,
+        root: String::new(),
+        reason: ElectoralLogCheckpointReason::TallyCompleted,
+    });
+    let continuation = StatementBody::ElectoralLogContinuation(ElectoralLogContinuation {
+        previous_log_name: String::new(),
+        previous_log_uid: String::new(),
+        tree_size: 2,
+        root: String::new(),
+    });
+    assert_eq!(borsh::to_vec(&ballot_publication_failure).unwrap()[0], 29);
+    assert_eq!(borsh::to_vec(&checkpoint).unwrap()[0], 30);
+    assert_eq!(borsh::to_vec(&checkpoint_v2).unwrap()[0], 31);
+    assert_eq!(borsh::to_vec(&continuation).unwrap()[0], 32);
+    assert_eq!(borsh::to_vec(&monitoring_config_changed()).unwrap()[0], 33);
+    assert_eq!(borsh::to_vec(&signing()).unwrap()[0], 34);
+    for (body, tag) in ballot_box_bodies().iter().zip(39u8..) {
         assert_eq!(borsh::to_vec(body).unwrap()[0], tag);
     }
 }
@@ -126,20 +155,20 @@ fn ballot_box_bodies() -> Vec<StatementBody> {
 #[test]
 fn the_ballot_box_seal_kinds_are_appended() {
     let expected = [
-        (StatementType::BallotBoxSealed, 55, StatementLogType::INFO),
+        (StatementType::BallotBoxSealed, 58, StatementLogType::INFO),
         (
             StatementType::BallotBoxSealFailed,
-            56,
+            59,
             StatementLogType::ERROR,
         ),
         (
             StatementType::TallyBallotBoxVerified,
-            57,
+            60,
             StatementLogType::INFO,
         ),
         (
             StatementType::TallyBallotBoxRejected,
-            58,
+            61,
             StatementLogType::ERROR,
         ),
     ];
@@ -231,43 +260,55 @@ fn statement_type_borsh_discriminants_are_append_only() {
         27
     );
     assert_eq!(
-        borsh::to_vec(&StatementType::MonitoringConfigChanged).unwrap(),
+        borsh::to_vec(&StatementType::BallotPublicationFailure).unwrap(),
         vec![29]
     );
     assert_eq!(
-        borsh::to_vec(&StatementType::SigningRequestCreated).unwrap(),
+        borsh::to_vec(&StatementType::ElectoralLogCheckpoint).unwrap(),
         vec![30]
     );
     assert_eq!(
+        borsh::to_vec(&StatementType::ElectoralLogContinuation).unwrap(),
+        vec![31]
+    );
+    assert_eq!(
+        borsh::to_vec(&StatementType::MonitoringConfigChanged).unwrap(),
+        vec![32]
+    );
+    assert_eq!(
+        borsh::to_vec(&StatementType::SigningRequestCreated).unwrap(),
+        vec![33]
+    );
+    assert_eq!(
         borsh::to_vec(&StatementType::SigningRequestsExported).unwrap(),
-        vec![45]
-    );
-    assert_eq!(
-        borsh::to_vec(&StatementType::LifecycleWindowChanged).unwrap(),
-        vec![46]
-    );
-    assert_eq!(
-        borsh::to_vec(&StatementType::ScheduleRecomputeApplied).unwrap(),
-        vec![47]
-    );
-    assert_eq!(
-        borsh::to_vec(&StatementType::ScheduleImported).unwrap(),
         vec![48]
     );
     assert_eq!(
+        borsh::to_vec(&StatementType::LifecycleWindowChanged).unwrap(),
+        vec![49]
+    );
+    assert_eq!(
+        borsh::to_vec(&StatementType::ScheduleRecomputeApplied).unwrap(),
+        vec![50]
+    );
+    assert_eq!(
+        borsh::to_vec(&StatementType::ScheduleImported).unwrap(),
+        vec![51]
+    );
+    assert_eq!(
         borsh::to_vec(&StatementType::ConfigurationPackageImported).unwrap(),
-        vec![52]
+        vec![55]
     );
     // A publication is an `ElectionPublish` entry: it has no type of its own.
     assert_eq!(
         borsh::to_vec(&StatementType::ReportGenerated).unwrap(),
-        vec![53]
+        vec![56]
     );
     assert_eq!(
         borsh::to_vec(&StatementType::ApprovalMatrixUpdated).unwrap(),
-        vec![54]
+        vec![57]
     );
-    assert!(borsh::from_slice::<StatementType>(&[59]).is_err());
+    assert!(borsh::from_slice::<StatementType>(&[62]).is_err());
 }
 
 fn report_generated(document_id: Option<&str>) -> StatementBody {
@@ -287,7 +328,7 @@ fn report_generated(document_id: Option<&str>) -> StatementBody {
 #[test]
 fn a_generated_report_entry_is_appended_and_names_its_hash_manifest() {
     let stored = report_generated(Some("document"));
-    let mut expected = vec![33];
+    let mut expected = vec![37];
     expected.extend(text("event"));
     expected.extend(text("ACTIVITY_LOGS"));
     expected.push(1);
@@ -301,7 +342,7 @@ fn a_generated_report_entry_is_appended_and_names_its_hash_manifest() {
         borsh::from_slice::<StatementBody>(&expected).unwrap(),
         StatementBody::ReportGenerated(_, _)
     ));
-    assert!(borsh::from_slice::<StatementBody>(&[39]).is_err());
+    assert!(borsh::from_slice::<StatementBody>(&[43]).is_err());
 
     let head = StatementHead::from_body(EventIdString("event".to_string()), &stored);
     assert!(matches!(head.kind, StatementType::ReportGenerated));
@@ -382,7 +423,7 @@ fn election_publish_bytes_before_configurations() -> Vec<u8> {
 #[test]
 fn a_configuration_package_entry_is_appended_and_says_it_was_imported() {
     let imported = configuration_package();
-    assert_eq!(borsh::to_vec(&imported).unwrap()[0], 31);
+    assert_eq!(borsh::to_vec(&imported).unwrap()[0], 35);
     let head = StatementHead::from_body(EventIdString("event".to_string()), &imported);
     assert!(matches!(
         head.kind,
@@ -458,7 +499,7 @@ fn an_election_publish_of_a_signed_configuration_carries_its_manifest_and_design
         BallotPublicationIdString("publication".to_string()),
         published_configuration(),
     );
-    let mut expected = vec![32, 1];
+    let mut expected = vec![36, 1];
     expected.extend(text("election"));
     expected.extend(text("publication"));
     expected.extend(text("ov-2028"));
@@ -480,7 +521,7 @@ fn an_election_publish_of_a_signed_configuration_carries_its_manifest_and_design
         }
         other => panic!("unexpected body {other:?}"),
     }
-    assert!(borsh::from_slice::<StatementBody>(&[39]).is_err());
+    assert!(borsh::from_slice::<StatementBody>(&[43]).is_err());
 
     let head = StatementHead::from_body(EventIdString("event".to_string()), &body);
     assert!(matches!(head.kind, StatementType::ElectionPublish));

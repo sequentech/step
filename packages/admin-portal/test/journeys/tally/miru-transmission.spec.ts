@@ -252,8 +252,11 @@ async function openTransmission(page: Page, portal: AdminPortal) {
             .getByRole("row", {name: /Alice Example/})
             .getByRole("gridcell", {name: "37", exact: true})
     ).toBeVisible()
-    // Export controls are rendered in event, election, then contest order.
-    await page.getByLabel("export election data", {exact: true}).nth(1).click()
+    // Export controls are rendered in event, election, then contest order. The
+    // event's waits for its results event, which can arrive after the results.
+    const exports = page.getByLabel("export election data", {exact: true})
+    await expect(exports).toHaveCount(3)
+    await exports.nth(1).click()
     await page
         .getByRole("menuitem", {
             name: "Generate Transmission Package for Area 'North precinct'",

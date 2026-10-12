@@ -57,4 +57,4 @@ After configuration, you can start using the CLI to:
 * Execute Keys/Tally ceremony
 * Load testing and data generation utilities
 * Template rendering for email notifications
-* Exporting ImmuDB bulletin board
+* Exporting cast votes from the electoral log

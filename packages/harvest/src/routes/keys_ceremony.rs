@@ -74,7 +74,8 @@ pub fn key_share_failure(error: KeyShareError) -> Guarded<(Status, String)> {
 }
 
 /// What a key step answers: `is_valid`, and the request to sign while the
-/// step waits for it. Commits unless the key share was not the trustee's.
+/// step waits for it. Commits unless the key share was not the trustee's or
+/// they already took the step with it.
 pub async fn finish_key_share_step(
     hasura_transaction: deadpool_postgres::Transaction<'_>,
     outcome: KeyShareOutcome,
@@ -82,6 +83,7 @@ pub async fn finish_key_share_step(
     let (answer, staged) = match outcome {
         // Nothing is recorded and no request is used.
         KeyShareOutcome::Invalid => return Ok((false, None)),
+        KeyShareOutcome::AlreadyTaken => return Ok((true, None)),
         KeyShareOutcome::Done(record) => ((true, None), record.is_some()),
         KeyShareOutcome::SigningRequired(summary) => {
             ((true, Some(summary)), true)

@@ -55,8 +55,8 @@
                 }
           - name: IvrGetCastVotes
             query: |
-                query IvrGetCastVotes ($event_id: uuid!) {
-                  cast_votes: sequent_backend_cast_vote(where: {election_event_id:{_eq:$event_id}}) {
+                query IvrGetCastVotes ($event_id: String!) {
+                  cast_votes: get_voter_cast_votes(election_event_id: $event_id) {
                     id
                     tenant_id
                     election_event_id

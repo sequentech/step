@@ -22,7 +22,7 @@ use sequent_core::types::hasura::core::{
 };
 use sequent_core::types::keycloak::VOTE_WEIGHT_BATCHES;
 use serde_json::{json, Value};
-use std::collections::HashSet;
+use std::collections::HashMap;
 use tokio_postgres::error::SqlState;
 use uuid::Uuid;
 use windmill::postgres::election as election_postgres;
@@ -812,15 +812,21 @@ async fn an_import_leaves_out_the_keys_ceremony_whose_public_key_is_not_on_its_b
     .await
     .unwrap();
 
-    import_election_event::verify_imported_keys_ceremonies(
+    // Ceremony 11 has no public key, so its board is never read.
+    let (keyless_election, keyless_ceremony) = (w.id(21), w.id(11));
+    let election_keys_ceremonies =
+        HashMap::from([(keyless_election.as_str(), keyless_ceremony.as_str())]);
+
+    let election_public_keys = import_election_event::verify_imported_keys_ceremonies(
         &tx,
         &w.tenant,
         &w.event,
-        &HashSet::new(),
+        &election_keys_ceremonies,
     )
     .await
     .unwrap();
 
+    assert!(election_public_keys.is_empty());
     assert_eq!(ceremony_ids(&tx, &w.event).await, vec![w.id(11), w.id(12)]);
     assert_eq!(ceremony_ids(&tx, &w.other_event).await, vec![w.id(13)]);
     let election = stored(&tx, "election", &w.id(20)).await;
@@ -841,7 +847,7 @@ async fn an_import_is_rejected_when_a_tally_session_uses_a_keys_ceremony_that_is
         &tx,
         &w.tenant,
         &w.event,
-        &HashSet::new(),
+        &HashMap::new(),
     )
     .await
     .unwrap_err();

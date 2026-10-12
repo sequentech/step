@@ -1,7 +1,7 @@
 -- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 -- SPDX-License-Identifier: AGPL-3.0-only
 
--- Back to election-scoped windows only (1788765000002, 1789420000001).
+-- Back to election-scoped windows only (1788765000003, 1789420000001).
 LOCK TABLE sequent_backend.scheduled_event IN SHARE ROW EXCLUSIVE MODE;
 
 DROP TRIGGER add_election_voting_window ON sequent_backend.election;

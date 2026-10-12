@@ -31,7 +31,7 @@ fn an_initialization_entry_sets_its_own_kind() {
 fn the_initialization_kinds_are_appended() {
     assert_eq!(
         borsh::to_vec(&StatementType::ElectionInitialized).unwrap(),
-        vec![50]
+        vec![53]
     );
     assert_eq!(
         borsh::to_vec(&SigningStatementKind::ElectionInitialized).unwrap(),

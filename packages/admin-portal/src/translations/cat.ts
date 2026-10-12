@@ -217,7 +217,7 @@ const catalanTranslation: TranslationType = {
                 start_at: "Hora d'inici",
                 end_at: "Hora de finalització",
                 executed_by_user: "Executor",
-                annotations: "Annotations",
+                annotations: "Anotacions",
                 labels: "Etiquetes",
                 logs: "Registres",
             },
@@ -226,6 +226,7 @@ const catalanTranslation: TranslationType = {
                 PUBLISH_BALLOT: "Publicar papereta",
                 VOTER_INFORMATION_LETTER: "Carta d'informació per al votant",
                 EXPORT_MONITORING_DATA: "Exportar Dades de Monitorització",
+                AUDIT_ELECTORAL_LOG: "Auditar registre electoral",
                 EXPORT_ELECTION_EVENT: "Exportar esdeveniment electoral",
                 CREATE_ELECTION_EVENT: "Crear Esdeveniment Electoral",
                 IMPORT_ELECTION_EVENT: "Importar esdeveniment electoral",
@@ -247,7 +248,7 @@ const catalanTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Exportar plantilles",
                 IMPORT_TEMPLATES: "Importar plantilles",
                 DELETE_ELECTION_EVENT: "Esborrar esdeveniment electoral",
-                DELETE_VOTERS: "Delete Voters",
+                DELETE_VOTERS: "Esborrar votants",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar la vista prèvia de la publicació",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporta els resultats del recompte en format XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exportar autoritats de certificació",
@@ -284,6 +285,13 @@ const catalanTranslation: TranslationType = {
             actions: {
                 csv: "Exportar en CSV",
                 pdf: "Exportar en PDF",
+                audit: "Auditar",
+            },
+            auditDialog: {
+                title: "Auditar el registre electoral",
+                confirm: "Auditar",
+                description:
+                    "L'auditoria comprova cada entrada del registre amb el seu registre Merkle i verifica els punts de control publicats. El resultat es desa com una tasca.",
             },
             exportdialog: {
                 description:
@@ -550,7 +558,7 @@ const catalanTranslation: TranslationType = {
                 },
                 help: {
                     publishing:
-                        "L'urna està bloquejada. S'està tornant a publicar la seva entrada al tauler d'anuncis.",
+                        "L'urna està bloquejada i el seu segell és al tauler d'anuncis. S'està publicant la seva acta de segellat.",
                     counted:
                         "Paperetes que compten: l'última papereta vàlida de cada votant elegible. Les altres de l'urna es van substituir per una papereta posterior del mateix votant, es van descartar o les van emetre votants que no són elegibles.",
                 },
@@ -589,6 +597,10 @@ const catalanTranslation: TranslationType = {
                         "Hi ha {{count}} vot en curs a Datafix: l'urna se segellarà quan es resolgui.",
                     datafixVotes_other:
                         "Hi ha {{count}} vots en curs a Datafix: l'urna se segellarà quan es resolguin.",
+                    sequencer_one:
+                        "Hi ha {{count}} papereta que encara no és al tauler d'anuncis: l'urna se segellarà quan el seqüenciador l'afegeixi.",
+                    sequencer_other:
+                        "Hi ha {{count}} paperetes que encara no són al tauler d'anuncis: l'urna se segellarà quan el seqüenciador les afegeixi.",
                     stale: "Últim intent a les {{time}}: és possible que el segellador no s'estigui executant. Comproveu Beat i el treballador de segellat.",
                     notTried:
                         "Encara no s'ha intentat: és possible que el segellador no s'estigui executant. Comproveu Beat i el treballador de segellat.",
@@ -616,6 +628,7 @@ const catalanTranslation: TranslationType = {
                     alreadyOnBoard: "Ja hi ha un segell d'aquesta urna al tauler d'anuncis.",
                     noBoard: "L'esdeveniment electoral no té tauler d'anuncis.",
                     unknownChannel: "Una papereta té un canal de votació desconegut.",
+                    unrecorded: "Una papereta no té registre de vot al tauler d'anuncis.",
                 },
                 incident: {
                     title_one: "{{count}} urna no s'ha pogut segellar",
@@ -626,7 +639,7 @@ const catalanTranslation: TranslationType = {
             },
             ipAddress: {
                 emptyState: "Encara no hi ha vots.",
-                title: "IP Addresses",
+                title: "Adreces IP",
                 ip: "IP",
                 country: "País",
                 VoteCount: "Nombre de vots",
@@ -640,7 +653,8 @@ const catalanTranslation: TranslationType = {
                 showMore: "Mostra'n més",
                 showLess: "Mostra'n menys",
                 adminPortal: "Portal d'administració",
-                allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
+                allowPublishAfterLockdown:
+                    "Permetre la publicació de l'esdeveniment electoral només després del bloqueig",
                 reset: "Restablir filtre personalitzat",
             },
             edit: {
@@ -659,16 +673,19 @@ const catalanTranslation: TranslationType = {
                 importCandidates: "Importar Candidats",
                 custom_filters: "Filtres personalitzats",
                 voter_authentication: "Autenticació del votant",
-                realm_attributes: "Keycloak realm attributes",
-                realm_attributes_load_error: "Error loading Keycloak realm attributes",
-                realm_attributes_update_error: "Error updating Keycloak realm attributes",
+                realm_attributes: "Atributs del realm de Keycloak",
+                realm_attributes_load_error: "Error en carregar els atributs del realm de Keycloak",
+                realm_attributes_update_error:
+                    "Error en actualitzar els atributs del realm de Keycloak",
                 realm_attributes_not_loaded:
-                    "Keycloak realm attributes have not loaded, changes were not saved",
-                password_policy: "Password Policy",
-                password_policy_load_error: "Error loading Keycloak password policy",
-                password_policy_update_error: "Error updating Keycloak password policy",
+                    "Els atributs del realm de Keycloak no s'han carregat; els canvis no s'han desat",
+                password_policy: "Política de contrasenyes",
+                password_policy_load_error:
+                    "Error en carregar la política de contrasenyes de Keycloak",
+                password_policy_update_error:
+                    "Error en actualitzar la política de contrasenyes de Keycloak",
                 password_policy_not_loaded:
-                    "Keycloak password policy has not loaded, changes were not saved",
+                    "La política de contrasenyes de Keycloak no s'ha carregat; els canvis no s'han desat",
             },
             customUrls: {
                 login: "Inici de sessió",
@@ -852,19 +869,19 @@ const catalanTranslation: TranslationType = {
                 },
                 contestEncryptionPolicy: {
                     options: {
-                        "single-contest": "Concurs únic",
-                        "multiple-contests": "Diversos concursos",
+                        "single-contest": "Pregunta única",
+                        "multiple-contests": "Diverses preguntes",
                     },
-                    policyLabel: "Política de xifrat de concurs",
+                    policyLabel: "Política de xifrat de pregunta",
                 },
                 votingPortalDateTimeFormat: {
                     policyLabel: "Format de data i hora del portal de votació",
                     helperText:
                         "S'aplica a tot l'esdeveniment. Per substituir-ho per idioma, afegeix la clau \"votingPortalDateTimeFormat\" a la pestanya Localització amb els tokens yyyy, MM, dd, HH, mm, ss (p. ex. dd/MM/yyyy HH:mm). Consulta la documentació per a més detalls.",
                     options: {
-                        "legacy-gb-24h": "Legacy GB 24h (dd/MM/yyyy HH:mm, 24h)",
-                        "iso-local": "ISO Local (yyyy-MM-dd HH:mm)",
-                        "us-12h": "US 12h (MM/dd/yyyy h:mm AM/PM)",
+                        "legacy-gb-24h": "GB heretat 24 h (dd/MM/yyyy HH:mm, 24h)",
+                        "iso-local": "ISO local (yyyy-MM-dd HH:mm)",
+                        "us-12h": "EUA 12 h (MM/dd/yyyy h:mm AM/PM)",
                         "locale-medium": "Locale Medium (data mitjana, hora curta)",
                         "date-only": "Date Only (sense hora)",
                         "custom": "Format personalitzat",
@@ -902,7 +919,7 @@ const catalanTranslation: TranslationType = {
                     "lockedHelperText": "No es pot canviar un cop iniciada la votació.",
                 },
                 VoterCertificatePolicy: {
-                    policyLabel: "Voter Digital Certificate Policy",
+                    policyLabel: "Política de certificat digital del votant",
                     enabled: "Habilitat",
                     disabled: "Deshabilitat",
                 },
@@ -1033,7 +1050,7 @@ const catalanTranslation: TranslationType = {
                     hints: {
                         title: "Consells",
                         publishRequired:
-                            "Qualsevol canvi fet a les eleccions, les conteses o els candidats s'ha de publicar primer perquè estigui disponible. A l'emulador només s'utilitzaran els estils de papereta publicats més recentment per a l'àrea corresponent.",
+                            "Qualsevol canvi fet a les eleccions, les preguntes o els candidats s'ha de publicar primer perquè estigui disponible. A l'emulador només s'utilitzaran els estils de papereta publicats més recentment per a l'àrea corresponent.",
                         eventChangesImmediate:
                             "Els canvis fets a l'esdeveniment electoral, com ara la configuració IVR o les substitucions dels missatges, estan disponibles immediatament en reiniciar la sessió de l'emulador.",
                         credentials:
@@ -1057,7 +1074,7 @@ const catalanTranslation: TranslationType = {
                 },
             },
             stats: {
-                elegibleVoters: "Electors",
+                elegibleVoters: "Votants Elegibles",
                 voters: "Votants",
                 elections: "Eleccions",
                 contests: "Preguntes",
@@ -1119,7 +1136,7 @@ const catalanTranslation: TranslationType = {
                 title: "Recompte de l'Esdeveniment Electoral",
                 elections: "Eleccions",
                 electionNumber: "Número d'Eleccions",
-                trustees: "Trustees",
+                trustees: "Custodis de claus",
                 permissionLabels: "Etiquetes de Permís",
                 status: "Estat",
                 tallyType: {
@@ -1160,7 +1177,7 @@ const catalanTranslation: TranslationType = {
                     "Importar àrees utilitzant un fitxer de full de càlcul en format de valors separats per comes (CSV).",
                 importSuccess: "Àrees Importades amb Èxit",
                 importError: "Error en importar Àrees",
-                upsert: "Upsert Areas",
+                upsert: "Inserir o actualitzar àrees",
             },
             import: {
                 eetitle: "Importar Esdeveniment Electoral",
@@ -1181,8 +1198,8 @@ const catalanTranslation: TranslationType = {
                 fileUploadError: "Error pujant el fitxer",
                 importVotersSuccess: "Importació de Votants llançada en segon pla amb èxit.",
                 importVotersError: "Error Important Votants.",
-                importElectionEventSuccess: "Election event imported Successfully",
-                importElectionEventError: "Error importing election event",
+                importElectionEventSuccess: "Esdeveniment electoral importat correctament",
+                importElectionEventError: "Error en importar l'esdeveniment electoral",
                 shaDialog: {
                     ok: "Sí, Importar Sense Verificació d'Integritat",
                     cancel: "Tornar",
@@ -1244,7 +1261,7 @@ const catalanTranslation: TranslationType = {
                 image: "Imatge",
                 advanced: "Configuració Avançada",
                 numAllowedVotes: "Número de vots permesos",
-                reorder: "Reordenar concursos",
+                reorder: "Reordenar preguntes",
                 castVoteConfirm: "Modal de Confirmació de Vot",
                 gracePeriodPolicy: "Política de període de gràcia",
                 allowTallyPolicy: "Permetre recompte",
@@ -1308,10 +1325,10 @@ const catalanTranslation: TranslationType = {
                 "required": "Requerit",
             },
             castVoteGoldLevelPolicy: {
-                label: "Gold level Authentication Policy",
+                label: "Política d'autenticació de nivell or",
                 options: {
-                    "gold-level": "Gold level Authentication",
-                    "no-gold-level": "No Gold level Authentication",
+                    "gold-level": "Autenticació de nivell or",
+                    "no-gold-level": "Sense autenticació de nivell or",
                 },
             },
             slates: {
@@ -1420,7 +1437,7 @@ const catalanTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Ha votat",
-                    "support_materials_viewed": "Support Materials Viewed",
+                    "support_materials_viewed": "Materials de Suport vistos",
                     "vote-weight": "Pes del vot",
                     "voted-channel": "Canal de vot",
                     "disable-comment": "Comentari de desactivació",
@@ -1452,11 +1469,12 @@ const catalanTranslation: TranslationType = {
                 delete: {
                     body: "Estàs segur que vols esborrar aquest usuari?",
                     bulkBody: "Estàs segur que vols esborrar els usuaris seleccionats?",
-                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodySelected:
+                        "Vols esborrar els {{count}} usuaris seleccionats? Aquesta acció no es pot desfer.",
                     bulkBodyChoose:
-                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
-                    okSelected: "Delete {{count}} selected",
-                    okAllMatching: "Delete all matching",
+                        "Hi ha {{count}} usuaris seleccionats. En lloc d'això, pots esborrar tots els usuaris que coincideixen amb els filtres actuals, que poden ser més. Aquesta acció no es pot desfer.",
+                    okSelected: "Esborrar {{count}} seleccionats",
+                    okAllMatching: "Esborrar tots els coincidents",
                 },
                 notifications: {
                     exportError: "Error exportant usuaris",
@@ -1551,11 +1569,11 @@ const catalanTranslation: TranslationType = {
                     body: "Estàs segur que vols esborrar aquest votant?",
                     bulkBody: "Estàs segur que vols esborrar els votants seleccionats?",
                     bulkBodySelected:
-                        "Delete the {{count}} selected voters? This cannot be undone.",
+                        "Vols esborrar els {{count}} votants seleccionats? Aquesta acció no es pot desfer.",
                     bulkBodyChoose:
-                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
-                    okSelected: "Delete {{count}} selected",
-                    okAllMatching: "Delete all matching",
+                        "Hi ha {{count}} votants seleccionats. En lloc d'això, pots esborrar tots els votants que coincideixen amb els filtres actuals, que poden ser més. Aquesta acció no es pot desfer.",
+                    okSelected: "Esborrar {{count}} seleccionats",
+                    okAllMatching: "Esborrar tots els coincidents",
                 },
                 notifications: {
                     exportError: "Error exportant votants",
@@ -1630,8 +1648,8 @@ const catalanTranslation: TranslationType = {
                 "election-event-create": "Crear Esdeveniment Electoral",
                 "election-event-read": "Llegir Esdeveniment Electoral",
                 "election-event-write": "Editar Esdeveniment Electoral",
-                "keycloak-realm-attributes-read": "Read Keycloak realm attributes",
-                "keycloak-realm-attributes-write": "Edit Keycloak realm attributes",
+                "keycloak-realm-attributes-read": "Llegir atributs del realm de Keycloak",
+                "keycloak-realm-attributes-write": "Editar atributs del realm de Keycloak",
                 "election-event-delete": "Esborrar Esdeveniment Electoral",
                 "voter-create": "Crear Votant",
                 "voter-read": "Llegir Votant",
@@ -1674,6 +1692,13 @@ const catalanTranslation: TranslationType = {
                 "publish-results-read": "Llegir Publicació de Resultats",
                 "publish-results-write": "Editar Publicació de Resultats",
                 "logs-read": "Llegir Registres",
+                "electoral-log-audit": "Auditar Registre Electoral",
+                "electoral-log-console-read": "Explorar Registre Electoral",
+                "electoral-log-console-query": "Consultar Registre Electoral",
+                "electoral-log-personal-data-read": "Llegir Dades Personals del Registre Electoral",
+                "task-queues-read": "Llegir Cues de Tasques",
+                "task-queues-write": "Gestionar Cues de Tasques",
+                "task-queues-query": "Consultar Cues de Tasques",
                 "tasks-read": "Llegir l'Execució de Tasques",
                 "keys-read": "Llegir Claus",
                 "document-upload": "Pujar Documents",
@@ -1689,23 +1714,22 @@ const catalanTranslation: TranslationType = {
                 "tally-sheet-view": "Veure Acta de Recompte",
                 "admin-ceremony": "Administrar Cerimònia de Claus",
                 "tally-sheet-delete": "Esborrar Acta de Recompte",
-                "cast-vote-read": "Llegir Vots Emissos",
                 "document-read": "Llegir Documents",
                 "document-write": "Editar Documents",
                 "support-material-read": "Llegir Materials de Suport",
                 "support-material-write": "Editar Materials de Suport",
-                "miru-create": "Miru Create",
-                "miru-download": "Miru Download",
-                "miru-send": "Miru Send",
-                "miru-sign": "Miru Sign",
-                "contest-write": "Editar Concurs",
-                "contest-read": "Llegir Concurs",
+                "miru-create": "Crear Miru",
+                "miru-download": "Descarregar Miru",
+                "miru-send": "Enviar Miru",
+                "miru-sign": "Signar Miru",
+                "contest-write": "Editar Pregunta",
+                "contest-read": "Llegir Pregunta",
                 "candidate-write": "Editar Candidats",
                 "candidate-read": "Llegir Candidats",
                 "permission-label-write": "Edita l'etiqueta de permís",
                 "scheduled-event-write": "Editar Esdeveniments Programats",
-                "contest-create": "Crear Concurs",
-                "contest-delete": "Esborrar Concurs",
+                "contest-create": "Crear Pregunta",
+                "contest-delete": "Esborrar Pregunta",
                 "candidate-create": "Crear Candidat",
                 "candidate-delete": "Esborrar Candidat",
                 "election-create": "Crear Election",
@@ -1886,10 +1910,10 @@ const catalanTranslation: TranslationType = {
             },
             eventType: {
                 label: "Tipus",
-                ALLOW_INIT_REPORT: "Allow Initialization Report",
+                ALLOW_INIT_REPORT: "Permetre informe d'inicialització",
                 START_VOTING_PERIOD: "Inici del Període de Votació",
                 END_VOTING_PERIOD: "Final del Període de Votació",
-                ALLOW_VOTING_PERIOD_END: "Allow Voting Period End",
+                ALLOW_VOTING_PERIOD_END: "Permetre el final del període de votació",
                 START_ENROLLMENT_PERIOD: "Inici del període de matrícula",
                 END_ENROLLMENT_PERIOD: "Finalització del període de matrícula",
                 START_LOCKDOWN_PERIOD: "Inici del Período de Bloc de Dades Censals",
@@ -2035,7 +2059,7 @@ const catalanTranslation: TranslationType = {
             resources: {
                 electionEvent: "Esdeveniment Electoral",
                 election: "Elecció",
-                contest: "Concurs",
+                contest: "Pregunta",
                 candidate: "Candidat",
                 noResult: {
                     askCreate: "Vols crear-ne una?",
@@ -2101,20 +2125,22 @@ const catalanTranslation: TranslationType = {
         createResource: {
             electionEvent: "Crear un Esdeveniment Electoral",
             election: "Crear una Elecció",
-            contest: "Crear un Concurs",
+            contest: "Crear una Pregunta",
             candidate: "Crear un Candidat",
         },
         importResource: {
             electionEvent: "Importar un Esdeveniment Electoral",
             election: "Importar una Elecció",
-            contest: "Importar un Concurs",
+            contest: "Importar una Pregunta",
             candidate: "Importar un Candidat",
-            ImportHashMismatch: "Hashes don't match. Integrity check failure.",
+            ImportHashMismatch: "Els hash no coincideixen. Ha fallat la comprovació d'integritat.",
         },
         sideMenu: {
             electionEvents: "Processos Electorals",
             search: "Cercar",
             usersAndRoles: "Usuaris i Rols",
+            electoralLogConsole: "Registre Electoral",
+            taskQueues: "Cues de Tasques",
             logs: "Bitàcora",
             settings: "Configuració",
             help: "Ajuda",
@@ -2124,7 +2150,7 @@ const catalanTranslation: TranslationType = {
             addResource: {
                 electionEvent: "Crear un Esdeveniment Electoral",
                 election: "Crear una Elecció",
-                contest: "Crear un Concurs",
+                contest: "Crear una Pregunta",
                 candidate: "Crear un Candidat",
             },
             menuActions: {
@@ -2134,13 +2160,13 @@ const catalanTranslation: TranslationType = {
                 unarchive: {
                     electionEvent: "Desarxivar aquest Esdeveniment Electoral",
                     election: "Desarxivar aquesta Elecció",
-                    contest: "Desarxivar aquest Concurs",
+                    contest: "Desarxivar aquesta Pregunta",
                     candidate: "Desarxivar aquest Candidat",
                 },
                 remove: {
                     electionEvent: "Eliminar aquest Esdeveniment Electoral",
                     election: "Eliminar aquesta Elecció",
-                    contest: "Eliminar aquest Concurs",
+                    contest: "Eliminar aquesta Pregunta",
                     candidate: "Eliminar aquest Candidat",
                 },
                 messages: {
@@ -2330,7 +2356,7 @@ const catalanTranslation: TranslationType = {
             },
             error: {},
             createContestSuccess: "Pregunta creada",
-            createContestError: "Error creant pregunta",
+            createContestError: "Error en crear la pregunta",
         },
         keysGeneration: {
             configureStep: {
@@ -2344,6 +2370,8 @@ const catalanTranslation: TranslationType = {
                 threshold: "Llindar",
                 errorMinTrustees_one:
                     "Has seleccionat només {{selected}} autoritat, però has de seleccionar almenys {{threshold}}.",
+                errorMinTrustees_many:
+                    "Has seleccionat només {{selected}} autoritats, però has de seleccionar almenys {{threshold}}.",
                 errorMinTrustees_other:
                     "Has seleccionat només {{selected}} autoritats, però has de seleccionar almenys {{threshold}}.",
                 errorThreshold:
@@ -2432,6 +2460,7 @@ const catalanTranslation: TranslationType = {
                     "Còpia de Seguretat de la Clau Encriptada Privada invàlida, si us plau intenta-ho de nou",
                 errorEmptyFile: "Fitxer buit o no trobat",
                 verified: "Còpia de seguretat verificada correctament.",
+                alreadyRestored: "La teva clau ja s'havia restaurat.",
             },
         },
         miruExport: {
@@ -2448,54 +2477,57 @@ const catalanTranslation: TranslationType = {
             errorUploadingSignature: "S'ha produït un error en carregar la signatura",
             downloadTransmissionPackage: "Descarregar paquet",
             resultsPublication: {
-                sectionTitle: "Publish to results website",
-                policyTitle: "Results Website",
-                policyAccess: "Results Website Access",
-                policyVisibility: "Results Website Visibility",
-                enabled: "Enabled",
-                disabled: "Disabled",
-                fullEvent: "Full event",
-                areaBased: "Area based",
-                publishStarted: "Results publication started",
-                publishError: "Could not start results publication",
-                revoked: "Results publication revoked",
-                revokeError: "Could not revoke results publication",
-                waitingForTally: "Results can be published after this tally has completed.",
+                sectionTitle: "Publicar al lloc web de resultats",
+                policyTitle: "Lloc web de resultats",
+                policyAccess: "Accés al lloc web de resultats",
+                policyVisibility: "Visibilitat del lloc web de resultats",
+                enabled: "Activat",
+                disabled: "Desactivat",
+                fullEvent: "Esdeveniment complet",
+                areaBased: "Per àrea",
+                publishStarted: "Publicació de resultats iniciada",
+                publishError: "No s'ha pogut iniciar la publicació de resultats",
+                revoked: "Publicació de resultats revocada",
+                revokeError: "No s'ha pogut revocar la publicació de resultats",
+                waitingForTally:
+                    "Els resultats es poden publicar quan aquest recompte hagi finalitzat.",
                 writePermissionRequired:
-                    "You need publish-results-write permission to publish or revoke results.",
+                    "Necessiteu el permís publish-results-write per publicar o revocar resultats.",
                 readPermissionRequired:
-                    "You need publish-results-read permission to view publication history.",
+                    "Necessiteu el permís publish-results-read per veure l'historial de publicacions.",
                 disabledPolicy:
-                    "Results website publishing is disabled for this election event. Enable it in the election event data before publishing results.",
-                loadingElectionContext: "Results publication is loading election context.",
-                route: "Route",
-                eventResults: "Event results",
-                electionResults: "Election results",
-                election: "Election",
-                access: "Access",
-                publicAccess: "Public access",
-                authenticatedAccess: "Authenticated access",
-                visibility: "Visibility",
-                fullPublishedScope: "Full published scope",
-                personalVisibility: "Personal visibility",
-                contests: "Contests",
-                noTalliedContests: "No tallied contests available.",
-                publishSelectedContests: "Publish selected contests",
-                selectedContestCount: "{{count}} contest selected",
-                selectedContestCount_plural: "{{count}} contests selected",
-                history: "Publication history",
-                version: "Version",
-                status: "Status",
-                published: "Published",
-                revokedAt: "Revoked",
-                actions: "Actions",
-                open: "Open",
-                revoke: "Revoke",
-                noPublications: "No publications yet.",
-                confirmTitle: "Start publish to results website?",
+                    "La publicació al lloc web de resultats està desactivada per a aquest esdeveniment electoral. Activeu-la a les dades de l'esdeveniment electoral abans de publicar resultats.",
+                loadingElectionContext:
+                    "La publicació de resultats està carregant el context de l'elecció.",
+                route: "Ruta",
+                eventResults: "Resultats de l'esdeveniment",
+                electionResults: "Resultats de l'elecció",
+                election: "Elecció",
+                access: "Accés",
+                publicAccess: "Accés públic",
+                authenticatedAccess: "Accés autenticat",
+                visibility: "Visibilitat",
+                fullPublishedScope: "Àmbit publicat complet",
+                personalVisibility: "Visibilitat personal",
+                contests: "Preguntes",
+                noTalliedContests: "No hi ha preguntes escrutades disponibles.",
+                publishSelectedContests: "Publicar les preguntes seleccionades",
+                selectedContestCount_one: "{{count}} pregunta seleccionada",
+                selectedContestCount_many: "{{count}} preguntes seleccionades",
+                selectedContestCount_other: "{{count}} preguntes seleccionades",
+                history: "Historial de publicacions",
+                version: "Versió",
+                status: "Estat",
+                published: "Publicat",
+                revokedAt: "Revocat",
+                actions: "Accions",
+                open: "Obrir",
+                revoke: "Revocar",
+                noPublications: "Encara no hi ha publicacions.",
+                confirmTitle: "Voleu iniciar la publicació al lloc web de resultats?",
                 confirmDescription:
-                    "This will create a new publication from the current tally execution. The existing voter-facing results stay active until this publish task succeeds.",
-                close: "Close",
+                    "Això crearà una nova publicació a partir del recompte actual. Els resultats que veuen els votants es mantindran actius fins que aquesta tasca de publicació acabi correctament.",
+                close: "Tancar",
             },
             transmissionPackage: {
                 title: "Paquet de Transmissió per a l'Àrea '{{name}}' y Elección '{{eventName}}'",
@@ -2540,7 +2572,7 @@ const catalanTranslation: TranslationType = {
                     },
                     download: {
                         title: "Descarregar",
-                        emlTitle: "Download EML {{date}}",
+                        emlTitle: "Descarregar EML {{date}}",
                         transmissionPackageTitle: "Descarregar el Paquet de Transmissió {{date}}",
                         transmissionReportTitle: "Descarrega l'informe de transmissió",
                         dialog: {
@@ -2570,7 +2602,7 @@ const catalanTranslation: TranslationType = {
                         trusteeName: "Membre",
                         signed: "Ha Signat",
                     },
-                    status: "{{signed}} de {{total}} Han Signat",
+                    status: "{{signed}} de {{total}} Han Signat, mínim {{minimum}}",
                 },
             },
             sendToTransmissionPackageServers:
@@ -2596,10 +2628,10 @@ const catalanTranslation: TranslationType = {
             ballotBoxes: {
                 unavailable: "Segells no disponibles",
                 sealed: "{{sealed}} de {{total}} segellades",
-                publishing: "Segellades, {{published}} de {{total}} al tauler d'anuncis",
+                publishing: "Segellades, {{published}} de {{total}} actes de segellat publicades",
                 sealing: "Es segellen a les {{time}}",
                 notSealed: "No segellades",
-                help: "Una elecció es pot incloure en el recompte quan totes les seves urnes estan segellades i els seus segells són al tauler d'anuncis.",
+                help: "Una elecció es pot incloure en el recompte quan totes les seves urnes estan segellades i les seves actes de segellat estan publicades.",
                 failed: "No segellades: incidència",
                 overdue: "Segellat endarrerit",
                 blocked: "{{name}}: {{reason}}",
@@ -2610,7 +2642,7 @@ const catalanTranslation: TranslationType = {
                     "overdue":
                         "les seves urnes han superat el termini i encara no estan segellades (vegeu el seu Tauler de Control)",
                     "publishing":
-                        "alguns dels seus segells encara s'estan publicant al tauler d'anuncis",
+                        "les actes de segellat d'algunes de les seves urnes encara s'estan publicant",
                     "failed":
                         "una urna no s'ha pogut segellar, és una incidència (vegeu el seu Tauler de Control)",
                     "unavailable": "no s'han pogut llegir els segells de les seves urnes",
@@ -2625,7 +2657,7 @@ const catalanTranslation: TranslationType = {
                 endVoting:
                     "Finalitza la votació de cada elecció seleccionada i atura els canals actius abans de crear el recompte.",
                 sealBallotBoxes:
-                    "Una elecció es pot incloure en el recompte quan totes les seves urnes estan segellades i els seus segells són al tauler d'anuncis.",
+                    "Una elecció es pot incloure en el recompte quan totes les seves urnes estan segellades i les seves actes de segellat estan publicades.",
             },
             createTallySuccess: "Recompte creat",
             createTallyError: "Error creant recompte",
@@ -2761,7 +2793,7 @@ const catalanTranslation: TranslationType = {
                 save: "Desa",
                 pendingApplyStatus: "Càlcul pendent",
                 filterElection: "Elecció",
-                filterContest: "Concurs",
+                filterContest: "Pregunta",
                 filterArea: "Àrea",
                 filterStatusLabel: "Estat",
                 clearFilters: "Esborrar filtres",
@@ -2867,8 +2899,7 @@ const catalanTranslation: TranslationType = {
                     "Esteu a punt d'aturar el període de votació del quiosc. Esteu segur que voleu continuar?",
                 pauseInfo:
                     "Està a punt de pausar el període de votació. Està segur que vol continuar?",
-                publishInfo:
-                    "You are about to generate a publication. Are you sure you want to continue?",
+                publishInfo: "Esteu a punt de generar una publicació. Segur que voleu continuar?",
                 ok: "Confirmar",
                 ko: "Cancel·lar",
                 error: "Error carregant les paperetes publicades",
@@ -2983,7 +3014,7 @@ const catalanTranslation: TranslationType = {
                 ALL_USERS: "Tots",
                 NOT_VOTED: "Els que no han votat",
                 VOTED: "Els que ja han votat",
-                SELECTED: "A {{total}} Votants seleccionats",
+                SELECTED: "A {{total}} {{voters}} seleccionats",
             },
             path: {
                 users: "usuaris",
@@ -3011,7 +3042,7 @@ const catalanTranslation: TranslationType = {
             createTallySuccess: "Acta de Recompte creada",
             createTallyError: "Error creant Acta de Recompte",
             createTallyErrorSameKindExists:
-                "El full de recompte ja existeix per a aquest concurs amb el mateix canal i àrea",
+                "El full de recompte ja existeix per a aquesta pregunta amb el mateix canal i àrea",
             allFieldsRequired: "Tots els camps són obligatoris",
             header: {
                 change: "Canvis a Publicar",
@@ -3028,7 +3059,7 @@ const catalanTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "Els vots de candidats ({{candidateVotesSum}}) han d'estar entre {{lowerBound}} i {{upperBound}} segons les regles de votació d'aquesta contesa ({{nonBlankValidVotes}} vots vàlids no en blanc × fins a {{maxMarks}} marques per papereta)",
+                    "Els vots de candidats ({{candidateVotesSum}}) han d'estar entre {{lowerBound}} i {{upperBound}} segons les regles de votació d'aquesta pregunta ({{nonBlankValidVotes}} vots vàlids no en blanc × fins a {{maxMarks}} marques per papereta)",
                 censusTooSmall:
                     "El total de vots ({{totalVotes}}) no pot ser major que el cens ({{census}})",
                 totalInvalidDoesNotMatch:
@@ -3036,11 +3067,11 @@ const catalanTranslation: TranslationType = {
                 totalVotesDoesNotMatch:
                     "El total de vots ({{totalVotes}}) ha de ser igual al total de vots vàlids ({{totalValidVotes}}) més el total de vots invàlids ({{totalInvalid}})",
                 unknownCountingAlgorithm:
-                    "L'algorisme de recompte d'aquesta contesa ({{countingAlgorithm}}) no es reconeix, de manera que no es pot determinar el nombre permès de vots de candidats. Reviseu la configuració de la contesa.",
+                    "L'algorisme de recompte d'aquesta pregunta ({{countingAlgorithm}}) no es reconeix, de manera que no es pot determinar el nombre permès de vots de candidats. Reviseu la configuració de la pregunta.",
                 blankBallotsInconsistent:
-                    "Les Paperetes en Blanc han de tenir el mateix valor a tots els fulls de contesa d'aquesta urna",
+                    "Les Paperetes en Blanc han de tenir el mateix valor a tots els fulls de recompte d'aquesta urna",
                 blankBallotsOutOfBounds:
-                    "El valor de Paperetes en Blanc està fora del rang que impliquen els recomptes de vots en blanc per contesa d'aquesta urna",
+                    "El valor de Paperetes en Blanc està fora del rang que impliquen els recomptes de vots en blanc per pregunta d'aquesta urna",
             },
             label: {
                 area: "Àrea",
@@ -3092,7 +3123,7 @@ const catalanTranslation: TranslationType = {
             },
             table: {
                 area: "Àrea",
-                contest: "Contesa",
+                contest: "Pregunta",
                 approvedVersion: "Versió aprovada",
                 latestVersion: "Última versió",
                 labels: "Etiquetes",
@@ -6203,6 +6234,201 @@ const catalanTranslation: TranslationType = {
                     "Cap compte de Messenger d'aquesta organització no fa servir aquesta pàgina",
                 SEVERAL_PAGE_ACCOUNTS:
                     "Diversos comptes de Messenger d'aquesta organització fan servir aquesta pàgina",
+            },
+        },
+        electoralLogConsole: {
+            title: "Registre Electoral",
+            subtitle:
+                "Exploreu el registre electoral i l'urna d'un esdeveniment electoral, o consulteu-ne la base de dades del registre electoral. Res d'aquesta pàgina modifica dades.",
+            notAllowed:
+                "Necessiteu el permís electoral-log-console-read per obrir el registre electoral.",
+            tabs: {
+                tables: "Taules",
+                query: "Consulta",
+            },
+            electionEvent: "Esdeveniment Electoral",
+            tenant: "Inquilí",
+            table: "Taula",
+            tables: {
+                records: "Entrades",
+                ballots: "Paperetes",
+                voters: "Votants",
+                queue: "Cua del Seqüenciador",
+            },
+            order: {
+                "label": "Ordre",
+                "newest-first": "Més recents primer",
+                "oldest-first": "Més antics primer",
+            },
+            filters: {
+                statement_kind: "Tipus",
+                election_id: "Elecció",
+                area_id: "ID d'Àrea",
+                user_id: "ID d'Usuari o Votant",
+                ballot_id: "ID de Papereta",
+                status: "Estat",
+                created_after: "Des de",
+                created_before: "Fins a",
+                any: "Qualsevol",
+                apply: "Aplicar Filtres",
+                clear: "Netejar",
+                invalid:
+                    "Reviseu els filtres marcats: les dates han de ser vàlides i els ID d'àrea de l'urna han de ser UUID.",
+            },
+            statuses: {
+                valid: "Vàlida",
+                pending: "Pendent",
+                rejected: "Rebutjada",
+            },
+            estimatedRows: "Unes {{rows}} files en aquesta taula abans de filtrar.",
+            personalDataHidden:
+                "Els noms d'usuari, les adreces IP i els països apareixen ocults: veure'ls requereix el permís electoral-log-personal-data-read.",
+            loadError: "No s'ha pogut llegir el registre electoral.",
+            record: {
+                title: "Entrada {{position}}",
+                view: "Veure entrada",
+                message: "Missatge (descodificat)",
+                copy: "Copiar JSON",
+                close: "Tancar",
+                loadError: "No s'ha pogut llegir l'entrada.",
+            },
+            query: {
+                help: "Les consultes s'executen sobre la base de dades del registre electoral de l'esdeveniment electoral en una transacció de només lectura. Les seves taules són electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending i ballot_box_sequencer; trellis_logs descriu els seus registres Merkle.",
+                scope: "Cada esdeveniment electoral té la seva pròpia base de dades, així que una consulta llegeix un sol esdeveniment.",
+                chooseEvent: "Trieu l'esdeveniment electoral que voleu consultar.",
+                placeholder: "SELECT …",
+                limits: "Només lectura · fins a 1.000 files · límit de 30 s · cada consulta queda anotada als registres del servidor amb el vostre usuari",
+                run: "Executar Consulta",
+                summary: "Files: {{rows}} · {{ms}} ms",
+                truncated: "Només es mostren les primeres {{rows}} files.",
+                error: "No s'ha pogut executar la consulta.",
+            },
+        },
+        taskQueues: {
+            title: "Cues de Tasques",
+            subtitle:
+                "Les cues de tasques de l'entorn: què està esperant, què s'ha processat i quant ha trigat. Les llistes de les cues no mostren mai els arguments de les tasques.",
+            notAllowed:
+                "Necessiteu el permís task-queues-read del tenant de superadministració per obrir les cues de tasques.",
+            live: "En directe",
+            updated: "Actualitzat a les {{time}}",
+            error: "No s'han pogut carregar les cues de tasques.",
+            columns: {
+                queue: "Cua",
+                ready: "Preparats",
+                runningOrScheduled: "En curs o programats",
+                oldest: "Més antic",
+                processed: "Processats (última hora)",
+                lastHour: "Resultats (última hora)",
+                sent: "Enviats (total)",
+            },
+            outcomes: {
+                succeeded: "Correctes",
+                failed: "Fallits",
+                expired: "Caducats",
+                rejected: "Rebutjats",
+                discarded: "Descartats",
+                unknown: "Desconegut",
+            },
+            graphs: {
+                title: "Rendiment",
+                period: "Període",
+                periods: {
+                    hour: "Última hora",
+                    sixHours: "Últimes 6 hores",
+                    day: "Últimes 24 hores",
+                    week: "Últims 7 dies",
+                },
+                outcomes: "Missatges processats per resultat",
+                durations: "Temps mitjà d'espera i de procés",
+                wait: "Espera",
+                processing: "Procés",
+                seconds: "Segons",
+                empty: "No s'ha processat cap missatge d'aquesta cua en aquest període.",
+            },
+            messages: {
+                title: "Missatges",
+                states: {
+                    queued: "En cua",
+                    archived: "Arxivats",
+                },
+                argumentsHidden:
+                    "Els arguments de les tasques no es mostren mai, perquè poden contenir dades de votants.",
+                refresh: "Actualitzar",
+                newest: "Més recents",
+                newer: "Més nous",
+                older: "Més antics",
+                empty: "No hi ha missatges",
+                unreadable: "Missatge il·legible",
+                columns: {
+                    id: "ID",
+                    task: "Tasca",
+                    outcome: "Resultat",
+                    event: "Esdeveniment",
+                    error: "Error",
+                    enqueued: "Encuat",
+                    reads: "Lectures",
+                    retries: "Reintents",
+                    archived: "Arxivat",
+                    visible: "Visible des de",
+                    size: "Mida",
+                    taskId: "ID de tasca",
+                },
+            },
+            deadLetters: {
+                help: "Aquests esdeveniments del registre electoral no s'han pogut processar. Seleccioneu esdeveniments per reenviar-los a la cua d'esdeveniments o per descartar-los; els esdeveniments descartats es queden a l'arxiu.",
+                noWrite:
+                    "Necessiteu el permís task-queues-write per reenviar o descartar aquests esdeveniments.",
+                replay: "Reenviar",
+                discard: "Descartar",
+                cancel: "Cancel·lar",
+                confirmTitle: {
+                    replay: "Reenviar els esdeveniments?",
+                    discard: "Descartar els esdeveniments?",
+                },
+                confirmBody: {
+                    replay_one:
+                        "Es reenviarà {{count}} esdeveniment a la cua d'esdeveniments del registre electoral. Si torna a fallar, tornarà aquí.",
+                    replay_many:
+                        "Es reenviaran {{count}} esdeveniments a la cua d'esdeveniments del registre electoral. Els esdeveniments que tornin a fallar tornaran aquí.",
+                    replay_other:
+                        "Es reenviaran {{count}} esdeveniments a la cua d'esdeveniments del registre electoral. Els esdeveniments que tornin a fallar tornaran aquí.",
+                    discard_one:
+                        "Es mourà {{count}} esdeveniment a l'arxiu i no s'afegirà al registre electoral.",
+                    discard_many:
+                        "Es mouran {{count}} esdeveniments a l'arxiu i no s'afegiran al registre electoral.",
+                    discard_other:
+                        "Es mouran {{count}} esdeveniments a l'arxiu i no s'afegiran al registre electoral.",
+                },
+                queued: {
+                    replay_one:
+                        "Reenviament de {{count}} esdeveniment encuat com a tasca {{taskId}}.",
+                    replay_many:
+                        "Reenviament de {{count}} esdeveniments encuat com a tasca {{taskId}}.",
+                    replay_other:
+                        "Reenviament de {{count}} esdeveniments encuat com a tasca {{taskId}}.",
+                    discard_one: "Descart de {{count}} esdeveniment encuat com a tasca {{taskId}}.",
+                    discard_many:
+                        "Descart de {{count}} esdeveniments encuat com a tasca {{taskId}}.",
+                    discard_other:
+                        "Descart de {{count}} esdeveniments encuat com a tasca {{taskId}}.",
+                },
+                failed: "No s'ha pogut encuar l'operació.",
+            },
+            tabs: {
+                queues: "Cues",
+                query: "Consulta",
+            },
+            query: {
+                help: "Les consultes s'executen sobre la base de dades de cues de tasques de l'entorn en una transacció de només lectura, amb el seu rol de lectura. Cada cua té una taula de missatges en espera, pgmq.q_<cua>, i una altra de missatges processats, pgmq.a_<cua>.",
+                arguments:
+                    "Les consultes llegeixen els missatges tal com estan desats, amb els arguments de les seves tasques, que poden incloure dades de votants.",
+                placeholder: "SELECT …",
+                limits: "Només lectura · fins a 1.000 files · límit de 30 s · cada consulta queda anotada als registres del servidor amb el vostre usuari",
+                run: "Executar Consulta",
+                summary: "Files: {{rows}} · {{ms}} ms",
+                truncated: "Només es mostren les primeres {{rows}} files.",
+                error: "No s'ha pogut executar la consulta.",
             },
         },
     },

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::postgres::cast_vote::get_voter_cast_vote_states_for_event;
+use crate::services::ballot_box::get_voter_ballot_states;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::election::is_election_event_locked_down;
 use crate::services::tasks_execution::{update_complete_with_annotations, update_fail};
@@ -197,12 +197,8 @@ async fn voters_with_active_ballots(
         .ok_or_else(|| anyhow::anyhow!("Missing election event id"))?;
     let mut hasura_db_client: DbClient = get_hasura_pool().await.get().await?;
     let hasura_transaction = hasura_db_client.transaction().await?;
-    let states = get_voter_cast_vote_states_for_event(
-        &hasura_transaction,
-        &task.tenant_id,
-        election_event_id,
-    )
-    .await?;
+    let states =
+        get_voter_ballot_states(&hasura_transaction, &task.tenant_id, election_event_id).await?;
     Ok(states
         .into_iter()
         .filter(|(_, state)| state.has_active_vote())

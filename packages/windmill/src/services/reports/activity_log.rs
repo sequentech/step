@@ -14,7 +14,7 @@ use crate::postgres::reports::{Report, ReportFormat as OutputFormat, ReportType}
 use crate::services::documents::upload_and_return_document_with_annotations;
 use crate::services::electoral_log::{
     count_electoral_log, ElectoralLogRow, GetElectoralLogBody, MinuteRange, OrderField,
-    IMMUDB_ROWS_LIMIT,
+    ELECTORAL_LOG_ROWS_LIMIT,
 };
 use crate::services::protocol_manager::{get_board_client, get_event_board};
 use crate::services::providers::email_sender::{Attachment, EmailSender};
@@ -25,6 +25,9 @@ use chrono::{DateTime, SecondsFormat, Utc};
 use chrono_tz::Tz;
 use csv::WriterBuilder;
 use deadpool_postgres::Transaction;
+use electoral_log::domain::{
+    Filter, LogQuery, NumberColumn, NumberComparison, OrderColumn, SortDirection,
+};
 use electoral_log::messages::message::Message;
 use electoral_log::ElectoralLogMessage;
 use sequent_core::ballot::{ElectionEventPresentation, ElectionPresentation};
@@ -435,7 +438,7 @@ impl ActivityLogsTemplate {
         mut write: impl FnMut(ElectoralLogCsvRow) -> Result<()>,
     ) -> Result<()> {
         let range = self.options.range()?;
-        let limit = IMMUDB_ROWS_LIMIT as i64;
+        let limit = ELECTORAL_LOG_ROWS_LIMIT as i64;
         let mut last_id: i64 = 0;
         let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
         let board_name = get_event_board(
@@ -444,12 +447,24 @@ impl ActivityLogsTemplate {
             &slug,
         );
 
-        let mut board_client = get_board_client().await?;
+        let board_client = get_board_client().await?;
 
         loop {
             info!("last_id: {last_id}");
+            let query = LogQuery {
+                filters: std::iter::once(Filter::Number(
+                    NumberColumn::Id,
+                    NumberComparison::GreaterThan,
+                    last_id,
+                ))
+                .chain(range.filters(NumberColumn::Created))
+                .collect(),
+                order: vec![(OrderColumn::Id, SortDirection::Asc)],
+                limit,
+                ..LogQuery::default()
+            };
             let msgs = board_client
-                .get_electoral_log_messages_batch(&board_name, limit, last_id)
+                .query(&board_name, &query)
                 .await
                 .map_err(|e| anyhow!("Error fetching electoral log batch: {e:?}"))?;
 
@@ -463,9 +478,6 @@ impl ActivityLogsTemplate {
 
             for entry in msgs {
                 last_id = entry.id;
-                if !range.contains(entry.created) {
-                    continue;
-                }
                 let row = ElectoralLogCsvRow::new(entry, zones)
                     .map_err(|e| anyhow!("Error converting log entry to row: {e:?}"))?;
                 write(row)?;
@@ -649,7 +661,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
             .map_err(|e| anyhow!("Error counting electoral log messages in range: {e:?}"))?;
             return Ok(Some(total));
         }
-        let mut client = get_board_client().await?;
+        let client = get_board_client().await?;
         let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
         let board_name = get_event_board(
             self.ids.tenant_id.as_str(),
@@ -675,7 +687,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
         let mut electoral_log: Vec<ElectoralLogRow> = vec![];
         let range = self.options.range()?;
         let zones = self.log_zones(hasura_transaction).await?;
-        let mut client = get_board_client().await?;
+        let client = get_board_client().await?;
         let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
         let board_name = get_event_board(
             self.ids.tenant_id.as_str(),
@@ -973,7 +985,6 @@ mod tests {
     use crate::services::protocol_manager::get_event_board;
     use crate::services::reports::template_renderer::ReportOriginatedFrom;
     use chrono::Utc;
-    use electoral_log::BoardClient;
     use sequent_core::util::external_config::load_external_config;
     use std::env;
     use std::io::BufRead;
@@ -1478,22 +1489,15 @@ mod tests {
         let test_env_slug = format!("t{}", chrono::Utc::now().timestamp());
         env::set_var("ENV_SLUG", &test_env_slug);
 
-        let immudb_user = env::var("IMMUDB_USER").context("IMMUDB_USER must be set")?;
-        let immudb_password = env::var("IMMUDB_PASSWORD").context("IMMUDB_PASSWORD must be set")?;
-        let immudb_server_url =
-            env::var("IMMUDB_SERVER_URL").context("IMMUDB_SERVER_URL must be set")?;
-
         let board_name = get_event_board(&tenant_id, &election_event_id, &test_env_slug);
         println!("board_name: {board_name}");
 
-        let mut board_client = BoardClient::new(&immudb_server_url, &immudb_user, &immudb_password)
-            .await
-            .map_err(|e| anyhow!("Failed to create BoardClient: {e:?}"))?;
+        let board_client = get_board_client().await?;
         board_client
-            .upsert_electoral_log_db(&board_name)
+            .create_board(&board_name)
             .await
-            .map_err(|e| anyhow!("Failed to create immudb database: {e:?}"))?;
-        println!("Set up immudb database: {board_name}");
+            .map_err(|e| anyhow!("Failed to create electoral-log board: {e:?}"))?;
+        println!("Set up electoral-log board: {board_name}");
 
         let output = Command::new(STEP_CLI_BIN)
             .args([
@@ -1505,9 +1509,6 @@ mod tests {
                 &NUM_LOGS.to_string(),
             ])
             .env("ENV_SLUG", &test_env_slug)
-            .env("IMMUDB_USER", &immudb_user)
-            .env("IMMUDB_PASSWORD", &immudb_password)
-            .env("IMMUDB_SERVER_URL", &immudb_server_url)
             .env("DEFAULT_SQL_BATCH_SIZE", "500")
             .env(
                 "KC_DB_URL_HOST",

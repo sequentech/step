@@ -6,6 +6,8 @@
 //! by its support reference, and counting an event realm's voters by
 //! channel in SQL, held equal to `voter_channel` on the same users.
 
+#[path = "support/event_database.rs"]
+mod event_database;
 #[path = "support/schema.rs"]
 mod schema;
 
@@ -535,6 +537,8 @@ async fn an_application_is_found_by_its_support_reference_within_the_queue_scope
 
 // --- Voters by channel, in one SQL aggregate on the Keycloak database ---
 
+use electoral_log::adapters::ballot_box::{AcceptOutcome, BallotStatus};
+use event_database::{EventDatabase, Vote};
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::keycloak::User;
 use sequent_core::types::keycloak::{
@@ -810,18 +814,33 @@ struct Realm {
     restricted_area: Uuid,
     /// The event's voters, in insertion order.
     voters: Vec<String>,
-    /// Of them, those with a valid ballot.
+    /// Of them, those with a pending or valid ballot.
     voted: Vec<String>,
     config: EventMessagingConfig,
+    /// The event's electoral-log database, whose ballot box holds the votes.
+    database: EventDatabase,
 }
 
 /// The event: two Posts (one restricted to SMS for notices), each voter
-/// case in each area and with no area, every other voter with a ballot,
-/// and users the send never lists (another realm, a service account, an
-/// area of another event).
+/// case in each area and with no area, every other voter with a ballot in
+/// the event's ballot box (and a few with a rejected or a pending one), and
+/// users the send never lists (another realm, a service account, an area of
+/// another event).
 async fn realm_of_every_case(tx: &Transaction<'_>, seed: u32) -> Realm {
     keycloak_schema(tx, seed).await;
     let base = world(tx, seed).await;
+    let database = EventDatabase::create(base.tenant, base.event).await;
+    tx.execute(
+        "UPDATE sequent_backend.election_event SET bulletin_board_reference = $2 WHERE id = $1",
+        &[
+            &base.event,
+            &serde_json::json!({
+                "id": 1, "database_name": database.board, "is_archived": false
+            }),
+        ],
+    )
+    .await
+    .unwrap();
     let (open, restricted) = (id(seed, 10), id(seed, 11));
     let (open_area, restricted_area) = (id(seed, 12), id(seed, 13));
     for (election, area, contest) in [
@@ -924,25 +943,28 @@ async fn realm_of_every_case(tx: &Transaction<'_>, seed: u32) -> Realm {
                     }
                     _ => (open, open_area),
                 };
-                tx.execute(
-                    "INSERT INTO sequent_backend.cast_vote
-                         (tenant_id, election_event_id, election_id, area_id, voter_id_string, status)
-                     VALUES ($1, $2, $3, $4, $5, 'valid')",
-                    &[&base.tenant, &base.event, &election, &area, &user],
-                )
-                .await
-                .unwrap();
+                let ballot_id = Uuid::new_v4().simple().to_string();
+                database
+                    .cast(&ballot(election, area, &user, &ballot_id))
+                    .await;
                 voted.push(user.clone());
             } else if number % 5 == 0 {
-                // A discarded ballot is no vote.
-                tx.execute(
-                    "INSERT INTO sequent_backend.cast_vote
-                         (tenant_id, election_event_id, election_id, area_id, voter_id_string, status)
-                     VALUES ($1, $2, $3, $4, $5, 'discarded')",
-                    &[&base.tenant, &base.event, &open, &open_area, &user],
-                )
-                .await
-                .unwrap();
+                // A rejected ballot, as a discarded one is, is no vote.
+                let ballot_id = Uuid::new_v4().simple().to_string();
+                database
+                    .cast_rejected(&ballot(open, open_area, &user, &ballot_id))
+                    .await;
+            } else if number % 7 == 0 {
+                // A ballot waiting for its outcome is a vote.
+                let ballot_id = Uuid::new_v4().simple().to_string();
+                let pending = database
+                    .try_cast(
+                        &ballot(open, open_area, &user, &ballot_id),
+                        BallotStatus::Pending,
+                    )
+                    .await;
+                assert!(matches!(pending, AcceptOutcome::Accepted { .. }));
+                voted.push(user.clone());
             }
             voters.push(user);
         }
@@ -990,14 +1012,10 @@ async fn realm_of_every_case(tx: &Transaction<'_>, seed: u32) -> Realm {
     ] {
         insert_attribute(two_areas.clone(), name, value).await;
     }
-    tx.execute(
-        "INSERT INTO sequent_backend.cast_vote
-             (tenant_id, election_event_id, election_id, area_id, voter_id_string, status)
-         VALUES ($1, $2, $3, $4, $5, 'valid')",
-        &[&base.tenant, &base.event, &open, &open_area, &two_areas],
-    )
-    .await
-    .unwrap();
+    let ballot_id = Uuid::new_v4().simple().to_string();
+    database
+        .cast(&ballot(open, open_area, &two_areas, &ballot_id))
+        .await;
     voters.push(two_areas.clone());
     voted.push(two_areas);
 
@@ -1025,6 +1043,19 @@ async fn realm_of_every_case(tx: &Transaction<'_>, seed: u32) -> Realm {
         voters,
         voted,
         config,
+        database,
+    }
+}
+
+/// A ballot of `voter` in the election and area.
+fn ballot<'a>(election: Uuid, area: Uuid, voter: &'a str, ballot_id: &'a str) -> Vote<'a> {
+    Vote {
+        election,
+        area,
+        voter,
+        content: voter,
+        ballot_id,
+        channel: "ONLINE",
     }
 }
 
@@ -1098,134 +1129,146 @@ async fn listed_users(tx: &Transaction<'_>, realm: &Realm) -> Vec<User> {
         .collect()
 }
 
-#[tokio::test]
-async fn voters_counted_in_sql_equal_voter_channel_on_the_same_users() {
-    let pool = schema::pool().await;
-    let mut client = pool.get().await.unwrap();
-    let tx = client.transaction().await.unwrap();
-    let realm = realm_of_every_case(&tx, 0x4a04).await;
-    let rows = count_event_voters(
-        &tx,
-        &tx,
-        &realm.tenant,
-        &realm.event,
-        Some(&realm.config),
-        RECOUNT_TIMEOUT,
-    )
-    .await
-    .unwrap();
-    for (audience, scope) in [
-        (Audience::All, VoterCountScope::ALL),
-        (Audience::Voted, VoterCountScope::VOTED),
-        (Audience::NotVoted, VoterCountScope::NOT_VOTED),
-    ] {
-        let expected = count_by_listing(&tx, &realm, &audience).await;
-        assert_eq!(tally_of(&rows, scope), expected, "{audience:?}");
-    }
-    let selected: Vec<String> = realm
-        .voters
-        .iter()
-        .step_by(3)
-        .cloned()
-        .chain([
-            id(0x4a04, 900).to_string(),
-            id(0x4a04, 901).to_string(),
-            id(0x4a04, 903).to_string(),
-        ])
-        .collect();
-    let counted = count_selected_voters(
-        &tx,
-        &tx,
-        &realm.tenant,
-        &realm.event,
-        Some(&realm.config),
-        &selected,
-        RECOUNT_TIMEOUT,
-    )
-    .await
-    .unwrap()
-    .expect("counted within the time limit");
-    assert_eq!(
-        counted,
-        count_by_listing(&tx, &realm, &Audience::Selected(selected)).await
-    );
-    // Every case is in the realm: each channel, no channel, and voters of
-    // the SMS-only Post on other channels (not offered them). The voter
-    // with two areas counts once.
-    let all = tally_of(&rows, VoterCountScope::ALL);
-    assert_eq!(all.total, realm.voters.len() as i64);
-    assert_eq!(
-        tally_of(&rows, VoterCountScope::VOTED).total
-            + tally_of(&rows, VoterCountScope::NOT_VOTED).total,
-        all.total
-    );
-    assert!(all.no_channel > 0);
-    for channel in CHANNEL_ORDER {
-        assert!(all.voters(Some(channel)) > 0, "{channel}");
-    }
-    assert!(all.channels[&MessageChannel::WHATSAPP].not_offered > 0);
-    assert_eq!(all.channels[&MessageChannel::SMS].not_offered, 0);
-    tx.rollback().await.unwrap();
+#[test]
+fn voters_counted_in_sql_equal_voter_channel_on_the_same_users() {
+    event_database::run(async {
+        let pool = schema::pool().await;
+        let mut client = pool.get().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        let realm = realm_of_every_case(&tx, 0x4a04).await;
+        let rows = count_event_voters(
+            &tx,
+            &tx,
+            &realm.tenant,
+            &realm.event,
+            Some(&realm.config),
+            RECOUNT_TIMEOUT,
+        )
+        .await
+        .unwrap();
+        for (audience, scope) in [
+            (Audience::All, VoterCountScope::ALL),
+            (Audience::Voted, VoterCountScope::VOTED),
+            (Audience::NotVoted, VoterCountScope::NOT_VOTED),
+        ] {
+            let expected = count_by_listing(&tx, &realm, &audience).await;
+            assert_eq!(tally_of(&rows, scope), expected, "{audience:?}");
+        }
+        let selected: Vec<String> = realm
+            .voters
+            .iter()
+            .step_by(3)
+            .cloned()
+            .chain([
+                id(0x4a04, 900).to_string(),
+                id(0x4a04, 901).to_string(),
+                id(0x4a04, 903).to_string(),
+            ])
+            .collect();
+        let counted = count_selected_voters(
+            &tx,
+            &tx,
+            &realm.tenant,
+            &realm.event,
+            Some(&realm.config),
+            &selected,
+            RECOUNT_TIMEOUT,
+        )
+        .await
+        .unwrap()
+        .expect("counted within the time limit");
+        assert_eq!(
+            counted,
+            count_by_listing(&tx, &realm, &Audience::Selected(selected)).await
+        );
+        // Every case is in the realm: each channel, no channel, and voters of
+        // the SMS-only Post on other channels (not offered them). The voter
+        // with two areas counts once.
+        let all = tally_of(&rows, VoterCountScope::ALL);
+        assert_eq!(all.total, realm.voters.len() as i64);
+        assert_eq!(
+            tally_of(&rows, VoterCountScope::VOTED).total
+                + tally_of(&rows, VoterCountScope::NOT_VOTED).total,
+            all.total
+        );
+        assert!(all.no_channel > 0);
+        for channel in CHANNEL_ORDER {
+            assert!(all.voters(Some(channel)) > 0, "{channel}");
+        }
+        assert!(all.channels[&MessageChannel::WHATSAPP].not_offered > 0);
+        assert_eq!(all.channels[&MessageChannel::SMS].not_offered, 0);
+        // Only pending and valid ballots are votes: voters whose one ballot
+        // was rejected have not voted.
+        assert_eq!(
+            tally_of(&rows, VoterCountScope::VOTED).total,
+            realm.voted.len() as i64
+        );
+        tx.rollback().await.unwrap();
+        realm.database.drop().await;
+    })
 }
 
 /// The aggregate per area, channel and vote, against `voter_channel` on
 /// each user `list_users` reads, including a Datafix event's votes outside
 /// the internet channel.
-#[tokio::test]
-async fn the_aggregate_groups_voter_channel_by_area_and_vote() {
-    let pool = schema::pool().await;
-    let mut client = pool.get().await.unwrap();
-    let tx = client.transaction().await.unwrap();
-    let realm = realm_of_every_case(&tx, 0x4a05).await;
-    let users = listed_users(&tx, &realm).await;
-    assert_eq!(users.len(), realm.voters.len());
-    let area_ids = vec![
-        realm.open_area.to_string(),
-        realm.restricted_area.to_string(),
-    ];
-    let expected = |voted: &dyn Fn(&User) -> bool| {
-        let mut counts: BTreeMap<(Option<String>, Option<MessageChannel>, bool), i64> =
-            BTreeMap::new();
-        for user in &users {
-            let channel = voter_channel(user.email.as_deref(), user.attributes.as_ref())
-                .map(|found| found.channel);
-            let area = user
-                .attributes
-                .as_ref()
-                .and_then(|attributes| attributes.get(AREA_ID_ATTR_NAME))
-                .and_then(|values| values.first().cloned());
-            *counts.entry((area, channel, voted(user))).or_default() += 1;
+#[test]
+fn the_aggregate_groups_voter_channel_by_area_and_vote() {
+    event_database::run(async {
+        let pool = schema::pool().await;
+        let mut client = pool.get().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        let realm = realm_of_every_case(&tx, 0x4a05).await;
+        let users = listed_users(&tx, &realm).await;
+        assert_eq!(users.len(), realm.voters.len());
+        let area_ids = vec![
+            realm.open_area.to_string(),
+            realm.restricted_area.to_string(),
+        ];
+        let expected = |voted: &dyn Fn(&User) -> bool| {
+            let mut counts: BTreeMap<(Option<String>, Option<MessageChannel>, bool), i64> =
+                BTreeMap::new();
+            for user in &users {
+                let channel = voter_channel(user.email.as_deref(), user.attributes.as_ref())
+                    .map(|found| found.channel);
+                let area = user
+                    .attributes
+                    .as_ref()
+                    .and_then(|attributes| attributes.get(AREA_ID_ATTR_NAME))
+                    .and_then(|values| values.first().cloned());
+                *counts.entry((area, channel, voted(user))).or_default() += 1;
+            }
+            counts
+        };
+        let counted = |votes: Votes| {
+            let (tx, realm, area_ids) = (&tx, &realm, &area_ids);
+            async move {
+                count_voter_channels(tx, &realm.realm, None, area_ids, &votes)
+                    .await
+                    .unwrap()
+                    .into_iter()
+                    .map(|count| ((count.area_id, count.channel, count.voted), count.voters))
+                    .collect::<BTreeMap<_, _>>()
+            }
+        };
+        let voted = |user: &User, datafix: bool| {
+            realm.voted.contains(user.id.as_ref().unwrap())
+                || (datafix && voted_via_not_internet_channel(user.attributes.as_ref().unwrap()))
+        };
+        assert_eq!(counted(Votes::default()).await, expected(&|_: &User| false));
+        for datafix in [false, true] {
+            assert_eq!(
+                counted(Votes {
+                    voter_ids: realm.voted.clone(),
+                    datafix,
+                })
+                .await,
+                expected(&|user: &User| voted(user, datafix)),
+                "datafix {datafix}"
+            );
         }
-        counts
-    };
-    let counted = |votes: Votes| {
-        let (tx, realm, area_ids) = (&tx, &realm, &area_ids);
-        async move {
-            count_voter_channels(tx, &realm.realm, None, area_ids, &votes)
-                .await
-                .unwrap()
-                .into_iter()
-                .map(|count| ((count.area_id, count.channel, count.voted), count.voters))
-                .collect::<BTreeMap<_, _>>()
-        }
-    };
-    let voted = |user: &User, datafix: bool| {
-        realm.voted.contains(user.id.as_ref().unwrap())
-            || (datafix && voted_via_not_internet_channel(user.attributes.as_ref().unwrap()))
-    };
-    assert_eq!(counted(Votes::default()).await, expected(&|_: &User| false));
-    for datafix in [false, true] {
-        assert_eq!(
-            counted(Votes {
-                voter_ids: realm.voted.clone(),
-                datafix,
-            })
-            .await,
-            expected(&|user: &User| voted(user, datafix)),
-            "datafix {datafix}"
-        );
-    }
-    tx.rollback().await.unwrap();
+        tx.rollback().await.unwrap();
+        realm.database.drop().await;
+    })
 }
 
 fn cached(

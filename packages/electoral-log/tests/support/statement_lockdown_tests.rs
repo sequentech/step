@@ -34,7 +34,7 @@ fn a_lockdown_entry_sets_its_own_kind() {
 fn the_lockdown_kinds_are_appended() {
     assert_eq!(
         borsh::to_vec(&StatementType::LockdownChanged).unwrap(),
-        vec![51]
+        vec![54]
     );
     assert_eq!(
         borsh::to_vec(&SigningStatementKind::LockdownChanged).unwrap(),

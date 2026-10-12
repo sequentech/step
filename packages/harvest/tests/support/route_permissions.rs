@@ -30,6 +30,9 @@ const VOTING_PORTAL_CLIENT: &str = "voting-portal";
 pub(super) const UUID_TENANT_ID: &str = "00000000-0000-0000-0000-00000000000a";
 const UUID_EVENT_ID: &str = "00000000-0000-0000-0000-00000000000e";
 const ELECTION_ID: &str = "00000000-0000-0000-0000-000000000001";
+// And some as version 4 UUIDs.
+const UUID_V4_TENANT_ID: &str = "00000000-0000-4000-8000-00000000000a";
+const UUID_V4_EVENT_ID: &str = "00000000-0000-4000-8000-00000000000e";
 const PEM: &str =
     "-----BEGIN CERTIFICATE-----\nAA==\n-----END CERTIFICATE-----\n";
 
@@ -226,6 +229,23 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/election-event/stats", {"election_event_id": EVENT_ID, "start_date": "2026-01-01", "end_date": "2026-01-02", "user_timezone": "UTC"}, [ADMIN_DASHBOARD_VIEW], BACKEND, UNAUTHORIZED),
         case!(Admin, "/election-event/top-votes-by-ip", {"election_event_id": EVENT_ID}, [ADMIN_DASHBOARD_VIEW], BACKEND, UNAUTHORIZED),
         case!(Admin, "/election/stats", {"election_event_id": EVENT_ID, "election_id": "test-election", "start_date": "2026-01-01", "end_date": "2026-01-02", "user_timezone": "UTC"}, [ADMIN_DASHBOARD_VIEW], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/electoral-log", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [LOGS_READ], BACKEND, UNAUTHORIZED),
+        case!(SuperAdmin, "/electoral-log-console/page", {"tenant_id": UUID_V4_TENANT_ID, "election_event_id": UUID_V4_EVENT_ID, "table": "records"}, [ELECTORAL_LOG_CONSOLE_READ], BACKEND, UNAUTHORIZED_JSON),
+        case!(SuperAdmin, "/electoral-log-console/query", {"tenant_id": UUID_V4_TENANT_ID, "election_event_id": UUID_V4_EVENT_ID, "sql": "SELECT 1"}, [ELECTORAL_LOG_CONSOLE_QUERY, ELECTORAL_LOG_PERSONAL_DATA_READ], BACKEND, UNAUTHORIZED_JSON),
+        case!(SuperAdmin, "/electoral-log-console/record", {"tenant_id": UUID_V4_TENANT_ID, "election_event_id": UUID_V4_EVENT_ID, "position": 1}, [ELECTORAL_LOG_CONSOLE_READ], BACKEND, UNAUTHORIZED_JSON),
+        case!(
+            SuperAdmin,
+            "/electoral-log-console/tenants",
+            {},
+            [ELECTORAL_LOG_CONSOLE_READ],
+            BACKEND,
+            UNAUTHORIZED_JSON
+        ),
+        case!(Admin, "/electoral-log/audit", {"election_event_id": UUID_V4_EVENT_ID}, [ELECTORAL_LOG_AUDIT], BACKEND, UNAUTHORIZED),
+        // ENV_SLUG names boards; the child process leaves it unset.
+        case!(Admin, "/electoral-log/checkpoint", {"tenant_id": TENANT_ID, "election_event_id": UUID_EVENT_ID}, [LOGS_READ], BACKEND_TEXT, UNAUTHORIZED),
+        case!(Admin, "/electoral-log/consistency", {"tenant_id": TENANT_ID, "election_event_id": UUID_EVENT_ID, "checkpoint": {"log_name": "board", "log_uid": UUID_EVENT_ID, "tree_size": 1, "root": [0]}}, [LOGS_READ], BACKEND_TEXT, UNAUTHORIZED),
+        case!(Admin, "/electoral-log/inclusion", {"tenant_id": TENANT_ID, "election_event_id": UUID_EVENT_ID, "record_id": 1}, [LOGS_READ], BACKEND_TEXT, UNAUTHORIZED),
         case!(Admin, "/encrypt-report", {"election_event_id": EVENT_ID, "password": "test-password"}, [REPORT_WRITE], BACKEND, UNAUTHORIZED),
         // The task row is written before the permission check.
         case!(Admin, "/evaluate-approval-matrix", {"election_event_id": EVENT_ID, "matrix": {"compared_fields": ["firstName"], "rules": [], "otherwise": {"decision": "REJECTED", "reason": "NO_VOTER"}}, "enrollment": {"voter_found": false}}, [APPLICATION_READ], Reply::Json(Status::Ok), UNAUTHORIZED_JSON),
@@ -243,7 +263,8 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/export-tenant-users", {"tenant_id": TENANT_ID}, [USER_READ], BACKEND, UNAUTHORIZED),
         // The task row is written before the permission check.
         case!(Admin, "/export-trustees", {"password": "test-password"}, [TRUSTEES_EXPORT], BACKEND, BACKEND),
-        case!(Admin, "/export-users", {"tenant_id": TENANT_ID}, [USER_READ], BACKEND, UNAUTHORIZED),
+        // A tenant export has no task row: the answer's error message says the task queues are unreachable.
+        case!(Admin, "/export-users", {"tenant_id": TENANT_ID}, [USER_READ], Reply::Json(Status::Ok), UNAUTHORIZED),
         // The secret-attribute check comes after the tenant-user rejection.
         case!(Admin, "/export-users", {"tenant_id": TENANT_ID, "include_secret_attributes": true}, [USER_READ], BAD_REQUEST, UNAUTHORIZED),
         case!(Admin, "/export-users", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [VOTER_READ], BACKEND, UNAUTHORIZED),
@@ -280,8 +301,9 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/get-user-template", {"template_type": "test-template"}, [REPORT_READ], BACKEND_TEXT, UNAUTHORIZED),
         case!(Admin, "/get-users", {"tenant_id": TENANT_ID}, [USER_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/get-users", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [VOTER_READ], BACKEND_TEXT, UNAUTHORIZED),
-        case!(Admin, "/immudb/electoral-log", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [LOGS_READ], BACKEND, UNAUTHORIZED),
-        case!(Admin, "/immudb/pgaudit-list", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [LOGS_READ], BACKEND_TEXT, UNAUTHORIZED),
+        case!(Voter, "/get-voter-cast-votes", {"election_event_id": EVENT_ID}, [CAST_VOTE], BACKEND, FORBIDDEN),
+        // Looking ballots up by their ID first reads the checks period.
+        case!(Voter, "/get-voter-cast-votes", {"election_event_id": EVENT_ID, "election_id": ELECTION_ID, "ballot_id": "0abc12"}, [CAST_VOTE], BACKEND, FORBIDDEN),
         case!(Admin, "/import-application", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "document_id": "test-document"}, [APPLICATION_IMPORT], BACKEND, UNAUTHORIZED),
         case!(Admin, "/import-areas", {"election_event_id": EVENT_ID, "document_id": "test-document"}, [AREA_WRITE], BACKEND, UNAUTHORIZED),
         // The task row is written before the permission check.
@@ -396,6 +418,20 @@ fn cases() -> Vec<Case> {
         case!(UuidTenant, "/staff-certificates", {"election_event_id": UUID_EVENT_ID, "user_id": USER_ID, "pem": PEM}, [SIGNING_CERTIFICATES_REGISTER], BACKEND, FORBIDDEN_JSON),
         case!(UuidTenant, "/staff-certificates/<id>/revoke", {"election_event_id": UUID_EVENT_ID, "reason": "token lost"}, [SIGNING_CERTIFICATES_REVOKE], BACKEND, FORBIDDEN_JSON),
         case!(Admin, "/submit-tally-resolution", {"election_event_id": EVENT_ID, "tally_session_id": "test-session", "resolutions": [{"contest_id": "test-contest", "selected_candidate_id": "test-candidate"}]}, [TALLY_RESOLUTION_SUBMIT], BACKEND, UNAUTHORIZED),
+        // Harvest enqueues the operation; the child process has no task-queue database.
+        case!(SuperAdmin, "/task-queues/dead-letters", {"operation": "replay", "message_ids": ["1"]}, [TASK_QUEUES_READ, TASK_QUEUES_WRITE], BACKEND, UNAUTHORIZED_JSON),
+        // Inspection reads as the task-queue reader, which the child process leaves unconfigured.
+        case!(SuperAdmin, "/task-queues/messages", {"queue": "short_queue", "state": "queued"}, [TASK_QUEUES_READ], Reply::Json(Status::ServiceUnavailable), UNAUTHORIZED_JSON),
+        case!(
+            SuperAdmin,
+            "/task-queues/overview",
+            {},
+            [TASK_QUEUES_READ],
+            Reply::Json(Status::ServiceUnavailable),
+            UNAUTHORIZED_JSON
+        ),
+        case!(SuperAdmin, "/task-queues/query", {"sql": "SELECT 1"}, [TASK_QUEUES_READ, TASK_QUEUES_QUERY], Reply::Json(Status::ServiceUnavailable), UNAUTHORIZED_JSON),
+        case!(SuperAdmin, "/task-queues/throughput", {"queue": "short_queue"}, [TASK_QUEUES_READ], Reply::Json(Status::ServiceUnavailable), UNAUTHORIZED_JSON),
         case!(Gold, "/update-election-voting-status", {"election_event_id": EVENT_ID, "election_id": "test-election", "voting_status": "OPEN"}, [ELECTION_STATE_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(Gold, "/update-event-voting-status", {"election_event_id": EVENT_ID, "voting_status": "OPEN"}, [ELECTION_STATE_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(UuidTenant, "/update-realm-attributes", {"election_event_id": UUID_EVENT_ID, "attributes": {}}, [KEYCLOAK_REALM_ATTRIBUTES_WRITE], BACKEND, FORBIDDEN_JSON),

@@ -16,7 +16,6 @@ name = "generate-logs"
 path = "external-bin/generate_logs.rs"
 
 [features]
-rabbitmq-tests = []
 default = ["fips_full"]
 fips_core = ["dep:postgres-openssl", "dep:ecies"]
 fips_full = ["dep:postgres-openssl", "dep:ecies"]
@@ -39,8 +38,8 @@ rust-s3 = "0.35"
 strum = "0.27"
 strum_macros = "0.27"
 base64 = "0.22"
-celery = { git = "https://github.com/Findeton/rusty-celery.git", rev = "b4145925aaaf742b7ba54499fff45313bcadfca1" }
-lapin = "2.5"
+celery = { git = "https://github.com/Findeton/rusty-celery.git", rev = "7dfe34739d21a95754e34dedb5f10aa0a4f356ce" }
+pgmq-broker = { path = "../pgmq-broker" }
 rayon = "1.5"
 tokio = { version = "1.32", features = ["full"] }
 async-trait = "0.1"
@@ -82,7 +81,6 @@ aws-smithy-types = { version = "1.3" }
 aws-sdk-secretsmanager = "1.66"
 
 wrap-map-err = { path = "../wrap-map-err" }
-immudb-rs = { path = "../immudb-rs" }
 b4 = { path = "../b4", features = ["client"] }
 electoral-log = { path = "../electoral-log" }
 strand = { path = "../strand" }
@@ -146,7 +144,6 @@ google-calendar3 = { version = "6.0.0", features = ["yup-oauth2"] }
 rustls = { version = "0.23.32", features = ["ring"] }
 
 [dev-dependencies]
-tonic = "0.13"
 dhat = "0.3"
 hmac = "0.12"
 messaging = { path = "../messaging", features = ["test-support"] }
@@ -158,7 +155,3 @@ messaging = { path = "../messaging", features = ["test-support"] }
 
 [lints.rust]
 unsafe_code = "forbid"
-
-[[test]]
-name = "electoral_log_delivery"
-required-features = ["rabbitmq-tests"]

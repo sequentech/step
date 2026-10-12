@@ -128,7 +128,6 @@ async fn an_unreadable_row_fails_and_stops_its_event() {
     let batch = OutboxBatch {
         up_to_id,
         rows: 200,
-        per_transaction: 16,
     };
     let pass = post_outbox_snapshot(&tx, tenant, event, &keys, &mut board, "board", batch)
         .await

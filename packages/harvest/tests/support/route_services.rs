@@ -61,6 +61,15 @@ pub mod http;
 /// The relay secret route tests sign relayed callbacks with.
 pub const RELAY_SECRET: &[u8] = b"synthetic-relay-secret";
 
+/// The super-admin tenant of the tests that need one. They all set
+/// `SUPER_ADMIN_TENANT_ID` to it, so they agree while running at once.
+pub const SUPER_ADMIN_TENANT_ID: &str = "90505c8a-23a9-4cdf-a2b1-0123456789ab";
+
+/// Make [`SUPER_ADMIN_TENANT_ID`] the super-admin tenant.
+pub fn configure_super_admin_tenant() {
+    std::env::set_var("SUPER_ADMIN_TENANT_ID", SUPER_ADMIN_TENANT_ID);
+}
+
 pub struct Services {
     pub cast_votes: Arc<ScriptedCastVotes>,
     pub hasura: Arc<Pool>,

@@ -10,6 +10,9 @@ import {STORY_IDS, eventRecord} from "@/__stories__/fixtures"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {ElectionEventTallyContext} from "@/providers/ElectionEventTallyProvider"
 import {miruPackage} from "@/components/__stories__/MiruFixture"
+import {STORY_TRUSTEE} from "@/__stories__/storyAuth"
+import {ITallyTrusteeStatus} from "@/types/ceremonies"
+import {executionStatus, tallyExecution, tallySession} from "../Tally/__stories__/TallyFixture"
 import {fakeApi, makePanel} from "@/components/signing/__stories__/fixtures"
 import {EditElectionEventTally} from "./EditElectionEventTally"
 import {
@@ -18,7 +21,11 @@ import {
     readsOf,
     recordsOrPending,
 } from "./__stories__/ElectionEventFixture"
-import {EStoryPermissions, useStoryGlobals} from "../../../../ui-essentials/.storybook/globals"
+import {
+    EStoryPermissions,
+    EStoryWorkflow,
+    useStoryGlobals,
+} from "../../../../ui-essentials/.storybook/globals"
 
 /** Which tally screen the tally store selects. */
 type View = "list" | "ceremony" | "trustee" | "transmission"
@@ -61,7 +68,9 @@ function Fixture({view}: Scenario) {
 }
 
 // The tally list, ceremonies and transmission wizard have their own sections;
-// their reads stay loading here.
+// their reads stay loading here, except the session and latest execution that
+// the trustee's ceremony waits for: the signed-in trustee still has to restore
+// their key.
 const meta = {
     title: "Admin/Election event/EditElectionEventTally",
     component: EditElectionEventTally,
@@ -69,8 +78,24 @@ const meta = {
     argTypes: {
         view: {control: "inline-radio", options: ["list", "ceremony", "trustee", "transmission"]},
     },
-    beforeEach: async () => {
-        data = recordsOrPending()
+    beforeEach: async ({args}) => {
+        data = recordsOrPending(
+            args.view === "trustee"
+                ? {
+                      sequent_backend_tally_session: [tallySession(EStoryWorkflow.TALLY)],
+                      sequent_backend_tally_session_execution: [
+                          tallyExecution(EStoryWorkflow.TALLY, {
+                              status: {
+                                  ...executionStatus(EStoryWorkflow.TALLY),
+                                  trustees: [
+                                      {name: STORY_TRUSTEE, status: ITallyTrusteeStatus.WAITING},
+                                  ],
+                              },
+                          }),
+                      ],
+                  }
+                : {}
+        )
         graphql = graphqlBoundary(answerOrPending(), {schema: true})
         signingApi = fakeApi(await makePanel())
         await graphql.ready

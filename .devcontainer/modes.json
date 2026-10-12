@@ -60,9 +60,7 @@
         "configure-minio",
         "data-connector-agent",
         "graphql-engine",
-        "rabbitmq",
-        "immudb",
-        "immudb-init",
+        "task-queues-setup",
         "keycloak",
         "keycloak-nginx",
         "harvest",
@@ -92,9 +90,7 @@
         "configure-minio",
         "data-connector-agent",
         "graphql-engine",
-        "rabbitmq",
-        "immudb",
-        "immudb-init",
+        "task-queues-setup",
         "keycloak",
         "keycloak-nginx",
         "harvest",
@@ -199,7 +195,7 @@
       "readyWhen": "exited"
     },
     {
-      "name": "immudb-init",
+      "name": "task-queues-setup",
       "readyWhen": "exited"
     },
     {
@@ -219,14 +215,6 @@
     {
       "name": "minio",
       "url": "http://127.0.0.1:9001"
-    },
-    {
-      "name": "immudb",
-      "url": "http://127.0.0.1:3325"
-    },
-    {
-      "name": "rabbitmq",
-      "url": "http://127.0.0.1:15672"
     },
     {
       "name": "windmill",

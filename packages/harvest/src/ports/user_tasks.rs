@@ -51,7 +51,9 @@ pub struct UserTaskSendFailure {
 
 pub trait UserTaskDispatch: Sync {
     type Connection: Send + Sync;
-    fn connect(&self) -> impl Future<Output = Self::Connection> + Send;
+    fn connect(
+        &self,
+    ) -> impl Future<Output = Result<Self::Connection, UserTaskSendFailure>> + Send;
     fn import(
         &self,
         connection: &Self::Connection,

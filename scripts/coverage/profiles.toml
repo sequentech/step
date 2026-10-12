@@ -268,7 +268,7 @@ limitations = [
     "Native tests with declared default dependencies, including Windmill's default FIPS feature selection.",
     "Request-boundary tests use Rocket's local client; they do not start service workers. Claims are signed with a public test key and verified against a local key server, not a deployed identity provider.",
     "Route tests run against a private migrated database on the PostgreSQL server HASURA_DB__* names, with in-memory task ledger, broker and storage and a local Keycloak stand-in.",
-    "Deployed Keycloak, RabbitMQ, S3, ImmuDB and complete worker-side workflows remain outside this profile.",
+    "Deployed Keycloak, the task-queue database, S3, the electoral-log databases and complete worker-side workflows remain outside this profile.",
     "Existing inline unit tests contribute to LLVM source counters; branch and deployment coverage are separate scopes.",
 ]
 issue = "https://github.com/sequentech/meta/issues/13302"
@@ -300,13 +300,19 @@ HASURA_DB__HOST = "127.0.0.1"
 LOW_SQL_LIMIT = "1000"
 DEFAULT_SQL_LIMIT = "20"
 DEFAULT_SQL_BATCH_SIZE = "1000"
+ELECTORAL_LOG_PG_HOST = "127.0.0.1"
+ELECTORAL_LOG_PG_PORT = "3322"
+ELECTORAL_LOG_PG_USER = "test"
+ELECTORAL_LOG_PG_PASSWORD = "test"
+ELECTORAL_LOG_PG_DATABASE = "test"
+ELECTORAL_LOG_PG_SSLMODE = "disable"
 
 [profiles.windmill]
 package = "windmill"
 features = []
 limitations = [
-    "Native default FIPS profile with local synthetic PostgreSQL 16 on port 3322 and ImmuDB 1.9.6 on port 3323, matching the Rust CI service fixtures.",
-    "The ignored voter-channel PostgreSQL regression is run separately; ignored full-service activity-log coverage remains open.",
+    "Native default FIPS profile with local synthetic PostgreSQL 16 on port 3322, which also hosts the electoral log, matching the Rust CI service fixtures.",
+    "The ignored electoral-log wiring and cast-vote PostgreSQL tests run in the Rust CI test job; ignored full-service activity-log coverage remains open.",
     "Cloud transports, complete election workflows, optional features and branch coverage require separate evidence.",
     "Existing inline tests contribute to LLVM source counters; this aggregate is not production-only coverage.",
 ]
@@ -326,9 +332,14 @@ HASURA_DB__DBNAME = "test"
 LOW_SQL_LIMIT = "1000"
 DEFAULT_SQL_LIMIT = "20"
 DEFAULT_SQL_BATCH_SIZE = "1000"
-IMMUDB_USER = "immudb"
-IMMUDB_PASSWORD = "immudb"
-IMMUDB_SERVER_URL = "http://127.0.0.1:3323"
+ELECTORAL_LOG_TEST_DATABASE_URL = "postgresql://test:test@127.0.0.1:3322/test?sslmode=disable"
+ELECTORAL_LOG_PG_HOST = "127.0.0.1"
+ELECTORAL_LOG_PG_PORT = "3322"
+ELECTORAL_LOG_PG_USER = "test"
+ELECTORAL_LOG_PG_PASSWORD = "test"
+ELECTORAL_LOG_PG_DATABASE = "test"
+ELECTORAL_LOG_PG_SSLMODE = "disable"
+ENV_SLUG = "electoral-log-tests"
 
 [profiles.windmill.excluded_files]
 "src/services/messaging/insights_tests.rs" = "Standalone unit-test module under cfg(test); the messaging audience preview and stats remain measured."
@@ -462,37 +473,36 @@ LOW_SQL_LIMIT = "1000"
 DEFAULT_SQL_LIMIT = "20"
 DEFAULT_SQL_BATCH_SIZE = "1000"
 
-[profiles.electoral-log]
-package = "electoral-log"
-features = ["immudb-tests"]
-limitations = [
-    "Native library, CLI subprocesses and ImmuDB 1.9.6 integration; each test owns its local database process and files.",
-    "Set ELECTORAL_LOG_TEST_IMMUDB_BINARY or install immudb on PATH; no production endpoint or credentials are accepted by the integration fixture.",
-    "Unit tests live outside src so test bodies do not count as production coverage. Native branch coverage and doctests are not measured.",
-    "The legacy ignored fixed-port test remains preserved; its behavior is covered by the owned-process integration suite.",
-]
-issue = "https://github.com/sequentech/meta/issues/13302"
-
-[profiles.electoral-log.scope_exceptions]
-"src/client/mod.rs" = "Module declaration only."
-"src/messages/mod.rs" = "Module declarations only."
-"src/messages/artifact.rs" = "Empty source file with license header only."
-
-# Compare like-for-like defaults; keep opt-in database counters separate.
 [profiles.electoral-log-native]
 package = "electoral-log"
 features = []
 limitations = [
-    "Comparable default-feature profile; actual PR base lacks the opt-in database-test feature.",
-    "Database integration is measured separately by electoral-log; inline tests on the historical base remain counted.",
-    "The legacy fixed-port integration test remains ignored; native branches and optional features require separate evidence.",
+    "Default-feature profile; inline tests remain counted.",
+    "The PostgreSQL store, ballot box, event database and provisioning tests are ignored here; they run against a PostgreSQL server in the Rust CI test job.",
+    "Native branches and optional features require separate evidence.",
 ]
 issue = "https://github.com/sequentech/meta/issues/13302"
 
 [profiles.electoral-log-native.scope_exceptions]
-"src/client/mod.rs" = "Module declaration only."
 "src/messages/mod.rs" = "Module declarations only."
+"src/adapters/mod.rs" = "Module declarations only."
 "src/messages/artifact.rs" = "Empty source file with license header only."
+"src/ports.rs" = "Store trait declaration only; its implementations are measured in src/adapters/postgres.rs and src/adapters/events.rs."
+
+[profiles.pgmq-broker]
+package = "pgmq-broker"
+features = []
+limitations = [
+    "Default-feature profile; inline tests remain counted.",
+    "The setup, delivery, retry, lease, archive and inspection tests need a disposable PostgreSQL database and are ignored here; they run against PostgreSQL in the Rust CI test job.",
+    "Branch coverage requires separate evidence.",
+]
+issue = "https://github.com/sequentech/meta/issues/13302"
+
+[profiles.pgmq-broker.excluded_files]
+"src/tests.rs" = "Standalone unit-test module under cfg(test); the broker, its setup and its inspection remain measured."
+
+[profiles.pgmq-broker.scope_exceptions]
 
 [profiles.wrap-map-err.test_environment]
 KEYCLOAK_DB__HOST = "127.0.0.1"
@@ -508,9 +518,14 @@ HASURA_DB__DBNAME = "test"
 LOW_SQL_LIMIT = "1000"
 DEFAULT_SQL_LIMIT = "20"
 DEFAULT_SQL_BATCH_SIZE = "1000"
-IMMUDB_USER = "immudb"
-IMMUDB_PASSWORD = "immudb"
-IMMUDB_SERVER_URL = "http://127.0.0.1:3323"
+ELECTORAL_LOG_TEST_DATABASE_URL = "postgresql://test:test@127.0.0.1:3322/test?sslmode=disable"
+ELECTORAL_LOG_PG_HOST = "127.0.0.1"
+ELECTORAL_LOG_PG_PORT = "3322"
+ELECTORAL_LOG_PG_USER = "test"
+ELECTORAL_LOG_PG_PASSWORD = "test"
+ELECTORAL_LOG_PG_DATABASE = "test"
+ELECTORAL_LOG_PG_SSLMODE = "disable"
+ENV_SLUG = "electoral-log-tests"
 [profiles.strand-native]
 package = "strand"
 features = ["num_bigint", "rayon"]
@@ -601,19 +616,3 @@ RAYON_NUM_THREADS = "2"
 "src/wasm/mod.rs" = "Browser-only implementation; requires separate WASM execution and measurement."
 "src/wasm/session.rs" = "Browser-only implementation; requires separate WASM execution and measurement."
 "src/wasm/verify.rs" = "Browser-only implementation; requires separate WASM execution and measurement."
-
-[profiles.immudb-rs]
-package = "immudb-rs"
-consumer_packages = ["electoral-log"]
-features = ["electoral-log/immudb-tests"]
-issue = "https://github.com/sequentech/meta/issues/13302"
-limitations = [
-    "Bounded local gRPC fixtures test client request mapping and error propagation; electoral-log supplies real owned ImmuDB consumer tests on both revisions.",
-    "Only immudb-rs source counters are reported; consumer tests do not inflate its denominator. Generated protocol transport is exercised through the client.",
-    "Actual Rust branches remain separately unmeasured."
-]
-[profiles.immudb-rs.test_environment]
-RUST_TEST_THREADS = "2"
-[profiles.immudb-rs.scope_exceptions]
-"src/lib.rs" = "Module declarations and re-exports only."
-"src/schema.rs" = "Includes generated protocol definitions from OUT_DIR; no handwritten executable source in this file."

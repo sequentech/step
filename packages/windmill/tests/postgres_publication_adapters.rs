@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! The ballot publication, publication file, ballot style and cast vote
-//! adapters against the migrated schema. Every test writes its own rows in a
+//! The ballot publication, publication file and ballot style adapters
+//! against the migrated schema. Every test writes its own rows in a
 //! transaction, checks them with independent SQL and rolls the transaction back.
 //! The publication handoff test removes its committed cross-connection fixtures.
 
@@ -12,7 +12,6 @@ mod schema;
 use chrono::{DateTime, Local, TimeZone, Utc};
 use deadpool_postgres::{Object, Transaction};
 use futures::TryStreamExt;
-use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::types::hasura::core::{BallotPublication, BallotStyle};
 use serde_json::{json, Value};
 use std::cell::Cell;
@@ -20,9 +19,8 @@ use tokio_postgres::error::SqlState;
 use tokio_postgres::types::{FromSql, ToSql};
 use uuid::Uuid;
 use windmill::domain::publication_files::{PublishedBallotStyle, FILES_ANNOTATION};
-use windmill::postgres::{ballot_publication, ballot_style, cast_vote, publication_files};
+use windmill::postgres::{ballot_publication, ballot_style, publication_files};
 use windmill::services::ballot_styles::ballot_publication::prepare_ballot_publication;
-use windmill::services::cast_votes::{CastVote, CastVoteStatus};
 
 const BAD_UUID: &str = "not-a-uuid";
 
@@ -86,6 +84,7 @@ impl Scope {
 struct PublicationRow {
     election_ids: Vec<Uuid>,
     election_id: Option<Uuid>,
+    is_generated: bool,
     published_at: Option<DateTime<Utc>>,
     deleted_at: Option<DateTime<Utc>>,
     annotations: Option<Value>,
@@ -95,6 +94,14 @@ fn published(day: u32) -> PublicationRow {
     PublicationRow {
         published_at: Some(at(day)),
         ..Default::default()
+    }
+}
+
+/// Generated and published: what voters are served from.
+fn served(day: u32) -> PublicationRow {
+    PublicationRow {
+        is_generated: true,
+        ..published(day)
     }
 }
 
@@ -218,14 +225,15 @@ impl<'t, 'c> Fixture<'t, 'c> {
         self.trusted_seed(
             "INSERT INTO sequent_backend.ballot_publication
                      (id, tenant_id, election_event_id, election_ids, election_id,
-                      published_at, deleted_at, annotations)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+                      is_generated, published_at, deleted_at, annotations)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
             &[
                 &id,
                 &scope.tenant,
                 &scope.event,
                 &row.election_ids,
                 &row.election_id,
+                &row.is_generated,
                 &row.published_at,
                 &row.deleted_at,
                 &row.annotations,
@@ -278,49 +286,6 @@ impl<'t, 'c> Fixture<'t, 'c> {
             ],
         )
         .await;
-    }
-
-    /// A cast vote written with SQL; it still passes the revote trigger.
-    async fn vote(
-        &self,
-        scope: Scope,
-        election: Uuid,
-        area: Uuid,
-        voter: &str,
-        status: &str,
-    ) -> Uuid {
-        let id = self.id();
-        self.vote_as(scope, id, [election, area], voter, status)
-            .await;
-        id
-    }
-
-    async fn vote_as(
-        &self,
-        scope: Scope,
-        id: Uuid,
-        [election, area]: [Uuid; 2],
-        voter: &str,
-        status: &str,
-    ) {
-        self.tx
-            .execute(
-                "INSERT INTO sequent_backend.cast_vote
-                     (id, tenant_id, election_event_id, election_id, area_id,
-                      voter_id_string, status, content)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, 'ciphertext')",
-                &[
-                    &id,
-                    &scope.tenant,
-                    &scope.event,
-                    &election,
-                    &area,
-                    &voter,
-                    &status,
-                ],
-            )
-            .await
-            .unwrap();
     }
 }
 
@@ -1756,7 +1721,56 @@ async fn stream_publication_styles_streams_every_style_of_the_publication_includ
 }
 
 #[tokio::test]
-async fn merge_ballot_publication_annotation_adds_or_replaces_one_text_annotation() {
+async fn get_publication_style_page_pages_the_styles_of_the_publication_by_id() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let a = f.scope().await;
+    let sibling = f.event_in(a.tenant).await;
+    let election = f.election(a).await;
+    let area = f.area(a).await;
+    let publication = f.publication(a, published(1)).await;
+    let other_publication = f.publication(a, published(2)).await;
+    let live = f.style(a, publication, election, area).await;
+    let deleted = f.deleted_style(a, publication, election, area).await;
+    f.style(a, other_publication, election, area).await;
+    f.election_as(sibling, election, None).await;
+    f.area_as(sibling, area).await;
+    f.publication_as(sibling, publication, published(1)).await;
+    f.style(sibling, publication, election, area).await;
+
+    let page = |after: Option<Uuid>, limit: i64| {
+        let tx = &tx;
+        async move {
+            publication_files::get_publication_style_page(
+                tx,
+                a.tenant,
+                a.event,
+                publication,
+                after,
+                limit,
+            )
+            .await
+            .unwrap()
+        }
+    };
+    let ids = |page: Vec<(Uuid, Value)>| {
+        page.into_iter()
+            .map(|(id, style)| {
+                assert_eq!(style["id"], json!(id.to_string()));
+                id
+            })
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(ids(page(None, 10).await), vec![live, deleted]);
+    assert_eq!(ids(page(None, 1).await), vec![live]);
+    assert_eq!(ids(page(Some(live), 10).await), vec![deleted]);
+    assert!(page(Some(deleted), 10).await.is_empty());
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn complete_ballot_publication_files_records_the_root_and_marks_the_publication_generated() {
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();
     let f = Fixture::new(&tx, line!());
@@ -1773,7 +1787,7 @@ async fn merge_ballot_publication_annotation_adds_or_replaces_one_text_annotatio
     let bare = f.publication(a, PublicationRow::default()).await;
 
     for publication in [annotated, bare] {
-        publication_files::merge_ballot_publication_annotation(
+        assert!(publication_files::complete_ballot_publication_files(
             &tx,
             a.tenant,
             a.event,
@@ -1782,7 +1796,7 @@ async fn merge_ballot_publication_annotation_adds_or_replaces_one_text_annotatio
             "new-root",
         )
         .await
-        .unwrap();
+        .unwrap());
     }
 
     let annotations = |id: Uuid| {
@@ -1805,11 +1819,12 @@ async fn merge_ballot_publication_annotation_adds_or_replaces_one_text_annotatio
         annotations(bare).await,
         Some(json!({FILES_ANNOTATION: "new-root"}))
     );
+    assert_eq!(publication_state(&tx, a, bare).await, (true, None, None));
     tx.rollback().await.unwrap();
 }
 
 #[tokio::test]
-async fn merge_ballot_publication_annotation_only_updates_the_publication_of_the_scope() {
+async fn complete_ballot_publication_files_only_completes_a_live_draft_of_the_scope() {
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();
     let f = Fixture::new(&tx, line!());
@@ -1818,12 +1833,48 @@ async fn merge_ballot_publication_annotation_only_updates_the_publication_of_the
     let id = f.publication(a, PublicationRow::default()).await;
     f.publication_as(other, id, PublicationRow::default()).await;
     f.publication(a, PublicationRow::default()).await;
+    let generated = f
+        .publication(
+            a,
+            PublicationRow {
+                is_generated: true,
+                ..Default::default()
+            },
+        )
+        .await;
+    let public = f.publication(a, published(1)).await;
+    let deleted = f
+        .publication(
+            a,
+            PublicationRow {
+                deleted_at: Some(at(2)),
+                ..Default::default()
+            },
+        )
+        .await;
 
-    publication_files::merge_ballot_publication_annotation(
-        &tx, a.tenant, a.event, id, "key", "value",
+    for refused in [generated, public, deleted] {
+        assert!(!publication_files::complete_ballot_publication_files(
+            &tx,
+            a.tenant,
+            a.event,
+            refused,
+            FILES_ANNOTATION,
+            "root",
+        )
+        .await
+        .unwrap());
+    }
+    assert!(publication_files::complete_ballot_publication_files(
+        &tx,
+        a.tenant,
+        a.event,
+        id,
+        FILES_ANNOTATION,
+        "root",
     )
     .await
-    .unwrap();
+    .unwrap());
 
     let annotated: Vec<(Uuid, Uuid)> = tx
         .query(
@@ -1852,8 +1903,9 @@ async fn get_published_ballot_styles_returns_live_styles_of_published_publicatio
         f.election(a).await,
     );
     let (voter_area, other_area) = (f.area(a).await, f.area(a).await);
-    let older = f.publication(a, published(1)).await;
-    let newer = f.publication(a, published(2)).await;
+    let older = f.publication(a, served(1)).await;
+    let newer = f.publication(a, served(2)).await;
+    let ungenerated = f.publication(a, published(5)).await;
     let draft = f.publication(a, PublicationRow::default()).await;
     let retired = f
         .publication(
@@ -1871,6 +1923,7 @@ async fn get_published_ballot_styles_returns_live_styles_of_published_publicatio
     let newer_first = f.style(a, newer, first, voter_area).await;
     f.style(a, newer, first, other_area).await;
     f.style(a, newer, unrequested, voter_area).await;
+    f.style(a, ungenerated, first, voter_area).await;
     f.style(a, draft, first, voter_area).await;
     f.style(a, retired, first, voter_area).await;
 
@@ -1920,13 +1973,12 @@ async fn get_published_ballot_styles_maps_the_object_root_and_the_live_election_
         .publication(
             a,
             PublicationRow {
-                published_at: Some(at(2)),
                 annotations: Some(json!({FILES_ANNOTATION: "tenant-x/root", "other": "y"})),
-                ..Default::default()
+                ..served(2)
             },
         )
         .await;
-    let rootless = f.publication(a, published(1)).await;
+    let rootless = f.publication(a, served(1)).await;
     let rooted_style = f.style(a, rooted, election, area).await;
     let rootless_style = f.style(a, rootless, bare_election, area).await;
 
@@ -1984,9 +2036,8 @@ async fn get_published_ballot_styles_never_returns_styles_of_other_tenants_or_ev
             scope,
             publication,
             PublicationRow {
-                published_at: Some(at(1)),
                 annotations: Some(json!({FILES_ANNOTATION: root})),
-                ..Default::default()
+                ..served(1)
             },
         )
         .await;
@@ -2438,795 +2489,6 @@ async fn get_publication_ballot_styles_orders_by_election_and_area_and_honours_t
         strings(&[first_low, first_high, second_low])
     );
     assert_eq!(styles(Some(2)).await, strings(&[first_low, first_high]));
-    tx.rollback().await.unwrap();
-}
-
-// ---------------------------------------------------------------------------
-// cast_vote
-// ---------------------------------------------------------------------------
-
-struct Ballot<'a> {
-    voter: &'a str,
-    status: CastVoteStatus,
-}
-
-fn valid(voter: &str) -> Ballot<'_> {
-    Ballot {
-        voter,
-        status: CastVoteStatus::Valid,
-    }
-}
-
-async fn cast(
-    tx: &Transaction<'_>,
-    scope: Scope,
-    [election, area]: [Uuid; 2],
-    ballot: Ballot<'_>,
-) -> anyhow::Result<CastVote> {
-    cast_vote::insert_cast_vote(
-        tx,
-        &scope.tenant,
-        &scope.event,
-        &election,
-        &area,
-        "ciphertext",
-        ballot.voter,
-        "ballot-hash",
-        &[1, 2, 3],
-        &Some("203.0.113.7".to_string()),
-        &Some("ES".to_string()),
-        VotingStatusChannel::KIOSK,
-        ballot.status,
-        None,
-    )
-    .await
-}
-
-/// Inserts a vote the trigger must reject, restoring the transaction after.
-async fn rejected(
-    tx: &Transaction<'_>,
-    scope: Scope,
-    target: [Uuid; 2],
-    ballot: Ballot<'_>,
-) -> anyhow::Error {
-    tx.batch_execute("SAVEPOINT rejected_vote").await.unwrap();
-    let error = cast(tx, scope, target, ballot).await.unwrap_err();
-    tx.batch_execute("ROLLBACK TO SAVEPOINT rejected_vote")
-        .await
-        .unwrap();
-    error
-}
-
-/// What `insert_cast_vote` callers inspect: the context message and the
-/// PL/pgSQL `RAISE EXCEPTION` of the database error it wraps.
-fn assert_trigger_rejection(error: &anyhow::Error, message: &str) {
-    assert_eq!(error.to_string(), "Error inserting cast vote");
-    let database = error
-        .downcast_ref::<tokio_postgres::Error>()
-        .and_then(tokio_postgres::Error::as_db_error)
-        .expect("a database error");
-    assert_eq!(database.code(), &SqlState::RAISE_EXCEPTION);
-    assert_eq!(database.message(), message);
-}
-
-async fn vote_count(tx: &Transaction<'_>, scope: Scope, voter: &str) -> i64 {
-    scalar(
-        tx,
-        "SELECT count(*) FROM sequent_backend.cast_vote
-         WHERE tenant_id = $1 AND election_event_id = $2 AND voter_id_string = $3",
-        &[&scope.tenant, &scope.event, &voter],
-    )
-    .await
-}
-
-async fn vote_status(tx: &Transaction<'_>, scope: Scope, id: Uuid) -> String {
-    scalar(
-        tx,
-        "SELECT status FROM sequent_backend.cast_vote
-         WHERE tenant_id = $1 AND election_event_id = $2 AND id = $3",
-        &[&scope.tenant, &scope.event, &id],
-    )
-    .await
-}
-
-#[tokio::test]
-async fn insert_cast_vote_returns_the_vote_and_stores_its_channel_annotations() {
-    let mut client = connect().await;
-    let tx = client.transaction().await.unwrap();
-    let f = Fixture::new(&tx, line!());
-    let a = f.scope().await;
-    let election = f.election(a).await;
-    let area = f.area(a).await;
-
-    let vote = cast(
-        &tx,
-        a,
-        [election, area],
-        Ballot {
-            voter: "voter-1",
-            status: CastVoteStatus::InProgress,
-        },
-    )
-    .await
-    .unwrap();
-
-    let now = Some(now(&tx).await);
-    assert_eq!(
-        vote,
-        CastVote {
-            id: vote.id.clone(),
-            tenant_id: a.tenant_id(),
-            election_id: Some(election.to_string()),
-            area_id: Some(area.to_string()),
-            created_at: now,
-            last_updated_at: now,
-            content: Some("ciphertext".to_string()),
-            voter_id_string: Some("voter-1".to_string()),
-            election_event_id: a.event_id(),
-            ballot_id: Some("ballot-hash".to_string()),
-            cast_ballot_signature: Some(vec![1, 2, 3]),
-            status: CastVoteStatus::InProgress,
-        }
-    );
-    let row = tx
-        .query_one(
-            "SELECT annotations, status, content FROM sequent_backend.cast_vote
-             WHERE tenant_id = $1 AND election_event_id = $2 AND id = $3",
-            &[&a.tenant, &a.event, &Uuid::parse_str(&vote.id).unwrap()],
-        )
-        .await
-        .unwrap();
-    assert_eq!(
-        row.get::<_, Value>(0),
-        json!({"ip": "203.0.113.7", "country": "ES", "voting_channel": "KIOSK"})
-    );
-    assert_eq!(row.get::<_, String>(1), "in-progress");
-    assert_eq!(row.get::<_, String>(2), "ciphertext");
-    tx.rollback().await.unwrap();
-}
-
-#[tokio::test]
-async fn insert_cast_vote_allows_a_single_vote_when_the_election_sets_no_revote_limit() {
-    let mut client = connect().await;
-    let tx = client.transaction().await.unwrap();
-    let f = Fixture::new(&tx, line!());
-    let a = f.scope().await;
-    let election = f.election(a).await;
-    let area = f.area(a).await;
-
-    cast(&tx, a, [election, area], valid("voter"))
-        .await
-        .unwrap();
-    let error = rejected(&tx, a, [election, area], valid("voter")).await;
-
-    assert_trigger_rejection(&error, "insert_failed_exceeds_allowed_revotes");
-    assert_eq!(vote_count(&tx, a, "voter").await, 1);
-    tx.rollback().await.unwrap();
-}
-
-#[tokio::test]
-async fn insert_cast_vote_allows_as_many_votes_as_num_allowed_revotes() {
-    let mut client = connect().await;
-    let tx = client.transaction().await.unwrap();
-    let f = Fixture::new(&tx, line!());
-    let a = f.scope().await;
-    let election = f.election_with_revotes(a, 2).await;
-    let area = f.area(a).await;
-
-    cast(&tx, a, [election, area], valid("voter"))
-        .await
-        .unwrap();
-    cast(&tx, a, [election, area], valid("voter"))
-        .await
-        .unwrap();
-    let error = rejected(&tx, a, [election, area], valid("voter")).await;
-
-    assert_trigger_rejection(&error, "insert_failed_exceeds_allowed_revotes");
-    assert_eq!(vote_count(&tx, a, "voter").await, 2);
-    tx.rollback().await.unwrap();
-}
-
-#[tokio::test]
-async fn insert_cast_vote_allows_unlimited_votes_when_num_allowed_revotes_is_zero() {
-    let mut client = connect().await;
-    let tx = client.transaction().await.unwrap();
-    let f = Fixture::new(&tx, line!());
-    let a = f.scope().await;
-    let election = f.election_with_revotes(a, 0).await;
-    let area = f.area(a).await;
-
-    for _ in 0..4 {
-        cast(&tx, a, [election, area], valid("voter"))
-            .await
-            .unwrap();
-    }
-
-    assert_eq!(vote_count(&tx, a, "voter").await, 4);
-    tx.rollback().await.unwrap();
-}
-
-#[tokio::test]
-async fn insert_cast_vote_does_not_count_discarded_votes_against_the_limit() {
-    let mut client = connect().await;
-    let tx = client.transaction().await.unwrap();
-    let f = Fixture::new(&tx, line!());
-    let a = f.scope().await;
-    let election = f.election(a).await;
-    let area = f.area(a).await;
-    f.vote(a, election, area, "voter", "discarded").await;
-    f.vote(a, election, area, "voter", "discarded").await;
-
-    cast(&tx, a, [election, area], valid("voter"))
-        .await
-        .unwrap();
-
-    assert_eq!(vote_count(&tx, a, "voter").await, 3);
-    tx.rollback().await.unwrap();
-}
-
-#[tokio::test]
-async fn insert_cast_vote_counts_in_progress_votes_against_the_limit() {
-    let mut client = connect().await;
-    let tx = client.transaction().await.unwrap();
-    let f = Fixture::new(&tx, line!());
-    let a = f.scope().await;
-    let election = f.election(a).await;
-    let area = f.area(a).await;
-    f.vote(a, election, area, "voter", "in-progress").await;
-
-    let error = rejected(&tx, a, [election, area], valid("voter")).await;
-
-    assert_trigger_rejection(&error, "insert_failed_exceeds_allowed_revotes");
-    tx.rollback().await.unwrap();
-}
-
-#[tokio::test]
-async fn insert_cast_vote_limits_each_voter_and_election_separately() {
-    let mut client = connect().await;
-    let tx = client.transaction().await.unwrap();
-    let f = Fixture::new(&tx, line!());
-    let a = f.scope().await;
-    let sibling = f.event_in(a.tenant).await;
-    let (first, second) = (f.election(a).await, f.election(a).await);
-    let area = f.area(a).await;
-    f.election_as(sibling, first, None).await;
-    f.area_as(sibling, area).await;
-    f.vote(a, first, area, "voter", "valid").await;
-
-    cast(&tx, a, [first, area], valid("another-voter"))
-        .await
-        .unwrap();
-    cast(&tx, a, [second, area], valid("voter")).await.unwrap();
-    cast(&tx, sibling, [first, area], valid("voter"))
-        .await
-        .unwrap();
-
-    assert_eq!(vote_count(&tx, a, "voter").await, 2);
-    assert_eq!(vote_count(&tx, sibling, "voter").await, 1);
-    tx.rollback().await.unwrap();
-}
-
-#[tokio::test]
-async fn insert_cast_vote_rejects_a_second_area_even_with_unlimited_revotes() {
-    let mut client = connect().await;
-    let tx = client.transaction().await.unwrap();
-    let f = Fixture::new(&tx, line!());
-    let a = f.scope().await;
-    let election = f.election_with_revotes(a, 0).await;
-    let (first_area, second_area) = (f.area(a).await, f.area(a).await);
-    cast(&tx, a, [election, first_area], valid("voter"))
-        .await
-        .unwrap();
-
-    let error = rejected(&tx, a, [election, second_area], valid("voter")).await;
-
-    assert_trigger_rejection(&error, "check_votes_in_other_areas_failed");
-    assert_eq!(vote_count(&tx, a, "voter").await, 1);
-    tx.rollback().await.unwrap();
-}
-
-#[tokio::test]
-async fn insert_cast_vote_reports_a_second_area_before_an_exhausted_revote_limit() {
-    let mut client = connect().await;
-    let tx = client.transaction().await.unwrap();
-    let f = Fixture::new(&tx, line!());
-    let a = f.scope().await;
-    let election = f.election(a).await;
-    let (first_area, second_area) = (f.area(a).await, f.area(a).await);
-    cast(&tx, a, [election, first_area], valid("voter"))
-        .await
-        .unwrap();
-
-    // Both rules reject this vote; the area rule is checked first.
-    let error = rejected(&tx, a, [election, second_area], valid("voter")).await;
-
-    assert_trigger_rejection(&error, "check_votes_in_other_areas_failed");
-    tx.rollback().await.unwrap();
-}
-
-#[tokio::test]
-async fn insert_cast_vote_accepts_another_area_once_the_earlier_votes_are_discarded() {
-    let mut client = connect().await;
-    let tx = client.transaction().await.unwrap();
-    let f = Fixture::new(&tx, line!());
-    let a = f.scope().await;
-    let election = f.election(a).await;
-    let (first_area, second_area) = (f.area(a).await, f.area(a).await);
-    f.vote(a, election, first_area, "voter", "discarded").await;
-
-    let vote = cast(&tx, a, [election, second_area], valid("voter"))
-        .await
-        .unwrap();
-
-    assert_eq!(vote.area_id, Some(second_area.to_string()));
-    tx.rollback().await.unwrap();
-}
-
-#[tokio::test]
-async fn compare_and_set_cast_vote_status_moves_only_a_vote_still_in_the_expected_status() {
-    let mut client = connect().await;
-    let tx = client.transaction().await.unwrap();
-    let f = Fixture::new(&tx, line!());
-    let a = f.scope().await;
-    let election = f.election_with_revotes(a, 0).await;
-    let area = f.area(a).await;
-    let target = f.vote(a, election, area, "voter", "in-progress").await;
-    let neighbour = f.vote(a, election, area, "voter", "in-progress").await;
-    tx.execute(
-        "UPDATE sequent_backend.cast_vote SET last_updated_at = $2 WHERE id = $1",
-        &[&target, &at(1)],
-    )
-    .await
-    .unwrap();
-    let transition = |expected: CastVoteStatus, new: CastVoteStatus| {
-        let tx = &tx;
-        async move {
-            cast_vote::compare_and_set_cast_vote_status(
-                tx,
-                &a.tenant_id(),
-                &a.event_id(),
-                &target,
-                expected,
-                new,
-            )
-            .await
-            .unwrap()
-        }
-    };
-
-    assert!(transition(CastVoteStatus::InProgress, CastVoteStatus::Valid).await);
-    assert!(!transition(CastVoteStatus::InProgress, CastVoteStatus::Discarded).await);
-
-    assert_eq!(vote_status(&tx, a, target).await, "valid");
-    assert_eq!(vote_status(&tx, a, neighbour).await, "in-progress");
-    let updated: DateTime<Utc> = scalar(
-        &tx,
-        "SELECT last_updated_at FROM sequent_backend.cast_vote WHERE id = $1",
-        &[&target],
-    )
-    .await;
-    assert_eq!(updated, now(&tx).await);
-    tx.rollback().await.unwrap();
-}
-
-#[tokio::test]
-async fn compare_and_set_cast_vote_status_ignores_votes_of_other_tenants_and_events() {
-    let mut client = connect().await;
-    let tx = client.transaction().await.unwrap();
-    let f = Fixture::new(&tx, line!());
-    let a = f.scope().await;
-    let sibling = f.event_in(a.tenant).await;
-    let other = f.scope().await;
-    let [election, area, id] = [f.id(), f.id(), f.id()];
-    for scope in [a, sibling, other] {
-        f.election_as(scope, election, None).await;
-        f.area_as(scope, area).await;
-        f.vote_as(scope, id, [election, area], "voter", "in-progress")
-            .await;
-    }
-
-    let moved = cast_vote::compare_and_set_cast_vote_status(
-        &tx,
-        &a.tenant_id(),
-        &a.event_id(),
-        &id,
-        CastVoteStatus::InProgress,
-        CastVoteStatus::Discarded,
-    )
-    .await
-    .unwrap();
-    let mismatched = cast_vote::compare_and_set_cast_vote_status(
-        &tx,
-        &other.tenant_id(),
-        &sibling.event_id(),
-        &id,
-        CastVoteStatus::InProgress,
-        CastVoteStatus::Discarded,
-    )
-    .await
-    .unwrap();
-
-    assert!(moved);
-    assert!(!mismatched);
-    assert_eq!(vote_status(&tx, a, id).await, "discarded");
-    assert_eq!(vote_status(&tx, sibling, id).await, "in-progress");
-    assert_eq!(vote_status(&tx, other, id).await, "in-progress");
-    tx.rollback().await.unwrap();
-}
-
-#[tokio::test]
-async fn get_cast_vote_by_id_returns_the_vote_of_the_given_tenant_and_event() {
-    let mut client = connect().await;
-    let tx = client.transaction().await.unwrap();
-    let f = Fixture::new(&tx, line!());
-    let a = f.scope().await;
-    let sibling = f.event_in(a.tenant).await;
-    let election = f.election(a).await;
-    let area = f.area(a).await;
-    let id = f.vote(a, election, area, "voter", "discarded").await;
-    let get = |scope: Scope, id: Uuid| {
-        let tx = &tx;
-        async move {
-            cast_vote::get_cast_vote_by_id(tx, &scope.tenant_id(), &scope.event_id(), &id)
-                .await
-                .unwrap()
-        }
-    };
-
-    let vote = get(a, id).await.unwrap();
-
-    let now = Some(now(&tx).await);
-    assert_eq!(
-        vote,
-        CastVote {
-            id: id.to_string(),
-            tenant_id: a.tenant_id(),
-            election_id: Some(election.to_string()),
-            area_id: Some(area.to_string()),
-            created_at: now,
-            last_updated_at: now,
-            content: Some("ciphertext".to_string()),
-            voter_id_string: Some("voter".to_string()),
-            election_event_id: a.event_id(),
-            ballot_id: None,
-            cast_ballot_signature: None,
-            status: CastVoteStatus::Discarded,
-        }
-    );
-    assert_eq!(get(sibling, id).await, None);
-    assert_eq!(get(a, f.id()).await, None);
-    tx.rollback().await.unwrap();
-}
-
-#[tokio::test]
-async fn has_valid_cast_vote_only_counts_valid_votes_of_the_voter_in_the_event() {
-    let mut client = connect().await;
-    let tx = client.transaction().await.unwrap();
-    let f = Fixture::new(&tx, line!());
-    let a = f.scope().await;
-    let sibling = f.event_in(a.tenant).await;
-    let election = f.election_with_revotes(a, 0).await;
-    let area = f.area(a).await;
-    let sibling_election = f.election(sibling).await;
-    let sibling_area = f.area(sibling).await;
-    f.vote(a, election, area, "pending", "in-progress").await;
-    f.vote(a, election, area, "pending", "discarded").await;
-    f.vote(a, election, area, "voted", "discarded").await;
-    f.vote(a, election, area, "voted", "valid").await;
-    f.vote(
-        sibling,
-        sibling_election,
-        sibling_area,
-        "elsewhere",
-        "valid",
-    )
-    .await;
-    let has_valid = |voter: &'static str| {
-        let tx = &tx;
-        async move {
-            cast_vote::has_valid_cast_vote(tx, &a.tenant_id(), &a.event_id(), voter)
-                .await
-                .unwrap()
-        }
-    };
-
-    assert!(has_valid("voted").await);
-    assert!(!has_valid("pending").await);
-    assert!(!has_valid("elsewhere").await);
-    tx.rollback().await.unwrap();
-}
-
-#[tokio::test]
-async fn count_unresolved_cast_votes_counts_in_progress_votes_of_one_election_area() {
-    let mut client = connect().await;
-    let tx = client.transaction().await.unwrap();
-    let f = Fixture::new(&tx, line!());
-    let a = f.scope().await;
-    let (election, other_election) = (
-        f.election_with_revotes(a, 0).await,
-        f.election_with_revotes(a, 0).await,
-    );
-    let (area, other_area) = (f.area(a).await, f.area(a).await);
-    f.vote(a, election, area, "first", "in-progress").await;
-    f.vote(a, election, area, "first", "in-progress").await;
-    f.vote(a, election, area, "second", "in-progress").await;
-    f.vote(a, election, area, "third", "valid").await;
-    f.vote(a, election, area, "fourth", "discarded").await;
-    f.vote(a, election, other_area, "fifth", "in-progress")
-        .await;
-    f.vote(a, other_election, area, "first", "in-progress")
-        .await;
-
-    let count = cast_vote::count_unresolved_cast_votes(&tx, &a.tenant, &a.event, &election, &area)
-        .await
-        .unwrap();
-
-    assert_eq!(count, 3);
-    tx.rollback().await.unwrap();
-}
-
-#[tokio::test]
-async fn discard_voter_cast_votes_discards_the_active_votes_of_the_voter_in_the_event() {
-    let mut client = connect().await;
-    let tx = client.transaction().await.unwrap();
-    let f = Fixture::new(&tx, line!());
-    let a = f.scope().await;
-    let sibling = f.event_in(a.tenant).await;
-    let (first, second) = (
-        f.election_with_revotes(a, 0).await,
-        f.election_with_revotes(a, 0).await,
-    );
-    let area = f.area(a).await;
-    let sibling_election = f.election(sibling).await;
-    let sibling_area = f.area(sibling).await;
-    let valid_vote = f.vote(a, first, area, "voter", "valid").await;
-    let pending_vote = f.vote(a, second, area, "voter", "in-progress").await;
-    let discarded_vote = f.vote(a, first, area, "voter", "discarded").await;
-    let other_voter = f.vote(a, first, area, "other-voter", "valid").await;
-    let sibling_vote = f
-        .vote(sibling, sibling_election, sibling_area, "voter", "valid")
-        .await;
-    tx.execute(
-        "UPDATE sequent_backend.cast_vote SET last_updated_at = $1 WHERE id = $2",
-        &[&at(1), &discarded_vote],
-    )
-    .await
-    .unwrap();
-
-    let discarded = cast_vote::discard_voter_cast_votes(&tx, &a.tenant, &a.event, "voter")
-        .await
-        .unwrap();
-
-    assert_eq!(discarded, 2);
-    assert_eq!(vote_status(&tx, a, valid_vote).await, "discarded");
-    assert_eq!(vote_status(&tx, a, pending_vote).await, "discarded");
-    assert_eq!(vote_status(&tx, a, other_voter).await, "valid");
-    assert_eq!(vote_status(&tx, sibling, sibling_vote).await, "valid");
-    // Already discarded votes are not rewritten.
-    let untouched: DateTime<Utc> = scalar(
-        &tx,
-        "SELECT last_updated_at FROM sequent_backend.cast_vote WHERE id = $1",
-        &[&discarded_vote],
-    )
-    .await;
-    assert_eq!(untouched, at(1));
-    tx.rollback().await.unwrap();
-}
-
-#[tokio::test]
-async fn get_voter_cast_vote_state_reports_unresolved_and_valid_votes_of_the_voter() {
-    let mut client = connect().await;
-    let tx = client.transaction().await.unwrap();
-    let f = Fixture::new(&tx, line!());
-    let a = f.scope().await;
-    let sibling = f.event_in(a.tenant).await;
-    let election = f.election_with_revotes(a, 0).await;
-    let area = f.area(a).await;
-    let sibling_election = f.election(sibling).await;
-    let sibling_area = f.area(sibling).await;
-    f.vote(a, election, area, "both", "valid").await;
-    f.vote(a, election, area, "both", "in-progress").await;
-    f.vote(a, election, area, "pending", "in-progress").await;
-    f.vote(a, election, area, "voted", "valid").await;
-    f.vote(a, election, area, "discarded", "discarded").await;
-    f.vote(
-        sibling,
-        sibling_election,
-        sibling_area,
-        "elsewhere",
-        "valid",
-    )
-    .await;
-    let state = |voter: &'static str| {
-        let tx = &tx;
-        async move {
-            let state = cast_vote::get_voter_cast_vote_state(tx, &a.tenant, &a.event, voter)
-                .await
-                .unwrap();
-            (state.has_unresolved_vote, state.has_valid_vote)
-        }
-    };
-
-    assert_eq!(state("both").await, (true, true));
-    assert_eq!(state("pending").await, (true, false));
-    assert_eq!(state("voted").await, (false, true));
-    assert_eq!(state("discarded").await, (false, false));
-    assert_eq!(state("elsewhere").await, (false, false));
-    tx.rollback().await.unwrap();
-}
-
-#[tokio::test]
-async fn get_cast_votes_filters_by_election_voter_and_status() {
-    let mut client = connect().await;
-    let tx = client.transaction().await.unwrap();
-    let f = Fixture::new(&tx, line!());
-    let a = f.scope().await;
-    let (election, other_election) = (
-        f.election_with_revotes(a, 0).await,
-        f.election_with_revotes(a, 0).await,
-    );
-    let area = f.area(a).await;
-    let valid_vote = f.vote(a, election, area, "voter", "valid").await;
-    let pending_vote = f.vote(a, election, area, "voter", "in-progress").await;
-    f.vote(a, election, area, "voter", "discarded").await;
-    f.vote(a, election, area, "other-voter", "valid").await;
-    f.vote(a, other_election, area, "voter", "valid").await;
-    let votes = |statuses: &'static [CastVoteStatus]| {
-        let tx = &tx;
-        async move {
-            sorted(
-                cast_vote::get_cast_votes(tx, &a.tenant, &a.event, &election, "voter", statuses)
-                    .await
-                    .unwrap()
-                    .into_iter()
-                    .map(|vote| vote.id)
-                    .collect(),
-            )
-        }
-    };
-
-    assert_eq!(
-        votes(&[CastVoteStatus::Valid, CastVoteStatus::InProgress]).await,
-        strings(&[valid_vote, pending_vote])
-    );
-    assert_eq!(
-        votes(&[CastVoteStatus::InProgress]).await,
-        strings(&[pending_vote])
-    );
-    assert!(votes(&[]).await.is_empty());
-    tx.rollback().await.unwrap();
-}
-
-#[tokio::test]
-async fn get_voter_cast_vote_states_for_event_groups_the_active_votes_by_voter() {
-    let mut client = connect().await;
-    let tx = client.transaction().await.unwrap();
-    let f = Fixture::new(&tx, line!());
-    let a = f.scope().await;
-    let sibling = f.event_in(a.tenant).await;
-    let election = f.election_with_revotes(a, 0).await;
-    let area = f.area(a).await;
-    let sibling_election = f.election(sibling).await;
-    let sibling_area = f.area(sibling).await;
-    f.vote(a, election, area, "both", "valid").await;
-    f.vote(a, election, area, "both", "in-progress").await;
-    f.vote(a, election, area, "pending", "in-progress").await;
-    f.vote(a, election, area, "voted", "valid").await;
-    f.vote(a, election, area, "voted", "discarded").await;
-    f.vote(a, election, area, "discarded", "discarded").await;
-    f.vote(
-        sibling,
-        sibling_election,
-        sibling_area,
-        "elsewhere",
-        "valid",
-    )
-    .await;
-    tx.execute(
-        "INSERT INTO sequent_backend.cast_vote
-             (tenant_id, election_event_id, election_id, area_id, status)
-         VALUES ($1, $2, $3, $4, 'valid')",
-        &[&a.tenant, &a.event, &election, &area],
-    )
-    .await
-    .unwrap();
-
-    let states =
-        cast_vote::get_voter_cast_vote_states_for_event(&tx, &a.tenant_id(), &a.event_id())
-            .await
-            .unwrap();
-
-    let mut summary: Vec<(String, bool, bool)> = states
-        .into_iter()
-        .map(|(voter, state)| (voter, state.has_unresolved_vote, state.has_valid_vote))
-        .collect();
-    summary.sort();
-    assert_eq!(
-        summary,
-        vec![
-            ("both".to_string(), true, true),
-            ("pending".to_string(), true, false),
-            ("voted".to_string(), false, true),
-        ]
-    );
-    tx.rollback().await.unwrap();
-}
-
-#[tokio::test]
-async fn get_cast_votes_by_election_id_returns_the_valid_votes_of_the_election() {
-    let mut client = connect().await;
-    let tx = client.transaction().await.unwrap();
-    let f = Fixture::new(&tx, line!());
-    let a = f.scope().await;
-    let sibling = f.event_in(a.tenant).await;
-    let (election, other_election) = (
-        f.election_with_revotes(a, 0).await,
-        f.election_with_revotes(a, 0).await,
-    );
-    let area = f.area(a).await;
-    f.election_as(sibling, election, Some(0)).await;
-    f.area_as(sibling, area).await;
-    let first = f.vote(a, election, area, "first", "valid").await;
-    let second = f.vote(a, election, area, "second", "valid").await;
-    f.vote(a, election, area, "third", "in-progress").await;
-    f.vote(a, election, area, "fourth", "discarded").await;
-    f.vote(a, other_election, area, "first", "valid").await;
-    f.vote(sibling, election, area, "first", "valid").await;
-
-    let votes = cast_vote::get_cast_votes_by_election_id(
-        &tx,
-        &a.tenant_id(),
-        &a.event_id(),
-        &election.to_string(),
-    )
-    .await
-    .unwrap();
-
-    assert_eq!(
-        sorted(votes.iter().map(|vote| vote.id.clone()).collect()),
-        strings(&[first, second])
-    );
-    assert!(votes.iter().all(|vote| vote.status == CastVoteStatus::Valid
-        && vote.content.as_deref() == Some("ciphertext")));
-    tx.rollback().await.unwrap();
-}
-
-#[tokio::test]
-async fn cast_vote_lookups_reject_invalid_uuids() {
-    let mut client = connect().await;
-    let tx = client.transaction().await.unwrap();
-    let f = Fixture::new(&tx, line!());
-    let a = f.scope().await;
-    let id = f.id();
-    let (tenant, event) = (a.tenant_id(), a.event_id());
-
-    for (tenant, event) in [(BAD_UUID, event.as_str()), (tenant.as_str(), BAD_UUID)] {
-        assert_invalid_uuid(
-            cast_vote::compare_and_set_cast_vote_status(
-                &tx,
-                tenant,
-                event,
-                &id,
-                CastVoteStatus::InProgress,
-                CastVoteStatus::Valid,
-            )
-            .await,
-        );
-        assert_invalid_uuid(cast_vote::get_cast_vote_by_id(&tx, tenant, event, &id).await);
-        assert_invalid_uuid(cast_vote::has_valid_cast_vote(&tx, tenant, event, "voter").await);
-        assert_invalid_uuid(
-            cast_vote::get_voter_cast_vote_states_for_event(&tx, tenant, event)
-                .await
-                .map(|states| states.len()),
-        );
-        assert_invalid_uuid(
-            cast_vote::get_cast_votes_by_election_id(&tx, tenant, event, &id.to_string()).await,
-        );
-    }
-    assert_invalid_uuid(
-        cast_vote::get_cast_votes_by_election_id(&tx, &a.tenant_id(), &a.event_id(), BAD_UUID)
-            .await,
-    );
     tx.rollback().await.unwrap();
 }
 

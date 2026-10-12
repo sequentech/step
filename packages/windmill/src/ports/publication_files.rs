@@ -10,7 +10,7 @@ use std::future::Future;
 use std::time::Duration;
 use uuid::Uuid;
 
-/// The rows a publication's objects are prepared from, and the references
+/// The rows behind a prepared publication's objects, and the references
 /// voters are served from.
 pub trait PublicationRows: Sync {
     /// Fails when the publication does not exist.
@@ -41,16 +41,6 @@ pub trait PublicationRows: Sync {
         publication: Uuid,
     ) -> impl Future<Output = Result<impl Stream<Item = Result<Value>> + Send>> + Send;
 
-    /// Records `root` in the publication's `FILES_ANNOTATION`, keeping its
-    /// other annotations.
-    fn set_files_root(
-        &self,
-        tenant: Uuid,
-        event: Uuid,
-        publication: Uuid,
-        root: &str,
-    ) -> impl Future<Output = Result<()>> + Send;
-
     /// Newest publication first.
     fn published_styles(
         &self,
@@ -68,6 +58,21 @@ pub trait PublicationRows: Sync {
     ) -> impl Future<Output = Result<Option<Option<Value>>>> + Send;
 }
 
+/// The styles a generation task committed, read for upload after its
+/// transaction ended, while the task keeps its lease.
+pub trait GeneratedStyles: Sync {
+    /// Fails when the task's lease expired or another task took it over.
+    fn keep_alive(&self) -> impl Future<Output = Result<()>> + Send;
+
+    /// Up to `limit` full styles after `after`, by id, EML included: memory
+    /// must not grow with the number of areas.
+    fn page(
+        &self,
+        after: Option<Uuid>,
+        limit: i64,
+    ) -> impl Future<Output = Result<Vec<(Uuid, Value)>>> + Send;
+}
+
 /// Opens the private bucket. Services open it only once they need it, after
 /// the checks that do not.
 pub trait PublicationStorage: Sync {
@@ -78,7 +83,7 @@ pub trait PublicationStorage: Sync {
 
 pub trait PublicationObjects: Sync {
     /// Creates `key` only if it does not exist, then verifies that the stored
-    /// bytes are the serialized `value`.
+    /// bytes are the serialized `value`: a retried upload finds its own object.
     fn put_immutable_json(
         &self,
         key: &str,

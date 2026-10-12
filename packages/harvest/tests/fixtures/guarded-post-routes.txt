@@ -37,6 +37,15 @@
 /election-event/stats
 /election-event/top-votes-by-ip
 /election/stats
+/electoral-log
+/electoral-log-console/page
+/electoral-log-console/query
+/electoral-log-console/record
+/electoral-log-console/tenants
+/electoral-log/audit
+/electoral-log/checkpoint
+/electoral-log/consistency
+/electoral-log/inclusion
 /encrypt-report
 /evaluate-approval-matrix
 /export-application
@@ -77,8 +86,7 @@
 /get-user-profile-configuration
 /get-user-template
 /get-users
-/immudb/electoral-log
-/immudb/pgaudit-list
+/get-voter-cast-votes
 /import-application
 /import-areas
 /import-candidates
@@ -157,6 +165,11 @@
 /staff-certificates
 /staff-certificates/<id>/revoke
 /submit-tally-resolution
+/task-queues/dead-letters
+/task-queues/messages
+/task-queues/overview
+/task-queues/query
+/task-queues/throughput
 /update-election-voting-status
 /update-event-voting-status
 /update-realm-attributes

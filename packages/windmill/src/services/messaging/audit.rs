@@ -14,7 +14,7 @@
 
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::messaging::mark_logged;
-use crate::services::celery_app::get_celery_app;
+use crate::services::celery_app::try_get_celery_app;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
 use crate::tasks::electoral_log::{
@@ -61,6 +61,8 @@ impl MessageKind {
 /// Provider name logged for the environment's email and SMS transport.
 pub const ENVIRONMENT_PROVIDER: &str = "ENVIRONMENT";
 
+const SEND_COMMUNICATIONS_DELIVERY_PREFIX: &str = "send-communications:";
+
 /// One attempt whose outcome was just recorded.
 #[derive(Debug, Clone, PartialEq)]
 pub struct AttemptOutcome {
@@ -84,6 +86,16 @@ pub struct AttemptOutcome {
 }
 
 impl AttemptOutcome {
+    /// The electoral-log delivery ID of the attempt's entry: the same for
+    /// every post of it, so the sweep re-posting an entry that was handed
+    /// over but not marked logged stores it once.
+    pub fn delivery_id(&self) -> String {
+        format!(
+            "{SEND_COMMUNICATIONS_DELIVERY_PREFIX}{}:{}",
+            self.message_id, self.attempt
+        )
+    }
+
     /// The JSON string of the `SendCommunications` statement:
     /// `{channel, account_id, provider, purpose, kind, message_id, attempt,
     /// outcome, reason?, receiver}`. The channel is lowercase, as the
@@ -149,6 +161,7 @@ async fn post_attempt_outcome(
         area_id,
     )?;
     let input = LogEventInput {
+        delivery_id: Some(outcome.delivery_id()),
         election_event_id: event_id,
         message_type: LogMessageType::Internal,
         user_id: outcome.voter_id.clone(),
@@ -160,8 +173,8 @@ async fn post_attempt_outcome(
         ),
         event_time_ms: None,
     };
-    get_celery_app()
-        .await
+    try_get_celery_app()
+        .await?
         .send_task(enqueue_electoral_log_event::new(input))
         .await?;
     mark_logged(hasura_transaction, &[outcome.message_id]).await
@@ -288,5 +301,38 @@ mod tests {
         };
         let body: Value = serde_json::from_str(&no_channel.log_body()).unwrap();
         assert_eq!(body["channel"], Value::Null);
+    }
+
+    #[test]
+    fn each_attempt_has_its_own_stable_delivery_id() {
+        let message_id = Uuid::new_v4();
+        let outcome = |attempt, outcome| AttemptOutcome {
+            tenant_id: Uuid::nil(),
+            election_event_id: Some(Uuid::nil()),
+            voter_id: None,
+            message_id,
+            attempt,
+            channel: Some(MessageChannel::SMS),
+            account_id: None,
+            provider: ENVIRONMENT_PROVIDER.to_string(),
+            purpose: MessagePurpose::NOTICE,
+            kind: MessageKind::BULK_NOTICE,
+            outcome,
+            reason: None,
+            receiver: "\u{2022}\u{2022}\u{2022}".to_string(),
+        };
+        let first = outcome(1, MessageAttemptState::ACCEPTED);
+        assert_eq!(
+            first.delivery_id(),
+            format!("send-communications:{message_id}:1")
+        );
+        assert_eq!(
+            first.delivery_id(),
+            outcome(1, MessageAttemptState::ACCEPTED).delivery_id()
+        );
+        assert_ne!(
+            first.delivery_id(),
+            outcome(2, MessageAttemptState::FAILED).delivery_id()
+        );
     }
 }

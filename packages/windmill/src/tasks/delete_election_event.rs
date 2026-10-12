@@ -9,7 +9,7 @@ use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::{
     services::{
         delete_election_event::{
-            delete_election_event_immudb, delete_election_event_related_documents,
+            delete_election_event_electoral_log, delete_election_event_related_documents,
             delete_keycloak_realm, find_election_event_deletion_refusal,
         },
         providers::transactions_provider::provide_hasura_transaction,
@@ -29,11 +29,10 @@ async fn delete_election_event_related_data(
     realm: &str,
     election_ids: &Vec<String>,
 ) -> AnyhowResult<()> {
-    let immudb_future = delete_election_event_immudb(tenant_id, election_event_id);
     let b3_future = delete_election_event_b3(tenant_id, election_event_id, election_ids);
     let documents_future = delete_election_event_related_documents(tenant_id, election_event_id);
     let keycloak_future = delete_keycloak_realm(realm);
-    try_join!(immudb_future, b3_future, documents_future, keycloak_future)?;
+    try_join!(b3_future, documents_future, keycloak_future)?;
 
     Ok(())
 }
@@ -45,12 +44,14 @@ async fn delete_election_event(
     realm: String,
     permission_labels: Vec<String>,
 ) -> AnyhowResult<()> {
+    let tenant_id_cloned = tenant_id.clone();
+    let election_event_id_cloned = election_event_id.clone();
     provide_hasura_transaction(|hasura_transaction| {
         Box::pin(async move {
             if let Some(refusal) = find_election_event_deletion_refusal(
                 hasura_transaction,
-                &tenant_id,
-                &election_event_id,
+                &tenant_id_cloned,
+                &election_event_id_cloned,
                 &permission_labels,
             )
             .await?
@@ -58,11 +59,23 @@ async fn delete_election_event(
                 return Err(refusal.into());
             }
 
-            delete_election_event_in(hasura_transaction, &tenant_id, &election_event_id, &realm)
-                .await
+            delete_election_event_in(
+                hasura_transaction,
+                &tenant_id_cloned,
+                &election_event_id_cloned,
+                &realm,
+            )
+            .await
         })
     })
-    .await
+    .await?;
+
+    // Dropping a database can't be rolled back, so it runs once the event's deletion
+    // is committed. Dropping is idempotent: a failed drop can be run again with
+    // `electoral-log-admin drop-event-database`.
+    delete_election_event_electoral_log(&tenant_id, &election_event_id)
+        .await
+        .map_err(|err| anyhow!("Error dropping the election event's electoral-log database: {err}"))
 }
 
 /// Deletes the election event in `hasura_transaction`, with its boards and

@@ -26,10 +26,10 @@ fn a_saved_version_names_its_number_and_digest() {
 
 #[test]
 fn the_statement_is_appended_to_the_wire_format() {
-    assert_eq!(borsh::to_vec(&body()).unwrap()[0], 34);
+    assert_eq!(borsh::to_vec(&body()).unwrap()[0], 38);
     assert_eq!(
         borsh::to_vec(&StatementType::ApprovalMatrixUpdated).unwrap(),
-        vec![54]
+        vec![57]
     );
     let decoded: StatementBody = borsh::from_slice(&borsh::to_vec(&body()).unwrap()).unwrap();
     assert!(matches!(

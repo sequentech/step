@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::cast_votes::CastVoteStatus;
 use anyhow::{anyhow, ensure, Result};
 use csv::{ReaderBuilder, StringRecord};
 use sequent_core::types::keycloak::{MAX_VOTE_WEIGHT, MIN_VOTE_WEIGHT};
@@ -276,11 +275,11 @@ pub fn merge_join_csv(
     })
 }
 
-/// Voter ids of the valid ballots in a ballots CSV.
-pub fn read_valid_ballot_voter_ids(
+/// Voter ids of a tally ballots CSV, whose rows are each voter's valid
+/// ballot (`find_area_ballots`).
+pub fn read_ballot_voter_ids(
     ballots_file: &File,
     ballots_voter_id_index: usize,
-    ballots_status_index: usize,
 ) -> Result<Vec<String>> {
     let mut ballots_reader = ReaderBuilder::new()
         .has_headers(false)
@@ -288,12 +287,6 @@ pub fn read_valid_ballot_voter_ids(
     let mut voter_ids = Vec::new();
     for ballot in ballots_reader.records() {
         let ballot = ballot?;
-        let status = ballot
-            .get(ballots_status_index)
-            .ok_or_else(|| anyhow!("Missing ballot status column {ballots_status_index}"))?;
-        if status.parse::<CastVoteStatus>().ok() != Some(CastVoteStatus::Valid) {
-            continue;
-        }
         let voter_id = ballot
             .get(ballots_voter_id_index)
             .ok_or_else(|| anyhow!("Missing ballot voter id column {ballots_voter_id_index}"))?;
@@ -949,48 +942,33 @@ mod tests {
     }
 
     #[test]
-    fn test_read_valid_ballot_voter_ids_skips_discarded_ballots() -> Result<()> {
+    fn test_read_ballot_voter_ids_skips_ballots_without_a_voter() -> Result<()> {
         let mut ballots = NamedTempFile::new()?;
         writeln!(
             ballots,
-            "alice,content-a,ONLINE,valid,10000000-0000-4000-8000-000000000001\n\
-             bob,content-b,ONLINE,discarded,10000000-0000-4000-8000-000000000002\n\
-             ,content-x,ONLINE,valid,10000000-0000-4000-8000-000000000004\n\
-             carol,content-c,KIOSK,valid,10000000-0000-4000-8000-000000000003"
+            "alice,content-a,ONLINE\n\
+             ,content-x,ONLINE\n\
+             carol,content-c,KIOSK"
         )?;
         ballots.flush()?;
 
         assert_eq!(
-            read_valid_ballot_voter_ids(&ballots.reopen()?, 0, 3)?,
+            read_ballot_voter_ids(&ballots.reopen()?, 0)?,
             vec!["alice".to_string(), "carol".to_string()]
         );
         Ok(())
     }
 
     #[test]
-    fn test_read_valid_ballot_voter_ids_rejects_missing_columns() -> Result<()> {
+    fn test_read_ballot_voter_ids_rejects_a_missing_column() -> Result<()> {
         let mut ballots = NamedTempFile::new()?;
-        writeln!(ballots, "alice,content-a,ONLINE,valid")?;
+        writeln!(ballots, "alice,content-a,ONLINE")?;
         ballots.flush()?;
 
-        let missing_status = read_valid_ballot_voter_ids(&ballots.reopen()?, 0, 4).unwrap_err();
-        assert!(missing_status
-            .to_string()
-            .contains("Missing ballot status column 4"));
-        let missing_voter = read_valid_ballot_voter_ids(&ballots.reopen()?, 5, 3).unwrap_err();
+        let missing_voter = read_ballot_voter_ids(&ballots.reopen()?, 5).unwrap_err();
         assert!(missing_voter
             .to_string()
             .contains("Missing ballot voter id column 5"));
-        Ok(())
-    }
-
-    #[test]
-    fn test_read_valid_ballot_voter_ids_ignores_unknown_statuses() -> Result<()> {
-        let mut ballots = NamedTempFile::new()?;
-        writeln!(ballots, "alice,content-a,ONLINE,not-a-status")?;
-        ballots.flush()?;
-
-        assert!(read_valid_ballot_voter_ids(&ballots.reopen()?, 0, 3)?.is_empty());
         Ok(())
     }
 }

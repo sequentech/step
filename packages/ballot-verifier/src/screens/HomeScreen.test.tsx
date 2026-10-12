@@ -141,6 +141,15 @@ const expectRejected = async () => {
     expect(screen.queryByText("Uploaded", {exact: true})).not.toBeInTheDocument()
 }
 
+const expectCiphertextRejected = async () => {
+    const alert = await screen.findByRole("alert")
+    expect(alert).toHaveTextContent("Ballot verification failed")
+    expect(alert).toHaveTextContent(
+        "is not the encryption of the plaintext and randomness it contains"
+    )
+    expect(screen.queryByText("Uploaded", {exact: true})).not.toBeInTheDocument()
+}
+
 const confirmationOf = ({ballot, ballotId, decoded}: RecordedBallot) => ({
     ballot_hash: ballotId,
     election_config: ballot.config,
@@ -356,6 +365,68 @@ describe("importing an audited ballot", () => {
             await expectRejected()
             expect(lastReported()).toBeNull()
             expect(nextButton()).toBeDisabled()
+        }
+    )
+})
+
+describe("reproducing the ciphertext of an audited ballot", () => {
+    const formats = [
+        ["single-contest", singleContestBallot, "verify_auditable_ballot_ciphertext_js"],
+        ["multi-contest", multiContestBallot, "verify_auditable_multi_ballot_ciphertext_js"],
+    ] as const
+
+    it.each(formats)(
+        "accepts a %s ballot whose plaintext and randomness reproduce its ciphertext",
+        async (_format, recorded, binding) => {
+            const valid = recorded()
+            recordSequentCore(valid)
+            const {lastReported} = renderImportStep(valid)
+
+            await importFile(JSON.stringify(valid.ballot))
+
+            await expectAccepted("audited-ballot.json")
+            expect(sequentCore[binding]).toHaveBeenCalledWith(valid.ballot)
+            expect(lastReported()).toEqual(confirmationOf(valid))
+        }
+    )
+
+    it.each(formats)(
+        "rejects a %s ballot whose ciphertext is not reproduced",
+        async (_format, recorded, binding) => {
+            const valid = recorded()
+            recordSequentCore(valid)
+            sequentCore[binding].mockReturnValue(false)
+            const {lastReported} = renderImportStep(valid)
+
+            await importFile(JSON.stringify(valid.ballot))
+
+            await expectCiphertextRejected()
+            expect(lastReported()).toBeNull()
+            expect(nextButton()).toBeDisabled()
+            expect(sequentCore.hash_auditable_ballot_js).not.toHaveBeenCalled()
+            expect(sequentCore.hash_auditable_multi_ballot_js).not.toHaveBeenCalled()
+        }
+    )
+
+    // sequent-core reports a ballot it cannot check at all (such as a malformed
+    // public key) as an error, which says nothing about the ciphertext itself.
+    it.each(formats)(
+        "rejects a %s ballot that cannot be checked without calling it a mismatch",
+        async (_format, recorded, binding) => {
+            const valid = recorded()
+            recordSequentCore(valid)
+            sequentCore[binding].mockImplementation(() => {
+                throw "Error checking the ballot: invalid public key"
+            })
+            const {lastReported} = renderImportStep(valid)
+
+            await importFile(JSON.stringify(valid.ballot))
+
+            await expectRejected()
+            expect(lastReported()).toBeNull()
+            expect(nextButton()).toBeDisabled()
+            expect(sequentCore.hash_auditable_ballot_js).not.toHaveBeenCalled()
+            expect(sequentCore.hash_auditable_multi_ballot_js).not.toHaveBeenCalled()
         }
     )
 })

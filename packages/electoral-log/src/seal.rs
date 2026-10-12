@@ -6,7 +6,7 @@
 //! hash, the seal record (public or restricted) and the pure checks that
 //! windmill's sealer, the tally and `step-cli verify-ballot-box-seal` share.
 //!
-//! A ballot box is the `cast_vote` rows of one (tenant, event, election,
+//! A ballot box is the `ballot_box_ballot` rows of one (event, election,
 //! area). The manifest lists every one of them, in any status, and its
 //! SHA-512 (the seal hash) goes to the event's electoral log in a signed
 //! `BallotBoxSealed` statement.
@@ -24,6 +24,7 @@ use strand::serialization::{StrandDeserialize, StrandSerialize};
 use strand::signature::StrandSignaturePk;
 use strum_macros::Display;
 
+use crate::domain::StoredRecord;
 use crate::messages::message::Message;
 use crate::messages::statement::{StatementBody, StatementType};
 
@@ -93,7 +94,7 @@ pub struct SealEntry {
     /// (see [`ballot_hash`]). Hex in JSON.
     #[serde(with = "hash_hex")]
     pub ballot_hash: Hash,
-    /// The stored `cast_vote.ballot_id`, verbatim.
+    /// The stored `ballot_box_ballot.ballot_id`, verbatim.
     pub ballot_id: String,
     pub disposition: SealDisposition,
     /// Multiplicity for a counted ballot (1, the delegate count or the vote
@@ -319,9 +320,32 @@ pub struct SealRecordCloseRequest {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct SealRecordLogEntry {
-    /// The electoral log entry id of the `BallotBoxSealed` message.
+    /// The electoral log entry id of the `BallotBoxSealed` message in the
+    /// database that stores the event's log.
     pub id: i64,
     pub statement_kind: String,
+    /// The entry's delivery ID, the identity of its log and its leaf in that
+    /// log, which name the entry wherever the log is copied. Records written
+    /// before they were recorded have none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delivery_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub log_uid: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub leaf_index: Option<i64>,
+}
+
+impl SealRecordLogEntry {
+    /// The `BallotBoxSealed` entry the log stored as `record`.
+    pub fn sealed(record: &StoredRecord) -> SealRecordLogEntry {
+        SealRecordLogEntry {
+            id: record.id,
+            statement_kind: StatementType::BallotBoxSealed.to_string(),
+            delivery_id: Some(record.delivery_id.clone()),
+            log_uid: Some(record.log_uid.hyphenated().to_string()),
+            leaf_index: Some(record.leaf_index),
+        }
+    }
 }
 
 /// The seal record of one ballot box: a public or a restricted (private)
@@ -368,14 +392,15 @@ pub struct SealRecordNames {
 
 impl SealRecord {
     /// Builds the record from the seal row's stored bytes: the manifest and
-    /// the signed message, both exactly as stored.
+    /// the signed message, both exactly as stored, and where the log stores
+    /// the message.
     pub fn from_parts(
         manifest_bytes: &[u8],
         signed_message: &[u8],
         system_pk: &StrandSignaturePk,
         names: SealRecordNames,
         close_request: Option<SealRecordCloseRequest>,
-        log_entry_id: i64,
+        log_entry: SealRecordLogEntry,
     ) -> Result<SealRecord> {
         let manifest = BallotBoxSealManifest::from_bytes(manifest_bytes)
             .context("the stored manifest does not decode")?;
@@ -406,10 +431,7 @@ impl SealRecord {
             },
             close_request,
             seal_hash: hex::encode(seal_hash(manifest_bytes)?),
-            log_entry: SealRecordLogEntry {
-                id: log_entry_id,
-                statement_kind: StatementType::BallotBoxSealed.to_string(),
-            },
+            log_entry,
             system_public_key: system_pk.to_der_b64_string()?,
             message: serde_json::to_value(&message)?,
             message_b64: general_purpose::STANDARD.encode(signed_message),

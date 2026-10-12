@@ -439,3 +439,61 @@ pub async fn update_tally_session_execution_documents(
 
     Ok(())
 }
+
+/// Append a line to the logs of a tally session's latest execution, in place.
+///
+/// Takes the tally session lock. Writers that copy the latest execution's status into
+/// a new execution must read it under the same lock, as post-tally does, or they drop
+/// lines appended here in the meantime.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn append_tally_session_log(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+    log_text: &str,
+) -> Result<()> {
+    crate::postgres::tally_session::lock_tally_session_for_update(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+    )
+    .await?;
+    let execution = get_last_tally_session_execution(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+    )
+    .await?
+    .context("Tally session has no execution to log to")?;
+    let mut status: sequent_core::types::ceremonies::TallyCeremonyStatus = match execution.status {
+        Some(value) => serde_json::from_value(value).context("Invalid tally session status")?,
+        None => Default::default(),
+    };
+    status.logs.push(sequent_core::types::ceremonies::Log {
+        created_date: sequent_core::services::date::ISO8601::to_string(
+            &sequent_core::services::date::ISO8601::now(),
+        ),
+        log_text: log_text.to_string(),
+    });
+    status.logs = crate::services::ceremonies::serialize_logs::sort_logs(&status.logs);
+    hasura_transaction
+        .execute(
+            r#"
+            UPDATE sequent_backend.tally_session_execution
+            SET status = $1
+            WHERE id = $2 AND tenant_id = $3 AND election_event_id = $4
+            "#,
+            &[
+                &serde_json::to_value(&status)?,
+                &parse_uuid_v4(&execution.id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+            ],
+        )
+        .await
+        .context("Error appending tally session log")?;
+    Ok(())
+}

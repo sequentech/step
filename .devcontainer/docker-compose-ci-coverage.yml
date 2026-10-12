@@ -17,12 +17,6 @@ x-e2e-profiles: &e2e-profiles
   target: /profiles
 
 services:
-  immudb-init:
-    volumes:
-      - *e2e-profiles
-    environment:
-      LLVM_PROFILE_FILE: /profiles/immudb-init-%m.profraw
-
   harvest:
     volumes:
       - *e2e-profiles

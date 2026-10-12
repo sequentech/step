@@ -4,35 +4,43 @@
 
 //! The tally of a sealed ballot box (VOTE-FREEZE). When the event seals its
 //! ballot boxes at close, the tally counts the box from its seal instead of
-//! selecting ballots and voters itself: it checks the signed
-//! `BallotBoxSealed` entry on the electoral log, the stored manifest, and
-//! that the stored ballots are exactly the sealed ones, then counts the
-//! manifest's entries. The manifest is authoritative, so a voter disabled
-//! after the seal does not change the counts.
+//! selecting ballots and voters itself. In one snapshot of the event's
+//! electoral-log database it reads the box's seal, its signed
+//! `BallotBoxSealed` records on the board and every stored ballot of the
+//! box; it checks the record against the stored manifest and that the
+//! stored ballots are exactly the sealed ones, then counts the manifest's
+//! entries. The manifest is authoritative, so a voter disabled after the
+//! seal does not change the counts. The database's guard refuses writes to
+//! a sealed box, but the role that owns the database can disable it: this
+//! check is what detects a box changed that way.
 
 use crate::ports::tally_ceremony::BallotBoxSealState;
 use crate::postgres::ballot_box_seal::{get_for_box, list_for_elections, BallotBoxSealStatus};
 use crate::postgres::tally_session_contest::get_tally_session_contests;
-use crate::services::ballot_box_seal::publish::{deliver, sealed_entries, sha256_hex};
+use crate::services::ballot_box_seal::publish::sha256_hex;
 use crate::services::ceremonies::tally_validation::{
     validate_sealed_boxes_tallied, ExpectedBallotBox,
 };
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::join::MergeJoinResult;
-use crate::services::protocol_manager::{get_board_client, get_protocol_manager};
+use crate::services::protocol_manager::{
+    get_event_databases, get_event_store, get_protocol_manager,
+};
 use anyhow::{anyhow, Context, Result};
 use b4::messages::message::Signer;
 use deadpool_postgres::Transaction;
+use electoral_log::adapters::ballot_box_seal::{BallotBoxId, SealOutcome, StoredSeal};
+use electoral_log::adapters::postgres::PostgresStore;
 use electoral_log::messages::message::{Message, SigningData};
 use electoral_log::messages::newtypes::EventIdString;
 use electoral_log::messages::statement::StatementType;
+use electoral_log::ports::ElectoralLogStore;
 use electoral_log::seal::{
     ballot_hash, check_statement, compare_stored, BallotBoxSealManifest, SealDisposition,
 };
 use electoral_log::{
-    ElectoralLogMessage, ElectoralLogVarCharColumn, SqlCompOperators, WhereClauseBTreeMap,
+    ElectoralLogMessage, Filter, LogEntry, LogQuery, SqlCompOperators, TextColumn,
 };
-use futures::{pin_mut, TryStreamExt};
 use sequent_core::ballot::{BallotBoxSealPolicy, WeightedVotingPolicy};
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::ElectionEvent;
@@ -53,7 +61,7 @@ const BALLOT_BOX_SEAL_POLICY_KEY: &str = "ballot_box_seal_policy";
 const VERIFIED_DELIVERY_PREFIX: &str = "tally-box-verified";
 /// Prefix of the delivery id of a `TallyBallotBoxRejected` entry.
 const REJECTED_DELIVERY_PREFIX: &str = "tally-box-rejected";
-/// Whether an election has any `BallotBoxSealed` entry needs one row.
+/// Whether an election has any `BallotBoxSealed` record needs one row.
 const SEAL_PRESENCE_READ_LIMIT: i64 = 1;
 const BOARD_RETRIES: usize = 5;
 const BOARD_INITIAL_BACKOFF: Duration = Duration::from_millis(100);
@@ -75,10 +83,12 @@ pub fn event_ballot_box_seal_policy(election_event: &ElectionEvent) -> BallotBox
     }
 }
 
-/// The event's electoral log: where the seals are and where the tally posts
-/// what it found, with the key that signs both.
+/// The event's electoral-log database and board: where the seals and the
+/// ballots are and where the tally posts what it found, with the key that
+/// signs both.
 pub struct SealedBoxLog {
     board: String,
+    store: PostgresStore,
     system_pk: StrandSignaturePk,
     signing_data: SigningData,
 }
@@ -99,13 +109,20 @@ impl SealedBoxLog {
             &board,
         )
         .await?;
-        Self::with_signing_key(board, protocol_manager.get_signing_key().clone())
+        let store = get_event_store(&election_event.id).await?;
+        Self::with_signing_key(board, store, protocol_manager.get_signing_key().clone())
     }
 
-    /// The electoral log `board`, signed with the event's key `system_sk`.
-    pub fn with_signing_key(board: String, system_sk: StrandSignatureSk) -> Result<Self> {
+    /// The electoral log `board` in the event's database `store`, signed
+    /// with the event's key `system_sk`.
+    pub fn with_signing_key(
+        board: String,
+        store: PostgresStore,
+        system_sk: StrandSignatureSk,
+    ) -> Result<Self> {
         Ok(SealedBoxLog {
             board,
+            store,
             system_pk: StrandSignaturePk::from_sk(&system_sk)?,
             signing_data: SigningData::new(system_sk.clone(), "", system_sk),
         })
@@ -144,9 +161,11 @@ struct VerifiedBox {
 }
 
 /// Checks the ballot box against its seal and counts it from the manifest.
-/// A box that doesn't match gets a `TallyBallotBoxRejected` entry and an
-/// error; one that matches gets one `TallyBallotBoxVerified` entry per tally
-/// session, however many contests read it.
+/// A box that doesn't match gets a `TallyBallotBoxRejected` record and an
+/// error; one that matches gets one `TallyBallotBoxVerified` record per
+/// tally session, however many contests read it. Like any other box, it is
+/// not counted while ballots it accepted are missing from the electoral
+/// log.
 #[instrument(skip(hasura_transaction, log, ballot_box), fields(election_id = ballot_box.election_id, area_id = ballot_box.area_id), err)]
 pub async fn sealed_box_ballots(
     hasura_transaction: &Transaction<'_>,
@@ -154,6 +173,7 @@ pub async fn sealed_box_ballots(
     ballot_box: &SealedBox<'_>,
     weighted_voting_policy: WeightedVotingPolicy,
 ) -> Result<SealedBoxBallots> {
+    check_recorded(log, ballot_box).await?;
     let verified = match verify_box(hasura_transaction, log, ballot_box).await? {
         Ok(verified) => verified,
         Err(Rejection(what_differs)) => {
@@ -188,61 +208,173 @@ pub async fn sealed_box_ballots(
     })
 }
 
-/// The checks of §2.8: one signed `BallotBoxSealed` entry, the stored
-/// manifest is the signed one, and the stored ballots are the sealed ones.
-/// The outer error is an operational failure (retry); the inner one, a box
-/// that doesn't match its seal.
+/// Refuses a box with accepted ballots that aren't on the electoral log,
+/// as the tally of any box does.
+async fn check_recorded(log: &SealedBoxLog, ballot_box: &SealedBox<'_>) -> Result<()> {
+    let waiting = log
+        .store
+        .unsequenced_count(
+            ballot_box.election_event_id,
+            ballot_box.election_id,
+            ballot_box.area_id,
+        )
+        .await?;
+    if waiting > 0 {
+        return Err(anyhow!(
+            "Refusing to count the ballot box of {}, {}: {waiting} accepted ballot(s) are not \
+             in the electoral log yet",
+            ballot_box.election_name,
+            ballot_box.area_name
+        ));
+    }
+    let unrecorded = log
+        .store
+        .unrecorded_count(
+            &log.board,
+            ballot_box.election_event_id,
+            ballot_box.election_id,
+            ballot_box.area_id,
+        )
+        .await?;
+    if unrecorded > 0 {
+        return Err(anyhow!(
+            "Refusing to count the ballot box of {}, {}: {unrecorded} ballot(s) have no \
+             cast-vote record in the electoral log",
+            ballot_box.election_name,
+            ballot_box.area_name
+        ));
+    }
+    Ok(())
+}
+
+/// The checks of §2.8: one signed `BallotBoxSealed` record, the stored
+/// manifest is the signed one, and the stored ballots are the sealed ones,
+/// all read in one snapshot of the event's database. The outer error is an
+/// operational failure (retry); the inner one, a box that doesn't match its
+/// seal.
 async fn verify_box(
     hasura_transaction: &Transaction<'_>,
     log: &SealedBoxLog,
     ballot_box: &SealedBox<'_>,
 ) -> Result<std::result::Result<VerifiedBox, Rejection>> {
-    let tenant_uuid = Uuid::parse_str(ballot_box.tenant_id)?;
-    let event_uuid = Uuid::parse_str(ballot_box.election_event_id)?;
-    let election_uuid = Uuid::parse_str(ballot_box.election_id)?;
-    let area_uuid = Uuid::parse_str(ballot_box.area_id)?;
-
-    let seal = get_for_box(
+    let ids = BallotBoxId {
+        election_event_id: ballot_box.election_event_id,
+        election_id: ballot_box.election_id,
+        area_id: ballot_box.area_id,
+    };
+    let row = get_for_box(
         hasura_transaction,
-        &tenant_uuid,
-        &event_uuid,
-        &election_uuid,
-        &area_uuid,
+        &Uuid::parse_str(ballot_box.tenant_id)?,
+        &Uuid::parse_str(ballot_box.election_event_id)?,
+        &Uuid::parse_str(ballot_box.election_id)?,
+        &Uuid::parse_str(ballot_box.area_id)?,
     )
     .await?;
-    let entries = with_board_retries(|| {
-        sealed_entries(&log.board, ballot_box.election_id, ballot_box.area_id)
-    })
-    .await?;
-    let signed = signed_seal_entries(&entries, &log.system_pk)?;
-    // Without a published seal row the box isn't ready yet, unless the
-    // bulletin board already holds its seal: then the row was deleted or
-    // changed after the seal, which is a mismatch.
-    let seal = match seal {
-        Some(seal) if seal.status == BallotBoxSealStatus::Published => seal,
+
+    // The ballots the manifest counts, to keep their content while the box
+    // streams. Seals are permanent, so the snapshot below reads this seal.
+    let first = with_board_retries(|| log.store.ballot_box_seal(ids)).await?;
+    let counted: HashSet<(Hash, String)> = match &first {
+        Some(StoredSeal {
+            outcome: SealOutcome::Sealed { manifest, .. },
+            ..
+        }) => BallotBoxSealManifest::from_bytes(manifest)
+            .map(|manifest| {
+                manifest
+                    .entries
+                    .iter()
+                    .filter(|entry| entry.disposition == SealDisposition::Counted)
+                    .map(|entry| (entry.ballot_hash, entry.ballot_id.clone()))
+                    .collect()
+            })
+            .unwrap_or_default(),
+        _ => HashSet::new(),
+    };
+    let mut stored = StoredBallots {
+        keys: Vec::new(),
+        contents: HashMap::new(),
+        incomplete: false,
+    };
+    let read = log
+        .store
+        .read_sealed_box(&log.board, ids, |ballot| {
+            if ballot.content.is_empty() || ballot.ballot_id.is_empty() {
+                stored.incomplete = true;
+                return Ok(());
+            }
+            let key = (ballot_hash(&ballot.content)?, ballot.ballot_id);
+            if counted.contains(&key) && !stored.contents.contains_key(&key) {
+                stored.contents.insert(key.clone(), ballot.content);
+            }
+            stored.keys.push(key);
+            Ok(())
+        })
+        .await
+        .with_context(|| "Error reading the sealed ballot box")?;
+    let signed = signed_seal_entries(&read.seal_records, &log.system_pk)?;
+    let (manifest_bytes, signed_message) = match read.seal {
+        Some(StoredSeal {
+            outcome: SealOutcome::Sealed { manifest, .. },
+            signed_message,
+            ..
+        }) => (manifest, signed_message),
         seal => {
-            let stored = match &seal {
-                Some(seal) => format!("is {}", seal.status),
-                None => "is missing".to_string(),
+            let stored_state = match &seal {
+                Some(_) => "failed",
+                None => "is missing",
             };
             if !signed.is_empty() {
                 return Ok(Err(Rejection(format!(
-                    "the bulletin board holds the seal of this ballot box, but the stored seal {stored}"
+                    "the bulletin board holds the seal of this ballot box, but the stored seal \
+                     {stored_state}"
                 ))));
             }
+            if seal.is_none()
+                && row.as_ref().is_some_and(|row| {
+                    matches!(
+                        row.status,
+                        BallotBoxSealStatus::Sealed | BallotBoxSealStatus::Published
+                    )
+                })
+            {
+                return Ok(Err(Rejection(
+                    "the ballot box's seal row says it is sealed, but the stored seal is missing"
+                        .into(),
+                )));
+            }
             return Err(match seal {
-                Some(seal) => anyhow!(
-                    "The seal of the ballot box of {} is {}, not on the bulletin board yet",
-                    ballot_box.area_name,
-                    seal.status
+                Some(StoredSeal {
+                    outcome: SealOutcome::Failed { reason },
+                    ..
+                }) => anyhow!(
+                    "The seal of the ballot box of {} failed: {reason}",
+                    ballot_box.area_name
                 ),
-                None => anyhow!("The ballot box of {} has no seal", ballot_box.area_name),
+                _ => anyhow!("The ballot box of {} has no seal", ballot_box.area_name),
             });
         }
     };
-    let Some(manifest_bytes) = seal.manifest else {
-        return Ok(Err(Rejection("the stored seal has no manifest".into())));
-    };
+    if first.as_ref().map(|seal| &seal.signed_message) != Some(&signed_message) {
+        return Err(anyhow!(
+            "The seal of the ballot box of {} changed while it was read",
+            ballot_box.area_name
+        ));
+    }
+    // The record of a published seal is out before the box is counted.
+    match row.as_ref().map(|row| row.status) {
+        Some(BallotBoxSealStatus::Published) => {}
+        Some(status) => {
+            return Err(anyhow!(
+                "The seal of the ballot box of {} is {status}, not published yet",
+                ballot_box.area_name
+            ))
+        }
+        None => {
+            return Ok(Err(Rejection(
+                "the ballot box is sealed, but its seal row is missing".into(),
+            )))
+        }
+    }
 
     let message = match signed.as_slice() {
         [message] => message,
@@ -286,23 +418,11 @@ async fn verify_box(
     if let Err(rejection) = check_counted_weights(&manifest) {
         return Ok(Err(rejection));
     }
-
-    let counted: HashSet<(Hash, String)> = manifest
-        .entries
-        .iter()
-        .filter(|entry| entry.disposition == SealDisposition::Counted)
-        .map(|entry| (entry.ballot_hash, entry.ballot_id.clone()))
-        .collect();
-    let stored = match read_stored_ballots(
-        hasura_transaction,
-        [&tenant_uuid, &event_uuid, &election_uuid, &area_uuid],
-        &counted,
-    )
-    .await?
-    {
-        Ok(stored) => stored,
-        Err(rejection) => return Ok(Err(rejection)),
-    };
+    if stored.incomplete {
+        return Ok(Err(Rejection(
+            "a stored ballot has no content or no Ballot ID".into(),
+        )));
+    }
     let diff = compare_stored(&manifest, &stored.keys);
     if !diff.is_empty() {
         return Ok(Err(Rejection(diff.describe())));
@@ -385,48 +505,42 @@ where
     retry_with_exponential_backoff(call, BOARD_RETRIES, BOARD_INITIAL_BACKOFF).await
 }
 
-/// Whether the event's electoral log holds a `BallotBoxSealed` entry for
-/// the election.
-async fn election_has_seal_entries(board: &str, election_id: &str) -> Result<bool> {
-    let columns_matcher: WhereClauseBTreeMap = [
-        (
-            ElectoralLogVarCharColumn::StatementKind,
-            (
+/// Whether the event's board holds a `BallotBoxSealed` record for the
+/// election. Only the board's own records count: those of the sealed logs
+/// an imported event's board continues are another event's.
+async fn election_has_seal_entries(
+    store: &PostgresStore,
+    board: &str,
+    election_id: &str,
+) -> Result<bool> {
+    let query = LogQuery {
+        filters: vec![
+            Filter::Text(
+                TextColumn::StatementKind,
                 SqlCompOperators::Equal,
                 StatementType::BallotBoxSealed.to_string(),
             ),
-        ),
-        (
-            ElectoralLogVarCharColumn::ElectionId,
-            (SqlCompOperators::Equal, election_id.to_string()),
-        ),
-    ]
-    .into_iter()
-    .collect();
-    let entries = with_board_retries(|| async {
-        get_board_client()
-            .await?
-            .get_electoral_log_messages_filtered::<String, String>(
-                board,
-                Some(columns_matcher.clone()),
-                None,
-                None,
-                Some(SEAL_PRESENCE_READ_LIMIT),
-                None,
-                None,
-            )
-            .await
-    })
-    .await
-    .with_context(|| "Error reading the election's seals from the electoral log")?;
+            Filter::Text(
+                TextColumn::ElectionId,
+                SqlCompOperators::Equal,
+                election_id.to_string(),
+            ),
+        ],
+        limit: SEAL_PRESENCE_READ_LIMIT,
+        ..LogQuery::default()
+    };
+    let entries = with_board_retries(|| store.query(board, &query))
+        .await
+        .with_context(|| "Error reading the election's seals from the electoral log")?;
     Ok(!entries.is_empty())
 }
 
 /// The elections of an electoral results tally that are counted from their
 /// seals: every one when the event seals at close, and otherwise each whose
 /// ballot boxes were sealed anyway (a policy turned off in the database after
-/// the seal can't skip the check, since the board keeps the seal).
-/// Initialization reports count no ballots and never use the seals.
+/// the seal can't skip the check, since the event's database and its board
+/// keep the seal). Initialization reports count no ballots and never use the
+/// seals.
 pub async fn sealed_elections(
     election_event: &ElectionEvent,
     tally_type: &TallyType,
@@ -443,9 +557,22 @@ pub async fn sealed_elections(
     else {
         return Ok(HashSet::new());
     };
-    let mut sealed = HashSet::new();
+    let databases = get_event_databases().await?;
+    if !databases.has_event(&election_event.id).await? {
+        return Ok(HashSet::new());
+    }
+    let store = databases.store(&election_event.id).await?;
+    let mut sealed: HashSet<String> = store
+        .ballot_box_seals(&election_event.id)
+        .await?
+        .into_iter()
+        .map(|seal| seal.election_id)
+        .filter(|election_id| election_ids.contains(election_id))
+        .collect();
     for election_id in election_ids {
-        if election_has_seal_entries(&board, election_id).await? {
+        if !sealed.contains(election_id)
+            && election_has_seal_entries(&store, &board, election_id).await?
+        {
             sealed.insert(election_id.clone());
         }
     }
@@ -512,48 +639,12 @@ pub async fn check_sealed_boxes_tallied(
 
 /// Every stored ballot of a box, as the manifest identifies them.
 struct StoredBallots {
-    /// (ballot hash, Ballot ID) of every row, in any status.
+    /// (ballot hash, Ballot ID) of every ballot, in any status.
     keys: Vec<(Hash, String)>,
-    /// The content of the rows the manifest counts, once per key.
+    /// The content of the ballots the manifest counts, once per key.
     contents: HashMap<(Hash, String), String>,
-}
-
-/// Streams the box's `cast_vote` rows (every status), keeping the content
-/// only of the ballots the manifest counts.
-async fn read_stored_ballots(
-    hasura_transaction: &Transaction<'_>,
-    ballot_box: [&Uuid; 4],
-    counted: &HashSet<(Hash, String)>,
-) -> Result<std::result::Result<StoredBallots, Rejection>> {
-    let rows = hasura_transaction
-        .query_raw(
-            "SELECT content, ballot_id FROM sequent_backend.cast_vote
-             WHERE tenant_id = $1 AND election_event_id = $2
-               AND election_id = $3 AND area_id = $4",
-            ballot_box,
-        )
-        .await
-        .with_context(|| "Error reading the ballot box's cast votes")?;
-    pin_mut!(rows);
-    let mut stored = StoredBallots {
-        keys: Vec::new(),
-        contents: HashMap::new(),
-    };
-    while let Some(row) = rows.try_next().await? {
-        let content: Option<String> = row.try_get("content")?;
-        let ballot_id: Option<String> = row.try_get("ballot_id")?;
-        let (Some(content), Some(ballot_id)) = (content, ballot_id) else {
-            return Ok(Err(Rejection(
-                "a stored ballot has no content or no Ballot ID".into(),
-            )));
-        };
-        let key = (ballot_hash(&content)?, ballot_id);
-        if counted.contains(&key) && !stored.contents.contains_key(&key) {
-            stored.contents.insert(key.clone(), content);
-        }
-        stored.keys.push(key);
-    }
-    Ok(Ok(stored))
+    /// Whether a ballot has no content or no Ballot ID.
+    incomplete: bool,
 }
 
 /// What the ballot dump reports, from the manifest, with the semantics of
@@ -649,8 +740,7 @@ async fn post_verified(
         "{VERIFIED_DELIVERY_PREFIX}:{}:{}:{}",
         ballot_box.tally_session_id, ballot_box.election_id, ballot_box.area_id
     );
-    let payload = format!("{}:{counted}", hex::encode(seal_hash));
-    deliver_once(&log.board, &delivery, &payload, &message).await
+    deliver_once(log, delivery, &message).await
 }
 
 async fn post_rejected(
@@ -661,10 +751,12 @@ async fn post_rejected(
     // The difference is part of the delivery id: a rerun that finds the
     // same difference posts nothing new, one that finds another posts it.
     let delivery = format!(
-        "{REJECTED_DELIVERY_PREFIX}:{}:{}:{}:{what_differs}",
-        ballot_box.tally_session_id, ballot_box.election_id, ballot_box.area_id
+        "{REJECTED_DELIVERY_PREFIX}:{}:{}:{}:{}",
+        ballot_box.tally_session_id,
+        ballot_box.election_id,
+        ballot_box.area_id,
+        sha256_hex(what_differs.as_bytes())
     );
-    let payload = what_differs.clone();
     let message = Message::tally_ballot_box_rejected_message(
         EventIdString(ballot_box.election_event_id.to_string()),
         ballot_box.election_id,
@@ -675,17 +767,26 @@ async fn post_rejected(
         ballot_box.tally_session_id.to_string(),
         &log.signing_data,
     )?;
-    deliver_once(&log.board, &delivery, &payload, &message).await
+    deliver_once(log, delivery, &message).await
 }
 
-/// Posts `message` once per `delivery`: a repeat with the same `payload` is
-/// a no-op.
-async fn deliver_once(board: &str, delivery: &str, payload: &str, message: &Message) -> Result<()> {
-    let delivery_id = sha256_hex(delivery.as_bytes());
-    let payload_hash = sha256_hex(payload.as_bytes());
-    with_board_retries(|| deliver(board, &delivery_id, &payload_hash, message))
-        .await
-        .with_context(|| format!("Error posting to the electoral log of board {board}"))?;
+/// Appends `message` to the event's board once per `delivery_id`: a repeat
+/// stores nothing.
+async fn deliver_once(log: &SealedBoxLog, delivery_id: String, message: &Message) -> Result<()> {
+    let entry = LogEntry {
+        delivery_id,
+        message: message.try_into()?,
+    };
+    with_board_retries(|| {
+        let entry = entry.clone();
+        async move {
+            log.store
+                .append(&log.board, &mut std::iter::once(Ok(entry)))
+                .await
+        }
+    })
+    .await
+    .with_context(|| format!("Error posting to the electoral log of board {}", log.board))?;
     Ok(())
 }
 

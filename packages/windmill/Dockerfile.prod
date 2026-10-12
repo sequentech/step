@@ -58,13 +58,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY ./braid ./braid
 COPY ./b4 ./b4
 COPY ./electoral-log ./electoral-log
+COPY ./trellis ./trellis
 COPY ./harvest ./harvest
 COPY ./strand ./strand
-COPY ./immu-board ./immu-board
-COPY ./immudb-rs ./immudb-rs
 COPY ./sequent-core ./sequent-core
 COPY ./velvet ./velvet
 COPY ./windmill ./windmill
+COPY ./pgmq-broker ./pgmq-broker
 COPY ./e2e ./e2e
 COPY ./step-cli ./step-cli
 COPY ./orare ./orare
@@ -168,4 +168,4 @@ COPY --from=builder /app/target/release/beat /usr/local/bin/beat
 COPY --from=builder /usr/local/bin/ecies-tool.jar /usr/local/bin/ecies-tool.jar
 WORKDIR /usr/local/bin
 # Run the windmill binary, it's possible to run 'beat' as well
-CMD ["main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue", "communication_queue", "import_export_queue", "monitoring_queue"]
+CMD ["main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue", "communication_queue", "import_export_queue", "electoral_log_batch_queue", "electoral_log_beat_queue", "monitoring_queue"]

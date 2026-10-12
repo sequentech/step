@@ -29,21 +29,27 @@ Sealed.
 
 - **At the close.** The close creates one pending seal per ballot box. Right
   after it commits, a light task (`schedule_ballot_box_seals`, on the Beat
-  queue) schedules one `seal_ballot_box` task to run at the box's deadline
-  (`eta`), for each box whose deadline is **at most 5 minutes away**. A box
-  with a later deadline (a long grace period) is left to the per-minute
-  dispatcher: a message waiting for its `eta` is held unacknowledged by a
-  worker, and RabbitMQ closes a consumer that holds one for too long.
+  queue) schedules one `seal_ballot_box` task to run at each box's deadline
+  (`eta`), however far away it is: the task queues store the `eta`, and the
+  waiting task holds no worker.
 - **Every minute.** The dispatcher `seal_ballot_boxes` runs every 60 seconds on
-  the Beat queue. It lists the pending boxes past their deadline, the sealed
-  boxes still to publish, and the failed boxes whose failure entry isn't
-  recorded as posted, and queues one `seal_ballot_box` task for each.
+  the Beat queue, as a backstop. It lists the pending boxes past their deadline
+  and the sealed boxes still to publish, and queues one `seal_ballot_box` task
+  for each.
 - **Each box.** `seal_ballot_box` runs on `short_queue`, with a time limit of
   900 seconds. Every seal message expires 120 seconds after it is due (after
   its `eta`, or after it is sent by the dispatcher, which sends a new one every
   minute). It seals the box if it is due, then publishes it. A
   duplicate is harmless: a run that finds the box held by another run records
-  "busy" and stops.
+  "busy" and stops, and the event's database holds at most one seal per box.
+- **The seal itself.** The seal and its `BallotBoxSealed` entry are written to
+  the event's electoral-log database in one transaction, under a lock of the
+  box that votes wait for. Before it, the sealer makes sure every ballot the box
+  accepted is on the log: it asks the ballot box sequencer for those that
+  aren't and waits for them, up to a minute. A failed seal is stored with its
+  `BallotBoxSealFailed` entry the same way. The seal row of the Hasura database
+  follows; if that update is lost, the next attempt copies the stored seal into
+  it.
 - **What it records.** Each attempt that leaves a box pending records when it
   ran and why the box isn't sealed yet. The card shows that reason (see
   [An overdue seal](#an-overdue-seal)).
@@ -59,7 +65,9 @@ Seal at close they are needed at **every close**:
 - the Keycloak database (the seal counts the eligible voters of each area);
 - the key store (the event's protocol manager key, kept in the database's
   secret store under the master secret);
-- immudb (the electoral log);
+- the event's electoral-log database, which holds its ballot box and its
+  electoral log, and the ballot box sequencer, which adds the accepted ballots
+  to the log;
 - the documents storage: the private documents bucket for restricted seal
   records (the default), the public one for public records.
 
@@ -89,10 +97,15 @@ dedicated `short_queue` worker during close windows avoids waiting behind a
 tally.
 
 **Upgrading to migration `1791000001700`.** The migration replaces triggers on
-`cast_vote` and other busy tables, and waits at most 10 seconds for their locks
-(`lock_timeout`). If a long transaction holds `cast_vote`, the migration fails;
-Hasura's startup migration then fails too, and Hasura restarts in a loop until
-the transaction ends. Apply it in a quiet window, not during voting.
+busy tables (`election_event`, `election`), and waits at most 10 seconds for
+their locks (`lock_timeout`). If a long transaction holds one of them, the
+migration fails; Hasura's startup migration then fails too, and Hasura restarts
+in a loop until the transaction ends. Apply it in a quiet window, not during
+voting.
+
+**Event databases created before the seal schema** get the seal table and the
+guards from `electoral-log-admin upgrade-event-databases`. Run it before the
+first close of an event that seals.
 
 ## A channel holds the seal
 
@@ -143,7 +156,7 @@ are being sealed.
 
 No new ballots are accepted in the meantime: casts are refused once the seal
 deadline has passed. The box is not sealed yet, so it is not locked by the
-database guard.
+guard of the event's database.
 
 | Reason shown | Why | What to do |
 | --- | --- | --- |
@@ -151,6 +164,7 @@ database guard.
 | *Channel* isn't closed and isn't enabled for this Post: stop it to seal the ballot box. | A channel the election doesn't enable is open or paused, or ran, and isn't closed. | Stop it at the election, as it is: see [A channel holds the seal](#a-channel-holds-the-seal). |
 | *Channel* has ballots in this ballot box and isn't closed: stop it to seal the ballot box. | The box holds ballots cast on that channel, and the channel isn't Closed. The sealer checks every ballot's channel before it seals. | Stop that channel at the election; the Stop Voting menu offers it whether or not the election enables it. A ballot stored without a channel (from before ballots recorded their channel) counts as Online, so the reason may name Online on an election that doesn't enable it: stop Online there. If the channel shows Closed, its status was changed outside the Admin Portal: treat it as an incident. |
 | *N* votes are in progress in Datafix: the ballot box is sealed once they are resolved. | See [Datafix votes in progress](#datafix-votes-in-progress). | Resolve the votes. |
+| *N* ballots aren't on the bulletin board yet: the ballot box is sealed once the sequencer has added them. | See [Ballots not on the log yet](#ballots-not-on-the-log-yet). | Check the sequencer. |
 | The last attempt couldn't …; it is retried every minute. (one text per kind of error, below) | An error the sealer retries. | See [Errors the sealer retries](#errors-the-sealer-retries). The next attempt after the cause is fixed seals the box. |
 | Last tried at *time*: the sealer may not be running. Check Beat and the seal worker. | No attempt for more than 3 minutes. | Check that Beat and a worker on `short_queue` are running (see [What must run](#what-must-run-at-every-close)). |
 | Not tried yet: the sealer may not be running. Check Beat and the seal worker. | No attempt in the 3 minutes after the deadline. | Same. |
@@ -167,21 +181,21 @@ retried every minute until it succeeds.
 
 | Category | Card text | What to check |
 | --- | --- | --- |
-| `board` | The last attempt couldn't reach the bulletin board; it is retried every minute. | immudb is up and reachable from windmill, and the event's board exists; other log entries of the event are delivered. |
+| `board` | The last attempt couldn't reach the bulletin board; it is retried every minute. | The event's electoral-log database is up and reachable from windmill (`ELECTORAL_LOG_PG_*`), and the event has its database and board (`electoral-log-admin`); other log entries of the event are delivered. |
 | `census` | The last attempt couldn't read the voter list; it is retried every minute. | The Keycloak database is up and reachable, and the event's realm exists. |
 | `keystore` | The last attempt couldn't get the signing key; it is retried every minute. | The event's protocol manager key is in the secret store, and windmill has the master secret. |
-| `storage` | The last attempt couldn't reach the database or file storage; it is retried every minute. | The public documents bucket (and the database) is reachable from windmill. |
+| `storage` | The last attempt couldn't upload the seal record to the file storage; it is retried every minute. | The documents buckets are reachable from windmill. |
 | `settings` | The last attempt couldn't read the election's settings; it is retried every minute. | The event's or election's configuration parses; look for a recent manual or imported change to its presentation. |
 | `ballots` | The last attempt found a ballot that can't be read yet or is still in progress; it is retried every minute. | The log names the ballot. A ballot whose content can't be parsed, or that is still in progress, needs the Datafix procedure or an investigation; it is not an incident by itself. |
-| `database` | The last attempt couldn't complete in the database; it is retried every minute. | Postgres is up; look for lock waits, timeouts or a failover at that time. |
+| `database` | The last attempt couldn't complete in the database; it is retried every minute. | The Hasura database is up; look for lock waits, timeouts or a failover at that time. |
 | `other` | The last attempt failed; it is retried every minute. The service log has the details. | Read the service log. |
 
 ### Datafix votes in progress
 
-The area still has cast votes with the status `in-progress`. These are Datafix
-votes: they enter as `in-progress` and the Datafix integration later marks them
-`valid` or `discarded`. Before sealing, the sealer counts them
-(`count_unresolved_cast_votes`, the same check the tally uses). If any remain,
+The area still has ballots with the status `pending` in the event's ballot
+box. These are Datafix votes: they enter as `pending` and the Datafix
+integration later marks them `valid` or `rejected`. Before sealing, the sealer
+counts them (the same check the tally uses). If any remain,
 sealing now would fix an outcome that is not known yet, so the seal waits. It
 checks again every minute, and logs the warning "Ballot box past its seal
 deadline waits for Datafix votes in progress", with the number of votes, when
@@ -193,33 +207,54 @@ that number changes.
 3. Watch the card. Within a minute of the last vote being resolved, the row
    moves to **Sealed, publishing** and then **Sealed**.
 
+### Ballots not on the log yet
+
+A seal comes after every ballot it seals on the event's electoral log. The
+ballot box accepts a vote first, and the sequencer then signs and appends its
+`CastVote` entry, normally within seconds. If ballots of the box still wait for
+the sequencer, the sealer asks it to run and waits up to a minute; if they are
+still not on the log, the box stays pending with this reason, and the next
+attempt tries again.
+
+1. Check that the ballot box sequencer runs: the Beat task
+   `schedule_ballot_box_sequencers`, and a windmill worker that consumes
+   `electoral_log_batch_queue`, where its `sequence_ballot_box` tasks run.
+2. Check that the event's electoral-log database is up and reachable from
+   windmill.
+3. Watch the card. Once the sequencer has added the ballots, the next attempt
+   seals the box.
+
 ## A publication that does not finish
 
 **What you see.** The row stays on **Sealed, publishing** ("The ballot box is
-locked. Its entry on the bulletin board is being posted again."), and **Seal
-record** says "Not yet".
+locked and its seal is on the bulletin board. Its seal record is being
+published."), and **Seal record** says "Not yet".
 
-**What it means.** The ballot box **is sealed**: it is locked and its seal hash
-is final and stored. What is still missing is one of the publication steps:
+**What it means.** The ballot box **is sealed**: it is locked, its seal hash is
+final and stored, and its signed `BallotBoxSealed` entry is on the event's
+electoral log, stored with the seal. What is still missing is one of the
+publication steps:
 
-1. posting the signed `BallotBoxSealed` entry to the event's electoral log;
-2. reading back the log entry's ID;
-3. uploading the seal record, as a private event document (Seal Record
+1. reading the seal's entry back from the event's electoral-log database, and
+   checking that it is the stored seal's;
+2. uploading the seal record, as a private event document (Seal Record
    Publication policy **Restricted**, the default) or to the public documents
    bucket (**Public**).
 
-Each step is safe to repeat. A retry never creates a second log entry or a
-second record: the log delivery and the record's document ID are fixed per
-seal. Normally this status lasts less than a minute.
+Each step is safe to repeat. A retry never creates a second record: the
+record's document ID is fixed per seal. Normally this status lasts less than a
+minute.
 
 **What to check**, in order:
 
 1. **The workers are running.** The Beat scheduler and a windmill worker on
    `short_queue` must be up. If they were down, the next run after they start
    publishes the box.
-2. **The electoral log is reachable.** The entry goes to the event's board in
-   immudb. Check that immudb is up and that other log entries (for example the
-   voting period close) were delivered.
+2. **The electoral log is reachable.** The entry is in the event's
+   electoral-log database. Check that it is up and reachable from windmill.
+   If the windmill log says the seal record is not on the bulletin board, or is
+   not the seal's, treat it as an incident: see
+   [After a restore or failover](#after-a-restore-or-failover).
 3. **The documents storage is reachable.** A restricted record is uploaded to
    the private documents bucket, a public one to the event's public documents
    bucket, where published results go too. The event's
@@ -245,8 +280,8 @@ nothing to retry by hand.
   selected.
 - The event's **Logs** tab has a `BallotBoxSealFailed` entry at level ERROR:
   "Ballot box of *election*, *area* not sealed, it stays locked: *reason*." It
-  is posted once. Windmill also logs "The ballot box could not be sealed: it
-  stays locked" at error level. The product sends no other alert: watch for
+  is stored once, with the failed seal. Windmill also logs "The ballot box
+  could not be sealed: it stays locked" at error level. The product sends no other alert: watch for
   the banner, or for ERROR entries in your log monitoring.
 
 **Why it happens.** The reason is one of:
@@ -256,8 +291,9 @@ nothing to retry by hand.
 | A ballot does not match its Ballot ID. | A stored ballot's content no longer produces the Ballot ID stored with it (the same check the cast runs). The stored data was altered or corrupted. The log entry gives both IDs: "stored *X*, content hashes to *Y*". |
 | A ballot has no content or no Ballot ID. | A stored ballot is incomplete. |
 | A ballot has an unknown voting channel. | A stored ballot names a channel that is none of Online, Kiosk, Early Voting or Telephone. The stored data was altered or corrupted. The log entry names the channel. |
-| The election event has no bulletin board. | There is nowhere to post the seal. |
-| A seal for this ballot box is already on the bulletin board. | The event's log already has a `BallotBoxSealed` entry for this box. This happens after the database was restored, or failed over, to a point before the seal: see [After a restore or failover](#after-a-restore-or-failover). The system never posts a second seal. |
+| A ballot has no cast-vote record on the bulletin board. | The sequencer is done with a ballot of the box, but its `CastVote` entry is not on the event's board. The log lost an entry or was altered. The log entry gives the number of such ballots. |
+| The election event has no bulletin board. | There is nowhere to post the seal. Without a board the event takes no ballots, and this failure is recorded on the seal row only. |
+| A seal for this ballot box is already on the bulletin board. | The event's board already has the box's `BallotBoxSealed` entry, but its database has no seal for the box. The seal and its entry are written in one transaction, so the seal was removed past the database's guards. The system never posts a second seal. |
 
 A ballot that can't be read, or a configuration that doesn't parse, does not
 fail the seal: it is retried (see [An overdue seal](#an-overdue-seal)).
@@ -276,8 +312,9 @@ as a security incident, under the organization's incident procedure.
 1. **Don't change the data.** Don't try to edit ballots, the seal row or the
    database to make the seal pass.
 2. **Record the evidence.** Note the election, area, reason and time from the
-   card, and export the `BallotBoxSealFailed` log entry. Keep a database backup
-   and the database audit log (pgaudit) of writes to cast ballots.
+   card, and export the `BallotBoxSealFailed` log entry. Keep a backup of the
+   event's electoral-log database and the database audit log (pgaudit) of
+   writes to its ballots.
 3. **Investigate.**
    - For a ballot that does not match its Ballot ID, or is incomplete, compare
      the box's ballots with their `CastVote` log entries (`step-cli step
@@ -315,48 +352,52 @@ election, the area and the time of the publication.
 
 ## After a restore or failover
 
-Sealing writes to two systems: the database (the seal row, in one transaction)
-and immudb (the `BallotBoxSealed` entry, about half a second later). If the two
-are restored to different points, the seal breaks:
+A seal and its `BallotBoxSealed` entry are written to the event's electoral-log
+database in one transaction, so restoring that database never separates them.
+The seal row of the Hasura database follows in a second step. If the two
+databases are restored to different points:
 
 | What happened | What you see |
 | --- | --- |
-| The database lost its last seconds (an asynchronous replica was promoted, or a point-in-time restore) but immudb kept the entry | The seal row is pending again. The sealer finds the entry on the board and marks the box failed: "A seal for this ballot box is already on the bulletin board." |
-| immudb was restored to a point before the entry, but the database kept the published seal | The tally rejects the box: the bulletin board has no `BallotBoxSealed` entry for it. |
+| The Hasura database lost its last seconds (an asynchronous replica was promoted, or a point-in-time restore) but the event's database kept the seal | The seal row is pending again. The sealer's next attempt finds the stored seal and copies it into the row: **Sealed, publishing**, then **Sealed**. Nothing to do. |
+| The event's electoral-log database was restored to a point before the seal, but the Hasura database kept it | The box has no seal in its database, so its guard no longer refuses writes. Casts stay refused (the cast check reads the seal deadline from the Hasura database). The tally rejects the box ("the ballot box's seal row says it is sealed, but the stored seal is missing"), and the electoral-log audit reports that the board no longer matches its published checkpoints. |
 
-Both look like tampering, but come from operations. Before you treat a failed
-seal or a rejected box as an incident, check the database's and immudb's
-recovery history around the seal time.
+The second case looks like tampering, but can come from operations. Before you
+treat a rejected box as an incident, check the recovery history of both
+databases around the seal time. Then restore the event's database to a point
+after the seal, or escalate it to your platform operator.
 
 To prevent it:
 
-- restore Postgres and immudb to consistent points, never one without the
-  other;
+- restore the Hasura database and the event databases to consistent points,
+  never one without the other;
 - during close and seal windows, use synchronous replication, or a failover
   that loses no committed transactions;
 - avoid planned failovers and restores during close windows.
 
-There is no product path to recover such a box. Escalate it to your platform
-operator with the recovery history.
-
 ## Performance
 
-Measured once on a development machine (16 cores, a release build, with the
-database shared with other work), with real 654-byte single-contest ballots.
-These are reference numbers, not a service level:
+Measured once with the `perf_ballot_box_seal` test on a development machine,
+in a **debug** build, with synthetic contest-less ballots, and the Hasura and
+electoral-log databases in one PostgreSQL 18 container. A release build is
+faster. These are reference numbers, not a service level:
 
 | Work | Time |
 | --- | --- |
-| The close, creating the pending seals of 130 ballot boxes | 0.34 s |
-| Sealing the largest box (50,000 ballots, 44,500 counted) | 1.83 s, of which 1.45 s re-checks every Ballot ID; the manifest is 7.55 MB |
-| Sealing a small box (50 ballots) | 75 ms (median) |
-| Sealing all 130 boxes one after another | 11.5 s |
-| Publishing the largest box (its record is 26.6 MB of JSON) | 0.42 s |
-| Publishing a small box | 0.21 s |
-| The database guard on a bulk insert of 10,000 ballots | about +19 µs per row (70.5 against 51.0 µs) |
+| 50,000 votes into one box, one `accept_ballot` statement each, one after another | 35.7 s |
+| The sequencer signing and appending 56,450 `CastVote` entries | 23.2 s |
+| The close, creating the pending seals of 130 ballot boxes | 0.05 s |
+| Sealing the largest box (50,000 ballots, 44,500 counted) | 2.65 s, of which 1.3 s reads and re-checks every Ballot ID and hash; the manifest is 7.55 MB |
+| Sealing a small box (50 ballots) | 16 ms (median) |
+| Sealing all 130 boxes one after another | 4.8 s |
+| Publishing the largest box (its record is 26.6 MB of JSON) | 1.55 s |
+| Publishing a small box | 12 ms |
 
-These were measured before the review fixes of the sealer (the per-box
-scheduling at the deadline and the recorded waiting reasons), which don't
-change the sealing work itself. Each box is sealed by its own task, so the boxes
-of a common close are sealed in parallel across the workers on `short_queue`;
-see [worker sizing](#what-must-run-at-every-close).
+The guard costs a shared advisory lock and a seal lookup per ballot write. In
+that test, 1,000 votes took 627 to 793 µs each with or without the guard,
+within the noise; a load test of 2 KB single-row inserts with 8 clients
+measured 8,000 to 8,300 writes per second with the guard against 8,200 without.
+
+Each box is sealed by its own task, so the boxes of a common close are sealed
+in parallel across the workers on `short_queue`; see
+[worker sizing](#what-must-run-at-every-close).

@@ -3,12 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // use crate::hasura::trustee::get_trustees_by_name;
 use crate::postgres::area::get_event_areas;
-use crate::postgres::cast_vote::count_unresolved_cast_votes;
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::tally_session_contest::get_other_sessions_tally_session_contests;
 use crate::postgres::trustee::get_trustees_by_name;
-use crate::services::cast_votes::{find_area_ballots, CastVote};
+use crate::services::ballot_box_reads::count_unresolved_votes;
+use crate::services::cast_votes::find_area_ballots;
 use crate::services::celery_app::get_worker_threads;
 use crate::services::ceremonies::batch_anonymity::{
     enforce_batch_anonymity, session_divergences, small_batch, PostedBatch,
@@ -19,7 +19,7 @@ use crate::services::ceremonies::sealed_box_ballots::{
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::election::{get_election_event_elections, ElectionHead};
 use crate::services::join::merge_join_csv;
-use crate::services::join::read_valid_ballot_voter_ids;
+use crate::services::join::read_ballot_voter_ids;
 use crate::services::join::{MergeJoinResult, MultiplicitySource};
 use crate::services::protocol_manager::*;
 use crate::services::public_keys::deserialize_public_key;
@@ -174,15 +174,15 @@ pub async fn sealed_boxes_for_execution(
     Ok(Some(sealed_boxes))
 }
 
-/// The voters of the ballots CSV (voter id in column 0, cast-vote status in
-/// column 3) whose valid ballot replaces their delegation. Only the delegate
+/// The voters of the ballots CSV (voter id in column 0, one valid ballot per
+/// voter) whose valid ballot replaces their delegation. Only the delegate
 /// count depends on them.
 fn voters_replacing_their_delegation(
     multiplicity_column: VoterMultiplicityColumn,
     ballots_file: &File,
 ) -> Result<Vec<String>> {
     match multiplicity_column {
-        VoterMultiplicityColumn::DelegateCount => read_valid_ballot_voter_ids(ballots_file, 0, 3),
+        VoterMultiplicityColumn::DelegateCount => read_ballot_voter_ids(ballots_file, 0),
         VoterMultiplicityColumn::VoteWeight | VoterMultiplicityColumn::None => Ok(Vec::new()),
     }
 }
@@ -344,7 +344,7 @@ pub async fn insert_ballots_messages(
                         .with_context(|| "Error parsing election_id")?;
                     let area_uuid = parse_uuid_v4(&tally_session_contest.area_id)
                         .with_context(|| "Error parsing area_id")?;
-                    let unresolved_count = count_unresolved_cast_votes(
+                    let unresolved_count = count_unresolved_votes(
                         &hasura_transaction_clone,
                         &tenant_uuid,
                         &election_event_uuid,
@@ -874,8 +874,8 @@ mod tests {
         let mut ballots = tempfile::NamedTempFile::new().unwrap();
         writeln!(
             ballots,
-            "alice,content-a,ONLINE,valid,10000000-0000-4000-8000-000000000001\n\
-             bob,content-b,ONLINE,discarded,10000000-0000-4000-8000-000000000002"
+            "alice,content-a,ONLINE\n\
+             bob,content-b,KIOSK"
         )
         .unwrap();
         ballots.flush().unwrap();
@@ -890,23 +890,10 @@ mod tests {
 
         assert_eq!(
             voters(VoterMultiplicityColumn::DelegateCount),
-            vec!["alice".to_string()]
+            vec!["alice".to_string(), "bob".to_string()]
         );
         assert!(voters(VoterMultiplicityColumn::VoteWeight).is_empty());
         assert!(voters(VoterMultiplicityColumn::None).is_empty());
-    }
-
-    #[test]
-    fn a_ballots_file_without_the_status_column_is_an_error() {
-        let mut ballots = tempfile::NamedTempFile::new().unwrap();
-        writeln!(ballots, "alice,content-a").unwrap();
-        ballots.flush().unwrap();
-
-        assert!(voters_replacing_their_delegation(
-            VoterMultiplicityColumn::DelegateCount,
-            &ballots.reopen().unwrap()
-        )
-        .is_err());
     }
 
     #[test]

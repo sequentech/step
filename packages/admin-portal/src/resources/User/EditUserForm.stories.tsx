@@ -19,6 +19,7 @@ import {EditUserForm} from "./EditUserForm"
 
 const USER_ID = "33333333-3333-4333-8333-333333333333"
 const AREA_ID = "44444444-4444-4444-8444-444444444444"
+const ELECTION_ID = "55555555-5555-4555-8555-555555555555"
 const attributes = [
     {name: "username", display_name: "Username", annotations: {}, validations: {}},
     {name: "email", display_name: "Email", annotations: {}, validations: {}},
@@ -45,6 +46,21 @@ const city = {
     validations: {length: {min: 2, max: 20}},
 }
 const recordWithCity = {...record, attributes: {...record.attributes, city: ["Springfield"]}}
+const voter = (voted: boolean) => ({
+    id: USER_ID,
+    attributes: record.attributes,
+    email: record.email,
+    email_verified: record.email_verified,
+    enabled: record.enabled,
+    first_name: null,
+    groups: [],
+    last_name: null,
+    username: record.username,
+    area: record.area,
+    votes_info: voted
+        ? [{election_id: ELECTION_ID, num_votes: 1, last_voted_at: "2026-01-01T09:00:00Z"}]
+        : [],
+})
 interface Scenario {
     permissions: string[]
     voted: boolean
@@ -102,6 +118,11 @@ const meta = {
         release = undefined
         boundary = graphqlBoundary({
             ListUserRoles: () => ({data: {list_user_roles: []}}),
+            getUsers: () => ({
+                data: {
+                    get_users: {items: [voter(args.voted)], total: {aggregate: {count: 1}}},
+                },
+            }),
             EditUser: () => ({data: {edit_user: {user: null, task_execution: null}}}),
             RevealVoterSecretAttribute: () => {
                 if (args.reveal === "failure")
@@ -143,13 +164,6 @@ const meta = {
         }
         data = dataBoundary({
             getList: async <RecordType extends RaRecord>(resource: string) => {
-                if (resource === "sequent_backend_cast_vote")
-                    return {
-                        data: (args.voted
-                            ? [{id: "cast-vote", voter_id_string: USER_ID}]
-                            : []) as unknown as RecordType[],
-                        total: args.voted ? 1 : 0,
-                    }
                 if (resource === "sequent_backend_area")
                     return {
                         data: [{id: AREA_ID, name: "Central"}] as unknown as RecordType[],
@@ -186,13 +200,13 @@ async function loaded(canvasElement: HTMLElement) {
     const canvas = within(canvasElement)
     await canvas.findByDisplayValue("alice")
     await waitFor(() =>
-        expect(data.calls.some((call) => call.args[0] === "sequent_backend_cast_vote")).toBe(true)
+        expect(boundary.calls.find((call) => call.name === "getUsers")?.variables).toMatchObject({
+            tenant_id: TENANT_ID,
+            election_event_id: EVENT_ID,
+            userIds: [USER_ID],
+            showVotesInfo: true,
+        })
     )
-    expect(
-        data.calls.find((call) => call.args[0] === "sequent_backend_cast_vote")?.args[1]
-    ).toMatchObject({
-        filter: {tenant_id: TENANT_ID, election_event_id: EVENT_ID, voter_id_string: USER_ID},
-    })
     // Elections have no name column since migration 1772358027729; external_id is the former alias.
     expect(
         data.calls.find((call) => call.args[0] === "sequent_backend_election")?.args[1]
@@ -224,7 +238,7 @@ export const SecretNeedsReadPermission: Story = {
         expect(secret(canvasElement)).toHaveAttribute("type", "password")
         expect(secret(canvasElement)).toHaveAttribute("readonly")
         expect(canvas.queryByRole("button", {name: "Reveal"})).not.toBeInTheDocument()
-        expect(boundary.calls.map((call) => call.name)).toEqual(["ListUserRoles"])
+        expect(boundary.calls.map((call) => call.name)).toEqual(["ListUserRoles", "getUsers"])
     },
 }
 export const RevealThenHideErasesPlaintext: Story = {
@@ -308,7 +322,7 @@ export const EmailEditorCanEditBeforeVoting: Story = {
     args: {permissions: ["voter-email-tlf-edit"]},
     play: async ({canvasElement}) => {
         const canvas = await loaded(canvasElement)
-        expect(canvas.getByRole("textbox", {name: "Email"})).toBeEnabled()
+        await waitFor(() => expect(canvas.getByRole("textbox", {name: "Email"})).toBeEnabled())
         expect(canvas.getByRole("textbox", {name: "Username"})).toBeDisabled()
     },
 }
@@ -348,7 +362,7 @@ export const CustomAttributeCommitsOnBlur: Story = {
             .getByText("Shelbyville")
             .closest("tr")
         expect(row).toHaveTextContent("Springfield")
-        expect(boundary.calls.map((call) => call.name)).toEqual(["ListUserRoles"])
+        expect(boundary.calls.map((call) => call.name)).toEqual(["ListUserRoles", "getUsers"])
         await userEvent.click(canvas.getByRole("button", {name: "Confirm changes"}))
         await waitFor(() =>
             expect(
@@ -386,7 +400,7 @@ export const CustomAttributeTooShort: Story = {
             await canvas.findByText('"City" must be between 2 and 20 characters')
         ).toBeVisible()
         expect(canvas.getByRole("button", {name: "Save"})).toBeDisabled()
-        expect(boundary.calls.map((call) => call.name)).toEqual(["ListUserRoles"])
+        expect(boundary.calls.map((call) => call.name)).toEqual(["ListUserRoles", "getUsers"])
     },
 }
 export const CustomAttributeReadOnly: Story = {

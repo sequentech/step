@@ -545,8 +545,6 @@ pub async fn delete_election_event(
         "tally_sheet_import",
         "tally_session_execution",
         "contest",
-        "cast_vote",
-        "received_ballot",
         "election",
         "document",
         "event_execution",

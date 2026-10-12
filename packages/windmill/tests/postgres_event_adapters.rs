@@ -230,13 +230,6 @@ impl<'t, 'c> Fixture<'t, 'c> {
         )
         .await;
         self.execute(
-            "INSERT INTO sequent_backend.cast_vote
-                 (tenant_id, election_event_id, election_id, area_id, voter_id_string)
-             VALUES ($1, $2, $3, $4, 'voter')",
-            &[&scope.tenant, &scope.event, &election, &area],
-        )
-        .await;
-        self.execute(
             "INSERT INTO sequent_backend.applications
                  (tenant_id, election_event_id, area_id, applicant_id, status,
                   verification_type, applicant_data)
@@ -364,7 +357,7 @@ impl<'t, 'c> Fixture<'t, 'c> {
     }
 }
 
-const POPULATED_TABLES: [&str; 13] = [
+const POPULATED_TABLES: [&str; 12] = [
     "election",
     "contest",
     "candidate",
@@ -372,7 +365,6 @@ const POPULATED_TABLES: [&str; 13] = [
     "area_contest",
     "ballot_publication",
     "ballot_style",
-    "cast_vote",
     "applications",
     "secret",
     "document",

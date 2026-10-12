@@ -102,6 +102,26 @@ async fn a_recount_whose_task_cannot_be_sent_is_accepted_for_later_delivery() {
 }
 
 #[rocket::async_test]
+async fn a_recount_is_accepted_for_later_delivery_when_the_task_queues_are_unreachable(
+) {
+    let services = Services::on_test_database()
+        .await
+        .with_tasks(MemoryTaskQueue::unreachable());
+    let client = services.client().await;
+    let (event, _, tally_session_id) = tallied(&services, "SUCCESS").await;
+
+    let (status, _) =
+        json(recount(&client, &event, &tally_session_id).await).await;
+    assert_eq!(status, Status::Ok);
+    assert_eq!(
+        event
+            .tally_session_executions(&services.hasura, &tally_session_id)
+            .await,
+        2
+    );
+}
+
+#[rocket::async_test]
 async fn only_a_completed_tally_can_be_recounted() {
     let services = Services::on_test_database().await;
     let client = services.client().await;

@@ -108,6 +108,20 @@ export const SMOKE: Record<string, Smoke> = {
         checkConsole: true,
     },
     "/messages": {url: "/messages", shows: (page) => text(page, "Messages")},
+    "/electoral-log-console": {
+        url: "/electoral-log-console",
+        shows: async (page) => {
+            await heading(page, "Electoral Log")
+            await text(page, "KeyGeneration")
+        },
+    },
+    "/task-queues": {
+        url: "/task-queues",
+        shows: async (page) => {
+            await heading(page, "Task Queues")
+            await text(page, "short_queue")
+        },
+    },
     "/settings/*": {url: "/settings", shows: settingsPage},
     "/sequent_backend_election_event": {url: "/sequent_backend_election_event", ...eventRedirect},
     "/sequent_backend_election_event/:id": {

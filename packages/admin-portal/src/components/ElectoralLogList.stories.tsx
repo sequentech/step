@@ -5,11 +5,14 @@ import React from "react"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, waitFor, within} from "storybook/test"
 import {RecordContextProvider} from "react-admin"
+import {GraphQLError} from "graphql"
 import {AdminStoryProvider, EVENT_ID, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import {type ReadState, resourceBoundary} from "@/__stories__/resourceBoundary"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {STORY_IDS, type StoryRecord, eventRecord} from "@/__stories__/fixtures"
 import type {ElectoralLogRow} from "@/gql/graphql"
+import {WidgetsContextProvider} from "@/providers/WidgetsContextProvider"
+import {startedTask, taskHandler} from "@/components/tally/__stories__/DownloadFixture"
 import {ElectoralLogFilters, ElectoralLogList} from "./ElectoralLogList"
 import {useStoryGlobals} from "../../../ui-essentials/.storybook/globals"
 
@@ -24,6 +27,10 @@ interface Scenario {
     showActions?: boolean
     roles?: string[]
     zones?: string[]
+    /** Mounts the task widgets, which show the audit's task. */
+    taskWidgets?: boolean
+    /** Whether Harvest refuses to start the audit. */
+    auditFails?: boolean
 }
 
 const logRow = (
@@ -49,6 +56,7 @@ const logRow = (
 const SEAL_HASH = `ef187f0b${"3c".repeat(56)}22a65e5b`
 const MESSAGE_ID = "0f6f2a8e-3c1b-4d7e-9b2a-5e4d3c2b1a00"
 const SEALED = "Ballot box of Madrid Post, Spain sealed: 1,340 of 1,342 ballots counted."
+const AUDIT_TASK_ID = "99999999-9999-4999-8999-999999999991"
 
 const logs = [
     logRow(
@@ -98,9 +106,10 @@ function Fixture({
     showActions,
     roles,
     zones,
+    taskWidgets,
 }: Scenario) {
     const {permissions} = useStoryGlobals()
-    const list = (
+    const logList = (
         <ElectoralLogList
             electionEventId={electionEventId}
             filterToShow={filterToShow}
@@ -108,6 +117,7 @@ function Fixture({
             showActions={showActions}
         />
     )
+    const list = taskWidgets ? <WidgetsContextProvider>{logList}</WidgetsContextProvider> : logList
     return (
         <AdminStoryProvider
             boundary={graphql}
@@ -178,6 +188,20 @@ const meta = {
                         },
                     },
                 }),
+                AuditElectoralLog: () =>
+                    args.auditFails
+                        ? {errors: [new GraphQLError("Synthetic audit unavailable")]}
+                        : {
+                              data: {
+                                  audit_electoral_log: {
+                                      task_execution: startedTask(
+                                          AUDIT_TASK_ID,
+                                          "AUDIT_ELECTORAL_LOG"
+                                      ),
+                                  },
+                              },
+                          },
+                ...taskHandler("SUCCESS", "AUDIT_ELECTORAL_LOG"),
                 GetLedgerMessageStates: () => ({
                     data: {
                         sequent_backend_message: [
@@ -425,5 +449,69 @@ export const ExportOutsideTheEventRecord: Story = {
         await userEvent.click(dialog.getByRole("button", {name: "Export"}))
         await waitFor(() => expect(graphql.calls).toEqual(exported(EVENT_ID, "CSV")))
         expect(listed()?.[1]).toMatchObject({filter: {election_event_id: EVENT_ID}})
+    },
+}
+
+const audits = () => graphql.calls.filter(({name}) => name === "AuditElectoralLog")
+
+async function openAudit(canvasElement: HTMLElement) {
+    const canvas = within(canvasElement)
+    await canvas.findByText("alice")
+    await userEvent.click(canvas.getByRole("button", {name: "Audit"}))
+    const dialog = within(
+        await within(document.body).findByRole("dialog", {name: "Audit electoral log"})
+    )
+    await expect(dialog.getByText(/checks every log entry against its Merkle log/)).toBeVisible()
+    return dialog
+}
+
+export const AuditTheLog: Story = {
+    args: {taskWidgets: true},
+    parameters: {widgets: ["AuditDialog"]},
+    play: async ({canvasElement}) => {
+        const dialog = await openAudit(canvasElement)
+        await userEvent.click(dialog.getByRole("button", {name: "Audit"}))
+        await expect(await within(document.body).findByText("SUCCESS")).toBeVisible()
+        expect(audits()).toEqual([
+            {
+                name: "AuditElectoralLog",
+                variables: {electionEventId: EVENT_ID},
+                headers: {"x-hasura-role": "electoral-log-audit"},
+            },
+        ])
+        expect(graphql.calls.map(({name}) => name)).toContain("GetTaskById")
+    },
+}
+
+export const CancelTheAudit: Story = {
+    args: {taskWidgets: true},
+    parameters: {widgets: ["AuditDialog"]},
+    play: async ({canvasElement}) => {
+        const dialog = await openAudit(canvasElement)
+        await userEvent.click(dialog.getByRole("button", {name: "Cancel"}))
+        await waitFor(() => expect(within(document.body).queryByRole("dialog")).toBeNull())
+        expect(audits()).toEqual([])
+    },
+}
+
+export const AuditRefused: Story = {
+    args: {taskWidgets: true, auditFails: true},
+    parameters: {widgets: ["AuditDialog"]},
+    play: async ({canvasElement}) => {
+        const dialog = await openAudit(canvasElement)
+        await userEvent.click(dialog.getByRole("button", {name: "Audit"}))
+        await expect(await within(document.body).findByText("FAILED")).toBeVisible()
+        expect(audits()).toHaveLength(1)
+        expect(graphql.calls.map(({name}) => name)).not.toContain("GetTaskById")
+    },
+}
+
+export const WithoutAuditPermission: Story = {
+    args: {roles: ["logs-read", "logs-export"]},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByText("alice")
+        await expect(canvas.getByRole("button", {name: "Export"})).toBeVisible()
+        expect(canvas.queryByRole("button", {name: "Audit"})).toBeNull()
     },
 }

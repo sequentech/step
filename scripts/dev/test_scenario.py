@@ -1712,7 +1712,6 @@ class StackTest(StoreTestCase):
             backend_module.TALLY_SESSIONS: [],
             backend_module.TALLY_EXECUTION: [],
             backend_module.RESULTS_PUBLICATION: [],
-            backend_module.CAST_VOTERS: [],
             backend_module.EVENT: [{"id": "event", "annotations": {}, "status": {}}],
         }
         tables = {
@@ -1757,14 +1756,35 @@ class StackTest(StoreTestCase):
             for name in names
         ]
         self.backend.keycloak = FakeKeycloak({"tenant-": users})
-        voted = [
-            {"voter_id_string": f"id-{catalog.voter_username(RESULTS, vote)}"}
-            for vote in RESULTS.votes
-        ]
-        self.hasura(CAST_VOTERS=voted[:-1])
+        voted = [f"id-{catalog.voter_username(RESULTS, vote)}" for vote in RESULTS.votes]
+        bodies = []
+
+        def administrator(voters):
+            def get_users(variables):
+                bodies.append(variables["body"])
+                return {
+                    "get_users": {
+                        "items": [
+                            {
+                                "id": user_id,
+                                "votes_info": (
+                                    [{"num_votes": 1}] if user_id in voters else []
+                                ),
+                            }
+                            for user_id in variables["body"]["user_ids"]
+                        ]
+                    }
+                }
+
+            return lambda: FakeHasura({backend_module.VOTED_USERS: get_users})
+
+        self.hasura()
+        self.backend._administrator = administrator(voted[:-1])
         self.assertFalse(self.backend.holds(Stage.VOTES, RESULTS, self.state))
-        self.hasura(CAST_VOTERS=voted)
+        self.backend._administrator = administrator(voted)
         self.assertTrue(self.backend.holds(Stage.VOTES, RESULTS, self.state))
+        self.assertEqual(bodies[-1]["user_ids"], sorted(set(voted)))
+        self.assertTrue(bodies[-1]["show_votes_info"])
 
     def test_tally_holds_with_stored_results_only(self):
         self.hasura(TALLY_SESSIONS=[{"id": "t", "execution_status": "SUCCESS"}])

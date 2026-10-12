@@ -184,10 +184,10 @@ export const SinglePageBlockingDialog: Story = {
         await userEvent.click(next)
         const dialog = within(await body.findByRole("dialog"))
         await waitFor(() =>
-            expect(dialog.getByRole("button", {name: "Review selection"})).toBeVisible()
+            expect(dialog.getByRole("button", {name: "Review selections"})).toBeVisible()
         )
         await expect(dialog.queryByRole("button", {name: /continue/i})).not.toBeInTheDocument()
-        await userEvent.click(dialog.getByRole("button", {name: "Review selection"}))
+        await userEvent.click(dialog.getByRole("button", {name: "Review selections"}))
         await waitFor(() => expect(body.queryByRole("dialog")).not.toBeInTheDocument())
         await expect(body.getByRole("status", {name: "Current location"})).toHaveTextContent(
             `${electionPath}/vote?lang=en`
@@ -209,7 +209,7 @@ export const PaginationFocusAndClear: Story = {
         const charlie = canvas.getByRole("checkbox", {name: /Charlie Example/})
         await userEvent.click(charlie)
         await expect(next).toBeEnabled()
-        await userEvent.click(canvas.getByRole("button", {name: "Clear choices"}))
+        await userEvent.click(canvas.getByRole("button", {name: "Clear selections"}))
         await expect(charlie).not.toBeChecked()
         await expect(next).toBeDisabled()
         await userEvent.click(canvas.getByRole("button", {name: "Back"}))

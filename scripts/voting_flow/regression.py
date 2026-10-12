@@ -13,13 +13,21 @@ import psycopg
 from psycopg.types.json import Jsonb
 
 from database import (
-    AREA_MIGRATION,
+    CHANNELS_MIGRATION,
     ONLINE_WINDOW_MIGRATION,
     CONFIGURATION_QUERY,
-    STORAGE_MIGRATION,
+    SCHEDULE_MIGRATION,
     WINDOW_MIGRATION,
 )
 from fixtures import Election
+
+# In Hasura order; roll them back in reverse.
+SCHEDULE_MIGRATIONS = (
+    SCHEDULE_MIGRATION,
+    WINDOW_MIGRATION,
+    CHANNELS_MIGRATION,
+    ONLINE_WINDOW_MIGRATION,
+)
 
 
 class VotingFlowTests(unittest.TestCase):
@@ -88,42 +96,74 @@ class VotingFlowTests(unittest.TestCase):
         finally:
             self.connection.execute("DROP TABLE sequent_backend.ballot_style")
 
-    def test_backfill_and_rollback(self):
-        """Verify projection backfill and eligibility migration reapplication preserve valid schedules."""
-        self.db.apply(ONLINE_WINDOW_MIGRATION, "down")
-        self.db.apply(WINDOW_MIGRATION, "down")
-        self.election.schedule(self.connection, "END", "2026-10-01T12:00:00Z")
-        self.db.apply(WINDOW_MIGRATION)
-        self.db.apply(ONLINE_WINDOW_MIGRATION)
-        self.assertEqual(self.dates(), (None, "2026-10-01T12:00:00Z"))
-        self.db.apply(AREA_MIGRATION, "down")
-        self.db.apply(AREA_MIGRATION)
+    def roll_back_schedule_migrations(self):
+        """Roll back every schedule migration, latest first."""
+        for migration in reversed(SCHEDULE_MIGRATIONS):
+            self.db.apply(migration, "down")
 
-    def test_indexed_refresh_still_checks_the_exact_task_payload(self):
-        """Reject name-matching schedules whose payload is foreign or has unexpected fields."""
+    def apply_schedule_migrations(self):
+        """Reapply every schedule migration in Hasura order."""
+        for migration in SCHEDULE_MIGRATIONS:
+            self.db.apply(migration)
+
+    def test_schedule_migration_rejects_duplicates_atomically_and_recovers(self):
+        """Roll back index creation on duplicate schedules and migrate after correction."""
+        self.roll_back_schedule_migrations()
+        duplicates = [self.election.schedule(self.connection, "END", "2026-10-01T12:00:00Z") for _ in range(2)]
+        with self.assertRaises(psycopg.errors.UniqueViolation):
+            self.db.apply(SCHEDULE_MIGRATION)
+        for name in ("scheduled_event_active_scope_task_idx", "scheduled_event_active_voting_task_idx"):
+            self.assertEqual(self.connection.execute(
+                "SELECT to_regclass(%s)", (f"sequent_backend.{name}",)
+            ).fetchone(), (None,))
+        self.connection.execute("DELETE FROM sequent_backend.scheduled_event WHERE id=%s", (duplicates[1],))
+        self.apply_schedule_migrations()
+        self.assertEqual(self.dates(), (None, "2026-10-01T12:00:00Z"))
+        for name in ("scheduled_event_active_scope_task_idx", "scheduled_event_active_voting_task_idx"):
+            self.assertEqual(self.connection.execute(
+                "SELECT indisvalid FROM pg_index WHERE indexrelid=to_regclass(%s)",
+                (f"sequent_backend.{name}",),
+            ).fetchone(), (True,))
+
+    def test_schedule_migration_and_rollback(self):
+        """Verify constraint and projection backfill reapplication preserve valid schedules."""
+        self.roll_back_schedule_migrations()
         self.election.schedule(self.connection, "END", "2026-10-01T12:00:00Z")
+        self.apply_schedule_migrations()
+        self.assertEqual(self.dates(), (None, "2026-10-01T12:00:00Z"))
+
+    def test_voting_task_payload_matches_its_canonical_identity(self):
+        """Reject name-matching schedules whose payload is foreign or has unexpected fields."""
         for payload in (
             {"election_id": str(self.election.other_area)},
             {"election_id": str(self.election.election), "unexpected": True},
         ):
-            self.connection.execute(
-                """
-                INSERT INTO sequent_backend.scheduled_event
-                    (tenant_id, election_event_id, task_id, event_payload, cron_config)
-                VALUES (%s, %s, %s, %s, %s)
-                """,
-                (
-                    self.election.tenant,
-                    self.election.event,
-                    self.election.task_name("END"),
-                    Jsonb(payload),
-                    Jsonb({"scheduled_date": "2026-10-02T12:00:00Z"}),
-                ),
-            )
-        # A valid edit forces a refresh over the index's matching task IDs.
-        # Matching names alone must not admit a mismatched or extended payload.
-        self.election.schedule(self.connection, "START", "2026-10-01T10:00:00Z")
-        self.assertEqual(self.dates(), ("2026-10-01T10:00:00Z", "2026-10-01T12:00:00Z"))
+            with self.assertRaises(psycopg.errors.CheckViolation):
+                self.connection.execute(
+                    """
+                    INSERT INTO sequent_backend.scheduled_event
+                        (tenant_id, election_event_id, task_id, event_payload, cron_config)
+                    VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    (
+                        self.election.tenant, self.election.event, self.election.task_name("END"),
+                        Jsonb(payload), Jsonb({"scheduled_date": "2026-10-02T12:00:00Z"}),
+                    ),
+                )
+        self.election.schedule(self.connection, "END", "2026-10-01T12:00:00Z")
+        self.assertEqual(self.dates(), (None, "2026-10-01T12:00:00Z"))
+
+    def test_unrelated_tasks_are_not_subject_to_voting_date_validation(self):
+        """Non-voting schedules can retain their own payload and cron formats."""
+        self.connection.execute(
+            """
+            INSERT INTO sequent_backend.scheduled_event
+                (tenant_id, election_event_id, task_id, event_payload, cron_config)
+            VALUES (%s, %s, 'another-task', %s, %s)
+            """,
+            (self.election.tenant, self.election.event, Jsonb([42]), Jsonb({"scheduled_date": 42})),
+        )
+        self.assertEqual(self.dates(), (None, None))
 
     def test_online_window_follows_schedule_channels(self):
         """Count only schedules that include ONLINE; no channel list means ONLINE and KIOSK."""
@@ -145,18 +185,31 @@ class VotingFlowTests(unittest.TestCase):
         select_channels(start, ["TELEPHONE"])
         self.assertEqual(self.dates(), (None, "2026-10-01T12:00:00Z"))
 
-    def test_bounded_concurrent_revotes(self):
-        """Allow exactly the configured number of ballots when twelve requests race for one voter."""
-        results = self.concurrent(
-            [
-                lambda connection: self.election.vote(
-                    connection, "limited", status="in-progress"
-                )
-                for _ in range(12)
-            ]
-        )
-        self.assertEqual(results.count(None), 3)
-        self.assertEqual(results.count("insert_failed_exceeds_allowed_revotes"), 9)
+    def test_schedule_writes_do_not_block_other_tenants(self):
+        """An open schedule transaction must not delay another tenant's stop task."""
+        other = Election()
+        other.create(self.connection)
+        own_end = self.election.schedule(self.connection, "END", "2026-10-01T12:00:00Z")
+        other_end = other.schedule(self.connection, "END", "2026-10-01T12:00:00Z")
+        with psycopg.connect(self.db.dsn) as owner, psycopg.connect(self.db.dsn) as contender:
+            owner.execute(
+                "UPDATE sequent_backend.scheduled_event SET labels = '{}' WHERE id = %s",
+                (own_end,),
+            )
+            contender.execute("SET LOCAL lock_timeout = '100ms'")
+            contender.execute(
+                "UPDATE sequent_backend.scheduled_event SET stopped_at = now() WHERE id = %s",
+                (other_end,),
+            )
+            contender.commit()
+            owner.rollback()
+
+    def test_deadlines_require_an_explicit_rfc3339_timestamp(self):
+        """PostgreSQL shorthand dates must not become missing deadlines in Rust."""
+        for value in ("2026-10-01", "tomorrow", "infinity"):
+            with self.subTest(value=value), self.connection.transaction(force_rollback=True):
+                with self.assertRaises(psycopg.Error):
+                    self.election.schedule(self.connection, "END", value)
 
     def test_concurrent_first_endpoints_do_not_lose_an_update(self):
         """Preserve both endpoints when separate transactions create the first opening and closing tasks."""
@@ -248,68 +301,16 @@ class VotingFlowTests(unittest.TestCase):
         self.assertEqual(results, [None, None])
         self.assertEqual(self.dates(), ("2026-10-02T10:00:00Z", "2026-10-02T12:00:00Z"))
 
-    def test_cross_area_rule_applies_to_unlimited_revotes(self):
-        """Permit one winning area and reject the other even when the revote limit is unlimited."""
-        self.connection.execute(
-            "UPDATE sequent_backend.election SET num_allowed_revotes = 0 WHERE id = %s",
-            (self.election.election,),
-        )
-        operations = [
-            lambda connection, area=area: self.election.vote(connection, "areas", area)
-            for area in [self.election.area, self.election.other_area] * 6
-        ]
-        results = self.concurrent(operations)
-        self.assertEqual(results.count(None), 6)
-        self.assertEqual(results.count("check_votes_in_other_areas_failed"), 6)
-
-    def test_discarded_votes_do_not_consume_eligibility(self):
-        """Allow a valid ballot after a discarded ballot in another area."""
-        self.election.vote(
-            self.connection, "discarded", self.election.other_area, "discarded"
-        )
-        self.election.vote(self.connection, "discarded", self.election.area)
-
     def test_duplicate_endpoint_fails_without_changing_projection(self):
         """Reject an ambiguous endpoint and retain the last valid projected deadline."""
         self.election.schedule(self.connection, "END", "2026-10-01T12:00:00Z")
-        with self.assertRaisesRegex(
-            psycopg.errors.RaiseException, "ambiguous_or_invalid"
-        ):
+        with self.assertRaises(psycopg.errors.UniqueViolation):
             self.election.schedule(self.connection, "END", "2026-10-02T12:00:00Z")
         self.assertEqual(self.dates(), (None, "2026-10-01T12:00:00Z"))
 
-    def test_index_replacement_stops_on_an_invalid_previous_build(self):
-        """Retain the valid old index after an interrupted build and verify the documented recovery."""
-        self.election.vote(self.connection, "index-test")
-        self.election.vote(self.connection, "index-test")
-        with self.assertRaises(psycopg.errors.UniqueViolation):
-            self.connection.execute(
-                """
-                CREATE UNIQUE INDEX CONCURRENTLY cast_vote_participation_election_covering_idx
-                ON sequent_backend.cast_vote
-                    (tenant_id, election_event_id, election_id, voter_id_string)
-            """
-            )
-        validity = "SELECT indisvalid FROM pg_index WHERE indexrelid = %s::regclass"
-        old_index = "sequent_backend.cast_vote_participation_election_idx"
-        temporary_index = (
-            "sequent_backend.cast_vote_participation_election_covering_idx"
-        )
-        self.assertFalse(self.db.scalar(validity, (temporary_index,)))
-        self.assertNotEqual(self.db.run_index_script().returncode, 0)
-        self.assertTrue(self.db.scalar(validity, (old_index,)))
-        self.connection.execute(
-            "DROP INDEX CONCURRENTLY sequent_backend.cast_vote_participation_election_covering_idx"
-        )
-        result = self.db.run_index_script()
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertTrue(self.db.scalar(validity, (old_index,)))
-
     def test_invalid_date_type_is_rejected_at_configuration_write(self):
         """Reject a non-string endpoint date before it can populate the projection."""
-        with self.assertRaisesRegex(
-            psycopg.errors.RaiseException, "ambiguous_or_invalid"
-        ):
+        with self.assertRaises(psycopg.Error):
             self.election.schedule(self.connection, "END", 42)
         self.assertEqual(self.dates(), (None, None))
 
@@ -419,21 +420,11 @@ class VotingFlowTests(unittest.TestCase):
             self.connection.execute(CONFIGURATION_QUERY, foreign_scope).fetchone()
         )
 
-    def test_storage_migration_is_reversible(self):
-        """Verify EXTERNAL storage can be rolled back and reapplied for future writes."""
-        query = """
-            SELECT attstorage FROM pg_attribute
-            WHERE attrelid = 'sequent_backend.cast_vote'::regclass AND attname = 'content'
-        """
-        self.db.apply(STORAGE_MIGRATION)
-        self.assertEqual(self.db.scalar(query), "e")
-        self.db.apply(STORAGE_MIGRATION, "down")
-        self.assertEqual(self.db.scalar(query), "x")
-        self.db.apply(STORAGE_MIGRATION)
-
     def test_truncate_clears_projection(self):
         """Remove all materialized windows when the source schedule table is truncated."""
+        self.election.schedule(self.connection, "END", "2026-10-01T12:00:00Z")
         self.connection.execute("TRUNCATE sequent_backend.scheduled_event")
+        self.assertEqual(self.dates(), (None, None))
         self.assertEqual(
             self.db.scalar(
                 "SELECT count(*) FROM sequent_backend.election_voting_window"
@@ -441,11 +432,28 @@ class VotingFlowTests(unittest.TestCase):
             0,
         )
 
+    def test_concurrent_duplicate_endpoints_have_one_winner(self):
+        """The unique index protects endpoint identity across concurrent writers."""
+        results = self.concurrent([
+            lambda connection: self.election.schedule(connection, "END", "2026-10-01T12:00:00Z")
+            for _ in range(2)
+        ])
+        self.assertEqual(results.count(None), 1)
+        self.assertTrue(any("scheduled_event_active_voting_task_idx" in (result or "") for result in results))
+        self.assertEqual(self.dates(), (None, "2026-10-01T12:00:00Z"))
+
+    def test_optional_dates_and_timezone_offsets(self):
+        """Preserve absent endpoints and valid RFC3339 offsets and fractions."""
+        self.election.schedule(self.connection, "START", None)
+        value = "2026-10-01T12:00:00.123456789-05:00"
+        self.election.schedule(self.connection, "END", value)
+        self.assertEqual(self.dates(), (None, value))
+
 
 def run_regressions(database):
-    """Apply the projection migration, run its database invariants and exit nonzero on failure."""
-    database.apply(WINDOW_MIGRATION)
-    database.apply(ONLINE_WINDOW_MIGRATION)
+    """Apply the schedule migrations, run their database invariants and exit nonzero on failure."""
+    for migration in SCHEDULE_MIGRATIONS:
+        database.apply(migration)
     VotingFlowTests.database = database
     suite = unittest.defaultTestLoader.loadTestsFromTestCase(VotingFlowTests)
     result = unittest.TextTestRunner(verbosity=2).run(suite)

@@ -12,7 +12,7 @@ use sequent_core::types::permissions::Permissions;
 use serde_json::Value;
 use std::sync::Arc;
 use uuid::Uuid;
-use windmill::services::celery_app::get_celery_app;
+use windmill::services::celery_app::try_get_celery_app;
 use windmill::services::electoral_log::{
     post_voter_secret_attribute_audit, ElectoralLogAdminContext,
     VoterSecretAttributeAction, VoterSecretAttributeAudit,
@@ -83,8 +83,13 @@ pub struct CeleryUserTaskDispatch;
 
 impl UserTaskDispatch for CeleryUserTaskDispatch {
     type Connection = Arc<Celery>;
-    async fn connect(&self) -> Self::Connection {
-        get_celery_app().await
+    async fn connect(&self) -> Result<Self::Connection, UserTaskSendFailure> {
+        try_get_celery_app()
+            .await
+            .map_err(|error| UserTaskSendFailure {
+                display: format!("{error:#}"),
+                debug: format!("{error:?}"),
+            })
     }
     async fn import(
         &self,

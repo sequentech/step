@@ -3,21 +3,27 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::domain::publication_files::{PublishedBallotStyle, FILES_ANNOTATION};
-use crate::ports::publication_files::{PublicationObjects, PublicationRows, PublicationStorage};
+use crate::ports::publication_files::{
+    GeneratedStyles, PublicationObjects, PublicationRows, PublicationStorage,
+};
 use crate::postgres::publication_files::{
     get_election_event_status, get_publication_annotations, get_publication_elections,
-    get_publication_event, get_published_ballot_styles, merge_ballot_publication_annotation,
+    get_publication_event, get_publication_style_page, get_published_ballot_styles,
     stream_publication_styles,
 };
+use crate::services::ballot_styles::publication_files::heartbeat;
+use crate::services::pg_lock::PgLock;
 use anyhow::{bail, Context, Result};
 use aws_sdk_s3::{presigning::PresigningConfig, primitives::ByteStream, Client};
-use deadpool_postgres::Transaction;
+use deadpool_postgres::{Pool, Transaction};
 use futures::Stream;
-use sequent_core::services::s3::{get_private_bucket, get_s3_client};
-use sequent_core::util::aws::get_s3_aws_config;
+use sequent_core::services::s3::{self, get_private_bucket, get_shared_s3_client};
 use serde_json::Value;
 use std::time::Duration;
 use uuid::Uuid;
+
+/// The longest a single upload or its read-back may take.
+const OBJECT_TIMEOUT: Duration = Duration::from_secs(60);
 
 /// Reads and writes in the caller's transaction.
 pub struct PgPublicationRows<'a> {
@@ -51,24 +57,6 @@ impl PublicationRows for PgPublicationRows<'_> {
         stream_publication_styles(self.transaction, tenant, event, publication).await
     }
 
-    async fn set_files_root(
-        &self,
-        tenant: Uuid,
-        event: Uuid,
-        publication: Uuid,
-        root: &str,
-    ) -> Result<()> {
-        merge_ballot_publication_annotation(
-            self.transaction,
-            tenant,
-            event,
-            publication,
-            FILES_ANNOTATION,
-            root,
-        )
-        .await
-    }
-
     async fn published_styles(
         &self,
         tenant: Uuid,
@@ -92,6 +80,35 @@ impl PublicationRows for PgPublicationRows<'_> {
     }
 }
 
+/// A generation task's committed styles, each page read on a connection of
+/// its own, and its lease renewed through the pool.
+pub struct PgGeneratedStyles<'a> {
+    pub pool: &'a Pool,
+    pub lease: &'a PgLock,
+    pub tenant: Uuid,
+    pub event: Uuid,
+    pub publication: Uuid,
+}
+
+impl GeneratedStyles for PgGeneratedStyles<'_> {
+    async fn keep_alive(&self) -> Result<()> {
+        heartbeat(self.pool, self.lease).await
+    }
+
+    async fn page(&self, after: Option<Uuid>, limit: i64) -> Result<Vec<(Uuid, Value)>> {
+        let client = self.pool.get().await?;
+        get_publication_style_page(
+            &client,
+            self.tenant,
+            self.event,
+            self.publication,
+            after,
+            limit,
+        )
+        .await
+    }
+}
+
 /// The endpoint an S3 client targets. Uploads use the one servers reach;
 /// presigned URLs must name the one voters' browsers reach.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -110,8 +127,11 @@ impl PublicationStorage for S3PublicationStorage {
 
     async fn open(&self) -> Result<S3PublicationObjects> {
         let bucket = get_private_bucket()?;
-        let client =
-            get_s3_client(get_s3_aws_config(self.endpoint == S3Endpoint::Server).await?).await?;
+        let client = get_shared_s3_client(match self.endpoint {
+            S3Endpoint::Server => s3::S3Endpoint::Server,
+            S3Endpoint::Public => s3::S3Endpoint::Client,
+        })
+        .await?;
         Ok(S3PublicationObjects { client, bucket })
     }
 }
@@ -123,34 +143,48 @@ pub struct S3PublicationObjects {
 
 impl PublicationObjects for S3PublicationObjects {
     async fn put_immutable_json(&self, key: &str, value: &Value) -> Result<()> {
-        let bytes = serde_json::to_vec(value)?;
-        self.client
-            .put_object()
-            .bucket(&self.bucket)
-            .key(key)
-            .content_type("application/json")
-            .cache_control("private, max-age=300")
-            .if_none_match("*")
-            .body(ByteStream::from(bytes.clone()))
-            .send()
-            .await
-            .context("Cannot upload ballot publication object")?;
-        let stored = self
-            .client
-            .get_object()
-            .bucket(&self.bucket)
-            .key(key)
-            .send()
-            .await
-            .context("Cannot validate ballot publication object")?
-            .body
-            .collect()
-            .await?
-            .into_bytes();
-        if stored.as_ref() != bytes.as_slice() {
-            bail!("Ballot publication object verification failed");
-        }
-        Ok(())
+        tokio::time::timeout(OBJECT_TIMEOUT, async {
+            let bytes = serde_json::to_vec(value)?;
+            let result = self
+                .client
+                .put_object()
+                .bucket(&self.bucket)
+                .key(key)
+                .content_type("application/json")
+                .cache_control("private, max-age=300")
+                .if_none_match("*")
+                .body(ByteStream::from(bytes.clone()))
+                .send()
+                .await;
+            if let Err(error) = result {
+                // A retry after a lost PUT response can find the immutable object already there.
+                if error
+                    .raw_response()
+                    .map(|response| response.status().as_u16())
+                    != Some(412)
+                {
+                    return Err(error).context("Cannot upload ballot publication object");
+                }
+            }
+            let stored = self
+                .client
+                .get_object()
+                .bucket(&self.bucket)
+                .key(key)
+                .send()
+                .await
+                .context("Cannot validate ballot publication object")?
+                .body
+                .collect()
+                .await?
+                .into_bytes();
+            if stored.as_ref() != bytes.as_slice() {
+                bail!("Ballot publication object verification failed");
+            }
+            Ok(())
+        })
+        .await
+        .context("Ballot publication upload timed out")?
     }
 
     async fn get_json(&self, key: &str) -> Result<Value> {
@@ -214,6 +248,9 @@ mod tests {
     enum Store {
         Keeps,
         RejectsExisting,
+        /// Stores the upload but answers that it existed, as a retry after a
+        /// lost response finds its own object.
+        AlreadyHolds,
         Loses,
         Corrupts,
     }
@@ -284,6 +321,10 @@ mod tests {
                     while let Some(request) = read_request(&mut socket).await {
                         let (status, body) = match (request.method.as_str(), store) {
                             ("PUT", Store::RejectsExisting) => (412, Vec::new()),
+                            ("PUT", Store::AlreadyHolds) => {
+                                *stored.lock().unwrap() = request.body.clone();
+                                (412, Vec::new())
+                            }
                             ("PUT", _) => {
                                 *stored.lock().unwrap() = request.body.clone();
                                 (200, Vec::new())
@@ -354,9 +395,20 @@ mod tests {
     async fn an_existing_object_is_not_replaced() {
         let (endpoint, requests) = fake_s3(Store::RejectsExisting).await;
         let error = put(&endpoint, &json!({})).await.unwrap_err();
-        assert_eq!(error.to_string(), "Cannot upload ballot publication object");
-        // Nothing is read back after a rejected upload.
-        assert_eq!(requests.lock().unwrap().len(), 1);
+        assert_eq!(
+            error.to_string(),
+            "Ballot publication object verification failed"
+        );
+        // The existing object is only read back, never written over.
+        let requests = requests.lock().unwrap();
+        let methods: Vec<&str> = requests.iter().map(|r| r.method.as_str()).collect();
+        assert_eq!(methods, ["PUT", "GET"]);
+    }
+
+    #[tokio::test]
+    async fn a_retried_upload_accepts_its_own_existing_object() {
+        let (endpoint, _) = fake_s3(Store::AlreadyHolds).await;
+        put(&endpoint, &json!({"id": "style"})).await.unwrap();
     }
 
     #[tokio::test]

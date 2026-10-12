@@ -20,8 +20,8 @@ configurations; the `devcontainer` CLI selects one with `--config`.
 | Mode | Configuration | Compose services | Dev servers | Use |
 | --- | --- | --- | --- | --- |
 | `ui-only` | `.devcontainer/ui-only/devcontainer.json` | `devcontainer` | Storybook 6006–6011 (default `ui-essentials`), workbench 5173, portals 3000–3004 | Stories and screens on fixtures |
-| `ui-keycloak` | `.devcontainer/ui-keycloak/devcontainer.json` | adds `postgres-keycloak` and `keycloak` (8090), which starts without Harvest | Storybook 6006–6011 | Login and account themes |
-| `backend` | `.devcontainer/backend/devcontainer.json` | the `base` profile: databases, MinIO, RabbitMQ, ImmuDB, Keycloak, Hasura, Harvest, Windmill, beat and B4 | none | Rust services, Hasura, step-cli |
+| `ui-keycloak` | `.devcontainer/ui-keycloak/devcontainer.json` | adds `postgres-keycloak` and `keycloak` (8090), which starts without Harvest and only logs its electoral-log events | Storybook 6006–6011 | Login and account themes |
+| `backend` | `.devcontainer/backend/devcontainer.json` | the `base` profile: databases (the electoral log's and the task queues' among them), MinIO, Keycloak, Hasura, Harvest, Windmill, beat and B4 | none | Rust services, Hasura, step-cli |
 | `full` | `.devcontainer/devcontainer.json` | as `backend` | portals 3000–3004 (default voting 3000 and admin 3002), Storybook, workbench 5173 | End-to-end work in the portals |
 
 ```sh
@@ -86,9 +86,12 @@ parent at `/workspaces` and again at its host path, where git worktree links
 resolve. Service containers build into the checkout's own `packages/target`;
 local Cargo builds use `rust-local-target`.
 
-Harvest, Windmill and beat each run their own `cargo run` command. Cargo-watch
-finds the current crate's local dependency directories automatically: a Harvest
-leaf edit affects Harvest, while a Windmill edit also affects Harvest and beat.
+Harvest runs `cargo run`; Windmill and beat each build their own binary and run
+it in a restart loop (`.devcontainer/restart-worker.sh`), so a worker that exits
+starts again after five seconds and a compile error waits for the next change.
+Cargo-watch finds the current crate's local dependency directories
+automatically: a Harvest leaf edit affects Harvest, while a Windmill edit also
+affects Harvest and beat.
 Keep the per-service feature graphs separate; compiling the packages together can
 enable extra dependency features and invalidate the subsequent service build.
 
@@ -500,7 +503,7 @@ repeats the workflow without an edit.
 
 `monitoring-viewers` is a load test, not a loop timing. It simulates
 concurrent viewers of a monitoring dashboard against a running stack; see
-[Viewer load benchmark](../13-monitoring/01-monitoring-architecture.md#viewer-load-benchmark).
+[Viewer load benchmark](../15-monitoring/01-monitoring-architecture.md#viewer-load-benchmark).
 
 `workspace` and `ci` run on the host, with the Dev Containers CLI and `gh`.
 `workspace` never uses the default Docker daemon: a cold sample creates a fresh

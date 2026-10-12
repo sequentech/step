@@ -13,16 +13,21 @@
 //!   projection yet, when the settings changed, and otherwise every
 //!   `full_pass_every`. A voter whose facts did not change is not rewritten,
 //!   and one who is gone is removed.
-//! - on every run, the latest application of each voter and their first
-//!   valid vote in each election, both read from the backend's own tables in
-//!   one statement each.
+//! - on every run, the latest application of each voter, read from the
+//!   backend's tables in one statement, and their first valid vote in each
+//!   election, read from the event's ballot box: the ballots sequenced since
+//!   the last read, or every ballot on a full pass, which also picks up the
+//!   ballots whose status changed.
 
 use crate::postgres::monitoring_config::EventRef;
+use crate::services::protocol_manager::get_event_databases;
 use crate::services::time_zones::event_time_zone;
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
+use async_trait::async_trait;
 use chrono::{DateTime, Duration, NaiveDate, TimeZone, Utc};
 use chrono_tz::Tz;
 use deadpool_postgres::Transaction;
+use electoral_log::adapters::ballot_box_reads::{FirstValidVote, FirstValidVotes};
 use sequent_core::monitoring::config::Settings;
 use sequent_core::monitoring::voter::{voter_facts, VoterFacts, VoterSources};
 use sequent_core::services::keycloak::get_event_realm;
@@ -41,7 +46,7 @@ const AREA_ATTRIBUTE: &str = "area-id";
 /// A voter's account, as the projection reads it.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct VoterAccount {
-    /// Keycloak's user id, which `cast_vote.voter_id_string` and
+    /// Keycloak's user id, which the ballot box's `voter_id` and
     /// `applications.applicant_id` carry.
     pub voter_id: String,
     pub attributes: BTreeMap<String, Vec<String>>,
@@ -407,18 +412,102 @@ struct Enrolled {
 /// How many rows one batched activity update writes.
 const ACTIVITY_BATCH: usize = 5_000;
 
+/// The voters' first valid votes, by election and voter, as a refresh read
+/// them from the event's ballot box.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FirstVotes {
+    /// From every ballot of the event: a voter missing has no valid vote.
+    All(HashMap<(Uuid, String), DateTime<Utc>>),
+    /// From the ballots sequenced since the last read: a voter missing keeps
+    /// their first vote, and one present keeps the earlier one.
+    Since(HashMap<(Uuid, String), DateTime<Utc>>),
+}
+
+impl FirstVotes {
+    /// The votes of a ballot-box read, which read every ballot when `all`.
+    pub fn from_read(votes: &[FirstValidVote], all: bool) -> Result<Self> {
+        let votes = votes
+            .iter()
+            .map(|vote| {
+                let election = Uuid::parse_str(&vote.election_id)
+                    .with_context(|| format!("A ballot names election {:?}", vote.election_id))?;
+                let at = DateTime::from_timestamp_micros(vote.accepted_at)
+                    .ok_or_else(|| anyhow!("A ballot was accepted at {}", vote.accepted_at))?;
+                Ok(((election, vote.voter_id.clone()), at))
+            })
+            .collect::<Result<HashMap<_, _>>>()?;
+        Ok(if all {
+            FirstVotes::All(votes)
+        } else {
+            FirstVotes::Since(votes)
+        })
+    }
+
+    /// The first vote a voter now has in an election, who had `current`.
+    fn first_vote(
+        &self,
+        key: &(Uuid, String),
+        current: Option<DateTime<Utc>>,
+    ) -> Option<DateTime<Utc>> {
+        match self {
+            FirstVotes::All(votes) => votes.get(key).copied(),
+            FirstVotes::Since(votes) => match (votes.get(key).copied(), current) {
+                (Some(read), Some(current)) => Some(read.min(current)),
+                (read, current) => read.or(current),
+            },
+        }
+    }
+}
+
+/// Where a refresh reads the voters' first valid votes.
+#[async_trait]
+pub trait FirstVoteSource: Send + Sync + std::fmt::Debug {
+    /// The first valid ballot of each voter in each election among the
+    /// event's ballots sequenced after `after_seq` (0: every ballot), and the
+    /// sequence number the next read starts after.
+    async fn first_valid_votes(&self, event: EventRef, after_seq: i64) -> Result<FirstValidVotes>;
+}
+
+/// The events' ballot boxes, each in its event's electoral-log database. An
+/// event without one has no ballots.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct EventBallotBoxes;
+
+#[async_trait]
+impl FirstVoteSource for EventBallotBoxes {
+    async fn first_valid_votes(&self, event: EventRef, after_seq: i64) -> Result<FirstValidVotes> {
+        let election_event_id = event.election_event_id.to_string();
+        let databases = get_event_databases().await?;
+        if !databases.has_event(&election_event_id).await? {
+            return Ok(FirstValidVotes {
+                votes: vec![],
+                next_seq: after_seq,
+            });
+        }
+        databases
+            .store(&election_event_id)
+            .await?
+            .first_valid_votes(&election_event_id, after_seq)
+            .await
+    }
+}
+
 /// Brings each voter's enrollment and first vote up to date, from the
-/// latest application and the valid votes: how many rows changed, counting
-/// a row whose enrollment and first vote both changed twice.
+/// latest application and `first_votes`: how many rows changed, counting a
+/// row whose enrollment and first vote both changed twice.
 ///
-/// It reads the event's rows, latest applications and first valid votes in
-/// one statement each, works out what changed here, and writes only that,
-/// keyed on the primary key. Joining the projection to itself in SQL let
-/// the planner pick a nested loop whenever the table's statistics lagged
-/// behind a pass's writes, which is every first pass: quadratic in the
-/// voters, 11 s at 10,000.
-#[instrument(err, skip(transaction))]
-pub async fn refresh_voter_activity(transaction: &Transaction<'_>, event: EventRef) -> Result<u64> {
+/// It reads the event's rows and latest applications in one statement each,
+/// works out what changed here, and writes only that, keyed on the primary
+/// key. Joining the projection to itself in SQL let the planner pick a
+/// nested loop whenever the table's statistics lagged behind a pass's
+/// writes, which is every first pass: quadratic in the voters, 11 s at
+/// 10,000.
+#[instrument(err, skip(transaction, first_votes))]
+pub async fn refresh_voter_activity(
+    transaction: &Transaction<'_>,
+    event: EventRef,
+    first_votes: &FirstVotes,
+) -> Result<u64> {
     let params: [&(dyn tokio_postgres::types::ToSql + Sync); 2] =
         [&event.tenant_id, &event.election_event_id];
     let latest: HashMap<String, Enrolled> = transaction
@@ -449,23 +538,6 @@ pub async fn refresh_voter_activity(transaction: &Transaction<'_>, event: EventR
                     state,
                 },
             )
-        })
-        .collect();
-    let first_votes: HashMap<(Uuid, String), DateTime<Utc>> = transaction
-        .query(
-            "SELECT election_id, voter_id_string::text, min(created_at)
-             FROM sequent_backend.cast_vote
-             WHERE tenant_id = $1 AND election_event_id = $2 AND status = 'valid'
-               AND election_id IS NOT NULL AND voter_id_string IS NOT NULL
-             GROUP BY election_id, voter_id_string",
-            &params,
-        )
-        .await
-        .context("Failed to read the voters' first votes")?
-        .iter()
-        .filter_map(|row| {
-            let at: Option<DateTime<Utc>> = row.get(2);
-            Some(((row.get(0), row.get(1)), at?))
         })
         .collect();
 
@@ -513,7 +585,7 @@ pub async fn refresh_voter_activity(transaction: &Transaction<'_>, event: EventR
                 pre_enrolled_at = Some(at.min(decided_at));
             }
         }
-        let wanted_vote = first_votes.get(&(election, voter.clone())).copied();
+        let wanted_vote = first_votes.first_vote(&(election, voter.clone()), first_voted_at);
         let vote_changed = wanted_vote != first_voted_at;
         if !enrollment_changed && !vote_changed {
             continue;
@@ -604,17 +676,43 @@ pub fn full_pass_due(
 const PASS_AT: &str = "voters_full_pass_at";
 const PASS_SETTINGS: &str = "voters_settings_revision";
 const PASS_TIME_ZONE: &str = "voters_time_zone";
+/// The ballot-box sequence number the last first-vote read reached.
+const FIRST_VOTES_SEQ: &str = "first_votes_seq";
 
-async fn last_pass(transaction: &Transaction<'_>, event: EventRef) -> Result<Option<LastPass>> {
-    let row = transaction
+async fn watermarks(transaction: &Transaction<'_>, event: EventRef) -> Result<Option<Value>> {
+    Ok(transaction
         .query_opt(
             "SELECT watermarks FROM sequent_backend.monitoring_snapshot_state
              WHERE tenant_id = $1 AND election_event_id = $2",
             &[&event.tenant_id, &event.election_event_id],
         )
         .await
-        .context("Failed to read the snapshot state")?;
-    let Some(watermarks) = row.map(|row| row.get::<_, Value>(0)) else {
+        .context("Failed to read the snapshot state")?
+        .map(|row| row.get::<_, Value>(0)))
+}
+
+async fn record_watermarks(
+    transaction: &Transaction<'_>,
+    event: EventRef,
+    marks: &Value,
+) -> Result<()> {
+    transaction
+        .execute(
+            "INSERT INTO sequent_backend.monitoring_snapshot_state
+                 (tenant_id, election_event_id, watermarks)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (tenant_id, election_event_id) DO UPDATE SET
+                 watermarks = sequent_backend.monitoring_snapshot_state.watermarks
+                              || EXCLUDED.watermarks",
+            &[&event.tenant_id, &event.election_event_id, marks],
+        )
+        .await
+        .context("Failed to record the snapshot state")?;
+    Ok(())
+}
+
+async fn last_pass(transaction: &Transaction<'_>, event: EventRef) -> Result<Option<LastPass>> {
+    let Some(watermarks) = watermarks(transaction, event).await? else {
         return Ok(None);
     };
     let at = watermarks
@@ -643,19 +741,40 @@ async fn record_pass(transaction: &Transaction<'_>, event: EventRef, pass: LastP
         PASS_SETTINGS: pass.settings_revision,
         PASS_TIME_ZONE: pass.time_zone.map(|zone| zone.name()),
     });
-    transaction
-        .execute(
-            "INSERT INTO sequent_backend.monitoring_snapshot_state
-                 (tenant_id, election_event_id, watermarks)
-             VALUES ($1, $2, $3)
-             ON CONFLICT (tenant_id, election_event_id) DO UPDATE SET
-                 watermarks = sequent_backend.monitoring_snapshot_state.watermarks
-                              || EXCLUDED.watermarks",
-            &[&event.tenant_id, &event.election_event_id, &marks],
+    record_watermarks(transaction, event, &marks)
+        .await
+        .context("Failed to record the pass over the voters")
+}
+
+/// Reads the voters' first valid votes from `ballot_box`: the ballots
+/// sequenced since the last read, or every ballot on a full pass (or when
+/// nothing was read yet), so a ballot whose status changed since, or that
+/// an earlier read could not see yet, counts. Records how far it read.
+pub async fn read_first_votes(
+    transaction: &Transaction<'_>,
+    event: EventRef,
+    ballot_box: &dyn FirstVoteSource,
+    full_pass: bool,
+) -> Result<FirstVotes> {
+    let recorded = watermarks(transaction, event)
+        .await?
+        .and_then(|marks| marks.get(FIRST_VOTES_SEQ).and_then(Value::as_i64));
+    let since = if full_pass { 0 } else { recorded.unwrap_or(0) };
+    let read = ballot_box
+        .first_valid_votes(event, since)
+        .await
+        .context("Failed to read the voters' first votes")?;
+    let first_votes = FirstVotes::from_read(&read.votes, since == 0)?;
+    if recorded != Some(read.next_seq) {
+        record_watermarks(
+            transaction,
+            event,
+            &json!({ FIRST_VOTES_SEQ: read.next_seq }),
         )
         .await
-        .context("Failed to record the pass over the voters")?;
-    Ok(())
+        .context("Failed to record how far the first votes were read")?;
+    }
+    Ok(first_votes)
 }
 
 /// The event's first day in its primary `zone`: when its first voting
@@ -690,7 +809,8 @@ pub async fn event_first_day(
 }
 
 /// Brings the event's projection up to date: a full pass over the voters
-/// when one is due, then their enrollment and first votes.
+/// when one is due, then their enrollment and first votes, read from
+/// `ballot_box`.
 #[instrument(err, skip_all, fields(event = ?event))]
 pub async fn refresh_voter_projection(
     transaction: &Transaction<'_>,
@@ -701,6 +821,7 @@ pub async fn refresh_voter_projection(
     voter_group: &str,
     now: DateTime<Utc>,
     full_pass_every: Duration,
+    ballot_box: &dyn FirstVoteSource,
 ) -> Result<ProjectionRun> {
     let mut run = ProjectionRun::default();
     let zone = event_time_zone(transaction, event.tenant_id, event.election_event_id).await?;
@@ -753,7 +874,8 @@ pub async fn refresh_voter_projection(
         .await?;
         run.full_pass = true;
     }
-    run.activity = refresh_voter_activity(transaction, event).await?;
+    let first_votes = read_first_votes(transaction, event, ballot_box, run.full_pass).await?;
+    run.activity = refresh_voter_activity(transaction, event, &first_votes).await?;
     info!(?run, "Refreshed the monitoring voters");
     Ok(run)
 }

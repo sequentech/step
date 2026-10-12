@@ -117,7 +117,7 @@ fn a_new_event_imports_each_shard_then_opens_only_online_voting() {
     assert_eq!(state.ceremonies, vec![(EVENT.into(), 2)]);
     assert_eq!(state.published_events, vec![EVENT]);
     assert_eq!(state.open_events, vec![EVENT]);
-    assert_eq!(state.sessions, 4);
+    assert_eq!(state.sessions, 6);
     assert_eq!(
         state
             .voter_imports
@@ -165,6 +165,7 @@ fn exported_election_external_ids_survive_preparation_and_event_reuse() {
         );
 
         let mut reused = Fixture::new();
+        reused.api.exports = f.api.exports.clone();
         reused.settings.preparation.existing_event = Some(config_path);
         reused.settings.workload.start = 100;
         reused.run().unwrap();
@@ -195,7 +196,7 @@ fn an_existing_event_gets_new_voters_without_ceremony_publication_or_opening() {
     f.run().unwrap();
     let state = f.api.state.lock().unwrap();
     assert!(state.imported_event.is_none());
-    assert!(state.exported_events.is_empty());
+    assert_eq!(state.exported_events, vec![EVENT]);
     assert!(state.ceremonies.is_empty());
     assert!(state.published_events.is_empty());
     assert!(state.open_events.is_empty());
@@ -204,6 +205,50 @@ fn an_existing_event_gets_new_voters_without_ceremony_publication_or_opening() {
     assert_eq!(input["realm"], "existing-realm");
     assert_eq!(input["election_event_id"], EVENT);
     assert!(!f.output.join("setup-state.json").exists());
+}
+
+#[test]
+fn an_existing_event_authorizes_voters_with_its_current_external_election_id() {
+    let mut f = Fixture::new();
+    f.existing();
+    f.api.exports[0].1["elections"][0]["external_id"] = json!("external-election-2026");
+    f.run().unwrap();
+    let input: Value = files::read(&f.output.join("config.json")).unwrap();
+    assert_eq!(input["election_id"], ELECTION);
+    assert_eq!(input["election_external_id"], "external-election-2026");
+}
+
+#[test]
+fn an_existing_election_absent_from_its_event_generates_no_census() {
+    let mut f = Fixture::new();
+    f.existing();
+    f.api.exports[0].1["elections"][0]["id"] = json!("another-election");
+    assert_eq!(
+        f.run().unwrap_err().to_string(),
+        "Existing election is absent from the event"
+    );
+    assert!(!f.output.join("census").exists());
+}
+
+#[test]
+fn creating_publishing_and_opening_an_event_require_fresh_gold_authentication() {
+    for silver_session in [1, 5, 6] {
+        let f = Fixture::new();
+        f.api.state.lock().unwrap().silver_session = Some(silver_session);
+        assert!(f
+            .run()
+            .unwrap_err()
+            .to_string()
+            .contains("Fresh gold authentication is required"));
+        let state = f.api.state.lock().unwrap();
+        assert_eq!(state.imported_event.is_some(), silver_session > 1);
+        assert_eq!(state.published_events.is_empty(), silver_session < 6);
+        assert!(state.open_events.is_empty());
+    }
+    let mut f = Fixture::new();
+    f.existing();
+    f.api.state.lock().unwrap().silver_session = Some(1);
+    f.run().unwrap();
 }
 
 #[test]

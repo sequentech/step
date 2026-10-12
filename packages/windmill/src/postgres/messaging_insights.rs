@@ -8,7 +8,6 @@
 //! aggregate on the Keycloak database, and the per-event cache of those
 //! counts (`messaging_voter_count`) with its recount runs.
 
-use crate::services::cast_votes::CastVoteStatus;
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Duration, Utc};
 use deadpool_postgres::Transaction;
@@ -158,31 +157,6 @@ pub async fn event_area_ids(
     .await?
     .into_iter()
     .map(|row| Ok(row.try_get("id")?))
-    .collect()
-}
-
-/// The voters of the event with a ballot that wasn't discarded, as
-/// `get_users_with_vote_info` decides "has voted" (any election of the
-/// event).
-#[instrument(skip(tx), err)]
-pub async fn event_voter_ids_who_voted(
-    tx: &Transaction<'_>,
-    tenant_id: &Uuid,
-    election_event_id: &Uuid,
-) -> Result<Vec<String>> {
-    tx.query(
-        "SELECT DISTINCT voter_id_string FROM sequent_backend.cast_vote
-         WHERE tenant_id = $1 AND election_event_id = $2
-           AND voter_id_string IS NOT NULL AND status <> $3",
-        &[
-            tenant_id,
-            election_event_id,
-            &CastVoteStatus::Discarded.to_string(),
-        ],
-    )
-    .await?
-    .into_iter()
-    .map(|row| Ok(row.try_get("voter_id_string")?))
     .collect()
 }
 
