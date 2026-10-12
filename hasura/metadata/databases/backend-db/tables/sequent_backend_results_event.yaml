@@ -9,7 +9,6 @@ insert_permissions:
                   _eq: X-Hasura-Tenant-Id
           columns:
               - annotations
-              - documents
               - labels
               - name
               - created_at
@@ -90,7 +89,6 @@ update_permissions:
                   _eq: X-Hasura-Tenant-Id
           columns:
               - annotations
-              - documents
               - labels
               - name
               - created_at
