@@ -290,7 +290,7 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/import-election-event", {"tenant_id": TENANT_ID, "document_id": "test-document"}, [], BACKEND),
         case!(Admin, "/import-election-event", {"tenant_id": OTHER_TENANT_ID, "document_id": "test-document"}, [], UNAUTHORIZED),
         // The task row is written before the permission check.
-        case!(Admin, "/import-templates", {"tenant_id": TENANT_ID, "document_id": "test-document"}, [TEMPLATE_WRITE], BACKEND, BACKEND),
+        case!(Admin, "/import-templates", {"tenant_id": TENANT_ID, "document_id": "test-document"}, [TEMPLATE_WRITE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/import-tenant-config", {"tenant_id": TENANT_ID, "document_id": "test-document", "import_configurations": {}}, [TENANT_WRITE], BACKEND, UNAUTHORIZED),
         // The task row is written before the permission check.
         case!(Admin, "/import-users", {"tenant_id": TENANT_ID, "document_id": "test-document"}, [USER_CREATE], BACKEND, BACKEND),
