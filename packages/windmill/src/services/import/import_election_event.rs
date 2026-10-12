@@ -12,6 +12,9 @@ use crate::postgres::reports::Report;
 use crate::postgres::trusted_write;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::approval_matrix::store::import_approval_matrix;
+use crate::services::ceremonies::keys_ceremony::{
+    ceremony_public_key_state, verify_keys_ceremony_public_key, CeremonyPublicKeyState,
+};
 use crate::services::electoral_log::ElectoralLogAdminContext;
 use crate::services::import::import_publications::{
     import_ballot_publications, import_election_event_config_file,
@@ -29,7 +32,7 @@ use ::keycloak::types::{
     ComponentExportRepresentation, GroupRepresentation, IdentityProviderMapperRepresentation,
     ProtocolMapperRepresentation, RealmRepresentation,
 };
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, ensure, Context, Result};
 use chrono::format;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -92,10 +95,11 @@ use crate::postgres::certificate_authority::{
     insert_certificate_authority, CertificateAuthorityRecord,
 };
 use crate::postgres::contest::insert_contest;
-use crate::postgres::election::insert_elections;
+use crate::postgres::election::{clear_election_keys_ceremony, insert_elections};
 use crate::postgres::election_event::insert_election_event;
 use crate::postgres::keys_ceremony;
 use crate::postgres::scheduled_event::insert_scheduled_event;
+use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
 use crate::services::certificate_authority::{parse_certificate_pem, split_pem_bundle};
 use crate::services::consolidation::aes_256_cbc_encrypt::decrypt_file_aes_256_cbc;
 use crate::services::documents;
@@ -2207,6 +2211,19 @@ pub async fn process_document(
         }
     };
 
+    let election_keys_ceremony_ids: HashSet<&str> = election_event_schema
+        .elections
+        .iter()
+        .filter_map(|election| election.keys_ceremony_id.as_deref())
+        .collect();
+    verify_imported_keys_ceremonies(
+        hasura_transaction,
+        &election_event_schema.tenant_id.to_string(),
+        &election_event_schema.election_event.id,
+        &election_keys_ceremony_ids,
+    )
+    .await?;
+
     if let Some(package) = package {
         configuration_package::record(hasura_transaction, &tenant_id, &election_event_id, &package)
             .await?;
@@ -2218,6 +2235,79 @@ pub async fn process_document(
             importer.as_ref(),
         )
         .await?;
+    }
+
+    Ok(())
+}
+
+/// Drops each imported keys ceremony whose public key is not the one on its
+/// board. An import whose tally sessions use such a ceremony is rejected.
+/// Only the default ceremony and those of `election_keys_ceremony_ids` have a
+/// board to compare with.
+#[instrument(err, skip_all)]
+pub async fn verify_imported_keys_ceremonies(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_keys_ceremony_ids: &HashSet<&str>,
+) -> Result<()> {
+    let keys_ceremonies =
+        keys_ceremony::get_keys_ceremonies(hasura_transaction, tenant_id, election_event_id)
+            .await?;
+
+    let tally_keys_ceremony_ids: HashSet<String> = get_tally_sessions_by_election_event_id(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        false,
+    )
+    .await?
+    .into_iter()
+    .map(|tally_session| tally_session.keys_ceremony_id)
+    .collect();
+
+    for keys_ceremony in &keys_ceremonies {
+        let has_board = keys_ceremony.is_default()
+            || election_keys_ceremony_ids.contains(keys_ceremony.id.as_str());
+        let state = if has_board {
+            verify_keys_ceremony_public_key(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                keys_ceremony,
+            )
+            .await?
+        } else {
+            ceremony_public_key_state(keys_ceremony, None)
+        };
+        match state {
+            CeremonyPublicKeyState::NoPublicKey | CeremonyPublicKeyState::OnBoard(_) => {}
+            CeremonyPublicKeyState::NotOnBoard => {
+                ensure!(
+                    !tally_keys_ceremony_ids.contains(&keys_ceremony.id),
+                    "Keys ceremony {} reports a public key that is not on its board and is used by an imported tally session",
+                    keys_ceremony.id
+                );
+                warn!(
+                    keys_ceremony_id = keys_ceremony.id,
+                    "Leaving out the imported keys ceremony: its public key is not on its board"
+                );
+                clear_election_keys_ceremony(
+                    hasura_transaction,
+                    tenant_id,
+                    election_event_id,
+                    &keys_ceremony.id,
+                )
+                .await?;
+                keys_ceremony::delete_keys_ceremony(
+                    hasura_transaction,
+                    tenant_id,
+                    election_event_id,
+                    &keys_ceremony.id,
+                )
+                .await?;
+            }
+        }
     }
 
     Ok(())
