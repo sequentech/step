@@ -12,7 +12,7 @@ use std::time::Instant;
 
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
-use strand::serialization::StrandSerialize;
+use strand::serialization::{StrandDeserialize, StrandSerialize};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
 use b4::messages::artifact::{Ballots, Configuration, Plaintexts};
@@ -20,10 +20,12 @@ use b4::messages::message::Message;
 use b4::messages::newtypes::PublicKeyHash;
 use b4::messages::newtypes::MAX_TRUSTEES;
 use b4::messages::newtypes::NULL_TRUSTEE;
+use b4::messages::newtypes::VERIFIER_INDEX;
 use b4::messages::protocol_manager::ProtocolManager;
 
 use crate::native::test::vector_board::VectorBoard;
 use crate::native::test::vector_session::VectorSession;
+use crate::protocol::predicate::Predicate;
 use crate::protocol::trustee::Trustee;
 
 const ALL_TRUSTEES: [usize; MAX_TRUSTEES] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
@@ -49,6 +51,9 @@ pub fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
     }
 }
 
+/// Runs the protocol on an in-memory board with the given selected trustees,
+/// checks that every batch decrypts to the encrypted plaintexts, and that the
+/// verifier then verifies every batch.
 fn run_protocol_test<C: Ctx + 'static>(
     test: ProtocolTest<C>,
     ciphertexts: u32,
@@ -147,6 +152,8 @@ fn run_protocol_test<C: Ctx + 'static>(
             assert!(expected == actual);
             info!("Match ok on plaintexts for batch {}", i + 1);
         }
+        let board = data.lock().unwrap().clone();
+        assert_eq!(verified_batches(&test.cfg, &board)?, batches);
     } else {
         error!("No plaintexts found");
         panic!();
@@ -180,6 +187,47 @@ fn run_protocol_test<C: Ctx + 'static>(
     info!("***************************************************************");
 
     Ok(())
+}
+
+/// Runs a verifier trustee over the board, then the verify datalog over the
+/// board and the verifier's own statements, returning the number of batches
+/// it verifies.
+fn verified_batches<C: Ctx>(cfg: &Configuration<C>, board: &VectorBoard) -> Result<usize> {
+    let messages = board
+        .messages
+        .iter()
+        .map(|m| Ok((Message::strand_deserialize(&m.message)?, m.id)))
+        .collect::<Result<Vec<(Message, i64)>>>()?;
+
+    let mut predicates = vec![Predicate::get_verifier_bootstrap_predicate(cfg)?];
+    for (message, _) in messages.iter().skip(1) {
+        let verified = message.verify(cfg)?;
+        predicates.push(Predicate::from_statement::<C>(
+            &verified.statement,
+            verified.signer_position,
+            cfg,
+        )?);
+    }
+
+    let mut verifier = Trustee::<C, crate::native::board::NoOpStorage>::new(
+        "Verifier".to_string(),
+        "foo".to_string(),
+        StrandSignatureSk::generate()?,
+        strand::symm::gen_key(),
+        crate::native::board::NoOpStorage::new(),
+        None,
+    );
+    for message in verifier.verify(messages)? {
+        predicates.push(Predicate::from_statement::<C>(
+            &message.statement,
+            VERIFIER_INDEX,
+            cfg,
+        )?);
+    }
+
+    let (_, _, verified) = crate::native::verify::datalog::S.run(&predicates);
+
+    Ok(verified.len())
 }
 
 pub struct ProtocolTest<C: Ctx> {
@@ -244,4 +292,205 @@ pub fn create_protocol_test<C: Ctx>(
         trustees,
         remote,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use b4::messages::artifact::DecryptionFactors;
+    use b4::messages::statement::Statement;
+    use strand::backend::ristretto::RistrettoCtx;
+    use strand::serialization::StrandDeserialize;
+
+    type EditFactors = fn(&mut DecryptionFactors<RistrettoCtx>);
+
+    const N_TRUSTEES: usize = 3;
+    const SELECTED: [usize; 2] = [1, 2];
+    const EDITING_TRUSTEE: usize = 1;
+    const BATCH: u64 = 1;
+    const CIPHERTEXTS: usize = 6;
+    const MAX_CYCLES: usize = 30;
+
+    struct DecryptionRun {
+        plaintexts_in: Vec<<RistrettoCtx as Ctx>::P>,
+        plaintexts_out: Option<Plaintexts<RistrettoCtx>>,
+        step_errors: Vec<String>,
+    }
+
+    /// Returns the decryption factors message with its artifact edited and signed again by the trustee.
+    fn resign_decryption_factors(
+        message: Message,
+        cfg: &Configuration<RistrettoCtx>,
+        signer: &Trustee<RistrettoCtx, crate::native::board::NoOpStorage>,
+        edit: EditFactors,
+    ) -> Message {
+        let Statement::DecryptionFactors(_, _, batch, _, mix_h, shares_hs) =
+            message.statement.clone()
+        else {
+            return message;
+        };
+        let artifact = message
+            .artifact
+            .as_ref()
+            .expect("decryption factors message has an artifact");
+        let mut dfactors = DecryptionFactors::<RistrettoCtx>::strand_deserialize(artifact).unwrap();
+        edit(&mut dfactors);
+
+        Message::decryption_factors_msg(cfg, batch, dfactors, mix_h, shares_hs, signer).unwrap()
+    }
+
+    /// Gives every trustee one step on the board, applying the edit to the editing trustee's decryption factors.
+    fn step_all(
+        trustees: &mut [Trustee<RistrettoCtx, crate::native::board::NoOpStorage>],
+        last_ids: &mut [i64],
+        board: &mut VectorBoard,
+        cfg: &Configuration<RistrettoCtx>,
+        edit: Option<EditFactors>,
+        step_errors: &mut Vec<String>,
+    ) {
+        for (position, trustee) in trustees.iter_mut().enumerate() {
+            let messages = board.get(last_ids[position]);
+            last_ids[position] += messages.len() as i64;
+            match trustee.step(&messages) {
+                Ok(result) => {
+                    for message in result.messages {
+                        let message = match edit {
+                            Some(edit) if position == EDITING_TRUSTEE => {
+                                resign_decryption_factors(message, cfg, trustee, edit)
+                            }
+                            _ => message,
+                        };
+                        board.add(message);
+                    }
+                }
+                Err(error) => step_errors.push(error.to_string()),
+            }
+        }
+    }
+
+    /// Runs the key ceremony, mix and decryption, optionally editing the decryption factors one trustee posts.
+    fn run_decryption(edit: Option<EditFactors>) -> DecryptionRun {
+        let ctx = RistrettoCtx;
+        let test = create_protocol_test(N_TRUSTEES, &SELECTED, ctx.clone()).unwrap();
+        let cfg = test.cfg;
+        let mut board = test.remote;
+        let mut trustees = test.trustees;
+        let mut last_ids = vec![-1i64; trustees.len()];
+        let mut step_errors = vec![];
+
+        let mut dkg_pk = None;
+        for _ in 0..MAX_CYCLES {
+            step_all(
+                &mut trustees,
+                &mut last_ids,
+                &mut board,
+                &cfg,
+                edit,
+                &mut step_errors,
+            );
+            dkg_pk = trustees[0]._get_dkg_public_key_nohash();
+            if dkg_pk.is_some() {
+                break;
+            }
+        }
+        let dkg_pk = dkg_pk.expect("the key ceremony completes");
+        let pk_h = strand::hash::hash_to_array(&dkg_pk.strand_serialize().unwrap()).unwrap();
+        let pk = strand::elgamal::PublicKey::from_element(&dkg_pk.pk, &ctx);
+
+        let mut rng = ctx.get_rng();
+        let plaintexts_in: Vec<<RistrettoCtx as Ctx>::P> = (0..CIPHERTEXTS)
+            .map(|_| ctx.rnd_plaintext(&mut rng))
+            .collect();
+        let ballots: Vec<Ciphertext<RistrettoCtx>> = plaintexts_in
+            .iter()
+            .map(|p| pk.encrypt(&ctx.encode(p).unwrap()))
+            .collect();
+        let mut selected = [NULL_TRUSTEE; MAX_TRUSTEES];
+        selected[0..SELECTED.len()].copy_from_slice(&SELECTED);
+        let message = Message::ballots_msg(
+            &cfg,
+            BATCH,
+            &Ballots::new(ballots),
+            selected,
+            PublicKeyHash(crate::util::hash_from_vec(&pk_h).unwrap()),
+            &test.protocol_manager,
+        )
+        .unwrap();
+        board.add(message);
+
+        let decryptor = SELECTED[0] - 1;
+        let mut plaintexts_out = None;
+        for _ in 0..MAX_CYCLES {
+            step_all(
+                &mut trustees,
+                &mut last_ids,
+                &mut board,
+                &cfg,
+                edit,
+                &mut step_errors,
+            );
+            plaintexts_out = trustees[decryptor]._get_plaintexts_nohash(BATCH, decryptor);
+            if plaintexts_out.is_some() {
+                break;
+            }
+        }
+
+        DecryptionRun {
+            plaintexts_in,
+            plaintexts_out,
+            step_errors,
+        }
+    }
+
+    /// Unedited decryption factors produce the plaintexts.
+    #[test]
+    fn decrypts_with_one_factor_and_proof_per_ciphertext() {
+        let run = run_decryption(None);
+
+        let plaintexts_out = run.plaintexts_out.expect("plaintexts are computed");
+        let expected: HashSet<<RistrettoCtx as Ctx>::P> = HashSet::from_iter(run.plaintexts_in);
+        let actual: HashSet<<RistrettoCtx as Ctx>::P> = HashSet::from_iter(plaintexts_out.0 .0);
+        assert_eq!(expected, actual);
+    }
+
+    /// Decryption factors with fewer proofs than ciphertexts are not accepted.
+    #[test]
+    fn rejects_decryption_factors_with_fewer_proofs_than_ciphertexts() {
+        let run = run_decryption(Some(|dfactors| {
+            let half = dfactors.proofs.0.len() / 2;
+            dfactors.proofs.0.truncate(half);
+        }));
+
+        assert!(run.plaintexts_out.is_none());
+        assert!(run
+            .step_errors
+            .iter()
+            .any(|e| e.contains("Decryption factors from trustee 1 have 3 proofs, expected 6")));
+    }
+
+    /// Decryption factors without proofs are not accepted.
+    #[test]
+    fn rejects_decryption_factors_without_proofs() {
+        let run = run_decryption(Some(|dfactors| dfactors.proofs.0.clear()));
+
+        assert!(run.plaintexts_out.is_none());
+        assert!(run
+            .step_errors
+            .iter()
+            .any(|e| e.contains("Decryption factors from trustee 1 have 0 proofs, expected 6")));
+    }
+
+    /// Decryption factors with fewer factors than ciphertexts are not accepted.
+    #[test]
+    fn rejects_decryption_factors_with_fewer_factors_than_ciphertexts() {
+        let run = run_decryption(Some(|dfactors| {
+            dfactors.factors.0.pop();
+        }));
+
+        assert!(run.plaintexts_out.is_none());
+        assert!(run
+            .step_errors
+            .iter()
+            .any(|e| e.contains("Decryption factors from trustee 1 have 5 factors, expected 6")));
+    }
 }

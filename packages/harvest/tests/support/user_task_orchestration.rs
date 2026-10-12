@@ -7,6 +7,9 @@ use crate::adapters::memory::user_tasks::{InMemoryUserTasks, UserTaskCall};
 use crate::test_claims::Claims;
 use sequent_core::types::permissions::Permissions::*;
 use serde_json::json;
+use windmill::services::import::import_users::{
+    GroupAssignmentPolicy, ImportUsersPrivileges, PermissionLabelPolicy,
+};
 
 fn claims(roles: &[Permissions]) -> JwtClaims {
     Claims::new("tenant-a", "user-a")
@@ -23,6 +26,7 @@ fn import_input(event_id: Option<&str>) -> ImportUsersBody {
         is_admin: false,
         may_write_secret_attributes: false,
         secret_write_initiator: None,
+        privileges: ImportUsersPrivileges::default(),
         sha256: Some("source-sha256".into()),
     }
 }
@@ -122,6 +126,7 @@ async fn tenant_imports_store_an_empty_event_and_force_the_admin_flag() {
         json!({
             "tenant_id":"tenant-a", "document_id":"source-document", "election_event_id":null,
             "is_admin":true, "may_write_secret_attributes":false, "secret_write_initiator":null,
+            "privileges":{"group_assignment":"DefaultGroupOnly","permission_labels":"Forbidden"},
             "sha256":"source-sha256"
         })
     );
@@ -158,6 +163,10 @@ async fn voter_imports_replace_untrusted_admin_and_secret_write_flags() {
         authorized_election_ids: None,
         area_id: None,
     });
+    input.privileges = ImportUsersPrivileges {
+        group_assignment: GroupAssignmentPolicy::AnyGroup,
+        permission_labels: PermissionLabelPolicy::Allowed,
+    };
     import(&tasks, claims(&[VOTER_CREATE]), input)
         .await
         .unwrap();
@@ -165,6 +174,10 @@ async fn voter_imports_replace_untrusted_admin_and_secret_write_flags() {
     assert!(!state.import_attempts[0].0.is_admin);
     assert!(!state.import_attempts[0].0.may_write_secret_attributes);
     assert!(state.import_attempts[0].0.secret_write_initiator.is_none());
+    assert_eq!(
+        state.import_attempts[0].0.privileges,
+        ImportUsersPrivileges::default()
+    );
     assert_eq!(state.tasks[0].executed_by_user, "user-a");
 }
 
@@ -185,6 +198,65 @@ async fn permitted_voter_imports_bind_secret_writes_to_the_authenticated_actor()
     let actor = input.secret_write_initiator.as_ref().unwrap();
     assert_eq!(actor.user_id, "user-a");
     assert_eq!(actor.username.as_deref(), Some("operator-a"));
+}
+
+/// The privileges sent with the import follow the permissions of the caller:
+/// the create permission alone grants neither other groups nor labels.
+#[tokio::test]
+async fn imports_carry_the_privileges_the_callers_permissions_give() {
+    for (roles, event_id, expected) in [
+        (
+            vec![USER_CREATE],
+            None,
+            (
+                GroupAssignmentPolicy::DefaultGroupOnly,
+                PermissionLabelPolicy::Forbidden,
+            ),
+        ),
+        (
+            vec![USER_CREATE, USER_WRITE],
+            None,
+            (
+                GroupAssignmentPolicy::DefaultGroupOnly,
+                PermissionLabelPolicy::Forbidden,
+            ),
+        ),
+        (
+            vec![USER_CREATE, USER_WRITE, ROLE_WRITE],
+            None,
+            (
+                GroupAssignmentPolicy::AnyGroup,
+                PermissionLabelPolicy::Forbidden,
+            ),
+        ),
+        (
+            vec![USER_CREATE, PERMISSION_LABEL_WRITE],
+            None,
+            (
+                GroupAssignmentPolicy::DefaultGroupOnly,
+                PermissionLabelPolicy::Allowed,
+            ),
+        ),
+        (
+            vec![VOTER_CREATE, USER_WRITE, ROLE_WRITE, PERMISSION_LABEL_WRITE],
+            Some("event-a"),
+            (
+                GroupAssignmentPolicy::AnyGroup,
+                PermissionLabelPolicy::Allowed,
+            ),
+        ),
+    ] {
+        let tasks = InMemoryUserTasks::default();
+        import(&tasks, claims(&roles), import_input(event_id))
+            .await
+            .unwrap();
+        let sent = tasks.snapshot().import_attempts[0].0.privileges;
+        assert_eq!(
+            (sent.group_assignment, sent.permission_labels),
+            expected,
+            "{roles:?}"
+        );
+    }
 }
 
 #[tokio::test]

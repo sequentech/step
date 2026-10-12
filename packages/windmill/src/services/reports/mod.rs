@@ -5,6 +5,7 @@
 pub mod activity_log;
 pub mod ballot_images;
 pub mod ballot_receipt;
+mod ballot_tracker_url;
 pub mod electoral_results;
 pub mod generation;
 pub mod initialization;
@@ -16,3 +17,5 @@ pub mod template_renderer;
 pub mod template_time;
 pub mod utils;
 pub mod voter_information_letter;
+
+mod document_visibility;
