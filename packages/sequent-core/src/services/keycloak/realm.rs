@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::validate_keycloak_path_segment;
 use crate::serialization::deserialize_with_path::deserialize_str;
 use crate::services::{
     keycloak::KeycloakAdminClient, replace_uuids::replace_uuids,
@@ -305,6 +306,7 @@ pub async fn partial_import_realm_roles(
     roles: &[RoleRepresentation],
     if_resource_exists: IfResourceExists,
 ) -> Result<PartialImportSummary> {
+    validate_keycloak_path_segment(realm)?;
     let req_url =
         format!("{}/admin/realms/{}/partialImport", client.url, realm);
     let payload = json!({
@@ -327,6 +329,7 @@ impl KeycloakAdminClient {
         client: &PubKeycloakAdmin,
         board_name: &str,
     ) -> Result<RealmRepresentation, KeycloakError> {
+        validate_keycloak_path_segment(board_name)?;
         info!("get_realm: board_name={board_name:?}");
         // see https://docs.rs/keycloak/latest/src/keycloak/rest/generated_rest.rs.html#6315-6334
         let mut builder = client
@@ -372,6 +375,8 @@ impl KeycloakAdminClient {
         execution_name: &str,
     ) -> Result<Vec<AuthenticationExecutionInfoRepresentation>, KeycloakError>
     {
+        validate_keycloak_path_segment(board_name)?;
+        validate_keycloak_path_segment(execution_name)?;
         let req_url = format!(
             "{}/admin/realms/{}/authentication/flows/{}/executions",
             client.url, board_name, execution_name
@@ -395,6 +400,8 @@ impl KeycloakAdminClient {
         execution_name: &str,
         json_execution_config: &str,
     ) -> Result<()> {
+        validate_keycloak_path_segment(board_name)?;
+        validate_keycloak_path_segment(execution_name)?;
         // Deserialize execution config
         let execution: AuthenticationExecutionInfoRepresentation =
             serde_json::from_str(json_execution_config).with_context(|| {
@@ -432,6 +439,7 @@ impl KeycloakAdminClient {
         realm_roles: Vec<RoleRepresentation>,
         if_resource_exists: &str,
     ) -> Result<()> {
+        validate_keycloak_path_segment(tenant_id)?;
         let realm = format!("tenant-{}", tenant_id);
 
         // Proceed with partial import
@@ -467,6 +475,9 @@ impl KeycloakAdminClient {
         delete_by: &str,
         id: &str,
     ) -> Result<(), KeycloakError> {
+        validate_keycloak_path_segment(tenant_id)?;
+        validate_keycloak_path_segment(delete_by)?;
+        validate_keycloak_path_segment(id)?;
         let realm = format!("tenant-{}", tenant_id);
         let req_url = format!(
             "{}/admin/realms/{}/{}/{}",
@@ -491,6 +502,7 @@ impl KeycloakAdminClient {
         group_name: &str,
         keycloak_client: &PubKeycloakAdmin,
     ) -> Result<Option<String>, KeycloakError> {
+        validate_keycloak_path_segment(tenant_id)?;
         let realm = format!("tenant-{}", tenant_id);
         let url =
             format!("{}/admin/realms/{}/groups", keycloak_client.url, realm);
@@ -570,6 +582,8 @@ impl KeycloakAdminClient {
         roles: &Vec<RoleRepresentation>,
         action: RoleAction,
     ) -> Result<(), KeycloakError> {
+        validate_keycloak_path_segment(tenant_id)?;
+        validate_keycloak_path_segment(group_id)?;
         let realm = format!("tenant-{}", tenant_id);
         let url = format!(
             "{}/admin/realms/{}/groups/{}/role-mappings/realm",
@@ -621,6 +635,8 @@ impl KeycloakAdminClient {
         group_id: &str,
         keycloak_client: &PubKeycloakAdmin,
     ) -> Result<Vec<RoleRepresentation>, Box<dyn std::error::Error>> {
+        validate_keycloak_path_segment(tenant_id)?;
+        validate_keycloak_path_segment(group_id)?;
         let realm = format!("tenant-{}", tenant_id);
         let url = format!(
             "{}/admin/realms/{}/groups/{}/role-mappings/realm",
@@ -649,14 +665,16 @@ impl KeycloakAdminClient {
         tenant_id: &str,
         group: &GroupRepresentation,
     ) -> Result<()> {
+        validate_keycloak_path_segment(tenant_id)?;
+        let group_id =
+            group.id.as_deref().context("Missing Keycloak group id")?;
+        validate_keycloak_path_segment(group_id)?;
         let client = &KeycloakAdminClient::pub_new().await?;
         let realm = format!("tenant-{}", tenant_id);
 
         let req_url = format!(
             "{}/admin/realms/{}/groups/{}",
-            client.url,
-            realm,
-            group.id.as_ref().context("Missing group id")?
+            client.url, realm, group_id
         );
         let response = client
             .client
@@ -682,9 +700,13 @@ impl KeycloakAdminClient {
         keycloak_client: &PubKeycloakAdmin,
         tenant_id: &str,
     ) -> Result<()> {
+        validate_keycloak_path_segment(tenant_id)?;
         let realm = format!("tenant-{}", tenant_id);
 
         if let Some(localization_texts) = imported_localization_texts {
+            for locale in localization_texts.keys() {
+                validate_keycloak_path_segment(locale)?;
+            }
             for (locale, locale_texts) in localization_texts {
                 println!("Processing locale: {}", locale);
 
@@ -718,6 +740,7 @@ impl KeycloakAdminClient {
         display_name: Option<String>,
         election_event_id: Option<String>,
     ) -> Result<()> {
+        validate_keycloak_path_segment(board_name)?;
         let realm_get_result = self.client.realm_get(board_name).await;
         let replaced_ids_config = if replace_ids {
             let realm_config: RealmRepresentation =
