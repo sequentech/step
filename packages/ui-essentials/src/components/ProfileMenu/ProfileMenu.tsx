@@ -269,7 +269,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                         </Box>
                     </ProfileIdentity>
                 )}
-                <Divider />
+                <Divider className="profile-menu-divider" />
                 {userProfile.openLink && (
                     <MenuItem
                         className="profile"
@@ -278,7 +278,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                             userProfile?.openLink?.()
                         }}
                     >
-                        <ListItemIcon>
+                        <ListItemIcon className="profile-menu-action-icon">
                             <AccountCircle className="profile-menu-icon" aria-hidden />
                         </ListItemIcon>
                         {t("header.profile")}
@@ -293,7 +293,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                             action.onSelect()
                         }}
                     >
-                        {action.icon && <ListItemIcon>{action.icon}</ListItemIcon>}
+                        {action.icon && <ListItemIcon className="profile-menu-action-icon">{action.icon}</ListItemIcon>}
                         {action.label}
                     </MenuItem>
                 ))}
@@ -305,7 +305,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                             handleClose()
                         }}
                     >
-                        <ListItemIcon>
+                        <ListItemIcon className="profile-menu-action-icon">
                             <LogoutIcon className="profile-logout-icon" aria-hidden />
                         </ListItemIcon>
                         {t("logout.buttonText")}
