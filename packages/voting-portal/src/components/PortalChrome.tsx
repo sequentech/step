@@ -154,9 +154,11 @@ export const PortalChrome: React.FC<PortalChromeProps> = ({
         <StyledAppWrapper className="voting-portal-wrapper" customCss={presentation?.css ?? ""}>
             <StyledApp className="voting-portal app-root">
                 {before}
-                <a className="skip-link" href="#main-content">
-                    {t("a11y.skipToContent")}
-                </a>
+                <nav className="skip-navigation" aria-label={t("a11y.skipToContent")}>
+                    <a className="skip-link" href="#main-content">
+                        {t("a11y.skipToContent")}
+                    </a>
+                </nav>
                 <Wrapper>
                     <HeaderWithContext />
                     <PageBanner
