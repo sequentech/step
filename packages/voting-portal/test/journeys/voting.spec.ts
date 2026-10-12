@@ -44,7 +44,7 @@ test("cast sends an encrypted ballot whose ID is shown on confirmation", async (
     const [cast] = portal.graphql.callsTo("InsertCastVote")
     expect(cast.variables).toMatchObject({electionId: IDS.election, ballotId})
     const ballot = JSON.parse(String(cast.variables.content))
-    expect(ballot).toMatchObject({version: 2, config: IDS.style})
+    expect(ballot).toMatchObject({version: 3, config: IDS.style})
     expect(ballot.contests).toHaveLength(1)
     expect(cast.headers.authorization).toBe(`Bearer ${portal.oidc.lastIssued()?.access_token}`)
 })
