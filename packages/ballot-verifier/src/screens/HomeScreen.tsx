@@ -234,9 +234,11 @@ export const HomeScreen: React.FC<IProps> = ({
             return
         }
         setShowLegacyWarning(isPublishedBallot && LEGACY_BALLOT_VERSION === auditableBallot.version)
+        // Signatures and trackers cover the uploaded configuration; the published
+        // presentation is used for decoding and display after the layout matches.
         let ballotHash = isMultiContest
-            ? ballotService.hashMultiBallot(auditableBallot as IAuditableMultiBallot)
-            : ballotService.hashBallot512(auditableBallot as IAuditableSingleBallot)
+            ? ballotService.hashMultiBallot(file as IAuditableMultiBallot)
+            : ballotService.hashBallot512(file as IAuditableSingleBallot)
 
         // sequent-core also rejects a signature without its public key, and the reverse.
         if (
@@ -248,12 +250,12 @@ export const HomeScreen: React.FC<IProps> = ({
                     ? ballotService.verifyMultiBallotSignature(
                           ballotHash,
                           ballotStyle.election_id,
-                          auditableBallot as IAuditableMultiBallot
+                          file as IAuditableMultiBallot
                       )
                     : ballotService.verifyBallotSignature(
                           ballotHash,
                           ballotStyle.election_id,
-                          auditableBallot as IAuditableSingleBallot
+                          file as IAuditableSingleBallot
                       )
             } catch (error) {
                 console.log(error)
