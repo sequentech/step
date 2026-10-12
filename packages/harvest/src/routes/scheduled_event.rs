@@ -38,6 +38,18 @@ pub struct CreateEventOutput {
     pub id: String,
 }
 
+fn authorize_create_report(
+    claims: &JwtClaims,
+    input: &CreateEventBody,
+) -> Result<(), (Status, String)> {
+    authorize(
+        claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![Permissions::REPORT_GENERATE],
+    )
+}
+
 #[instrument(skip(claims, body))]
 #[post("/scheduled-event", format = "json", data = "<body>")]
 pub async fn create_scheduled_event(
@@ -99,13 +111,7 @@ pub async fn create_scheduled_event(
             }
         }
         EventProcessors::CREATE_REPORT => {
-            authorize(
-                &claims,
-                true,
-                Some(claims.hasura_claims.tenant_id.clone()),
-                vec![], /* TODO: task not being used at the moment, and it
-                         * has no specific perms yet */
-            )?;
+            authorize_create_report(&claims, &input)?;
         }
         _ => {}
     };
@@ -116,4 +122,48 @@ pub async fn create_scheduled_event(
             .map_err(|e| (Status::BadRequest, format!("{:?}", e)))?;
 
     Ok(Json(CreateEventOutput { id: element_id }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::authorization::test_claims::{
+        admin_claims, CALLER_TENANT_ID, OTHER_TENANT_ID,
+    };
+
+    fn create_report(tenant_id: &str) -> CreateEventBody {
+        CreateEventBody {
+            tenant_id: tenant_id.to_string(),
+            election_event_id: Some("event".to_string()),
+            event_processor: EventProcessors::CREATE_REPORT,
+            cron_config: None,
+            event_payload: Value::Null,
+        }
+    }
+
+    #[test]
+    fn create_report_rejects_tenant_other_than_callers() {
+        let claims = admin_claims(CALLER_TENANT_ID, &["report-generate"]);
+        let result =
+            authorize_create_report(&claims, &create_report(OTHER_TENANT_ID));
+        assert_eq!(result.unwrap_err().0, Status::Unauthorized);
+    }
+
+    #[test]
+    fn create_report_requires_report_generate() {
+        let claims = admin_claims(CALLER_TENANT_ID, &["admin-user"]);
+        let result =
+            authorize_create_report(&claims, &create_report(CALLER_TENANT_ID));
+        assert_eq!(result.unwrap_err().0, Status::Unauthorized);
+    }
+
+    #[test]
+    fn create_report_accepts_callers_tenant_with_report_generate() {
+        let claims = admin_claims(CALLER_TENANT_ID, &["report-generate"]);
+        assert!(authorize_create_report(
+            &claims,
+            &create_report(CALLER_TENANT_ID)
+        )
+        .is_ok());
+    }
 }

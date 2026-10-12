@@ -770,6 +770,12 @@ type Mutation {
 }
 
 type Mutation {
+    set_google_service_account_key(
+        service_account_key: jsonb!
+    ): SetGoogleServiceAccountKeyOutput
+}
+
+type Mutation {
     set_role_permission(
         tenant_id: String!
         role_id: String!
@@ -2041,6 +2047,10 @@ type ExportTallyResultsOutput {
 
 type GenerateGoogleMeetOutput {
     meet_link: String
+}
+
+type SetGoogleServiceAccountKeyOutput {
+    client_email: String!
 }
 
 type GeneratePreviewUrlOutput {
