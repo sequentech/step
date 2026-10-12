@@ -656,6 +656,7 @@ export const WithoutTheReadPermission: Story = {
 }
 
 export const CollapsibleChannelsPreserveSendOverrides: Story = {
+    parameters: {widgets: ["SendChannelSection"]},
     play: async ({args, canvasElement}) => {
         const canvas = within(canvasElement)
         await userEvent.click(aliasSelect(canvasElement))
