@@ -40,7 +40,6 @@ public class MessageOTPAuthenticator
     implements Authenticator, CredentialValidator<MessageOTPCredentialProvider> {
   public static final String MOBILE_NUMBER_FIELD = "sequent.read-only.mobile-number";
   private static final String TPL_CODE = "message-otp.login.ftl";
-  private static final String EMAIL_VERIFIED = "Email verified";
   public static final String INVALID_CODE = "invalid otp Code";
   public static final String EXPIRED_CODE = "Code expired";
   public static final String TOO_MANY_ATTEMPTS = "Too many code attempts";
@@ -267,7 +266,7 @@ public class MessageOTPAuthenticator
           if (messageCourier == Utils.MessageCourier.BOTH
               || messageCourier == Utils.MessageCourier.EMAIL
               || verifiedChannel.equals(Optional.of(MessageChannel.EMAIL))) {
-            authSession.setAuthNote(EMAIL_VERIFIED, "true");
+            authSession.setAuthNote(Utils.EMAIL_VERIFIED, "true");
           }
           // Only a code that went to the channel proves it: a test-mode code proves nothing, and a
           // realm on a configured courier (EMAIL, SMS) records no messaging channel.

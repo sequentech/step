@@ -258,6 +258,7 @@ globs = [
     "packages/default.conf",
     "packages/init.sh",
     "packages/nginx-entrypoint.sh",
+    "packages/patches/**",
 ]
 units = ["docker-images"]
 
