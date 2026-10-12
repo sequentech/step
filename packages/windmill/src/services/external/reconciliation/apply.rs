@@ -195,8 +195,9 @@ async fn apply_voter_changes_locked(
     .await
 }
 
-/// Whether `items` change `enabled` or write a `VOTE_STATE_ATTRIBUTES`
-/// entry, whatever category they carry.
+/// Whether `items` change `enabled`, write a `VOTE_STATE_ATTRIBUTES` entry or
+/// change the area, whatever category they carry. An area change counts: the
+/// tally finds a ballot through the voter's current area.
 fn requires_no_active_vote(items: &[DiffItem]) -> bool {
     items
         .iter()
@@ -206,7 +207,7 @@ fn requires_no_active_vote(items: &[DiffItem]) -> bool {
             SequentReconciliationField::KeycloakUA(_, new) => new
                 .keys()
                 .any(|key| VOTE_STATE_ATTRIBUTES.contains(&key.as_str())),
-            SequentReconciliationField::AreaName(..) => false,
+            SequentReconciliationField::AreaName(..) => true,
         })
 }
 
@@ -488,6 +489,26 @@ mod tests {
     }
 
     #[test]
+    fn an_area_change_requires_no_active_vote() {
+        let items = vec![item(SequentReconciliationField::AreaName(
+            "WARD1-SB1-000".to_string(),
+            "WARD2-SB1-000".to_string(),
+        ))];
+
+        assert!(requires_no_active_vote(&items));
+    }
+
+    #[test]
+    fn a_birthdate_change_does_not_require_no_active_vote() {
+        let items = vec![item(SequentReconciliationField::KeycloakUA(
+            HashMap::from([(DATE_OF_BIRTH.to_string(), "1990-01-01".to_string())]),
+            HashMap::from([(DATE_OF_BIRTH.to_string(), "1991-01-01".to_string())]),
+        ))];
+
+        assert!(!requires_no_active_vote(&items));
+    }
+
+    #[test]
     fn rejects_attributes_outside_the_reconciliation_set() {
         for key in [
             TENANT_ID_ATTR_NAME,
@@ -537,16 +558,10 @@ mod tests {
 
     #[test]
     fn profile_updates_do_not_require_no_active_vote() {
-        assert!(!requires_no_active_vote(&[
-            item(attribute_change(
-                DATE_OF_BIRTH,
-                ATTR_RESET_VALUE,
-                "1990-01-01"
-            )),
-            item(SequentReconciliationField::AreaName(
-                "Old area".to_string(),
-                "New area".to_string(),
-            )),
-        ]));
+        assert!(!requires_no_active_vote(&[item(attribute_change(
+            DATE_OF_BIRTH,
+            ATTR_RESET_VALUE,
+            "1990-01-01"
+        ))]));
     }
 }
