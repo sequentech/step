@@ -484,9 +484,12 @@ seconds. For every window it records:
 - renderer calls, counted from Harvest's `render` spans in `docker logs`;
 - `pg_stat_user_tables` before and after, for the source tables
   (`applications`, `monitoring_voter`,
-  `monitoring_login_counter`, `tally_session`, and Keycloak's
+  `monitoring_login_counter`, `tally_session`, Keycloak's
   `user_entity`, `user_attribute`, `user_group_membership` and
-  `credential`) and for the tables Harvest reads;
+  `credential`, and the event's ballot box: its `ballot_box_ballot`
+  partition and `ballot_box_pending`, in the event's electoral-log
+  database, named after `--electoral-log-db`) and for the tables Harvest
+  reads;
 - snapshot passes, from `monitoring_snapshot_run` inserts;
 - `docker stats` CPU of Harvest, Hasura, the renderer, both databases and
   Windmill;

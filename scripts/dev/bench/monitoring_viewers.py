@@ -22,7 +22,8 @@ seconds. For each window it records the latency of each operation
 ``render`` spans in ``docker logs``), the CPU of the stack's containers
 (``docker stats``), the load generator's own CPU and event-loop lag, and
 ``pg_stat_user_tables`` before and after, for the backend and Keycloak
-databases (through ``docker exec … psql``). Source-table reads are
+databases and the event's electoral-log database (through ``docker exec …
+psql``). Source-table reads are
 reported per minute and per snapshot pass, to compare with the baseline:
 the design says the number of viewers never changes them.
 
@@ -43,6 +44,7 @@ import shlex
 import subprocess
 import threading
 import time
+import uuid
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import ProcessPoolExecutor
@@ -580,8 +582,7 @@ STAT_QUERY = (
     "n_tup_ins FROM pg_stat_user_tables WHERE schemaname = '{schema}' ORDER BY 1, 2"
 )
 
-# The tables the snapshot job counts from; Harvest must not read them. The
-# ballots it reads are in the event's own database.
+# The tables the snapshot job counts from; Harvest must not read them.
 BACKEND_SOURCES = (
     "sequent_backend.applications",
     "sequent_backend.monitoring_voter",
@@ -596,6 +597,19 @@ KEYCLOAK_SOURCES = (
 )
 # One row per snapshot pass: its inserts count the passes.
 PASS_TABLE = "sequent_backend.monitoring_snapshot_run"
+
+
+def event_database(base: str, election_event_id: str) -> str:
+    """The event's electoral-log database, named after the base database."""
+    return f"{base}_{uuid.UUID(election_event_id).hex}"
+
+
+def electoral_log_sources(election_event_id: str) -> tuple[str, ...]:
+    """The tables of the event's ballot box the snapshot job reads first votes from."""
+    return (
+        f"public.ballot_box_ballot_{uuid.UUID(election_event_id).hex}",
+        "public.ballot_box_pending",
+    )
 
 
 def parse_table_stats(text: str) -> dict[str, dict[str, int]]:
@@ -674,14 +688,22 @@ class Stack:
     backend_database: str
     keycloak_container: str
     keycloak_database: str
+    electoral_log_container: str
+    electoral_log_database: str
     harvest_container: str
     containers: list[str]
 
     def table_stats(self) -> dict[str, dict[str, int]]:
         stats = {}
-        for container, database, schema in (
-            (self.backend_container, self.backend_database, "sequent_backend"),
-            (self.keycloak_container, self.keycloak_database, "public"),
+        for container, database, schema, prefix in (
+            (self.backend_container, self.backend_database, "sequent_backend", ""),
+            (self.keycloak_container, self.keycloak_database, "public", "keycloak:"),
+            (
+                self.electoral_log_container,
+                self.electoral_log_database,
+                "public",
+                "electoral-log:",
+            ),
         ):
             output = subprocess.run(
                 [
@@ -704,7 +726,6 @@ class Stack:
                 check=True,
                 timeout=60,
             ).stdout
-            prefix = "keycloak:" if container == self.keycloak_container else ""
             stats.update(
                 {
                     prefix + name: value
@@ -785,8 +806,14 @@ class StatsSampler(threading.Thread):
         }
 
 
-def source_reads(deltas: Mapping[str, Mapping[str, int]]) -> dict[str, dict[str, int]]:
-    tables = [*BACKEND_SOURCES, *(f"keycloak:{name}" for name in KEYCLOAK_SOURCES)]
+def source_reads(
+    deltas: Mapping[str, Mapping[str, int]], election_event_id: str
+) -> dict[str, dict[str, int]]:
+    tables = [
+        *BACKEND_SOURCES,
+        *(f"keycloak:{name}" for name in KEYCLOAK_SOURCES),
+        *(f"electoral-log:{name}" for name in electoral_log_sources(election_event_id)),
+    ]
     return {table: dict(deltas[table]) for table in tables if table in deltas}
 
 
@@ -872,8 +899,9 @@ def level_summary(
     cpu: Mapping[str, Any],
     window: float,
     workers: int,
+    election_event_id: str,
 ) -> dict[str, Any]:
-    sources = source_reads(deltas)
+    sources = source_reads(deltas, election_event_id)
     passes = deltas.get(PASS_TABLE, {}).get("n_tup_ins", 0)
     total_scans = sum(values["scans"] for values in sources.values())
     total_tuples = sum(values["tuples_read"] for values in sources.values())
@@ -1020,6 +1048,7 @@ def measure_level(
         cpu,
         window,
         workers,
+        options.election_event_id,
     )
 
 
