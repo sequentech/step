@@ -247,6 +247,25 @@ class UrlTruststoreProviderFactoryTest {
   }
 
   @Test
+  void realmProviderServesRealmCasForClientCertificateValidation() {
+    UrlTruststoreProviderFactory factory = initFactory(certUrl("root-ca.pem"));
+    factory.harvestDomainSupplier = () -> "test-harvest";
+    factory.realmUrlBuilder =
+        (domain, electionEventId) -> certsBaseUrl() + "client-ca-" + electionEventId + ".pem";
+    KeycloakSession session = sessionWithRealm("realm-1", "tenant-test-event-realm-chain");
+
+    TruststoreProvider realmProvider = factory.create(session);
+
+    assertSame(realmProvider.getTruststore(), realmProvider.getHttpsTruststore());
+    assertEquals(realmProvider.getRootCertificates(), realmProvider.getHttpsRootCertificates());
+    assertEquals(
+        realmProvider.getIntermediateCertificates(),
+        realmProvider.getHttpsIntermediateCertificates());
+    assertFalse(realmProvider.getHttpsRootCertificates().isEmpty());
+    assertFalse(realmProvider.getHttpsIntermediateCertificates().isEmpty());
+  }
+
+  @Test
   void createFallsBackToGlobalWhenEnvVarNotSet() {
     UrlTruststoreProviderFactory factory = initFactory(certUrl("root-ca.pem"));
     factory.harvestDomainSupplier = () -> null; // env var not configured
