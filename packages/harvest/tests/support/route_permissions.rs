@@ -195,6 +195,8 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/create-user", {"tenant_id": TENANT_ID, "user": {"attributes": {"permission_labels": ["test-label"]}}}, [USER_CREATE, PERMISSION_LABEL_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/create-user", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "user": {}}, [VOTER_CREATE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/create-user", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "user": {}, "secret_attributes": {"test-secret": ["value"]}}, [VOTER_CREATE, VOTER_SECRET_ATTRIBUTE_WRITE], BACKEND, UNAUTHORIZED_JSON),
+        case!(Admin, "/create-user", {"tenant_id": TENANT_ID, "user": {}, "user_roles_ids": ["test-role"]}, [USER_CREATE, USER_WRITE, ROLE_WRITE], BACKEND, UNAUTHORIZED_JSON),
+        case!(Admin, "/create-user", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "user": {}, "user_roles_ids": ["test-role"]}, [VOTER_CREATE, USER_WRITE, ROLE_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(UuidTenant, "/delete-certificate-authority", {"ids": [], "election_event_id": UUID_EVENT_ID}, [CA_WRITE], BACKEND, UNAUTHORIZED),
         // The task row is written before the permission check.
         case!(Admin, "/delete-election-event", {"election_event_id": EVENT_ID}, [ELECTION_EVENT_DELETE], BACKEND, BACKEND),
@@ -363,8 +365,7 @@ fn cases() -> Vec<Case> {
         // A sign permission also passes with role-write alone; the change opens the database first.
         case!(UuidTenant, "/set-role-permission", {"tenant_id": UUID_TENANT_ID, "role_id": "test-role", "permission_name": "sign-close-voting"}, [ROLE_WRITE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/set-user-role", {"tenant_id": TENANT_ID, "user_id": USER_ID, "role_id": "test-role"}, [USER_WRITE, ROLE_WRITE], BACKEND_TEXT, UNAUTHORIZED),
-        // An empty permission list checked in the caller's own tenant.
-        case!(Admin, "/set-voter-authentication", {"election_event_id": EVENT_ID, "enrollment": "enabled", "otp": "enabled"}, [], BACKEND),
+        case!(Admin, "/set-voter-authentication", {"election_event_id": EVENT_ID, "enrollment": "enabled", "otp": "enabled"}, [ELECTION_EVENT_WRITE], BACKEND, FORBIDDEN),
         // Without any sign permission the request isn't found (it may not
         // exist); the request's own sign permission is checked once loaded.
         case!(UuidTenant, "/signing-requests/<id>/check-certificate", {"chain_pem": [PEM]}, [SIGN_CLOSE_VOTING], BACKEND, Reply::Json(Status::NotFound)),
