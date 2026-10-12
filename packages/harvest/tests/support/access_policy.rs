@@ -98,11 +98,112 @@ fn creating_a_user_adds_the_secret_and_label_permissions_its_body_needs() {
         ),
     ] {
         assert_eq!(
-            create_user_permissions(scope, secret_attributes, attributes),
+            create_user_permissions(scope, secret_attributes, attributes, None),
             Ok(expected),
             "{scope:?} {secret_attributes:?} {attributes:?}"
         );
     }
+}
+
+/// Setting roles on a new user needs the permissions of the set-user-role
+/// route in both scopes, after the ones for permission labels, and an empty
+/// list sets nothing.
+#[test]
+fn creating_a_user_with_roles_adds_the_set_user_role_permissions() {
+    let labels = labels();
+    let role_ids = vec!["group-a".to_string()];
+    let no_role_ids: Vec<String> = Vec::new();
+    for (scope, attributes, user_roles_ids, expected) in [
+        (UserScope::Tenant, None, None, vec![USER_CREATE]),
+        (
+            UserScope::Tenant,
+            None,
+            Some(&no_role_ids),
+            vec![USER_CREATE],
+        ),
+        (
+            UserScope::Tenant,
+            None,
+            Some(&role_ids),
+            vec![USER_CREATE, USER_WRITE, ROLE_WRITE],
+        ),
+        (
+            UserScope::Tenant,
+            Some(&labels),
+            Some(&role_ids),
+            vec![USER_CREATE, PERMISSION_LABEL_WRITE, USER_WRITE, ROLE_WRITE],
+        ),
+        (
+            UserScope::Voters,
+            None,
+            Some(&no_role_ids),
+            vec![VOTER_CREATE],
+        ),
+        (
+            UserScope::Voters,
+            None,
+            Some(&role_ids),
+            vec![VOTER_CREATE, USER_WRITE, ROLE_WRITE],
+        ),
+    ] {
+        assert_eq!(
+            create_user_permissions(
+                scope,
+                None,
+                attributes,
+                user_roles_ids.map(Vec::as_slice),
+            ),
+            Ok(expected),
+            "{scope:?} {attributes:?} {user_roles_ids:?}"
+        );
+    }
+}
+
+/// What an import may set follows the permissions the caller holds: any group
+/// needs both permissions of the set-user-role route, and permission labels
+/// need permission-label-write; the create permissions grant neither.
+#[test]
+fn an_import_may_set_what_the_callers_permissions_allow() {
+    let privileges = |held: &[Permissions]| {
+        import_users_privileges(|needed| {
+            needed.iter().all(|permission| held.contains(permission))
+        })
+    };
+    let restricted = ImportUsersPrivileges {
+        group_assignment: GroupAssignmentPolicy::DefaultGroupOnly,
+        permission_labels: PermissionLabelPolicy::Forbidden,
+    };
+    assert_eq!(restricted, ImportUsersPrivileges::default());
+    for held in [
+        vec![],
+        vec![USER_CREATE],
+        vec![VOTER_CREATE],
+        vec![USER_WRITE],
+        vec![ROLE_WRITE],
+    ] {
+        assert_eq!(privileges(&held), restricted, "{held:?}");
+    }
+    assert_eq!(
+        privileges(&[USER_CREATE, USER_WRITE, ROLE_WRITE]),
+        ImportUsersPrivileges {
+            group_assignment: GroupAssignmentPolicy::AnyGroup,
+            permission_labels: PermissionLabelPolicy::Forbidden,
+        }
+    );
+    assert_eq!(
+        privileges(&[USER_CREATE, PERMISSION_LABEL_WRITE]),
+        ImportUsersPrivileges {
+            group_assignment: GroupAssignmentPolicy::DefaultGroupOnly,
+            permission_labels: PermissionLabelPolicy::Allowed,
+        }
+    );
+    assert_eq!(
+        privileges(&[USER_WRITE, ROLE_WRITE, PERMISSION_LABEL_WRITE]),
+        ImportUsersPrivileges {
+            group_assignment: GroupAssignmentPolicy::AnyGroup,
+            permission_labels: PermissionLabelPolicy::Allowed,
+        }
+    );
 }
 
 #[test]
@@ -114,6 +215,7 @@ fn tenant_users_cannot_be_created_or_edited_with_encrypted_attributes() {
                 UserScope::Tenant,
                 Some(&secret_attributes),
                 Some(&labels()),
+                None,
             ),
             Err(SecretAttributesOutsideElectionEvent)
         );
@@ -348,7 +450,7 @@ fn denials_list_the_permissions_in_the_order_the_routes_request_them() {
     let set = secrets(Some(vec!["value".into()]));
     assert_eq!(
         denial(
-            create_user_permissions(UserScope::Voters, Some(&set), None)
+            create_user_permissions(UserScope::Voters, Some(&set), None, None)
                 .unwrap()
         ),
         r#"Unathorized: ["voter-create", "voter-secret-attribute-write"] not in {}"#

@@ -118,7 +118,11 @@ pub async fn get_keys_ceremony_board(
 ) -> Result<(String, Option<String>)> {
     keys_ceremony_board(
         &PgKeysCeremonyStore { transaction },
-        &B4KeysBoard { transaction },
+        &B4KeysBoard {
+            transaction,
+            tenant_id,
+            election_event_id,
+        },
         tenant_id,
         election_event_id,
         keys_ceremony,
@@ -263,7 +267,11 @@ pub async fn get_private_key(
 ) -> Result<String> {
     download_private_key(
         &PgKeysCeremonyStore { transaction },
-        &B4KeysBoard { transaction },
+        &B4KeysBoard {
+            transaction,
+            tenant_id: &tenant_id,
+            election_event_id: &election_event_id,
+        },
         &SystemClock,
         TrusteeKeyRequest {
             trustee: claims.trustee,
@@ -313,7 +321,11 @@ pub async fn find_trustee_private_key(
 ) -> Result<String> {
     trustee_private_key(
         &PgKeysCeremonyStore { transaction },
-        &B4KeysBoard { transaction },
+        &B4KeysBoard {
+            transaction,
+            tenant_id,
+            election_event_id,
+        },
         tenant_id,
         election_event_id,
         trustee_name,
@@ -370,7 +382,11 @@ pub async fn key_share_matches(
 ) -> Result<bool> {
     trustee_key_share_matches(
         &PgKeysCeremonyStore { transaction },
-        &B4KeysBoard { transaction },
+        &B4KeysBoard {
+            transaction,
+            tenant_id,
+            election_event_id,
+        },
         TrusteeKeyRequest {
             trustee,
             tenant_id,
@@ -466,7 +482,11 @@ pub async fn check_private_key(
 ) -> Result<bool> {
     check_trustee_private_key(
         &PgKeysCeremonyStore { transaction },
-        &B4KeysBoard { transaction },
+        &B4KeysBoard {
+            transaction,
+            tenant_id: &tenant_id,
+            election_event_id: &election_event_id,
+        },
         &SystemClock,
         TrusteeKeyRequest {
             trustee: claims.trustee,

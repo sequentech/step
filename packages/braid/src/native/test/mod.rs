@@ -4,6 +4,9 @@
 
 /// Interactive simulation of the protocol.
 pub mod dbg;
+/// Test the shares included in the public key.
+#[cfg(test)]
+mod dkg_shares_test;
 /// Test the protocol using an HTTP+S3 board.
 pub mod protocol_test_http;
 /// Test the protocol using an in memory board.
