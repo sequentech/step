@@ -173,9 +173,7 @@ export const DefaultOvervote: Story = {
         await userEvent.click(canvas.getByRole("checkbox", {name: /Bob Example/}))
         await expect(canvas.getByRole("checkbox", {name: /Alice Example/})).toBeChecked()
         await expect(canvas.getByRole("checkbox", {name: /Bob Example/})).toBeChecked()
-        await expect(
-            canvas.getByText("Overvote: Number of selected choices 2 is more than the maximum 1")
-        ).toBeVisible()
+        await expect(canvas.getByText("Deselect 1 candidate.")).toBeVisible()
     },
 }
 
@@ -200,13 +198,9 @@ export const BelowMinimum: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await userEvent.click(canvas.getByRole("checkbox", {name: /Alice Example/}))
-        await expect(
-            canvas.getByText("Number of selected choices 1 is less than the minimum 2")
-        ).toBeVisible()
+        await expect(canvas.getByText("Select 1 more candidate.")).toBeVisible()
         await userEvent.click(canvas.getByRole("checkbox", {name: /Bob Example/}))
-        await expect(
-            canvas.queryByText("Number of selected choices 1 is less than the minimum 2")
-        ).not.toBeInTheDocument()
+        await expect(canvas.queryByText("Select 1 more candidate.")).not.toBeInTheDocument()
     },
 }
 
@@ -344,13 +338,15 @@ export const WriteInBudgetAnnounced: Story = {
         const canvas = within(canvasElement)
         const input = canvas.getByRole("textbox", {name: /Another candidate/})
         await userEvent.type(input, "Z".repeat(100))
-        const error = await canvas.findByText(/write-in exceeds the maximum length/i)
+        const error = await canvas.findByText(/Shorten your write-in by \d+ characters?\./)
         await expect(error).toBeVisible()
-        await expect(input).toHaveAccessibleDescription(/write-in exceeds the maximum length/i)
+        await expect(input).toHaveAccessibleDescription(
+            /Shorten your write-in by \d+ characters?\./
+        )
         await userEvent.clear(input)
         await userEvent.type(input, "DANA EXAMPLE")
         await expect(
-            canvas.queryByText(/write-in exceeds the maximum length/i)
+            canvas.queryByText(/Shorten your write-in by \d+ characters?\./)
         ).not.toBeInTheDocument()
         await expect(input).toHaveValue("DANA EXAMPLE")
     },
