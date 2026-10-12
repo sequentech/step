@@ -18362,6 +18362,35 @@
             "deprecationReason": null
           },
           {
+            "name": "apply_schedule_recompute",
+            "description": "Apply scheduled dates recomputed with the current timezone database",
+            "args": [
+              {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "OBJECT",
+              "name": "ApplyScheduleRecomputeOutput",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "audit_electoral_log",
             "description": null,
             "args": [
@@ -18390,35 +18419,6 @@
                 "name": "taskOutput",
                 "ofType": null
               }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "apply_schedule_recompute",
-            "description": "Apply scheduled dates recomputed with the current timezone database",
-            "args": [
-              {
-                "name": "election_event_id",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "uuid",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "OBJECT",
-              "name": "ApplyScheduleRecomputeOutput",
-              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -73723,18 +73723,6 @@
             "deprecationReason": null
           },
           {
-            "name": "failure_posted_at",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "timestamptz",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "failure_reason",
             "description": null,
             "args": [],
@@ -73791,12 +73779,36 @@
             "deprecationReason": null
           },
           {
-            "name": "log_entry_id",
+            "name": "log_delivery_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "log_leaf_index",
             "description": null,
             "args": [],
             "type": {
               "kind": "SCALAR",
               "name": "bigint",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "log_uid",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "uuid",
               "ofType": null
             },
             "isDeprecated": false,
@@ -74220,7 +74232,7 @@
             "deprecationReason": null
           },
           {
-            "name": "log_entry_id",
+            "name": "log_leaf_index",
             "description": null,
             "args": [],
             "type": {
@@ -74441,18 +74453,6 @@
             "deprecationReason": null
           },
           {
-            "name": "failure_posted_at",
-            "description": null,
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "timestamptz_comparison_exp",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "failure_reason",
             "description": null,
             "type": {
@@ -74501,11 +74501,35 @@
             "deprecationReason": null
           },
           {
-            "name": "log_entry_id",
+            "name": "log_delivery_id",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "String_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "log_leaf_index",
             "description": null,
             "type": {
               "kind": "INPUT_OBJECT",
               "name": "bigint_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "log_uid",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "uuid_comparison_exp",
               "ofType": null
             },
             "defaultValue": null,
@@ -74773,7 +74797,7 @@
             "deprecationReason": null
           },
           {
-            "name": "log_entry_id",
+            "name": "log_leaf_index",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -74941,18 +74965,6 @@
             "deprecationReason": null
           },
           {
-            "name": "failure_posted_at",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "timestamptz",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "failure_reason",
             "description": null,
             "type": {
@@ -75001,11 +75013,35 @@
             "deprecationReason": null
           },
           {
-            "name": "log_entry_id",
+            "name": "log_delivery_id",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "log_leaf_index",
             "description": null,
             "type": {
               "kind": "SCALAR",
               "name": "bigint",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "log_uid",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "uuid",
               "ofType": null
             },
             "defaultValue": null,
@@ -75264,18 +75300,6 @@
             "deprecationReason": null
           },
           {
-            "name": "failure_posted_at",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "timestamptz",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "failure_reason",
             "description": null,
             "args": [],
@@ -75324,12 +75348,36 @@
             "deprecationReason": null
           },
           {
-            "name": "log_entry_id",
+            "name": "log_delivery_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "log_leaf_index",
             "description": null,
             "args": [],
             "type": {
               "kind": "SCALAR",
               "name": "bigint",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "log_uid",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "uuid",
               "ofType": null
             },
             "isDeprecated": false,
@@ -75564,18 +75612,6 @@
             "deprecationReason": null
           },
           {
-            "name": "failure_posted_at",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "timestamptz",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "failure_reason",
             "description": null,
             "args": [],
@@ -75624,12 +75660,36 @@
             "deprecationReason": null
           },
           {
-            "name": "log_entry_id",
+            "name": "log_delivery_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "log_leaf_index",
             "description": null,
             "args": [],
             "type": {
               "kind": "SCALAR",
               "name": "bigint",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "log_uid",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "uuid",
               "ofType": null
             },
             "isDeprecated": false,
@@ -76005,18 +76065,6 @@
             "deprecationReason": null
           },
           {
-            "name": "failure_posted_at",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "order_by",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "failure_reason",
             "description": null,
             "type": {
@@ -76065,7 +76113,31 @@
             "deprecationReason": null
           },
           {
-            "name": "log_entry_id",
+            "name": "log_delivery_id",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "log_leaf_index",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "log_uid",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -76329,12 +76401,6 @@
             "deprecationReason": null
           },
           {
-            "name": "failure_posted_at",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "failure_reason",
             "description": "column name",
             "isDeprecated": false,
@@ -76359,7 +76425,19 @@
             "deprecationReason": null
           },
           {
-            "name": "log_entry_id",
+            "name": "log_delivery_id",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "log_leaf_index",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "log_uid",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -76567,18 +76645,6 @@
             "deprecationReason": null
           },
           {
-            "name": "failure_posted_at",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "timestamptz",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "failure_reason",
             "description": null,
             "type": {
@@ -76627,11 +76693,35 @@
             "deprecationReason": null
           },
           {
-            "name": "log_entry_id",
+            "name": "log_delivery_id",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "log_leaf_index",
             "description": null,
             "type": {
               "kind": "SCALAR",
               "name": "bigint",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "log_uid",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "uuid",
               "ofType": null
             },
             "defaultValue": null,
@@ -76794,7 +76884,7 @@
             "deprecationReason": null
           },
           {
-            "name": "log_entry_id",
+            "name": "log_leaf_index",
             "description": null,
             "args": [],
             "type": {
@@ -76842,7 +76932,7 @@
             "deprecationReason": null
           },
           {
-            "name": "log_entry_id",
+            "name": "log_leaf_index",
             "description": null,
             "args": [],
             "type": {
@@ -76890,7 +76980,7 @@
             "deprecationReason": null
           },
           {
-            "name": "log_entry_id",
+            "name": "log_leaf_index",
             "description": null,
             "args": [],
             "type": {
@@ -77087,18 +77177,6 @@
             "deprecationReason": null
           },
           {
-            "name": "failure_posted_at",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "timestamptz",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "failure_reason",
             "description": null,
             "type": {
@@ -77147,11 +77225,35 @@
             "deprecationReason": null
           },
           {
-            "name": "log_entry_id",
+            "name": "log_delivery_id",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "log_leaf_index",
             "description": null,
             "type": {
               "kind": "SCALAR",
               "name": "bigint",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "log_uid",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "uuid",
               "ofType": null
             },
             "defaultValue": null,
@@ -77314,7 +77416,7 @@
             "deprecationReason": null
           },
           {
-            "name": "log_entry_id",
+            "name": "log_leaf_index",
             "description": null,
             "args": [],
             "type": {
@@ -77407,12 +77509,6 @@
             "deprecationReason": null
           },
           {
-            "name": "failure_posted_at",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "failure_reason",
             "description": "column name",
             "isDeprecated": false,
@@ -77437,7 +77533,19 @@
             "deprecationReason": null
           },
           {
-            "name": "log_entry_id",
+            "name": "log_delivery_id",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "log_leaf_index",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "log_uid",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -77648,7 +77756,7 @@
             "deprecationReason": null
           },
           {
-            "name": "log_entry_id",
+            "name": "log_leaf_index",
             "description": null,
             "args": [],
             "type": {
@@ -77696,7 +77804,7 @@
             "deprecationReason": null
           },
           {
-            "name": "log_entry_id",
+            "name": "log_leaf_index",
             "description": null,
             "args": [],
             "type": {
@@ -77744,7 +77852,7 @@
             "deprecationReason": null
           },
           {
-            "name": "log_entry_id",
+            "name": "log_leaf_index",
             "description": null,
             "args": [],
             "type": {

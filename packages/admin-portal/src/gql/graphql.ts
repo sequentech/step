@@ -5412,19 +5412,19 @@ export type Mutation_RootSubmit_Tally_ResolutionArgs = {
 
 
 /** mutation root */
+export type Mutation_RootTask_Queues_Dead_LettersArgs = {
+  message_ids: Array<Scalars['String']['input']>;
+  operation: Scalars['String']['input'];
+};
+
+
+/** mutation root */
 export type Mutation_RootTest_Messaging_AccountArgs = {
   destination: Scalars['String']['input'];
   id: Scalars['uuid']['input'];
   language?: InputMaybe<Scalars['String']['input']>;
   purpose: Scalars['String']['input'];
   template?: InputMaybe<Scalars['String']['input']>;
-};
-
-
-/** mutation root */
-export type Mutation_RootTask_Queues_Dead_LettersArgs = {
-  message_ids: Array<Scalars['String']['input']>;
-  operation: Scalars['String']['input'];
 };
 
 
@@ -10602,12 +10602,13 @@ export type Sequent_Backend_Ballot_Box_Seal = {
   election_event_id: Scalars['uuid']['output'];
   election_id: Scalars['uuid']['output'];
   election_name?: Maybe<Scalars['String']['output']>;
-  failure_posted_at?: Maybe<Scalars['timestamptz']['output']>;
   failure_reason?: Maybe<Scalars['String']['output']>;
   grace_deadline: Scalars['timestamptz']['output'];
   id: Scalars['uuid']['output'];
   last_attempt_at?: Maybe<Scalars['timestamptz']['output']>;
-  log_entry_id?: Maybe<Scalars['bigint']['output']>;
+  log_delivery_id?: Maybe<Scalars['String']['output']>;
+  log_leaf_index?: Maybe<Scalars['bigint']['output']>;
+  log_uid?: Maybe<Scalars['uuid']['output']>;
   manifest?: Maybe<Scalars['bytea']['output']>;
   /** The seal record's document: public or private, by the event's Seal Record Publication policy. */
   public_document_id?: Maybe<Scalars['uuid']['output']>;
@@ -10668,7 +10669,7 @@ export type Sequent_Backend_Ballot_Box_Seal_Avg_Fields = {
   __typename?: 'sequent_backend_ballot_box_seal_avg_fields';
   ballots_counted?: Maybe<Scalars['Float']['output']>;
   ballots_in_box?: Maybe<Scalars['Float']['output']>;
-  log_entry_id?: Maybe<Scalars['Float']['output']>;
+  log_leaf_index?: Maybe<Scalars['Float']['output']>;
 };
 
 /** Boolean expression to filter rows from the table "sequent_backend.ballot_box_seal". All fields are combined with a logical 'AND'. */
@@ -10688,12 +10689,13 @@ export type Sequent_Backend_Ballot_Box_Seal_Bool_Exp = {
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   election_id?: InputMaybe<Uuid_Comparison_Exp>;
   election_name?: InputMaybe<String_Comparison_Exp>;
-  failure_posted_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   failure_reason?: InputMaybe<String_Comparison_Exp>;
   grace_deadline?: InputMaybe<Timestamptz_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
   last_attempt_at?: InputMaybe<Timestamptz_Comparison_Exp>;
-  log_entry_id?: InputMaybe<Bigint_Comparison_Exp>;
+  log_delivery_id?: InputMaybe<String_Comparison_Exp>;
+  log_leaf_index?: InputMaybe<Bigint_Comparison_Exp>;
+  log_uid?: InputMaybe<Uuid_Comparison_Exp>;
   manifest?: InputMaybe<Bytea_Comparison_Exp>;
   public_document_id?: InputMaybe<Uuid_Comparison_Exp>;
   public_path?: InputMaybe<String_Comparison_Exp>;
@@ -10733,7 +10735,7 @@ export type Sequent_Backend_Ballot_Box_Seal_Delete_Key_Input = {
 export type Sequent_Backend_Ballot_Box_Seal_Inc_Input = {
   ballots_counted?: InputMaybe<Scalars['bigint']['input']>;
   ballots_in_box?: InputMaybe<Scalars['bigint']['input']>;
-  log_entry_id?: InputMaybe<Scalars['bigint']['input']>;
+  log_leaf_index?: InputMaybe<Scalars['bigint']['input']>;
 };
 
 /** input type for inserting data into table "sequent_backend.ballot_box_seal" */
@@ -10750,12 +10752,13 @@ export type Sequent_Backend_Ballot_Box_Seal_Insert_Input = {
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
   election_name?: InputMaybe<Scalars['String']['input']>;
-  failure_posted_at?: InputMaybe<Scalars['timestamptz']['input']>;
   failure_reason?: InputMaybe<Scalars['String']['input']>;
   grace_deadline?: InputMaybe<Scalars['timestamptz']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   last_attempt_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  log_entry_id?: InputMaybe<Scalars['bigint']['input']>;
+  log_delivery_id?: InputMaybe<Scalars['String']['input']>;
+  log_leaf_index?: InputMaybe<Scalars['bigint']['input']>;
+  log_uid?: InputMaybe<Scalars['uuid']['input']>;
   manifest?: InputMaybe<Scalars['bytea']['input']>;
   /** The seal record's document: public or private, by the event's Seal Record Publication policy. */
   public_document_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -10783,12 +10786,13 @@ export type Sequent_Backend_Ballot_Box_Seal_Max_Fields = {
   election_event_id?: Maybe<Scalars['uuid']['output']>;
   election_id?: Maybe<Scalars['uuid']['output']>;
   election_name?: Maybe<Scalars['String']['output']>;
-  failure_posted_at?: Maybe<Scalars['timestamptz']['output']>;
   failure_reason?: Maybe<Scalars['String']['output']>;
   grace_deadline?: Maybe<Scalars['timestamptz']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   last_attempt_at?: Maybe<Scalars['timestamptz']['output']>;
-  log_entry_id?: Maybe<Scalars['bigint']['output']>;
+  log_delivery_id?: Maybe<Scalars['String']['output']>;
+  log_leaf_index?: Maybe<Scalars['bigint']['output']>;
+  log_uid?: Maybe<Scalars['uuid']['output']>;
   /** The seal record's document: public or private, by the event's Seal Record Publication policy. */
   public_document_id?: Maybe<Scalars['uuid']['output']>;
   /** The seal record's path in the public bucket; NULL for a restricted (private) record. */
@@ -10814,12 +10818,13 @@ export type Sequent_Backend_Ballot_Box_Seal_Min_Fields = {
   election_event_id?: Maybe<Scalars['uuid']['output']>;
   election_id?: Maybe<Scalars['uuid']['output']>;
   election_name?: Maybe<Scalars['String']['output']>;
-  failure_posted_at?: Maybe<Scalars['timestamptz']['output']>;
   failure_reason?: Maybe<Scalars['String']['output']>;
   grace_deadline?: Maybe<Scalars['timestamptz']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   last_attempt_at?: Maybe<Scalars['timestamptz']['output']>;
-  log_entry_id?: Maybe<Scalars['bigint']['output']>;
+  log_delivery_id?: Maybe<Scalars['String']['output']>;
+  log_leaf_index?: Maybe<Scalars['bigint']['output']>;
+  log_uid?: Maybe<Scalars['uuid']['output']>;
   /** The seal record's document: public or private, by the event's Seal Record Publication policy. */
   public_document_id?: Maybe<Scalars['uuid']['output']>;
   /** The seal record's path in the public bucket; NULL for a restricted (private) record. */
@@ -10862,12 +10867,13 @@ export type Sequent_Backend_Ballot_Box_Seal_Order_By = {
   election_event_id?: InputMaybe<Order_By>;
   election_id?: InputMaybe<Order_By>;
   election_name?: InputMaybe<Order_By>;
-  failure_posted_at?: InputMaybe<Order_By>;
   failure_reason?: InputMaybe<Order_By>;
   grace_deadline?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   last_attempt_at?: InputMaybe<Order_By>;
-  log_entry_id?: InputMaybe<Order_By>;
+  log_delivery_id?: InputMaybe<Order_By>;
+  log_leaf_index?: InputMaybe<Order_By>;
+  log_uid?: InputMaybe<Order_By>;
   manifest?: InputMaybe<Order_By>;
   public_document_id?: InputMaybe<Order_By>;
   public_path?: InputMaybe<Order_By>;
@@ -10915,8 +10921,6 @@ export enum Sequent_Backend_Ballot_Box_Seal_Select_Column {
   /** column name */
   ElectionName = 'election_name',
   /** column name */
-  FailurePostedAt = 'failure_posted_at',
-  /** column name */
   FailureReason = 'failure_reason',
   /** column name */
   GraceDeadline = 'grace_deadline',
@@ -10925,7 +10929,11 @@ export enum Sequent_Backend_Ballot_Box_Seal_Select_Column {
   /** column name */
   LastAttemptAt = 'last_attempt_at',
   /** column name */
-  LogEntryId = 'log_entry_id',
+  LogDeliveryId = 'log_delivery_id',
+  /** column name */
+  LogLeafIndex = 'log_leaf_index',
+  /** column name */
+  LogUid = 'log_uid',
   /** column name */
   Manifest = 'manifest',
   /** column name */
@@ -10961,12 +10969,13 @@ export type Sequent_Backend_Ballot_Box_Seal_Set_Input = {
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
   election_name?: InputMaybe<Scalars['String']['input']>;
-  failure_posted_at?: InputMaybe<Scalars['timestamptz']['input']>;
   failure_reason?: InputMaybe<Scalars['String']['input']>;
   grace_deadline?: InputMaybe<Scalars['timestamptz']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   last_attempt_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  log_entry_id?: InputMaybe<Scalars['bigint']['input']>;
+  log_delivery_id?: InputMaybe<Scalars['String']['input']>;
+  log_leaf_index?: InputMaybe<Scalars['bigint']['input']>;
+  log_uid?: InputMaybe<Scalars['uuid']['input']>;
   manifest?: InputMaybe<Scalars['bytea']['input']>;
   /** The seal record's document: public or private, by the event's Seal Record Publication policy. */
   public_document_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -10986,7 +10995,7 @@ export type Sequent_Backend_Ballot_Box_Seal_Stddev_Fields = {
   __typename?: 'sequent_backend_ballot_box_seal_stddev_fields';
   ballots_counted?: Maybe<Scalars['Float']['output']>;
   ballots_in_box?: Maybe<Scalars['Float']['output']>;
-  log_entry_id?: Maybe<Scalars['Float']['output']>;
+  log_leaf_index?: Maybe<Scalars['Float']['output']>;
 };
 
 /** aggregate stddev_pop on columns */
@@ -10994,7 +11003,7 @@ export type Sequent_Backend_Ballot_Box_Seal_Stddev_Pop_Fields = {
   __typename?: 'sequent_backend_ballot_box_seal_stddev_pop_fields';
   ballots_counted?: Maybe<Scalars['Float']['output']>;
   ballots_in_box?: Maybe<Scalars['Float']['output']>;
-  log_entry_id?: Maybe<Scalars['Float']['output']>;
+  log_leaf_index?: Maybe<Scalars['Float']['output']>;
 };
 
 /** aggregate stddev_samp on columns */
@@ -11002,7 +11011,7 @@ export type Sequent_Backend_Ballot_Box_Seal_Stddev_Samp_Fields = {
   __typename?: 'sequent_backend_ballot_box_seal_stddev_samp_fields';
   ballots_counted?: Maybe<Scalars['Float']['output']>;
   ballots_in_box?: Maybe<Scalars['Float']['output']>;
-  log_entry_id?: Maybe<Scalars['Float']['output']>;
+  log_leaf_index?: Maybe<Scalars['Float']['output']>;
 };
 
 /** Streaming cursor of the table "sequent_backend_ballot_box_seal" */
@@ -11026,12 +11035,13 @@ export type Sequent_Backend_Ballot_Box_Seal_Stream_Cursor_Value_Input = {
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
   election_name?: InputMaybe<Scalars['String']['input']>;
-  failure_posted_at?: InputMaybe<Scalars['timestamptz']['input']>;
   failure_reason?: InputMaybe<Scalars['String']['input']>;
   grace_deadline?: InputMaybe<Scalars['timestamptz']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   last_attempt_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  log_entry_id?: InputMaybe<Scalars['bigint']['input']>;
+  log_delivery_id?: InputMaybe<Scalars['String']['input']>;
+  log_leaf_index?: InputMaybe<Scalars['bigint']['input']>;
+  log_uid?: InputMaybe<Scalars['uuid']['input']>;
   manifest?: InputMaybe<Scalars['bytea']['input']>;
   /** The seal record's document: public or private, by the event's Seal Record Publication policy. */
   public_document_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -11051,7 +11061,7 @@ export type Sequent_Backend_Ballot_Box_Seal_Sum_Fields = {
   __typename?: 'sequent_backend_ballot_box_seal_sum_fields';
   ballots_counted?: Maybe<Scalars['bigint']['output']>;
   ballots_in_box?: Maybe<Scalars['bigint']['output']>;
-  log_entry_id?: Maybe<Scalars['bigint']['output']>;
+  log_leaf_index?: Maybe<Scalars['bigint']['output']>;
 };
 
 /** update columns of table "sequent_backend.ballot_box_seal" */
@@ -11079,8 +11089,6 @@ export enum Sequent_Backend_Ballot_Box_Seal_Update_Column {
   /** column name */
   ElectionName = 'election_name',
   /** column name */
-  FailurePostedAt = 'failure_posted_at',
-  /** column name */
   FailureReason = 'failure_reason',
   /** column name */
   GraceDeadline = 'grace_deadline',
@@ -11089,7 +11097,11 @@ export enum Sequent_Backend_Ballot_Box_Seal_Update_Column {
   /** column name */
   LastAttemptAt = 'last_attempt_at',
   /** column name */
-  LogEntryId = 'log_entry_id',
+  LogDeliveryId = 'log_delivery_id',
+  /** column name */
+  LogLeafIndex = 'log_leaf_index',
+  /** column name */
+  LogUid = 'log_uid',
   /** column name */
   Manifest = 'manifest',
   /** column name */
@@ -11136,7 +11148,7 @@ export type Sequent_Backend_Ballot_Box_Seal_Var_Pop_Fields = {
   __typename?: 'sequent_backend_ballot_box_seal_var_pop_fields';
   ballots_counted?: Maybe<Scalars['Float']['output']>;
   ballots_in_box?: Maybe<Scalars['Float']['output']>;
-  log_entry_id?: Maybe<Scalars['Float']['output']>;
+  log_leaf_index?: Maybe<Scalars['Float']['output']>;
 };
 
 /** aggregate var_samp on columns */
@@ -11144,7 +11156,7 @@ export type Sequent_Backend_Ballot_Box_Seal_Var_Samp_Fields = {
   __typename?: 'sequent_backend_ballot_box_seal_var_samp_fields';
   ballots_counted?: Maybe<Scalars['Float']['output']>;
   ballots_in_box?: Maybe<Scalars['Float']['output']>;
-  log_entry_id?: Maybe<Scalars['Float']['output']>;
+  log_leaf_index?: Maybe<Scalars['Float']['output']>;
 };
 
 /** aggregate variance on columns */
@@ -11152,7 +11164,7 @@ export type Sequent_Backend_Ballot_Box_Seal_Variance_Fields = {
   __typename?: 'sequent_backend_ballot_box_seal_variance_fields';
   ballots_counted?: Maybe<Scalars['Float']['output']>;
   ballots_in_box?: Maybe<Scalars['Float']['output']>;
-  log_entry_id?: Maybe<Scalars['Float']['output']>;
+  log_leaf_index?: Maybe<Scalars['Float']['output']>;
 };
 
 /** columns and relationships of "sequent_backend.ballot_publication" */
@@ -35821,17 +35833,6 @@ export type ReviewTallySheetImportMutationVariables = Exact<{
 
 export type ReviewTallySheetImportMutation = { __typename?: 'mutation_root', review_tally_sheet_import?: { __typename?: 'TallySheetImportActionOutput', import: any } | null };
 
-export type TestMessagingAccountMutationVariables = Exact<{
-  id: Scalars['uuid']['input'];
-  purpose: Scalars['String']['input'];
-  destination: Scalars['String']['input'];
-  language?: InputMaybe<Scalars['String']['input']>;
-  template?: InputMaybe<Scalars['String']['input']>;
-}>;
-
-
-export type TestMessagingAccountMutation = { __typename?: 'mutation_root', test_messaging_account?: { __typename?: 'TestMessagingAccountOutput', message_id?: string | null, state: string, reason?: string | null } | null };
-
 export type TaskQueuesOverviewQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -35870,6 +35871,17 @@ export type TaskQueuesQueryQueryVariables = Exact<{
 
 
 export type TaskQueuesQueryQuery = { __typename?: 'query_root', task_queues_query: any };
+
+export type TestMessagingAccountMutationVariables = Exact<{
+  id: Scalars['uuid']['input'];
+  purpose: Scalars['String']['input'];
+  destination: Scalars['String']['input'];
+  language?: InputMaybe<Scalars['String']['input']>;
+  template?: InputMaybe<Scalars['String']['input']>;
+}>;
+
+
+export type TestMessagingAccountMutation = { __typename?: 'mutation_root', test_messaging_account?: { __typename?: 'TestMessagingAccountOutput', message_id?: string | null, state: string, reason?: string | null } | null };
 
 export type UpdateElectionVotingStatusMutationVariables = Exact<{
   electionId: Scalars['uuid']['input'];
@@ -36271,12 +36283,12 @@ export const SubmitTallyResolutionDocument = {"kind":"Document","definitions":[{
 export const PreviewTallySheetImportDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"PreviewTallySheetImport"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"documentId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"sha256"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"sourceFormat"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"selectedChannel"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"preview_tally_sheet_import"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"document_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"documentId"}}},{"kind":"Argument","name":{"kind":"Name","value":"sha256"},"value":{"kind":"Variable","name":{"kind":"Name","value":"sha256"}}},{"kind":"Argument","name":{"kind":"Name","value":"source_format"},"value":{"kind":"Variable","name":{"kind":"Name","value":"sourceFormat"}}},{"kind":"Argument","name":{"kind":"Name","value":"selected_channel"},"value":{"kind":"Variable","name":{"kind":"Name","value":"selectedChannel"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"preview"}}]}}]}}]} as unknown as DocumentNode<PreviewTallySheetImportMutation, PreviewTallySheetImportMutationVariables>;
 export const CreateTallySheetImportDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateTallySheetImport"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"documentId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"sha256"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"sourceFormat"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"selectedChannel"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"create_tally_sheet_import"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"document_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"documentId"}}},{"kind":"Argument","name":{"kind":"Name","value":"sha256"},"value":{"kind":"Variable","name":{"kind":"Name","value":"sha256"}}},{"kind":"Argument","name":{"kind":"Name","value":"source_format"},"value":{"kind":"Variable","name":{"kind":"Name","value":"sourceFormat"}}},{"kind":"Argument","name":{"kind":"Name","value":"selected_channel"},"value":{"kind":"Variable","name":{"kind":"Name","value":"selectedChannel"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"import"}}]}}]}}]} as unknown as DocumentNode<CreateTallySheetImportMutation, CreateTallySheetImportMutationVariables>;
 export const ReviewTallySheetImportDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"ReviewTallySheetImport"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"importId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"decision"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"review_tally_sheet_import"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"import_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"importId"}}},{"kind":"Argument","name":{"kind":"Name","value":"decision"},"value":{"kind":"Variable","name":{"kind":"Name","value":"decision"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"import"}}]}}]}}]} as unknown as DocumentNode<ReviewTallySheetImportMutation, ReviewTallySheetImportMutationVariables>;
-export const TestMessagingAccountDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"TestMessagingAccount"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"purpose"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"destination"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"language"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"template"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"test_messaging_account"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}},{"kind":"Argument","name":{"kind":"Name","value":"purpose"},"value":{"kind":"Variable","name":{"kind":"Name","value":"purpose"}}},{"kind":"Argument","name":{"kind":"Name","value":"destination"},"value":{"kind":"Variable","name":{"kind":"Name","value":"destination"}}},{"kind":"Argument","name":{"kind":"Name","value":"language"},"value":{"kind":"Variable","name":{"kind":"Name","value":"language"}}},{"kind":"Argument","name":{"kind":"Name","value":"template"},"value":{"kind":"Variable","name":{"kind":"Name","value":"template"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"message_id"}},{"kind":"Field","name":{"kind":"Name","value":"state"}},{"kind":"Field","name":{"kind":"Name","value":"reason"}}]}}]}}]} as unknown as DocumentNode<TestMessagingAccountMutation, TestMessagingAccountMutationVariables>;
 export const TaskQueuesOverviewDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"TaskQueuesOverview"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"task_queues_overview"}}]}}]} as unknown as DocumentNode<TaskQueuesOverviewQuery, TaskQueuesOverviewQueryVariables>;
 export const TaskQueuesThroughputDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"TaskQueuesThroughput"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"queue"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"hours"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"bucketMinutes"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"task_queues_throughput"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"queue"},"value":{"kind":"Variable","name":{"kind":"Name","value":"queue"}}},{"kind":"Argument","name":{"kind":"Name","value":"hours"},"value":{"kind":"Variable","name":{"kind":"Name","value":"hours"}}},{"kind":"Argument","name":{"kind":"Name","value":"bucket_minutes"},"value":{"kind":"Variable","name":{"kind":"Name","value":"bucketMinutes"}}}]}]}}]} as unknown as DocumentNode<TaskQueuesThroughputQuery, TaskQueuesThroughputQueryVariables>;
 export const TaskQueuesMessagesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"TaskQueuesMessages"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"queue"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"state"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"before"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"task_queues_messages"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"queue"},"value":{"kind":"Variable","name":{"kind":"Name","value":"queue"}}},{"kind":"Argument","name":{"kind":"Name","value":"state"},"value":{"kind":"Variable","name":{"kind":"Name","value":"state"}}},{"kind":"Argument","name":{"kind":"Name","value":"before"},"value":{"kind":"Variable","name":{"kind":"Name","value":"before"}}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}}]}]}}]} as unknown as DocumentNode<TaskQueuesMessagesQuery, TaskQueuesMessagesQueryVariables>;
 export const TaskQueuesDeadLettersDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"TaskQueuesDeadLetters"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"operation"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"messageIds"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"task_queues_dead_letters"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"operation"},"value":{"kind":"Variable","name":{"kind":"Name","value":"operation"}}},{"kind":"Argument","name":{"kind":"Name","value":"message_ids"},"value":{"kind":"Variable","name":{"kind":"Name","value":"messageIds"}}}]}]}}]} as unknown as DocumentNode<TaskQueuesDeadLettersMutation, TaskQueuesDeadLettersMutationVariables>;
 export const TaskQueuesQueryDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"TaskQueuesQuery"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"sql"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"task_queues_query"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"sql"},"value":{"kind":"Variable","name":{"kind":"Name","value":"sql"}}}]}]}}]} as unknown as DocumentNode<TaskQueuesQueryQuery, TaskQueuesQueryQueryVariables>;
+export const TestMessagingAccountDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"TestMessagingAccount"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"purpose"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"destination"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"language"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"template"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"test_messaging_account"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}},{"kind":"Argument","name":{"kind":"Name","value":"purpose"},"value":{"kind":"Variable","name":{"kind":"Name","value":"purpose"}}},{"kind":"Argument","name":{"kind":"Name","value":"destination"},"value":{"kind":"Variable","name":{"kind":"Name","value":"destination"}}},{"kind":"Argument","name":{"kind":"Name","value":"language"},"value":{"kind":"Variable","name":{"kind":"Name","value":"language"}}},{"kind":"Argument","name":{"kind":"Name","value":"template"},"value":{"kind":"Variable","name":{"kind":"Name","value":"template"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"message_id"}},{"kind":"Field","name":{"kind":"Name","value":"state"}},{"kind":"Field","name":{"kind":"Name","value":"reason"}}]}}]}}]} as unknown as DocumentNode<TestMessagingAccountMutation, TestMessagingAccountMutationVariables>;
 export const UpdateElectionVotingStatusDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateElectionVotingStatus"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"votingStatus"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"VotingStatus"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"votingChannel"}},"type":{"kind":"ListType","type":{"kind":"NamedType","name":{"kind":"Name","value":"VotingStatusChannel"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"update_election_voting_status"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"voting_status"},"value":{"kind":"Variable","name":{"kind":"Name","value":"votingStatus"}}},{"kind":"Argument","name":{"kind":"Name","value":"voting_channels"},"value":{"kind":"Variable","name":{"kind":"Name","value":"votingChannel"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"signing_request"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"code"}},{"kind":"Field","name":{"kind":"Name","value":"required"}},{"kind":"Field","name":{"kind":"Name","value":"expires_at"}}]}}]}}]}}]} as unknown as DocumentNode<UpdateElectionVotingStatusMutation, UpdateElectionVotingStatusMutationVariables>;
 export const UpdateEventMessagingConfigDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateEventMessagingConfig"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"config"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"jsonb"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"update_event_messaging_config"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"config"},"value":{"kind":"Variable","name":{"kind":"Name","value":"config"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"errors"}}]}}]}}]} as unknown as DocumentNode<UpdateEventMessagingConfigMutation, UpdateEventMessagingConfigMutationVariables>;
 export const UpdateEventVotingStatusDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateEventVotingStatus"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"votingStatus"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"VotingStatus"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"votingChannel"}},"type":{"kind":"ListType","type":{"kind":"NamedType","name":{"kind":"Name","value":"VotingStatusChannel"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"update_event_voting_status"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"voting_status"},"value":{"kind":"Variable","name":{"kind":"Name","value":"votingStatus"}}},{"kind":"Argument","name":{"kind":"Name","value":"voting_channels"},"value":{"kind":"Variable","name":{"kind":"Name","value":"votingChannel"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"skipped_elections"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_name"}},{"kind":"Field","name":{"kind":"Name","value":"reason"}}]}}]}}]}}]} as unknown as DocumentNode<UpdateEventVotingStatusMutation, UpdateEventVotingStatusMutationVariables>;
@@ -36293,9 +36305,9 @@ export const GenerateVoterInformationLetterDocument = {"kind":"Document","defini
 export const CreateNewTallySheetDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateNewTallySheet"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"channel"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"content"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"jsonb"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"contestId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"areaId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"create_new_tally_sheet"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"channel"},"value":{"kind":"Variable","name":{"kind":"Name","value":"channel"}}},{"kind":"Argument","name":{"kind":"Name","value":"content"},"value":{"kind":"Variable","name":{"kind":"Name","value":"content"}}},{"kind":"Argument","name":{"kind":"Name","value":"contest_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"contestId"}}},{"kind":"Argument","name":{"kind":"Name","value":"area_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"areaId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"contest_id"}},{"kind":"Field","name":{"kind":"Name","value":"area_id"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"reviewed_at"}},{"kind":"Field","name":{"kind":"Name","value":"reviewed_by_user_id"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"channel"}},{"kind":"Field","name":{"kind":"Name","value":"deleted_at"}},{"kind":"Field","name":{"kind":"Name","value":"created_by_user_id"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"version"}}]}}]}}]} as unknown as DocumentNode<CreateNewTallySheetMutation, CreateNewTallySheetMutationVariables>;
 export const LimitAccessByCountriesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"limitAccessByCountries"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"votingCountries"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"enrollCountries"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"limit_access_by_countries"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"voting_countries"},"value":{"kind":"Variable","name":{"kind":"Name","value":"votingCountries"}}},{"kind":"Argument","name":{"kind":"Name","value":"enroll_countries"},"value":{"kind":"Variable","name":{"kind":"Name","value":"enrollCountries"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"success"}}]}}]}}]} as unknown as DocumentNode<LimitAccessByCountriesMutation, LimitAccessByCountriesMutationVariables>;
 export const ReviewTallySheetDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"ReviewTallySheet"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tallySheetId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"newStatus"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"review_tally_sheet"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"tally_sheet_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tallySheetId"}}},{"kind":"Argument","name":{"kind":"Name","value":"new_status"},"value":{"kind":"Variable","name":{"kind":"Name","value":"newStatus"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"contest_id"}},{"kind":"Field","name":{"kind":"Name","value":"area_id"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"reviewed_at"}},{"kind":"Field","name":{"kind":"Name","value":"reviewed_by_user_id"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"channel"}},{"kind":"Field","name":{"kind":"Name","value":"deleted_at"}},{"kind":"Field","name":{"kind":"Name","value":"created_by_user_id"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"version"}}]}}]}}]} as unknown as DocumentNode<ReviewTallySheetMutation, ReviewTallySheetMutationVariables>;
+export const PublicationPreviewAreasDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"PublicationPreviewAreas"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"publicationId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"eventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_ballot_style"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"ballot_publication_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"publicationId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"eventId"}}}]}}]}},{"kind":"Argument","name":{"kind":"Name","value":"distinct_on"},"value":{"kind":"EnumValue","value":"area_id"}},{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"area_id"},"value":{"kind":"EnumValue","value":"asc"}}]}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"IntValue","value":"1000"}},{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"area_id"}}]}}]}}]} as unknown as DocumentNode<PublicationPreviewAreasQuery, PublicationPreviewAreasQueryVariables>;
+export const PublicationPreviewAreaNamesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"PublicationPreviewAreaNames"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"ids"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"eventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_area"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_in"},"value":{"kind":"Variable","name":{"kind":"Name","value":"ids"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"eventId"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]} as unknown as DocumentNode<PublicationPreviewAreaNamesQuery, PublicationPreviewAreaNamesQueryVariables>;
 export const GetHeldReportRequestsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetHeldReportRequests"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"signingHeldReportRequests"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"requests"}}]}}]}}]} as unknown as DocumentNode<GetHeldReportRequestsQuery, GetHeldReportRequestsQueryVariables>;
 export const MessagingFakeProviderMessagesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"MessagingFakeProviderMessages"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"messaging_fake_provider_messages"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"messages"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"received_at"}},{"kind":"Field","name":{"kind":"Name","value":"channel"}},{"kind":"Field","name":{"kind":"Name","value":"provider"}},{"kind":"Field","name":{"kind":"Name","value":"sender"}},{"kind":"Field","name":{"kind":"Name","value":"recipient"}},{"kind":"Field","name":{"kind":"Name","value":"report"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"state"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"reason"}}]}},{"kind":"Field","name":{"kind":"Name","value":"content"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"text"}},{"kind":"Field","name":{"kind":"Name","value":"subject"}},{"kind":"Field","name":{"kind":"Name","value":"has_html"}},{"kind":"Field","name":{"kind":"Name","value":"truncated"}},{"kind":"Field","name":{"kind":"Name","value":"template_name"}},{"kind":"Field","name":{"kind":"Name","value":"template_language"}},{"kind":"Field","name":{"kind":"Name","value":"parameters"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"value"}}]}},{"kind":"Field","name":{"kind":"Name","value":"code"}}]}}]}}]}}]}}]} as unknown as DocumentNode<MessagingFakeProviderMessagesQuery, MessagingFakeProviderMessagesQueryVariables>;
 export const MessagingFakeProviderMessageDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"MessagingFakeProviderMessage"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"messaging_fake_provider_message"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"received_at"}},{"kind":"Field","name":{"kind":"Name","value":"channel"}},{"kind":"Field","name":{"kind":"Name","value":"provider"}},{"kind":"Field","name":{"kind":"Name","value":"sender"}},{"kind":"Field","name":{"kind":"Name","value":"recipient"}},{"kind":"Field","name":{"kind":"Name","value":"report"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"state"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"reason"}}]}},{"kind":"Field","name":{"kind":"Name","value":"content"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"text"}},{"kind":"Field","name":{"kind":"Name","value":"subject"}},{"kind":"Field","name":{"kind":"Name","value":"html"}},{"kind":"Field","name":{"kind":"Name","value":"truncated"}},{"kind":"Field","name":{"kind":"Name","value":"template_name"}},{"kind":"Field","name":{"kind":"Name","value":"template_language"}},{"kind":"Field","name":{"kind":"Name","value":"parameters"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"value"}}]}},{"kind":"Field","name":{"kind":"Name","value":"code"}}]}}]}}]}}]} as unknown as DocumentNode<MessagingFakeProviderMessageQuery, MessagingFakeProviderMessageQueryVariables>;
 export const MessagingFakeProviderGetStartedDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MessagingFakeProviderGetStarted"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"link"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"messaging_fake_provider_get_started"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"link"},"value":{"kind":"Variable","name":{"kind":"Name","value":"link"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"reason"}}]}}]}}]} as unknown as DocumentNode<MessagingFakeProviderGetStartedMutation, MessagingFakeProviderGetStartedMutationVariables>;
-export const PublicationPreviewAreasDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"PublicationPreviewAreas"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"publicationId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"eventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_ballot_style"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"ballot_publication_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"publicationId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"eventId"}}}]}}]}},{"kind":"Argument","name":{"kind":"Name","value":"distinct_on"},"value":{"kind":"EnumValue","value":"area_id"}},{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"area_id"},"value":{"kind":"EnumValue","value":"asc"}}]}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"IntValue","value":"1000"}},{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"area_id"}}]}}]}}]} as unknown as DocumentNode<PublicationPreviewAreasQuery, PublicationPreviewAreasQueryVariables>;
-export const PublicationPreviewAreaNamesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"PublicationPreviewAreaNames"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"ids"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"eventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_area"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_in"},"value":{"kind":"Variable","name":{"kind":"Name","value":"ids"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"eventId"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]} as unknown as DocumentNode<PublicationPreviewAreaNamesQuery, PublicationPreviewAreaNamesQueryVariables>;

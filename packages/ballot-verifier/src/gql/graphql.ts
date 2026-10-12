@@ -1408,9 +1408,16 @@ export type RestorePrivateKeyInput = {
     tally_session_id: Scalars["String"]["input"]
 }
 
+export enum RestorePrivateKeyOutcome {
+    AlreadyRestored = "ALREADY_RESTORED",
+    Invalid = "INVALID",
+    Restored = "RESTORED",
+}
+
 export type RestorePrivateKeyOutput = {
     __typename?: "RestorePrivateKeyOutput"
     is_valid: Scalars["Boolean"]["output"]
+    outcome: RestorePrivateKeyOutcome
     signing_request?: Maybe<SigningRequestSummary>
 }
 
@@ -1979,6 +1986,7 @@ export type Mutation_Root = {
     apply_external_reconciliation_changes?: Maybe<TaskOutput>
     /** Apply scheduled dates recomputed with the current timezone database */
     apply_schedule_recompute?: Maybe<ApplyScheduleRecomputeOutput>
+    audit_electoral_log: TaskOutput
     call_plugin_route: PluginsRouteOutput
     /** cast_ballot */
     cast_ballot?: Maybe<CastBallotOutput>
@@ -2074,6 +2082,10 @@ export type Mutation_Root = {
     delete_sequent_backend_election_type?: Maybe<Sequent_Backend_Election_Type_Mutation_Response>
     /** delete single row from the table: "sequent_backend.election_type" */
     delete_sequent_backend_election_type_by_pk?: Maybe<Sequent_Backend_Election_Type>
+    /** delete data from the table: "sequent_backend.electoral_log_checkpoint" */
+    delete_sequent_backend_electoral_log_checkpoint?: Maybe<Sequent_Backend_Electoral_Log_Checkpoint_Mutation_Response>
+    /** delete single row from the table: "sequent_backend.electoral_log_checkpoint" */
+    delete_sequent_backend_electoral_log_checkpoint_by_pk?: Maybe<Sequent_Backend_Electoral_Log_Checkpoint>
     /** delete data from the table: "sequent_backend.event_execution" */
     delete_sequent_backend_event_execution?: Maybe<Sequent_Backend_Event_Execution_Mutation_Response>
     /** delete single row from the table: "sequent_backend.event_execution" */
@@ -2348,6 +2360,10 @@ export type Mutation_Root = {
     insert_sequent_backend_election_type?: Maybe<Sequent_Backend_Election_Type_Mutation_Response>
     /** insert a single row into the table: "sequent_backend.election_type" */
     insert_sequent_backend_election_type_one?: Maybe<Sequent_Backend_Election_Type>
+    /** insert data into the table: "sequent_backend.electoral_log_checkpoint" */
+    insert_sequent_backend_electoral_log_checkpoint?: Maybe<Sequent_Backend_Electoral_Log_Checkpoint_Mutation_Response>
+    /** insert a single row into the table: "sequent_backend.electoral_log_checkpoint" */
+    insert_sequent_backend_electoral_log_checkpoint_one?: Maybe<Sequent_Backend_Electoral_Log_Checkpoint>
     /** insert data into the table: "sequent_backend.event_execution" */
     insert_sequent_backend_event_execution?: Maybe<Sequent_Backend_Event_Execution_Mutation_Response>
     /** insert a single row into the table: "sequent_backend.event_execution" */
@@ -2584,6 +2600,8 @@ export type Mutation_Root = {
     signingRevokeCertificate: SigningCertificateIdOutput
     /** Submit tally resolutions */
     submit_tally_resolution?: Maybe<SubmitTallyResolutionOutput>
+    /** Replay or discard dead-lettered electoral-log events */
+    task_queues_dead_letters: Scalars["jsonb"]["output"]
     test_messaging_account?: Maybe<TestMessagingAccountOutput>
     update_election_voting_status?: Maybe<UpdateElectionVotingStatusOutput>
     update_event_messaging_config?: Maybe<UpdateEventMessagingConfigOutput>
@@ -2707,6 +2725,14 @@ export type Mutation_Root = {
     /** update multiples rows of table: "sequent_backend.election_type" */
     update_sequent_backend_election_type_many?: Maybe<
         Array<Maybe<Sequent_Backend_Election_Type_Mutation_Response>>
+    >
+    /** update data of the table: "sequent_backend.electoral_log_checkpoint" */
+    update_sequent_backend_electoral_log_checkpoint?: Maybe<Sequent_Backend_Electoral_Log_Checkpoint_Mutation_Response>
+    /** update single row of the table: "sequent_backend.electoral_log_checkpoint" */
+    update_sequent_backend_electoral_log_checkpoint_by_pk?: Maybe<Sequent_Backend_Electoral_Log_Checkpoint>
+    /** update multiples rows of table: "sequent_backend.electoral_log_checkpoint" */
+    update_sequent_backend_electoral_log_checkpoint_many?: Maybe<
+        Array<Maybe<Sequent_Backend_Electoral_Log_Checkpoint_Mutation_Response>>
     >
     /** update data of the table: "sequent_backend.event_execution" */
     update_sequent_backend_event_execution?: Maybe<Sequent_Backend_Event_Execution_Mutation_Response>
@@ -3060,6 +3086,11 @@ export type Mutation_RootApply_Schedule_RecomputeArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootAudit_Electoral_LogArgs = {
+    election_event_id: Scalars["String"]["input"]
+}
+
+/** mutation root */
 export type Mutation_RootCall_Plugin_RouteArgs = {
     data: Scalars["jsonb"]["input"]
     path: Scalars["String"]["input"]
@@ -3395,6 +3426,16 @@ export type Mutation_RootDelete_Sequent_Backend_Election_TypeArgs = {
 export type Mutation_RootDelete_Sequent_Backend_Election_Type_By_PkArgs = {
     id: Scalars["uuid"]["input"]
     tenant_id: Scalars["uuid"]["input"]
+}
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Electoral_Log_CheckpointArgs = {
+    where: Sequent_Backend_Electoral_Log_Checkpoint_Bool_Exp
+}
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Electoral_Log_Checkpoint_By_PkArgs = {
+    id: Scalars["uuid"]["input"]
 }
 
 /** mutation root */
@@ -4323,6 +4364,18 @@ export type Mutation_RootInsert_Sequent_Backend_Election_Type_OneArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Electoral_Log_CheckpointArgs = {
+    objects: Array<Sequent_Backend_Electoral_Log_Checkpoint_Insert_Input>
+    on_conflict?: InputMaybe<Sequent_Backend_Electoral_Log_Checkpoint_On_Conflict>
+}
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Electoral_Log_Checkpoint_OneArgs = {
+    object: Sequent_Backend_Electoral_Log_Checkpoint_Insert_Input
+    on_conflict?: InputMaybe<Sequent_Backend_Electoral_Log_Checkpoint_On_Conflict>
+}
+
+/** mutation root */
 export type Mutation_RootInsert_Sequent_Backend_Event_ExecutionArgs = {
     objects: Array<Sequent_Backend_Event_Execution_Insert_Input>
     on_conflict?: InputMaybe<Sequent_Backend_Event_Execution_On_Conflict>
@@ -5125,6 +5178,12 @@ export type Mutation_RootSubmit_Tally_ResolutionArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootTask_Queues_Dead_LettersArgs = {
+    message_ids: Array<Scalars["String"]["input"]>
+    operation: Scalars["String"]["input"]
+}
+
+/** mutation root */
 export type Mutation_RootTest_Messaging_AccountArgs = {
     destination: Scalars["String"]["input"]
     id: Scalars["uuid"]["input"]
@@ -5574,6 +5633,25 @@ export type Mutation_RootUpdate_Sequent_Backend_Election_Type_By_PkArgs = {
 /** mutation root */
 export type Mutation_RootUpdate_Sequent_Backend_Election_Type_ManyArgs = {
     updates: Array<Sequent_Backend_Election_Type_Updates>
+}
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Electoral_Log_CheckpointArgs = {
+    _inc?: InputMaybe<Sequent_Backend_Electoral_Log_Checkpoint_Inc_Input>
+    _set?: InputMaybe<Sequent_Backend_Electoral_Log_Checkpoint_Set_Input>
+    where: Sequent_Backend_Electoral_Log_Checkpoint_Bool_Exp
+}
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Electoral_Log_Checkpoint_By_PkArgs = {
+    _inc?: InputMaybe<Sequent_Backend_Electoral_Log_Checkpoint_Inc_Input>
+    _set?: InputMaybe<Sequent_Backend_Electoral_Log_Checkpoint_Set_Input>
+    pk_columns: Sequent_Backend_Electoral_Log_Checkpoint_Pk_Columns_Input
+}
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Electoral_Log_Checkpoint_ManyArgs = {
+    updates: Array<Sequent_Backend_Electoral_Log_Checkpoint_Updates>
 }
 
 /** mutation root */
@@ -6689,10 +6767,12 @@ export type Query_Root = {
     count_users: CountUsersOutput
     /** A page of an election event's electoral-log records or ballot box */
     electoral_log_console_page: Scalars["jsonb"]["output"]
-    /** A read-only SQL query on the tenant's electoral-log database */
+    /** A read-only SQL query on the electoral-log database, for the super-admin tenant */
     electoral_log_console_query: Scalars["jsonb"]["output"]
     /** An electoral-log record with its message decoded */
     electoral_log_console_record: Scalars["jsonb"]["output"]
+    /** Every tenant with its election events, for the super-admin tenant's electoral-log console */
+    electoral_log_console_tenants: Scalars["jsonb"]["output"]
     /** Try an enrollment against approval matrix rules without saving */
     evaluate_approval_matrix: EvaluateApprovalMatrixOutput
     /** fetch document */
@@ -6862,6 +6942,12 @@ export type Query_Root = {
     sequent_backend_election_type_aggregate: Sequent_Backend_Election_Type_Aggregate
     /** fetch data from the table: "sequent_backend.election_type" using primary key columns */
     sequent_backend_election_type_by_pk?: Maybe<Sequent_Backend_Election_Type>
+    /** fetch data from the table: "sequent_backend.electoral_log_checkpoint" */
+    sequent_backend_electoral_log_checkpoint: Array<Sequent_Backend_Electoral_Log_Checkpoint>
+    /** fetch aggregated fields from the table: "sequent_backend.electoral_log_checkpoint" */
+    sequent_backend_electoral_log_checkpoint_aggregate: Sequent_Backend_Electoral_Log_Checkpoint_Aggregate
+    /** fetch data from the table: "sequent_backend.electoral_log_checkpoint" using primary key columns */
+    sequent_backend_electoral_log_checkpoint_by_pk?: Maybe<Sequent_Backend_Electoral_Log_Checkpoint>
     /** fetch data from the table: "sequent_backend.event_execution" */
     sequent_backend_event_execution: Array<Sequent_Backend_Event_Execution>
     /** fetch aggregated fields from the table: "sequent_backend.event_execution" */
@@ -7108,16 +7194,18 @@ export type Query_Root = {
     signingHeldReportRequests: SigningHeldReportRequestsOutput
     /** How many people can sign a protected action in each Post */
     signingRuleCapacity: SigningRuleCapacityOutput
+    /** Messages of a task queue, without their tasks' arguments */
+    task_queues_messages: Scalars["jsonb"]["output"]
+    /** The depth and last hour's outcomes of every task queue */
+    task_queues_overview: Scalars["jsonb"]["output"]
+    /** A read-only SQL query on the environment's task-queue database */
+    task_queues_query: Scalars["jsonb"]["output"]
+    /** Processed messages of a task queue over time, by outcome */
+    task_queues_throughput: Scalars["jsonb"]["output"]
 }
 
 export type Query_RootCount_UsersArgs = {
     body: CountUsersInput
-}
-
-export type Query_RootEvaluate_Approval_MatrixArgs = {
-    election_event_id: Scalars["uuid"]["input"]
-    enrollment: Scalars["jsonb"]["input"]
-    matrix: Scalars["jsonb"]["input"]
 }
 
 export type Query_RootElectoral_Log_Console_PageArgs = {
@@ -7127,15 +7215,25 @@ export type Query_RootElectoral_Log_Console_PageArgs = {
     limit?: InputMaybe<Scalars["Int"]["input"]>
     order?: InputMaybe<Scalars["String"]["input"]>
     table: Scalars["String"]["input"]
+    tenant_id?: InputMaybe<Scalars["String"]["input"]>
 }
 
 export type Query_RootElectoral_Log_Console_QueryArgs = {
+    election_event_id: Scalars["String"]["input"]
     sql: Scalars["String"]["input"]
+    tenant_id: Scalars["String"]["input"]
 }
 
 export type Query_RootElectoral_Log_Console_RecordArgs = {
     election_event_id: Scalars["String"]["input"]
     position: Scalars["Int"]["input"]
+    tenant_id?: InputMaybe<Scalars["String"]["input"]>
+}
+
+export type Query_RootEvaluate_Approval_MatrixArgs = {
+    election_event_id: Scalars["uuid"]["input"]
+    enrollment: Scalars["jsonb"]["input"]
+    matrix: Scalars["jsonb"]["input"]
 }
 
 export type Query_RootFetchDocumentArgs = {
@@ -7221,15 +7319,15 @@ export type Query_RootGet_UsersArgs = {
     body: GetUsersInput
 }
 
-export type Query_RootKey_Share_Signature_StatusArgs = {
-    object: KeyShareSignatureStatusInput
-}
-
 export type Query_RootGet_Voter_Cast_VotesArgs = {
     ballot_id?: InputMaybe<Scalars["String"]["input"]>
     ballot_id_prefix?: InputMaybe<Scalars["String"]["input"]>
     election_event_id: Scalars["String"]["input"]
     election_id?: InputMaybe<Scalars["String"]["input"]>
+}
+
+export type Query_RootKey_Share_Signature_StatusArgs = {
+    object: KeyShareSignatureStatusInput
 }
 
 export type Query_RootListElectoralLogArgs = {
@@ -7677,6 +7775,26 @@ export type Query_RootSequent_Backend_Election_Type_AggregateArgs = {
 export type Query_RootSequent_Backend_Election_Type_By_PkArgs = {
     id: Scalars["uuid"]["input"]
     tenant_id: Scalars["uuid"]["input"]
+}
+
+export type Query_RootSequent_Backend_Electoral_Log_CheckpointArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Electoral_Log_Checkpoint_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Electoral_Log_Checkpoint_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Electoral_Log_Checkpoint_Bool_Exp>
+}
+
+export type Query_RootSequent_Backend_Electoral_Log_Checkpoint_AggregateArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Electoral_Log_Checkpoint_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Electoral_Log_Checkpoint_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Electoral_Log_Checkpoint_Bool_Exp>
+}
+
+export type Query_RootSequent_Backend_Electoral_Log_Checkpoint_By_PkArgs = {
+    id: Scalars["uuid"]["input"]
 }
 
 export type Query_RootSequent_Backend_Event_ExecutionArgs = {
@@ -8530,6 +8648,23 @@ export type Query_RootSigningRuleCapacityArgs = {
     election_event_id: Scalars["uuid"]["input"]
     requester_signing?: InputMaybe<Scalars["String"]["input"]>
     signatures?: InputMaybe<Scalars["Int"]["input"]>
+}
+
+export type Query_RootTask_Queues_MessagesArgs = {
+    before?: InputMaybe<Scalars["String"]["input"]>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    queue: Scalars["String"]["input"]
+    state: Scalars["String"]["input"]
+}
+
+export type Query_RootTask_Queues_QueryArgs = {
+    sql: Scalars["String"]["input"]
+}
+
+export type Query_RootTask_Queues_ThroughputArgs = {
+    bucket_minutes?: InputMaybe<Scalars["Int"]["input"]>
+    hours?: InputMaybe<Scalars["Int"]["input"]>
+    queue: Scalars["String"]["input"]
 }
 
 /** columns and relationships of "sequent_backend.applications" */
@@ -9818,12 +9953,13 @@ export type Sequent_Backend_Ballot_Box_Seal = {
     election_event_id: Scalars["uuid"]["output"]
     election_id: Scalars["uuid"]["output"]
     election_name?: Maybe<Scalars["String"]["output"]>
-    failure_posted_at?: Maybe<Scalars["timestamptz"]["output"]>
     failure_reason?: Maybe<Scalars["String"]["output"]>
     grace_deadline: Scalars["timestamptz"]["output"]
     id: Scalars["uuid"]["output"]
     last_attempt_at?: Maybe<Scalars["timestamptz"]["output"]>
-    log_entry_id?: Maybe<Scalars["bigint"]["output"]>
+    log_delivery_id?: Maybe<Scalars["String"]["output"]>
+    log_leaf_index?: Maybe<Scalars["bigint"]["output"]>
+    log_uid?: Maybe<Scalars["uuid"]["output"]>
     manifest?: Maybe<Scalars["bytea"]["output"]>
     /** The seal record's document: public or private, by the event's Seal Record Publication policy. */
     public_document_id?: Maybe<Scalars["uuid"]["output"]>
@@ -9882,7 +10018,7 @@ export type Sequent_Backend_Ballot_Box_Seal_Avg_Fields = {
     __typename?: "sequent_backend_ballot_box_seal_avg_fields"
     ballots_counted?: Maybe<Scalars["Float"]["output"]>
     ballots_in_box?: Maybe<Scalars["Float"]["output"]>
-    log_entry_id?: Maybe<Scalars["Float"]["output"]>
+    log_leaf_index?: Maybe<Scalars["Float"]["output"]>
 }
 
 /** Boolean expression to filter rows from the table "sequent_backend.ballot_box_seal". All fields are combined with a logical 'AND'. */
@@ -9902,12 +10038,13 @@ export type Sequent_Backend_Ballot_Box_Seal_Bool_Exp = {
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     election_id?: InputMaybe<Uuid_Comparison_Exp>
     election_name?: InputMaybe<String_Comparison_Exp>
-    failure_posted_at?: InputMaybe<Timestamptz_Comparison_Exp>
     failure_reason?: InputMaybe<String_Comparison_Exp>
     grace_deadline?: InputMaybe<Timestamptz_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
     last_attempt_at?: InputMaybe<Timestamptz_Comparison_Exp>
-    log_entry_id?: InputMaybe<Bigint_Comparison_Exp>
+    log_delivery_id?: InputMaybe<String_Comparison_Exp>
+    log_leaf_index?: InputMaybe<Bigint_Comparison_Exp>
+    log_uid?: InputMaybe<Uuid_Comparison_Exp>
     manifest?: InputMaybe<Bytea_Comparison_Exp>
     public_document_id?: InputMaybe<Uuid_Comparison_Exp>
     public_path?: InputMaybe<String_Comparison_Exp>
@@ -9947,7 +10084,7 @@ export type Sequent_Backend_Ballot_Box_Seal_Delete_Key_Input = {
 export type Sequent_Backend_Ballot_Box_Seal_Inc_Input = {
     ballots_counted?: InputMaybe<Scalars["bigint"]["input"]>
     ballots_in_box?: InputMaybe<Scalars["bigint"]["input"]>
-    log_entry_id?: InputMaybe<Scalars["bigint"]["input"]>
+    log_leaf_index?: InputMaybe<Scalars["bigint"]["input"]>
 }
 
 /** input type for inserting data into table "sequent_backend.ballot_box_seal" */
@@ -9964,12 +10101,13 @@ export type Sequent_Backend_Ballot_Box_Seal_Insert_Input = {
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_name?: InputMaybe<Scalars["String"]["input"]>
-    failure_posted_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     failure_reason?: InputMaybe<Scalars["String"]["input"]>
     grace_deadline?: InputMaybe<Scalars["timestamptz"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     last_attempt_at?: InputMaybe<Scalars["timestamptz"]["input"]>
-    log_entry_id?: InputMaybe<Scalars["bigint"]["input"]>
+    log_delivery_id?: InputMaybe<Scalars["String"]["input"]>
+    log_leaf_index?: InputMaybe<Scalars["bigint"]["input"]>
+    log_uid?: InputMaybe<Scalars["uuid"]["input"]>
     manifest?: InputMaybe<Scalars["bytea"]["input"]>
     /** The seal record's document: public or private, by the event's Seal Record Publication policy. */
     public_document_id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -9997,12 +10135,13 @@ export type Sequent_Backend_Ballot_Box_Seal_Max_Fields = {
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
     election_id?: Maybe<Scalars["uuid"]["output"]>
     election_name?: Maybe<Scalars["String"]["output"]>
-    failure_posted_at?: Maybe<Scalars["timestamptz"]["output"]>
     failure_reason?: Maybe<Scalars["String"]["output"]>
     grace_deadline?: Maybe<Scalars["timestamptz"]["output"]>
     id?: Maybe<Scalars["uuid"]["output"]>
     last_attempt_at?: Maybe<Scalars["timestamptz"]["output"]>
-    log_entry_id?: Maybe<Scalars["bigint"]["output"]>
+    log_delivery_id?: Maybe<Scalars["String"]["output"]>
+    log_leaf_index?: Maybe<Scalars["bigint"]["output"]>
+    log_uid?: Maybe<Scalars["uuid"]["output"]>
     /** The seal record's document: public or private, by the event's Seal Record Publication policy. */
     public_document_id?: Maybe<Scalars["uuid"]["output"]>
     /** The seal record's path in the public bucket; NULL for a restricted (private) record. */
@@ -10028,12 +10167,13 @@ export type Sequent_Backend_Ballot_Box_Seal_Min_Fields = {
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
     election_id?: Maybe<Scalars["uuid"]["output"]>
     election_name?: Maybe<Scalars["String"]["output"]>
-    failure_posted_at?: Maybe<Scalars["timestamptz"]["output"]>
     failure_reason?: Maybe<Scalars["String"]["output"]>
     grace_deadline?: Maybe<Scalars["timestamptz"]["output"]>
     id?: Maybe<Scalars["uuid"]["output"]>
     last_attempt_at?: Maybe<Scalars["timestamptz"]["output"]>
-    log_entry_id?: Maybe<Scalars["bigint"]["output"]>
+    log_delivery_id?: Maybe<Scalars["String"]["output"]>
+    log_leaf_index?: Maybe<Scalars["bigint"]["output"]>
+    log_uid?: Maybe<Scalars["uuid"]["output"]>
     /** The seal record's document: public or private, by the event's Seal Record Publication policy. */
     public_document_id?: Maybe<Scalars["uuid"]["output"]>
     /** The seal record's path in the public bucket; NULL for a restricted (private) record. */
@@ -10076,12 +10216,13 @@ export type Sequent_Backend_Ballot_Box_Seal_Order_By = {
     election_event_id?: InputMaybe<Order_By>
     election_id?: InputMaybe<Order_By>
     election_name?: InputMaybe<Order_By>
-    failure_posted_at?: InputMaybe<Order_By>
     failure_reason?: InputMaybe<Order_By>
     grace_deadline?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
     last_attempt_at?: InputMaybe<Order_By>
-    log_entry_id?: InputMaybe<Order_By>
+    log_delivery_id?: InputMaybe<Order_By>
+    log_leaf_index?: InputMaybe<Order_By>
+    log_uid?: InputMaybe<Order_By>
     manifest?: InputMaybe<Order_By>
     public_document_id?: InputMaybe<Order_By>
     public_path?: InputMaybe<Order_By>
@@ -10129,8 +10270,6 @@ export enum Sequent_Backend_Ballot_Box_Seal_Select_Column {
     /** column name */
     ElectionName = "election_name",
     /** column name */
-    FailurePostedAt = "failure_posted_at",
-    /** column name */
     FailureReason = "failure_reason",
     /** column name */
     GraceDeadline = "grace_deadline",
@@ -10139,7 +10278,11 @@ export enum Sequent_Backend_Ballot_Box_Seal_Select_Column {
     /** column name */
     LastAttemptAt = "last_attempt_at",
     /** column name */
-    LogEntryId = "log_entry_id",
+    LogDeliveryId = "log_delivery_id",
+    /** column name */
+    LogLeafIndex = "log_leaf_index",
+    /** column name */
+    LogUid = "log_uid",
     /** column name */
     Manifest = "manifest",
     /** column name */
@@ -10175,12 +10318,13 @@ export type Sequent_Backend_Ballot_Box_Seal_Set_Input = {
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_name?: InputMaybe<Scalars["String"]["input"]>
-    failure_posted_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     failure_reason?: InputMaybe<Scalars["String"]["input"]>
     grace_deadline?: InputMaybe<Scalars["timestamptz"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     last_attempt_at?: InputMaybe<Scalars["timestamptz"]["input"]>
-    log_entry_id?: InputMaybe<Scalars["bigint"]["input"]>
+    log_delivery_id?: InputMaybe<Scalars["String"]["input"]>
+    log_leaf_index?: InputMaybe<Scalars["bigint"]["input"]>
+    log_uid?: InputMaybe<Scalars["uuid"]["input"]>
     manifest?: InputMaybe<Scalars["bytea"]["input"]>
     /** The seal record's document: public or private, by the event's Seal Record Publication policy. */
     public_document_id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -10200,7 +10344,7 @@ export type Sequent_Backend_Ballot_Box_Seal_Stddev_Fields = {
     __typename?: "sequent_backend_ballot_box_seal_stddev_fields"
     ballots_counted?: Maybe<Scalars["Float"]["output"]>
     ballots_in_box?: Maybe<Scalars["Float"]["output"]>
-    log_entry_id?: Maybe<Scalars["Float"]["output"]>
+    log_leaf_index?: Maybe<Scalars["Float"]["output"]>
 }
 
 /** aggregate stddev_pop on columns */
@@ -10208,7 +10352,7 @@ export type Sequent_Backend_Ballot_Box_Seal_Stddev_Pop_Fields = {
     __typename?: "sequent_backend_ballot_box_seal_stddev_pop_fields"
     ballots_counted?: Maybe<Scalars["Float"]["output"]>
     ballots_in_box?: Maybe<Scalars["Float"]["output"]>
-    log_entry_id?: Maybe<Scalars["Float"]["output"]>
+    log_leaf_index?: Maybe<Scalars["Float"]["output"]>
 }
 
 /** aggregate stddev_samp on columns */
@@ -10216,7 +10360,7 @@ export type Sequent_Backend_Ballot_Box_Seal_Stddev_Samp_Fields = {
     __typename?: "sequent_backend_ballot_box_seal_stddev_samp_fields"
     ballots_counted?: Maybe<Scalars["Float"]["output"]>
     ballots_in_box?: Maybe<Scalars["Float"]["output"]>
-    log_entry_id?: Maybe<Scalars["Float"]["output"]>
+    log_leaf_index?: Maybe<Scalars["Float"]["output"]>
 }
 
 /** Streaming cursor of the table "sequent_backend_ballot_box_seal" */
@@ -10240,12 +10384,13 @@ export type Sequent_Backend_Ballot_Box_Seal_Stream_Cursor_Value_Input = {
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_name?: InputMaybe<Scalars["String"]["input"]>
-    failure_posted_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     failure_reason?: InputMaybe<Scalars["String"]["input"]>
     grace_deadline?: InputMaybe<Scalars["timestamptz"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     last_attempt_at?: InputMaybe<Scalars["timestamptz"]["input"]>
-    log_entry_id?: InputMaybe<Scalars["bigint"]["input"]>
+    log_delivery_id?: InputMaybe<Scalars["String"]["input"]>
+    log_leaf_index?: InputMaybe<Scalars["bigint"]["input"]>
+    log_uid?: InputMaybe<Scalars["uuid"]["input"]>
     manifest?: InputMaybe<Scalars["bytea"]["input"]>
     /** The seal record's document: public or private, by the event's Seal Record Publication policy. */
     public_document_id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -10265,7 +10410,7 @@ export type Sequent_Backend_Ballot_Box_Seal_Sum_Fields = {
     __typename?: "sequent_backend_ballot_box_seal_sum_fields"
     ballots_counted?: Maybe<Scalars["bigint"]["output"]>
     ballots_in_box?: Maybe<Scalars["bigint"]["output"]>
-    log_entry_id?: Maybe<Scalars["bigint"]["output"]>
+    log_leaf_index?: Maybe<Scalars["bigint"]["output"]>
 }
 
 /** update columns of table "sequent_backend.ballot_box_seal" */
@@ -10293,8 +10438,6 @@ export enum Sequent_Backend_Ballot_Box_Seal_Update_Column {
     /** column name */
     ElectionName = "election_name",
     /** column name */
-    FailurePostedAt = "failure_posted_at",
-    /** column name */
     FailureReason = "failure_reason",
     /** column name */
     GraceDeadline = "grace_deadline",
@@ -10303,7 +10446,11 @@ export enum Sequent_Backend_Ballot_Box_Seal_Update_Column {
     /** column name */
     LastAttemptAt = "last_attempt_at",
     /** column name */
-    LogEntryId = "log_entry_id",
+    LogDeliveryId = "log_delivery_id",
+    /** column name */
+    LogLeafIndex = "log_leaf_index",
+    /** column name */
+    LogUid = "log_uid",
     /** column name */
     Manifest = "manifest",
     /** column name */
@@ -10350,7 +10497,7 @@ export type Sequent_Backend_Ballot_Box_Seal_Var_Pop_Fields = {
     __typename?: "sequent_backend_ballot_box_seal_var_pop_fields"
     ballots_counted?: Maybe<Scalars["Float"]["output"]>
     ballots_in_box?: Maybe<Scalars["Float"]["output"]>
-    log_entry_id?: Maybe<Scalars["Float"]["output"]>
+    log_leaf_index?: Maybe<Scalars["Float"]["output"]>
 }
 
 /** aggregate var_samp on columns */
@@ -10358,7 +10505,7 @@ export type Sequent_Backend_Ballot_Box_Seal_Var_Samp_Fields = {
     __typename?: "sequent_backend_ballot_box_seal_var_samp_fields"
     ballots_counted?: Maybe<Scalars["Float"]["output"]>
     ballots_in_box?: Maybe<Scalars["Float"]["output"]>
-    log_entry_id?: Maybe<Scalars["Float"]["output"]>
+    log_leaf_index?: Maybe<Scalars["Float"]["output"]>
 }
 
 /** aggregate variance on columns */
@@ -10366,7 +10513,7 @@ export type Sequent_Backend_Ballot_Box_Seal_Variance_Fields = {
     __typename?: "sequent_backend_ballot_box_seal_variance_fields"
     ballots_counted?: Maybe<Scalars["Float"]["output"]>
     ballots_in_box?: Maybe<Scalars["Float"]["output"]>
-    log_entry_id?: Maybe<Scalars["Float"]["output"]>
+    log_leaf_index?: Maybe<Scalars["Float"]["output"]>
 }
 
 /** columns and relationships of "sequent_backend.ballot_publication" */
@@ -14493,6 +14640,318 @@ export type Sequent_Backend_Election_Variance_Fields = {
 /** order by variance() on columns of table "sequent_backend.election" */
 export type Sequent_Backend_Election_Variance_Order_By = {
     num_allowed_revotes?: InputMaybe<Order_By>
+}
+
+/** Signed checkpoints of election event electoral logs, kept outside the electoral-log database. The application only inserts rows. */
+export type Sequent_Backend_Electoral_Log_Checkpoint = {
+    __typename?: "sequent_backend_electoral_log_checkpoint"
+    board_name: Scalars["String"]["output"]
+    created_at: Scalars["timestamptz"]["output"]
+    election_event_id: Scalars["uuid"]["output"]
+    id: Scalars["uuid"]["output"]
+    /** Identity of the Trellis log: the event's board, or a sealed log it continues after an import. */
+    log_uid: Scalars["uuid"]["output"]
+    reason: Scalars["String"]["output"]
+    root: Scalars["String"]["output"]
+    signature: Scalars["String"]["output"]
+    signer_pk: Scalars["String"]["output"]
+    tenant_id: Scalars["uuid"]["output"]
+    tree_size: Scalars["bigint"]["output"]
+}
+
+/** aggregated selection of "sequent_backend.electoral_log_checkpoint" */
+export type Sequent_Backend_Electoral_Log_Checkpoint_Aggregate = {
+    __typename?: "sequent_backend_electoral_log_checkpoint_aggregate"
+    aggregate?: Maybe<Sequent_Backend_Electoral_Log_Checkpoint_Aggregate_Fields>
+    nodes: Array<Sequent_Backend_Electoral_Log_Checkpoint>
+}
+
+/** aggregate fields of "sequent_backend.electoral_log_checkpoint" */
+export type Sequent_Backend_Electoral_Log_Checkpoint_Aggregate_Fields = {
+    __typename?: "sequent_backend_electoral_log_checkpoint_aggregate_fields"
+    avg?: Maybe<Sequent_Backend_Electoral_Log_Checkpoint_Avg_Fields>
+    count: Scalars["Int"]["output"]
+    max?: Maybe<Sequent_Backend_Electoral_Log_Checkpoint_Max_Fields>
+    min?: Maybe<Sequent_Backend_Electoral_Log_Checkpoint_Min_Fields>
+    stddev?: Maybe<Sequent_Backend_Electoral_Log_Checkpoint_Stddev_Fields>
+    stddev_pop?: Maybe<Sequent_Backend_Electoral_Log_Checkpoint_Stddev_Pop_Fields>
+    stddev_samp?: Maybe<Sequent_Backend_Electoral_Log_Checkpoint_Stddev_Samp_Fields>
+    sum?: Maybe<Sequent_Backend_Electoral_Log_Checkpoint_Sum_Fields>
+    var_pop?: Maybe<Sequent_Backend_Electoral_Log_Checkpoint_Var_Pop_Fields>
+    var_samp?: Maybe<Sequent_Backend_Electoral_Log_Checkpoint_Var_Samp_Fields>
+    variance?: Maybe<Sequent_Backend_Electoral_Log_Checkpoint_Variance_Fields>
+}
+
+/** aggregate fields of "sequent_backend.electoral_log_checkpoint" */
+export type Sequent_Backend_Electoral_Log_Checkpoint_Aggregate_FieldsCountArgs = {
+    columns?: InputMaybe<Array<Sequent_Backend_Electoral_Log_Checkpoint_Select_Column>>
+    distinct?: InputMaybe<Scalars["Boolean"]["input"]>
+}
+
+/** aggregate avg on columns */
+export type Sequent_Backend_Electoral_Log_Checkpoint_Avg_Fields = {
+    __typename?: "sequent_backend_electoral_log_checkpoint_avg_fields"
+    tree_size?: Maybe<Scalars["Float"]["output"]>
+}
+
+/** Boolean expression to filter rows from the table "sequent_backend.electoral_log_checkpoint". All fields are combined with a logical 'AND'. */
+export type Sequent_Backend_Electoral_Log_Checkpoint_Bool_Exp = {
+    _and?: InputMaybe<Array<Sequent_Backend_Electoral_Log_Checkpoint_Bool_Exp>>
+    _not?: InputMaybe<Sequent_Backend_Electoral_Log_Checkpoint_Bool_Exp>
+    _or?: InputMaybe<Array<Sequent_Backend_Electoral_Log_Checkpoint_Bool_Exp>>
+    board_name?: InputMaybe<String_Comparison_Exp>
+    created_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    election_event_id?: InputMaybe<Uuid_Comparison_Exp>
+    id?: InputMaybe<Uuid_Comparison_Exp>
+    log_uid?: InputMaybe<Uuid_Comparison_Exp>
+    reason?: InputMaybe<String_Comparison_Exp>
+    root?: InputMaybe<String_Comparison_Exp>
+    signature?: InputMaybe<String_Comparison_Exp>
+    signer_pk?: InputMaybe<String_Comparison_Exp>
+    tenant_id?: InputMaybe<Uuid_Comparison_Exp>
+    tree_size?: InputMaybe<Bigint_Comparison_Exp>
+}
+
+/** unique or primary key constraints on table "sequent_backend.electoral_log_checkpoint" */
+export enum Sequent_Backend_Electoral_Log_Checkpoint_Constraint {
+    /** unique or primary key constraint on columns "tree_size", "log_uid", "tenant_id", "election_event_id" */
+    ElectoralLogCheckpointLogUidTreeSizeKey = "electoral_log_checkpoint_log_uid_tree_size_key",
+    /** unique or primary key constraint on columns "id" */
+    ElectoralLogCheckpointPkey = "electoral_log_checkpoint_pkey",
+}
+
+/** input type for incrementing numeric columns in table "sequent_backend.electoral_log_checkpoint" */
+export type Sequent_Backend_Electoral_Log_Checkpoint_Inc_Input = {
+    tree_size?: InputMaybe<Scalars["bigint"]["input"]>
+}
+
+/** input type for inserting data into table "sequent_backend.electoral_log_checkpoint" */
+export type Sequent_Backend_Electoral_Log_Checkpoint_Insert_Input = {
+    board_name?: InputMaybe<Scalars["String"]["input"]>
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    id?: InputMaybe<Scalars["uuid"]["input"]>
+    /** Identity of the Trellis log: the event's board, or a sealed log it continues after an import. */
+    log_uid?: InputMaybe<Scalars["uuid"]["input"]>
+    reason?: InputMaybe<Scalars["String"]["input"]>
+    root?: InputMaybe<Scalars["String"]["input"]>
+    signature?: InputMaybe<Scalars["String"]["input"]>
+    signer_pk?: InputMaybe<Scalars["String"]["input"]>
+    tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+    tree_size?: InputMaybe<Scalars["bigint"]["input"]>
+}
+
+/** aggregate max on columns */
+export type Sequent_Backend_Electoral_Log_Checkpoint_Max_Fields = {
+    __typename?: "sequent_backend_electoral_log_checkpoint_max_fields"
+    board_name?: Maybe<Scalars["String"]["output"]>
+    created_at?: Maybe<Scalars["timestamptz"]["output"]>
+    election_event_id?: Maybe<Scalars["uuid"]["output"]>
+    id?: Maybe<Scalars["uuid"]["output"]>
+    /** Identity of the Trellis log: the event's board, or a sealed log it continues after an import. */
+    log_uid?: Maybe<Scalars["uuid"]["output"]>
+    reason?: Maybe<Scalars["String"]["output"]>
+    root?: Maybe<Scalars["String"]["output"]>
+    signature?: Maybe<Scalars["String"]["output"]>
+    signer_pk?: Maybe<Scalars["String"]["output"]>
+    tenant_id?: Maybe<Scalars["uuid"]["output"]>
+    tree_size?: Maybe<Scalars["bigint"]["output"]>
+}
+
+/** aggregate min on columns */
+export type Sequent_Backend_Electoral_Log_Checkpoint_Min_Fields = {
+    __typename?: "sequent_backend_electoral_log_checkpoint_min_fields"
+    board_name?: Maybe<Scalars["String"]["output"]>
+    created_at?: Maybe<Scalars["timestamptz"]["output"]>
+    election_event_id?: Maybe<Scalars["uuid"]["output"]>
+    id?: Maybe<Scalars["uuid"]["output"]>
+    /** Identity of the Trellis log: the event's board, or a sealed log it continues after an import. */
+    log_uid?: Maybe<Scalars["uuid"]["output"]>
+    reason?: Maybe<Scalars["String"]["output"]>
+    root?: Maybe<Scalars["String"]["output"]>
+    signature?: Maybe<Scalars["String"]["output"]>
+    signer_pk?: Maybe<Scalars["String"]["output"]>
+    tenant_id?: Maybe<Scalars["uuid"]["output"]>
+    tree_size?: Maybe<Scalars["bigint"]["output"]>
+}
+
+/** response of any mutation on the table "sequent_backend.electoral_log_checkpoint" */
+export type Sequent_Backend_Electoral_Log_Checkpoint_Mutation_Response = {
+    __typename?: "sequent_backend_electoral_log_checkpoint_mutation_response"
+    /** number of rows affected by the mutation */
+    affected_rows: Scalars["Int"]["output"]
+    /** data from the rows affected by the mutation */
+    returning: Array<Sequent_Backend_Electoral_Log_Checkpoint>
+}
+
+/** on_conflict condition type for table "sequent_backend.electoral_log_checkpoint" */
+export type Sequent_Backend_Electoral_Log_Checkpoint_On_Conflict = {
+    constraint: Sequent_Backend_Electoral_Log_Checkpoint_Constraint
+    update_columns?: Array<Sequent_Backend_Electoral_Log_Checkpoint_Update_Column>
+    where?: InputMaybe<Sequent_Backend_Electoral_Log_Checkpoint_Bool_Exp>
+}
+
+/** Ordering options when selecting data from "sequent_backend.electoral_log_checkpoint". */
+export type Sequent_Backend_Electoral_Log_Checkpoint_Order_By = {
+    board_name?: InputMaybe<Order_By>
+    created_at?: InputMaybe<Order_By>
+    election_event_id?: InputMaybe<Order_By>
+    id?: InputMaybe<Order_By>
+    log_uid?: InputMaybe<Order_By>
+    reason?: InputMaybe<Order_By>
+    root?: InputMaybe<Order_By>
+    signature?: InputMaybe<Order_By>
+    signer_pk?: InputMaybe<Order_By>
+    tenant_id?: InputMaybe<Order_By>
+    tree_size?: InputMaybe<Order_By>
+}
+
+/** primary key columns input for table: sequent_backend.electoral_log_checkpoint */
+export type Sequent_Backend_Electoral_Log_Checkpoint_Pk_Columns_Input = {
+    id: Scalars["uuid"]["input"]
+}
+
+/** select columns of table "sequent_backend.electoral_log_checkpoint" */
+export enum Sequent_Backend_Electoral_Log_Checkpoint_Select_Column {
+    /** column name */
+    BoardName = "board_name",
+    /** column name */
+    CreatedAt = "created_at",
+    /** column name */
+    ElectionEventId = "election_event_id",
+    /** column name */
+    Id = "id",
+    /** column name */
+    LogUid = "log_uid",
+    /** column name */
+    Reason = "reason",
+    /** column name */
+    Root = "root",
+    /** column name */
+    Signature = "signature",
+    /** column name */
+    SignerPk = "signer_pk",
+    /** column name */
+    TenantId = "tenant_id",
+    /** column name */
+    TreeSize = "tree_size",
+}
+
+/** input type for updating data in table "sequent_backend.electoral_log_checkpoint" */
+export type Sequent_Backend_Electoral_Log_Checkpoint_Set_Input = {
+    board_name?: InputMaybe<Scalars["String"]["input"]>
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    id?: InputMaybe<Scalars["uuid"]["input"]>
+    /** Identity of the Trellis log: the event's board, or a sealed log it continues after an import. */
+    log_uid?: InputMaybe<Scalars["uuid"]["input"]>
+    reason?: InputMaybe<Scalars["String"]["input"]>
+    root?: InputMaybe<Scalars["String"]["input"]>
+    signature?: InputMaybe<Scalars["String"]["input"]>
+    signer_pk?: InputMaybe<Scalars["String"]["input"]>
+    tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+    tree_size?: InputMaybe<Scalars["bigint"]["input"]>
+}
+
+/** aggregate stddev on columns */
+export type Sequent_Backend_Electoral_Log_Checkpoint_Stddev_Fields = {
+    __typename?: "sequent_backend_electoral_log_checkpoint_stddev_fields"
+    tree_size?: Maybe<Scalars["Float"]["output"]>
+}
+
+/** aggregate stddev_pop on columns */
+export type Sequent_Backend_Electoral_Log_Checkpoint_Stddev_Pop_Fields = {
+    __typename?: "sequent_backend_electoral_log_checkpoint_stddev_pop_fields"
+    tree_size?: Maybe<Scalars["Float"]["output"]>
+}
+
+/** aggregate stddev_samp on columns */
+export type Sequent_Backend_Electoral_Log_Checkpoint_Stddev_Samp_Fields = {
+    __typename?: "sequent_backend_electoral_log_checkpoint_stddev_samp_fields"
+    tree_size?: Maybe<Scalars["Float"]["output"]>
+}
+
+/** Streaming cursor of the table "sequent_backend_electoral_log_checkpoint" */
+export type Sequent_Backend_Electoral_Log_Checkpoint_Stream_Cursor_Input = {
+    /** Stream column input with initial value */
+    initial_value: Sequent_Backend_Electoral_Log_Checkpoint_Stream_Cursor_Value_Input
+    /** cursor ordering */
+    ordering?: InputMaybe<Cursor_Ordering>
+}
+
+/** Initial value of the column from where the streaming should start */
+export type Sequent_Backend_Electoral_Log_Checkpoint_Stream_Cursor_Value_Input = {
+    board_name?: InputMaybe<Scalars["String"]["input"]>
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    id?: InputMaybe<Scalars["uuid"]["input"]>
+    /** Identity of the Trellis log: the event's board, or a sealed log it continues after an import. */
+    log_uid?: InputMaybe<Scalars["uuid"]["input"]>
+    reason?: InputMaybe<Scalars["String"]["input"]>
+    root?: InputMaybe<Scalars["String"]["input"]>
+    signature?: InputMaybe<Scalars["String"]["input"]>
+    signer_pk?: InputMaybe<Scalars["String"]["input"]>
+    tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+    tree_size?: InputMaybe<Scalars["bigint"]["input"]>
+}
+
+/** aggregate sum on columns */
+export type Sequent_Backend_Electoral_Log_Checkpoint_Sum_Fields = {
+    __typename?: "sequent_backend_electoral_log_checkpoint_sum_fields"
+    tree_size?: Maybe<Scalars["bigint"]["output"]>
+}
+
+/** update columns of table "sequent_backend.electoral_log_checkpoint" */
+export enum Sequent_Backend_Electoral_Log_Checkpoint_Update_Column {
+    /** column name */
+    BoardName = "board_name",
+    /** column name */
+    CreatedAt = "created_at",
+    /** column name */
+    ElectionEventId = "election_event_id",
+    /** column name */
+    Id = "id",
+    /** column name */
+    LogUid = "log_uid",
+    /** column name */
+    Reason = "reason",
+    /** column name */
+    Root = "root",
+    /** column name */
+    Signature = "signature",
+    /** column name */
+    SignerPk = "signer_pk",
+    /** column name */
+    TenantId = "tenant_id",
+    /** column name */
+    TreeSize = "tree_size",
+}
+
+export type Sequent_Backend_Electoral_Log_Checkpoint_Updates = {
+    /** increments the numeric columns with given value of the filtered values */
+    _inc?: InputMaybe<Sequent_Backend_Electoral_Log_Checkpoint_Inc_Input>
+    /** sets the columns of the filtered rows to the given values */
+    _set?: InputMaybe<Sequent_Backend_Electoral_Log_Checkpoint_Set_Input>
+    /** filter the rows which have to be updated */
+    where: Sequent_Backend_Electoral_Log_Checkpoint_Bool_Exp
+}
+
+/** aggregate var_pop on columns */
+export type Sequent_Backend_Electoral_Log_Checkpoint_Var_Pop_Fields = {
+    __typename?: "sequent_backend_electoral_log_checkpoint_var_pop_fields"
+    tree_size?: Maybe<Scalars["Float"]["output"]>
+}
+
+/** aggregate var_samp on columns */
+export type Sequent_Backend_Electoral_Log_Checkpoint_Var_Samp_Fields = {
+    __typename?: "sequent_backend_electoral_log_checkpoint_var_samp_fields"
+    tree_size?: Maybe<Scalars["Float"]["output"]>
+}
+
+/** aggregate variance on columns */
+export type Sequent_Backend_Electoral_Log_Checkpoint_Variance_Fields = {
+    __typename?: "sequent_backend_electoral_log_checkpoint_variance_fields"
+    tree_size?: Maybe<Scalars["Float"]["output"]>
 }
 
 /** columns and relationships of "sequent_backend.event_execution" */
@@ -22210,6 +22669,8 @@ export type Sequent_Backend_Scheduled_Event_Bool_Exp = {
 
 /** unique or primary key constraints on table "sequent_backend.scheduled_event" */
 export enum Sequent_Backend_Scheduled_Event_Constraint {
+    /** unique or primary key constraint on columns "task_id", "tenant_id", "election_event_id" */
+    ScheduledEventActiveVotingTaskIdx = "scheduled_event_active_voting_task_idx",
     /** unique or primary key constraint on columns "id" */
     ScheduledEventPkey = "scheduled_event_pkey",
 }
@@ -30630,6 +31091,14 @@ export type Subscription_Root = {
     sequent_backend_election_type_by_pk?: Maybe<Sequent_Backend_Election_Type>
     /** fetch data from the table in a streaming manner: "sequent_backend.election_type" */
     sequent_backend_election_type_stream: Array<Sequent_Backend_Election_Type>
+    /** fetch data from the table: "sequent_backend.electoral_log_checkpoint" */
+    sequent_backend_electoral_log_checkpoint: Array<Sequent_Backend_Electoral_Log_Checkpoint>
+    /** fetch aggregated fields from the table: "sequent_backend.electoral_log_checkpoint" */
+    sequent_backend_electoral_log_checkpoint_aggregate: Sequent_Backend_Electoral_Log_Checkpoint_Aggregate
+    /** fetch data from the table: "sequent_backend.electoral_log_checkpoint" using primary key columns */
+    sequent_backend_electoral_log_checkpoint_by_pk?: Maybe<Sequent_Backend_Electoral_Log_Checkpoint>
+    /** fetch data from the table in a streaming manner: "sequent_backend.electoral_log_checkpoint" */
+    sequent_backend_electoral_log_checkpoint_stream: Array<Sequent_Backend_Electoral_Log_Checkpoint>
     /** fetch data from the table: "sequent_backend.event_execution" */
     sequent_backend_event_execution: Array<Sequent_Backend_Event_Execution>
     /** fetch aggregated fields from the table: "sequent_backend.event_execution" */
@@ -31353,6 +31822,32 @@ export type Subscription_RootSequent_Backend_Election_Type_StreamArgs = {
     batch_size: Scalars["Int"]["input"]
     cursor: Array<InputMaybe<Sequent_Backend_Election_Type_Stream_Cursor_Input>>
     where?: InputMaybe<Sequent_Backend_Election_Type_Bool_Exp>
+}
+
+export type Subscription_RootSequent_Backend_Electoral_Log_CheckpointArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Electoral_Log_Checkpoint_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Electoral_Log_Checkpoint_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Electoral_Log_Checkpoint_Bool_Exp>
+}
+
+export type Subscription_RootSequent_Backend_Electoral_Log_Checkpoint_AggregateArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Electoral_Log_Checkpoint_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Electoral_Log_Checkpoint_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Electoral_Log_Checkpoint_Bool_Exp>
+}
+
+export type Subscription_RootSequent_Backend_Electoral_Log_Checkpoint_By_PkArgs = {
+    id: Scalars["uuid"]["input"]
+}
+
+export type Subscription_RootSequent_Backend_Electoral_Log_Checkpoint_StreamArgs = {
+    batch_size: Scalars["Int"]["input"]
+    cursor: Array<InputMaybe<Sequent_Backend_Electoral_Log_Checkpoint_Stream_Cursor_Input>>
+    where?: InputMaybe<Sequent_Backend_Electoral_Log_Checkpoint_Bool_Exp>
 }
 
 export type Subscription_RootSequent_Backend_Event_ExecutionArgs = {
