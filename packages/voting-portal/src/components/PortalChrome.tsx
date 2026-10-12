@@ -145,17 +145,13 @@ export const PortalChrome: React.FC<PortalChromeProps> = ({
         return electionId ? selectBallotStyleByElectionId(String(electionId))(state) : undefined
     })
 
+    const presentation =
+        ballotStyle?.ballot_eml.election_event_presentation ?? electionEvent?.presentation
+
     useElectionClassName()
 
     return (
-        <StyledAppWrapper
-            className="voting-portal-wrapper"
-            customCss={
-                ballotStyle?.ballot_eml.election_event_presentation?.css ??
-                electionEvent?.presentation?.css ??
-                ""
-            }
-        >
+        <StyledAppWrapper className="voting-portal-wrapper" customCss={presentation?.css ?? ""}>
             <StyledApp className="voting-portal app-root">
                 {before}
                 <a className="skip-link" href="#main-content">

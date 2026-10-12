@@ -22,7 +22,7 @@ for (const scenario of [
     },
     {
         name: "early voter",
-        online: "CLOSED",
+        online: "NOT_STARTED",
         early: "OPEN",
         kiosk: false,
         allowEarly: true,
@@ -30,10 +30,18 @@ for (const scenario of [
     },
     {
         name: "early channel outside eligible area",
-        online: "CLOSED",
+        online: "NOT_STARTED",
         early: "OPEN",
         kiosk: false,
         allowEarly: false,
+        active: false,
+    },
+    {
+        name: "early channel after online voting closed",
+        online: "CLOSED",
+        early: "OPEN",
+        kiosk: false,
+        allowEarly: true,
         active: false,
     },
     {
