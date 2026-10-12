@@ -489,7 +489,6 @@ const galegoTranslation: TranslationType = {
                 },
             },
             clear: {
-                button: "Borrar seleccións",
                 cleared: "Borráronse todas as túas opcións.",
                 dialog: {
                     title: "Borrar todas as túas opcións?",

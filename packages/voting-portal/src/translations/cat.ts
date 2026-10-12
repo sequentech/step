@@ -491,7 +491,6 @@ const catalanTranslation: TranslationType = {
                 },
             },
             clear: {
-                button: "Esborra les seleccions",
                 cleared: "S'han esborrat totes les teves opcions.",
                 dialog: {
                     title: "Vols esborrar totes les teves opcions?",

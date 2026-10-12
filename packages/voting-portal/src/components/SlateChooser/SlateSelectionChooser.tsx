@@ -19,7 +19,6 @@ import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {useAppSelector} from "../../store/hooks"
 import {SlateCandidateList} from "./SlateCandidateList"
 import {SlateChooser} from "./SlateChooser"
-import {SlateClearAction} from "./SlateClearAction"
 import {SlateMember} from "./SlateMember"
 import {SlateSelectionStatus} from "./SlateSelectionStatus"
 
@@ -65,7 +64,6 @@ export const SlateSelectionChooser: React.FC<SlateSelectionChooserProps> = ({
             slates={slates}
             defaultLanguage={defaultLanguage}
             renderCoverage={renderCoverage}
-            footer={<SlateClearAction ballotStyle={ballotStyle} />}
             renderSummary={(slate) => {
                 const summary = summaries.get(slate.id)
                 return summary ? <SlateSelectionStatus summary={summary} /> : null

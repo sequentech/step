@@ -488,7 +488,6 @@ const frenchTranslation: TranslationType = {
                 },
             },
             clear: {
-                button: "Effacer les sélections",
                 cleared: "Tous vos choix ont été effacés.",
                 dialog: {
                     title: "Effacer tous vos choix ?",

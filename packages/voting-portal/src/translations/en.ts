@@ -488,7 +488,6 @@ const englishTranslation = {
                 },
             },
             clear: {
-                button: "Clear selections",
                 cleared: "All your choices have been cleared.",
                 dialog: {
                     title: "Clear all your choices?",

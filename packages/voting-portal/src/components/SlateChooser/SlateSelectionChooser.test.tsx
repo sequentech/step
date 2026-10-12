@@ -276,21 +276,3 @@ describe("the slates of a ballot with selections", () => {
         })
     })
 })
-
-describe("clearing the selections from the slates", () => {
-    it("is offered under the slates, once something is selected", () => {
-        const store = newStore()
-        mount(store)
-
-        const clear = screen.getByRole("button", {name: "Clear selections"})
-        const lastCard = screen.getByRole("heading", {level: 3, name: "Independent Voices"})
-        expect(
-            lastCard.compareDocumentPosition(clear) & Node.DOCUMENT_POSITION_FOLLOWING
-        ).toBeTruthy()
-        expect(clear).toBeDisabled()
-
-        choose(store, "trustees", "f-t1")
-
-        expect(clear).toBeEnabled()
-    })
-})

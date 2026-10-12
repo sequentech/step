@@ -30,6 +30,32 @@ describe("resolveSlates", () => {
         ])
     })
 
+    it("follows the configured position of the contests, not their order in the ballot style", () => {
+        const president = {...PRESIDENT, presentation: {sort_order: 0}}
+        const trustees = {...TRUSTEES, presentation: {sort_order: 1}}
+        const ballot = resolveSlates(SLATES, [trustees, president])
+
+        expect(ballot.contests.map(({id}) => id)).toEqual(["president", "trustees"])
+        expect(ballot.slates[0].contests.map(({contest}) => contest.id)).toEqual([
+            "president",
+            "trustees",
+        ])
+    })
+
+    it("lists the offices of a covered slate in the configured position of the contests", () => {
+        const president = {...PRESIDENT, presentation: {sort_order: 0}}
+        const trustees = {...TRUSTEES, presentation: {sort_order: 1}}
+        const style = aSlateBallotStyle(JSON.stringify(SLATES))
+        const ballot = resolveBallotStyleSlates({
+            ...style.ballot_eml,
+            contests: [trustees, president],
+        })
+        const voices = ballot?.slates.find((slate) => slate.id === "voices")
+
+        expect(ballot?.contests.map(({id}) => id)).toEqual(["president", "trustees"])
+        expect(voices?.offices?.map(({contest}) => contest.id)).toEqual(["president", "trustees"])
+    })
+
     it("lists only the contests a slate has candidates in", () => {
         const {slates} = resolveSlates(SLATES, [PRESIDENT, TRUSTEES])
         const voices = slates[2]

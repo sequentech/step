@@ -489,7 +489,6 @@ const dutchTranslation: TranslationType = {
                 },
             },
             clear: {
-                button: "Selecties wissen",
                 cleared: "Al uw keuzes zijn gewist.",
                 dialog: {
                     title: "Al uw keuzes wissen?",

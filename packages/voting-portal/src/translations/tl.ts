@@ -489,7 +489,6 @@ const tagalogTranslation: TranslationType = {
                 },
             },
             clear: {
-                button: "I-clear ang mga pinili",
                 cleared: "Na-clear na ang lahat ng iyong pinili.",
                 dialog: {
                     title: "I-clear ang lahat ng iyong pinili?",

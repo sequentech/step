@@ -15,6 +15,7 @@ import {
     ISlatesConfig,
 } from "@sequentech/ui-core"
 
+import {sortContestsInBallotOrder} from "./ContestOrder"
 import {ESlateOfficesLayout, getSlateOffices} from "./SlateCoverage"
 
 export {getSlateName} from "@sequentech/ui-core"
@@ -71,14 +72,15 @@ const resolveCoveredSlate = (
 })
 
 /**
- * The slates of a ballot. With `coverage`, only the slates it lists are kept,
- * with the candidates it counts.
+ * The slates of a ballot, with the contests in ballot order. With `coverage`,
+ * only the slates it lists are kept, with the candidates it counts.
  */
 export const resolveSlates = (
     config: ISlatesConfig,
-    contests: Array<IContest>,
+    ballotContests: Array<IContest>,
     coverage?: Array<ISlateCoverage> | null
 ): IBallotSlates => {
+    const contests = sortContestsInBallotOrder(ballotContests)
     const slates = coverage
         ? coverage.flatMap((slateCoverage) => {
               const slate = config.slates.find((entry) => entry.id === slateCoverage.slate_id)

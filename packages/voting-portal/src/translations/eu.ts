@@ -489,7 +489,6 @@ const basqueTranslation: TranslationType = {
                 },
             },
             clear: {
-                button: "Garbitu hautaketak",
                 cleared: "Zure aukera guztiak garbitu dira.",
                 dialog: {
                     title: "Zure aukera guztiak garbitu?",

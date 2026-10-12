@@ -491,7 +491,6 @@ const spanishTranslation: TranslationType = {
                 },
             },
             clear: {
-                button: "Borrar selecciones",
                 cleared: "Se han borrado todas tus opciones.",
                 dialog: {
                     title: "¿Borrar todas tus opciones?",

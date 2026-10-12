@@ -36,7 +36,9 @@ Choosing a slate that removes nothing, because the ballot is empty or already ho
 
 ## Clearing the ballot
 
-**Clear selections**, next to the slates, removes every choice on the ballot. If there is anything to remove, the same dialog lists what would be removed and asks first; cancelling leaves the ballot unchanged. The action is not available while nothing is selected.
+On a ballot with slates, the **Clear selections** button at the bottom of the voting screen removes every choice on the ballot, on both tabs. The same dialog lists what would be removed and asks first; cancelling leaves the ballot unchanged. The button is disabled while nothing is selected. Ballots without slates keep the usual **Clear selections** behaviour.
+
+The dialog has the `slate-clear-dialog` class, and the line confirming that the ballot was cleared has the `slate-clear-status` class.
 
 ## Selection limits
 

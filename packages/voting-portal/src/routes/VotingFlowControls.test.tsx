@@ -1104,7 +1104,7 @@ describe("slate ballot tabs", () => {
         expect(selectedTab()).toBe("slates.tabs.candidates")
     })
 
-    it("offers to clear the selections on the slates, and asks before clearing", async () => {
+    it("clears a ballot with slates from the footer, after asking, with one action", async () => {
         const {contest, member} = configureSlate()
         mockState.ballotSelections = {
             "election-1": [
@@ -1123,18 +1123,56 @@ describe("slate ballot tabs", () => {
             ],
         }
         const user = userEvent.setup()
-        renderRoute(<VotingScreen />, "vote")
+        const {container} = renderRoute(<VotingScreen />, "vote")
 
-        await user.click(screen.getByRole("button", {name: "slates.clear.button"}))
-
-        expect(await screen.findByTestId("open-dialog")).toHaveClass("slate-clear-dialog")
+        expect(container.querySelector(".slate-clear-button")).toBeNull()
+        const clearButtons = screen.getAllByRole("button", {name: "votingScreen.clearButton"})
+        expect(clearButtons).toHaveLength(2)
+        for (const button of clearButtons) {
+            await user.click(button)
+            expect(await screen.findByTestId("open-dialog")).toHaveClass("slate-clear-dialog")
+            await user.click(screen.getByRole("button", {name: "slates.clear.dialog.cancel"}))
+        }
         expect(mockDispatch).not.toHaveBeenCalledWith(
             expect.objectContaining({type: "ballotSelections/clearBallotSelectionChoices"})
         )
+
+        await user.click(clearButtons[1])
         await user.click(screen.getByRole("button", {name: "slates.clear.dialog.ok"}))
         expect(mockDispatch).toHaveBeenCalledWith(
             expect.objectContaining({type: "ballotSelections/clearBallotSelectionChoices"})
         )
+        expect(mockDispatch).not.toHaveBeenCalledWith(
+            expect.objectContaining({type: "ballotSelections/resetBallotSelection"})
+        )
+        expect(container.querySelector(".slate-clear-status")).toHaveAttribute("role", "status")
+    })
+
+    it("cannot clear a ballot with slates while nothing is selected", () => {
+        configureSlate()
+        renderRoute(<VotingScreen />, "vote")
+
+        for (const button of screen.getAllByRole("button", {name: "votingScreen.clearButton"})) {
+            expect(button).toBeDisabled()
+        }
+    })
+
+    it("keeps clearing the page without asking on a ballot without slates", async () => {
+        const user = userEvent.setup()
+        const {container} = renderRoute(<VotingScreen />, "vote")
+
+        const clearButtons = screen.getAllByRole("button", {name: "votingScreen.clearButton"})
+        expect(clearButtons.every((button) => !button.hasAttribute("disabled"))).toBe(true)
+        await user.click(clearButtons[1])
+
+        expect(screen.queryByTestId("open-dialog")).toBeNull()
+        expect(mockDispatch).toHaveBeenCalledWith(
+            expect.objectContaining({
+                type: "ballotSelections/resetBallotSelection",
+                payload: expect.objectContaining({force: true, contestId: "contest-0"}),
+            })
+        )
+        expect(container.querySelector(".slate-clear-status")).toBeNull()
     })
 })
 

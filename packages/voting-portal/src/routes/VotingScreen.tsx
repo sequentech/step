@@ -54,7 +54,9 @@ import {BallotSlatesProvider} from "../providers/BallotSlatesProvider"
 import {SlateSelectionChooser} from "../components/SlateChooser/SlateSelectionChooser"
 import {ESlateBallotTab, SlateBallotTabs} from "../components/SlateChooser/SlateBallotTabs"
 import {SlateApplyAction} from "../components/SlateChooser/SlateApplyAction"
+import {useSlateClear} from "../components/SlateChooser/SlateClearFlow"
 import {getEditContestId} from "../services/EditContest"
+import {sortContestsInBallotOrder} from "../services/ContestOrder"
 
 const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     margin-top: 25.5px;
@@ -94,6 +96,7 @@ interface ActionButtonProps {
     handleClearCustom?: () => void
     pageIndex?: number
     disableNext?: boolean
+    disableClear?: boolean
 }
 
 const ActionButtons: React.FC<ActionButtonProps> = ({
@@ -102,6 +105,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     handleClearCustom,
     pageIndex,
     disableNext,
+    disableClear,
 }) => {
     const {t} = useTranslation()
     const backLink = useRootBackLink()
@@ -141,6 +145,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 }}
                 variant="secondary"
                 onClick={() => (handleClearCustom ? handleClearCustom() : handleClear())}
+                disabled={disableClear}
             >
                 <Box className="clear-selection-label">{t("votingScreen.clearButton")}</Box>
             </StyledButton>
@@ -168,6 +173,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                     }}
                     variant="secondary"
                     onClick={() => (handleClearCustom ? handleClearCustom() : handleClear())}
+                    disabled={disableClear}
                 >
                     <Box className="clear-selection-label">{t("votingScreen.clearButton")}</Box>
                 </StyledButton>
@@ -218,6 +224,8 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
     const contestsOrderType = ballotStyle?.ballot_eml.election_presentation?.contests_order
     const [pageIndex, setPageIndex] = useState(0)
     const pageAnnouncementRef = useRef<HTMLDivElement>(null)
+    // A ballot with slates is cleared as a whole, after the voter sees what goes.
+    const slateClear = useSlateClear(ballotStyle)
     const isFirstRender = useRef(true)
 
     useEffect(() => {
@@ -368,10 +376,12 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
             <ActionButtons
                 handleNext={handleNext}
                 handlePrev={handlePrev}
-                handleClearCustom={handleClear}
+                handleClearCustom={slateChooser ? slateClear.requestClear : handleClear}
+                disableClear={!!slateChooser && !slateClear.canClear}
                 pageIndex={pageIndex}
                 disableNext={disableNextButton(sortedContests) && contests.length !== 1}
             />
+            {slateChooser ? slateClear.feedback : null}
         </>
     )
 }
@@ -545,10 +555,7 @@ const VotingScreen: React.FC = () => {
     useEffect(() => {
         let minMaxGlobal = false
         let contestsPages = new Map<String, IContest[]>()
-        let contests = [...(ballotStyle?.ballot_eml.contests ?? [])].sort(
-            (a, b) =>
-                (a.presentation?.sort_order ?? Infinity) - (b.presentation?.sort_order ?? Infinity)
-        )
+        let contests = sortContestsInBallotOrder(ballotStyle?.ballot_eml.contests ?? [])
         for (let contest of contests ?? []) {
             let countVotes = 0
             let selection = selectionState?.find((s) => s.contest_id === contest.id)

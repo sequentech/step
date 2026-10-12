@@ -8,6 +8,7 @@ import {Dialog} from "@sequentech/ui-essentials"
 import {translate} from "@sequentech/ui-core"
 import type {ICandidate, IContest} from "@sequentech/ui-core"
 import {useTranslation} from "react-i18next"
+import {sortContestsInBallotOrder} from "../../services/ContestOrder"
 import type {ISlateChoices} from "../../services/SlateChoices"
 
 export interface SlateChangesDialogProps {
@@ -64,50 +65,48 @@ export const SlateChangesDialog: React.FC<SlateChangesDialogProps> = ({
         >
             <Box className="slate-changes" sx={{overflowWrap: "anywhere"}}>
                 <Typography className="slate-replace-content">{content}</Typography>
-                {(pending?.changes ?? [])
-                    .filter((change) => change.removed.length > 0)
-                    .map((change) => {
-                        const contest = contests.find((entry) => entry.id === change.contestId)
-                        if (!contest) {
-                            return null
-                        }
-                        return (
-                            <Box
-                                key={change.contestId}
-                                className="slate-replace-contest"
-                                sx={{marginTop: 2}}
+                {sortContestsInBallotOrder(contests).map((contest) => {
+                    const change = pending?.changes.find((entry) => entry.contestId === contest.id)
+                    if (!change || change.removed.length === 0) {
+                        return null
+                    }
+                    return (
+                        <Box
+                            key={change.contestId}
+                            className="slate-replace-contest"
+                            sx={{marginTop: 2}}
+                        >
+                            <Typography
+                                className="slate-replace-contest-name"
+                                variant="h6"
+                                component="h3"
                             >
-                                <Typography
-                                    className="slate-replace-contest-name"
-                                    variant="h6"
-                                    component="h3"
-                                >
-                                    {translate(contest, "name", i18n.language) ?? contest.id}
-                                </Typography>
-                                <Typography className="slate-replace-removed">
-                                    {t("slates.apply.replaceDialog.removed")}{" "}
+                                {translate(contest, "name", i18n.language) ?? contest.id}
+                            </Typography>
+                            <Typography className="slate-replace-removed">
+                                {t("slates.apply.replaceDialog.removed")}{" "}
+                                <strong className="slate-replace-candidates">
+                                    {candidateNames(contest.candidates, change.removed)}
+                                </strong>
+                            </Typography>
+                            {change.added.length > 0 ? (
+                                <Typography className="slate-replace-added">
+                                    {t("slates.apply.replaceDialog.added")}{" "}
                                     <strong className="slate-replace-candidates">
-                                        {candidateNames(contest.candidates, change.removed)}
+                                        {candidateNames(contest.candidates, change.added)}
                                     </strong>
                                 </Typography>
-                                {change.added.length > 0 ? (
-                                    <Typography className="slate-replace-added">
-                                        {t("slates.apply.replaceDialog.added")}{" "}
-                                        <strong className="slate-replace-candidates">
-                                            {candidateNames(contest.candidates, change.added)}
-                                        </strong>
-                                    </Typography>
-                                ) : isLeftBlank(change.contestId) ? (
-                                    <Typography className="slate-replace-added slate-replace-none">
-                                        {t("slates.apply.replaceDialog.added")}{" "}
-                                        <strong className="slate-replace-candidates">
-                                            {t("slates.noCandidate")}
-                                        </strong>
-                                    </Typography>
-                                ) : null}
-                            </Box>
-                        )
-                    })}
+                            ) : isLeftBlank(change.contestId) ? (
+                                <Typography className="slate-replace-added slate-replace-none">
+                                    {t("slates.apply.replaceDialog.added")}{" "}
+                                    <strong className="slate-replace-candidates">
+                                        {t("slates.noCandidate")}
+                                    </strong>
+                                </Typography>
+                            ) : null}
+                        </Box>
+                    )
+                })}
             </Box>
         </Dialog>
     )

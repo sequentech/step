@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useEffect, useMemo, useState} from "react"
-import {Box, Button, Typography} from "@mui/material"
+import {Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {clearRemovesChoices, computeClearChoices} from "../../services/ClearSelections"
 import type {ISlateChoices} from "../../services/SlateChoices"
@@ -12,15 +12,24 @@ import {
     selectBallotSelectionByElectionId,
 } from "../../store/ballotSelections/ballotSelectionsSlice"
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
+import {clearIsVoted} from "../../store/extra/extraSlice"
 import {useAppDispatch, useAppSelector} from "../../store/hooks"
 import {SlateChangesDialog} from "./SlateChangesDialog"
 
-export interface SlateClearActionProps {
-    ballotStyle: IBallotStyle
+export interface ISlateClear {
+    /** Whether clearing would remove anything. */
+    canClear: boolean
+    /** Asks the voter to confirm what clearing removes. */
+    requestClear: () => void
+    /** The confirmation and the announcement, to render once. */
+    feedback: React.ReactNode
 }
 
-/** Removes every choice on the ballot, after showing what goes. */
-export const SlateClearAction: React.FC<SlateClearActionProps> = ({ballotStyle}) => {
+/**
+ * Clearing every choice of a ballot with slates: the voter first sees what
+ * goes, and is told once it is done.
+ */
+export const useSlateClear = (ballotStyle: IBallotStyle): ISlateClear => {
     const {t} = useTranslation()
     const dispatch = useAppDispatch()
     const selection = useAppSelector(selectBallotSelectionByElectionId(ballotStyle.election_id))
@@ -44,21 +53,19 @@ export const SlateClearAction: React.FC<SlateClearActionProps> = ({ballotStyle})
         setPending(undefined)
         if (confirmed) {
             dispatch(clearBallotSelectionChoices({ballotStyle}))
+            dispatch(clearIsVoted())
             setWasCleared(true)
         }
     }
 
-    return (
-        <Box className="slate-clear" sx={{marginBottom: "24px", overflowWrap: "anywhere"}}>
-            <Button
-                className="slate-clear-button"
-                variant="secondary"
-                onClick={() => setPending(choices)}
-                disabled={!canClear}
+    const feedback = (
+        <>
+            <Typography
+                className="slate-clear-status"
+                role="status"
+                variant="body2"
+                sx={{overflowWrap: "anywhere"}}
             >
-                {t("slates.clear.button")}
-            </Button>
-            <Typography className="slate-clear-status" role="status" variant="body2">
                 {wasCleared && !canClear ? t("slates.clear.cleared") : null}
             </Typography>
             <SlateChangesDialog
@@ -71,6 +78,16 @@ export const SlateClearAction: React.FC<SlateClearActionProps> = ({ballotStyle})
                 ok={t("slates.clear.dialog.ok")}
                 cancel={t("slates.clear.dialog.cancel")}
             />
-        </Box>
+        </>
     )
+
+    return {
+        canClear,
+        requestClear: () => {
+            if (canClear) {
+                setPending(choices)
+            }
+        },
+        feedback,
+    }
 }
