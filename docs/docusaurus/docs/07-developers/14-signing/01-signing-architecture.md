@@ -45,7 +45,7 @@ flowchart LR
   approve --> outbox[("signing_log_outbox")]
   harvest --> outbox
   worker["post_signing_log_outbox"] --> outbox
-  worker --> board["electoral log<br/>(native wbraid audit storage board)"]
+  worker --> board["electoral log<br/>(immudb board)"]
   crl["refresh_staff_crls (hourly)"] --> crls[("staff_crl")]
   verify --> crls
   settings["Signatures tab"] -->|select, role = read permission| hasura["Hasura"]

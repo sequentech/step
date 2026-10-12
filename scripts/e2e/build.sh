@@ -93,7 +93,7 @@ $DOCKER run --rm \
         build -p windmill --bin main --bin beat
         build -p harvest --bin harvest
         build -p messaging-webhooks --bin messaging-webhooks
-        build -p electoral-log --bin bb_helper
+        build -p immu-board --bin bb_helper
         build -p step-cli --bin step-cli
         build --release -p trustee --bin trustee
         build --manifest-path wbraid/Cargo.toml --release -p b4 --features postgres --bin b4v6

@@ -50539,7 +50539,7 @@
           },
           {
             "name": "logEvent",
-            "description": "log an event in native wbraid audit storage",
+            "description": "log an event in immudb",
             "args": [
               {
                 "name": "body",

@@ -402,7 +402,7 @@ class CoverageExitContracts(unittest.TestCase):
             binary.write_text("instrumented binary placeholder")
             binary.chmod(0o700)
             for name in (
-                "audit-init",
+                "immudb-init",
                 "harvest",
                 "windmill",
                 "beat",
@@ -445,7 +445,7 @@ class CoverageExitContracts(unittest.TestCase):
     @staticmethod
     def normal_codes():
         return {
-            "audit-init": 0,
+            "immudb-init": 0,
             "harvest": 0,
             "windmill": 0,
             "beat": 143,
@@ -474,7 +474,7 @@ class CoverageExitContracts(unittest.TestCase):
             ("harvest", 143),
             ("beat", 137),
             ("b4v6", 1),
-            ("audit-init", 143),
+            ("immudb-init", 143),
             ("trustee1", 101),
         ):
             with self.subTest(service=service, code=code):

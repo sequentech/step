@@ -319,6 +319,22 @@ services:
     depends_on:
       - postgres
 
+  immudb:
+    profiles: ["full", "base"]
+    container_name: immudb
+    image: sequentech.local/immudb
+    build:
+      context: ../packages/
+      dockerfile: ./Dockerfile.immudb
+    restart: always
+    environment:
+      - IMMUDB_PGSQL_SERVER=true
+    volumes:
+      - immudb_data:/var/lib/immudb
+      - immudb_logs:/var/log/immudb
+    depends_on:
+      - immudb-init
+
   mock_server:
     profiles: ["full"]
     stdin_open: true
@@ -391,6 +407,9 @@ services:
       ROCKET_PORT: ${HARVEST_PORT}
       RUSTFLAGS: ${RUSTFLAGS}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
+      IMMUDB_USER: ${IMMUDB_USER}
+      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
+      IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
       SMS_TRANSPORT_NAME: ${SMS_TRANSPORT_NAME}
       AWS_SNS_ATTRIBUTES: ${AWS_SNS_ATTRIBUTES}
       EMAIL_TRANSPORT_NAME: ${EMAIL_TRANSPORT_NAME}
@@ -448,8 +467,6 @@ services:
       HARVEST_TRUSTEE_ALLOWED_ORIGINS: ${HARVEST_TRUSTEE_ALLOWED_ORIGINS:-${ADMIN_PORTAL_URL}}
       WBRAID_B4_URL: http://b4v6:3005
       WBRAID_BOARD_DATABASE_URL: postgres://postgres@postgres-b4v6:5432/wbraid_board
-      WBRAID_AUDIT_DATABASE_URL: postgres://postgres@audit-postgres:5432/sequent_audit
-      WBRAID_AUDIT_PG_PASSWORD: ${WBRAID_AUDIT_PG_PASSWORD}
       WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       ENV_SLUG: ${ENV_SLUG}
@@ -574,19 +591,38 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
 
-  audit-init:
+  immudb-init:
     profiles: ["full", "base"]
-    image: sequentech.local/audit-ingest
-    build:
-      context: ../packages
-      dockerfile: Dockerfile.audit-ingest.prod
+    stdin_open: true
+    image: sequentech.local/cargo-packages
+    container_name: immudb-init
     depends_on:
-      audit-postgres:
-        condition: service_healthy
-    entrypoint: ["/usr/bin/bb_helper", "--board-name", "audit-index", "upsert-board"]
-    environment:
-      WBRAID_AUDIT_DATABASE_URL: postgres://postgres@audit-postgres:5432/sequent_audit
-      WBRAID_AUDIT_PG_PASSWORD: ${WBRAID_AUDIT_PG_PASSWORD}
+      harvest:
+        condition: service_started
+    volumes:
+      - ../packages/:/app:z
+    restart: always
+    working_dir: /app/immu-board
+    entrypoint: [
+      "cargo",
+      "run",
+      "--bin",
+      "bb_helper",
+      "--",
+      "--server-url",
+      "${IMMUDB_SERVER_URL}",
+      "--username",
+      "${IMMUDB_USER}",
+      "--password",
+      "${IMMUDB_PASSWORD}",
+      "--board-dbname",
+      "${IMMUDB_BOARD_DB_NAME}",
+      "--cache-dir",
+      "/tmp/immu-board",
+      "upsert-board-db"
+    ]
+    env_file:
+      - .env
 
   registry:
     profiles: ["full", "lambdas"]
@@ -690,6 +726,10 @@ services:
       AMQP_ADDR: ${AMQP_ADDR}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
       KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS: ${KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS:-30}
+      IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
+      IMMUDB_USER: ${IMMUDB_USER}
+      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
+      IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
       AWS_S3_PRIVATE_URI: ${AWS_S3_PRIVATE_URI}
       AWS_S3_PUBLIC_URI: ${AWS_S3_PUBLIC_URI}
       AWS_S3_BUCKET: ${AWS_S3_BUCKET}
@@ -747,8 +787,6 @@ services:
       DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
       WBRAID_B4_URL: http://b4v6:3005
       WBRAID_BOARD_DATABASE_URL: postgres://postgres@postgres-b4v6:5432/wbraid_board
-      WBRAID_AUDIT_DATABASE_URL: postgres://postgres@audit-postgres:5432/sequent_audit
-      WBRAID_AUDIT_PG_PASSWORD: ${WBRAID_AUDIT_PG_PASSWORD}
       WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       BALLOT_VERIFIER_URL: ${BALLOT_VERIFIER_URL}
@@ -807,22 +845,6 @@ services:
       - wbraid_board_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d wbraid_board"]
-      interval: 5s
-      timeout: 5s
-      retries: 30
-
-  audit-postgres:
-    profiles: ["full", "base"]
-    image: postgres:16-bookworm
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_DB: sequent_audit
-      POSTGRES_PASSWORD: ${WBRAID_AUDIT_PG_PASSWORD:?set the private audit database password}
-    volumes:
-      - wbraid_audit_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d sequent_audit"]
       interval: 5s
       timeout: 5s
       retries: 30
@@ -925,11 +947,13 @@ volumes:
   db_data:
   db_logs:
   keycloak_db_logs:
+  immudb_log_audit_data:
+  keycloak_immudb_log_audit_data:
   keycloak_db_data:
+  immudb_data:
+  immudb_logs:
   minio_storage:
   trustee1_data:
   trustee2_data:
   trustee3_data:
   protocol_manager_data:
-
-  wbraid_audit_data:

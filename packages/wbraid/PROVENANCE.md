@@ -9,7 +9,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 The application now uses this workspace through `voting-crypto`, `protocol-board`
 and native board storage. The former top-level `strand`, `braid`, `b4`,
-`immu-board`, `immudb-rs` and `board-messages` packages have been retired.
+`board-messages` package has been retired. Application electoral logs retain
+the independent `immu-board` and `immudb-rs` storage stack.
 Descriptions below record the import and development history; references to the
 former application packages describe that earlier state. Current setup and
 verification commands are in the

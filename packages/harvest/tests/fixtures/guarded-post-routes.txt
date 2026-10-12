@@ -77,8 +77,8 @@
 /get-user-profile-configuration
 /get-user-template
 /get-users
-/audit/electoral-log
-/audit/pgaudit-list
+/immudb/electoral-log
+/immudb/pgaudit-list
 /import-application
 /import-areas
 /import-candidates
@@ -157,6 +157,7 @@
 /staff-certificates
 /staff-certificates/<id>/revoke
 /submit-tally-resolution
+/trustee/boards/report
 /update-election-voting-status
 /update-event-voting-status
 /update-realm-attributes
@@ -184,4 +185,3 @@
 /preview-schedule-import
 /preview-scheduled-outcome-change
 /save-lifecycle-policies
-/trustee/boards/report

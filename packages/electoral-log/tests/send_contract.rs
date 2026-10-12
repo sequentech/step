@@ -5,8 +5,12 @@
 use electoral_log::{AuditQuery, BoardClient};
 fn require_send<T: Send>(_: T) {}
 #[test]
-fn native_audit_futures_can_run_in_worker_tasks() {
-    require_send(BoardClient::new("postgres://unused/test"));
+fn immudb_audit_futures_can_run_in_worker_tasks() {
+    require_send(BoardClient::new(
+        "http://unused:3322",
+        "synthetic",
+        "synthetic",
+    ));
     let _operations = |mut client: BoardClient| {
         require_send(async move {
             client.append_deliveries("test", &[]).await?;

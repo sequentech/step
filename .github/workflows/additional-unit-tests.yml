@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [e2e, mock_server]
+        package: [immu-board, e2e, mock_server]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -40,4 +40,8 @@ jobs:
       - name: Check production code
         working-directory: packages
         run: |
-          cargo clippy --locked -p '${{ matrix.package }}' --bins
+          if [ '${{ matrix.package }}' = immu-board ]; then
+            cargo clippy --locked -p immu-board --lib --bins
+          else
+            cargo clippy --locked -p '${{ matrix.package }}' --bins
+          fi

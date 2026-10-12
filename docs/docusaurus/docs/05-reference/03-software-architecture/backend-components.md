@@ -61,6 +61,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 - **Role**: Native cryptographic implementation, DKG, mixnet, proofs and signatures.
 - **Path**: `step/packages/wbraid`
 - **Integration**: `voting-crypto`, `protocol-board` and the native trustee runner.
-- **Storage**: `b4v6` for protocol messages; independent private native PostgreSQL board storage for application and database audit logs.
+- **Storage**: `b4v6` for protocol messages; independent immudb storage for application and database audit logs.
 
 ---

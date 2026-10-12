@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! VOTE-FREEZE end to end on a private database of the stack's Postgres and
-//! a private board of the stack's native audit: every close path creates the
+//! a private board of the stack's immudb: every close path creates the
 //! seals with its provenance, closed voting never reopens, sealed elections
 //! and events can't be deleted, a cast after the seal deadline or into a
 //! sealed box gets the closed-voting error, and the sealer and publisher
 //! seal, sign, post and publish each box once.
 //!
-//! Needs `HASURA_DB__*` and `WBRAID_AUDIT_DATABASE_URL` (the stack's `.devcontainer/.env`,
-//! or the native audit service of the CI jobs) and sets its own `MASTER_SECRET`.
+//! Needs `HASURA_DB__*` and `IMMUDB_*` (the stack's `.devcontainer/.env`,
+//! or the immudb service of the CI jobs) and sets its own `MASTER_SECRET`.
 //! The census and the public bucket are the test's own
 //! ([`TestEnvironment`]); the signing key is the event's real protocol
 //! manager key from the database vault.
@@ -197,7 +197,7 @@ impl World {
     /// Drops the private board.
     async fn finish(self) {
         if let Ok(mut board) = get_board_client().await {
-            let _ = board.archive_board(&self.board).await;
+            let _ = board.delete_database(&self.board).await;
         }
     }
 }
@@ -231,10 +231,10 @@ impl Default for Options {
     }
 }
 
-/// Runs `call` with a new board client, trying again when native audit drops a
+/// Runs `call` with a new board client, trying again when immudb drops a
 /// session under parallel load ("already closed"); panics after
 /// [`BOARD_ATTEMPTS`] tries.
-async fn with_native_audit<T, F, Fut>(what: &str, mut call: F) -> T
+async fn with_immudb<T, F, Fut>(what: &str, mut call: F) -> T
 where
     F: FnMut(electoral_log::BoardClient) -> Fut,
     Fut: std::future::Future<Output = anyhow::Result<T>>,
@@ -260,8 +260,26 @@ where
 
 /// The prefix of the boards these tests create.
 const BOARD_PREFIX: &str = "sealtest";
+static BOARDS_SWEPT: tokio::sync::OnceCell<()> = tokio::sync::OnceCell::const_new();
+
+/// Drops the boards an earlier, interrupted run left behind, once per run
+/// and before this run creates any.
+async fn sweep_boards() {
+    let Ok(mut immudb) = windmill::services::electoral_log_board::get_immudb_client().await else {
+        return;
+    };
+    let Ok(list) = immudb.list_databases().await else {
+        return;
+    };
+    for database in &list.get_ref().databases {
+        if database.name.starts_with(BOARD_PREFIX) {
+            let _ = immudb.delete_database(&database.name).await;
+        }
+    }
+}
 
 async fn world(options: Options) -> World {
+    BOARDS_SWEPT.get_or_init(sweep_boards).await;
     let pool = schema::pool().await;
     let tenant = Uuid::new_v4();
     let event = Uuid::new_v4();
@@ -346,7 +364,7 @@ async fn world(options: Options) -> World {
         .await
         .unwrap();
     tx.commit().await.unwrap();
-    with_native_audit(&format!("creating board {board}"), |mut client| {
+    with_immudb(&format!("creating board {board}"), |mut client| {
         let board = board.clone();
         async move { client.upsert_electoral_log_db(&board).await }
     })
@@ -1035,7 +1053,7 @@ async fn log_entries(w: &World, kind: StatementType, election: Uuid, area: Uuid)
             (SqlCompOperators::Equal, area.to_string()),
         ),
     ]);
-    with_native_audit("reading the board", |mut client| {
+    with_immudb("reading the board", |mut client| {
         let (board, filter) = (w.board.clone(), filter.clone());
         async move {
             client
@@ -1906,7 +1924,7 @@ async fn a_seal_already_on_the_board_fails_instead_of_a_second_seal() {
 }
 
 /// A refused delete leaves the boards in place: the seal check runs before
-/// the task deletes the event's boards (B3, native audit) or anything else.
+/// the task deletes the event's boards (B3, immudb) or anything else.
 #[tokio::test]
 async fn a_refused_event_delete_touches_no_board() {
     let w = world(Options::default()).await;
@@ -1929,7 +1947,7 @@ async fn a_refused_event_delete_touches_no_board() {
     // The event's electoral log board is still there.
     let board = w.board.clone();
     assert!(
-        with_native_audit("checking the board", |mut client| {
+        with_immudb("checking the board", |mut client| {
             let board = board.clone();
             async move { client.has_database(&board).await }
         })

@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+FROM rust:1.96.0-slim-bookworm
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    protobuf-compiler \
+    libprotobuf-dev \
+    m4 \
+    make \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY . .
+
+WORKDIR /app/immu-board
+RUN cargo fetch --locked

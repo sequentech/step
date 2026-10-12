@@ -16,7 +16,7 @@ Command-line tool for automating and streamlining operations within the Sequent 
 - Load testing and data generation utilities
 - Acceptance stage checks with an evidence ledger and a pass/fail verdict (`step-cli acceptance`)
 - Template rendering for email notifications
-- native wbraid audit storage bulletin board export
+- immudb bulletin board export
 
 ## Quick Start
 
@@ -379,7 +379,7 @@ cli step create-applications --working-directory <PATH_FOR_INPUT_OUTPUT> --num-a
 - type:  OPTIONAL, should be AUTOMATIC or MANUAL
 
 ## Create Electoral Logs
-> This can be used to create electoral logs in native wbraid audit storage.
+> This can be used to create electoral logs in immudb.
 > This required additional confituration at config.json in working-directory (like area_id and election_id)
 ```bash
 cli step create-electoral-logs --working-directory <PATH_FOR_INPUT_OUTPUT> --num-logs <NUMBER_LOGS_TO_CREATE>
@@ -393,9 +393,9 @@ cli step create-electoral-logs --working-directory <PATH_FOR_INPUT_OUTPUT> --num
 cli step hash-passwords --input-file <PATH_FOR_INPUT_OUTPUT> --output-file <PATH_TO_OUTPUT_FILE> --iterations <NUMBER_OF_HASHING_ITERATIONS>
 ```
 ## Export cast votes csv
-> This accesses native wbraid audit storage bulletin board and exports in a csv file the casted ballots ballot_id.
+> This accesses the immudb electoral log and exports cast ballots' ballot IDs to CSV.
 ```bash
-cli step export-cast-votes --database-url postgres://postgres@audit-postgres:5432/sequent_audit --board-db event-board
+cli step export-cast-votes --server-url http://immudb:3322 --username <USERNAME> --password <PASSWORD> --board-db event-board
 ```
 - iterations = number of iterations for the hashing where the default if 600000
 

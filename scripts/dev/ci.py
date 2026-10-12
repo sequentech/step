@@ -21,6 +21,8 @@ RUST = (
     "voting-crypto",
     "protocol-board",
     "trustee",
+    "immu-board",
+    "immudb-rs",
     "messaging",
     "messaging-webhooks",
     "sequent-core",

@@ -68,11 +68,19 @@ fn cast_vote_export_fields(body: &StatementBody) -> Option<CastVoteExportFields<
 #[derive(Args)]
 #[command(about = "Export casted a vote", long_about = None)]
 pub struct ExportCastVotes {
-    /// Private native audit PostgreSQL URL (credentials are part of the URL).
+    /// Server url - Url for connecting to immudb board
     #[arg(long)]
-    database_url: String,
+    server_url: String,
 
-    /// Board DB - Native audit board name
+    /// Username - Username to connect to immudb
+    #[arg(long)]
+    username: String,
+
+    /// Password - Password to connect to immudb
+    #[arg(long)]
+    password: String,
+
+    /// Board DB - Immudb Board name
     #[arg(long)]
     board_db: String,
 
@@ -98,7 +106,7 @@ impl ExportCastVotes {
         let mut writer = WriterBuilder::new().from_writer(&file);
 
         println!("Creating client");
-        let mut client = BoardClient::new(&self.database_url)
+        let mut client = BoardClient::new(&self.server_url, &self.username, &self.password)
             .await
             .map_err(|err| anyhow!("Failed to create the client: {:?}", err))?;
 

@@ -809,8 +809,8 @@ impl<C> BoardSigningLog<C> {
 }
 
 impl BoardSigningLog<BoardClient> {
-    /// Native wbraid audit boards.
-    pub fn wbraid() -> Self {
+    /// Electoral-log immudb boards.
+    pub fn immudb() -> Self {
         Self::new(Box::new(|| Box::pin(get_board_client())))
     }
 }

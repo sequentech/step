@@ -8,6 +8,8 @@ resolver = "2"
 members = [
     "electoral-log",
     "harvest",
+    "immu-board",
+    "immudb-rs",
     "protocol-board",
     "voting-crypto",
     "trustee",

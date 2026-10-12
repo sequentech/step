@@ -17,7 +17,7 @@ These are application-level actions being recorded. Access the system log to mon
 
 ## Immutability
 
-The Logs tab reads native wbraid audit storage in a private PostgreSQL database.
+The Logs tab reads immudb in a private PostgreSQL database.
 Deliveries append opaque batches; a recoverable SQL index supports queries.
 Application electoral-log messages retain their sender and system signatures.
 Ballot-box seals bind the stored ballots at close.

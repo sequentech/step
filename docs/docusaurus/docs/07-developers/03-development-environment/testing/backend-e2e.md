@@ -5,7 +5,7 @@ title: Backend E2E journeys
 <!-- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io> -->
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
-The backend journeys use real PostgreSQL, Hasura, Keycloak, RabbitMQ, native wbraid audit storage,
+The backend journeys use real PostgreSQL, Hasura, Keycloak, RabbitMQ, immudb,
 MinIO, B4 and two trustees. They exercise administrator commands and the voting
 portal's GraphQL protocol, including ballot encryption and tallying.
 
@@ -51,6 +51,10 @@ prepares services and the administrator without executing voting journeys.
 
 Results are written to `.cache/backend-e2e/<project>/journeys.json`, with CLI output and
 service logs beside it. Override this directory with `STEP_E2E_OUTPUT_DIR`.
+The Compose overlays also work with `.env.development` alone: binaries default
+to `.cache/backend-e2e/bin` and output to `.cache/backend-e2e/default` within
+the checkout. The runner writes its per-run paths to `compose.env` and passes
+that file to Compose, so Compose does not require shell exports for these paths.
 The `Backend E2E journeys` workflow runs the same command on affected pull
 requests and uploads those artifacts, including after failures.
 The job summary (`scripts/e2e/summary.py <output>` writes it to `summary.md`) lists each

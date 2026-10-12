@@ -333,8 +333,8 @@ async fn persist_electoral_log_deliveries(events: Vec<IdentifiedLogEvent>) -> an
     Ok(())
 }
 
-// Each native append atomically stores its complete deliveries and receipts.
-const ELECTORAL_LOG_DELIVERIES_PER_TRANSACTION: usize = 1000;
+// Keep complete deliveries together within immudb's SQL transaction limits.
+const ELECTORAL_LOG_DELIVERIES_PER_TRANSACTION: usize = 16;
 
 pub async fn persist_electoral_log_board<F, Fut>(
     board: &str,

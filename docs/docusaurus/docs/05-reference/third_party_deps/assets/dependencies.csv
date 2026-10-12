@@ -346,3 +346,27 @@ windmill,rustls,0.23.32,Apache-2.0 OR ISC OR MIT,Rustls is a modern TLS library 
 wrap-map-err,syn,2.0,MIT OR Apache-2.0,Parser for Rust source code
 wrap-map-err,quote,1.0,MIT OR Apache-2.0,Quasi-quoting macro quote!(...)
 wrap-map-err,proc-macro2,1.0,MIT OR Apache-2.0,A substitute implementation of the compiler's `proc_macro` API to decouple token-based libraries from the procedural macro use case.
+electoral-log,tokio-stream,0.1,MIT,Utilities to work with `Stream` and `tokio`.
+electoral-log,tonic,0.13,MIT,"A gRPC over HTTP/2 implementation focused on high performance, interoperability, and flexibility."
+immu-board,anyhow,1.0,MIT OR Apache-2.0,Flexible concrete Error type built on std::error::Error
+immu-board,clap,4.0,MIT OR Apache-2.0,"A simple to use, efficient, and full-featured Command Line Argument Parser"
+immu-board,tokio,1.31,MIT,"An event-driven, non-blocking I/O platform for writing asynchronous I/O backed applications."
+immu-board,tonic,0.13,MIT,"A gRPC over HTTP/2 implementation focused on high performance, interoperability, and flexibility."
+immu-board,hex,0.4,MIT OR Apache-2.0,Encoding and decoding data into/from hexadecimal representation.
+immu-board,log,0.4,MIT OR Apache-2.0,A lightweight logging facade for Rust
+immu-board,tracing,0.1,MIT,Application-level tracing for Rust.
+immu-board,tracing-log,0.2,MIT,Provides compatibility between `tracing` and the `log` crate.
+immu-board,tracing-attributes,0.1,MIT,Procedural macro attributes for automatically instrumenting functions.
+immu-board,tracing-subscriber,0.3,MIT,Utilities for implementing and composing `tracing` subscribers.
+immu-board,tracing-tree,0.4,MIT OR Apache-2.0,A Tracing Layer which prints a tree of spans and events.
+immudb-rs,anyhow,1.0,MIT OR Apache-2.0,Flexible concrete Error type built on std::error::Error
+immudb-rs,tonic,0.13,MIT,"A gRPC over HTTP/2 implementation focused on high performance, interoperability, and flexibility."
+immudb-rs,prost,0.13,Apache-2.0,A Protocol Buffers implementation for the Rust Language.
+immudb-rs,prost-types,0.13,Apache-2.0,Prost definitions of Protocol Buffers well known types.
+immudb-rs,serde,1.0,MIT OR Apache-2.0,A generic serialization/deserialization framework
+immudb-rs,log,0.4,MIT OR Apache-2.0,A lightweight logging facade for Rust
+immudb-rs,tracing,0.1,MIT,Application-level tracing for Rust.
+immudb-rs,tracing-log,0.2,MIT,Provides compatibility between `tracing` and the `log` crate.
+immudb-rs,tracing-attributes,0.1,MIT,Procedural macro attributes for automatically instrumenting functions.
+immudb-rs,tracing-subscriber,0.3,MIT,Utilities for implementing and composing `tracing` subscribers.
+immudb-rs,tracing-tree,0.4,MIT OR Apache-2.0,A Tracing Layer which prints a tree of spans and events.

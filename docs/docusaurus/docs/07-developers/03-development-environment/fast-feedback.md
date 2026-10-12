@@ -21,7 +21,7 @@ configurations; the `devcontainer` CLI selects one with `--config`.
 | --- | --- | --- | --- | --- |
 | `ui-only` | `.devcontainer/ui-only/devcontainer.json` | `devcontainer` | Storybook 6006–6011 (default `ui-essentials`), workbench 5173, portals 3000–3004 | Stories and screens on fixtures |
 | `ui-keycloak` | `.devcontainer/ui-keycloak/devcontainer.json` | adds `postgres-keycloak` and `keycloak` (8090), which starts without Harvest | Storybook 6006–6011 | Login and account themes |
-| `backend` | `.devcontainer/backend/devcontainer.json` | the `base` profile: databases, MinIO, RabbitMQ, native wbraid audit storage, Keycloak, Hasura, Harvest, Windmill, beat and B4 | none | Rust services, Hasura, step-cli |
+| `backend` | `.devcontainer/backend/devcontainer.json` | the `base` profile: databases, MinIO, RabbitMQ, immudb, Keycloak, Hasura, Harvest, Windmill, beat and B4 | none | Rust services, Hasura, step-cli |
 | `full` | `.devcontainer/devcontainer.json` | as `backend` | portals 3000–3004 (default voting 3000 and admin 3002), Storybook, workbench 5173 | End-to-end work in the portals |
 
 ```sh

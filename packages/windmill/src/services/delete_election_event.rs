@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::electoral_log_board::get_election_board;
 use super::jwks::remove_realm_jwks;
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id_if_exist;
@@ -179,29 +178,11 @@ pub async fn archive_protocol_boards(
 }
 
 #[instrument(err)]
-pub async fn archive_election_event_audit(
-    tenant_id: &str,
-    election_event_id: &str,
-    election_ids: &[String],
-) -> Result<()> {
+pub async fn delete_election_event_immudb(tenant_id: &str, election_event_id: &str) -> Result<()> {
     let mut client = get_board_client().await?;
     let slug = std::env::var("ENV_SLUG").context("missing env var ENV_SLUG")?;
     let name = get_event_board(tenant_id, election_event_id, &slug);
-    client.archive_board(&name).await?;
-    for election_id in election_ids {
-        client
-            .archive_board(&get_election_board(tenant_id, election_id, &slug))
-            .await?;
-    }
-    use electoral_log::client::database_audit::{database_audit_board, DatabaseAuditTable};
-    for table in [
-        DatabaseAuditTable::PgauditHasura,
-        DatabaseAuditTable::PgauditKeycloak,
-    ] {
-        client
-            .archive_board(&database_audit_board(tenant_id, election_event_id, table)?)
-            .await?;
-    }
+    client.delete_database(&name).await?;
     Ok(())
 }
 

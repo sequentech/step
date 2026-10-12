@@ -11,11 +11,12 @@
 #   docker compose --env-file .env.development -p step-e2e \
 #     -f docker-compose.yml -f docker-compose-ci.yml up -d --wait <services>
 #
-# STEP_E2E_BIN_DIR must point at the directory scripts/e2e/build.sh filled.
+# Binary and output paths default to this checkout's .cache/backend-e2e.
+# scripts/e2e/run.sh writes per-run overrides into its compose.env file.
 
 x-e2e-binaries: &e2e-binaries
   type: bind
-  source: ${STEP_E2E_BIN_DIR:?set STEP_E2E_BIN_DIR to the scripts/e2e/build.sh output}
+  source: ${STEP_E2E_BIN_DIR:-../.cache/backend-e2e/bin}
   target: /opt/step-e2e/bin
   read_only: true
 
@@ -98,18 +99,42 @@ services:
       retries: 60
       start_period: 10s
 
-  audit-init:
+  immudb:
+    image: codenotary/immudb:1.9.6
+    build: !reset null
+    container_name: !reset null
+    ports: !reset []
+    depends_on: !reset []
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/immuadmin", "status"]
+      interval: 2s
+      timeout: 10s
+      retries: 60
+      start_period: 5s
+
+  immudb-init:
     image: ${STEP_E2E_RUNTIME_IMAGE:-step-backend-e2e-cargo-packages:local}
     container_name: !reset null
     restart: on-failure
     env_file: !reset []
     volumes:
       - *e2e-binaries
-    entrypoint: ["/opt/step-e2e/bin/bb_helper", "--board-name", "audit-index", "upsert-board"]
+    entrypoint:
+      - /opt/step-e2e/bin/bb_helper
+      - --server-url
+      - ${IMMUDB_SERVER_URL}
+      - --username
+      - ${IMMUDB_USER}
+      - --password
+      - ${IMMUDB_PASSWORD}
+      - --board-dbname
+      - ${IMMUDB_BOARD_DB_NAME}
+      - --cache-dir
+      - /tmp/immu-board
+      - upsert-board-db
     depends_on: !override
-      audit-postgres:
+      immudb:
         condition: service_healthy
-
 
   data-connector-agent:
     container_name: !reset null
@@ -220,7 +245,7 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-      audit-init:
+      immudb-init:
         condition: service_completed_successfully
       postgres-b4v6:
         condition: service_healthy
@@ -306,7 +331,7 @@ services:
       - ..:/workspaces/step:ro
       - *e2e-binaries
       - type: bind
-        source: ${STEP_E2E_OUTPUT_DIR:?set STEP_E2E_OUTPUT_DIR to a writable directory}
+        source: ${STEP_E2E_OUTPUT_DIR:-../.cache/backend-e2e/default}
         target: /out
     environment:
       HOME: /tmp

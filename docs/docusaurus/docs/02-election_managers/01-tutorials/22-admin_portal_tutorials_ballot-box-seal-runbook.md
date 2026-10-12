@@ -59,7 +59,7 @@ Seal at close they are needed at **every close**:
 - the Keycloak database (the seal counts the eligible voters of each area);
 - the key store (the event's protocol manager key, kept in the database's
   secret store under the master secret);
-- native wbraid audit storage (the electoral log);
+- immudb (the electoral log);
 - the documents storage: the private documents bucket for restricted seal
   records (the default), the public one for public records.
 
@@ -167,7 +167,7 @@ retried every minute until it succeeds.
 
 | Category | Card text | What to check |
 | --- | --- | --- |
-| `board` | The last attempt couldn't reach the bulletin board; it is retried every minute. | native wbraid audit storage is up and reachable from windmill, and the event's board exists; other log entries of the event are delivered. |
+| `board` | The last attempt couldn't reach the bulletin board; it is retried every minute. | immudb is up and reachable from windmill, and the event's board exists; other log entries of the event are delivered. |
 | `census` | The last attempt couldn't read the voter list; it is retried every minute. | The Keycloak database is up and reachable, and the event's realm exists. |
 | `keystore` | The last attempt couldn't get the signing key; it is retried every minute. | The event's protocol manager key is in the secret store, and windmill has the master secret. |
 | `storage` | The last attempt couldn't reach the database or file storage; it is retried every minute. | The public documents bucket (and the database) is reachable from windmill. |
@@ -218,7 +218,7 @@ seal. Normally this status lasts less than a minute.
    `short_queue` must be up. If they were down, the next run after they start
    publishes the box.
 2. **The electoral log is reachable.** The entry goes to the event's board in
-   native wbraid audit storage. Check that native wbraid audit storage is up and that other log entries (for example the
+   immudb. Check that immudb is up and that other log entries (for example the
    voting period close) were delivered.
 3. **The documents storage is reachable.** A restricted record is uploaded to
    the private documents bucket, a public one to the event's public documents
@@ -316,21 +316,21 @@ election, the area and the time of the publication.
 ## After a restore or failover
 
 Sealing writes to two systems: the database (the seal row, in one transaction)
-and native wbraid audit storage (the `BallotBoxSealed` entry, about half a second later). If the two
+and immudb (the `BallotBoxSealed` entry, about half a second later). If the two
 are restored to different points, the seal breaks:
 
 | What happened | What you see |
 | --- | --- |
-| The database lost its last seconds (an asynchronous replica was promoted, or a point-in-time restore) but native wbraid audit storage kept the entry | The seal row is pending again. The sealer finds the entry on the board and marks the box failed: "A seal for this ballot box is already on the bulletin board." |
-| native wbraid audit storage was restored to a point before the entry, but the database kept the published seal | The tally rejects the box: the bulletin board has no `BallotBoxSealed` entry for it. |
+| The database lost its last seconds (an asynchronous replica was promoted, or a point-in-time restore) but immudb kept the entry | The seal row is pending again. The sealer finds the entry on the board and marks the box failed: "A seal for this ballot box is already on the bulletin board." |
+| immudb was restored to a point before the entry, but the database kept the published seal | The tally rejects the box: the bulletin board has no `BallotBoxSealed` entry for it. |
 
 Both look like tampering, but come from operations. Before you treat a failed
-seal or a rejected box as an incident, check the database's and native wbraid audit storage's
+seal or a rejected box as an incident, check the database's and immudb's
 recovery history around the seal time.
 
 To prevent it:
 
-- restore Postgres and native wbraid audit storage to consistent points, never one without the
+- restore Postgres and immudb to consistent points, never one without the
   other;
 - during close and seal windows, use synchronous replication, or a failover
   that loses no committed transactions;

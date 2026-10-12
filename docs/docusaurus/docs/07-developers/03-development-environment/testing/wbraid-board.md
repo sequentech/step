@@ -21,15 +21,5 @@ exclusive pagination, malformed requests, missing boards, inline/S3 boundaries,
 foreign keys and durable reads. Archived boards retain their existing messages
 and reject new insertions at the storage boundary.
 
-The native application audit adapter has a separate PostgreSQL integration
-contract. Production audit callers use the native wbraid store and its recoverable query index:
-
-```sh
-WBRAID_AUDIT_TEST_DATABASE_URL=postgres://.../disposable_test_database \
-CARGO_TARGET_DIR="$PWD/rust-local-target" cargo test --locked -p electoral-log --features wbraid-storage-tests --test board_storage
-```
-
-Use a disposable database. This test creates native boards and a derived audit
-index, injects an index-write failure, and verifies atomic delivery, recovery,
-retry deduplication, scope filtering, stable pagination and archive behavior.
-The test feature is explicit so default unit runs do not silently skip it.
+Application audit records use the independent immudb backend. Its disposable
+database contracts are described in the [electoral-log test guide](./electoral-log.md).

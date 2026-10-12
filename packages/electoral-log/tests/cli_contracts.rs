@@ -8,27 +8,82 @@ use std::process::{Command, Output};
 
 fn helper(arguments: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_bb_helper"))
-        .env_remove("WBRAID_AUDIT_DATABASE_URL")
+        .env_remove("IMMUDB_SERVER_URL")
+        .env_remove("IMMUDB_BOARD_DBNAME")
+        .env_remove("IMMUDB_USERNAME")
+        .env_remove("IMMUDB_PASSWORD")
         .args(arguments)
         .output()
         .unwrap()
 }
+
 #[test]
-fn missing_audit_database_is_an_actionable_configuration_error() {
-    let output = helper(&["--board-name", "test", "upsert-board"]);
-    assert!(!output.status.success());
-    assert!(String::from_utf8_lossy(&output.stderr).contains("WBRAID_AUDIT_DATABASE_URL"));
+fn missing_settings_fail_in_the_order_the_operator_can_fix_them() {
+    let cases = [
+        (vec!["--cache-dir", "/unused"], "IMMUDB_SERVER_URL"),
+        (
+            vec![
+                "--cache-dir",
+                "/unused",
+                "--server-url",
+                "http://127.0.0.1:1",
+            ],
+            "IMMUDB_BOARD_DBNAME",
+        ),
+        (
+            vec![
+                "--cache-dir",
+                "/unused",
+                "--server-url",
+                "http://127.0.0.1:1",
+                "--board-dbname",
+                "test",
+            ],
+            "IMMUDB_USERNAME",
+        ),
+        (
+            vec![
+                "--cache-dir",
+                "/unused",
+                "--server-url",
+                "http://127.0.0.1:1",
+                "--board-dbname",
+                "test",
+                "--username",
+                "test",
+            ],
+            "IMMUDB_PASSWORD",
+        ),
+    ];
+    for (arguments, missing) in cases {
+        let output = helper(&arguments);
+        assert!(!output.status.success());
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains(missing),
+            "{output:?}"
+        );
+    }
 }
+
 #[test]
-fn native_helper_supports_archival_and_rejects_unknown_actions_without_connecting() {
-    let output = helper(&["--help"]);
-    assert!(output.status.success());
-    let help = String::from_utf8_lossy(&output.stdout);
-    assert!(help.contains("archive-board"));
-    assert!(help.contains("upsert-board"));
-    assert!(!helper(&["--board-name", "test", "delete-everything"])
+fn help_and_invalid_actions_do_not_require_a_database() {
+    let help = helper(&["--help"]);
+    assert!(help.status.success());
+    let text = String::from_utf8_lossy(&help.stdout);
+    assert!(text.contains("upsert-board-db"));
+    assert!(text.contains("delete-board-db"));
+    assert!(!helper(&["--cache-dir", "/unused", "delete-everything"])
         .status
         .success());
+}
+
+#[test]
+fn every_supported_log_level_keeps_configuration_errors_visible() {
+    for level in ["off", "error", "warn", "info", "debug", "trace"] {
+        let output = helper(&["--cache-dir", "/unused", "--log-level", level]);
+        assert!(!output.status.success());
+        assert!(String::from_utf8_lossy(&output.stderr).contains("IMMUDB_SERVER_URL"));
+    }
 }
 
 #[test]

@@ -1478,20 +1478,22 @@ mod tests {
         let test_env_slug = format!("t{}", chrono::Utc::now().timestamp());
         env::set_var("ENV_SLUG", &test_env_slug);
 
-        let audit_url = env::var("WBRAID_AUDIT_DATABASE_URL")
-            .context("WBRAID_AUDIT_DATABASE_URL must be set")?;
+        let immudb_user = env::var("IMMUDB_USER").context("IMMUDB_USER must be set")?;
+        let immudb_password = env::var("IMMUDB_PASSWORD").context("IMMUDB_PASSWORD must be set")?;
+        let immudb_server_url =
+            env::var("IMMUDB_SERVER_URL").context("IMMUDB_SERVER_URL must be set")?;
 
         let board_name = get_event_board(&tenant_id, &election_event_id, &test_env_slug);
         println!("board_name: {board_name}");
 
-        let mut board_client = BoardClient::new(&audit_url)
+        let mut board_client = BoardClient::new(&immudb_server_url, &immudb_user, &immudb_password)
             .await
             .map_err(|e| anyhow!("Failed to create BoardClient: {e:?}"))?;
         board_client
             .upsert_electoral_log_db(&board_name)
             .await
-            .map_err(|e| anyhow!("Failed to create native audit board: {e:?}"))?;
-        println!("Set up native audit board: {board_name}");
+            .map_err(|e| anyhow!("Failed to create immudb database: {e:?}"))?;
+        println!("Set up immudb database: {board_name}");
 
         let output = Command::new(STEP_CLI_BIN)
             .args([
@@ -1503,7 +1505,9 @@ mod tests {
                 &NUM_LOGS.to_string(),
             ])
             .env("ENV_SLUG", &test_env_slug)
-            .env("WBRAID_AUDIT_DATABASE_URL", &audit_url)
+            .env("IMMUDB_USER", &immudb_user)
+            .env("IMMUDB_PASSWORD", &immudb_password)
+            .env("IMMUDB_SERVER_URL", &immudb_server_url)
             .env("DEFAULT_SQL_BATCH_SIZE", "500")
             .env(
                 "KC_DB_URL_HOST",

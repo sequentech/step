@@ -4,7 +4,7 @@
 //! VOTE-FREEZE sealing cost, measured once (not a benchmark with an SLA):
 //! one election with 130 ballot boxes, the largest with 50,000 ballots and
 //! the other 129 small, on a private database of the stack's Postgres and a
-//! private board of the stack's native audit. It reports the close, every
+//! private board of the stack's immudb. It reports the close, every
 //! `seal_box`, the steps of the largest seal (read, selection with the
 //! Ballot ID check and hashing, manifest build, signing), the publication
 //! of the largest record, and the `cast_vote_seal_guard` overhead on
@@ -661,6 +661,6 @@ async fn seal_130_boxes_the_largest_with_50k_ballots() {
 
     // Drop the private board.
     if let Ok(mut board_client) = get_board_client().await {
-        let _ = board_client.archive_board(&board).await;
+        let _ = board_client.delete_database(&board).await;
     }
 }

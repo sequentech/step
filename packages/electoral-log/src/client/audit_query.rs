@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Bound queries over recoverable audit metadata. Column names and ordering
-//! are closed enums; all caller values are PostgreSQL parameters.
+//! Bound queries over electoral-log metadata stored in immudb.
+//! Column names and ordering are closed enums; caller values are named parameters.
 
-use super::audit_types::{ElectoralLogVarCharColumn, SqlCompOperators};
+use super::board_client::{ElectoralLogVarCharColumn, SqlCompOperators};
 use anyhow::{ensure, Result};
-use sqlx::{Postgres, QueryBuilder};
+use immudb_rs::{sql_value::Value, NamedParam, SqlValue};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AuditColumn {
@@ -14,7 +14,6 @@ pub enum AuditColumn {
     Created,
     StatementTimestamp,
     Text(ElectoralLogVarCharColumn),
-    DatabaseText(super::database_audit::DatabaseAuditColumn),
 }
 
 impl AuditColumn {
@@ -23,7 +22,6 @@ impl AuditColumn {
             Self::Id => "id",
             Self::Created => "created",
             Self::StatementTimestamp => "statement_timestamp",
-            Self::DatabaseText(column) => column.sql(),
             Self::Text(column) => match column {
                 ElectoralLogVarCharColumn::StatementKind => "statement_kind",
                 ElectoralLogVarCharColumn::UserId => "user_id",
@@ -68,30 +66,24 @@ pub struct AuditQuery {
 }
 
 impl AuditQuery {
-    pub(crate) fn build<'a>(
-        &'a self,
-        board: &'a str,
-        count: bool,
-    ) -> Result<QueryBuilder<'a, Postgres>> {
+    pub(crate) fn build(&self, count: bool) -> Result<(String, Vec<NamedParam>)> {
         ensure!(
             self.limit.is_none_or(|v| v >= 0) && self.offset.is_none_or(|v| v >= 0),
             "negative audit pagination"
         );
-        let mut query = QueryBuilder::new(if count { "SELECT COUNT(*)" } else { "SELECT *" });
-        query
-            .push(" FROM sequent_audit.records WHERE board_name=")
-            .push_bind(board);
+        let mut query = String::from(if count { "SELECT COUNT(*)" } else { "SELECT *" });
+        query.push_str(" FROM electoral_log_messages WHERE id >= 0");
+        let mut params = Vec::new();
         for predicate in &self.predicates {
-            query
-                .push(" AND ")
-                .push(predicate.column.sql())
-                .push(" ")
-                .push(predicate.operator.to_string())
-                .push(" ");
-            match (&predicate.column, &predicate.value) {
-                (AuditColumn::Text(_) | AuditColumn::DatabaseText(_), AuditValue::Text(value)) => {
-                    query.push_bind(value);
-                }
+            ensure!(
+                !matches!(
+                    predicate.operator,
+                    SqlCompOperators::In | SqlCompOperators::NotIn
+                ),
+                "audit predicate requires a scalar comparison"
+            );
+            let value = match (&predicate.column, &predicate.value) {
+                (AuditColumn::Text(_), AuditValue::Text(value)) => Value::S(value.clone()),
                 (
                     AuditColumn::Id | AuditColumn::Created | AuditColumn::StatementTimestamp,
                     AuditValue::Integer(value),
@@ -100,61 +92,79 @@ impl AuditQuery {
                         !matches!(predicate.operator, SqlCompOperators::Like),
                         "LIKE requires a text column"
                     );
-                    query.push_bind(*value);
+                    if predicate.column == AuditColumn::Id {
+                        Value::N(*value)
+                    } else {
+                        Value::Ts(*value)
+                    }
                 }
                 _ => anyhow::bail!("audit predicate type does not match its column"),
-            }
+            };
+            let parameter = bind(&mut params, value);
+            query.push_str(&format!(
+                " AND {} {} {parameter}",
+                predicate.column.sql(),
+                predicate.operator
+            ));
         }
         if self.scoped || self.election_id.is_some() || !self.area_ids.is_empty() {
-            query.push(" AND (");
+            query.push_str(" AND (");
             if let Some(election) = &self.election_id {
-                query
-                    .push("election_id LIKE ")
-                    .push_bind(election)
-                    .push(" OR ");
+                let parameter = bind(&mut params, Value::S(election.clone()));
+                query.push_str(&format!("election_id LIKE {parameter} OR "));
             }
-            if !self.area_ids.is_empty() {
-                query
-                    .push("area_id=ANY(")
-                    .push_bind(&self.area_ids)
-                    .push(") OR ");
+            for area in &self.area_ids {
+                let parameter = bind(&mut params, Value::S(area.clone()));
+                query.push_str(&format!("area_id={parameter} OR "));
             }
-            query.push(
+            query.push_str(
                 "((election_id IS NULL OR election_id='') AND (area_id IS NULL OR area_id='')))",
             );
         }
         if let Some(permitted) = &self.permitted_election_ids {
-            query
-                .push(" AND (election_id IS NULL OR election_id='' OR election_id=ANY(")
-                .push_bind(permitted)
-                .push("))");
+            query.push_str(" AND (election_id IS NULL OR election_id=''");
+            for election in permitted {
+                let parameter = bind(&mut params, Value::S(election.clone()));
+                query.push_str(&format!(" OR election_id={parameter}"));
+            }
+            query.push(')');
         }
         if self.only_with_user {
-            query.push(" AND user_id IS NOT NULL AND user_id<>''");
+            query.push_str(" AND user_id IS NOT NULL AND user_id<>''");
         }
         if !count {
-            query.push(" ORDER BY ");
+            query.push_str(" ORDER BY ");
             let mut order = self.order.clone();
             if !order.iter().any(|(column, _)| *column == AuditColumn::Id) {
                 order.push((AuditColumn::Id, false));
             }
             for (index, (column, descending)) in order.into_iter().enumerate() {
                 if index > 0 {
-                    query.push(", ");
+                    query.push_str(", ");
                 }
-                query
-                    .push(column.sql())
-                    .push(if descending { " DESC" } else { " ASC" });
+                query.push_str(column.sql());
+                query.push_str(if descending { " DESC" } else { " ASC" });
             }
             if let Some(limit) = self.limit {
-                query.push(" LIMIT ").push_bind(limit);
+                let parameter = bind(&mut params, Value::N(limit));
+                query.push_str(&format!(" LIMIT {parameter}"));
             }
             if let Some(offset) = self.offset {
-                query.push(" OFFSET ").push_bind(offset);
+                let parameter = bind(&mut params, Value::N(offset));
+                query.push_str(&format!(" OFFSET {parameter}"));
             }
         }
-        Ok(query)
+        Ok((query, params))
     }
+}
+
+fn bind(params: &mut Vec<NamedParam>, value: Value) -> String {
+    let name = format!("audit_{}", params.len());
+    params.push(NamedParam {
+        name: name.clone(),
+        value: Some(SqlValue { value: Some(value) }),
+    });
+    format!("@{name}")
 }
 
 impl std::str::FromStr for AuditColumn {
@@ -178,8 +188,8 @@ impl std::str::FromStr for AuditColumn {
     }
 }
 
-impl From<super::audit_types::WhereClauseBTreeMap> for AuditQuery {
-    fn from(filters: super::audit_types::WhereClauseBTreeMap) -> Self {
+impl From<super::board_client::WhereClauseBTreeMap> for AuditQuery {
+    fn from(filters: super::board_client::WhereClauseBTreeMap) -> Self {
         Self {
             predicates: filters
                 .into_iter()
@@ -197,7 +207,6 @@ impl From<super::audit_types::WhereClauseBTreeMap> for AuditQuery {
 #[cfg(test)]
 mod permission_tests {
     use super::*;
-    use sqlx::Execute;
 
     #[test]
     fn permission_scope_is_bound_and_keeps_event_wide_rows() {
@@ -207,12 +216,15 @@ mod permission_tests {
             ..Default::default()
         };
         for count in [true, false] {
-            let mut builder = query.build("board", count).unwrap();
-            let sql = builder.build().sql().to_owned();
+            let (sql, params) = query.build(count).unwrap();
             assert!(
-                sql.contains(" AND (election_id IS NULL OR election_id='' OR election_id=ANY($3))")
+                sql.contains(" AND (election_id IS NULL OR election_id='' OR election_id=@audit_1 OR election_id=@audit_2)")
             );
             assert!(!sql.contains("south"));
+            assert_eq!(
+                params[2].value.as_ref().unwrap().value,
+                Some(Value::S("south' OR TRUE".into()))
+            );
         }
     }
 
@@ -222,10 +234,8 @@ mod permission_tests {
             permitted_election_ids: Some(vec![]),
             ..Default::default()
         };
-        let mut builder = query.build("board", true).unwrap();
-        assert!(builder
-            .build()
-            .sql()
-            .contains(" AND (election_id IS NULL OR election_id='' OR election_id=ANY($2))"));
+        let (sql, params) = query.build(true).unwrap();
+        assert!(sql.contains(" AND (election_id IS NULL OR election_id='')"));
+        assert!(params.is_empty());
     }
 }

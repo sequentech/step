@@ -540,7 +540,7 @@ cli step create-applications \
 ---
 
 ## Create Electoral Logs
-Create electoral logs in native wbraid audit storage.
+Create electoral logs in immudb.
 > Required additional confituration at `external_config.json` in the `working-directory` (tenant_id, election_event_id, election_id, area_id and realm_name fields)
 
 ```bash
@@ -570,12 +570,16 @@ cli step hash-passwords \
 ---
 
 ## Export Cast Votes CSV
-This command accesses native wbraid audit storage bulletin board and exports in a csv file the casted ballots ballot_id.
+This command accesses the immudb electoral log and exports cast ballots' ballot IDs to CSV.
 ```bash
 cli step export-cast-votes \
-  --database-url <PRIVATE_AUDIT_POSTGRES_URL> \
+  --server-url <IMMUDB_SERVER_URL> \
+  --username <USERNAME> \
+  --password <PASSWORD> \
   --board-db <BOARD_DB_NAME>
 ```
 
-* `--database-url` – Private native audit PostgreSQL connection URL **(required)**
+* `--server-url` – immudb server URL **(required)**
+* `--username` – immudb username **(required)**
+* `--password` – immudb password **(required)**
 * `--board-db` – Bulletin board database name **(required)**

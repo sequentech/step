@@ -13,7 +13,7 @@ Cargo workspaces and Maven reactors before interpreting a package test run.
 | Area | Test entry point | Separate boundary |
 | --- | --- | --- |
 | Bulletin board and trustee protocol | [Wbraid board storage](./wbraid-board.md), [native protocol](./wbraid-protocol.md) | Trustee transport, custody and persistent storage |
-| Native board audit storage | [Electoral log](./electoral-log.md) | PostgreSQL recovery, signatures and receipt contracts |
+| Electoral audit storage | [Electoral log](./electoral-log.md), [Immu Board](./immu-board.md), [ImmuDB-RS](./immudb-rs.md) | immudb transactions, RPC recovery, signatures and receipt contracts |
 | Frontends | [Results Portal](./results-portal.md), [Ballot Verifier](./ballot-verifier.md), [Admin Portal](./admin-portal.md) | Browser flows and live services |
 | Java utilities and extensions | [ECIES](./ecies-encryption.md), [Keycloak](./keycloak-extensions.md) | Certificate chains and deployed authentication |
 | Load-test helpers | [E2E helpers](./e2e-helpers.md) | Remote browser/load scenarios |

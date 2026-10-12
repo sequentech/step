@@ -57,4 +57,4 @@ After configuration, you can start using the CLI to:
 * Execute Keys/Tally ceremony
 * Load testing and data generation utilities
 * Template rendering for email notifications
-* Exporting native wbraid audit storage bulletin board
+* Exporting immudb bulletin board
