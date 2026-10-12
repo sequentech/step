@@ -150,25 +150,44 @@ export const test = base.extend<{portal: Portal}, {dist: Awaited<ReturnType<type
                 },
             }
         })
-        graphql.on("InsertCastVote", ({variables}) => ({
-            data: {
-                insert_cast_vote: {
-                    id: "90000000-0000-4000-8000-000000000001",
-                    ballot_id: variables.ballotId,
+        // The cast answer has no status: the chooser reads it back with GetCastVotes.
+        graphql.on("GetCastVotes", (call) => {
+            if (call.variables.electionEventId !== IDS.event)
+                violations.add("GetCastVotes requested another event")
+            return {data: {cast_votes: portal.castVotes}}
+        })
+        graphql.on("InsertCastVote", ({variables}) => {
+            const id = "90000000-0000-4000-8000-000000000001"
+            portal.castVotes = [
+                ...portal.castVotes,
+                {
+                    id,
+                    tenant_id: IDS.tenant,
                     election_id: IDS.election,
                     election_event_id: IDS.event,
-                    tenant_id: IDS.tenant,
-                    area_id: IDS.area,
-                    created_at: FIXED_TIME,
-                    last_updated_at: FIXED_TIME,
-                    labels: {},
-                    annotations: {},
-                    content: variables.content,
-                    cast_ballot_signature: "synthetic-signature",
-                    voter_id_string: IDS.voter,
+                    status: "valid",
                 },
-            },
-        }))
+            ]
+            return {
+                data: {
+                    insert_cast_vote: {
+                        id,
+                        ballot_id: variables.ballotId,
+                        election_id: IDS.election,
+                        election_event_id: IDS.event,
+                        tenant_id: IDS.tenant,
+                        area_id: IDS.area,
+                        created_at: FIXED_TIME,
+                        last_updated_at: FIXED_TIME,
+                        labels: {},
+                        annotations: {},
+                        content: variables.content,
+                        cast_ballot_signature: "synthetic-signature",
+                        voter_id_string: IDS.voter,
+                    },
+                },
+            }
+        })
         const errors: string[] = []
         page.on("pageerror", (error) => errors.push(error.message))
         await page.clock.install({time: portal.now})
