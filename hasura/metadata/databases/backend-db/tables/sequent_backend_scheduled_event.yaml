@@ -15,26 +15,6 @@ insert_permissions:
               - cron_config
               - event_payload
               - labels
-              - created_at
-              - stopped_at
-              - archived_at
-              - election_event_id
-              - id
-              - tenant_id
-      role: admin-user
-    - comment: ""
-      permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          columns:
-              - created_by
-              - event_processor
-              - task_id
-              - annotations
-              - cron_config
-              - event_payload
-              - labels
               - archived_at
               - created_at
               - stopped_at
@@ -186,41 +166,6 @@ update_permissions:
               - cron_config
               - event_payload
               - labels
-              - created_at
-              - stopped_at
-              - archived_at
-              - election_event_id
-              - id
-              - tenant_id
-          filter:
-              _and:
-                  - tenant_id:
-                        _eq: X-Hasura-Tenant-Id
-                  - _or:
-                        - event_processor:
-                              _is_null: true
-                        - event_processor:
-                              _neq: SEND_TEMPLATE
-      role: admin-user
-    - comment: ""
-      permission:
-          check:
-              _and:
-                  - tenant_id:
-                        _eq: X-Hasura-Tenant-Id
-                  - _or:
-                        - event_processor:
-                              _is_null: true
-                        - event_processor:
-                              _neq: SEND_TEMPLATE
-          columns:
-              - created_by
-              - event_processor
-              - task_id
-              - annotations
-              - cron_config
-              - event_payload
-              - labels
               - archived_at
               - created_at
               - stopped_at
@@ -274,22 +219,10 @@ delete_permissions:
                   - tenant_id:
                         _eq: X-Hasura-Tenant-Id
                   - _or:
-                        - event_processor:
-                              _is_null: true
-                        - event_processor:
-                              _neq: SEND_TEMPLATE
-      role: admin-user
-    - comment: ""
-      permission:
-          filter:
-              _and:
-                  - tenant_id:
-                        _eq: X-Hasura-Tenant-Id
-                  - _or:
-                        - event_processor:
-                              _is_null: true
-                        - event_processor:
-                              _neq: SEND_TEMPLATE
+                      - event_processor:
+                            _is_null: true
+                      - event_processor:
+                            _neq: SEND_TEMPLATE
       role: scheduled-event-delete
     - comment: ""
       permission:

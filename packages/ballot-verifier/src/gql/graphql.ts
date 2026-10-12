@@ -1559,6 +1559,11 @@ export type SetCustomUrlsOutput = {
   success: Scalars['Boolean']['output'];
 };
 
+export type SetGoogleServiceAccountKeyOutput = {
+    __typename?: "SetGoogleServiceAccountKeyOutput"
+    client_email: Scalars["String"]["output"]
+}
+
 export type SetRolePermissionOutput = {
   __typename?: 'SetRolePermissionOutput';
   id?: Maybe<Scalars['String']['output']>;
@@ -5280,6 +5285,11 @@ export type Mutation_RootSet_Custom_UrlsArgs = {
   redirect_to: Scalars['String']['input'];
 };
 
+
+/** mutation root */
+export type Mutation_RootSet_Google_Service_Account_KeyArgs = {
+    service_account_key: Scalars["jsonb"]["input"]
+}
 
 /** mutation root */
 export type Mutation_RootSet_Role_PermissionArgs = {
@@ -14416,6 +14426,13 @@ export type Sequent_Backend_Election_Event_Mutation_Response = {
   returning: Array<Sequent_Backend_Election_Event>;
 };
 
+/** input type for inserting object relation for remote table "sequent_backend.election_event" */
+export type Sequent_Backend_Election_Event_Obj_Rel_Insert_Input = {
+    data: Sequent_Backend_Election_Event_Insert_Input
+    /** upsert condition */
+    on_conflict?: InputMaybe<Sequent_Backend_Election_Event_On_Conflict>
+}
+
 /** on_conflict condition type for table "sequent_backend.election_event" */
 export type Sequent_Backend_Election_Event_On_Conflict = {
   constraint: Sequent_Backend_Election_Event_Constraint;
@@ -14732,6 +14749,13 @@ export type Sequent_Backend_Election_Obj_Rel_Insert_Input = {
   /** upsert condition */
   on_conflict?: InputMaybe<Sequent_Backend_Election_On_Conflict>;
 };
+
+/** input type for inserting object relation for remote table "sequent_backend.election" */
+export type Sequent_Backend_Election_Obj_Rel_Insert_Input = {
+    data: Sequent_Backend_Election_Insert_Input
+    /** upsert condition */
+    on_conflict?: InputMaybe<Sequent_Backend_Election_On_Conflict>
+}
 
 /** on_conflict condition type for table "sequent_backend.election" */
 export type Sequent_Backend_Election_On_Conflict = {

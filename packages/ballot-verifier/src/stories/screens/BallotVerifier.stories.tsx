@@ -192,14 +192,20 @@ export const Populated: Story = {
             .voterBallot
         const canvas = within(canvasElement)
         await canvas.findByText(text("homeScreen.step1"))
-        const file = new File([JSON.stringify(ballot)], "ballot.json", {type: "application/json"})
-        await userEvent.upload(canvas.getByTestId<HTMLInputElement>("drop-input-file"), file)
         await userEvent.type(
             canvas.getByRole("textbox", {name: text("homeScreen.ballotIdLabel")}),
             hash
         )
         const next = canvas.getByRole("button", {name: text("homeScreen.nextButton")})
-        await waitFor(() => expect(next).toBeEnabled())
+        // A ballot is only checked against the ballot styles once they have loaded,
+        // so the import is repeated until the published styles have arrived.
+        await waitFor(async () => {
+            const file = new File([JSON.stringify(ballot)], "ballot.json", {
+                type: "application/json",
+            })
+            await userEvent.upload(canvas.getByTestId<HTMLInputElement>("drop-input-file"), file)
+            expect(next).toBeEnabled()
+        })
         await userEvent.click(next)
         await expect(
             await canvas.findByRole("heading", {

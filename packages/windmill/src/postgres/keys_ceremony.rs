@@ -297,6 +297,41 @@ pub async fn update_keys_ceremony_status(
 }
 
 #[instrument(skip(hasura_transaction), err)]
+pub async fn delete_keys_ceremony(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    keys_ceremony_id: &str,
+) -> Result<()> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                DELETE FROM
+                    sequent_backend.keys_ceremony
+                WHERE
+                    id = $1 AND
+                    tenant_id = $2 AND
+                    election_event_id = $3;
+            "#,
+        )
+        .await?;
+
+    hasura_transaction
+        .execute(
+            &statement,
+            &[
+                &parse_uuid_v4(keys_ceremony_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running the delete_keys_ceremony query: {err}"))?;
+
+    Ok(())
+}
+
+#[instrument(skip(hasura_transaction), err)]
 pub async fn list_keys_ceremony(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,

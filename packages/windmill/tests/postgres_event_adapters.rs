@@ -2219,6 +2219,78 @@ async fn get_election_permission_label_fails_when_no_election_matches() {
 }
 
 #[tokio::test]
+async fn get_elections_permission_labels_lists_the_requested_elections_of_the_event() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let a = f.scope().await;
+    let sibling = f.event_in(a.tenant).await;
+    let (labelled, unlabelled) = (f.election(a).await, f.election(a).await);
+    let elsewhere = f.election(sibling).await;
+    f.execute(
+        "UPDATE sequent_backend.election SET permission_label = $2 WHERE id = $1",
+        &[&labelled, &"label-1"],
+    )
+    .await;
+    let labels = |election_ids: Option<Vec<String>>| {
+        let tx = &tx;
+        async move {
+            let mut rows = election::get_elections_permission_labels(
+                tx,
+                &a.tenant_id(),
+                &a.event_id(),
+                election_ids.as_deref(),
+            )
+            .await
+            .unwrap();
+            rows.sort_by(|left, right| left.election_id.cmp(&right.election_id));
+            rows
+        }
+    };
+    let row = |id: Uuid, label: Option<&str>| election::ElectionPermissionLabel {
+        election_id: id.to_string(),
+        permission_label: label.map(str::to_string),
+    };
+
+    let mut everything = vec![row(labelled, Some("label-1")), row(unlabelled, None)];
+    everything.sort_by(|left, right| left.election_id.cmp(&right.election_id));
+    assert_eq!(labels(None).await, everything);
+    assert_eq!(
+        labels(Some(strings(&[unlabelled]))).await,
+        vec![row(unlabelled, None)]
+    );
+    // An election of another event is not found, whatever its label.
+    assert_eq!(
+        labels(Some(strings(&[labelled, elsewhere]))).await,
+        vec![row(labelled, Some("label-1"))]
+    );
+    assert!(labels(Some(vec![])).await.is_empty());
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn get_elections_permission_labels_rejects_invalid_ids() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let a = f.scope().await;
+
+    assert_invalid_uuid(
+        election::get_elections_permission_labels(
+            &tx,
+            &a.tenant_id(),
+            &a.event_id(),
+            Some(&[BAD_UUID.to_string()]),
+        )
+        .await,
+    );
+    assert_invalid_uuid(
+        election::get_elections_permission_labels(&tx, BAD_UUID, &a.event_id(), None).await,
+    );
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
 async fn get_cast_vote_configuration_reads_the_election_policy_and_its_voting_window() {
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();

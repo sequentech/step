@@ -17,9 +17,12 @@ const loadTable = (table) =>
         )
     )
 
-const columnsFor = (metadata, operation, role) =>
-    metadata[`${operation}_permissions`].find((entry) => entry.role === role)
-        .permission.columns
+const columnsFor = (metadata, operation, role) => {
+    const entry = metadata[`${operation}_permissions`].find(
+        (candidate) => candidate.role === role
+    )
+    return entry ? entry.permission.columns : []
+}
 
 const windmillOnlyColumns = [
     {table: "sequent_backend_tally_session", column: "annotations"},
