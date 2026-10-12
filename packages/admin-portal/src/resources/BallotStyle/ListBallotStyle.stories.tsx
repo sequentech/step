@@ -88,13 +88,12 @@ export const LoadError: Story = {
     },
 }
 
-export const RowOpensTheBallotStyle: Story = {
+export const RowIsReadOnly: Story = {
     play: async ({canvasElement}) => {
         await userEvent.click(await row(canvasElement, "South district"))
-        await waitFor(() =>
-            expect(
-                within(canvasElement).getByRole("status", {name: "Current location"})
-            ).toHaveTextContent(`/sequent_backend_ballot_style/${southBallot.id}`)
-        )
+        // Ballot styles are only written by the service account, so a row has no page to open.
+        expect(
+            within(canvasElement).getByRole("status", {name: "Current location"})
+        ).not.toHaveTextContent(southBallot.id)
     },
 }

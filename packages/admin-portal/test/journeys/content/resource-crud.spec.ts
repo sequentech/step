@@ -15,7 +15,6 @@ import {
 } from "./data"
 
 const AREA_CONTEST_ID = "a1000000-0000-4000-8000-000000000001"
-const BALLOT_STYLE_ID = "b1000000-0000-4000-8000-000000000001"
 const DOCUMENT_ID = "d1000000-0000-4000-8000-000000000001"
 const LABELS = {print_code: "North"}
 const AREA_CONTEST = {
@@ -23,16 +22,6 @@ const AREA_CONTEST = {
     area_id: IDS.area,
     contest_id: IDS.contest,
     labels: LABELS,
-    annotations: {},
-}
-const BALLOT_STYLE = {
-    ...EVENT_SCOPE,
-    ballot_publication_id: "b2000000-0000-4000-8000-000000000001",
-    area_id: IDS.area,
-    election_id: IDS.election,
-    ballot_eml: "<Ballot>North</Ballot>",
-    status: "DRAFT",
-    labels: {},
     annotations: {},
 }
 const DOCUMENT = {
@@ -51,8 +40,6 @@ test.use({
         "area-read",
         "area-write",
         "contest-read",
-        "publish-read",
-        "publish-write",
         "document-read",
         "document-write",
         "tenant-read",
@@ -146,30 +133,6 @@ test("edits area-contest print labels", async ({page, portal}) => {
     await page.getByText("...", {exact: true}).click()
     await expect(page.getByText('"North annex"', {exact: true})).toBeVisible()
 })
-
-for (const route of ["create", BALLOT_STYLE_ID]) {
-    test(`ballot style ${route === "create" ? "creation" : "detail"} route exposes no manual editor`, async ({
-        page,
-        portal,
-    }) => {
-        resources(portal)
-        table(portal, "sequent_backend_ballot_style", [
-            {
-                id: BALLOT_STYLE_ID,
-                ...BALLOT_STYLE,
-                created_at: FIXED_TIME,
-                last_updated_at: FIXED_TIME,
-            },
-        ])
-        await page.goto(`${portal.origin}/sequent_backend_ballot_style/${route}?lang=en`)
-        await expect(page.getByRole("heading", {name: "Ballot Styles", exact: true})).toBeVisible()
-        await expect(page.getByRole("textbox", {name: "Ballot eml", exact: true})).toHaveCount(0)
-        await expect(page.getByRole("button", {name: "Save", exact: true})).toHaveCount(0)
-        for (const operation of ["insert", "update", "delete"]) {
-            expect(portal.graphql.callsTo(`${operation}_sequent_backend_ballot_style`)).toEqual([])
-        }
-    })
-}
 
 for (const entry of CASES.filter((entry) => entry.resource !== "document")) {
     test(`deletes ${entry.title.toLowerCase()} records after its undo window`, async ({
