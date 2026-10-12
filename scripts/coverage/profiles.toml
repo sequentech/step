@@ -487,6 +487,7 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/messages/mod.rs" = "Module declarations only."
 "src/adapters/mod.rs" = "Module declarations only."
 "src/messages/artifact.rs" = "Empty source file with license header only."
+"src/ports.rs" = "Store trait declaration only; its implementations are measured in src/adapters/postgres.rs and src/adapters/events.rs."
 
 [profiles.pgmq-broker]
 package = "pgmq-broker"
