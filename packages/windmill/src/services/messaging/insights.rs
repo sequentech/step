@@ -22,11 +22,11 @@
 use crate::postgres::area::get_elections_by_area;
 use crate::postgres::messaging::{count_event_messages, LedgerCount, MessagingAccount};
 use crate::postgres::messaging_insights::{
-    count_voter_channels, event_area_ids, event_voter_ids_who_voted, finish_recount,
-    is_statement_timeout, recount_run, replace_voter_counts, set_statement_timeout, start_recount,
-    voter_counts, CachedVoterCount, MonthlyVolume, RecountOutcome, RecountRun, VoterChannelCount,
-    VoterCountScope, Votes,
+    count_voter_channels, event_area_ids, finish_recount, is_statement_timeout, recount_run,
+    replace_voter_counts, set_statement_timeout, start_recount, voter_counts, CachedVoterCount,
+    MonthlyVolume, RecountOutcome, RecountRun, VoterChannelCount, VoterCountScope, Votes,
 };
+use crate::services::ballot_box::get_voter_ballot_states;
 use crate::services::external::utils::is_datafix_election_event_by_id;
 use crate::services::messaging::config::get_event_messaging_config;
 use crate::services::messaging::dispatch::{
@@ -328,7 +328,8 @@ pub fn tally_of(counts: &[CachedVoterCount], scope: VoterCountScope) -> VoterTal
 
 /// Counts the event's voters by channel for every scope: the voters the
 /// bulk send reaches (`send_template`'s `list_users`, with `votes_info` for
-/// the voted filters), counted in one aggregate on the Keycloak database
+/// the voted filters: a voter voted with a pending or valid ballot in the
+/// event's ballot box), counted in one aggregate on the Keycloak database
 /// ([`count_voter_channels`], which applies [`voter_channel`]'s rule), with
 /// `timeout` on the statement. The recount task stores the result.
 #[instrument(skip(hasura_tx, keycloak_tx, config), err)]
@@ -348,7 +349,11 @@ pub async fn count_event_voters(
         .context("listing elections by area")?;
     let area_ids = event_area_ids(hasura_tx, tenant_id, election_event_id).await?;
     let votes = Votes {
-        voter_ids: event_voter_ids_who_voted(hasura_tx, tenant_id, election_event_id).await?,
+        voter_ids: get_voter_ballot_states(hasura_tx, &tenant, &event)
+            .await
+            .context("reading who voted from the event's ballot box")?
+            .into_keys()
+            .collect(),
         datafix: is_datafix_election_event_by_id(hasura_tx, &tenant, &event).await?,
     };
     set_statement_timeout(keycloak_tx, timeout).await?;
