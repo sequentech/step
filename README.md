@@ -87,7 +87,7 @@ See the [Documentation](https://docs.sequentech.io/docusaurus/main/) for detaile
 ├── packages/               # Monorepo packages (Cargo + Yarn workspace)
 │   ├── admin-portal/       # Admin interface (React)
 │   ├── voting-portal/      # Voter interface (React)
-│   ├── braid/              # Cryptographic mixnet (Rust)
+│   ├── wbraid/             # Native cryptographic backend (Rust)
 │   ├── sequent-core/       # Shared core libraries (Rust)
 │   ├── ui-essentials/      # Shared UI components
 │   └── ...                 # Other packages

@@ -78,29 +78,36 @@ class Portal:
         return json.loads(text), wrapper
 
     def encrypt(self, style, candidate):
-        """Encrypt a vote for `candidate` (a display name) with step-cli's ballot encoder."""
-        (contest,) = style["contests"]
-        names = [candidate_name(c) for c in contest["candidates"]]
-        if candidate not in names:
-            raise AssertionError(f"{candidate} is not on the ballot: {names}")
-        choices = [
-            {
-                "contest_id": contest["id"],
-                "is_explicit_invalid": False,
-                "is_decline_to_vote": False,
-                "is_blank_ballot": False,
-                "invalid_errors": [],
-                "invalid_alerts": [],
-                "choices": [
-                    {
-                        "id": c["id"],
-                        "selected": 0 if name == candidate else -1,
-                        "write_in_text": None,
-                    }
-                    for c, name in zip(contest["candidates"], names)
-                ],
-            }
-        ]
+        """Encrypt a name or per-contest selections with the native ballot encoder."""
+        if isinstance(candidate, str):
+            (contest,) = style["contests"]
+            selections = {contest["id"]: candidate}
+        else:
+            selections = candidate
+        choices = []
+        for contest in style["contests"]:
+            selected = selections[contest["id"]]
+            names = [candidate_name(c) for c in contest["candidates"]]
+            if selected not in names:
+                raise AssertionError(f"{selected} is not on the ballot: {names}")
+            choices.append(
+                {
+                    "contest_id": contest["id"],
+                    "is_explicit_invalid": False,
+                    "is_decline_to_vote": False,
+                    "is_blank_ballot": False,
+                    "invalid_errors": [],
+                    "invalid_alerts": [],
+                    "choices": [
+                        {
+                            "id": c["id"],
+                            "selected": 0 if name == selected else -1,
+                            "write_in_text": None,
+                        }
+                        for c, name in zip(contest["candidates"], names)
+                    ],
+                }
+            )
         style_path = self.cli.directory / "style.json"
         choices_path = self.cli.directory / "choices.json"
         style_path.write_text(json.dumps(style))

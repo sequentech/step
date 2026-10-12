@@ -9,6 +9,7 @@ not pass. Skipped journeys fail the run; every scenario must pass.
 
 import base64
 import collections
+import copy
 import hashlib
 import json
 import re
@@ -1040,3 +1041,181 @@ class BackendJourneys(unittest.TestCase):
         self.assertEqual(sorted(r["total_votes"] for r in results), expected)
         self.assertEqual(sorted(r["total_valid_votes"] for r in results), expected)
         self.passed("journey 9")
+
+    def test_a_combined_contest_weighted_voting(self):
+        """Native combined ballots pass admission, weight batches and Velvet counting."""
+        self.requires("journey 4")
+        document = fixtures.election_event(
+            ENV["VOTING_PORTAL_URL"], self.tag + "-combined"
+        )
+        document["election_event"]["presentation"].update(
+            contest_encryption_policy="multiple-contests",
+            weighted_voting_policy="voters-weighted-voting",
+            batch_anonymity_policy="warn",
+        )
+        # Area A receives both main-election contests in one ciphertext.
+        document["area_contests"].append(
+            {
+                "id": str(uuid.uuid4()),
+                "area_id": document["areas"][0]["id"],
+                "contest_id": document["contests"][1]["id"],
+            }
+        )
+        event_id = self.import_event(document, "combined-weighted")
+        voters = fixtures.census(self.tag + "-combined", {"A": 2})
+        path = self.cli.directory / "combined-voters.csv"
+        fixtures.write_census(
+            path,
+            voters,
+            {"A": f"e2e-main-{self.tag}-combined"},
+            weights={voter.username: weight for voter, weight in zip(voters, (3, 5))},
+        )
+        self.step(
+            "import-voters",
+            "--election-event-id",
+            event_id,
+            "--file-path",
+            str(path),
+            "--is-local",
+        )
+        ceremony = StepCli.last_id(
+            self.step(
+                "start-key-ceremony",
+                "--election-event-id",
+                event_id,
+                "--threshold",
+                "2",
+                "--automatic",
+            )
+        )
+
+        def keys_ready():
+            (row,) = self.admin.query(
+                "query ($id: uuid!) { sequent_backend_keys_ceremony(where: {id: {_eq: $id}}) { execution_status } }",
+                {"id": ceremony},
+            )["sequent_backend_keys_ceremony"]
+            self.assertNotIn(row["execution_status"], ("FAILED", "CANCELLED"))
+            return row["execution_status"] == "SUCCESS"
+
+        wait_until("combined ballot native keys", keys_ready, timeout=600)
+        self.step("publish", "--election-event-id", event_id)
+        self.step(
+            "update-event-voting-status",
+            "--election-event-id",
+            event_id,
+            "--voting-status",
+            "OPEN",
+            "--voting-channel",
+            "ONLINE",
+        )
+        portal = Portal(event_id, self.cli)
+        for index, voter in enumerate(voters):
+            token = portal.login(voter.username)
+            (file,) = portal.status(token)["get_ballot_files_urls"]["files"]
+            style, _ = portal.ballot_style(file)
+            self.assertEqual(len(style["contests"]), 2)
+            self.assertEqual(
+                style["election_event_presentation"]["contest_encryption_policy"],
+                "multiple-contests",
+            )
+            self.assertEqual(
+                style["public_key"]["configuration_id"], str(uuid.UUID(ceremony).int)
+            )
+            selections = {
+                contest["id"]: (
+                    ("Alice", "Bob")[index]
+                    if any(
+                        candidate_name(candidate) == "Alice"
+                        for candidate in contest["candidates"]
+                    )
+                    else ("Dave", "Erin")[index]
+                )
+                for contest in style["contests"]
+            }
+            ballot = portal.encrypt(style, selections)
+            content = json.loads(ballot["content"])
+            self.assertIsInstance(content["contests"], str)
+            if index == 0:
+                malformed = copy.deepcopy(ballot)
+                broken = copy.deepcopy(content)
+                broken["contests"] = base64.b64encode(
+                    base64.b64decode(broken["contests"])[:-1]
+                ).decode()
+                malformed["content"] = json.dumps(broken)
+                receipt, errors = portal.cast(token, malformed)
+                self.assertIsNone(receipt)
+                self.assertEqual(
+                    [e["extensions"]["code"] for e in errors],
+                    ["DeserializeContestsFailed"],
+                )
+                # Keep the published envelope but substitute a valid native
+                # ciphertext encrypted under another configuration domain.
+                foreign_style = copy.deepcopy(style)
+                foreign_style["public_key"]["configuration_id"] = str(
+                    int(style["public_key"]["configuration_id"]) + 1
+                )
+                foreign = portal.encrypt(foreign_style, selections)
+                substituted = copy.deepcopy(ballot)
+                other_content = copy.deepcopy(content)
+                other_content["contests"] = json.loads(foreign["content"])["contests"]
+                substituted["content"] = json.dumps(other_content)
+                receipt, errors = portal.cast(token, substituted)
+                self.assertIsNone(receipt)
+                self.assertEqual(
+                    [e["extensions"]["code"] for e in errors], ["PokValidationFailed"]
+                )
+                stored = self.admin.query(
+                    "query ($event: uuid!) { sequent_backend_cast_vote(where: {election_event_id: {_eq: $event}}) { id } }",
+                    {"event": event_id},
+                )["sequent_backend_cast_vote"]
+                self.assertEqual(stored, [])
+            receipt, errors = portal.cast(token, ballot)
+            self.assertIsNone(errors)
+            self.assertEqual(receipt["ballot_id"], ballot["ballotId"])
+        self.step(
+            "update-event-voting-status",
+            "--election-event-id",
+            event_id,
+            "--voting-status",
+            "CLOSED",
+            "--voting-channel",
+            "ONLINE",
+        )
+        previous = self.state
+        self.state = State()
+        self.state.event_id = event_id
+        try:
+            results_id = self.tally()
+        finally:
+            self.state = previous
+        results = self.admin.query(
+            """query ($results: uuid!, $event: uuid!) {
+              sequent_backend_results_contest(where: {results_event_id: {_eq: $results}}) { contest_id total_votes total_valid_votes }
+              sequent_backend_results_contest_candidate(where: {results_event_id: {_eq: $results}}) { contest_id candidate_id cast_votes }
+              sequent_backend_candidate(where: {election_event_id: {_eq: $event}}) { id contest_id presentation }
+            }""",
+            {"results": results_id, "event": event_id},
+        )
+        active_contests = {contest["id"] for contest in style["contests"]}
+        counted = [
+            r
+            for r in results["sequent_backend_results_contest"]
+            if r["contest_id"] in active_contests
+        ]
+        self.assertEqual(len(counted), 2)
+        self.assertEqual(
+            [(r["total_votes"], r["total_valid_votes"]) for r in counted],
+            [(8, 8), (8, 8)],
+        )
+        names = {
+            c["id"]: fixtures.display_name(c)
+            for c in results["sequent_backend_candidate"]
+        }
+        by_name = {
+            names[r["candidate_id"]]: r["cast_votes"]
+            for r in results["sequent_backend_results_contest_candidate"]
+            if r["contest_id"] in active_contests
+        }
+        self.assertEqual(
+            by_name, {"Alice": 3, "Bob": 5, "Carol": 0, "Dave": 3, "Erin": 5}
+        )

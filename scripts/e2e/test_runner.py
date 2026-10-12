@@ -4,6 +4,7 @@
 """Driver outcome contracts; no containers or external services are required."""
 
 import contextlib
+import csv
 import importlib
 import io
 import json
@@ -418,6 +419,77 @@ class CoverageExitContracts(unittest.TestCase):
                 self.assertEqual(status, 1)
                 self.assertEqual(len(report["failures"]), 1)
                 self.assertIn("windmill", report["failures"][0])
+
+
+class CombinedBallotInputContracts(unittest.TestCase):
+    def test_weighted_census_uses_the_platform_import_column(self):
+        from scripts.e2e.journeys import fixtures
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "voters.csv"
+            voters = fixtures.census("weighted", {"A": 2})
+            fixtures.write_census(
+                path,
+                voters,
+                {"A": "main-election"},
+                weights={voters[0].username: 3, voters[1].username: 5},
+            )
+            with path.open(newline="") as handle:
+                rows = list(csv.DictReader(handle))
+            self.assertEqual(
+                [
+                    (r["username"], r["vote-weight"], r["authorized-election-ids"])
+                    for r in rows
+                ],
+                [
+                    ("e2e-weighted-a1", "3", "main-election"),
+                    ("e2e-weighted-a2", "5", "main-election"),
+                ],
+            )
+
+    def test_each_contest_uses_its_own_selection_in_the_native_encoder(self):
+        from scripts.e2e.journeys.voting import Portal
+
+        with tempfile.TemporaryDirectory() as directory:
+            cli = MagicMock(directory=Path(directory), binary=Path("step-cli"))
+            portal = Portal("event", cli)
+            style = {
+                "contests": [
+                    {
+                        "id": "council",
+                        "candidates": [
+                            {"id": "alice", "name": "Alice"},
+                            {"id": "bob", "name": "Bob"},
+                        ],
+                    },
+                    {
+                        "id": "chair",
+                        "candidates": [
+                            {"id": "carol", "name": "Carol"},
+                            {"id": "dave", "name": "Dave"},
+                        ],
+                    },
+                ]
+            }
+            with patch(
+                "scripts.e2e.journeys.voting.subprocess.run",
+                return_value=MagicMock(stdout='{"ballotId":"native"}\n'),
+            ):
+                self.assertEqual(
+                    portal.encrypt(style, {"council": "Bob", "chair": "Carol"}),
+                    {"ballotId": "native"},
+                )
+            choices = json.loads((Path(directory) / "choices.json").read_text())
+            self.assertEqual(
+                [
+                    (c["contest_id"], [(v["id"], v["selected"]) for v in c["choices"]])
+                    for c in choices
+                ],
+                [
+                    ("council", [("alice", -1), ("bob", 0)]),
+                    ("chair", [("carol", 0), ("dave", -1)]),
+                ],
+            )
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ import {
     CONTEST_ID,
     EVENT_ID,
     FIXED_TIME,
+    KEYS_ID,
     RESULTS_ID,
     TALLY_ID,
     TALLY_ROLES,
@@ -416,7 +417,7 @@ test.describe("as a trustee", () => {
         ],
     })
 
-    test("restores a key fragment for a started tally after a rejected upload", async ({
+    test("confirms native trustee custody for a started tally after a rejected proof", async ({
         page,
         portal,
     }) => {
@@ -440,24 +441,43 @@ test.describe("as a trustee", () => {
                 .map(({headers}) => headers["x-hasura-role"])
         ).toContain("trustee-ceremony")
         await rowAction(row, "Add Tally Key").click()
-        await expect(page.getByText("Please upload you key fragment", {exact: true})).toBeVisible()
+        await expect(
+            page.getByText(/Create a custody proof locally using your saved request/)
+        ).toBeVisible()
         const next = page.getByRole("button", {name: "Next", exact: true})
         await expect(next).toBeDisabled()
         const upload = (content: string) =>
             page.locator('input[type="file"]').setInputFiles({
-                name: "fragment.txt",
-                mimeType: "text/plain",
+                name: "custody-proof.json",
+                mimeType: "application/json",
                 buffer: Buffer.from(content),
             })
-        await upload("stale-fragment")
+        const proof = (signature: string) =>
+            JSON.stringify({
+                request: {
+                    tenant_id: TENANT_ID,
+                    election_event_id: EVENT_ID,
+                    keys_ceremony_id: KEYS_ID,
+                    tally_session_id: TALLY_ID,
+                    trustee_name: "synthetic-admin",
+                    signing_public_key: "synthetic-signing-public-key",
+                    share_encryption_public_key: "synthetic-share-encryption-public-key",
+                },
+                signature,
+            })
+        const invalidProof = proof("rejected-public-signature")
+        const validProof = proof("accepted-public-signature")
+        await upload(invalidProof)
         await expect(
-            page.getByText("Invalid Encrypted Private Key Backup, please try again", {exact: true})
+            page.getByText("Invalid custody proof, please try again", {exact: true})
         ).toBeVisible()
         await expect(next).toBeDisabled()
-        await upload("valid-fragment")
-        await expect(page.getByText("Backup verified successfully.", {exact: true})).toBeVisible()
+        await upload(validProof)
+        await expect(
+            page.getByText("Trustee custody confirmed successfully.", {exact: true})
+        ).toBeVisible()
         expect(portal.graphql.callsTo("RestorePrivateKey").map(({variables}) => variables)).toEqual(
-            ["stale-fragment", "valid-fragment"].map((privateKeyBase64) => ({
+            [invalidProof, validProof].map((privateKeyBase64) => ({
                 electionEventId: EVENT_ID,
                 tallySessionId: TALLY_ID,
                 privateKeyBase64,

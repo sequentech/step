@@ -67,7 +67,11 @@ code (143: stopped by SIGTERM, counters kept by continuous mode); a missing prof
 The ordered tests in `scripts/e2e/journeys/test_journeys.py` cover tenant bootstrap,
 event import and invalid bundles, voter import, automatic key generation,
 private ballot publication, cast/revote/closing rules and results matching the
-last accepted ballot. Native archive journeys export a completed election with
+last accepted ballot. A combined-contest voting journey casts one native
+ciphertext covering two contests, checks malformed ciphertext and foreign-domain
+proof rejection before storage, then verifies voter weight batches through the
+native trustees and independently calculated Velvet totals. Native archive
+journeys export a completed election with
 its protocol boards, publications, voters and tally, then recover it through the
 CLI and the authenticated encrypted-import API. They check preserved canonical
 protocol messages, remapped board relationships, immutable signed configuration

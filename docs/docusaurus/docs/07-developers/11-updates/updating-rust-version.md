@@ -287,7 +287,7 @@ Build a few key Docker images to verify:
 ```bash
 # Test building services
 cd packages/
-docker build -f braid/Dockerfile -t test-braid .
+docker build -f wbraid/crates/b4/Dockerfile -t test-wbraid-board wbraid/
 docker build -f windmill/Dockerfile -t test-windmill .
 docker build -f Dockerfile.cargo-packages -t test-cargo .
 ```

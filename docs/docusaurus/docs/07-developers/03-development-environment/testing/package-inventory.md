@@ -12,7 +12,7 @@ Cargo workspaces and Maven reactors before interpreting a package test run.
 
 | Area | Test entry point | Separate boundary |
 | --- | --- | --- |
-| Bulletin board and trustee protocol | [B4](./b4.md), [Braid](./braid.md) | Browser storage and remote transport |
+| Bulletin board and trustee protocol | [Wbraid board storage](./b4.md), [native protocol](./braid.md) | Trustee transport, custody and persistent storage |
 | Native board audit storage | [Electoral log](./electoral-log.md) | PostgreSQL recovery, signatures and receipt contracts |
 | Frontends | [Results Portal](./results-portal.md), [Ballot Verifier](./ballot-verifier.md), [Admin Portal](./admin-portal.md) | Browser flows and live services |
 | Java utilities and extensions | [ECIES](./ecies-encryption.md), [Keycloak](./keycloak-extensions.md) | Certificate chains and deployed authentication |
@@ -21,16 +21,16 @@ Cargo workspaces and Maven reactors before interpreting a package test run.
 | Plugin component | [Miru](./miru.md) | Host JWT and transaction implementations |
 | Backend database and Hasura | [Backend database contracts](#backend-database-contracts) | Populated deployments and live services |
 
-The `wbraid` directory, when present, is a separate Cargo workspace with existing
+The supplied `wbraid` directory is a separate Cargo workspace with existing
 protocol, model/property, persistence and cross-implementation tests. Run from
 `packages/wbraid`:
 
 ```sh
-cargo test --locked --release --features sqlite,postgres
+CARGO_TARGET_DIR="$PWD/../rust-local-target" cargo test --locked --release --features sqlite,postgres
 ```
 
 Read that workspace's feature and integration-test prerequisites before enabling
-additional backends. Ignored external-service/JVM cases and the live B4/LocalStack
+additional backends. Ignored external-service/JVM cases and the live b4v6/LocalStack
 fixtures remain separate obligations; enabling a feature alone does not prove
 its external boundary was exercised.
 
