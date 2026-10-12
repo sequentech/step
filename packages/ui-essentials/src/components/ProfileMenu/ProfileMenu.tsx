@@ -293,7 +293,11 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                             action.onSelect()
                         }}
                     >
-                        {action.icon && <ListItemIcon className="profile-menu-action-icon">{action.icon}</ListItemIcon>}
+                        {action.icon && (
+                            <ListItemIcon className="profile-menu-action-icon">
+                                {action.icon}
+                            </ListItemIcon>
+                        )}
                         {action.label}
                     </MenuItem>
                 ))}
