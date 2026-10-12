@@ -394,8 +394,16 @@ fn reconcile_claim_mappers(
     let (claim_mappers, mut kept): (Vec<_>, Vec<_>) = existing
         .into_iter()
         .partition(|mapper| is_claim_authority_mapper(mapper));
-    let template_mappers = template_mappers.map(Vec::as_slice).unwrap_or_default();
-    let template_keys: HashSet<_> = template_mappers.iter().map(claim_mapper_key).collect();
+    let template_mappers: Vec<&ProtocolMapperRepresentation> = template_mappers
+        .map(Vec::as_slice)
+        .unwrap_or_default()
+        .iter()
+        .filter(|mapper| is_claim_authority_mapper(mapper))
+        .collect();
+    let template_keys: HashSet<_> = template_mappers
+        .iter()
+        .map(|mapper| claim_mapper_key(mapper))
+        .collect();
     let mut present_keys: HashSet<_> = HashSet::new();
     for mapper in claim_mappers {
         let key = claim_mapper_key(&mapper);
@@ -411,7 +419,7 @@ fn reconcile_claim_mappers(
     }
     for template_mapper in template_mappers {
         if !present_keys.contains(&claim_mapper_key(template_mapper)) {
-            let mut restored = template_mapper.clone();
+            let mut restored = (*template_mapper).clone();
             restored.id = None;
             kept.push(restored);
         }
@@ -2581,6 +2589,42 @@ mod imported_realm_sanitization_tests {
         assert!(!imported_roles.contains(&"admin-user".to_string()));
 
         assert_eq!(client_claim_mapper_count(&sanitized, "rogue-client"), 0);
+    }
+
+    fn duplicate_mapper_names(realm: &RealmRepresentation) -> Vec<String> {
+        let mut duplicates = Vec::new();
+        let mut check = |owner: String, mappers: &Option<Vec<ProtocolMapperRepresentation>>| {
+            let mut seen = HashSet::new();
+            for mapper in mappers.iter().flatten() {
+                let key = (mapper.name.clone(), mapper.protocol.clone());
+                if !seen.insert(key) {
+                    duplicates.push(format!("{owner}: {:?}", mapper.name));
+                }
+            }
+        };
+        for client in realm.clients.iter().flatten() {
+            check(
+                format!("client {:?}", client.client_id),
+                &client.protocol_mappers,
+            );
+        }
+        for scope in realm.client_scopes.iter().flatten() {
+            check(format!("scope {:?}", scope.name), &scope.protocol_mappers);
+        }
+        duplicates
+    }
+
+    #[test]
+    fn aligning_does_not_duplicate_the_templates_other_protocol_mappers() {
+        let template = template_realm();
+        let sanitized = sanitize_imported_event_realm(
+            &template,
+            &template,
+            ImportedRealmReconciliation::AlignWithTemplate,
+        )
+        .expect("sanitization succeeds");
+
+        assert_eq!(duplicate_mapper_names(&sanitized), Vec::<String>::new());
     }
 
     #[test]
