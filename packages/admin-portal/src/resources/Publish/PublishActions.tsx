@@ -712,7 +712,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                     onClick={() => handlePublish(false)}
                                     st={PublishStatus.Generated}
                                     label={String(t("publish.action.publish"))}
-                                    disabledStatus={[PublishStatus.Stopped]}
+                                    disabledStatus={[]}
+                                    disabled={changingStatus}
                                 />
                             )}
                         </>

@@ -6,6 +6,7 @@ use crate::postgres::scheduled_event::*;
 use crate::services::election_event_status::get_election_event_status;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
+use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::ballot::{ElectionEventStatus, PeriodDates, StringifiedPeriodDates};
 use sequent_core::types::hasura::core::Election;
 use sequent_core::types::scheduled_event::*;
@@ -20,6 +21,7 @@ pub async fn manage_dates(
     election_id: &str,
     scheduled_date: Option<&str>,
     event_processor: &str,
+    voting_channels: Option<Vec<VotingStatusChannel>>,
 ) -> Result<()> {
     let found_election = get_election_by_id(
         hasura_transaction,
@@ -65,6 +67,7 @@ pub async fn manage_dates(
                     tenant_id,
                     &old_scheduled_event.id,
                     cron_config,
+                    voting_channels.as_ref(),
                 )
                 .await
                 .map_err(|e| anyhow!("error updating scheduled event: {e:?}"))?;
@@ -72,6 +75,7 @@ pub async fn manage_dates(
             _ => {
                 let payload = ManageElectionDatePayload {
                     election_id: Some(election_id.to_string()),
+                    voting_channels,
                 };
 
                 insert_scheduled_event(

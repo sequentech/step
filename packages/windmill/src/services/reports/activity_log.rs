@@ -5,7 +5,7 @@
 use super::template_renderer::*;
 use crate::postgres::reports::{Report, ReportType};
 use crate::services::documents::upload_and_return_document;
-use crate::services::electoral_log::{ElectoralLogRow, IMMUDB_ROWS_LIMIT};
+use crate::services::electoral_log::{ElectoralLogRow, ELECTORAL_LOG_ROWS_LIMIT};
 use crate::services::protocol_manager::{get_board_client, get_event_board};
 use crate::services::providers::email_sender::{Attachment, EmailSender};
 use anyhow::{anyhow, Context, Result};
@@ -75,7 +75,7 @@ impl ActivityLogsTemplate {
     // Export data using the electoral-log board client, streaming in batches
     #[instrument(err, skip(self))]
     pub async fn generate_export_csv_data(&self, name: &str) -> Result<NamedTempFile> {
-        let limit = IMMUDB_ROWS_LIMIT as i64;
+        let limit = ELECTORAL_LOG_ROWS_LIMIT as i64;
         let mut last_id: i64 = 0;
         let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
         let board_name = get_event_board(
@@ -508,22 +508,15 @@ mod tests {
         let test_env_slug = format!("t{}", chrono::Utc::now().timestamp());
         env::set_var("ENV_SLUG", &test_env_slug);
 
-        let immudb_user = env::var("IMMUDB_USER").context("IMMUDB_USER must be set")?;
-        let immudb_password = env::var("IMMUDB_PASSWORD").context("IMMUDB_PASSWORD must be set")?;
-        let immudb_server_url =
-            env::var("IMMUDB_SERVER_URL").context("IMMUDB_SERVER_URL must be set")?;
-
         let board_name = get_event_board(&tenant_id, &election_event_id, &test_env_slug);
         println!("board_name: {board_name}");
 
-        let mut board_client = BoardClient::new(&immudb_server_url, &immudb_user, &immudb_password)
-            .await
-            .map_err(|e| anyhow!("Failed to create BoardClient: {e:?}"))?;
+        let board_client = get_board_client().await?;
         board_client
-            .upsert_electoral_log_db(&board_name)
+            .create_board(&board_name)
             .await
-            .map_err(|e| anyhow!("Failed to create immudb database: {e:?}"))?;
-        println!("Set up immudb database: {board_name}");
+            .map_err(|e| anyhow!("Failed to create electoral-log board: {e:?}"))?;
+        println!("Set up electoral-log board: {board_name}");
 
         let output = Command::new(STEP_CLI_BIN)
             .args([
@@ -535,9 +528,6 @@ mod tests {
                 &NUM_LOGS.to_string(),
             ])
             .env("ENV_SLUG", &test_env_slug)
-            .env("IMMUDB_USER", &immudb_user)
-            .env("IMMUDB_PASSWORD", &immudb_password)
-            .env("IMMUDB_SERVER_URL", &immudb_server_url)
             .env("DEFAULT_SQL_BATCH_SIZE", "500")
             .env(
                 "KC_DB_URL_HOST",

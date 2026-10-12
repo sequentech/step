@@ -13,6 +13,7 @@ use velvet::pipes::do_tally::counting_algorithm::instant_runoff::{BallotsStatus,
 fn create_test_contest_3_candidates() -> Contest {
     Contest {
         id: "contest1".to_string(),
+        external_id: None,
         tenant_id: "tenant1".to_string(),
         election_event_id: "event1".to_string(),
         election_id: "election1".to_string(),

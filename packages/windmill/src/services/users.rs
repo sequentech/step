@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::area::get_areas;
-use crate::services::cast_votes::{get_users_with_vote_info, CastVoteStatus};
+use crate::services::ballot_box_reads::get_event_ballot_box;
+use crate::services::cast_votes::get_users_with_vote_info;
 use crate::services::database::PgConfig;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
@@ -36,8 +37,8 @@ pub const VALIDATE_ID_REGISTERED_VOTER: &str = "VERIFIED";
 #[derive(Debug, Clone)]
 pub struct VoterSnapshot {
     pub username: String,
-    /// Keycloak's own internal user id (`user_entity.id`) — same value
-    /// `cast_vote.voter_id_string` carries (as text there), so this is what
+    /// Keycloak's own internal user id (`user_entity.id`) — same value the
+    /// ballot box's `voter_id` carries (as text there), so this is what
     /// actually matches against the event-wide cast-vote state map;
     /// `username` is a separate, mutable-in-theory identifier not safe to key
     /// that lookup on.
@@ -48,8 +49,10 @@ pub struct VoterSnapshot {
     /// doesn't resolve to a known area (or is unset).
     pub area_name: Option<String>,
     pub dob: Option<String>,
-    /// Raw `voted-channel` attribute value; `None` means not voted. File-side
-    /// comparisons normalize this value explicitly at the boundary.
+    /// Raw `voted-channel` attribute value; `None` means no channel is
+    /// recorded, which is not proof the voter has not voted (see
+    /// `has_valid_internet_vote`). File-side comparisons normalize this value
+    /// explicitly at the boundary.
     pub voted_channel: Option<String>,
     pub has_valid_internet_vote: bool,
     pub has_unresolved_internet_vote: bool,
@@ -1724,56 +1727,30 @@ pub async fn get_user_area_id(
     }
 }
 
+/// Voters of the filter's election event, or of one of its elections, with a valid
+/// vote.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn count_have_voted(
     hasura_transaction: &Transaction<'_>,
     filter: &ListUsersFilter,
     tenant_id: &str,
 ) -> Result<i32> {
-    let tenant_uuid = parse_uuid_v4(tenant_id)?;
-    let mut params: Vec<Box<dyn ToSql + Send + Sync>> = vec![
-        Box::new(tenant_uuid),
-        Box::new(CastVoteStatus::Valid.to_string()),
-    ];
-    let mut filter_clauses: Vec<String> = vec!["status = $2".to_string()];
-    let mut next_param_number = 3;
-
-    if let Some(election_event_id_str) = &filter.election_event_id {
-        let election_event_id_uuid = parse_uuid_v4(election_event_id_str)?;
-        let clause = format!("election_event_id = ${next_param_number}");
-        filter_clauses.push(clause);
-        params.push(Box::new(election_event_id_uuid));
-        next_param_number += 1;
-    }
-    if let Some(election_id_str) = &filter.election_id {
-        let election_id_uuid = parse_uuid_v4(election_id_str)?;
-        let clause = format!("election_id = ${next_param_number}");
-        filter_clauses.push(clause);
-        params.push(Box::new(election_id_uuid));
-    }
-    let filter_clause = filter_clauses.join(" AND\n                    ");
-
-    let statement_str = format!(
-        r#"
-                SELECT COUNT(DISTINCT voter_id_string)
-                as total_count
-                FROM sequent_backend.cast_vote
-                WHERE
-                    tenant_id = $1 AND
-                    {filter_clause}
-                "#
-    );
-
-    let statement = hasura_transaction.prepare(statement_str.as_str()).await?;
-    let params_slice: Vec<&(dyn ToSql + Sync)> = params
-        .iter()
-        .map(|p| p.as_ref() as &(dyn ToSql + Sync))
-        .collect();
-    let count_row = hasura_transaction
-        .query_one(&statement, &params_slice)
+    let election_event_id = filter
+        .election_event_id
+        .as_deref()
+        .ok_or_else(|| anyhow!("Counting the voters who voted needs an election event"))?;
+    let election_id = filter
+        .election_id
+        .as_deref()
+        .map(parse_uuid_v4)
+        .transpose()?
+        .map(|id| id.to_string());
+    let participation = get_event_ballot_box(hasura_transaction, tenant_id, election_event_id)
+        .await?
+        .store
+        .participation(election_event_id, election_id.as_deref())
         .await?;
-    let count = count_row.try_get::<&str, i64>("total_count")?.try_into()?;
-    Ok(count)
+    Ok(participation.voters.try_into()?)
 }
 
 #[instrument(skip(hasura_transaction, keycloak_transaction), err)]

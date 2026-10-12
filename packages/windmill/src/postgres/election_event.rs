@@ -178,6 +178,21 @@ pub async fn get_election_event_by_id_if_exist(
     Ok(election_event)
 }
 
+/// Whether an election event with this ID exists in any tenant.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn election_event_id_exists(
+    hasura_transaction: &Transaction<'_>,
+    election_event_id: &str,
+) -> Result<bool> {
+    let statement = hasura_transaction
+        .prepare("SELECT 1 FROM sequent_backend.election_event WHERE id = $1")
+        .await?;
+    Ok(!hasura_transaction
+        .query(&statement, &[&parse_uuid_v4(election_event_id)?])
+        .await?
+        .is_empty())
+}
+
 /// Returns all the Election events as ElectionEventDatafix
 #[instrument(err, skip_all)]
 pub async fn get_all_tenant_election_events(
@@ -211,6 +226,32 @@ pub async fn get_all_tenant_election_events(
         .collect::<Result<Vec<ElectionEventDatafix>>>()?;
 
     Ok(election_events)
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn count_tenant_election_events(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+) -> Result<i64> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT COUNT(*)
+                FROM
+                    sequent_backend.election_event
+                WHERE
+                    tenant_id = $1
+            "#,
+        )
+        .await?;
+
+    let row = hasura_transaction
+        .query_one(&statement, &[&parse_uuid_v4(tenant_id)?])
+        .await
+        .map_err(|err| anyhow!("Error counting election events: {err}"))?;
+
+    let count: i64 = row.try_get(0)?;
+    Ok(count)
 }
 
 pub async fn update_election_event_annotations(
@@ -447,7 +488,6 @@ pub async fn delete_election_event(
         "tally_sheet",
         "tally_session_execution",
         "contest",
-        "cast_vote",
         "election",
         "document",
         "event_execution",

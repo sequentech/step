@@ -43,13 +43,13 @@ RUN apt-get -o Dir::Cache::archives=/tmp/debs --no-download install -y --no-inst
 COPY ./braid ./braid
 COPY ./b4 ./b4
 COPY ./electoral-log ./electoral-log
+COPY ./trellis ./trellis
 COPY ./harvest ./harvest
 COPY ./strand ./strand
-COPY ./immu-board ./immu-board
-COPY ./immudb-rs ./immudb-rs
 COPY ./sequent-core ./sequent-core
 COPY ./velvet ./velvet
 COPY ./windmill ./windmill
+COPY ./pgmq-broker ./pgmq-broker
 COPY ./e2e ./e2e
 COPY ./step-cli ./step-cli
 COPY ./orare ./orare
@@ -68,7 +68,7 @@ WORKDIR /app/b4
 # Copy selected binaries outside the cache mount into the immutable builder layer.
 ARG TEMENOS_CARGO_CACHE_ID=standalone
 ARG TARGETARCH
-RUN --mount=type=cache,id=${TEMENOS_CARGO_CACHE_ID}-${TARGETARCH},target=/app/target,sharing=locked cargo build --features=native --release --locked --offline \
+RUN --mount=type=cache,id=${TEMENOS_CARGO_CACHE_ID}-${TARGETARCH},target=/app/target,sharing=locked cargo build --features=native --bin=b4 --release --locked --offline \
     && mkdir -p /opt/temenos-build \
     && cp /app/target/release/b4 /opt/temenos-build/
 

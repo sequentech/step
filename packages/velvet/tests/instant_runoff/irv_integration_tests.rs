@@ -502,6 +502,7 @@ fn test_run_with_random_ballots() {
     // Create a contest with the candidates
     let contest = Contest {
         id: "test-contest".to_string(),
+        external_id: None,
         tenant_id: "test-tenant".to_string(),
         election_event_id: "test-event".to_string(),
         election_id: "test-election".to_string(),
@@ -614,6 +615,7 @@ fn test_all_ballot_candidates_unselected() {
     // Create a contest with the candidates
     let contest = Contest {
         id: "test-contest".to_string(),
+        external_id: None,
         tenant_id: "test-tenant".to_string(),
         election_event_id: "test-event".to_string(),
         election_id: "test-election".to_string(),
@@ -709,6 +711,7 @@ fn test_tie_in_final_round() {
     // Create a contest with the candidates
     let contest = Contest {
         id: "test-contest".to_string(),
+        external_id: None,
         tenant_id: "test-tenant".to_string(),
         election_event_id: "test-event".to_string(),
         election_id: "test-election".to_string(),

@@ -1,0 +1,45 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Dependency vulnerability audit for the ref under review.
+#
+# Dependabot alerts are only ever computed against the default branch, so
+# release branches get no alerts and no automated PRs. This reads the same OSV
+# and GitHub Advisory data Dependabot uses, covering npm, Cargo, Maven and pip
+# in a single pass, and runs wherever the code does.
+#
+# The weekly sweep across all supported branches is a separate workflow,
+# dependency_audit_scheduled.yml.
+#
+# This does not fail the build yet. Several advisories in this tree have no
+# published fix or are blocked by an upstream constraint, so a blocking job
+# would be red permanently and would simply be ignored. Curating an
+# `osv-scanner.toml` ignore list with a documented reason and review date for
+# each, then making this blocking, is the follow-up.
+
+name: Dependency Audit
+
+on:
+  pull_request:
+  push:
+    branches: ['main', 'release/[0-9]+.[0-9]+']
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+jobs:
+  scan:
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.5.1
+    with:
+      # `beyond` is a separate private repository and its checkout needs
+      # `secrets.PAT`, which cannot be passed into a reusable workflow. It needs
+      # its own audit workflow there.
+      checkout-submodules: false
+      upload-sarif: true
+      fail-on-vuln: false
+      scan-args: |-
+        --recursive
+        ./

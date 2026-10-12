@@ -1,0 +1,18 @@
+mutation ImportTenantConfigMutation(
+    $tenantId: String!
+    $documentId: String!
+    $importConfigurations: ImportOptions
+) {
+  import_tenant_config(
+    tenant_id: $tenantId
+    document_id: $documentId
+    import_configurations: $importConfigurations
+  ) {
+    message
+    error
+    task_execution {
+      id
+      execution_status
+    }
+  }
+}

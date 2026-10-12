@@ -53,9 +53,9 @@ jobs:
             context: packages
             file: packages/harvest/Dockerfile.prod
 
-          - service: b3
+          - service: b4
             context: packages
-            file: packages/b3/Dockerfile.prod
+            file: packages/b4/Dockerfile.prod
 
           - service: braid
             context: packages
@@ -65,13 +65,11 @@ jobs:
             context: packages
             file: packages/windmill/Dockerfile.prod
 
-          - service: immudb-init
-            context: packages
-            file: packages/Dockerfile.immudb-init.prod
-
-          - service: immudb
-            context: packages
-            file: packages/Dockerfile.immudb
+          - service: hasura
+            # Build context is the hasura project dir (migrations/metadata live here),
+            # not repo root — Dockerfile COPYs are relative to this path.
+            context: hasura
+            file: packages/Dockerfile.hasura
 
           - service: loadtesting
             context: .
@@ -116,12 +114,14 @@ jobs:
         username: ${{ vars.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+    # Root account 581718213778: push once to ca-central-1 (Canada).
+    # Other regions in this account pull via ECR replication from ca-central-1.
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1
+        aws-region: ca-central-1
 
     - name: Login to Amazon ECR
       id: login-ecr
@@ -136,12 +136,9 @@ jobs:
         tags: |
           ${{ vars.AWS_ECR_REGISTRY }}/${{ matrix.service }}:${{ env.SHORT_SHA }}
           ${{ vars.AWS_ECR_REGISTRY }}/${{ matrix.service }}:${{ inputs.tag || github.run_number }}
-        cache-from: type=gha,scope=${{ matrix.service }}
-        cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+        cache-from: type=gha,scope=${{ matrix.service }}-root-cac1
+        cache-to: type=gha,mode=max,scope=${{ matrix.service }}-root-cac1
         build-contexts: ${{ matrix.build_contexts }}
         build-args: |
           SPA_NAME=${{ matrix.spa_name }}
           FEATURES=${{ matrix.features }}
-
-    - name: Run e2e tests
-      run: docker run --rm  ${{ vars.AWS_ECR_REGISTRY }}/${{ matrix.service }}:${{ inputs.tag || github.run_number }} e2e

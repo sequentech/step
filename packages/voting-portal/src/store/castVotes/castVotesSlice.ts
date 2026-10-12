@@ -3,12 +3,36 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {createSlice, PayloadAction} from "@reduxjs/toolkit"
 import {RootState} from "../store"
-import {isUndefined} from "@sequentech/ui-core"
+
+export function canVoteElection(
+    election: {id: string; num_allowed_revotes?: number | null},
+    votes: readonly {status?: string | null}[],
+    completedAcclaimed = false
+): boolean {
+    if (completedAcclaimed) return false
+    const limit = election.num_allowed_revotes ?? 1
+    return (
+        limit === 0 ||
+        votes.filter((vote) => vote.status !== CastVoteStatus.DISCARDED).length < limit
+    )
+}
 
 export enum CastVoteStatus {
     IN_PROGRESS = "in-progress",
     VALID = "valid",
     DISCARDED = "discarded",
+}
+
+/** Validate the database string before storing it as a voting status. */
+export function parseCastVoteStatus(status: string): CastVoteStatus {
+    switch (status) {
+        case CastVoteStatus.IN_PROGRESS:
+        case CastVoteStatus.VALID:
+        case CastVoteStatus.DISCARDED:
+            return status
+        default:
+            throw new Error("Unknown cast vote status")
+    }
 }
 
 export interface ICastVote {
@@ -71,26 +95,15 @@ export const selectCastVotesByElectionId = (electionId: string) => (state: RootS
 export const canVoteSomeElection =
     () =>
     (state: RootState): boolean => {
-        let ballotStyleElectionIds = Object.keys(state.ballotStyles)
-        let elections = ballotStyleElectionIds
-            .map((electionId) => state.elections[electionId])
-            .filter((election) => !!election)
-
-        return elections.some((election) => {
-            if (state.extra.completedAcclaimedElections?.[election.id]) {
-                return false
-            }
-
-            let electionCastVotes = (election?.id && state.castVotes[election.id]) || []
-            let numAllowedRevotes = election?.num_allowed_revotes ?? 1
-
-            // If num_allowed_revotes is 0, allow voting
-            if (numAllowedRevotes === 0) {
-                return true
-            }
-
-            return electionCastVotes.length < numAllowedRevotes
-        })
+        return Object.values(state.elections).some(
+            (election) =>
+                !!election &&
+                canVoteElection(
+                    election,
+                    state.castVotes[election.id] || [],
+                    state.extra.completedAcclaimedElections?.[election.id]
+                )
+        )
     }
 
 export default castVotesSlice.reducer

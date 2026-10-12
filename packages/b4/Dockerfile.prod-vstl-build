@@ -2,11 +2,11 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM b3-build-dependencies
+FROM b4-build-dependencies
 
-COPY --from=b3-compile /app/target/release/server /usr/bin/b3
+COPY --from=b4-compile /app/target/release/b4 /usr/bin/b4
 
 # init index db
 RUN mkdir /tmp/cache
 
-ENTRYPOINT ["/usr/bin/b3"]
+ENTRYPOINT ["/usr/bin/b4"]

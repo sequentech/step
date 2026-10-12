@@ -179,7 +179,9 @@ computation on paths that never found a candidate to check.
 > it's excluded from consideration before any PIN is checked). Configuring more identifying
 > attributes narrows the candidate set before the PIN check, making the single-candidate (fully
 > protected) case the common one; keep **Brute Force Detection** enabled at the realm level
-> regardless.
+> regardless. Callers who share a date of birth do not block each other when they authenticate at
+> the same time; `message-otp-authenticator/src/test/integration/concurrent-shared-dob-login.py`
+> checks this for the shared resolver through the web form.
 
 ---
 

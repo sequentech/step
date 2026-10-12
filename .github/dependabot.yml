@@ -2,12 +2,24 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
+# Notes on scope, because the distinction is easy to lose:
+#
+# This file configures *version* updates only. Dependabot *security* updates
+# are driven by the repository setting plus the dependency graph, and they
+# always target the default branch - they cannot be pointed at a release
+# branch. Release branches therefore get no alerts and no automated PRs, and
+# are covered instead by the dependency audit workflows: dependency_audit.yml
+# on every push and pull request, and dependency_audit_scheduled.yml weekly
+# across all supported branches.
+#
+# Do not set `target-branch` on these entries: it also disables security
+# updates for the entry it is set on.
+
 version: 2
 updates:
-  # Rust dependencies
+  # Rust
   - package-ecosystem: "cargo"
     directory: "/packages"
-    target-branch: "feat/meta-154/main"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -15,12 +27,19 @@ updates:
       rust-dependencies:
         patterns:
           - "*"
-    open-pull-requests-limit: 1
+    open-pull-requests-limit: 5
 
-  # TypeScript/JavaScript dependencies
+  # TypeScript/JavaScript. `directories` (plural) supports globs; `directory`
+  # does not. `/packages/*` matches one level, so the workspace packages are
+  # covered while the `*/browserstack` directories two levels down are not -
+  # they are BrowserStack test tooling and generate a large amount of noise.
+  # Security updates still reach them through the dependency graph.
   - package-ecosystem: "npm"
-    directory: "/packages/ui-core"
-    target-branch: "feat/meta-154/main"
+    directories:
+      - "/packages"
+      - "/packages/*"
+      - "/docs/*"
+      - "/hasura"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -28,48 +47,14 @@ updates:
       npm-dependencies:
         patterns:
           - "*"
-    open-pull-requests-limit: 1
+    open-pull-requests-limit: 5
 
-  - package-ecosystem: "npm"
-    directory: "/packages/ui-essentials"
-    target-branch: "feat/meta-154/main"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-    groups:
-      npm-dependencies:
-        patterns:
-          - "*"
-    open-pull-requests-limit: 1
-
-  - package-ecosystem: "npm"
-    directory: "/packages/voting-portal"
-    target-branch: "feat/meta-154/main"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-    groups:
-      npm-dependencies:
-        patterns:
-          - "*"
-    open-pull-requests-limit: 1
-
-  - package-ecosystem: "npm"
-    directory: "/packages/admin-portal"
-    target-branch: "feat/meta-154/main"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-    groups:
-      npm-dependencies:
-        patterns:
-          - "*"
-    open-pull-requests-limit: 1
-
-  # Maven dependencies
+  # Java
   - package-ecosystem: "maven"
-    directory: "/packages/keycloak-extensions"
-    target-branch: "feat/meta-154/main"
+    directories:
+      - "/packages/keycloak-extensions"
+      - "/packages/keycloak-extensions/*"
+      - "/packages/ECIESEncryption"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -77,4 +62,31 @@ updates:
       maven-dependencies:
         patterns:
           - "*"
-    open-pull-requests-limit: 1
+    open-pull-requests-limit: 5
+
+  # Python
+  - package-ecosystem: "pip"
+    directories:
+      - "/scripts/tasks/dependencies"
+      - "/packages/windmill/external-bin/janitor"
+      - "/packages/windmill/external-bin/janitor/scripts"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      pip-dependencies:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 5
+
+  # Keep the Actions themselves patched.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 5

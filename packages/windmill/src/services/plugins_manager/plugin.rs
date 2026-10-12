@@ -256,8 +256,6 @@ impl Plugin {
             .await
             .map_err(|e| anyhow!("Failed to call hook {hook}: {e}"))?;
 
-        func.post_return_async(&mut *store).await?;
-
         results
             .into_iter()
             .map(HookValue::from_val)

@@ -5,12 +5,11 @@
 FROM rust:1.96.0-slim-bookworm AS builder
 
 WORKDIR /app
-COPY ./immu-board ./immu-board
-COPY ./immudb-rs ./immudb-rs
 COPY ./strand ./strand
 COPY ./board-messages ./board-messages
 COPY ./sequent-core ./sequent-core
 COPY ./windmill ./windmill
+COPY ./pgmq-broker ./pgmq-broker
 COPY ./wrap-map-err ./wrap-map-err
 COPY ./velvet ./velvet
 

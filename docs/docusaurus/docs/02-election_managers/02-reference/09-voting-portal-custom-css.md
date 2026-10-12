@@ -62,6 +62,39 @@ Page-help dialogs have
 `.confirm-cast-ballot-dialog`, `.review-ballot-id-help-dialog`, `.logout-dialog`
 and `.session-expiry-dialog`.
 
+## Individual contests
+
+On both Vote and Review, a contest with `external_id: "1001"` has the class
+`.c-1001` on its `.contest-container`. Existing `.contest-0`, `.contest-1`, etc.
+remain supported. Use the external-ID class when styling must survive reordering,
+pagination, import-generated UUIDs or different voter-group ballot styles.
+
+```css
+.c-1001 .candidate-item {
+    background-color: #fff4cc;
+}
+```
+
+The class uses the same formatting rules as election classes: preserve case,
+remove whitespace and all characters except ASCII letters, digits, `_` and `-`,
+prepend `c-`, then truncate the complete class to 40 characters. Missing, null,
+empty or entirely stripped IDs add no class. Choose external IDs that remain
+unique after this formatting; different IDs can otherwise produce the same class.
+
+The existing `.app-root` `e-*` class comes from the election's translated alias
+or name, with default-language and raw alias/name fallbacks, finally the election
+UUID. It does **not** come from `election.external_id`, and can change with language.
+Thus `.e-Senat .c-1001 .candidate-item` applies when the election's resolved
+alias/name is `Senat` and the contest's external ID is `1001`.
+
+The external ID is included in the Borsh representation used to sign ballot
+styles. This changes the signed format even when the external ID is absent.
+Upgrade and republish before voting begins; do not introduce this change during
+an active election. Republishing does not update signatures on already-cast
+ballots, which require verification software compatible with the old format.
+Older JSON without the field still loads. No database migration or new
+configuration field is required.
+
 ## Screen-specific components
 
 | Area                         | Supported hooks                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |

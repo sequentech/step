@@ -15,12 +15,14 @@ use sequent_core::util::retry::retry_with_exponential_backoff;
 use std::time::Duration;
 use std::time::Instant;
 use tracing::{error, info, instrument};
-use windmill::services::celery_app::get_celery_app;
+use windmill::services::celery_app::try_get_celery_app;
 use windmill::services::insert_cast_vote::{
     try_insert_cast_vote, CastVoteError, InsertCastVoteInput,
     InsertCastVoteOutput, InsertCastVoteResult,
 };
 use windmill::tasks::process_cast_vote;
+
+const ROUTE_PHASE_COMPLETED: &str = "cast-vote route phase completed";
 
 /// API endpoint for inserting votes. POST coming from the
 /// frontend->Hasura->Harvest->Here.
@@ -57,6 +59,11 @@ pub async fn insert_cast_vote(
             .then_some(claims.iat)
     });
 
+    info!(
+        phase = "authorization",
+        duration_us = start.elapsed().as_micros() as u64,
+        "{ROUTE_PHASE_COMPLETED}"
+    );
     info!("insert-cast-vote: starting");
 
     let insert_result_wrapped = retry_with_exponential_backoff(
@@ -74,6 +81,7 @@ pub async fn insert_cast_vote(
                     .country_code
                     .clone()
                     .map(|country_code| country_code.to_string()),
+                &claims.preferred_username,
             )
             .await
         },
@@ -294,18 +302,22 @@ pub async fn insert_cast_vote(
         duration.as_millis()
     );
 
+    let enqueue_start = Instant::now();
     if let Some(cast_vote_id) = pending_cast_vote_id {
         // The Datafix vote is already committed: an enqueue failure must not
         // fail the request. The review beat recovers in-progress rows.
-        let celery_app = get_celery_app().await;
-        match celery_app
-            .send_task(process_cast_vote::process_cast_vote::new(
-                inserted_cast_vote.tenant_id.clone(),
-                inserted_cast_vote.election_event_id.clone(),
-                cast_vote_id.clone(),
-            ))
-            .await
-        {
+        let sent = match try_get_celery_app().await {
+            Ok(celery_app) => celery_app
+                .send_task(process_cast_vote::process_cast_vote::new(
+                    inserted_cast_vote.tenant_id.clone(),
+                    inserted_cast_vote.election_event_id.clone(),
+                    cast_vote_id.clone(),
+                ))
+                .await
+                .map_err(anyhow::Error::from),
+            Err(e) => Err(e),
+        };
+        match sent {
             Ok(celery_task) => {
                 info!("Sent process_cast_vote task {}", celery_task.task_id);
             }
@@ -317,5 +329,15 @@ pub async fn insert_cast_vote(
         }
     }
 
+    info!(
+        phase = "enqueue",
+        duration_us = enqueue_start.elapsed().as_micros() as u64,
+        "{ROUTE_PHASE_COMPLETED}"
+    );
+    info!(
+        phase = "request",
+        duration_us = start.elapsed().as_micros() as u64,
+        "cast-vote route completed"
+    );
     Ok(Json(inserted_cast_vote))
 }

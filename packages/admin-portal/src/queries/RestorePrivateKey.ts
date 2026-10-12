@@ -17,6 +17,7 @@ export const RESTORE_PRIVATE_KEY = gql`
             }
         ) {
             is_valid
+            outcome
         }
     }
 `

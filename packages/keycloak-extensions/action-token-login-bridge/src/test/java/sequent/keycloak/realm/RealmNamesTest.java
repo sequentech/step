@@ -44,4 +44,26 @@ class RealmNamesTest {
         "150017",
         RealmNames.electionEventIdFromRealmName("tenant-acme-event-150017").orElseThrow());
   }
+
+  @Test
+  void extractsOnlyAdministrativeTenantRealmNames() {
+    assertEquals("acme-prod", RealmNames.tenantIdFromRealmName("tenant-acme-prod").orElseThrow());
+    assertTrue(RealmNames.tenantIdFromRealmName(null).isEmpty());
+    assertTrue(RealmNames.tenantIdFromRealmName("master").isEmpty());
+    assertTrue(RealmNames.tenantIdFromRealmName("tenant-").isEmpty());
+    assertTrue(RealmNames.tenantIdFromRealmName("tenant-acme-event-spring").isEmpty());
+    assertTrue(RealmNames.tenantIdFromRealmName("tenant-acme-event-").isEmpty());
+  }
+
+  @Test
+  void tenantIdFromRealmName_returnsOnlyTenantRealms() {
+    assertEquals(
+        "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+        RealmNames.tenantIdFromRealmName("tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5")
+            .orElseThrow());
+    assertTrue(RealmNames.tenantIdFromRealmName("tenant-acme-event-150017").isEmpty());
+    assertTrue(RealmNames.tenantIdFromRealmName("tenant-acme-event").isEmpty());
+    assertTrue(RealmNames.tenantIdFromRealmName("acme").isEmpty());
+    assertTrue(RealmNames.tenantIdFromRealmName(null).isEmpty());
+  }
 }

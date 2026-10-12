@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Configuration for building WASM with atomics and SharedArrayBuffer support
+# Required for wasm-bindgen-rayon to work with multi-threading
+# Based on: https://github.com/huggingface/xet-core/issues/554
+
+[target.wasm32-unknown-unknown]
+rustflags = [
+    '-C', 'target-feature=+atomics,+bulk-memory,+mutable-globals',
+    '-C', 'link-arg=--shared-memory',
+    '-C', 'link-arg=--max-memory=1073741824',
+    '-C', 'link-arg=--import-memory',
+    '-C', 'link-arg=--export=__wasm_init_tls',
+    '-C', 'link-arg=--export=__tls_size',
+    '-C', 'link-arg=--export=__tls_align',
+    '-C', 'link-arg=--export=__tls_base',
+    '-C', 'link-arg=--export=__heap_base',
+]
+
+[unstable]
+build-std = ['std', 'panic_abort']

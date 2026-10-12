@@ -298,6 +298,12 @@ const SelectElection: React.FC<SelectElectionProps> = ({
         }
     }
 
+    const handleClickCard: React.MouseEventHandler<HTMLDivElement> = (event) => {
+        if (isOpen && !(event.target as Element).closest("a, button")) {
+            onClickToVote?.()
+        }
+    }
+
     const displayBallotLocator = !!onClickBallotLocator
     const displayResults = !!resultsUrl
 
@@ -308,7 +314,8 @@ const SelectElection: React.FC<SelectElectionProps> = ({
         // <ul>, so the semantics need to be explicit.
         <Box className="election-list-item" role="listitem">
             <BorderBox
-                onClick={handleClickToVote}
+                onClick={handleClickCard}
+                sx={{cursor: isOpen && onClickToVote ? "pointer" : undefined}}
                 isopen={String(!!isOpen)}
                 isactive={String(!!isActive)}
                 className={className ? `election-item ${className}` : "election-item"}

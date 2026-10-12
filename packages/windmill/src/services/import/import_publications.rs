@@ -4,12 +4,10 @@
 
 use anyhow::Result;
 use deadpool_postgres::Transaction;
-use sequent_core::{ballot::BallotStyle, serialization::deserialize_with_path::deserialize_str};
-use serde::{Deserialize, Serialize};
+use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::Read;
-use std::io::Write;
+use std::io::{Read, Write};
 use tempfile::NamedTempFile;
 use tracing::instrument;
 use uuid::Uuid;
@@ -17,27 +15,25 @@ use uuid::Uuid;
 use crate::services::ballot_styles::ballot_style::{ElectionEventConfig, EVENT_CONFIG_FILE_NAME};
 use crate::services::documents::upload_and_return_public_event_document;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct BallotDesign {
-    ballot_publication_id: String,
-    ballot_styles: Vec<BallotStyle>,
-}
-
-#[instrument(err, skip(_replacement_map))]
+#[instrument(err, skip_all)]
 pub async fn import_ballot_publications(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     temp_file: NamedTempFile,
-    _replacement_map: HashMap<String, String>,
+    replacement_map: HashMap<String, String>,
+    entries: &[(String, Vec<u8>)],
 ) -> Result<()> {
-    let mut file = File::open(temp_file)?;
-    let mut data_str = String::new();
-    file.read_to_string(&mut data_str)?;
-    let _original_data: Vec<BallotDesign> = deserialize_str(&data_str)?;
-
-    //TODO: implement import
-    Ok(())
+    let bytes = std::fs::read(temp_file.path())?;
+    crate::services::ballot_styles::publication_archive::import_publication_archive(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &bytes,
+        entries,
+        &replacement_map,
+    )
+    .await
 }
 
 /// Imports the election event config file,

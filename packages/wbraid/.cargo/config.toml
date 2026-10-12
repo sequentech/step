@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+[target.wasm32-unknown-unknown]
+runner = "wasm-bindgen-test-runner"

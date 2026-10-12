@@ -1,0 +1,87 @@
+[package]
+name = "cryptography-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[workspace]
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.cryptography]
+path = ".."
+package = "vsc"
+
+[[bin]]
+name = "encode_bytes_ristretto_2"
+path = "fuzz_targets/encode_bytes_ristretto_2.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "encode_bytes_ristretto_3"
+path = "fuzz_targets/encode_bytes_ristretto_3.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "deser_eg_ciphertext_ristretto"
+path = "fuzz_targets/deser_eg_ciphertext_ristretto.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "encode_bytes_ristretto"
+path = "fuzz_targets/encode_bytes_ristretto.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "encode_scalar_bytes_ristretto"
+path = "fuzz_targets/encode_scalar_bytes_ristretto.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "deser_ny_ciphertext_ristretto"
+path = "fuzz_targets/deser_ny_ciphertext_ristretto.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "deser_shuffle_proof_ristretto"
+path = "fuzz_targets/deser_shuffle_proof_ristretto.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "deser_verifiable_share_ristretto"
+path = "fuzz_targets/deser_verifiable_share_ristretto.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "verify_ny_strip_ristretto"
+path = "fuzz_targets/verify_ny_strip_ristretto.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "verify_schnorr_ristretto"
+path = "fuzz_targets/verify_schnorr_ristretto.rs"
+test = false
+doc = false
+bench = false

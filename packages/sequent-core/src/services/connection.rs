@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::jwks::verify_jwt;
 use crate::services::jwt::*;
 use crate::services::keycloak::{
     get_third_party_client_access_token, PubKeycloakAdminToken,
@@ -66,10 +67,10 @@ impl<'r> FromRequest<'r> for JwtClaims {
         match headers.get_one("authorization") {
             Some(authorization) => {
                 match authorization.strip_prefix("Bearer ") {
-                    Some(token) => match decode_jwt(token) {
+                    Some(token) => match verify_jwt(token).await {
                         Ok(jwt) => Outcome::Success(jwt),
                         Err(err) => {
-                            warn!("JwtClaims guard: decode_jwt error {err:?}");
+                            warn!("JwtClaims guard: verify_jwt error {err:?}");
                             Outcome::Error((Status::Unauthorized, ()))
                         }
                     },

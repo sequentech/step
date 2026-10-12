@@ -89,8 +89,8 @@ COPY ./b4 ./b4
 COPY ./electoral-log ./electoral-log
 COPY ./harvest ./harvest
 COPY ./strand ./strand
-COPY ./immu-board ./immu-board
-COPY ./immudb-rs ./immudb-rs
+COPY ./trellis ./trellis
+COPY ./pgmq-broker ./pgmq-broker
 COPY ./sequent-core ./sequent-core
 COPY ./velvet ./velvet
 COPY ./windmill ./windmill

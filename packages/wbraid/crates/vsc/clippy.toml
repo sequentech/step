@@ -1,0 +1,2 @@
+doc-valid-idents = ["VoteSecure", "ElGamal", ".."]
+disallowed-macros = ["std::panic"]

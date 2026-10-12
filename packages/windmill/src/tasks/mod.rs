@@ -4,6 +4,7 @@
 
 pub mod activity_logs_report;
 pub mod apply_reconciliation_patch;
+pub mod audit_electoral_log;
 #[expect(
     clippy::too_many_arguments,
     reason = "Preserve this single Celery task and its generated constructor argument names and order used by existing producers and serialized messages."
@@ -11,6 +12,7 @@ pub mod apply_reconciliation_patch;
 pub mod create_ballot_receipt;
 pub mod create_keys;
 pub mod delete_election_event;
+pub mod delete_tenant;
 pub mod delete_users;
 pub mod edit_user;
 pub mod electoral_log;
@@ -44,6 +46,7 @@ pub mod manage_election_event_enrollment;
 pub mod manage_election_event_lockdown;
 pub mod manage_election_init_report;
 pub mod manage_election_voting_period_end;
+pub mod manage_electoral_log_dead_letters;
 pub mod manual_verification_report;
 pub mod miru_plugin_tasks;
 pub mod plugins_tasks;
@@ -51,7 +54,9 @@ pub mod post_tally;
 pub mod prepare_publication_preview;
 pub mod process_board;
 pub mod process_cast_vote;
+pub mod publish_electoral_log_checkpoint;
 pub mod publish_results_website;
+pub mod purge_queue_archives;
 pub mod render_document_pdf;
 pub mod render_report;
 pub mod review_boards;
@@ -59,6 +64,7 @@ pub mod review_cast_votes;
 pub mod scheduled_events;
 pub mod scheduled_reports;
 pub mod send_template;
+pub mod sequence_ballot_box;
 pub mod set_public_key;
 pub mod update_election_event_ballot_styles;
 pub mod upsert_areas;

@@ -18,6 +18,10 @@ use tracing::{instrument, warn};
 
 use crate::postgres::election_event::ElectionEventDatafix;
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
+
+/// Poll is fixed for every Datafix voter, regardless of the source value.
+pub const DATAFIX_POLL: &str = "000";
+
 #[derive(Deserialize, Debug)]
 pub struct VoterInformationBody {
     pub voter_id: String,

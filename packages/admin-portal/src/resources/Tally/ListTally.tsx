@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useContext, useMemo} from "react"
+import React, {ReactElement, createContext, useContext, useMemo} from "react"
 import {styled} from "@mui/material/styles"
 import {
     DatagridConfigurable,
@@ -14,6 +14,7 @@ import {
     FunctionField,
     DateField,
     useGetList,
+    useListContext,
     useNotify,
     useRefresh,
 } from "react-admin"
@@ -23,6 +24,7 @@ import {Button} from "react-admin"
 import {Alert, Box, Tooltip, Typography} from "@mui/material"
 import {
     ListKeysCeremonyQuery,
+    ListTallyKeyRestoreStateQuery,
     RecountTallySessionMutation,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Tally_Session,
@@ -30,7 +32,7 @@ import {
     TrusteeNamesQuery,
     UpdateTallyCeremonyMutation,
 } from "../../gql/graphql"
-import {ActionsColumn} from "../../components/ActionButons"
+import {Action, ActionsColumn} from "../../components/ActionButons"
 import DescriptionIcon from "@mui/icons-material/Description"
 import ReplayIcon from "@mui/icons-material/Replay"
 import {Trans, useTranslation} from "react-i18next"
@@ -42,11 +44,12 @@ import {StatusChip} from "@/components/StatusChip"
 import KeyIcon from "@mui/icons-material/Key"
 import DoNotDisturbOnIcon from "@mui/icons-material/DoNotDisturbOn"
 import {theme, IconButton, Dialog} from "@sequentech/ui-essentials"
-import {AuthContext, AuthContextValues} from "@/providers/AuthContextProvider"
+import {AuthContext} from "@/providers/AuthContextProvider"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {EAllowTally} from "@sequentech/ui-core"
 import {
+    ETallyKeyRestoreEligibility,
     ETallyType,
     IExecutionStatus,
     ITallyCeremonyStatus,
@@ -58,6 +61,7 @@ import {RECOUNT_TALLY_SESSION} from "@/queries/RecountTallySession"
 import {IPermissions} from "@/types/keycloak"
 import {ResetFilters} from "@/components/ResetFilters"
 import {LIST_KEYS_CEREMONY} from "@/queries/ListKeysCeremonies"
+import {LIST_TALLY_KEY_RESTORE_STATE} from "@/queries/ListTallyKeyRestoreState"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IKeysCeremonyExecutionStatus} from "@/services/KeyCeremony"
 import {Add} from "@mui/icons-material"
@@ -65,6 +69,8 @@ import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
 import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
 import {StyledChip} from "@/components/StyledChip"
 import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
+import {getTallyTrusteeStatus} from "@/services/tallyCeremonyParticipation"
+import {getTallyKeyRestoreEligibility} from "./utils"
 
 const OMIT_FIELDS = ["ballot_eml", "trustees"]
 
@@ -95,6 +101,93 @@ const StyledNull = styled("div")`
 const TrusteeKeyIcon = styled(KeyIcon)`
     color: ${theme.palette.brandSuccess};
 `
+
+const getLatestExecutionByTallySessionId = <T extends {tally_session_id: string}>(
+    executions: ReadonlyArray<T> | undefined
+): Map<string, T> => {
+    const latestExecutions = new Map<string, T>()
+    for (const execution of executions ?? []) {
+        if (!latestExecutions.has(execution.tally_session_id)) {
+            latestExecutions.set(execution.tally_session_id, execution)
+        }
+    }
+    return latestExecutions
+}
+
+const LatestTallySessionExecutionsContext = createContext<
+    Map<string, Sequent_Backend_Tally_Session_Execution>
+>(new Map())
+
+interface LatestTallySessionExecutionsProviderProps {
+    enabled: boolean
+    children: React.ReactNode
+}
+
+// Loads the latest execution of each tally session on the current page of the list.
+const LatestTallySessionExecutionsProvider: React.FC<LatestTallySessionExecutionsProviderProps> = ({
+    enabled,
+    children,
+}) => {
+    const [tenantId] = useTenantStore()
+    const {globalSettings} = useContext(SettingsContext)
+    const {data: tallySessions} = useListContext<Sequent_Backend_Tally_Session>()
+
+    const tallySessionIds = useMemo(
+        () => tallySessions?.map((tallySession) => tallySession.id) ?? [],
+        [tallySessions]
+    )
+
+    const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
+        "sequent_backend_tally_session_execution",
+        {
+            pagination: {page: 1, perPage: Math.max(tallySessionIds.length, 1)},
+            sort: {field: "created_at", order: "DESC"},
+            filter: {
+                tally_session_id: {
+                    format: "hasura-raw-query",
+                    value: {_in: tallySessionIds},
+                },
+                tenant_id: tenantId,
+            },
+            meta: {latestPerTallySession: true},
+        },
+        {
+            enabled,
+            refetchInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
+
+    const latestExecutionByTallySessionId = useMemo(
+        () => getLatestExecutionByTallySessionId(tallySessionExecutions),
+        [tallySessionExecutions]
+    )
+
+    return (
+        <LatestTallySessionExecutionsContext.Provider value={latestExecutionByTallySessionId}>
+            {children}
+        </LatestTallySessionExecutionsContext.Provider>
+    )
+}
+
+interface TallyActionsColumnProps {
+    record: RaRecord
+    actions: (
+        record: RaRecord,
+        latestExecution: Sequent_Backend_Tally_Session_Execution | undefined
+    ) => Array<Action>
+}
+
+const TallyActionsColumn: React.FC<TallyActionsColumnProps> = ({record, actions}) => {
+    const latestExecutionByTallySessionId = useContext(LatestTallySessionExecutionsContext)
+    return (
+        <ActionsColumn
+            actions={actions(record, latestExecutionByTallySessionId.get(String(record.id)))}
+        />
+    )
+}
 
 export interface ListAreaProps {}
 
@@ -162,46 +255,29 @@ export const ListTally: React.FC<ListAreaProps> = () => {
         }
     )
 
-    const {data: tallySessions} = useGetList<Sequent_Backend_Tally_Session>(
-        "sequent_backend_tally_session",
+    const {data: keyRestoreState} = useQuery<ListTallyKeyRestoreStateQuery>(
+        LIST_TALLY_KEY_RESTORE_STATE,
         {
-            sort: {field: "created_at", order: "DESC"},
-            filter: {
-                tenant_id: tenantId,
-                election_event_id: electionEventRecord?.id,
+            variables: {
+                tenantId: tenantId,
+                electionEventId: electionEventRecord?.id,
             },
-        },
-        {
-            refetchOnWindowFocus: true,
-            refetchOnReconnect: true,
-            refetchOnMount: true,
-            meta: {
-                context: {
-                    headers: {
-                        "x-hasura-role": isTrustee
-                            ? IPermissions.TRUSTEE_CEREMONY
-                            : IPermissions.ADMIN_CEREMONY,
-                    },
+            skip: !canTrusteeCeremony || !tenantId || !electionEventRecord?.id,
+            pollInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
+            context: {
+                headers: {
+                    "x-hasura-role": IPermissions.TRUSTEE_CEREMONY,
                 },
             },
         }
     )
 
-    const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
-        "sequent_backend_tally_session_execution",
-        {
-            pagination: {page: 1, perPage: 1},
-            sort: {field: "created_at", order: "DESC"},
-            filter: {
-                tally_session_id: tallySessions?.[0]?.id,
-                tenant_id: tenantId,
-            },
-        },
-        {
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
+    const latestExecutionByTallySessionId = useMemo(
+        () =>
+            getLatestExecutionByTallySessionId(
+                keyRestoreState?.sequent_backend_tally_session_execution
+            ),
+        [keyRestoreState?.sequent_backend_tally_session_execution]
     )
 
     const {data: trusteeNames} = useQuery<TrusteeNamesQuery>(GET_TRUSTEES_NAMES, {
@@ -296,7 +372,19 @@ export const ListTally: React.FC<ListAreaProps> = () => {
         openRecountTallySet(true)
     }
 
-    const actions = (record: RaRecord) => [
+    const trusteeKeyRestoreEligibility = (
+        record: RaRecord,
+        latestExecution: Sequent_Backend_Tally_Session_Execution | undefined
+    ): ETallyKeyRestoreEligibility =>
+        getTallyKeyRestoreEligibility(
+            getTallyTrusteeStatus(latestExecution, authContext.trustee),
+            record.execution_status
+        )
+
+    const actions = (
+        record: RaRecord,
+        latestExecution: Sequent_Backend_Tally_Session_Execution | undefined
+    ) => [
         {
             icon: isTrustee ? (
                 <Tooltip title={String(t("tallysheet.common.tallyCeremony.manage"))}>
@@ -337,9 +425,8 @@ export const ListTally: React.FC<ListAreaProps> = () => {
         },
         {
             icon:
-                record.execution_status === ITallyExecutionStatus.NOT_STARTED ||
-                record.execution_status === ITallyExecutionStatus.STARTED ||
-                record.execution_status === ITallyExecutionStatus.CONNECTED ? (
+                trusteeKeyRestoreEligibility(record, latestExecution) ===
+                ETallyKeyRestoreEligibility.ALLOWED ? (
                     <Tooltip title={String(t("tallysheet.common.tallyCeremony.addKey"))}>
                         <TrusteeKeyIcon />
                     </Tooltip>
@@ -409,37 +496,30 @@ export const ListTally: React.FC<ListAreaProps> = () => {
         }
     }
 
-    const isTrusteeParticipating = (
-        tally_session: Sequent_Backend_Tally_Session,
-        ceremony: Sequent_Backend_Tally_Session_Execution | undefined,
-        authContext: AuthContextValues
-    ) => {
-        if (ceremony) {
-            let ret =
-                tally_session.execution_status === ITallyExecutionStatus.STARTED &&
-                !!ceremony.status.trustees.find(
-                    (trustee: any) => trustee.name === authContext.trustee
-                )
-            return ret
-        }
-        return false
-    }
-
-    // Returns a keys ceremony if there's any in which we have been required to
-    // participate and is active
+    // Returns an active tally ceremony in which the current trustee must restore a key.
     const getActiveCeremony = (
-        tallySessions: Sequent_Backend_Tally_Session[] | undefined,
-        authContext: AuthContextValues
+        tallySessions: ListTallyKeyRestoreStateQuery["sequent_backend_tally_session"] | undefined,
+        trusteeName: string | null | undefined
     ) => {
         if (!tallySessions) {
             return
         } else {
-            return tallySessions.find((tallySession) =>
-                isTrusteeParticipating(tallySession, tallySessionExecutions?.[0], authContext)
+            return tallySessions.find(
+                (tallySession) =>
+                    getTallyKeyRestoreEligibility(
+                        getTallyTrusteeStatus(
+                            latestExecutionByTallySessionId.get(tallySession.id),
+                            trusteeName
+                        ),
+                        tallySession.execution_status
+                    ) === ETallyKeyRestoreEligibility.ALLOWED
             )
         }
     }
-    let activeCeremony = getActiveCeremony(tallySessions, authContext)
+    const activeCeremony = getActiveCeremony(
+        keyRestoreState?.sequent_backend_tally_session,
+        authContext.trustee
+    )
 
     if (errorCeremonies) {
         return (
@@ -453,16 +533,14 @@ export const ListTally: React.FC<ListAreaProps> = () => {
 
     return (
         <>
-            {canTrusteeCeremony &&
-            activeCeremony &&
-            tallySessions?.[0]?.execution_status === "STARTED" ? (
+            {canTrusteeCeremony && activeCeremony ? (
                 <Alert severity="info">
                     <Trans i18nKey="electionEventScreen.tally.notify.participateNow">
                         {t("tally.invited")}
                         <NotificationLink
                             onClick={(e: any) => {
                                 e.preventDefault()
-                                viewTrusteeTally(tallySessions?.[0]?.id)
+                                viewTrusteeTally(activeCeremony.id)
                             }}
                         >
                             click on the tally Key Action
@@ -514,78 +592,80 @@ export const ListTally: React.FC<ListAreaProps> = () => {
                 >
                     <ResetFilters />
                     <ElectionHeader title={"electionEventScreen.tally.title"} subtitle="" />
-                    <DatagridConfigurable
-                        header={ThreeStateDatagridHeader}
-                        omit={OMIT_FIELDS}
-                        bulkActionButtons={false}
-                    >
-                        <TextField source="id" />
-                        <FunctionField
-                            label={String(t("electionEventScreen.tally.tallyType.label"))}
-                            render={(record: RaRecord<Identifier>) =>
-                                t(`electionEventScreen.tally.tallyType.${record.tally_type}`)
-                            }
-                        />
-                        <DateField source="created_at" showTime={true} />
-
-                        <FunctionField
-                            key="permission_label"
-                            label={String(t("electionEventScreen.tally.permissionLabels"))}
-                            render={(record: RaRecord<Identifier>) => {
-                                return (
-                                    <>
-                                        {record?.permission_label &&
-                                        record?.permission_label.length > 0 ? (
-                                            record?.permission_label.map(
-                                                (item: any, index: number) => (
-                                                    <StyledChip key={index} label={item} />
-                                                )
-                                            )
-                                        ) : (
-                                            <StyledNull>-</StyledNull>
-                                        )}
-                                    </>
-                                )
-                            }}
-                        />
-
-                        <FunctionField
-                            source="trustees"
-                            label={String(t("electionEventScreen.tally.trustees"))}
-                            render={(record: RaRecord<Identifier>) => (
-                                <Box sx={{height: 36, overflowY: "scroll"}}>
-                                    <TrusteeItems
-                                        record={record}
-                                        trusteeNames={trusteeNames?.sequent_backend_trustee}
-                                    />
-                                </Box>
-                            )}
-                        />
-
-                        <FunctionField
-                            label={String(t("electionEventScreen.tally.electionNumber"))}
-                            render={(record: RaRecord<Identifier>) =>
-                                record?.election_ids?.length || 0
-                            }
-                        />
-
-                        <FunctionField
-                            label={String(t("electionEventScreen.tally.status"))}
-                            render={(record: RaRecord<Identifier>) => (
-                                <StatusChip status={record.execution_status} />
-                            )}
-                        />
-
-                        <FunctionField
-                            source="actions"
-                            label="Actions"
-                            render={(record: RaRecord<Identifier>) => (
-                                <ActionsColumn actions={actions(record)} />
-                            )}
+                    <LatestTallySessionExecutionsProvider enabled={canTrusteeCeremony}>
+                        <DatagridConfigurable
+                            header={ThreeStateDatagridHeader}
+                            omit={OMIT_FIELDS}
+                            bulkActionButtons={false}
                         >
-                            {/* <ActionsColumn actions={actions} /> */}
-                        </FunctionField>
-                    </DatagridConfigurable>
+                            <TextField source="id" />
+                            <FunctionField
+                                label={String(t("electionEventScreen.tally.tallyType.label"))}
+                                render={(record: RaRecord<Identifier>) =>
+                                    t(`electionEventScreen.tally.tallyType.${record.tally_type}`)
+                                }
+                            />
+                            <DateField source="created_at" showTime={true} />
+
+                            <FunctionField
+                                key="permission_label"
+                                label={String(t("electionEventScreen.tally.permissionLabels"))}
+                                render={(record: RaRecord<Identifier>) => {
+                                    return (
+                                        <>
+                                            {record?.permission_label &&
+                                            record?.permission_label.length > 0 ? (
+                                                record?.permission_label.map(
+                                                    (item: any, index: number) => (
+                                                        <StyledChip key={index} label={item} />
+                                                    )
+                                                )
+                                            ) : (
+                                                <StyledNull>-</StyledNull>
+                                            )}
+                                        </>
+                                    )
+                                }}
+                            />
+
+                            <FunctionField
+                                source="trustees"
+                                label={String(t("electionEventScreen.tally.trustees"))}
+                                render={(record: RaRecord<Identifier>) => (
+                                    <Box sx={{height: 36, overflowY: "scroll"}}>
+                                        <TrusteeItems
+                                            record={record}
+                                            trusteeNames={trusteeNames?.sequent_backend_trustee}
+                                        />
+                                    </Box>
+                                )}
+                            />
+
+                            <FunctionField
+                                label={String(t("electionEventScreen.tally.electionNumber"))}
+                                render={(record: RaRecord<Identifier>) =>
+                                    record?.election_ids?.length || 0
+                                }
+                            />
+
+                            <FunctionField
+                                label={String(t("electionEventScreen.tally.status"))}
+                                render={(record: RaRecord<Identifier>) => (
+                                    <StatusChip status={record.execution_status} />
+                                )}
+                            />
+
+                            <FunctionField
+                                source="actions"
+                                label="Actions"
+                                render={(record: RaRecord<Identifier>) => (
+                                    <TallyActionsColumn record={record} actions={actions} />
+                                )}
+                            >
+                                {/* <ActionsColumn actions={actions} /> */}
+                            </FunctionField>
+                        </DatagridConfigurable>
+                    </LatestTallySessionExecutionsProvider>
                 </List>
             }
 

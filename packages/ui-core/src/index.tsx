@@ -17,7 +17,12 @@ export {
 export {useForwardedRef} from "./utils/ref"
 export {sleep} from "./services/sleep"
 export * from "./services/WasmContext"
-export {stringToHtml} from "./services/stringToHtml"
+export {
+    stringToHtml,
+    stringToText,
+    escapeTranslationValues,
+    translateHtml,
+} from "./services/stringToHtml"
 export {isAcclaimedContest, areAllContestsAcclaimed} from "./services/acclamation"
 export * from "./types/LanguageConf"
 export * from "./types/TenantSettings"
@@ -35,6 +40,8 @@ export {
     translate,
     translateFromPresentation,
 } from "./services/translate"
+export {getBallotErrorOptions} from "./services/ballotErrorMessages"
+export type {BallotErrorOptions} from "./services/ballotErrorMessages"
 export * from "./services/votingPortalDateTime"
 export * from "./types/ElectionEventPresentation"
 export * from "./services/percentFormatter"

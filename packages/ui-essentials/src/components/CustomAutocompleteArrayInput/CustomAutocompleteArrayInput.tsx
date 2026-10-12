@@ -10,7 +10,7 @@ export type Choice = {
     name: string
 }
 
-interface CustomAutocompleteArrayInputProps {
+export interface CustomAutocompleteArrayInputProps {
     label: string
     defaultValue?: string[]
     onChange: (value: string[]) => void

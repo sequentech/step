@@ -51,6 +51,32 @@ const readableMessage = (value: unknown): string | undefined => {
 }
 
 /**
+ * Whether a failed action carries `errorCode`, wherever Hasura left it: the
+ * promoted extension code when it parsed Harvest's answer, the original body
+ * when it could not, or one of `legacyMessages` from backends that answered
+ * with a message only.
+ */
+export const hasGraphQLActionErrorCode = (
+    error: unknown,
+    errorCode: string,
+    legacyMessages: readonly string[] = []
+): boolean => {
+    const actionError = error as IGraphQLActionError | undefined
+    const markers = [errorCode, ...legacyMessages]
+    const containsMarker = (value: string | null | undefined): boolean =>
+        markers.some((marker) => value?.includes(marker) === true)
+
+    return (
+        actionError?.graphQLErrors?.some(
+            (graphQLError) =>
+                graphQLError.extensions?.code === errorCode ||
+                containsMarker(graphQLError.message) ||
+                containsMarker(graphQLError.extensions?.internal?.response?.body)
+        ) === true || containsMarker(actionError?.message)
+    )
+}
+
+/**
  * Extracts why a Hasura action failed, so a form can tell the admin what went
  * wrong instead of only that something did.
  *

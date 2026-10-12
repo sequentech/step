@@ -235,7 +235,7 @@ pub async fn import_election_event_f(
         get_zip_entries(temp_file_path, &document_type).await;
 
     let (_zip_entries, file_election_event_schema) = match zip_entries_result {
-        Ok((zip_entries, file_election_event_schema)) => {
+        Ok((zip_entries, _, file_election_event_schema)) => {
             (zip_entries, file_election_event_schema)
         }
         Err(err) => {

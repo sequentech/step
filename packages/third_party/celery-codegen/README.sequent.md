@@ -1,7 +1,13 @@
+<!--
+SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
 # Sequent patch of celery-codegen 0.5.5
 
 This directory contains `celery-codegen` from the exact rusty-celery revision
-already pinned by this workspace, `b4145925aaaf742b7ba54499fff45313bcadfca1`.
+already pinned by this workspace, `7dfe34739d21a95754e34dedb5f10aa0a4f356ce`.
 `UPSTREAM.json` records the source and SHA-256 hashes before the local patch;
 `LICENSE` is the upstream Apache-2.0 license. The upstream version and dependency
 requirements are unchanged.

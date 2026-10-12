@@ -1,3 +1,16 @@
+type Query {
+    get_ballot_files_urls(election_event_id: String!): jsonb!
+}
+
+type Query {
+    get_voter_cast_votes(
+        election_event_id: String!
+        election_id: String
+        ballot_id: String
+        ballot_id_prefix: String
+    ): [VoterCastVote!]!
+}
+
 type Mutation {
     ApplicationChangeStatus(
         body: ApplicationChangeStatusBody!
@@ -6,6 +19,74 @@ type Mutation {
 
 type Mutation {
     VerifyApplication(body: ApplicationVerifyBody!): String
+}
+
+type Mutation {
+    audit_electoral_log(election_event_id: String!): taskOutput!
+}
+
+type Query {
+    electoral_log_console_page(
+        tenant_id: String
+        election_event_id: String!
+        table: String!
+        filters: jsonb
+        order: String
+        after: String
+        limit: Int
+    ): jsonb!
+}
+
+type Query {
+    electoral_log_console_record(
+        tenant_id: String
+        election_event_id: String!
+        position: Int!
+    ): jsonb!
+}
+
+type Query {
+    electoral_log_console_query(
+        tenant_id: String!
+        election_event_id: String!
+        sql: String!
+    ): jsonb!
+}
+
+type Query {
+    electoral_log_console_tenants: jsonb!
+}
+
+type Query {
+    task_queues_overview: jsonb!
+}
+
+type Query {
+    task_queues_throughput(
+        queue: String!
+        hours: Int
+        bucket_minutes: Int
+    ): jsonb!
+}
+
+type Query {
+    task_queues_messages(
+        queue: String!
+        state: String!
+        before: String
+        limit: Int
+    ): jsonb!
+}
+
+type Query {
+    task_queues_query(sql: String!): jsonb!
+}
+
+type Mutation {
+    task_queues_dead_letters(
+        operation: String!
+        message_ids: [String!]!
+    ): jsonb!
 }
 
 type Mutation {
@@ -141,6 +222,10 @@ type Mutation {
 
 type Mutation {
     delete_election_event(election_event_id: String!): DeleteElectionEvent
+}
+
+type Mutation {
+    delete_tenant(tenant_id: String!): DeleteTenant
 }
 
 type Mutation {
@@ -608,16 +693,6 @@ type Query {
 }
 
 type Query {
-    listPgaudit(
-        limit: Int
-        offset: Int
-        filter: PgAuditFilter
-        order_by: PgAuditOrderBy
-        audit_table: PgAuditTable
-    ): DataListPgAudit
-}
-
-type Query {
     list_cast_vote_messages(
         tenant_id: String!
         election_event_id: String!
@@ -641,21 +716,13 @@ type Query {
     ): [KeycloakRole!]!
 }
 
-type Query {
-    logEvent(
-        election_event_id: String!
-        message_type: String!
-        user_id: String
-        body: String!
-    ): LogEventOutput
-}
-
 type Mutation {
     manage_election_dates(
         election_event_id: String!
         election_id: String
         scheduled_date: String
         event_processor: String!
+        voting_channels: [VotingStatusChannel!]
     ): ManageElectionDatesOutput
 }
 
@@ -865,11 +932,6 @@ enum OrderDirection {
     desc
 }
 
-enum PgAuditTable {
-    pgaudit_hasura
-    pgaudit_keycloak
-}
-
 enum VotingStatus {
     NOT_STARTED
     OPEN
@@ -887,29 +949,6 @@ enum VotingStatusChannel {
 input TemplateInput {
     template: String!
     format: String!
-}
-
-input PgAuditFilter {
-    id: String
-    audit_type: String
-    class: String
-    command: String
-    dbname: String
-    session_id: String
-    statement: String
-    user: String
-}
-
-input PgAuditOrderBy {
-    id: OrderDirection
-    audit_type: OrderDirection
-    class: OrderDirection
-    command: OrderDirection
-    dbname: OrderDirection
-    server_timestamp: OrderDirection
-    session_id: OrderDirection
-    statement: OrderDirection
-    user: OrderDirection
 }
 
 input ElectoralLogFilter {
@@ -1274,25 +1313,8 @@ type ScheduledEventOutput {
     created_by: String
 }
 
-type PgAuditRow {
-    id: Int!
-    audit_type: String!
-    class: String!
-    command: String!
-    dbname: String!
-    server_timestamp: Int!
-    session_id: String!
-    statement: String!
-    user: String!
-}
-
 type Aggregate {
     count: Int!
-}
-
-type DataListPgAudit {
-    items: [PgAuditRow]!
-    total: TotalAggregate!
 }
 
 type TotalAggregate {
@@ -1308,12 +1330,22 @@ type ElectoralLogRow {
     user_id: String!
 }
 
+type VoterCastVote {
+    id: String!
+    tenant_id: String!
+    election_event_id: String!
+    election_id: String
+    area_id: String
+    ballot_id: String
+    status: String!
+    created_at: String
+    content: String
+}
+
 type CastVoteEntry {
     statement_timestamp: Int!
     statement_kind: String!
     ballot_id: String!
-    username: String
-    message: String
 }
 
 type ListCastVoteMessagesOutput {
@@ -1486,8 +1518,15 @@ type GetBallotPublicationChangesOutput {
     previous: BallotPublicationStyles
 }
 
+enum RestorePrivateKeyOutcome {
+    RESTORED
+    INVALID
+    ALREADY_RESTORED
+}
+
 type RestorePrivateKeyOutput {
     is_valid: Boolean!
+    outcome: RestorePrivateKeyOutcome!
 }
 
 type InsertCastVoteOutput {
@@ -1500,7 +1539,7 @@ type InsertCastVoteOutput {
     labels: jsonb
     annotations: jsonb
     content: String
-    cast_ballot_signature: bytea!
+    cast_ballot_signature: bytea
     voter_id_string: String
     election_event_id: uuid!
     ballot_id: String
@@ -1676,10 +1715,6 @@ type documentTaskOutput {
     document_id: String!
 }
 
-type LogEventOutput {
-    electionEventId: String
-}
-
 type SetCustomUrlOutput {
     url: String!
 }
@@ -1690,6 +1725,12 @@ type SetCustomUrlsOutput {
 }
 
 type DeleteElectionEvent {
+    id: String
+    task_execution: tasks_execution_type
+    error_msg: String
+}
+
+type DeleteTenant {
     id: String
     task_execution: tasks_execution_type
     error_msg: String

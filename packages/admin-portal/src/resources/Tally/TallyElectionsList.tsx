@@ -62,23 +62,28 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
             const selectedElections = tallyData
                 ? orderItemsByIds(filteredElections, tallyData.election_ids ?? [])
                 : filteredElections
-            const mappedElections: Array<Sequent_Backend_Election_Extended> = selectedElections.map(
-                (election, index) => {
-                    const electionName = aliasRenderer(election.presentation)
-                    return {
-                        ...election,
-                        rowId: index,
-                        id: election.id || "",
-                        name: electionName,
-                        active: true,
-                    }
-                }
-            )
-            const orderedElections = sortByPresentationOrder(mappedElections, electionsOrder, {
-                getLabel: (election) => election.name,
-                getPresentation: (election) => election.presentation,
-            }).map((election, index) => ({...election, rowId: index}))
-            setElectionsData(orderedElections)
+            setElectionsData((previousElections) => {
+                // Polling refreshes the elections, so keep the admin's selection
+                // and only select elections that were not listed before.
+                const previousSelection = new Map(
+                    previousElections.map((election) => [election.id, election.active])
+                )
+                const mappedElections: Array<Sequent_Backend_Election_Extended> =
+                    selectedElections.map((election, index) => {
+                        const id = election.id || ""
+                        return {
+                            ...election,
+                            rowId: index,
+                            id,
+                            name: aliasRenderer(election.presentation),
+                            active: previousSelection.get(id) ?? true,
+                        }
+                    })
+                return sortByPresentationOrder(mappedElections, electionsOrder, {
+                    getLabel: (election) => election.name,
+                    getPresentation: (election) => election.presentation,
+                }).map((election, index) => ({...election, rowId: index}))
+            })
         }
     }, [aliasRenderer, electionsOrder, filteredElections, tallyData])
 

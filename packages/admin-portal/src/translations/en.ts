@@ -206,6 +206,13 @@ const englishTranslation = {
             actions: {
                 csv: "Export in CSV",
                 pdf: "Export in PDF",
+                audit: "Audit",
+            },
+            auditDialog: {
+                title: "Audit electoral log",
+                confirm: "Audit",
+                description:
+                    "The audit checks every log entry against its Merkle log and verifies the published checkpoints. The result is recorded as a task.",
             },
             exportdialog: {
                 description:
@@ -252,6 +259,7 @@ const englishTranslation = {
                 logs: "Logs",
             },
             tasksExecution: {
+                DELETE_TENANT: "Delete tenant",
                 PUBLISH_BALLOT: "Publish Ballot",
                 EXPORT_ELECTION_EVENT: "Export Election Event",
                 CREATE_ELECTION_EVENT: "Create Election Event",
@@ -280,6 +288,7 @@ const englishTranslation = {
                 EXPORT_CERTIFICATE_AUTHORITIES: "Export Certificate Authorities",
                 PUBLISH_RESULTS_WEBSITE: "Publish Results Website",
                 VOTER_INFORMATION_LETTER: "Voter Information Letter",
+                AUDIT_ELECTORAL_LOG: "Audit Electoral Log",
             },
             documentAccess: {
                 title: "Document access",
@@ -793,6 +802,10 @@ const englishTranslation = {
                 statusLabel: "Status",
                 waitingKeys: "Waiting for Keys Generation..",
                 started: "Started at",
+                actions: {
+                    participate: "Participate in Keys Ceremony",
+                    view: "View Keys Ceremony",
+                },
                 breadCrumbs: {
                     configure: "Configure",
                     ceremony: "Ceremony",
@@ -1297,6 +1310,7 @@ const englishTranslation = {
                 "tenant-create": "Create Tenant",
                 "tenant-read": "Read Tenant",
                 "tenant-write": "Edit Tenant",
+                "tenant-delete": "Delete Tenant",
                 "election-event-create": "Create Election Event",
                 "election-event-read": "Read Election Event",
                 "election-event-write": "Edit Election Event",
@@ -1344,6 +1358,13 @@ const englishTranslation = {
                 "publish-results-read": "Read Results Publication",
                 "publish-results-write": "Edit Results Publication",
                 "logs-read": "Read Logs",
+                "electoral-log-audit": "Audit Electoral Log",
+                "electoral-log-console-read": "Browse Electoral Log",
+                "electoral-log-console-query": "Query Electoral Log",
+                "electoral-log-personal-data-read": "Read Electoral Log Personal Data",
+                "task-queues-read": "Read Task Queues",
+                "task-queues-write": "Manage Task Queues",
+                "task-queues-query": "Query Task Queues",
                 "tasks-read": "Read Tasks Execution",
                 "keys-read": "Read Keys",
                 "document-upload": "Upload Documents",
@@ -1359,7 +1380,6 @@ const englishTranslation = {
                 "tally-sheet-view": "View Tally Sheet",
                 "admin-ceremony": "Admin Ceremony",
                 "tally-sheet-delete": "Delete Tally Sheet",
-                "cast-vote-read": "Read Cast Votes",
                 "document-read": "Read Documents",
                 "document-write": "Edit Documents",
                 "support-material-read": "Read Support Materials",
@@ -1529,6 +1549,8 @@ const englishTranslation = {
                 createError: "Error creating Scheduled Event",
                 editSuccess: "Scheduled Event edited successfully",
                 editError: "Error editing Scheduled Event",
+                onlineWithEarlyVoting:
+                    "A start schedule cannot open Online and Early voting together: early voting has to start before online voting.",
             },
             eventType: {
                 label: "Type",
@@ -1744,6 +1766,8 @@ const englishTranslation = {
             electionEvents: "Election Events",
             search: "Search",
             usersAndRoles: "Users and Roles",
+            electoralLogConsole: "Electoral Log",
+            taskQueues: "Task Queues",
             logs: "Logs",
             settings: "Settings",
             help: "Help",
@@ -1950,7 +1974,7 @@ const englishTranslation = {
             },
             error: {},
             createContestSuccess: "Contest created",
-            createContestError: "Error creating candidate",
+            createContestError: "Error creating contest",
         },
         keysGeneration: {
             configureStep: {
@@ -1964,6 +1988,11 @@ const englishTranslation = {
                 trusteeList: "Trustees",
                 errorMinTrustees_one:
                     "You selected only {{selected}} trustee, but you must select at least {{threshold}}.",
+                // `_many` is selected only in es/cat/fr, for exact multiples of a million. English never
+                // selects it, but the other bundles are typed `TranslationType = typeof englishTranslation`,
+                // so the key has to be declared here before they can carry it.
+                errorMinTrustees_many:
+                    "You selected only {{selected}} trustees, but you must select at least {{threshold}}.",
                 errorMinTrustees_other:
                     "You selected only {{selected}} trustees, but you must select at least {{threshold}}.",
                 errorThreshold:
@@ -2025,8 +2054,12 @@ const englishTranslation = {
                 subtitle:
                     "To continue, please download and store your Encrypted Private Key at least into two different devices:",
                 downloadButton: "Download your Encrypted Private Key",
-                errorDownloading: "Download error: {{error}}",
+                downloaded: "Encrypted Private Key downloaded successfully.",
                 errorEmptyKey: "Download error, empty file",
+                unexpectedError: "The private key could not be downloaded. Please try again.",
+                alreadyVerified: "Your private key was already downloaded and verified.",
+                unavailable:
+                    "Private key download is no longer available because the ceremony has moved on.",
                 confirmdDialog: {
                     ok: "Confirm Backups and Continue",
                     cancel: "Go Back",
@@ -2041,12 +2074,13 @@ const englishTranslation = {
             },
             checkStep: {
                 title: "Check your Encrypted Private Key Backups",
+                verifyButton: "Verify key",
                 subtitle:
                     "Upload a Encrypted Private Key Backup to check that it's correct. You can try as many times as needed, from your different backups:",
                 errorUploading: "Invalid Encrypted Private Key Backup, please try again",
                 errorEmptyFile: "File empty or not found",
                 verified: "Backup verified successfully.",
-                downloaded: "Encrypted Private Key generated successfully.",
+                alreadyRestored: "Your key was already restored.",
             },
         },
         miruExport: {
@@ -2096,8 +2130,9 @@ const englishTranslation = {
                 contests: "Contests",
                 noTalliedContests: "No tallied contests available.",
                 publishSelectedContests: "Publish selected contests",
-                selectedContestCount: "{{count}} contest selected",
-                selectedContestCount_plural: "{{count}} contests selected",
+                selectedContestCount_one: "{{count}} contest selected",
+                selectedContestCount_many: "{{count}} contests selected",
+                selectedContestCount_other: "{{count}} contests selected",
                 history: "Publication history",
                 version: "Version",
                 status: "Status",
@@ -2204,6 +2239,13 @@ const englishTranslation = {
             generalInfoTitle: "General Information",
             trusteeTallyTitle: "Trustees",
             trusteeTallySubTitle: "Key fragment import status",
+            eligibility: {
+                selectElection: "Select at least one election.",
+                publishElection: "Publish each selected election before creating its tally.",
+                tallyDisallowed: "Tallying is disabled for a selected election.",
+                endVoting:
+                    "End voting in each selected election and stop its active voting channels before creating the tally.",
+            },
             createTallySuccess: "Tally created",
             createTallyError: "Could not create Tally",
             startTallySuccess: "Tally started",
@@ -2876,6 +2918,196 @@ const englishTranslation = {
             confirmDelete: "Delete Certificate Authority",
             confirmDeleteDescription:
                 'Are you sure you want to delete the certificate "{{name}}" (fingerprint: {{fingerprint}})?',
+        },
+        electoralLogConsole: {
+            title: "Electoral Log",
+            subtitle:
+                "Browse an election event's electoral log and ballot box, or query its electoral-log database. Nothing on this page changes any data.",
+            notAllowed:
+                "You need the electoral-log-console-read permission to open the electoral log.",
+            tabs: {
+                tables: "Tables",
+                query: "Query",
+            },
+            electionEvent: "Election Event",
+            tenant: "Tenant",
+            table: "Table",
+            tables: {
+                records: "Records",
+                ballots: "Ballots",
+                voters: "Voters",
+                queue: "Sequencer Queue",
+            },
+            order: {
+                "label": "Order",
+                "newest-first": "Newest first",
+                "oldest-first": "Oldest first",
+            },
+            filters: {
+                statement_kind: "Kind",
+                election_id: "Election",
+                area_id: "Area ID",
+                user_id: "User or Voter ID",
+                ballot_id: "Ballot ID",
+                status: "Status",
+                created_after: "From",
+                created_before: "Until",
+                any: "Any",
+                apply: "Apply Filters",
+                clear: "Clear",
+                invalid:
+                    "Check the highlighted filters: dates must be valid, and the ballot box's area IDs must be UUIDs.",
+            },
+            statuses: {
+                valid: "Valid",
+                pending: "Pending",
+                rejected: "Rejected",
+            },
+            estimatedRows: "About {{rows}} rows in this table before filters.",
+            personalDataHidden:
+                "Usernames, IP addresses and countries show as hidden: seeing them needs the electoral-log-personal-data-read permission.",
+            loadError: "The electoral log could not be read.",
+            record: {
+                title: "Record {{position}}",
+                view: "View record",
+                message: "Message (decoded)",
+                copy: "Copy JSON",
+                close: "Close",
+                loadError: "The record could not be read.",
+            },
+            query: {
+                help: "Queries run on the election event's electoral-log database in a read-only transaction. Its tables are electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending and ballot_box_sequencer; trellis_logs describes its Merkle logs.",
+                scope: "Each election event has a database of its own, so a query reads one event.",
+                chooseEvent: "Choose the election event to query.",
+                placeholder: "SELECT …",
+                limits: "Read-only · up to 1,000 rows · 30 s timeout · each query is recorded in the server logs with your user",
+                run: "Run Query",
+                summary: "Rows: {{rows}} · {{ms}} ms",
+                truncated: "Only the first {{rows}} rows are shown.",
+                error: "The query could not run.",
+            },
+        },
+        taskQueues: {
+            title: "Task Queues",
+            subtitle:
+                "The environment's task queues: what is waiting, what was processed and how long it took. The queue lists never show task arguments.",
+            notAllowed:
+                "You need the task-queues-read permission of the super-admin tenant to open the task queues.",
+            live: "Live",
+            updated: "Updated at {{time}}",
+            error: "The task queues could not be loaded.",
+            columns: {
+                queue: "Queue",
+                ready: "Ready",
+                runningOrScheduled: "Running or scheduled",
+                oldest: "Oldest",
+                processed: "Processed (last hour)",
+                lastHour: "Outcomes (last hour)",
+                sent: "Sent (total)",
+            },
+            outcomes: {
+                succeeded: "Succeeded",
+                failed: "Failed",
+                expired: "Expired",
+                rejected: "Rejected",
+                discarded: "Discarded",
+                unknown: "Unknown",
+            },
+            graphs: {
+                title: "Throughput",
+                period: "Period",
+                periods: {
+                    hour: "Last hour",
+                    sixHours: "Last 6 hours",
+                    day: "Last 24 hours",
+                    week: "Last 7 days",
+                },
+                outcomes: "Processed messages by outcome",
+                durations: "Mean wait and processing time",
+                wait: "Wait",
+                processing: "Processing",
+                seconds: "Seconds",
+                empty: "No messages of this queue were processed in this period.",
+            },
+            messages: {
+                title: "Messages",
+                states: {
+                    queued: "Queued",
+                    archived: "Archived",
+                },
+                argumentsHidden:
+                    "Task arguments are never shown, because they can contain voters' data.",
+                refresh: "Refresh",
+                newest: "Newest",
+                newer: "Newer",
+                older: "Older",
+                empty: "No messages",
+                unreadable: "Unreadable message",
+                columns: {
+                    id: "ID",
+                    task: "Task",
+                    outcome: "Outcome",
+                    event: "Event",
+                    error: "Error",
+                    enqueued: "Enqueued",
+                    reads: "Reads",
+                    retries: "Retries",
+                    archived: "Archived",
+                    visible: "Visible from",
+                    size: "Size",
+                    taskId: "Task ID",
+                },
+            },
+            deadLetters: {
+                help: "These electoral-log events could not be processed. Select events to replay them to the event queue or to discard them; discarded events stay in the archive.",
+                noWrite:
+                    "You need the task-queues-write permission to replay or discard these events.",
+                replay: "Replay",
+                discard: "Discard",
+                cancel: "Cancel",
+                confirmTitle: {
+                    replay: "Replay events?",
+                    discard: "Discard events?",
+                },
+                confirmBody: {
+                    replay_one:
+                        "{{count}} event will be sent back to the electoral-log event queue. If it fails again, it returns here.",
+                    replay_many:
+                        "{{count}} events will be sent back to the electoral-log event queue. Events that fail again return here.",
+                    replay_other:
+                        "{{count}} events will be sent back to the electoral-log event queue. Events that fail again return here.",
+                    discard_one:
+                        "{{count}} event will be moved to the archive and not added to the electoral log.",
+                    discard_many:
+                        "{{count}} events will be moved to the archive and not added to the electoral log.",
+                    discard_other:
+                        "{{count}} events will be moved to the archive and not added to the electoral log.",
+                },
+                queued: {
+                    replay_one: "Replay of {{count}} event queued as task {{taskId}}.",
+                    replay_many: "Replay of {{count}} events queued as task {{taskId}}.",
+                    replay_other: "Replay of {{count}} events queued as task {{taskId}}.",
+                    discard_one: "Discard of {{count}} event queued as task {{taskId}}.",
+                    discard_many: "Discard of {{count}} events queued as task {{taskId}}.",
+                    discard_other: "Discard of {{count}} events queued as task {{taskId}}.",
+                },
+                failed: "The operation could not be queued.",
+            },
+            tabs: {
+                queues: "Queues",
+                query: "Query",
+            },
+            query: {
+                help: "Queries run on the environment's task-queue database in a read-only transaction, as its reader role. Each queue has a table of waiting messages, pgmq.q_<queue>, and one of processed messages, pgmq.a_<queue>.",
+                arguments:
+                    "Queries read the messages as they are stored, with their tasks' arguments, which can include voters' data.",
+                placeholder: "SELECT …",
+                limits: "Read-only · up to 1,000 rows · 30 s timeout · each query is recorded in the server logs with your user",
+                run: "Run Query",
+                summary: "Rows: {{rows}} · {{ms}} ms",
+                truncated: "Only the first {{rows}} rows are shown.",
+                error: "The query could not run.",
+            },
         },
     },
 }
