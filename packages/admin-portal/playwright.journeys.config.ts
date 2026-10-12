@@ -11,8 +11,10 @@ export default defineConfig({
     // Keep local and CI memory bounded; CI also splits this suite into shards.
     fullyParallel: true,
     workers: 2,
-    timeout: 45000,
-    expect: {timeout: 10000},
+    // The CI shards run with V8 coverage on two-core runners, where a journey takes
+    // about 13s and the slower ones past 40s; the budgets leave room for that.
+    timeout: 90000,
+    expect: {timeout: 30000},
     retries: 0,
     reporter: [["list"], ["junit", {outputFile: "test-results/journeys.xml"}]],
     use: {

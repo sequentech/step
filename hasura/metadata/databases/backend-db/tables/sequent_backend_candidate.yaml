@@ -346,7 +346,9 @@ update_permissions:
               - election_event_id
               - id
               - tenant_id
-          filter: {}
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
       role: candidate-write
     - comment: ""
       permission:
