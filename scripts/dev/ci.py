@@ -142,7 +142,16 @@ def matrices(selection: Selection) -> dict[str, object]:
     jobs = {
         "feature-gates": "feature-gates:sequent-core" in selected,
         "run-tests": bool(rust),
-        "run-windmill-tests": "cargo-test:windmill" in selected,
+        # The Windmill job also hosts the PostgreSQL-backed checks of other crates.
+        "run-windmill-tests": any(
+            check in selected
+            for check in (
+                "cargo-test:windmill",
+                "cargo-test-db:electoral-log",
+                "cargo-test-db:pgmq-broker",
+                "cargo-test-db:step-cli",
+            )
+        ),
         "run-frontend-tests": bool(node),
         "tooling": bool(python),
         "docs": bool(docs),

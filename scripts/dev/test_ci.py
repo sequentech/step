@@ -149,6 +149,10 @@ class PlanTests(unittest.TestCase):
         self.assertIn("pgmq-broker", [row["service"] for row in plan["rust"]])
         self.assertTrue(plan["jobs"]["run-windmill-tests"])
 
+    def test_step_cli_acceptance_change_runs_its_database_check(self):
+        plan = self.plan("packages/step-cli/src/acceptance/hasura.rs")
+        self.assertTrue(plan["jobs"]["run-windmill-tests"])
+
     def test_step_cli_builder_does_not_check_core_gates(self):
         plan = self.plan("packages/step-cli/src/commands/build_election_event.rs")
         self.assertEqual([row["service"] for row in plan["rust"]], ["step-cli"])
