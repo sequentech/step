@@ -187,6 +187,23 @@ services:
       configure-minio:
         condition: service_completed_successfully
 
+  messaging-webhooks:
+    image: ${STEP_E2E_RUNTIME_IMAGE:-step-backend-e2e-cargo-packages:local}
+    container_name: !reset null
+    ports: !reset []
+    command: ["/opt/step-e2e/bin/messaging-webhooks"]
+    volumes:
+      - *e2e-binaries
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:${MESSAGING_WEBHOOKS_PORT}/healthz || exit 1"]
+      interval: 3s
+      timeout: 5s
+      retries: 100
+      start_period: 10s
+    depends_on: !override
+      harvest:
+        condition: service_healthy
+
   monitoring-renderer:
     container_name: !reset null
 

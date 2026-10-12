@@ -83,8 +83,9 @@ summary = "GitHub workflows and composite actions; a workflow selects the checks
 
 [units.scripts-dev]
 summary = "step-dev developer commands and the selection model"
-# The signing organization and janitor preset tests read these.
-test_inputs = ["packages/windmill/external-bin/janitor/signing_preset.py", "packages/windmill/external-bin/janitor/approval_matrix_preset.py", "packages/windmill/external-bin/janitor/templates/COMELEC/**", "packages/windmill/external-bin/janitor/templates/association/**", "scripts/e2e/journeys/fixtures.py", "packages/voting-load/fixtures/election.json"]
+# The signing organization and janitor preset tests read these, and the
+# air-gap bundle test reads its files.
+test_inputs = ["scripts/airgap-files/**", "packages/windmill/external-bin/janitor/signing_preset.py", "packages/windmill/external-bin/janitor/approval_matrix_preset.py", "packages/windmill/external-bin/janitor/templates/COMELEC/**", "packages/windmill/external-bin/janitor/templates/association/**", "scripts/e2e/journeys/fixtures.py", "packages/voting-load/fixtures/election.json"]
 
 [units.scripts-coverage]
 summary = "Coverage runners and reporters"
@@ -126,6 +127,12 @@ summary = "Dormant source fragment without a manifest"
 
 [units.beyond]
 summary = "The beyond submodule, validated in its own repository"
+
+[units.messaging]
+summary = "Provider adapters, delivery attempt decisions, webhook verification and the relay envelope"
+
+[units.messaging-webhooks]
+summary = "The public webhook component: relays provider callbacks, signed, to harvest"
 
 [units.harvest]
 test_inputs = ["hasura/migrations/backend-db/**", ".devcontainer/postgresql/init.sh", "hasura/metadata/databases/backend-db/tables/**"]
@@ -283,6 +290,11 @@ globs = [
     "scripts/update_license_headers.py",
 ]
 units = ["scripts-misc"]
+
+# The webhook component's image is also an image.
+[[paths]]
+globs = ["packages/messaging-webhooks/Dockerfile*"]
+units = ["messaging-webhooks", "docker-images"]
 
 [[paths]]
 globs = ["packages/test-support/**"]
@@ -564,7 +576,7 @@ workflows = ["wbraid.yml"]
 
 [[checks]]
 id = "cargo-test:{unit}"
-for_each = ["strand", "electoral-log", "wrap-map-err", "step-cli"]
+for_each = ["strand", "electoral-log", "wrap-map-err", "step-cli", "messaging", "messaging-webhooks"]
 kind = "test"
 runner = "cargo"
 cost = "fast"

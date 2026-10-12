@@ -472,6 +472,44 @@ services:
       B3_PG_DATABASE: ${B3_PG_DATABASE}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       ENV_SLUG: ${ENV_SLUG}
+      # Provider callbacks arrive only through messaging-webhooks.
+      MESSAGING_RELAY_SECRET: ${MESSAGING_RELAY_SECRET:?MESSAGING_RELAY_SECRET must be set}
+      MESSAGING_WEBHOOKS_PUBLIC_URL: ${MESSAGING_WEBHOOKS_PUBLIC_URL}
+      MESSAGING_WEBHOOKS_MAX_BODY_BYTES: ${MESSAGING_WEBHOOKS_MAX_BODY_BYTES:-262144}
+      MESSAGING_CALLBACK_CONNECTIONS: ${MESSAGING_CALLBACK_CONNECTIONS:-4}
+
+  # The one public entrypoint for messaging provider callbacks; relays each
+  # one, signed, to harvest's internal /messaging/callbacks.
+  messaging-webhooks:
+    profiles: ["full", "base"]
+    stdin_open: true
+    image: sequentech.local/cargo-packages
+    container_name: messaging-webhooks
+    volumes:
+      - ..:/workspaces/step:z
+    depends_on:
+      - harvest
+    working_dir: /workspaces/step/packages/messaging-webhooks
+    entrypoint: ["/usr/local/bin/entrypoint.sh"]
+    command: [
+      "cargo",
+      "watch",
+      "--why",
+      "--ignore",
+      "rust-local-target/",
+      "-x",
+      "run -p messaging-webhooks"
+    ]
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL}
+      ROCKET_ADDRESS: ${ROCKET_ADDRESS}
+      ROCKET_PORT: ${MESSAGING_WEBHOOKS_PORT}
+      HARVEST_DOMAIN: ${HARVEST_DOMAIN}
+      MESSAGING_RELAY_SECRET: ${MESSAGING_RELAY_SECRET:?MESSAGING_RELAY_SECRET must be set}
+      MESSAGING_WEBHOOKS_MAX_BODY_BYTES: ${MESSAGING_WEBHOOKS_MAX_BODY_BYTES:-262144}
+      MESSAGING_WEBHOOKS_MAX_IN_FLIGHT: ${MESSAGING_WEBHOOKS_MAX_IN_FLIGHT:-16}
+    ports:
+      - ${MESSAGING_WEBHOOKS_PORT}:${MESSAGING_WEBHOOKS_PORT}
 
   trustee1:
     profiles: ["full"]
@@ -685,6 +723,7 @@ services:
       SECRETS_BACKEND: ${SECRETS_BACKEND}
       MASTER_SECRET: ${MASTER_SECRET}
       AWS_SM_KEY_PREFIX: ${AWS_SM_KEY_PREFIX}
+      MESSAGING_WEBHOOKS_PUBLIC_URL: ${MESSAGING_WEBHOOKS_PUBLIC_URL}
       KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY}
       KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY: ${KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY}
       KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
@@ -770,6 +809,8 @@ services:
       BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
       ENV_SLUG: ${ENV_SLUG}
+      # Messaging, the same callback base as harvest and windmill.
+      MESSAGING_WEBHOOKS_PUBLIC_URL: ${MESSAGING_WEBHOOKS_PUBLIC_URL}
 
   postgres-b3:
     profiles: ["full", "base"]
