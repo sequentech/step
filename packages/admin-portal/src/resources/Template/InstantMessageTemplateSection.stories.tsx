@@ -70,7 +70,13 @@ let data: ReturnType<typeof resourceBoundary>
 const meta = {
     title: "Admin/Template/InstantMessageTemplateSection",
     component: InstantMessageTemplateSection,
-    args: {channel: EMessageChannel.WHATSAPP, withAccount: true, confirmed: false, roles: ["messaging-config-read"], onSubmit: fn()},
+    args: {
+        channel: EMessageChannel.WHATSAPP,
+        withAccount: true,
+        confirmed: false,
+        roles: ["messaging-config-read"],
+        onSubmit: fn(),
+    },
     argTypes: {
         channel: {
             control: "inline-radio",
