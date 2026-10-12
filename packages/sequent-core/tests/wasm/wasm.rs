@@ -136,5 +136,5 @@ fn javascript_type_errors_and_obsolete_versions_are_rejected() {
         .unwrap_err()
         .as_string()
         .unwrap()
-        .contains("Unexpected version 1, expected 2"));
+        .contains("Unexpected version 1, expected 3"));
 }
