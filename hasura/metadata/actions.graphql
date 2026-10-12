@@ -2904,7 +2904,9 @@ type Query {
 }
 
 type Mutation {
-    messaging_recount_voters(election_event_id: uuid!): MessagingRecountVotersOutput
+    messaging_recount_voters(
+        election_event_id: uuid!
+    ): MessagingRecountVotersOutput
 }
 
 type Query {
