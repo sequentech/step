@@ -398,10 +398,14 @@ const spanishTranslation: TranslationType = {
             common: {
                 gapiKey: "Clave de Cuenta de Servicio de Google Calendar",
                 gapiEmail: "Correo de Autenticación de Google Calendar",
+                gapiKeyHelper:
+                    "La clave guardada no se muestra. Pegue una clave nueva para reemplazarla.",
+                gapiKeySaved: "Clave de Cuenta de Servicio de Google Calendar guardada",
             },
             errors: {
                 invalidGapiKey:
                     "Formato de Clave de Cuenta de Servicio de Google Calendar inválido",
+                saveGapiKey: "No se pudo guardar la Clave de Cuenta de Servicio de Google Calendar",
             },
         },
         lookAndFeelScreen: {
@@ -945,6 +949,15 @@ const spanishTranslation: TranslationType = {
                     options: {
                         enabled: "Habilitado",
                         disabled: "Deshabilitado",
+                    },
+                },
+                batchAnonymityPolicy: {
+                    policyLabel: "Política de Anonimato de Lotes",
+                    helperText:
+                        "Rechazar detiene el recuento cuando el lote de papeletas de un área tiene menos de cinco votantes, o difiere del lote que otro recuento ya publicó para la misma área y pregunta.",
+                    options: {
+                        warn: "Advertir",
+                        refuse: "Rechazar",
                     },
                 },
                 languageDetectionPolicy: {

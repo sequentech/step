@@ -399,9 +399,13 @@ const frenchTranslation: TranslationType = {
             common: {
                 gapiKey: "Clé de Compte de Service Google Calendar",
                 gapiEmail: "Email d'Authentification Google Calendar",
+                gapiKeyHelper:
+                    "La clé enregistrée n'est pas affichée. Collez une nouvelle clé pour la remplacer.",
+                gapiKeySaved: "Clé de Compte de Service Google Calendar enregistrée",
             },
             errors: {
                 invalidGapiKey: "Format de Clé de Compte de Service Google Calendar invalide",
+                saveGapiKey: "Impossible d'enregistrer la Clé de Compte de Service Google Calendar",
             },
         },
         lookAndFeelScreen: {
@@ -949,6 +953,15 @@ const frenchTranslation: TranslationType = {
                     options: {
                         enabled: "Activé",
                         disabled: "Désactivé",
+                    },
+                },
+                batchAnonymityPolicy: {
+                    policyLabel: "Politique d'Anonymat des Lots",
+                    helperText:
+                        "Refuser arrête le dépouillement lorsque le lot de bulletins d'une zone compte moins de cinq électeurs, ou diffère du lot qu'un autre dépouillement a déjà publié pour la même zone et la même question.",
+                    options: {
+                        warn: "Avertir",
+                        refuse: "Refuser",
                     },
                 },
                 languageDetectionPolicy: {

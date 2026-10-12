@@ -10,6 +10,7 @@ use rocket::http::{ContentType, Header, Status};
 use rocket::local::asynchronous::Client;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::signing::SigningAction;
 use sequent_core::types::permissions::Permissions;
 use serde_json::{json, Value};
 use windmill::services::external::datafix_types::{
@@ -24,12 +25,13 @@ mod http;
 #[path = "route_permissions.rs"]
 mod route_permissions;
 
-const TENANT_ID: &str = "tenant-a";
-const OTHER_TENANT_ID: &str = "tenant-b";
+const TENANT_ID: &str = "7d6f1c2a-5b0e-4e0a-9a43-2f6c1b8d9e10";
+const OTHER_TENANT_ID: &str = "c1a9d4f7-3e58-4b62-8f0d-6a2e7b9c4d31";
+const UUID_TENANT_ID: &str = "00000000-0000-0000-0000-00000000000a";
 const SUPER_ADMIN_TENANT_ID: &str = "fixture-super-admin";
 const USER_ID: &str = "test-user";
 // Update only with a reviewed change to the checked-in route inventory.
-const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 179;
+const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 180;
 
 const CHILD: &str = "HARVEST_ISOLATED_TEST_CHILD";
 
@@ -135,13 +137,13 @@ async fn role_creation_requires_create_permission_and_preserves_the_role() {
             ),
             http::Exchange::json(
                 "POST",
-                "/admin/realms/tenant-tenant-a/groups",
+                &format!("/admin/realms/tenant-{TENANT_ID}/groups"),
                 201,
                 json!({}),
             ),
             http::Exchange::json(
                 "GET",
-                "/admin/realms/tenant-tenant-a/groups",
+                &format!("/admin/realms/tenant-{TENANT_ID}/groups"),
                 200,
                 json!([{"id":"new-role", "name":"Election observer"}]),
             ),
@@ -718,11 +720,11 @@ async fn document_password_requires_both_download_and_password_permissions() {
 async fn role_assignment_requires_every_permission_and_the_matching_tenant() {
     // Choose an ordinary tenant even when the caller's environment names our
     // usual fixture tenant as super-admin. Never mutate process-global settings.
-    let tenant_id =
+    let (tenant_id, other_tenant_id) =
         if std::env::var("SUPER_ADMIN_TENANT_ID").as_deref() == Ok(TENANT_ID) {
-            OTHER_TENANT_ID
+            (OTHER_TENANT_ID, TENANT_ID)
         } else {
-            TENANT_ID
+            (TENANT_ID, OTHER_TENANT_ID)
         };
     let client = client().await;
     for path in ["/set-user-role", "/delete-user-role"] {
@@ -731,7 +733,7 @@ async fn role_assignment_requires_every_permission_and_the_matching_tenant() {
             (tenant_id, vec![Permissions::USER_WRITE]),
             (tenant_id, vec![Permissions::ROLE_WRITE]),
             (
-                "fixture-other-request-tenant",
+                other_tenant_id,
                 vec![Permissions::USER_WRITE, Permissions::ROLE_WRITE],
             ),
         ] {
@@ -745,6 +747,118 @@ async fn role_assignment_requires_every_permission_and_the_matching_tenant() {
             );
         }
     }
+}
+
+#[rocket::async_test]
+async fn role_permission_changes_reject_role_ids_that_are_not_one_path_segment()
+{
+    let sign_permission =
+        SigningAction::OpenVoting.sign_permission().to_string();
+    let client = client().await;
+    for path in ["/set-role-permission", "/delete-role-permission"] {
+        for permission_name in ["test-permission", sign_permission.as_str()] {
+            let response = client
+                .post(path)
+                .header(ContentType::JSON)
+                .header(authorization_for(
+                    UUID_TENANT_ID,
+                    &[
+                        Permissions::USER_PERMISSION_WRITE,
+                        Permissions::ROLE_WRITE,
+                    ],
+                ))
+                .body(
+                    json!({
+                        "tenant_id": UUID_TENANT_ID,
+                        "role_id": "../../other-realm",
+                        "permission_name": permission_name,
+                    })
+                    .to_string(),
+                )
+                .dispatch()
+                .await;
+            assert_eq!(
+                response.status(),
+                Status::BadRequest,
+                "{path}: {permission_name} must reject before any backend call"
+            );
+        }
+    }
+}
+
+#[rocket::async_test]
+async fn realm_routes_reject_event_ids_that_are_not_uuids() {
+    let password_policy = json!({
+        "minimum_length": 8,
+        "maximum_length": 64,
+        "include_uppercase": true,
+        "include_lowercase": true,
+        "include_digits": true,
+        "include_special_characters": false,
+    });
+    let client = client().await;
+    for (path, permission, mut body) in [
+        (
+            "/get-realm-attributes",
+            Permissions::KEYCLOAK_REALM_ATTRIBUTES_READ,
+            json!({}),
+        ),
+        (
+            "/update-realm-attributes",
+            Permissions::KEYCLOAK_REALM_ATTRIBUTES_WRITE,
+            json!({"attributes": {}}),
+        ),
+        (
+            "/get-realm-password-policy",
+            Permissions::ELECTION_EVENT_READ,
+            json!({}),
+        ),
+        (
+            "/update-realm-password-policy",
+            Permissions::ELECTION_EVENT_WRITE,
+            password_policy,
+        ),
+    ] {
+        body["election_event_id"] = json!("x/../tenant-other-event-other");
+        let response = client
+            .post(path)
+            .header(ContentType::JSON)
+            .header(authorization_for(UUID_TENANT_ID, &[permission]))
+            .body(body.to_string())
+            .dispatch()
+            .await;
+        assert_eq!(
+            response.status(),
+            Status::BadRequest,
+            "{path} must reject before any backend call"
+        );
+    }
+}
+
+#[rocket::async_test]
+async fn role_deletion_rejects_role_ids_that_are_not_one_path_segment() {
+    let client = client().await;
+    let response = client
+        .post("/delete-role")
+        .header(ContentType::JSON)
+        .header(authorization_for(
+            UUID_TENANT_ID,
+            &[Permissions::ROLE_WRITE],
+        ))
+        .body(
+            json!({
+                "tenant_id": UUID_TENANT_ID,
+                "role_id": "../../other-realm",
+            })
+            .to_string(),
+        )
+        .dispatch()
+        .await;
+    assert_eq!(
+        response.status(),
+        Status::BadRequest,
+        "/delete-role must reject before any backend call"
+    );
 }
 
 #[rocket::async_test]
@@ -1267,4 +1381,242 @@ async fn deleting_an_event_with_ballot_box_seals_is_refused_before_its_task() {
         error.starts_with("Failed to check the ballot box seals"),
         "{error}"
     );
+}
+
+#[rocket::async_test]
+async fn deleting_an_event_that_must_be_kept_is_refused_before_its_task() {
+    const TEST: &str = "request_boundaries::deleting_an_event_that_must_be_kept_is_refused_before_its_task";
+    if !is_isolated_child() {
+        run_isolated_with_postgres(TEST, "http://127.0.0.1:9", true);
+        return;
+    }
+    use crate::route_services::{
+        json as response_json, post, rows, text, Services,
+    };
+    let services = Services::on_test_database().await;
+    let database: String =
+        rows::query(&services.hasura, "SELECT current_database() AS name", &[])
+            .await[0]
+            .get("name");
+    std::env::set_var("HASURA_DB__DBNAME", database);
+    let client = services.client().await;
+
+    let open = rows::event(&services.hasura).await;
+    let open_id = uuid::Uuid::parse_str(&open.election_event_id).unwrap();
+    rows::execute(
+        &services.hasura,
+        "UPDATE sequent_backend.election_event SET status = $1
+         WHERE id = $2
+           AND set_config('sequent.trusted_write', 'on', true) = 'on'",
+        &[&json!({"voting_status": "OPEN"}), &open_id],
+    )
+    .await;
+    let deleter = Claims::new(&open.tenant_id, USER_ID)
+        .roles([Permissions::ELECTION_EVENT_DELETE]);
+    let (status, output) = response_json(
+        post(
+            &client,
+            "/delete-election-event",
+            &deleter,
+            &json!({"election_event_id": open.election_event_id}),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{output}");
+    assert_eq!(output["id"], json!(open.election_event_id));
+    let message = output["error_msg"].as_str().unwrap();
+    assert!(message.contains("Voting is open or paused"), "{message}");
+    let task =
+        uuid::Uuid::parse_str(output["task_execution"]["id"].as_str().unwrap())
+            .unwrap();
+    let stored = rows::query(
+        &services.hasura,
+        "SELECT execution_status FROM sequent_backend.tasks_execution WHERE id = $1",
+        &[&task],
+    )
+    .await;
+    assert_eq!(stored[0].get::<_, String>("execution_status"), "FAILED");
+    let events = rows::query(
+        &services.hasura,
+        "SELECT count(*) AS n FROM sequent_backend.election_event WHERE id = $1",
+        &[&open_id],
+    )
+    .await;
+    assert_eq!(events[0].get::<_, i64>("n"), 1);
+
+    let locked = rows::event(&services.hasura).await;
+    let locked_id = uuid::Uuid::parse_str(&locked.election_event_id).unwrap();
+    rows::execute(
+        &services.hasura,
+        "UPDATE sequent_backend.election_event SET presentation = $1
+         WHERE id = $2
+           AND set_config('sequent.trusted_write', 'on', true) = 'on'",
+        &[&json!({"locked_down": "locked-down"}), &locked_id],
+    )
+    .await;
+    let deleter = Claims::new(&locked.tenant_id, USER_ID)
+        .roles([Permissions::ELECTION_EVENT_DELETE]);
+    let (status, output) = response_json(
+        post(
+            &client,
+            "/delete-election-event",
+            &deleter,
+            &json!({"election_event_id": locked.election_event_id}),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{output}");
+    assert_eq!(
+        output["error_msg"],
+        json!("The election event is locked down")
+    );
+
+    // A status that cannot be read means the checks cannot run: a server
+    // error, not a delete.
+    let unreadable = rows::event(&services.hasura).await;
+    let unreadable_id =
+        uuid::Uuid::parse_str(&unreadable.election_event_id).unwrap();
+    rows::execute(
+        &services.hasura,
+        "UPDATE sequent_backend.election_event SET status = $1
+         WHERE id = $2
+           AND set_config('sequent.trusted_write', 'on', true) = 'on'",
+        &[&json!({"voting_status": "NOT-A-STATUS"}), &unreadable_id],
+    )
+    .await;
+    let deleter = Claims::new(&unreadable.tenant_id, USER_ID)
+        .roles([Permissions::ELECTION_EVENT_DELETE]);
+    let (status, error) = text(
+        post(
+            &client,
+            "/delete-election-event",
+            &deleter,
+            &json!({"election_event_id": unreadable.election_event_id}),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::InternalServerError);
+    assert!(
+        error.starts_with(
+            "Failed to check whether the election event can be deleted"
+        ),
+        "{error}"
+    );
+}
+
+#[rocket::async_test]
+async fn setting_the_google_service_account_key_stores_it_in_the_vault() {
+    const TEST: &str = "request_boundaries::setting_the_google_service_account_key_stores_it_in_the_vault";
+    if !is_isolated_child() {
+        run_isolated_with_postgres(TEST, "http://127.0.0.1:9", true);
+        return;
+    }
+    use crate::route_services::{
+        json as response_json, post, rows, text, Services,
+    };
+    use windmill::services::google_meet::service_account_key_secret_name;
+    std::env::set_var("MASTER_SECRET", "5a".repeat(32));
+    let services = Services::on_test_database().await;
+    let database: String =
+        rows::query(&services.hasura, "SELECT current_database() AS name", &[])
+            .await[0]
+            .get("name");
+    std::env::set_var("HASURA_DB__DBNAME", database);
+    let client = services.client().await;
+    let service_account_key = |token_uri: &str| {
+        json!({
+            "type": "service_account",
+            "private_key": "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----\n",
+            "client_email": "meet@project.iam.gserviceaccount.com",
+            "token_uri": token_uri,
+        })
+    };
+
+    let event = rows::event(&services.hasura).await;
+    let tenant_id = uuid::Uuid::parse_str(&event.tenant_id).unwrap();
+    rows::execute(
+        &services.hasura,
+        "UPDATE sequent_backend.tenant SET settings = $1 WHERE id = $2",
+        &[
+            &json!({
+                "gapi_key": service_account_key("https://oauth2.googleapis.com/token"),
+                "gapi_email": "organizer@example.org",
+            }),
+            &tenant_id,
+        ],
+    )
+    .await;
+    let writer = Claims::new(&event.tenant_id, USER_ID)
+        .roles([Permissions::TENANT_WRITE]);
+
+    let (status, output) = response_json(
+        post(
+            &client,
+            "/set-google-service-account-key",
+            &writer,
+            &json!({"service_account_key": service_account_key("https://oauth2.googleapis.com/token")}),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{output}");
+    assert_eq!(
+        output,
+        json!({"client_email": "meet@project.iam.gserviceaccount.com"})
+    );
+    let secrets = rows::query(
+        &services.hasura,
+        "SELECT count(*) AS n FROM sequent_backend.secret WHERE tenant_id = $1 AND key = $2",
+        &[&tenant_id, &service_account_key_secret_name(&event.tenant_id)],
+    )
+    .await;
+    assert_eq!(secrets[0].get::<_, i64>("n"), 1);
+    let settings = rows::query(
+        &services.hasura,
+        "SELECT settings FROM sequent_backend.tenant WHERE id = $1",
+        &[&tenant_id],
+    )
+    .await;
+    assert_eq!(
+        settings[0].get::<_, Value>("settings"),
+        json!({"gapi_email": "organizer@example.org"})
+    );
+
+    // A key that cannot be used is the caller's mistake.
+    for (body, message) in [
+        (
+            json!({"service_account_key": {"type": "service_account"}}),
+            "Failed to parse service account key",
+        ),
+        (
+            json!({"service_account_key": service_account_key("https://example.org/token")}),
+            "Token URI not allowed",
+        ),
+    ] {
+        let (status, error) = text(
+            post(&client, "/set-google-service-account-key", &writer, &body)
+                .await,
+        )
+        .await;
+        assert_eq!(status, Status::BadRequest, "{error}");
+        assert!(error.contains(message), "{error}");
+    }
+
+    // A tenant that does not exist cannot own a secret.
+    let stranger = Claims::new(&uuid::Uuid::new_v4().to_string(), USER_ID)
+        .roles([Permissions::TENANT_WRITE]);
+    let (status, error) = text(
+        post(
+            &client,
+            "/set-google-service-account-key",
+            &stranger,
+            &json!({"service_account_key": service_account_key("https://oauth2.googleapis.com/token")}),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::InternalServerError, "{error}");
 }

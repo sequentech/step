@@ -253,7 +253,7 @@ Your Sequent Step environment should now be up and running! You can access the d
 *   **Keycloak:** `https://login-remote-deployment.sequent.vote`
 *   **MinIO:** `https://minio-remote-deployment.sequent.vote`
 
-> **⚠️ Security Warning:** The default credentials for the Admin Portal are set to `admin` / `admin`. **You MUST change this immediately** in a production environment: Login to the Admin Portal, go to Users and Roles → For the User name `admin` click on Actions → Change Password. 
+> **First Admin Portal login:** The realm template contains no passwords, so the `admin` user cannot sign in until you set one. Open the Keycloak console (`KEYCLOAK_ADMIN` and `KEYCLOAK_ADMIN_PASSWORD` in the `.env` file), select the `tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5` realm, go to Users → `admin` → Credentials and set a temporary password. Sign in to the Admin Portal as `admin` with it and choose your own password when asked.
 > - **Keycloak admin console password:** If you need to login to the keycloak console, the password is stored in the `.env` file as `KEYCLOAK_ADMIN_PASSWORD`. This password was randomly generated during the deployment process and is unique to your deployment, the same for MinIO and Hasura Console.
 
 ## Troubleshooting
@@ -426,6 +426,12 @@ docker compose -f docker-compose-remote.yml build <service-name>
 # Restart services to apply changes
 docker compose -f docker-compose-remote.yml up -d
 ```
+
+### Trustee Configuration
+
+Each trustee generates its configuration on first start and keeps it in its volume (`trustee1_data`, `trustee2_data`) at `/opt/braid/trustee.toml`, the path that `TRUSTEE1_CONFIG` and `TRUSTEE2_CONFIG` name in `.env`. The trustee logs its `signing_key_pk` at startup; use that value as the trustee's public key in the Admin Portal. The trustees refuse the sample configurations in `packages/braid/scripts` unless `TRUSTEE_SAMPLE_KEYS_POLICY=Allow`.
+
+Deployments created before this behaviour keep `/opt/braid/trustee1.toml` and `/opt/braid/trustee2.toml`, copied from those samples, in the trustee volumes. With the earlier `.env` values their trustees stop at startup; with the current ones they generate new configurations. Election events whose keys were created with the sample configurations can only be tallied with them. To finish such an event, set `TRUSTEE1_CONFIG=/opt/braid/trustee1.toml`, `TRUSTEE2_CONFIG=/opt/braid/trustee2.toml` and `TRUSTEE_SAMPLE_KEYS_POLICY=Allow` in `.env` and recreate the trustees with `docker compose -f docker-compose-remote.yml up -d trustee1 trustee2`. When no such event is left, restore the values from `.env.remote-deployment.example`, recreate the trustees the same way, update their public keys in the Admin Portal and run a new key ceremony for later election events.
 
 ### Fixing Nginx Proxy Issues
 

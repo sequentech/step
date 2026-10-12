@@ -74,6 +74,7 @@ import {
     EElectionEventAutomaticRecountPolicy,
     EElectionEventWeightedVotingPolicy,
     EElectionEventDelegatedVotingPolicy,
+    EElectionEventBatchAnonymityPolicy,
     EResultsWebsiteAccess,
     EResultsWebsiteStatus,
     EResultsWebsiteVisibilityScope,
@@ -152,6 +153,7 @@ import {getGraphQLActionErrorReason} from "@/services/graphqlActionError"
 import {ballotBoxSealPolicyLock, ESealPolicyLock} from "@/services/ElectionStatus"
 import {effectiveSealRecordPolicy} from "@/services/ballotBoxSealPolicy"
 import {sealErrorText} from "@/services/ballotBoxSealErrors"
+import {policyOptions} from "@/services/policyOptions"
 import {timeZoneContextOf} from "@/components/timezones/useTimeZoneContext"
 import {
     CONFIGURE_RESULTS_WEBSITE_POLICY,
@@ -2268,6 +2270,23 @@ export const EditElectionEventDataForm: React.FC<{
                             )}
                             {...sealSettingProps(EElectionEventDelegatedVotingPolicy.DISABLED)}
                             emptyText={undefined}
+                        />
+                        <SelectInput
+                            source={"presentation.batch_anonymity_policy"}
+                            choices={policyOptions(
+                                Object.values(EElectionEventBatchAnonymityPolicy),
+                                "electionEventScreen.field.batchAnonymityPolicy.options",
+                                t
+                            )}
+                            label={String(
+                                t("electionEventScreen.field.batchAnonymityPolicy.policyLabel")
+                            )}
+                            helperText={String(
+                                t("electionEventScreen.field.batchAnonymityPolicy.helperText")
+                            )}
+                            defaultValue={EElectionEventBatchAnonymityPolicy.WARN}
+                            emptyText={undefined}
+                            validate={required()}
                         />
                         {canConfigureResultsWebsite ? <ResultsWebsitePolicyFields /> : null}
                         <Typography
