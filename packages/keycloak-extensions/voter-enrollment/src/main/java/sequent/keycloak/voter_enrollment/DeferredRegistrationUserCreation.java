@@ -10,7 +10,6 @@ import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -117,6 +116,18 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   public static final String HIDDEN_PROFILE_ATTRIBUTES_DEFAULT = UserModel.LOCALE;
   public static final String CHANNEL_CHOICE_POLICY = "channel-choice-policy";
   public static final String POST_ELECTION_ATTRIBUTE = "post-election-attribute";
+
+  /**
+   * Event details that the event listener reads to classify an event. They are set by
+   * authenticators, so a form field with one of these names is not copied into the event details.
+   */
+  private static final Set<String> RESERVED_EVENT_DETAILS =
+      Set.of(
+          sequent.keycloak.authenticator.Utils.EVENT_DETAIL_TYPE,
+          sequent.keycloak.authenticator.Utils.EVENT_DETAIL_MSG_BODY,
+          sequent.keycloak.authenticator.Utils.VOTER_CERT_SUBJECT_DN,
+          sequent.keycloak.authenticator.Utils.CA_CERT_ISSUER_CN,
+          sequent.keycloak.authenticator.Utils.AUTH_NOTE_DENY_TYPE);
 
   @Override
   public String getHelpText() {
@@ -640,7 +651,9 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         Stream<UserModel> currentStream =
             session
                 .users()
-                .searchForUserStream(realm, Collections.singletonMap(attribute, value.trim()));
+                .searchForUserStream(
+                    realm,
+                    Map.of(attribute, value.trim(), UserModel.EXACT, Boolean.TRUE.toString()));
 
         // Invalid if there's more than one user with specified attributes.
         if (currentStream.count() > 1) {
@@ -1088,6 +1101,10 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     return true;
   }
 
+  /**
+   * Adds the submitted form fields, except credentials, hidden profile attributes and {@link
+   * #RESERVED_EVENT_DETAILS}, to the registration event, and links the event to the matched user.
+   */
   private void buildEventDetails(
       MultivaluedMap<String, String> formData,
       ValidationContext context,
@@ -1098,6 +1115,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         (key, value) -> {
           // Events reach the electoral log: never a voter's number or email address.
           if (value != null
+              && !RESERVED_EVENT_DETAILS.contains(key)
               && value.stream().noneMatch(entry -> ContactDetails.isContact(key, entry))) {
             context.getEvent().detail(key, value);
           }
