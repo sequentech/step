@@ -42,6 +42,61 @@ The runner discovers DKG and tally boards through Harvest, verifies signed
 configuration and message lineage, and resumes its local protocol sessions.
 Containers use `http://b4v6:3005` for the supplied native board service.
 
+## Development workspace
+
+Both **backend** and **full** development modes start `trustee1` and `trustee2`
+alongside `b4v6`, its PostgreSQL database, and LocalStack. The board and trustee
+watchers use locked release builds and share this checkout's
+`packages/rust-local-target/docker-dev` build cache. Each trustee has a separate
+`message_store` volume and uses its identity in `packages/trustee/dev/`.
+These checked-in identities are development fixtures; generate private identities
+for deployments.
+
+Complete each trustee account's password, profile and MFA setup as described
+above. Register **both** public keys from its configured identity in the
+administration portal. The runner uses the tenant's `api-key-client` and discovers
+only boards assigned to that trustee. A runner can start before enrollment and
+retries authentication while the account is being configured.
+
+`scripts/dev/step-dev mode` reads `.env.development` first and `.env` second.
+Existing workspaces therefore inherit new settings without replacing local
+overrides or secrets. Explicit local values still win: remove an obsolete
+override or update it when migrating a workspace. In particular,
+`WBRAID_S3_ENDPOINT_URL=http://localstack:4566` must be reachable from both native
+trustees and browser trustees. Add `127.0.0.1 localstack` to the browser host's
+hosts file and forward port `4566` from the workspace.
+The browser board URL defaults to `http://localhost:3005` through
+`WBRAID_BOARD_PUBLIC_URL`.
+
+To apply only the crypto service changes to an existing workspace, after checking
+its local settings and trustee enrollment, run from the checkout root:
+
+```sh
+docker compose --project-directory .devcontainer \
+  --env-file .devcontainer/.env.development --env-file .devcontainer/.env \
+  -f .devcontainer/docker-compose.yml --profile wbraid up -d --build --no-deps \
+  postgres-b4v6 localstack configure-localstack b4v6 trustee1 trustee2
+```
+
+This scopes recreation to the listed services and leaves the editor container
+running. Start them with existing Harvest and Keycloak services available.
+Generate a new key ceremony using the registered wbraid identities; legacy
+ceremonies and trustee session stores use incompatible protocol data.
+
+For a disposable end-to-end check that does not alter the workspace's services:
+
+```sh
+scripts/e2e/run.sh
+scripts/e2e/run-browser-trustees.sh
+```
+
+The native journeys cover automatic and manual key ceremonies and tallies,
+voting, ballot tracking, public verification and election archive import. The
+browser journeys exercise both ceremony policies with real Chromium trustees.
+Each launcher owns and cleans up its own Compose project and volumes.
+
+## Manual custody proofs
+
 For manual ceremonies, download the public custody request from the portal and
 produce a signed proof locally:
 

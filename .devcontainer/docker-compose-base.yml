@@ -272,7 +272,7 @@ services:
       "--watch", "Cargo.toml",
       "--watch", "Cargo.lock",
       "-x",
-      "run --bin b4v6 --features postgres --release"
+      "run --locked --bin b4v6 --features postgres --release"
     ]
     volumes:
       - b4v6_data:/var/lib/b4v6
@@ -294,6 +294,7 @@ services:
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       RUST_LOG: b4=info,b4v6=info
+      CARGO_TARGET_DIR: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/rust-local-target/docker-dev
       WBRAID_B4_BIND: 0.0.0.0:3005
       WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
       DATABASE_URL: postgres://postgres@postgres-b4v6:5432/b4
@@ -857,7 +858,7 @@ services:
 
   # Native trustees discover their assigned boards through Harvest.
   trustee1:
-    profiles: ["full", "wbraid"]
+    profiles: ["full", "base", "wbraid"]
     stdin_open: true
     image: sequentech.local/cargo-packages
     container_name: ${DEVCONTAINER_NAME_PREFIX:-}trustee1
@@ -887,13 +888,14 @@ services:
       "--ignore",
       "message_store/",
       "-x",
-      "run -- start"
+      "run --locked --release -- start"
     ]
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       LOG_LEVEL: ${LOG_LEVEL}
       TRUSTEE_NAME: trustee1
+      CARGO_TARGET_DIR: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/rust-local-target/docker-dev
       B4_URL: http://b4v6:3005
       TRUSTEE_CONFIG_PATH: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/trustee/dev/trustee1.toml
       TRUSTEE_PASSWORD: ${TRUSTEE1_PASSWORD}
@@ -904,7 +906,7 @@ services:
       TRUSTEE_KEYCLOAK_CLIENT_SECRET: ${TRUSTEE_KEYCLOAK_CLIENT_SECRET}
 
   trustee2:
-    profiles: ["full", "wbraid"]
+    profiles: ["full", "base", "wbraid"]
     stdin_open: true
     image: sequentech.local/cargo-packages
     container_name: ${DEVCONTAINER_NAME_PREFIX:-}trustee2
@@ -934,13 +936,14 @@ services:
       "--ignore",
       "message_store/",
       "-x",
-      "run -- start"
+      "run --locked --release -- start"
     ]
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       LOG_LEVEL: ${LOG_LEVEL}
       TRUSTEE_NAME: trustee2
+      CARGO_TARGET_DIR: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/rust-local-target/docker-dev
       B4_URL: http://b4v6:3005
       TRUSTEE_CONFIG_PATH: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/trustee/dev/trustee2.toml
       TRUSTEE_PASSWORD: ${TRUSTEE2_PASSWORD}

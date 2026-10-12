@@ -82,6 +82,8 @@
         "windmill",
         "beat",
         "b4v6",
+        "trustee1",
+        "trustee2",
         "localstack",
         "configure-localstack"
       ],
@@ -118,6 +120,8 @@
         "windmill",
         "beat",
         "b4v6",
+        "trustee1",
+        "trustee2",
         "localstack",
         "configure-localstack"
       ],
