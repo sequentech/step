@@ -254,6 +254,9 @@ issue = "https://github.com/sequentech/meta/issues/13755"
 "src/main.rs" = "Process startup only: reads the environment and launches the library's Rocket; Config::from_vars and build are measured."
 "src/tests.rs" = "Standalone unit-test module under cfg(test); the routes, relay and configuration remain measured."
 
+# Every measured file contains executable code; no scope exceptions.
+[profiles.messaging-webhooks.scope_exceptions]
+
 [profiles.harvest]
 package = "harvest"
 features = []
