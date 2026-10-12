@@ -15,6 +15,7 @@ use crate::services::ceremonies::sealed_box_ballots::{
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::election::{get_election_event_elections, ElectionHead};
 use crate::services::join::merge_join_csv;
+use crate::services::join::read_valid_ballot_voter_ids;
 use crate::services::join::{MergeJoinResult, MultiplicitySource};
 use crate::services::protocol_manager::*;
 use crate::services::public_keys::deserialize_public_key;
@@ -55,6 +56,7 @@ use sequent_core::types::keycloak::{
 };
 use serde_json::json;
 use std::collections::{HashMap, HashSet};
+use std::fs::File;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::elgamal::Ciphertext;
 use strand::serialization::StrandDeserialize;
@@ -166,6 +168,19 @@ pub async fn sealed_boxes_for_execution(
     )
     .await?;
     Ok(Some(sealed_boxes))
+}
+
+/// The voters of the ballots CSV (voter id in column 0, cast-vote status in
+/// column 3) whose valid ballot replaces their delegation. Only the delegate
+/// count depends on them.
+fn voters_replacing_their_delegation(
+    multiplicity_column: VoterMultiplicityColumn,
+    ballots_file: &File,
+) -> Result<Vec<String>> {
+    match multiplicity_column {
+        VoterMultiplicityColumn::DelegateCount => read_valid_ballot_voter_ids(ballots_file, 0, 3),
+        VoterMultiplicityColumn::VoteWeight | VoterMultiplicityColumn::None => Ok(Vec::new()),
+    }
 }
 
 #[instrument(skip_all, err)]
@@ -393,6 +408,12 @@ pub async fn insert_ballots_messages(
                             )
                             .await?;
 
+                            // A delegator's own valid ballot replaces their delegation.
+                            let voters_with_valid_ballot = voters_replacing_their_delegation(
+                                multiplicity_column,
+                                &ballots_temp_file.reopen()?,
+                            )?;
+
                             let ballots_temp_file = ballots_temp_file.reopen()?;
 
                             // Create a temporary file (auto-deleted when dropped)
@@ -420,6 +441,7 @@ pub async fn insert_ballots_messages(
                                 &election_alias,
                                 &users_temp_file.path().to_path_buf(),
                                 multiplicity_column,
+                                &voters_with_valid_ballot,
                             )
                             .await?;
 
@@ -807,8 +829,49 @@ pub async fn get_elections_end_dates(
 
 #[cfg(test)]
 mod tests {
-    use super::election_voter_authorization_aliases;
+    use super::{election_voter_authorization_aliases, voters_replacing_their_delegation};
+    use crate::services::users::VoterMultiplicityColumn;
     use std::collections::HashMap;
+    use std::io::Write;
+
+    fn ballots_file() -> tempfile::NamedTempFile {
+        let mut ballots = tempfile::NamedTempFile::new().unwrap();
+        writeln!(
+            ballots,
+            "alice,content-a,ONLINE,valid,10000000-0000-4000-8000-000000000001\n\
+             bob,content-b,ONLINE,discarded,10000000-0000-4000-8000-000000000002"
+        )
+        .unwrap();
+        ballots.flush().unwrap();
+        ballots
+    }
+
+    #[test]
+    fn only_the_delegate_count_reads_the_voters_with_a_valid_ballot() {
+        let ballots = ballots_file();
+        let voters =
+            |column| voters_replacing_their_delegation(column, &ballots.reopen().unwrap()).unwrap();
+
+        assert_eq!(
+            voters(VoterMultiplicityColumn::DelegateCount),
+            vec!["alice".to_string()]
+        );
+        assert!(voters(VoterMultiplicityColumn::VoteWeight).is_empty());
+        assert!(voters(VoterMultiplicityColumn::None).is_empty());
+    }
+
+    #[test]
+    fn a_ballots_file_without_the_status_column_is_an_error() {
+        let mut ballots = tempfile::NamedTempFile::new().unwrap();
+        writeln!(ballots, "alice,content-a").unwrap();
+        ballots.flush().unwrap();
+
+        assert!(voters_replacing_their_delegation(
+            VoterMultiplicityColumn::DelegateCount,
+            &ballots.reopen().unwrap()
+        )
+        .is_err());
+    }
 
     #[test]
     fn election_authorization_alias_uses_the_election_id_without_an_external_id() {

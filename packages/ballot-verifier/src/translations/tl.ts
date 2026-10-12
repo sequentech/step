@@ -31,6 +31,11 @@ const tagalogTranslation = {
                 "Nagkaroon ng problema sa pag-import ng sinisiyasat na balota. Tama ba ang napili mong file?",
             importErrorMoreInfo: "Karagdagang impormasyon",
             importErrorTitle: "Error",
+            verificationErrorTitle: "Nabigo ang pagberipika ng balota",
+            unpublishedStyleErrorDescription:
+                "Ang sinisiyasat na balotang ito ay hindi tumutugma sa alinmang balotang inilathala para sa election event na ito, kaya hindi ito maberipika.",
+            unavailableStyleErrorDescription:
+                "Hindi ma-load ang mga balotang inilathala para sa election event na ito, kaya hindi pa maberipika ang sinisiyasat na balotang ito. Pakisubukang muli.",
             useSampleLink: "Gamitin ang sample na balota",
             nextButton: "Susunod",
             ballotIdLabel: "ID ng Balota",

@@ -62,6 +62,7 @@ test("voting portal audit download verifies unchanged in the production verifier
     const verifier = verifierServices(verifierDist.origin)
     const unroute = await routeVerifier(context, verifier)
     try {
+        verifier.publishedStyles.push(portal.data.ballot)
         await page.goto(`${verifier.origin}${eventPath}`)
         await page.getByTestId("drop-input-file").setInputFiles({
             name: download.suggestedFilename(),

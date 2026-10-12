@@ -14,3 +14,4 @@ pub mod import_users;
 pub mod rejection;
 
 mod realm_identity_providers;
+mod realm_user_credentials;

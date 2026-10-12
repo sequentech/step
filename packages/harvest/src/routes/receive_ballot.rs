@@ -70,9 +70,9 @@ pub async fn receive_ballot(
         )
         .await
         .map_err(|receive_err| {
+            let elapsed_ms = start.elapsed().as_millis();
             info!(
-                "receive-ballot took {} ms to complete but failed with error={receive_err:?}",
-                start.elapsed().as_millis()
+                "receive-ballot took {elapsed_ms} ms to complete but failed with error={receive_err:?}"
             );
             cast_vote_error_response(receive_err)
         })?;

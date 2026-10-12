@@ -9,6 +9,7 @@ use serde_json::json;
 use serde_json::{Map, Value};
 use tracing::instrument;
 
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::tenant::get_tenant_by_id;
 use crate::services::documents::upload_and_return_document;
 use crate::services::reports::template_time::{
@@ -26,6 +27,7 @@ pub async fn render_report_task(
     election_event_id: String,
 ) -> Result<()> {
     let tenant = get_tenant_by_id(hasura_transaction, &tenant_id).await?;
+    get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id).await?;
 
     let username = tenant.slug.clone();
     let mut variables_map = input.variables.clone();
