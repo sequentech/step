@@ -1284,22 +1284,8 @@ async fn reserved_permission_names_are_not_assigned_to_a_role() {
 
 #[rocket::async_test]
 async fn a_reserved_permission_reached_by_another_spelling_is_not_assigned() {
-    for (requested, path) in [
-        ("%73ervice-account", format!("{ROLES}/%73ervice-account")),
-        (
-            "other/../service-account",
-            format!("{ROLES}/service-account"),
-        ),
-    ] {
-        let found = || {
-            Exchange::json(
-                "GET",
-                &path,
-                200,
-                json!({"id": "permission-1", "name": "service-account"}),
-            )
-        };
-        let peer = HttpServer::start(vec![found(), found()]);
+    for requested in ["%73ervice-account", "other/../service-account"] {
+        let peer = HttpServer::start(vec![]);
 
         let single = peer
             .client()
@@ -1314,10 +1300,7 @@ async fn a_reserved_permission_reached_by_another_spelling_is_not_assigned() {
             single.is_err() && bulk.is_err(),
             "{requested:?} was assigned"
         );
-        assert!(
-            peer.finish().iter().all(|request| request.method == "GET"),
-            "{requested:?} was assigned"
-        );
+        assert!(peer.finish().is_empty(), "{requested:?} reached Keycloak");
     }
 }
 
