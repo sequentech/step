@@ -148,10 +148,18 @@ test("edits area-contest print labels", async ({page, portal}) => {
 })
 
 for (const route of ["create", BALLOT_STYLE_ID]) {
-    test(`ballot style ${route === "create" ? "creation" : "detail"} route exposes no manual editor`, async ({page, portal}) => {
+    test(`ballot style ${route === "create" ? "creation" : "detail"} route exposes no manual editor`, async ({
+        page,
+        portal,
+    }) => {
         resources(portal)
         table(portal, "sequent_backend_ballot_style", [
-            {id: BALLOT_STYLE_ID, ...BALLOT_STYLE, created_at: FIXED_TIME, last_updated_at: FIXED_TIME},
+            {
+                id: BALLOT_STYLE_ID,
+                ...BALLOT_STYLE,
+                created_at: FIXED_TIME,
+                last_updated_at: FIXED_TIME,
+            },
         ])
         await page.goto(`${portal.origin}/sequent_backend_ballot_style/${route}?lang=en`)
         await expect(page.getByRole("heading", {name: "Ballot Styles", exact: true})).toBeVisible()

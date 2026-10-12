@@ -63,7 +63,9 @@ for (const method of ["EMAIL", "SMS"] as const) {
         // There's no channel choice: each voter is reached on their own channel.
         await selects.nth(1).click()
         await page.getByRole("option", {name: "Council reminder", exact: true}).click()
-        await drawer.getByRole("button", {name: method === "SMS" ? "SMS" : "Email", exact: true}).click()
+        await drawer
+            .getByRole("button", {name: method === "SMS" ? "SMS" : "Email", exact: true})
+            .click()
         if (method === "SMS") {
             await expect(drawer.getByRole("textbox", {name: "SMS Message"})).toHaveValue(
                 "Please vote today"
