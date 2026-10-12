@@ -1044,15 +1044,22 @@ const galegoTranslation: TranslationType = {
                 },
             },
             slates: {
-                title: "Candidaturas",
-                configuration: "Configuración de candidaturas (JSON)",
-                helper: "Candidaturas con nome e os candidatos que cada unha presenta en cada contenda. Déixao baleiro para unha elección sen candidaturas.",
-                loading:
-                    "As contendas e os candidatos da elección aínda se están a cargar. Téntao de novo nun momento.",
-                warnings: "Posibles erros (a configuración pódese gardar igualmente)",
+                enable: {
+                    label: "Habilitar candidaturas",
+                    helper: "Se está habilitado, os votantes poden escoller unha candidatura con nome e cambiar calquera contenda, incluídos os candidatos independentes.",
+                },
+                disable: {
+                    confirm: "Deshabilitar candidaturas",
+                    message_one:
+                        "Esta elección ten {{count}} candidatura. Ao deshabilitar as candidaturas eliminarase ao gardar.",
+                    message_many:
+                        "Esta elección ten {{count}} candidaturas. Ao deshabilitar as candidaturas eliminaranse ao gardar.",
+                    message_other:
+                        "Esta elección ten {{count}} candidaturas. Ao deshabilitar as candidaturas eliminaranse ao gardar.",
+                },
                 mobileCandidateLists: {
                     label: "Listas de candidatos no móbil",
-                    helper: "Como aparece inicialmente a lista de candidatos de cada candidatura no móbil. O votante sempre pode abrila ou pechala.",
+                    helper: "Como aparece inicialmente a lista de candidatos de cada candidatura no móbil: Contraídas ou Despregadas. Os votantes sempre poden abrir ou pechar calquera lista. No escritorio móstranse sempre todos os candidatos.",
                     options: {
                         collapsed: "Contraídas",
                         expanded: "Despregadas",
@@ -1782,6 +1789,7 @@ const galegoTranslation: TranslationType = {
             election: "Crear unha Elección",
             contest: "Crear unha Pregunta",
             candidate: "Crear un Candidato",
+            slate: "Crear unha Candidatura",
         },
         importResource: {
             electionEvent: "Importar un Evento Electoral",
@@ -1821,6 +1829,7 @@ const galegoTranslation: TranslationType = {
                     election: "Eliminar esta Elección",
                     contest: "Eliminar esta Pregunta",
                     candidate: "Eliminar este Candidato",
+                    slate: "Eliminar esta Candidatura",
                 },
                 messages: {
                     confirm: {
@@ -1883,6 +1892,38 @@ const galegoTranslation: TranslationType = {
             error: {},
             createCandidateSuccess: "Candidato creado",
             createCandidateError: "Erro ao crear o candidato",
+        },
+        slateScreen: {
+            common: {
+                subtitle: "Configuración da candidatura.",
+                newSlate: "Nova candidatura",
+                notFound: "Esta candidatura non existe.",
+            },
+            tabs: {
+                data: "Datos",
+            },
+            edit: {
+                general: "Xeral",
+                members: "Membros",
+            },
+            field: {
+                name: "Nome",
+                alias: "Alias",
+                description: "Descrición",
+                externalId: "ID externo",
+            },
+            members: {
+                helper: "Asigna ata o número máximo de candidatos de cada contenda. Deixa unha contenda baleira para que esta candidatura non a cubra. Os candidatos que non están en ningunha candidatura aparecen como Independentes nesa contenda.",
+                contest: "Contenda",
+                candidate: "Candidato",
+                noCandidate: "Sen candidato",
+            },
+            messages: {
+                saved: "Candidatura gardada",
+                invalid: "Non se pode gardar a candidatura. Corrixe os problemas indicados abaixo.",
+                error: "Non se puido gardar a candidatura.",
+                unreadable: "Non se pode ler a configuración de candidaturas da elección.",
+            },
         },
         contestScreen: {
             common: {

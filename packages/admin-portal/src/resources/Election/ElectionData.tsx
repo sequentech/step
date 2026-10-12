@@ -8,13 +8,19 @@ import {ElectionDataForm} from "./ElectionDataForm"
 import {Sequent_Backend_Election_Extended} from "./ElectionDataForm"
 import {ITemplateMethod, IRECEIPTS} from "@/types/templates"
 import {Sequent_Backend_Election} from "@/gql/graphql"
-import {ContestsOrder, IContestPresentation, IElectionPresentation} from "@sequentech/ui-core"
+import {
+    ContestsOrder,
+    EMobileCandidateLists,
+    IContestPresentation,
+    IElectionPresentation,
+} from "@sequentech/ui-core"
 import {serializeIvrEntityAnnotations} from "@/utils/ivr"
 import {
-    SLATES_FORM_FIELD,
+    SLATES_ENABLED_FIELD,
+    SLATES_MOBILE_CANDIDATE_LISTS_FIELD,
+    applySlatesSettings,
     formatSlatesProblems,
     slatesProblemsFromError,
-    writeSlatesConfiguration,
 } from "@/utils/slates"
 
 export const EditElectionData: React.FC = () => {
@@ -110,9 +116,14 @@ export const EditElectionData: React.FC = () => {
         data.description = fromPresentationDescription
         // END name, alias and description fields
         try {
-            data.annotations = writeSlatesConfiguration(
+            data.annotations = applySlatesSettings(
                 serializeIvrEntityAnnotations(data.annotations),
-                data[SLATES_FORM_FIELD]
+                {
+                    enabled: data[SLATES_ENABLED_FIELD] === true,
+                    mobileCandidateLists:
+                        data[SLATES_MOBILE_CANDIDATE_LISTS_FIELD] ??
+                        EMobileCandidateLists.COLLAPSED,
+                }
             )
         } catch (error) {
             const problems = slatesProblemsFromError(error)
@@ -124,7 +135,8 @@ export const EditElectionData: React.FC = () => {
             notify(message, {type: "error"})
             throw error
         }
-        delete data[SLATES_FORM_FIELD]
+        delete data[SLATES_ENABLED_FIELD]
+        delete data[SLATES_MOBILE_CANDIDATE_LISTS_FIELD]
 
         return {
             ...data,

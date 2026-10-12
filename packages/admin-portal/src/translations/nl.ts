@@ -1043,15 +1043,22 @@ const dutchTranslation: TranslationType = {
                 },
             },
             slates: {
-                title: "Lijsten",
-                configuration: "Lijstconfiguratie (JSON)",
-                helper: "Benoemde lijsten en de kandidaten die elke lijst per verkiezingsonderdeel voordraagt. Laat leeg voor een verkiezing zonder lijsten.",
-                loading:
-                    "De verkiezingsonderdelen en kandidaten van de verkiezing worden nog geladen. Probeer het zo opnieuw.",
-                warnings: "Mogelijke fouten (de configuratie kan toch worden opgeslagen)",
+                enable: {
+                    label: "Lijsten inschakelen",
+                    helper: "Als dit is ingeschakeld, kunnen kiezers een benoemde lijst kiezen en elke stemming aanpassen, ook met onafhankelijke kandidaten.",
+                },
+                disable: {
+                    confirm: "Lijsten uitschakelen",
+                    message_one:
+                        "Deze verkiezing heeft {{count}} lijst. Als je lijsten uitschakelt, wordt die bij het opslaan verwijderd.",
+                    message_many:
+                        "Deze verkiezing heeft {{count}} lijsten. Als je lijsten uitschakelt, worden ze bij het opslaan verwijderd.",
+                    message_other:
+                        "Deze verkiezing heeft {{count}} lijsten. Als je lijsten uitschakelt, worden ze bij het opslaan verwijderd.",
+                },
                 mobileCandidateLists: {
                     label: "Kandidatenlijsten op mobiel",
-                    helper: "Hoe de kandidatenlijst van elke lijst op een telefoon begint. De kiezer kan deze altijd openen of sluiten.",
+                    helper: "Hoe de kandidatenlijst van elke lijst op een telefoon begint: Ingeklapt of Uitgeklapt. Kiezers kunnen elke lijst altijd openen of sluiten. Op desktop worden altijd alle kandidaten getoond.",
                     options: {
                         collapsed: "Ingeklapt",
                         expanded: "Uitgeklapt",
@@ -1779,6 +1786,7 @@ const dutchTranslation: TranslationType = {
             election: "Een Verkiezing aanmaken",
             contest: "Een Stemming aanmaken",
             candidate: "Een Kandidaat aanmaken",
+            slate: "Een Lijst maken",
         },
         importResource: {
             electionEvent: "Een Verkiezingsevenement importeren",
@@ -1818,6 +1826,7 @@ const dutchTranslation: TranslationType = {
                     election: "Deze Verkiezing verwijderen",
                     contest: "Deze Stemming verwijderen",
                     candidate: "Deze Kandidaat verwijderen",
+                    slate: "Deze Lijst verwijderen",
                 },
                 messages: {
                     confirm: {
@@ -1881,6 +1890,38 @@ const dutchTranslation: TranslationType = {
             error: {},
             createCandidateSuccess: "Kandidaat aangemaakt",
             createCandidateError: "Fout bij aanmaken kandidaat",
+        },
+        slateScreen: {
+            common: {
+                subtitle: "Lijstconfiguratie.",
+                newSlate: "Nieuwe lijst",
+                notFound: "Deze lijst bestaat niet.",
+            },
+            tabs: {
+                data: "Gegevens",
+            },
+            edit: {
+                general: "Algemeen",
+                members: "Leden",
+            },
+            field: {
+                name: "Naam",
+                alias: "Alias",
+                description: "Beschrijving",
+                externalId: "Externe ID",
+            },
+            members: {
+                helper: "Wijs per stemming kandidaten toe tot het maximumaantal. Laat een stemming leeg als deze lijst daar niemand voordraagt. Kandidaten die op geen enkele lijst staan, verschijnen in die stemming als Onafhankelijk.",
+                contest: "Stemming",
+                candidate: "Kandidaat",
+                noCandidate: "Geen kandidaat",
+            },
+            messages: {
+                saved: "Lijst opgeslagen",
+                invalid: "De lijst kan niet worden opgeslagen. Los de onderstaande problemen op.",
+                error: "De lijst kon niet worden opgeslagen.",
+                unreadable: "De lijstconfiguratie van de verkiezing kan niet worden gelezen.",
+            },
         },
         contestScreen: {
             common: {

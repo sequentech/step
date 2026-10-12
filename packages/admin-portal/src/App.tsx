@@ -28,6 +28,8 @@ import {ListElection} from "./resources/Election/ListElection"
 import {ListTenant} from "./resources/Tenant/ListTenant"
 import {Messages} from "./screens/Messages"
 import {Navigate, Route} from "react-router-dom"
+import {SlatePage} from "./resources/Slate/SlatePage"
+import {CREATE_SLATE_ROUTE, SLATE_ROUTE} from "./resources/Slate/slatePaths"
 import {ShowDocument} from "./resources/Document/ShowDocument"
 import {UserAndRoles} from "./screens/UserAndRoles"
 import buildHasuraProvider from "ra-data-hasura"
@@ -183,7 +185,10 @@ const App: React.FC<AppProps> = () => {
                         menuParent: "sequent_backend_election_event",
                         foreignKeyFrom: "election_event_id",
                     }}
-                />
+                >
+                    <Route path={SLATE_ROUTE} element={<SlatePage />} />
+                    <Route path={CREATE_SLATE_ROUTE} element={<SlatePage />} />
+                </Resource>
 
                 <Resource
                     name="sequent_backend_contest"

@@ -1047,15 +1047,22 @@ const tagalogTranslation: TranslationType = {
                 },
             },
             slates: {
-                title: "Mga Slate",
-                configuration: "Configuration ng mga slate (JSON)",
-                helper: "Mga slate na may pangalan at ang mga kandidato ng bawat isa sa bawat paligsahan. Iwanang walang laman para sa halalang walang slate.",
-                loading:
-                    "Nilo-load pa ang mga paligsahan at kandidato ng halalan. Subukan muli sa ilang sandali.",
-                warnings: "Mga posibleng mali (maaari pa ring i-save ang configuration)",
+                enable: {
+                    label: "I-enable ang mga slate",
+                    helper: "Kapag naka-enable, makakapili ang mga botante ng slate na may pangalan at mababago ang anumang paligsahan, kasama ang mga independiyenteng kandidato.",
+                },
+                disable: {
+                    confirm: "I-disable ang mga slate",
+                    message_one:
+                        "May {{count}} slate ang halalang ito. Kapag in-disable ang mga slate, buburahin ito pag-save.",
+                    message_many:
+                        "May {{count}} na slate ang halalang ito. Kapag in-disable ang mga slate, buburahin ang mga ito pag-save.",
+                    message_other:
+                        "May {{count}} na slate ang halalang ito. Kapag in-disable ang mga slate, buburahin ang mga ito pag-save.",
+                },
                 mobileCandidateLists: {
                     label: "Mga listahan ng kandidato sa mobile",
-                    helper: "Kung paano nagsisimula ang listahan ng kandidato ng bawat slate sa telepono. Maaari itong buksan o isara ng botante anumang oras.",
+                    helper: "Kung paano unang lumalabas sa telepono ang listahan ng kandidato ng bawat slate: Nakatiklop o Nakabukas. Maaari pa ring buksan o isara ng mga botante ang anumang listahan. Sa desktop, laging ipinapakita ang lahat ng kandidato.",
                     options: {
                         collapsed: "Nakatiklop",
                         expanded: "Nakabukas",
@@ -1785,6 +1792,7 @@ const tagalogTranslation: TranslationType = {
             election: "Lumikha ng Halalan",
             contest: "Lumikha ng Paligsahan",
             candidate: "Lumikha ng Kandidato",
+            slate: "Gumawa ng Slate",
         },
         importResource: {
             electionEvent: "Mag-import ng Kaganapan ng Halalan",
@@ -1824,6 +1832,7 @@ const tagalogTranslation: TranslationType = {
                     election: "Tanggalin ang Halalan",
                     contest: "Tanggalin ang Paligsahan",
                     candidate: "Tanggalin ang Kandidato",
+                    slate: "Alisin ang Slate na ito",
                 },
                 messages: {
                     confirm: {
@@ -1886,6 +1895,38 @@ const tagalogTranslation: TranslationType = {
             error: {},
             createCandidateSuccess: "Kandidato ay nalikha",
             createCandidateError: "Error sa paglikha ng kandidato",
+        },
+        slateScreen: {
+            common: {
+                subtitle: "Configuration ng slate.",
+                newSlate: "Bagong slate",
+                notFound: "Walang ganitong slate.",
+            },
+            tabs: {
+                data: "Datos",
+            },
+            edit: {
+                general: "Pangkalahatan",
+                members: "Mga Miyembro",
+            },
+            field: {
+                name: "Pangalan",
+                alias: "Alyas",
+                description: "Paglalarawan",
+                externalId: "External ID",
+            },
+            members: {
+                helper: "Magtalaga ng mga kandidato hanggang sa pinakamataas na bilang ng bawat paligsahan. Iwanang walang laman ang isang paligsahan para walang kandidato ang slate na ito roon. Ang mga kandidatong wala sa anumang slate ay lalabas bilang Independiyente sa paligsahang iyon.",
+                contest: "Paligsahan",
+                candidate: "Kandidato",
+                noCandidate: "Walang kandidato",
+            },
+            messages: {
+                saved: "Na-save ang slate",
+                invalid: "Hindi ma-save ang slate. Ayusin ang mga problemang nakalista sa ibaba.",
+                error: "Hindi na-save ang slate.",
+                unreadable: "Hindi mabasa ang configuration ng mga slate ng halalan.",
+            },
         },
         contestScreen: {
             common: {
