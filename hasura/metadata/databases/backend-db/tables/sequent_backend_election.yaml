@@ -470,7 +470,6 @@ select_permissions:
       permission:
           columns:
               - external_id
-              - annotations
               - created_at
               - description
               - election_event_id
@@ -561,7 +560,9 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          check: null
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
       role: election-edit
     - comment: ""
       permission:
@@ -625,7 +626,9 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          check: {}
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
       role: election-write
     - comment: ""
       permission:
@@ -655,7 +658,9 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          check: null
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
       role: permission-label-write
     - comment: ""
       permission:
@@ -712,7 +717,9 @@ delete_permissions:
       role: election-event-write
     - comment: ""
       permission:
-          filter: {}
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
       role: permission-label-write
     - comment: ""
       permission:
