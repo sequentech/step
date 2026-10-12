@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">B4 bulletin-board tests | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3743/docs/developers/development-environment/testing/b4"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="B4 bulletin-board tests | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3743/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3743/docs/developers/development-environment/testing/b4"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3743/docs/developers/development-environment/testing/b4" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3743/docs/developers/development-environment/testing/b4" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"B4 bulletin-board tests","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3743/docs/developers/development-environment/testing/b4"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3743/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3743/assets/js/runtime~main.4164b130.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3743/assets/js/runtime~main.3c0bc4c5.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3743/assets/js/main.94ea8a98.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -25,7 +25,7 @@ local presigning without contacting S3.</p>
 <p>The suites check fixed wire vectors, malformed hash-list lengths, writer failures,
 configuration membership and thresholds, signature rejection, configuration
 artifact consistency, PostgreSQL field mapping and transaction rollback, and
-HTTP handler status/inline-storage boundaries. The client fixture verifies that
+HTTP handler status, inline-storage and message verification boundaries. The client fixture verifies that
 creation time and signed statement time survive independently.</p>
 <p>From the repository root, measure the native HTTP profile with the pinned
 <code>cargo-llvm-cov</code> version:</p>
