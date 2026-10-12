@@ -7,6 +7,10 @@ import {render} from "@testing-library/react"
 import {MemoryRouter, Route, Routes} from "react-router-dom"
 import {PortalChrome} from "./PortalChrome"
 
+jest.mock("../../../ui-essentials/src/components/Header/Header", () => ({
+    __esModule: true, default: () => null,
+}))
+
 jest.mock("react-i18next", () => ({
     useTranslation: () => ({t: (key: string) => key, i18n: {language: "en"}}),
 }))
