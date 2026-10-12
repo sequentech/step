@@ -20,6 +20,22 @@ import {PortalChrome} from "./PortalChrome"
 
 // keycloak-js is an ES module jest can't load; the provider's own Keycloak is never created here.
 jest.mock("keycloak-js", () => ({__esModule: true, default: jest.fn()}))
+jest.mock("../../../ui-essentials/src/components/Header/Header", () => ({
+    __esModule: true,
+    default: ({
+        userProfile,
+    }: {
+        userProfile?: {menuActions?: Array<{id: string; label: string; onSelect: () => void}>}
+    }) => (
+        <header>
+            {userProfile?.menuActions?.map((action) => (
+                <button role="menuitem" key={action.id} onClick={action.onSelect}>
+                    {action.label}
+                </button>
+            ))}
+        </header>
+    ),
+}))
 // The real user-menu placement and interactions are covered by the browser stories.
 jest.mock("@sequentech/ui-essentials", () => ({
     ...jest.requireActual("../../../ui-essentials/src/ballot/presentation"),
