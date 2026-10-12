@@ -4,12 +4,14 @@
 //! The ballot publication routes on the migrated test database: gold and
 //! lockdown checks, and the task row a publish attempt completes or fails.
 
+use crate::adapters::memory::electoral_log::LoggedEntry;
 use crate::adapters::memory::task_ledger::MemoryTaskLedger;
 use crate::adapters::memory::task_queue::MemoryTaskQueue;
 use crate::route_services::rows::{self, Event};
 use crate::route_services::{json, post, text, Services};
 use crate::test_claims::Claims;
 use chrono::Utc;
+use electoral_log::messages::newtypes::BallotPublicationStage;
 use rocket::http::Status;
 use rocket::local::asynchronous::{Client, LocalResponse};
 use sequent_core::types::permissions::Permissions;
@@ -356,6 +358,15 @@ async fn a_publication_that_cannot_be_published_fails_its_task_with_the_reason()
         );
         assert_eq!(task.execution_status, "FAILED");
         assert_eq!(task.logs, Some(json!([format!("Error: {reason}")])));
+        assert_eq!(
+            services.electoral_log.entries().last(),
+            Some(&LoggedEntry::BallotPublicationFailure {
+                task_id: task.id.clone(),
+                publication_id: publication.clone(),
+                stage: BallotPublicationStage::Publish,
+                message: reason.to_string(),
+            })
+        );
     }
 }
 

@@ -8,8 +8,8 @@ LOCK TABLE sequent_backend.scheduled_event IN SHARE ROW EXCLUSIVE MODE;
 
 -- The leading keys also serve event-scoped schedule queries. Task IDs let
 -- window maintenance fetch its two endpoints even in a very busy event.
--- Build under the existing configuration-write lock, before backfilling.
-CREATE INDEX scheduled_event_active_scope_task_idx
+-- 1788765000002_validate_voting_schedules creates this index already.
+CREATE INDEX IF NOT EXISTS scheduled_event_active_scope_task_idx
     ON sequent_backend.scheduled_event (tenant_id, election_event_id, task_id)
     WHERE archived_at IS NULL;
 
@@ -52,7 +52,8 @@ $$;
 
 -- Serialize schedule writers before they acquire row locks. Per-election
 -- locks cannot prevent inverse ordering across several statements in one
--- transaction. Vote casting only reads the projection and never takes this lock.
+-- transaction. Vote casting only reads the projection and never takes this lock,
+-- nor do execution bookkeeping and label updates, which leave windows unchanged.
 CREATE FUNCTION sequent_backend.lock_voting_window_writer()
 RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
@@ -62,7 +63,9 @@ END;
 $$;
 
 CREATE TRIGGER lock_voting_window_writer
-BEFORE INSERT OR UPDATE OR DELETE ON sequent_backend.scheduled_event
+BEFORE INSERT OR DELETE OR UPDATE OF
+    tenant_id, election_event_id, task_id, event_payload, cron_config, archived_at
+ON sequent_backend.scheduled_event
 FOR EACH STATEMENT EXECUTE FUNCTION sequent_backend.lock_voting_window_writer();
 
 CREATE FUNCTION sequent_backend.refresh_election_voting_window(

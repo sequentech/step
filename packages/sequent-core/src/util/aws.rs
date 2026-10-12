@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Result};
 use aws_config::{meta::region::RegionProviderChain, Region, SdkConfig};
+use tokio::sync::OnceCell;
 use tracing::{info, instrument};
+
+static AWS_CONFIG: OnceCell<SdkConfig> = OnceCell::const_new();
 
 pub const AWS_S3_PRIVATE_URI_ENV: &str = "AWS_S3_PRIVATE_URI";
 pub const AWS_S3_PUBLIC_URI_ENV: &str = "AWS_S3_PUBLIC_URI";
@@ -25,11 +28,16 @@ pub fn get_region() -> Result<RegionProviderChain> {
 /// SES, SNS, and STS all use the same credentials and region resolution.
 #[instrument(err, skip_all)]
 pub async fn get_from_env_aws_config() -> Result<SdkConfig> {
-    let region = Region::new(
-        std::env::var("AWS_REGION")
-            .map_err(|err| anyhow!("AWS_REGION env var missing: {err}"))?,
-    );
-    Ok(aws_config::from_env().region(region).load().await)
+    AWS_CONFIG
+        .get_or_try_init(|| async {
+            let region =
+                Region::new(std::env::var("AWS_REGION").map_err(|err| {
+                    anyhow!("AWS_REGION env var missing: {err}")
+                })?);
+            Ok(aws_config::from_env().region(region).load().await)
+        })
+        .await
+        .cloned()
 }
 
 /// Builds an S3 client configuration for an explicit endpoint URL while

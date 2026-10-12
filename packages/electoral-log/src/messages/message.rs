@@ -572,6 +572,24 @@ impl Message {
         Self::from_body(event, body, sd, user_id, username, election_id, None, None)
     }
 
+    pub fn ballot_publication_failure_message(
+        event: EventIdString,
+        details: BallotPublicationFailure,
+        sd: &SigningData,
+        username: Option<String>,
+    ) -> Result<Self> {
+        Self::from_body(
+            event,
+            StatementBody::BallotPublicationFailure(details),
+            sd,
+            None,
+            username,
+            None,
+            None,
+            None,
+        )
+    }
+
     pub fn send_template(
         event: EventIdString,
         _election: ElectionIdString,

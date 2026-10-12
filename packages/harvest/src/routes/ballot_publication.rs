@@ -7,6 +7,7 @@ use crate::services::signing_gate::{caller, waiting, Guarded};
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::{Context, Result};
 use deadpool_postgres::Client as DbClient;
+use electoral_log::messages::newtypes::BallotPublicationStage;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
@@ -248,6 +249,28 @@ pub struct PublishBallotOutput {
     signing_request: Option<SigningRequestSummary>,
 }
 
+async fn record_publish_failure(
+    services: &HarvestServices,
+    task: &TasksExecution,
+    publication_id: &str,
+    message: &str,
+) -> Result<()> {
+    let status_result = services.ledger.update_fail(task, message).await;
+    if let Err(error) = services
+        .electoral_log
+        .ballot_publication_failure(
+            task,
+            publication_id,
+            BallotPublicationStage::Publish,
+            message,
+        )
+        .await
+    {
+        tracing::error!(task_id = %task.id, "Could not record publication failure in the electoral log: {error:?}");
+    }
+    status_result
+}
+
 #[instrument(skip(claims, services))]
 #[post("/publish-ballot", format = "json", data = "<body>")]
 pub async fn publish_ballot(
@@ -398,11 +421,14 @@ pub async fn publish_ballot(
         if let Err(rollback_error) = hasura_transaction.rollback().await {
             let message =
                 format!("{failure_message}\nRollback failed: {rollback_error}");
-            services
-                .ledger
-                .update_fail(&task_execution, &message)
-                .await
-                .ok();
+            record_publish_failure(
+                services,
+                &task_execution,
+                &input.ballot_publication_id,
+                &message,
+            )
+            .await
+            .ok();
             return Err(ErrorResponse::new(
                 Status::InternalServerError,
                 &response_message,
@@ -411,17 +437,22 @@ pub async fn publish_ballot(
             .into());
         }
 
-        services.ledger.update_fail(&task_execution, &failure_message)
-            .await
-            .map_err(|task_error| {
-                ErrorResponse::new(
-                    Status::InternalServerError,
-                    &format!(
-                        "{response_message}. The task failure could not be recorded: {task_error}"
-                    ),
-                    ErrorCode::InternalServerError,
-                )
-            })?;
+        record_publish_failure(
+            services,
+            &task_execution,
+            &input.ballot_publication_id,
+            &failure_message,
+        )
+        .await
+        .map_err(|task_error| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                &format!(
+                    "{response_message}. The task failure could not be recorded: {task_error}"
+                ),
+                ErrorCode::InternalServerError,
+            )
+        })?;
         return Err(ballot_publication_error(
             is_validation_error,
             &failure_message,
@@ -432,11 +463,14 @@ pub async fn publish_ballot(
 
     if let Err(commit_error) = hasura_transaction.commit().await {
         let failure_message = format!("Commit failed: {commit_error}");
-        services
-            .ledger
-            .update_fail(&task_execution, &failure_message)
-            .await
-            .ok();
+        record_publish_failure(
+            services,
+            &task_execution,
+            &input.ballot_publication_id,
+            &failure_message,
+        )
+        .await
+        .ok();
         return Err(ErrorResponse::new(
             Status::InternalServerError,
             &failure_message,
@@ -452,11 +486,14 @@ pub async fn publish_ballot(
             "Ballot was published, but task {} could not be marked complete: {task_error}",
             task_execution.id
         );
-        services
-            .ledger
-            .update_fail(&task_execution, &failure_message)
-            .await
-            .ok();
+        record_publish_failure(
+            services,
+            &task_execution,
+            &input.ballot_publication_id,
+            &failure_message,
+        )
+        .await
+        .ok();
         return Err(ErrorResponse::new(
             Status::InternalServerError,
             &failure_message,

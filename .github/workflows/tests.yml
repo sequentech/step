@@ -17,6 +17,10 @@ concurrency:
   group: feedback-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# Avoid intermittent HTTP/2 framing errors while fetching crates.io dependencies.
+env:
+  CARGO_HTTP_MULTIPLEXING: "false"
+
 jobs:
   plan:
     name: "CI tooling: affected selection"

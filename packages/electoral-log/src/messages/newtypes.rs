@@ -654,3 +654,17 @@ pub struct SigningLogEntry {
     /// so a retry never posts an entry twice.
     pub step_id: String,
 }
+
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
+pub enum BallotPublicationStage {
+    Generate,
+    Publish,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, Debug)]
+pub struct BallotPublicationFailure {
+    pub publication_id: BallotPublicationIdString,
+    pub task_id: String,
+    pub stage: BallotPublicationStage,
+    pub error: ErrorMessageString,
+}

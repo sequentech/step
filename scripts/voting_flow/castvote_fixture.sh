@@ -57,7 +57,9 @@ fixture --single-transaction <"$migrations/1788765000000_serialize_cast_vote_are
 fixture --command='CREATE TRIGGER check_revote_limit_trigger
     BEFORE INSERT ON sequent_backend.cast_vote
     FOR EACH ROW EXECUTE FUNCTION check_revote_limit()'
-fixture --single-transaction <"$migrations/1788765000002_materialize_voting_windows/up.sql"
+fixture --single-transaction <"$migrations/1788765000002_validate_voting_schedules/up.sql"
+fixture --single-transaction <"$migrations/1788765000003_materialize_voting_windows/up.sql"
+fixture --single-transaction <"$migrations/1789420000000_scheduled_voting_channels/up.sql"
 fixture --single-transaction <"$migrations/1789420000001_voting_windows_follow_channels/up.sql"
 
 echo "postgres://postgres@$(docker port "$name" 5432/tcp | head -n 1)/postgres"

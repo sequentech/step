@@ -8,6 +8,8 @@ use crate::ports::electoral_log::{
 };
 use anyhow::anyhow;
 use deadpool_postgres::Transaction;
+use electoral_log::messages::newtypes::BallotPublicationStage;
+use sequent_core::types::hasura::core::TasksExecution;
 use std::sync::Mutex;
 use windmill::services::electoral_log::{
     ElectoralLogAdminContext, VoterSecretAttributeAction,
@@ -36,6 +38,12 @@ pub enum LoggedEntry {
         election_event_id: String,
         admin_id: String,
         phone_e164: String,
+    },
+    BallotPublicationFailure {
+        task_id: String,
+        publication_id: String,
+        stage: BallotPublicationStage,
+        message: String,
     },
 }
 
@@ -111,6 +119,21 @@ impl ElectoralLogs for MemoryElectoralLogs {
             admin_id: entry.user_id.to_string(),
             version: entry.version,
             sha256: entry.sha256,
+        })
+    }
+
+    async fn ballot_publication_failure(
+        &self,
+        task: &TasksExecution,
+        publication_id: &str,
+        stage: BallotPublicationStage,
+        message: &str,
+    ) -> anyhow::Result<()> {
+        self.record(LoggedEntry::BallotPublicationFailure {
+            task_id: task.id.clone(),
+            publication_id: publication_id.to_string(),
+            stage,
+            message: message.to_string(),
         })
     }
 }

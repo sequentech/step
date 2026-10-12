@@ -86,6 +86,7 @@ impl Scope {
 struct PublicationRow {
     election_ids: Vec<Uuid>,
     election_id: Option<Uuid>,
+    is_generated: bool,
     published_at: Option<DateTime<Utc>>,
     deleted_at: Option<DateTime<Utc>>,
     annotations: Option<Value>,
@@ -95,6 +96,14 @@ fn published(day: u32) -> PublicationRow {
     PublicationRow {
         published_at: Some(at(day)),
         ..Default::default()
+    }
+}
+
+/// Generated and published: what voters are served from.
+fn served(day: u32) -> PublicationRow {
+    PublicationRow {
+        is_generated: true,
+        ..published(day)
     }
 }
 
@@ -218,14 +227,15 @@ impl<'t, 'c> Fixture<'t, 'c> {
         self.trusted_seed(
             "INSERT INTO sequent_backend.ballot_publication
                      (id, tenant_id, election_event_id, election_ids, election_id,
-                      published_at, deleted_at, annotations)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+                      is_generated, published_at, deleted_at, annotations)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
             &[
                 &id,
                 &scope.tenant,
                 &scope.event,
                 &row.election_ids,
                 &row.election_id,
+                &row.is_generated,
                 &row.published_at,
                 &row.deleted_at,
                 &row.annotations,
@@ -1756,7 +1766,56 @@ async fn stream_publication_styles_streams_every_style_of_the_publication_includ
 }
 
 #[tokio::test]
-async fn merge_ballot_publication_annotation_adds_or_replaces_one_text_annotation() {
+async fn get_publication_style_page_pages_the_styles_of_the_publication_by_id() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let a = f.scope().await;
+    let sibling = f.event_in(a.tenant).await;
+    let election = f.election(a).await;
+    let area = f.area(a).await;
+    let publication = f.publication(a, published(1)).await;
+    let other_publication = f.publication(a, published(2)).await;
+    let live = f.style(a, publication, election, area).await;
+    let deleted = f.deleted_style(a, publication, election, area).await;
+    f.style(a, other_publication, election, area).await;
+    f.election_as(sibling, election, None).await;
+    f.area_as(sibling, area).await;
+    f.publication_as(sibling, publication, published(1)).await;
+    f.style(sibling, publication, election, area).await;
+
+    let page = |after: Option<Uuid>, limit: i64| {
+        let tx = &tx;
+        async move {
+            publication_files::get_publication_style_page(
+                tx,
+                a.tenant,
+                a.event,
+                publication,
+                after,
+                limit,
+            )
+            .await
+            .unwrap()
+        }
+    };
+    let ids = |page: Vec<(Uuid, Value)>| {
+        page.into_iter()
+            .map(|(id, style)| {
+                assert_eq!(style["id"], json!(id.to_string()));
+                id
+            })
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(ids(page(None, 10).await), vec![live, deleted]);
+    assert_eq!(ids(page(None, 1).await), vec![live]);
+    assert_eq!(ids(page(Some(live), 10).await), vec![deleted]);
+    assert!(page(Some(deleted), 10).await.is_empty());
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn complete_ballot_publication_files_records_the_root_and_marks_the_publication_generated() {
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();
     let f = Fixture::new(&tx, line!());
@@ -1773,7 +1832,7 @@ async fn merge_ballot_publication_annotation_adds_or_replaces_one_text_annotatio
     let bare = f.publication(a, PublicationRow::default()).await;
 
     for publication in [annotated, bare] {
-        publication_files::merge_ballot_publication_annotation(
+        assert!(publication_files::complete_ballot_publication_files(
             &tx,
             a.tenant,
             a.event,
@@ -1782,7 +1841,7 @@ async fn merge_ballot_publication_annotation_adds_or_replaces_one_text_annotatio
             "new-root",
         )
         .await
-        .unwrap();
+        .unwrap());
     }
 
     let annotations = |id: Uuid| {
@@ -1805,11 +1864,12 @@ async fn merge_ballot_publication_annotation_adds_or_replaces_one_text_annotatio
         annotations(bare).await,
         Some(json!({FILES_ANNOTATION: "new-root"}))
     );
+    assert_eq!(publication_state(&tx, a, bare).await, (true, None, None));
     tx.rollback().await.unwrap();
 }
 
 #[tokio::test]
-async fn merge_ballot_publication_annotation_only_updates_the_publication_of_the_scope() {
+async fn complete_ballot_publication_files_only_completes_a_live_draft_of_the_scope() {
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();
     let f = Fixture::new(&tx, line!());
@@ -1818,12 +1878,48 @@ async fn merge_ballot_publication_annotation_only_updates_the_publication_of_the
     let id = f.publication(a, PublicationRow::default()).await;
     f.publication_as(other, id, PublicationRow::default()).await;
     f.publication(a, PublicationRow::default()).await;
+    let generated = f
+        .publication(
+            a,
+            PublicationRow {
+                is_generated: true,
+                ..Default::default()
+            },
+        )
+        .await;
+    let public = f.publication(a, published(1)).await;
+    let deleted = f
+        .publication(
+            a,
+            PublicationRow {
+                deleted_at: Some(at(2)),
+                ..Default::default()
+            },
+        )
+        .await;
 
-    publication_files::merge_ballot_publication_annotation(
-        &tx, a.tenant, a.event, id, "key", "value",
+    for refused in [generated, public, deleted] {
+        assert!(!publication_files::complete_ballot_publication_files(
+            &tx,
+            a.tenant,
+            a.event,
+            refused,
+            FILES_ANNOTATION,
+            "root",
+        )
+        .await
+        .unwrap());
+    }
+    assert!(publication_files::complete_ballot_publication_files(
+        &tx,
+        a.tenant,
+        a.event,
+        id,
+        FILES_ANNOTATION,
+        "root",
     )
     .await
-    .unwrap();
+    .unwrap());
 
     let annotated: Vec<(Uuid, Uuid)> = tx
         .query(
@@ -1852,8 +1948,9 @@ async fn get_published_ballot_styles_returns_live_styles_of_published_publicatio
         f.election(a).await,
     );
     let (voter_area, other_area) = (f.area(a).await, f.area(a).await);
-    let older = f.publication(a, published(1)).await;
-    let newer = f.publication(a, published(2)).await;
+    let older = f.publication(a, served(1)).await;
+    let newer = f.publication(a, served(2)).await;
+    let ungenerated = f.publication(a, published(5)).await;
     let draft = f.publication(a, PublicationRow::default()).await;
     let retired = f
         .publication(
@@ -1871,6 +1968,7 @@ async fn get_published_ballot_styles_returns_live_styles_of_published_publicatio
     let newer_first = f.style(a, newer, first, voter_area).await;
     f.style(a, newer, first, other_area).await;
     f.style(a, newer, unrequested, voter_area).await;
+    f.style(a, ungenerated, first, voter_area).await;
     f.style(a, draft, first, voter_area).await;
     f.style(a, retired, first, voter_area).await;
 
@@ -1920,13 +2018,12 @@ async fn get_published_ballot_styles_maps_the_object_root_and_the_live_election_
         .publication(
             a,
             PublicationRow {
-                published_at: Some(at(2)),
                 annotations: Some(json!({FILES_ANNOTATION: "tenant-x/root", "other": "y"})),
-                ..Default::default()
+                ..served(2)
             },
         )
         .await;
-    let rootless = f.publication(a, published(1)).await;
+    let rootless = f.publication(a, served(1)).await;
     let rooted_style = f.style(a, rooted, election, area).await;
     let rootless_style = f.style(a, rootless, bare_election, area).await;
 
@@ -1984,9 +2081,8 @@ async fn get_published_ballot_styles_never_returns_styles_of_other_tenants_or_ev
             scope,
             publication,
             PublicationRow {
-                published_at: Some(at(1)),
                 annotations: Some(json!({FILES_ANNOTATION: root})),
-                ..Default::default()
+                ..served(1)
             },
         )
         .await;

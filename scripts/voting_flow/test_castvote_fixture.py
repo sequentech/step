@@ -63,7 +63,7 @@ class CastVoteFixture(unittest.TestCase):
         calls = self.calls()
         self.assertEqual(calls[0][0], "create")
         self.assertIn(["start", self.name], calls)
-        self.assertEqual(len([call for call in calls if "psql" in call]), 5)
+        self.assertEqual(len([call for call in calls if "psql" in call]), 7)
         self.assertFalse(any(call[0] == "rm" for call in calls))
 
     def test_fixture_failure_removes_only_its_container_and_anonymous_volumes(self):
