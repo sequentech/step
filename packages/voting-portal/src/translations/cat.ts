@@ -532,6 +532,13 @@ const catalanTranslation: TranslationType = {
                     "Selecciona fins a {{count}} candidats. {{selected}} seleccionats.",
             },
             limit: "Pots seleccionar fins a {{count}}. Treu un candidat abans de triar-ne un altre.",
+            view: {
+                button: "Mostra la llista",
+                buttonLabel: "Mostra la llista {{slate}}",
+                summary: "{{coverage}} · {{candidates}}",
+                select: "Selecciona aquesta llista",
+                back: "Torna",
+            },
             clearContest: {
                 button: "Esborra",
                 label: "Esborra {{contest}}",

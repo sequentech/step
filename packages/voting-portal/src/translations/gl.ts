@@ -529,6 +529,13 @@ const galegoTranslation: TranslationType = {
                     "Selecciona ata {{count}} candidatos. {{selected}} seleccionados.",
             },
             limit: "Podes seleccionar ata {{count}}. Quita un candidato antes de elixir outro.",
+            view: {
+                button: "Ver lista",
+                buttonLabel: "Ver a lista {{slate}}",
+                summary: "{{coverage}} · {{candidates}}",
+                select: "Seleccionar esta lista",
+                back: "Volver",
+            },
             clearContest: {
                 button: "Borrar",
                 label: "Borrar {{contest}}",

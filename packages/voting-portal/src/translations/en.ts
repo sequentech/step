@@ -527,6 +527,13 @@ const englishTranslation = {
                 instruction_other: "Select up to {{count}} candidates. {{selected}} selected.",
             },
             limit: "You can select up to {{count}}. Deselect a candidate before choosing another.",
+            view: {
+                button: "View slate",
+                buttonLabel: "View slate {{slate}}",
+                summary: "{{coverage}} · {{candidates}}",
+                select: "Select this slate",
+                back: "Back",
+            },
             clearContest: {
                 button: "Clear",
                 label: "Clear {{contest}}",

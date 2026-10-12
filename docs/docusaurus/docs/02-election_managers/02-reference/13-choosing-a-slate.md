@@ -25,6 +25,14 @@ Selecting a slate selects all of its candidates, and only them, on the whole bal
 
 After selecting, a notice above the cards says **_Slate_ selected. You can still change any candidate.** For a slate that leaves offices blank it names them: **_Slate_ selected. It has no candidate for _offices_, so those offices are blank. You can still change any candidate.** The notice stays while the ballot holds exactly that slate. The card then reads **All N selected** and offers **Edit selections**. The voter can still change any choice individually.
 
+## Viewing a slate
+
+Each slate card also has a **View slate** button. It opens a dialog titled with the slate name, which states what the slate covers and how many candidates it has, for example **Full slate · 7 candidates**, and lists its candidates office by office: only the offices the slate has candidates for, in ballot order, with the candidates in the order the ballot shows them.
+
+- **Select this slate** selects the slate exactly as **Select slate** does, including the confirmation below when choices would be removed.
+- When the ballot already holds exactly that slate, the button is **Edit selections** instead, as on the card.
+- **Back**, the close button and Escape close the dialog without changing anything, and the focus returns to **View slate**.
+
 ## Replacing existing choices
 
 If selecting the slate would remove any choice the voter already made, in a contest the slate has candidates for or in one it has none for, the Voting Portal asks first with **Replace these selections?**:
@@ -66,6 +74,10 @@ A slate with more candidates in a contest than the contest allows cannot be sele
 | `slate-apply` | Container of the **Select slate** button |
 | `slate-apply-button` | The **Select slate** button |
 | `slate-apply-unavailable` | The line stating why a slate cannot be selected |
+| `slate-view-button` | The **View slate** button |
+| `slate-details-dialog` | The dialog that shows a slate's candidates |
+| `slate-details-summary` | What the slate covers and how many candidates it has |
+| `slate-details-offices`, `slate-details-office`, `slate-details-office-name`, `slate-details-candidate` | The offices of the slate, one office, its name and each candidate |
 | `slate-applied-notice` | The notice after selecting a slate |
 | `slate-replace-dialog` | **Replace these selections?** |
 | `slate-clear-dialog` | **Clear all your choices?** |

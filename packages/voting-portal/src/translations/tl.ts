@@ -530,6 +530,13 @@ const tagalogTranslation: TranslationType = {
                     "Pumili ng hanggang {{count}} kandidato. {{selected}} ang napili.",
             },
             limit: "Maaari kang pumili ng hanggang {{count}}. Alisin muna ang isang kandidato bago pumili ng iba.",
+            view: {
+                button: "Tingnan ang slate",
+                buttonLabel: "Tingnan ang slate na {{slate}}",
+                summary: "{{coverage}} · {{candidates}}",
+                select: "Piliin ang slate na ito",
+                back: "Bumalik",
+            },
             clearContest: {
                 button: "I-clear",
                 label: "I-clear ang {{contest}}",

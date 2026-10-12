@@ -528,6 +528,13 @@ const basqueTranslation: TranslationType = {
                 instruction_other: "Hautatu gehienez {{count}} hautagai. {{selected}} hautatuta.",
             },
             limit: "Gehienez {{count}} hauta ditzakezu. Kendu hautagai bat beste bat aukeratu aurretik.",
+            view: {
+                button: "Ikusi zerrenda",
+                buttonLabel: "Ikusi {{slate}} zerrenda",
+                summary: "{{coverage}} · {{candidates}}",
+                select: "Hautatu zerrenda hau",
+                back: "Itzuli",
+            },
             clearContest: {
                 button: "Garbitu",
                 label: "Garbitu {{contest}}",

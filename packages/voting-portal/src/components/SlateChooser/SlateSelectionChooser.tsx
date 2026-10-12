@@ -226,6 +226,10 @@ export const SlateSelectionChooser: React.FC<SlateSelectionChooserProps> = ({
                             ballotStyle={ballotStyle}
                             slate={slate}
                             onApplied={setAppliedSlate}
+                            isFullySelected={
+                                summaries.get(slate.id)?.status === ESlateSelectionStatus.ALL
+                            }
+                            onEditSelections={onEditSelections}
                         />
                     </SlateCardActions>
                 )}

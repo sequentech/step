@@ -533,6 +533,13 @@ const spanishTranslation: TranslationType = {
                     "Selecciona hasta {{count}} candidatos. {{selected}} seleccionados.",
             },
             limit: "Puedes seleccionar hasta {{count}}. Quita un candidato antes de elegir otro.",
+            view: {
+                button: "Ver lista",
+                buttonLabel: "Ver la lista {{slate}}",
+                summary: "{{coverage}} · {{candidates}}",
+                select: "Seleccionar esta lista",
+                back: "Volver",
+            },
             clearContest: {
                 button: "Borrar",
                 label: "Borrar {{contest}}",

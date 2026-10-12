@@ -20,23 +20,31 @@ import {
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../../store/hooks"
 import {SlateChangesDialog} from "./SlateChangesDialog"
+import {ESlateDetailsAction, SlateDetailsDialog} from "./SlateDetailsDialog"
 
 export interface SlateApplyActionProps {
     ballotStyle: IBallotStyle
     slate: IResolvedSlate
     /** Told once the slate's candidates are the selection. */
     onApplied?: (slate: IResolvedSlate) => void
+    /** Whether the ballot holds exactly this slate. */
+    isFullySelected?: boolean
+    /** Opens the individual candidates at the slate's first office. */
+    onEditSelections?: (slate: IResolvedSlate) => void
 }
 
 export const SlateApplyAction: React.FC<SlateApplyActionProps> = ({
     ballotStyle,
     slate,
     onApplied,
+    isFullySelected = false,
+    onEditSelections,
 }) => {
     const {t, i18n} = useTranslation()
     const dispatch = useAppDispatch()
     const selection = useAppSelector(selectBallotSelectionByElectionId(ballotStyle.election_id))
     const [pending, setPending] = useState<ISlateChoices | undefined>()
+    const [isDetailsOpen, setIsDetailsOpen] = useState(false)
     const unavailableId = useId()
 
     const slateName = getSlateName(
@@ -112,7 +120,23 @@ export const SlateApplyAction: React.FC<SlateApplyActionProps> = ({
     )
 
     return (
-        <Box className="slate-apply">
+        <Box
+            className="slate-apply"
+            sx={{
+                "display": "flex",
+                "flexDirection": {xs: "row", sm: "column"},
+                "flexWrap": "wrap",
+                "gap": {xs: "8px", sm: "3px"},
+                "& .slate-apply-button": {flex: {xs: "1.1 1 0", sm: "none"}},
+                "& .slate-view-button": {
+                    flex: {xs: "1 1 0", sm: "none"},
+                    minHeight: "44px",
+                    borderColor: "transparent",
+                    background: "transparent",
+                },
+                "& .slate-apply-unavailable": {flexBasis: "100%"},
+            }}
+        >
             <Button
                 className="slate-apply-button"
                 onClick={handleChoose}
@@ -122,11 +146,42 @@ export const SlateApplyAction: React.FC<SlateApplyActionProps> = ({
             >
                 {t("slates.apply.button")}
             </Button>
+            <Button
+                className="slate-view-button"
+                variant="secondary"
+                onClick={() => setIsDetailsOpen(true)}
+                aria-label={t("slates.view.buttonLabel", {slate: slateName})}
+            >
+                {t("slates.view.button")}
+            </Button>
             {unavailableReason && (
                 <Typography className="slate-apply-unavailable" id={unavailableId} variant="body2">
                     {unavailableReason}
                 </Typography>
             )}
+            <SlateDetailsDialog
+                open={isDetailsOpen}
+                slate={slate}
+                slateName={slateName}
+                action={
+                    isFullySelected
+                        ? ESlateDetailsAction.EDIT
+                        : choices
+                          ? ESlateDetailsAction.SELECT
+                          : ESlateDetailsAction.UNAVAILABLE
+                }
+                handleClose={(confirmed) => {
+                    setIsDetailsOpen(false)
+                    if (!confirmed) {
+                        return
+                    }
+                    if (isFullySelected) {
+                        onEditSelections?.(slate)
+                    } else {
+                        handleChoose()
+                    }
+                }}
+            />
             <SlateChangesDialog
                 className="slate-replace-dialog"
                 pending={pending}

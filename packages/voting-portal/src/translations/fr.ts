@@ -530,6 +530,13 @@ const frenchTranslation: TranslationType = {
                     "Sélectionnez jusqu'à {{count}} candidats. {{selected}} sélectionné(s).",
             },
             limit: "Vous pouvez en sélectionner jusqu'à {{count}}. Désélectionnez un candidat avant d'en choisir un autre.",
+            view: {
+                button: "Voir la liste",
+                buttonLabel: "Voir la liste {{slate}}",
+                summary: "{{coverage}} · {{candidates}}",
+                select: "Sélectionner cette liste",
+                back: "Retour",
+            },
             clearContest: {
                 button: "Effacer",
                 label: "Effacer {{contest}}",

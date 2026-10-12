@@ -531,6 +531,13 @@ const dutchTranslation: TranslationType = {
                     "Selecteer maximaal {{count}} kandidaten. {{selected}} geselecteerd.",
             },
             limit: "U kunt er maximaal {{count}} selecteren. Deselecteer een kandidaat voordat u een andere kiest.",
+            view: {
+                button: "Lijst bekijken",
+                buttonLabel: "Lijst {{slate}} bekijken",
+                summary: "{{coverage}} · {{candidates}}",
+                select: "Deze lijst selecteren",
+                back: "Terug",
+            },
             clearContest: {
                 button: "Wissen",
                 label: "{{contest}} wissen",
