@@ -20,8 +20,10 @@ const Chip = styled("span")({
     "fontSize": "14px",
     "fontWeight": 600,
     "lineHeight": "20px",
-    "whiteSpace": "nowrap",
-    "& svg": {fontSize: "18px"},
+    "whiteSpace": "normal",
+    "maxWidth": "100%",
+    "boxSizing": "border-box",
+    "& svg": {fontSize: "18px", flexShrink: 0},
     "&[data-status='PENDING']": {
         background: "#FFF3CD",
         border: "1px solid #F0D58C",
