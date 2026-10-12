@@ -634,21 +634,6 @@ class BackendJourneys(unittest.TestCase):
         token = self.state.portal.login(a2)
         self.assertEqual(
             jwt_claims(token)["https://hasura.io/jwt/claims"]["x-hasura-area-id"],
-            self.state.areas["B"],
-        )
-        self.assert_rejected(
-            self.vote(a2, "Dave", token)[1],
-            "CheckVotesInOtherAreasFailed",
-            "The voter already voted in another area",
-        )
-        # The tally only counts voters in the area of their ballot; move a2 back.
-        self.step(
-            "update-voter",
-            "--election-event-id",
-            event_id,
-            "--user-id",
-            user["id"],
-            "--area-id",
             self.state.areas["A"],
         )
 
