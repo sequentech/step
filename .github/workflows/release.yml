@@ -33,7 +33,6 @@ on:
         type: string
         default: ''
 
-
 permissions:
   contents: write
   actions: read
