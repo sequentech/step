@@ -454,7 +454,7 @@ pub async fn get_board_messages<C: Ctx>(
 }
 
 #[cfg(test)]
-mod tests {
+    use b4::messages::newtypes::{ChannelsHashes, SharesHashes};
     use b4::messages::newtypes::{ChannelsHashes, SharesHashes};
     use super::*;
     use std::sync::{Arc, Mutex};
