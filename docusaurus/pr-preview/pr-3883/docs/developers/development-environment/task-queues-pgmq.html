@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">PostgreSQL task queues | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3883/docs/developers/development-environment/task-queues-pgmq"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="PostgreSQL task queues | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3883/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3883/docs/developers/development-environment/task-queues-pgmq"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3883/docs/developers/development-environment/task-queues-pgmq" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3883/docs/developers/development-environment/task-queues-pgmq" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Task queues (PGMQ)","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3883/docs/developers/development-environment/task-queues-pgmq"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3883/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3883/assets/js/runtime~main.d8b4bfb9.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3883/assets/js/runtime~main.5f00fddd.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3883/assets/js/main.8ad97cb3.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -145,11 +145,13 @@ enqueue are not one transaction.</p>
 <p>Beat schedules <code>purge_queue_archives</code> every <code>QUEUE_ARCHIVE_PURGE_INTERVAL_SECS</code>
 seconds (3600 by default). It deletes archived messages older than
 <code>QUEUE_ARCHIVE_RETENTION_HOURS</code> hours (168, seven days, by default), a few thousand
-rows per statement. It never deletes waiting messages. From the archives of the
-electoral-log raw-event and batch queues it deletes only messages archived as
-<code>succeeded</code>: one that failed, expired, was rejected or has no outcome, such as a batch
-that could be neither stored nor dead-lettered, stays in its archive until an operator
-sends it again or deletes it. The dead-letter queue&#x27;s archive is never purged. Beat
+rows per statement. It never deletes waiting messages. From the archive of the
+electoral-log raw-event queue it deletes only messages archived as <code>succeeded</code>, and from
+the batch queue&#x27;s also those archived as <code>expired</code>, which are sequencer runs that never
+ran and carry no events. Any other message, one that failed, was rejected or has no
+outcome, such as a batch that could be neither stored nor dead-lettered, stays in its
+archive until an operator sends it again or deletes it. The dead-letter queue&#x27;s archive
+is never purged. Beat
 refuses to start with an invalid interval, and a worker consuming <code>beat</code> refuses to
 start with an invalid retention.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="migrating-an-environment-from-rabbitmq">Migrating an environment from RabbitMQ<a href="#migrating-an-environment-from-rabbitmq" class="hash-link" aria-label="Direct link to Migrating an environment from RabbitMQ" title="Direct link to Migrating an environment from RabbitMQ" translate="no">​</a></h2>
