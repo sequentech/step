@@ -24,11 +24,24 @@ function where(document: DocumentNode, variables: Record<string, string | string
 
 test("generated account summaries preserve the safe columns and tenant scope", () => {
     expect(print(GetMessagingAccountSummariesDocument)).toBe(print(GET_MESSAGING_ACCOUNT_SUMMARIES))
-    expect(rootField(GetMessagingAccountSummariesDocument).selectionSet?.selections.map((field) =>
-        field.kind === Kind.FIELD ? field.name.value : field.kind
-    )).toEqual([
-        "id", "tenant_id", "channel", "provider", "name", "sender", "limits",
-        "provider_approval", "readiness", "status", "is_default", "created_at", "updated_at",
+    expect(
+        rootField(GetMessagingAccountSummariesDocument).selectionSet?.selections.map((field) =>
+            field.kind === Kind.FIELD ? field.name.value : field.kind
+        )
+    ).toEqual([
+        "id",
+        "tenant_id",
+        "channel",
+        "provider",
+        "name",
+        "sender",
+        "limits",
+        "provider_approval",
+        "readiness",
+        "status",
+        "is_default",
+        "created_at",
+        "updated_at",
     ])
     expect(where(GetMessagingAccountSummariesDocument, {tenantId: "tenant-one"})).toEqual({
         tenant_id: {_eq: "tenant-one"},
@@ -37,9 +50,13 @@ test("generated account summaries preserve the safe columns and tenant scope", (
 
 test("generated unsettled messages stay scoped to the tenant, event and voter", () => {
     expect(print(GetVoterUnsettledMessagesDocument)).toBe(print(GET_VOTER_UNSETTLED_MESSAGES))
-    expect(where(GetVoterUnsettledMessagesDocument, {
-        tenantId: "tenant-one", electionEventId: "event-one", voterId: "voter-one",
-    })).toEqual({
+    expect(
+        where(GetVoterUnsettledMessagesDocument, {
+            tenantId: "tenant-one",
+            electionEventId: "event-one",
+            voterId: "voter-one",
+        })
+    ).toEqual({
         tenant_id: {_eq: "tenant-one"},
         election_event_id: {_eq: "event-one"},
         voter_id: {_eq: "voter-one"},
@@ -50,7 +67,10 @@ test("generated unsettled messages stay scoped to the tenant, event and voter", 
 
 test("generated ledger states constrain message IDs within the tenant", () => {
     expect(print(GetLedgerMessageStatesDocument)).toBe(print(GET_LEDGER_MESSAGE_STATES))
-    expect(where(GetLedgerMessageStatesDocument, {tenantId: "tenant-one", ids: ["message-one"]})).toEqual({
-        tenant_id: {_eq: "tenant-one"}, id: {_in: ["message-one"]},
+    expect(
+        where(GetLedgerMessageStatesDocument, {tenantId: "tenant-one", ids: ["message-one"]})
+    ).toEqual({
+        tenant_id: {_eq: "tenant-one"},
+        id: {_in: ["message-one"]},
     })
 })
