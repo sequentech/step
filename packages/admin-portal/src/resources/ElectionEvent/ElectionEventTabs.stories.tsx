@@ -489,7 +489,7 @@ export const Tally: Story = {
     parameters: {widgets: ["TallyTab"]},
     play: tabPlay("Tally", {
         text: "Election Event Tally",
-        reads: ["getList sequent_backend_tally_session_execution"],
+        reads: ["getList sequent_backend_tally_session"],
     }),
 }
 

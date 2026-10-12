@@ -12,8 +12,14 @@ import {resourceBoundary} from "@/__stories__/resourceBoundary"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {STORY_IDS, eventRecord, keysCeremonyRecord, trusteeRecords} from "@/__stories__/fixtures"
 import {ElectionEventTallyContext} from "@/providers/ElectionEventTallyProvider"
-import {ETallyType, ITallyExecutionStatus} from "@/types/ceremonies"
-import {TallyStoryContext, tallyExecution, tallySession} from "./__stories__/TallyFixture"
+import {ETallyType, ITallyExecutionStatus, ITallyTrusteeStatus} from "@/types/ceremonies"
+import {STORY_TRUSTEE} from "@/__stories__/storyAuth"
+import {
+    TallyStoryContext,
+    executionStatus,
+    tallyExecution,
+    tallySession,
+} from "./__stories__/TallyFixture"
 import {ListTally} from "./ListTally"
 import {
     EStoryPermissions,
@@ -27,6 +33,8 @@ interface Scenario {
     empty: boolean
     /** Status of the event's tally session. */
     tallyStatus?: ITallyExecutionStatus
+    /** The signed-in trustee's status in the tally's latest execution. */
+    trusteeStatus?: ITallyTrusteeStatus
     /** Whether the keys ceremony has completed. */
     keysReady: boolean
     /** Whether listing the keys ceremonies fails. */
@@ -119,12 +127,25 @@ const meta = {
                   }
                 : {}),
         })
+        const status = executionStatus(workflow)
+        const execution = tallyExecution(workflow, {
+            status: args.trusteeStatus
+                ? {
+                      ...status,
+                      trustees: status.trustees.map((trustee) =>
+                          trustee.name === STORY_TRUSTEE
+                              ? {...trustee, status: args.trusteeStatus!}
+                              : trustee
+                      ),
+                  }
+                : status,
+        })
         const ceremony = keysCeremonyRecord(
             args.keysReady ? EStoryWorkflow.ENDED : EStoryWorkflow.CREATED
         )
         data = resourceBoundary({
             sequent_backend_tally_session: args.empty ? [] : [session],
-            sequent_backend_tally_session_execution: args.empty ? [] : [tallyExecution(workflow)],
+            sequent_backend_tally_session_execution: args.empty ? [] : [execution],
         })
         graphql = graphqlBoundary(
             {
@@ -139,6 +160,22 @@ const meta = {
                                   },
                               },
                           },
+                // Trustees only: whether the signed-in trustee still has to restore a key.
+                ListTallyKeyRestoreState: () => ({
+                    data: {
+                        sequent_backend_tally_session: args.empty
+                            ? []
+                            : [{id: session.id, execution_status: session.execution_status}],
+                        sequent_backend_tally_session_execution: args.empty
+                            ? []
+                            : [
+                                  {
+                                      tally_session_id: execution.tally_session_id,
+                                      status: execution.status,
+                                  },
+                              ],
+                    },
+                }),
                 TrusteeNames: () => ({
                     data: {
                         sequent_backend_trustee: trusteeRecords.map(({id, name}) => ({id, name})),
@@ -300,18 +337,61 @@ export const EmptyBeforePublication: Story = {
     },
 }
 
+/** The latest execution of each listed tally, read for trustees only. */
+const latestExecutionReads = () =>
+    data.calls.filter(
+        ({method, args}) =>
+            method === "getList" && args[0] === "sequent_backend_tally_session_execution"
+    )
+
 export const TrusteeInvitedToParticipate: Story = {
     globals: {workflow: EStoryWorkflow.TALLY, permissions: EStoryPermissions.TRUSTEE},
-    args: {tallyStatus: ITallyExecutionStatus.STARTED},
+    args: {tallyStatus: ITallyExecutionStatus.STARTED, trusteeStatus: ITallyTrusteeStatus.WAITING},
+    parameters: {widgets: ["LatestTallySessionExecutionsProvider", "TallyActionsColumn"]},
     play: async ({canvasElement, args}) => {
         const canvas = within(canvasElement)
         const link = await canvas.findByText("click on the ceremony's Key Action")
         await expect(canvas.getByRole("alert")).toBeVisible()
-        expect(graphql.calls.find(({name}) => name === "ListKeysCeremony")?.headers).toEqual({
-            "x-hasura-role": "trustee-ceremony",
+        await waitFor(async () =>
+            expect(
+                await rowAction(canvasElement, i18n.t("tallysheet.common.tallyCeremony.addKey"))
+            ).toBeEnabled()
+        )
+        expect(latestExecutionReads().at(-1)?.args[1]).toMatchObject({
+            filter: {tally_session_id: {value: {_in: [STORY_IDS.tallySession]}}},
+            meta: {latestPerTallySession: true},
         })
+        for (const operation of ["ListKeysCeremony", "ListTallyKeyRestoreState"]) {
+            expect(graphql.calls.find(({name}) => name === operation)?.headers).toEqual({
+                "x-hasura-role": "trustee-ceremony",
+            })
+        }
         await userEvent.click(link)
         expect(args.onSetTallyId).toHaveBeenCalledWith(STORY_IDS.tallySession, true)
+    },
+}
+
+/** A trustee who has already restored their key is not invited again. */
+export const TrusteeWithRestoredKeyIsNotInvited: Story = {
+    globals: {workflow: EStoryWorkflow.TALLY, permissions: EStoryPermissions.TRUSTEE},
+    args: {
+        tallyStatus: ITallyExecutionStatus.STARTED,
+        trusteeStatus: ITallyTrusteeStatus.KEY_RESTORED,
+    },
+    parameters: {widgets: ["LatestTallySessionExecutionsProvider", "TallyActionsColumn"]},
+    play: async ({canvasElement}) => {
+        await waitFor(() => expect(operations()).toContain("ListTallyKeyRestoreState"))
+        await waitFor(() =>
+            expect(latestExecutionReads().at(-1)?.args[1]).toMatchObject({
+                filter: {tally_session_id: {value: {_in: [STORY_IDS.tallySession]}}},
+            })
+        )
+        const row = within(await tallyRow(canvasElement))
+        await waitFor(() =>
+            expect(row.getByLabelText(i18n.t("tallysheet.common.tallyCeremony.view"))).toBeVisible()
+        )
+        expect(row.queryByLabelText(i18n.t("tallysheet.common.tallyCeremony.addKey"))).toBeNull()
+        expect(within(canvasElement).queryByRole("alert")).toBeNull()
     },
 }
 
