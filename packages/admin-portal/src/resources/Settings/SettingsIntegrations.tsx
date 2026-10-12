@@ -12,7 +12,7 @@ import {IPermissions} from "@/types/keycloak"
 import {SetGoogleServiceAccountKeyMutation} from "@/gql/graphql"
 import {SET_GOOGLE_SERVICE_ACCOUNT_KEY} from "@/queries/SetGoogleServiceAccountKey"
 
-export const SettingsIntegrations: React.FC<void> = () => {
+export const SettingsIntegrations: React.FC = () => {
     const [tenantId] = useTenantStore()
     const {t, i18n} = useTranslation()
     const notify = useNotify()
