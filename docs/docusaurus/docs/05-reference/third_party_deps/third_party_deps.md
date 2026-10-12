@@ -128,46 +128,6 @@ The ballot verifier is a React-based application for verifying ballot integrity 
 | react-router | 7.9.5 | MIT | Declarative routing for React |
 | web-vitals | ^5.1.0 | Apache-2.0 | Easily measure performance metrics in JavaScript |
 
-## Braid
-
-Braid is a Rust-based component providing consensus and distributed systems functionality.
-
-| Dependency | Version | License | Description |
-|------------|---------|---------|-------------|
-| anyhow | 1.0 | MIT OR Apache-2.0 | Flexible concrete Error type built on std::error::Error |
-| ascii_table | 4.0 | MIT | Print ASCII tables to the terminal |
-| async-trait | 0.1 | MIT OR Apache-2.0 | Type erasure for async trait methods |
-| base64 | 0.22 | MIT OR Apache-2.0 | encodes and decodes base64 as bytes or utf8 |
-| cfg-if | 1.0 | MIT OR Apache-2.0 | A macro to ergonomically define an item depending on a large number of #[cfg] parameters. Structured like an if-else chain, the first matching branch is the item that gets emitted. |
-| clap | 4.0 | MIT OR Apache-2.0 | A simple to use, efficient, and full-featured Command Line Argument Parser |
-| colored | 3.0 | MPL-2.0 | The most simple way to add colors in your terminal |
-| crepe | 0.1 | MIT OR Apache-2.0 | Datalog in Rust as a procedural macro |
-| getrandom | =0.2 | MIT OR Apache-2.0 | A small cross-platform library for retrieving random data from system source |
-| hex | 0.4 | MIT OR Apache-2.0 | Encoding and decoding data into/from hexadecimal representation. |
-| log | 0.4 | MIT OR Apache-2.0 | A lightweight logging facade for Rust |
-| rand | 0.9 | MIT OR Apache-2.0 | Random number generators and other randomness functionality. |
-| rayon | 1.5 | MIT OR Apache-2.0 | Simple work-stealing parallelism for Rust |
-| reedline-repl-rs | 1.0 | MIT | Library to generate a fancy REPL for your application based on reedline and clap |
-| rusqlite | 0.32 | MIT | Ergonomic wrapper for SQLite |
-| rustc-hash | 2.0 | Apache-2.0 OR MIT | A speedy, non-cryptographic hashing algorithm used by rustc |
-| serde | 1.0 | MIT OR Apache-2.0 | A generic serialization/deserialization framework |
-| serde_json | 1.0 | MIT OR Apache-2.0 | A JSON serialization file format |
-| strum | 0.27 | MIT | Helpful macros for working with enums and strings |
-| thiserror | 2.0 | MIT OR Apache-2.0 | derive(Error) |
-| tikv-jemalloc-ctl | 0.6 | MIT/Apache-2.0 | A safe wrapper over jemalloc's control and introspection APIs |
-| tikv-jemallocator | 0.6 | MIT/Apache-2.0 | A Rust allocator backed by jemalloc |
-| tokio | 1.40 | MIT | An event-driven, non-blocking I/O platform for writing asynchronous I/O backed applications. |
-| toml | 0.8 | MIT OR Apache-2.0 | A native Rust encoder and decoder of TOML-formatted files and streams. Provides implementations of the standard Serialize/Deserialize traits for TOML data to facilitate deserializing and serializing Rust structures. |
-| tonic | 0.13 | MIT | A gRPC over HTTP/2 implementation focused on high performance, interoperability, and flexibility. |
-| tracing | 0.1 | MIT | Application-level tracing for Rust. |
-| tracing-attributes | 0.1 | MIT | Procedural macro attributes for automatically instrumenting functions. |
-| tracing-log | 0.2 | MIT | Provides compatibility between `tracing` and the `log` crate. |
-| tracing-subscriber | 0.3 | MIT | Utilities for implementing and composing `tracing` subscribers. |
-| tracing-tree | 0.4 | MIT OR Apache-2.0 | A Tracing Layer which prints a tree of spans and events. |
-| tracing-wasm | 0.2 | MIT OR Apache-2.0 | tracing subscriber for browser WASM |
-| wasm-bindgen | =0.2 | MIT OR Apache-2.0 | Easy support for interacting between JS and Rust. |
-| wasm-bindgen-rayon | 1.0 | Apache-2.0 | Adapter for using Rayon-based concurrency on the Web |
-
 ## E2e
 
 E2E provides end-to-end testing capabilities and automation tools.

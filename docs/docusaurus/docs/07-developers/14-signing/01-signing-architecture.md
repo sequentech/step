@@ -165,6 +165,12 @@ Gate actions: the trustee route first answers `signing_request`; once it is comp
 portal calls the route again with `signing_request_id`, and the route calls `consume_gate`
 (same caller, same subject) to mark it executed in the transaction that runs the step.
 
+Trustee gates validate a public wbraid custody proof scoped to the trustee and
+ceremony, and to the tally session when authorizing a tally. The signed subject's
+retained `key_share_sha256` field binds the exact public proof text. This approval
+signature is separate from the trustee identity signature inside the proof.
+The routes never receive the trustee's identity file or election shares.
+
 ### Locking and ordering
 
 - Every signing write transaction takes the per-event advisory lock (`lock_signing_event`)

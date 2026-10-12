@@ -401,7 +401,7 @@ If some images were deleted but others exist, rebuild only the missing ones:
 cd ~/step/.devcontainer
 
 # Build only specific services
-docker compose -f docker-compose-remote.yml build harvest windmill mock_server beat b3
+docker compose -f docker-compose-remote.yml build harvest windmill mock_server beat b4v6 trustee1 trustee2
 
 # Then start all services
 docker compose -f docker-compose-remote.yml up -d

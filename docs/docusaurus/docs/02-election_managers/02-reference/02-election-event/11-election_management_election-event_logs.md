@@ -17,4 +17,13 @@ These are application-level actions being recorded. Access the system log to mon
 
 ## Immutability
 
-The Logs tab is implemented using native wbraid audit storage, a tamper-evident database. Each entry is inserted into a SQL table of actions. The immutability allows to verify that no change has been performed, for anyone with credentials to access to the immutable log.
+The Logs tab reads native wbraid audit storage in a private PostgreSQL database.
+Deliveries append opaque batches; a recoverable SQL index supports queries.
+Application electoral-log messages retain their sender and system signatures.
+Ballot-box seals bind the stored ballots at close.
+
+Integrity checks use those signatures and seals. Native storage does not provide
+the retired database's Merkle verification protocol, and database access alone
+does not establish that the complete history is unchanged. Preserve the native
+blobs, application database and signing keys in backups. See
+[storage and delivery behavior](../../../07-developers/03-development-environment/testing/electoral-log.md).

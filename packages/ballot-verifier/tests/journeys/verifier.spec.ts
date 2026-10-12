@@ -4,6 +4,7 @@ import type {Page} from "@playwright/test"
 import {test, expect, eventPath, realm, IDS, type VerifierServices} from "./fixtures"
 import {signedBallot} from "./ballots"
 import {scanPage} from "@sequentech/ui-test-kit/adapters/axe"
+import {loadCore} from "@sequentech/ui-test-kit/wasm/node"
 
 async function upload(page: Page, ballot: unknown, hash: string) {
     await page.getByTestId("drop-input-file").setInputFiles({
@@ -110,7 +111,13 @@ for (const invalid of ["signature", "multi-signature", "json"] as const) {
 }
 
 for (const multiple of [false, true]) {
-    for (const corruption of ["configuration", "missing-configuration", "ciphertext"] as const) {
+    for (const corruption of [
+        "configuration",
+        "missing-configuration",
+        "ciphertext",
+        "plaintext",
+        "randomness",
+    ] as const) {
         test(`native ${multiple ? "combined" : "single"} audit rejects ${corruption} substitution and recovers`, async ({
             page,
             portal,
@@ -128,6 +135,32 @@ for (const multiple of [false, true]) {
                 ).toString()
             } else if (corruption === "missing-configuration") {
                 delete broken.config.public_key!.configuration_id
+            } else if (corruption === "plaintext" || corruption === "randomness") {
+                const encoded = Array.isArray(broken.contests)
+                    ? broken.contests[0]
+                    : broken.contests
+                const opening = Buffer.from(encoded, "base64")
+                // Canonical audit records end with the 30-byte plaintext and
+                // 32-byte scalar. Keep the ciphertext, proof, tracker and
+                // voter signature unchanged, with a valid but wrong opening.
+                if (corruption === "plaintext") {
+                    opening.fill(0, opening.length - 62, opening.length - 32)
+                } else {
+                    const other = (await signedBallot(multiple)).ballot
+                    const nonce = Buffer.from(
+                        Array.isArray(other.contests) ? other.contests[0] : other.contests,
+                        "base64"
+                    ).subarray(-32)
+                    nonce.copy(opening, opening.length - 32)
+                }
+                if (Array.isArray(broken.contests)) broken.contests[0] = opening.toString("base64")
+                else broken.contests = opening.toString("base64")
+                const core = await loadCore()
+                expect(
+                    multiple
+                        ? core.hash_auditable_multi_ballot_js(broken)
+                        : core.hash_auditable_ballot_js(broken)
+                ).toBe(hash)
             } else if (Array.isArray(broken.contests)) {
                 broken.contests[0] = Buffer.from(broken.contests[0], "base64")
                     .subarray(0, -1)

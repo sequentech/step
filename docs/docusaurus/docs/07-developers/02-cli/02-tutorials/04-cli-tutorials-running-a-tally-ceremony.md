@@ -73,7 +73,10 @@ You will need it in the next steps.
 
 ## Step 2: Confirm Trustee Keys (Trustees)
 
-After the Tally Ceremony has started, each trustee must confirm their key ***individually***.
+For a manual tally, enough trustees to reach the configured threshold must
+confirm custody individually. Keep their native or browser runners active with
+the identities and protocol state used for the key ceremony. Automatic ceremonies
+skip this confirmation, but still need the runners to mix and decrypt.
 
 ### 1. Authenticate as a Trustee
 Reconfigure the CLI and log in as the specific trustee (for example, trustee1):
@@ -91,8 +94,14 @@ Use the Tally Ceremony ID returned in Step 1 to confirm this trustee’s key:
 ```bash
 cli step confirm-key-tally \
   --election-event-id ac037831-66bd-451b-bdf7-e0a30eb2bfa0 \
-  --tally-id bc7fcae1-f9e4-4714-a6c2-4c43a5cf07d9
+  --tally-id bc7fcae1-f9e4-4714-a6c2-4c43a5cf07d9 \
+  --trustee-config /secure/trustee.toml
 ```
+
+The command uses the public custody request retained by `complete-key-ceremony`
+to create a proof bound to this tally session. Private keys remain local. See
+[trustee configuration](../../09-braid/braid_trustees_configuration.md) for manual
+proof generation and browser trustees.
 
 ### Repeat for the Next Trustee
 After confirming the key as trustee1:
@@ -102,7 +111,8 @@ After confirming the key as trustee1:
 ---
 
 ## Step 3: Update Tally Ceremony Status (Admin Step)
-Once all trustee keys have been confirmed, the admin must update the Tally Ceremony status.
+Once the required threshold of trustee authorizations is reached and the ceremony
+is **CONNECTED**, the admin starts execution by updating its status.
 
 
 ### 1. Re-authenticate as Admin

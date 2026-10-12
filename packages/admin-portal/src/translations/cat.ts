@@ -2340,7 +2340,7 @@ const catalanTranslation: TranslationType = {
                 allElections: "Totes les Eleccions",
                 title: "Crear Cerimònia de Claus de l'Esdeveniment Electoral",
                 subtitle:
-                    "En aquesta cerimònia cada autoritat generarà i descarregarà la seva part de les claus privades per a l'Esdeveniment Electoral. Per continuar, trieu les autoritats que participaran en la cerimònia i el llindar, que és el nombre mínim d'autoritats necessaris per comptar.",
+                    "Cada autoritat genera i conserva les claus localment i en confirma la custòdia. Trieu les autoritats i el nombre mínim necessari per al recompte.",
                 trusteeList: "Autoritats",
                 threshold: "Llindar",
                 errorMinTrustees_one:
@@ -2360,7 +2360,7 @@ const catalanTranslation: TranslationType = {
                     description:
                         "Estàs a punt de Crear una Cerimònia de Claus. Aquesta acció notificarà a les Autoritats per participar en la creació i distribució de les Claus de l'Esdeveniment Electoral.",
                     automaticCeremonyDescription:
-                        "Estàs a punt de crear una cerimònia de claus automàtica. Això no notificarà als fideïcomissaris que hi participin.",
+                        "Les cerimònies automàtiques ometen les confirmacions manuals de custòdia. Els executors de les autoritats han de generar i verificar les claus electorals.",
                 },
                 filterTrustees: "Filtrar Autoritats",
                 errorPermisionLabels:
@@ -2551,7 +2551,7 @@ const catalanTranslation: TranslationType = {
             resultsTitle: "Resultats & Participació",
             generalInfoTitle: "Informació General",
             trusteeTallyTitle: "Trustee",
-            trusteeTallySubTitle: "Estat d'importació del fragment de clau",
+            trusteeTallySubTitle: "Estat de confirmació de custòdia",
             ballotBoxes: {
                 unavailable: "Segells no disponibles",
                 sealed: "{{sealed}} de {{total}} segellades",
@@ -2602,7 +2602,7 @@ const catalanTranslation: TranslationType = {
             recountTallyCeremonyError: "No s'ha pogut iniciar el recompte",
             recountTallyCeremonyOk: "Repetir el recompte",
             trusteeTitle: "Proces del trustee",
-            trusteeSubTitle: "Si us plau, importeu el vostre fragment de clau",
+            trusteeSubTitle: "Carregueu el vostre fitxer públic custody-proof.json",
             invited: "Has estat convidat a participar en una cerimònia de recompte. Si us plau, ",
             click: "feu clic en l'acció de recompte",
             participate: "per participar.",
@@ -2621,7 +2621,7 @@ const catalanTranslation: TranslationType = {
                 date: "Data de Recompte",
                 global: "Global",
                 noTrustees: "Encara no hi ha trustees",
-                imported: " trustees han importat el seu fragment de clau",
+                imported: " autoritats han confirmat la custòdia",
                 needed: " trustees necessaris per al recompte",
                 start: "Iniciar Recompte",
                 ceremony: "Iniciar Cerimònia de Recompte",
@@ -2636,11 +2636,11 @@ const catalanTranslation: TranslationType = {
                     tallyTitle: "Estàs segur de que vols iniciar el recompte?",
                     cancelTitle: "Estàs segur de que vols cancel·lar el recompte?",
                     message:
-                        "Estàs a punt d'iniciar una cerimònia de recompte. Aquesta acció notificarà als trustees per importar els seus fragments de clau.",
+                        "Aquesta cerimònia demana proves públiques de custòdia a les autoritats. Manteniu els seus executors actius amb l’estat local del protocol.",
                     cancelMessage:
                         "Estàs a punt de cancel·lar la cerimònia de recompte. Aquesta acció no es pot desfer.",
                     ceremony:
-                        "Tots els trustees requerits han verificat els seus fragments de clau. Tot està a punt per començar a rebre resultats. Voleu iniciar el Recompte?",
+                        "Les autoritats necessàries han confirmat la custòdia. Voleu iniciar el recompte amb els seus executors actius?",
                     startAutomatedTallyMessage:
                         "Seleccioneu 'Start Tally' per executar el procés de recompte i mostrar els resultats, o 'Close' per cancel·lar.",
                 },
@@ -4786,7 +4786,7 @@ const catalanTranslation: TranslationType = {
                 keys_ceremony_id: "Cerimònia",
                 tally_session_id: "Sessió de recompte",
                 trustee_id: "Autoritat",
-                key_share_sha256: "SHA-256 del fragment de clau",
+                key_share_sha256: "SHA-256 del prova de custòdia",
                 channel: "Canal",
                 channels: "Canals",
                 publication_id: "Publicació de paperetes",
@@ -4891,22 +4891,23 @@ const catalanTranslation: TranslationType = {
             notes: {
                 afterApproval: "Després de l'aprovació",
                 afterApprovalValue: "S'emeten les credencials del votant i se li envien",
-                keyShare: "El vostre fragment de clau",
-                keyShareChecked: "Comprovat: és el vostre fragment de clau per a aquesta cerimònia",
+                keyShare: "El vostre prova de custòdia",
+                keyShareChecked:
+                    "Comprovat: és el vostre prova de custòdia per a aquesta cerimònia",
                 recordedIn: "S'anota a",
                 recordedInCeremony: "La cerimònia de claus i el tauler d'anuncis",
                 recordedInTally: "La sessió de recompte",
             },
             keyShare: {
                 signing:
-                    "Signeu el vostre fragment de clau al tauler de signatura. Queda anotat un cop l'hàgiu signat.",
-                record: "Anotar el meu fragment de clau",
-                failed: "No s'ha pogut anotar el vostre fragment de clau signat: {{error}}",
+                    "Signeu el vostre prova de custòdia al tauler de signatura. Queda anotat un cop l'hàgiu signat.",
+                record: "Anotar el meu prova de custòdia",
+                failed: "No s'ha pogut anotar el vostre prova de custòdia signat: {{error}}",
                 dropAgain:
-                    "Torneu a deixar anar el vostre fitxer de fragment de clau per anotar el fragment de clau signat.",
-                redo: "El vostre fragment de clau es va aportar sense la vostra signatura, que ara aquesta elecció requereix. Torneu-lo a aportar i signeu-lo.",
+                    "Torneu a deixar anar el vostre fitxer de prova de custòdia per anotar el prova de custòdia signat. (custody-proof.json)",
+                redo: "El vostre prova de custòdia es va aportar sense la vostra signatura, que ara aquesta elecció requereix. Torneu-lo a aportar i signeu-lo.",
                 notTaken:
-                    "La cerimònia ja no accepta aquest fragment de clau. Torneu a deixar anar el vostre fitxer de fragment de clau.",
+                    "La cerimònia ja no accepta aquest prova de custòdia. Torneu a deixar anar el vostre fitxer de prova de custòdia. (custody-proof.json)",
             },
         },
         lifecycle: {

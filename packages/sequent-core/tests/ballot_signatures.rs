@@ -458,7 +458,7 @@ fn audit_plaintext_with_an_invalid_envelope_cannot_be_displayed_as_a_vote() {
         encrypt_decoded_multi_contest(&RistrettoCtx, &votes, &style).unwrap();
     assert!(map_to_decoded_contest(&single).is_ok());
     assert!(map_to_decoded_multi_contest(&multi).is_ok());
-    // Keep valid Borsh, contest identities, ciphertext and proofs. Only the
+    // Keep valid canonical encoding, contest identities, ciphertext and proofs. Only the
     // disclosed plaintext length is impossible for the 30-byte envelope.
     let mut contests = single.deserialize_contests().unwrap();
     contests[0].choice.plaintext[0] = 30;
@@ -470,7 +470,7 @@ fn audit_plaintext_with_an_invalid_envelope_cannot_be_displayed_as_a_vote() {
         AuditableMultiBallot::serialize_contests(&contests).unwrap();
     assert!(map_to_decoded_multi_contest(&multi)
         .unwrap_err()
-        .contains("Error decoding multi ballot plaintext"));
+        .contains("Invalid audit opening"));
 }
 
 #[test]

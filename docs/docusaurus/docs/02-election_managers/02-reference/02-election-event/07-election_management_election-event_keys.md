@@ -9,7 +9,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 
-The Key Ceremony establishes the collective private key used to decrypt votes and publishes a corresponding public key for voters to encrypt their ballots. During this ceremony, trustees collaboratively generate fragments of the private key, ensuring no single party holds the full secret. Each trustee downloads, securely backs up, and verifies their key fragment. Only after all trustees complete these steps can the election proceed to stages such as ballot publication, voting, and tallying. This distributed approach guarantees that votes encrypted under the shared public key remain confidential and tamper-resistant, and that the combined private key—reconstructed only when a threshold of trustees collaborates—preserves integrity and availability of decryption throughout the election lifecycle.
+The key ceremony runs wbraid distributed key generation and publishes the joint
+public key used to encrypt ballots. Each trustee's native runner or browser runner
+generates and retains its own election shares locally. Trustees later publish
+verifiable partial decryptions; the platform does not reconstruct the private key.
+
+Before creating a ceremony, register each trustee's signing public key and share
+encryption public key in **Settings → Trustees**. Start the registered trustees'
+runners and preserve their local identities and protocol state. See the
+[key ceremony tutorial](../../01-tutorials/10-admin_portal_tutorials_key-ceremony.md)
+and [native and browser trustee setup](../../../07-developers/09-braid/braid_trustees_configuration.md).
 
 
 ## Opening Key Distribution Ceremony
@@ -39,10 +48,12 @@ To initiate the Key Ceremony in the Sequent Online Voting System (OVS):
   
 4. **Automatic Key Ceremony (Optional)**
    - Only available for events with an 'Allow Automatic Ceremonies' policy.
-   - Enabling this setting automates the ceremony, so trustees are not required to take any action.
+   - Enabling this setting skips manual custody confirmations. The selected trustees'
+     native or browser runners must still participate in distributed key generation.
 
 5. **Configure Threshold & Trustees**
-   - **Input Threshold**: Specify the minimum number of trustees required to reconstruct/decrypt (the threshold).
+   - **Input Threshold**: Specify the minimum number of trustees required to tally,
+     between two and the number of selected trustees. A ceremony supports up to eight trustees.
    - **Select Trustees**: Check the trustees who will participate in this ceremony for the Election Event.
 
 6. **Create Keys Ceremony**
@@ -51,17 +62,19 @@ To initiate the Key Ceremony in the Sequent Online Voting System (OVS):
 
 7. **Trustee Actions**
    - Each trustee must:
-     - **Download** the generated encrypted private key.
-     - **Secure** multiple backups of their key.
-     - **Verify** the key with the system (see next section).
+     - **Download** the public custody request after distributed key generation completes.
+     - **Secure** multiple backups of their local identity and protocol state.
+     - **Confirm custody** with a locally generated signed proof (see next section).
 
 > _Note_: In the UI, you may see indicators (icons or status) showing which trustees have completed download/backup/verification. For instance, a green icon indicates completion.
 
 ---
 
-## Trustee Cryptographic Key Distribution Process
+## Confirm Trustee Custody
 
-Each trustee follows this procedure to download, backup, and verify their key. Once all trustees complete these steps, the Key Ceremony is finalized and the Election can proceed.
+For a manual ceremony, every participating trustee confirms local custody. The
+threshold controls tally participation; it does not reduce the number of custody
+confirmations required to complete key generation.
 
 1. **Log In & Select Election Event**
    - Log in to the Administration Portal.
@@ -71,23 +84,35 @@ Each trustee follows this procedure to download, backup, and verify their key. O
    - Click on the ceremony’s key action invitation, which may be highlighted (e.g., an orange box) or via a key icon.
 
 3. **Follow On-Screen Instructions**
-   - Proceed through the guided steps for key distribution.
+   - Wait until the runners have verified the joint public key, then proceed through
+     the custody confirmation steps.
 
-4. **Download Encrypted Private Key**
-   - Download the encrypted private key file provided by the system.
+4. **Download Custody Request**
+   - Download `custody-request.json`. This public request identifies the ceremony
+     and trustee and contains the registered public keys.
 
 5. **Create Secure Backups**
-   - Make **multiple secure backups** of the encrypted private key (e.g., on separate secure storage/media).
+   - Back up the local `trustee.toml` identity and the native runner's `message_store`
+     directory. Browser trustees back up their keys and export their browser sessions.
    - Confirm backups exist before proceeding.
 
 6. **Confirm Backup Creation**
    - Click **Next** (or equivalent) and confirm that backups have been created.
 
-7. **Verify Key with System**
-   - Drag and drop (or upload) the encrypted private key file to the UI to verify it matches the expected key fingerprint.
-   - The system will confirm successful verification.
+7. **Confirm Custody with the System**
+   - Generate a proof on the trustee machine:
+
+     ```sh
+     trustee attest --request custody-request.json --trustee-config trustee.toml --output custody-proof.json
+     ```
+
+   - Browser trustees use **Create custody proof** on the `/trustee` screen.
+   - Upload `custody-proof.json` in the ceremony wizard. Complete any required
+     approval signature. Private keys and protocol state remain on the trustee machine.
 
 8. **Completion**
-   - Once all trustees have downloaded, backed up, and verified their keys, the Key Ceremony is successfully completed.
-   - The Election Event status will update to indicate that keys have been distributed and verified.
-   - A participating trustee can reopen the ceremony and select **Verify key** to check an existing backup again. This remains available after the ceremony completes and does not generate or download a new key.
+   - Once all trustees confirm custody and any required approval signatures are
+     complete, the key ceremony becomes **SUCCESS**.
+   - Retain the public custody request for tally authorization.
+   - A participating trustee can reopen the ceremony and select **Verify Custody
+     Proof** to check the proof again. This does not generate or download private keys.

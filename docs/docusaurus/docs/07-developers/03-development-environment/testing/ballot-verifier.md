@@ -81,8 +81,10 @@ false results and missing results reject the import. Unsigned application
 envelopes retain their existing behavior, with native opening checks still required.
 
 Production browser journeys start with valid signed native ballots, then truncate
-the canonical ciphertext or change/remove only the configuration ID. They assert
-rejection, hidden selections and recovery with the original ballot. Cross-portal
+the canonical ciphertext, change/remove only the configuration ID, or replace the
+revealed plaintext or randomness. Opening substitutions preserve the ciphertext,
+ballot ID and voter signature, and must still reject the import. Both ballot
+formats assert rejection, hidden selections and recovery with the original ballot. Cross-portal
 journeys import the exact voting portal download for both single- and combined-
 contest policies and compare the ballot ID and selected candidates. Service
 boundaries are synthetic; encryption, proof/opening checks, hashes and signatures

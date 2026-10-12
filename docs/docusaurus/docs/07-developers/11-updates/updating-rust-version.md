@@ -93,7 +93,6 @@ Update the `FROM rust:X.Y.Z` line in **all** Dockerfiles:
 - **`packages/harvest/Dockerfile.prod`**
 - **`packages/harvest/Dockerfile.prod-vstl-dependencies`**
 - **`packages/wbraid/crates/b4/Dockerfile`**
-- **`packages/wbraid/crates/b4/Dockerfile`**
 - **`packages/e2e/src/mock_server/Dockerfile.prod`**
 - **`packages/loadtesting/Dockerfile`**
 - **`packages/Dockerfile.audit-ingest.prod`**
@@ -329,7 +328,6 @@ Here's the complete list of files that need updating:
 - `packages/harvest/Dockerfile`
 - `packages/harvest/Dockerfile.prod`
 - `packages/harvest/Dockerfile.prod-vstl-dependencies`
-- `packages/wbraid/crates/b4/Dockerfile`
 - `packages/wbraid/crates/b4/Dockerfile`
 - `packages/e2e/src/mock_server/Dockerfile.prod`
 - `packages/loadtesting/Dockerfile`

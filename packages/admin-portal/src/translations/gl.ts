@@ -2328,7 +2328,7 @@ const galegoTranslation: TranslationType = {
                 allElections: "Todas as Eleccións",
                 title: "Crear Cerimonia de Chaves do Evento Electoral",
                 subtitle:
-                    "Na Cerimonia de Chaves, cada fiduciario xerará e descargará o seu fragmento da chave privada para o Evento Electoral. Para continuar, por favor elixe os fiduciarios que participarán na cerimonia e o limiar, que é o número mínimo de fiduciarios requiridos para o escrutinio.",
+                    "Cada autoridade xera e conserva as súas claves localmente e confirma a súa custodia. Escolle as autoridades e o número mínimo necesario para o reconto.",
                 trusteeList: "Fiduciarios",
                 threshold: "Limiar",
                 errorMinTrustees_one:
@@ -2348,7 +2348,7 @@ const galegoTranslation: TranslationType = {
                     description:
                         "Estás a piques de Crear a Cerimonia de Chaves. Esta acción notificará aos Fiduciarios para participar na creación e distribución das Chaves do Evento Electoral.",
                     automaticCeremonyDescription:
-                        "Estás a piques de crear unha cerimonia de chaves automática. Isto non notificará aos fideicomisarios para que participen.",
+                        "As cerimonias automáticas omiten as confirmacións manuais de custodia. Os executores das autoridades deben xerar e verificar as claves electorais.",
                 },
                 filterTrustees: "Filtrar Autoridades",
                 errorPermisionLabels:
@@ -2539,7 +2539,7 @@ const galegoTranslation: TranslationType = {
             resultsTitle: "Resultados e Participación",
             generalInfoTitle: "Información Xeral",
             trusteeTallyTitle: "Fiduciarios",
-            trusteeTallySubTitle: "Estado de importación do fragmento de chave",
+            trusteeTallySubTitle: "Estado de confirmación da custodia",
             ballotBoxes: {
                 unavailable: "Selos non dispoñibles",
                 sealed: "{{sealed}} de {{total}} seladas",
@@ -2591,7 +2591,7 @@ const galegoTranslation: TranslationType = {
             recountTallyCeremonyError: "Non se puido iniciar o reconto",
             recountTallyCeremonyOk: "Repetir o reconto",
             trusteeTitle: "Proceso dos Fiduciarios",
-            trusteeSubTitle: "Por favor, carga o teu fragmento de chave",
+            trusteeSubTitle: "Carga o teu ficheiro público custody-proof.json",
             invited: "Fostes invitado a participar nunha Cerimonia de Escrutinio. Por favor ",
             click: "fai clic na Acción de Escrutinio",
             participate: "para participar.",
@@ -2610,7 +2610,7 @@ const galegoTranslation: TranslationType = {
                 date: "Data do Escrutinio",
                 global: "Global",
                 noTrustees: "Aínda non hai fiduciarios",
-                imported: " fiduciarios importaron a chave",
+                imported: " autoridades confirmaron a custodia",
                 needed: " fiduciarios necesarios",
                 start: "Iniciar Escrutinio",
                 ceremony: "Iniciar Cerimonia de Escrutinio",
@@ -2625,11 +2625,11 @@ const galegoTranslation: TranslationType = {
                     tallyTitle: "¿Estás seguro de que queres iniciar o escrutinio?",
                     cancelTitle: "¿Estás seguro de que queres cancelar o escrutinio?",
                     message:
-                        "Estás a piques de iniciar unha cerimonia de escrutinio. Esta acción notificará aos fiduciarios para que importen os seus fragmentos de chave.",
+                        "Esta cerimonia solicita probas públicas de custodia ás autoridades. Mantén os seus executores activos co estado local do protocolo.",
                     cancelMessage:
                         "Estás a piques de cancelar a cerimonia de escrutinio. Esta acción non se pode desfacer.",
                     ceremony:
-                        "Todos os fiduciarios requiridos verificaron os seus fragmentos de chave. Todo está listo para comezar a recibir resultados. ¿Queres iniciar o Escrutinio?",
+                        "As autoridades necesarias confirmaron a custodia. Iniciar o reconto cos seus executores activos?",
                     startAutomatedTallyMessage:
                         "Seleccione 'Start Tally' para executar o proceso de reconto e mostrar os resultados, ou 'Close' para cancelar.",
                 },
@@ -4764,7 +4764,7 @@ const galegoTranslation: TranslationType = {
                 keys_ceremony_id: "Cerimonia",
                 tally_session_id: "Sesión de escrutinio",
                 trustee_id: "Fiduciario",
-                key_share_sha256: "SHA-256 do fragmento de chave",
+                key_share_sha256: "SHA-256 do proba de custodia",
                 channel: "Canle",
                 channels: "Canles",
                 publication_id: "Publicación de papeletas",
@@ -4868,22 +4868,22 @@ const galegoTranslation: TranslationType = {
             notes: {
                 afterApproval: "Despois da aprobación",
                 afterApprovalValue: "Emítense as credenciais do votante e envíanselle",
-                keyShare: "O seu fragmento de chave",
-                keyShareChecked: "Comprobado: é o seu fragmento de chave para esta cerimonia",
+                keyShare: "O seu proba de custodia",
+                keyShareChecked: "Comprobado: é o seu proba de custodia para esta cerimonia",
                 recordedIn: "Anótase en",
                 recordedInCeremony: "A cerimonia de chaves e o taboleiro de anuncios",
                 recordedInTally: "A sesión de escrutinio",
             },
             keyShare: {
                 signing:
-                    "Asine o seu fragmento de chave no panel de sinatura. Anótase unha vez que o asine.",
-                record: "Anotar o meu fragmento de chave",
-                failed: "Non se puido anotar o seu fragmento de chave asinado: {{error}}",
+                    "Asine o seu proba de custodia no panel de sinatura. Anótase unha vez que o asine.",
+                record: "Anotar o meu proba de custodia",
+                failed: "Non se puido anotar o seu proba de custodia asinado: {{error}}",
                 dropAgain:
-                    "Volva soltar o seu ficheiro de fragmento de chave para anotar o seu fragmento de chave asinado.",
-                redo: "O seu fragmento de chave achegouse sen a súa sinatura, que esta elección agora require. Achégueo de novo e asíneo.",
+                    "Volva soltar o seu ficheiro de proba de custodia para anotar o seu proba de custodia asinado. (custody-proof.json)",
+                redo: "O seu proba de custodia achegouse sen a súa sinatura, que esta elección agora require. Achégueo de novo e asíneo.",
                 notTaken:
-                    "A cerimonia xa non acepta este fragmento de chave. Volva soltar o seu ficheiro de fragmento de chave.",
+                    "A cerimonia xa non acepta este proba de custodia. Volva soltar o seu ficheiro de proba de custodia. (custody-proof.json)",
             },
         },
         lifecycle: {

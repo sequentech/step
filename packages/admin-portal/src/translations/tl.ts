@@ -2338,7 +2338,7 @@ const tagalogTranslation: TranslationType = {
                 allElections: "Lahat ng Halalan",
                 title: "Lumikha ng Seremonya ng Mga Susi para sa Kaganapan sa Halalan",
                 subtitle:
-                    "Sa Seremonya ng Mga Susi, bawat trustee ay lilikha at magda-download ng kanilang piraso ng pribadong susi para sa Kaganapan sa Halalan. Upang magpatuloy, mangyaring pumili ng mga trustee na lalahok sa seremonya at ang threshold, na siyang minimum na bilang ng mga trustee na kinakailangan upang magbilang.",
+                    "Lokal na binubuo at iniingatan ng bawat tagapangasiwa ang kanilang mga susi at kinukumpirma ang pag-iingat. Piliin ang mga tagapangasiwa at ang pinakamababang bilang na kailangan para sa pagbilang.",
                 threshold: "Threshold",
                 trusteeList: "Mga Trustee",
                 errorMinTrustees_one:
@@ -2358,7 +2358,7 @@ const tagalogTranslation: TranslationType = {
                     description:
                         "Ikaw ay malapit nang lumikha ng Seremonya ng Mga Susi. Ang aksyong ito ay magpapadala ng abiso sa mga Trustee upang lumahok sa paglikha at pamamahagi ng Mga Susi ng Kaganapan sa Halalan.",
                     automaticCeremonyDescription:
-                        "Ikaw ay lilikha ng isang Awtomatikong Seremonya ng mga Susi. Hindi nito aabisuhan ang mga Trustee na lumahok.",
+                        "Nilalaktawan ng awtomatikong seremonya ang manu-manong pagkumpirma ng pag-iingat. Kailangan pa ring bumuo at magberipika ng mga susi ng halalan ang mga runner ng tagapangasiwa.",
                 },
                 filterTrustees: "I-filter ang mga trustee",
                 errorPermisionLabels:
@@ -2549,7 +2549,7 @@ const tagalogTranslation: TranslationType = {
             resultsTitle: "Mga Resulta at Pakikilahok",
             generalInfoTitle: "Pangkalahatang Impormasyon",
             trusteeTallyTitle: "Tagapagtiwala",
-            trusteeTallySubTitle: "Katayuan ng pag-import ng fragment ng key",
+            trusteeTallySubTitle: "Katayuan ng pagkumpirma ng pag-iingat",
             ballotBoxes: {
                 unavailable: "Hindi makuha ang mga seal",
                 sealed: "{{sealed}} sa {{total}} ang naka-seal",
@@ -2601,7 +2601,7 @@ const tagalogTranslation: TranslationType = {
             recountTallyCeremonyError: "Hindi nasimulan ang muling pagbibilang",
             recountTallyCeremonyOk: "Muling bilangin",
             trusteeTitle: "Proseso ng tagapagtiwala",
-            trusteeSubTitle: "Pakilagay ang iyong fragment ng key",
+            trusteeSubTitle: "I-upload ang iyong pampublikong file na custody-proof.json",
             invited: "Naanyayahan kang lumahok sa isang seremonya ng pagbibilang. Pakisuyo, ",
             click: "i-click ang aksyon ng pagbibilang",
             participate: "para lumahok.",
@@ -2620,7 +2620,7 @@ const tagalogTranslation: TranslationType = {
                 date: "Petsa ng Pagbibilang",
                 global: "Global",
                 noTrustees: "Walang mga tagapagtiwala pa",
-                imported: " tagapagtiwala ang nag-import ng kanilang fragment ng key",
+                imported: " tagapangasiwa ang nagkumpirma ng pag-iingat",
                 needed: " tagapagtiwala ang kailangan para sa pagbibilang",
                 start: "Simulan ang Pagbibilang",
                 ceremony: "Simulan ang Seremonya ng Pagbibilang",
@@ -2635,11 +2635,11 @@ const tagalogTranslation: TranslationType = {
                     tallyTitle: "Sigurado ka bang gusto mong simulan ang pagbibilang?",
                     cancelTitle: "Sigurado ka bang gusto mong kanselahin ang pagbibilang?",
                     message:
-                        "Malapit ka nang magsimula ng isang seremonya ng pagbibilang. Aabisuhan nito ang mga tagapagtiwala para i-import ang kanilang mga fragment ng key.",
+                        "Humihingi ang seremonyang ito ng pampublikong patunay ng pag-iingat mula sa mga tagapangasiwa. Panatilihing aktibo ang kanilang mga runner kasama ang lokal na estado ng protocol.",
                     cancelMessage:
                         "Malapit ka nang kanselahin ang seremonya ng pagbibilang. Hindi na mababawi ang aksyong ito.",
                     ceremony:
-                        "Na-verify na ng lahat ng kinakailangang tagapagtiwala ang kanilang mga fragment ng key. Handa na ang lahat para simulan ang pagtanggap ng mga resulta. Nais mo bang simulan ang Pagbibilang?",
+                        "Nakumpirma na ng mga kinakailangang tagapangasiwa ang pag-iingat. Simulan ang pagbilang habang aktibo ang kanilang mga runner?",
                     startAutomatedTallyMessage:
                         "Piliin ang 'Start Tally' upang patakbuhin ang proseso ng pagbilang at ipakita ang mga resulta, o 'Close' upang kanselahin.",
                 },
@@ -4801,7 +4801,7 @@ const tagalogTranslation: TranslationType = {
                 keys_ceremony_id: "Seremonya",
                 tally_session_id: "Tally session",
                 trustee_id: "Trustee",
-                key_share_sha256: "SHA-256 ng piraso ng susi",
+                key_share_sha256: "SHA-256 ng patunay ng pag-iingat",
                 channel: "Channel",
                 channels: "Mga channel",
                 publication_id: "Paglalathala ng balota",
@@ -4906,22 +4906,23 @@ const tagalogTranslation: TranslationType = {
                 afterApproval: "Pagkatapos ng pag-apruba",
                 afterApprovalValue:
                     "Ibinibigay at ipinapadala sa botante ang kanyang mga credential",
-                keyShare: "Ang iyong piraso ng susi",
-                keyShareChecked: "Nasuri: ito ang iyong piraso ng susi para sa seremonyang ito",
+                keyShare: "Ang iyong patunay ng pag-iingat",
+                keyShareChecked:
+                    "Nasuri: ito ang iyong patunay ng pag-iingat para sa seremonyang ito",
                 recordedIn: "Itinatala sa",
                 recordedInCeremony: "Ang seremonya ng mga susi at ang bulletin board",
                 recordedInTally: "Ang tally session",
             },
             keyShare: {
                 signing:
-                    "Pirmahan ang iyong piraso ng susi sa panel ng pagpirma. Itatala ito kapag napirmahan mo na.",
-                record: "Itala ang aking piraso ng susi",
-                failed: "Hindi maitala ang iyong pinirmahang piraso ng susi: {{error}}",
+                    "Pirmahan ang iyong patunay ng pag-iingat sa panel ng pagpirma. Itatala ito kapag napirmahan mo na.",
+                record: "Itala ang aking patunay ng pag-iingat",
+                failed: "Hindi maitala ang iyong pinirmahang patunay ng pag-iingat: {{error}}",
                 dropAgain:
-                    "I-drop muli ang file ng iyong piraso ng susi para maitala ang iyong pinirmahang piraso ng susi.",
-                redo: "Naiambag ang iyong piraso ng susi nang walang pirma mo, na kailangan na ngayon ng halalang ito. Iambag itong muli at pirmahan.",
+                    "I-drop muli ang file ng iyong patunay ng pag-iingat para maitala ang iyong pinirmahang patunay ng pag-iingat. (custody-proof.json)",
+                redo: "Naiambag ang iyong patunay ng pag-iingat nang walang pirma mo, na kailangan na ngayon ng halalang ito. Iambag itong muli at pirmahan.",
                 notTaken:
-                    "Hindi na tinatanggap ng seremonya ang piraso ng susi na ito. I-drop muli ang file ng iyong piraso ng susi.",
+                    "Hindi na tinatanggap ng seremonya ang patunay ng pag-iingat na ito. I-drop muli ang file ng iyong patunay ng pag-iingat. (custody-proof.json)",
             },
         },
         lifecycle: {

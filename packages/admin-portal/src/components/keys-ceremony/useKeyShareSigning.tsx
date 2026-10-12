@@ -14,7 +14,7 @@ import type {ISigningPanelData} from "@/lib/signing/api"
 import {hex} from "@/lib/signing/der"
 import {SigningRequestStatus} from "@/lib/signing/types"
 
-/** What a trustee's key step sends: the key share file's text, and its hash or request. */
+/** Public custody-proof JSON and its hash or approval request; API field names are retained. */
 export interface IKeyShareSubmission {
     privateKeyBase64: string
     keyShareSha256?: string
@@ -32,13 +32,13 @@ export interface IKeyShareAnswer extends ISigningRequiredReply {
 export enum KeyShareCheck {
     /** The step was recorded. */
     Verified = "verified",
-    /** The file is not the trustee's key share. */
+    /** The proof does not match the trustee and ceremony. */
     Invalid = "invalid",
     /** The trustee signs first; the step is recorded once they have signed. */
     Signing = "signing",
 }
 
-/** SHA-256 of the key share file's text (UTF-8), lowercase hex: what the signed request names. */
+/** SHA-256 of the public custody-proof text (UTF-8), lowercase hex: what the approval binds. */
 export const keyShareSha256 = async (text: string): Promise<string> =>
     hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)))
 
@@ -51,12 +51,12 @@ export interface IKeyShareSigningOptions {
 }
 
 /**
- * A trustee's key step (confirm or contribute a key share) behind their own
- * signature: the file is checked and hashed here; when the event's rule needs
+ * A trustee's custody confirmation behind their own approval
+ * signature: the public proof is checked and hashed here; when the event's rule needs
  * signatures the route answers a request naming that hash, the signing panel
  * opens, and once the trustee has signed the step is taken again with the
- * request. The key share itself only goes to the step's own route, never into
- * the request.
+ * request. The public proof goes to the step's route; the approval binds its hash.
+ * Private identities and election shares remain with the trustee.
  */
 export const useKeyShareSigning = ({submit, onRecorded, onFailed}: IKeyShareSigningOptions) => {
     const {t} = useTranslation()

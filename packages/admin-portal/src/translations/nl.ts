@@ -2329,7 +2329,7 @@ const dutchTranslation: TranslationType = {
                 allElections: "Alle Verkiezingen",
                 title: "Sleutelceremonie Verkiezingsevenement Aanmaken",
                 subtitle:
-                    "Tijdens de sleutelceremonie genereert en downloadt elke trustee zijn fragment van de privésleutel voor het verkiezingsevenement. Kies de trustees die deelnemen aan de ceremonie en de drempelwaarde (het minimum aantal trustees nodig voor de telling) om door te gaan.",
+                    "Elke beheerder genereert en bewaart de sleutels lokaal en bevestigt de bewaring. Kies de beheerders en het minimumaantal dat nodig is voor de telling.",
                 threshold: "Drempelwaarde",
                 trusteeList: "Trustees",
                 errorMinTrustees_one:
@@ -2349,7 +2349,7 @@ const dutchTranslation: TranslationType = {
                     description:
                         "U staat op het punt een Sleutelceremonie aan te maken. Deze actie zal de Trustees informeren om deel te nemen aan de aanmaak en distributie van de Sleutels van het Verkiezingsevenement.",
                     automaticCeremonyDescription:
-                        "U staat op het punt een automatische sleutelceremonie te creëren. Dit zal de beheerders niet op de hoogte stellen om deel te nemen.",
+                        "Automatische ceremonies slaan handmatige bevestigingen van bewaring over. De uitvoerders van de beheerders moeten de verkiezingssleutels nog steeds genereren en verifiëren.",
                 },
                 filterTrustees: "Filter Trustees",
                 errorPermisionLabels:
@@ -2539,7 +2539,7 @@ const dutchTranslation: TranslationType = {
             resultsTitle: "Resultaten & Deelname",
             generalInfoTitle: "Algemene Informatie",
             trusteeTallyTitle: "Trustees",
-            trusteeTallySubTitle: "Status import sleutelfragment",
+            trusteeTallySubTitle: "Status van bevestigingen van bewaring",
             ballotBoxes: {
                 unavailable: "Zegels niet beschikbaar",
                 sealed: "{{sealed}} van {{total}} verzegeld",
@@ -2590,7 +2590,7 @@ const dutchTranslation: TranslationType = {
             recountTallyCeremonyError: "Kon hertelling niet starten",
             recountTallyCeremonyOk: "Hertellen",
             trusteeTitle: "Proces Trustees",
-            trusteeSubTitle: "Gelieve uw sleutelfragment te uploaden",
+            trusteeSubTitle: "Upload uw openbare bestand custody-proof.json",
             invited: "U bent uitgenodigd om deel te nemen aan een Telceremonie. Gelieve ",
             click: "op de Telactie te klikken",
             participate: "om deel te nemen.",
@@ -2609,7 +2609,7 @@ const dutchTranslation: TranslationType = {
                 date: "Datum Telling",
                 global: "Globaal",
                 noTrustees: "Nog geen trustees",
-                imported: " trustees hebben de sleutel geïmporteerd",
+                imported: " beheerders hebben bewaring bevestigd",
                 needed: " trustees nodig",
                 start: "Start Telling",
                 ceremony: "Start Telceremonie",
@@ -2624,11 +2624,11 @@ const dutchTranslation: TranslationType = {
                     tallyTitle: "Weet u zeker dat u de telling wilt starten?",
                     cancelTitle: "Weet u zeker dat u de telling wilt annuleren?",
                     message:
-                        "U staat op het punt een telceremonie te starten. Deze actie zal de trustees informeren om hun sleutelfragmenten te importeren.",
+                        "Deze telceremonie vraagt beheerders om openbare bewijzen van bewaring. Houd hun uitvoerders actief met hun lokale protocolgegevens.",
                     cancelMessage:
                         "U staat op het punt de telceremonie te annuleren. Deze actie kan niet ongedaan worden gemaakt.",
                     ceremony:
-                        "Alle vereiste trustees hebben hun sleutelfragmenten geverifieerd. Alles is klaar om resultaten te ontvangen. Wilt u de Telling starten?",
+                        "De benodigde beheerders hebben bewaring bevestigd. De telling starten met hun uitvoerders actief?",
                     startAutomatedTallyMessage:
                         "Selecteer 'Start Tally' om het telproces uit te voeren en de resultaten weer te geven, of 'Close' om te annuleren.",
                 },
@@ -4792,7 +4792,7 @@ const dutchTranslation: TranslationType = {
                 keys_ceremony_id: "Ceremonie",
                 tally_session_id: "Telsessie",
                 trustee_id: "Trustee",
-                key_share_sha256: "SHA-256 van het sleutelfragment",
+                key_share_sha256: "SHA-256 van het bewijs van bewaring",
                 channel: "Kanaal",
                 channels: "Kanalen",
                 publication_id: "Publicatie stembiljet",
@@ -4898,22 +4898,22 @@ const dutchTranslation: TranslationType = {
             notes: {
                 afterApproval: "Na goedkeuring",
                 afterApprovalValue: "De inloggegevens van de kiezer worden uitgegeven en verzonden",
-                keyShare: "Uw sleutelfragment",
-                keyShareChecked: "Gecontroleerd: het is uw sleutelfragment voor deze ceremonie",
+                keyShare: "Uw bewijs van bewaring",
+                keyShareChecked: "Gecontroleerd: het is uw bewijs van bewaring voor deze ceremonie",
                 recordedIn: "Vastgelegd in",
                 recordedInCeremony: "De sleutelceremonie en het bulletinboard",
                 recordedInTally: "De telsessie",
             },
             keyShare: {
                 signing:
-                    "Onderteken uw sleutelfragment in het ondertekeningspaneel. Het wordt vastgelegd zodra u het hebt ondertekend.",
-                record: "Mijn sleutelfragment vastleggen",
-                failed: "Uw ondertekende sleutelfragment kon niet worden vastgelegd: {{error}}",
+                    "Onderteken uw bewijs van bewaring in het ondertekeningspaneel. Het wordt vastgelegd zodra u het hebt ondertekend.",
+                record: "Mijn bewijs van bewaring vastleggen",
+                failed: "Uw ondertekende bewijs van bewaring kon niet worden vastgelegd: {{error}}",
                 dropAgain:
-                    "Sleep uw sleutelfragmentbestand opnieuw hierheen om uw ondertekende sleutelfragment vast te leggen.",
-                redo: "Uw sleutelfragment is bijgedragen zonder uw handtekening, die deze verkiezing nu vereist. Draag het opnieuw bij en onderteken het.",
+                    "Sleep uw bewijs van bewaringbestand opnieuw hierheen om uw ondertekende bewijs van bewaring vast te leggen. (custody-proof.json)",
+                redo: "Uw bewijs van bewaring is bijgedragen zonder uw handtekening, die deze verkiezing nu vereist. Draag het opnieuw bij en onderteken het.",
                 notTaken:
-                    "De ceremonie accepteert dit sleutelfragment niet meer. Sleep uw sleutelfragmentbestand opnieuw hierheen.",
+                    "De ceremonie accepteert dit bewijs van bewaring niet meer. Sleep uw bewijs van bewaringbestand opnieuw hierheen. (custody-proof.json)",
             },
         },
         lifecycle: {

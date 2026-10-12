@@ -2298,7 +2298,7 @@ const englishTranslation = {
                 allElections: "All Elections",
                 title: "Create Election Event Key Ceremony",
                 subtitle:
-                    "Each trustee generates and keeps their keys locally, then confirms custody for the Election Event. To proceed, please choose the trustees that will participate in the ceremony and the threshold, which is the minimum number of trustees required to tally.",
+                    "Each trustee generates and keeps their keys locally, then confirms custody for the Election Event. Choose the trustees and the minimum number required to tally.",
                 threshold: "Threshold",
                 trusteeList: "Trustees",
                 errorMinTrustees_one:
@@ -2318,7 +2318,7 @@ const englishTranslation = {
                     description:
                         "You are about to Create Key Ceremony. This action will notify the Trustees to participate in the creation and distribution of the Election Event Keys.",
                     automaticCeremonyDescription:
-                        "You are about to Create an Automatic Key Ceremony. This will not notify the Trustees to participate.",
+                        "Automatic ceremonies skip manual custody confirmations. The trustee runners must still generate and verify the election keys.",
                 },
                 filterTrustees: "Filter Trustees",
                 errorPermisionLabels:
@@ -2552,7 +2552,7 @@ const englishTranslation = {
             resultsTitle: "Results & Participation",
             generalInfoTitle: "General Information",
             trusteeTallyTitle: "Trustees",
-            trusteeTallySubTitle: "Key fragment import status",
+            trusteeTallySubTitle: "Custody confirmation status",
             ballotBoxes: {
                 unavailable: "Seals unavailable",
                 sealed: "{{sealed}} of {{total}} sealed",
@@ -2600,7 +2600,7 @@ const englishTranslation = {
             recountTallyCeremonyError: "Could not start recount",
             recountTallyCeremonyOk: "Recount",
             trusteeTitle: "Trustees process",
-            trusteeSubTitle: "Please upload you key fragment",
+            trusteeSubTitle: "Upload your public custody-proof.json file",
             invited: "You have been invited to participate in a Tally ceremony. Please ",
             click: "click on the tally Action",
             participate: "to participate.",
@@ -2619,7 +2619,7 @@ const englishTranslation = {
                 date: "Tally Date",
                 global: "Global",
                 noTrustees: "No trustees yet",
-                imported: " trustees imported the key",
+                imported: " trustees confirmed custody",
                 needed: " trustees needed",
                 start: "Start Tally",
                 ceremony: "Start Tally Ceremony",
@@ -2634,11 +2634,11 @@ const englishTranslation = {
                     tallyTitle: "Are you sure you want to  start the tally?",
                     cancelTitle: "Are you sure you want to  cancel the tally?",
                     message:
-                        "You are about to start a tally ceremony . This action will notify the trustees to import their key fragments.",
+                        "This tally ceremony asks trustees to submit public custody proofs. Keep their runners active with their local protocol state.",
                     cancelMessage:
                         "You are about to cancel the tally ceremony. This action is not undoable.",
                     ceremony:
-                        "All required trustees have verified their key fragments. Everything is ready to begin receiving results. Do you want to start the Tally?",
+                        "The required trustees have confirmed custody. Start the tally with their runners active?",
                     startAutomatedTallyMessage:
                         "Select Start Tally to run tally process and display results, or Close to cancel.",
                 },
@@ -4756,7 +4756,7 @@ const englishTranslation = {
                 keys_ceremony_id: "Ceremony",
                 tally_session_id: "Tally session",
                 trustee_id: "Trustee",
-                key_share_sha256: "Key share SHA-256",
+                key_share_sha256: "Custody proof SHA-256",
                 channel: "Channel",
                 channels: "Channels",
                 publication_id: "Ballot publication",
@@ -4840,8 +4840,8 @@ const englishTranslation = {
             notes: {
                 afterApproval: "After approval",
                 afterApprovalValue: "The voter's credentials are issued and sent to them",
-                keyShare: "Your key share",
-                keyShareChecked: "Checked: it is your key share for this ceremony",
+                keyShare: "Your custody proof",
+                keyShareChecked: "Checked: it is your custody proof for this ceremony",
                 recordedIn: "Recorded in",
                 recordedInCeremony: "The keys ceremony and the bulletin board",
                 recordedInTally: "The tally session",
@@ -4868,13 +4868,14 @@ const englishTranslation = {
             },
             keyShare: {
                 signing:
-                    "Sign your key share in the signing panel. It is recorded once you have signed.",
-                record: "Record my key share",
-                failed: "Your signed key share could not be recorded: {{error}}",
-                dropAgain: "Drop your key share file again to record your signed key share.",
-                redo: "Your key share was contributed without your signature, which this election now needs. Contribute it again and sign it.",
+                    "Sign your custody proof in the signing panel. It is recorded once you have signed.",
+                record: "Record my custody proof",
+                failed: "Your signed custody proof could not be recorded: {{error}}",
+                dropAgain:
+                    "Drop your custody proof file again to record your signed custody proof. (custody-proof.json)",
+                redo: "Your custody proof was contributed without your signature, which this election now needs. Contribute it again and sign it.",
                 notTaken:
-                    "The ceremony no longer takes this key share. Drop your key share file again.",
+                    "The ceremony no longer takes this custody proof. Drop your custody proof file again. (custody-proof.json)",
             },
         },
         lifecycle: {
