@@ -574,3 +574,28 @@ the whole ballot. Any mismatch, and any ballot that cannot be checked (missing
 or malformed public key, contests that do not match the ballot style), must be
 reported as a verification failure rather than shown as a verified ballot. The
 Ballot Verifier performs this check before displaying the decoded ballot.
+
+## 15. Slates
+
+An election can configure named slates: groups of candidates that span several
+contests. A slate is a way of marking candidates in the Voting Portal. It is
+not part of the ballot:
+
+1. Slate definitions are election configuration. They are published in the
+   ballot style's `election_annotations`, under the key `sequent.slates`, and
+   are not an input to either codec.
+2. Choosing a slate marks its candidates in their contests. The resulting
+   selection has the same form, and the same encoding, as marking those
+   candidates one by one. The rule has one implementation,
+   `slates::selection::apply_slate` in `sequent-core`, which
+   the Voting Portal calls through WebAssembly: in each contest the slate
+   covers, its candidates replace the current marks; other contests keep
+   theirs.
+3. The encoded ballot has no slate identifier or slate flag, and choosing a
+   slate adds no vote of its own. A cast ballot still carries one ciphertext
+   per contest, or the single multi-contest ciphertext.
+4. Decoding, the ballot verifier and the tally see candidate marks only.
+   Results list the contest's candidates; a slate has no row.
+5. A ballot style without `sequent.slates` is serialized, and therefore hashed,
+   exactly as before. Configuring slates changes the annotations, so it takes
+   effect through a new publication with a new ballot style hash.
