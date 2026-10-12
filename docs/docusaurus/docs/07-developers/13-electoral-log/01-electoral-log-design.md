@@ -591,7 +591,7 @@ The import then stores the published checkpoints for the new event, with the sou
 
 ### 9.4 Proof API
 
-These Harvest routes use the same JWT and `logs-read` authorization as listing; users of the super-admin tenant can name any tenant. Harvest verifies the token's signature, expiry and issuer first (see [Harvest request authentication](../06-keycloak/developers_keycloak.md#harvest-request-authentication)). They are not exposed through Hasura, and no portal screen calls them, so voters cannot request proofs. An auditor with a `logs-read` token calls them over HTTP, and an operator with database access uses `electoral-log-admin` (section 9.5).
+These Harvest routes use the same JWT and `logs-read` authorization as listing; users of the super-admin tenant can name any tenant. Checkpoints and proofs cover the event's whole log, so on an event of their own tenant the user's permission labels must allow every election of the event, where listing shows only the records of the elections they allow. Labels name elections of the user's own tenant, so they do not restrict users of the super-admin tenant reading another tenant's event. Harvest verifies the token's signature, expiry and issuer first (see [Harvest request authentication](../06-keycloak/developers_keycloak.md#harvest-request-authentication)). They are not exposed through Hasura, and no portal screen calls them, so voters cannot request proofs. An auditor with a `logs-read` token calls them over HTTP, and an operator with database access uses `electoral-log-admin` (section 9.5).
 
 | Route (`POST`) | JSON body | Response |
 | --- | --- | --- |
@@ -615,6 +615,7 @@ The routes read the event's board unless `log_name` names another log of the eve
 | 200 | Evidence returned | Verify it against your trusted checkpoint |
 | 400 | The checkpoint names another board, or the JSON body is malformed (Rocket may answer 422 for a body that does not match) | Fix the request |
 | 401 | Missing or undecodable token, missing permission, or wrong tenant | Use a token with `logs-read` for that tenant |
+| 403 | The user's permission labels leave out an election of the event | Use a token whose labels allow every election of the event |
 | 404 | Unknown board or record | Fix the request |
 | 409 | The checkpoint is not in this board's history | Treat it as a possible fork or rollback; keep the checkpoint and investigate |
 | 500 | Database failure, or stored data that is inconsistent | Alert operators and run an audit |
@@ -669,6 +670,7 @@ The admin portal's **Electoral Log** page (`/electoral-log-console`) lets admini
 | `electoral_log_console_query` (`POST /electoral-log-console/query`) | `electoral-log-console-query` and `electoral-log-personal-data-read`, in the super-admin tenant | Up to 1,000 rows, and 10 MiB, of a read-only query on the database of the `election_event_id` of `tenant_id`, or the server's error |
 
 - **Tenants:** pages and records read the user's own tenant unless the request names another with `tenant_id`, which only users of the super-admin tenant (`SUPER_ADMIN_TENANT_ID`) may do. Harvest checks that the election event belongs to that tenant. The super-admin tenant cannot list other tenants' events through Hasura, so the portal reads them from `electoral_log_console_tenants`.
+- **Permission labels:** the console reads the event's whole database, so pages, records and queries of an event of the user's own tenant need permission labels that allow every election of the event, and Harvest answers 403 otherwise. Labels name elections of the user's own tenant, so they do not restrict users of the super-admin tenant browsing another tenant's event.
 
 - **Tables:** `records` (the event's `electoral_log_messages`, with the board name of each record's log in `log`), `ballots` (the event's `ballot_box_ballot` rows, with the content's size instead of the content), `voters` (`ballot_box_voter`) and `queue` (the ballots in `ballot_box_pending`, with their election, area and acceptance time). Events that keep the `cast_vote` table have empty `ballots`, `voters` and `queue` tables.
 - **Paging by key:** a page has at most 200 rows, newest or oldest first by the table's key: `id` for records, `seq` for ballots and the queue, election and voter for voters. It answers with the key of its last row as `next`, and the next page starts after it, so no page reads the rows before it. The portal moves forward one page at a time and back through the pages it has read; it cannot jump to a page number.

@@ -2,14 +2,22 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Minimal rows on the migrated test database. Every event gets a fresh
-//! tenant, so tests never see each other's rows.
+//! tenant unless the test names one, so tests never see each other's rows.
 
 use deadpool_postgres::Pool;
 use electoral_log::adapters::ballot_box::{
     AcceptBallot, AcceptOutcome, BallotStatus,
 };
 use electoral_log::adapters::postgres::PostgresStore;
+use electoral_log::messages::message::{Message, SigningData};
+use electoral_log::messages::newtypes::{
+    CastVoteHash, ElectionIdString, EventIdString, PseudonymHash,
+    VoterCountryString, VoterIpString,
+};
+use electoral_log::ports::ElectoralLogStore;
+use electoral_log::{ElectoralLogMessage, LogEntry};
 use serde_json::json;
+use strand::signature::StrandSignatureSk;
 use tokio_postgres::types::ToSql;
 use uuid::Uuid;
 use windmill::services::ballot_box::BallotFormat;
@@ -50,11 +58,17 @@ fn uuid(id: &str) -> Uuid {
 
 /// A tenant with one election event.
 pub async fn event(pool: &Pool) -> Event {
-    let tenant_id = Uuid::new_v4();
+    event_of(pool, &Uuid::new_v4().to_string()).await
+}
+
+/// An election event of `tenant_id`, which is created unless it exists.
+pub async fn event_of(pool: &Pool, tenant_id: &str) -> Event {
+    let tenant_id = uuid(tenant_id);
     let election_event_id = Uuid::new_v4();
     execute(
         pool,
-        "INSERT INTO sequent_backend.tenant (id, slug) VALUES ($1, $2)",
+        "INSERT INTO sequent_backend.tenant (id, slug) VALUES ($1, $2)
+         ON CONFLICT DO NOTHING",
         &[&tenant_id, &tenant_id.to_string()],
     )
     .await;
@@ -89,6 +103,20 @@ impl Event {
         )
         .await;
         id.to_string()
+    }
+
+    /// An election that only admins whose permission labels include `label`
+    /// may see.
+    pub async fn labelled_election(&self, pool: &Pool, label: &str) -> String {
+        let id = self.election(pool).await;
+        execute(
+            pool,
+            "UPDATE sequent_backend.election SET permission_label = $2
+             WHERE id = $1",
+            &[&uuid(&id), &label],
+        )
+        .await;
+        id
     }
 
     /// A contest of `election_id` with the given counting algorithm.
@@ -276,15 +304,21 @@ impl Event {
         id.to_string()
     }
 
-    /// The event's ballot box, in an electoral-log database of its own on the
-    /// server `ELECTORAL_LOG_PG_*` names, and its board on the event's row.
-    pub async fn ballot_box(&self, pool: &Pool) -> PostgresStore {
+    /// The board [`Event::ballot_box`] names on the event's row.
+    pub fn board(&self) -> String {
         let (tenant_id, election_event_id) = self.ids();
-        let board = format!(
+        format!(
             "tenant{}event{}",
             tenant_id.simple(),
             election_event_id.simple()
-        );
+        )
+    }
+
+    /// The event's ballot box, in an electoral-log database of its own on the
+    /// server `ELECTORAL_LOG_PG_*` names, and its board on the event's row.
+    pub async fn ballot_box(&self, pool: &Pool) -> PostgresStore {
+        let (_, election_event_id) = self.ids();
+        let board = self.board();
         execute(
             pool,
             "UPDATE sequent_backend.election_event
@@ -344,6 +378,45 @@ impl Event {
             matches!(outcome, AcceptOutcome::Accepted { .. }),
             "{outcome:?}"
         );
+    }
+
+    /// The signed record of a vote `voter` cast in `election_id`, appended to
+    /// `board` in the event's electoral-log database `store`. Returns its
+    /// position.
+    pub async fn cast_vote_record(
+        &self,
+        store: &PostgresStore,
+        board: &str,
+        election_id: &str,
+        voter: &str,
+    ) -> i64 {
+        let key = StrandSignatureSk::generate().expect("signing key");
+        let message = Message::cast_vote_message(
+            EventIdString(self.election_event_id.clone()),
+            ElectionIdString(Some(election_id.to_string())),
+            PseudonymHash::new([1; 64]),
+            CastVoteHash::new([2; 64]),
+            &SigningData::new(key.clone(), "voting", key),
+            VoterIpString("192.0.2.1".into()),
+            VoterCountryString("ES".into()),
+            Some(voter.to_string()),
+            Some(voter.to_string()),
+            String::new(),
+        )
+        .expect("cast vote message");
+        let entry = LogEntry {
+            delivery_id: Uuid::new_v4().to_string(),
+            message: ElectoralLogMessage::try_from(&message)
+                .expect("cast vote record"),
+        };
+        store.create_board(board).await.expect("board");
+        store
+            .append(board, &mut std::iter::once(Ok(entry)))
+            .await
+            .expect("appended record")
+            .first()
+            .expect("stored record")
+            .id
     }
 
     /// The Keycloak realm of the event's voters.
