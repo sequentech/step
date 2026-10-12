@@ -33,8 +33,8 @@ authenticated by `Message::verify`, and these tests make no broader claim.
 
 ## Against PostgreSQL
 
-The PostgreSQL contract, ballot box, event database and provisioning tests are
-ignored by default. They need a disposable PostgreSQL server and a role that may
+The PostgreSQL contract, ballot box, event database, provisioning and console
+tests are ignored by default. They need a disposable PostgreSQL server and a role that may
 create roles and databases; each test creates its own databases and partitions
 and drops them at the end. Never point them at a server that holds real data.
 
@@ -45,7 +45,7 @@ export ELECTORAL_LOG_PG_HOST=127.0.0.1 ELECTORAL_LOG_PG_PORT=5432 \
   ELECTORAL_LOG_PG_USER=test ELECTORAL_LOG_PG_PASSWORD=test \
   ELECTORAL_LOG_PG_DATABASE=test ELECTORAL_LOG_PG_SSLMODE=disable \
   ENV_SLUG=electoral-log-tests
-cargo test --locked -p electoral-log --lib --test postgres --test ballot_box --test events --test provisioning -- --ignored --test-threads=1
+cargo test --locked -p electoral-log --lib --test postgres --test ballot_box --test events --test provisioning --test console -- --ignored --test-threads=1
 cargo test --locked -p windmill postgres_wiring_tests --lib -- --ignored --test-threads=1
 ```
 

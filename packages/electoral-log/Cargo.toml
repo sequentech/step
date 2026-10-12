@@ -14,6 +14,7 @@ clap = { version = "4.0", features = ["derive"] }
 async-trait = "0.1"
 deadpool-postgres = { version = "0.14", features = ["rt_tokio_1"] }
 tokio-postgres = { version = "0.7", features = ["with-chrono-0_4", "with-uuid-1"] }
+futures-util = "0.3"
 openssl = "0.10"
 postgres-openssl = "0.5"
 borsh = { version = "1.5", features = ["derive"] }

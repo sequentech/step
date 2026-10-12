@@ -134,8 +134,8 @@ while initializing clients, and tracing's log fallback stops after a subscriber
 has been installed. The child preserves LLVM instrumentation and checks the
 actual error message and elapsed milliseconds; a zero duration is valid.
 
-Deployed workers, a deployed identity provider, RabbitMQ, S3 and the
-electoral-log databases remain outside this profile. Functions include generated routing and error closures;
+Deployed workers, a deployed identity provider, the task-queue database, S3 and
+the electoral-log databases remain outside this profile. Functions include generated routing and error closures;
 keep these and uncovered service modules in the source inventory. Actual
 branches and optional feature/target configurations remain separate obligations.
 

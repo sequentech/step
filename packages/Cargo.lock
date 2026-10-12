@@ -1880,7 +1880,7 @@ dependencies = [
 [[package]]
 name = "celery"
 version = "0.5.5"
-source = "git+https://github.com/Findeton/rusty-celery.git?rev=b4145925aaaf742b7ba54499fff45313bcadfca1#b4145925aaaf742b7ba54499fff45313bcadfca1"
+source = "git+https://github.com/Findeton/rusty-celery.git?rev=7dfe34739d21a95754e34dedb5f10aa0a4f356ce#7dfe34739d21a95754e34dedb5f10aa0a4f356ce"
 dependencies = [
  "async-trait",
  "base64 0.21.7",
@@ -1909,7 +1909,7 @@ dependencies = [
 [[package]]
 name = "celery-codegen"
 version = "0.5.5"
-source = "git+https://github.com/Findeton/rusty-celery.git?rev=b4145925aaaf742b7ba54499fff45313bcadfca1#b4145925aaaf742b7ba54499fff45313bcadfca1"
+source = "git+https://github.com/Findeton/rusty-celery.git?rev=7dfe34739d21a95754e34dedb5f10aa0a4f356ce#7dfe34739d21a95754e34dedb5f10aa0a4f356ce"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3604,6 +3604,7 @@ dependencies = [
  "chrono",
  "clap",
  "deadpool-postgres",
+ "futures-util",
  "hex",
  "log",
  "openssl",
@@ -4585,6 +4586,7 @@ dependencies = [
  "lru",
  "messaging",
  "openssl",
+ "pgmq-broker",
  "quick-xml 0.32.0",
  "regex",
  "reqwest 0.12.24",
@@ -7103,6 +7105,25 @@ checksum = "b4c5cc86750666a3ed20bdaf5ca2a0344f9c67674cae0515bec2da16fbaa47db"
 dependencies = [
  "fixedbitset",
  "indexmap 2.14.2",
+]
+
+[[package]]
+name = "pgmq-broker"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "celery",
+ "chrono",
+ "deadpool-postgres",
+ "futures",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-postgres",
+ "tokio-stream",
+ "tokio-util",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]
@@ -10606,6 +10627,7 @@ dependencies = [
  "bytes",
  "futures-core",
  "futures-sink",
+ "futures-util",
  "pin-project-lite",
  "tokio",
 ]
@@ -12142,7 +12164,6 @@ dependencies = [
  "hmac",
  "indexmap 2.14.2",
  "keycloak",
- "lapin",
  "lettre",
  "lopdf 0.38.0",
  "messaging",
@@ -12151,6 +12172,7 @@ dependencies = [
  "openssl",
  "ordered-float 5.1.0",
  "ouroboros 0.18.5",
+ "pgmq-broker",
  "postgres-openssl",
  "quick-error",
  "rand 0.9.3",

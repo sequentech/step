@@ -277,6 +277,25 @@ async fn import_broker_failures_still_return_the_in_progress_task() {
 }
 
 #[tokio::test]
+async fn an_import_the_task_queues_cannot_take_still_returns_the_in_progress_task(
+) {
+    let tasks = InMemoryUserTasks::default();
+    tasks.fail_on(UserTaskCall::Connect, "task queues unreachable");
+    let output = import(
+        &tasks,
+        claims(&[VOTER_CREATE]),
+        import_input(Some("event-a")),
+    )
+    .await
+    .unwrap();
+    assert_eq!(output.task_execution.execution_status, "IN_PROGRESS");
+    let state = tasks.snapshot();
+    assert_eq!(state.connection_count, 1);
+    assert!(state.import_attempts.is_empty());
+    assert!(state.failed_tasks.is_empty());
+}
+
+#[tokio::test]
 async fn denied_exports_do_not_allocate_documents_or_create_task_rows() {
     let tasks = InMemoryUserTasks::default();
     assert_eq!(
@@ -461,6 +480,34 @@ async fn voter_export_broker_failures_revoke_the_task_grant_before_returning_the
         )]
     );
     assert_eq!(state.export_attempts.len(), 1);
+}
+
+#[tokio::test]
+async fn a_voter_export_the_task_queues_cannot_take_revokes_its_task_grant() {
+    let tasks = InMemoryUserTasks::default();
+    tasks.fail_on(UserTaskCall::Connect, "task queues unreachable");
+    let output = export(
+        &tasks,
+        claims(&[VOTER_READ]),
+        export_input(Some("event-a"), false),
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        output.error_msg.as_deref(),
+        Some("Error sending Export Users task: $task queues unreachable")
+    );
+    let state = tasks.snapshot();
+    assert_eq!(state.tasks[0].execution_status, "FAILED");
+    assert_eq!(
+        state.failed_tasks,
+        vec![(
+            "task-1".into(),
+            "Failed to enqueue voter export: BrokerFailure(task queues unreachable)"
+                .into()
+        )]
+    );
+    assert!(state.export_attempts.is_empty());
 }
 
 #[tokio::test]

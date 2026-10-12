@@ -564,7 +564,7 @@ workflows = ["wbraid.yml"]
 
 [[checks]]
 id = "cargo-test:{unit}"
-for_each = ["strand", "electoral-log", "wrap-map-err", "step-cli"]
+for_each = ["strand", "electoral-log", "pgmq-broker", "wrap-map-err", "step-cli"]
 kind = "test"
 runner = "cargo"
 cost = "fast"
@@ -613,7 +613,7 @@ kind = "test"
 runner = "cargo"
 cost = "integration"
 cwd = "packages"
-command = "cargo test --locked -p electoral-log --lib --test postgres --test ballot_box --test events --test provisioning -- --ignored --test-threads=1"
+command = "cargo test --locked -p electoral-log --lib --test postgres --test ballot_box --test events --test provisioning --test console -- --ignored --test-threads=1"
 requires = ["postgres-server"]
 workflows = ["tests.yml"]
 [checks.env]
@@ -625,6 +625,21 @@ ELECTORAL_LOG_PG_PASSWORD = "test"
 ELECTORAL_LOG_PG_DATABASE = "test"
 ELECTORAL_LOG_PG_SSLMODE = "disable"
 ENV_SLUG = "electoral-log-tests"
+
+# The PGMQ transport, setup and inspection contracts and Windmill's electoral-log
+# queues, on a disposable database where the tests install PGMQ and their queues.
+[[checks]]
+id = "cargo-test-db:pgmq-broker"
+units = ["pgmq-broker", "windmill"]
+kind = "test"
+runner = "cargo"
+cost = "integration"
+cwd = "packages"
+command = "cargo test --locked -p pgmq-broker -- --include-ignored --test-threads=1 && cargo test --locked -p windmill --lib pgmq_tests -- --ignored --test-threads=1"
+requires = ["postgres-server"]
+workflows = ["tests.yml"]
+[checks.env]
+PGMQ_TEST_DATABASE_URL = "postgres://test:test@127.0.0.1:5432/pgmq_test"
 
 [[checks]]
 id = "cargo-test:{unit}"
@@ -879,7 +894,7 @@ kind = "test"
 runner = "python"
 cost = "fast"
 cwd = "."
-command = "python3 -m unittest discover -s scripts/dev -p 'test_*.py'"
+command = "python3 -m unittest discover -s scripts/dev -p 'test_*.py' && python3 .devcontainer/test-restart-worker.py"
 focus = ["python3", "-m", "unittest"]
 tests = ["scripts/dev/**/test_*.py"]
 

@@ -10,7 +10,7 @@ use sequent_core::services::connection::LastDatafixAccessToken;
 use sequent_core::util::init_log::init_log;
 use services::dependencies::HarvestServices;
 use windmill::services::{
-    celery_app::set_is_app_active,
+    celery_app::{init_celery_app, set_is_app_active},
     plugins_manager::plugin_manager::init_plugin_manager,
     probe::{setup_probe, AppName},
 };
@@ -53,6 +53,14 @@ async fn rocket() -> _ {
     setup_probe(AppName::HARVEST).await;
     set_is_app_active(true);
     init_plugin_manager().await.unwrap();
+    // Build the task-queue client before requests need it, without making Harvest wait for
+    // the task-queue database.
+    tokio::spawn(async {
+        while let Err(error) = init_celery_app().await {
+            tracing::warn!("The task queues are not reachable yet: {error:#}");
+            tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+        }
+    });
 
     build_application()
 }
@@ -129,6 +137,11 @@ fn build_application_with(
                 routes::electoral_log_console::electoral_log_console_record,
                 routes::electoral_log_console::electoral_log_console_query,
                 routes::electoral_log_console::electoral_log_console_tenants,
+                routes::task_queues::task_queues_overview,
+                routes::task_queues::task_queues_throughput,
+                routes::task_queues::task_queues_messages,
+                routes::task_queues::task_queues_dead_letters,
+                routes::task_queues::task_queues_query,
                 routes::export_election_event::export_election_event_route,
                 routes::export_election_event_logs::export_election_event_logs_route,
                 routes::insert_election_event::insert_election_event_f,

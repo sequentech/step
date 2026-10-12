@@ -63,6 +63,8 @@ pub enum ErrorCode {
     InvalidCastVoteOrder,
     InvalidElectoralLogConsoleRequest,
     ElectoralLogRecordNotFound,
+    InvalidTaskQueuesRequest,
+    TaskQueuesUnavailable,
     // Add any other needed error codes
 }
 

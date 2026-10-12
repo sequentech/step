@@ -38,7 +38,7 @@ $coverage && default_bin+=-coverage
 export STEP_E2E_BIN_DIR=${STEP_E2E_BIN_DIR:-$default_bin}
 DEVCONTAINER=$ROOT/.devcontainer
 SERVICES=(
-    devcontainer postgres postgres-keycloak postgres-b4 minio configure-minio rabbitmq
+    devcontainer postgres postgres-keycloak postgres-b4 minio configure-minio task-queues-setup
     data-connector-agent graphql-engine keycloak harvest windmill beat b4 trustee1 trustee2
 )
 IMAGES=(postgres postgres-b4 minio configure-minio keycloak harvest)

@@ -60,7 +60,7 @@
         "configure-minio",
         "data-connector-agent",
         "graphql-engine",
-        "rabbitmq",
+        "task-queues-setup",
         "keycloak",
         "keycloak-nginx",
         "harvest",
@@ -89,7 +89,7 @@
         "configure-minio",
         "data-connector-agent",
         "graphql-engine",
-        "rabbitmq",
+        "task-queues-setup",
         "keycloak",
         "keycloak-nginx",
         "harvest",
@@ -193,6 +193,10 @@
       "readyWhen": "exited"
     },
     {
+      "name": "task-queues-setup",
+      "readyWhen": "exited"
+    },
+    {
       "name": "keycloak",
       "url": "http://127.0.0.1:8090",
       "probe": [
@@ -209,10 +213,6 @@
     {
       "name": "minio",
       "url": "http://127.0.0.1:9001"
-    },
-    {
-      "name": "rabbitmq",
-      "url": "http://127.0.0.1:15672"
     },
     {
       "name": "windmill",

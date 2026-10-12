@@ -52,7 +52,6 @@ REQUIRED_SERVICES = (
     "postgres-keycloak",
     "postgres-b4",
     "minio",
-    "rabbitmq",
     "keycloak",
     "graphql-engine",
     "harvest",

@@ -50,7 +50,7 @@ pub async fn import_users_with(
         input.tenant_id.clone(),
         vec![required_perm],
     )?;
-    let celery_app = dispatch.connect().await;
+    let connection = dispatch.connect().await;
 
     let mut task_input = input.clone();
     task_input.is_admin = is_admin;
@@ -71,10 +71,15 @@ pub async fn import_users_with(
             .is_ok()
     });
 
-    match dispatch
-        .import(&celery_app, task_input, task_execution.clone())
-        .await
-    {
+    let sent = match connection {
+        Ok(connection) => {
+            dispatch
+                .import(&connection, task_input, task_execution.clone())
+                .await
+        }
+        Err(failure) => Err(failure),
+    };
+    match sent {
         Ok(()) => {}
         Err(_) => {
             return Ok(ImportUsersOutput {
@@ -177,22 +182,26 @@ pub async fn export_users_with(
             None
         };
 
-    let celery_app = dispatch.connect().await;
-
-    match dispatch
-        .export(
-            &celery_app,
-            ExportBody::Users {
-                tenant_id: body.tenant_id,
-                election_event_id: body.election_event_id.clone(),
-                election_id: body.election_id,
-                include_secret_attributes: body.include_secret_attributes,
-            },
-            document_id.clone(),
-            task_execution.clone(),
-        )
-        .await
-    {
+    let sent = match dispatch.connect().await {
+        Ok(connection) => {
+            dispatch
+                .export(
+                    &connection,
+                    ExportBody::Users {
+                        tenant_id: body.tenant_id,
+                        election_event_id: body.election_event_id.clone(),
+                        election_id: body.election_id,
+                        include_secret_attributes: body
+                            .include_secret_attributes,
+                    },
+                    document_id.clone(),
+                    task_execution.clone(),
+                )
+                .await
+        }
+        Err(failure) => Err(failure),
+    };
+    match sent {
         Ok(()) => {}
         Err(err) => {
             if let Some(task_execution) = &task_execution {

@@ -125,6 +125,12 @@ pub enum Permissions {
     ELECTORAL_LOG_CONSOLE_QUERY,
     #[strum(serialize = "electoral-log-personal-data-read")]
     ELECTORAL_LOG_PERSONAL_DATA_READ,
+    #[strum(serialize = "task-queues-read")]
+    TASK_QUEUES_READ,
+    #[strum(serialize = "task-queues-write")]
+    TASK_QUEUES_WRITE,
+    #[strum(serialize = "task-queues-query")]
+    TASK_QUEUES_QUERY,
     #[strum(serialize = "tasks-read")]
     TASKS_READ,
     #[strum(serialize = "keys-read")]

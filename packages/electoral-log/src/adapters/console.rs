@@ -10,6 +10,7 @@ use super::ballot_box::canonical_uuid;
 use super::postgres::PostgresStore;
 use crate::messages::message::Message;
 use anyhow::{anyhow, ensure, Context, Result};
+use futures_util::TryStreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::time::{Duration, Instant};
@@ -155,6 +156,11 @@ struct TableQuery {
 const CURSOR_SEPARATOR: char = '/';
 /// Rows a console query fetches at a time.
 const QUERY_FETCH_ROWS: i32 = 100;
+/// Read-only queries that run at once in a process, which bounds the memory their rows
+/// take in a service that also does other work, such as Harvest.
+static RUNNING_QUERIES: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(4);
+/// How much longer than its time limit a read-only query may take on the client.
+const QUERY_CLIENT_MARGIN: Duration = Duration::from_secs(2);
 
 fn table_query(table: ConsoleTable) -> TableQuery {
     match table {
@@ -639,16 +645,39 @@ pub async fn run_read_only_query(
     max_bytes: usize,
     timeout: Duration,
 ) -> Result<QueryResult> {
+    // The server's statement timeouts count down to the same deadline, so they normally
+    // end the query; this bounds it also when the connection stops answering.
+    let started = Instant::now();
+    tokio::time::timeout(timeout + QUERY_CLIENT_MARGIN, async {
+        let _running = RUNNING_QUERIES
+            .acquire()
+            .await
+            .context("Error waiting for a query slot")?;
+        read_only_query(client, sql, max_rows, max_bytes, timeout, started).await
+    })
+    .await
+    .map_err(|_| anyhow!("The query took longer than {timeout:?}"))?
+}
+
+async fn read_only_query(
+    client: &mut tokio_postgres::Client,
+    sql: &str,
+    max_rows: usize,
+    max_bytes: usize,
+    timeout: Duration,
+    started: Instant,
+) -> Result<QueryResult> {
     let sql = sql
         .trim()
         .trim_end_matches(|c: char| c == ';' || c.is_whitespace());
     ensure!(!sql.is_empty(), "The query is empty");
-    let started = Instant::now();
+    let left = timeout.saturating_sub(started.elapsed());
+    ensure!(!left.is_zero(), "The query took longer than {timeout:?}");
     let transaction = client.build_transaction().read_only(true).start().await?;
     transaction
         .batch_execute(&format!(
             "SET LOCAL statement_timeout = {}",
-            timeout.as_millis()
+            left.as_millis().max(1)
         ))
         .await?;
     let statement = transaction
@@ -664,11 +693,17 @@ pub async fn run_read_only_query(
         !columns.is_empty(),
         "Only queries that return rows run: SELECT, VALUES, TABLE or WITH"
     );
+    // Rows are read as JSON objects keyed by column name.
+    let mut names = std::collections::HashSet::new();
+    ensure!(
+        columns.iter().all(|column| names.insert(column)),
+        "Give each column of the result a different name"
+    );
     // Rows are fetched a batch at a time, each cut by the server to just over the byte
     // limit, so a query of large rows stops once the limit is reached.
     let limited = transaction
         .prepare(&format!(
-            "SELECT left(row_to_json(q)::text, {}) FROM ({sql}\n) q LIMIT {}",
+            "SELECT left(row_to_json(q.*)::text, {}) FROM ({sql}\n) q LIMIT {}",
             max_bytes + 1,
             max_rows + 1
         ))
@@ -682,14 +717,33 @@ pub async fn run_read_only_query(
     let mut bytes = 0;
     let mut truncated = false;
     'fetch: loop {
-        let batch = transaction
-            .query_portal(&portal, QUERY_FETCH_ROWS)
+        // Each fetch arms the statement timeout anew from the settings, which the query
+        // itself could change, so it is set again to the time left. A transaction timeout
+        // (PostgreSQL 17 and later) would keep the statement timeout from being armed.
+        let left = timeout.saturating_sub(started.elapsed());
+        ensure!(!left.is_zero(), "The query took longer than {timeout:?}");
+        transaction
+            .batch_execute(&format!(
+                "SELECT set_config(name, '0', true) FROM pg_settings \
+                 WHERE name = 'transaction_timeout'; \
+                 SET LOCAL statement_timeout = {}",
+                left.as_millis().max(1)
+            ))
+            .await?;
+        // Rows are read as they arrive, so that no more than one row beyond the byte
+        // limit is held.
+        let rows = transaction
+            .query_portal_raw(&portal, QUERY_FETCH_ROWS)
             .await
             .map_err(|error| anyhow!(query_error(&error)))?;
-        if batch.is_empty() {
-            break;
-        }
-        for row in &batch {
+        futures_util::pin_mut!(rows);
+        let mut fetched = false;
+        while let Some(row) = rows
+            .try_next()
+            .await
+            .map_err(|error| anyhow!(query_error(&error)))?
+        {
+            fetched = true;
             let text: String = row.try_get(0)?;
             bytes += text.len();
             if texts.len() == max_rows || bytes > max_bytes {
@@ -697,6 +751,9 @@ pub async fn run_read_only_query(
                 break 'fetch;
             }
             texts.push(text);
+        }
+        if !fetched {
+            break;
         }
     }
     transaction.rollback().await?;

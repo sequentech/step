@@ -78,6 +78,7 @@ class PlanTests(unittest.TestCase):
                     {
                         "electoral-log",
                         "trellis",
+                        "pgmq-broker",
                         "harvest",
                         "strand",
                         "sequent-core",
@@ -139,6 +140,11 @@ class PlanTests(unittest.TestCase):
             "--features upstream-service --lib --example monitor --example post",
         )
         self.assertIn("electoral-log", rust)
+        self.assertTrue(plan["jobs"]["run-windmill-tests"])
+
+    def test_pgmq_broker_tests_its_crate_and_the_windmill_transport(self):
+        plan = self.plan("packages/pgmq-broker/src/lib.rs")
+        self.assertIn("pgmq-broker", [row["service"] for row in plan["rust"]])
         self.assertTrue(plan["jobs"]["run-windmill-tests"])
 
     def test_step_cli_builder_does_not_check_core_gates(self):

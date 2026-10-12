@@ -265,6 +265,13 @@ async fn a_letter_whose_task_cannot_proceed_fails_that_task() {
             "Failed to enqueue Voter Information Letter task",
             "Error: Failed to enqueue Voter Information Letter generation",
         ),
+        (
+            Services::on_test_database()
+                .await
+                .with_tasks(MemoryTaskQueue::unreachable()),
+            "Failed to enqueue Voter Information Letter task",
+            "Error: Failed to enqueue Voter Information Letter generation",
+        ),
     ] {
         let event = rows::event(&services.hasura).await;
         let peer = HttpServer::start(vec![voter_lookup(&event, 200)]);

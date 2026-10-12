@@ -1019,6 +1019,23 @@ class RepositoryModelTest(unittest.TestCase):
             <= chosen
         )
 
+    def test_task_queue_changes_select_the_pgmq_contracts(self):
+        for path in (
+            "packages/pgmq-broker/src/lib.rs",
+            "packages/windmill/src/services/celery_app.rs",
+        ):
+            with self.subTest(path=path):
+                _, chosen = self.select(path)
+                self.assertIn("cargo-test-db:pgmq-broker", chosen)
+        _, chosen = self.select("packages/harvest/src/main.rs")
+        self.assertNotIn("cargo-test-db:pgmq-broker", chosen)
+
+    def test_worker_restart_script_selects_its_test(self):
+        _, chosen = self.select(".devcontainer/restart-worker.sh")
+        self.assertIn("python:scripts-dev", chosen)
+        check = next(c for c in self.model.checks if c.id == "python:scripts-dev")
+        self.assertIn("python3 .devcontainer/test-restart-worker.py", check.command)
+
     def test_selection_model_change_selects_every_check(self):
         selection, chosen = self.select("scripts/dev/affected.toml")
         self.assertEqual(len(chosen), len(self.model.checks))

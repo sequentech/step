@@ -30,8 +30,8 @@ flowchart LR
   hasura -->|"forwards the JWT"| harvest["Harvest<br/>/monitoring/*"]
   harvest -->|"POST /render, /validate"| renderer["monitoring-renderer"]
   harvest --> db[("monitoring_config*<br/>monitoring_snapshot_*")]
-  beat["Windmill beat<br/>refresh_monitoring_snapshots<br/>every 30 s"] -->|"dev_beat queue"| worker1["windmill worker"]
-  worker1 -->|"one task per CONFIGURED event<br/>on dev_monitoring_queue"| pass["refresh_monitoring_event_snapshot"]
+  beat["Windmill beat<br/>refresh_monitoring_snapshots<br/>every 30 s"] -->|"beat queue"| worker1["windmill worker"]
+  worker1 -->|"one task per CONFIGURED event<br/>on monitoring_queue"| pass["refresh_monitoring_event_snapshot"]
   kc[("Keycloak DB")] --> pass
   pass --> db
   kclog["Keycloak events"] --> ellog["electoral-log batch"]
@@ -44,9 +44,8 @@ flowchart LR
   are then edited in the portal, each save a new revision.
 - **Snapshots**: beat sends `refresh_monitoring_snapshots` every 30 seconds.
   For each event whose `dashboard_mode` is `CONFIGURED` it sends one
-  `refresh_monitoring_event_snapshot` task to `<ENV_SLUG>_monitoring_queue`
-  (`dev_monitoring_queue` in development). The pass refreshes
-  `monitoring_voter` from Keycloak and the backend tables, counts every
+  `refresh_monitoring_event_snapshot` task to `monitoring_queue`. The pass
+  refreshes `monitoring_voter` from Keycloak and the backend tables, counts every
   source for every scope and writes a new revision only when figures changed.
 - **Login counters**: sign-in attempts are counted as the electoral log
   receives Keycloak events, whether or not the event is configured.
@@ -72,9 +71,9 @@ start everything the feature needs (`.devcontainer/modes.json`):
 |---|---|---|
 | `monitoring-renderer` | Draws charts and runs the dbt Charts checks of Validate and Save. Compose profiles `full` and `base`; internal network, no published port. | `docker inspect -f '{{.State.Health.Status}}' monitoring-renderer` is `healthy` |
 | `harvest` | Serves `/monitoring/*`. Needs `HARVEST_MONITORING_RENDERER_TOKEN` equal to the renderer's `RENDERER_TOKEN`; compose sets both from `MONITORING_RENDERER_TOKEN` in `.devcontainer/.env.development`. | `docker inspect -f '{{.State.Health.Status}}' harvest` is `healthy` |
-| `beat` | Runs `cargo run --bin beat`, which schedules the snapshot beat. | `docker logs --since 2m beat 2>&1 \| grep refresh_monitoring_snapshots` |
+| `beat` | Builds and runs `beat`, which schedules the snapshot beat. | `docker logs --since 2m beat 2>&1 \| grep refresh_monitoring_snapshots` |
 | `windmill` | Must consume `monitoring_queue` as well as `beat`: its compose command lists `... electoral_log_beat_queue monitoring_queue`. | `docker logs --since 2m windmill 2>&1 \| grep "Monitoring snapshot pass"` |
-| `graphql-engine`, `keycloak`, `postgres`, `rabbitmq` | The usual backend. | `scripts/dev/step-dev mode status` |
+| `graphql-engine`, `keycloak`, `postgres`, `task-queues-setup` | The usual backend; `task-queues-setup` creates `monitoring_queue` in the task-queue database and exits. | `scripts/dev/step-dev mode status` |
 
 Container names carry `DEVCONTAINER_NAME_PREFIX` when it is set. Start and
 check the stack:

@@ -152,6 +152,11 @@
 /staff-certificates
 /staff-certificates/<id>/revoke
 /submit-tally-resolution
+/task-queues/dead-letters
+/task-queues/messages
+/task-queues/overview
+/task-queues/query
+/task-queues/throughput
 /update-election-voting-status
 /update-event-voting-status
 /update-realm-attributes

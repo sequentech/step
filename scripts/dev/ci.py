@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[2]
 RUST = (
     "electoral-log",
     "trellis",
+    "pgmq-broker",
     "harvest",
     "strand",
     "sequent-core",

@@ -262,7 +262,8 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/export-tenant-users", {"tenant_id": TENANT_ID}, [USER_READ], BACKEND, UNAUTHORIZED),
         // The task row is written before the permission check.
         case!(Admin, "/export-trustees", {"password": "test-password"}, [TRUSTEES_EXPORT], BACKEND, BACKEND),
-        case!(Admin, "/export-users", {"tenant_id": TENANT_ID}, [USER_READ], BACKEND, UNAUTHORIZED),
+        // A tenant export has no task row: the answer's error message says the task queues are unreachable.
+        case!(Admin, "/export-users", {"tenant_id": TENANT_ID}, [USER_READ], Reply::Json(Status::Ok), UNAUTHORIZED),
         // The secret-attribute check comes after the tenant-user rejection.
         case!(Admin, "/export-users", {"tenant_id": TENANT_ID, "include_secret_attributes": true}, [USER_READ], BAD_REQUEST, UNAUTHORIZED),
         case!(Admin, "/export-users", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [VOTER_READ], BACKEND, UNAUTHORIZED),
@@ -394,6 +395,20 @@ fn cases() -> Vec<Case> {
         case!(UuidTenant, "/staff-certificates", {"election_event_id": UUID_EVENT_ID, "user_id": USER_ID, "pem": PEM}, [SIGNING_CERTIFICATES_REGISTER], BACKEND, FORBIDDEN_JSON),
         case!(UuidTenant, "/staff-certificates/<id>/revoke", {"election_event_id": UUID_EVENT_ID, "reason": "token lost"}, [SIGNING_CERTIFICATES_REVOKE], BACKEND, FORBIDDEN_JSON),
         case!(Admin, "/submit-tally-resolution", {"election_event_id": EVENT_ID, "tally_session_id": "test-session", "resolutions": [{"contest_id": "test-contest", "selected_candidate_id": "test-candidate"}]}, [TALLY_RESOLUTION_SUBMIT], BACKEND, UNAUTHORIZED),
+        // Harvest enqueues the operation; the child process has no task-queue database.
+        case!(SuperAdmin, "/task-queues/dead-letters", {"operation": "replay", "message_ids": ["1"]}, [TASK_QUEUES_READ, TASK_QUEUES_WRITE], BACKEND, UNAUTHORIZED_JSON),
+        // Inspection reads as the task-queue reader, which the child process leaves unconfigured.
+        case!(SuperAdmin, "/task-queues/messages", {"queue": "short_queue", "state": "queued"}, [TASK_QUEUES_READ], Reply::Json(Status::ServiceUnavailable), UNAUTHORIZED_JSON),
+        case!(
+            SuperAdmin,
+            "/task-queues/overview",
+            {},
+            [TASK_QUEUES_READ],
+            Reply::Json(Status::ServiceUnavailable),
+            UNAUTHORIZED_JSON
+        ),
+        case!(SuperAdmin, "/task-queues/query", {"sql": "SELECT 1"}, [TASK_QUEUES_READ, TASK_QUEUES_QUERY], Reply::Json(Status::ServiceUnavailable), UNAUTHORIZED_JSON),
+        case!(SuperAdmin, "/task-queues/throughput", {"queue": "short_queue"}, [TASK_QUEUES_READ], Reply::Json(Status::ServiceUnavailable), UNAUTHORIZED_JSON),
         case!(Gold, "/update-election-voting-status", {"election_event_id": EVENT_ID, "election_id": "test-election", "voting_status": "OPEN"}, [ELECTION_STATE_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(Gold, "/update-event-voting-status", {"election_event_id": EVENT_ID, "voting_status": "OPEN"}, [ELECTION_STATE_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/update-realm-attributes", {"election_event_id": EVENT_ID, "attributes": {}}, [KEYCLOAK_REALM_ATTRIBUTES_WRITE], BACKEND, FORBIDDEN_JSON),

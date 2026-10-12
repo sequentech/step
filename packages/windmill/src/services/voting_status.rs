@@ -3,7 +3,7 @@ use crate::postgres::election_event::update_election_event_status;
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::celery_app::get_celery_app;
+use crate::services::celery_app::try_get_celery_app;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status;
 use crate::services::electoral_log::*;
@@ -11,7 +11,6 @@ use crate::tasks::publish_electoral_log_checkpoint::publish_electoral_log_checkp
 use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::{ElectoralLogCheckpointReason, VotingChannelString};
-use futures::FutureExt;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionStatus;
 use sequent_core::ballot::VotingStatus;
@@ -22,7 +21,6 @@ use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::hasura::core::VotingChannels;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::panic::AssertUnwindSafe;
 use tracing::info;
 use tracing::instrument;
 
@@ -324,30 +322,23 @@ pub async fn queue_voting_checkpoint(
     election_event_id: &str,
     reason: ElectoralLogCheckpointReason,
 ) {
-    // A broker that can't be reached makes the Celery app panic: the change
-    // goes on without its checkpoint.
+    // An unreachable task-queue database fails the send: the change goes on
+    // without its checkpoint.
     let send = async {
-        get_celery_app()
-            .await
+        try_get_celery_app()
+            .await?
             .send_task(publish_electoral_log_checkpoint::new(
                 tenant_id.to_string(),
                 election_event_id.to_string(),
                 reason,
             ))
-            .await
+            .await?;
+        anyhow::Ok(())
     };
-    let queued = tokio::time::timeout(
-        CHECKPOINT_QUEUE_TIMEOUT,
-        AssertUnwindSafe(send).catch_unwind(),
-    )
-    .await;
-    match queued {
-        Ok(Ok(Ok(_))) => {}
-        Ok(Ok(Err(error))) => tracing::error!(
+    match tokio::time::timeout(CHECKPOINT_QUEUE_TIMEOUT, send).await {
+        Ok(Ok(())) => {}
+        Ok(Err(error)) => tracing::error!(
             "Could not queue the {reason} electoral-log checkpoint for event {election_event_id}: {error:?}"
-        ),
-        Ok(Err(_)) => tracing::error!(
-            "Queueing the {reason} electoral-log checkpoint for event {election_event_id} panicked"
         ),
         Err(_) => tracing::error!(
             "Timed out queueing the {reason} electoral-log checkpoint for event {election_event_id}"

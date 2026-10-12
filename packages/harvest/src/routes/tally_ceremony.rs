@@ -397,8 +397,8 @@ pub async fn recount_tally_session(
         (Status::InternalServerError, format!("Commit failed: {err}"))
     })?;
 
-    let celery_app = services.tasks.connect().await;
-    let task = celery_app
+    let task = services
+        .tasks
         .send_task(execute_tally_session::new(
             tenant_id.clone(),
             input.election_event_id.clone(),

@@ -10,7 +10,6 @@ import static sequent.keycloak.authenticator.Utils.VOTER_CERT_SUBJECT_DN;
 import static sequent.keycloak.authenticator.Utils.sendErrorNotificationToUser;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rabbitmq.client.AMQP;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -29,7 +28,7 @@ import org.keycloak.models.KeycloakSession;
 public class CustomEventListenerProvider implements EventListenerProvider {
 
   private final KeycloakSession session;
-  private final RabbitMqEventPublisher rabbitMqEventPublisher;
+  private final PgmqEventPublisher pgmqEventPublisher;
 
   // Environment variables (read once for performance)
   private static final String TASK_NAME =
@@ -39,10 +38,9 @@ public class CustomEventListenerProvider implements EventListenerProvider {
 
   private final ObjectMapper om = new ObjectMapper();
 
-  CustomEventListenerProvider(
-      KeycloakSession session, RabbitMqEventPublisher rabbitMqEventPublisher) {
+  CustomEventListenerProvider(KeycloakSession session, PgmqEventPublisher pgmqEventPublisher) {
     this.session = session;
-    this.rabbitMqEventPublisher = rabbitMqEventPublisher;
+    this.pgmqEventPublisher = pgmqEventPublisher;
   }
 
   /**
@@ -139,7 +137,7 @@ public class CustomEventListenerProvider implements EventListenerProvider {
       body = event.getError();
     }
 
-    // Publish the event to RabbitMQ with the complete JSON structure.
+    // Publish the event to PGMQ with the complete JSON structure.
     logEvent(
         electionEventId,
         event.getType().toString(),
@@ -155,13 +153,38 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     log.info("An admin event was fired, realmId: " + event.getAuthDetails().getRealmId());
   }
 
+  /** Publishes the event message to the PGMQ queue; see {@link #taskMessage}. */
+  private void logEvent(
+      String electionEventId,
+      String messageType,
+      String body,
+      String userId,
+      String tenantId,
+      String username,
+      long eventTimeMs) {
+    log.info("logEvent: start");
+    List<Object> message =
+        taskMessage(electionEventId, messageType, body, userId, tenantId, username, eventTimeMs);
+
+    // Generate a correlation ID.
+    String correlationId = UUID.randomUUID().toString();
+
+    try {
+      pgmqEventPublisher.publish(session, correlationId, TASK_NAME, om.writeValueAsBytes(message));
+      log.infov("Audit event handed to PGMQ: correlationId={0}", correlationId);
+    } catch (Exception e) {
+      session.getTransactionManager().setRollbackOnly();
+      throw new IllegalStateException("Unable to enqueue electoral audit event", e);
+    }
+  }
+
   /**
-   * Builds the Celery message for an event. Its input holds election_event_id, message_type, body,
-   * user_id, tenant_id and username as strings, a missing one as the string "null" so that the log
-   * reader can deserialize it, and event_time_ms, when Keycloak saw the event in milliseconds since
-   * the Unix epoch, as a number.
+   * The Celery arguments of the {@code enqueue_electoral_log_event} task. Its input holds
+   * election_event_id, message_type, body, user_id, tenant_id and username as strings, a missing
+   * one as the string "null" so that the log reader can deserialize it, and event_time_ms, when
+   * Keycloak saw the event in milliseconds since the Unix epoch, as a number.
    */
-  static List<Object> buildMessage(
+  static List<Object> taskMessage(
       String electionEventId,
       String messageType,
       String body,
@@ -192,60 +215,6 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     message.add(inputObject);
     message.add(annotations);
     return message;
-  }
-
-  /** Publishes the event message to the RabbitMQ queue; see {@link #buildMessage}. */
-  private void logEvent(
-      String electionEventId,
-      String messageType,
-      String body,
-      String userId,
-      String tenantId,
-      String username,
-      long eventTimeMs) {
-    log.info("logEvent: start");
-    log.infov(
-        "logEvent: details electionEventId: {0} messageType: {1} body: {2} userId: {3} tenantId: {4} username: {5}",
-        electionEventId, messageType, body, userId, tenantId, username);
-
-    List<Object> message =
-        buildMessage(electionEventId, messageType, body, userId, tenantId, username, eventTimeMs);
-
-    // Generate a correlation ID.
-    String correlationId = UUID.randomUUID().toString();
-
-    try {
-      // Build headers map.
-      Map<String, Object> headers = new HashMap<>();
-      headers.put("id", correlationId);
-      headers.put("task", TASK_NAME);
-      headers.put("timelimit", "undefined");
-
-      // Build properties.
-      AMQP.BasicProperties props =
-          new AMQP.BasicProperties.Builder()
-              .correlationId(correlationId)
-              .priority(0)
-              .deliveryMode(2)
-              .contentEncoding("utf-8")
-              .contentType("application/json")
-              .headers(headers)
-              .build();
-
-      rabbitMqEventPublisher.publish(props, om.writeValueAsBytes(message));
-      log.infov("Audit event published to RabbitMQ: correlationId={0}", correlationId);
-    } catch (Exception e) {
-      log.errorv(
-          e,
-          "Audit event was not delivered to RabbitMQ: correlationId={0}, tenantId={1}, electionEventId={2}, messageType={3}, userId={4}, username={5}, body={6}",
-          correlationId,
-          tenantId,
-          electionEventId,
-          messageType,
-          userId,
-          username,
-          body);
-    }
   }
 
   @Override

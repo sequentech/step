@@ -6,9 +6,9 @@
 //!
 //! - **At a close**, after it commits, [`kick_ballot_box_sealer`] runs
 //!   [`schedule_ballot_box_seals`], which schedules one [`seal_ballot_box`]
-//!   per new pending seal at its deadline (`eta`) when that is at most
-//!   [`ETA_HORIZON_MINUTES`] away, so a box is sealed within moments of
-//!   its deadline.
+//!   per new pending seal at its deadline (`eta`), so a box is sealed within
+//!   moments of its deadline. The task-queue database holds the message
+//!   until then.
 //! - **The guarantee:** beat runs the light dispatcher [`seal_ballot_boxes`]
 //!   every minute on the Beat queue. It lists the `pending` seals past their
 //!   deadline and the `sealed` ones still to publish, and enqueues one
@@ -25,14 +25,12 @@ use crate::postgres::ballot_box_seal::{list_new_pending, list_open_work_ids};
 use crate::services::ballot_box_seal::publish::{publish_box, PublishOutcome};
 use crate::services::ballot_box_seal::seal::{seal_box, SealOutcome};
 use crate::services::ballot_box_seal::ProductionSealEnvironment;
-use crate::services::celery_app::get_celery_app;
+use crate::services::celery_app::{get_celery_app, try_get_celery_app};
 use crate::services::database::get_hasura_pool;
 use crate::types::error::Result;
 use anyhow::anyhow;
 use celery::error::TaskError;
 use chrono::Utc;
-use futures::FutureExt;
-use std::panic::AssertUnwindSafe;
 use std::time::Duration;
 use tokio::task::JoinHandle;
 use tracing::{error, info, instrument, warn};
@@ -43,17 +41,12 @@ pub const SEAL_BALLOT_BOXES_INTERVAL_SECONDS: u64 = 60;
 /// The most seals of each status one dispatcher run enqueues; the next run
 /// takes the rest.
 const SEALS_PER_RUN: i64 = 1000;
-/// How long a kick may take to reach the broker.
+/// How long a kick may take to reach the task-queue database.
 const KICK_TIMEOUT: Duration = Duration::from_secs(5);
 /// How long a `seal_ballot_box` message stays valid after it is due.
 pub const SEAL_MESSAGE_EXPIRES_SECONDS: i64 = 120;
 /// How far back a close's schedule looks for the seals it created.
 const NEW_SEALS_WINDOW_MINUTES: i64 = 10;
-/// A close schedules a seal at its deadline only when the deadline is this
-/// close; a message waiting for its `eta` is held unacked by the worker, and
-/// the broker drops consumers that hold one too long. The beat covers later
-/// deadlines within a minute of them.
-const ETA_HORIZON_MINUTES: i64 = 5;
 
 /// The `seal_ballot_box` message for a seal: due now (beat), or at `eta`
 /// (a close's schedule); either way it expires
@@ -124,9 +117,9 @@ pub async fn seal_ballot_box(seal_id: String) -> Result<()> {
 }
 
 /// Schedules one [`seal_ballot_box`] per pending seal created in the last
-/// minutes and not tried yet whose deadline is at most
-/// [`ETA_HORIZON_MINUTES`] away, at its deadline (`eta`), expiring
-/// [`SEAL_MESSAGE_EXPIRES_SECONDS`] after it. Later deadlines are the beat's.
+/// minutes and not tried yet, at its deadline (`eta`), expiring
+/// [`SEAL_MESSAGE_EXPIRES_SECONDS`] after it. The beat's dispatcher covers a
+/// seal whose message is lost or expires.
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(time_limit = 30, max_retries = 0, expires = 30)]
@@ -138,12 +131,7 @@ pub async fn schedule_ballot_box_seals() -> Result<()> {
         .map_err(|error| anyhow!("Error getting the hasura client: {error:?}"))?;
     let transaction = client.transaction().await.map_err(anyhow::Error::from)?;
     let since = Utc::now() - chrono::Duration::minutes(NEW_SEALS_WINDOW_MINUTES);
-    let horizon = Utc::now() + chrono::Duration::minutes(ETA_HORIZON_MINUTES);
-    let seals: Vec<_> = list_new_pending(&transaction, since)
-        .await?
-        .into_iter()
-        .filter(|(_, deadline)| *deadline <= horizon)
-        .collect();
+    let seals = list_new_pending(&transaction, since).await?;
     transaction.commit().await.map_err(anyhow::Error::from)?;
     if seals.is_empty() {
         return Ok(());
@@ -166,22 +154,20 @@ pub async fn schedule_ballot_box_seals() -> Result<()> {
 }
 
 /// Asks a worker to schedule the seals a close made, after it commits. Fire
-/// and forget: it never fails or panics, even with the broker down; beat
+/// and forget: it never fails, even with the task-queue database down; beat
 /// runs the dispatcher anyway.
 pub fn kick_ballot_box_sealer() -> JoinHandle<()> {
     tokio::spawn(async move {
         let send = async {
-            get_celery_app()
-                .await
+            try_get_celery_app()
+                .await?
                 .send_task(schedule_ballot_box_seals::new())
-                .await
-                .map(|_| ())
-                .map_err(|error| anyhow!("{error:?}"))
+                .await?;
+            anyhow::Ok(())
         };
-        match tokio::time::timeout(KICK_TIMEOUT, AssertUnwindSafe(send).catch_unwind()).await {
-            Ok(Ok(Ok(()))) => {}
-            Ok(Ok(Err(error))) => warn!("Error kicking the ballot box sealer: {error:#}"),
-            Ok(Err(_)) => warn!("Kicking the ballot box sealer panicked"),
+        match tokio::time::timeout(KICK_TIMEOUT, send).await {
+            Ok(Ok(())) => {}
+            Ok(Err(error)) => warn!("Error kicking the ballot box sealer: {error:#}"),
             Err(_) => warn!("Kicking the ballot box sealer timed out"),
         }
     })

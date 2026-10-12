@@ -132,7 +132,12 @@ pub async fn render_document_pdf(
 
     let output_document_id: String = Uuid::new_v4().to_string();
 
-    let celery_app = services.tasks.connect().await;
+    let celery_app = services.tasks.connect().await.map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("The task queues are not available: {error:#}"),
+        )
+    })?;
 
     // Insert the task execution record
     let task_execution = services
@@ -227,7 +232,12 @@ pub async fn generate_template(
         .unwrap_or_else(|| executer_name.clone());
 
     let document_id: String = Uuid::new_v4().to_string();
-    let celery_app = services.tasks.connect().await;
+    let celery_app = services.tasks.connect().await.map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("The task queues are not available: {error:#}"),
+        )
+    })?;
     let EGenerateTemplate::BallotImages {
         election_event_id, ..
     } = input.clone();
@@ -327,7 +337,12 @@ pub async fn generate_report(
         .unwrap_or_else(|| executer_name.clone());
 
     let document_id: String = Uuid::new_v4().to_string();
-    let celery_app = services.tasks.connect().await;
+    let celery_app = services.tasks.connect().await.map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("The task queues are not available: {error:#}"),
+        )
+    })?;
     let report = get_report_by_id(
         &hasura_transaction,
         &input.tenant_id,

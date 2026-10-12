@@ -280,12 +280,22 @@ jobs:
           profile: dev
           features: default
 
+      - name: Run PGMQ transport contracts
+        env:
+          PGMQ_TEST_DATABASE_URL: postgres://test:test@127.0.0.1:3322/pgmq_test
+        run: |
+          # The tests install PGMQ and their queues themselves, as the setup job does.
+          docker exec "${{ job.services.postgres.id }}" createdb -U test pgmq_test
+          cargo test --locked -p pgmq-broker -- --include-ignored --test-threads=1
+          cargo test --locked -p windmill --lib pgmq_tests -- --ignored --test-threads=1
+        working-directory: packages
+
       - name: Run Windmill tests
         run: cargo test
         working-directory: packages/windmill
 
       - name: Test PostgreSQL electoral-log contract
-        run: cargo test --locked -p electoral-log --lib --test postgres --test ballot_box --test events --test provisioning -- --ignored --test-threads=1
+        run: cargo test --locked -p electoral-log --lib --test postgres --test ballot_box --test events --test provisioning --test console -- --ignored --test-threads=1
         working-directory: packages
 
       - name: Test electoral-log application wiring

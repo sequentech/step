@@ -9,6 +9,7 @@ COPY ./strand ./strand
 COPY ./board-messages ./board-messages
 COPY ./sequent-core ./sequent-core
 COPY ./windmill ./windmill
+COPY ./pgmq-broker ./pgmq-broker
 COPY ./wrap-map-err ./wrap-map-err
 COPY ./velvet ./velvet
 
@@ -57,4 +58,4 @@ RUN case "${TARGETARCH}" in \
 WORKDIR /app/windmill
 RUN cargo build
 
-CMD ["cargo", "run", "--bin", "main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue", "monitoring_queue" ]
+CMD ["cargo", "run", "--bin", "main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue", "communication_queue", "import_export_queue", "electoral_log_batch_queue", "electoral_log_beat_queue", "monitoring_queue"]

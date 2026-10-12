@@ -237,6 +237,24 @@ async fn generation_rejected_by_the_broker_fails_its_task_and_rolls_back() {
 }
 
 #[rocket::async_test]
+async fn generation_stops_before_writing_when_the_task_queues_are_unreachable()
+{
+    let services = Services::on_test_database()
+        .await
+        .with_tasks(MemoryTaskQueue::unreachable());
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    event.election(&services.hasura).await;
+    assert_eq!(
+        json(generate(&client, &event).await).await,
+        failure("Could not generate the ballot publication.")
+    );
+    assert!(services.ledger.tasks().is_empty());
+    assert!(services.tasks.sent().is_empty());
+    assert!(publication_rows(&services, &event).await.is_empty());
+}
+
+#[rocket::async_test]
 async fn generation_failure_still_rolls_back_when_the_task_cannot_be_failed() {
     let services = Services::on_test_database()
         .await

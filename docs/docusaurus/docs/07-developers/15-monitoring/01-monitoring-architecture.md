@@ -103,7 +103,7 @@ The beat task `refresh_monitoring_snapshots` runs once per snapshot interval
 (`MONITORING_SNAPSHOT_INTERVAL_SECONDS`, default 30; see
 [Snapshot cadence](#snapshot-cadence)) on the beat queue. It prunes old
 login-counter receipts and sends one `refresh_monitoring_event_snapshot`
-task per `CONFIGURED` event to its own `<slug>_monitoring_queue`
+task per `CONFIGURED` event to its own `monitoring_queue`
 (`Queue::Monitoring`), so a long pass never delays reports. Both messages
 expire after one interval: by then the next beat has asked again. The event
 task takes `PgLock("monitoring_snapshot-<tenant>-<event>")` and skips the

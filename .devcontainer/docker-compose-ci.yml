@@ -81,15 +81,13 @@ services:
       dockerfile: ../../scripts/e2e/docker/configure-minio.Dockerfile
     container_name: !reset null
 
-  rabbitmq:
+  # Windmill, Beat and Harvest wait until it has finished, as after a deployment's setup job.
+  task-queues-setup:
+    image: ${STEP_E2E_RUNTIME_IMAGE:-step-backend-e2e-cargo-packages:local}
     container_name: !reset null
-    ports: !reset []
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_listener", "5672"]
-      interval: 5s
-      timeout: 10s
-      retries: 60
-      start_period: 10s
+    command: ["/opt/step-e2e/bin/windmill", "setup-queue-database"]
+    volumes:
+      - *e2e-binaries
 
   data-connector-agent:
     container_name: !reset null
@@ -145,8 +143,8 @@ services:
         condition: service_healthy
       postgres-keycloak:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
+      task-queues-setup:
+        condition: service_completed_successfully
       configure-minio:
         condition: service_completed_successfully
 
@@ -181,8 +179,8 @@ services:
         condition: service_healthy
       postgres-keycloak:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
+      task-queues-setup:
+        condition: service_completed_successfully
       postgres-b4:
         condition: service_healthy
 
@@ -201,8 +199,8 @@ services:
       AWS_S3_PUBLIC_BUCKET: ${AWS_S3_PUBLIC_BUCKET}
     healthcheck: *e2e-probe
     depends_on:
-      rabbitmq:
-        condition: service_healthy
+      task-queues-setup:
+        condition: service_completed_successfully
       configure-minio:
         condition: service_completed_successfully
 

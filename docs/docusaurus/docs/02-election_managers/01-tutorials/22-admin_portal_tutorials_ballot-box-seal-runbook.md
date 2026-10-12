@@ -29,14 +29,13 @@ Sealed.
 
 - **At the close.** The close creates one pending seal per ballot box. Right
   after it commits, a light task (`schedule_ballot_box_seals`, on the Beat
-  queue) schedules one `seal_ballot_box` task to run at the box's deadline
-  (`eta`), for each box whose deadline is **at most 5 minutes away**. A box
-  with a later deadline (a long grace period) is left to the per-minute
-  dispatcher: a message waiting for its `eta` is held unacknowledged by a
-  worker, and RabbitMQ closes a consumer that holds one for too long.
+  queue) schedules one `seal_ballot_box` task to run at each box's deadline
+  (`eta`), however far away it is: the task queues store the `eta`, and the
+  waiting task holds no worker.
 - **Every minute.** The dispatcher `seal_ballot_boxes` runs every 60 seconds on
-  the Beat queue. It lists the pending boxes past their deadline and the sealed
-  boxes still to publish, and queues one `seal_ballot_box` task for each.
+  the Beat queue, as a backstop. It lists the pending boxes past their deadline
+  and the sealed boxes still to publish, and queues one `seal_ballot_box` task
+  for each.
 - **Each box.** `seal_ballot_box` runs on `short_queue`, with a time limit of
   900 seconds. Every seal message expires 120 seconds after it is due (after
   its `eta`, or after it is sent by the dispatcher, which sends a new one every

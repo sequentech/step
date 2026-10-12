@@ -730,8 +730,8 @@ async fn request_automatic_recount_tally_session(
         .await
         .with_context(|| "error committing automatic recount status update")?;
 
-    let celery_app = services.tasks.connect().await;
-    let task = celery_app
+    let task = services
+        .tasks
         .send_task(execute_tally_session::new(
             tenant_id.to_string(),
             election_event_id.to_string(),

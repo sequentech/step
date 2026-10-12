@@ -175,7 +175,12 @@ async fn generate_ballot_publication_response(
     .await
     .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
-    let broker = services.tasks.connect().await;
+    let broker = services.tasks.connect().await.map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("The task queues are not available: {error:#}"),
+        )
+    })?;
     let ballot_publication = prepare_ballot_publication(
         &hasura_transaction,
         tenant_id.clone(),

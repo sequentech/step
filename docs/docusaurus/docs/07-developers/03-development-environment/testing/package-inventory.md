@@ -14,6 +14,7 @@ Cargo workspaces and Maven reactors before interpreting a package test run.
 | --- | --- | --- |
 | Bulletin board and trustee protocol | [B4](./b4.md), [Braid](./braid.md) | Browser storage and remote transport |
 | Electoral log and ballot box | [Electoral Log](./electoral-log.md) | PostgreSQL server contracts, run separately |
+| Task queues | [PostgreSQL task queues](../task-queues-pgmq.md#operations-and-verification) | PostgreSQL server contracts, run separately |
 | Frontends | [Results Portal](./results-portal.md), [Ballot Verifier](./ballot-verifier.md), [Admin Portal](./admin-portal.md) | Browser flows and live services |
 | Java utilities and extensions | [ECIES](./ecies-encryption.md), [Keycloak](./keycloak-extensions.md) | Certificate chains and deployed authentication |
 | Load-test helpers | [E2E helpers](./e2e-helpers.md) | Remote browser/load scenarios |
