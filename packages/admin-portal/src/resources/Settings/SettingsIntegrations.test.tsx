@@ -72,25 +72,25 @@ describe("SettingsIntegrations", () => {
 
     it("renders nothing while the tenant loads", () => {
         mockController.mockReturnValue({isLoading: true})
-        const {container} = render(React.createElement(SettingsIntegrations))
+        const {container} = render(<SettingsIntegrations />)
         expect(container).toBeEmptyDOMElement()
     })
 
     it("offers no save button without the tenant write permission", () => {
         mockIsAuthorized.mockReturnValue(false)
-        render(React.createElement(SettingsIntegrations))
+        render(<SettingsIntegrations />)
         expect(screen.queryByRole("button", {name: "save"})).not.toBeInTheDocument()
     })
 
     it("keeps save disabled until a field changes", () => {
-        render(React.createElement(SettingsIntegrations))
+        render(<SettingsIntegrations />)
         expect(screen.getByRole("button", {name: "save"})).toBeDisabled()
         type("integrationsScreen.common.gapiEmail", "new@example.org")
         expect(screen.getByRole("button", {name: "save"})).toBeEnabled()
     })
 
     it("sends a changed key to the vault and not to the tenant settings", async () => {
-        render(React.createElement(SettingsIntegrations))
+        render(<SettingsIntegrations />)
         type("integrationsScreen.common.gapiKey", JSON.stringify(KEY))
         fireEvent.click(screen.getByRole("button", {name: "save"}))
 
@@ -104,7 +104,7 @@ describe("SettingsIntegrations", () => {
     })
 
     it("saves the email without the key left in the settings next to a new key", async () => {
-        render(React.createElement(SettingsIntegrations))
+        render(<SettingsIntegrations />)
         type("integrationsScreen.common.gapiKey", JSON.stringify(KEY))
         type("integrationsScreen.common.gapiEmail", "new@example.org")
         fireEvent.click(screen.getByRole("button", {name: "save"}))
@@ -117,7 +117,7 @@ describe("SettingsIntegrations", () => {
     })
 
     it("keeps the stored settings key when only the email changes", async () => {
-        render(React.createElement(SettingsIntegrations))
+        render(<SettingsIntegrations />)
         type("integrationsScreen.common.gapiEmail", "new@example.org")
         fireEvent.click(screen.getByRole("button", {name: "save"}))
 
@@ -129,7 +129,7 @@ describe("SettingsIntegrations", () => {
     })
 
     it("clears the email when it is emptied", async () => {
-        render(React.createElement(SettingsIntegrations))
+        render(<SettingsIntegrations />)
         type("integrationsScreen.common.gapiEmail", "  ")
         fireEvent.click(screen.getByRole("button", {name: "save"}))
 
@@ -139,7 +139,7 @@ describe("SettingsIntegrations", () => {
 
     it("reports a key the server refuses and saves nothing else", async () => {
         mockSetKey.mockRejectedValue(new Error("Token URI not allowed"))
-        render(React.createElement(SettingsIntegrations))
+        render(<SettingsIntegrations />)
         type("integrationsScreen.common.gapiKey", JSON.stringify(KEY))
         type("integrationsScreen.common.gapiEmail", "new@example.org")
         fireEvent.click(screen.getByRole("button", {name: "save"}))
@@ -154,7 +154,7 @@ describe("SettingsIntegrations", () => {
     })
 
     it("rejects a key that is not a JSON object", () => {
-        render(React.createElement(SettingsIntegrations))
+        render(<SettingsIntegrations />)
         for (const value of ["{not json", "5"]) {
             mockNotify.mockClear()
             type("integrationsScreen.common.gapiKey", value)
@@ -166,7 +166,7 @@ describe("SettingsIntegrations", () => {
     })
 
     it("does not store a key that was emptied", async () => {
-        render(React.createElement(SettingsIntegrations))
+        render(<SettingsIntegrations />)
         type("integrationsScreen.common.gapiKey", JSON.stringify(KEY))
         type("integrationsScreen.common.gapiKey", "")
         type("integrationsScreen.common.gapiEmail", "new@example.org")
