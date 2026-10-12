@@ -32,7 +32,7 @@ fn keycloak(tenant_id: &str) -> Claims {
 }
 
 /// An unsigned service token, independent of the shared signed fixture.
-fn unsigned(tenant_id: &str) -> String {
+fn unsigned_token(tenant_id: &str) -> String {
     format!(
         "Bearer {}.{}.",
         URL_SAFE_NO_PAD
@@ -87,7 +87,7 @@ async fn a_forged_unsigned_service_token_cannot_send() {
     let response = post_as(
         &client,
         "/messages/send",
-        &unsigned(&tenant_id),
+        &unsigned_token(&tenant_id),
         &notice(&tenant_id),
     )
     .await;
@@ -272,7 +272,7 @@ async fn tokens_are_refused_for_one_reason_each() {
     for (authorization, refusal) in [
         ("".to_string(), MALFORMED_TOKEN),
         ("Basic dXNlcjpwYXNz".to_string(), MALFORMED_TOKEN),
-        (unsigned(&tenant_id), MALFORMED_TOKEN),
+        (unsigned_token(&tenant_id), MALFORMED_TOKEN),
         ("Bearer fixture.e30.fixture".to_string(), MALFORMED_TOKEN),
         (unsigned, MALFORMED_TOKEN),
         (hmac, UNSUPPORTED_ALGORITHM),
@@ -345,7 +345,7 @@ async fn nothing_is_fetched_for_a_token_that_cannot_be_read() {
     let keys = ServiceKeys::new(source.clone());
     let tenant_id = Uuid::new_v4().to_string();
     for authorization in [
-        unsigned(&tenant_id),
+        unsigned_token(&tenant_id),
         "Bearer fixture.e30.fixture".to_string(),
     ] {
         assert!(verify(&keys, &authorization).await.is_err());
