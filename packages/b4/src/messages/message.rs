@@ -561,13 +561,13 @@ mod tests {
             }
         }
 
-        fn ballots_stmt(&self) -> Statement {
+        fn ballots_stmt(&self, artifact: &[u8]) -> Statement {
             let mut selected = [NULL_TRUSTEE; MAX_TRUSTEES];
             selected[0] = 1;
             selected[1] = 2;
             Statement::ballots_stmt(
                 self.cfg_h,
-                CiphertextsHash([0; 64]),
+                CiphertextsHash(strand::hash::hash_to_array(&artifact.to_vec()).unwrap()),
                 PublicKeyHash([0; 64]),
                 BATCH,
                 selected,
@@ -593,7 +593,7 @@ mod tests {
             Message::bootstrap_msg(&board.cfg, &board.pm).unwrap(),
             board
                 .pm
-                .sign(board.ballots_stmt(), Some(vec![0; 8]))
+                .sign(board.ballots_stmt(&[0; 8]), Some(vec![0; 8]))
                 .unwrap(),
         ];
         for message in pm_messages {
@@ -602,7 +602,8 @@ mod tests {
         }
 
         let trustee = &board.trustees[1];
-        let channel = Statement::channel_stmt(board.cfg_h, ChannelHash([2; 64]));
+        let channel_hash = strand::hash::hash_to_array(&vec![0u8; 8]).unwrap();
+        let channel = Statement::channel_stmt(board.cfg_h, ChannelHash(channel_hash));
         let trustee_messages = [
             Message::configuration_msg(&board.cfg, trustee).unwrap(),
             trustee.sign(board.mix_signed_stmt(), None).unwrap(),
@@ -618,7 +619,9 @@ mod tests {
     fn verify_rejects_statement_only_ballots_from_trustee() {
         let board = TestBoard::new();
 
-        let message = board.trustees[0].sign(board.ballots_stmt(), None).unwrap();
+        let message = board.trustees[0]
+            .sign(board.ballots_stmt(&[]), None)
+            .unwrap();
         assert!(message.verify(&board.cfg).is_err());
     }
 
