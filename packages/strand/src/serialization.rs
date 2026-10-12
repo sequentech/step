@@ -192,7 +192,7 @@ impl<T: Send + Sync + BorshDeserialize> BorshDeserialize
             .collect();
 
         StrandRectangle::new(results?).map_err(|_| {
-            Error::new(ErrorKind::Other, "Parsed bytes were not rectangular")
+            Error::other("Parsed bytes were not rectangular")
         })
     }
 
