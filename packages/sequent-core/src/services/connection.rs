@@ -147,6 +147,9 @@ impl<'r> FromRequest<'r> for UserLocation {
     }
 }
 
+/// Placeholder printed in place of secret values in `Debug` output.
+pub const REDACTED: &str = "<redacted>";
+
 #[derive(Debug)]
 pub struct DatafixClaims {
     pub jwt_claims: JwtClaims,
@@ -155,10 +158,18 @@ pub struct DatafixClaims {
     pub datafix_event_id: String,
 }
 
-#[derive(Debug)]
 struct DatafixCredentials {
     client_id: String,
     client_secret: String,
+}
+
+impl std::fmt::Debug for DatafixCredentials {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DatafixCredentials")
+            .field("client_id", &self.client_id)
+            .field("client_secret", &REDACTED)
+            .finish()
+    }
 }
 
 #[derive(Debug)]
@@ -215,13 +226,25 @@ fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
 
 /// TokenResponse, timestamp before sending the request and the credentials to
 /// make sure the requester is the same.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 struct TokenResponseExtended {
     token_resp: PubKeycloakAdminToken,
     stamp: Instant,
     client_id: String,
     client_secret: String,
     tenant_id: String,
+}
+
+impl std::fmt::Debug for TokenResponseExtended {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TokenResponseExtended")
+            .field("token_resp", &self.token_resp)
+            .field("stamp", &self.stamp)
+            .field("client_id", &self.client_id)
+            .field("client_secret", &REDACTED)
+            .field("tenant_id", &self.tenant_id)
+            .finish()
+    }
 }
 
 /// Last access token can be reused if it´s not expired, this is to avoid
@@ -372,5 +395,54 @@ impl<'r> FromRequest<'r> for DatafixClaims {
                 Outcome::Error((Status::Unauthorized, ()))
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod redaction_tests {
+    use super::*;
+
+    const CLIENT_SECRET: &str = "ClientSecretValue9f3b";
+    const ACCESS_TOKEN: &str = "AccessTokenValue1c7e";
+
+    #[test]
+    fn datafix_credentials_debug_omits_client_secret() {
+        let credentials = DatafixCredentials {
+            client_id: "datafix-client".to_string(),
+            client_secret: CLIENT_SECRET.to_string(),
+        };
+
+        let debug = format!("{credentials:?}");
+
+        assert!(debug.contains("datafix-client"), "{debug}");
+        assert!(debug.contains(REDACTED), "{debug}");
+        assert!(!debug.contains(CLIENT_SECRET), "{debug}");
+    }
+
+    #[test]
+    fn extended_token_debug_omits_client_secret_and_access_token() {
+        let extended = TokenResponseExtended {
+            token_resp: PubKeycloakAdminToken {
+                access_token: ACCESS_TOKEN.to_string(),
+                expires_in: 60,
+                not_before_policy: None,
+                refresh_expires_in: None,
+                refresh_token: None,
+                scope: "profile".to_string(),
+                session_state: None,
+                token_type: "Bearer".to_string(),
+            },
+            stamp: Instant::now(),
+            client_id: "datafix-client".to_string(),
+            client_secret: CLIENT_SECRET.to_string(),
+            tenant_id: "tenant".to_string(),
+        };
+
+        let debug = format!("{extended:?}");
+
+        assert!(debug.contains("datafix-client"), "{debug}");
+        assert!(debug.contains("tenant"), "{debug}");
+        assert!(!debug.contains(CLIENT_SECRET), "{debug}");
+        assert!(!debug.contains(ACCESS_TOKEN), "{debug}");
     }
 }

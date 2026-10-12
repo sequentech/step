@@ -399,9 +399,13 @@ const frenchTranslation: TranslationType = {
             common: {
                 gapiKey: "Clé de Compte de Service Google Calendar",
                 gapiEmail: "Email d'Authentification Google Calendar",
+                gapiKeyHelper:
+                    "La clé enregistrée n'est pas affichée. Collez une nouvelle clé pour la remplacer.",
+                gapiKeySaved: "Clé de Compte de Service Google Calendar enregistrée",
             },
             errors: {
                 invalidGapiKey: "Format de Clé de Compte de Service Google Calendar invalide",
+                saveGapiKey: "Impossible d'enregistrer la Clé de Compte de Service Google Calendar",
             },
         },
         lookAndFeelScreen: {

@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {IPermissions} from "@/types/keycloak"
 import {GraphQLRequest} from "@apollo/client"
-import {isUndefined} from "@sequentech/ui-core"
 
 const AdminOperationMap: Record<string, IPermissions> = {
     // area
@@ -39,12 +38,6 @@ const AdminOperationMap: Record<string, IPermissions> = {
     // ballot_style
     sequent_backend_ballot_style: IPermissions.PUBLISH_READ,
     sequent_backend_ballot_styles: IPermissions.PUBLISH_READ,
-    insert_sequent_backend_ballot_style: IPermissions.PUBLISH_WRITE,
-    insert_sequent_backend_ballot_styles: IPermissions.PUBLISH_WRITE,
-    update_sequent_backend_ballot_style: IPermissions.PUBLISH_WRITE,
-    update_sequent_backend_ballot_styles: IPermissions.PUBLISH_WRITE,
-    delete_sequent_backend_ballot_style: IPermissions.PUBLISH_WRITE,
-    delete_sequent_backend_ballot_styles: IPermissions.PUBLISH_WRITE,
     // candidate
     sequent_backend_candidate: IPermissions.CANDIDATE_READ,
     sequent_backend_candidates: IPermissions.CANDIDATE_READ,
@@ -253,22 +246,36 @@ const NonAdminOperationMap: Record<string, IPermissions> = {
     CreateTallyCeremony: IPermissions.ADMIN_CEREMONY,
 }
 
+// Roles that operations without a mapped role run as, in order of preference
+const DEFAULT_OPERATION_ROLES: Array<IPermissions> = [
+    IPermissions.ADMIN_USER,
+    IPermissions.TRUSTEE_CEREMONY,
+    IPermissions.PUBLISH_READ,
+]
+
+const mappedRoleOf = (
+    operationMap: Record<string, IPermissions>,
+    operationName: string | undefined
+): IPermissions | undefined =>
+    operationName && Object.prototype.hasOwnProperty.call(operationMap, operationName)
+        ? operationMap[operationName]
+        : undefined
+
 export const getOperationRole = (
     operation: GraphQLRequest,
-    isTrustee = false,
-    isAdminUser = true
+    hasRole: (role: IPermissions) => boolean
 ): IPermissions => {
-    const OperationMap = !isAdminUser
-        ? NonAdminOperationMap
-        : isTrustee
-          ? TrusteeOperationMap
-          : AdminOperationMap
-    const fallback = isAdminUser ? IPermissions.ADMIN_USER : IPermissions.ELECTION_EVENT_READ
-    let operationName = operation?.operationName
-    if (isUndefined(operationName)) {
-        return fallback
+    const operationName = operation?.operationName
+    const defaultRole = DEFAULT_OPERATION_ROLES.find(hasRole)
+    if (!defaultRole) {
+        return mappedRoleOf(NonAdminOperationMap, operationName) ?? IPermissions.ELECTION_EVENT_READ
     }
-    return Object.prototype.hasOwnProperty.call(OperationMap, operationName)
-        ? OperationMap[operationName]
-        : fallback
+    const operationMap = hasRole(IPermissions.TRUSTEE_CEREMONY)
+        ? TrusteeOperationMap
+        : AdminOperationMap
+    const mappedRole = mappedRoleOf(operationMap, operationName)
+    if (!mappedRole) {
+        return defaultRole
+    }
+    return defaultRole === IPermissions.ADMIN_USER || hasRole(mappedRole) ? mappedRole : defaultRole
 }

@@ -248,6 +248,7 @@ fn build_application_with(
                 routes::set_voter_authentication::set_voter_authentication,
                 routes::export_tally_results::export_tally_results_route,
                 routes::google_meet::generate_google_meeting,
+                routes::google_meet::set_google_service_account_key,
                 routes::generate_preview_url::generate_preview_url,
                 routes::import_certificate_authority::import_certificate_authority,
                 routes::delete_certificate_authority::delete_certificate_authority_route,
