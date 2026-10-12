@@ -13,6 +13,7 @@ use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
 use sequent_core::services::jwt;
+use sequent_core::services::keycloak::validate_keycloak_scope;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::keycloak::Role;
@@ -36,6 +37,8 @@ pub async fn create_role(
     services: &State<HarvestServices>,
 ) -> Result<Json<Role>, (Status, String)> {
     let input = body.into_inner();
+    validate_keycloak_scope(&input.tenant_id, None)
+        .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
         &claims,
         true,
@@ -71,6 +74,8 @@ pub async fn get_roles(
     body: Json<GetRolesBody>,
 ) -> Result<Json<DataList<Role>>, (Status, String)> {
     let input = body.into_inner();
+    validate_keycloak_scope(&input.tenant_id, None)
+        .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
         &claims,
         true,
@@ -109,6 +114,11 @@ pub async fn list_user_roles(
     body: Json<ListUserRolesBody>,
 ) -> Result<Json<Vec<Role>>, (Status, String)> {
     let input = body.into_inner();
+    validate_keycloak_scope(
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
         &claims,
         true,
@@ -148,6 +158,8 @@ pub async fn set_user_role(
     body: Json<SetOrDeleteUserRoleBody>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
+    validate_keycloak_scope(&input.tenant_id, None)
+        .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
         &claims,
         true,
@@ -172,6 +184,8 @@ pub async fn delete_user_role(
     body: Json<SetOrDeleteUserRoleBody>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
+    validate_keycloak_scope(&input.tenant_id, None)
+        .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
         &claims,
         true,
@@ -205,6 +219,8 @@ pub async fn delete_role(
     services: &State<HarvestServices>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
+    validate_keycloak_scope(&input.tenant_id, None)
+        .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
         &claims,
         true,

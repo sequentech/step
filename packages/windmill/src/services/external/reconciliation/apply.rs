@@ -37,10 +37,22 @@ use deadpool_postgres::Transaction;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
-use sequent_core::types::keycloak::{User, AREA_ID_ATTR_NAME, ATTR_RESET_VALUE, VOTED_CHANNEL};
+use sequent_core::types::keycloak::{
+    User, AREA_ID_ATTR_NAME, ATTR_RESET_VALUE, DATE_OF_BIRTH, DISABLE_COMMENT, VOTED_CHANNEL,
+};
 use std::collections::{HashMap, HashSet};
 use tracing::{error, info, instrument};
 use uuid::Uuid;
+
+/// The only Keycloak attributes a reconciliation diff writes through
+/// `KeycloakUA`. The area changes only through `AreaName`, which is resolved
+/// to an `area-id` within the election event.
+const RECONCILIATION_ATTRIBUTES: [&str; 3] = [DATE_OF_BIRTH, DISABLE_COMMENT, VOTED_CHANNEL];
+
+/// Attributes that record whether, or why not, a voter can still vote.
+/// Writing them, like any `enabled` change, needs the voter to hold no
+/// active Internet ballot.
+const VOTE_STATE_ATTRIBUTES: [&str; 2] = [DISABLE_COMMENT, VOTED_CHANNEL];
 
 /// Outcome of applying one voter's queued changes.
 #[derive(Debug)]
@@ -100,7 +112,7 @@ pub async fn apply_voter_changes(
 }
 
 /// Validates every item's old snapshot and derives safety guards from the
-/// complete category set before writing. A voter can legitimately have
+/// complete item set before writing. A voter can legitimately have
 /// mixed categories (for example profile update plus deletion), so dispatch
 /// must never depend on item ordering. `items` is guaranteed non-empty by
 /// `apply_voter_changes`, its only caller.
@@ -146,16 +158,7 @@ async fn apply_voter_changes_locked(
         return Ok(VoterApplyOutcome::Failed { reason });
     }
 
-    let needs_no_active_vote = categories.iter().any(|category| {
-        matches!(
-            category,
-            ReconciliationChangeCategory::VOTED_OTHER_CHANNEL
-                | ReconciliationChangeCategory::VOTED_UNMARKED
-                | ReconciliationChangeCategory::DISABLED_DELETE_CALL
-                | ReconciliationChangeCategory::REENABLED
-        )
-    });
-    if needs_no_active_vote {
+    if requires_no_active_vote(items) {
         let state = get_voter_cast_vote_state(
             hasura_transaction,
             &parse_uuid_v4(tenant_id)?,
@@ -190,6 +193,21 @@ async fn apply_voter_changes_locked(
         items,
     )
     .await
+}
+
+/// Whether `items` change `enabled` or write a `VOTE_STATE_ATTRIBUTES`
+/// entry, whatever category they carry.
+fn requires_no_active_vote(items: &[DiffItem]) -> bool {
+    items
+        .iter()
+        .filter_map(|item| item.target.sequent_field())
+        .any(|field| match field {
+            SequentReconciliationField::Enabled(..) => true,
+            SequentReconciliationField::KeycloakUA(_, new) => new
+                .keys()
+                .any(|key| VOTE_STATE_ATTRIBUTES.contains(&key.as_str())),
+            SequentReconciliationField::AreaName(..) => false,
+        })
 }
 
 /// The one generic Keycloak edit every category above (except `VOTER_ADDED`)
@@ -318,8 +336,9 @@ async fn validate_old_values(
 
 /// Merges every `KeycloakUA` attribute across `items` into one map, keyed
 /// exactly as Keycloak expects, and derives the `enabled` transition from any
-/// `Enabled` item's new value. Purely mechanical: diff.rs already decided
-/// every value, this just collects them.
+/// `Enabled` item's new value. diff.rs already decided every value; this only
+/// refuses attributes outside `RECONCILIATION_ATTRIBUTES` and writes that do
+/// not carry the old value `validate_old_values` checks.
 fn keycloak_edit_from_items(
     items: &[DiffItem],
 ) -> std::result::Result<(Option<bool>, HashMap<String, Vec<String>>), String> {
@@ -337,6 +356,22 @@ fn keycloak_edit_from_items(
                 ));
             }
             enabled = Some(new_enabled);
+        }
+        if let SequentReconciliationField::KeycloakUA(old, new) = field {
+            if let Some(key) = new
+                .keys()
+                .find(|key| !RECONCILIATION_ATTRIBUTES.contains(&key.as_str()))
+            {
+                return Err(format!(
+                    "Reconciliation cannot write Keycloak attribute '{key}'"
+                ));
+            }
+            if old.len() != new.len() || new.keys().any(|key| !old.contains_key(key)) {
+                return Err(
+                    "Reconciliation attribute change must carry the old value of every attribute it writes"
+                        .to_string(),
+                );
+            }
         }
         if let Some(keycloak_attributes) = field.new_keycloak_attributes() {
             for (key, value) in keycloak_attributes {
@@ -385,7 +420,7 @@ async fn resolve_area_attribute(
 mod tests {
     use super::*;
     use crate::services::external::types::ReconciliationPatchTarget;
-    use sequent_core::types::keycloak::{DATE_OF_BIRTH, DISABLE_COMMENT};
+    use sequent_core::types::keycloak::{AUTHORIZED_ELECTION_IDS_NAME, TENANT_ID_ATTR_NAME};
 
     fn item(field: SequentReconciliationField) -> DiffItem {
         DiffItem {
@@ -397,20 +432,26 @@ mod tests {
         }
     }
 
+    fn attribute_change(key: &str, old: &str, new: &str) -> SequentReconciliationField {
+        SequentReconciliationField::KeycloakUA(
+            HashMap::from([(key.to_string(), old.to_string())]),
+            HashMap::from([(key.to_string(), new.to_string())]),
+        )
+    }
+
     #[test]
     fn merges_mixed_category_fields_into_one_keycloak_edit() {
         let items = vec![
             item(SequentReconciliationField::Enabled(true, false)),
-            item(SequentReconciliationField::KeycloakUA(
-                HashMap::new(),
-                HashMap::from([(DATE_OF_BIRTH.to_string(), "1990-01-01".to_string())]),
+            item(attribute_change(
+                DATE_OF_BIRTH,
+                ATTR_RESET_VALUE,
+                "1990-01-01",
             )),
-            item(SequentReconciliationField::KeycloakUA(
-                HashMap::new(),
-                HashMap::from([(
-                    DISABLE_COMMENT.to_string(),
-                    "Disabled by reconciliation".to_string(),
-                )]),
+            item(attribute_change(
+                DISABLE_COMMENT,
+                ATTR_RESET_VALUE,
+                "Disabled by reconciliation",
             )),
         ];
 
@@ -429,18 +470,83 @@ mod tests {
     #[test]
     fn rejects_conflicting_attribute_writes_instead_of_using_item_order() {
         let items = vec![
-            item(SequentReconciliationField::KeycloakUA(
-                HashMap::new(),
-                HashMap::from([(DISABLE_COMMENT.to_string(), "MARKVOTED_CALL".to_string())]),
+            item(attribute_change(
+                DISABLE_COMMENT,
+                ATTR_RESET_VALUE,
+                "MARKVOTED_CALL",
             )),
-            item(SequentReconciliationField::KeycloakUA(
-                HashMap::new(),
-                HashMap::from([(DISABLE_COMMENT.to_string(), "DELETE_CALL".to_string())]),
+            item(attribute_change(
+                DISABLE_COMMENT,
+                ATTR_RESET_VALUE,
+                "DELETE_CALL",
             )),
         ];
 
         let error = keycloak_edit_from_items(&items).unwrap_err();
         assert!(error.contains("Conflicting reconciliation writes"));
         assert!(error.contains(DISABLE_COMMENT));
+    }
+
+    #[test]
+    fn rejects_attributes_outside_the_reconciliation_set() {
+        for key in [
+            TENANT_ID_ATTR_NAME,
+            AREA_ID_ATTR_NAME,
+            AUTHORIZED_ELECTION_IDS_NAME,
+        ] {
+            let items = vec![item(attribute_change(key, "old", "new"))];
+            let error = keycloak_edit_from_items(&items).unwrap_err();
+            assert!(error.contains(key), "unexpected error for {key}: {error}");
+        }
+    }
+
+    #[test]
+    fn rejects_attribute_writes_without_their_old_values() {
+        let items = vec![item(SequentReconciliationField::KeycloakUA(
+            HashMap::new(),
+            HashMap::from([(VOTED_CHANNEL.to_string(), ATTR_RESET_VALUE.to_string())]),
+        ))];
+        assert!(keycloak_edit_from_items(&items).is_err());
+
+        let items = vec![item(SequentReconciliationField::KeycloakUA(
+            HashMap::from([(DATE_OF_BIRTH.to_string(), ATTR_RESET_VALUE.to_string())]),
+            HashMap::from([
+                (DATE_OF_BIRTH.to_string(), "1990-01-01".to_string()),
+                (VOTED_CHANNEL.to_string(), ATTR_RESET_VALUE.to_string()),
+            ]),
+        ))];
+        assert!(keycloak_edit_from_items(&items).is_err());
+    }
+
+    #[test]
+    fn vote_state_writes_require_no_active_vote_whatever_their_category() {
+        assert!(requires_no_active_vote(&[item(
+            SequentReconciliationField::Enabled(true, false)
+        )]));
+        assert!(requires_no_active_vote(&[item(attribute_change(
+            VOTED_CHANNEL,
+            "PAPER",
+            ATTR_RESET_VALUE,
+        ))]));
+        assert!(requires_no_active_vote(&[item(attribute_change(
+            DISABLE_COMMENT,
+            ATTR_RESET_VALUE,
+            "DELETE_CALL",
+        ))]));
+    }
+
+    #[test]
+    fn profile_updates_do_not_require_no_active_vote() {
+        assert!(!requires_no_active_vote(&[
+            item(attribute_change(
+                DATE_OF_BIRTH,
+                ATTR_RESET_VALUE,
+                "1990-01-01"
+            )),
+            item(SequentReconciliationField::AreaName(
+                "Old area".to_string(),
+                "New area".to_string(),
+            )),
+        ]));
     }
 }

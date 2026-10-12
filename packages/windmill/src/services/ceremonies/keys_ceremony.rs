@@ -26,8 +26,6 @@ use crate::services::ceremonies::serialize_logs::{
     generate_keys_initial_log_at, sort_logs,
 };
 use crate::services::election_event_board::get_election_event_board;
-use crate::services::protocol_manager::check_configuration_exists;
-use crate::services::public_keys::get_public_key;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::jwt::JwtClaims;
@@ -172,8 +170,13 @@ pub async fn verify_keys_ceremony_public_key(
     }
     let (board_name, _) =
         get_keys_ceremony_board(transaction, tenant_id, election_event_id, keys_ceremony).await?;
-    let board_public_key = if check_configuration_exists(&board_name).await? {
-        Some(get_public_key(board_name).await?)
+    let board = B4KeysBoard {
+        transaction,
+        tenant_id,
+        election_event_id,
+    };
+    let board_public_key = if board.configuration_exists(&board_name).await? {
+        Some(board.public_key(&board_name).await?)
     } else {
         None
     };
