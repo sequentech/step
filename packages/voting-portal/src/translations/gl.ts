@@ -528,6 +528,7 @@ const galegoTranslation: TranslationType = {
                 instruction_other:
                     "Selecciona ata {{count}} candidatos. {{selected}} seleccionados.",
             },
+            limit: "Podes seleccionar ata {{count}}. Quita un candidato antes de elixir outro.",
             clearContest: {
                 button: "Borrar",
                 label: "Borrar {{contest}}",

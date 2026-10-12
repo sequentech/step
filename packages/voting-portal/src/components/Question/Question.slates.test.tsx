@@ -161,3 +161,44 @@ describe("clearing one contest on a ballot with slates", () => {
         expect(screen.queryByRole("button", {name: "Clear Trustees"})).toBeNull()
     })
 })
+
+describe("the limit of a contest on a ballot with slates", () => {
+    const limited = aContest({
+        ...TRUSTEES,
+        presentation: {over_vote_policy: "not-allowed-with-msg-and-disable"},
+    } as never)
+    const full = marks(limited, {"f-t1": 0, "f-t2": 0, "m-t1": 0})
+    const errors = [
+        {
+            ...full,
+            invalid_alerts: [
+                {
+                    message: "errors.implicit.overVoteDisabled",
+                    message_map: {max: "3"},
+                },
+            ],
+        },
+    ] as never
+
+    it("is announced with the slate ballot's own message once reached", () => {
+        mountContest(limited, {slates: SLATES, selection: full, errors})
+
+        expect(screen.getByRole("alert")).toHaveTextContent(
+            "You can select up to 3. Deselect a candidate before choosing another."
+        )
+        expect(screen.queryByText(/overVoteDisabled/)).toBeNull()
+    })
+
+    it("is not announced before it is reached", () => {
+        mountContest(limited, {slates: SLATES, selection: marks(limited, {"f-t1": 0})})
+
+        expect(document.querySelector(".slate-limit-warning")).toBeNull()
+    })
+
+    it("keeps the ordinary message on a ballot without slates", () => {
+        mountContest(limited, {selection: full, errors})
+
+        expect(document.querySelector(".slate-limit-warning")).toBeNull()
+        expect(screen.getByText(/overVoteDisabled/)).toBeInTheDocument()
+    })
+})

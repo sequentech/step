@@ -529,6 +529,7 @@ const frenchTranslation: TranslationType = {
                 instruction_other:
                     "Sélectionnez jusqu'à {{count}} candidats. {{selected}} sélectionné(s).",
             },
+            limit: "Vous pouvez en sélectionner jusqu'à {{count}}. Désélectionnez un candidat avant d'en choisir un autre.",
             clearContest: {
                 button: "Effacer",
                 label: "Effacer {{contest}}",

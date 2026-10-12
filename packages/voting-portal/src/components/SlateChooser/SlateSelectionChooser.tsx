@@ -97,7 +97,8 @@ export interface SlateSelectionChooserProps {
     ballotStyle: IBallotStyle
     slates: IBallotSlates
     defaultLanguage?: string
-    onEditSelections: () => void
+    /** Opens the individual candidates at the slate's first office. */
+    onEditSelections: (slate: IResolvedSlate) => void
 }
 
 /**
@@ -219,7 +220,7 @@ export const SlateSelectionChooser: React.FC<SlateSelectionChooserProps> = ({
                         isFullySelected={
                             summaries.get(slate.id)?.status === ESlateSelectionStatus.ALL
                         }
-                        onEditSelections={onEditSelections}
+                        onEditSelections={() => onEditSelections(slate)}
                     >
                         <SlateApplyAction
                             ballotStyle={ballotStyle}

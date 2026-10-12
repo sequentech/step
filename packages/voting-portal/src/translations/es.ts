@@ -532,6 +532,7 @@ const spanishTranslation: TranslationType = {
                 instruction_other:
                     "Selecciona hasta {{count}} candidatos. {{selected}} seleccionados.",
             },
+            limit: "Puedes seleccionar hasta {{count}}. Quita un candidato antes de elegir otro.",
             clearContest: {
                 button: "Borrar",
                 label: "Borrar {{contest}}",

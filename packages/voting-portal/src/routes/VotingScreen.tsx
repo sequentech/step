@@ -193,6 +193,10 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     )
 }
 
+interface IOfficeRequest {
+    contestId?: string
+}
+
 interface ContestPaginationProps {
     ballotStyle: any
     contests: IContest[][]
@@ -207,6 +211,8 @@ interface ContestPaginationProps {
     slateLabel?: React.ReactNode
     slateTab: ESlateBallotTab
     onSlateTabChange: (tab: ESlateBallotTab) => void
+    /** The office the individual candidates should show. */
+    officeRequest?: IOfficeRequest
     editContestId?: string
 }
 
@@ -222,6 +228,7 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
     slateLabel,
     slateTab,
     onSlateTabChange,
+    officeRequest,
     editContestId,
 }) => {
     const dispatch = useAppDispatch()
@@ -248,6 +255,14 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
     const isEditContestShown = useRef(false)
     const [office, setOffice] = useState(0)
     const sortedContests = sortContestList(contests[pageIndex], contestsOrderType)
+    useEffect(() => {
+        const requested = (sortedContests ?? []).findIndex(
+            (contest) => contest.id === officeRequest?.contestId
+        )
+        if (requested >= 0) {
+            setOffice(requested)
+        }
+    }, [officeRequest])
     useEffect(() => {
         if (!editContestId || isEditContestShown.current) {
             return
@@ -437,6 +452,7 @@ const VotingScreen: React.FC = () => {
     const [contestsPerPage, setContestsPerPage] = useState<IContest[][]>([])
     const location = useLocation()
     const editContestId = getEditContestId(location.state)
+    const [officeRequest, setOfficeRequest] = useState<IOfficeRequest | undefined>()
     const [slateTab, setSlateTab] = useState(
         editContestId ? ESlateBallotTab.CANDIDATES : ESlateBallotTab.SLATES
     )
@@ -685,7 +701,10 @@ const VotingScreen: React.FC = () => {
                                 ballotStyle={ballotStyle}
                                 slates={slates.resolved}
                                 defaultLanguage={defaultLanguageCode}
-                                onEditSelections={() => setSlateTab(ESlateBallotTab.CANDIDATES)}
+                                onEditSelections={(slate) => {
+                                    setSlateTab(ESlateBallotTab.CANDIDATES)
+                                    setOfficeRequest({contestId: slate.contests[0]?.contest.id})
+                                }}
                             />
                         ) : undefined
                     }
@@ -700,6 +719,7 @@ const VotingScreen: React.FC = () => {
                         ) : undefined
                     }
                     slateTab={slateTab}
+                    officeRequest={officeRequest}
                     onSlateTabChange={setSlateTab}
                     editContestId={editContestId}
                     ballotStyle={ballotStyle}

@@ -13,6 +13,25 @@ import {useTranslation} from "react-i18next"
 import {sortCandidatesInBallotOrder, sortContestsInBallotOrder} from "../../services/ContestOrder"
 import type {ISlateChoices} from "../../services/SlateChoices"
 
+// On a phone the changes take the whole width of the dialog and the two
+// answers a row each, the one that applies the change first.
+const ChangesDialog = styled(Dialog)`
+    @media (max-width: 749.95px) {
+        .MuiDialogContent-root {
+            padding: 16px 20px 0 20px !important;
+        }
+        .MuiDialogActions-root {
+            flex-direction: column-reverse;
+            gap: 9px;
+            padding: 15px 20px 20px;
+        }
+        .MuiDialogActions-root > .MuiButtonBase-root {
+            width: 100%;
+            margin: 0;
+        }
+    }
+`
+
 const ChangeRow = styled("div")(({theme}) => ({
     "padding": "15px 0",
     "borderBottom": "1px solid #e7eaee",
@@ -123,7 +142,7 @@ export const SlateChangesDialog: React.FC<SlateChangesDialogProps> = ({
         ))
 
     return (
-        <Dialog
+        <ChangesDialog
             className={className}
             open={!!pending}
             handleClose={handleClose}
@@ -184,6 +203,6 @@ export const SlateChangesDialog: React.FC<SlateChangesDialogProps> = ({
                     </Notice>
                 ) : null}
             </Box>
-        </Dialog>
+        </ChangesDialog>
     )
 }

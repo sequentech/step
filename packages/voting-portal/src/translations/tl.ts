@@ -529,6 +529,7 @@ const tagalogTranslation: TranslationType = {
                 instruction_other:
                     "Pumili ng hanggang {{count}} kandidato. {{selected}} ang napili.",
             },
+            limit: "Maaari kang pumili ng hanggang {{count}}. Alisin muna ang isang kandidato bago pumili ng iba.",
             clearContest: {
                 button: "I-clear",
                 label: "I-clear ang {{contest}}",

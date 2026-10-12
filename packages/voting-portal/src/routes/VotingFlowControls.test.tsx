@@ -1121,6 +1121,41 @@ describe("slate ballot tabs", () => {
         expect(selectedTab()).toBe("slates.tabs.candidates")
     })
 
+    it("opens the slate's first office from Edit selections", async () => {
+        const ballotEml = mockState.ballotStyles["election-1"]!.ballot_eml
+        const [, second] = ballotEml.contests
+        const member = second.candidates[0]
+        ballotEml.election_annotations = {
+            "sequent.slates": JSON.stringify({
+                version: 1,
+                mobile_candidate_lists: "expanded",
+                slates: [{id: "voices", name: {en: "Voices"}, members: {[second.id]: [member.id]}}],
+            }),
+        }
+        mockState.ballotSelections = {
+            "election-1": [
+                {
+                    contest_id: second.id,
+                    is_explicit_invalid: false,
+                    is_decline_to_vote: false,
+                    is_blank_ballot: false,
+                    invalid_errors: [],
+                    invalid_alerts: [],
+                    choices: second.candidates.map((candidate) => ({
+                        id: candidate.id,
+                        selected: candidate.id === member.id ? 0 : -1,
+                    })),
+                },
+            ],
+        }
+        renderRoute(<VotingScreen />, "vote")
+
+        await userEvent.setup().click(screen.getByRole("button", {name: "slates.selection.edit"}))
+
+        expect(selectedTab()).toBe("slates.tabs.candidates")
+        expect(screen.getByRole("heading", {level: 2, name: second.name ?? ""})).toBeVisible()
+    })
+
     it("clears a ballot with slates from the footer, after asking, with one action", async () => {
         const {contest, member} = configureSlate()
         mockState.ballotSelections = {

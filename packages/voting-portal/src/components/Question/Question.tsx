@@ -50,7 +50,7 @@ import {
 import {useBallotSlates} from "../../providers/BallotSlatesProvider"
 import {sortCandidatesInContest, checkIsBlank} from "@sequentech/ui-core"
 import {provideBallotService} from "../../services/BallotService"
-import {faAngleDown, faAngleRight} from "@fortawesome/free-solid-svg-icons"
+import {faAngleDown, faAngleRight, faTriangleExclamation} from "@fortawesome/free-solid-svg-icons"
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 
 const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
@@ -123,6 +123,25 @@ const InvalidBlankWrapper = styled("ul")<{columnCount: number}>`
 `
 /** The id of the heading of a contest, so a screen can bring it into view. */
 export const contestTitleId = (contestId: string): string => `contest-${contestId}-title`
+
+const SlateLimitWarning = styled(Box)`
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 12px 0 8px;
+    padding: 13px 15px;
+    border: 1px solid #e7d69b;
+    border-radius: 7px;
+    background: #fff7d9;
+    color: #685815;
+    font-size: 14px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+
+    .slate-limit-warning-icon {
+        margin-top: 3px;
+    }
+`
 
 export interface IQuestionProps {
     ballotStyle: IBallotStyle
@@ -378,11 +397,17 @@ export const Question: React.FC<IQuestionProps> = ({
                         className="contest-clear-button"
                         variant="secondary"
                         sx={{
-                            flexShrink: 0,
-                            minHeight: "44px",
-                            fontSize: "14px",
-                            border: "none",
-                            background: "transparent",
+                            "flexShrink": 0,
+                            "minHeight": "44px",
+                            "fontSize": "14px",
+                            "border": "none",
+                            "background": "transparent",
+                            "boxShadow": "none",
+                            "&.Mui-disabled": {
+                                border: "none",
+                                background: "transparent",
+                                color: theme.palette.customGrey.main,
+                            },
                         }}
                         disabled={selectedChoicesSum === 0}
                         aria-label={t("slates.clearContest.label", {contest: contestName})}
@@ -418,6 +443,17 @@ export const Question: React.FC<IQuestionProps> = ({
                     <VisuallyHidden className="contest-clear-status" role="status">
                         {clearedAnnouncement}
                     </VisuallyHidden>
+                    {overVoteDisableMode && selectedChoicesSum >= question.max_votes ? (
+                        <SlateLimitWarning className="slate-limit-warning" role="alert">
+                            <FontAwesomeIcon
+                                className="slate-limit-warning-icon"
+                                icon={faTriangleExclamation}
+                            />
+                            <span className="slate-limit-warning-text">
+                                {t("slates.limit", {count: question.max_votes})}
+                            </span>
+                        </SlateLimitWarning>
+                    ) : null}
                 </>
             ) : null}
             {question.description || question.description_i18n?.[i18n.language] ? (

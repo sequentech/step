@@ -530,6 +530,7 @@ const dutchTranslation: TranslationType = {
                 instruction_other:
                     "Selecteer maximaal {{count}} kandidaten. {{selected}} geselecteerd.",
             },
+            limit: "U kunt er maximaal {{count}} selecteren. Deselecteer een kandidaat voordat u een andere kiest.",
             clearContest: {
                 button: "Wissen",
                 label: "{{contest}} wissen",

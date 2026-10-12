@@ -11,9 +11,17 @@ import {IUnfilledContest} from "../../services/UnfilledContests"
 
 // Both answers are sentences, so on a phone they take a row each.
 const StackedActionsDialog = styled(Dialog)`
+    @media (max-width: 749.95px) {
+        .MuiDialogContent-root {
+            padding: 16px 20px 0 20px !important;
+        }
+        .MuiDialogActions-root {
+            padding: 15px 20px 20px;
+        }
+    }
     @media (max-width: 600px) {
         .MuiDialogActions-root {
-            flex-direction: column;
+            flex-direction: column-reverse;
             gap: 8px;
         }
         .MuiDialogActions-root > .MuiButtonBase-root {
@@ -25,14 +33,27 @@ const StackedActionsDialog = styled(Dialog)`
 
 const ContestList = styled("ul")`
     list-style: none;
-    margin: 16px 0 0;
+    margin: 22px 0 0;
     padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+
+    .unfilled-contest {
+        padding: 12px 0;
+        border-bottom: 1px solid #e7eaee;
+        font-size: 14px;
+        line-height: 1.5;
+    }
+
+    .unfilled-contest:last-of-type {
+        border-bottom: none;
+    }
+
+    .unfilled-contest-count {
+        color: ${({theme}) => theme.palette.customGrey.dark};
+    }
 `
 
 const ContestName = styled(Box)`
+    margin-bottom: 5px;
     font-weight: bold;
     overflow-wrap: anywhere;
 `
@@ -59,6 +80,7 @@ const UnfilledContestsDialog: React.FC<UnfilledContestsDialogProps> = ({
             ok={t("reviewScreen.unfilledContestsDialog.ok")}
             cancel={t("reviewScreen.unfilledContestsDialog.cancel")}
             variant="info"
+            maxWidth="sm"
         >
             <Typography className="unfilled-contests-content" margin={0}>
                 {t("reviewScreen.unfilledContestsDialog.content")}

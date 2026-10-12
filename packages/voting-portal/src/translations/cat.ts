@@ -531,6 +531,7 @@ const catalanTranslation: TranslationType = {
                 instruction_other:
                     "Selecciona fins a {{count}} candidats. {{selected}} seleccionats.",
             },
+            limit: "Pots seleccionar fins a {{count}}. Treu un candidat abans de triar-ne un altre.",
             clearContest: {
                 button: "Esborra",
                 label: "Esborra {{contest}}",

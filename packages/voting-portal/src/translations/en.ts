@@ -526,6 +526,7 @@ const englishTranslation = {
                 instruction_one: "Select up to {{count}} candidate. {{selected}} selected.",
                 instruction_other: "Select up to {{count}} candidates. {{selected}} selected.",
             },
+            limit: "You can select up to {{count}}. Deselect a candidate before choosing another.",
             clearContest: {
                 button: "Clear",
                 label: "Clear {{contest}}",

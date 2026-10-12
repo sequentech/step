@@ -527,6 +527,7 @@ const basqueTranslation: TranslationType = {
                 instruction_one: "Hautatu gehienez hautagai {{count}}. {{selected}} hautatuta.",
                 instruction_other: "Hautatu gehienez {{count}} hautagai. {{selected}} hautatuta.",
             },
+            limit: "Gehienez {{count}} hauta ditzakezu. Kendu hautagai bat beste bat aukeratu aurretik.",
             clearContest: {
                 button: "Garbitu",
                 label: "Garbitu {{contest}}",
