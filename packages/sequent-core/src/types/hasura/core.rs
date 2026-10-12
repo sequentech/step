@@ -10,9 +10,10 @@ use std::str::FromStr;
 
 use crate::{
     ballot::{
-        ConsolidatedReportPolicy, ContestEncryptionPolicy,
-        DecodedBallotsInclusionPolicy, DelegatedVotingPolicy,
-        ElectionEventMaterials, SupportMaterialsPolicy, WeightedVotingPolicy,
+        BatchAnonymityPolicy, ConsolidatedReportPolicy,
+        ContestEncryptionPolicy, DecodedBallotsInclusionPolicy,
+        DelegatedVotingPolicy, ElectionEventMaterials, SupportMaterialsPolicy,
+        WeightedVotingPolicy,
     },
     serialization::deserialize_with_path::deserialize_value,
     types::{
@@ -538,6 +539,7 @@ pub struct TallySessionConfiguration {
     pub delegated_voting_policy: Option<DelegatedVotingPolicy>,
     pub consolidated_report_policy: Option<ConsolidatedReportPolicy>,
     pub weighted_voting_policy: Option<WeightedVotingPolicy>,
+    pub batch_anonymity_policy: Option<BatchAnonymityPolicy>,
 }
 
 impl TallySessionConfiguration {
@@ -557,6 +559,9 @@ impl TallySessionConfiguration {
     }
     pub fn get_consolidated_report_policy(&self) -> ConsolidatedReportPolicy {
         self.consolidated_report_policy.clone().unwrap_or_default()
+    }
+    pub fn get_batch_anonymity_policy(&self) -> BatchAnonymityPolicy {
+        self.batch_anonymity_policy.clone().unwrap_or_default()
     }
 }
 
@@ -689,6 +694,36 @@ pub struct Tenant {
     pub voting_channels: Option<Value>,
     pub settings: Option<Value>,
     pub test: Option<i32>,
+}
+
+#[cfg(test)]
+mod tally_session_configuration_tests {
+    use super::*;
+    use crate::ballot::BatchAnonymityPolicy;
+
+    #[test]
+    fn batch_anonymity_policy_defaults_to_warn_for_sessions_without_it() {
+        let configuration: TallySessionConfiguration =
+            serde_json::from_value(serde_json::json!({
+                "contest_encryption_policy": "single-contest"
+            }))
+            .unwrap();
+        assert_eq!(configuration.batch_anonymity_policy, None);
+        assert_eq!(
+            configuration.get_batch_anonymity_policy(),
+            BatchAnonymityPolicy::WARN
+        );
+
+        let configuration: TallySessionConfiguration =
+            serde_json::from_value(serde_json::json!({
+                "batch_anonymity_policy": "refuse"
+            }))
+            .unwrap();
+        assert_eq!(
+            configuration.get_batch_anonymity_policy(),
+            BatchAnonymityPolicy::REFUSE
+        );
+    }
 }
 
 #[cfg(test)]
