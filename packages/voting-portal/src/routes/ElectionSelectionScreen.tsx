@@ -537,15 +537,24 @@ const ElectionSelectionScreen: React.FC = () => {
             skipPolicy &&
             1 === electionIds.length &&
             !errorCastVote &&
-            !isUndefined(castVotes) &&
+            (globalSettings.DISABLE_AUTH || !isUndefined(castVotes)) &&
             !!electionEvent &&
-            !!data
+            (globalSettings.DISABLE_AUTH || !!data)
 
         if (newBypassChooser && !bypassChooser) {
             console.log("new baypass chooser", newBypassChooser)
             dispatch(setBypassChooser(newBypassChooser))
         }
-    }, [castVotes, electionIds, errorCastVote, electionEvent, data, bypassChooser, dispatch])
+    }, [
+        castVotes,
+        electionIds,
+        errorCastVote,
+        electionEvent,
+        data,
+        bypassChooser,
+        dispatch,
+        globalSettings.DISABLE_AUTH,
+    ])
 
     // warningMsg is rendered as HTML below, so its interpolated values are escaped
     let warningMsg: string | undefined

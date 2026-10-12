@@ -254,7 +254,7 @@ test.each(cases)("refreshes cast status: $name", async ({initialStatus, replies}
     }
 })
 
-test("preview publications still populate the chooser without authenticated requests", async () => {
+test.each([false, true])("preview honors skip_election_list=%s", async (skipElectionList) => {
     const eml = {
         ...ELECTION_WITH_INVALID,
         election_id: "election",
@@ -263,7 +263,7 @@ test("preview publications still populate the chooser without authenticated requ
     }
     loadPreview(
         {
-            election_event: event,
+            election_event: {...event, presentation: {skip_election_list: skipElectionList}},
             elections: [election],
             ballot_styles: [eml],
             documents: [],
@@ -291,6 +291,10 @@ test("preview publications still populate the chooser without authenticated requ
                 path: "/tenant/:tenantId/event/:eventId/election-chooser",
                 element: <ElectionSelectionScreen />,
             },
+            {
+                path: "/tenant/:tenantId/event/:eventId/election/:electionId/start",
+                element: <div>Preview ballot</div>,
+            },
         ],
         {initialEntries: ["/tenant/tenant/event/event/election-chooser"]}
     )
@@ -307,7 +311,14 @@ test("preview publications still populate the chooser without authenticated requ
         </Provider>
     )
     try {
-        expect(await screen.findByRole("button", {name: "Vote"})).toBeEnabled()
+        if (skipElectionList) {
+            expect(await screen.findByText("Preview ballot")).toBeInTheDocument()
+            expect(router.state.location.pathname).toBe(
+                "/tenant/tenant/event/event/election/election/start"
+            )
+        } else {
+            expect(await screen.findByRole("button", {name: "Vote"})).toBeEnabled()
+        }
         expect(store.getState().ballotStyles.election).toBe(style)
         expect(requests).not.toHaveBeenCalled()
         expect(global.fetch).not.toHaveBeenCalled()

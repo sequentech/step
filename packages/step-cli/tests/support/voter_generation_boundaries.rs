@@ -128,7 +128,7 @@ struct Voter {
 
 impl Voter {
     fn generate(voter: usize, event: &Value, cfg: &VotersConfig, rng: &mut impl Rng) -> Self {
-        let index = ElectionIndex::from_event(event);
+        let index = ElectionIndex::from_event(event).unwrap();
         let values = voter_record(voter, index.area(voter), &index, cfg, rng, today());
         assert_eq!(values.len(), cfg.fields.len());
         Self {
@@ -145,7 +145,7 @@ impl Voter {
 
 #[test]
 fn voters_are_assigned_to_the_areas_round_robin() {
-    let index = ElectionIndex::from_event(&event());
+    let index = ElectionIndex::from_event(&event()).unwrap();
     let areas: Vec<_> = (0..7)
         .map(|voter| index.area(voter)["id"].as_str().unwrap())
         .collect();
@@ -166,7 +166,7 @@ fn voters_are_assigned_to_the_areas_round_robin() {
 #[test]
 fn without_areas_every_voter_gets_unknown_area_details() {
     let event = json!({"elections": event()["elections"]});
-    let index = ElectionIndex::from_event(&event);
+    let index = ElectionIndex::from_event(&event).unwrap();
     assert_eq!(index.area(3), &Value::Null);
     let voter = Voter::generate(3, &event, &config(), &mut seeded(1));
     assert_eq!(voter.get("area_name"), "Unknown");
@@ -178,7 +178,7 @@ fn without_areas_every_voter_gets_unknown_area_details() {
 
 #[test]
 fn an_area_lists_each_of_its_elections_once_in_contest_order() {
-    let index = ElectionIndex::from_event(&event());
+    let index = ElectionIndex::from_event(&event()).unwrap();
     let north = index.area_elections("area-north");
     assert_eq!(north.ids, ["election-local", "election-national"]);
     assert_eq!(north.aliases, ["Madrid - Local", "National"]);
@@ -194,7 +194,7 @@ fn a_contest_missing_from_the_event_authorizes_an_unknown_election() {
         .as_array_mut()
         .unwrap()
         .push(json!({"area_id": "area-south", "contest_id": "contest-deleted"}));
-    let index = ElectionIndex::from_event(&event);
+    let index = ElectionIndex::from_event(&event).unwrap();
     assert_eq!(
         index.area_elections("area-south").ids,
         ["election-local", "Unknown"]

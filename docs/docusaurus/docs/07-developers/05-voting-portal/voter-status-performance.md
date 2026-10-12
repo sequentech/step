@@ -205,7 +205,7 @@ The images contain a standalone Rust worker and the selected engine; the coordin
 
 ## Kubernetes
 
-Use your current kubectl context, with permission to create Jobs, Pods, Secrets and PVCs in the configured namespace. Your cluster needs a ReadWriteMany storage class. Configure the image, namespace, storage class and volume size before preparation:
+Use your current kubectl context, with permission to create Jobs, Pods, Secrets and PVCs, and to delete Jobs and Pods, in the configured namespace. Your cluster needs a ReadWriteMany storage class. Configure the image, namespace, storage class and volume size before preparation:
 
 ```yaml group="engine" tab="k6"
 execution:
@@ -263,7 +263,7 @@ step-cli load run runs/remote \
   --workers 20
 ```
 
-The CLI creates a Secret and PVC, transfers prepared inputs, starts the indexed Job, and collects worker results. It prints resource names and retains the Job, PVC and Secret for reconciliation. After collecting and reviewing results, use the resource name printed by the CLI:
+The CLI creates a Secret and PVC, transfers prepared inputs, starts the indexed Job, and collects worker results. It prints resource names and retains the Job, PVC and Secret for reconciliation. If waiting for completion fails or times out, it deletes the Job and waits for its worker pods to stop before collecting partial results; the PVC, Secret and local `job.json` remain available. After collecting and reviewing results, use the resource name printed by the CLI:
 
 ```bash
 read -r -p 'Run resource name printed by the CLI: ' LOAD_RESOURCE
@@ -278,7 +278,7 @@ Use your configured namespace in place of `load-testing`. Failed or interrupted 
 
 To reuse an already provisioned event, set `preparation.existing_event` to a previous run's `inputs/config.json`, and choose an unused `workload.start` range. The CLI imports the new census and prepares fresh ballots; it does not republish that event. The existing event must still be open and eligible.
 
-Generated inputs retain `election_external_id` from the exported election. Census authorization uses that nonempty value, falling back to `election_id` when it is absent, null or empty; voting requests continue to use the election UUID. When reusing an older input file for an election with an external ID, use a copy containing its actual `election_external_id` and preserve the original run's inputs.
+Generated inputs retain `election_external_id` from the exported election. Census authorization uses that nonempty value, falling back to `election_id` when it is absent, null or empty; voting requests continue to use the election UUID. An external ID containing the census separator `|` is rejected before any census is written. When reusing an event, preparation exports it again and uses the election's current external ID, so older input files without `election_external_id` also authorize voters correctly.
 
 Custom fixtures use `preparation.template`; explicit ballot selections use `preparation.choices`. Paths resolve relative to the workload YAML. Deployments that run S3 publication preparation separately can set `preparation.publication_preparer` to their application writer executable; its database and S3 environment must be configured on the coordinator.
 
@@ -305,11 +305,17 @@ Preparation is excluded. Chromium includes page rendering and browser encryption
 | --- | --- |
 | Successful journeys | Distinct voters that completed the configured journey |
 | Accepted casts/s | Unique API receipts divided by the interval from the first journey start to the last completion |
-| p50 / p99 | Global percentiles of individual samples across all workers |
+| Latency | Sample count, mean, p50, p95, p99 and maximum for each measured stage; percentiles combine individual samples across all workers |
 | Duration | Measured journey interval, excluding census generation and encryption preparation |
 | Goals | Explicit thresholds from the workload configuration |
 
 k6 includes authentication, voter status, publication downloads and cast acceptance. Chromium additionally includes rendering and browser encryption. Compare runs using the same engine and workload. Status-only reports show successful journeys per second because they cast no votes.
+
+Every HTML and JSON report includes complete Keycloak login, login-page retrieval, credential submission, token exchange, voter status, event/election/summary/ballot-style downloads, cast acceptance and the complete journey. Measured steps from failed journeys remain included. Missing steps, including those absent from older runs, are unavailable rather than zero. Complete login includes client work between requests; in Chromium this also includes navigation, rendering and form filling. Its duration therefore need not equal the sum of the three Keycloak HTTP timings.
+
+Use phase latency to identify where voters spend time, and collect CPU/memory measurements alongside the run to investigate capacity limits. A slower login alone does not prove Keycloak is the throughput bottleneck, especially when the generator and services share a saturated host. Compare controlled runs at different concurrency levels, with the same engine and workload.
+
+For simultaneous events, report each event's accepted casts divided by its own measured interval, and total accepted casts divided by the common interval from the earliest start to the latest completion. Do not sum event rates measured over different intervals. The [three-event, 60,000-vote report](https://github.com/user-attachments/files/32265294/load-3x20k-20260915-full-report.zip) includes both rates, per-step latency and host resource measurements; extract the ZIP and open `report.html`. It measured 31.69 casts/s on a shared, CPU-saturated 8-CPU development host using prepared k6 ballots, not isolated production capacity.
 
 Every planned journey must succeed; voting runs also require unique receipts. A missing worker, failed journey or missed threshold makes the run fail. Reports are still produced for partial runs. An API receipt confirms acceptance; it does not independently prove database persistence or successful tallying.
 
