@@ -2049,6 +2049,7 @@ pub async fn process_document(
         (None, Some(_)) => bail!("The export has the electoral-log records but not their manifest"),
     };
 
+    let mut publication_entries = Vec::new();
     // Zip file processing
     if document_type == "application/ezip" || matches_mime("zip", &document_type) {
         for (file_name, file_contents) in &zip_entries {
@@ -2218,24 +2219,7 @@ pub async fn process_document(
             }
 
             if file_name.contains(&format!("{}", EDocuments::PUBLICATIONS.to_file_name())) {
-                let mut temp_file = NamedTempFile::new()
-                    .context("Failed to create ballot publications temporary file")?;
-
-                io::copy(&mut cursor, &mut temp_file).context(
-                    "Failed to copy contents of ballot publications file to temporary file",
-                )?;
-                temp_file.as_file_mut().rewind()?;
-
-                import_ballot_publications(
-                    hasura_transaction,
-                    &election_event_schema.tenant_id.to_string(),
-                    &election_event_schema.election_event.id,
-                    temp_file,
-                    replacement_map.clone(),
-                    &zip_entries,
-                )
-                .await
-                .with_context(|| "Error importing publications")?;
+                publication_entries.push(file_contents);
             }
             if file_name.contains(&format!(
                 "{}",
@@ -2368,18 +2352,41 @@ pub async fn process_document(
         }
     };
 
-    let election_keys_ceremony_ids: HashSet<&str> = election_event_schema
+    let election_keys_ceremonies: HashMap<&str, &str> = election_event_schema
         .elections
         .iter()
-        .filter_map(|election| election.keys_ceremony_id.as_deref())
+        .filter_map(|election| Some((election.id.as_str(), election.keys_ceremony_id.as_deref()?)))
         .collect();
-    verify_imported_keys_ceremonies(
+    // Runs once the archive's boards are imported, before the publications
+    // that depend on the verified keys.
+    let election_public_keys = verify_imported_keys_ceremonies(
         hasura_transaction,
         &election_event_schema.tenant_id.to_string(),
         &election_event_schema.election_event.id,
-        &election_keys_ceremony_ids,
+        &election_keys_ceremonies,
     )
     .await?;
+
+    for file_contents in publication_entries {
+        let mut temp_file =
+            NamedTempFile::new().context("Failed to create ballot publications temporary file")?;
+
+        io::copy(&mut Cursor::new(&file_contents[..]), &mut temp_file)
+            .context("Failed to copy contents of ballot publications file to temporary file")?;
+        temp_file.as_file_mut().rewind()?;
+
+        import_ballot_publications(
+            hasura_transaction,
+            &election_event_schema.tenant_id.to_string(),
+            &election_event_schema.election_event.id,
+            temp_file,
+            replacement_map.clone(),
+            &zip_entries,
+            &election_public_keys,
+        )
+        .await
+        .with_context(|| "Error importing publications")?;
+    }
 
     if let Some(package) = package {
         configuration_package::record(hasura_transaction, &tenant_id, &election_event_id, &package)
@@ -2398,19 +2405,23 @@ pub async fn process_document(
 }
 
 /// Drops each imported keys ceremony whose public key is not the one on its
-/// board. An import whose tally sessions use such a ceremony is rejected.
-/// Only the default ceremony and those of `election_keys_ceremony_ids` have a
+/// board, and returns the verified public key of each election of
+/// `election_keys_ceremonies` (election id to keys ceremony id) by election
+/// id. An import whose tally sessions use a dropped ceremony is rejected.
+/// Only the default ceremony and those of `election_keys_ceremonies` have a
 /// board to compare with.
 #[instrument(err, skip_all)]
 pub async fn verify_imported_keys_ceremonies(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    election_keys_ceremony_ids: &HashSet<&str>,
-) -> Result<()> {
+    election_keys_ceremonies: &HashMap<&str, &str>,
+) -> Result<HashMap<String, String>> {
     let keys_ceremonies =
         keys_ceremony::get_keys_ceremonies(hasura_transaction, tenant_id, election_event_id)
             .await?;
+    let election_keys_ceremony_ids: HashSet<&str> =
+        election_keys_ceremonies.values().copied().collect();
 
     let tally_keys_ceremony_ids: HashSet<String> = get_tally_sessions_by_election_event_id(
         hasura_transaction,
@@ -2423,6 +2434,7 @@ pub async fn verify_imported_keys_ceremonies(
     .map(|tally_session| tally_session.keys_ceremony_id)
     .collect();
 
+    let mut ceremony_public_keys = HashMap::new();
     for keys_ceremony in &keys_ceremonies {
         let has_board = keys_ceremony.is_default()
             || election_keys_ceremony_ids.contains(keys_ceremony.id.as_str());
@@ -2438,7 +2450,10 @@ pub async fn verify_imported_keys_ceremonies(
             ceremony_public_key_state(keys_ceremony, None)
         };
         match state {
-            CeremonyPublicKeyState::NoPublicKey | CeremonyPublicKeyState::OnBoard(_) => {}
+            CeremonyPublicKeyState::NoPublicKey => {}
+            CeremonyPublicKeyState::OnBoard(public_key) => {
+                ceremony_public_keys.insert(keys_ceremony.id.clone(), public_key);
+            }
             CeremonyPublicKeyState::NotOnBoard => {
                 ensure!(
                     !tally_keys_ceremony_ids.contains(&keys_ceremony.id),
@@ -2467,7 +2482,25 @@ pub async fn verify_imported_keys_ceremonies(
         }
     }
 
-    Ok(())
+    Ok(election_public_keys(
+        election_keys_ceremonies,
+        &ceremony_public_keys,
+    ))
+}
+
+/// The public key of each election's keys ceremony, by election id, for the
+/// elections whose ceremony has a verified one in `ceremony_public_keys`.
+fn election_public_keys(
+    election_keys_ceremonies: &HashMap<&str, &str>,
+    ceremony_public_keys: &HashMap<String, String>,
+) -> HashMap<String, String> {
+    election_keys_ceremonies
+        .iter()
+        .filter_map(|(election_id, keys_ceremony_id)| {
+            let public_key = ceremony_public_keys.get(*keys_ceremony_id)?;
+            Some((election_id.to_string(), public_key.clone()))
+        })
+        .collect()
 }
 
 #[instrument(err, skip_all)]
@@ -2836,6 +2869,40 @@ mod tests {
             .await
             .expect("no password, no decryption");
         assert_eq!(fs::read(file.path()).unwrap(), b"plain");
+    }
+
+    #[test]
+    fn an_election_gets_the_verified_public_key_of_its_keys_ceremony() {
+        let election_keys_ceremonies = HashMap::from([
+            ("verified-election", "verified-ceremony"),
+            ("other-verified-election", "verified-ceremony"),
+            ("left-out-election", "left-out-ceremony"),
+        ]);
+        let ceremony_public_keys =
+            HashMap::from([("verified-ceremony".to_string(), "public-key".to_string())]);
+
+        assert_eq!(
+            election_public_keys(&election_keys_ceremonies, &ceremony_public_keys),
+            HashMap::from([
+                ("verified-election".to_string(), "public-key".to_string()),
+                (
+                    "other-verified-election".to_string(),
+                    "public-key".to_string()
+                ),
+            ])
+        );
+    }
+
+    #[test]
+    fn no_election_gets_a_public_key_without_verified_keys_ceremonies() {
+        let election_keys_ceremonies = HashMap::from([("election", "ceremony")]);
+
+        assert!(election_public_keys(&election_keys_ceremonies, &HashMap::new()).is_empty());
+        assert!(election_public_keys(
+            &HashMap::new(),
+            &HashMap::from([("ceremony".to_string(), "public-key".to_string())])
+        )
+        .is_empty());
     }
 }
 

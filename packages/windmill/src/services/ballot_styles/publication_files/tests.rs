@@ -193,8 +193,8 @@ async fn publication_objects_and_authorized_references() -> Result<()> {
         area.to_string(),
     );
     let ids = vec![election.to_string()];
-    let eml = r#"{"contests": [], "election_event_presentation": {"title":"escaped \" text","nested":{"z":2,"a":1}}, "area_presentation":{}}"#;
-    let other_eml = r#"{"contests": [], "election_event_presentation": {"nested":{"a":1,"z":2}, "title":"escaped \" text"}, "area_presentation":{}}"#;
+    let eml = r#"{"contests": [], "public_key": {"public_key": "archived-public-key", "is_demo": false}, "election_event_presentation": {"title":"escaped \" text","nested":{"z":2,"a":1}}, "area_presentation":{}}"#;
+    let other_eml = r#"{"contests": [], "public_key": {"public_key": "archived-public-key", "is_demo": false}, "election_event_presentation": {"nested":{"a":1,"z":2}, "title":"escaped \" text"}, "area_presentation":{}}"#;
     let client = get_shared_s3_client(s3::S3Endpoint::Server).await?;
     let bucket = get_private_bucket()?;
     let objects = S3PublicationStorage {
