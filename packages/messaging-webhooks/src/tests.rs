@@ -493,7 +493,7 @@ async fn log_of_callbacks(filter: tracing_subscriber::filter::Targets) -> String
     let harvest = TestServer::start(vec![
         harvest_answers(200, "text/plain; charset=utf-8", "1158201444"),
         harvest_answers(200, "text/plain; charset=utf-8", ""),
-        Answer { status: 401, body: String::new(), delay: Duration::ZERO },
+        Peer::Json(401, serde_json::json!({"message": "Unauthorized"})),
     ])
     .await;
     let client = component(config(&harvest.base_url)).await;
