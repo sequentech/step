@@ -68,7 +68,10 @@ fn purged_outcomes(queue: Queue) -> Option<PurgedOutcomes> {
         | Queue::ImportExport
         | Queue::ElectoralLogBeat
         | Queue::Monitoring => Some(PurgedOutcomes::All),
-        Queue::ElectoralLogEvent | Queue::ElectoralLogBatch => Some(PurgedOutcomes::Succeeded),
+        // Raw events are kept unless stored; batches also drop the sequencer runs that
+        // expired unrun, which carry no events.
+        Queue::ElectoralLogEvent => Some(PurgedOutcomes::Succeeded),
+        Queue::ElectoralLogBatch => Some(PurgedOutcomes::SucceededOrExpired),
         Queue::ElectoralLogDeadLetter => None,
     }
 }
@@ -128,13 +131,14 @@ mod tests {
     #[test]
     fn the_electoral_log_archives_keep_what_did_not_succeed() {
         assert_eq!(purged_outcomes(Queue::ElectoralLogDeadLetter), None);
-        for queue in [Queue::ElectoralLogEvent, Queue::ElectoralLogBatch] {
-            assert_eq!(
-                purged_outcomes(queue),
-                Some(PurgedOutcomes::Succeeded),
-                "{queue:?}"
-            );
-        }
+        assert_eq!(
+            purged_outcomes(Queue::ElectoralLogEvent),
+            Some(PurgedOutcomes::Succeeded)
+        );
+        assert_eq!(
+            purged_outcomes(Queue::ElectoralLogBatch),
+            Some(PurgedOutcomes::SucceededOrExpired)
+        );
         let purged_whole: Vec<Queue> = Queue::iter()
             .filter(|queue| purged_outcomes(*queue) == Some(PurgedOutcomes::All))
             .collect();

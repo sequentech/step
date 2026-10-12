@@ -546,7 +546,7 @@ async fn purge_deletes_only_archived_messages_past_the_retention() {
 
 #[tokio::test]
 #[ignore = "requires a disposable PostgreSQL database"]
-async fn purging_succeeded_messages_keeps_every_other_outcome() {
+async fn purging_by_outcome_keeps_every_other_outcome() {
     let pool = test_pool();
     let queue = unique_queue("purge_outcomes");
     set_up(&pool, &[&queue]).await;
@@ -627,12 +627,31 @@ async fn purging_succeeded_messages_keeps_every_other_outcome() {
         &**client,
         &queue,
         Duration::from_secs(3600),
+        PurgedOutcomes::SucceededOrExpired,
+        100,
+    )
+    .await
+    .unwrap();
+    assert_eq!(deleted, 1);
+    assert_eq!(
+        outcomes().await,
+        [
+            Some("failed".to_string()),
+            Some("rejected".to_string()),
+            None,
+            Some("succeeded".to_string()),
+        ]
+    );
+    let deleted = purge_archive(
+        &**client,
+        &queue,
+        Duration::from_secs(3600),
         PurgedOutcomes::All,
         100,
     )
     .await
     .unwrap();
-    assert_eq!(deleted, 4);
+    assert_eq!(deleted, 3);
     assert_eq!(outcomes().await, [Some("succeeded".to_string())]);
     client
         .query_one("SELECT pgmq.drop_queue($1)", &[&queue])

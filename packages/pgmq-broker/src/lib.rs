@@ -132,14 +132,21 @@ pub enum PurgedOutcomes {
     /// Only messages whose processing succeeded. Failed, expired and rejected messages,
     /// and those archived without an outcome, are kept.
     Succeeded,
+    /// Messages whose processing succeeded and messages that expired before running.
+    /// Failed and rejected messages, and those archived without an outcome, are kept.
+    SucceededOrExpired,
 }
 
 impl PurgedOutcomes {
-    /// The outcome a message must have been archived with to be purged, if any.
-    fn required_outcome(self) -> Option<&'static str> {
+    /// The outcomes a message must have been archived with to be purged, if any.
+    fn required_outcomes(self) -> Option<Vec<&'static str>> {
         match self {
             PurgedOutcomes::All => None,
-            PurgedOutcomes::Succeeded => Some(DeliveryOutcome::Succeeded.as_str()),
+            PurgedOutcomes::Succeeded => Some(vec![DeliveryOutcome::Succeeded.as_str()]),
+            PurgedOutcomes::SucceededOrExpired => Some(vec![
+                DeliveryOutcome::Succeeded.as_str(),
+                DeliveryOutcome::Expired.as_str(),
+            ]),
         }
     }
 }
@@ -156,7 +163,7 @@ pub async fn purge_archive<C: GenericClient + Sync>(
 ) -> Result<u64, BrokerError> {
     validate_queue_name(queue).map_err(BrokerError::UnknownQueue)?;
     let retention_secs = retention.as_secs_f64();
-    let outcome = outcomes.required_outcome();
+    let required = outcomes.required_outcomes();
     let mut deleted = 0;
     loop {
         let count = client
@@ -165,10 +172,10 @@ pub async fn purge_archive<C: GenericClient + Sync>(
                     "DELETE FROM pgmq.a_{queue} WHERE msg_id IN (\
                      SELECT msg_id FROM pgmq.a_{queue} \
                      WHERE archived_at < clock_timestamp() - make_interval(secs => $1) \
-                     AND ($3::text IS NULL OR headers->>'{OUTCOME_HEADER}' = $3::text) \
+                     AND ($3::text[] IS NULL OR headers->>'{OUTCOME_HEADER}' = ANY($3::text[])) \
                      ORDER BY archived_at LIMIT $2)"
                 ),
-                &[&retention_secs, &batch, &outcome],
+                &[&retention_secs, &batch, &required],
             )
             .await
             .map_err(db_error)?;
