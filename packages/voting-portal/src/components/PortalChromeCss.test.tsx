@@ -15,17 +15,13 @@ jest.mock("../../../ui-essentials/src/components/Header/Header", () => ({
 jest.mock("react-i18next", () => ({
     useTranslation: () => ({t: (key: string) => key, i18n: {language: "en"}}),
 }))
-jest.mock(
-    "@sequentech/ui-essentials",
-    () => ({
-        Footer: () => null,
-        Header: () => null,
-        PageBanner: ({children}: {children: React.ReactNode}) => <main>{children}</main>,
-    }),
-    {virtual: true}
-)
-jest.mock("@sequentech/ui-essentials/public/Sequent_logo.svg", () => "logo", {virtual: true})
-jest.mock("@sequentech/ui-essentials/public/blank_logo.svg", () => "logo", {virtual: true})
+jest.mock("@sequentech/ui-essentials", () => ({
+    Footer: () => null,
+    Header: () => null,
+    PageBanner: ({children}: {children: React.ReactNode}) => <main>{children}</main>,
+}))
+jest.mock("@sequentech/ui-essentials/public/Sequent_logo.svg", () => "logo")
+jest.mock("@sequentech/ui-essentials/public/blank_logo.svg", () => "logo")
 jest.mock("keycloak-js", () => ({__esModule: true, default: jest.fn()}))
 jest.mock("../providers/AuthContextProvider", () => ({
     ...jest.requireActual("../providers/AuthContextProvider"),

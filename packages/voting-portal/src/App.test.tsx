@@ -17,18 +17,16 @@ jest.mock("@sequentech/ui-core", () => ({
     ...jest.requireActual("@sequentech/ui-core"),
     sortElectionList: (elections: unknown[]) => elections,
 }))
-jest.mock(
-    "@sequentech/ui-essentials",
-    () => ({
-        Footer: () => null,
-        Header: () => null,
-        PageBanner: ({children}: any) => <main>{children}</main>,
-    }),
-    {virtual: true}
-)
-jest.mock("@sequentech/ui-essentials/public/Sequent_logo.svg", () => "logo", {virtual: true})
-jest.mock("@sequentech/ui-essentials/public/blank_logo.svg", () => "logo", {virtual: true})
+jest.mock("@sequentech/ui-essentials", () => ({
+    Footer: () => null,
+    Header: () => null,
+    PageBanner: ({children}: any) => <main>{children}</main>,
+}))
+jest.mock("@sequentech/ui-essentials/public/Sequent_logo.svg", () => "logo")
+jest.mock("@sequentech/ui-essentials/public/blank_logo.svg", () => "logo")
+jest.mock("keycloak-js", () => ({__esModule: true, default: jest.fn()}))
 jest.mock("./providers/AuthContextProvider", () => ({
+    ...jest.requireActual("./providers/AuthContextProvider"),
     AuthContext: require("react").createContext({
         isAuthenticated: true,
         getExpiry: () => undefined,

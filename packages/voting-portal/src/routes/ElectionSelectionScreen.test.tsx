@@ -26,23 +26,19 @@ jest.mock("@sequentech/ui-core", () => ({
     ...jest.requireActual("@sequentech/ui-core"),
     sortElectionList: (items: unknown[]) => items,
 }))
-jest.mock(
-    "@sequentech/ui-essentials",
-    () => ({
-        // ElectionConfigService and ElectionTimeZones re-export the shared helpers.
-        ...jest.requireActual("../../../ui-essentials/src/ballot/presentation"),
-        ...jest.requireActual("../../../ui-essentials/src/components/SelectElection/electionTimes"),
-        ...jest.requireActual("../../../ui-essentials/src/ballot/ElectionListLayout"),
-        theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
-        PageLimit: ({children}: any) => <div>{children}</div>,
-        Dialog: () => null,
-        IconButton: () => null,
-        SelectElection: ({isActive, hasVoted}: any) => (
-            <button disabled={!isActive}>{hasVoted ? "Already voted" : "Vote"}</button>
-        ),
-    }),
-    {virtual: true}
-)
+jest.mock("@sequentech/ui-essentials", () => ({
+    // ElectionConfigService and ElectionTimeZones re-export the shared helpers.
+    ...jest.requireActual("../../../ui-essentials/src/ballot/presentation"),
+    ...jest.requireActual("../../../ui-essentials/src/components/SelectElection/electionTimes"),
+    ...jest.requireActual("../../../ui-essentials/src/ballot/ElectionListLayout"),
+    theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
+    PageLimit: ({children}: any) => <div>{children}</div>,
+    Dialog: () => null,
+    IconButton: () => null,
+    SelectElection: ({isActive, hasVoted}: any) => (
+        <button disabled={!isActive}>{hasVoted ? "Already voted" : "Vote"}</button>
+    ),
+}))
 jest.mock("../providers/AuthContextProvider", () => ({
     AuthContext: require("react").createContext({isKiosk: () => false}),
 }))

@@ -15,21 +15,17 @@ jest.mock("@sequentech/ui-core", () => ({
     ...jest.requireActual("@sequentech/ui-core"),
     stringToHtml: (value: string) => value,
 }))
-jest.mock(
-    "@sequentech/ui-essentials",
-    () => ({
-        theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
-        Loader: () => <div>Loading</div>,
-        PageLimit: ({children}: any) => <div>{children}</div>,
-        InfoDataBox: ({children}: any) => <div>{children}</div>,
-        BreadCrumbSteps: () => null,
-        Icon: () => null,
-        IconButton: () => null,
-        Dialog: () => null,
-        ExpandableText: () => null,
-    }),
-    {virtual: true}
-)
+jest.mock("@sequentech/ui-essentials", () => ({
+    theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
+    Loader: () => <div>Loading</div>,
+    PageLimit: ({children}: any) => <div>{children}</div>,
+    InfoDataBox: ({children}: any) => <div>{children}</div>,
+    BreadCrumbSteps: () => null,
+    Icon: () => null,
+    IconButton: () => null,
+    Dialog: () => null,
+    ExpandableText: () => null,
+}))
 jest.mock("../providers/SettingsContextProvider", () => ({
     SettingsContext: require("react").createContext({globalSettings: {DISABLE_AUTH: false}}),
 }))
