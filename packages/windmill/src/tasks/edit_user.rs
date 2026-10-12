@@ -2,10 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::cast_vote::{
-    discard_voter_cast_votes, get_voter_cast_vote_state, VoterCastVoteState,
-};
 use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
+use crate::services::ballot_box::get_voter_ballot_state;
+use crate::services::ballot_box_reads::get_event_ballot_box;
 use crate::services::database::get_hasura_pool;
 use crate::services::electoral_log::{
     post_voter_password_change, ElectoralLogAdminContext, VoterPasswordChangeSource,
@@ -26,6 +25,10 @@ use anyhow::Context;
 use celery::error::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
+use electoral_log::adapters::ballot_box::BallotStatus;
+use electoral_log::adapters::ballot_box_seal::is_sealed_refusal;
+use electoral_log::adapters::ballot_box_status::VoterBallotState;
+use electoral_log::adapters::postgres::PostgresStore;
 use electoral_log::messages::newtypes::ExtApiRequestDirection;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient};
@@ -144,7 +147,7 @@ struct VoterReleasePlan {
 fn plan_voter_release(
     current_enabled: Option<bool>,
     requested_enabled: Option<bool>,
-    cast_vote_state: &VoterCastVoteState,
+    cast_vote_state: &VoterBallotState,
     current_attributes: &HashMap<String, Vec<String>>,
 ) -> std::result::Result<VoterReleasePlan, String> {
     let disable_transition = is_disable_transition(current_enabled, requested_enabled);
@@ -152,13 +155,13 @@ fn plan_voter_release(
     let disable_requested = requested_enabled == Some(false);
     let release_attempt = disable_transition
         || (disable_requested
-            && (cast_vote_state.has_unresolved_vote
-                || cast_vote_state.has_valid_vote
+            && (cast_vote_state.has_pending
+                || cast_vote_state.has_valid
                 || voted_via_internet(current_attributes)));
 
     if reenable_transition
-        && (cast_vote_state.has_unresolved_vote
-            || cast_vote_state.has_valid_vote
+        && (cast_vote_state.has_pending
+            || cast_vote_state.has_valid
             || voted_via_not_internet_channel(current_attributes))
     {
         return Err(
@@ -208,19 +211,17 @@ async fn load_election_event(
     get_election_event_by_id(&transaction, tenant_id, election_event_id).await
 }
 
-/// Single-round snapshot of the voter's cast-vote states, used to decide whether
-/// a disable needs a release and whether a re-enable is safe.
+/// Single-round snapshot of the voter's ballot states, used to decide whether a
+/// disable needs a release and whether a re-enable is safe.
 #[instrument(err, ret)]
 async fn voter_cast_vote_state(
     tenant_id: &str,
     election_event_id: &str,
     voter_id: &str,
-) -> anyhow::Result<VoterCastVoteState> {
-    let tenant_id = parse_uuid_v4(tenant_id)?;
-    let election_event_id = parse_uuid_v4(election_event_id)?;
+) -> anyhow::Result<VoterBallotState> {
     let mut client: DbClient = get_hasura_pool().await.get().await?;
-    let transaction = client.transaction().await?;
-    get_voter_cast_vote_state(&transaction, &tenant_id, &election_event_id, voter_id).await
+    let transaction = client.build_transaction().read_only(true).start().await?;
+    get_voter_ballot_state(&transaction, tenant_id, election_event_id, voter_id).await
 }
 
 /// Applies the requested Keycloak fields.
@@ -248,49 +249,55 @@ async fn edit_keycloak_voter(
         .map_err(|err| format!("Error editing Datafix voter in Keycloak: {err:?}"))
 }
 
-/// Discards the voter's active ballots in its own Hasura transaction. Keycloak
-/// and Hasura are updated sequentially; failures are traced by the caller and
-/// left for the existing reconciliation process. Returns `false`, discarding
-/// nothing, when a ballot of the voter is in a sealed ballot box (VOTE-FREEZE):
-/// the ballots in sealed ballot boxes stay as they were sealed, and only
-/// the others are discarded (one `warn!` names the sealed boxes).
+/// Rejects the voter's pending and valid ballots in the event's ballot box.
+/// Keycloak and the ballot box are updated sequentially; failures are traced by
+/// the caller and left for the existing reconciliation process. Returns `false`
+/// when a ballot of the voter is in a sealed ballot box (VOTE-FREEZE): the
+/// ballots in sealed ballot boxes stay as they were sealed, and only the
+/// others are rejected (one `warn!` names the sealed boxes).
 #[instrument(err)]
 async fn discard_voter_ballots(
     tenant_id: &str,
     election_event_id: &str,
     voter_id: &str,
 ) -> anyhow::Result<bool> {
-    let tenant_id = parse_uuid_v4(tenant_id)?;
-    let election_event_id = parse_uuid_v4(election_event_id)?;
-    let mut client: DbClient = get_hasura_pool().await.get().await?;
-    let transaction = client.transaction().await?;
-    let sealed = crate::services::ballot_box_seal::voter_sealed_boxes(
-        &transaction,
-        &tenant_id,
-        &election_event_id,
-        voter_id,
-    )
-    .await?;
-    let discarded = match discard_voter_cast_votes(
-        &transaction,
-        &tenant_id,
-        &election_event_id,
-        voter_id,
-    )
-    .await
-    {
+    let store = {
+        let mut client: DbClient = get_hasura_pool().await.get().await?;
+        let transaction = client.build_transaction().read_only(true).start().await?;
+        get_event_ballot_box(&transaction, tenant_id, election_event_id)
+            .await?
+            .store
+    };
+    reject_voter_ballots_outside_sealed_boxes(&store, election_event_id, voter_id).await
+}
+
+/// Rejects the voter's pending and valid ballots, except those in sealed ballot
+/// boxes. Returns `false` when the voter has ballots in a sealed box, or one
+/// was sealed meanwhile.
+async fn reject_voter_ballots_outside_sealed_boxes(
+    store: &PostgresStore,
+    election_event_id: &str,
+    voter_id: &str,
+) -> anyhow::Result<bool> {
+    let sealed = store
+        .voter_sealed_boxes(election_event_id, voter_id)
+        .await?;
+    let discarded = if sealed.is_empty() {
+        store
+            .reject_voter_ballots(election_event_id, voter_id)
+            .await
+    } else {
+        reject_unsealed_ballots(store, election_event_id, voter_id, &sealed).await
+    };
+    let discarded = match discarded {
         Ok(discarded) => discarded,
         // A box sealed while this ran: the next edit discards the rest.
-        Err(err) if crate::services::ballot_box_seal::is_ballot_box_sealed(&err) => {
-            warn!(
-                "Not discarding the voter's ballots: {}",
-                crate::services::ballot_box_seal::BALLOT_BOX_SEALED_MESSAGE
-            );
+        Err(err) if is_sealed_refusal(&err) => {
+            warn!("Not discarding the voter's ballots: {err}");
             return Ok(false);
         }
         Err(err) => return Err(err),
     };
-    transaction.commit().await?;
     info!(discarded, "Discarded active Datafix cast votes");
     if !sealed.is_empty() {
         let boxes: Vec<String> = sealed
@@ -305,6 +312,39 @@ async fn discard_voter_ballots(
         return Ok(false);
     }
     Ok(true)
+}
+
+/// Rejects, one by one, the voter's pending and valid ballots outside the
+/// sealed ballot boxes `sealed`, as (election, area). Returns how many it
+/// rejected.
+async fn reject_unsealed_ballots(
+    store: &PostgresStore,
+    election_event_id: &str,
+    voter_id: &str,
+    sealed: &[(String, String)],
+) -> anyhow::Result<i64> {
+    let mut rejected = 0;
+    for ballot in store.voter_ballots(election_event_id, voter_id).await? {
+        let in_sealed_box = sealed.iter().any(|(election_id, area_id)| {
+            *election_id == ballot.election_id && *area_id == ballot.area_id
+        });
+        if in_sealed_box || ballot.status == BallotStatus::Rejected {
+            continue;
+        }
+        if store
+            .set_ballot_status(
+                election_event_id,
+                voter_id,
+                &ballot.id,
+                ballot.status,
+                BallotStatus::Rejected,
+            )
+            .await?
+        {
+            rejected += 1;
+        }
+    }
+    Ok(rejected)
 }
 
 /// Resets `VOTED_CHANNEL` back to `NONE` after a release discards the voter's
@@ -468,9 +508,9 @@ async fn run_datafix_voter_edit(
             .await
             .map_err(|err| format!("Error checking unresolved cast votes: {err:?}"))?
     } else {
-        VoterCastVoteState {
-            has_unresolved_vote: false,
-            has_valid_vote: false,
+        VoterBallotState {
+            has_pending: false,
+            has_valid: false,
         }
     };
     let plan = plan_voter_release(
@@ -612,10 +652,10 @@ mod tests {
         )));
     }
 
-    fn no_cast_votes() -> VoterCastVoteState {
-        VoterCastVoteState {
-            has_unresolved_vote: false,
-            has_valid_vote: false,
+    fn no_cast_votes() -> VoterBallotState {
+        VoterBallotState {
+            has_pending: false,
+            has_valid: false,
         }
     }
 
@@ -651,9 +691,9 @@ mod tests {
 
     #[test]
     fn a_partial_disable_with_active_votes_retries_the_release() {
-        let state = VoterCastVoteState {
-            has_unresolved_vote: true,
-            has_valid_vote: false,
+        let state = VoterBallotState {
+            has_pending: true,
+            has_valid: false,
         };
         let plan = plan_voter_release(Some(false), Some(false), &state, &HashMap::new()).unwrap();
         assert!(plan.release_attempt);
@@ -675,8 +715,8 @@ mod tests {
 
     #[test]
     fn reenabling_is_refused_while_valid_votes_exist() {
-        let state = VoterCastVoteState {
-            has_valid_vote: true,
+        let state = VoterBallotState {
+            has_valid: true,
             ..no_cast_votes()
         };
         assert!(plan_voter_release(Some(false), Some(true), &state, &HashMap::new()).is_err());
@@ -687,7 +727,7 @@ mod tests {
         // A release resets the voted-channel attribute right after the
         // discard, but as a separate Keycloak write: if that write fails the
         // attribute may remain "Internet" with no active ballot behind it —
-        // re-enable must key off the live `VoterCastVoteState`, not this stale
+        // re-enable must key off the live `VoterBallotState`, not this stale
         // attribute, or a fully-resolved (discarded) voter could never be
         // re-enabled.
         let plan = plan_voter_release(Some(false), Some(true), &no_cast_votes(), &internet_voter())
@@ -698,7 +738,7 @@ mod tests {
     #[test]
     fn reenabling_is_refused_while_marked_voted_via_another_channel() {
         // Unlike an internet ballot, a non-internet channel has no
-        // corresponding `cast_vote` row — the attribute is the only record of
+        // corresponding ballot in the ballot box — the attribute is the only record of
         // it, and only Datafix's own `/unmark-voted` call may reverse it.
         let attributes = HashMap::from([(VOTED_CHANNEL.to_string(), vec!["PAPER".to_string()])]);
         assert!(
@@ -768,6 +808,135 @@ mod tests {
         let echoed = edit_body(None, internet_voter());
         assert!(
             validate_datafix_immutable_fields(&echoed, &current_user, &internet_voter()).is_ok()
+        );
+    }
+}
+
+#[cfg(test)]
+mod postgres_wiring_tests {
+    use super::*;
+    use crate::services::ballot_box::BallotFormat;
+    use electoral_log::adapters::ballot_box::{AcceptBallot, AcceptOutcome};
+
+    struct ElectionArea {
+        election: String,
+        area: String,
+    }
+
+    impl ElectionArea {
+        fn new() -> Self {
+            Self {
+                election: Uuid::new_v4().to_string(),
+                area: Uuid::new_v4().to_string(),
+            }
+        }
+
+        async fn accept(&self, store: &PostgresStore, event: &str, voter: &str) -> String {
+            let format = BallotFormat::HashableBallot.to_string();
+            let ballot_id = Uuid::new_v4().simple().to_string();
+            let outcome = store
+                .accept_ballot(&AcceptBallot {
+                    election_event_id: event,
+                    election_id: &self.election,
+                    area_id: &self.area,
+                    voter_id: voter,
+                    ballot_id: &ballot_id,
+                    format: &format,
+                    content: "ciphertext",
+                    voter_signature: None,
+                    pseudonym_hash: &[0; 64],
+                    ballot_hash: &[0; 64],
+                    voting_channel: "ONLINE",
+                    status: BallotStatus::Valid,
+                    voter_ip: None,
+                    voter_country: None,
+                    username: None,
+                    allowed_votes: 0,
+                })
+                .await
+                .unwrap();
+            match outcome {
+                AcceptOutcome::Accepted { id, .. } => id,
+                refused => panic!("ballot refused: {refused:?}"),
+            }
+        }
+
+        /// A seal that failed is permanent as well: the box takes no more writes.
+        async fn seal(&self, store: &PostgresStore, event: &str) {
+            store
+                .client()
+                .await
+                .unwrap()
+                .execute(
+                    "INSERT INTO ballot_box_seal (election_event_id, election_id, area_id, \
+                     status, failure_reason, signed_message, log_delivery_id, log_uid, \
+                     log_leaf_index) \
+                     VALUES ($1::text::uuid, $2::text::uuid, $3::text::uuid, 'failed', \
+                     'test', '\\x00', 'test', gen_random_uuid(), 0)",
+                    &[&event, &self.election, &self.area],
+                )
+                .await
+                .unwrap();
+        }
+    }
+
+    async fn status(store: &PostgresStore, event: &str, voter: &str, id: &str) -> BallotStatus {
+        store
+            .voter_ballots(event, voter)
+            .await
+            .unwrap()
+            .into_iter()
+            .find(|ballot| ballot.id == id)
+            .unwrap()
+            .status
+    }
+
+    async fn store() -> PostgresStore {
+        let url = std::env::var("ELECTORAL_LOG_TEST_DATABASE_URL")
+            .expect("ELECTORAL_LOG_TEST_DATABASE_URL names a disposable database");
+        let store = PostgresStore::new(url.parse().unwrap()).unwrap();
+        store.initialize().await.unwrap();
+        store
+    }
+
+    #[tokio::test]
+    #[ignore = "requires a disposable ELECTORAL_LOG_TEST_DATABASE_URL database"]
+    async fn a_release_rejects_the_voters_ballots_outside_sealed_ballot_boxes() {
+        let store = store().await;
+        let event = Uuid::new_v4().to_string();
+        store.create_ballot_box(&event).await.unwrap();
+        let (sealed, open) = (ElectionArea::new(), ElectionArea::new());
+        let kept = sealed.accept(&store, &event, "voter").await;
+        let rejected = open.accept(&store, &event, "voter").await;
+        let other_voter = open.accept(&store, &event, "other-voter").await;
+        sealed.seal(&store, &event).await;
+
+        assert!(
+            !reject_voter_ballots_outside_sealed_boxes(&store, &event, "voter")
+                .await
+                .unwrap()
+        );
+        assert_eq!(
+            status(&store, &event, "voter", &kept).await,
+            BallotStatus::Valid
+        );
+        assert_eq!(
+            status(&store, &event, "voter", &rejected).await,
+            BallotStatus::Rejected
+        );
+        assert_eq!(
+            status(&store, &event, "other-voter", &other_voter).await,
+            BallotStatus::Valid
+        );
+
+        assert!(
+            reject_voter_ballots_outside_sealed_boxes(&store, &event, "other-voter")
+                .await
+                .unwrap()
+        );
+        assert_eq!(
+            status(&store, &event, "other-voter", &other_voter).await,
+            BallotStatus::Rejected
         );
     }
 }

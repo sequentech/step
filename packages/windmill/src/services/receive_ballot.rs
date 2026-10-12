@@ -3,24 +3,26 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! The ballot box receives a ballot at review: it runs the cast checks, stores
-//! the ballot and signs that it has it. It answers only after the commit, so
-//! the Ballot ID a voter sees is proof of storage.
+//! the ballot in the event's ballot box and signs that it has it. It answers
+//! only once the ballot is stored, so the Ballot ID a voter sees is proof of
+//! storage.
 
 use crate::postgres::area::get_area_by_id;
+use crate::postgres::ballot_style::get_published_ballot_eml;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::received_ballot::{
-    format_received_at, get_published_ballot_eml, get_received_ballot, insert_received_ballot,
-    ReceivedBallotScope,
-};
 use crate::services::ballot_box_key::{get_ballot_box_signing_key, published_key};
 use crate::services::database::get_hasura_pool;
 use crate::services::insert_cast_vote::{
     check_status, deserialize_and_check_ballot, deserialize_and_check_multi_ballot, CastVoteError,
     InsertCastVoteInput,
 };
-use chrono::{DateTime, Duration, TimeZone, Utc};
+use crate::services::protocol_manager::get_event_store;
+use chrono::{DateTime, TimeZone, Utc};
 use dashmap::DashMap;
 use deadpool_postgres::{Client as DbClient, Transaction};
+use electoral_log::adapters::ballot_box_received::{
+    ReceiveBallot, ReceiveOutcome, ReceivedBallot as StoredReceivedBallot, ReceivedSignature,
+};
 use once_cell::sync::Lazy;
 use sequent_core::ballot::{
     AreaPresentation, BallotStyle, ContestEncryptionPolicy, ReceiptsPolicy, VotingStatusChannel,
@@ -37,9 +39,22 @@ use uuid::Uuid;
 pub type ReceiveBallotInput = InsertCastVoteInput;
 pub type ReceiveBallotOutput = ReceivedBallot;
 
-/// A taken Ballot ID is about one in a million at 1.7 million ballots; each
-/// attempt signs one millisecond later.
-const MAX_BALLOT_ID_ATTEMPTS: i64 = 8;
+/// The format of the times the ballot box signs: `ReceivedStatement::received_at`
+/// and `CastReceiptStatement::cast_at`.
+const SIGNED_TIME_FORMAT: &str = "%Y-%m-%dT%H:%M:%S%.3fZ";
+
+pub fn format_signed_time(time: &DateTime<Utc>) -> String {
+    time.format(SIGNED_TIME_FORMAT).to_string()
+}
+
+/// The election a ballot is received in, and the ballot's hash as the voter
+/// sent it.
+pub struct ReceivedBallotScope<'a> {
+    pub tenant_id: &'a Uuid,
+    pub election_event_id: &'a Uuid,
+    pub election_id: &'a Uuid,
+    pub ballot_hash: &'a str,
+}
 
 /// The hash of a ballot style never changes once it is published.
 static BALLOT_STYLE_HASHES: Lazy<DashMap<Uuid, String>> = Lazy::new(DashMap::new);
@@ -172,11 +187,29 @@ fn sign_received(
             ballot_hash: scope.ballot_hash.to_string(),
             voter_signing_pk: voter_signing_pk.to_string(),
             voter_ballot_signature: voter_ballot_signature.to_string(),
-            received_at: format_received_at(received_at),
+            received_at: format_signed_time(received_at),
             key_id,
         },
     )
     .map_err(|err| CastVoteError::BallotSignFailed(err.to_string()))
+}
+
+/// The receipt the ballot box signed for a stored received ballot.
+fn stored_receipt(tenant_id: &Uuid, stored: StoredReceivedBallot) -> ReceivedBallot {
+    ReceivedBallot {
+        statement: ReceivedStatement {
+            tenant_id: tenant_id.to_string(),
+            election_event_id: stored.election_event_id,
+            election_id: stored.election_id,
+            ballot_hash: stored.ballot_hash,
+            voter_signing_pk: stored.voter_signing_pk,
+            voter_ballot_signature: stored.voter_ballot_signature,
+            received_at: format_signed_time(&stored.received_at),
+            key_id: stored.key_id,
+        },
+        received_signature: stored.received_signature,
+        ballot_id: stored.ballot_id,
+    }
 }
 
 #[instrument(skip(input), err)]
@@ -235,7 +268,6 @@ pub async fn try_receive_ballot(
         tenant_id: &tenant_uuid,
         election_event_id: &election_event_uuid,
         election_id: &input.election_id,
-        voter_id,
         ballot_hash: &input.ballot_id,
     };
 
@@ -259,14 +291,6 @@ pub async fn try_receive_ballot(
     )
     .await?;
 
-    let database_error = |error: anyhow::Error| CastVoteError::InsertFailed(format!("{error:#}"));
-    if let Some(stored) = get_received_ballot(&hasura_transaction, &scope)
-        .await
-        .map_err(database_error)?
-    {
-        return Ok(stored.received);
-    }
-
     let signing_key = get_ballot_box_signing_key(&hasura_transaction, &election_event)
         .await
         .map_err(|e| CastVoteError::BallotSignFailed(e.to_string()))?
@@ -275,48 +299,59 @@ pub async fn try_receive_ballot(
                 "The election event has no ballot box key; publish its ballots".to_string(),
             )
         })?;
-    let first_received_at = truncate_to_milliseconds(Utc::now())?;
+    hasura_transaction
+        .commit()
+        .await
+        .map_err(|e| CastVoteError::CommitFailed(e.to_string()))?;
+    drop(hasura_db_client);
 
-    for attempt in 0..MAX_BALLOT_ID_ATTEMPTS {
-        let received_at = first_received_at + Duration::milliseconds(attempt);
-        let received = sign_received(
-            &signing_key,
-            &scope,
-            &voter_signing_pk,
-            &voter_ballot_signature,
-            &received_at,
-        )?;
-        let inserted = insert_received_ballot(
-            &hasura_transaction,
-            &scope,
-            &area_uuid,
-            &input.content,
-            &received_at,
-            &received,
+    let store = get_event_store(&election_event.id)
+        .await
+        .map_err(|e| CastVoteError::InsertFailed(format!("{e:#}")))?;
+    let first_received_at = truncate_to_milliseconds(Utc::now())?;
+    let outcome = store
+        .receive_ballot(
+            &ReceiveBallot {
+                election_event_id: &election_event.id,
+                election_id: &election_id,
+                area_id,
+                voter_id,
+                ballot_hash: &input.ballot_id,
+                content: &input.content,
+                voter_signing_pk: &voter_signing_pk,
+                voter_ballot_signature: &voter_ballot_signature,
+            },
+            first_received_at,
+            |received_at| {
+                let received = sign_received(
+                    &signing_key,
+                    &scope,
+                    &voter_signing_pk,
+                    &voter_ballot_signature,
+                    &received_at,
+                )
+                .map_err(anyhow::Error::msg)?;
+                Ok(ReceivedSignature {
+                    ballot_id: received.ballot_id,
+                    key_id: received.statement.key_id,
+                    received_signature: received.received_signature,
+                })
+            },
         )
         .await
-        .map_err(database_error)?;
+        .map_err(|error| match error.downcast::<CastVoteError>() {
+            Ok(error) => error,
+            Err(error) => CastVoteError::InsertFailed(format!("{error:#}")),
+        })?;
 
-        if inserted.is_some() {
-            hasura_transaction
-                .commit()
-                .await
-                .map_err(|e| CastVoteError::CommitFailed(e.to_string()))?;
-            return Ok(received);
+    match outcome {
+        ReceiveOutcome::Received(stored) | ReceiveOutcome::AlreadyReceived(stored) => {
+            Ok(stored_receipt(&tenant_uuid, stored))
         }
-        // Either this voter's same ballot arrived on another request, or the
-        // Ballot ID is taken in the election event.
-        if let Some(stored) = get_received_ballot(&hasura_transaction, &scope)
-            .await
-            .map_err(database_error)?
-        {
-            return Ok(stored.received);
-        }
+        ReceiveOutcome::NoFreeBallotId => Err(CastVoteError::InsertFailed(
+            "No free Ballot ID for the received ballot".to_string(),
+        )),
     }
-
-    Err(CastVoteError::InsertFailed(
-        "No free Ballot ID for the received ballot".to_string(),
-    ))
 }
 
 #[cfg(test)]

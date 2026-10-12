@@ -77,10 +77,9 @@ class PlanTests(unittest.TestCase):
                     {row["service"] for row in plan["rust"]},
                     {
                         "electoral-log",
+                        "trellis",
                         "harvest",
                         "strand",
-                        "immu-board",
-                        "immudb-rs",
                         "sequent-core",
                         "step-cli",
                         "velvet",
@@ -131,6 +130,16 @@ class PlanTests(unittest.TestCase):
         rust = {row["service"]: row["extra"] for row in plan["rust"]}
         features = rust["sequent-core"].removeprefix("--features ").split(",")
         self.assertIn("monitoring", features)
+
+    def test_trellis_tests_its_upstream_service_and_postgres_consumers(self):
+        plan = self.plan("packages/trellis/src/tree.rs")
+        rust = {row["service"]: row["extra"] for row in plan["rust"]}
+        self.assertEqual(
+            rust["trellis"],
+            "--features upstream-service --lib --example monitor --example post",
+        )
+        self.assertIn("electoral-log", rust)
+        self.assertTrue(plan["jobs"]["run-windmill-tests"])
 
     def test_step_cli_builder_does_not_check_core_gates(self):
         plan = self.plan("packages/step-cli/src/commands/build_election_event.rs")

@@ -53,10 +53,6 @@ fixture() {
         psql --username=postgres --no-psqlrc --quiet --set=ON_ERROR_STOP=1 "$@" >/dev/null
 }
 fixture <"$root/scripts/voting_flow/schema.sql"
-fixture --single-transaction <"$migrations/1788765000000_serialize_cast_vote_area_checks/up.sql"
-fixture --command='CREATE TRIGGER check_revote_limit_trigger
-    BEFORE INSERT ON sequent_backend.cast_vote
-    FOR EACH ROW EXECUTE FUNCTION check_revote_limit()'
 fixture --single-transaction <"$migrations/1788765000002_validate_voting_schedules/up.sql"
 fixture --single-transaction <"$migrations/1788765000003_materialize_voting_windows/up.sql"
 fixture --single-transaction <"$migrations/1789420000000_scheduled_voting_channels/up.sql"

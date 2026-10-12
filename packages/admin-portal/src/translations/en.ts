@@ -206,6 +206,13 @@ const englishTranslation = {
             actions: {
                 csv: "Export in CSV",
                 pdf: "Export in PDF",
+                audit: "Audit",
+            },
+            auditDialog: {
+                title: "Audit electoral log",
+                confirm: "Audit",
+                description:
+                    "The audit checks every log entry against its Merkle log and verifies the published checkpoints. The result is recorded as a task.",
             },
             exportdialog: {
                 description:
@@ -349,6 +356,7 @@ const englishTranslation = {
                 EXPORT_CERTIFICATE_AUTHORITIES: "Export Certificate Authorities",
                 PUBLISH_RESULTS_WEBSITE: "Publish Results Website",
                 VOTER_INFORMATION_LETTER: "Voter Information Letter",
+                AUDIT_ELECTORAL_LOG: "Audit Electoral Log",
             },
             documentAccess: {
                 title: "Document access",
@@ -542,7 +550,7 @@ const englishTranslation = {
                 },
                 help: {
                     publishing:
-                        "The ballot box is locked. Its entry on the bulletin board is being posted again.",
+                        "The ballot box is locked and its seal is on the bulletin board. Its seal record is being published.",
                     counted:
                         "Ballots that count: each eligible voter's latest valid ballot. The others in the box were replaced by the voter's later ballot, discarded, or cast by a voter who is not eligible.",
                 },
@@ -579,6 +587,10 @@ const englishTranslation = {
                         "{{count}} vote is in progress in Datafix: the ballot box is sealed once it is resolved.",
                     datafixVotes_other:
                         "{{count}} votes are in progress in Datafix: the ballot box is sealed once they are resolved.",
+                    sequencer_one:
+                        "{{count}} ballot isn't on the bulletin board yet: the ballot box is sealed once the sequencer has added it.",
+                    sequencer_other:
+                        "{{count}} ballots aren't on the bulletin board yet: the ballot box is sealed once the sequencer has added them.",
                     stale: "Last tried at {{time}}: the sealer may not be running. Check Beat and the seal worker.",
                     notTried:
                         "Not tried yet: the sealer may not be running. Check Beat and the seal worker.",
@@ -606,6 +618,7 @@ const englishTranslation = {
                     alreadyOnBoard: "A seal for this ballot box is already on the bulletin board.",
                     noBoard: "The election event has no bulletin board.",
                     unknownChannel: "A ballot has an unknown voting channel.",
+                    unrecorded: "A ballot has no cast-vote record on the bulletin board.",
                 },
                 incident: {
                     title_one: "{{count}} ballot box could not be sealed",
@@ -1639,6 +1652,10 @@ const englishTranslation = {
                 "publish-results-read": "Read Results Publication",
                 "publish-results-write": "Edit Results Publication",
                 "logs-read": "Read Logs",
+                "electoral-log-audit": "Audit Electoral Log",
+                "electoral-log-console-read": "Browse Electoral Log",
+                "electoral-log-console-query": "Query Electoral Log",
+                "electoral-log-personal-data-read": "Read Electoral Log Personal Data",
                 "tasks-read": "Read Tasks Execution",
                 "keys-read": "Read Keys",
                 "document-upload": "Upload Documents",
@@ -1654,7 +1671,6 @@ const englishTranslation = {
                 "tally-sheet-view": "View Tally Sheet",
                 "admin-ceremony": "Admin Ceremony",
                 "tally-sheet-delete": "Delete Tally Sheet",
-                "cast-vote-read": "Read Cast Votes",
                 "document-read": "Read Documents",
                 "document-write": "Edit Documents",
                 "support-material-read": "Read Support Materials",
@@ -2061,6 +2077,7 @@ const englishTranslation = {
             electionEvents: "Election Events",
             search: "Search",
             usersAndRoles: "Users and Roles",
+            electoralLogConsole: "Electoral Log",
             logs: "Logs",
             settings: "Settings",
             help: "Help",
@@ -2276,7 +2293,7 @@ const englishTranslation = {
             },
             error: {},
             createContestSuccess: "Contest created",
-            createContestError: "Error creating candidate",
+            createContestError: "Error creating contest",
         },
         keysGeneration: {
             configureStep: {
@@ -2547,10 +2564,10 @@ const englishTranslation = {
             ballotBoxes: {
                 unavailable: "Seals unavailable",
                 sealed: "{{sealed}} of {{total}} sealed",
-                publishing: "Sealed, {{published}} of {{total}} on the bulletin board",
+                publishing: "Sealed, {{published}} of {{total}} seal records published",
                 sealing: "Sealing at {{time}}",
                 notSealed: "Not sealed",
-                help: "An election can be tallied once every ballot box is sealed and its seal is on the bulletin board.",
+                help: "An election can be tallied once every ballot box is sealed and its seal record is published.",
                 failed: "Not sealed: incident",
                 overdue: "Sealing overdue",
                 blocked: "{{name}}: {{reason}}",
@@ -2559,7 +2576,8 @@ const englishTranslation = {
                     "sealing": "its ballot boxes are sealed when the grace period ends",
                     "overdue":
                         "its ballot boxes are past their deadline and not sealed yet (see its Dashboard)",
-                    "publishing": "some of its seals are still being posted to the bulletin board",
+                    "publishing":
+                        "the seal records of some of its ballot boxes are still being published",
                     "failed": "a ballot box could not be sealed, an incident (see its Dashboard)",
                     "unavailable": "its ballot box seals could not be read",
                 },
@@ -2573,7 +2591,7 @@ const englishTranslation = {
                 endVoting:
                     "End voting in each selected election and stop its active voting channels before creating the tally.",
                 sealBallotBoxes:
-                    "An election can be tallied once every ballot box is sealed and its seal is on the bulletin board.",
+                    "An election can be tallied once every ballot box is sealed and its seal record is published.",
             },
             createTallySuccess: "Tally created",
             createTallyError: "Could not create Tally",
@@ -5839,6 +5857,74 @@ const englishTranslation = {
                         "The partner takes a JSON POST authenticated with the API key as a bearer token, answers with the message's ID under message_id, and posts delivery reports with a secret header. Use it as a starting point and change the address and field names to the provider's.",
                     use: "Use this example",
                 },
+            },
+        },
+        electoralLogConsole: {
+            title: "Electoral Log",
+            subtitle:
+                "Browse an election event's electoral log and ballot box, or query its electoral-log database. Nothing on this page changes any data.",
+            notAllowed:
+                "You need the electoral-log-console-read permission to open the electoral log.",
+            tabs: {
+                tables: "Tables",
+                query: "Query",
+            },
+            electionEvent: "Election Event",
+            tenant: "Tenant",
+            table: "Table",
+            tables: {
+                records: "Records",
+                ballots: "Ballots",
+                voters: "Voters",
+                queue: "Sequencer Queue",
+            },
+            order: {
+                "label": "Order",
+                "newest-first": "Newest first",
+                "oldest-first": "Oldest first",
+            },
+            filters: {
+                statement_kind: "Kind",
+                election_id: "Election",
+                area_id: "Area ID",
+                user_id: "User or Voter ID",
+                ballot_id: "Ballot ID",
+                status: "Status",
+                created_after: "From",
+                created_before: "Until",
+                any: "Any",
+                apply: "Apply Filters",
+                clear: "Clear",
+                invalid:
+                    "Check the highlighted filters: dates must be valid, and the ballot box's area IDs must be UUIDs.",
+            },
+            statuses: {
+                valid: "Valid",
+                pending: "Pending",
+                rejected: "Rejected",
+            },
+            estimatedRows: "About {{rows}} rows in this table before filters.",
+            personalDataHidden:
+                "Usernames, IP addresses and countries show as hidden: seeing them needs the electoral-log-personal-data-read permission.",
+            loadError: "The electoral log could not be read.",
+            record: {
+                title: "Record {{position}}",
+                view: "View record",
+                message: "Message (decoded)",
+                copy: "Copy JSON",
+                close: "Close",
+                loadError: "The record could not be read.",
+            },
+            query: {
+                help: "Queries run on the election event's electoral-log database in a read-only transaction. Its tables are electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending and ballot_box_sequencer; trellis_logs describes its Merkle logs.",
+                scope: "Each election event has a database of its own, so a query reads one event.",
+                chooseEvent: "Choose the election event to query.",
+                placeholder: "SELECT …",
+                limits: "Read-only · up to 1,000 rows · 30 s timeout · each query is recorded in the server logs with your user",
+                run: "Run Query",
+                summary: "Rows: {{rows}} · {{ms}} ms",
+                truncated: "Only the first {{rows}} rows are shown.",
+                error: "The query could not run.",
             },
         },
     },

@@ -146,7 +146,7 @@ export const test = base.extend<{portal: Portal}, {dist: Awaited<ReturnType<type
                             },
                         ],
                     },
-                    sequent_backend_cast_vote: portal.castVotes,
+                    cast_votes: portal.castVotes,
                 },
             }
         })

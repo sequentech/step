@@ -19,14 +19,15 @@ block below states its own working directory.
 | Kind | Packages |
 | --- | --- |
 | Rust libraries | `strand` (cryptographic primitives), `braid` (verifiable mixnet), `sequent-core` (ballots, crypto, reports, Keycloak client; also WASM) |
-| Rust services and tools | `windmill` (Celery task workers), `harvest` (REST API), `immu-board` (bulletin board), `velvet` (tally and report pipes), `step-cli`, `e2e` |
+| Rust services and tools | `windmill` (Celery task workers), `harvest` (REST API), `electoral-log` (electoral log and ballot box on PostgreSQL, with `trellis` Merkle logs), `velvet` (tally and report pipes), `step-cli`, `e2e` |
 | Frontends | `voting-portal`, `admin-portal`, `ballot-verifier`, `results-portal`, `workbench` |
 | Shared frontend | `ui-essentials` (components, Storybook), `ui-core` (utilities, i18n) |
 | Java | `keycloak-extensions` (Keycloak providers and themes) |
 
 Hasura exposes PostgreSQL over GraphQL; Keycloak has one realm per tenant and
-one per election event; RabbitMQ feeds the Celery workers; ImmuDB stores
-tamper-evident logs; MinIO provides S3 storage.
+one per election event; RabbitMQ feeds the Celery workers; each election event
+has a PostgreSQL database for its tamper-evident electoral log and ballot box;
+MinIO provides S3 storage.
 
 ## Toolchain
 
@@ -131,7 +132,6 @@ hold comments, and run `reuse lint` from the repository root.
 | Hasura | http://127.0.0.1:8080 | admin secret `admin` |
 | Voting portal | http://127.0.0.1:3000 | |
 | Admin portal | http://127.0.0.1:3002 | |
-| ImmuDB | http://127.0.0.1:3325 | `immudb` / `immudb` |
 | MinIO console | http://127.0.0.1:9001 | |
 | RabbitMQ | http://127.0.0.1:15672 | |
 

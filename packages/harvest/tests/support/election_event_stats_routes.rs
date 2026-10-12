@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! The election event dashboard statistics, counted on the migrated test
-//! database and its Keycloak tables.
+//! database, its Keycloak tables and the event's ballot box.
 
 use crate::route_services::rows::{self, Event};
 use crate::route_services::{json, post, text, Services};
@@ -36,17 +36,12 @@ async fn the_dashboard_counts_the_events_voters_elections_and_areas() {
     event.election(&services.hasura).await;
     let area_id = event.area(&services.hasura, "North").await;
     event.area(&services.hasura, "South").await;
+    let ballot_box = event.ballot_box(&services.hasura).await;
     event.area(&services.hasura, "East").await;
     // Unlimited revotes: one voter votes twice, and counts once.
-    rows::execute(
-        &services.hasura,
-        "UPDATE sequent_backend.election SET num_allowed_revotes = 0 WHERE id = $1",
-        &[&uuid::Uuid::parse_str(&election_id).unwrap()],
-    )
-    .await;
     for voter in ["voter-1", "voter-1", "voter-2"] {
         event
-            .cast_vote(&services.hasura, &election_id, &area_id, voter)
+            .cast_vote(&ballot_box, &election_id, &area_id, voter)
             .await;
     }
     let realm_id =
@@ -88,6 +83,7 @@ async fn the_top_voting_addresses_of_an_event_without_votes_are_empty() {
     let services = Services::on_test_database().await;
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
+    event.ballot_box(&services.hasura).await;
 
     let (status, body) = json(
         post(

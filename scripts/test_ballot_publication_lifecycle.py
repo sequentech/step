@@ -9,14 +9,13 @@ No benchmarks or running application databases are used.
 
 import sys
 from pathlib import Path
-from uuid import UUID, uuid4
+from uuid import uuid4
 import re
 
 import psycopg
 
 sys.path.insert(0, str(Path(__file__).parent / "voting_flow"))
 from database import ROOT, local_database
-from fixtures import Election
 
 TENANT = "10000000-0000-4000-8000-000000000001"
 EVENT = "10000000-0000-4000-8000-000000000002"
@@ -43,14 +42,6 @@ def run_regressions(database):
         )
         """
     )
-    database.connection.execute("""
-        ALTER TABLE sequent_backend.cast_vote
-        ADD CONSTRAINT cast_vote_election_event_id_fkey
-        FOREIGN KEY (election_event_id) REFERENCES sequent_backend.election_event (id)
-        ON UPDATE RESTRICT ON DELETE RESTRICT
-    """)
-    election = Election(tenant=UUID(TENANT), event=UUID(EVENT))
-    election.create(database.connection)
     for outcome in ("commit", "rollback"):
         with (
             psycopg.connect(database.dsn) as worker,
@@ -74,10 +65,6 @@ def run_regressions(database):
                 assert row == (event,)
             contender.commit()
             contender.execute("SET lock_timeout = '100ms'")
-            # Ballot inserts check the production FK while publication is locked.
-            election.vote(contender, outcome)
-            contender.commit()
-            contender.execute("SET lock_timeout = '100ms'")
             try:
                 contender.execute(LOCK, (TENANT, EVENT))
             except psycopg.errors.LockNotAvailable:
@@ -88,7 +75,7 @@ def run_regressions(database):
             contender.execute("SET lock_timeout = '100ms'")
             assert contender.execute(LOCK, (TENANT, EVENT)).fetchone() is not None
     print(
-        "Publication lifecycle: concurrent voting, commit/rollback serialization, foreign-key inserts, independent events and tenant isolation passed"
+        "Publication lifecycle: commit/rollback serialization, foreign-key inserts, independent events and tenant isolation passed"
     )
 
 

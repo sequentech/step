@@ -7,10 +7,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Load Testing Tool
 
+To copy a cast vote for many voters, use `step-cli duplicate-votes`, which casts the
+copies into the election event's ballot box.
+
 This tool is a Python-based load testing utility that performs various actions for load testing your application. It can:
 
 -   Generate voters into a CSV file.
--   Duplicate vote records in a cast_votes table.
 -   Generate applications in different states.
 -   Generate activity logs.
 
@@ -21,7 +23,6 @@ All configuration is managed via a `config.json` file placed in your working dir
 ## Features
 
 -   **generate-voters:** Creates a CSV file with random voter records.
--   **duplicate-votes:** Duplicates vote entries in a PostgreSQL database.
 -   **generate-applications:** Generates applications with configurable status and verification type.
 -   **generate-activity-logs:** (Stub) Generates activity logs.
 
@@ -91,9 +92,6 @@ Create a `config.json` file in your working directory (the directory you pass to
     "overseas_reference": "B",
     "min_age": 18,
     "max_age": 90
-  },
-  "duplicate_votes": {
-    "row_id_to_clone": "a2d4b909-ea96-4de8-b1c1-57a392d1d5b3"
   },
   "generate_applications": {
     "applicant_data": {
@@ -189,14 +187,7 @@ The tool is run via the command line and supports several subcommands. A global 
     `python load_tool.py generate-voters --working-directory "/path/to/dir" --num-users 1000` 
     
     -   **`--num-users`**: Number of voter records to generate.
-2.  **duplicate-votes**  
-    Duplicates vote entries in the database.  
-    **Usage:**
-
-    `python load_tool.py duplicate-votes --working-directory "/path/to/dir" --num-votes 50000` 
-    
-    -   **`--num-votes`**: Number of vote records to duplicate.
-3.  **generate-applications**  
+2.  **generate-applications**  
     Generates applications with configurable status and verification type.  
     **Usage:**
     
@@ -205,7 +196,7 @@ The tool is run via the command line and supports several subcommands. A global 
     -   **`--num-applications`**: Number of applications to generate.
     -   **`--status`**: Application status. Choices: `"PENDING"`, `"REJECTED"`, or `"ACCEPTED"`. Defaults to `"PENDING"`.
     -   **`--type`**: Application verification type. Choices: `"AUTOMATIC"` or `"MANUAL"`. If not provided, a default is chosen based on status.
-4.  **generate-activity-logs**  
+3.  **generate-activity-logs**  
     Stub for generating activity logs.  
     **Usage:**
     
@@ -217,7 +208,7 @@ _Note:_ If your directory path contains spaces, enclose it in quotes.
 
 ## Environment Variables
 
-For the **duplicate-votes** action (and any other actions that require database connections), ensure that the following environment variables are set:
+For the actions that require database connections, ensure that the following environment variables are set:
 
 -   `KC_DB`
 -   `KC_DB_USERNAME`
@@ -239,10 +230,6 @@ Set these in your shell or via a `.env` file if you are using `python-dotenv`.
 To generate 100 fake voter records, run:
 
 `python load_tool.py generate-voters --working-directory "/workspaces/step/packages/windmill/external-bin/janitor/scripts" --num-users 100` 
-
-To duplicate 50,000 vote records, run:
-
-`python load_tool.py duplicate-votes --num-votes 50000 --election-event-id whatever` 
 
 To generate 100,000 applications with status REJECTED and verification type MANUAL, run:
 

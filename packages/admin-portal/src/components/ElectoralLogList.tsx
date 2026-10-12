@@ -5,6 +5,7 @@ import React, {ReactElement, useState} from "react"
 import {
     DatagridConfigurable,
     List,
+    Button,
     TextField,
     FunctionField,
     NumberField,
@@ -16,8 +17,14 @@ import {LogRangeDateTimeInput} from "./logs/LogRangeDateTimeInput"
 import {ListActions} from "@/components/ListActions"
 import {useTranslation} from "react-i18next"
 import {Sequent_Backend_Election, Sequent_Backend_Election_Event} from "@/gql/graphql"
-import {ChannelLabel} from "@sequentech/ui-essentials"
+import {ChannelLabel, Dialog} from "@sequentech/ui-essentials"
+import {AUDIT_ELECTORAL_LOG} from "@/queries/AuditElectoralLog"
+import {useMutation} from "@apollo/client"
+import {IPermissions} from "@/types/keycloak"
 import {ResetFilters} from "./ResetFilters"
+import FactCheckIcon from "@mui/icons-material/FactCheck"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {ETasksExecution} from "@/types/tasksExecution"
 import {useLogsPermissions} from "@/resources/ElectionEvent/useLogsPermissions"
 import {MessageField} from "./MessageField"
 import {ThreeStateDatagridHeader} from "./ThreeStateDatagridHeader"
@@ -84,6 +91,58 @@ const LogRowTime: React.FC<{
     )
 }
 
+interface AuditDialogProps {
+    electionEventId: string
+    open: boolean
+    setOpen: (val: boolean) => void
+}
+
+const AuditDialog: React.FC<AuditDialogProps> = ({electionEventId, open, setOpen}) => {
+    const {t} = useTranslation()
+    const [auditElectoralLog] = useMutation(AUDIT_ELECTORAL_LOG, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.ELECTORAL_LOG_AUDIT,
+            },
+        },
+    })
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
+    const audit = async () => {
+        const currWidget = addWidget(ETasksExecution.AUDIT_ELECTORAL_LOG, false)
+        try {
+            const {data, errors} = await auditElectoralLog({
+                variables: {electionEventId},
+            })
+            const taskId = data?.audit_electoral_log?.task_execution.id
+            if (errors || !taskId) {
+                updateWidgetFail(currWidget.identifier)
+                return
+            }
+            setWidgetTaskId(currWidget.identifier, taskId)
+        } catch (error) {
+            updateWidgetFail(currWidget.identifier)
+        }
+    }
+
+    return (
+        <Dialog
+            variant="info"
+            open={open}
+            ok={String(t("logsScreen.auditDialog.confirm"))}
+            cancel={String(t("common.label.cancel"))}
+            title={String(t("logsScreen.auditDialog.title"))}
+            handleClose={(result: boolean) => {
+                setOpen(false)
+                if (result) {
+                    audit()
+                }
+            }}
+        >
+            <span>{t("logsScreen.auditDialog.description")}</span>
+        </Dialog>
+    )
+}
+
 export interface ElectoralLogListProps {
     aside?: ReactElement
     filterToShow?: ElectoralLogFilters
@@ -110,10 +169,11 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
     const {t} = useTranslation()
     const eventId = electionEventId || record?.id || undefined
 
-    const {canExportLogs, showLogsColumns} = useLogsPermissions()
+    const {canExportLogs, canAuditLogs, showLogsColumns} = useLogsPermissions()
     // In the event's Logs tab the record is the event; elsewhere, the screen's event.
     const zones = useLogZones(record?.id && record.id === eventId ? record : eventId)
     const format = useZonedFormat(zones.primary, {seconds: true})
+    const [openAudit, setOpenAudit] = useState(false)
 
     const getHeadField = (record: any, field: string) => {
         const value = (
@@ -200,6 +260,20 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                             doExport={() => setOpenExport(true)}
                             withExport={canExportLogs}
                             withFilter={true}
+                            extraActions={
+                                canAuditLogs && eventId
+                                    ? [
+                                          <Button
+                                              key="audit"
+                                              className="audit-electoral-log"
+                                              onClick={() => setOpenAudit(true)}
+                                              label={String(t("logsScreen.actions.audit"))}
+                                          >
+                                              <FactCheckIcon />
+                                          </Button>,
+                                      ]
+                                    : []
+                            }
                         />
                     )
                 }
@@ -323,6 +397,9 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                 zones={zones.choices}
                 byElection={zones.byElection}
             />
+            {eventId ? (
+                <AuditDialog electionEventId={eventId} open={openAudit} setOpen={setOpenAudit} />
+            ) : null}
         </>
     )
 }

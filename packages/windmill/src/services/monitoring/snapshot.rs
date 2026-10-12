@@ -29,7 +29,7 @@ use super::producers::{
     poll_state, produce, voting_status, ElectionSet, Enrollment, EventFacts, LoginRow, Post,
     SourceFigures, SourceStatus, VoterRow,
 };
-use super::projection::{load_event_places, refresh_voter_projection};
+use super::projection::{load_event_places, refresh_voter_projection, FirstVoteSource};
 use crate::postgres::monitoring_config::EventRef;
 use crate::services::time_zones::event_time_zone;
 use crate::types::miru_plugin::{MiruServerDocumentStatus, MiruTallySessionData};
@@ -456,6 +456,8 @@ pub struct PassOptions<'a> {
     pub voter_group: &'a str,
     pub full_pass_every: Duration,
     pub now: DateTime<Utc>,
+    /// Where the voters' first votes are read.
+    pub ballot_box: &'a dyn FirstVoteSource,
 }
 
 /// One pass of `event`. The caller holds the event's lock.
@@ -501,6 +503,7 @@ pub async fn refresh_event_snapshot(
             options.voter_group,
             options.now,
             options.full_pass_every,
+            options.ballot_box,
         )
         .await
         {

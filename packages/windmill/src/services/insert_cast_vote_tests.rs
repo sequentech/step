@@ -101,29 +101,74 @@ fn administrative_pause_is_not_hidden_by_a_future_scheduled_close() {
 }
 
 #[test]
-fn ordinary_events_insert_valid_votes_without_async_processing() {
-    let status = initial_cast_vote_status(&election_event(None)).unwrap();
-    assert_eq!(status, CastVoteStatus::Valid);
+fn ordinary_events_accept_valid_ballots_without_async_processing() {
+    let status = initial_ballot_status(&election_event(None)).unwrap();
+    assert_eq!(status, BallotStatus::Valid);
 }
 
 #[test]
-fn configured_datafix_events_insert_pending_votes() {
+fn configured_datafix_events_accept_pending_ballots() {
     let annotations = json!({
         "datafix:id": "external-event",
         "datafix:password_policy": r#"{"base":"password-only","size":6,"characters":"numeric"}"#,
         "datafix:voterview_request": r#"{"url":"https://example.invalid","usr":"user","psw":"secret","county_mun":"county"}"#
     });
-    let status = initial_cast_vote_status(&election_event(Some(annotations))).unwrap();
-    assert_eq!(status, CastVoteStatus::InProgress);
+    let status = initial_ballot_status(&election_event(Some(annotations))).unwrap();
+    assert_eq!(status, BallotStatus::Pending);
 }
 
 #[test]
 fn malformed_datafix_configuration_fails_closed() {
     let annotations = json!({"datafix:id": "external-event"});
     assert!(matches!(
-        initial_cast_vote_status(&election_event(Some(annotations))),
+        initial_ballot_status(&election_event(Some(annotations))),
         Err(CastVoteError::InvalidDatafixConfiguration(_))
     ));
+}
+
+#[test]
+fn refusals_by_the_ballot_box_are_final_and_other_errors_are_retried() {
+    assert!(matches!(
+        skip_or_propagate(CastVoteError::InsertFailedExceedsAllowedRevotes),
+        Ok(InsertCastVoteResult::SkipRetryFailure(
+            CastVoteError::InsertFailedExceedsAllowedRevotes
+        ))
+    ));
+    assert!(matches!(
+        skip_or_propagate(CastVoteError::CheckVotesInOtherAreasFailed("area".into())),
+        Ok(InsertCastVoteResult::SkipRetryFailure(_))
+    ));
+    assert!(matches!(
+        skip_or_propagate(CastVoteError::InsertFailed("database".into())),
+        Err(CastVoteError::InsertFailed(_))
+    ));
+}
+
+#[test]
+fn accepted_ballots_report_their_status_as_cast_vote_statuses() {
+    let vote = |status| CastVote {
+        id: "id".into(),
+        tenant_id: "tenant".into(),
+        election_id: None,
+        area_id: None,
+        created_at: None,
+        last_updated_at: None,
+        content: None,
+        voter_id_string: None,
+        election_event_id: "event".into(),
+        ballot_id: None,
+        cast_ballot_signature: None,
+        status: cast_vote_status(status),
+    };
+    assert!(matches!(
+        classify_inserted_cast_vote(vote(BallotStatus::Valid)),
+        Ok(InsertCastVoteResult::Success(_))
+    ));
+    assert!(matches!(
+        classify_inserted_cast_vote(vote(BallotStatus::Pending)),
+        Ok(InsertCastVoteResult::PendingDatafix(_))
+    ));
+    assert!(classify_inserted_cast_vote(vote(BallotStatus::Rejected)).is_err());
 }
 
 #[test]

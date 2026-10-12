@@ -17,10 +17,9 @@ from scripts.dev.affected.report import json_report, text_report
 ROOT = Path(__file__).resolve().parents[2]
 RUST = (
     "electoral-log",
+    "trellis",
     "harvest",
     "strand",
-    "immu-board",
-    "immudb-rs",
     "sequent-core",
     "step-cli",
     "velvet",
@@ -44,6 +43,11 @@ SEQUENT_CORE_FEATURES = (
     "keycloak,default_features,election_config_xlsx,"
     "election_config_templates,election_config_archive,monitoring"
 )
+# Test arguments of the packages whose suites need features beyond the default.
+RUST_EXTRA = {
+    "sequent-core": f"--features {SEQUENT_CORE_FEATURES}",
+    "trellis": "--features upstream-service --lib --example monitor --example post",
+}
 PYTHON = (
     "python:scripts-dev",
     "python:scripts-coverage",
@@ -73,12 +77,7 @@ def selection_for(
 def matrices(selection: Selection) -> dict[str, object]:
     selected = {decision.check.id: decision.check for decision in selection.selected()}
     rust = [
-        {
-            "service": package,
-            "extra": f"--features {SEQUENT_CORE_FEATURES}"
-            if package == "sequent-core"
-            else "",
-        }
+        {"service": package, "extra": RUST_EXTRA.get(package, "")}
         for package in RUST
         if f"cargo-test:{package}" in selected
     ]

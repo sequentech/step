@@ -13,7 +13,9 @@ use crate::postgres::ballot_box_seal::{BallotBoxSeal, ClosedBy};
 use crate::services::initialization_scope::post_display_name;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
-use electoral_log::seal::{SealRecord, SealRecordCloseRequest, SealRecordNames, SealRecordSigner};
+use electoral_log::seal::{
+    SealRecord, SealRecordCloseRequest, SealRecordLogEntry, SealRecordNames, SealRecordSigner,
+};
 use sequent_core::services::translations::Name;
 use sequent_core::types::hasura::core::{Election, ElectionEvent};
 use strand::signature::StrandSignaturePk;
@@ -46,14 +48,14 @@ pub async fn area_name(
         .unwrap_or_else(|| area_id.to_string()))
 }
 
-/// The seal record of a sealed ballot box whose `BallotBoxSealed` entry
-/// has id `log_entry_id` in the event's log, signed by `system_pk`.
+/// The seal record of a sealed ballot box whose `BallotBoxSealed` record is
+/// `log_entry` in the event's log, signed by `system_pk`.
 pub async fn build_record(
     hasura_transaction: &Transaction<'_>,
     seal: &BallotBoxSeal,
     election_event: &ElectionEvent,
     system_pk: &StrandSignaturePk,
-    log_entry_id: i64,
+    log_entry: SealRecordLogEntry,
 ) -> Result<SealRecord> {
     let tenant_id = seal.tenant_id.to_string();
     let election_event_id = seal.election_event_id.to_string();
@@ -93,7 +95,7 @@ pub async fn build_record(
         system_pk,
         names,
         close_request(seal),
-        log_entry_id,
+        log_entry,
     )?)
 }
 

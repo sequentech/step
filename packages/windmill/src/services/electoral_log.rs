@@ -6,10 +6,13 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::{get_hasura_pool, PgConfig};
 use crate::services::election_event_board::get_election_event_board;
+use crate::services::electoral_log_checkpoint_copies::{
+    store_checkpoint_copy, CheckpointCopyConfig,
+};
 use crate::services::insert_cast_vote::hash_voter_id;
+use crate::services::protocol_manager::get_board_client;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::protocol_manager::get_protocol_manager;
-use crate::services::protocol_manager::{create_named_param, get_board_client, get_immudb_client};
 use crate::services::vault;
 use crate::tasks::electoral_log::{
     enqueue_electoral_log_event, LogEventBody, LogEventInput, LogMessageType,
@@ -20,15 +23,17 @@ use b4::messages::message::Signer;
 use base64::engine::general_purpose;
 use base64::Engine;
 use deadpool_postgres::Transaction;
-use electoral_log::assign_value;
+use electoral_log::domain::{
+    Filter, LogEntry, LogQuery, LogVisibility, NumberColumn, NumberComparison,
+};
 use electoral_log::messages::message::{Message, SigningData};
 use electoral_log::messages::newtypes::{CertificateAuthEventAction, *};
 use electoral_log::messages::statement::{StatementBody, StatementType};
 use electoral_log::{
     ElectoralLogMessage, ElectoralLogVarCharColumn, SqlCompOperators, WhereClauseBTreeMap,
 };
-use immudb_rs::{sql_value::Value, Client, NamedParam, Row, TxMode};
 use rust_decimal::prelude::ToPrimitive;
+use sequent_core::election_config::manifest::sha256_hex;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::jwt::JwtClaims;
@@ -45,11 +50,11 @@ use strand::serialization::StrandDeserialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strum_macros::{Display, EnumString};
 use tempfile::NamedTempFile;
-use tokio_stream::StreamExt;
 use tracing::{event, info, instrument, warn, Level};
+use uuid::Uuid;
 use velvet::pipes::report_manifest::csv_report_reader;
 
-pub const IMMUDB_ROWS_LIMIT: usize = 2500;
+pub const ELECTORAL_LOG_ROWS_LIMIT: usize = 2500;
 pub const MAX_ROWS_PER_PAGE: usize = 50;
 
 /// Ballot_id input is the first half of the original hash which is stored in the electoral log.
@@ -175,56 +180,24 @@ fn voter_password_change_body(
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct PreparedVoterPasswordChangeLog {
     board: String,
+    delivery_id: String,
     message: ElectoralLogMessage,
 }
 
 impl PreparedVoterPasswordChangeLog {
     #[instrument(skip(self), err)]
     pub async fn post(&self) -> Result<()> {
+        let entries = [LogEntry {
+            delivery_id: self.delivery_id.clone(),
+            message: self.message.clone(),
+        }];
         retry_with_exponential_backoff(
             || async {
-                let mut client = get_board_client().await?;
-                let mut columns_matcher = WhereClauseBTreeMap::new();
-                columns_matcher.insert(
-                    ElectoralLogVarCharColumn::StatementKind,
-                    (SqlCompOperators::Equal, self.message.statement_kind.clone()),
-                );
-                columns_matcher.insert(
-                    ElectoralLogVarCharColumn::SenderPk,
-                    (SqlCompOperators::Equal, self.message.sender_pk.clone()),
-                );
-                columns_matcher.insert(
-                    ElectoralLogVarCharColumn::Version,
-                    (SqlCompOperators::Equal, self.message.version.clone()),
-                );
-                if let Some(user_id) = &self.message.user_id {
-                    columns_matcher.insert(
-                        ElectoralLogVarCharColumn::UserId,
-                        (SqlCompOperators::Equal, user_id.clone()),
-                    );
-                }
-
-                let existing = client
-                    .get_electoral_log_messages_filtered::<String, String>(
-                        &self.board,
-                        Some(columns_matcher),
-                        Some(self.message.created),
-                        Some(self.message.created),
-                        Some(100),
-                        None,
-                        None,
-                    )
+                get_board_client()
+                    .await?
+                    .append(&self.board, &entries)
                     .await?;
-                if existing
-                    .iter()
-                    .any(|candidate| same_electoral_log_message(candidate, &self.message))
-                {
-                    return Ok(());
-                }
-
-                client
-                    .insert_electoral_log_messages(&self.board, &vec![self.message.clone()])
-                    .await
+                Ok(())
             },
             5,
             Duration::from_millis(100),
@@ -233,23 +206,9 @@ impl PreparedVoterPasswordChangeLog {
     }
 }
 
-fn same_electoral_log_message(left: &ElectoralLogMessage, right: &ElectoralLogMessage) -> bool {
-    left.created == right.created
-        && left.sender_pk == right.sender_pk
-        && left.statement_timestamp == right.statement_timestamp
-        && left.statement_kind == right.statement_kind
-        && left.message == right.message
-        && left.version == right.version
-        && left.user_id == right.user_id
-        && left.username == right.username
-        && left.election_id == right.election_id
-        && left.area_id == right.area_id
-        && left.ballot_id == right.ballot_id
-}
-
 /// Prepares a signed password-change audit entry using the caller's Hasura
 /// transaction. The caller can therefore commit its document and durable task
-/// state before performing the external Immudb write.
+/// state before performing the external electoral-log write.
 #[instrument(skip_all, err)]
 pub async fn prepare_voter_password_change(
     hasura_transaction: &Transaction<'_>,
@@ -289,7 +248,11 @@ pub async fn prepare_voter_password_change(
         )
         .context("Failed to build the voter password-change electoral-log entry")?;
 
-    Ok(PreparedVoterPasswordChangeLog { board, message })
+    Ok(PreparedVoterPasswordChangeLog {
+        board,
+        delivery_id: Uuid::new_v4().to_string(),
+        message,
+    })
 }
 
 /// Posts a signed electoral-log entry after an admin-triggered voter password
@@ -514,7 +477,73 @@ async fn prepare_voter_secret_attribute_audit(
             None,
         )
         .context("Failed to build the secret-attribute electoral-log entry")?;
-    Ok(PreparedVoterPasswordChangeLog { board, message })
+    Ok(PreparedVoterPasswordChangeLog {
+        board,
+        delivery_id: Uuid::new_v4().to_string(),
+        message,
+    })
+}
+
+/// Prefix of the delivery IDs of checkpoint statements, which are unique per log size.
+const CHECKPOINT_DELIVERY_PREFIX: &str = "electoral-log-checkpoint:";
+/// Prefix of the delivery IDs of continuation statements, unique per continued log.
+const CONTINUATION_DELIVERY_PREFIX: &str = "electoral-log-continuation:";
+/// Prefix of the delivery IDs of approval matrix versions: `<version>:<sha256>`.
+const APPROVAL_MATRIX_DELIVERY_PREFIX: &str = "approval-matrix:";
+/// Prefix of the delivery IDs of monitoring configuration changes:
+/// `<generation>:<sha256 of the change>`.
+const MONITORING_CONFIG_DELIVERY_PREFIX: &str = "monitoring-config:";
+/// Prefix of the delivery IDs of configuration package imports:
+/// `<external ID>:<revision>:<manifest sha256>`.
+const CONFIGURATION_PACKAGE_DELIVERY_PREFIX: &str = "configuration-package:";
+/// Prefix of the delivery IDs of report manifests: `<report manifest sha256>`.
+const REPORT_GENERATED_DELIVERY_PREFIX: &str = "report-generated:";
+
+fn approval_matrix_delivery_id(version: u32, sha256: &str) -> String {
+    format!("{APPROVAL_MATRIX_DELIVERY_PREFIX}{version}:{sha256}")
+}
+
+fn monitoring_config_delivery_id(details: &MonitoringConfigChangeDetails) -> Result<String> {
+    let change = serde_json::to_vec(details).context("Error serializing the monitoring change")?;
+    Ok(format!(
+        "{MONITORING_CONFIG_DELIVERY_PREFIX}{}:{}",
+        details.generation,
+        sha256_hex(&change)
+    ))
+}
+
+fn configuration_package_delivery_id(details: &ConfigurationPackageDetails) -> String {
+    format!(
+        "{CONFIGURATION_PACKAGE_DELIVERY_PREFIX}{}:{}:{}",
+        details.external_id, details.revision, details.manifest_sha256
+    )
+}
+
+fn report_generated_delivery_id(details: &ReportGeneratedDetails) -> String {
+    format!(
+        "{REPORT_GENERATED_DELIVERY_PREFIX}{}",
+        details.report_manifest_sha256
+    )
+}
+
+/// Sign a checkpoint publication with the system key of `sd`.
+pub fn sign_checkpoint(
+    sd: &SigningData,
+    checkpoint: &electoral_log::proofs::Checkpoint,
+    reason: ElectoralLogCheckpointReason,
+) -> Result<crate::postgres::electoral_log_checkpoint::PublishedCheckpoint> {
+    let bytes = electoral_log::proofs::checkpoint_signing_bytes(checkpoint, reason)?;
+    Ok(
+        crate::postgres::electoral_log_checkpoint::PublishedCheckpoint {
+            board_name: checkpoint.log_name.clone(),
+            log_uid: checkpoint.log_uid,
+            tree_size: i64::try_from(checkpoint.tree_size)?,
+            root: hex::encode(&checkpoint.root),
+            reason: reason.to_string(),
+            signer_pk: sd.system_pk()?.to_der_b64_string()?,
+            signature: sd.system_sign(&bytes)?.to_b64_string()?,
+        },
+    )
 }
 
 /// A reader of the log's CSV export: the backup an event export holds, or
@@ -524,6 +553,39 @@ pub fn exported_log_reader<R: std::io::Read>(
     file: R,
 ) -> Result<csv::Reader<std::io::BufReader<R>>> {
     csv_report_reader(file).context("Failed to read the CSV file")
+}
+
+/// The entry of a row of a CSV export of the log, under a new delivery ID.
+/// The row's `statement_kind` column must name the statement its message
+/// reads as: a file written by a release that numbers the statements
+/// differently (one exported before the electoral log moved to PostgreSQL,
+/// whose new statements come after the checkpoint statements now) would be
+/// read as other statements, so it is refused.
+fn csv_log_entry(row: ElectoralLogRow) -> Result<LogEntry> {
+    let bytes = general_purpose::STANDARD_NO_PAD.decode(&row.data)?;
+    let message = Message::strand_deserialize(&bytes).map_err(|err| {
+        anyhow!(
+            "Row {} ({}) of the electoral-log CSV can't be read, which happens with a file \
+             written by a release that numbers the statements differently: {err:?}",
+            row.id,
+            row.statement_kind
+        )
+    })?;
+    let mut stored: ElectoralLogMessage = (&message).try_into()?;
+    ensure!(
+        stored.statement_kind == row.statement_kind,
+        "Row {} of the electoral-log CSV is a {} entry but its message reads as {}: the file \
+         was written by a release that numbers the statements differently and can't be imported",
+        row.id,
+        row.statement_kind,
+        stored.statement_kind
+    );
+    stored.created = row.created;
+    stored.message = bytes;
+    Ok(LogEntry {
+        delivery_id: Uuid::new_v4().to_string(),
+        message: stored,
+    })
 }
 
 pub struct ElectoralLog {
@@ -732,6 +794,7 @@ impl ElectoralLog {
             "Error converting Message::cast_vote_message into ElectoralLogMessage"
         })?;
         let input = LogEventInput {
+            delivery_id: Some(Uuid::new_v4().to_string()),
             election_event_id: event_id.to_string(),
             message_type: LogMessageType::Internal,
             user_id: Some(user_id.to_string()),
@@ -810,60 +873,6 @@ impl ElectoralLog {
         ret
     }
 
-    #[instrument(skip(self, pseudonym_h, vote_h))]
-    pub async fn post_cast_vote(
-        &self,
-        tenant_id: String,
-        event_id: String,
-        election_id: Option<String>,
-        pseudonym_h: PseudonymHash,
-        vote_h: CastVoteHash,
-        voter_ip: String,
-        voter_country: String,
-        voter_id: String,
-        voter_username: Option<String>,
-        area_id: String,
-        voting_channel: String,
-    ) -> Result<()> {
-        let event = EventIdString(event_id.clone());
-        let election = ElectionIdString(election_id);
-        let ip = VoterIpString(voter_ip);
-        let country = VoterCountryString(voter_country);
-        let message = Message::cast_vote_with_channel_message(
-            event,
-            election,
-            pseudonym_h,
-            vote_h,
-            &self.sd,
-            ip,
-            country,
-            VotingChannelString(voting_channel),
-            Some(voter_id.clone()),
-            voter_username.clone(),
-            area_id,
-        )?;
-        let board_message: ElectoralLogMessage = (&message)
-            .try_into()
-            .with_context(|| "Error converting cast-vote Message into ElectoralLogMessage")?;
-        let input = LogEventInput {
-            election_event_id: event_id,
-            message_type: LogMessageType::Internal,
-            user_id: Some(voter_id),
-            username: voter_username,
-            tenant_id,
-            body: LogEventBody::Plain(
-                serde_json::to_string(&board_message)
-                    .with_context(|| "Error serializing ElectoralLogMessage")?,
-            ),
-            event_time_ms: None,
-        };
-        let celery_app = get_celery_app().await;
-        celery_app
-            .send_task(enqueue_electoral_log_event::new(input))
-            .await?;
-        Ok(())
-    }
-
     #[instrument(skip(self, pseudonym_h))]
     pub async fn post_cast_vote_error(
         &self,
@@ -899,6 +908,7 @@ impl ElectoralLog {
             "Error converting Message::cast_vote_error_message into ElectoralLogMessage"
         })?;
         let input = LogEventInput {
+            delivery_id: Some(Uuid::new_v4().to_string()),
             election_event_id: event_id,
             message_type: LogMessageType::Internal,
             user_id: Some(voter_id),
@@ -987,6 +997,7 @@ impl ElectoralLog {
             "Error converting Message::external_api_request_message into ElectoralLogMessage"
         })?;
         let input = LogEventInput {
+            delivery_id: Some(Uuid::new_v4().to_string()),
             election_event_id: event_id,
             message_type: LogMessageType::Internal,
             user_id: voter_id,
@@ -1062,7 +1073,8 @@ impl ElectoralLog {
         self.post(&message).await
     }
 
-    /// Posts a new version of the election event's approval matrix.
+    /// Posts a new version of the election event's approval matrix, once per
+    /// version and digest.
     #[instrument(skip(self))]
     pub async fn post_approval_matrix_updated(
         &self,
@@ -1072,6 +1084,7 @@ impl ElectoralLog {
         user_id: Option<String>,
         username: Option<String>,
     ) -> Result<()> {
+        let delivery_id = approval_matrix_delivery_id(version, &sha256);
         let message = Message::approval_matrix_updated_message(
             EventIdString(event_id),
             ApprovalMatrixVersion(version),
@@ -1081,10 +1094,11 @@ impl ElectoralLog {
             username,
         )?;
 
-        self.post(&message).await
+        self.post_with_delivery_id(&message, delivery_id).await
     }
 
-    /// Posts a change to the election event's monitoring dashboards.
+    /// Posts a change to the election event's monitoring dashboards, once per
+    /// generation and change.
     #[instrument(skip(self))]
     pub async fn post_monitoring_config_changed(
         &self,
@@ -1093,6 +1107,7 @@ impl ElectoralLog {
         user_id: Option<String>,
         username: Option<String>,
     ) -> Result<()> {
+        let delivery_id = monitoring_config_delivery_id(&details)?;
         let message = Message::monitoring_config_changed_message(
             EventIdString(event_id),
             details,
@@ -1101,10 +1116,11 @@ impl ElectoralLog {
             username,
         )?;
 
-        self.post(&message).await
+        self.post_with_delivery_id(&message, delivery_id).await
     }
 
-    /// Posts a signed configuration package's import.
+    /// Posts a signed configuration package's import, once per package
+    /// revision and manifest.
     #[instrument(skip(self))]
     pub async fn post_configuration_package(
         &self,
@@ -1113,6 +1129,7 @@ impl ElectoralLog {
         user_id: Option<String>,
         username: Option<String>,
     ) -> Result<()> {
+        let delivery_id = configuration_package_delivery_id(&details);
         let message = Message::configuration_package_message(
             EventIdString(event_id),
             details,
@@ -1121,10 +1138,10 @@ impl ElectoralLog {
             username,
         )?;
 
-        self.post(&message).await
+        self.post_with_delivery_id(&message, delivery_id).await
     }
 
-    /// Posts the hash manifest of a generated report.
+    /// Posts the hash manifest of a generated report, once per manifest.
     #[instrument(skip(self))]
     pub async fn post_report_generated(
         &self,
@@ -1133,6 +1150,7 @@ impl ElectoralLog {
         user_id: Option<String>,
         username: Option<String>,
     ) -> Result<()> {
+        let delivery_id = report_generated_delivery_id(&details);
         let message = Message::report_generated_message(
             EventIdString(event_id),
             details,
@@ -1141,7 +1159,7 @@ impl ElectoralLog {
             username,
         )?;
 
-        self.post(&message).await
+        self.post_with_delivery_id(&message, delivery_id).await
     }
 
     /// Posts a publication. For an event imported from a signed
@@ -1514,18 +1532,127 @@ impl ElectoralLog {
         self.post(&message).await
     }
 
+    /// Publish a signed checkpoint of this event's electoral log.
+    ///
+    /// The checkpoint is stored in the Hasura database, outside the electoral-log
+    /// database, on its own connection so a caller's transaction is never aborted by
+    /// it, and a statement recording it is appended to the log once per log size.
+    #[instrument(skip(self), err)]
+    pub async fn publish_checkpoint(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        reason: ElectoralLogCheckpointReason,
+    ) -> Result<electoral_log::proofs::Checkpoint> {
+        let checkpoint = crate::services::protocol_manager::get_event_store(election_event_id)
+            .await?
+            .journal()
+            .checkpoint(&self.elog_database)
+            .await?;
+        let published = sign_checkpoint(&self.sd, &checkpoint, reason)?;
+        // Copy first, so that with the `required` policy nothing is published without
+        // its write-once copy.
+        store_checkpoint_copy(
+            &CheckpointCopyConfig::from_env()?,
+            tenant_id,
+            election_event_id,
+            &published,
+        )
+        .await?;
+        let mut hasura_db_client = get_hasura_pool()
+            .await
+            .get()
+            .await
+            .context("Error acquiring hasura connection")?;
+        let hasura_transaction = hasura_db_client.transaction().await?;
+        let stored = crate::postgres::electoral_log_checkpoint::insert_electoral_log_checkpoint(
+            &hasura_transaction,
+            tenant_id,
+            election_event_id,
+            &published,
+        )
+        .await?;
+        ensure!(
+            stored.root == published.root,
+            "A different checkpoint was already published at size {}: the log may have been \
+             rolled back or forked",
+            checkpoint.tree_size
+        );
+        hasura_transaction.commit().await?;
+        // Record the stored publication in the log. The delivery ID is fixed per log size,
+        // so publishing the same size again, or retrying, records it once.
+        let message = Message::electoral_log_checkpoint_message(
+            EventIdString(election_event_id.to_string()),
+            ElectoralLogCheckpointV2 {
+                log_uid: checkpoint.log_uid.hyphenated().to_string(),
+                tree_size: checkpoint.tree_size,
+                root: published.root.clone(),
+                reason: stored
+                    .reason
+                    .parse()
+                    .with_context(|| format!("Unknown checkpoint reason {}", stored.reason))?,
+            },
+            &self.sd,
+        )?;
+        self.post_with_delivery_id(
+            &message,
+            format!(
+                "{CHECKPOINT_DELIVERY_PREFIX}{}:{}",
+                checkpoint.log_uid, checkpoint.tree_size
+            ),
+        )
+        .await
+        .context("The checkpoint was stored but could not be recorded in the log")?;
+        Ok(checkpoint)
+    }
+
+    /// Record that this board continues a log, whose last checkpoint is `previous`,
+    /// as an imported event's board continues the board of the event it was exported
+    /// from. Recorded once per previous log.
+    #[instrument(skip(self), err)]
+    pub async fn post_continuation(
+        &self,
+        election_event_id: &str,
+        previous: &electoral_log::proofs::Checkpoint,
+    ) -> Result<()> {
+        let message = Message::electoral_log_continuation_message(
+            EventIdString(election_event_id.to_string()),
+            ElectoralLogContinuation {
+                previous_log_name: previous.log_name.clone(),
+                previous_log_uid: previous.log_uid.hyphenated().to_string(),
+                tree_size: previous.tree_size,
+                root: hex::encode(&previous.root),
+            },
+            &self.sd,
+        )?;
+        self.post_with_delivery_id(
+            &message,
+            format!("{CONTINUATION_DELIVERY_PREFIX}{}", previous.log_uid),
+        )
+        .await
+    }
+
     #[instrument(skip(self), err)]
     async fn post(&self, message: &Message) -> Result<()> {
+        self.post_with_delivery_id(message, Uuid::new_v4().to_string())
+            .await
+    }
+
+    /// Append a message under a delivery ID; a repeated delivery ID appends nothing.
+    #[instrument(skip(self, message), err)]
+    async fn post_with_delivery_id(&self, message: &Message, delivery_id: String) -> Result<()> {
         let board_message: ElectoralLogMessage = message.try_into()?;
-        let ms = vec![board_message];
+        let ms = vec![LogEntry {
+            delivery_id,
+            message: board_message,
+        }];
 
         retry_with_exponential_backoff(
             // The closure we want to call repeatedly
             || async {
-                let mut client = get_board_client().await?;
-                client
-                    .insert_electoral_log_messages(self.elog_database.as_str(), &ms)
-                    .await
+                let client = get_board_client().await?;
+                client.append(self.elog_database.as_str(), &ms).await?;
+                Ok(())
             },
             // Maximum number of retries:
             5,
@@ -1589,48 +1716,19 @@ impl ElectoralLog {
 
     #[instrument(skip(self))]
     pub async fn import_from_csv(&self, logs_file: &NamedTempFile) -> Result<()> {
-        let batch_size: usize = PgConfig::from_env()?.default_sql_batch_size.try_into()?;
-        let mut rdr = exported_log_reader(logs_file)?;
-
-        let mut client = get_board_client().await?;
-        client.open_session(self.elog_database.as_str()).await?;
-        let tx = client.new_tx(TxMode::ReadWrite).await?;
-
-        // Allocate a vector with capacity equal to the batch size.
-        let mut messages: Vec<ElectoralLogMessage> = Vec::with_capacity(batch_size);
-
-        for result in rdr.deserialize() {
-            let row: ElectoralLogRow =
-                result.map_err(|err| anyhow::Error::new(err).context("Failed to read CSV row"))?;
-            let message: &Message =
-                &Message::strand_deserialize(&general_purpose::STANDARD_NO_PAD.decode(&row.data)?)
-                    .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
-            let electoral_log_message: ElectoralLogMessage = message.try_into()?;
-            messages.push(electoral_log_message);
-
-            // Once we reach the batch size, flush the batch.
-            if messages.len() >= batch_size {
-                client
-                    .insert_electoral_log_messages_batch(&tx, &messages)
-                    .await?;
-                messages.clear();
-            }
-        }
-
-        // Flush any remaining messages that didn't complete a full batch.
-        if !messages.is_empty() {
-            client
-                .insert_electoral_log_messages_batch(&tx, &messages)
-                .await?;
-        }
-
-        client.commit(&tx).await?;
-        client.close_session().await?;
+        let mut reader = exported_log_reader(logs_file)?;
+        let mut entries = reader
+            .deserialize::<ElectoralLogRow>()
+            .map(|row| csv_log_entry(row.context("Failed to read electoral-log CSV row")?));
+        get_board_client()
+            .await?
+            .append_iter(&self.elog_database, &mut entries)
+            .await?;
         Ok(())
     }
 }
 
-// Enumeration for the valid fields in the immudb table
+// Fields accepted by the electoral-log API
 #[derive(Debug, Deserialize, Hash, PartialEq, Eq, EnumString, Display, Clone)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -1724,6 +1822,17 @@ impl MinuteRange {
     pub fn is_unbounded(&self) -> bool {
         self.start.is_none() && self.end.is_none()
     }
+
+    /// The range as filters of `column`.
+    pub fn filters(&self, column: NumberColumn) -> impl Iterator<Item = Filter> {
+        let start = self
+            .start
+            .map(|start| Filter::Number(column, NumberComparison::GreaterThanOrEqual, start));
+        let end = self
+            .end
+            .map(|end| Filter::Number(column, NumberComparison::LessThan, end));
+        start.into_iter().chain(end)
+    }
 }
 
 #[derive(Deserialize, Debug, Default, Clone)]
@@ -1741,182 +1850,97 @@ pub struct GetElectoralLogBody {
 }
 
 impl GetElectoralLogBody {
-    /// `ORDER BY` over the requested columns; the filter-only range keys
-    /// never sort.
-    fn order_by_clause(&self) -> Option<String> {
-        let order_by_clauses: Vec<String> = self
-            .order_by
-            .as_ref()?
-            .iter()
-            .filter(|(field, _)| field.is_column())
-            .map(|(field, direction)| format!("{field} {direction}"))
-            .collect();
-        (!order_by_clauses.is_empty()).then(|| format!("ORDER BY {}", order_by_clauses.join(", ")))
+    fn as_query(&self) -> Result<LogQuery> {
+        self.as_query_within(&PgConfig::from_env()?)
     }
 
-    // Returns the SQL clauses related to the request along with the parameters
-    #[instrument(ret)]
-    fn as_sql(&self, to_count: bool) -> Result<(String, Vec<NamedParam>)> {
-        let mut clauses = Vec::new();
-        let mut params = Vec::new();
-
-        // Handle filters
-        if let Some(filters_map) = &self.filter {
-            let mut where_clauses = Vec::new();
-
-            for (field, value) in filters_map {
-                info!("field = ?: {field}, value = ?: {value}");
-                let param_name = format!("param_{field}");
-                match field {
-                    OrderField::Id => { // sql INTEGER type
-                        let int_value: i64 = value.parse()?;
-                        where_clauses.push(format!("id = @{}", param_name));
-                        params.push(create_named_param(param_name, Value::N(int_value)));
-                    }
-                    OrderField::SenderPk | OrderField::UserId | OrderField::Username | OrderField::BallotId | OrderField::StatementKind | OrderField::Version => { // sql VARCHAR type
-                        where_clauses.push(format!("{field} LIKE @{}", param_name));
-                        params.push(create_named_param(param_name, Value::S(value.to_string())));
-                    }
-                    OrderField::StatementTimestamp | OrderField::Created => { // sql TIMESTAMP type
-                        // These have their own column (and are inside the message too).
-                        // A single value means its minute.
-                        if let MinuteRange { start: Some(start), end: Some(end) } = MinuteRange::minute_of(value)? {
-                            let param_name_end = format!("{param_name}_end");
-                            where_clauses.push(format!("{field} >= @{} AND {field} < @{}", param_name, param_name_end));
-                            params.push(create_named_param(param_name, Value::Ts(start)));
-                            params.push(create_named_param(param_name_end, Value::Ts(end)));
-                        }
-                    }
-                    OrderField::CreatedFrom | OrderField::StatementTimestampFrom => {
-                        let column = if *field == OrderField::CreatedFrom { OrderField::Created } else { OrderField::StatementTimestamp };
-                        if let Some(start) = MinuteRange::parse(Some(value), None)?.start {
-                            where_clauses.push(format!("{column} >= @{}", param_name));
-                            params.push(create_named_param(param_name, Value::Ts(start)));
-                        }
-                    }
-                    OrderField::CreatedTo | OrderField::StatementTimestampTo => {
-                        let column = if *field == OrderField::CreatedTo { OrderField::Created } else { OrderField::StatementTimestamp };
-                        if let Some(end) = MinuteRange::parse(None, Some(value))?.end {
-                            where_clauses.push(format!("{column} < @{}", param_name));
-                            params.push(create_named_param(param_name, Value::Ts(end)));
-                        }
-                    }
-                    OrderField::EventType | OrderField::LogType | OrderField::Description // these have no column but are inside of Message
-                    | OrderField::Message => {} // Message column is sql BLOB type and it´s encrypted so we can't search it without expensive operations
-                }
-            }
-
-            if !where_clauses.is_empty() {
-                clauses.push(format!("WHERE {}", where_clauses.join(" AND ")));
-            }
+    fn as_query_within(&self, limits: &PgConfig) -> Result<LogQuery> {
+        let mut query = LogQuery {
+            limit: self
+                .limit
+                .unwrap_or(limits.default_sql_limit.into())
+                .min(limits.low_sql_limit.into()),
+            offset: self.offset.unwrap_or(0).max(0),
+            only_with_user: self.only_with_user.unwrap_or(false),
+            ..LogQuery::default()
         };
-
-        // Build a single extra clause.
-        // This clause returns rows if:
-        // - @election_filter is non-empty and matches election_id, OR
-        // - @area_filter is non-empty and matches area_id, OR
-        // - Both election_id and area_id are either '' or NULL. (General to all elections log)
-        let mut extra_where_clauses = Vec::new();
-        if self.election_id.is_some() || self.area_ids.is_some() {
-            let mut conds = Vec::new();
-
-            if let Some(election) = &self.election_id {
-                if !election.is_empty() {
-                    params.push(create_named_param(
-                        "param_election".to_string(),
-                        Value::S(election.clone()),
-                    ));
-                    conds.push("election_id LIKE @param_election".to_string());
-                }
-            }
-
-            if let Some(area_ids) = &self.area_ids {
-                if !area_ids.is_empty() {
-                    let placeholders: Vec<String> = area_ids
-                        .iter()
-                        .enumerate()
-                        .map(|(i, _)| format!("@param_area{}", i))
-                        .collect();
-                    for (i, area) in area_ids.into_iter().enumerate() {
-                        let param_name = format!("param_area{}", i);
-                        params.push(create_named_param(
-                            param_name.clone(),
-                            Value::S(area.clone()),
+        if let Some(filters) = &self.filter {
+            for (field, value) in filters {
+                match field {
+                    OrderField::Id => query.filters.push(Filter::Number(
+                        NumberColumn::Id,
+                        NumberComparison::Equal,
+                        value.parse()?,
+                    )),
+                    OrderField::SenderPk
+                    | OrderField::UserId
+                    | OrderField::Username
+                    | OrderField::BallotId
+                    | OrderField::StatementKind
+                    | OrderField::Version => {
+                        query.filters.push(Filter::Text(
+                            field.to_string().parse()?,
+                            SqlCompOperators::Like,
+                            value.clone(),
                         ));
                     }
-                    conds.push(format!(
-                        "(@param_area0 <> '' AND area_id IN ({}))",
-                        placeholders.join(", ")
-                    ));
+                    // A single value means its minute.
+                    OrderField::Created => query
+                        .filters
+                        .extend(MinuteRange::minute_of(value)?.filters(NumberColumn::Created)),
+                    OrderField::StatementTimestamp => query.filters.extend(
+                        MinuteRange::minute_of(value)?.filters(NumberColumn::StatementTimestamp),
+                    ),
+                    OrderField::CreatedFrom => query.filters.extend(
+                        MinuteRange::parse(Some(value), None)?.filters(NumberColumn::Created),
+                    ),
+                    OrderField::CreatedTo => query.filters.extend(
+                        MinuteRange::parse(None, Some(value))?.filters(NumberColumn::Created),
+                    ),
+                    OrderField::StatementTimestampFrom => query.filters.extend(
+                        MinuteRange::parse(Some(value), None)?
+                            .filters(NumberColumn::StatementTimestamp),
+                    ),
+                    OrderField::StatementTimestampTo => query.filters.extend(
+                        MinuteRange::parse(None, Some(value))?
+                            .filters(NumberColumn::StatementTimestamp),
+                    ),
+                    OrderField::EventType
+                    | OrderField::LogType
+                    | OrderField::Description
+                    | OrderField::Message => {}
                 }
             }
-
-            // if neither filter matches, return logs where both fields are empty or NULL.
-            conds.push(
-                "((election_id = '' OR election_id IS NULL) AND (area_id = '' OR area_id IS NULL))"
-                    .to_string(),
-            );
-
-            extra_where_clauses.push(format!("({})", conds.join(" OR ")));
         }
-
-        // Handle only_with_user
-        if self.only_with_user.unwrap_or(false) {
-            extra_where_clauses.push("(user_id IS NOT NULL AND user_id <> '')".to_string());
+        if self.election_id.is_some() || self.area_ids.is_some() {
+            query.visibility = Some(LogVisibility {
+                election_id: self.election_id.clone(),
+                area_ids: self.area_ids.clone().unwrap_or_default(),
+            });
         }
-
-        // Handle
-        if let Some(statement_kind) = &self.statement_kind {
-            params.push(create_named_param(
-                "param_statement_kind".to_string(),
-                Value::S(statement_kind.to_string()),
+        if let Some(kind) = &self.statement_kind {
+            query.filters.push(Filter::Text(
+                ElectoralLogVarCharColumn::StatementKind,
+                SqlCompOperators::Equal,
+                kind.to_string(),
             ));
-            extra_where_clauses.push("(statement_kind = @param_statement_kind)".to_string());
         }
-
-        if !extra_where_clauses.is_empty() {
-            match clauses.len() {
-                0 => {
-                    clauses.push(format!("WHERE {}", extra_where_clauses.join(" AND ")));
-                }
-                _ => {
-                    let where_clause = clauses.pop().ok_or(anyhow!("Empty clause"))?;
-                    clauses.push(format!(
-                        "{} AND {}",
-                        where_clause,
-                        extra_where_clauses.join(" AND ")
-                    ));
-                }
-            }
+        let mut order: Vec<_> = self
+            .order_by
+            .iter()
+            .flatten()
+            .filter(|(field, _)| field.is_column())
+            .map(|(field, direction)| (field.to_string(), direction.to_string()))
+            .collect();
+        if !order.is_empty() {
+            order.sort();
+            query.order = order
+                .into_iter()
+                .map(|(field, direction)| Ok((field.parse()?, direction.parse()?)))
+                .collect::<Result<_>>()?;
         }
-
-        // Handle order_by
-        if !to_count {
-            if let Some(order_by) = self.order_by_clause() {
-                clauses.push(order_by);
-            }
-        }
-
-        // Handle limit
-        if !to_count {
-            let limit_param_name = String::from("limit");
-            let limit_value = self
-                .limit
-                .unwrap_or(PgConfig::from_env()?.default_sql_limit.into());
-            let limit = std::cmp::min(limit_value, PgConfig::from_env()?.low_sql_limit.into());
-            clauses.push(format!("LIMIT @{limit_param_name}"));
-            params.push(create_named_param(limit_param_name, Value::N(limit)));
-        }
-
-        // Handle offset
-        if !to_count && self.offset.is_some() {
-            let offset_param_name = String::from("offset");
-            let offset = std::cmp::max(self.offset.unwrap_or(0), 0);
-            clauses.push(format!("OFFSET @{}", offset_param_name));
-            params.push(create_named_param(offset_param_name, Value::N(offset)));
-        }
-
-        Ok((clauses.join(" "), params))
+        query.validate()?;
+        Ok(query)
     }
 }
 
@@ -2021,79 +2045,13 @@ impl TryFrom<ElectoralLogMessage> for ElectoralLogRow {
     }
 }
 
-impl TryFrom<&Row> for ElectoralLogRow {
-    type Error = anyhow::Error;
-
-    fn try_from(row: &Row) -> Result<Self, Self::Error> {
-        let mut id = 0;
-        let mut created: i64 = 0;
-        let mut sender_pk = String::from("");
-        let mut statement_timestamp: i64 = 0;
-        let mut statement_kind = String::from("");
-        let mut message = vec![];
-        let mut user_id = None;
-        let mut username = None;
-
-        for (column, value) in row.columns.iter().zip(row.values.iter()) {
-            match column.as_str() {
-                c if c.ends_with(".id)") => {
-                    assign_value!(Value::N, value, id)
-                }
-                c if c.ends_with(".created)") => {
-                    assign_value!(Value::Ts, value, created)
-                }
-                c if c.ends_with(".sender_pk)") => {
-                    assign_value!(Value::S, value, sender_pk)
-                }
-                c if c.ends_with(".statement_timestamp)") => {
-                    assign_value!(Value::Ts, value, statement_timestamp)
-                }
-                c if c.ends_with(".statement_kind)") => {
-                    assign_value!(Value::S, value, statement_kind)
-                }
-                c if c.ends_with(".message)") => {
-                    assign_value!(Value::Bs, value, message)
-                }
-                c if c.ends_with(".user_id)") => match value.value.as_ref() {
-                    Some(Value::S(inner)) => user_id = Some(inner.clone()),
-                    Some(Value::Null(_)) => user_id = None,
-                    None => user_id = None,
-                    _ => return Err(anyhow!("invalid column value for 'user_id'")),
-                },
-                c if c.ends_with(".username)") => match value.value.as_ref() {
-                    Some(Value::S(inner)) => username = Some(inner.clone()),
-                    Some(Value::Null(_)) => username = None,
-                    None => username = None,
-                    _ => return Err(anyhow!("invalid column value for 'username'")),
-                },
-                _ => return Err(anyhow!("invalid column found '{}'", column.as_str())),
-            }
-        }
-
-        let deserialized_message =
-            Message::strand_deserialize(&message).with_context(|| "Error deserializing message")?;
-        let serialized = general_purpose::STANDARD_NO_PAD.encode(message);
-        Ok(ElectoralLogRow {
-            id,
-            created,
-            statement_timestamp,
-            statement_kind,
-            message: serde_json::to_string_pretty(&deserialized_message)
-                .with_context(|| "Error serializing message to json")?,
-            data: serialized,
-            user_id,
-            username,
-        })
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+/// A cast vote as voters see it in the ballot locator. It carries nothing that
+/// identifies the voter: no username, IP address, country or signed message.
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq)]
 pub struct CastVoteEntry {
     pub statement_timestamp: i64,
     pub statement_kind: String,
     pub ballot_id: String,
-    pub username: Option<String>,
-    pub message: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -2103,115 +2061,60 @@ pub struct CastVoteMessagesOutput {
 }
 
 impl CastVoteEntry {
-    pub fn from_elog_message(
-        entry: &ElectoralLogMessage,
-        viewer_user_id: &str,
-    ) -> Result<Option<Self>, anyhow::Error> {
-        let ballot_id = entry.ballot_id.clone().unwrap_or_default();
-        let username = entry.username.clone();
-        let message: &Message = &Message::strand_deserialize(&entry.message)
-            .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
-        let message = Some(message.to_string());
-
-        Ok(Some(
-            CastVoteEntry {
-                statement_timestamp: entry.statement_timestamp,
-                statement_kind: StatementType::CastVote.to_string(),
-                ballot_id,
-                username,
-                message,
-            }
-            .shown_to(entry.user_id.as_deref(), viewer_user_id),
-        ))
-    }
-
-    /// The username and the signed statement (pseudonym, IP and country) tie a
-    /// Ballot ID to a voter, so a voter gets them only for their own entries.
-    pub fn shown_to(self, entry_user_id: Option<&str>, viewer_user_id: &str) -> Self {
-        if entry_user_id == Some(viewer_user_id) {
-            self
-        } else {
-            CastVoteEntry {
-                username: None,
-                message: None,
-                ..self
-            }
+    pub fn from_elog_message(entry: &ElectoralLogMessage) -> Self {
+        CastVoteEntry {
+            statement_timestamp: entry.statement_timestamp,
+            statement_kind: StatementType::CastVote.to_string(),
+            ballot_id: entry.ballot_id.clone().unwrap_or_default(),
         }
     }
 }
 
+/// Fields voters can sort the ballot locator by.
+pub const CAST_VOTE_ORDER_FIELDS: [OrderField; 4] = [
+    OrderField::Id,
+    OrderField::StatementTimestamp,
+    OrderField::StatementKind,
+    OrderField::BallotId,
+];
+
+/// Refuses a ballot-locator sort by a field voters cannot see, such as the
+/// username.
+pub fn check_cast_vote_order_by(
+    order_by: Option<&HashMap<OrderField, OrderDirection>>,
+) -> Result<()> {
+    let mut refused: Vec<String> = order_by
+        .into_iter()
+        .flat_map(HashMap::keys)
+        .filter(|field| !CAST_VOTE_ORDER_FIELDS.contains(field))
+        .map(ToString::to_string)
+        .collect();
+    refused.sort();
+    ensure!(
+        refused.is_empty(),
+        "Cast votes cannot be sorted by {}",
+        refused.join(", ")
+    );
+    Ok(())
+}
+
 #[instrument(err)]
 pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<ElectoralLogRow>> {
-    let mut client: Client = get_immudb_client().await?;
-    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-    let board_name = get_event_board(
-        input.tenant_id.as_str(),
-        input.election_event_id.as_str(),
-        &slug,
-    );
-
-    event!(Level::INFO, "database name = {board_name}");
-    client.open_session(&board_name).await?;
-    let (clauses, params) = input.as_sql(false)?;
-    let (clauses_to_count, count_params) = input.as_sql(true)?;
-    info!("clauses ?:= {clauses}");
-    let sql = format!(
-        r#"
-        SELECT
-            id,
-            created,
-            sender_pk,
-            statement_timestamp,
-            statement_kind,
-            message,
-            user_id,
-            username
-        FROM electoral_log_messages
-        {clauses}
-        "#,
-    );
-    info!("query: {sql}");
-    let sql_query_response = client.streaming_sql_query(&sql, params).await?;
-
-    let limit: usize = input.limit.unwrap_or(IMMUDB_ROWS_LIMIT as i64).try_into()?;
-    info!("list_electoral_log: limit = {}", limit);
-    let mut rows: Vec<ElectoralLogRow> = Vec::with_capacity(limit);
-    let mut resp_stream = sql_query_response.into_inner();
-    while let Some(streaming_batch) = resp_stream.next().await {
-        let items = streaming_batch?
-            .rows
-            .iter()
-            .map(ElectoralLogRow::try_from)
-            .collect::<Result<Vec<ElectoralLogRow>>>()?;
-        rows.extend(items);
-    }
-
-    let sql = format!(
-        r#"
-        SELECT
-            COUNT(*)
-        FROM electoral_log_messages
-        {clauses_to_count}
-        "#,
-    );
-    let sql_query_response = client.sql_query(&sql, count_params).await?;
-    let mut rows_iter = sql_query_response
-        .get_ref()
-        .rows
-        .iter()
-        .map(Aggregate::try_from);
-
-    let aggregate = rows_iter
-        // get the first item
-        .next()
-        // unwrap the Result and Option
-        .ok_or(anyhow!("No aggregate found"))??;
-
-    client.close_session().await?;
+    let client = get_board_client().await?;
+    let slug = std::env::var("ENV_SLUG").context("missing env var ENV_SLUG")?;
+    let board = get_event_board(&input.tenant_id, &input.election_event_id, &slug);
+    let query = input.as_query()?;
+    let items = client
+        .query(&board, &query)
+        .await?
+        .into_iter()
+        .map(ElectoralLogRow::try_from)
+        .collect::<Result<Vec<_>>>()?;
+    let count = client.count(&board, &query).await?;
     Ok(DataList {
-        items: rows,
+        items,
         total: TotalAggregate {
-            aggregate: aggregate,
+            aggregate: Aggregate { count },
         },
     })
 }
@@ -2262,6 +2165,7 @@ pub async fn list_cast_vote_messages(
         ballot_id_filter.chars().count() % 2 == 0 && ballot_id_filter.is_ascii(),
         "Incorrect ballot_id, the length must be an even number of characters"
     );
+    check_cast_vote_order_by(input.order_by.as_ref())?;
     // The limits are used to cut the output after filtering the ballot id.
     // Because ballot_id cannot be filtered at SQL level the sql limit is constant
     let output_limit: i64 = input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64);
@@ -2276,7 +2180,7 @@ pub async fn list_cast_vote_messages(
     let election_id = input.election_id.clone().unwrap_or_default();
 
     let limit: i64 = match ballot_id_filter.is_empty() {
-        false => IMMUDB_ROWS_LIMIT as i64, // When there is a filter, need to fetch all entries by batches.
+        false => ELECTORAL_LOG_ROWS_LIMIT as i64, // When there is a filter, need to fetch all entries by batches.
         true => input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64),
     };
     let mut offset: i64 = input.offset.unwrap_or(0);
@@ -2307,18 +2211,9 @@ pub async fn list_cast_vote_messages(
         let t_entries = electoral_log_messages.len();
         info!("Got {t_entries} entries. Offset: {offset}, limit: {limit}, total: {total}");
         for message in electoral_log_messages.iter() {
-            match CastVoteEntry::from_elog_message(&message, user_id)? {
-                Some(entry) if !ballot_id_filter.is_empty() => {
-                    // If there is filter exit at the first match
-                    filter_matched = true;
-                    list.push(entry);
-                }
-                Some(entry) => {
-                    // Add all the entries till the limit, when there is no filter
-                    list.push(entry);
-                }
-                None => {}
-            }
+            list.push(CastVoteEntry::from_elog_message(message));
+            // If there is a filter, exit at the first match
+            filter_matched = !ballot_id_filter.is_empty();
             if (list.len() as i64) >= output_limit || filter_matched {
                 break;
             }
@@ -2331,41 +2226,12 @@ pub async fn list_cast_vote_messages(
 
 #[instrument(err)]
 pub async fn count_electoral_log(input: GetElectoralLogBody) -> Result<i64> {
-    let mut client = get_immudb_client().await?;
-    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-    let board_name = get_event_board(
-        input.tenant_id.as_str(),
-        input.election_event_id.as_str(),
-        &slug,
-    );
-
-    info!("board name: {board_name}");
-    client.open_session(&board_name).await?;
-
-    let (clauses_to_count, count_params) = input.as_sql(true)?;
-    let sql = format!(
-        r#"
-        SELECT COUNT(*)
-        FROM electoral_log_messages
-        {clauses_to_count}
-        "#,
-    );
-
-    info!("query: {sql}");
-
-    let sql_query_response = client.sql_query(&sql, count_params).await?;
-
-    let mut rows_iter = sql_query_response
-        .get_ref()
-        .rows
-        .iter()
-        .map(Aggregate::try_from);
-    let aggregate = rows_iter
-        .next()
-        .ok_or_else(|| anyhow!("No aggregate found"))??;
-
-    client.close_session().await?;
-    Ok(aggregate.count as i64)
+    let slug = std::env::var("ENV_SLUG").context("missing env var ENV_SLUG")?;
+    let board = get_event_board(&input.tenant_id, &input.election_event_id, &slug);
+    get_board_client()
+        .await?
+        .count(&board, &input.as_query()?)
+        .await
 }
 
 #[cfg(test)]
@@ -2444,6 +2310,7 @@ mod password_change_tests {
     fn prepared_password_change_log_round_trips_for_durable_task_annotations() {
         let prepared = PreparedVoterPasswordChangeLog {
             board: "event-board".to_string(),
+            delivery_id: "delivery-id".to_string(),
             message: prepared_message(),
         };
 
@@ -2451,18 +2318,6 @@ mod password_change_tests {
         let restored: PreparedVoterPasswordChangeLog = serde_json::from_value(serialized).unwrap();
 
         assert_eq!(restored, prepared);
-    }
-
-    #[test]
-    fn duplicate_detection_ignores_immudb_row_id_but_compares_signed_message() {
-        let prepared = prepared_message();
-        let mut inserted = prepared.clone();
-        inserted.id = 42;
-
-        assert!(same_electoral_log_message(&inserted, &prepared));
-
-        inserted.message.push(5);
-        assert!(!same_electoral_log_message(&inserted, &prepared));
     }
 }
 
@@ -2507,34 +2362,122 @@ mod voter_secret_attribute_audit_tests {
 }
 
 #[cfg(test)]
+mod postgres_wiring_tests {
+    use super::*;
+
+    #[tokio::test]
+    #[ignore = "requires a disposable ELECTORAL_LOG_PG_* database and ENV_SLUG"]
+    async fn prepared_append_list_count_and_delete_use_the_postgres_store() -> Result<()> {
+        let tenant = Uuid::new_v4().to_string();
+        let event = Uuid::new_v4().to_string();
+        let slug = std::env::var("ENV_SLUG")?;
+        let board = get_event_board(&tenant, &event, &slug);
+        let databases = crate::services::protocol_manager::get_event_databases().await?;
+        databases.create_event(&tenant, &event).await?;
+        let client = get_board_client().await?;
+        client.create_board(&board).await?;
+        let key = StrandSignatureSk::generate()?;
+        let log = ElectoralLog::for_system_with_signing_key(&board, &key);
+        let message = log.build_keycloak_event_message(
+            event.clone(),
+            "LOGIN".into(),
+            "ok".into(),
+            Some("user".into()),
+            Some("username".into()),
+            None,
+        )?;
+        let prepared = PreparedVoterPasswordChangeLog {
+            board: board.clone(),
+            delivery_id: Uuid::new_v4().to_string(),
+            message: message.clone(),
+        };
+        prepared.post().await?;
+        prepared.post().await?;
+        let input = GetElectoralLogBody {
+            tenant_id: tenant.clone(),
+            election_event_id: event.clone(),
+            ..Default::default()
+        };
+        assert_eq!(count_electoral_log(input.clone()).await?, 1);
+        let page = list_electoral_log(input.clone()).await?;
+        assert_eq!(page.total.aggregate.count, 1);
+        assert_eq!(page.items.len(), 1);
+        assert_eq!(
+            general_purpose::STANDARD_NO_PAD.decode(&page.items[0].data)?,
+            message.message
+        );
+        let mut other = input.clone();
+        other.tenant_id = Uuid::new_v4().to_string();
+        assert_eq!(count_electoral_log(other).await?, 0);
+        let store = databases.store(&event).await?;
+        let checkpoint = store.journal().checkpoint(&board).await?;
+        assert_eq!(checkpoint.tree_size, 1);
+        let report = store.audit(&board, &[checkpoint]).await?;
+        assert!(report.is_clean(), "{:?}", report.findings());
+        client.delete_board(&board).await?;
+        assert_eq!(count_electoral_log(input).await?, 0);
+        databases.drop_event(&tenant, &event).await?;
+        assert!(!databases.has_event(&event).await?);
+        Ok(())
+    }
+}
+
+#[cfg(test)]
 mod cast_vote_entry_tests {
     use super::*;
 
-    fn entry() -> CastVoteEntry {
-        CastVoteEntry {
-            statement_timestamp: 1_841_000_000,
+    fn cast_vote_record() -> ElectoralLogMessage {
+        ElectoralLogMessage {
+            id: 7,
+            created: 1_785_700_000,
+            sender_pk: "sender-public-key".to_string(),
+            statement_timestamp: 1_785_700_001,
             statement_kind: StatementType::CastVote.to_string(),
-            ballot_id: "0abc12".to_string(),
-            username: Some("voter-one".to_string()),
-            message: Some("{\"ip\":\"203.0.113.7\"}".to_string()),
+            message: vec![1, 2, 3, 4],
+            version: "1".to_string(),
+            user_id: Some("voter-id".to_string()),
+            username: Some("voter-user".to_string()),
+            election_id: Some("election-id".to_string()),
+            area_id: Some("area-id".to_string()),
+            ballot_id: Some("abcd".to_string()),
         }
     }
 
     #[test]
-    fn a_voter_sees_their_own_entry_in_full() {
-        let shown = entry().shown_to(Some("voter-one-id"), "voter-one-id");
-        assert_eq!(shown.username.as_deref(), Some("voter-one"));
-        assert!(shown.message.is_some());
+    fn voters_receive_only_the_ballot_id_timestamp_and_kind() {
+        let entry = CastVoteEntry::from_elog_message(&cast_vote_record());
+
+        assert_eq!(
+            serde_json::to_value(&entry).unwrap(),
+            serde_json::json!({
+                "statement_timestamp": 1_785_700_001,
+                "statement_kind": "CastVote",
+                "ballot_id": "abcd",
+            })
+        );
     }
 
     #[test]
-    fn another_voters_entry_keeps_only_what_does_not_identify_them() {
-        for entry_user_id in [Some("voter-one-id"), Some(""), None] {
-            let shown = entry().shown_to(entry_user_id, "voter-two-id");
-            assert_eq!(shown.username, None);
-            assert_eq!(shown.message, None);
-            assert_eq!(shown.ballot_id, "0abc12");
-            assert_eq!(shown.statement_timestamp, 1_841_000_000);
+    fn voters_can_sort_only_by_fields_they_see() {
+        assert!(check_cast_vote_order_by(None).is_ok());
+        for field in CAST_VOTE_ORDER_FIELDS {
+            let order_by = HashMap::from([(field, OrderDirection::Desc)]);
+            assert!(check_cast_vote_order_by(Some(&order_by)).is_ok());
+        }
+
+        for field in [
+            OrderField::Username,
+            OrderField::UserId,
+            OrderField::Message,
+        ] {
+            let order_by = HashMap::from([
+                (OrderField::Id, OrderDirection::Desc),
+                (field.clone(), OrderDirection::Asc),
+            ]);
+            let error = check_cast_vote_order_by(Some(&order_by))
+                .unwrap_err()
+                .to_string();
+            assert!(error.contains(&field.to_string()), "{error}");
         }
     }
 }
@@ -2616,6 +2559,7 @@ mod election_published_tests {
 #[cfg(test)]
 mod range_filter_tests {
     use super::*;
+    use electoral_log::domain::{OrderColumn, SortDirection};
 
     fn ts(rfc3339: &str) -> i64 {
         ISO8601::to_date_utc(rfc3339).unwrap().timestamp()
@@ -2635,15 +2579,26 @@ mod range_filter_tests {
         }
     }
 
-    fn param(params: &[NamedParam], name: &str) -> i64 {
-        let found = params
-            .iter()
-            .find(|param| param.name == name)
-            .unwrap_or_else(|| panic!("no parameter {name}"));
-        match found.value.as_ref().and_then(|value| value.value.as_ref()) {
-            Some(Value::Ts(ts)) => *ts,
-            other => panic!("{name} isn't a timestamp: {other:?}"),
-        }
+    /// The time filters of the body's query, as (column, comparison, value).
+    fn time_filters(body: &GetElectoralLogBody) -> Vec<(String, String, i64)> {
+        let mut filters: Vec<_> = body
+            .as_query_within(&PgConfig::default())
+            .unwrap()
+            .filters
+            .into_iter()
+            .filter_map(|filter| match filter {
+                Filter::Number(column, comparison, value) => {
+                    Some((column.to_string(), comparison.to_string(), value))
+                }
+                Filter::Text(..) => None,
+            })
+            .collect();
+        filters.sort();
+        filters
+    }
+
+    fn filter(column: &str, comparison: &str, value: i64) -> (String, String, i64) {
+        (column.to_string(), comparison.to_string(), value)
     }
 
     /// Two configurations: the wall times are entered in the chosen zone
@@ -2681,32 +2636,34 @@ mod range_filter_tests {
         assert!(range.contains(i64::MAX));
         assert!(!range.contains(ts("2028-04-08T10:14:59Z")));
         assert!(MinuteRange::parse(None, Some(" ")).unwrap().is_unbounded());
+        assert_eq!(
+            MinuteRange::parse(None, Some(" "))
+                .unwrap()
+                .filters(NumberColumn::Created)
+                .count(),
+            0
+        );
     }
 
     #[test]
     fn the_list_filters_created_from_and_to_inclusive_to_the_minute() {
-        let (sql, params) = body(&[
+        let filters = time_filters(&body(&[
             (OrderField::CreatedFrom, "2028-04-08T00:00:00+08:00"),
             (OrderField::CreatedTo, "2028-04-09T23:59:00+08:00"),
-        ])
-        .as_sql(true)
-        .unwrap();
+        ]));
 
-        assert!(sql.contains("created >= @param_created_from"), "{sql}");
-        assert!(sql.contains("created < @param_created_to"), "{sql}");
         assert_eq!(
-            param(&params, "param_created_from"),
-            ts("2028-04-07T16:00:00Z")
-        );
-        assert_eq!(
-            param(&params, "param_created_to"),
-            ts("2028-04-09T16:00:00Z")
+            filters,
+            vec![
+                filter("created", "<", ts("2028-04-09T16:00:00Z")),
+                filter("created", ">=", ts("2028-04-07T16:00:00Z")),
+            ]
         );
     }
 
     #[test]
     fn the_list_filters_the_statement_timestamp_range() {
-        let (sql, params) = body(&[
+        let filters = time_filters(&body(&[
             (
                 OrderField::StatementTimestampFrom,
                 "2028-04-08T09:30:00-04:00",
@@ -2715,39 +2672,34 @@ mod range_filter_tests {
                 OrderField::StatementTimestampTo,
                 "2028-04-08T09:30:00-04:00",
             ),
-        ])
-        .as_sql(true)
-        .unwrap();
+        ]));
 
-        assert!(
-            sql.contains("statement_timestamp >= @param_statement_timestamp_from"),
-            "{sql}"
-        );
-        assert!(
-            sql.contains("statement_timestamp < @param_statement_timestamp_to"),
-            "{sql}"
-        );
+        let start = ts("2028-04-08T13:30:00Z");
         assert_eq!(
-            param(&params, "param_statement_timestamp_to")
-                - param(&params, "param_statement_timestamp_from"),
-            60
+            filters,
+            vec![
+                filter("statement_timestamp", "<", start + 60),
+                filter("statement_timestamp", ">=", start),
+            ]
         );
     }
 
     #[test]
     fn a_single_value_still_means_its_minute() {
-        let (sql, params) = body(&[(OrderField::Created, "2028-04-08T10:15:42Z")])
-            .as_sql(true)
-            .unwrap();
-        assert!(
-            sql.contains("created >= @param_created AND created < @param_created_end"),
-            "{sql}"
-        );
-        assert_eq!(param(&params, "param_created"), ts("2028-04-08T10:15:00Z"));
+        let filters = time_filters(&body(&[(OrderField::Created, "2028-04-08T10:15:42Z")]));
         assert_eq!(
-            param(&params, "param_created_end"),
-            ts("2028-04-08T10:16:00Z")
+            filters,
+            vec![
+                filter("created", "<", ts("2028-04-08T10:16:00Z")),
+                filter("created", ">=", ts("2028-04-08T10:15:00Z")),
+            ]
         );
+    }
+
+    #[test]
+    fn an_unreadable_bound_is_refused() {
+        let body = body(&[(OrderField::CreatedFrom, "yesterday")]);
+        assert!(body.as_query_within(&PgConfig::default()).is_err());
     }
 
     #[test]
@@ -2756,11 +2708,168 @@ mod range_filter_tests {
             "tenant_id": "tenant",
             "election_event_id": "event",
             "filter": {"created_from": "2028-04-08T00:00:00+08:00"},
-            "order_by": {"created_from": "desc"},
+            "order_by": {"created_from": "desc", "statement_timestamp_to": "asc"},
         }))
         .unwrap();
-        let (sql, _) = body.as_sql(true).unwrap();
-        assert!(sql.contains("created >= @param_created_from"), "{sql}");
-        assert_eq!(body.order_by_clause(), None);
+        assert_eq!(
+            time_filters(&body),
+            vec![filter("created", ">=", ts("2028-04-07T16:00:00Z"))]
+        );
+        let query = body.as_query_within(&PgConfig::default()).unwrap();
+        assert_eq!(
+            format!("{:?}", query.order),
+            format!("{:?}", LogQuery::default().order)
+        );
+    }
+
+    #[test]
+    fn a_range_key_in_the_sort_is_left_out() {
+        let body: GetElectoralLogBody = serde_json::from_value(serde_json::json!({
+            "tenant_id": "tenant",
+            "election_event_id": "event",
+            "order_by": {"created_to": "desc", "created": "asc"},
+        }))
+        .unwrap();
+        let query = body.as_query_within(&PgConfig::default()).unwrap();
+        assert_eq!(
+            format!("{:?}", query.order),
+            format!("{:?}", vec![(OrderColumn::Created, SortDirection::Asc)])
+        );
+    }
+}
+
+#[cfg(test)]
+mod csv_import_tests {
+    use super::*;
+    use strand::serialization::StrandSerialize;
+
+    fn row(message: &Message, statement_kind: &str) -> ElectoralLogRow {
+        ElectoralLogRow {
+            id: 12,
+            created: 1_841_000_123,
+            statement_timestamp: message.statement.head.timestamp as i64,
+            statement_kind: statement_kind.to_string(),
+            message: String::new(),
+            data: general_purpose::STANDARD_NO_PAD.encode(message.strand_serialize().unwrap()),
+            user_id: None,
+            username: None,
+        }
+    }
+
+    fn checkpoint_message() -> Message {
+        let key = StrandSignatureSk::generate().unwrap();
+        let log = ElectoralLog::for_system_with_signing_key("board", &key);
+        Message::electoral_log_checkpoint_message(
+            EventIdString("event".to_string()),
+            ElectoralLogCheckpointV2 {
+                log_uid: Uuid::new_v4().hyphenated().to_string(),
+                tree_size: 4,
+                root: "ab".repeat(32),
+                reason: ElectoralLogCheckpointReason::Periodic,
+            },
+            &log.sd,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn a_row_keeps_its_signed_bytes_and_creation_time() {
+        let message = checkpoint_message();
+        let entry = csv_log_entry(row(&message, "ElectoralLogCheckpoint")).unwrap();
+        assert_eq!(entry.message.statement_kind, "ElectoralLogCheckpoint");
+        assert_eq!(entry.message.created, 1_841_000_123);
+        assert_eq!(entry.message.message, message.strand_serialize().unwrap());
+        assert!(!entry.delivery_id.is_empty());
+    }
+
+    /// An export written when the monitoring, signing and later statements
+    /// came straight after `ExternalReconciliation`: its rows name the
+    /// statement they held, which their messages no longer read as.
+    #[test]
+    fn a_row_numbered_by_another_release_is_refused() {
+        let message = checkpoint_message();
+        let error = csv_log_entry(row(&message, "SigningRequestCreated"))
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("SigningRequestCreated"), "{error}");
+        assert!(error.contains("ElectoralLogCheckpoint"), "{error}");
+    }
+
+    #[test]
+    fn a_row_whose_message_does_not_read_is_refused() {
+        let mut row = row(&checkpoint_message(), "ElectoralLogCheckpoint");
+        row.data = general_purpose::STANDARD_NO_PAD.encode([30u8, 1, 2, 3]);
+        assert!(csv_log_entry(row).is_err());
+    }
+}
+
+#[cfg(test)]
+mod delivery_id_tests {
+    use super::*;
+
+    fn monitoring_change(
+        generation: u64,
+        mode: MonitoringDashboardMode,
+    ) -> MonitoringConfigChangeDetails {
+        MonitoringConfigChangeDetails {
+            origin: MonitoringConfigOrigin::Editor,
+            preset: None,
+            mode,
+            generation,
+            revisions: vec![],
+        }
+    }
+
+    #[test]
+    fn each_writer_names_what_it_records() {
+        assert_eq!(
+            approval_matrix_delivery_id(3, &"ab".repeat(32)),
+            format!("approval-matrix:3:{}", "ab".repeat(32))
+        );
+        let package = ConfigurationPackageDetails {
+            action: ConfigurationPackageAction::Imported,
+            external_id: "ov-2028".to_string(),
+            revision: 4,
+            manifest_sha256: "cd".repeat(32),
+            design_digests: vec![],
+        };
+        assert_eq!(
+            configuration_package_delivery_id(&package),
+            format!("configuration-package:ov-2028:4:{}", "cd".repeat(32))
+        );
+        let report = ReportGeneratedDetails {
+            report_type: "ACTIVITY_LOGS".to_string(),
+            document_id: None,
+            report_manifest_sha256: "ef".repeat(32),
+            external_id: "ov-2028".to_string(),
+            revision: 4,
+            manifest_sha256: "cd".repeat(32),
+        };
+        assert_eq!(
+            report_generated_delivery_id(&report),
+            format!("report-generated:{}", "ef".repeat(32))
+        );
+    }
+
+    #[test]
+    fn a_monitoring_change_is_named_by_its_generation_and_content() {
+        let saved = monitoring_delivery(7, MonitoringDashboardMode::Configured);
+        assert!(saved.starts_with("monitoring-config:7:"), "{saved}");
+        assert_eq!(
+            saved,
+            monitoring_delivery(7, MonitoringDashboardMode::Configured)
+        );
+        assert_ne!(
+            saved,
+            monitoring_delivery(7, MonitoringDashboardMode::Legacy)
+        );
+        assert_ne!(
+            saved,
+            monitoring_delivery(8, MonitoringDashboardMode::Configured)
+        );
+    }
+
+    fn monitoring_delivery(generation: u64, mode: MonitoringDashboardMode) -> String {
+        monitoring_config_delivery_id(&monitoring_change(generation, mode)).unwrap()
     }
 }

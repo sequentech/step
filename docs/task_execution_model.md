@@ -32,7 +32,7 @@ allows the execution of longer, more resource-intensive tasks in an asychronous
 fashion.
 
 Example: Creation of an Election Event. It requires the creation of an 
-ImmuBoard (meaning the creation of an Immudb Database) and this is resource 
+electoral-log board and a B3 bulletin board, and this is resource
 intensive enough that it requires the execution in a background task worker 
 (a Windmill worker).
 

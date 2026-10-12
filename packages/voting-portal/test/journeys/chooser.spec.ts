@@ -135,7 +135,7 @@ test("no eligible elections explains the empty chooser", async ({page, portal}) 
                 status: portal.data.event.status,
                 files: [],
             },
-            sequent_backend_cast_vote: [],
+            cast_votes: [],
         },
     }))
     await page.goto(`${portal.origin}${eventPath}?lang=en`)
@@ -190,7 +190,7 @@ for (const finalStatus of ["valid", "discarded"]) {
         }
         portal.castVotes = [vote]
         portal.graphql.on("GetCastVotes", () => ({
-            data: {sequent_backend_cast_vote: portal.castVotes},
+            data: {cast_votes: portal.castVotes},
         }))
         portal.publish()
         await page.goto(`${portal.origin}${eventPath}?lang=en`)

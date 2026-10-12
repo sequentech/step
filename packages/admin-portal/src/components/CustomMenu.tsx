@@ -15,6 +15,7 @@ import GroupIcon from "@mui/icons-material/Group"
 import SettingsIcon from "@mui/icons-material/Settings"
 import HelpIcon from "@mui/icons-material/Help"
 import MailIcon from "@mui/icons-material/Mail"
+import ReceiptLongIcon from "@mui/icons-material/ReceiptLong"
 import {TenantContext} from "@/providers/TenantContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -138,6 +139,11 @@ export const CustomMenu = () => {
         authContext.tenantId,
         IPermissions.TEMPLATES_MENU
     )
+    const showElectoralLog = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.ELECTORAL_LOG_CONSOLE_READ
+    )
 
     const openInNewTab = (url: string) => {
         setAnchorEl(null)
@@ -186,6 +192,15 @@ export const CustomMenu = () => {
                             to="/user-roles"
                             primaryText={open ? t("sideMenu.usersAndRoles") : null}
                             leftIcon={<GroupIcon sx={{color: adminTheme.palette.brandColor}} />}
+                        />
+                    )}
+                    {tenant && showElectoralLog && (
+                        <StyledItem
+                            to="/electoral-log-console"
+                            primaryText={open ? t("sideMenu.electoralLogConsole") : null}
+                            leftIcon={
+                                <ReceiptLongIcon sx={{color: adminTheme.palette.brandColor}} />
+                            }
                         />
                     )}
                     {tenant && showSettings && (

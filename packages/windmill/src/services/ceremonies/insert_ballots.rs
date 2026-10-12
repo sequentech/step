@@ -3,11 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // use crate::hasura::trustee::get_trustees_by_name;
 use crate::postgres::area::get_event_areas;
-use crate::postgres::cast_vote::count_unresolved_cast_votes;
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::trustee::get_trustees_by_name;
-use crate::services::cast_votes::{find_area_ballots, CastVote};
+use crate::services::ballot_box_reads::count_unresolved_votes;
+use crate::services::cast_votes::find_area_ballots;
 use crate::services::celery_app::get_worker_threads;
 use crate::services::ceremonies::sealed_box_ballots::{
     check_sealed_boxes_tallied, sealed_box_ballots, sealed_elections, SealedBox, SealedBoxLog,
@@ -323,7 +323,7 @@ pub async fn insert_ballots_messages(
                         .with_context(|| "Error parsing election_id")?;
                     let area_uuid = parse_uuid_v4(&tally_session_contest.area_id)
                         .with_context(|| "Error parsing area_id")?;
-                    let unresolved_count = count_unresolved_cast_votes(
+                    let unresolved_count = count_unresolved_votes(
                         &hasura_transaction_clone,
                         &tenant_uuid,
                         &election_event_uuid,

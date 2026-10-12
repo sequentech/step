@@ -290,11 +290,16 @@ where
     ) -> Result<bool> {
         let cast_vote_id = Uuid::parse_str(&cast_vote.id)
             .map_err(|err| format!("Invalid cast_vote_id in stored row: {err}"))?;
+        let voter_id = cast_vote
+            .voter_id_string
+            .as_deref()
+            .ok_or("Voter id not found")?;
         let changed = self
             .votes
             .compare_and_set(
                 &cast_vote.tenant_id,
                 &cast_vote.election_event_id,
+                voter_id,
                 &cast_vote_id,
                 expected,
                 next,
@@ -309,7 +314,7 @@ where
 
     /// Promotes an in-progress vote and then records the Internet channel. A
     /// Keycloak failure is traced and left for the reconciliation process; it
-    /// does not roll back the terminal Hasura status.
+    /// does not roll back the vote's terminal status.
     #[instrument(skip(self, cast_vote), fields(cast_vote_id = %cast_vote.id), err)]
     async fn transition_cast_vote_and_mark_internet(
         &self,

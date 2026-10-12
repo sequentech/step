@@ -136,14 +136,14 @@ class BackendJourneys(unittest.TestCase):
         )["sequent_backend_tasks_execution"]
 
     def voter_votes(self, username):
-        user = self.keycloak.user(event_realm(self.state.event_id), username)
-        return self.admin.query(
-            """query ($event: uuid!, $voter: String!) {
-              sequent_backend_cast_vote(where: {election_event_id: {_eq: $event}, voter_id_string: {_eq: $voter}},
-                                        order_by: {created_at: asc}) { area_id election_id status }
+        """The voter's own cast votes in the event's ballot box, in the order cast."""
+        token = self.state.portal.login(username)
+        return Hasura(token=token).query(
+            """query ($event: String!) {
+              get_voter_cast_votes(election_event_id: $event) { area_id election_id status }
             }""",
-            {"event": self.state.event_id, "voter": user["id"]},
-        )["sequent_backend_cast_vote"]
+            {"event": self.state.event_id},
+        )["get_voter_cast_votes"]
 
     def vote(self, voter, candidate, token=None):
         """Cast as `voter` from its own session; returns (receipt, errors)."""
@@ -511,7 +511,7 @@ class BackendJourneys(unittest.TestCase):
         for spec in fixtures.AREAS:
             token = self.state.portal.login(self.state.voters[spec.key][0])
             status = self.state.portal.status(token)
-            self.assertEqual(status["sequent_backend_cast_vote"], [])
+            self.assertEqual(status["cast_votes"], [])
             files = status["get_ballot_files_urls"]["files"]
             election_id = self.state.elections[spec.election]
             self.assertEqual(
@@ -613,7 +613,7 @@ class BackendJourneys(unittest.TestCase):
             "InsertFailedExceedsAllowedRevotes",
             "InsertFailedExceedsAllowedRevotes",
         )
-        own = self.state.portal.status(token)["sequent_backend_cast_vote"]
+        own = self.state.portal.status(token)["cast_votes"]
         self.assertEqual(len(own), fixtures.MAIN_ALLOWED_VOTES)
 
         # A voter who voted in area A cannot vote in the same election from area B.
@@ -636,7 +636,7 @@ class BackendJourneys(unittest.TestCase):
         self.assert_rejected(
             self.vote(a2, "Dave", token)[1],
             "CheckVotesInOtherAreasFailed",
-            "Cannot insert cast vote, votes already present in other area(s)",
+            "The voter already voted in another area",
         )
         # The tally only counts voters in the area of their ballot; move a2 back.
         self.step(

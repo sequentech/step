@@ -13,11 +13,15 @@ use sequent_core::monitoring::cadence::{Cadence, SNAPSHOT_INTERVAL_ENV, VOTER_FU
 use sequent_core::util::init_log::init_log;
 use tokio::time::Duration;
 use windmill::services::celery_app::{set_is_app_active, Queue};
+use windmill::services::electoral_log_audit::{
+    checkpoint_interval_secs, DEFAULT_CHECKPOINT_INTERVAL_SECS,
+};
 use windmill::services::monitoring::cadence;
 use windmill::services::probe::{setup_probe, AppName};
 use windmill::tasks::electoral_log::electoral_log_batch_dispatcher;
 use windmill::tasks::migrate_realm_permissions::{migrate_realm_permissions, RunOnce};
 use windmill::tasks::migrate_registration_flows::migrate_registration_flows;
+use windmill::tasks::publish_electoral_log_checkpoint::publish_periodic_electoral_log_checkpoints;
 use windmill::tasks::recompute_schedule_instants::{
     recompute_schedule_instants, RECOMPUTE_INTERVAL_SECONDS,
 };
@@ -31,6 +35,7 @@ use windmill::tasks::review_cast_votes::review_cast_votes;
 use windmill::tasks::scheduled_events::scheduled_events;
 use windmill::tasks::scheduled_reports::scheduled_reports;
 use windmill::tasks::seal_ballot_boxes::{seal_ballot_boxes, SEAL_BALLOT_BOXES_INTERVAL_SECONDS};
+use windmill::tasks::sequence_ballot_box::schedule_ballot_box_sequencers;
 use windmill::tasks::signing_log_outbox::post_signing_log_outbox;
 use windmill::tasks::signing_requests::{
     expire_signing_requests, sweep_signing_executions, SIGNING_JOBS_INTERVAL_SECONDS,
@@ -62,6 +67,9 @@ struct CeleryOpt {
     /// Seconds between two refreshes of the staff issuers' revocation lists.
     #[arg(long, env = "STAFF_CRL_INTERVAL", default_value = "3600")]
     staff_crl_interval: u64,
+    /// Seconds between scans for ballots waiting for the sequencer.
+    #[arg(short = 'b', long, default_value = "2")]
+    ballot_box_interval: u64,
 }
 
 #[tokio::main]
@@ -75,6 +83,9 @@ async fn main() -> Result<()> {
         std::env::var(VOTER_FULL_PASS_ENV).ok().as_deref(),
     );
     cadence::log(&monitoring_cadence);
+
+    // Refuse to start on an invalid interval; the schedule below cannot return errors.
+    checkpoint_interval_secs()?;
 
     let mut beat = celery::beat!(
         broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into()) },
@@ -139,6 +150,18 @@ async fn main() -> Result<()> {
                 schedule = DeltaSchedule::new(Duration::from_secs(SEAL_BALLOT_BOXES_INTERVAL_SECONDS)),
                 args = (),
             },
+            schedule_ballot_box_sequencers::NAME => {
+                schedule_ballot_box_sequencers,
+                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().ballot_box_interval)),
+                args = (),
+            },
+            publish_periodic_electoral_log_checkpoints::NAME => {
+                publish_periodic_electoral_log_checkpoints,
+                schedule = DeltaSchedule::new(Duration::from_secs(
+                    checkpoint_interval_secs().unwrap_or(DEFAULT_CHECKPOINT_INTERVAL_SECS),
+                )),
+                args = (),
+            },
         ],
         task_routes = [
             review_boards::NAME => &Queue::Beat.queue_name(&slug),
@@ -156,6 +179,8 @@ async fn main() -> Result<()> {
             recompute_schedule_instants::NAME => &Queue::Beat.queue_name(&slug),
             reconcile_messages::NAME => &Queue::Communication.queue_name(&slug),
             seal_ballot_boxes::NAME => &Queue::Beat.queue_name(&slug),
+            publish_periodic_electoral_log_checkpoints::NAME => &Queue::Beat.queue_name(&slug),
+            schedule_ballot_box_sequencers::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
         ],
     ).await?;
     // Scheduled outside the macro, which cannot give a message its expiry.

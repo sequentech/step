@@ -61,8 +61,6 @@
         "data-connector-agent",
         "graphql-engine",
         "rabbitmq",
-        "immudb",
-        "immudb-init",
         "keycloak",
         "keycloak-nginx",
         "harvest",
@@ -92,8 +90,6 @@
         "data-connector-agent",
         "graphql-engine",
         "rabbitmq",
-        "immudb",
-        "immudb-init",
         "keycloak",
         "keycloak-nginx",
         "harvest",
@@ -197,10 +193,6 @@
       "readyWhen": "exited"
     },
     {
-      "name": "immudb-init",
-      "readyWhen": "exited"
-    },
-    {
       "name": "keycloak",
       "url": "http://127.0.0.1:8090",
       "probe": [
@@ -217,10 +209,6 @@
     {
       "name": "minio",
       "url": "http://127.0.0.1:9001"
-    },
-    {
-      "name": "immudb",
-      "url": "http://127.0.0.1:3325"
     },
     {
       "name": "rabbitmq",

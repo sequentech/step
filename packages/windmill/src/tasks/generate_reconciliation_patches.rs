@@ -27,9 +27,9 @@
 //! a 100k+-row reconciliation run otherwise would.
 
 use crate::postgres::area::get_event_areas;
-use crate::postgres::cast_vote::get_voter_cast_vote_states_for_event;
 use crate::postgres::document::get_document;
 use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
+use crate::services::ballot_box::get_voter_ballot_states;
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::documents::{get_document_as_temp_file, upload_and_return_document};
@@ -200,7 +200,7 @@ async fn run_generate_reconciliation_patches(
     .filter_map(|area| area.name.map(|name| (area.id, name)))
     .collect();
 
-    let voter_cast_vote_states = get_voter_cast_vote_states_for_event(
+    let voter_cast_vote_states = get_voter_ballot_states(
         &hasura_transaction,
         &body.tenant_id,
         &body.election_event_id,
@@ -309,8 +309,8 @@ async fn run_generate_reconciliation_patches(
         .map_err(|err| format!("Error fetching voter snapshots for a file batch: {err:?}"))?;
         for snapshot in snapshots.iter_mut() {
             if let Some(state) = voter_cast_vote_states.get(&snapshot.voter_id.to_string()) {
-                snapshot.has_valid_internet_vote = state.has_valid_vote;
-                snapshot.has_unresolved_internet_vote = state.has_unresolved_vote;
+                snapshot.has_valid_internet_vote = state.has_valid;
+                snapshot.has_unresolved_internet_vote = state.has_pending;
             }
         }
         let snapshots_by_username: HashMap<String, VoterSnapshot> = snapshots
@@ -354,8 +354,8 @@ async fn run_generate_reconciliation_patches(
         }
         for snapshot in page.iter_mut() {
             if let Some(state) = voter_cast_vote_states.get(&snapshot.voter_id.to_string()) {
-                snapshot.has_valid_internet_vote = state.has_valid_vote;
-                snapshot.has_unresolved_internet_vote = state.has_unresolved_vote;
+                snapshot.has_valid_internet_vote = state.has_valid;
+                snapshot.has_unresolved_internet_vote = state.has_pending;
             }
         }
         after_username = page.last().map(|snapshot| snapshot.username.clone());

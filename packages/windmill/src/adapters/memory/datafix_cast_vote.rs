@@ -59,7 +59,7 @@ impl VotesState {
 }
 
 /// Cast votes in memory. `has_valid_vote` and `compare_and_set` follow the
-/// queries in `crate::postgres::cast_vote`.
+/// ballot box's `voter_ballot_state` and `set_ballot_status`.
 #[derive(Default)]
 pub struct InMemoryDatafixVotes(Mutex<VotesState>);
 
@@ -154,6 +154,7 @@ impl DatafixVotes for InMemoryDatafixVotes {
         &self,
         tenant_id: &str,
         election_event_id: &str,
+        voter_id: &str,
         cast_vote_id: &Uuid,
         expected: CastVoteStatus,
         next: CastVoteStatus,
@@ -171,6 +172,7 @@ impl DatafixVotes for InMemoryDatafixVotes {
             vote.id == id
                 && vote.tenant_id == tenant_id
                 && vote.election_event_id == election_event_id
+                && vote.voter_id_string.as_deref() == Some(voter_id)
                 && vote.status == expected
         });
         match vote {

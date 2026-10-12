@@ -60,6 +60,9 @@ pub enum ErrorCode {
     InvalidOrderBy,
     /// The document's row, or its stored file, is gone (fetchDocument).
     DocumentNotFound,
+    InvalidCastVoteOrder,
+    InvalidElectoralLogConsoleRequest,
+    ElectoralLogRecordNotFound,
     // Add any other needed error codes
 }
 

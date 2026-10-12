@@ -416,6 +416,38 @@ impl StatementHead {
                     ..default_head
                 }
             }
+            StatementBody::ElectoralLogCheckpoint(details) => {
+                let reason = checkpoint_reason_description(details.reason);
+                StatementHead {
+                    kind: StatementType::ElectoralLogCheckpoint,
+                    description: format!(
+                        "Electoral log checkpoint published ({reason}): {} entries, root {}",
+                        details.tree_size, details.root,
+                    ),
+                    ..default_head
+                }
+            }
+            StatementBody::ElectoralLogCheckpointV2(details) => StatementHead {
+                kind: StatementType::ElectoralLogCheckpoint,
+                description: format!(
+                    "Electoral log checkpoint published ({}): {} entries, root {}",
+                    checkpoint_reason_description(details.reason),
+                    details.tree_size,
+                    details.root,
+                ),
+                ..default_head
+            },
+            StatementBody::ElectoralLogContinuation(details) => StatementHead {
+                kind: StatementType::ElectoralLogContinuation,
+                description: format!(
+                    "Electoral log continues log {} ({}) after its {} entries, root {}",
+                    details.previous_log_name,
+                    details.previous_log_uid,
+                    details.tree_size,
+                    details.root,
+                ),
+                ..default_head
+            },
         }
     }
 }
@@ -529,6 +561,16 @@ fn monitoring_config_description(details: &MonitoringConfigChangeDetails) -> Str
         "Monitoring configuration generation {} (dashboard {}): {changes}.",
         details.generation, details.mode
     )
+}
+
+/// How a checkpoint's reason reads in its statement's description.
+fn checkpoint_reason_description(reason: ElectoralLogCheckpointReason) -> &'static str {
+    match reason {
+        ElectoralLogCheckpointReason::VotingClosed => "voting closed",
+        ElectoralLogCheckpointReason::TallyCompleted => "tally completed",
+        ElectoralLogCheckpointReason::VotingOpened => "voting opened",
+        ElectoralLogCheckpointReason::Periodic => "periodic",
+    }
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Debug)]
@@ -659,6 +701,20 @@ pub enum StatementBody {
         ExternalReconciliationInputHashString,
         ExternalReconciliationOutputHashString,
     ),
+    // Append new variants so existing signed Borsh statements remain decodable.
+    BallotPublicationFailure(BallotPublicationFailure),
+    /// Published checkpoint of this board's Merkle log, in the first log format.
+    /// Only decoded: writers record `ElectoralLogCheckpointV2`.
+    ElectoralLogCheckpoint(ElectoralLogCheckpoint),
+    /// Published checkpoint of this board's Merkle log, naming the log by its
+    /// identity.
+    ///
+    /// Rollout invariant: every electoral-log reader (including released
+    /// `step-cli` and external auditors) must be upgraded before writers emit
+    /// this variant.
+    ElectoralLogCheckpointV2(ElectoralLogCheckpointV2),
+    /// First record of a log that continues another one. Same rollout invariant.
+    ElectoralLogContinuation(ElectoralLogContinuation),
     /// Records a change to an election event's monitoring dashboards
     /// configuration. The digests bind each entry to the stored document.
     MonitoringConfigChanged(EventIdString, MonitoringConfigChangeDetails),
@@ -713,8 +769,6 @@ pub enum StatementBody {
     /// The tally found a ballot box that does not match its seal: what
     /// differs and the tally session id (VOTE-FREEZE).
     TallyBallotBoxRejected(ElectionIdString, AreaIdString, String, String),
-    // Append new variants so existing signed Borsh statements remain decodable.
-    BallotPublicationFailure(BallotPublicationFailure),
 }
 
 // Note: When creating new variants, consider that the length limit STATEMENT_KIND_VARCHAR_LENGTH is 40.
@@ -749,6 +803,9 @@ pub enum StatementType {
     ResultsPublicationAction,
     ExternalApiRequest,
     ExternalReconciliation,
+    BallotPublicationFailure,
+    ElectoralLogCheckpoint,
+    ElectoralLogContinuation,
     MonitoringConfigChanged,
     SigningRequestCreated,
     SigningCertificateOpenFailed,
@@ -779,7 +836,6 @@ pub enum StatementType {
     BallotBoxSealFailed,
     TallyBallotBoxVerified,
     TallyBallotBoxRejected,
-    BallotPublicationFailure,
 }
 
 #[derive(
@@ -839,5 +895,7 @@ mod approval_matrix_tests;
 #[cfg(test)]
 #[path = "../../tests/support/statement_election_initialized_tests.rs"]
 mod election_initialized_tests;
+
+#[cfg(test)]
 #[path = "../../tests/support/statement_lockdown_tests.rs"]
 mod lockdown_tests;

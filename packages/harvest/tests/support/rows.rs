@@ -5,8 +5,15 @@
 //! tenant, so tests never see each other's rows.
 
 use deadpool_postgres::Pool;
+use electoral_log::adapters::ballot_box::{
+    AcceptBallot, AcceptOutcome, BallotStatus,
+};
+use electoral_log::adapters::postgres::PostgresStore;
+use serde_json::json;
 use tokio_postgres::types::ToSql;
 use uuid::Uuid;
+use windmill::services::ballot_box::BallotFormat;
+use windmill::services::protocol_manager::get_event_databases;
 
 pub struct Event {
     pub tenant_id: String,
@@ -269,30 +276,74 @@ impl Event {
         id.to_string()
     }
 
-    /// A valid vote `voter` cast in `election_id` from `area_id`.
+    /// The event's ballot box, in an electoral-log database of its own on the
+    /// server `ELECTORAL_LOG_PG_*` names, and its board on the event's row.
+    pub async fn ballot_box(&self, pool: &Pool) -> PostgresStore {
+        let (tenant_id, election_event_id) = self.ids();
+        let board = format!(
+            "tenant{}event{}",
+            tenant_id.simple(),
+            election_event_id.simple()
+        );
+        execute(
+            pool,
+            "UPDATE sequent_backend.election_event
+             SET bulletin_board_reference = $2 WHERE id = $1",
+            &[
+                &election_event_id,
+                &json!({"id": 1, "database_name": board, "is_archived": false}),
+            ],
+        )
+        .await;
+        let store = get_event_databases()
+            .await
+            .expect("ELECTORAL_LOG_PG_* must name the test PostgreSQL server")
+            .create_event(&self.tenant_id, &self.election_event_id)
+            .await
+            .expect("event database");
+        store
+            .create_ballot_box(&self.election_event_id)
+            .await
+            .expect("ballot box");
+        store
+    }
+
+    /// A valid vote `voter` cast in `election_id` from `area_id`, accepted
+    /// into the event's `ballot_box`.
     pub async fn cast_vote(
         &self,
-        pool: &Pool,
+        ballot_box: &PostgresStore,
         election_id: &str,
         area_id: &str,
         voter: &str,
     ) {
-        let (tenant_id, election_event_id) = self.ids();
-        execute(
-            pool,
-            "INSERT INTO sequent_backend.cast_vote
-                (id, tenant_id, election_event_id, election_id, area_id,
-                 voter_id_string, status)
-             VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, 'valid')",
-            &[
-                &tenant_id,
-                &election_event_id,
-                &uuid(election_id),
-                &uuid(area_id),
-                &voter,
-            ],
-        )
-        .await;
+        let ballot_id = Uuid::new_v4().simple().to_string();
+        let format = BallotFormat::HashableBallot.to_string();
+        let outcome = ballot_box
+            .accept_ballot(&AcceptBallot {
+                election_event_id: &self.election_event_id,
+                election_id,
+                area_id,
+                voter_id: voter,
+                ballot_id: &ballot_id,
+                format: &format,
+                content: "ballot",
+                voter_signature: None,
+                pseudonym_hash: &[0; 64],
+                ballot_hash: &[0; 64],
+                voting_channel: "ONLINE",
+                status: BallotStatus::Valid,
+                voter_ip: Some("192.0.2.1"),
+                voter_country: Some("ES"),
+                username: Some(voter),
+                allowed_votes: 0,
+            })
+            .await
+            .expect("accepted ballot");
+        assert!(
+            matches!(outcome, AcceptOutcome::Accepted { .. }),
+            "{outcome:?}"
+        );
     }
 
     /// The Keycloak realm of the event's voters.

@@ -580,9 +580,9 @@ STAT_QUERY = (
     "n_tup_ins FROM pg_stat_user_tables WHERE schemaname = '{schema}' ORDER BY 1, 2"
 )
 
-# The tables the snapshot job counts from; Harvest must not read them.
+# The tables the snapshot job counts from; Harvest must not read them. The
+# ballots it reads are in the event's own database.
 BACKEND_SOURCES = (
-    "sequent_backend.cast_vote",
     "sequent_backend.applications",
     "sequent_backend.monitoring_voter",
     "sequent_backend.monitoring_login_counter",

@@ -17,7 +17,7 @@ use windmill::services::electoral_log::{
 use windmill::types::resources::DataList;
 
 #[instrument]
-#[post("/immudb/electoral-log", format = "json", data = "<body>")]
+#[post("/electoral-log", format = "json", data = "<body>")]
 pub async fn list_electoral_log(
     body: Json<GetElectoralLogBody>,
     claims: JwtClaims,

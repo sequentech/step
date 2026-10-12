@@ -46,33 +46,13 @@ impl ElectionFixture {
         .await
         .unwrap()
     }
-
-    async fn insert(&self, transaction: &Transaction<'_>, content: &str) -> Result<CastVote> {
-        postgres::cast_vote::insert_cast_vote(
-            transaction,
-            &self.tenant,
-            &self.event,
-            &self.election,
-            &self.area,
-            content,
-            "voter",
-            "ballot",
-            &[0; 64],
-            &None,
-            &None,
-            VotingStatusChannel::ONLINE,
-            CastVoteStatus::Valid,
-            None,
-        )
-        .await
-    }
 }
 
 async fn test_client() -> DbClient {
     let mut config = deadpool_postgres::Config::new();
     config.url = Some(
         std::env::var("CAST_VOTE_TEST_DATABASE_URL")
-            .expect("run scripts/test_cast_vote_scalability.py --rust-tests inside devenv"),
+            .expect("run scripts/test_voting_flow.py --rust-tests inside devenv"),
     );
     config
         .create_pool(
@@ -116,7 +96,7 @@ async fn materialized_dates_match_schedule_contract_and_remain_tenant_scoped() {
         .unwrap();
 
     // The migration projects the exact task/payload matching used by imports.
-    let schedules = postgres::scheduled_event::find_scheduled_event_by_election_event_id(
+    let schedules = crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id(
         &transaction,
         &fixture.tenant.to_string(),
         &fixture.event.to_string(),
@@ -209,7 +189,7 @@ async fn materialized_dates_follow_the_online_voting_channel() {
     }
 
     // A kiosk-only closing schedule does not end online voting.
-    let schedules = postgres::scheduled_event::find_scheduled_event_by_election_event_id(
+    let schedules = crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id(
         &transaction,
         &tenant,
         &event,
@@ -223,35 +203,6 @@ async fn materialized_dates_follow_the_online_voting_channel() {
     assert_eq!(loaded.dates.end_date, expected.end_date);
     assert!(loaded.dates.start_date.is_some());
     assert!(loaded.dates.end_date.is_none());
-    transaction.rollback().await.unwrap();
-}
-
-#[tokio::test]
-#[ignore = "requires the disposable devenv database fixture"]
-async fn insert_preserves_response_and_maps_trigger_error_without_retrying() {
-    let mut client = test_client().await;
-    let transaction = client.transaction().await.unwrap();
-    let fixture = ElectionFixture::create(&transaction).await;
-    let content = "encrypted-ballot".repeat(1000);
-
-    let inserted = fixture.insert(&transaction, &content).await.unwrap();
-    assert_eq!(inserted.content.as_deref(), Some(content.as_str()));
-    assert_eq!(inserted.status, CastVoteStatus::Valid);
-    assert_eq!(inserted.area_id, Some(fixture.area.to_string()));
-    assert_eq!(inserted.ballot_id.as_deref(), Some("ballot"));
-
-    let error = fixture.insert(&transaction, &content).await.unwrap_err();
-    let mapped = map_insert_error(error);
-    assert_eq!(
-        serde_json::to_value(&mapped).unwrap(),
-        "insert_failed_exceeds_allowed_revotes"
-    );
-    assert!(matches!(
-        skip_or_propagate(mapped),
-        Ok(InsertCastVoteResult::SkipRetryFailure(
-            CastVoteError::InsertFailedExceedsAllowedRevotes
-        ))
-    ));
     transaction.rollback().await.unwrap();
 }
 

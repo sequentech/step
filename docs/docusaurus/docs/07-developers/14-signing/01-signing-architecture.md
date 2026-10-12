@@ -45,7 +45,7 @@ flowchart LR
   approve --> outbox[("signing_log_outbox")]
   harvest --> outbox
   worker["post_signing_log_outbox"] --> outbox
-  worker --> board["electoral log<br/>(immudb board)"]
+  worker --> board["electoral log<br/>(event database)"]
   crl["refresh_staff_crls (hourly)"] --> crls[("staff_crl")]
   verify --> crls
   settings["Signatures tab"] -->|select, role = read permission| hasura["Hasura"]
@@ -377,11 +377,12 @@ both entries.
 
 `post_signing_log_outbox` (beat every 5 s, set with `--signing-log-interval`; also kicked
 after each committing step) posts them per event: a short transaction under the event lock
-takes a snapshot of the last unposted id; then, under a worker-only try-lock, rows up to it
-are posted in id order with board delivery receipts
-(`delivery_id = sha256("signing:{step_id}:{event_type}")`), so a lost answer never posts
-twice. A failure stops that event's queue, to keep order, and retries with exponential
-back-off (at most 10 minutes). USER entries are signed with the person's admin key
+takes a snapshot of the last unposted id; then, under a worker-only try-lock, up to 200
+rows up to it are appended to the event's board in id order, in one append, under the
+delivery ID `signing:{step_id}:{event_type}`. The board stores a delivery ID once, so a
+lost answer or a lost commit never posts twice; an entry the board already holds must say
+the same as its row, or the row is marked failed. A failure stops that event's queue, to
+keep order, and retries with exponential back-off (at most 10 minutes). USER entries are signed with the person's admin key
 (`ElectoralLog::for_admin_user`), SYSTEM entries with the system key.
 
 The 16 signing statement kinds, and `ScheduledOutcomeChanged`, are appended to `StatementType`, with one body variant

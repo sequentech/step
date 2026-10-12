@@ -3,9 +3,7 @@
 
 -- Ballot box seals, hardening (VOTE-FREEZE review R6).
 -- - The sealer records its last attempt on a pending seal (when, and why
---   the box isn't sealed yet), and when a failed seal's ERROR entry went to
---   the electoral log.
--- - The cast_vote guard takes its advisory lock only for seal-at-close events.
+--   the box isn't sealed yet), and the election and area names it signed.
 -- - For seal-at-close events, once voting has opened: the contest
 --   encryption, delegated and weighted voting policies and the bulletin board
 --   reference can't change, and a CLOSED voting channel stays CLOSED.
@@ -16,21 +14,14 @@ SET LOCAL lock_timeout = '10s';
 ALTER TABLE "sequent_backend"."ballot_box_seal"
     ADD COLUMN IF NOT EXISTS "last_attempt_at" timestamptz NULL,
     ADD COLUMN IF NOT EXISTS "waiting_reason" text NULL,
-    ADD COLUMN IF NOT EXISTS "failure_posted_at" timestamptz NULL,
     -- The election and area names the seal signed, for its public record.
     ADD COLUMN IF NOT EXISTS "election_name" text NULL,
     ADD COLUMN IF NOT EXISTS "area_name" text NULL;
 
--- The failed seals whose ERROR entry may not be on the log yet.
-CREATE INDEX IF NOT EXISTS "ballot_box_seal_failure_unposted_idx"
-    ON "sequent_backend"."ballot_box_seal" ("id")
-    WHERE "status" = 'failed' AND "failure_posted_at" IS NULL;
-
 -- As in 1600, plus: while `pending`, the sealer's last attempt
 -- (`last_attempt_at`, `waiting_reason`) may change too, also on the move to
 -- `sealed` or `failed`; the names are set on the move to `sealed` (the
--- names it signed) or `failed` (for the incident banner) only; while
--- `failed`, `failure_posted_at` is set once.
+-- names it signed) or `failed` (for the incident banner) only.
 CREATE OR REPLACE FUNCTION "sequent_backend"."ballot_box_seal_permanence"()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -42,8 +33,10 @@ DECLARE
         'sealed_at', 'ballots_in_box', 'ballots_counted', 'seal_hash',
         'manifest', 'signed_message', 'election_name', 'area_name'
     ];
+    -- The seal's (or the failure's) record on the event's electoral log.
+    log_fields text[] := ARRAY['log_delivery_id', 'log_uid', 'log_leaf_index'];
     publication_fields text[] := ARRAY[
-        'log_entry_id', 'public_document_id', 'public_path', 'published_at'
+        'public_document_id', 'public_path', 'published_at'
     ];
 BEGIN
     IF TG_OP = 'DELETE' THEN
@@ -57,9 +50,10 @@ BEGIN
            AND NEW.sealed_at IS NULL AND NEW.ballots_in_box IS NULL
            AND NEW.ballots_counted IS NULL AND NEW.seal_hash IS NULL
            AND NEW.manifest IS NULL AND NEW.signed_message IS NULL
-           AND NEW.failure_reason IS NULL AND NEW.log_entry_id IS NULL
+           AND NEW.failure_reason IS NULL AND NEW.log_delivery_id IS NULL
+           AND NEW.log_uid IS NULL AND NEW.log_leaf_index IS NULL
            AND NEW.public_document_id IS NULL AND NEW.public_path IS NULL
-           AND NEW.published_at IS NULL AND NEW.failure_posted_at IS NULL
+           AND NEW.published_at IS NULL
            AND NEW.election_name IS NULL AND NEW.area_name IS NULL THEN
             RETURN NEW;
         END IF;
@@ -74,40 +68,36 @@ BEGIN
             RETURN NEW;
         END IF;
         IF NEW.status = 'sealed'
-           AND to_jsonb(NEW) - provenance - seal_fields - 'status'
-               = to_jsonb(OLD) - provenance - seal_fields - 'status'
+           AND to_jsonb(NEW) - provenance - seal_fields - log_fields - 'status'
+               = to_jsonb(OLD) - provenance - seal_fields - log_fields - 'status'
            AND NEW.sealed_at IS NOT NULL AND NEW.ballots_in_box IS NOT NULL
            AND NEW.ballots_counted IS NOT NULL AND NEW.seal_hash IS NOT NULL
-           AND NEW.manifest IS NOT NULL AND NEW.signed_message IS NOT NULL THEN
+           AND NEW.manifest IS NOT NULL AND NEW.signed_message IS NOT NULL
+           AND NEW.log_delivery_id IS NOT NULL AND NEW.log_uid IS NOT NULL
+           AND NEW.log_leaf_index IS NOT NULL THEN
             RETURN NEW;
         END IF;
         IF NEW.status = 'failed'
-           AND to_jsonb(NEW) - provenance - 'failure_reason' - 'status'
+           AND to_jsonb(NEW) - provenance - log_fields - 'failure_reason' - 'status'
                - 'election_name' - 'area_name'
-               = to_jsonb(OLD) - provenance - 'failure_reason' - 'status'
+               = to_jsonb(OLD) - provenance - log_fields - 'failure_reason' - 'status'
                - 'election_name' - 'area_name'
-           AND NEW.failure_reason IS NOT NULL THEN
+           AND NEW.failure_reason IS NOT NULL
+           AND (NEW.log_delivery_id IS NULL) = (NEW.log_uid IS NULL)
+           AND (NEW.log_uid IS NULL) = (NEW.log_leaf_index IS NULL) THEN
             RETURN NEW;
         END IF;
     ELSIF OLD.status = 'sealed' THEN
         IF NEW.status IN ('sealed', 'published')
            AND to_jsonb(NEW) - publication_fields - 'status'
                = to_jsonb(OLD) - publication_fields - 'status'
-           AND (OLD.log_entry_id IS NULL OR NEW.log_entry_id IS NOT DISTINCT FROM OLD.log_entry_id)
            AND (OLD.public_document_id IS NULL OR NEW.public_document_id IS NOT DISTINCT FROM OLD.public_document_id)
            AND (OLD.public_path IS NULL OR NEW.public_path IS NOT DISTINCT FROM OLD.public_path)
            AND (OLD.published_at IS NULL OR NEW.published_at IS NOT DISTINCT FROM OLD.published_at)
            AND (NEW.status = 'sealed' OR (
-                NEW.log_entry_id IS NOT NULL AND NEW.public_document_id IS NOT NULL
+                NEW.public_document_id IS NOT NULL
                 AND NEW.public_path IS NOT NULL AND NEW.published_at IS NOT NULL
            )) THEN
-            RETURN NEW;
-        END IF;
-    ELSIF OLD.status = 'failed' THEN
-        IF NEW.status = 'failed'
-           AND OLD.failure_posted_at IS NULL
-           AND NEW.failure_posted_at IS NOT NULL
-           AND to_jsonb(NEW) - 'failure_posted_at' = to_jsonb(OLD) - 'failure_posted_at' THEN
             RETURN NEW;
         END IF;
     END IF;
@@ -116,119 +106,6 @@ BEGIN
         OLD.status, OLD.id, NEW.status
         USING ERRCODE = '42501',
               HINT = 'A seal only moves pending → sealed → published, or pending → failed; published and failed seals are final.';
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION "sequent_backend"."cast_vote_seal_guard"()
-RETURNS trigger
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    old_tenant uuid;
-    old_event uuid;
-    old_election uuid;
-    old_area uuid;
-    new_tenant uuid;
-    new_event uuid;
-    new_election uuid;
-    new_area uuid;
-    box record;
-BEGIN
-    IF TG_OP IN ('UPDATE', 'DELETE') THEN
-        old_tenant := OLD.tenant_id;
-        old_event := OLD.election_event_id;
-        old_election := OLD.election_id;
-        old_area := OLD.area_id;
-    END IF;
-    IF TG_OP IN ('INSERT', 'UPDATE') THEN
-        new_tenant := NEW.tenant_id;
-        new_event := NEW.election_event_id;
-        new_election := NEW.election_id;
-        new_area := NEW.area_id;
-    END IF;
-
-    FOR box IN
-        SELECT DISTINCT
-            candidate.tenant_id,
-            candidate.election_event_id,
-            candidate.election_id,
-            candidate.area_id,
-            "sequent_backend"."ballot_box_lock_key"(
-                candidate.tenant_id, candidate.election_event_id,
-                candidate.election_id, candidate.area_id
-            ) AS lock_key
-        FROM (VALUES
-            (old_tenant, old_event, old_election, old_area),
-            (new_tenant, new_event, new_election, new_area)
-        ) AS candidate(tenant_id, election_event_id, election_id, area_id)
-        WHERE candidate.tenant_id IS NOT NULL
-          AND candidate.election_event_id IS NOT NULL
-          AND candidate.election_id IS NOT NULL
-          AND candidate.area_id IS NOT NULL
-        ORDER BY lock_key
-    LOOP
-        -- A box of an event that doesn't seal at close never gets a seal
-        -- past pending (the policy is locked once voting opened), so the
-        -- check needs no lock there: bulk writes of such events take no
-        -- advisory lock per box.
-        IF NOT EXISTS (
-            SELECT 1
-            FROM "sequent_backend"."election_event" AS event
-            WHERE event.id = box.election_event_id
-              AND event.tenant_id = box.tenant_id
-              AND "sequent_backend"."ballot_box_seal_policy"(event.presentation::jsonb)
-                  = 'seal-at-close'
-        ) THEN
-            IF EXISTS (
-                SELECT 1
-                FROM "sequent_backend"."ballot_box_seal" AS seal
-                WHERE seal.tenant_id = box.tenant_id
-                  AND seal.election_event_id = box.election_event_id
-                  AND seal.election_id = box.election_id
-                  AND seal.area_id = box.area_id
-                  AND seal.status <> 'pending'
-            ) THEN
-                RAISE EXCEPTION 'ballot_box_sealed'
-                    USING ERRCODE = '42501',
-                          DETAIL = format('The ballot box of election %s, area %s is sealed.',
-                                          box.election_id, box.area_id),
-                          HINT = 'A sealed ballot box takes no new ballots and no changes.';
-            END IF;
-            CONTINUE;
-        END IF;
-        -- Above READ COMMITTED the check below would read the transaction's
-        -- snapshot, taken before the lock wait, and miss a seal committed
-        -- during it. So boxes of a seal-at-close event only take writes at
-        -- READ COMMITTED.
-        IF current_setting('transaction_isolation') <> 'read committed' THEN
-            RAISE EXCEPTION 'ballot_box_seal_requires_read_committed'
-                USING ERRCODE = '42501',
-                      DETAIL = format('Writes to cast_vote of a seal-at-close event must run at READ COMMITTED, not %s.',
-                                      current_setting('transaction_isolation')),
-                      HINT = 'Run the transaction at READ COMMITTED isolation.';
-        END IF;
-        PERFORM pg_advisory_xact_lock_shared(hashtextextended(box.lock_key, 0));
-        IF EXISTS (
-            SELECT 1
-            FROM "sequent_backend"."ballot_box_seal" AS seal
-            WHERE seal.tenant_id = box.tenant_id
-              AND seal.election_event_id = box.election_event_id
-              AND seal.election_id = box.election_id
-              AND seal.area_id = box.area_id
-              AND seal.status <> 'pending'
-        ) THEN
-            RAISE EXCEPTION 'ballot_box_sealed'
-                USING ERRCODE = '42501',
-                      DETAIL = format('The ballot box of election %s, area %s is sealed.',
-                                      box.election_id, box.area_id),
-                      HINT = 'A sealed ballot box takes no new ballots and no changes.';
-        END IF;
-    END LOOP;
-
-    IF TG_OP = 'DELETE' THEN
-        RETURN OLD;
-    END IF;
-    RETURN NEW;
 END;
 $$;
 

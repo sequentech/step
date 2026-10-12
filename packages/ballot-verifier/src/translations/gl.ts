@@ -6,7 +6,6 @@ import {TranslationType} from "./en"
 
 const galegoTranslation: TranslationType = {
     translations: {
-        welcome: "Ola <br/> <strong>Mundo</strong>",
         404: {
             title: "Páxina non atopada",
             subtitle: "A páxina que estás buscando non existe",

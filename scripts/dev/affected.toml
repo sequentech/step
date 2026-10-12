@@ -590,22 +590,54 @@ workflows = ["tests.yml"]
 actions = ["setup-rust-tests", "setup-rust-cache"]
 paths = ["scripts/dev/rust_cache.py"]
 
+# The upstream service is behind a feature.
+[[checks]]
+id = "cargo-test:trellis"
+units = ["trellis"]
+kind = "test"
+runner = "cargo"
+cost = "fast"
+cwd = "packages"
+command = "cargo test --locked -p trellis --features upstream-service --lib --example monitor --example post"
+focus = ["cargo", "test", "--locked", "-p", "trellis", "--features", "upstream-service"]
+workflows = ["tests.yml"]
+actions = ["setup-rust-tests", "setup-rust-cache"]
+paths = ["scripts/dev/rust_cache.py"]
+
+# The electoral log and ballot box contract on a PostgreSQL server, with a role
+# that may create roles and databases: the tests create and drop their own.
+[[checks]]
+id = "cargo-test-db:electoral-log"
+units = ["electoral-log"]
+kind = "test"
+runner = "cargo"
+cost = "integration"
+cwd = "packages"
+command = "cargo test --locked -p electoral-log --lib --test postgres --test ballot_box --test events --test provisioning -- --ignored --test-threads=1"
+requires = ["postgres-server"]
+workflows = ["tests.yml"]
+[checks.env]
+ELECTORAL_LOG_TEST_DATABASE_URL = "postgresql://test:test@127.0.0.1:5432/test?sslmode=disable"
+ELECTORAL_LOG_PG_HOST = "127.0.0.1"
+ELECTORAL_LOG_PG_PORT = "5432"
+ELECTORAL_LOG_PG_USER = "test"
+ELECTORAL_LOG_PG_PASSWORD = "test"
+ELECTORAL_LOG_PG_DATABASE = "test"
+ELECTORAL_LOG_PG_SSLMODE = "disable"
+ENV_SLUG = "electoral-log-tests"
+
 [[checks]]
 id = "cargo-test:{unit}"
-for_each = ["immu-board", "immudb-rs", "e2e", "mock_server"]
+for_each = ["e2e", "mock_server"]
 kind = "test"
 runner = "cargo"
 cost = "fast"
 cwd = "packages"
 command = "cargo test --locked -p {unit} --tests"
 focus = ["cargo", "test", "--locked", "-p", "{unit}"]
+workflows = ["additional-unit-tests.yml"]
 actions = ["setup-rust-tests", "setup-rust-cache"]
 paths = ["scripts/dev/rust_cache.py"]
-[checks.also_workflows]
-immu-board = ["tests.yml", "additional-unit-tests.yml"]
-immudb-rs = ["tests.yml"]
-e2e = ["additional-unit-tests.yml"]
-mock_server = ["additional-unit-tests.yml"]
 
 [[checks]]
 id = "cargo-test:sequent-core"
@@ -692,6 +724,32 @@ HASURA_DB__HOST = "127.0.0.1"
 LOW_SQL_LIMIT = "1000"
 DEFAULT_SQL_LIMIT = "20"
 DEFAULT_SQL_BATCH_SIZE = "1000"
+# The electoral-log proof routes need a server to mount; no test reaches it.
+ELECTORAL_LOG_PG_HOST = "127.0.0.1"
+ELECTORAL_LOG_PG_PORT = "1"
+ELECTORAL_LOG_PG_USER = "synthetic"
+ELECTORAL_LOG_PG_PASSWORD = "synthetic"
+ELECTORAL_LOG_PG_DATABASE = "synthetic"
+ELECTORAL_LOG_PG_SSLMODE = "disable"
+
+# The acceptance run reads stored ballots from an election event's ballot box.
+[[checks]]
+id = "cargo-test-db:step-cli"
+units = ["step-cli"]
+kind = "test"
+runner = "cargo"
+cost = "integration"
+cwd = "packages"
+command = "cargo test --locked -p step-cli --test acceptance_cli -- --ignored"
+requires = ["postgres-server"]
+workflows = ["tests.yml"]
+[checks.env]
+ELECTORAL_LOG_PG_HOST = "127.0.0.1"
+ELECTORAL_LOG_PG_PORT = "5432"
+ELECTORAL_LOG_PG_USER = "test"
+ELECTORAL_LOG_PG_PASSWORD = "test"
+ELECTORAL_LOG_PG_DATABASE = "test"
+ELECTORAL_LOG_PG_SSLMODE = "disable"
 
 [[checks]]
 id = "cargo-test-db:harvest"
@@ -717,6 +775,12 @@ KEYCLOAK_DB__DBNAME = "test"
 LOW_SQL_LIMIT = "1000"
 DEFAULT_SQL_LIMIT = "20"
 DEFAULT_SQL_BATCH_SIZE = "1000"
+ELECTORAL_LOG_PG_HOST = "127.0.0.1"
+ELECTORAL_LOG_PG_PORT = "5432"
+ELECTORAL_LOG_PG_USER = "test"
+ELECTORAL_LOG_PG_PASSWORD = "test"
+ELECTORAL_LOG_PG_DATABASE = "test"
+ELECTORAL_LOG_PG_SSLMODE = "disable"
 
 [[checks]]
 id = "cargo-test:braid"
@@ -952,7 +1016,7 @@ kind = "test"
 runner = "shell"
 cost = "integration"
 cwd = "."
-command = "docker build --tag voting-flow-harness scripts/voting_flow && for suite in test_cast_vote_scalability test_scheduled_voting_channels test_ballot_publication_lifecycle test_voting_window_preflight; do docker run --rm --volume \"$PWD:/step:ro\" --workdir /step voting-flow-harness python3 scripts/$suite.py || exit 1; done && docker run --rm --volume \"$PWD:/step:ro\" --workdir /step voting-flow-harness python3 -m unittest discover -s packages/voting-load"
+command = "docker build --tag voting-flow-harness scripts/voting_flow && for suite in test_voting_flow test_scheduled_voting_channels test_ballot_publication_lifecycle test_voting_window_preflight; do docker run --rm --volume \"$PWD:/step:ro\" --workdir /step voting-flow-harness python3 scripts/$suite.py || exit 1; done && docker run --rm --volume \"$PWD:/step:ro\" --workdir /step voting-flow-harness python3 -m unittest discover -s packages/voting-load"
 requires = ["docker"]
 workflows = ["backend-database-contracts.yml"]
 
@@ -970,7 +1034,7 @@ workflows = ["backend-database-contracts.yml"]
 
 [[checks]]
 id = "backend-e2e"
-units = ["scripts-e2e", "windmill", "harvest", "immu-board", "step-cli", "b4", "braid", "keycloak-extensions", "hasura", "devcontainer", "docker-images"]
+units = ["scripts-e2e", "windmill", "harvest", "step-cli", "b4", "braid", "keycloak-extensions", "hasura", "devcontainer", "docker-images"]
 kind = "test"
 runner = "shell"
 cost = "integration"
@@ -981,7 +1045,7 @@ workflows = ["backend-e2e.yml"]
 
 [[checks]]
 id = "frontend-stack-e2e"
-units = ["ui-e2e", "scripts-e2e", "windmill", "harvest", "immu-board", "step-cli", "b4", "braid", "keycloak-extensions", "hasura", "devcontainer", "docker-images", "voting-portal", "admin-portal", "results-portal", "ballot-verifier"]
+units = ["ui-e2e", "scripts-e2e", "windmill", "harvest", "step-cli", "b4", "braid", "keycloak-extensions", "hasura", "devcontainer", "docker-images", "voting-portal", "admin-portal", "results-portal", "ballot-verifier"]
 kind = "test"
 runner = "shell"
 cost = "integration"

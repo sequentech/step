@@ -194,7 +194,8 @@ impl Failures {
     }
 }
 
-/// Audit accepted receipt IDs in bounded read-only PostgreSQL batches using the DSN-selected transport.
+/// Audit accepted receipt IDs against the ballot box of the tenant's electoral-log database, in
+/// bounded read-only PostgreSQL batches using the DSN-selected transport.
 fn audit(db: &Connection, input: &Input, dsn_env: &str) -> Result<usize> {
     let reporting = &input.settings.reporting;
     let mut config: tokio_postgres::Config = std::env::var(dsn_env)
@@ -220,7 +221,7 @@ fn audit(db: &Connection, input: &Input, dsn_env: &str) -> Result<usize> {
                 batch.push(row.get(0)?);
             }
             if batch.is_empty() { break; }
-            let row = client.query_one("SELECT count(*) FROM sequent_backend.cast_vote WHERE id=ANY($1::text[]::uuid[]) AND tenant_id=$2::text::uuid AND election_event_id=$3::text::uuid", &[&batch, &input.settings.target.tenant_id, &input.event.election_event_id]).await?;
+            let row = client.query_one("SELECT count(*) FROM ballot_box_ballot WHERE election_event_id=$1::text::uuid AND id=ANY($2::text[]::uuid[])", &[&input.event.election_event_id, &batch]).await?;
             verified += row.get::<_, i64>(0) as usize;
         }
         drop(client);
@@ -432,7 +433,7 @@ pub fn generate(directory: &Path, dsn_env: Option<&str>) -> Result<()> {
         match audit(&db, &input, dsn) {
             Ok(verified) => {
                 verification =
-                    format!("{verified}/{receipts} API receipts matched PostgreSQL in batches");
+                    format!("{verified}/{receipts} API receipts matched the ballot box in batches");
                 if verified != receipts {
                     failures.add("Database receipt audit is incomplete");
                 }

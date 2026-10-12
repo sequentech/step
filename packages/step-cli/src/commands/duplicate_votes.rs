@@ -3,14 +3,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::utils::keycloak::get_keyckloak_pool;
 use crate::utils::read_config::load_external_config;
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use colored::Colorize;
-use serde_json::Value;
-use std::env;
-use tokio_postgres::Transaction;
+use electoral_log::adapters::ballot_box::{AcceptBallot, AcceptOutcome, BallotStatus};
 use uuid::Uuid;
-use windmill::services::providers::transactions_provider::provide_hasura_transaction;
+use windmill::services::ballot_box::get_allowed_votes;
+use windmill::services::ballot_box_reads::get_event_ballot_box;
+use windmill::services::database::get_hasura_pool;
+use windmill::services::insert_cast_vote::hash_voter_id;
 
 #[derive(Args)]
 #[command(about)]
@@ -23,6 +24,17 @@ pub struct DuplicateVotes {
     num_votes: usize,
 }
 
+/// The ballot each voter casts a copy of.
+struct SourceBallot {
+    election_id: String,
+    area_id: String,
+    format: String,
+    content: String,
+    voter_signature: Option<Vec<u8>>,
+    ballot_hash: Vec<u8>,
+    voting_channel: String,
+}
+
 impl DuplicateVotes {
     /// Execute the rendering process
     pub fn run(&self) {
@@ -33,6 +45,8 @@ impl DuplicateVotes {
         }
     }
 
+    /// Casts a copy of the configured ballot for each of the first `num_votes`
+    /// voters of the realm, through the ballot box's own rules.
     pub async fn run_duplicate_votes(
         &self,
         working_dir: &str,
@@ -40,15 +54,15 @@ impl DuplicateVotes {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let config = load_external_config(working_dir)?;
         let realm_name = config.realm_name;
-
-        let duplicate_votes_config = config.duplicate_votes;
-        let row_id_to_clone = duplicate_votes_config.row_id_to_clone;
+        let tenant_id = config.tenant_id;
+        let election_event_id = config.election_event_id;
+        let ballot_to_clone = config.duplicate_votes.row_id_to_clone;
 
         let kc_client = get_keyckloak_pool()
             .await?
             .get()
             .await
-            .map_err(|e| anyhow::anyhow!("Error getting hasura client: {}", e.to_string()))?;
+            .map_err(|e| anyhow!("Error getting hasura client: {}", e.to_string()))?;
 
         let keycloak_query = "\
             SELECT ue.id FROM user_entity AS ue \
@@ -64,90 +78,101 @@ impl DuplicateVotes {
             .collect();
         println!("Number of existing user IDs::: {}", existing_user_ids.len());
 
-        provide_hasura_transaction(|hasura_transaction| {
-            let existing_user_ids = existing_user_ids.clone();
-            let row_id_to_clone = row_id_to_clone.clone();
-
-            Box::pin(async move {
-                insert_votes(hasura_transaction, existing_user_ids, row_id_to_clone).await
-            })
-        })
+        let accepted = cast_copies(
+            &tenant_id,
+            &election_event_id,
+            &ballot_to_clone,
+            &existing_user_ids,
+        )
         .await?;
 
-        println!("Inserted {} duplicate votes.", &existing_user_ids.len());
+        println!("Inserted {accepted} duplicate votes.");
         Ok(())
     }
 }
 
-async fn insert_votes(
-    hasura_transaction: &Transaction<'_>,
-    existing_user_ids: Vec<String>,
-    row_id_to_clone: String,
-) -> Result<()> {
-    let base_query = "\
-    SELECT tenant_id, election_event_id, election_id, area_id, annotations, content, cast_ballot_signature, ballot_id \
-        FROM sequent_backend.cast_vote WHERE id = $1";
-    let base_row = hasura_transaction
-        .query_opt(base_query, &[&Uuid::parse_str(&row_id_to_clone)?])
+/// Casts a copy of a ballot of the election event's ballot box for each voter,
+/// with a ballot ID of its own. Returns how many the ballot box accepted.
+async fn cast_copies(
+    tenant_id: &str,
+    election_event_id: &str,
+    ballot_to_clone: &str,
+    voter_ids: &[String],
+) -> Result<usize> {
+    let mut hasura_client = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|e| anyhow!("Error getting hasura client: {e}"))?;
+    let hasura_transaction = hasura_client
+        .build_transaction()
+        .read_only(true)
+        .start()
         .await?;
-    if base_row.is_none() {
-        println!("No row found to clone.");
-        return Ok(());
-    }
-    let row = base_row.unwrap();
-    let tenant_id = row.try_get::<_, Uuid>(0)?;
-    let election_event_id = row.try_get::<_, Uuid>(1)?;
-    let election_id = row.try_get::<_, Uuid>(2)?;
-    let area_id = row.try_get::<_, Uuid>(3)?;
-    let annotations: Value = row.get(4);
-    let content: String = row.get::<_, &str>(5).to_string();
-    let cast_ballot_signature: Vec<u8> = row.get(6);
-    let ballot_id: String = row.get::<_, &str>(7).to_string();
+    let store = get_event_ballot_box(&hasura_transaction, tenant_id, election_event_id)
+        .await?
+        .store;
+    let row = store
+        .client()
+        .await?
+        .query_opt(
+            "SELECT election_id::text, area_id::text, format, content, voter_signature, \
+                    ballot_hash, voting_channel \
+             FROM ballot_box_ballot \
+             WHERE election_event_id = $1::text::uuid AND id = $2::text::uuid",
+            &[&election_event_id, &ballot_to_clone],
+        )
+        .await
+        .context("Error reading the ballot to clone")?;
+    let Some(row) = row else {
+        println!("No ballot found to clone.");
+        return Ok(0);
+    };
+    let source = SourceBallot {
+        election_id: row.try_get(0)?,
+        area_id: row.try_get(1)?,
+        format: row.try_get(2)?,
+        content: row.try_get(3)?,
+        voter_signature: row.try_get(4)?,
+        ballot_hash: row.try_get(5)?,
+        voting_channel: row.try_get(6)?,
+    };
+    let allowed_votes = get_allowed_votes(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &source.election_id,
+    )
+    .await?;
 
-    let batch_size = env::var("DEFAULT_SQL_BATCH_SIZE")
-        .ok()
-        .and_then(|s| s.parse::<usize>().ok())
-        .unwrap_or(1000);
-
-    let row_param_count = 9; // Each row has 9 parameters.
-
-    for batch in existing_user_ids.chunks(batch_size) {
-        let total_params = batch.len() * row_param_count;
-
-        // Preallocate for efficiency
-        let mut query = String::with_capacity(100 + total_params * 3);
-        query.push_str("INSERT INTO sequent_backend.cast_vote (voter_id_string, election_id, tenant_id, area_id, annotations, content, cast_ballot_signature, election_event_id, ballot_id) VALUES ");
-
-        let mut params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
-            Vec::with_capacity(total_params);
-
-        let mut placeholders = Vec::with_capacity(batch.len());
-
-        for (i, uid) in batch.iter().enumerate() {
-            let start = i * row_param_count + 1;
-            let placeholder = (start..start + row_param_count)
-                .map(|idx| format!("${}", idx))
-                .collect::<Vec<_>>()
-                .join(", ");
-
-            placeholders.push(format!("({})", placeholder));
-
-            // Push parameters
-            params.push(uid);
-            params.push(&election_id);
-            params.push(&tenant_id);
-            params.push(&area_id);
-            params.push(&annotations);
-            params.push(&content);
-            params.push(&cast_ballot_signature);
-            params.push(&election_event_id);
-            params.push(&ballot_id);
+    let mut accepted = 0;
+    for voter_id in voter_ids {
+        let pseudonym_hash = hash_voter_id(voter_id)?;
+        let ballot_id = Uuid::new_v4().simple().to_string();
+        let outcome = store
+            .accept_ballot(&AcceptBallot {
+                election_event_id,
+                election_id: &source.election_id,
+                area_id: &source.area_id,
+                voter_id,
+                ballot_id: &ballot_id,
+                format: &source.format,
+                content: &source.content,
+                voter_signature: source.voter_signature.as_deref(),
+                pseudonym_hash: &pseudonym_hash,
+                ballot_hash: &source.ballot_hash,
+                voting_channel: &source.voting_channel,
+                status: BallotStatus::Valid,
+                voter_ip: None,
+                voter_country: None,
+                username: None,
+                allowed_votes,
+            })
+            .await?;
+        match outcome {
+            AcceptOutcome::Accepted { .. } => accepted += 1,
+            refused => println!("Voter {voter_id}: {refused:?}"),
         }
-
-        query.push_str(&placeholders.join(", "));
-
-        hasura_transaction.execute(query.as_str(), &params).await?;
     }
-
-    Ok(())
+    Ok(accepted)
 }

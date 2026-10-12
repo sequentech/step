@@ -165,19 +165,20 @@ When in doubt or when configuration is missing, the tally engine will always cho
 
 ## Cast vote status guard
 
-Each cast vote carries a `status` (`in-progress`, `valid`, or `discarded`).
-Ordinary election events store votes as `valid` immediately. A Datafix vote
-enters as `in-progress` and is promoted to `valid` or `discarded` by
-`process_cast_vote`. A vote whose `SetVoted` request could not be delivered, or
-whose outcome is ambiguous, stays `in-progress` and is retried automatically by
+Each ballot in the election event's ballot box carries a status (`pending`,
+`valid` or `rejected`, which the portals show as `in-progress`, `valid` and
+`discarded`). Ordinary election events accept ballots as `valid`. A Datafix
+ballot is accepted as `pending` and becomes `valid` or `rejected` through
+`process_cast_vote`. A ballot whose `SetVoted` request could not be delivered,
+or whose outcome is ambiguous, stays `pending` and is retried automatically by
 the `review_cast_votes` beat.
 
-Only `valid` votes are extracted. To avoid silently under-counting, a tally
-session refuses to proceed while its election and area contain an `in-progress`
-vote. A second check runs immediately before ballot extraction.
+Only `valid` ballots are extracted. To avoid silently under-counting, a tally
+session refuses to proceed while its election and area contain a `pending`
+ballot. A second check runs immediately before ballot extraction.
 
-Wait for `in-progress` votes to drain, then re-run the tally. A vote that stays
-`in-progress` needs an operator to investigate why `SetVoted` keeps failing to
+Wait for `pending` ballots to drain, then re-run the tally. A ballot that stays
+`pending` needs an operator to investigate why `SetVoted` keeps failing to
 be delivered or keeps ending in an ambiguous outcome. See the Datafix /
 VoterView integration reference in the `beyond` repository
 (`docs/docusaurus/docs/engineering/datafix_voterview_integration.md`) for the

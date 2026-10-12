@@ -8,6 +8,4 @@ members = [
     "strand",
     "braid",
     "b4",
-    "immu-board",
-    "immudb-rs"
 ]

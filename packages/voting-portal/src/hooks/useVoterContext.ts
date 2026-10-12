@@ -88,7 +88,7 @@ export function useVoterContext(selectedElectionId?: string) {
                         data: {
                             ...list,
                             sequent_backend_ballot_style: styles,
-                            sequent_backend_cast_vote: response.sequent_backend_cast_vote,
+                            cast_votes: response.cast_votes,
                         },
                     })
                     return

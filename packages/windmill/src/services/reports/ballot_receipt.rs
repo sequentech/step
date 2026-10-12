@@ -4,13 +4,14 @@
 use super::ballot_tracker_url::{build_ballot_tracker_url, BallotTrackerPath};
 use super::template_renderer::*;
 use crate::postgres::reports::ReportType;
-use crate::postgres::{self};
-use crate::services::cast_votes::CastVoteStatus;
+use crate::services::ballot_box_reads::get_event_ballot_box;
 use crate::services::temp_path::*;
 
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
+use electoral_log::adapters::ballot_box_reads::{BallotIdMatch, StoredBallot};
+use sequent_core::ballot_receipt::normalize_ballot_id;
 use sequent_core::util::temp_path::*;
 
 use sequent_core::services::pdf;
@@ -129,25 +130,37 @@ impl TemplateRenderer for BallotTemplate {
         let ballot_uui = parse_uuid_v4(election_id.as_str())
             .map_err(|err| anyhow!("Error parsing election id: {:?}", err))?;
 
-        let cast_votes = postgres::cast_vote::get_cast_votes(
+        let store = get_event_ballot_box(
             hasura_transaction,
-            &tennant_uuid,
-            &election_event_uuid,
-            &ballot_uui,
-            voter_id,
-            &[
-                CastVoteStatus::InProgress,
-                CastVoteStatus::Valid,
-                CastVoteStatus::Discarded,
-            ],
+            &tennant_uuid.to_string(),
+            &election_event_uuid.to_string(),
         )
-        .await?;
+        .await?
+        .store;
+        let (event, election) = (election_event_uuid.to_string(), ballot_uui.to_string());
+        let in_box =
+            |ballot: &StoredBallot| ballot.area_id == area_id && ballot.election_id == election;
+        // A ballot cast with a signed receipt goes by the receipt's Ballot ID.
+        let cast = match normalize_ballot_id(ballot_id) {
+            Some(receipt_ballot_id) => store
+                .received_cast_ballots(
+                    &event,
+                    voter_id,
+                    &election,
+                    BallotIdMatch::Exact(&receipt_ballot_id),
+                )
+                .await?
+                .iter()
+                .any(|cast| in_box(&cast.ballot.ballot)),
+            None => store
+                .voter_ballots(&event, voter_id)
+                .await?
+                .iter()
+                .any(|ballot| ballot.ballot_id == ballot_id && in_box(ballot)),
+        };
 
         // Verify that the vote has been casted
-        if !cast_votes.iter().any(|cv| {
-            cv.ballot_id.as_deref().map_or(false, |id| id == ballot_id)
-                && cv.area_id.as_deref().map_or(false, |id| id == area_id)
-        }) {
+        if !cast {
             return Err(anyhow!("BallotID not found in cast votes for {voter_id}"));
         }
 

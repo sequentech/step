@@ -278,7 +278,7 @@ whether that tenant was created fresh or reused via
 
 `delete-election-event` calls the `delete_election_event` GraphQL mutation,
 which queues an async task tearing down the election event's Postgres/Hasura
-rows, its Keycloak realm, and its ImmuDB and document-store data — the
+rows, its Keycloak realm, and its electoral log and document-store data — the
 command blocks and polls until that task finishes (or fails/times out after
 5 minutes), so a `Success!` means cleanup is actually done, not just queued.
 

@@ -29,7 +29,8 @@ You need:
 - the fingerprint of the event's system key (32 hex digits), from your
   platform operator, taken before the close (see
   [Which key to trust](../../04-election_auditors/02-tutorials/06-auditor_verify-ballot-box-seal.md#which-key-to-trust));
-- for the database step, a demonstration environment where you may run SQL.
+- for the database step, a demonstration environment where you may run SQL in
+  the event's electoral-log database.
 
 ## 1. Prepare the event
 
@@ -61,15 +62,15 @@ You need:
    again. Confirm.
 2. Open the election's **Dashboard**. On the **Ballot boxes** card, each area
    goes from **Sealing now** to **Sealed, publishing** and then
-   **Sealed**, normally within seconds. (In a test run, the seal was made one
-   second after Stop Voting and published half a second later.) The card names
-   who closed the election, and shows the ballots in the box, the ballots
-   counted, the seal time and the seal hash.
+   **Sealed**, normally within seconds. The card names who closed the
+   election, and shows the ballots in the box, the ballots counted, the seal
+   time and the seal hash.
 3. Open the event's **Logs** tab and filter by the statement kind
    `BallotBoxSealed`. There is one entry per area, for example "Ballot box of
-   *election*, *area* sealed: 3 of 4 ballots counted." It is signed by the
-   event's system key and carries the seal hash and the counts. Note the seal
-   hash of each entry: step 5 compares it with the record.
+   *election*, *area* sealed: 3 of 4 ballots counted." It comes after every
+   `CastVote` entry of its area. It is signed by the event's system key and
+   carries the seal hash and the counts. Note the seal hash of each entry:
+   step 5 compares it with the record.
 4. On the card, select **Seal record** for each area and save the JSON files.
    With **Restricted**, the button downloads each record through a short-lived
    signed link, and you hand the files to the observers. With **Public**, it is
@@ -92,13 +93,16 @@ Show that the sealed ballot box no longer changes:
 | Delete the election | The Admin Portal checks for seals first and refuses: "This election has sealed ballot boxes and cannot be deleted. Archive its election event instead." The database refuses it through any other path. |
 | Delete the election event | The Admin Portal checks for seals first and refuses: "This election event has sealed ballot boxes and cannot be deleted. Archive it instead." The server refuses it through any other path, before anything is deleted. |
 | Change the event's contest encryption, delegated or weighted voting policy | Refused by the database: it can't change after voting has opened. |
-| In the demonstration environment's database, `INSERT`, `UPDATE`, `DELETE` or `TRUNCATE` on the sealed box's rows of `sequent_backend.cast_vote`, or moving a row to another area | Refused: `ERROR: ballot_box_sealed` (SQLSTATE `42501`), "A sealed ballot box takes no new ballots and no changes." The box keeps its rows. |
+| In the event's electoral-log database, `INSERT`, `UPDATE`, `DELETE` or `TRUNCATE` on the sealed box's rows of `ballot_box_ballot`, or moving a row to another area | Refused: `ERROR: ballot_box_sealed` (SQLSTATE `42501`), "The ballot box of election *id*, area *id* is sealed." The box keeps its rows. |
 
-The database step shows the guard against a direct write. In a demonstration
-environment the services may connect as a database superuser, who could disable
-the guard; production needs a least-privilege role (see
-[Database role for the ballot box seal](../../05-reference/05-cryptography_security/02-security/03-ballot-box-seal-database-role.md),
-which also explains what a superuser could still do and how it is caught).
+The database step shows the guard against a direct write. The role that owns
+the event's database, which the services connect as, can still disable the
+guard: this is not prevented in this release, it is detected. To show it, a
+superuser can change a ballot of the sealed box past the guard (`SET
+session_replication_role = replica`) before step 6: the tally then refuses the
+box and logs a `TallyBallotBoxRejected` entry that says what differs. See
+[Database role for the ballot box seal](../../05-reference/05-cryptography_security/02-security/03-ballot-box-seal-database-role.md)
+for what the guard can't stop and how it is caught.
 
 ## 5. Verify the record offline
 

@@ -11,19 +11,19 @@
 //!   its deadline.
 //! - **The guarantee:** beat runs the light dispatcher [`seal_ballot_boxes`]
 //!   every minute on the Beat queue. It lists the `pending` seals past their
-//!   deadline, the `sealed` ones still to publish and the `failed` ones whose
-//!   failure entry isn't recorded as posted, and enqueues one
+//!   deadline and the `sealed` ones still to publish, and enqueues one
 //!   [`seal_ballot_box`] per box.
 //!
 //! [`seal_ballot_box`] runs on the short queue, which every worker
 //! configuration consumes and long tallies don't hold. Every message
 //! expires [`SEAL_MESSAGE_EXPIRES_SECONDS`] after it is due (beat sends a
-//! new one every minute). A duplicate is harmless: the row and box locks are taken
-//! without waiting, and the status recheck makes a second run a no-op.
+//! new one every minute). A duplicate is harmless: the row and box locks are
+//! taken without waiting, a box has at most one seal in the event's
+//! electoral-log database, and the status recheck makes a second run a no-op.
 
-use crate::postgres::ballot_box_seal::{list_new_pending, list_open_work_ids, BallotBoxSealStatus};
+use crate::postgres::ballot_box_seal::{list_new_pending, list_open_work_ids};
 use crate::services::ballot_box_seal::publish::{publish_box, PublishOutcome};
-use crate::services::ballot_box_seal::seal::{post_failure, seal_box, SealOutcome};
+use crate::services::ballot_box_seal::seal::{seal_box, SealOutcome};
 use crate::services::ballot_box_seal::ProductionSealEnvironment;
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
@@ -97,7 +97,7 @@ pub async fn seal_ballot_boxes() -> Result<()> {
 }
 
 /// Seals one ballot box if it is pending and due, then publishes it if it
-/// is sealed, or posts its failure entry if it failed.
+/// is sealed.
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 // No `expires` here: each send sets it (see `seal_message`), since an
@@ -113,13 +113,8 @@ pub async fn seal_ballot_box(seal_id: String) -> Result<()> {
     let environment = ProductionSealEnvironment;
     let sealed = seal_box(&mut client, &environment, &seal_id).await?;
     info!(%seal_id, ?sealed, "Ballot box seal");
-    match sealed {
-        SealOutcome::NotFound => return Ok(()),
-        SealOutcome::Failed(_) | SealOutcome::NotPending(BallotBoxSealStatus::Failed) => {
-            post_failure(&mut client, &environment, &seal_id).await?;
-            return Ok(());
-        }
-        _ => {}
+    if matches!(sealed, SealOutcome::NotFound | SealOutcome::Failed(_)) {
+        return Ok(());
     }
     let published = publish_box(&mut client, &environment, &seal_id).await?;
     if published == PublishOutcome::Published {

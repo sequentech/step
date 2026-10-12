@@ -36,7 +36,7 @@ function response(count: number, eventId = "event") {
     const eventUrl = `https://objects/${eventId}/event`
     objects.set(eventUrl, {id: eventId, presentation: {}, status: {}, description: null})
     return {
-        sequent_backend_cast_vote: [],
+        cast_votes: [],
         get_ballot_files_urls: {
             event_id: eventId,
             status: {},

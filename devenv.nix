@@ -77,9 +77,6 @@ in
     postgresql_18
     openssh
 
-    # immudb
-    go
-
     # To be able to use vim in the terminal
     vim
 
@@ -115,7 +112,7 @@ in
     # count line numbers
     scc
 
-    # for development of immudb local store
+    # local SQLite development
     sqlite
 
     # rust dependencies

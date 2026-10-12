@@ -30,6 +30,9 @@ const VOTING_PORTAL_CLIENT: &str = "voting-portal";
 const UUID_TENANT_ID: &str = "00000000-0000-0000-0000-00000000000a";
 const UUID_EVENT_ID: &str = "00000000-0000-0000-0000-00000000000e";
 const ELECTION_ID: &str = "00000000-0000-0000-0000-000000000001";
+// And some as version 4 UUIDs.
+const UUID_V4_TENANT_ID: &str = "00000000-0000-4000-8000-00000000000a";
+const UUID_V4_EVENT_ID: &str = "00000000-0000-4000-8000-00000000000e";
 const PEM: &str =
     "-----BEGIN CERTIFICATE-----\nAA==\n-----END CERTIFICATE-----\n";
 
@@ -225,6 +228,23 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/election-event/stats", {"election_event_id": EVENT_ID, "start_date": "2026-01-01", "end_date": "2026-01-02", "user_timezone": "UTC"}, [ADMIN_DASHBOARD_VIEW], BACKEND, UNAUTHORIZED),
         case!(Admin, "/election-event/top-votes-by-ip", {"election_event_id": EVENT_ID}, [ADMIN_DASHBOARD_VIEW], BACKEND, UNAUTHORIZED),
         case!(Admin, "/election/stats", {"election_event_id": EVENT_ID, "election_id": "test-election", "start_date": "2026-01-01", "end_date": "2026-01-02", "user_timezone": "UTC"}, [ADMIN_DASHBOARD_VIEW], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/electoral-log", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [LOGS_READ], BACKEND_TEXT, UNAUTHORIZED),
+        case!(SuperAdmin, "/electoral-log-console/page", {"tenant_id": UUID_V4_TENANT_ID, "election_event_id": UUID_V4_EVENT_ID, "table": "records"}, [ELECTORAL_LOG_CONSOLE_READ], BACKEND, UNAUTHORIZED_JSON),
+        case!(SuperAdmin, "/electoral-log-console/query", {"tenant_id": UUID_V4_TENANT_ID, "election_event_id": UUID_V4_EVENT_ID, "sql": "SELECT 1"}, [ELECTORAL_LOG_CONSOLE_QUERY, ELECTORAL_LOG_PERSONAL_DATA_READ], BACKEND, UNAUTHORIZED_JSON),
+        case!(SuperAdmin, "/electoral-log-console/record", {"tenant_id": UUID_V4_TENANT_ID, "election_event_id": UUID_V4_EVENT_ID, "position": 1}, [ELECTORAL_LOG_CONSOLE_READ], BACKEND, UNAUTHORIZED_JSON),
+        case!(
+            SuperAdmin,
+            "/electoral-log-console/tenants",
+            {},
+            [ELECTORAL_LOG_CONSOLE_READ],
+            BACKEND,
+            UNAUTHORIZED_JSON
+        ),
+        case!(Admin, "/electoral-log/audit", {"election_event_id": UUID_V4_EVENT_ID}, [ELECTORAL_LOG_AUDIT], BACKEND, UNAUTHORIZED),
+        // ENV_SLUG names boards; the child process leaves it unset.
+        case!(Admin, "/electoral-log/checkpoint", {"tenant_id": TENANT_ID, "election_event_id": UUID_EVENT_ID}, [LOGS_READ], BACKEND_TEXT, UNAUTHORIZED),
+        case!(Admin, "/electoral-log/consistency", {"tenant_id": TENANT_ID, "election_event_id": UUID_EVENT_ID, "checkpoint": {"log_name": "board", "log_uid": UUID_EVENT_ID, "tree_size": 1, "root": [0]}}, [LOGS_READ], BACKEND_TEXT, UNAUTHORIZED),
+        case!(Admin, "/electoral-log/inclusion", {"tenant_id": TENANT_ID, "election_event_id": UUID_EVENT_ID, "record_id": 1}, [LOGS_READ], BACKEND_TEXT, UNAUTHORIZED),
         case!(Admin, "/encrypt-report", {"election_event_id": EVENT_ID, "password": "test-password"}, [REPORT_WRITE], BACKEND, UNAUTHORIZED),
         // The task row is written before the permission check.
         case!(Admin, "/evaluate-approval-matrix", {"election_event_id": EVENT_ID, "matrix": {"compared_fields": ["firstName"], "rules": [], "otherwise": {"decision": "REJECTED", "reason": "NO_VOTER"}}, "enrollment": {"voter_found": false}}, [APPLICATION_READ], Reply::Json(Status::Ok), UNAUTHORIZED_JSON),
@@ -279,8 +299,9 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/get-user-template", {"template_type": "test-template"}, [REPORT_READ], BACKEND_TEXT, UNAUTHORIZED),
         case!(Admin, "/get-users", {"tenant_id": TENANT_ID}, [USER_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/get-users", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [VOTER_READ], BACKEND_TEXT, UNAUTHORIZED),
-        case!(Admin, "/immudb/electoral-log", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [LOGS_READ], BACKEND_TEXT, UNAUTHORIZED),
-        case!(Admin, "/immudb/pgaudit-list", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [LOGS_READ], BACKEND_TEXT, UNAUTHORIZED),
+        case!(Voter, "/get-voter-cast-votes", {"election_event_id": EVENT_ID}, [CAST_VOTE], BACKEND, FORBIDDEN),
+        // Looking ballots up by their ID first reads the checks period.
+        case!(Voter, "/get-voter-cast-votes", {"election_event_id": EVENT_ID, "election_id": ELECTION_ID, "ballot_id": "0abc12"}, [CAST_VOTE], BACKEND, FORBIDDEN),
         case!(Admin, "/import-application", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "document_id": "test-document"}, [APPLICATION_IMPORT], BACKEND, UNAUTHORIZED),
         case!(Admin, "/import-areas", {"election_event_id": EVENT_ID, "document_id": "test-document"}, [AREA_WRITE], BACKEND, UNAUTHORIZED),
         // The task row is written before the permission check.

@@ -6,8 +6,9 @@
 //! record offline (VOTE-FREEZE), optionally looks up a Ballot ID in it and
 //! compares it with an `export-cast-votes` CSV.
 //!
-//! Ballot ID forms: the stored `cast_vote.ballot_id` is `hash_ballot`, the hex
-//! of the first 32 bytes of the ballot's SHA-512. The `CastVote` log entry
+//! Ballot ID forms: the stored `ballot_box_ballot.ballot_id` of the event's
+//! ballot box is `hash_ballot`, the hex of the first 32 bytes of the
+//! ballot's SHA-512. The `CastVote` log entry
 //! holds that full SHA-512, and `export-cast-votes` writes the hex of its
 //! first 32 bytes (`shorten_hash`), so the CSV `ballot_id` is the stored ID.
 //! The voting portal and the PDF receipt show the stored ID too. All three
@@ -20,7 +21,7 @@ use colored::Colorize;
 use electoral_log::messages::statement::ballot_box_sealed_description;
 use electoral_log::seal::{
     format_time, verify_record, BallotBoxSealManifest, ExpectedKey, SealCheck, SealCheckError,
-    SealCheckStep, SealDisposition, SealEntry, SealRecord,
+    SealCheckStep, SealDisposition, SealEntry, SealRecord, SealRecordLogEntry,
 };
 use serde::Deserialize;
 use std::collections::BTreeMap;
@@ -451,10 +452,20 @@ fn print_checks(
         Mark::NotChecked,
         "Log entry",
         &format!(
-            "#{} (not signed): check that the bulletin board's BallotBoxSealed entry for this box has this seal hash",
-            record.log_entry.id
+            "{} (not signed): check that the bulletin board's BallotBoxSealed entry for this box has this seal hash",
+            log_entry_text(&record.log_entry)
         ),
     );
+}
+
+/// Where the record says the seal's entry is: its leaf in the event's log,
+/// which copies of the log keep, or the entry id in the database that stored
+/// it for a record written before leaves were recorded.
+fn log_entry_text(entry: &SealRecordLogEntry) -> String {
+    match (&entry.log_uid, entry.leaf_index) {
+        (Some(log_uid), Some(leaf_index)) => format!("leaf {leaf_index} of log {log_uid}"),
+        _ => format!("#{}", entry.id),
+    }
 }
 
 fn normalize_id(id: &str) -> String {

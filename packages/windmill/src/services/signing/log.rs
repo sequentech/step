@@ -14,13 +14,13 @@
 //!    any later step queues a higher one. An event whose first unposted
 //!    entry failed recently is left alone until its backoff ends.
 //! 2. Loads the signing keys the entries need, in transactions of its own.
-//! 3. Posts the entries up to the snapshot, in id order (the order the steps
-//!    committed), holding only the event's worker lock, so signing steps
-//!    never wait for the board. Each entry is a board delivery with a stable
-//!    id, `sha256("signing:{step_id}:{event_type}")`, whose receipt the board
-//!    keeps in the same transaction: a retry after a lost answer or a lost
-//!    commit writes nothing twice. The first failure stops the event, so
-//!    nothing is posted out of order.
+//! 3. Posts the entries up to the snapshot in one append, in id order (the
+//!    order the steps committed), holding only the event's worker lock, so
+//!    signing steps never wait for the board. Each entry is a board delivery
+//!    with a stable id, `signing:{step_id}:{event_type}`: a retry after a
+//!    lost answer or a lost commit writes nothing twice, and an entry the
+//!    board already holds must say the same. The first failure stops the
+//!    event, so nothing is posted out of order.
 
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::signing::{
@@ -32,24 +32,24 @@ use crate::postgres::signing::{
 };
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
-use crate::services::protocol_manager::get_board_client;
+use crate::services::protocol_manager::{get_board_client, get_event_databases};
 use anyhow::{anyhow, Context, Result};
-use chrono::{DateTime, SecondsFormat, Utc};
+use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client, Transaction};
 use electoral_log::messages::message::{Message, SigningData};
 use electoral_log::messages::newtypes::{
     EventIdString, SigningLogEntry, SigningStatementKind, Timestamp,
 };
-use electoral_log::messages::statement::{StatementEventType, StatementLogType};
-use electoral_log::{BoardClient, ElectoralLogMessage};
-use immudb_rs::TxMode;
+use electoral_log::messages::statement::{StatementBody, StatementEventType, StatementLogType};
+use electoral_log::{ElectoralLogMessage, LogEntry, StoredRecord};
 use serde::Serialize;
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::fmt;
 use std::future::Future;
-use std::pin::Pin;
 use std::time::Duration;
+use strand::serialization::StrandDeserialize;
 use tracing::{debug, error, info, instrument, warn};
 use uuid::Uuid;
 
@@ -165,12 +165,8 @@ pub async fn stage_step(
 
 // Posting
 
-/// How many entries one pass posts per event.
+/// How many entries one pass posts per event, in one append.
 pub const OUTBOX_BATCH: i64 = 200;
-
-/// Deliveries per board transaction, as the electoral log dispatcher writes
-/// them.
-pub const DELIVERIES_PER_TRANSACTION: usize = 16;
 
 /// How long a snapshot waits for the signing steps being written before it
 /// leaves the event to a later pass.
@@ -269,13 +265,11 @@ pub fn outbox_board_message(
 
 /// The board delivery id of a step's entry: the same for every attempt.
 pub fn delivery_id(step_id: Uuid, event_type: &StatementEventType) -> String {
-    hex::encode(Sha256::digest(
-        format!("signing:{step_id}:{event_type}").as_bytes(),
-    ))
+    format!("signing:{step_id}:{event_type}")
 }
 
-/// What an entry says, apart from its signature: the board refuses a
-/// delivery id reused for anything else.
+/// What an entry says, apart from its signature: an entry the board holds
+/// under the same delivery id must say the same.
 #[derive(Serialize)]
 struct DeliveryPayload<'a> {
     kind: String,
@@ -287,16 +281,23 @@ struct DeliveryPayload<'a> {
     area_id: Option<Uuid>,
     user_id: Option<&'a str>,
     username: Option<&'a str>,
-    occurred_at: String,
+    /// Unix seconds, as the entry's statement timestamp keeps it.
+    occurred_at: i64,
     description: &'a str,
     details: Value,
+}
+
+impl DeliveryPayload<'_> {
+    fn hash(&self) -> Result<String> {
+        Ok(hex::encode(Sha256::digest(serde_json::to_vec(self)?)))
+    }
 }
 
 /// The SHA-256 of what the row's entry says, not of its signed bytes, which
 /// change with every signature.
 pub fn payload_hash(row: &SigningLogOutboxRow) -> Result<String> {
     let (user_id, username) = person(row);
-    let payload = DeliveryPayload {
+    DeliveryPayload {
         kind: row.statement_kind.to_string(),
         event_type: row.event_type.to_string(),
         log_type: row.log_type.to_string(),
@@ -306,11 +307,44 @@ pub fn payload_hash(row: &SigningLogOutboxRow) -> Result<String> {
         area_id: row.area_id,
         user_id,
         username,
-        occurred_at: row.occurred_at.to_rfc3339_opts(SecondsFormat::Micros, true),
+        occurred_at: row.occurred_at.timestamp(),
         description: description(row)?,
         details: details(row)?,
+    }
+    .hash()
+}
+
+/// [`payload_hash`] of a signing entry the board holds.
+pub fn stored_payload_hash(stored: &ElectoralLogMessage) -> Result<String> {
+    let message = Message::strand_deserialize(&stored.message)
+        .map_err(|error| anyhow!("The board's entry can't be read: {error:?}"))?;
+    let StatementBody::Signing(entry) = &message.statement.body else {
+        return Err(anyhow!(
+            "The board's entry is a {} entry, not a signing one",
+            stored.statement_kind
+        ));
     };
-    Ok(hex::encode(Sha256::digest(serde_json::to_vec(&payload)?)))
+    let uuid = |value: &str| {
+        Uuid::parse_str(value).with_context(|| format!("The board's entry names {value:?}"))
+    };
+    DeliveryPayload {
+        kind: entry.kind.to_string(),
+        event_type: entry.event_type.to_string(),
+        log_type: entry.log_type.to_string(),
+        step_id: uuid(&entry.step_id)?,
+        election_event_id: uuid(&message.statement.head.event.0)?,
+        election_id: message.election_id.as_deref().map(uuid).transpose()?,
+        area_id: message.area_id.as_deref().map(uuid).transpose()?,
+        user_id: message.user_id.as_deref(),
+        username: message.username.as_deref(),
+        occurred_at: i64::try_from(message.statement.head.timestamp)?,
+        description: &entry.description,
+        details: sorted(
+            &serde_json::from_str(&entry.details_json)
+                .context("The board's entry has unreadable details")?,
+        ),
+    }
+    .hash()
 }
 
 /// One entry, ready for the board.
@@ -361,8 +395,8 @@ pub trait SigningLogKeys: Send + Sync {
 /// The board the worker posts to.
 pub trait SigningLogBoard: Send {
     /// Writes `deliveries` to `board` in one transaction, in order. A
-    /// delivery whose receipt the board holds is not written again (`false`);
-    /// a delivery id reused for other content fails the transaction.
+    /// delivery the board holds is not written again (`false`); one it holds
+    /// with other content fails the call with [`ReusedDelivery`].
     fn deliver(
         &mut self,
         board: &str,
@@ -482,8 +516,6 @@ pub struct OutboxBatch {
     pub up_to_id: i64,
     /// At most this many entries.
     pub rows: i64,
-    /// Deliveries per board transaction.
-    pub per_transaction: usize,
 }
 
 async fn fail(
@@ -505,11 +537,13 @@ async fn fail(
     Ok(())
 }
 
-/// Posts the event's unposted entries within `batch`, in order, and marks
-/// them posted in `hasura_transaction`, which the caller commits. `None`
-/// while another worker holds the event. The first entry that doesn't read
-/// or sign is marked failed and ends the pass; so is the first entry of a
-/// board transaction that fails (it is all or nothing).
+/// Posts the event's unposted entries within `batch`, in order, in one
+/// board transaction, and marks them posted in `hasura_transaction`, which
+/// the caller commits. `None` while another worker holds the event. The
+/// first entry that doesn't read or sign is marked failed and ends the pass,
+/// after the entries before it are posted. When the board transaction fails
+/// (it is all or nothing), nothing is posted and its first entry is marked
+/// failed, or the entry the board holds with other content.
 #[instrument(skip(hasura_transaction, keys, board), err)]
 pub async fn post_outbox_snapshot<K: SigningLogKeys, B: SigningLogBoard>(
     hasura_transaction: &Transaction<'_>,
@@ -544,10 +578,10 @@ pub async fn post_outbox_snapshot<K: SigningLogKeys, B: SigningLogBoard>(
         }
     }
     let mut pass = OutboxPass::default();
-    for chunk in deliveries.chunks(batch.per_transaction.max(1)) {
-        match board.deliver(board_name, chunk).await {
+    if !deliveries.is_empty() {
+        match board.deliver(board_name, &deliveries).await {
             Ok(written) => {
-                for (delivery, new) in chunk.iter().zip(written) {
+                for (delivery, new) in deliveries.iter().zip(written) {
                     mark_signing_log_outbox_posted(hasura_transaction, delivery.row_id).await?;
                     pass.posted += 1;
                     if !new {
@@ -556,8 +590,11 @@ pub async fn post_outbox_snapshot<K: SigningLogKeys, B: SigningLogBoard>(
                 }
             }
             Err(error) => {
-                let first = chunk.first().map(|delivery| delivery.row_id);
-                if let Some(id) = first {
+                let failed = error
+                    .downcast_ref::<ReusedDelivery>()
+                    .map(|reused| reused.row_id)
+                    .or_else(|| deliveries.first().map(|delivery| delivery.row_id));
+                if let Some(id) = failed {
                     fail(hasura_transaction, tenant_id, election_event_id, id, &error).await?;
                     pass.failed = Some(id);
                 }
@@ -616,7 +653,6 @@ pub async fn post_event_outbox<K: SigningLogKeys, B: SigningLogBoard>(
         OutboxBatch {
             up_to_id,
             rows: OUTBOX_BATCH,
-            per_transaction: DELIVERIES_PER_TRANSACTION,
         },
     )
     .await?;
@@ -754,119 +790,129 @@ impl SigningLogKeys for ElectoralLogKeys {
     }
 }
 
-/// The board operations a delivery takes; [`BoardClient`] has them.
-pub trait BoardConnection: Send {
-    fn open_session(&mut self, board: &str) -> impl Future<Output = Result<()>> + Send;
-    fn ensure_receipts(&mut self) -> impl Future<Output = Result<()>> + Send;
-    fn begin(&mut self) -> impl Future<Output = Result<String>> + Send;
-    fn insert_delivery(
-        &mut self,
-        transaction_id: &String,
-        delivery: &SigningLogDelivery,
-    ) -> impl Future<Output = Result<bool>> + Send;
-    fn commit(&mut self, transaction_id: &String) -> impl Future<Output = Result<()>> + Send;
-    fn close_session(&mut self) -> impl Future<Output = Result<()>> + Send;
+/// The board holds a delivery id with other content than the entry's.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReusedDelivery {
+    pub row_id: i64,
+    pub delivery_id: String,
 }
 
-impl BoardConnection for BoardClient {
-    async fn open_session(&mut self, board: &str) -> Result<()> {
-        BoardClient::open_session(self, board).await
-    }
-
-    async fn ensure_receipts(&mut self) -> Result<()> {
-        self.ensure_electoral_log_delivery_receipts().await
-    }
-
-    async fn begin(&mut self) -> Result<String> {
-        self.new_tx(TxMode::ReadWrite).await
-    }
-
-    async fn insert_delivery(
-        &mut self,
-        transaction_id: &String,
-        delivery: &SigningLogDelivery,
-    ) -> Result<bool> {
-        self.insert_electoral_log_delivery(
-            transaction_id,
-            &delivery.delivery_id,
-            &delivery.payload_hash,
-            std::slice::from_ref(&delivery.message),
+impl fmt::Display for ReusedDelivery {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "The board holds delivery {} of signing log row {} with other content",
+            self.delivery_id, self.row_id
         )
-        .await
-    }
-
-    async fn commit(&mut self, transaction_id: &String) -> Result<()> {
-        BoardClient::commit(self, transaction_id).await.map(|_| ())
-    }
-
-    async fn close_session(&mut self) -> Result<()> {
-        BoardClient::close_session(self).await
     }
 }
 
-/// Opens a board connection.
-pub type Connect<C> =
-    Box<dyn Fn() -> Pin<Box<dyn Future<Output = Result<C>> + Send>> + Send + Sync>;
+impl std::error::Error for ReusedDelivery {}
 
-/// The electoral log boards, through one connection kept across deliveries
-/// (and events). A delivery that fails, or is cut short, drops it; the next
-/// one connects again.
-pub struct BoardSigningLog<C> {
-    connect: Connect<C>,
-    connection: Option<C>,
+/// What the worker needs from the electoral log.
+pub trait SigningLogStore: Send + Sync {
+    /// Appends `entries` to `board` in one transaction; returns the records
+    /// it stored, which leave out the deliveries the board held already.
+    fn append(
+        &self,
+        board: &str,
+        entries: &[LogEntry],
+    ) -> impl Future<Output = Result<Vec<StoredRecord>>> + Send;
+
+    /// The entry `board` holds under `delivery_id`.
+    fn delivered(
+        &self,
+        board: &str,
+        delivery_id: &str,
+    ) -> impl Future<Output = Result<Option<ElectoralLogMessage>>> + Send;
 }
 
-impl<C> BoardSigningLog<C> {
-    pub fn new(connect: Connect<C>) -> Self {
-        BoardSigningLog {
-            connect,
-            connection: None,
-        }
+/// The election events' electoral logs.
+pub struct ElectoralLogBoards;
+
+impl SigningLogStore for ElectoralLogBoards {
+    async fn append(&self, board: &str, entries: &[LogEntry]) -> Result<Vec<StoredRecord>> {
+        get_board_client().await?.append(board, entries).await
+    }
+
+    async fn delivered(
+        &self,
+        board: &str,
+        delivery_id: &str,
+    ) -> Result<Option<ElectoralLogMessage>> {
+        Ok(get_event_databases()
+            .await?
+            .board_store(board)
+            .await?
+            .delivered(board, delivery_id)
+            .await?
+            .map(|delivered| delivered.message))
     }
 }
 
-impl BoardSigningLog<BoardClient> {
-    /// The immudb boards.
-    pub fn immudb() -> Self {
-        Self::new(Box::new(|| Box::pin(get_board_client())))
+/// The boards, through a [`SigningLogStore`].
+pub struct BoardSigningLog<S> {
+    store: S,
+}
+
+impl<S> BoardSigningLog<S> {
+    pub fn new(store: S) -> Self {
+        BoardSigningLog { store }
     }
 }
 
-impl<C: BoardConnection> SigningLogBoard for BoardSigningLog<C> {
+impl BoardSigningLog<ElectoralLogBoards> {
+    /// The election events' electoral logs.
+    pub fn electoral_log() -> Self {
+        Self::new(ElectoralLogBoards)
+    }
+}
+
+impl<S: SigningLogStore> SigningLogBoard for BoardSigningLog<S> {
     async fn deliver(
         &mut self,
         board: &str,
         deliveries: &[SigningLogDelivery],
     ) -> Result<Vec<bool>> {
-        // Taken out while in use: a delivery cut short drops it.
-        let mut connection = match self.connection.take() {
-            Some(connection) => connection,
-            None => (self.connect)().await?,
-        };
-        let written = async {
-            connection.open_session(board).await?;
-            connection.ensure_receipts().await?;
-            let transaction_id = connection.begin().await?;
-            let mut written = Vec::with_capacity(deliveries.len());
-            for delivery in deliveries {
-                written.push(
-                    connection
-                        .insert_delivery(&transaction_id, delivery)
-                        .await?,
-                );
+        let entries: Vec<LogEntry> = deliveries
+            .iter()
+            .map(|delivery| LogEntry {
+                delivery_id: delivery.delivery_id.clone(),
+                message: delivery.message.clone(),
+            })
+            .collect();
+        let stored: HashSet<String> = self
+            .store
+            .append(board, &entries)
+            .await?
+            .into_iter()
+            .map(|record| record.delivery_id)
+            .collect();
+        let mut written = Vec::with_capacity(deliveries.len());
+        for delivery in deliveries {
+            let new = stored.contains(&delivery.delivery_id);
+            if !new {
+                let held = self
+                    .store
+                    .delivered(board, &delivery.delivery_id)
+                    .await?
+                    .ok_or_else(|| {
+                        anyhow!(
+                            "The board stored no entry for delivery {}",
+                            delivery.delivery_id
+                        )
+                    })?;
+                if stored_payload_hash(&held)? != delivery.payload_hash {
+                    return Err(ReusedDelivery {
+                        row_id: delivery.row_id,
+                        delivery_id: delivery.delivery_id.clone(),
+                    }
+                    .into());
+                }
             }
-            connection.commit(&transaction_id).await?;
-            Ok(written)
+            written.push(new);
         }
-        .await;
-        let closed = connection.close_session().await;
-        if let Err(error) = &closed {
-            warn!(%board, "Error closing the electoral log session: {error:#}");
-        }
-        if written.is_ok() && closed.is_ok() {
-            self.connection = Some(connection);
-        }
-        written
+        Ok(written)
     }
 }
 

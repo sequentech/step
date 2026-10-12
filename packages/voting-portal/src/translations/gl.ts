@@ -38,7 +38,6 @@ const galegoTranslation: TranslationType = {
         a11y: {
             skipToContent: "Ir ao contido principal",
             helpAbout: "Axuda sobre {{topic}}",
-            copyToClipboard: "Copiar {{label}} ao portapapeis",
             previewMaterial: "Vista previa de {{title}}",
             ballotsTable: "Papeletas",
             ballotLocatorTabs: "Seccións do localizador de papeletas",
@@ -442,8 +441,8 @@ const galegoTranslation: TranslationType = {
                 alert: "Esta selección contarase como un voto inválido",
             },
             page: {
-                oopsWithStatus: "¡Vaia! {{status}}",
-                oopsWithoutStatus: "Oops! Erro inesperado",
+                oopsWithStatus: "Vaia! {{status}}",
+                oopsWithoutStatus: "Vaia! Erro inesperado",
                 somethingWrong: "Algo saiu mal.",
                 invalidLoginHintParametersTitle: "Ligazón de votación non válida",
                 invalidLoginHintParametersMessage:
@@ -564,9 +563,7 @@ const galegoTranslation: TranslationType = {
             column: {
                 statement_kind: "Tipo",
                 statement_timestamp: "Marca de tempo",
-                username: "Nome de usuario",
                 ballot_id: "ID da papeleta",
-                message: "Mensaxe",
             },
         },
     },
