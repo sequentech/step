@@ -1061,6 +1061,26 @@ class StackTest(StoreTestCase):
             ):
                 self.backend.authenticate()
 
+    def test_the_administrator_password_is_set_before_signing_in(self):
+        calls = mock.Mock()
+        bootstrap = backend_module.bootstrap
+        with (
+            mock.patch.object(backend_module.socket, "getaddrinfo"),
+            mock.patch.object(bootstrap, "tenant_row", return_value={"id": TENANT}),
+            mock.patch.object(bootstrap, "realm_signing_kids", return_value={"kid"}),
+            mock.patch.object(bootstrap, "published_kids", return_value={"kid"}),
+            mock.patch.object(bootstrap, "set_admin_password", calls.set_password),
+            mock.patch.object(bootstrap, "admin_token", calls.sign_in),
+            mock.patch.object(
+                bootstrap, "hasura_accepts_admin_token", return_value=True
+            ),
+            mock.patch.object(self.backend, "_restore_otp_test_mode"),
+        ):
+            self.backend.authenticate()
+        self.assertEqual(
+            [call[0] for call in calls.mock_calls], ["set_password", "sign_in"]
+        )
+
     def test_a_timeout_reports_the_last_observation_and_hint(self):
         with self.assertRaisesRegex(
             ScenarioError,
