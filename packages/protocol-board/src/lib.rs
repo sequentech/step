@@ -16,7 +16,9 @@
 //! state becomes when a board says a trustee has published its shares or its
 //! plaintexts, or a trustee reports a halt, etc.
 //!
-//! Everything but `board` is pure: no network, no database.
+//! `board` handles native platform I/O. `trustee_sessions` drives both native
+//! and browser runners through transport and persistence interfaces; `browser`
+//! binds those sessions to browser fetch and IndexedDB. Other modules are pure.
 //!
 //! # Uses
 //!
@@ -26,7 +28,10 @@
 //! decided twice in two places.
 
 mod ballot;
+#[cfg(feature = "native")]
 mod board;
+#[cfg(feature = "browser")]
+mod browser;
 mod ceremony;
 mod committee;
 mod configuration;
@@ -38,6 +43,8 @@ mod tally;
 mod tally_board;
 mod tally_view;
 mod trustee_api;
+pub mod trustee_sessions;
+mod trustee_transport;
 mod view;
 
 #[cfg(test)]
@@ -61,6 +68,7 @@ pub type BoardManager = wbraid::protocol_manager::ProtocolManager<Ctx>;
 pub use custody::{CustodyProof, CustodyRequest};
 
 pub use ballot::BallotCiphertext;
+#[cfg(feature = "native")]
 pub use board::BoardHandle;
 pub use ceremony::{
     initial_trustees, transition, CeremonyState, PlatformEvent, Timestamps,
@@ -84,3 +92,12 @@ pub use trustee_api::{
     TrusteeBoard, TrusteeBoardsResponse, TrusteeReport, TrusteeReportKind,
 };
 pub use view::{DkgStatus, DkgView};
+
+#[cfg(feature = "native")]
+fn timestamp() -> u64 {
+    wbraid::native::timestamp()
+}
+#[cfg(all(feature = "browser", not(feature = "native")))]
+fn timestamp() -> u64 {
+    wbraid::wasm::timestamp()
+}

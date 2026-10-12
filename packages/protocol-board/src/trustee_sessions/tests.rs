@@ -20,17 +20,17 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use anyhow::{bail, Result};
-use async_trait::async_trait;
-use cryptography::cryptosystem::{elgamal, naoryung};
-use cryptography::groups::Ristretto255Group;
-use cryptography::utils::serialization::{Deserializable, Serializable};
-use protocol_board::{
+use crate::{
     generate_manager, BallotCiphertext, BoardManager, BoardName, Committee,
     Ctx, DkgBoard, ElementPayload, HashHex, ProtocolBoardKind, Quorum,
     RawTrusteeRecord, TallyBoard, TrusteeBoard, TrusteeReportKind,
     TrusteeSecrets,
 };
+use anyhow::{bail, Result};
+use async_trait::async_trait;
+use cryptography::cryptosystem::{elgamal, naoryung};
+use cryptography::groups::Ristretto255Group;
+use cryptography::utils::serialization::{Deserializable, Serializable};
 use tempfile::TempDir;
 use uuid::Uuid;
 use wbraid::board::persistence::NoOpPersistence;
@@ -120,6 +120,7 @@ struct TestBoards {
     stores: SessionStores,
 }
 
+#[async_trait(?Send)]
 impl BoardAccess for TestBoards {
     type Transport = TestTransport;
     type Persistence = SqlitePersistence;
@@ -132,7 +133,7 @@ impl BoardAccess for TestBoards {
         }
     }
 
-    fn store(&self, board: &BoardName) -> Result<SqlitePersistence> {
+    async fn store(&self, board: &BoardName) -> Result<SqlitePersistence> {
         self.stores.open(board)
     }
 }

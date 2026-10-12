@@ -82,3 +82,14 @@ pub async fn report_trustee_board(
     .await
     .map_err(|e| (Status::InternalServerError, format!("{e:?}")))
 }
+
+/// Browser authorization uses a preflight; actual operations still require JWTs.
+#[options("/trustee/boards")]
+pub fn trustee_boards_preflight() -> Status {
+    Status::NoContent
+}
+
+#[options("/trustee/boards/report")]
+pub fn trustee_report_preflight() -> Status {
+    Status::NoContent
+}

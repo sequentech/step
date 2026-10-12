@@ -126,7 +126,7 @@ impl TallyBoard {
             .collect();
         let message = ProtocolMessage::ballots(
             manager,
-            wbraid::native::timestamp(),
+            crate::timestamp(),
             ConfigurationHash(dkg.configuration.hash().to_hash()),
             PublicKeyHash(public_key_hash.to_hash()),
             quorum.0.clone(),

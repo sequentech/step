@@ -64,6 +64,7 @@
     "react-redux": "8.1.2",
     "react-router": "7.18.2",
     "sequent-core": "file:./rust/sequent-core-0.1.0.tgz",
+    "wbraid-trustee": "file:./rust/wbraid-trustee-0.1.0.tgz",
     "sql.js": "^1.13.0",
     "stream-browserify": "^3.0.0",
     "util": "^0.12.5",
@@ -88,6 +89,7 @@
   "scripts": {
     "start": "NODE_OPTIONS='--openssl-legacy-provider --max-old-space-size=4096' webpack serve --config webpack.config.cjs  --mode development",
     "start:container": "PORT=3000 NODE_OPTIONS='--openssl-legacy-provider --max-old-space-size=4096'  webpack serve --config webpack.config.cjs",
+    "build:trustee": "../protocol-board/scripts/build-browser.sh",
     "build": "DISABLE_ESLINT_PLUGIN=false NODE_OPTIONS='--openssl-legacy-provider --max-old-space-size=4096' webpack --config webpack.config.cjs --mode production",
     "prettify": "prettier --check . --ignore-path .prettierignore",
     "prettify:fix": "prettier --write . --ignore-path .prettierignore",

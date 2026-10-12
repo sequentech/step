@@ -59,7 +59,7 @@ impl DkgBoard {
         )?;
         let message = ProtocolMessage::configuration(
             manager,
-            wbraid::native::timestamp(),
+            crate::timestamp(),
             &configuration,
         );
         Ok(DkgBoard {

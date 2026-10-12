@@ -25,5 +25,6 @@
     "RESULTS_PORTAL_URL": "http://localhost:3004",
     "ACTIVATE_MIRU_EXPORT": true,
     "CUSTOM_URLS_DOMAIN_NAME": "google.com",
+    "WBRAID_BOARD_URL": "http://localhost:3005",
     "HARVEST_URL": "http://localhost:8400"
 }

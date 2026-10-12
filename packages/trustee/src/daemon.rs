@@ -14,7 +14,7 @@ use tokio::time::sleep;
 use tracing::{error, info};
 
 use crate::platform::PlatformClient;
-use crate::sessions::{BoardAccess, SessionSet};
+use protocol_board::trustee_sessions::{BoardAccess, SessionSet};
 
 /// The pause between two cycles.
 const CYCLE_PAUSE: Duration = Duration::from_secs(1);

@@ -81,8 +81,8 @@ pub(crate) fn classify(err: &anyhow::Error) -> Verdict {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Ctx;
     use anyhow::{anyhow, bail, Context as _};
-    use protocol_board::Ctx;
 
     /// A board service that answers nothing.
     struct Down;
@@ -112,7 +112,7 @@ mod tests {
     /// Any message will do for a transport that fails before looking at it.
     fn a_message() -> ProtocolMessage<Ctx> {
         ProtocolMessage::<Ctx>::configuration(
-            &protocol_board::generate_manager(),
+            &crate::generate_manager(),
             0,
             &vec![1u8, 2, 3],
         )

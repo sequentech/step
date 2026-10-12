@@ -17,31 +17,36 @@
 //! that session's store kept it.
 
 use std::collections::BTreeMap;
+#[cfg(feature = "native")]
 use std::fs;
+#[cfg(feature = "native")]
 use std::path::PathBuf;
 
-use anyhow::{anyhow, bail, Context as _, Result};
-use protocol_board::{
+use crate::{
     BoardName, Ctx, ProtocolBoardKind, TrusteeBoard, TrusteeReport,
     TrusteeReportKind, TrusteeSecrets,
 };
+use anyhow::{anyhow, bail, Context as _, Result};
 use tracing::{error, info, warn};
 use wbraid::board::persistence::Persistence;
 use wbraid::board::transport::Transport;
 use wbraid::board::BoardClient;
 use wbraid::messages::predicate::Predicate;
+#[cfg(feature = "native")]
 use wbraid::native::http_transport::HttpTransport;
+#[cfg(feature = "native")]
 use wbraid::native::persistence::SqlitePersistence;
 use wbraid::session::Session;
 use wbraid::trustee::Trustee;
 
-use crate::transport::{classify, OutageTagged, Verdict};
+use crate::trustee_transport::{classify, OutageTagged, Verdict};
 
-#[cfg(test)]
+#[cfg(all(test, feature = "native"))]
 mod tests;
 
 /// Where a session set gets a board's transport and its session's store.
-pub(crate) trait BoardAccess {
+#[async_trait::async_trait(?Send)]
+pub trait BoardAccess {
     type Transport: Transport<Ctx>;
     type Persistence: Persistence;
 
@@ -49,21 +54,25 @@ pub(crate) trait BoardAccess {
     fn transport(&self, board: &BoardName) -> Self::Transport;
 
     /// The store of a board's session, created if it does not exist.
-    fn store(&self, board: &BoardName) -> Result<Self::Persistence>;
+    async fn store(&self, board: &BoardName) -> Result<Self::Persistence>;
 }
 
 /// The board service, over braid's HTTP transport.
-pub(crate) struct B4Boards {
+#[cfg(feature = "native")]
+pub struct B4Boards {
     b4_url: String,
     stores: SessionStores,
 }
 
+#[cfg(feature = "native")]
 impl B4Boards {
-    pub(crate) fn new(b4_url: String, stores: SessionStores) -> B4Boards {
+    pub fn new(b4_url: String, stores: SessionStores) -> B4Boards {
         B4Boards { b4_url, stores }
     }
 }
 
+#[cfg(feature = "native")]
+#[async_trait::async_trait(?Send)]
 impl BoardAccess for B4Boards {
     type Transport = HttpTransport;
     type Persistence = SqlitePersistence;
@@ -72,20 +81,22 @@ impl BoardAccess for B4Boards {
         HttpTransport::new(&self.b4_url, board.as_str())
     }
 
-    fn store(&self, board: &BoardName) -> Result<SqlitePersistence> {
+    async fn store(&self, board: &BoardName) -> Result<SqlitePersistence> {
         self.stores.open(board)
     }
 }
 
 /// The directory of the sessions' stores: one SQLite file per board, named
 /// after it.
-pub(crate) struct SessionStores {
+#[cfg(feature = "native")]
+pub struct SessionStores {
     directory: PathBuf,
 }
 
+#[cfg(feature = "native")]
 impl SessionStores {
     /// The stores under `directory`, which is created if it does not exist.
-    pub(crate) fn new(directory: PathBuf) -> Result<SessionStores> {
+    pub fn new(directory: PathBuf) -> Result<SessionStores> {
         fs::create_dir_all(&directory).with_context(|| {
             format!(
                 "creating the session store directory {}",
@@ -133,7 +144,7 @@ enum BoardEntry<A: BoardAccess> {
 }
 
 /// One trustee's sessions, one entry per board name.
-pub(crate) struct SessionSet<A: BoardAccess> {
+pub struct SessionSet<A: BoardAccess> {
     /// The trustee's name, which braid stamps into the messages it signs.
     name: String,
     secrets: TrusteeSecrets,
@@ -144,7 +155,7 @@ pub(crate) struct SessionSet<A: BoardAccess> {
 }
 
 impl<A: BoardAccess> SessionSet<A> {
-    pub(crate) fn new(
+    pub fn new(
         name: String,
         secrets: TrusteeSecrets,
         access: A,
@@ -162,7 +173,7 @@ impl<A: BoardAccess> SessionSet<A> {
     /// no session yet, and close the sessions of the boards it no longer
     /// lists, whose ceremonies the platform has ended. Halted entries ignore
     /// the list.
-    pub(crate) async fn reconcile(&mut self, list: &[TrusteeBoard]) {
+    pub async fn reconcile(&mut self, list: &[TrusteeBoard]) {
         self.entries.retain(|name, entry| {
             let listed = list.iter().any(|board| board.name == *name);
             match entry {
@@ -198,7 +209,7 @@ impl<A: BoardAccess> SessionSet<A> {
     }
 
     /// One update, step and post of every open session, in list order.
-    pub(crate) async fn advance(&mut self) {
+    pub async fn advance(&mut self) {
         for name in &self.listed {
             let Some(entry) = self.entries.get_mut(name) else {
                 continue;
@@ -234,7 +245,7 @@ impl<A: BoardAccess> SessionSet<A> {
     }
 
     /// A report for every halt the platform has not recorded yet.
-    pub(crate) fn pending_reports(&self) -> Vec<TrusteeReport> {
+    pub fn pending_reports(&self) -> Vec<TrusteeReport> {
         self.entries
             .iter()
             .filter_map(|(board, entry)| match entry {
@@ -251,7 +262,7 @@ impl<A: BoardAccess> SessionSet<A> {
     }
 
     /// The platform has recorded the halt on `board`.
-    pub(crate) fn settle(&mut self, board: &BoardName) {
+    pub fn settle(&mut self, board: &BoardName) {
         if let Some(BoardEntry::Halted { .. }) = self.entries.get(board) {
             self.entries.remove(board);
         }
@@ -311,7 +322,7 @@ impl<A: BoardAccess> SessionSet<A> {
         &self,
         name: &BoardName,
     ) -> Result<Option<BoardSession<A>>> {
-        let store = self.access.store(name)?;
+        let store = self.access.store(name).await?;
         let transport = OutageTagged::new(self.access.transport(name));
         let client = BoardClient::<Ctx, _, _>::connect(transport, store)
             .await
@@ -331,7 +342,7 @@ impl<A: BoardAccess> SessionSet<A> {
             format!("tally board {name} is listed without its parent board")
         })?;
         let seed = self.seed(parent).await?;
-        let store = self.access.store(name)?;
+        let store = self.access.store(name).await?;
         let client = BoardClient::<Ctx, _, _>::connect_union(
             OutageTagged::new(self.access.transport(name)),
             OutageTagged::new(self.access.transport(parent)),
@@ -351,10 +362,9 @@ impl<A: BoardAccess> SessionSet<A> {
     /// trustee has no record of that key generation, and the board is then
     /// never taken on trust.
     async fn seed(&self, parent: &BoardName) -> Result<Vec<Predicate>> {
-        let seed =
-            self.access.store(parent)?.load().await.with_context(|| {
-                format!("reading the session store of board {parent}")
-            })?;
+        let seed = self.access.store(parent).await?.load().await.with_context(
+            || format!("reading the session store of board {parent}"),
+        )?;
         if seed.is_empty() {
             bail!(
                 "the session store of parent board {parent} is empty: this \

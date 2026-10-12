@@ -84,3 +84,11 @@ be replayed as a tally proof.
 
 If generation fails, the ceremony displays **FAILED** and its failure reason.
 Resolve the runner or protocol failure before arranging a replacement ceremony.
+
+
+Browser trustees can generate or import their identity and participate from the
+portal's `/trustee` screen. Keep the page open while its runner is active. Use
+**Create custody proof** with the downloaded public request, then upload the
+result to the ceremony wizard. Keep private backups of both the keys and browser
+sessions. See [browser trustee setup](../../07-developers/09-braid/braid_trustees_configuration.md#browser-trustees)
+for key registration, browser storage recovery, and tally restore instructions.

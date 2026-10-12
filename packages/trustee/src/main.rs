@@ -14,8 +14,6 @@ mod daemon;
 mod identity;
 mod login;
 mod platform;
-mod sessions;
-mod transport;
 
 use std::env;
 use std::path::PathBuf;
@@ -27,7 +25,7 @@ use tracing_subscriber::EnvFilter;
 
 use crate::config::Config;
 use crate::platform::PlatformClient;
-use crate::sessions::{B4Boards, SessionSet, SessionStores};
+use protocol_board::trustee_sessions::{B4Boards, SessionSet, SessionStores};
 
 /// The variable the log level is read from, as by the platform's services.
 const LOG_LEVEL: &str = "LOG_LEVEL";

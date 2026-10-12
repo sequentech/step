@@ -334,6 +334,7 @@ services:
       KEYCLOAK_VOTER_GROUP_NAME: ${KEYCLOAK_VOTER_GROUP_NAME}
       VOTING_PORTAL_URL: ${VOTING_PORTAL_URL}
       B4_URL: http://b4v6:3005
+      TRUSTEE_HARVEST_URL: http://harvest:${HARVEST_PORT}
       PYTHONDONTWRITEBYTECODE: "1"
       PYTHONUNBUFFERED: "1"
     entrypoint: ["python3", "-m", "scripts.e2e.journeys"]

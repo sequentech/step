@@ -1253,6 +1253,33 @@ class BackendJourneys(unittest.TestCase):
             row = ceremony()
             return row if row["status"].get("public_key_hash") else None
 
+        # Optional real-browser participants use the same journey and independent
+        # vote/result oracle. The owned native daemons must be stopped by the runner.
+        browser_url = ENV.get("STEP_E2E_BROWSER_TRUSTEES_URL")
+
+        def browser_call(operation, **body):
+            response = Http().post(browser_url + operation, json_body=body)
+            self.assertEqual(response.status, 200, response.body.decode())
+            return response.json()
+
+        if browser_url:
+            for name in bootstrap.TRUSTEES:
+                token = self.keycloak.password_grant(
+                    TENANT_REALM,
+                    "api-key-client",
+                    name,
+                    ENV[f"{name.upper()}_PASSWORD"],
+                    ENV["API_KEY_CLIENT_SECRET"],
+                )["access_token"]
+                browser_call(
+                    "/start",
+                    name=name,
+                    keys=(ROOT / f"packages/trustee/dev/{name}.toml").read_text(),
+                    boardUrl=B4_URL,
+                    platform=ENV["TRUSTEE_HARVEST_URL"],
+                    token=token,
+                )
+
         ready = wait_until(
             "manual native joint key verification", generated, timeout=600
         )
@@ -1324,6 +1351,8 @@ class BackendJourneys(unittest.TestCase):
             )
 
         def attest(name, request):
+            if browser_url:
+                return browser_call("/attest", name=name, request=request)["proof"]
             cli = trustee_clients[name]
             request_path = cli.directory / "custody-request.json"
             proof_path = cli.directory / "custody-proof.json"
@@ -1367,34 +1396,77 @@ class BackendJourneys(unittest.TestCase):
             {t["status"] for t in ceremony()["status"]["trustees"]}, {"KEY_RETRIEVED"}
         )
         for index, name in enumerate(bootstrap.TRUSTEES):
-            output = trustee_clients[name].step(
-                "complete-key-ceremony",
-                "--election-event-id",
-                event_id,
-                "--key-ceremony-id",
-                ceremony_id,
-                "--trustee-config",
-                str(ROOT / f"packages/trustee/dev/{name}.toml"),
-            )
-            self.assertIn("Success! Completed key custody", output)
+            if browser_url:
+                self.assertTrue(
+                    apis[name].query(
+                        check_query,
+                        {
+                            "event": event_id,
+                            "ceremony": ceremony_id,
+                            "proof": attest(name, requests[name]),
+                        },
+                    )["check_private_key"]["is_valid"]
+                )
+            else:
+                output = trustee_clients[name].step(
+                    "complete-key-ceremony",
+                    "--election-event-id",
+                    event_id,
+                    "--key-ceremony-id",
+                    ceremony_id,
+                    "--trustee-config",
+                    str(ROOT / f"packages/trustee/dev/{name}.toml"),
+                )
+                self.assertIn("Success! Completed key custody", output)
             row = ceremony()
             self.assertEqual(
                 row["execution_status"], "IN_PROGRESS" if index == 0 else "SUCCESS"
             )
             self.assertEqual(row["status"]["public_key"], joint_key)
+        if browser_url:
+            # Browser-generated proofs are accepted by the actual custody endpoint.
+            for name in bootstrap.TRUSTEES:
+                result = apis[name].query(
+                    check_query,
+                    {
+                        "event": event_id,
+                        "ceremony": ceremony_id,
+                        "proof": attest(name, requests[name]),
+                    },
+                )["check_private_key"]
+                self.assertTrue(result["is_valid"])
+            # Resume one identity from IndexedDB; restore the other in a completely
+            # fresh browser, preserving the DKG commitments used by tally union.
+            self.assertGreater(browser_call("/restart", name="trustee1")["stores"], 0)
+            self.assertTrue(
+                browser_call("/restore-in-new-browser", name="trustee2")["restored"]
+            )
+
         # Rechecking uses the saved public request and cannot downgrade completed custody.
-        self.assertIn(
-            "Success! Completed key custody",
-            trustee_clients["trustee1"].step(
-                "complete-key-ceremony",
-                "--election-event-id",
-                event_id,
-                "--key-ceremony-id",
-                ceremony_id,
-                "--trustee-config",
-                str(ROOT / "packages/trustee/dev/trustee1.toml"),
-            ),
-        )
+        if browser_url:
+            self.assertTrue(
+                apis["trustee1"].query(
+                    check_query,
+                    {
+                        "event": event_id,
+                        "ceremony": ceremony_id,
+                        "proof": attest("trustee1", requests["trustee1"]),
+                    },
+                )["check_private_key"]["is_valid"]
+            )
+        else:
+            self.assertIn(
+                "Success! Completed key custody",
+                trustee_clients["trustee1"].step(
+                    "complete-key-ceremony",
+                    "--election-event-id",
+                    event_id,
+                    "--key-ceremony-id",
+                    ceremony_id,
+                    "--trustee-config",
+                    str(ROOT / "packages/trustee/dev/trustee1.toml"),
+                ),
+            )
         self.assertEqual(
             {t["status"] for t in ceremony()["status"]["trustees"]}, {"KEY_CHECKED"}
         )
@@ -1450,17 +1522,32 @@ class BackendJourneys(unittest.TestCase):
                 "ELECTORAL_RESULTS",
             )
         )
-        for name in bootstrap.TRUSTEES:
-            output = trustee_clients[name].step(
-                "confirm-key-tally",
-                "--election-event-id",
-                event_id,
-                "--tally-id",
-                tally_id,
-                "--trustee-config",
-                str(ROOT / f"packages/trustee/dev/{name}.toml"),
-            )
-            self.assertIn("Success! Successfully confirmed key", output)
+        if not browser_url:
+            for name in bootstrap.TRUSTEES:
+                output = trustee_clients[name].step(
+                    "confirm-key-tally",
+                    "--election-event-id",
+                    event_id,
+                    "--tally-id",
+                    tally_id,
+                    "--trustee-config",
+                    str(ROOT / f"packages/trustee/dev/{name}.toml"),
+                )
+                self.assertIn("Success! Successfully confirmed key", output)
+        if browser_url:
+            for name in bootstrap.TRUSTEES:
+                request = json.loads(requests[name])
+                request["tally_session_id"] = tally_id
+                proof = attest(name, json.dumps(request))
+                result = apis[name].query(
+                    """mutation ($event: String!, $tally: String!, $proof: String!) {
+                  restore_private_key(object: {election_event_id: $event, tally_session_id: $tally,
+                    private_key_base64: $proof}) { is_valid }
+                }""",
+                    {"event": event_id, "tally": tally_id, "proof": proof},
+                )["restore_private_key"]
+                self.assertTrue(result["is_valid"])
+
         self.step(
             "update-tally",
             "--election-event-id",
@@ -1504,4 +1591,13 @@ class BackendJourneys(unittest.TestCase):
             ),
             1,
         )
+        if browser_url:
+            health = Http().get(browser_url + "/health").json()
+            self.assertEqual(health["failures"], [])
+            for name in bootstrap.TRUSTEES:
+                status = browser_call("/status", name=name)
+                self.assertGreater(status["cycles"], 0)
+                self.assertTrue(
+                    any(board.startswith("tally_") for board in status["boards"])
+                )
         self.passed("manual ceremony")
