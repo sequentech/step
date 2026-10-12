@@ -544,6 +544,7 @@ async fn the_log_never_carries_the_webhook_key_or_query_values() {
         assert!(!log.contains(TOKEN), "{level}: {log}");
         assert!(!log.contains("hub.challenge"), "{level}: {log}");
         if level >= LevelFilter::INFO {
+            assert!(log.contains("callback not relayed"), "{level}: {log}");
             assert!(log.contains("callback relayed"), "{level}: {log}");
             assert!(log.contains(&KEY[..LOGGED_KEY_CHARS]), "{level}: {log}");
         }
