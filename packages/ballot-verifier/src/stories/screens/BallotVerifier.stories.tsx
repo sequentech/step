@@ -5,7 +5,7 @@ import type {Meta, StoryObj} from "@storybook/react-vite"
 import {expect, fn, userEvent, waitFor, within} from "storybook/test"
 import {Provider} from "react-redux"
 import {configureStore} from "@reduxjs/toolkit"
-import {i18n, initCore} from "@sequentech/ui-core"
+import {i18n, initCore, type IBallotStyle} from "@sequentech/ui-core"
 import * as sequentCore from "sequent-core"
 import {electionFixture, FIXED_TIME, IDS} from "@sequentech/ui-test-kit/fixtures"
 import {routeFetch} from "@sequentech/ui-test-kit/adapters/fetch"
@@ -92,10 +92,18 @@ const meta = {
     args: {data: EStoryDataState.POPULATED},
     parameters: {router: {initialEntries: [`${eventPath}/start`]}},
     loaders: [
-        async () => {
+        async ({globals}) => {
             await initCore()
-            // A real voter's audit download, encrypted and signed like the journeys' ballots.
-            return {voterBallot: encryptAndSign(sequentCore)}
+            // A real voter's audit download, encrypted and signed like the journeys' ballots,
+            // with the ballot style that the event publishes.
+            const style = publishedBallotStyle(readStoryGlobals(globals).tenant)
+            return {
+                voterBallot: encryptAndSign(
+                    sequentCore,
+                    false,
+                    JSON.parse(style.ballot_eml) as IBallotStyle
+                ),
+            }
         },
     ],
     beforeEach: ({args, globals}) => {

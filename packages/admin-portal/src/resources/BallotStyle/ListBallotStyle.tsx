@@ -44,7 +44,7 @@ export const ListBallotStyle: React.FC = () => {
                 }}
                 filters={Filters}
             >
-                <DatagridConfigurable omit={OMIT_FIELDS}>
+                <DatagridConfigurable rowClick={false} omit={OMIT_FIELDS}>
                     <TextField source="id" />
                     <TextField source="ballot_eml" />
                     <TextField source="status" />
