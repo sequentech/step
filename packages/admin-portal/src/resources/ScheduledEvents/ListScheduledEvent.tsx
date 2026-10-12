@@ -59,6 +59,7 @@ import {
 } from "@/queries/Lifecycle"
 import {DownloadDocument} from "@/resources/User/DownloadDocument"
 import {isVotingTransition} from "./CreateScheduledEvent"
+import {ACTIVE_SCHEDULED_EVENTS} from "@/services/ScheduledEvent"
 import {
     ScheduleBanners,
     outcomeFilterIds,
@@ -240,7 +241,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
             filter: {
                 tenant_id: tenantId,
                 election_event_id: electionEventId,
-                archived_at: {format: "hasura-raw-query", value: {_is_null: true}},
+                ...ACTIVE_SCHEDULED_EVENTS,
             },
         },
         {enabled: !!electionEventId, refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS}
@@ -447,10 +448,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                 filter={{
                     election_event_id: electionEventId || undefined,
                     tenant_id: tenantId,
-                    archived_at: {
-                        format: "hasura-raw-query",
-                        value: {_is_null: true},
-                    },
+                    ...ACTIVE_SCHEDULED_EVENTS,
                     event_payload: {
                         format: "hasura-raw-query",
                         value: {

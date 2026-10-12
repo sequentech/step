@@ -33,6 +33,7 @@ const user = {
 interface Scenario {
     permissions: string[]
     eventScope: boolean
+    messagingRecords: "none" | "channels"
 }
 let boundary: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof dataBoundary>
@@ -77,8 +78,9 @@ const meta = {
             "voter-export",
         ],
         eventScope: true,
+        messagingRecords: "none",
     },
-    beforeEach: () => {
+    beforeEach: ({args}) => {
         boundary = graphqlBoundary({
             GetUserProfileConfiguration: () => ({
                 data: {
@@ -127,7 +129,56 @@ const meta = {
         })
         data = dataBoundary({
             getList: async <RecordType extends RaRecord>(resource: string) => {
-                if (resource === "user") return {data: [user] as unknown as RecordType[], total: 1}
+                if (resource === "user") {
+                    const users =
+                        args.messagingRecords === "channels"
+                            ? [
+                                  {
+                                      ...user,
+                                      attributes: {
+                                          "sequent.read-only.message-channel": ["WHATSAPP"],
+                                          "sequent.read-only.message-number": ["+15550100001"],
+                                      },
+                                  },
+                                  {
+                                      ...user,
+                                      id: "sms-user",
+                                      username: "bob",
+                                      attributes: {
+                                          "sequent.read-only.message-channel": ["SMS"],
+                                          "sequent.read-only.message-number": ["+15550100002"],
+                                      },
+                                  },
+                                  {
+                                      ...user,
+                                      id: "email-user",
+                                      username: "carol",
+                                      email: "carol@example.org",
+                                  },
+                                  {
+                                      ...user,
+                                      id: "viber-user",
+                                      username: "dave",
+                                      attributes: {
+                                          "sequent.read-only.message-channel": ["VIBER"],
+                                          "sequent.read-only.message-number": ["+15550100003"],
+                                      },
+                                  },
+                                  {
+                                      ...user,
+                                      id: "messenger-user",
+                                      username: "erin",
+                                      attributes: {
+                                          "sequent.read-only.message-channel": ["MESSENGER"],
+                                          "sequent.read-only.messenger-id": ["demo-psid"],
+                                          "sequent.read-only.messenger-page": ["demo-page"],
+                                      },
+                                  },
+                                  {...user, id: "no-channel-user", username: "frank"},
+                              ]
+                            : [user]
+                    return {data: users as unknown as RecordType[], total: users.length}
+                }
                 if (resource === "role") return {data: [] as RecordType[], total: 0}
                 data.unexpected.push(resource)
                 throw new Error("Unexpected list resource")
@@ -255,4 +306,81 @@ export const TenantUserImportHasNoEventScope: Story = {
     args: {permissions: ["user-import"], eventScope: false},
     parameters: {router: {initialEntries: ["/user-roles"]}},
     play: ({canvasElement}) => importFile(canvasElement, false),
+}
+
+export const MessagingChannelColumn: Story = {
+    args: {permissions: ["ee-voters-columns"], messagingRecords: "channels"},
+    play: async ({canvasElement}) => {
+        const canvas = await loaded(canvasElement)
+        expect(canvas.queryByRole("columnheader", {name: "Messaging channel"})).toBeNull()
+        await userEvent.click(canvas.getByRole("button", {name: "Columns"}))
+        const picker = within(canvasElement.ownerDocument.body)
+        await userEvent.click(await picker.findByLabelText("Messaging channel"))
+        await userEvent.keyboard("{Escape}")
+        const header = canvas.getByRole("columnheader", {name: "Messaging channel"})
+        await expect(header).toBeVisible()
+        const columnIndex = (header as HTMLTableCellElement).cellIndex
+        for (const [name, channel] of [
+            ["alice", "WhatsApp"],
+            ["bob", "SMS"],
+            ["carol", "Email"],
+            ["dave", "Viber"],
+            ["erin", "Facebook Messenger"],
+            ["frank", "-"],
+        ]) {
+            const row = canvas.getByText(name).closest("tr")
+            if (!row) throw new Error(`Missing voter row ${name}`)
+            await expect(
+                within(row.children[columnIndex] as HTMLElement).getByText(channel, {exact: true})
+            ).toBeVisible()
+        }
+        expect(canvas.queryByText("+15550100001")).toBeNull()
+        expect(canvas.queryByText("demo-psid")).toBeNull()
+    },
+}
+
+export const MessagingChannelColumnOnPhone: Story = {
+    ...MessagingChannelColumn,
+    globals: {viewport: {value: "mobile1", isRotated: false}},
+}
+
+export const SelectionReplacesTopActions: Story = {
+    args: {
+        permissions: [
+            "voter-create",
+            "voter-write",
+            "voter-delete",
+            "voter-import",
+            "voter-export",
+            "ee-voters-columns",
+        ],
+        messagingRecords: "channels",
+    },
+    play: async ({canvasElement}) => {
+        const canvas = await loaded(canvasElement)
+        const actions = ["Columns", "Add", "Import", "Export"].map((name) =>
+            canvas.getByRole("button", {name})
+        )
+        for (const action of actions) await expect(action).toBeVisible()
+        const alice = canvas.getByText("alice").closest("tr")
+        if (!alice) throw new Error("Missing voter row")
+        const checkbox = within(alice).getByRole("checkbox")
+        await userEvent.click(checkbox)
+        await expect(checkbox).toBeChecked()
+        for (const action of actions) await expect(action).not.toBeVisible()
+        await expect(canvas.getByRole("button", {name: "Delete"})).toBeVisible()
+        await userEvent.click(checkbox)
+        for (const action of actions) await expect(action).toBeVisible()
+        const selectPage = within(canvas.getAllByRole("row")[0]).getByRole("checkbox")
+        await userEvent.click(selectPage)
+        for (const action of actions) await expect(action).not.toBeVisible()
+        await expect(canvas.getByRole("button", {name: "Delete"})).toBeVisible()
+        await userEvent.click(selectPage)
+        for (const action of actions) await expect(action).toBeVisible()
+    },
+}
+
+export const SelectionReplacesTopActionsOnPhone: Story = {
+    ...SelectionReplacesTopActions,
+    globals: {viewport: {value: "mobile1", isRotated: false}},
 }

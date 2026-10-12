@@ -72,8 +72,8 @@ export const LIST_USERS = gql`
 `
 
 /* take attributes obj when key is attribute field.
-if for example, originally the field looks like sequent.read-only.otp-method,
-we will receive it as sequent%read-only%otp-method
+if for example, originally the field looks like sequent.read-only.mobile-number,
+we will receive it as sequent%read-only%mobile-number
 */
 export const formatUserAtributesToJsonb = (attributes: any) => {
     const newUserAttributesObject: Record<string, any> = {}

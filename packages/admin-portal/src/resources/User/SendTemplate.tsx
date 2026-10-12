@@ -3,35 +3,24 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useContext, useMemo, useState} from "react"
-import {
-    SaveButton,
-    SimpleForm,
-    useNotify,
-    Toolbar,
-    Identifier,
-    useGetList,
-    useGetOne,
-} from "react-admin"
+import {SaveButton, SimpleForm, useNotify, Toolbar, Identifier, useGetList} from "react-admin"
 import {
     Alert,
+    Box,
+    Accordion,
     AccordionDetails,
     AccordionSummary,
     MenuItem,
     FormControlLabel,
     SelectChangeEvent,
     Switch,
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableRow,
     Typography,
 } from "@mui/material"
+import {ChannelIcon} from "@sequentech/ui-essentials"
 import {useMutation} from "@apollo/client"
 import {FieldValues, SubmitHandler} from "react-hook-form"
 import MailIcon from "@mui/icons-material/Mail"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
-import {ChannelLabel} from "@sequentech/ui-essentials"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import EmailEditor from "@/components/EmailEditor"
@@ -43,30 +32,21 @@ import {getReferencedSecretAttributeNames} from "@/services/secretAttributeTempl
 import {CreateScheduledEventMutation, Sequent_Backend_Template} from "@/gql/graphql"
 import {ScheduledEventType} from "@/services/ScheduledEvent"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {
-    ITemplateMethod,
-    IEmail,
-    IMethods,
-    ISmsConfig,
-    MESSAGE_TEMPLATE_METHODS,
-} from "@/types/templates"
-import {
-    EChannelSelection,
-    EMessageChannel,
-    EMessagePurpose,
-    IInstantMessageConfig,
-    MESSAGING_CONFIG_ANNOTATION,
-} from "@/types/messaging"
-import {enabledChannels, parseEventMessagingConfig} from "@/services/messaging"
-import {methodChannel} from "@/services/templateMethods"
+import {IEmail, IMethods, ISmsConfig} from "@/types/templates"
+import {EMessageChannel, IInstantMessageConfig} from "@/types/messaging"
 import {useMessagingAccounts} from "@/hooks/useMessagingAccounts"
+import {useEventMessagingConfig} from "@/hooks/useEventMessagingConfig"
 import {useLocation} from "react-router-dom"
 import {
     ISendContent,
     buildSendTemplatePayload,
     missingChannelContent,
-    templatesForChannelSelection,
+    sendNoticeChannels,
+    sendableTemplates,
+    sendingAccountFor,
 } from "./sendTemplatePayload"
+import {SendTemplateAudience} from "./SendTemplateAudience"
+import {ESendsFrom, type IAudiencePreview} from "@/queries/GetMessagingAudiencePreview"
 import {
     ZonedDateTimeInput,
     type IStoredZonedDateTime,
@@ -81,19 +61,22 @@ export enum AudienceSelection {
     SELECTED = "SELECTED",
 }
 
-const EACH_VOTER = EChannelSelection.VOTER_PREFERENCE
-const DEFAULT_CHANNELS = [EMessageChannel.EMAIL, EMessageChannel.SMS]
-const INSTANT_METHODS = [ITemplateMethod.WHATSAPP, ITemplateMethod.VIBER, ITemplateMethod.MESSENGER]
+// Without an event configuration, notices go by SMS or email, in channel order.
+const INSTANT_METHODS = [
+    EMessageChannel.WHATSAPP,
+    EMessageChannel.VIBER,
+    EMessageChannel.MESSENGER,
+] as const
 
 type InstantContentKey = "whatsapp" | "viber" | "messenger"
 
-const instantKey = (method: ITemplateMethod): InstantContentKey | undefined => {
+const instantKey = (method: EMessageChannel): InstantContentKey | undefined => {
     switch (method) {
-        case ITemplateMethod.WHATSAPP:
+        case EMessageChannel.WHATSAPP:
             return "whatsapp"
-        case ITemplateMethod.VIBER:
+        case EMessageChannel.VIBER:
             return "viber"
-        case ITemplateMethod.MESSENGER:
+        case EMessageChannel.MESSENGER:
             return "messenger"
         default:
             return undefined
@@ -105,8 +88,6 @@ interface ITemplate {
         selection: AudienceSelection
         voter_ids?: Array<Identifier> | undefined
     }
-    channel_selection: EChannelSelection
-    communication_method: ITemplateMethod
     alias?: string
     schedule: {
         now: boolean
@@ -132,9 +113,34 @@ interface ITemplateContents {
     messenger?: IInstantMessageConfig
 }
 
-interface IEventRecord {
-    id: string
-    annotations?: Record<string, unknown> | null
+/** Closing a channel keeps its editor mounted and its content in the send. */
+const SendChannelSection: React.FC<{
+    channel: EMessageChannel
+    children: React.ReactNode
+}> = ({channel, children}) => {
+    const {t} = useTranslation()
+    const id = React.useId()
+    return (
+        <Accordion sx={{width: "100%", minWidth: 0}}>
+            <AccordionSummary
+                id={`${id}-summary`}
+                aria-controls={`${id}-content`}
+                expandIcon={<ExpandMoreIcon />}
+                // The always-open outer sections hide their arrows, including descendants.
+                sx={{"&& .MuiAccordionSummary-expandIconWrapper": {display: "flex"}}}
+            >
+                <ElectionHeaderStyles.AccordionTitle
+                    sx={{display: "flex", alignItems: "center", gap: 1}}
+                >
+                    <ChannelIcon channel={channel} fontSize="small" />
+                    {t(`template.method.${channel.toLowerCase()}`)}
+                </ElectionHeaderStyles.AccordionTitle>
+            </AccordionSummary>
+            <AccordionDetails sx={{display: "flex", flexDirection: "column", gap: 2, minWidth: 0}}>
+                {children}
+            </AccordionDetails>
+        </Accordion>
+    )
 }
 
 interface SendTemplateProps {
@@ -160,6 +166,7 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
     const [errors, setErrors] = useState<String | null>(null)
     const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
     const [showProgress, setShowProgress] = useState(false)
+    const [audiencePreview, setAudiencePreview] = useState<IAudiencePreview>()
     // A time is entered in the event's primary zone, else the viewer's.
     const zones = useTimeZoneContext(electionEventId)
     const timeZones = useTimeZoneService()
@@ -169,8 +176,6 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
             selection: audienceSelection ?? AudienceSelection.SELECTED,
             voter_ids: ids ?? undefined,
         },
-        channel_selection: EACH_VOTER,
-        communication_method: ITemplateMethod.EMAIL,
         schedule: {
             now: true,
             zoned: undefined,
@@ -193,25 +198,22 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
         },
     })
 
-    const {data: electionEvent} = useGetOne<IEventRecord>(
-        "sequent_backend_election_event",
-        {id: electionEventId ?? ""},
-        {enabled: !!electionEventId}
+    const {accounts} = useMessagingAccounts({skip: !electionEventId, summaries: true})
+    const {
+        storedConfig,
+        canRead: canReadMessaging,
+        loading: messagingLoading,
+    } = useEventMessagingConfig(electionEventId)
+    // The channels the backend will send on; nothing is guessed when they can't be read.
+    const notices = useMemo(
+        () => sendNoticeChannels(canReadMessaging, storedConfig),
+        [canReadMessaging, storedConfig]
     )
-    const {accounts} = useMessagingAccounts({skip: !electionEventId})
-    const messagingConfig = useMemo(
-        () => parseEventMessagingConfig(electionEvent?.annotations?.[MESSAGING_CONFIG_ANNOTATION]),
-        [electionEvent]
-    )
-    const noticeChannels = useMemo(() => {
-        const channels = enabledChannels(messagingConfig, EMessagePurpose.NOTICE)
-        return channels.length ? channels : DEFAULT_CHANNELS
-    }, [messagingConfig])
-    const sendingAccount = (channel: EMessageChannel) => {
-        const accountId = messagingConfig.channels.find(
-            (config) => config.channel === channel
-        )?.account_id
-        return accounts.find((account) => account.id === accountId)
+    const noticeChannels = notices.kind === "CHANNELS" ? notices.channels : []
+    const sendsFrom = (channel: EMessageChannel): string => {
+        const account = sendingAccountFor(storedConfig, accounts, channel)
+        if (account === "ENVIRONMENT") return t("messaging.send.environment")
+        return account?.name ?? t("messaging.send.noAccount")
     }
 
     const content = template.i18n["en"]
@@ -221,8 +223,6 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
         return buildSendTemplatePayload({
             audienceSelection: formData.audience.selection,
             voterIds: formData.audience.voter_ids,
-            channelSelection: formData.channel_selection,
-            communicationMethod: formData.communication_method,
             scheduleNow: formData.schedule.now,
             scheduleDate: formData.schedule.zoned?.scheduled_date ?? undefined,
             scheduleLocal: formData.schedule.zoned?.local ?? undefined,
@@ -239,6 +239,17 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
     const onSubmit: SubmitHandler<FieldValues> = async (formData) => {
         const zoned = (formData as Partial<ITemplate>).schedule?.zoned
         setErrors(null)
+        if (electionEventId && notices.kind === "NONE") {
+            // Every voter's notice would be refused: nothing is scheduled.
+            setErrors(t("messaging.send.noNoticeChannels"))
+            return
+        }
+        if (missing.length > 0) {
+            setErrors(
+                t("messaging.send.missingContent", {channels: missing.map(channelName).join(", ")})
+            )
+            return
+        }
         setShowProgress(true)
         try {
             const {errors} = await createScheduledEvent({
@@ -278,36 +289,22 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
     const handleSmsChange = (e: React.ChangeEvent<HTMLInputElement>) =>
         updateContent({sms: {message: e.target.value}})
 
-    const handleInstantChange =
-        (key: InstantContentKey, field: "message" | "provider_template" | "provider_language") =>
-        (e: React.ChangeEvent<HTMLInputElement>) =>
+    const handleInstantMessageChange =
+        (key: InstantContentKey) => (e: React.ChangeEvent<HTMLInputElement>) =>
             updateContent({
                 [key]: {
                     ...content[key],
-                    message: content[key]?.message ?? "",
                     parameters: content[key]?.parameters ?? [],
-                    [field]: e.target.value,
+                    message: e.target.value,
                 },
             })
 
-    const handleSelectChange = (e: SelectChangeEvent<unknown>) =>
+    const handleSelectChange = (e: SelectChangeEvent<unknown>) => {
+        setAudiencePreview(undefined)
         setTemplate({
             ...template,
             audience: {...template.audience, selection: e.target.value as AudienceSelection},
         })
-
-    const handleChannelChange = (e: SelectChangeEvent<unknown>) => {
-        const value = e.target.value as string
-        if (value === EACH_VOTER) {
-            setTemplate({...template, channel_selection: EACH_VOTER, alias: undefined})
-        } else {
-            setTemplate({
-                ...template,
-                channel_selection: EChannelSelection.SINGLE_CHANNEL,
-                communication_method: value as ITemplateMethod,
-                alias: undefined,
-            })
-        }
     }
 
     const {data: receipts} = useGetList<Sequent_Backend_Template>("sequent_backend_template", {
@@ -318,15 +315,13 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
 
     const selectableTemplates = useMemo(
         () =>
-            templatesForChannelSelection(
+            sendableTemplates(
                 (receipts ?? []).map((receipt) => ({
                     communication_method: receipt.communication_method,
                     template: receipt.template as ITemplateContents,
-                })),
-                template.channel_selection,
-                template.communication_method
+                }))
             ).map((receipt) => receipt.template),
-        [receipts, template.channel_selection, template.communication_method]
+        [receipts]
     )
 
     const handleSelectAliasChange = (e: SelectChangeEvent<unknown>) => {
@@ -355,12 +350,19 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
         }
     }
 
-    const eachVoter = template.channel_selection === EACH_VOTER
-    const shownMethods = eachVoter ? MESSAGE_TEMPLATE_METHODS : [template.communication_method]
-    const shows = (method: ITemplateMethod) => shownMethods.includes(method)
-    const missing = eachVoter ? missingChannelContent(content, noticeChannels) : []
+    // Every voter gets this notification on their own channel: there's no other choice.
+    const audienceChannels = audiencePreview
+        ? audiencePreview.channels.flatMap((row) =>
+              row.channel &&
+              row.voters > row.not_offered &&
+              row.sends_from &&
+              row.sends_from !== ESendsFrom.NONE
+                  ? [row.channel]
+                  : []
+          )
+        : noticeChannels
+    const missing = missingChannelContent(content, audienceChannels)
     const channelName = (channel: EMessageChannel) => t(`messaging.channel.${channel}`)
-    const singleChannel = methodChannel(template.communication_method)
 
     return (
         <PageHeaderStyles.Wrapper>
@@ -462,63 +464,25 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                         </ElectionHeaderStyles.Wrapper>
                     </AccordionSummary>
                     <AccordionDetails>
-                        <Typography variant="body2" sx={{margin: "0"}}>
-                            {t("messaging.send.channel")}
-                        </Typography>
-                        <FormStyles.Select
-                            name="channel"
-                            value={eachVoter ? EACH_VOTER : template.communication_method}
-                            onChange={handleChannelChange}
-                        >
-                            <MenuItem value={EACH_VOTER}>{t("messaging.send.eachVoter")}</MenuItem>
-                            {MESSAGE_TEMPLATE_METHODS.map((method) => (
-                                <MenuItem key={method} value={method}>
-                                    {t("messaging.send.only", {
-                                        channel: t(
-                                            `sendCommunication.communicationMethod.${method}`
-                                        ),
-                                    })}
-                                </MenuItem>
-                            ))}
-                        </FormStyles.Select>
-                        <Typography variant="caption" color="text.secondary" component="p">
-                            {eachVoter
-                                ? t("messaging.send.eachVoterHelp")
-                                : t("messaging.send.onlyHelp", {
-                                      channel: singleChannel ? channelName(singleChannel) : "",
-                                  })}
-                        </Typography>
-                        {electionEventId && messagingConfig.channels.length > 0 ? (
-                            <Table size="small" aria-label={String(t("messaging.send.sendsFrom"))}>
-                                <TableHead>
-                                    <TableRow>
-                                        <TableCell>{t("messaging.send.channelColumn")}</TableCell>
-                                        <TableCell>{t("messaging.send.sendsFrom")}</TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {(eachVoter
-                                        ? noticeChannels
-                                        : singleChannel
-                                          ? [singleChannel]
-                                          : []
-                                    ).map((channel) => (
-                                        <TableRow key={channel}>
-                                            <TableCell>
-                                                <ChannelLabel
-                                                    channel={channel}
-                                                    label={channelName(channel)}
-                                                />
-                                            </TableCell>
-                                            <TableCell>
-                                                {sendingAccount(channel)?.name ??
-                                                    t("messaging.send.noAccount")}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                        {electionEventId && notices.kind === "NO_PERMISSION" ? (
+                            <Alert severity="info">{t("messaging.send.noReadPermission")}</Alert>
                         ) : null}
+                        {electionEventId && notices.kind === "NONE" && !messagingLoading ? (
+                            <Alert severity="error">{t("messaging.send.noNoticeChannels")}</Alert>
+                        ) : null}
+                        {electionEventId && noticeChannels.length > 0 ? (
+                            <SendTemplateAudience
+                                electionEventId={electionEventId}
+                                audienceSelection={template.audience.selection}
+                                voterIds={template.audience.voter_ids}
+                                channels={noticeChannels}
+                                sendsFrom={sendsFrom}
+                                onPreview={setAudiencePreview}
+                            />
+                        ) : null}
+                        <Typography variant="caption" color="text.secondary" component="p">
+                            {t("messaging.send.eachVoterHelp")}
+                        </Typography>
                         <Typography variant="body2" sx={{margin: "0"}}>
                             {t("sendCommunication.alias")}
                         </Typography>
@@ -540,10 +504,12 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                                 })}
                             </Alert>
                         ) : null}
-                        {shows(ITemplateMethod.EMAIL) && content.email && (
-                            <EmailEditor record={content.email} setRecord={setEmail} />
+                        {content.email && (
+                            <SendChannelSection channel={EMessageChannel.EMAIL}>
+                                <EmailEditor record={content.email} setRecord={setEmail} />
+                            </SendChannelSection>
                         )}
-                        {shows(ITemplateMethod.SMS) && (
+                        <SendChannelSection channel={EMessageChannel.SMS}>
                             <FormStyles.TextField
                                 name="sms"
                                 label={String(t("sendCommunication.smsMessage"))}
@@ -552,61 +518,61 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                                 multiline={true}
                                 minRows={4}
                             />
-                        )}
-                        {INSTANT_METHODS.filter(shows).map((method) => {
+                        </SendChannelSection>
+                        {INSTANT_METHODS.map((method) => {
                             const key = instantKey(method)
                             if (!key) {
                                 return null
                             }
                             const value = content[key]
-                            const editable = method === ITemplateMethod.MESSENGER
-                            if (!value && eachVoter) {
+                            const editable = method === EMessageChannel.MESSENGER
+                            if (!value) {
                                 return null
                             }
                             const channel = t(`template.method.${key}`)
                             return (
-                                <React.Fragment key={method}>
-                                    <FormStyles.TextField
-                                        name={key}
-                                        label={String(channel)}
-                                        value={value?.message ?? ""}
-                                        onChange={
-                                            editable
-                                                ? handleInstantChange(key, "message")
-                                                : undefined
-                                        }
-                                        InputProps={{readOnly: !editable}}
-                                        helperText={
-                                            editable
-                                                ? undefined
-                                                : String(t("messaging.send.approvedTemplateHelp"))
-                                        }
-                                        multiline={true}
-                                        minRows={3}
-                                    />
-                                    <FormStyles.TextField
-                                        name={`${key}.provider_template`}
-                                        label={String(
-                                            t("messaging.send.providerTemplate", {channel})
-                                        )}
-                                        value={value?.provider_template ?? ""}
-                                        onChange={handleInstantChange(key, "provider_template")}
-                                        helperText={String(
-                                            t("messaging.send.providerTemplateHelp")
-                                        )}
-                                    />
-                                    <FormStyles.TextField
-                                        name={`${key}.provider_language`}
-                                        label={String(
-                                            t("messaging.send.providerLanguage", {channel})
-                                        )}
-                                        value={value?.provider_language ?? ""}
-                                        onChange={handleInstantChange(key, "provider_language")}
-                                        helperText={String(
-                                            t("messaging.send.providerLanguageHelp")
-                                        )}
-                                    />
-                                </React.Fragment>
+                                <SendChannelSection key={method} channel={method}>
+                                    {editable ? (
+                                        <FormStyles.TextField
+                                            name={key}
+                                            label={String(channel)}
+                                            value={value.message}
+                                            onChange={handleInstantMessageChange(key)}
+                                            multiline
+                                            minRows={3}
+                                        />
+                                    ) : (
+                                        <>
+                                            <Alert severity="info">
+                                                {t("messaging.send.approvedTemplateHelp", {
+                                                    channel,
+                                                })}
+                                            </Alert>
+                                            <Box>
+                                                <Typography
+                                                    variant="caption"
+                                                    color="text.secondary"
+                                                >
+                                                    {t("messaging.templates.approvedWording")}
+                                                </Typography>
+                                                <Typography
+                                                    component="p"
+                                                    variant="body2"
+                                                    sx={{
+                                                        m: 0,
+                                                        p: 2,
+                                                        borderRadius: 1,
+                                                        bgcolor: "action.hover",
+                                                        whiteSpace: "pre-wrap",
+                                                        overflowWrap: "anywhere",
+                                                    }}
+                                                >
+                                                    {value.message}
+                                                </Typography>
+                                            </Box>
+                                        </>
+                                    )}
+                                </SendChannelSection>
                             )
                         })}
                     </AccordionDetails>

@@ -3,19 +3,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
     EDeliveryFeedback,
-    EMessageAttemptState,
     EMessageChannel,
     EMessagePurpose,
     EMessagingProvider,
     EOutOfWindowPolicy,
     EProviderApproval,
-    EPhoneFormat,
     EReadinessBlocker,
     EReadinessPolicy,
     ECredentialName,
-    ERecipientKind,
     IAccountCheck,
-    IAccountSender,
     IAccountSummary,
     IEventChannelConfig,
     IEventMessagingConfig,
@@ -25,13 +21,20 @@ import {
 } from "@/types/messaging"
 import {
     acceptedCredentials,
+    accountDeliveryFeedback,
+    accountIdentity,
+    checkedForAnotherIdentity,
+    checkIsFor,
     accountSenderLabel,
     accountSummary,
     bindingProviderLanguage,
+    withCallbackStatus,
     channelStatisticsKey,
     deliverySummary,
     emptyEventMessagingConfig,
     enabledChannels,
+    hasWebhook,
+    isUnsupportedProvider,
     parseEventMessagingConfig,
     providerCapabilities,
     providerChannel,
@@ -43,8 +46,8 @@ import {
     senderCapabilities,
     supportsOutOfWindow,
     templateFor,
+    typedCredentials,
     validateEventMessagingConfig,
-    webhookPath,
 } from "./messaging"
 
 const TENANT = "tenant-1"
@@ -75,7 +78,6 @@ const account = (
     provider,
     capabilities: providerCapabilities(provider, channel),
     provider_approval: EProviderApproval.PENDING,
-    readiness: EReadinessPolicy.PROVIDER_CHECK,
     check,
     public_label: `${id} label`,
     messenger_page: null,
@@ -90,9 +92,9 @@ const readinessOf = (
     language: string | null
 ) =>
     purposeReadiness(
+        provider,
         providerCapabilities(provider, channel),
         approval,
-        EReadinessPolicy.PROVIDER_CHECK,
         check,
         purpose,
         language
@@ -105,30 +107,6 @@ const binding = (key: string | null, language: string, template: string): ITempl
     provider_template: template,
     provider_language: null,
 })
-
-const VIBER_PARTNER: IAccountSender = {
-    provider: EMessagingProvider.HTTP_API,
-    label: "COMELEC",
-    send: {
-        url: "https://partner.example/v1/viber",
-        headers: {Authorization: "Bearer {{credential.API_KEY}}"},
-        body: {to: "{{to}}", template: "{{template}}", params: "{{parameters}}"},
-    },
-    message_id_pointer: "/id",
-    phone_format: EPhoneFormat.DIGITS,
-    template_required_for: [EMessagePurpose.OTP],
-    reports: {
-        auth: {kind: "HEADER_SECRET", header: "X-Secret"},
-        status: {
-            message_id_pointer: "/id",
-            state_pointer: "/status",
-            states: {
-                delivered: EMessageAttemptState.DELIVERED,
-                failed: EMessageAttemptState.FAILED,
-            },
-        },
-    },
-}
 
 const channelConfig = (
     channel: EMessageChannel,
@@ -153,7 +131,7 @@ describe("provider capabilities", () => {
             for (const channel of MESSAGE_CHANNELS) {
                 const capabilities = providerCapabilities(provider, channel)
                 const own = providerChannel(provider)
-                if (own && own !== channel) {
+                if (own !== channel) {
                     expect(capabilities).toBeNull()
                 } else {
                     expect(capabilities?.channel).toBe(channel)
@@ -163,54 +141,62 @@ describe("provider capabilities", () => {
         }
     })
 
-    it("SMS and SMTP report no delivery receipts", () => {
+    it("SMS, SMTP and SES without a notification topic report no delivery receipts", () => {
         expect(
             providerCapabilities(EMessagingProvider.AWS_SNS, EMessageChannel.SMS)?.delivery_feedback
         ).toBe(EDeliveryFeedback.UNAVAILABLE)
         expect(
             providerCapabilities(EMessagingProvider.SMTP, EMessageChannel.EMAIL)?.delivery_feedback
         ).toBe(EDeliveryFeedback.UNAVAILABLE)
-        expect(
-            providerCapabilities(EMessagingProvider.AWS_SES, EMessageChannel.EMAIL)
-                ?.delivery_feedback
-        ).toBe(EDeliveryFeedback.PROVIDER_RECEIPTS)
+        // AP-B4: SES reports deliveries only through its notification topic.
+        const ses = (topic: string | null) =>
+            senderCapabilities(
+                {
+                    provider: EMessagingProvider.AWS_SES,
+                    from_address: "no-reply@example.org",
+                    notification_topic_arn: topic,
+                },
+                EMessageChannel.EMAIL
+            )?.delivery_feedback
+        expect(ses(null)).toBe(EDeliveryFeedback.UNAVAILABLE)
+        expect(ses("  ")).toBe(EDeliveryFeedback.UNAVAILABLE)
+        expect(ses("arn:aws:sns:eu-west-1:000000000000:ses-events")).toBe(
+            EDeliveryFeedback.PROVIDER_RECEIPTS
+        )
     })
 
-    it("lists the providers of a channel, with the console for any channel", () => {
+    it("lists only the channel's own adapters for a new account", () => {
         expect(providersForChannel(EMessageChannel.WHATSAPP)).toEqual([
             EMessagingProvider.WHATSAPP_CLOUD_API,
-            EMessagingProvider.HTTP_API,
-            EMessagingProvider.CONSOLE,
+        ])
+        expect(providersForChannel(EMessageChannel.EMAIL)).toEqual([
+            EMessagingProvider.AWS_SES,
+            EMessagingProvider.SMTP,
         ])
     })
 
-    it("a configured HTTP provider declares its own capabilities", () => {
-        const capabilities = senderCapabilities(VIBER_PARTNER, EMessageChannel.VIBER)
-        expect(capabilities?.recipient).toBe(ERecipientKind.PHONE_NUMBER)
-        expect(capabilities?.template_required_for).toEqual([EMessagePurpose.OTP])
-        expect(capabilities?.delivery_feedback).toBe(EDeliveryFeedback.PROVIDER_RECEIPTS)
-        expect(capabilities?.reconciliation).toBe(false)
-        expect(capabilities?.conversation_window_hours).toBeNull()
-        expect(accountSenderLabel(VIBER_PARTNER)).toBe("COMELEC")
-        expect(webhookPath(EMessagingProvider.HTTP_API, "key-1")).toBe("/webhooks/http/key-1")
+    it("treats the removed providers as unsupported on every channel", () => {
+        for (const provider of [EMessagingProvider.HTTP_API, EMessagingProvider.CONSOLE]) {
+            expect(isUnsupportedProvider(provider)).toBe(true)
+            expect(providerChannel(provider)).toBeNull()
+            expect(hasWebhook(provider)).toBe(false)
+            for (const channel of MESSAGE_CHANNELS) {
+                expect(providerCapabilities(provider, channel)).toBeNull()
+                expect(providersForChannel(channel)).not.toContain(provider)
+            }
+        }
+        expect(accountSenderLabel({provider: EMessagingProvider.HTTP_API, label: "Old"})).toBeNull()
     })
 
-    it("a configured HTTP provider without reports has no receipts and may reconcile", () => {
-        const sender: IAccountSender = {
-            provider: EMessagingProvider.HTTP_API,
-            send: {url: "https://gateway.example/sms"},
-            conversation_window_hours: 24,
-            reconcile: {
-                request: {method: "GET", url: "https://gateway.example/sms/{{message_id}}"},
-                status: {message_id_pointer: "/id", state_pointer: "/status", states: {}},
-            },
-        }
-        const capabilities = senderCapabilities(sender, EMessageChannel.SMS)
-        expect(capabilities?.template_required_for).toEqual([])
-        expect(capabilities?.delivery_feedback).toBe(EDeliveryFeedback.UNAVAILABLE)
-        expect(capabilities?.reconciliation).toBe(true)
-        expect(capabilities?.conversation_window_hours).toBe(24)
-        expect(accountSenderLabel(sender)).toBeNull()
+    it("has a callback URL for Meta, Viber and SES accounts", () => {
+        expect(
+            Object.values(EMessagingProvider).filter((provider) => hasWebhook(provider))
+        ).toEqual([
+            EMessagingProvider.AWS_SES,
+            EMessagingProvider.WHATSAPP_CLOUD_API,
+            EMessagingProvider.MESSENGER_SEND_API,
+            EMessagingProvider.VIBER_INFOBIP,
+        ])
     })
 
     it("other providers keep their provider's capabilities", () => {
@@ -241,14 +227,6 @@ describe("provider capabilities", () => {
         expect(
             supportsOutOfWindow(capabilities(EMessagingProvider.AWS_SNS, EMessageChannel.SMS))
         ).toBe(false)
-        expect(
-            supportsOutOfWindow(
-                senderCapabilities(
-                    {...VIBER_PARTNER, conversation_window_hours: 24},
-                    EMessageChannel.VIBER
-                )
-            )
-        ).toBe(true)
         expect(supportsOutOfWindow(null)).toBe(false)
     })
 })
@@ -360,6 +338,21 @@ describe("purposeReadiness", () => {
         expect(readiness.blockers).toContain(EReadinessBlocker.NOT_CONNECTED)
     })
 
+    it("an account of a removed provider is unsupported, whatever its check says", () => {
+        for (const provider of [EMessagingProvider.HTTP_API, EMessagingProvider.CONSOLE]) {
+            expect(
+                readinessOf(
+                    provider,
+                    EMessageChannel.SMS,
+                    EProviderApproval.CONFIRMED,
+                    readyCheck([[EMessagePurpose.OTP, "en"]]),
+                    EMessagePurpose.OTP,
+                    null
+                ).blockers
+            ).toEqual([EReadinessBlocker.UNSUPPORTED_PROVIDER])
+        }
+    })
+
     it("a provider used on another channel is unsupported", () => {
         const readiness = readinessOf(
             EMessagingProvider.AWS_SES,
@@ -415,16 +408,16 @@ describe("validateEventMessagingConfig", () => {
                     ],
                 },
             ],
-            notice_fallback: [EMessageChannel.VIBER, EMessageChannel.SMS],
             election_channels: {"election-1": [EMessageChannel.SMS]},
         })
         expect(validateEventMessagingConfig(valid, TENANT, accounts, ["election-1"])).toEqual([])
         expect(enabledChannels(valid, EMessagePurpose.OTP, "election-1")).toEqual([
             EMessageChannel.SMS,
         ])
+        // In channel order, whatever the configuration's order.
         expect(enabledChannels(valid, EMessagePurpose.OTP, "election-2")).toEqual([
-            EMessageChannel.SMS,
             EMessageChannel.VIBER,
+            EMessageChannel.SMS,
         ])
     })
 
@@ -450,7 +443,6 @@ describe("validateEventMessagingConfig", () => {
                 channelConfig(EMessageChannel.VIBER, "email-1", [EMessagePurpose.OTP]),
                 channelConfig(EMessageChannel.VIBER, "email-1", [EMessagePurpose.OTP]),
             ],
-            notice_fallback: [EMessageChannel.SMS],
             election_channels: {"unknown-election": [EMessageChannel.SMS]},
         })
         expect(validateEventMessagingConfig(invalid, TENANT, accounts, ["election-1"])).toEqual([
@@ -463,7 +455,6 @@ describe("validateEventMessagingConfig", () => {
                 account_id: "email-1",
             },
             {kind: "DUPLICATE_CHANNEL", channel: EMessageChannel.VIBER},
-            {kind: "FALLBACK_CHANNEL_NOT_ENABLED", channel: EMessageChannel.SMS},
             {kind: "UNKNOWN_ELECTION", election_id: "unknown-election"},
         ])
     })
@@ -515,10 +506,8 @@ describe("validateEventMessagingConfig", () => {
         const invalid = config({
             channels: [channelConfig(EMessageChannel.SMS, "sms-1", [EMessagePurpose.NOTICE])],
             election_channels: {"election-1": [EMessageChannel.VIBER]},
-            notice_fallback: [EMessageChannel.SMS, EMessageChannel.SMS],
         })
         expect(validateEventMessagingConfig(invalid, TENANT, accounts, ["election-1"])).toEqual([
-            {kind: "DUPLICATE_FALLBACK_CHANNEL", channel: EMessageChannel.SMS},
             {
                 kind: "ELECTION_CHANNEL_NOT_ENABLED",
                 election_id: "election-1",
@@ -536,9 +525,32 @@ describe("parseEventMessagingConfig", () => {
         expect(parsed.channels[0].purposes).toEqual([])
         expect(parsed.channels[0].templates).toEqual([])
         expect(parsed.channels[0].out_of_window).toBe(EOutOfWindowPolicy.DISABLED)
-        expect(parsed.notice_fallback).toEqual([])
         expect(parsed.election_channels).toEqual({})
-        expect(parsed.reply_text).toEqual({})
+    })
+
+    it("drops the removed fallback order and replies, never writing them again", () => {
+        const parsed = parseEventMessagingConfig({
+            version: 1,
+            channels: [],
+            notice_fallback: ["SMS", "EMAIL"],
+            reply_text: {en: "Thanks"},
+        })
+        expect(parsed).toEqual(emptyEventMessagingConfig())
+        expect(Object.keys(parsed).sort()).toEqual(["channels", "election_channels", "version"])
+    })
+
+    it("sends Messenger notices outside the window with the utility template, never Do not send", () => {
+        const parsed = parseEventMessagingConfig({
+            version: 1,
+            channels: [
+                {channel: "MESSENGER", account_id: "page-1", out_of_window: "DISABLED"},
+                {channel: "WHATSAPP", account_id: "wa-1", out_of_window: "UTILITY_MESSAGES"},
+            ],
+        })
+        expect(parsed.channels.map((entry) => entry.out_of_window)).toEqual([
+            EOutOfWindowPolicy.UTILITY_MESSAGES,
+            EOutOfWindowPolicy.DISABLED,
+        ])
     })
 
     it("returns an empty configuration for a missing or malformed annotation", () => {
@@ -562,6 +574,21 @@ describe("credentials", () => {
         }
     })
 
+    it("Viber's report credentials are generated, never typed", () => {
+        expect(acceptedCredentials(EMessagingProvider.VIBER_INFOBIP)).toEqual([
+            ECredentialName.API_KEY,
+            ECredentialName.REPORT_USERNAME,
+            ECredentialName.REPORT_PASSWORD,
+        ])
+        expect(typedCredentials(EMessagingProvider.VIBER_INFOBIP)).toEqual([
+            ECredentialName.API_KEY,
+        ])
+        expect(typedCredentials(EMessagingProvider.WHATSAPP_CLOUD_API)).toEqual([
+            ECredentialName.ACCESS_TOKEN,
+            ECredentialName.APP_SECRET,
+        ])
+    })
+
     it("AWS keys are optional", () => {
         expect(requiredCredentials(EMessagingProvider.AWS_SNS)).toEqual([])
         expect(acceptedCredentials(EMessagingProvider.AWS_SNS)).toEqual([
@@ -583,10 +610,10 @@ describe("statistics and labels", () => {
             accountSenderLabel({
                 provider: EMessagingProvider.MESSENGER_SEND_API,
                 page_id: "1234",
-                page_name: "COMELEC",
+                page_name: "STAFFASSOC",
                 api_version: "v23.0",
             })
-        ).toBe("COMELEC")
+        ).toBe("STAFFASSOC")
         expect(
             accountSenderLabel({
                 provider: EMessagingProvider.AWS_SES,
@@ -598,91 +625,68 @@ describe("statistics and labels", () => {
 })
 
 describe("deliverySummary", () => {
-    it("never reports zero delivered when the provider has no receipts", () => {
-        const summary = deliverySummary(
-            [
-                {state: EMessageAttemptState.ACCEPTED, count: 4},
-                {state: EMessageAttemptState.FAILED, count: 1},
-            ],
-            EDeliveryFeedback.UNAVAILABLE
-        )
+    const stats = {
+        channel: EMessageChannel.SMS,
+        voters: 120,
+        sent_last_24h: 7,
+        queued: 2,
+        accepted: 4,
+        delivered: 0,
+        failed: 1,
+        unknown: 3,
+        unresolved: 5,
+    }
+
+    it("never reports zero delivered when the account has no receipts", () => {
+        const summary = deliverySummary(stats, EDeliveryFeedback.UNAVAILABLE)
         expect(summary.delivered).toBeNull()
         expect(summary.accepted).toBe(4)
         expect(summary.failed).toBe(1)
-        expect(summary.unknown).toBe(0)
     })
 
-    it("counts every state when receipts are reported", () => {
-        const summary = deliverySummary(
-            [
-                {state: EMessageAttemptState.QUEUED, count: 2},
-                {state: EMessageAttemptState.DELIVERED, count: 3},
-                {state: EMessageAttemptState.UNKNOWN, count: 1},
-                {state: EMessageAttemptState.DELIVERED, count: 1},
-            ],
-            EDeliveryFeedback.PROVIDER_RECEIPTS
-        )
-        expect(summary).toEqual({queued: 2, accepted: 0, delivered: 4, failed: 0, unknown: 1})
+    it("keeps voters, the last 24 hours, and Unresolved apart from Unknown", () => {
+        expect(
+            deliverySummary({...stats, delivered: 9}, EDeliveryFeedback.PROVIDER_RECEIPTS)
+        ).toEqual({
+            voters: 120,
+            sentLast24h: 7,
+            queued: 2,
+            accepted: 4,
+            delivered: 9,
+            failed: 1,
+            unknown: 3,
+            unresolved: 5,
+        })
+    })
+
+    it("says nothing is known rather than 0 when the counts are missing", () => {
+        const summary = deliverySummary(undefined, EDeliveryFeedback.PROVIDER_RECEIPTS)
+        expect(summary.voters).toBeNull()
+        expect(summary.sentLast24h).toBeNull()
+        expect(summary.delivered).toBe(0)
     })
 })
 
-describe("readiness confirmed by an administrator", () => {
-    const whatsapp = providerCapabilities(
-        EMessagingProvider.WHATSAPP_CLOUD_API,
-        EMessageChannel.WHATSAPP
-    )
-
-    it("replaces the provider check only", () => {
-        const readiness = (approval: EProviderApproval) =>
-            purposeReadiness(
-                whatsapp,
-                approval,
-                EReadinessPolicy.ADMIN_CONFIRMED,
-                {connected: false, production_access: false},
-                EMessagePurpose.OTP,
-                "en"
-            )
-        expect(readiness(EProviderApproval.PENDING).blockers).toEqual([
-            EReadinessBlocker.NEEDS_PROVIDER_APPROVAL,
-        ])
-        expect(readiness(EProviderApproval.CONFIRMED).blockers).toEqual([])
-    })
-
-    it("never makes a provider serve another channel", () => {
-        expect(
-            purposeReadiness(
-                providerCapabilities(EMessagingProvider.AWS_SES, EMessageChannel.SMS),
-                EProviderApproval.CONFIRMED,
-                EReadinessPolicy.ADMIN_CONFIRMED,
-                null,
-                EMessagePurpose.OTP,
-                null
-            ).blockers
-        ).toEqual([EReadinessBlocker.UNSUPPORTED_PURPOSE])
-    })
-
-    it("treats an account without a policy as checked by the provider", () => {
-        expect(
-            purposeReadiness(
-                providerCapabilities(EMessagingProvider.AWS_SNS, EMessageChannel.SMS),
-                null,
-                null,
-                null,
-                EMessagePurpose.OTP,
-                null
-            ).blockers
-        ).toEqual([EReadinessBlocker.NOT_CONNECTED, EReadinessBlocker.NEEDS_PRODUCTION_ACCESS])
-    })
-
-    it("skips the template approvals of the check when validating", () => {
-        const confirmed: IAccountSummary = {
-            ...account("wa-1", EMessageChannel.WHATSAPP, EMessagingProvider.WHATSAPP_CLOUD_API, {
-                connected: false,
-                production_access: false,
-            }),
+describe("no readiness confirmed by an administrator", () => {
+    it("reads a stored ADMIN_CONFIRMED account from the provider's check", () => {
+        const confirmed = accountSummary({
+            id: "wa-1",
+            tenant_id: TENANT,
+            channel: EMessageChannel.WHATSAPP,
+            provider: EMessagingProvider.WHATSAPP_CLOUD_API,
+            name: "WhatsApp",
+            sender: {
+                provider: EMessagingProvider.WHATSAPP_CLOUD_API,
+                business_account_id: "1",
+                phone_number_id: "2",
+                display_phone_number: "+34600111214",
+                api_version: "v23.0",
+            },
             provider_approval: EProviderApproval.CONFIRMED,
             readiness: EReadinessPolicy.ADMIN_CONFIRMED,
-        }
+            status: {connected: false, production_access: false},
+            is_default: false,
+        })
         const valid = config({
             channels: [
                 {
@@ -691,20 +695,22 @@ describe("readiness confirmed by an administrator", () => {
                 },
             ],
         })
-        expect(validateEventMessagingConfig(valid, TENANT, [confirmed], [])).toEqual([])
-        expect(
-            validateEventMessagingConfig(
-                valid,
-                TENANT,
-                [{...confirmed, provider_approval: EProviderApproval.PENDING}],
-                []
-            )
-        ).toEqual([
+        expect(validateEventMessagingConfig(valid, TENANT, [confirmed], [])).toEqual([
             {
                 kind: "PURPOSE_NOT_READY",
                 channel: EMessageChannel.WHATSAPP,
                 purpose: EMessagePurpose.OTP,
-                blockers: [EReadinessBlocker.NEEDS_PROVIDER_APPROVAL],
+                blockers: [
+                    EReadinessBlocker.NOT_CONNECTED,
+                    EReadinessBlocker.NEEDS_PRODUCTION_ACCESS,
+                    EReadinessBlocker.NEEDS_APPROVED_TEMPLATE,
+                ],
+            },
+            {
+                kind: "TEMPLATE_NOT_APPROVED",
+                channel: EMessageChannel.WHATSAPP,
+                purpose: EMessagePurpose.OTP,
+                language: "tl",
             },
         ])
     })
@@ -730,7 +736,6 @@ describe("template and out-of-window validation", () => {
                         ],
                     },
                 ],
-                notice_fallback: [EMessageChannel.VIBER],
             })
         expect(validateEventMessagingConfig(bound("en_US"), TENANT, [viber], [])).toEqual([])
         expect(validateEventMessagingConfig(bound(null), TENANT, [viber], [])).toEqual([
@@ -762,54 +767,66 @@ describe("template and out-of-window validation", () => {
         expect(validateEventMessagingConfig(utility, TENANT, [messenger], [])).toEqual([])
     })
 
-    it("uses the capabilities a configured provider declares", () => {
-        const partner = (sender: IAccountSender): IAccountSummary =>
-            accountSummary({
-                id: "http-1",
-                tenant_id: TENANT,
-                channel: EMessageChannel.VIBER,
-                provider: EMessagingProvider.HTTP_API,
-                name: "Partner",
-                sender,
-                status: readyCheck([]),
-                is_default: false,
-            })
-        const utility = config({
+    it("blocks Messenger notices without a utility template, with the reason", () => {
+        const messenger = account(
+            "page-1",
+            EMessageChannel.MESSENGER,
+            EMessagingProvider.MESSENGER_SEND_API,
+            readyCheck([])
+        )
+        const unbound = config({
             channels: [
                 {
-                    ...channelConfig(EMessageChannel.VIBER, "http-1", [
-                        EMessagePurpose.OTP,
-                        EMessagePurpose.NOTICE,
-                    ]),
+                    ...channelConfig(EMessageChannel.MESSENGER, "page-1", [EMessagePurpose.NOTICE]),
                     out_of_window: EOutOfWindowPolicy.UTILITY_MESSAGES,
                 },
             ],
         })
-        expect(validateEventMessagingConfig(utility, TENANT, [partner(VIBER_PARTNER)], [])).toEqual(
-            [
+        expect(validateEventMessagingConfig(unbound, TENANT, [messenger], [])).toEqual([
+            {kind: "UTILITY_TEMPLATE_MISSING", channel: EMessageChannel.MESSENGER},
+        ])
+        // Codes are sent after Get Started, inside the window: no template is needed.
+        const codes = config({
+            channels: [
                 {
-                    kind: "PURPOSE_NOT_READY",
-                    channel: EMessageChannel.VIBER,
-                    purpose: EMessagePurpose.OTP,
-                    blockers: [EReadinessBlocker.NEEDS_APPROVED_TEMPLATE],
+                    ...channelConfig(EMessageChannel.MESSENGER, "page-1", [EMessagePurpose.OTP]),
+                    out_of_window: EOutOfWindowPolicy.UTILITY_MESSAGES,
                 },
-                {kind: "OUT_OF_WINDOW_NOT_SUPPORTED", channel: EMessageChannel.VIBER},
-            ]
-        )
+            ],
+        })
+        expect(validateEventMessagingConfig(codes, TENANT, [messenger], [])).toEqual([])
+    })
+
+    it("never enables a purpose on an account of a removed provider", () => {
+        const old = accountSummary({
+            id: "console-1",
+            tenant_id: TENANT,
+            channel: EMessageChannel.SMS,
+            provider: EMessagingProvider.CONSOLE,
+            name: "Console",
+            sender: {provider: EMessagingProvider.CONSOLE},
+            status: readyCheck([]),
+            is_default: false,
+        })
         expect(
             validateEventMessagingConfig(
-                utility,
+                config({
+                    channels: [
+                        channelConfig(EMessageChannel.SMS, "console-1", [EMessagePurpose.OTP]),
+                    ],
+                }),
                 TENANT,
-                [
-                    partner({
-                        ...VIBER_PARTNER,
-                        template_required_for: [],
-                        conversation_window_hours: 24,
-                    }),
-                ],
+                [old],
                 []
             )
-        ).toEqual([])
+        ).toEqual([
+            {
+                kind: "PURPOSE_NOT_READY",
+                channel: EMessageChannel.SMS,
+                purpose: EMessagePurpose.OTP,
+                blockers: [EReadinessBlocker.UNSUPPORTED_PROVIDER],
+            },
+        ])
     })
 })
 
@@ -823,8 +840,8 @@ describe("accountSummary", () => {
         sender: {
             provider: EMessagingProvider.MESSENGER_SEND_API,
             page_id: "1234567890",
-            page_name: "COMELEC",
-            page_username: "comelec",
+            page_name: "STAFFASSOC",
+            page_username: "staffassociation",
             api_version: "v23.0",
         },
         is_default: true,
@@ -832,22 +849,15 @@ describe("accountSummary", () => {
 
     it("fills the defaults of an account that was never checked", () => {
         const summary = accountSummary(row)
-        expect(summary.readiness).toBe(EReadinessPolicy.PROVIDER_CHECK)
         expect(summary.provider_approval).toBe(EProviderApproval.PENDING)
         expect(summary.check).toEqual({connected: false, production_access: false})
         expect(summary.capabilities?.conversation_window_hours).toBe(24)
-        expect(summary.public_label).toBe("COMELEC")
+        expect(summary.public_label).toBe("STAFFASSOC")
         expect(summary.messenger_page).toEqual({
             page_id: "1234567890",
-            username: "comelec",
-            name: "COMELEC",
+            username: "staffassociation",
+            name: "STAFFASSOC",
         })
-    })
-
-    it("keeps the readiness the administrator chose", () => {
-        expect(
-            accountSummary({...row, readiness: EReadinessPolicy.ADMIN_CONFIRMED}).readiness
-        ).toBe(EReadinessPolicy.ADMIN_CONFIRMED)
     })
 })
 
@@ -860,8 +870,12 @@ describe("publicProjection", () => {
                 EMessagingProvider.MESSENGER_SEND_API,
                 readyCheck([])
             ),
-            public_label: "COMELEC",
-            messenger_page: {page_id: "1234567890", username: "comelec", name: "COMELEC"},
+            public_label: "STAFFASSOC",
+            messenger_page: {
+                page_id: "1234567890",
+                username: "staffassociation",
+                name: "STAFFASSOC",
+            },
         }
         const projected = publicProjection(
             config({
@@ -881,8 +895,12 @@ describe("publicProjection", () => {
             {
                 channel: EMessageChannel.MESSENGER,
                 purposes: [EMessagePurpose.OTP],
-                sender_label: "COMELEC",
-                messenger_page: {page_id: "1234567890", username: "comelec", name: "COMELEC"},
+                sender_label: "STAFFASSOC",
+                messenger_page: {
+                    page_id: "1234567890",
+                    username: "staffassociation",
+                    name: "STAFFASSOC",
+                },
             },
         ])
         expect(projected.election_labels).toEqual({"election-1": ["Manila", "PH-MNL"]})
@@ -904,15 +922,165 @@ describe("credentials of the v2 providers", () => {
         }
     })
 
-    it("a configured HTTP provider requires none and accepts its own list", () => {
-        expect(requiredCredentials(EMessagingProvider.HTTP_API)).toEqual([])
-        expect(acceptedCredentials(EMessagingProvider.HTTP_API)).toEqual([
-            ECredentialName.API_KEY,
-            ECredentialName.API_SECRET,
-            ECredentialName.ACCESS_TOKEN,
-            ECredentialName.USERNAME,
-            ECredentialName.PASSWORD,
-            ECredentialName.WEBHOOK_SECRET,
+    it("an unsupported provider takes no credentials", () => {
+        for (const provider of [EMessagingProvider.HTTP_API, EMessagingProvider.CONSOLE]) {
+            expect(requiredCredentials(provider)).toEqual([])
+            expect(acceptedCredentials(provider)).toEqual([])
+        }
+    })
+})
+
+describe("callback readiness (R4-04)", () => {
+    // As messaging_callback_status reports it, merged into the account's check.
+    const noCallback = {
+        ...readyCheck([]),
+        callback_blockers: [EReadinessBlocker.CALLBACK_NOT_CONFIGURED],
+        callback_reasons: ["Callback address not configured"],
+    }
+    const messengerAccount = (status: IAccountCheck): IMessagingAccount => ({
+        id: "page-1",
+        tenant_id: TENANT,
+        channel: EMessageChannel.MESSENGER,
+        provider: EMessagingProvider.MESSENGER_SEND_API,
+        name: "Staff Association Page",
+        sender: {
+            provider: EMessagingProvider.MESSENGER_SEND_API,
+            page_id: "1",
+            api_version: "v23.0",
+        },
+        status,
+        is_default: true,
+    })
+
+    it("keeps Messenger from codes without a callback address: they need Get Started", () => {
+        expect(
+            readinessOf(
+                EMessagingProvider.MESSENGER_SEND_API,
+                EMessageChannel.MESSENGER,
+                EProviderApproval.PENDING,
+                noCallback,
+                EMessagePurpose.OTP,
+                null
+            ).blockers
+            // The literal, so the enum value itself is checked.
+        ).toStrictEqual(["CALLBACK_NOT_CONFIGURED"])
+        expect(
+            readinessOf(
+                EMessagingProvider.MESSENGER_SEND_API,
+                EMessageChannel.MESSENGER,
+                EProviderApproval.PENDING,
+                noCallback,
+                EMessagePurpose.NOTICE,
+                null
+            ).blockers
+        ).toEqual([])
+        expect(
+            readinessOf(
+                EMessagingProvider.MESSENGER_SEND_API,
+                EMessageChannel.MESSENGER,
+                EProviderApproval.PENDING,
+                {...noCallback, callback_blockers: [], callback_reasons: []},
+                EMessagePurpose.OTP,
+                null
+            ).blockers
+        ).toEqual([])
+    })
+
+    it("shows receipts as unavailable without a callback address, never 0 delivered", () => {
+        expect(accountDeliveryFeedback(messengerAccount(noCallback))).toEqual({
+            feedback: EDeliveryFeedback.UNAVAILABLE,
+            reason: "Callback address not configured",
+        })
+        expect(
+            accountDeliveryFeedback(
+                messengerAccount({...noCallback, callback_blockers: [], callback_reasons: []})
+            )
+        ).toEqual({feedback: EDeliveryFeedback.PROVIDER_RECEIPTS})
+        expect(accountDeliveryFeedback(undefined)).toEqual({
+            feedback: EDeliveryFeedback.UNAVAILABLE,
+        })
+    })
+})
+
+describe("withCallbackStatus (R4-04)", () => {
+    const account = {
+        id: "page-1",
+        status: {connected: true, production_access: true},
+    } as IMessagingAccount
+    it("puts each account's callback blockers and reasons on its check", () => {
+        expect(
+            withCallbackStatus(
+                [account, {...account, id: "page-2", status: null}],
+                [
+                    {
+                        account_id: "page-1",
+                        blockers: ["CALLBACK_NOT_CONFIGURED"],
+                        reasons: ["Callback address not configured"],
+                    },
+                ]
+            ).map((entry) => entry.status)
+        ).toEqual([
+            {
+                connected: true,
+                production_access: true,
+                callback_blockers: ["CALLBACK_NOT_CONFIGURED"],
+                callback_reasons: ["Callback address not configured"],
+            },
+            null,
         ])
+    })
+
+    it("leaves the accounts as they are when the status can't be read", () => {
+        expect(withCallbackStatus([account], undefined)).toEqual([account])
+    })
+})
+
+describe("check identity (R5-09)", () => {
+    const sender = (phone_number_id: string) => ({
+        provider: EMessagingProvider.WHATSAPP_CLOUD_API as const,
+        business_account_id: " 1 ",
+        phone_number_id,
+        display_phone_number: "+63 917 000 0000",
+        api_version: "v23.0",
+    })
+
+    it("is the sender's identifying ids, trimmed, without names or labels", () => {
+        expect(accountIdentity(sender("2"))).toEqual({
+            provider: EMessagingProvider.WHATSAPP_CLOUD_API,
+            ids: {business_account_id: "1", phone_number_id: "2"},
+        })
+        expect(
+            accountIdentity({
+                provider: EMessagingProvider.VIBER_INFOBIP,
+                base_url: "https://api.example.test/",
+                sender: "Elections",
+                templates: {},
+            } as unknown as Parameters<typeof accountIdentity>[0]).ids
+        ).toEqual({base_url: "https://api.example.test", sender: "Elections"})
+    })
+
+    it("counts a check only for the identity it names; an older check names none", () => {
+        const check = {...readyCheck([]), details: {identity: accountIdentity(sender("2"))}}
+        expect(checkIsFor(check, accountIdentity(sender("2")))).toBe(true)
+        expect(checkIsFor(check, accountIdentity(sender("3")))).toBe(false)
+        expect(checkIsFor(readyCheck([]), accountIdentity(sender("3")))).toBe(true)
+    })
+
+    it("makes an account whose check was of another number ready for nothing", () => {
+        const check = {...readyCheck([]), details: {identity: accountIdentity(sender("2"))}}
+        // Only the sender and the status matter here.
+        const moved = {sender: sender("3"), status: check} as unknown as IMessagingAccount
+        expect(checkedForAnotherIdentity(moved)).toBe(true)
+        expect(checkedForAnotherIdentity({...moved, sender: sender("2")})).toBe(false)
+        const readiness = purposeReadiness(
+            EMessagingProvider.WHATSAPP_CLOUD_API,
+            providerCapabilities(EMessagingProvider.WHATSAPP_CLOUD_API, EMessageChannel.WHATSAPP),
+            EProviderApproval.CONFIRMED,
+            check,
+            EMessagePurpose.NOTICE,
+            null,
+            accountIdentity(sender("3"))
+        )
+        expect(readiness.blockers).toEqual([EReadinessBlocker.UNCHECKED])
     })
 })

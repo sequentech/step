@@ -9,12 +9,13 @@ import {Box, SvgIcon, SvgIconProps} from "@mui/material"
 // Messenger icon, and its WhatsApp and Facebook logos are filled.
 export type ChannelIconName = "EMAIL" | "SMS" | "WHATSAPP" | "VIBER" | "MESSENGER"
 
+/** Channel order everywhere: WhatsApp, Viber, Messenger, SMS, Email. */
 export const CHANNEL_ICON_NAMES: ChannelIconName[] = [
-    "EMAIL",
-    "SMS",
     "WHATSAPP",
     "VIBER",
     "MESSENGER",
+    "SMS",
+    "EMAIL",
 ]
 
 const PATHS: Record<ChannelIconName, string[]> = {

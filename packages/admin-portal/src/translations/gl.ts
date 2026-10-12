@@ -1853,6 +1853,7 @@ const galegoTranslation: TranslationType = {
                 "messaging-account-read": "Ver contas de mensaxería",
                 "messaging-account-write": "Xestionar contas de mensaxería",
                 "messaging-config-write": "Configurar a mensaxería do evento electoral",
+                "messaging-config-read": "Ver a mensaxería do evento electoral",
             },
         },
         generalSettingsScreen: {
@@ -2963,7 +2964,7 @@ const galegoTranslation: TranslationType = {
             languages: "Idiomas",
             smsMessage: "Mensaxe SMS",
             errorSending: "Erro ao enviar a notificación: {{error}}",
-            successSending: "Notificación programada/enviada correctamente",
+            successSending: "Notificación programada correctamente",
             method: "Método do Modelo",
             type: "Tipo de Comunicación",
             alias: "Alias do Modelo",
@@ -3330,6 +3331,9 @@ const galegoTranslation: TranslationType = {
                     title: "Aquí non hai nada",
                     text: "As inscricións con este estado aparecerán aquí. Probe con outra busca ou outro estado.",
                 },
+                searchHelp:
+                    "Un nome, un correo electrónico ou un número de identificación, ou a referencia de soporte que se lle deu ao votante, como Q5KW-8RFX.",
+                referenceError: "Non se puido buscar a referencia de soporte.",
             },
             flow: {
                 stepsLabel: "Pasos da revisión",
@@ -5314,10 +5318,8 @@ const galegoTranslation: TranslationType = {
             sections: {
                 channels: "Canles",
                 templates: "Modelos aprobados",
-                fallback: "Orde alternativa para avisos",
                 posts: "Canles por Post",
                 postsCount: "Canles por Post ({{count}} Posts)",
-                reply: "Resposta ás mensaxes entrantes",
                 delivery: "Estado da entrega",
             },
             column: {
@@ -5328,42 +5330,46 @@ const galegoTranslation: TranslationType = {
                 template: "Modelo do provedor",
                 status: "Estado",
                 post: "Post",
-                key: "Para a mensaxe",
+                key: "Tipo de mensaxe ou modelo",
                 providerLanguage: "Idioma do provedor",
+                voters: "Votantes que a usan",
+                sent24h: "Enviados, últimas 24 h",
+                sent24hHelp:
+                    "Cada mensaxe cuxo último intento foi nas últimas 24 horas, en calquera estado, incluídas as fallidas. As columnas de estado contan todas as mensaxes do evento.",
             },
             outOfWindow: {
-                label: "Fóra da xanela de conversa",
-                help: "Os avisos de texto libre só se envían mentres a xanela de conversa está aberta: en Messenger, nas 24 horas seguintes á última mensaxe do votante. Escolla Mensaxes de utilidade para enviar avisos despois cun modelo aprobado. Meta debe aprobalo para a páxina (o permiso page_utility_messaging e un modelo UTILITY aprobado), e ese modelo debe estar vinculado aos avisos en Modelos aprobados. Con Non enviar, un aviso fóra da xanela vai á seguinte canle dispoñible do votante.",
-                DISABLED: "Non enviar",
-                UTILITY_MESSAGES: "Mensaxes de utilidade",
-                noTemplate:
-                    "Aínda non hai ningún modelo vinculado aos avisos nesta canle. Engada un en Modelos aprobados; ata entón os avisos fóra da xanela van á seguinte canle dispoñible do votante.",
+                utility:
+                    "Fóra da xanela de 24 horas, {{channel}} envía os avisos co modelo de utilidade aprobado vinculado aos avisos en Modelos aprobados.",
+            },
+            messageTypes: {
+                otp: "Código de verificación",
+                otl: "Ligazón de acceso",
+                enrollmentAccepted: "Inscrición aceptada",
+                enrollmentAcceptedKiosk: "Inscrición aceptada (quiosco)",
+                enrollmentPending: "Inscrición pendente de aprobación",
+                enrollmentRejected: "Inscrición rexeitada",
+                passwordReset: "Restablecemento do contrasinal",
+                temporaryPassword: "Contrasinal temporal",
+                contactChanged: "Método de contacto cambiado",
             },
             templates: {
                 empty: "Escolla unha conta que envíe modelos aprobados, como WhatsApp, Viber ou Messenger, para vincular aquí os seus modelos.",
-                help: "Cada fila indica que modelo aprobado envía o provedor para unha mensaxe. Para a mensaxe é o alias dun modelo de Modelos, para unha notificación, ou a clave de mensaxe que envía Keycloak, como otp; déixeo baleiro para o modelo que se usa por defecto para o propósito. Idioma é o idioma do votante. Modelo do provedor é o nome ou ID do modelo no provedor. Idioma do provedor é o código do provedor para ese modelo cando difire do idioma do votante: WhatsApp precisa o código exacto do modelo aprobado, como en_US.",
+                help: "Seleccione un tipo de mensaxe do sistema ou un alias de Modelos. Déixeo baleiro para usar o modelo aprobado por defecto para este propósito. Idioma é o idioma do votante. Modelo do provedor é o nome ou ID do modelo no provedor. Idioma do provedor é o código do provedor para ese modelo cando difire do idioma do votante: WhatsApp precisa o código exacto do modelo aprobado, como en_US.",
                 order: "Para cada mensaxe gaña a fila máis específica: a fila da mensaxe no idioma do votante, despois a fila da mensaxe en calquera idioma, despois o predeterminado do propósito no idioma do votante e, por último, calquera predeterminado do propósito.",
                 noneRequired:
                     "{{channel}} só envía modelos aprobados. Engada polo menos un modelo predeterminado para cada propósito en uso.",
                 noneOptional:
                     "Non hai modelos vinculados para {{channel}}. Só fan falta para enviar avisos fóra da xanela de conversa.",
                 row: "Modelo {{position}} de {{channel}}",
-                keyDefault: "Predeterminado do propósito",
+                keyDefault: "Predeterminado para este propósito",
                 add: "Engadir modelo de {{channel}}",
                 remove: "Quitar o modelo {{position}} de {{channel}}",
                 incomplete: "Indique o idioma e o modelo do provedor, ou quite esta fila.",
                 approval: {
                     APPROVED: "Aprobado",
                     NOT_APPROVED: "Non aprobado",
-                    ADMIN_CONFIRMED: "Confirmado por un administrador",
                     NOT_CHECKED: "Aprobación non comprobada",
                 },
-            },
-            fallback: {
-                help: "Cando un aviso non pode chegar a un votante pola súa canle, pasa á seguinte canle desta orde que o votante verificase e que ofreza o seu Post. Os códigos nunca se reenvían sós: o votante escolle outra forma.",
-                empty: "Active os avisos dunha canle para engadila á orde alternativa.",
-                earlier: "Mover {{channel}} antes",
-                later: "Mover {{channel}} despois",
             },
             posts: {
                 noChannels:
@@ -5376,13 +5382,18 @@ const galegoTranslation: TranslationType = {
                 cell: "{{post}}: {{channel}}",
                 showing: "Móstranse {{shown}} de {{total}} Posts. Busque para atopar outros.",
             },
-            reply: {
-                help: "Envíase cando un votante escribe a unha das contas deste evento, como moito unha vez ao día por votante.",
-                label: "Resposta ({{language}})",
-            },
             delivery: {
+                notConfigured: "Este evento non o ofrece",
                 empty: "Non se usa ningunha canle.",
-                help: "Aceptado significa que o provedor aceptou a solicitude, non que o votante recibise ou verificase o código. Descoñecido significa que a entrega aínda non está confirmada. Un provedor sen informes de entrega mostra a entrega como non dispoñible.",
+                help: "As contas son por mensaxe, segundo o estado do seu último intento. Aceptado significa que o provedor aceptou a mensaxe, non que o votante a recibise. Descoñecido significa que a entrega aínda non está confirmada; pasadas 24 horas móstrase como Sen resolver, nunca como fallida. Unha conta sen informes de entrega mostra a entrega como non dispoñible.",
+                loadError: "Non se puideron cargar as contas de mensaxes.",
+                noReceipts:
+                    "Esta conta non recibe informes de entrega, así que non se pode mostrar a entrega.",
+                showFailed: "Ver as mensaxes fallidas de {{channel}} en Rexistros",
+                noChannelHelp:
+                    "Votantes sen ningunha canle de contacto rexistrada. Os seus avisos fallan e nunca se contan en ningunha canle.",
+                showFailedNoChannel:
+                    "Ver en Rexistros as mensaxes fallidas dos votantes sen canle de contacto",
             },
             error: {
                 UNSUPPORTED_VERSION:
@@ -5397,14 +5408,17 @@ const galegoTranslation: TranslationType = {
                     "O modelo de {{channel}} para {{purpose}} en {{language}} non está aprobado polo provedor.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
                     "{{channel}} non pode enviar fóra dunha xanela de conversa con esta conta: non ten xanela de conversa ou os seus avisos xa precisan un modelo.",
-                FALLBACK_CHANNEL_NOT_ENABLED:
-                    "{{channel}} está na orde alternativa pero non envía avisos.",
-                DUPLICATE_FALLBACK_CHANNEL:
-                    "{{channel}} aparece máis dunha vez na orde alternativa.",
                 ELECTION_CHANNEL_NOT_ENABLED:
                     "{{election}} ofrece {{channel}}, que este evento non usa.",
                 UNKNOWN_ELECTION: "{{election}} non é unha elección deste evento.",
+                UTILITY_TEMPLATE_MISSING:
+                    "Os avisos de {{channel}} fóra da xanela de 24 horas precisan o modelo de utilidade aprobado. Vincúleo aos avisos en Modelos aprobados.",
             },
+            noReadPermission: "Para ver estes axustes precísase o permiso messaging-config-read.",
+            chooseAccount: "Escolla antes unha conta.",
+            needsSavingAgain: "Hai que volver gardar a configuración.",
+            needsSavingAgainHelp:
+                "Copiouse do almacenamento anterior e non superou as comprobacións que fai un gardado. Corrixa os problemas que se mostran e volva gardala.",
         },
         messaging: {
             channel: {
@@ -5421,8 +5435,8 @@ const galegoTranslation: TranslationType = {
                 WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
-                CONSOLE: "Consola (só probas, non se envía nada)",
-                HTTP_API: "API HTTP personalizada",
+                CONSOLE: "Consola (xa non é compatible)",
+                HTTP_API: "API HTTP personalizada (xa non é compatible)",
             },
             purpose: {
                 OTP: "Códigos",
@@ -5434,6 +5448,7 @@ const galegoTranslation: TranslationType = {
                 DELIVERED: "Entregado",
                 FAILED: "Fallido",
                 UNKNOWN: "Descoñecido",
+                UNRESOLVED: "Sen resolver",
             },
             stateHelp: {
                 QUEUED: "Pendente de entregar ao provedor.",
@@ -5442,13 +5457,19 @@ const galegoTranslation: TranslationType = {
                 DELIVERED: "O provedor informou de que a mensaxe se entregou.",
                 FAILED: "O provedor confirmou que a mensaxe non se entregou.",
                 UNKNOWN: "A entrega aínda non está confirmada.",
+                UNRESOLVED:
+                    "Non se puido confirmar a entrega en 24 horas. Isto non significa que fallase.",
             },
             blocker: {
+                UNCHECKED: "Sen comprobar para o seu número, páxina ou remitente actuais",
                 NOT_CONNECTED: "Sen conexión",
                 UNSUPPORTED_PURPOSE: "Este provedor non o admite",
                 NEEDS_PROVIDER_APPROVAL: "Precisa a aprobación do provedor",
                 NEEDS_PRODUCTION_ACCESS: "Precisa acceso de produción",
                 NEEDS_APPROVED_TEMPLATE: "Precisa un modelo aprobado",
+                UNSUPPORTED_PROVIDER: "Provedor non compatible: substitúa esta conta",
+                CALLBACK_NOT_CONFIGURED: "Enderezo de retorno non configurado",
+                REPORT_CREDENTIALS_MISSING: "Credenciais de informes non xeradas",
             },
             readiness: {
                 connected: "Conectada",
@@ -5458,8 +5479,6 @@ const galegoTranslation: TranslationType = {
                 notReady: "Non está lista",
                 lastCheck: "Comprobada {{date}}",
                 neverChecked: "Aínda non comprobada",
-                adminConfirmed: "Confirmada por un administrador",
-                checkNotUsed: "Non se usa a comprobación",
             },
             approval: {
                 PENDING: "Pendente de aprobación do provedor",
@@ -5473,10 +5492,8 @@ const galegoTranslation: TranslationType = {
                 SMTP_PASSWORD: "Contrasinal",
                 AWS_ACCESS_KEY_ID: "ID de clave de acceso de AWS",
                 AWS_SECRET_ACCESS_KEY: "Clave de acceso secreta de AWS",
-                API_SECRET: "Segredo da API",
-                USERNAME: "Nome de usuario",
-                PASSWORD: "Contrasinal",
-                WEBHOOK_SECRET: "Segredo do webhook",
+                REPORT_USERNAME: "Usuario de informes",
+                REPORT_PASSWORD: "Contrasinal de informes",
             },
             deliveryUnavailable: "Entrega non dispoñible",
             templates: {
@@ -5501,7 +5518,7 @@ const galegoTranslation: TranslationType = {
                     "Nas 24 horas seguintes á última mensaxe do votante, Messenger envía o texto seguinte.",
                 messengerMessage: "Mensaxe dentro das 24 horas",
                 messengerWindow:
-                    "Un destinatario de Messenger gardado non é permiso para enviar. Fóra da xanela de 24 horas este aviso envíase como mensaxe de utilidade cando o evento electoral o permite e hai un modelo aprobado indicado abaixo ou vinculado no evento; se non, vai á seguinte canle dispoñible do votante. As mensaxes de utilidade precisan o permiso page_utility_messaging e un modelo UTILITY aprobado na páxina.",
+                    "Un destinatario de Messenger gardado non é permiso para enviar. Fóra da xanela de 24 horas este aviso envíase co modelo de utilidade aprobado indicado abaixo ou vinculado no evento electoral; sen el non se envía, e o fallo móstrase co seu motivo. As mensaxes de utilidade precisan o permiso page_utility_messaging e un modelo UTILITY aprobado na páxina.",
                 intro: {
                     WHATSAPP:
                         "WhatsApp só envía modelos que Meta aprobou para a conta de WhatsApp Business. A mensaxe debe coincidir co modelo aprobado; escolle o que enche os seus parámetros.",
@@ -5517,45 +5534,110 @@ const galegoTranslation: TranslationType = {
                 providerLanguage: "Código de idioma do provedor",
                 providerLanguageHelp: {
                     WHATSAPP:
-                        "O código de idioma exacto do modelo de WhatsApp aprobado, como en_US.",
+                        "Usa o código de idioma exacto do modelo de WhatsApp aprobado, como en ou en_US. Só se necesita un código rexional se o modelo se aprobou con el.",
                     VIBER: "O código de idioma co que o provedor de Viber coñece o modelo, cando o precisa.",
                     MESSENGER: "O código de idioma do modelo de utilidade aprobado, como en_US.",
                 },
-                approvalAdminConfirmed:
-                    "Un administrador confirmou co provedor que os modelos desta conta están aprobados, así que non se usan as aprobacións da comprobación de conexión.",
+                noReadPermission: "Para ver as contas precísase o permiso messaging-config-read.",
             },
             send: {
-                channel: "Canle",
                 eachVoter: "A canle de cada votante",
-                only: "Só {{channel}}",
                 eachVoterHelp:
-                    "Os fallos confirmados usan a seguinte canle verificada dispoñible. A entrega sen confirmar móstrase como Descoñecido.",
-                onlyHelp: "Esta notificación envíase a cada votante por {{channel}}.",
+                    "Cada votante recibe unha mensaxe pola súa propia canle. Se a entrega falla, volve intentarse nesa canle e o fallo móstrase na lapela Mensaxería do evento. A entrega sen confirmar móstrase como Descoñecido.",
                 channelColumn: "Canle",
                 sendsFrom: "Envíase desde",
                 noAccount: "Sen conta",
                 missingContent: "Esta notificación non ten contido para {{channels}}.",
                 approvedTemplateHelp:
-                    "Envíase co modelo aprobado polo provedor. Edítao en Modelos.",
-                providerTemplate: "Modelo do provedor de {{channel}}",
-                providerTemplateHelp:
-                    "Opcional. Se está baleiro, úsase o modelo do evento vinculado ao alias do modelo escollido, ou o predeterminado do evento para os avisos.",
-                providerLanguage: "Idioma do provedor de {{channel}}",
-                providerLanguageHelp: "O código de idioma do provedor para ese modelo, como en_US.",
+                    "Os modelos de {{channel}} están aprobados polo provedor, polo que o texto, o modelo do provedor e o idioma non se poden cambiar aquí. Escolle outro modelo gardado para usar outro contido aprobado.",
+                voters: "Votantes",
+                environment: "O remitente predeterminado da instalación",
+                noNoticeChannels:
+                    "A configuración de mensaxería deste evento non activa os avisos en ningunha canle, así que ningún votante recibiría esta notificación. Active os avisos dunha canle na lapela Mensaxería do evento.",
+                noReadPermission:
+                    "Para mostrar a canle de cada votante precísase o permiso messaging-config-read. Cada votante recibe igualmente a notificación pola súa propia canle.",
+            },
+            audience: {
+                notOfferedRow:
+                    "Ningún Post destes votantes ofrece esta canle para avisos, así que ningún deles o recibe: {{reason}}.",
+                willSend: "Recibirán a notificación: {{willSend}}",
+                selectedTimedOut:
+                    "Contar os votantes seleccionados levou demasiado tempo, así que non se amosan recontos. Cada votante recibe igualmente a notificación pola súa propia canle.",
+                notSent: "Non se envía",
+                deletedAccount: "Conta eliminada",
+                notOffered: "{{notOffered}} deles non o reciben: {{reason}}.",
+                noAccountHelp:
+                    "Ningunha conta envía por esta canle, así que os avisos destes votantes fallan: {{reason}}.",
+                noChannelHelp:
+                    "Estes votantes non teñen canle de contacto rexistrada. Non reciben nada, e cada un aparece como fallido: {{reason}}.",
+                total: "Votantes desta audiencia: {{total}}",
+                loadError:
+                    "Non se puido cargar o número de votantes. Cada votante recibe igualmente a notificación pola súa propia canle.",
+            },
+            voterCount: {
+                countedAt: "Contado: {{time}}.",
+                never: "Aínda non se contou.",
+                pending: "Hai un reconto en curso.",
+                timedOut: "O último reconto levou demasiado tempo e detívose.",
+                failed: "O último reconto fallou.",
+                previous: "Os recontos que se amosan son do anterior.",
+                recount: "Volver contar",
+                recountAsked: "Pediuse un reconto. Os recontos actualízanse cando remate.",
+                recountAlreadyAsked: "Xa hai un reconto en curso.",
+                recountError: "Non se puido pedir o reconto.",
+                loadError: "Non se puideron cargar os recontos de votantes.",
+            },
+            volumes: {
+                title: "Volumes mensuais",
+                intro: "Intentos entregados a un provedor cada mes, por canle, conta de envío, país de destino e categoría de facturación, para conciliar as facturas dos provedores. Cada intento conta no mes en que se fixo, así que un reintento volve contar. A categoría de facturación é a prevista ao enviar, ou a que informou o provedor; se un intento é facturable é o que informou o provedor. Non se amosan prezos.",
+                month: "Mes",
+                monthHelp: "Os meses cóntanse en UTC.",
+                loading: "Cargando os volumes mensuais",
+                loadError: "Non se puideron cargar os volumes.",
+                empty: "Non se entregou ningún intento a un provedor en {{month}}.",
+                noPermission:
+                    "Para ver os volumes cómpre o permiso messaging-account-read ou messaging-config-read.",
+                notReported: "Sen informar",
+                deploymentOrDeleted: "Remitente da instalación ou unha conta eliminada",
+                category: {
+                    AUTHENTICATION: "Autenticación",
+                    UTILITY: "Utilidade",
+                    SERVICE: "Servizo",
+                    TRANSACTIONAL: "Transaccional",
+                    EMAIL: "Correo electrónico",
+                },
+                billableYes: "Facturable",
+                billableNo: "Non facturable",
+                total: "Todos os intentos",
+                column: {
+                    account: "Enviada desde",
+                    country: "País de destino",
+                    category: "Categoría de facturación",
+                    billable: "Facturable",
+                    messages: "Intentos",
+                },
             },
             voter: {
+                listChannel: "Canle de mensaxería",
                 title: "Mensaxería",
-                preferredChannel: "Canle preferida",
-                whatsappNumber: "Número de WhatsApp",
-                viberNumber: "Número de Viber",
-                messengerConnected: "Conectado",
-                messengerNotConnected: "Non conectado",
-                verifiedChannels: "Canles verificadas",
-                noneVerified: "Ningunha canle verificada",
                 notSet: "Sen definir",
+                channel: "Canle",
+                destination: "Envíase a",
+                messengerPage: "Páxina de Messenger",
+                consent: "Consentimento",
+                lastFailure: "Último fallo",
+                noFailure: "Ningún",
+                failureNeedsPermission: "Móstrase co permiso messaging-config-read.",
+                noChannel: "Sen contacto rexistrado",
+                notConfirmed: "Entrega non confirmada",
+                notConfirmedHelp:
+                    "A última mensaxe cuxa entrega aínda non está confirmada. Pasadas 24 horas móstrase como Sen resolver, o que non significa que fallase.",
             },
             logs: {
                 channel: "Canle",
+                status: "Estado",
+                statusAsLogged:
+                    "O estado cando se escribiu a entrada; o estado actual precisa o permiso messaging-config-read.",
             },
             stats: {
                 sent: {
@@ -5564,12 +5646,165 @@ const galegoTranslation: TranslationType = {
                     MESSENGER: "Mensaxes de Messenger enviadas",
                 },
             },
-            readinessPolicy: {
-                PROVIDER_CHECK: "Segundo a comprobación do provedor",
-                ADMIN_CONFIRMED: "Confirmada por un administrador",
+            reason: {
+                CANDIDATE_REFUSED: "As novas credenciais non conectaron: mantéñense as anteriores",
+                ACCOUNT_IN_USE:
+                    "Úsana os axustes de mensaxería dun evento electoral: quítea de alí primeiro",
+                NUMBER_CHANGED:
+                    "Un votante cambiou o seu número de WhatsApp: pídalle que verifique de novo o seu contacto",
+                IDENTITY_CHANGED: "A identidade de envío da conta cambiou: compróbase de novo",
+                TEMPLATES_NOT_READ: "Non se puideron ler os modelos do provedor",
+                PARTNER_LOGIN_REFUSED: "Infobip rexeitou a clave de API da conta",
+                NO_PAGES_MESSAGING: "O token da páxina non ten o permiso pages_messaging",
+                NOT_SUBSCRIBED: "A aplicación non está subscrita á páxina",
+                NUMBER_STATUS_NOT_READ: "Non se puido ler o estado do número",
+                CALLBACK_NOT_CONFIGURED: "Enderezo de retorno non configurado",
+                UNSUPPORTED_PROVIDER: "Provedor non compatible: substitúa esta conta",
+                CREDENTIALS_FOLLOW_ENDPOINT: "Volva introducir as credenciais para o novo enderezo",
+                NO_CONTACT_CHANNEL: "Sen canle de contacto",
+                NOT_RETRYABLE_NO_TEMPLATE: "Non se pode reintentar: non hai modelo gardado",
+                CHANNEL_NOT_OFFERED_FOR_NOTICES: "Canle non ofrecida para avisos",
+                CHANNEL_NOT_OFFERED_FOR_CODES: "Canle non ofrecida para códigos",
+                NO_CONTENT_FOR_CHANNEL: "Sen contido para a canle",
+                NO_ACCOUNT_FOR_CHANNEL: "Sen conta de envío para a canle",
+                INVALID_DESTINATION: "Destino non válido para a canle",
+                NOT_RETRYABLE_PROTECTED_FIELDS: "Non se pode reintentar: contén campos protexidos",
+                REPORTED_TOO_LATE: "Notificado demasiado tarde para reintentar",
+                CHANNEL_CHANGED: "A canle do votante cambiou: non se reintenta",
+                WORKER_STOPPED_BEFORE_SENDING: "O proceso detívose antes de enviar",
+                WORKER_STOPPED_AFTER_SENDING: "O proceso detívose antes de rexistrar o resultado",
+                CODE_EXPIRED_BEFORE_SENDING: "O código caducou antes de poder enviarse",
+                CAPACITY_BUSY:
+                    "Non enviado: a conta estivo no seu límite de envío durante demasiado tempo",
+                PROVIDER_ANSWER_LATE:
+                    "O provedor non respondeu a tempo: é posible que a mensaxe se enviase",
+                UNRESOLVED: "Non se puido confirmar a entrega",
+                SELECTED_WITHOUT_VOTERS: "Seleccione polo menos un votante",
+                WRONG_RECIPIENT_KIND: "O destino non é do tipo ao que envía esta canle",
+                UNSUPPORTED_PURPOSE: "O provedor non envía este tipo de mensaxe",
+                MISSING_APPROVED_TEMPLATE: "Non hai modelo aprobado para esta mensaxe",
+                OUTSIDE_CONVERSATION_WINDOW: "Fóra da xanela de conversa",
+                DESTINATION_NOT_ALLOWED: "Esta conta non envía ao país do destino",
+                CODE_EXPIRED: "O código caducou",
+                MISSING_CODE: "Non hai código que enviar",
+                ENDPOINT_NOT_HTTPS: "O enderezo do provedor debe comezar por https://",
+                PROVIDER_CODE: "Código de erro do provedor {{code}}",
+                CHECK_DROPPED: "A conta cambiou mentres se comprobaba: compróbea de novo",
+                ACCOUNT_NOT_READY: "Non enviado: a conta non está lista ({{blocker}})",
+                PROVIDER_UNREACHABLE: "Non se puido contactar co provedor",
+                PROVIDER_STATUS: "O provedor respondeu co estado {{status}}",
+                MISSING_CREDENTIAL: "Falta a credencial: {{credential}}",
+                PROVIDER_CHECK_FAILED: "A comprobación do provedor fallou: {{detail}}",
+                NUMBER_STATUS: "O estado do número é {{status}}",
+                NUMBER_NAME_STATUS: "O nome visible do número é {{status}}",
+                NUMBER_IN_SANDBOX: "O número está en modo sandbox",
+                NUMBER_NOT_VERIFIED: "O código do número non está verificado",
+                SMS_SANDBOX: "A conta está no sandbox de SMS",
+                SES_SANDBOX: "A conta está no sandbox de SES",
+                SES_SENDING_DISABLED: "O envío está desactivado para esta conta",
+                SMTP_REFUSED: "O servidor SMTP non é accesible ou rexeitou as credenciais",
+                TOKEN_INVALID: "O token de acceso non é válido ou caducou",
+                TOKEN_CANNOT_SEND: "O token de acceso non ten o permiso para enviar",
+                TOKEN_NOT_CHECKED: "Non se puido comprobar o token de acceso",
+                APP_SECRET_REFUSED: "Meta rexeitou o segredo da aplicación",
+                APP_SECRET_NOT_CHECKED: "Non se puido comprobar o segredo da aplicación",
+                RETRY_NOT_PREPARED:
+                    "Non se pode reintentar: non se puido volver preparar a mensaxe",
+                NOT_THE_VOTERS_CHANNEL: "Non é a canle do votante",
+                REPORT_CREDENTIALS_MISSING:
+                    "Xere as credenciais de informes e cree a subscrición de Infobip",
+                CALLBACK_NOT_HTTPS: "O enderezo de retorno debe ser https",
+                UNKNOWN_ACCOUNT:
+                    "Esta conta xa non existe: pode que se eliminase noutra lapela. Volva cargar a lista.",
+                INTERNAL_ERROR:
+                    "O servidor non puido completar a solicitude. Ténteo de novo máis tarde.",
+                VERIFY_TOKEN_GENERATED: "O token de verificación xérao o sistema; non se introduce",
+                CREDENTIAL_GENERATED: "{{credential}}: xérao o sistema; non se introduce",
+                CREDENTIAL_NOT_USED: "As contas de {{provider}} non usan {{credential}}",
+                CREDENTIAL_EMPTY: "{{credential}} non pode estar baleiro",
+                NO_REPORT_CREDENTIALS:
+                    "As contas de {{provider}} non teñen credenciais de informes",
+                UNKNOWN_AUDIENCE: "Selección de destinatarios descoñecida",
+                INVALID_MONTH: "O mes debe escribirse como AAAA-MM",
+                INVALID_SUPPORT_REFERENCE: "Non é unha referencia de soporte",
+                MESSENGER_PAGE_CHANGED:
+                    "Non enviado: o votante está conectado a outra páxina de Messenger",
             },
         },
         messagingAccounts: {
+            status: {
+                title: "Estado no provedor",
+                daily: "As contas compróbanse unha vez ao día e cada vez que comprobe a conexión.",
+                unchecked:
+                    "O número, a páxina ou o remitente cambiaron desde a última comprobación. Ata que a conta se comprobe de novo, os códigos e avisos que pasen por ela fallan por non estar lista; a mensaxe de proba si se envía.",
+                notReported: "Non informado",
+                yes: "Si",
+                no: "Non",
+                token: "Token de acceso",
+                tokenExpires: "Válido · caduca o {{date}}",
+                tokenNoExpiry: "Válido · non caduca",
+                tokenInvalid: "Non válido",
+                missingScopes: "Faltan permisos: {{scopes}}",
+                numberStatus: "Estado do número",
+                nameStatus: "Nome visible: {{status}}",
+                qualityRating: "Cualificación de calidade",
+                quality: {
+                    GREEN: "Alta",
+                    YELLOW: "Media",
+                    RED: "Baixa",
+                    UNKNOWN: "Descoñecida",
+                },
+                messagingLimit: "Límite de mensaxes",
+                pagesMessaging: "Permiso para enviar (pages_messaging)",
+                subscribed: "Aplicación subscrita á páxina",
+                getStarted: "Botón Comezar",
+                getStartedMissing:
+                    "Sen o botón, os votantes que nunca escribiron á páxina non poden iniciar a conversa que lles trae o seu código.",
+                partnerLogin: "Acceso do socio",
+                appSecret: "Segredo da aplicación",
+                notChecked: "Non se puido comprobar",
+                numberQualityWarning:
+                    "Un aviso de calidade de Meta: o número segue enviando, pero unha calidade baixa pode reducir o seu límite de mensaxes.",
+                accepted: "Aceptado",
+                refused: "Rexeitado",
+                callback: "Enderezo de retorno",
+                callbackReady: "Configurado",
+                approvalFromCheck: "Informada pola comprobación do provedor",
+                approvalEntered:
+                    "Introducida por un administrador: a comprobación do provedor non a informou",
+                approvalEnteredHelp:
+                    "Só se usa ata que a comprobación do provedor informe da aprobación.",
+                templates: {
+                    title: "Modelos no provedor",
+                    none: "Sen modelos",
+                    name: "Modelo",
+                    language: "Idioma",
+                    category: "Categoría",
+                    status: "Estado",
+                    entered:
+                        "Os modelos de Viber introdúceos un administrador en Modelos aprobados: o socio non ten API para a aprobación de modelos.",
+                },
+                templateCategory: {
+                    AUTHENTICATION: "Autenticación",
+                    UTILITY: "Utilidade",
+                    MARKETING: "Mercadotecnia",
+                },
+                templateStatus: {
+                    APPROVED: "Aprobado",
+                    PENDING: "En revisión",
+                    REJECTED: "Rexeitado",
+                    PAUSED: "En pausa",
+                    DISABLED: "Desactivado",
+                },
+                numberChanges: {
+                    title: "Votantes que cambiaron o seu número de WhatsApp",
+                    description:
+                        "WhatsApp informou destes cambios de número. Pida a estes votantes que verifiquen de novo o seu contacto; non se cambiou nada automaticamente.",
+                    item: "{{old}} cambiou a {{new}} o {{date}}.",
+                    voters: "Votantes: {{voters}}",
+                    noVoters: "Ningún votante recibiu mensaxes desta conta no número anterior.",
+                },
+            },
             tab: "MENSAXERÍA",
             description:
                 "Contas que envían aos votantes os seus códigos e avisos. Cada evento electoral escolle a conta de cada canle; os eventos novos comezan coa conta predeterminada.",
@@ -5607,6 +5842,7 @@ const galegoTranslation: TranslationType = {
                 error: "Non se puido comprobar {{name}}.",
             },
             delete: {
+                refused: "A conta non se eliminou: {{reason}}",
                 title: "Eliminar conta",
                 body: "Eliminar {{name}}? Os eventos electorais que a usan deixarán de enviar pola súa canle.",
                 success: "Conta eliminada",
@@ -5644,9 +5880,7 @@ const galegoTranslation: TranslationType = {
                 sender: "Nome do remitente",
                 provider_approval: "Aprobación do provedor",
                 is_default: "Conta de {{channel}} predeterminada para novos eventos electorais",
-                readiness: "Dispoñibilidade",
                 api_base_url: "URL base da Graph API",
-                label: "Remitente que ven os votantes",
             },
             fieldHelp: {
                 from_address:
@@ -5665,25 +5899,30 @@ const galegoTranslation: TranslationType = {
                 sender: "O remitente aprobado que ven os votantes.",
                 provider_approval:
                     "Meta só permite mensaxes de WhatsApp de gobernos mediante un acordo aprobado. Escolla Aprobación do provedor confirmada cando Meta o aprobase para esta conta; ata entón non se poden activar códigos nin avisos nela.",
-                readiness:
-                    "Segundo a comprobación do provedor usa o que atopa a comprobación de conexión: se a conta está conectada, en produción e que modelos están aprobados. Confirmada por un administrador é para provedores cuxa comprobación non pode sabelo: é a súa declaración de que a conta está conectada, en produción e ten os seus modelos aprobados, e úsase en lugar da comprobación.",
                 api_base_url:
                     "Só cando a Graph API non é a de Meta, como o punto de acceso dun provedor de solucións. Baleiro usa a de Meta.",
-                label: "O nome que os votantes ven como remitente desta conta.",
             },
             error: {
                 REQUIRED: "Obrigatorio",
                 NOT_A_COUNT: "Introduce un número enteiro",
+                AT_LEAST_ONE: "Introduza 1 ou máis",
                 OTP_ABOVE_TOTAL: "Non pode superar as mensaxes por segundo",
                 INVALID_CALLING_CODE:
                     "Introduce prefixos telefónicos de país de 1 a 3 díxitos, como 63",
                 DUPLICATE_LANGUAGE: "Este idioma xa ten un modelo para este propósito",
-                NOT_A_URL: "Introduza un enderezo que comece por https:// ou http://",
-                INVALID_HTTP_CONFIG: "Corrixa os problemas indicados",
+                NOT_A_URL: "Introduza un enderezo que comece por https://",
+                UNSUPPORTED_PROVIDER: "Provedor non compatible: substitúa esta conta",
+                CREDENTIALS_FOLLOW_ENDPOINT: "Volva introducir as credenciais para o novo enderezo",
             },
             warning: {
+                pageChangeCount:
+                    "Votantes conectados a {{page}} que terán que volver conectarse: {{count}}.",
+                pageChangeCounting: "Contando os votantes conectados á páxina…",
+                pageChangeCountError: "Non se puido ler o número de votantes conectados á páxina.",
+                recheck:
+                    "Ao gardar, a conta compróbase de novo en segundo plano. Ata que esa comprobación saia ben, os códigos e avisos que pasen por ela fallan por non estar lista; a mensaxe de proba si se envía.",
                 pageChange:
-                    "As conversas de Messenger pertencen a unha páxina. Tras cambiar a páxina, os votantes conectados a {{page}} só recibirán códigos despois de volver conectar Messenger.",
+                    "As conversas de Messenger pertencen a unha páxina. Tras cambiar a páxina, non se envían códigos nin avisos aos votantes conectados a {{page}} ata que volvan conectarse. O votante volve conectarse no seu seguinte inicio de sesión, despois de introducir o seu contrasinal: o inicio de sesión mostra o paso de conexión da páxina nova, o votante preme Comezar en Messenger e recibe alí o código. Un votante que non pode iniciar sesión cun contrasinal, por exemplo porque o esqueceu, necesita que o persoal lle cambie a canle.",
                 numberChange:
                     "As mensaxes chegarán desde outro número. Os seus modelos deben estar aprobados nesa conta de empresa antes de poder enviar códigos, e os votantes verán un chat novo.",
             },
@@ -5700,8 +5939,13 @@ const galegoTranslation: TranslationType = {
             limits: {
                 title: "Límites de envío",
                 messagesPerSecond: "Mensaxes por segundo",
+                messagesPerSecondHelp: "Baleiro: as mensaxes non se limitan.",
                 otpReservedPerSecond: "Reservadas para códigos por segundo",
-                otpReservedHelp: "Mantéñense libres para os códigos durante os envíos masivos.",
+                otpReservedHelp:
+                    "Un mínimo dentro do único orzamento de envío compartido da conta: os avisos detéñense nel e os códigos van primeiro. Se non se envían códigos, un envío masivo pode usar todo o ritmo.",
+                otpConcurrency: "Códigos enviados á vez",
+                otpConcurrencyHelp:
+                    "Baleiro: 8. Os códigos e os avisos de Keycloak (ligazóns de restablecemento, contrasinais temporais) ocupan cada un unha praza mentres se envían. Cóntase por proceso do servidor; os demais envíos agardan a súa quenda.",
                 allowedCallingCodes: "Destinos permitidos (prefixos telefónicos de país)",
                 allowedCallingCodesHelp:
                     "Separados por comas, por exemplo 63, 971. Baleiro permite calquera destino.",
@@ -5713,6 +5957,7 @@ const galegoTranslation: TranslationType = {
                 set: "Configurada · substituída {{date}}. Gárdase cifrada e nunca se mostra.",
                 replace: "Substituír",
                 replaceNamed: "Substituír {{name}}",
+                reenter: "O enderezo cambiou: volva introducir esta credencial.",
             },
             credentialHelp: {
                 AWS_SES: {
@@ -5738,26 +5983,20 @@ const galegoTranslation: TranslationType = {
                 VIBER_INFOBIP: {
                     API_KEY: "A clave de API de Infobip.",
                 },
-                HTTP_API: {
-                    API_KEY: "Opcional. As solicitudes úsana como a credencial API_KEY.",
-                    API_SECRET:
-                        "Opcional. Un segundo segredo, e a clave que asina o JWT: unha clave privada PEM para RS256, o segredo compartido para HS256.",
-                    ACCESS_TOKEN: "Opcional. As solicitudes úsano como a credencial ACCESS_TOKEN.",
-                    USERNAME: "Opcional. Co contrasinal, forma o marcador basic_auth.",
-                    PASSWORD: "Opcional. Co nome de usuario, forma o marcador basic_auth.",
-                    WEBHOOK_SECRET:
-                        "Opcional. O segredo compartido co que se comproban as chamadas do provedor.",
-                },
             },
             webhook: {
-                title: "Informes de entrega e respostas",
-                description:
-                    "Introduce este enderezo de retorno na configuración de webhooks do provedor. Os informes de entrega e as respostas dos votantes chegan alí.",
-                path: "Ruta de retorno",
-                pathHelp:
-                    "Engádea ao enderezo público dos webhooks de mensaxería desta plataforma.",
+                title: "Informes de entrega",
+                description: {
+                    WHATSAPP_CLOUD_API:
+                        "Introduza este URL de retorno na configuración de webhooks de Meta. Os informes de entrega chegan aquí e compróbanse co segredo da aplicación.",
+                    MESSENGER_SEND_API:
+                        "Introduza este URL de retorno na configuración de webhooks de Meta. Os informes de entrega e o toque do votante en Comezar chegan aquí e compróbanse co segredo da aplicación.",
+                    VIBER_INFOBIP:
+                        "Infobip envía os informes de entrega de Viber a este URL de retorno mediante unha subscrición con autenticación Basic.",
+                    AWS_SES:
+                        "Subscriba este URL de retorno (HTTPS) ao tema de notificacións de entrega. Os eventos de entrega e rebote chegan aquí e compróbanse coa sinatura de Amazon.",
+                },
                 afterSaving: "Móstrase despois de gardar",
-                copyPath: "Copiar ruta de retorno",
                 tokenSet: "Configurado · substituído {{date}}",
                 tokenMissing: "Aínda non xerado",
                 tokenAfterSaving: "Xérase despois de gardar",
@@ -5768,8 +6007,13 @@ const galegoTranslation: TranslationType = {
                 copyToken: "Copiar token de verificación",
                 tokenDone: "Feito",
                 tokenError: "Non se puido xerar o token de verificación.",
-                httpHelp:
-                    "Unha API HTTP personalizada pode enviar os seus informes como JSON, ou como unha solicitude GET; os seus parámetros de consulta lense entón como un obxecto plano, con punteiros como /status.",
+                url: "URL de retorno",
+                copyUrl: "Copiar o URL de retorno",
+                needsWrite:
+                    "Móstrase aos administradores que poden xestionar contas de mensaxería.",
+                loading: "Cargando…",
+                unavailable: "Non dispoñible",
+                loadError: "Non se puido cargar o URL de retorno.",
             },
             copy: {
                 success: "Copiado",
@@ -5778,6 +6022,7 @@ const galegoTranslation: TranslationType = {
             save: {
                 success: "Conta gardada",
                 error: "Non se puido gardar a conta.",
+                refused: "Non se gardou a conta: {{reason}}",
             },
             test: {
                 title: "Enviar unha mensaxe de proba desde {{name}}",
@@ -5801,104 +6046,120 @@ const galegoTranslation: TranslationType = {
                 languageHelp:
                     "Para un provedor que envía modelos aprobados, introduza o código de idioma do provedor para o modelo, como en_US.",
             },
-            http: {
-                title: "API HTTP personalizada",
-                description:
-                    "Describe un provedor polas súas solicitudes HTTP: outro socio de Viber, a API propia dun provedor de solucións de WhatsApp, unha pasarela de SMS. As solicitudes son JSON; a súa URL, cabeceiras e corpo poden conter os marcadores da referencia de abaixo.",
-                phoneFormat: "Formato do número de teléfono",
-                phoneFormatHelp: "Como se escribe o número do destinatario nunha solicitude.",
-                phoneFormatOption: {
-                    E164: "Co signo máis: +639171234567",
-                    DIGITS: "Só díxitos: 639171234567",
+            unsupported:
+                "Provedor non compatible: substitúa esta conta. O seu provedor xa non é compatible, así que non pode enviar. Engada unha conta para esta canle cun provedor compatible, escóllaa nos eventos electorais que usan esta e despois elimine esta conta.",
+            reports: {
+                label: "Credenciais de informes",
+                missing: "Aínda non xeradas",
+                generate: "Xerar credenciais de informes",
+                title: "Credenciais de informes",
+                once: "Introdúzaas agora na subscrición de Infobip. Só se mostran unha vez; xerar outras novas substitúeas.",
+                copyUsername: "Copiar o usuario de informes",
+                copyPassword: "Copiar o contrasinal de informes",
+                error: "Non se puideron xerar as credenciais de informes.",
+                step: {
+                    subscription:
+                        "En Infobip, cree unha subscrición para os informes de entrega de Viber.",
+                    url: "Poña como URL o URL de retorno desta conta.",
+                    auth: "Escolla a autenticación Basic e introduza o usuario e o contrasinal de informes.",
                 },
-                templateRequired: "Propósitos que precisan un modelo aprobado",
-                templateRequiredHelp:
-                    "Un propósito marcado só se envía cun modelo que o provedor aprobou, vinculado no evento electoral. Os demais propósitos envíanse como texto libre.",
-                approvedLanguages: "Idiomas con modelo aprobado para {{purpose}}",
-                approvedLanguagesHelp:
-                    "Os códigos de idioma cun modelo aprobado, segundo o confirmado co provedor, separados por comas: en, tl. A comprobación de conexión comunícaos.",
-                conversationWindow: "Xanela de conversa (horas)",
-                conversationWindowHelp:
-                    "Horas tras a última mensaxe do destinatario durante as que se pode enviar texto libre. Baleiro cando o provedor non ten esa xanela.",
-                messageIdPointer: "ID da mensaxe na resposta de envío",
-                messageIdPointerHelp:
-                    "Un punteiro JSON ao ID de mensaxe do provedor na resposta á solicitude de envío, como /message_id. Con el emparéllanse os informes de entrega.",
-                notConfigured: "Sen configurar.",
-                thisSection: "Esta sección",
-                add: "Engadir: {{section}}",
-                remove: "Quitar: {{section}}",
-                section: {
-                    SEND: "Solicitude de envío",
-                    CHECK: "Solicitude de comprobación de conexión",
-                    TOKEN: "Solicitude de token",
-                    JWT: "Token asinado (JWT)",
-                    REPORTS: "Informes de entrega e respostas",
-                    RECONCILE: "Solicitude de consulta dunha mensaxe",
-                },
-                sectionHelp: {
-                    SEND: "A solicitude que envía unha mensaxe: method (POST se se omite), url, headers e body.",
-                    CHECK: "Opcional. Unha solicitude que ten éxito, cunha resposta 2xx, cando as credenciais funcionan. Execútaa a comprobación de conexión.",
-                    TOKEN: "Opcional. Obtén un token de curta duración antes de enviar, como as credenciais de cliente de OAuth: request, token_pointer (onde está o token na resposta) e lifetime_seconds. As solicitudes úsano co marcador token.",
-                    JWT: "Opcional. Un token asinado para cada solicitude coa credencial Segredo da API: algorithm (RS256 ou HS256), claims (engádense iat, exp e jti) e lifetime_seconds. As solicitudes úsano co marcador jwt.",
-                    REPORTS:
-                        "Opcional. Como ler o que o provedor envía ao enderezo de retorno: auth, items_pointer (onde está a lista de informes; todo o contido se se omite), status (message_id_pointer, state_pointer, states, que asigna cada valor do provedor a QUEUED, ACCEPTED, DELIVERED, FAILED ou UNKNOWN, e error_pointer) e inbound_from_pointer (onde está o remitente dunha resposta). auth ten un kind: URL_KEY (só o enderezo secreto de retorno), HEADER_SECRET (unha cabeceira igual ao segredo do webhook), HMAC_SHA256 (unha cabeceira co HMAC do corpo co segredo do webhook, con prefix, encoding HEX ou BASE64, e signed cando se asina algo máis que o corpo) ou JWT_HS256 (unha cabeceira cun JWT bearer asinado co segredo do webhook).",
-                    RECONCILE:
-                        "Opcional. Pregunta ao provedor por unha mensaxe cuxo resultado se descoñece: request e status, que se le como o status dos informes de entrega.",
-                },
-                problem: {
-                    NOT_AN_OBJECT: "{{path}} debe ser un obxecto.",
-                    MISSING_URL: "{{path}} é obrigatorio: o enderezo da solicitude.",
-                    INVALID_METHOD: "{{path}} debe ser un método HTTP, como POST ou GET.",
-                    INVALID_HEADERS:
-                        "{{path}} debe ser texto: headers é un obxecto de nomes de cabeceira e valores de texto.",
-                    UNKNOWN_FIELD: "{{path}} non é un campo desta sección.",
-                    UNKNOWN_PLACEHOLDER:
-                        "{{path}} usa un marcador que non existe. Consulte a referencia de marcadores.",
-                    INVALID_POINTER:
-                        "{{path}} debe ser un punteiro JSON que comece por /, como /data/id.",
-                    INVALID_STATES:
-                        "{{path}} debe asignar un valor de estado do provedor a QUEUED, ACCEPTED, DELIVERED, FAILED ou UNKNOWN; fai falta polo menos un.",
-                    INVALID_AUTH:
-                        "{{path}} non é válido: kind é URL_KEY, HEADER_SECRET, HMAC_SHA256 ou JWT_HS256; header é obrigatorio salvo para URL_KEY; encoding é HEX ou BASE64.",
-                    INVALID_LIFETIME:
-                        "{{path}} debe ser un número enteiro de segundos maior que 0.",
-                    INVALID_ALGORITHM: "{{path}} debe ser RS256 ou HS256.",
-                    INVALID_CLAIMS: "{{path}} debe ser un obxecto.",
-                    INVALID_HOURS: "{{path}} debe ser un número enteiro de horas maior que 0.",
-                },
-                placeholders: {
-                    title: "Referencia de marcadores",
-                    help: "Escríbense entre chaves dobres na URL, no valor dunha cabeceira ou en calquera texto do corpo. Cada un substitúese ao facer a solicitude.",
-                },
-                placeholder: {
-                    to: "O destinatario: número de teléfono, enderezo de correo electrónico ou ID de ámbito de páxina.",
-                    text: "A mensaxe como texto sen formato.",
-                    subject: "O asunto, para o correo electrónico.",
-                    html: "A mensaxe como HTML, para o correo electrónico.",
-                    code: "O código dun só uso, para os códigos.",
-                    template: "O modelo do provedor vinculado no evento electoral.",
-                    language: "O código de idioma do provedor para o modelo.",
-                    message_id:
-                        "O ID de mensaxe do provedor, nunha solicitude de consulta dunha mensaxe.",
-                    callback_url: "O enderezo público de retorno desta conta.",
-                    param: "Un parámetro do modelo pola súa posición: 1, 2, 3, etc.",
-                    credential:
-                        "Unha credencial desta conta polo seu nome: API_KEY, API_SECRET, ACCESS_TOKEN, USERNAME, PASSWORD ou WEBHOOK_SECRET.",
-                    basic_auth:
-                        "O nome de usuario e o contrasinal, codificados para unha cabeceira Authorization: Basic.",
-                    token: "O token obtido coa solicitude de token.",
-                    jwt: "O token asinado descrito en Token asinado (JWT).",
-                    parameters:
-                        "Só, como valor do corpo, convértese na lista de todos os parámetros do modelo.",
-                    named_parameters:
-                        "Só, como valor do corpo, convértese nun obxecto cos parámetros escritos como @nome=valor.",
-                },
-                example: {
-                    title: "Exemplo completo: un socio de Viber",
-                    description:
-                        "O socio recibe un POST JSON autenticado coa clave de API como token bearer, responde co ID da mensaxe en message_id e envía informes de entrega cunha cabeceira secreta. Úseo como punto de partida e cambie o enderezo e os nomes de campo polos do provedor.",
-                    use: "Usar este exemplo",
-                },
+                confirmTitle: "Substituír as credenciais de informes?",
+                confirmBody:
+                    "O usuario e o contrasinal de informes actuais deixan de funcionar de inmediato. Ata que a subscrición de Infobip teña os novos, os informes de entrega de Viber rexéitanse e as mensaxes quedan en Aceptado.",
+                confirm: "Substituír",
+            },
+        },
+        sentMessages: {
+            showMore: "Mostrar máis",
+            showLess: "Mostrar menos",
+            tab: "Mensaxes enviadas",
+            accountsTab: "Contas",
+            tabsLabel: "Seccións de mensaxería",
+            description:
+                "Mensaxes que recibiu o provedor de demostración deste contorno de desenvolvemento, tal como as amosarían as aplicacións dos votantes. Ningunha chegou a un votante real. Esta lapela só aparece onde as rutas do provedor de demostración están activadas.",
+            modeLabel: "Amosar mensaxes de",
+            all: "Todas",
+            refresh: "Actualizar",
+            refreshing: "Actualizando…",
+            refreshError:
+                "Non se puideron actualizar as mensaxes. A lista amosada é a última que se leu.",
+            empty: "Aínda non hai mensaxes.",
+            emptyChannel: "Aínda non hai mensaxes de {{channel}}.",
+            column: {
+                time: "Hora",
+                channel: "Canle",
+                from: "De",
+                to: "Para",
+                message: "Mensaxe",
+                report: "Informe de entrega",
+            },
+            report: {
+                accepted: "Informe aceptado polo compoñente de webhooks (HTTP 200)",
+                refused: "Informe rexeitado: HTTP {{status}}",
+                pending: "Informe aínda non enviado",
+                notSent: "Informe non enviado: {{reason}}",
+                noAnswer: "O informe non obtivo resposta: {{reason}}",
+                noReason: "sen motivo indicado",
+                unavailable: "Esta canle non ten informes de entrega",
+            },
+            content: {
+                demoCode:
+                    "{{code}} é o seu código de verificación. Pola súa seguridade, non o comparta con ninguén.",
+                demoNotice:
+                    "Recordatorio de votación\n\nOla {{name}}, a votación de {{event}} xa está aberta.\n\nAcceda ao portal de votación para revisar a súa papeleta e emitir o seu voto:\n{{url}}\n\nNon comparta o seu código de acceso con ninguén. Se xa votou, non precisa facer nada máis.",
+                demoLegacyNotice:
+                    "Recordatorio de votación\n\nOla {{name}}, a votación xa está aberta. Acceda ao portal de votación para emitir o seu voto:\n{{url}}\n\nNon comparta o seu código de acceso con ninguén.",
+
+                template: "Modelo {{name}} ({{language}})",
+                noText: "(sen texto)",
+                code: "Código",
+                copyCode: "Copiar o código",
+                copied: "Código copiado",
+                copyFailed: "Non se puido copiar o código",
+                truncated:
+                    "Recortado: o provedor de demostración só conserva os primeiros 64 KiB de cada campo.",
+            },
+            chat: {
+                phone: "{{channel}} nun teléfono",
+                chats: "Chats de {{channel}}",
+                open: "Abrir o chat con {{recipient}} desde {{sender}}",
+                back: "Volver aos chats",
+                from: "De {{sender}}",
+                messages: "Mensaxes para {{recipient}}",
+            },
+            getStarted: {
+                title: "Comezar",
+                help: "Pegue a ligazón de Messenger que amosa a páxina de inscrición e prema Comezar, como faría o votante en Messenger. Despois, o código chega ao chat.",
+                link: "Ligazón de Messenger",
+                submit: "Comezar",
+                accepted: "O compoñente de webhooks respondeu 200. O código chega ao chat.",
+                answered: "O compoñente de webhooks respondeu {{status}}.",
+                failed: "Non se puido comezar: {{reason}}",
+            },
+            email: {
+                inbox: "Caixa de entrada",
+                reading: "Correo seleccionado",
+                noSubject: "(sen asunto)",
+                from: "De",
+                to: "Para",
+                view: "Amosar o correo como",
+                html: "HTML",
+                text: "Texto simple",
+                htmlFrame: "Contido do correo",
+                noContent: "Este correo non ten contido.",
+                loading: "Cargando o correo…",
+                loadError:
+                    "Non se puido ler o HTML do correo: pode que o provedor de demostración xa non o conserve.",
+            },
+            reason: {
+                SEVERAL_ACCOUNTS: "Varias contas usan este remitente",
+                ACCOUNTS_UNREADABLE: "Non se puideron ler as contas",
+                UNREACHABLE: "O compoñente de webhooks non respondeu",
+                LINK_UNREADABLE: "Pegue a ligazón m.me da páxina de inscrición",
+                LINK_WITHOUT_REF: "A ligazón non ten ref: copie a ligazón completa",
+                NO_PAGE_ACCOUNT: "Ningunha conta de Messenger desta organización usa esta páxina",
+                SEVERAL_PAGE_ACCOUNTS:
+                    "Varias contas de Messenger desta organización usan esta páxina",
             },
         },
     },

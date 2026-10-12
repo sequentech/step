@@ -201,6 +201,35 @@ const AdminOperationMap: Record<string, IPermissions> = {
     GetApprovalMatrix: IPermissions.APPLICATION_READ,
     EvaluateApprovalMatrix: IPermissions.APPLICATION_READ,
     SaveApprovalMatrix: IPermissions.APPROVAL_MATRIX_WRITE,
+    // messaging: the default role reads none of it; every call site also
+    // names its role, and Harvest checks the permission again for actions
+    GetEventMessagingConfig: IPermissions.MESSAGING_CONFIG_READ,
+    GetEventMessagingConfigAuthor: IPermissions.MESSAGING_CONFIG_READ,
+    GetMessagingAccountSummaries: IPermissions.MESSAGING_CONFIG_READ,
+    GetVoterUnsettledMessages: IPermissions.MESSAGING_CONFIG_READ,
+    GetVoterMessageAttempts: IPermissions.MESSAGING_CONFIG_READ,
+    GetLedgerMessageStates: IPermissions.MESSAGING_CONFIG_READ,
+    GetMessagingEventStats: IPermissions.MESSAGING_CONFIG_READ,
+    GetMessagingCallbackStatus: IPermissions.MESSAGING_CONFIG_READ,
+    UpdateEventMessagingConfig: IPermissions.MESSAGING_CONFIG_WRITE,
+    GetMessagingAccounts: IPermissions.MESSAGING_ACCOUNT_READ,
+    MessagingAccountCallbackUrl: IPermissions.MESSAGING_ACCOUNT_WRITE,
+    UpsertMessagingAccount: IPermissions.MESSAGING_ACCOUNT_WRITE,
+    CheckMessagingAccount: IPermissions.MESSAGING_ACCOUNT_WRITE,
+    ReplaceMessagingAccountCredentials: IPermissions.MESSAGING_ACCOUNT_WRITE,
+    DeleteMessagingAccount: IPermissions.MESSAGING_ACCOUNT_WRITE,
+    TestMessagingAccount: IPermissions.MESSAGING_ACCOUNT_WRITE,
+    GetMessagingAudiencePreview: IPermissions.MESSAGING_CONFIG_READ,
+    GetMessagingVoterCounts: IPermissions.MESSAGING_CONFIG_READ,
+    RecountMessagingVoters: IPermissions.MESSAGING_CONFIG_READ,
+    // also granted to messaging-config-read; the call site picks the role
+    GetMessagingMonthlyVolumes: IPermissions.MESSAGING_ACCOUNT_READ,
+    MessagingAccountChangeImpact: IPermissions.MESSAGING_ACCOUNT_WRITE,
+    MessagingFakeProviderMessages: IPermissions.MESSAGING_ACCOUNT_WRITE,
+    MessagingFakeProviderMessage: IPermissions.MESSAGING_ACCOUNT_WRITE,
+    MessagingFakeProviderGetStarted: IPermissions.MESSAGING_ACCOUNT_WRITE,
+    // Approvals: look an application up by its support reference
+    FindApplicationsBySupportReference: IPermissions.APPLICATION_READ,
 }
 
 const TrusteeOperationMap: Record<string, IPermissions> = {

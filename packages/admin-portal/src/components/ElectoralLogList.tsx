@@ -10,6 +10,7 @@ import {
     NumberField,
     useRecordContext,
     TextInput,
+    SelectInput,
     useInput,
 } from "react-admin"
 import {LogRangeDateTimeInput} from "./logs/LogRangeDateTimeInput"
@@ -33,6 +34,9 @@ import {StatementExplanation, explanationLines} from "./logs/StatementExplanatio
 import {ExportLogsDialog} from "./logs/ExportLogsDialog"
 import {useLogRowZone, useLogZones, type ILogZones} from "./logs/useLogZones"
 import {TimeZonePicker} from "./timezones/TimeZonePicker"
+import {LedgerStates, LedgerStatusField} from "./logs/LedgerStatus"
+import {LOG_CHANNEL_NONE, LOG_FILTER_CHANNEL, LOG_FILTER_OUTCOME} from "./logs/messagingLogFilters"
+import {MESSAGE_ATTEMPT_STATES, MESSAGE_CHANNELS} from "@/types/messaging"
 
 const OMIT_FIELDS = ["user_id"]
 
@@ -186,6 +190,27 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
             source={"statement_kind"}
             label={String(t("logsScreen.column.statement_kind"))}
         />,
+        <SelectInput
+            key={LOG_FILTER_CHANNEL}
+            source={LOG_FILTER_CHANNEL}
+            label={String(t("messaging.logs.channel"))}
+            choices={[
+                ...MESSAGE_CHANNELS.map((channel) => ({
+                    id: channel,
+                    name: String(t(`messaging.channel.${channel}`)),
+                })),
+                {id: LOG_CHANNEL_NONE, name: String(t("messaging.reason.NO_CONTACT_CHANNEL"))},
+            ]}
+        />,
+        <SelectInput
+            key={LOG_FILTER_OUTCOME}
+            source={LOG_FILTER_OUTCOME}
+            label={String(t("messaging.logs.status"))}
+            choices={MESSAGE_ATTEMPT_STATES.map((state) => ({
+                id: state,
+                name: String(t(`messaging.state.${state}`)),
+            }))}
+        />,
     ]
 
     return (
@@ -212,109 +237,126 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                 }}
                 aside={aside}
             >
-                <ResetFilters />
-                <DatagridConfigurable
-                    header={ThreeStateDatagridHeader}
-                    omit={OMIT_FIELDS}
-                    bulkActionButtons={false}
-                >
-                    <NumberField source="id" label={String(t("logsScreen.column.id"))} />
-                    <FunctionField
-                        source="user_id"
-                        label={String(t("logsScreen.column.user_id"))}
-                        render={(record: any) => {
-                            const userId = logMessage(record)?.user_id
-                            return (
-                                <span style={{display: "block", textAlign: "center"}}>
-                                    {!userId || userId === "null" ? <span>-</span> : userId}
-                                </span>
-                            )
-                        }}
-                    />
-                    <FunctionField
-                        source="username"
-                        label={String(t("logsScreen.column.username"))}
-                        render={(record: any) => {
-                            const username = logMessage(record)?.username
-                            return (
-                                <span style={{display: "block", textAlign: "center"}}>
-                                    {!username || username === "null" ? <span>-</span> : username}
-                                </span>
-                            )
-                        }}
-                    />
-                    <FunctionField
-                        source="created"
-                        label={String(t("logsScreen.column.created"))}
-                        render={() => <LogRowTime source="created" zones={zones} format={format} />}
-                    />
-                    <FunctionField
-                        source="statement_timestamp"
-                        label={String(t("logsScreen.column.statement_timestamp"))}
-                        render={() => (
-                            <LogRowTime
-                                source="statement_timestamp"
-                                zones={zones}
-                                format={format}
-                            />
-                        )}
-                    />
-                    <TextField
-                        source="statement_kind"
-                        label={String(t("logsScreen.column.statement_kind"))}
-                    />
-                    <FunctionField
-                        source="event_type"
-                        label={String(t("logsScreen.column.event_type"))}
-                        render={(record: any) => getHeadField(record, "event_type")}
-                    />
-                    <FunctionField
-                        source="log_type"
-                        label={String(t("logsScreen.column.log_type"))}
-                        render={(record: any) => getHeadField(record, "log_type")}
-                    />
-                    <FunctionField
-                        source="channel"
-                        sortable={false}
-                        label={String(t("messaging.logs.channel"))}
-                        render={(record: {message?: string}) => {
-                            const channel = electoralLogChannel(record.message)
-                            return channel ? (
-                                <ChannelLabel
-                                    channel={channel}
-                                    label={t(`messaging.channel.${channel}`)}
+                <ResetFilters keepLinkedFilter />
+                <LedgerStates>
+                    <DatagridConfigurable
+                        header={ThreeStateDatagridHeader}
+                        omit={OMIT_FIELDS}
+                        bulkActionButtons={false}
+                    >
+                        <NumberField source="id" label={String(t("logsScreen.column.id"))} />
+                        <FunctionField
+                            source="user_id"
+                            label={String(t("logsScreen.column.user_id"))}
+                            render={(record: any) => {
+                                const userId = logMessage(record)?.user_id
+                                return (
+                                    <span style={{display: "block", textAlign: "center"}}>
+                                        {!userId || userId === "null" ? <span>-</span> : userId}
+                                    </span>
+                                )
+                            }}
+                        />
+                        <FunctionField
+                            source="username"
+                            label={String(t("logsScreen.column.username"))}
+                            render={(record: any) => {
+                                const username = logMessage(record)?.username
+                                return (
+                                    <span style={{display: "block", textAlign: "center"}}>
+                                        {!username || username === "null" ? (
+                                            <span>-</span>
+                                        ) : (
+                                            username
+                                        )}
+                                    </span>
+                                )
+                            }}
+                        />
+                        <FunctionField
+                            source="created"
+                            label={String(t("logsScreen.column.created"))}
+                            render={() => (
+                                <LogRowTime source="created" zones={zones} format={format} />
+                            )}
+                        />
+                        <FunctionField
+                            source="statement_timestamp"
+                            label={String(t("logsScreen.column.statement_timestamp"))}
+                            render={() => (
+                                <LogRowTime
+                                    source="statement_timestamp"
+                                    zones={zones}
+                                    format={format}
                                 />
-                            ) : (
-                                <span>-</span>
-                            )
-                        }}
-                    />
-                    <FunctionField
-                        source="description"
-                        label={String(t("logsScreen.column.description"))}
-                        render={(record: any) => {
-                            const message = logMessage(record)
-                            // The explanation opens with the full description, under Show More.
-                            const explained = !!explanationLines(t, record.statement_kind, message)
-                                ?.length
-                            return (
-                                <MessageField
-                                    content={message?.statement?.head?.description || "-"}
-                                    initialLength={50}
-                                    details={
-                                        explained ? (
-                                            <StatementExplanation
-                                                kind={record.statement_kind}
-                                                message={message}
-                                            />
-                                        ) : undefined
-                                    }
-                                />
-                            )
-                        }}
-                    />
-                    <MessageField source="message" />
-                </DatagridConfigurable>
+                            )}
+                        />
+                        <TextField
+                            source="statement_kind"
+                            label={String(t("logsScreen.column.statement_kind"))}
+                        />
+                        <FunctionField
+                            source="event_type"
+                            label={String(t("logsScreen.column.event_type"))}
+                            render={(record: any) => getHeadField(record, "event_type")}
+                        />
+                        <FunctionField
+                            source="log_type"
+                            label={String(t("logsScreen.column.log_type"))}
+                            render={(record: any) => getHeadField(record, "log_type")}
+                        />
+                        <FunctionField
+                            source="channel"
+                            sortable={false}
+                            label={String(t("messaging.logs.channel"))}
+                            render={(record: {message?: string}) => {
+                                const channel = electoralLogChannel(record.message)
+                                return channel ? (
+                                    <ChannelLabel
+                                        channel={channel}
+                                        label={t(`messaging.channel.${channel}`)}
+                                    />
+                                ) : (
+                                    <span>-</span>
+                                )
+                            }}
+                        />
+                        <FunctionField
+                            source="status"
+                            sortable={false}
+                            label={String(t("messaging.logs.status"))}
+                            render={() => <LedgerStatusField />}
+                        />
+                        <FunctionField
+                            source="description"
+                            label={String(t("logsScreen.column.description"))}
+                            render={(record: any) => {
+                                const message = logMessage(record)
+                                // The explanation opens with the full description, under Show More.
+                                const explained = !!explanationLines(
+                                    t,
+                                    record.statement_kind,
+                                    message
+                                )?.length
+                                return (
+                                    <MessageField
+                                        content={message?.statement?.head?.description || "-"}
+                                        initialLength={50}
+                                        details={
+                                            explained ? (
+                                                <StatementExplanation
+                                                    kind={record.statement_kind}
+                                                    message={message}
+                                                />
+                                            ) : undefined
+                                        }
+                                    />
+                                )
+                            }}
+                        />
+                        <MessageField source="message" />
+                    </DatagridConfigurable>
+                </LedgerStates>
             </List>
             <ExportLogsDialog
                 electionEventId={eventId ?? ""}
