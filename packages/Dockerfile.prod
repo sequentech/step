@@ -13,7 +13,7 @@
 # .cargo/config.toml; `yarn-offline-mirror` the npm packages of yarn.lock; `apks-nginx` the
 # Alpine packages of the runtime stage, whose signatures apk verifies when it installs them.
 ARG WASM_PACK_VERSION=0.15.0
-ARG WASM_BINDGEN_VERSION=0.2.104
+ARG WASM_BINDGEN_VERSION=0.2.128
 ARG BINARYEN_VERSION=123
 ARG RUST_VERSION=1.96.0
 
