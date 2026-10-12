@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">IdP SSO Configuration &amp; Handoff | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3566/docs/developers/tutorials/setup_idp_initiated_sso"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="IdP SSO Configuration &amp; Handoff | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3566/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3566/docs/developers/tutorials/setup_idp_initiated_sso"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3566/docs/developers/tutorials/setup_idp_initiated_sso" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3566/docs/developers/tutorials/setup_idp_initiated_sso" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"IdP SSO Configuration & Handoff","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3566/docs/developers/tutorials/setup_idp_initiated_sso"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3566/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3566/assets/js/runtime~main.df3da239.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3566/assets/js/runtime~main.bb8e5e8f.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3566/assets/js/main.27d2c1fa.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -211,6 +211,11 @@ this is just a sample implementation, use secure passwords in production.</p></d
 <p>After login in the SimpleSAMLphp Admin Portal, you should see something like:</p>
 <p><img decoding="async" loading="lazy" alt="Admin Portal" src="/docusaurus/pr-preview/pr-3566/assets/images/simplesamlphp_admin_portal-89ad8dd80d7d1e3b2ad37949d9e4154e.png" width="2312" height="1658" class="img_ev3q"></p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="step-22-configure-keycloak-to-trust-simplesamlphp">Step 2.2: Configure Keycloak to Trust SimpleSAMLphp<a href="#step-22-configure-keycloak-to-trust-simplesamlphp" class="hash-link" aria-label="Direct link to Step 2.2: Configure Keycloak to Trust SimpleSAMLphp" title="Direct link to Step 2.2: Configure Keycloak to Trust SimpleSAMLphp" translate="no">​</a></h3>
+<p>Default election-event realms do not include a demonstration SAML identity provider.
+Configure trusted providers explicitly with your own signing certificate. Realm
+imports remove providers that trust the bundled development certificate, together
+with their mappers and automatic redirect settings. Custom SAML providers and the
+digital-certificate provider remain available.</p>
 <p>Now configure Keycloak to accept SAML assertions from your local SimpleSAMLphp instance.</p>
 <ol>
 <li class=""><strong>Navigate to Authentication</strong> in your Keycloak realm</li>
