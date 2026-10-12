@@ -67,7 +67,18 @@ code (143: stopped by SIGTERM, counters kept by continuous mode); a missing prof
 The ordered tests in `scripts/e2e/journeys/test_journeys.py` cover tenant bootstrap,
 event import and invalid bundles, voter import, automatic key generation,
 private ballot publication, cast/revote/closing rules and results matching the
-last accepted ballot. Fixtures live in `fixtures.py`; clients use Python's
+last accepted ballot. Native archive journeys export a completed election with
+its protocol boards, publications, voters and tally, then recover it through the
+CLI and the authenticated encrypted-import API. They check preserved canonical
+protocol messages, remapped board relationships, immutable signed configuration
+domains and the same independently calculated vote totals. Archives also
+retain publication metadata and ballot styles, rebuilding their immutable
+storage objects under the recovered event's identifiers. Historical archives
+without publication metadata recover their styles as generated, unpublished
+publications. Encrypted archives contain manager identities; decrypted server
+files belong to the import request
+and are removed when it finishes, including on decryption failure.
+Fixtures live in `fixtures.py`; clients use Python's
 standard library. Add assertions against observable responses and persisted
 results, with valid controls for rejection cases.
 The same fixture and clients build the development stack's

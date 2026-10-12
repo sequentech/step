@@ -20,6 +20,12 @@ ballot batches and ceremony transitions. Native cryptographic runs require an
 optimized build. Custody tests reject another trustee's key and a proof replayed
 into another tally session.
 
+Archive admission verifies Configuration messages through wbraid's construction
+path and verifies other messages through its predicate verifier. It also checks
+each signed configuration hash against the archived parent domain. A valid
+signature from a trustee shared by two ceremonies cannot move a message from
+one ceremony's archive into the other.
+
 The supplied protocol's additional suites and browser emulator are documented
 in `packages/wbraid/TESTING.md`. Its crates use a separate Cargo workspace:
 

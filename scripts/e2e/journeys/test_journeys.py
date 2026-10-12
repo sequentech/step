@@ -7,11 +7,15 @@ Each journey builds on the previous ones and is skipped when one it needs did
 not pass. Skipped journeys fail the run; every scenario must pass.
 """
 
+import base64
 import collections
+import hashlib
 import json
 import re
+import subprocess
 import unittest
 import uuid
+import zipfile
 from datetime import datetime, timezone
 
 from . import bootstrap, fixtures
@@ -24,6 +28,7 @@ from .client import (
     TENANT_REALM,
     GraphQLError,
     Hasura,
+    Http,
     Keycloak,
     StepCli,
     StepCliError,
@@ -808,3 +813,230 @@ class BackendJourneys(unittest.TestCase):
         self.assertEqual(by_name, expected, "Contest C results")
         self.assertEqual(by_area, expected, "Contest C results in area C")
         self.assertEqual(contest["total_valid_votes"], sum(expected.values()))
+
+    def test_8_native_archive_preserves_crypto_and_results(self):
+        """Remapped archive recovery preserves signed messages, key domains and results."""
+        self.requires("journey 7")
+        query = """query ($event: uuid!) {
+          sequent_backend_protocol_board(where: {election_event_id: {_eq: $event}}) { id name parent_id keys_ceremony_id manager_message }
+          sequent_backend_keys_ceremony(where: {election_event_id: {_eq: $event}}) { id execution_status status }
+          sequent_backend_ballot_style(where: {election_event_id: {_eq: $event}, deleted_at: {_is_null: true}}) { ballot_eml }
+          sequent_backend_ballot_publication(where: {election_event_id: {_eq: $event}, deleted_at: {_is_null: true}}) { id is_generated published_at annotations }
+          sequent_backend_results_contest(where: {election_event_id: {_eq: $event}}) { total_votes total_valid_votes }
+        }"""
+        source = self.event_rows(query)
+        source_boards = source["sequent_backend_protocol_board"]
+        self.assertGreater(len(source_boards), 1, "expected both DKG and tally boards")
+
+        def message_hashes(name):
+            response = http_get(f"{B4_URL}/boards/{name}/messages")
+            self.assertEqual(response.status, 200)
+            hashes = collections.Counter()
+            for message in response.json()["messages"]:
+                self.assertEqual(message["version"], "2")
+                if message.get("download_url"):
+                    body = http_get(message["download_url"])
+                    self.assertEqual(body.status, 200)
+                    canonical = body.body
+                else:
+                    canonical = base64.b64decode(
+                        message["content_type"]["message"], validate=True
+                    )
+                hashes[hashlib.sha256(canonical).hexdigest()] += 1
+            self.assertTrue(
+                hashes, "the recovered board must contain signed protocol messages"
+            )
+            return hashes
+
+        original_messages = {
+            board["manager_message"]: message_hashes(board["name"])
+            for board in source_boards
+        }
+        archive_dir = self.cli.directory / "archive"
+        archive_dir.mkdir()
+        output = self.step(
+            "export-election-event",
+            "--election-event-id",
+            self.state.event_id,
+            "--bulletin-board",
+            "--publications",
+            "--tally",
+            "--include-voters",
+            "--encrypted",
+            "--output-dir",
+            str(archive_dir),
+        )
+        password = re.search(r"Export password: (\S+)", output)
+        self.assertIsNotNone(
+            password, "encrypted native export must return its password"
+        )
+        encrypted = archive_dir / "election_event_export.ezip"
+        self.assertTrue(encrypted.is_file())
+        self.assertFalse(
+            zipfile.is_zipfile(encrypted), "native manager keys must be encrypted"
+        )
+        archive = archive_dir / "recovered.zip"
+        decrypted = subprocess.run(
+            [
+                "openssl",
+                "enc",
+                "-aes-256-cbc",
+                "-d",
+                "-in",
+                str(encrypted),
+                "-out",
+                str(archive),
+                "-pass",
+                "stdin",
+                "-md",
+                "md5",
+            ],
+            input=password.group(1) + "\n",
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        self.assertEqual(decrypted.returncode, 0, decrypted.stderr)
+        self.assertTrue(zipfile.is_zipfile(archive))
+        recovered_id = StepCli.last_id(
+            self.step("import-election", "--file-path", str(archive), "--is-local")
+        )
+        self.assertNotEqual(recovered_id, self.state.event_id)
+        recovered = self.admin.query(query, {"event": recovered_id})
+        recovered_boards = recovered["sequent_backend_protocol_board"]
+        self.assertEqual(len(recovered_boards), len(source_boards))
+        self.assertEqual(
+            {b["manager_message"] for b in recovered_boards}, set(original_messages)
+        )
+        self.assertTrue(
+            {b["name"] for b in source_boards}.isdisjoint(
+                b["name"] for b in recovered_boards
+            )
+        )
+        for board in recovered_boards:
+            self.assertEqual(
+                message_hashes(board["name"]),
+                original_messages[board["manager_message"]],
+            )
+            if board["parent_id"]:
+                self.assertIn(
+                    board["parent_id"],
+                    {b["id"] for b in recovered_boards if b["parent_id"] is None},
+                )
+        (ceremony,) = recovered["sequent_backend_keys_ceremony"]
+        self.assertNotEqual(ceremony["id"], self.state.keys_ceremony_id)
+        self.assertEqual(ceremony["execution_status"], "SUCCESS")
+        self.assertEqual(ceremony["status"]["public_key"], self.state.public_key)
+        self.assertEqual(
+            {b["keys_ceremony_id"] for b in recovered_boards}, {ceremony["id"]}
+        )
+        styles = recovered["sequent_backend_ballot_style"]
+        self.assertEqual(len(styles), len(fixtures.AREAS))
+        for style in styles:
+            public_key = json.loads(style["ballot_eml"])["public_key"]
+            self.assertEqual(public_key["public_key"], self.state.public_key)
+            self.assertEqual(public_key["keys_ceremony_id"], ceremony["id"])
+            # Signed protocol domains survive platform UUID and board-name remapping.
+            self.assertEqual(
+                public_key["configuration_id"],
+                str(uuid.UUID(self.state.keys_ceremony_id).int),
+            )
+        (original_publication,) = source["sequent_backend_ballot_publication"]
+        (publication,) = recovered["sequent_backend_ballot_publication"]
+        self.assertNotEqual(publication["id"], original_publication["id"])
+        self.assertTrue(publication["is_generated"])
+        self.assertEqual(
+            publication["published_at"], original_publication["published_at"]
+        )
+        self.assertTrue(publication["published_at"])
+        self.assertTrue(
+            publication["annotations"]["ballot_files_v1"].startswith(
+                f"tenant-{TENANT_ID}/event-{recovered_id}/publication-{publication['id']}/"
+            )
+        )
+        expected = sorted(sum(self.expected(key).values()) for key in ("A", "B", "C"))
+        results = recovered["sequent_backend_results_contest"]
+        self.assertEqual(sorted(r["total_votes"] for r in results), expected)
+        self.assertEqual(sorted(r["total_valid_votes"] for r in results), expected)
+        self.state.encrypted_archive = encrypted
+        self.state.archive_password = password.group(1)
+        self.state.archive_board_count = len(source_boards)
+        self.passed("journey 8")
+
+    def test_9_encrypted_native_archive_import(self):
+        """The authenticated import API decrypts and restores a complete native archive."""
+        self.requires("journey 8")
+        api = Hasura(token=self.admin_token())
+        contents = self.state.encrypted_archive.read_bytes()
+        upload = api.query(
+            """mutation ($size: Int!) {
+              get_upload_url(name: "native-recovery.ezip", media_type: "application/ezip",
+                             size: $size, is_public: false, is_local: true) { url document_id }
+            }""",
+            {"size": len(contents)},
+        )["get_upload_url"]
+        response = Http().request(
+            "PUT",
+            upload["url"],
+            data=contents,
+            headers={"Content-Type": "application/ezip"},
+        )
+        self.assertEqual(response.status, 200)
+        imported = api.query(
+            """mutation ($tenant: String!, $document: String!, $password: String!) {
+              import_election_event(tenant_id: $tenant, document_id: $document, password: $password) {
+                id error problems task_execution { id }
+              }
+            }""",
+            {
+                "tenant": TENANT_ID,
+                "document": upload["document_id"],
+                "password": self.state.archive_password,
+            },
+        )["import_election_event"]
+        self.assertIsNone(imported["error"], imported)
+        self.assertTrue(imported["id"], imported)
+        task_id = imported["task_execution"]["id"]
+
+        def complete():
+            task = self.admin.query(
+                """query ($tenant: uuid!, $id: uuid!) {
+                  sequent_backend_tasks_execution_by_pk(tenant_id: $tenant, id: $id) { execution_status logs }
+                }""",
+                {"tenant": TENANT_ID, "id": task_id},
+            )["sequent_backend_tasks_execution_by_pk"]
+            if task["execution_status"] in ("SUCCESS", "FAILED"):
+                return task
+            return None
+
+        task = wait_until("encrypted native archive recovery", complete, timeout=180)
+        self.assertEqual(task["execution_status"], "SUCCESS", task["logs"])
+        recovered = self.admin.query(
+            """query ($event: uuid!) {
+              sequent_backend_protocol_board_aggregate(where: {election_event_id: {_eq: $event}}) { aggregate { count } }
+              sequent_backend_keys_ceremony(where: {election_event_id: {_eq: $event}}) { execution_status status }
+              sequent_backend_results_contest(where: {election_event_id: {_eq: $event}}) { total_votes total_valid_votes }
+              sequent_backend_ballot_style(where: {election_event_id: {_eq: $event}, deleted_at: {_is_null: true}}) { ballot_eml }
+              sequent_backend_ballot_publication(where: {election_event_id: {_eq: $event}, deleted_at: {_is_null: true}}) { is_generated published_at }
+            }""",
+            {"event": imported["id"]},
+        )
+        self.assertNotEqual(imported["id"], self.state.event_id)
+        self.assertEqual(
+            recovered["sequent_backend_protocol_board_aggregate"]["aggregate"]["count"],
+            self.state.archive_board_count,
+        )
+        (ceremony,) = recovered["sequent_backend_keys_ceremony"]
+        self.assertEqual(ceremony["execution_status"], "SUCCESS")
+        self.assertEqual(ceremony["status"]["public_key"], self.state.public_key)
+        self.assertEqual(
+            len(recovered["sequent_backend_ballot_style"]), len(fixtures.AREAS)
+        )
+        (publication,) = recovered["sequent_backend_ballot_publication"]
+        self.assertTrue(publication["is_generated"])
+        self.assertTrue(publication["published_at"])
+        expected = sorted(sum(self.expected(key).values()) for key in ("A", "B", "C"))
+        results = recovered["sequent_backend_results_contest"]
+        self.assertEqual(sorted(r["total_votes"] for r in results), expected)
+        self.assertEqual(sorted(r["total_valid_votes"] for r in results), expected)
+        self.passed("journey 9")

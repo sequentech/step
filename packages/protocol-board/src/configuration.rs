@@ -13,12 +13,12 @@
 
 use std::marker::PhantomData;
 
-use anyhow::{Context as _, Result};
+use anyhow::{ensure, Context as _, Result};
 use cryptography::utils::serialization::{Deserializable, Serializable};
 use uuid::Uuid;
 use wbraid::messages::artifact::Configuration;
 use wbraid::messages::newtypes::ConfigurationHash;
-use wbraid::messages::wire::ProtocolMessage;
+use wbraid::messages::wire::{MessageType, ProtocolMessage};
 
 use crate::committee::Committee;
 use crate::encoding::{manager_verifying_key, HashHex};
@@ -105,10 +105,25 @@ impl SignedConfiguration {
     /// Validate an archived message against this immutable configuration.
     pub fn verify_message(&self, bytes: &[u8]) -> Result<()> {
         let message = ProtocolMessage::<Ctx>::deser(bytes)?;
-        wbraid::board::verify::verify(
+        // wbraid accepts Configuration at construction, outside predicate
+        // verification. The archive anchor must name this immutable domain.
+        if message.message_type == MessageType::Configuration {
+            ensure!(
+                Self::from_message(message)?.hash == self.hash,
+                "archive configuration mismatch"
+            );
+            return Ok(());
+        }
+        let (predicate, _) = wbraid::board::verify::verify(
             &message,
             &self.message.verify_configuration()?,
         )?;
+        // Signature verification reconstructs the predicate; the protocol
+        // engine normally checks its domain. Archive admission must do so too.
+        ensure!(
+            HashHex::of(&predicate.get_configuration().0) == self.hash,
+            "archive message configuration mismatch"
+        );
         Ok(())
     }
     /// The immutable pair registered at this committee position.
@@ -248,6 +263,70 @@ mod tests {
                     .0
             )
         );
+    }
+
+    #[test]
+    fn archive_accepts_its_signed_configuration_and_rejects_another_anchor() {
+        let manager = generate_manager();
+        let committee = committee_of(&trustees(2));
+        let board =
+            DkgBoard::new(&Uuid::new_v4(), &manager, &committee, 2).unwrap();
+        board
+            .configuration
+            .verify_message(&board.configuration.to_bytes())
+            .unwrap();
+        let other =
+            DkgBoard::new(&Uuid::new_v4(), &manager, &committee, 2).unwrap();
+        let error = board
+            .configuration
+            .verify_message(&other.configuration.to_bytes())
+            .unwrap_err();
+        assert!(error.to_string().contains("archive configuration mismatch"));
+        let forged = ProtocolMessage::<Ctx>::configuration(
+            &generate_manager(),
+            0,
+            &configuration(&board.configuration),
+        );
+        assert!(board.configuration.verify_message(&forged.ser()).is_err());
+    }
+
+    #[test]
+    fn archive_rejects_a_valid_trustee_signature_from_another_configuration() {
+        let manager = generate_manager();
+        let members = trustees(2);
+        let committee = committee_of(&members);
+        let board =
+            DkgBoard::new(&Uuid::new_v4(), &manager, &committee, 2).unwrap();
+        let other =
+            DkgBoard::new(&Uuid::new_v4(), &manager, &committee, 2).unwrap();
+        let trustee = wbraid::trustee::Trustee::<Ctx>::new(
+            members[0].input.name.clone(),
+            members[0].signing_key.clone(),
+            members[0].share_encryption.clone(),
+            &configuration(&board.configuration),
+        )
+        .unwrap();
+        let message = |signed: &SignedConfiguration| {
+            ProtocolMessage::<Ctx>::shares(
+                &trustee,
+                0,
+                ConfigurationHash::from_configuration(&configuration(signed))
+                    .unwrap(),
+                &vec![1u8, 2, 3],
+            )
+            .ser()
+        };
+        board
+            .configuration
+            .verify_message(&message(&board.configuration))
+            .unwrap();
+        let error = board
+            .configuration
+            .verify_message(&message(&other.configuration))
+            .unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("archive message configuration mismatch"));
     }
 
     #[test]

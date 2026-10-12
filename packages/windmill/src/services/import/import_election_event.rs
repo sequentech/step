@@ -952,6 +952,14 @@ pub fn replace_ids(
         election_event_id_replacement,
     )?;
 
+    // Explicit scope replacements are applied to JSON outside replace_uuids;
+    // auxiliary archive members need those same entries in their shared map.
+    replacement_map.insert(original_data.tenant_id.clone(), tenant_id.clone());
+    replacement_map.insert(
+        original_data.election_event.id.clone(),
+        election_event_id.clone(),
+    );
+
     // Board names encode compact UUIDs; remap only outer metadata references.
     // The signed manager-message bytes and cryptographic domain IDs stay intact.
     if let Some(boards) = &original_data.protocol_boards {
@@ -1103,28 +1111,29 @@ pub async fn get_document(
 #[instrument(err, skip_all)]
 pub async fn decrypt_document(
     password: Option<String>,
-    mut temp_file_path: NamedTempFile,
+    temp_file_path: NamedTempFile,
 ) -> Result<NamedTempFile> {
     let password = password.unwrap_or_else(|| "".to_string());
     let is_encrypted = !password.is_empty();
 
     if is_encrypted {
-        let decrypted_path = env::temp_dir().join("election-event.zip");
+        // Native archives contain manager identities. Each request owns its
+        // private plaintext file, including partial output on cipher failure.
+        let directory = temp_file_path
+            .path()
+            .parent()
+            .context("missing archive directory")?;
+        let decrypted = NamedTempFile::new_in(directory)?;
 
         decrypt_file_aes_256_cbc(
             &temp_file_path.path().to_string_lossy().to_string(),
-            &decrypted_path.as_path().to_string_lossy().to_string(),
+            &decrypted.path().to_string_lossy(),
             &password,
         )
         .map_err(|_| reject("election event file", import_problems::cannot_decrypt()))
         .context("Error generating decrypted file")?;
 
-        // Create a new NamedTempFile for the decrypted content
-        let mut temp_file = NamedTempFile::new()?;
-        let content = fs::read(decrypted_path)?;
-        temp_file.write_all(&content)?;
-
-        return Ok(temp_file);
+        return Ok(decrypted);
     }
 
     Ok(temp_file_path)
@@ -1850,6 +1859,31 @@ pub async fn get_zip_entries(
     Ok((zip_entries, election_event_schema))
 }
 
+/// Include tally UUID references in valid JSON so one replacement map covers
+/// both the event and its CSV members. The temporary field is ignored by the
+/// typed event schema and never becomes stored event data.
+fn schema_with_tally_references(schema: &str, entries: &[(String, Vec<u8>)]) -> Result<String> {
+    let tally_prefix = format!("{}/", EDocuments::TALLY.to_file_name());
+    let references = entries
+        .iter()
+        .filter(|(name, _)| name.starts_with(&tally_prefix) && name.ends_with(".csv"))
+        .map(|(_, bytes)| std::str::from_utf8(bytes))
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    if references.is_empty() {
+        return Ok(schema.to_owned());
+    }
+    let mut document: Value = serde_json::from_str(schema)
+        .map_err(|err| reject("election event file", import_problems::not_json(&err)))?;
+    document
+        .as_object_mut()
+        .context("archive election event schema must be an object")?
+        .insert(
+            "_tally_archive_references".into(),
+            serde_json::to_value(references)?,
+        );
+    Ok(serde_json::to_string(&document)?)
+}
+
 /// Imports the document. Returns what the import left out, each with its
 /// reason, for the task's log.
 #[instrument(err, skip_all)]
@@ -1883,30 +1917,8 @@ pub async fn process_document(
 
     let election_event_id_clone = election_event_id.clone();
 
-    let tally_session_file = zip_entries
-        .iter()
-        .find(|(name, _)| name.contains(ETallyDocuments::TALLY_SESSION.to_file_name()));
-    let results_event_file = zip_entries
-        .iter()
-        .find(|(name, _)| name.contains(ETallyDocuments::RESULTS_EVENT.to_file_name()));
-
-    let mut tally_files_content: Option<String> = None;
-    if let (Some(tally_session_file), Some(results_event_file)) =
-        (tally_session_file, results_event_file)
-    {
-        let tally_session_file_content = String::from_utf8(tally_session_file.1.clone())?;
-        let results_event_file_content = String::from_utf8(results_event_file.1.clone())?;
-        tally_files_content = Some(format!(
-            "\n{}\n{}",
-            tally_session_file_content, results_event_file_content
-        ));
-    }
-    let file_election_event_schema = match tally_files_content {
-        Some(tally_files_content) => {
-            format!("{}\n{}", file_election_event_schema, tally_files_content)
-        }
-        None => file_election_event_schema,
-    };
+    let file_election_event_schema =
+        schema_with_tally_references(&file_election_event_schema, &zip_entries)?;
 
     let may_write_secret_attributes = object.may_write_secret_attributes;
     let secret_write_initiator = object.secret_write_initiator.clone();
@@ -2673,6 +2685,80 @@ mod tests {
         assert_eq!(entries, vec![("notes.txt".to_string(), b"hello".to_vec())]);
     }
 
+    #[test]
+    fn tally_csv_references_are_remapped_without_invalidating_event_json() {
+        let event_id = "10101010-1010-4010-8010-101010101010";
+        let result_id = "20202020-2020-4020-8020-202020202020";
+        let row_id = "30303030-3030-4030-8030-303030303030";
+        let schema = serde_json::json!({"id": event_id}).to_string();
+        let members = vec![
+            (
+                format!("{}/results_event.csv", EDocuments::TALLY.to_file_name()),
+                format!("id,event_id\n{result_id},{event_id}\n").into_bytes(),
+            ),
+            (
+                format!("{}/results_contest.csv", EDocuments::TALLY.to_file_name()),
+                format!("id,result_id\n{row_id},{result_id}\n").into_bytes(),
+            ),
+        ];
+        let combined = schema_with_tally_references(&schema, &members).unwrap();
+        let valid: Value = serde_json::from_str(&combined).unwrap();
+        assert_eq!(valid["id"], event_id);
+        let (remapped, replacements) = replace_realm_ids(&combined, vec![], None, None).unwrap();
+        let remapped: Value = serde_json::from_str(&remapped).unwrap();
+        assert_eq!(remapped["id"], replacements[event_id]);
+        for id in [event_id, result_id, row_id] {
+            assert_ne!(replacements[id], id);
+            assert!(Uuid::parse_str(&replacements[id]).is_ok());
+        }
+        assert_eq!(schema_with_tally_references(&schema, &[]).unwrap(), schema);
+    }
+
+    /// Native archives contain manager keys; plaintext must have request-owned storage.
+    #[tokio::test]
+    async fn decrypted_archives_use_private_owned_files_and_leave_no_plaintext() {
+        let directory = tempfile::tempdir().unwrap();
+        let password = "synthetic-native-archive-password";
+        let encrypted = |contents: &[u8]| {
+            let mut plain = NamedTempFile::new_in(directory.path()).unwrap();
+            plain.write_all(contents).unwrap();
+            let cipher = NamedTempFile::new_in(directory.path()).unwrap();
+            crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc(
+                plain.path().to_str().unwrap(),
+                cipher.path().to_str().unwrap(),
+                password,
+            )
+            .unwrap();
+            cipher
+        };
+        let first = decrypt_document(Some(password.into()), encrypted(b"first native manager"))
+            .await
+            .unwrap();
+        assert_eq!(first.path().parent().unwrap(), directory.path());
+        let second = decrypt_document(Some(password.into()), encrypted(b"second native manager"))
+            .await
+            .unwrap();
+        assert_ne!(first.path(), second.path());
+        assert_eq!(fs::read(first.path()).unwrap(), b"first native manager");
+        assert_eq!(fs::read(second.path()).unwrap(), b"second native manager");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                first.path().metadata().unwrap().permissions().mode() & 0o777,
+                0o600
+            );
+        }
+        drop((first, second));
+        assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 0);
+        // A real encrypted control with a wrong password must clean up partial plaintext too.
+        let error = decrypt_document(Some("wrong password".into()), encrypted(b"native manager"))
+            .await
+            .unwrap_err();
+        assert_eq!(problem_id(&error).as_deref(), Some("file.cannot-decrypt"));
+        assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 0);
+    }
+
     /// A file that does not decrypt with the password given names the password.
     #[tokio::test]
     async fn a_file_that_does_not_decrypt_is_a_named_problem() {
@@ -2778,6 +2864,28 @@ mod import_scope_tests {
                     assert_eq!(row_event, imported.election_event.id);
                 }
             }
+        }
+    }
+
+    #[test]
+    fn auxiliary_archive_members_receive_explicit_tenant_and_event_mappings() {
+        let source_tenant = new_id();
+        let source_event = new_id();
+        let input = bundle(&source_tenant, &source_event);
+        let original: ImportElectionEventSchema = serde_json::from_value(input.clone()).unwrap();
+        for target_tenant in [source_tenant.clone(), new_id()] {
+            let target_event = new_id();
+            let (data, replacements) = replace_ids(
+                &input.to_string(),
+                &original,
+                Some(target_event.clone()),
+                target_tenant.clone(),
+            )
+            .unwrap();
+            assert_eq!(replacements[&source_tenant], target_tenant);
+            assert_eq!(replacements[&source_event], target_event);
+            assert_eq!(data.election_event.id, replacements[&source_event]);
+            assert_eq!(data.tenant_id, replacements[&source_tenant]);
         }
     }
 

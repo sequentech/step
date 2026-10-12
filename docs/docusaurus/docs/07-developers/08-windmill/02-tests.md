@@ -28,8 +28,8 @@ Verifies the large-scale CSV export path (`generate_export_csv_data`) under a
 realistic load and measures its heap usage. The test:
 
 1. Reads `tenant_id` and `election_event_id` from the external config file.
-2. Creates a fresh native wbraid audit storage database (using a time-stamped slug so each run gets a
-   clean database — native wbraid audit storage's delete is unreliable).
+2. Creates a fresh native wbraid audit board in PostgreSQL, using a time-stamped
+   slug to isolate its entries from previous runs.
 3. Seeds 120 000 log entries by calling the `step-cli` binary.
 4. Wraps the call to `generate_export_csv_data` with a
    [dhat](https://docs.rs/dhat) heap profiler so peak memory usage is recorded.
@@ -44,7 +44,7 @@ This test is marked `#[ignore]` (see [Running ignored tests](#running-ignored-te
 
 This test is annotated with `#[ignore]` because it:
 
-- Requires a live native wbraid audit storage instance and Keycloak database.
+- Requires `WBRAID_AUDIT_DATABASE_URL`, a live PostgreSQL audit store and Keycloak database.
 - Seeds 120 000 entries — expensive in time and resources.
 - Is therefore skipped in GitHub Actions CI.
 
