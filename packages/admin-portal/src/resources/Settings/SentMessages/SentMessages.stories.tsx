@@ -87,6 +87,7 @@ const expandedMessages = sentMessages().map((message) =>
 )
 
 export const ExpandMessage: Story = {
+    parameters: {widgets: ["MessageRow", "MessageDetails"]},
     args: {messages: expandedMessages},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
@@ -116,6 +117,7 @@ export const ExpandMessagePhone: Story = {
 }
 
 export const ExpandEmailAndTemplate: Story = {
+    parameters: {widgets: ["MessageRow", "MessageDetails"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         const rows = canvas.getAllByRole("row")
