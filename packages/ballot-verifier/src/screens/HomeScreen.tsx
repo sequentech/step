@@ -34,11 +34,13 @@ import {
     EBallotStyleCheck,
     LEGACY_BALLOT_VERSION,
     checkAuditedBallotStyle,
-    parsePublishedBallotStyles,
 } from "../services/ballotStyleBinding"
 import {useAppDispatch} from "../store/hooks"
 import {
+    EPublishedBallotStyleLookup,
     GetPublishedBallotStylesQuery,
+    PublishedBallotStyleLookup,
+    findPublishedBallotStyle,
     updateBallotStyleAndSelection,
 } from "../services/BallotStyles"
 
@@ -148,6 +150,8 @@ export const HomeScreen: React.FC<IProps> = ({
     const [showError, setShowError] = useState(false)
     const [showStyleError, setShowStyleError] = useState(false)
     const [showLegacyWarning, setShowLegacyWarning] = useState(false)
+    const [styleLookupFailure, setStyleLookupFailure] =
+        useState<EPublishedBallotStyleLookup | null>(null)
     const [openStep1Help, setOpenStep1Help] = useState(false)
     const [openStep2Help, setOpenStep2Help] = useState(false)
     const [isNextActive, setNextActive] = useState(false)
@@ -172,30 +176,52 @@ export const HomeScreen: React.FC<IProps> = ({
         }
     }, [dataBallotStyles])
 
-    const publishedBallotStyles = useMemo(
-        () => parsePublishedBallotStyles(dataBallotStyles),
-        [dataBallotStyles]
-    )
-
-    const handleAuditableBallot = (
-        auditableBallot: IAuditableBallot | null,
-        isPublishedBallot: boolean = true
+    const rejectBallot = (
+        showImportError: boolean,
+        failure: EPublishedBallotStyleLookup | null = null
     ) => {
+        setShowError(showImportError)
+        setStyleLookupFailure(failure)
         setShowStyleError(false)
         setShowLegacyWarning(false)
+        setConfirmationBallot(null)
+    }
+
+    const handleAuditableBallot = (
+        file: IAuditableBallot | null,
+        ballotStyleLookup: PublishedBallotStyleLookup,
+        isPublishedBallot: boolean = true
+    ) => {
+        if (!file?.config?.id) {
+            rejectBallot(true)
+            return
+        }
+        if (EPublishedBallotStyleLookup.FOUND !== ballotStyleLookup.status) {
+            rejectBallot(false, ballotStyleLookup.status)
+            return
+        }
+        const {ballotStyle} = ballotStyleLookup
+        const mustMatchPublishedStyle = isPublishedBallot && !globalSettings.DISABLE_AUTH
+        if (
+            mustMatchPublishedStyle &&
+            EBallotStyleCheck.MATCHES !== checkAuditedBallotStyle(file.config, [ballotStyle])
+        ) {
+            rejectBallot(false)
+            setShowStyleError(true)
+            return
+        }
+        // The ballot is decoded and shown with the published ballot style,
+        // never with the copy of it that the file carries.
+        const auditableBallot: IAuditableBallot = {...file, config: ballotStyle}
         let isMultiContest = false
         let decodedBallot = null
         try {
             decodedBallot =
-                (auditableBallot &&
-                    ballotService.decodeAuditableBallot(
-                        auditableBallot as IAuditableSingleBallot
-                    )) ||
+                ballotService.decodeAuditableBallot(auditableBallot as IAuditableSingleBallot) ||
                 null
         } catch (error) {
             const decodedMultiBallot =
                 (!decodedBallot &&
-                    auditableBallot &&
                     ballotService.decodeAuditableMultiBallot(
                         auditableBallot as IAuditableMultiBallot
                     )) ||
@@ -203,21 +229,8 @@ export const HomeScreen: React.FC<IProps> = ({
             isMultiContest = true
             decodedBallot = decodedMultiBallot
         }
-        const ballotStyle = auditableBallot?.config ?? null
-        if (null === auditableBallot || null === decodedBallot || null === ballotStyle) {
-            setShowError(true)
-            setConfirmationBallot(null)
-            return
-        }
-        const mustMatchPublishedStyle = isPublishedBallot && !globalSettings.DISABLE_AUTH
-        if (
-            mustMatchPublishedStyle &&
-            EBallotStyleCheck.MATCHES !==
-                checkAuditedBallotStyle(ballotStyle, publishedBallotStyles)
-        ) {
-            setShowError(false)
-            setShowStyleError(true)
-            setConfirmationBallot(null)
+        if (null === decodedBallot) {
+            rejectBallot(true)
             return
         }
         setShowLegacyWarning(isPublishedBallot && LEGACY_BALLOT_VERSION === auditableBallot.version)
@@ -244,8 +257,7 @@ export const HomeScreen: React.FC<IProps> = ({
                       )
             } catch (error) {
                 console.log(error)
-                setShowError(true)
-                setConfirmationBallot(null)
+                rejectBallot(true)
                 return
             }
         }
@@ -256,16 +268,34 @@ export const HomeScreen: React.FC<IProps> = ({
             decoded_questions: decodedBallot,
         })
         setShowError(false)
+        setStyleLookupFailure(null)
+        setShowStyleError(false)
     }
 
     const handleFiles = async (files: FileList) => {
         try {
             setFileName(files[0].name)
             const auditableBallotString = await parseAuditableBallotFile(files[0], ballotService)
-            auditableBallotString && handleAuditableBallot(JSON.parse(auditableBallotString))
+            if (auditableBallotString) {
+                const auditableBallot: IAuditableBallot | null = JSON.parse(auditableBallotString)
+                handleAuditableBallot(
+                    auditableBallot,
+                    globalSettings.DISABLE_AUTH && auditableBallot
+                        ? // Without authentication the published ballot styles cannot be
+                          // fetched, so there is nothing else to check the ballot against.
+                          {
+                              status: EPublishedBallotStyleLookup.FOUND,
+                              ballotStyle: auditableBallot.config,
+                          }
+                        : findPublishedBallotStyle(
+                              dataBallotStyles,
+                              auditableBallot?.config?.id,
+                              eventId
+                          )
+                )
+            }
         } catch (e) {
-            setShowError(true)
-            setConfirmationBallot(null)
+            rejectBallot(true)
         }
     }
 
@@ -276,7 +306,16 @@ export const HomeScreen: React.FC<IProps> = ({
         if (!auditableBallot) {
             return
         }
-        handleAuditableBallot(auditableBallot, false)
+        // The sample is generated here rather than uploaded, so the ballot
+        // style it carries is the one to check it against.
+        handleAuditableBallot(
+            auditableBallot,
+            {
+                status: EPublishedBallotStyleLookup.FOUND,
+                ballotStyle: auditableBallot.config,
+            },
+            false
+        )
         let ballotHash = ballotService.hashBallot512(auditableBallot)
         setBallotId(ballotHash)
     }
@@ -333,7 +372,7 @@ export const HomeScreen: React.FC<IProps> = ({
                 style={{display: showStyleError ? undefined : "none"}}
                 data-testid="style-error"
             >
-                <AlertTitle>{t("homeScreen.styleErrorTitle")}</AlertTitle>
+                <AlertTitle>{t("homeScreen.verificationErrorTitle")}</AlertTitle>
                 <Typography variant="body2">{t("homeScreen.styleErrorDescription")}</Typography>
             </Alert>
             <Alert
@@ -342,6 +381,37 @@ export const HomeScreen: React.FC<IProps> = ({
                 data-testid="legacy-ballot-warning"
             >
                 <Typography variant="body2">{t("homeScreen.legacyBallotWarning")}</Typography>
+            </Alert>
+            <Alert
+                severity="error"
+                style={{
+                    display:
+                        EPublishedBallotStyleLookup.NOT_PUBLISHED === styleLookupFailure
+                            ? undefined
+                            : "none",
+                }}
+                data-testid="unpublished-style-error"
+            >
+                <AlertTitle>{t("homeScreen.verificationErrorTitle")}</AlertTitle>
+                <Typography variant="body2">
+                    {t("homeScreen.unpublishedStyleErrorDescription")}
+                </Typography>
+            </Alert>
+            <Alert
+                severity="error"
+                style={{
+                    display:
+                        null !== styleLookupFailure &&
+                        EPublishedBallotStyleLookup.NOT_PUBLISHED !== styleLookupFailure
+                            ? undefined
+                            : "none",
+                }}
+                data-testid="unavailable-style-error"
+            >
+                <AlertTitle>{t("homeScreen.verificationErrorTitle")}</AlertTitle>
+                <Typography variant="body2">
+                    {t("homeScreen.unavailableStyleErrorDescription")}
+                </Typography>
             </Alert>
             <DropFile handleFiles={handleFiles} />
             {confirmationBallot ? <JsonFile name={fileName} /> : null}

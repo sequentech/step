@@ -35,7 +35,11 @@ const spanishTranslation: TranslationType = {
                 "Hubo un problema al importar el voto auditable. ¿Elegiste el archivo correcto?",
             importErrorMoreInfo: "Más información",
             importErrorTitle: "Error",
-            styleErrorTitle: "La verificación del voto ha fallado",
+            verificationErrorTitle: "La verificación del voto ha fallado",
+            unpublishedStyleErrorDescription:
+                "Este voto auditable no corresponde a ninguna papeleta publicada para este evento electoral, por lo que no se puede verificar.",
+            unavailableStyleErrorDescription:
+                "No se pudieron cargar las papeletas publicadas para este evento electoral, por lo que este voto auditable aún no se puede verificar. Por favor, inténtelo de nuevo.",
             styleErrorDescription:
                 "El estilo de voto de este voto auditable no es el publicado para la elección: su clave pública o sus contiendas y candidaturas difieren, o no está publicado. No se puede confiar en el voto.",
             legacyBallotWarning:

@@ -1303,6 +1303,19 @@ async fn report_row(tx: &Transaction<'_>, tenant: &str, event: &str, id: &str, r
     .unwrap();
 }
 
+/// Elections of the world's first event, which reports may refer to.
+async fn elections(tx: &Transaction<'_>, w: &World, numbers: &[u32]) {
+    for n in numbers {
+        tx.execute(
+            "INSERT INTO sequent_backend.election (id, tenant_id, election_event_id)
+             VALUES ($1::text::uuid, $2::text::uuid, $3::text::uuid)",
+            &[&w.id(*n), &w.tenant, &w.event],
+        )
+        .await
+        .unwrap();
+    }
+}
+
 fn report(w: &World, n: u32) -> Report {
     Report {
         id: w.id(n),
@@ -1341,6 +1354,7 @@ async fn insert_reports_stores_every_report_with_its_columns() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
+    elections(&tx, &w, &[20, 21]).await;
 
     reports::insert_reports(&tx, &w.tenant, &w.event, &[report(&w, 10), report(&w, 11)])
         .await
@@ -1382,6 +1396,7 @@ async fn insert_reports_files_reports_under_the_given_tenant_and_event() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
+    elections(&tx, &w, &[20, 21]).await;
     let foreign = Report {
         tenant_id: w.other_tenant.clone(),
         election_event_id: w.other_tenant_event.clone(),
@@ -1406,6 +1421,7 @@ async fn insert_reports_reads_back_a_missing_cron_config_as_the_default() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
+    elections(&tx, &w, &[20, 21]).await;
     let without_cron = Report {
         cron_config: None,
         ..report(&w, 10)
@@ -1627,6 +1643,7 @@ async fn get_template_alias_for_report_returns_the_alias_of_the_election_report(
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
+    elections(&tx, &w, &[20, 21]).await;
     report_row(&tx, &w.tenant, &w.event, &w.id(10), "ELECTORAL_RESULTS").await;
     set(
         &tx,
@@ -1658,6 +1675,7 @@ async fn get_template_alias_for_report_uses_only_event_templates_as_fallback() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
+    elections(&tx, &w, &[20, 21]).await;
     report_row(&tx, &w.tenant, &w.event, &w.id(10), "ELECTORAL_RESULTS").await;
     set(
         &tx,
@@ -1726,7 +1744,7 @@ async fn get_template_alias_for_report_is_none_without_a_report_of_the_type_in_t
     report_row(
         &tx,
         &w.other_tenant,
-        &w.event,
+        &w.other_tenant_event,
         &w.id(12),
         "ELECTORAL_RESULTS",
     )
@@ -1768,7 +1786,7 @@ async fn get_reports_by_election_event_id_returns_the_event_reports_of_the_tenan
     report_row(
         &tx,
         &w.other_tenant,
-        &w.event,
+        &w.other_tenant_event,
         &w.id(13),
         "ELECTORAL_RESULTS",
     )
@@ -1787,12 +1805,20 @@ async fn get_reports_by_election_id_returns_the_election_reports_of_the_tenant()
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
-    for (n, tenant, election) in [
-        (10, &w.tenant, w.id(20)),
-        (11, &w.tenant, w.id(21)),
-        (12, &w.other_tenant, w.id(20)),
+    elections(&tx, &w, &[20, 21]).await;
+    tx.execute(
+        "INSERT INTO sequent_backend.election (id, tenant_id, election_event_id)
+         VALUES ($1::text::uuid, $2::text::uuid, $3::text::uuid)",
+        &[&w.id(22), &w.other_tenant, &w.other_tenant_event],
+    )
+    .await
+    .unwrap();
+    for (n, tenant, event, election) in [
+        (10, &w.tenant, &w.event, w.id(20)),
+        (11, &w.tenant, &w.event, w.id(21)),
+        (12, &w.other_tenant, &w.other_tenant_event, w.id(22)),
     ] {
-        report_row(&tx, tenant, &w.event, &w.id(n), "ELECTORAL_RESULTS").await;
+        report_row(&tx, tenant, event, &w.id(n), "ELECTORAL_RESULTS").await;
         set(
             &tx,
             "report",
@@ -1808,6 +1834,10 @@ async fn get_reports_by_election_id_returns_the_election_reports_of_the_tenant()
         .unwrap();
 
     assert_eq!(report_ids(found), [w.id(10)]);
+    let of_another_tenant = reports::get_reports_by_election_id(&tx, &w.tenant, &w.id(22))
+        .await
+        .unwrap();
+    assert!(of_another_tenant.is_empty());
     tx.rollback().await.unwrap();
 }
 
@@ -1830,6 +1860,7 @@ async fn get_report_by_type_only_returns_a_report_of_the_requested_election() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
+    elections(&tx, &w, &[20, 21]).await;
     report_row(&tx, &w.tenant, &w.event, &w.id(10), "ELECTORAL_RESULTS").await;
     set(
         &tx,
@@ -1880,6 +1911,7 @@ async fn get_report_by_type_drops_the_election_filter_for_an_invalid_election_id
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
+    elections(&tx, &w, &[20, 21]).await;
     report_row(&tx, &w.tenant, &w.event, &w.id(10), "ELECTORAL_RESULTS").await;
     set(
         &tx,
