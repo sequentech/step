@@ -345,6 +345,7 @@ export const MessagingChannelColumnOnPhone: Story = {
 }
 
 export const SelectionReplacesTopActions: Story = {
+    parameters: {widgets: ["SelectionAwareListActions"]},
     args: {
         permissions: [
             "voter-create",

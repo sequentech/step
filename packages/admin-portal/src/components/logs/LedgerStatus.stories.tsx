@@ -52,7 +52,7 @@ const Row: React.FC = () => {
 }
 
 const meta = {
-    title: "Admin/Logs/LedgerStatusField",
+    title: "Admin/Logs/LedgerStates",
     component: LedgerStates,
     args: {roles: ["logs-read", "messaging-config-read"], current: EMessageAttemptState.FAILED},
     beforeEach: async ({args}) => {

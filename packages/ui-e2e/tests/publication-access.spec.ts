@@ -31,6 +31,18 @@ async function trustedSql(sql: string) {
     expect(response.status).toBe(200)
 }
 
+/**
+ * Inserts `rows` naming only the columns they set, so the table's defaults
+ * (such as `created_at`) fill the rest.
+ */
+function insertRows(table: string, rows: Record<string, unknown>[]) {
+    const columns = [...new Set(rows.flatMap(Object.keys))]
+        .map((column) => `"${column}"`)
+        .join(", ")
+    return `INSERT INTO sequent_backend.${table} (${columns})
+            SELECT ${columns} FROM jsonb_populate_recordset(null::sequent_backend.${table}, ${json(rows)});`
+}
+
 test("the authenticated verifier can read only active published ballot styles in its voter scope", async ({
     page,
 }) => {
@@ -61,36 +73,28 @@ test("the authenticated verifier can read only active published ballot styles in
     const publishedAt = "2024-01-01T00:00:00Z"
     try {
         await trustedSql(`
-            INSERT INTO sequent_backend.ballot_publication
-            SELECT * FROM jsonb_populate_recordset(
-                null::sequent_backend.ballot_publication,
-                ${json([
-                    {
-                        id: unpublished,
-                        tenant_id: fixture.tenantId,
-                        election_event_id: fixture.eventId,
-                        election_ids: [fixture.elections.main],
-                        published_at: null,
-                    },
-                    {
-                        id: deletedPublication,
-                        tenant_id: fixture.tenantId,
-                        election_event_id: fixture.eventId,
-                        election_ids: [fixture.elections.main],
-                        published_at: publishedAt,
-                        deleted_at: publishedAt,
-                    },
-                ])}
-            );
-            INSERT INTO sequent_backend.ballot_style
-            SELECT * FROM jsonb_populate_recordset(
-                null::sequent_backend.ballot_style,
-                ${json([
-                    {...original, id: hiddenStyles[0], ballot_publication_id: unpublished},
-                    {...original, id: hiddenStyles[1], ballot_publication_id: deletedPublication},
-                    {...original, id: hiddenStyles[2], deleted_at: publishedAt},
-                ])}
-            );
+            ${insertRows("ballot_publication", [
+                {
+                    id: unpublished,
+                    tenant_id: fixture.tenantId,
+                    election_event_id: fixture.eventId,
+                    election_ids: [fixture.elections.main],
+                    published_at: null,
+                },
+                {
+                    id: deletedPublication,
+                    tenant_id: fixture.tenantId,
+                    election_event_id: fixture.eventId,
+                    election_ids: [fixture.elections.main],
+                    published_at: publishedAt,
+                    deleted_at: publishedAt,
+                },
+            ])}
+            ${insertRows("ballot_style", [
+                {...original, id: hiddenStyles[0], ballot_publication_id: unpublished},
+                {...original, id: hiddenStyles[1], ballot_publication_id: deletedPublication},
+                {...original, id: hiddenStyles[2], deleted_at: publishedAt},
+            ])}
         `)
         const response = await fetch("http://graphql-engine:8080/v1/graphql", {
             method: "POST",
