@@ -3,12 +3,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::application::insert_applications;
-use crate::postgres::election_event::{get_election_event_by_id_if_exist, update_bulletin_board};
+use crate::postgres::election_event::{
+    election_event_id_exists, get_election_event_by_id_if_exist, lock_election_event_id,
+    update_bulletin_board,
+};
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
 use crate::postgres::trusted_write;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::approval_matrix::store::import_approval_matrix;
+use crate::services::ceremonies::keys_ceremony::{
+    ceremony_public_key_state, verify_keys_ceremony_public_key, CeremonyPublicKeyState,
+};
 use crate::services::electoral_log::ElectoralLogAdminContext;
 use crate::services::import::import_publications::{
     import_ballot_publications, import_election_event_config_file,
@@ -26,7 +32,7 @@ use ::keycloak::types::{
     ComponentExportRepresentation, GroupRepresentation, IdentityProviderMapperRepresentation,
     ProtocolMapperRepresentation, RealmRepresentation,
 };
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, ensure, Context, Result};
 use chrono::format;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -89,10 +95,11 @@ use crate::postgres::certificate_authority::{
     insert_certificate_authority, CertificateAuthorityRecord,
 };
 use crate::postgres::contest::insert_contest;
-use crate::postgres::election::insert_elections;
+use crate::postgres::election::{clear_election_keys_ceremony, insert_elections};
 use crate::postgres::election_event::insert_election_event;
 use crate::postgres::keys_ceremony;
 use crate::postgres::scheduled_event::insert_scheduled_event;
+use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
 use crate::services::certificate_authority::{parse_certificate_pem, split_pem_bundle};
 use crate::services::consolidation::aes_256_cbc_encrypt::decrypt_file_aes_256_cbc;
 use crate::services::documents;
@@ -875,6 +882,22 @@ pub async fn upsert_keycloak_realm(
     Ok(())
 }
 
+/// Fails when an election event with this id already exists in any tenant, so
+/// the create and import paths only ever set up new events and their realms.
+/// The id stays locked until the transaction ends, so two attempts with the
+/// same id cannot both pass this check.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn ensure_new_election_event(
+    hasura_transaction: &Transaction<'_>,
+    election_event_id: &str,
+) -> Result<()> {
+    lock_election_event_id(hasura_transaction, election_event_id).await?;
+    if election_event_id_exists(hasura_transaction, election_event_id).await? {
+        return Err(anyhow!("Election event {election_event_id} already exists"));
+    }
+    Ok(())
+}
+
 #[instrument(skip(hasura_transaction), err)]
 pub async fn insert_election_event_db(
     hasura_transaction: &Transaction<'_>,
@@ -962,10 +985,11 @@ pub fn replace_ids(
     // Prepare tenant_id replacement - always replace to ensure consistency
     let tenant_id_replacement = Some((original_data.tenant_id.to_string(), tenant_id.clone()));
 
-    // Prepare election_event_id replacement if a specific one was provided
-    let election_event_id_replacement = event_id
-        .as_ref()
-        .map(|new_id| (original_data.election_event.id.clone(), new_id.clone()));
+    let election_event_id = event_id.unwrap_or_else(|| Uuid::new_v4().to_string());
+    let election_event_id_replacement = Some((
+        original_data.election_event.id.clone(),
+        election_event_id.clone(),
+    ));
 
     // Use replace_realm_ids which handles:
     // - Preserving UUIDs in Keycloak authenticator configurations
@@ -980,9 +1004,75 @@ pub fn replace_ids(
 
     // Parse the modified JSON string back into the structured format
     let data: ImportElectionEventSchema = deserialize_str(&new_data)?;
+    validate_import_scope(&data, &tenant_id, &election_event_id)?;
 
     // Return both the modified schema and the UUID replacement mapping
     Ok((data, replacement_map))
+}
+
+/// Id, tenant id and election event id of every row an import inserts.
+fn import_row_scopes(data: &ImportElectionEventSchema) -> Vec<(&str, &str, &str)> {
+    macro_rules! scopes {
+        ($rows:expr) => {
+            $rows.iter().map(|row| {
+                (
+                    row.id.as_str(),
+                    row.tenant_id.as_str(),
+                    row.election_event_id.as_str(),
+                )
+            })
+        };
+    }
+    let keys_ceremonies = data.keys_ceremonies.as_deref().unwrap_or_default();
+    let applications = data.applications.as_deref().unwrap_or_default();
+    scopes!(data.elections)
+        .chain(scopes!(data.contests))
+        .chain(scopes!(data.candidates))
+        .chain(scopes!(data.areas))
+        .chain(scopes!(keys_ceremonies))
+        .chain(scopes!(applications))
+        .collect()
+}
+
+/// Checks that the imported election event and every row it carries belong to
+/// the target tenant and election event once the ids have been replaced.
+fn validate_import_scope(
+    data: &ImportElectionEventSchema,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<()> {
+    let tenant =
+        Uuid::parse_str(tenant_id).with_context(|| format!("Invalid tenant id {tenant_id}"))?;
+    let event = Uuid::parse_str(election_event_id)
+        .with_context(|| format!("Invalid election event id {election_event_id}"))?;
+    let in_scope = |row_tenant_id: &str, row_event_id: &str| -> Result<bool> {
+        let row_tenant = Uuid::parse_str(row_tenant_id)
+            .with_context(|| format!("Invalid tenant id {row_tenant_id}"))?;
+        let row_event = Uuid::parse_str(row_event_id)
+            .with_context(|| format!("Invalid election event id {row_event_id}"))?;
+        Ok(row_tenant == tenant && row_event == event)
+    };
+
+    if Uuid::parse_str(&data.tenant_id).map_or(true, |id| id != tenant)
+        || !in_scope(&data.election_event.tenant_id, &data.election_event.id)
+            .context("Invalid imported election event")?
+    {
+        return Err(anyhow!(
+            "Imported election event does not match tenant {tenant} and election event {event}"
+        ));
+    }
+
+    for (id, row_tenant_id, row_event_id) in import_row_scopes(data) {
+        if !in_scope(row_tenant_id, row_event_id)
+            .with_context(|| format!("Invalid imported row {id}"))?
+        {
+            return Err(anyhow!(
+                "Imported row {id} does not belong to tenant {tenant} and election event {event}"
+            ));
+        }
+    }
+
+    Ok(())
 }
 
 #[instrument(err, skip_all)]
@@ -1234,6 +1324,9 @@ pub async fn process_election_event_file(
         &election_event_id,
     )
     .await?;
+
+    ensure_new_election_event(hasura_transaction, &election_event_id).await?;
+
     upsert_keycloak_realm(
         tenant_id.as_str(),
         &election_event_id,
@@ -2118,6 +2211,19 @@ pub async fn process_document(
         }
     };
 
+    let election_keys_ceremony_ids: HashSet<&str> = election_event_schema
+        .elections
+        .iter()
+        .filter_map(|election| election.keys_ceremony_id.as_deref())
+        .collect();
+    verify_imported_keys_ceremonies(
+        hasura_transaction,
+        &election_event_schema.tenant_id.to_string(),
+        &election_event_schema.election_event.id,
+        &election_keys_ceremony_ids,
+    )
+    .await?;
+
     if let Some(package) = package {
         configuration_package::record(hasura_transaction, &tenant_id, &election_event_id, &package)
             .await?;
@@ -2129,6 +2235,79 @@ pub async fn process_document(
             importer.as_ref(),
         )
         .await?;
+    }
+
+    Ok(())
+}
+
+/// Drops each imported keys ceremony whose public key is not the one on its
+/// board. An import whose tally sessions use such a ceremony is rejected.
+/// Only the default ceremony and those of `election_keys_ceremony_ids` have a
+/// board to compare with.
+#[instrument(err, skip_all)]
+pub async fn verify_imported_keys_ceremonies(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_keys_ceremony_ids: &HashSet<&str>,
+) -> Result<()> {
+    let keys_ceremonies =
+        keys_ceremony::get_keys_ceremonies(hasura_transaction, tenant_id, election_event_id)
+            .await?;
+
+    let tally_keys_ceremony_ids: HashSet<String> = get_tally_sessions_by_election_event_id(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        false,
+    )
+    .await?
+    .into_iter()
+    .map(|tally_session| tally_session.keys_ceremony_id)
+    .collect();
+
+    for keys_ceremony in &keys_ceremonies {
+        let has_board = keys_ceremony.is_default()
+            || election_keys_ceremony_ids.contains(keys_ceremony.id.as_str());
+        let state = if has_board {
+            verify_keys_ceremony_public_key(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                keys_ceremony,
+            )
+            .await?
+        } else {
+            ceremony_public_key_state(keys_ceremony, None)
+        };
+        match state {
+            CeremonyPublicKeyState::NoPublicKey | CeremonyPublicKeyState::OnBoard(_) => {}
+            CeremonyPublicKeyState::NotOnBoard => {
+                ensure!(
+                    !tally_keys_ceremony_ids.contains(&keys_ceremony.id),
+                    "Keys ceremony {} reports a public key that is not on its board and is used by an imported tally session",
+                    keys_ceremony.id
+                );
+                warn!(
+                    keys_ceremony_id = keys_ceremony.id,
+                    "Leaving out the imported keys ceremony: its public key is not on its board"
+                );
+                clear_election_keys_ceremony(
+                    hasura_transaction,
+                    tenant_id,
+                    election_event_id,
+                    &keys_ceremony.id,
+                )
+                .await?;
+                keys_ceremony::delete_keys_ceremony(
+                    hasura_transaction,
+                    tenant_id,
+                    election_event_id,
+                    &keys_ceremony.id,
+                )
+                .await?;
+            }
+        }
     }
 
     Ok(())
@@ -2447,6 +2626,156 @@ mod tests {
             .await
             .expect("no password, no decryption");
         assert_eq!(fs::read(file.path()).unwrap(), b"plain");
+    }
+}
+
+#[cfg(test)]
+mod import_scope_tests {
+    use super::*;
+
+    const ROW_KINDS: [&str; 6] = [
+        "elections",
+        "contests",
+        "candidates",
+        "areas",
+        "keys_ceremonies",
+        "applications",
+    ];
+
+    fn new_id() -> String {
+        Uuid::new_v4().to_string()
+    }
+
+    fn bundle(tenant: &str, event: &str) -> Value {
+        let election = new_id();
+        json!({
+            "tenant_id": tenant,
+            "election_event": {
+                "id": event, "tenant_id": tenant, "is_archived": false,
+                "encryption_protocol": "RSA"
+            },
+            "elections": [
+                {"id": election, "tenant_id": tenant, "election_event_id": event}
+            ],
+            "contests": [{
+                "id": new_id(), "tenant_id": tenant, "election_event_id": event,
+                "election_id": election
+            }],
+            "candidates": [
+                {"id": new_id(), "tenant_id": tenant, "election_event_id": event}
+            ],
+            "areas": [
+                {"id": new_id(), "tenant_id": tenant, "election_event_id": event}
+            ],
+            "area_contests": [],
+            "reports": [],
+            "keys_ceremonies": [{
+                "id": new_id(), "tenant_id": tenant, "election_event_id": event,
+                "trustee_ids": [], "threshold": 2
+            }],
+            "applications": [{
+                "id": new_id(), "tenant_id": tenant, "election_event_id": event,
+                "applicant_id": new_id(), "applicant_data": {},
+                "verification_type": "MANUAL", "status": "PENDING"
+            }]
+        })
+    }
+
+    fn import(
+        input: &Value,
+        event_id: Option<String>,
+        tenant_id: &str,
+    ) -> Result<ImportElectionEventSchema> {
+        let original: ImportElectionEventSchema = serde_json::from_value(input.clone())?;
+        replace_ids(
+            &input.to_string(),
+            &original,
+            event_id,
+            tenant_id.to_string(),
+        )
+        .map(|(data, _)| data)
+    }
+
+    #[test]
+    fn accepts_rows_of_the_imported_event() {
+        let tenant = new_id();
+        let event = new_id();
+        let input = bundle(&tenant, &event);
+        for target_tenant in [tenant.clone(), new_id()] {
+            for target_event in [None, Some(new_id())] {
+                let imported = import(&input, target_event.clone(), &target_tenant).unwrap();
+                if let Some(expected) = target_event {
+                    assert_eq!(imported.election_event.id, expected);
+                }
+                assert_eq!(imported.election_event.tenant_id, target_tenant);
+                let scopes = import_row_scopes(&imported);
+                assert_eq!(scopes.len(), ROW_KINDS.len());
+                for (_, row_tenant, row_event) in scopes {
+                    assert_eq!(row_tenant, target_tenant);
+                    assert_eq!(row_event, imported.election_event.id);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn picks_a_new_event_id_even_when_the_bundle_lists_it_for_keeping() {
+        let tenant = new_id();
+        let event = new_id();
+        let mut input = bundle(&tenant, &event);
+        input["authenticatorConfig"] = json!([{"alias": "kept", "config": {"id": event}}]);
+        let imported = import(&input, None, &tenant).unwrap();
+        assert_ne!(imported.election_event.id, event);
+        assert!(!serde_json::to_string(&imported).unwrap().contains(&event));
+    }
+
+    #[test]
+    fn rejects_rows_of_another_tenant() {
+        let tenant = new_id();
+        let event = new_id();
+        let other_tenant = Uuid::new_v4().simple().to_string();
+        for kind in ROW_KINDS {
+            let mut input = bundle(&tenant, &event);
+            input[kind][0]["tenant_id"] = json!(other_tenant);
+            assert!(
+                import(&input, Some(new_id()), &tenant).is_err(),
+                "{kind} row of another tenant was accepted"
+            );
+        }
+        let mut input = bundle(&tenant, &event);
+        input["election_event"]["tenant_id"] = json!(other_tenant);
+        assert!(import(&input, Some(new_id()), &tenant).is_err());
+    }
+
+    /// A row whose tenant id is not a UUID is reported with that value, not
+    /// as a row of another tenant.
+    #[test]
+    fn names_a_row_tenant_id_that_is_not_a_uuid() {
+        let tenant = new_id();
+        let mut input = bundle(&tenant, &new_id());
+        input["areas"][0]["tenant_id"] = json!("not-a-uuid");
+        let error = import(&input, Some(new_id()), &tenant).unwrap_err();
+        assert!(
+            format!("{error:#}").contains("Invalid tenant id not-a-uuid"),
+            "{error:#}"
+        );
+    }
+
+    #[test]
+    fn rejects_rows_of_another_event() {
+        let tenant = new_id();
+        let event = new_id();
+        let other_event = new_id();
+        for kind in ROW_KINDS {
+            let mut input = bundle(&tenant, &event);
+            input["authenticatorConfig"] =
+                json!([{"alias": "kept", "config": {"id": other_event}}]);
+            input[kind][0]["election_event_id"] = json!(other_event);
+            assert!(
+                import(&input, Some(new_id()), &tenant).is_err(),
+                "{kind} row of another event was accepted"
+            );
+        }
     }
 }
 

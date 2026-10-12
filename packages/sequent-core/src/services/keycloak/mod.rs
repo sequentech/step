@@ -22,3 +22,6 @@ pub use self::realm_attributes::*;
 pub use self::realm_password_policy::*;
 pub use self::role::*;
 pub use self::user::*;
+
+#[cfg(test)]
+mod realm_scope_tests;

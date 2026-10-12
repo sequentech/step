@@ -2,6 +2,17 @@ table:
     name: tally_sheet
     schema: sequent_backend
 object_relationships:
+    - name: election
+      using:
+          manual_configuration:
+              column_mapping:
+                  election_event_id: election_event_id
+                  election_id: id
+                  tenant_id: tenant_id
+              insertion_order: null
+              remote_table:
+                  name: election
+                  schema: sequent_backend
     - name: source_import
       using:
           foreign_key_constraint_on: import_id
@@ -9,8 +20,15 @@ insert_permissions:
     - comment: ""
       permission:
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
           columns:
               - annotations
               - content
@@ -56,8 +74,15 @@ insert_permissions:
     - comment: ""
       permission:
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
           columns:
               - annotations
               - content
@@ -101,8 +126,15 @@ select_permissions:
               - status
               - version
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
@@ -153,8 +185,15 @@ select_permissions:
               - status
               - version
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
       role: tally-sheet-create
     - comment: ""
       permission:
@@ -180,8 +219,15 @@ select_permissions:
               - status
               - version
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
       role: tally-sheet-view
 update_permissions:
     - comment: ""
@@ -212,16 +258,30 @@ delete_permissions:
     - comment: ""
       permission:
           filter:
-              status:
-                  _eq: PENDING
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - status:
+                        _eq: PENDING
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
           filter:
-              status:
-                  _eq: PENDING
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - status:
+                        _eq: PENDING
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
       role: tally-sheet-create
