@@ -158,13 +158,14 @@ const BallotLocator: React.FC = () => {
     const [page, setPage] = React.useState(0)
     const [rowsPerPage, setRowsPerPage] = React.useState(5)
     const lastCVRequestTimestamp = useRef<number | undefined>(undefined) // Timestamp of last LIST_CAST_VOTE_MESSAGES request
-    const {data: dataElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
-        variables: {
-            electionEventId: eventId,
-            tenantId,
-        },
-        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
-    })
+    const {data: dataElectionEvent, loading: electionEventLoading} =
+        useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
+            variables: {
+                electionEventId: eventId,
+                tenantId,
+            },
+            skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
+        })
 
     // The same (cached) query as the lookup panel: the election's zone.
     const {data: dataElections} = useQuery<GetElectionsQuery>(GET_ELECTIONS, {
@@ -343,6 +344,7 @@ const BallotLocator: React.FC = () => {
                                 | IElectionEvent
                                 | undefined
                         }
+                        electionEventLoading={electionEventLoading}
                     />
                 </CustomTabPanel>
                 <CustomTabPanel className="cast-vote-logs-panel" value={value} index={1}>
@@ -657,9 +659,13 @@ const BallotIdInput: React.FC<BallotIdInputProps> = ({
 
 interface BallotLocatorLogicProps {
     electionEvent?: IElectionEvent
+    electionEventLoading: boolean
 }
 
-const BallotLocatorLogic: React.FC<BallotLocatorLogicProps> = ({electionEvent}) => {
+const BallotLocatorLogic: React.FC<BallotLocatorLogicProps> = ({
+    electionEvent,
+    electionEventLoading,
+}) => {
     const {tenantId, eventId, electionId, ballotId} = useParams()
     const [openTitleHelp, setOpenTitleHelp] = useState<boolean>(false)
     const navigate = useNavigate()
@@ -684,9 +690,11 @@ const BallotLocatorLogic: React.FC<BallotLocatorLogicProps> = ({electionEvent}) 
             electionId,
             ballotId: ballotId?.toLowerCase() ?? "",
         },
+        // The event's checks period decides whether the ballot is looked up at all.
         skip:
             globalSettings.DISABLE_AUTH ||
             !hasBallotId ||
+            electionEventLoading ||
             checksPeriod.status === EChecksPeriodStatus.ENDED,
     })
 
@@ -811,7 +819,7 @@ const BallotLocatorLogic: React.FC<BallotLocatorLogicProps> = ({electionEvent}) 
                     <Typography className="ballot-checks-ended" component="div">
                         {t("ballotLocator.checksEnded", {date: checksUntilText})}
                     </Typography>
-                ) : hasBallotId && !lookupLoading ? (
+                ) : hasBallotId && !lookupLoading && !electionEventLoading ? (
                     lookupError ? (
                         <MessageFailed className="ballot-locator-failure">
                             {stringToHtml(t("errors.page.somethingWrong"))}
