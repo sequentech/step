@@ -8,7 +8,6 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_statistics::update_election_event_statistics;
 use crate::services::election_statistics::update_election_statistics;
 use crate::services::electoral_log::ElectoralLog;
-use crate::services::providers::{email_sender::EmailSender, sms_sender::SmsSender};
 use crate::services::reports::template_time::{
     insert_template_time_variables, NotificationTimeContext,
 };
@@ -22,14 +21,21 @@ use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::types::error::Error;
 use deadpool_postgres::{Client as DbClient, Transaction};
 
+use crate::postgres::messaging::{mark_logged, MessageRecord};
+use crate::services::application::application_retry;
+use crate::services::messaging::audit::{AttemptOutcome, MessageKind};
 use crate::services::messaging::dispatch::{
-    deliver, Delivery, DeliveryResult, Dispatcher, FallbackPolicy, ProviderTemplate, Recipient,
+    bulk_send_body, deliver, record_without_channel, retry_refusal, Delivery, DeliveryResult,
+    Dispatcher, ProviderTemplate, Recipient,
 };
+use crate::services::messaging::reconcile::{RetryContent, RetryRenderer};
 use anyhow::{anyhow, Context};
+use async_trait::async_trait;
 use aws_sdk_sesv2::types::{Body, Content, Destination, EmailContent, Message as AwsMessage};
 use aws_sdk_sesv2::Client as AwsSesClient;
 use aws_sdk_sns::{types::MessageAttributeValue, Client as AwsSnsClient};
 use celery::error::TaskError;
+use deadpool_postgres::Pool;
 use lettre::message::MultiPart;
 use lettre::Message;
 use sequent_core::serialization::deserialize_with_path::*;
@@ -39,28 +45,26 @@ use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::services::translations::Name;
 use sequent_core::services::{keycloak, reports};
 use sequent_core::types::hasura::core::ElectionEvent;
-use sequent_core::types::keycloak::{
-    User, UserArea, AREA_ID_ATTR_NAME, LOCALE_ATTR_NAME, MESSAGE_CHANNEL_ATTR_NAME,
-    MESSENGER_ID_ATTR_NAME, MOBILE_PHONE_ATTR_NAME, VERIFIED_CHANNELS_ATTR_NAME,
-    VIBER_NUMBER_ATTR_NAME, WHATSAPP_NUMBER_ATTR_NAME,
-};
+use sequent_core::types::keycloak::{User, UserArea, AREA_ID_ATTR_NAME, LOCALE_ATTR_NAME};
 use sequent_core::types::messaging::{
-    MessageAttemptState, MessageChannel, MessageContent, MessagePurpose,
+    MessageChannel, MessageContent, MessagePurpose, MessageReason,
 };
 use sequent_core::types::templates::{
-    AudienceSelection, ChannelSelection, EmailConfig, SendTemplateBody, SmsConfig, TemplateMethod,
+    AudienceSelection, EmailConfig, SendTemplateBody, SmsConfig, TemplateMethod,
 };
+use sequent_core::types::voter_channel::voter_channel;
 use sequent_core::util::aws::get_from_env_aws_config;
 use serde_json::json;
 use serde_json::{Map, Value};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::default::Default;
 use std::str::FromStr;
+use std::sync::Arc;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
 #[instrument(skip_all, err)]
-fn get_variables(
+pub(crate) fn get_variables(
     user: &User,
     election_event: Option<ElectionEvent>,
     tenant_id: String,
@@ -106,82 +110,6 @@ fn get_variables(
         );
     }
     Ok(variables)
-}
-
-/// Builds the delivery record posted to the immutable electoral log.
-///
-/// The record keeps what an auditor needs to confirm a delivery — the channel, the address it
-/// went to — but never rendered subjects or bodies. Those fields can carry
-/// notification URL, including any `login_hint__*` values, and the electoral log cannot be
-/// redacted once written.
-fn delivery_audit_message(channel: &str, receiver: &str) -> String {
-    let mut record = Map::new();
-    record.insert("channel".to_string(), json!(channel));
-    record.insert("receiver".to_string(), json!(receiver));
-    Value::Object(record).to_string()
-}
-
-#[instrument(skip_all, err)]
-async fn send_template_sms(
-    receiver: &Option<String>,
-    template: &Option<SmsConfig>,
-    variables: &Map<String, Value>,
-    sender: &SmsSender,
-) -> Result<Option<String>> {
-    if let (Some(receiver), Some(config)) = (receiver, template) {
-        let message = reports::render_template_text(config.message.as_str(), variables.clone())
-            .map_err(|err| anyhow!("{}", err))?;
-
-        sender.send(receiver.into(), message.clone()).await?;
-        return Ok(Some(delivery_audit_message("sms", receiver)));
-    } else {
-        event!(Level::INFO, "Receiver empty, ignoring..");
-    }
-    Ok(None)
-}
-
-#[instrument(skip_all, err)]
-pub async fn send_template_email(
-    receiver: &Option<String>,
-    template: &Option<EmailConfig>,
-    variables: &Map<String, Value>,
-    sender: &EmailSender,
-) -> Result<Option<String>> {
-    if let (Some(receiver), Some(config)) = (receiver, template) {
-        let subject = reports::render_template_text(config.subject.as_str(), variables.clone())
-            .map_err(|err| anyhow!("Error rendering subject template: {err:?}"))?;
-
-        let plaintext_body =
-            reports::render_template_text(config.plaintext_body.as_str(), variables.clone())
-                .map_err(|err| anyhow!("Error rendering plaintext body: {err:?}"))?;
-
-        let html_body = match &config.html_body {
-            Some(html_body) => Some(
-                reports::render_template_text(html_body, variables.clone())
-                    .map_err(|err| anyhow!("error rendering html body: {err:?}"))?,
-            ),
-            None => None,
-        };
-        sender
-            .send(
-                vec![receiver.to_string()],
-                subject.clone(),
-                plaintext_body.clone(),
-                html_body.clone(),
-                /* attachments */ Vec::new(),
-            )
-            .await
-            .map_err(|err| anyhow!("error sending email: {err:?}"))?;
-
-        return Ok(Some(delivery_audit_message("email", receiver)));
-    } else {
-        // Log the event if the receiver or template is missing
-        event!(
-            Level::INFO,
-            "Receiver or template is empty, email not sent."
-        );
-    }
-    Ok(None)
 }
 
 /// Messages sent per channel.
@@ -299,23 +227,24 @@ fn election_statistics_increments(metrics: &Metrics) -> Vec<(&str, BTreeMap<Stri
 }
 
 /// The voter IDs that scope the audience. `SELECTED` must name at least one
-/// voter: an empty selection would otherwise reach the whole realm.
+/// voter: an empty selection would otherwise reach the whole realm. Harvest
+/// refuses it when the send is scheduled; this is the same check.
 fn audience_user_ids(
     audience_selection: &AudienceSelection,
     audience_voter_ids: &Option<Vec<String>>,
 ) -> Result<Option<Vec<String>>> {
     match audience_selection {
         AudienceSelection::SELECTED => match audience_voter_ids {
-            Some(ids) if !ids.is_empty() => Ok(Some(ids.clone())),
+            Some(ids) if ids.iter().any(|id| !id.trim().is_empty()) => Ok(Some(ids.clone())),
             _ => Err(Error::String(
-                "Audience SELECTED requires at least one voter id".to_string(),
+                MessageReason::SELECTED_WITHOUT_VOTERS.to_string(),
             )),
         },
         _ => Ok(None),
     }
 }
 
-fn first_attribute<'a>(user: &'a User, name: &str) -> Option<&'a String> {
+pub(crate) fn first_attribute<'a>(user: &'a User, name: &str) -> Option<&'a String> {
     user.attributes
         .as_ref()
         .and_then(|attributes| attributes.get(name))
@@ -323,71 +252,34 @@ fn first_attribute<'a>(user: &'a User, name: &str) -> Option<&'a String> {
         .filter(|value| !value.is_empty())
 }
 
-/// The voter's address on each channel, the channels they verified, and
-/// their elections.
-fn voter_recipient(user: &User, elections_by_area: &HashMap<String, Vec<String>>) -> Recipient {
-    let mut destinations = BTreeMap::new();
-    if let Some(email) = user.email.as_ref().filter(|email| !email.is_empty()) {
-        destinations.insert(MessageChannel::EMAIL, email.clone());
-    }
-    for (channel, attribute) in [
-        (MessageChannel::SMS, MOBILE_PHONE_ATTR_NAME),
-        (MessageChannel::WHATSAPP, WHATSAPP_NUMBER_ATTR_NAME),
-        (MessageChannel::VIBER, VIBER_NUMBER_ATTR_NAME),
-        (MessageChannel::MESSENGER, MESSENGER_ID_ATTR_NAME),
-    ] {
-        if let Some(value) = first_attribute(user, attribute) {
-            destinations.insert(channel, value.clone());
-        }
-    }
-    let declared: Option<Vec<MessageChannel>> = user
-        .attributes
-        .as_ref()
-        .and_then(|attributes| attributes.get(VERIFIED_CHANNELS_ATTR_NAME))
-        .map(|values| {
-            values
-                .iter()
-                .filter_map(|value| MessageChannel::from_str(value).ok())
-                .collect()
-        });
-    // Voters enrolled before verified channels existed keep their email and
-    // mobile number, as before.
-    let mut verified: Vec<MessageChannel> = declared.unwrap_or_else(|| {
-        [MessageChannel::EMAIL, MessageChannel::SMS]
-            .into_iter()
-            .filter(|channel| destinations.contains_key(channel))
-            .collect()
-    });
-    verified.sort();
-    verified.dedup();
-    let election_ids = user
-        .area
+/// The voter's elections, for per-election (Post) channel restrictions.
+fn voter_elections(user: &User, elections_by_area: &HashMap<String, Vec<String>>) -> Vec<String> {
+    user.area
         .as_ref()
         .and_then(|area| area.id.as_ref())
         .and_then(|area_id| elections_by_area.get(area_id))
         .cloned()
-        .unwrap_or_default();
-    Recipient {
-        voter_id: user.id.clone(),
-        destinations,
-        verified,
-        election_ids,
-    }
+        .unwrap_or_default()
 }
 
-/// Where a voter's notice goes first.
-fn first_channel(
-    selection: ChannelSelection,
-    method_channel: Option<MessageChannel>,
+/// The voter's one channel and destination (`voter_channel`), or `None`
+/// when the record has none. The send's own channel choice, if any, is
+/// ignored: there is no override.
+fn voter_recipient(
     user: &User,
-) -> Option<MessageChannel> {
-    match selection {
-        ChannelSelection::SINGLE_CHANNEL => method_channel,
-        ChannelSelection::VOTER_PREFERENCE => first_attribute(user, MESSAGE_CHANNEL_ATTR_NAME)
-            .and_then(|value| MessageChannel::from_str(value).ok())
-            .or(method_channel)
-            .or(Some(MessageChannel::EMAIL)),
-    }
+    elections_by_area: &HashMap<String, Vec<String>>,
+) -> Option<Recipient> {
+    let found = voter_channel(user.email.as_deref(), user.attributes.as_ref())?;
+    Some(Recipient::of_voter(
+        user.id.clone(),
+        found,
+        voter_elections(user, elections_by_area),
+    ))
+}
+
+/// The approved template the send itself names for `channel`.
+fn provider_template(body: &SendTemplateBody, channel: MessageChannel) -> Option<ProviderTemplate> {
+    provider_templates(body).remove(&channel)
 }
 
 /// Approved templates named by the send itself, per channel.
@@ -421,7 +313,7 @@ fn render(text: &str, variables: &Map<String, Value>) -> Result<String> {
 }
 
 /// The send's content rendered for this voter, on each channel it has.
-fn render_contents(
+pub(crate) fn render_contents(
     body: &SendTemplateBody,
     variables: &Map<String, Value>,
 ) -> Result<BTreeMap<MessageChannel, MessageContent>> {
@@ -527,58 +419,408 @@ async fn on_success_send_message(
     Ok(())
 }
 
-/// Sends the voter's notice again after a transient failure. The retry is
-/// the same send for this voter only, so attempts already recorded decide
-/// what happens.
-async fn retry_voter(
-    body: &SendTemplateBody,
-    send_id: &str,
-    voter_id: &str,
+/// Writes the attempts a send recorded to the electoral log, signed for the
+/// administrator who sent it. Only attempts recorded now: a replayed job
+/// logs nothing new.
+#[allow(clippy::too_many_arguments)]
+async fn log_recorded_attempts(
+    hasura_transaction: &Transaction<'_>,
+    ledger: &mut DbClient,
+    election_event: &Option<ElectionEvent>,
+    recorded: &[AttemptOutcome],
+    username: Option<String>,
     tenant_id: &str,
     admin_id: &str,
-    election_event_id: &Option<String>,
-    after: chrono::Duration,
+    area_id: Option<String>,
 ) {
-    let mut retry = body.clone();
-    retry.audience_selection = Some(AudienceSelection::SELECTED);
-    retry.audience_voter_ids = Some(vec![voter_id.to_string()]);
-    retry.send_id = Some(send_id.to_string());
-    let countdown = u32::try_from(after.num_seconds().max(1)).unwrap_or(u32::MAX);
-    let celery_app = get_celery_app().await;
-    if let Err(error) = celery_app
-        .send_task(
-            send_template::new(
-                retry,
-                tenant_id.to_string(),
-                admin_id.to_string(),
-                election_event_id.clone(),
-            )
-            .with_countdown(countdown),
+    for outcome in recorded {
+        let posted = on_success_send_message(
+            hasura_transaction,
+            election_event.clone(),
+            outcome.voter_id.clone(),
+            username.clone(),
+            &outcome.log_body(),
+            tenant_id,
+            admin_id,
+            area_id.clone(),
         )
-        .await
-    {
-        event!(
-            Level::ERROR,
-            "could not schedule a retry for voter {voter_id}: {error:?}"
-        );
+        .await;
+        match posted {
+            // Handed to the log: the sweep won't write it again.
+            Ok(()) if election_event.is_some() => {
+                let marked = async {
+                    let tx = ledger.transaction().await?;
+                    mark_logged(&tx, &[outcome.message_id]).await?;
+                    tx.commit().await?;
+                    anyhow::Ok(())
+                }
+                .await;
+                if let Err(error) = marked {
+                    event!(Level::WARN, "could not mark the attempt logged: {error:?}");
+                }
+            }
+            Ok(()) => {}
+            // Left unlogged: the messaging sweep writes it later.
+            Err(error) => event!(
+                Level::ERROR,
+                "Error writing the message to the electoral log: {error:?}"
+            ),
+        }
     }
 }
 
-/// The electoral log record of a sent message: channel, masked address,
-/// attempt and outcome, never the address or the content.
-fn ledger_audit_message(result: &DeliveryResult) -> String {
-    let mut record = Map::new();
-    record.insert(
-        "channel".to_string(),
-        json!(result.channel.map(|c| c.to_string().to_lowercase())),
-    );
-    record.insert("receiver".to_string(), json!(result.masked_destination));
-    record.insert(
-        "message_id".to_string(),
-        json!(result.message_id.map(|id| id.to_string())),
-    );
-    record.insert("state".to_string(), json!(result.state.to_string()));
-    Value::Object(record).to_string()
+/// The logical key of a voter's notice in a bulk send.
+fn bulk_logical_key(send_id: &str, voter_id: &str) -> String {
+    format!("send-template:{send_id}:{voter_id}")
+}
+
+/// The voter's notice of a bulk send, rendered on their channel.
+fn voter_delivery(
+    body: &SendTemplateBody,
+    tenant_id: Uuid,
+    election_event_id: Option<Uuid>,
+    recipient: Recipient,
+    contents: &BTreeMap<MessageChannel, MessageContent>,
+    language: Option<String>,
+    logical_key: String,
+) -> Delivery {
+    let channel = recipient.channel;
+    Delivery {
+        tenant_id,
+        election_event_id,
+        purpose: MessagePurpose::NOTICE,
+        recipient,
+        content: contents.get(&channel).cloned(),
+        language,
+        template_alias: body.alias.clone(),
+        logical_key,
+        expires_at: None,
+        account_id: None,
+        template_key: body.alias.clone(),
+        provider_template: provider_template(body, channel),
+    }
+}
+
+/// The secret attributes a send's template uses: those named inside a
+/// Handlebars expression such as `{{user.reference}}` or
+/// `{{lookup user.attributes "reference"}}`. A name that only appears in
+/// prose isn't used. The same rule as the Admin Portal's
+/// `getReferencedSecretAttributeNames`.
+pub fn referenced_secret_attribute_names(
+    body: &SendTemplateBody,
+    secret_names: &HashSet<String>,
+) -> Vec<String> {
+    let mut texts: Vec<&str> = vec![];
+    if let Some(email) = &body.email {
+        texts.extend([email.subject.as_str(), email.plaintext_body.as_str()]);
+        texts.extend(email.html_body.as_deref());
+    }
+    if let Some(sms) = &body.sms {
+        texts.push(sms.message.as_str());
+    }
+    for config in [&body.whatsapp, &body.viber, &body.messenger]
+        .into_iter()
+        .flatten()
+    {
+        texts.push(config.message.as_str());
+        texts.extend(config.parameters.iter().map(String::as_str));
+    }
+    let expressions: Vec<&str> = texts
+        .iter()
+        .flat_map(|text| {
+            text.split("{{")
+                .skip(1)
+                .filter_map(|rest| rest.split_once("}}").map(|(inside, _)| inside))
+        })
+        .collect();
+    let is_name_char = |c: char| c.is_ascii_alphanumeric() || c == '_' || c == '-';
+    let mut used: Vec<String> = secret_names
+        .iter()
+        .filter(|name| {
+            !name.is_empty()
+                && expressions.iter().any(|expression| {
+                    expression.match_indices(name.as_str()).any(|(at, _)| {
+                        let before = expression[..at].chars().next_back();
+                        let after = expression[at + name.len()..].chars().next();
+                        !before.is_some_and(is_name_char) && !after.is_some_and(is_name_char)
+                    })
+                })
+        })
+        .cloned()
+        .collect();
+    used.sort();
+    used
+}
+
+/// Where a retry reads the voter's current record and the event's
+/// encrypted attribute names.
+#[async_trait]
+pub trait RetryDirectory: Send + Sync {
+    async fn voter(
+        &self,
+        hasura_transaction: &Transaction<'_>,
+        tenant_id: &str,
+        election_event_id: Option<&str>,
+        voter_id: &str,
+    ) -> anyhow::Result<Option<User>>;
+
+    async fn secret_attribute_names(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+    ) -> anyhow::Result<HashSet<String>>;
+}
+
+/// A voter's current record, from Keycloak's database.
+pub async fn find_voter(
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: Option<&str>,
+    voter_id: &str,
+) -> anyhow::Result<Option<User>> {
+    let realm = match election_event_id {
+        Some(event_id) => get_event_realm(tenant_id, event_id),
+        None => get_tenant_realm(tenant_id),
+    };
+    let (users, _) = list_users(
+        hasura_transaction,
+        keycloak_transaction,
+        ListUsersFilter {
+            tenant_id: tenant_id.to_string(),
+            election_event_id: election_event_id.map(str::to_string),
+            election_id: None,
+            area_id: None,
+            realm,
+            search: None,
+            first_name: None,
+            last_name: None,
+            username: None,
+            email: None,
+            limit: Some(1),
+            offset: None,
+            user_ids: Some(vec![voter_id.to_string()]),
+            attributes: None,
+            enabled: None,
+            email_verified: None,
+            sort: None,
+            has_voted: None,
+            authorized_to_election_alias: None,
+        },
+    )
+    .await?;
+    Ok(users.into_iter().next())
+}
+
+/// The production directory: Keycloak's database and user profile.
+pub struct KeycloakDirectory;
+
+#[async_trait]
+impl RetryDirectory for KeycloakDirectory {
+    async fn voter(
+        &self,
+        hasura_transaction: &Transaction<'_>,
+        tenant_id: &str,
+        election_event_id: Option<&str>,
+        voter_id: &str,
+    ) -> anyhow::Result<Option<User>> {
+        let mut keycloak_client: DbClient = get_keycloak_pool().await.get().await?;
+        let keycloak_transaction = keycloak_client.transaction().await?;
+        let voter = find_voter(
+            hasura_transaction,
+            &keycloak_transaction,
+            tenant_id,
+            election_event_id,
+            voter_id,
+        )
+        .await?;
+        keycloak_transaction.commit().await?;
+        Ok(voter)
+    }
+
+    async fn secret_attribute_names(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+    ) -> anyhow::Result<HashSet<String>> {
+        Ok(get_secret_attribute_config(tenant_id, election_event_id)
+            .await
+            .map_err(|error| anyhow!("{error:#}"))?
+            .redacted_names()
+            .clone())
+    }
+}
+
+/// Renders a due retry again by where the message comes from
+/// ([`retry_refusal`]): a bulk notice from what the administrator sent
+/// (the stored send), an application result from the application, both
+/// for the voter's current record. Everything else is refused with its
+/// reason. The ledger keeps no content.
+pub struct RetryByOrigin<D: RetryDirectory> {
+    pub pool: Arc<Pool>,
+    pub directory: D,
+}
+
+impl RetryByOrigin<KeycloakDirectory> {
+    pub async fn production() -> Self {
+        RetryByOrigin {
+            pool: get_hasura_pool().await,
+            directory: KeycloakDirectory,
+        }
+    }
+}
+
+impl<D: RetryDirectory> RetryByOrigin<D> {
+    async fn bulk_notice(
+        &self,
+        hasura_transaction: &Transaction<'_>,
+        record: &MessageRecord,
+        logical_key: &str,
+    ) -> anyhow::Result<RetryContent> {
+        let refused = |reason| Ok(RetryContent::Refused(reason));
+        let Some(body) = bulk_send_body(hasura_transaction, &record.tenant_id, logical_key).await?
+        else {
+            return refused(MessageReason::NO_STORED_TEMPLATE);
+        };
+        let Some(voter_id) = record.voter_id.as_deref() else {
+            return refused(MessageReason::NO_CONTACT_CHANNEL);
+        };
+        let tenant_id = record.tenant_id.to_string();
+        let election_event_id = record.election_event_id.map(|id| id.to_string());
+        // Ciphertexts of encrypted attributes never reach a template, and a
+        // send that uses them isn't sent again.
+        let secret_names = match &election_event_id {
+            Some(event_id) => {
+                self.directory
+                    .secret_attribute_names(&tenant_id, event_id)
+                    .await?
+            }
+            None => HashSet::new(),
+        };
+        if !referenced_secret_attribute_names(&body, &secret_names).is_empty() {
+            return refused(MessageReason::PROTECTED_FIELDS);
+        }
+        let Some(user) = self
+            .directory
+            .voter(
+                hasura_transaction,
+                &tenant_id,
+                election_event_id.as_deref(),
+                voter_id,
+            )
+            .await?
+        else {
+            return refused(MessageReason::NO_CONTACT_CHANNEL);
+        };
+        let election_event = match &election_event_id {
+            Some(event_id) => {
+                get_election_event_by_id_if_exist(hasura_transaction, &tenant_id, event_id).await?
+            }
+            None => None,
+        };
+        let elections_by_area = match &election_event_id {
+            Some(event_id) => {
+                get_elections_by_area(hasura_transaction, &tenant_id, event_id).await?
+            }
+            None => HashMap::new(),
+        };
+        let Some(recipient) = voter_recipient(&user, &elections_by_area) else {
+            return refused(MessageReason::NO_CONTACT_CHANNEL);
+        };
+        let time_context = match &election_event {
+            Some(election_event) => {
+                NotificationTimeContext::load(hasura_transaction, &tenant_id, election_event)
+                    .await?
+            }
+            None => NotificationTimeContext::default(),
+        };
+        let mut render_user = user.clone();
+        strip_undeclared_secret_attributes(&mut render_user, &secret_names, &HashSet::new());
+        let mut variables = get_variables(
+            &render_user,
+            election_event,
+            tenant_id.clone(),
+            AuthAction::Login,
+        )
+        .map_err(|error| anyhow!("{error:?}"))?;
+        insert_template_time_variables(
+            &mut variables,
+            time_context
+                .variables_for(first_attribute(&user, AREA_ID_ATTR_NAME).map(String::as_str)),
+        );
+        let contents = render_contents(&body, &variables).map_err(|error| anyhow!("{error:?}"))?;
+        Ok(RetryContent::Message(Box::new(voter_delivery(
+            &body,
+            record.tenant_id,
+            record.election_event_id,
+            recipient,
+            &contents,
+            first_attribute(&user, LOCALE_ATTR_NAME).cloned(),
+            logical_key.to_string(),
+        ))))
+    }
+}
+
+#[async_trait]
+impl<D: RetryDirectory> RetryRenderer for RetryByOrigin<D> {
+    async fn render(&self, record: &MessageRecord) -> anyhow::Result<RetryContent> {
+        let Some(logical_key) = record.logical_key.as_deref() else {
+            return Ok(RetryContent::Refused(MessageReason::NO_STORED_TEMPLATE));
+        };
+        let mut client: DbClient = self.pool.get().await?;
+        let hasura_transaction = client.transaction().await?;
+        let content = match retry_refusal(
+            &hasura_transaction,
+            &record.tenant_id,
+            Some(logical_key),
+            record.template_alias.as_deref(),
+        )
+        .await?
+        {
+            Some(reason) => RetryContent::Refused(reason),
+            None => match MessageKind::of(logical_key) {
+                MessageKind::BULK_NOTICE => {
+                    self.bulk_notice(&hasura_transaction, record, logical_key)
+                        .await?
+                }
+                MessageKind::APPLICATION_RESULT => {
+                    application_retry(&hasura_transaction, record, &self.directory).await?
+                }
+                _ => RetryContent::Refused(MessageReason::NO_STORED_TEMPLATE),
+            },
+        };
+        hasura_transaction.commit().await?;
+        Ok(content)
+    }
+}
+
+/// What one voter's notice of a bulk send adds to the statistics and the
+/// electoral log.
+#[derive(Debug, Clone, PartialEq)]
+pub struct VoterNotice {
+    /// The channel to count the notice under: only when this call recorded
+    /// it as sent. A replay counts nothing.
+    pub counted: Option<MessageChannel>,
+    /// The attempts this call recorded, to log. A replay logs nothing.
+    pub to_log: Vec<AttemptOutcome>,
+}
+
+impl From<DeliveryResult> for VoterNotice {
+    fn from(result: DeliveryResult) -> Self {
+        VoterNotice {
+            counted: result.newly_sent().then_some(result.channel).flatten(),
+            to_log: result.recorded,
+        }
+    }
+}
+
+/// Sends one voter's notice of a bulk send, as `send_template` does.
+pub async fn send_voter_notice(
+    client: &mut DbClient,
+    dispatcher: &Dispatcher,
+    delivery: &Delivery,
+) -> anyhow::Result<VoterNotice> {
+    Ok(deliver(client, dispatcher, delivery).await?.into())
 }
 
 #[instrument(skip_all, err)]
@@ -774,17 +1016,6 @@ pub async fn send_template(
         };
 
         let mut metrics = Metrics::default();
-        let method_channel = body
-            .communication_method
-            .as_ref()
-            .and_then(TemplateMethod::channel);
-        if body.channel_selection == ChannelSelection::SINGLE_CHANNEL && method_channel.is_none() {
-            return Err(Error::String("Missing template method".into()));
-        }
-        let fallback = match body.channel_selection {
-            ChannelSelection::SINGLE_CHANNEL => FallbackPolicy::NONE,
-            ChannelSelection::VOTER_PREFERENCE => FallbackPolicy::EVENT_ORDER,
-        };
 
         for user in filtered_users.iter() {
             let mut render_user = user.clone();
@@ -808,10 +1039,43 @@ pub async fn send_template(
                 &configured_secret_names,
                 &requested_secret_names,
             );
-            let (Some(voter_id), Some(first)) = (
-                user.id.clone(),
-                first_channel(body.channel_selection, method_channel, user),
-            ) else {
+            let Some(voter_id) = user.id.clone() else {
+                continue;
+            };
+            let logical_key = bulk_logical_key(&send_id, &voter_id);
+            let area_id = user.area.as_ref().and_then(|area| area.id.clone());
+            let language = first_attribute(user, LOCALE_ATTR_NAME).cloned();
+            let Some(recipient) = voter_recipient(user, &elections_by_area) else {
+                // One FAILED row, so staff see the voter wasn't reached.
+                match record_without_channel(
+                    &mut delivery_client,
+                    tenant_uuid,
+                    event_uuid,
+                    Some(voter_id.clone()),
+                    MessagePurpose::NOTICE,
+                    body.alias.clone(),
+                    language,
+                    &logical_key,
+                )
+                .await
+                {
+                    Ok(result) => {
+                        log_recorded_attempts(
+                            &hasura_transaction,
+                            &mut delivery_client,
+                            &election_event,
+                            &result.recorded,
+                            user.username.clone(),
+                            &tenant_id,
+                            &admin_id,
+                            area_id,
+                        )
+                        .await
+                    }
+                    Err(error) => {
+                        event!(Level::ERROR, "voter {voter_id}: {error:?}, continuing..")
+                    }
+                }
                 continue;
             };
             let mut variables = get_variables(
@@ -832,63 +1096,40 @@ pub async fn send_template(
                     continue;
                 }
             };
-            let delivery = Delivery {
-                tenant_id: tenant_uuid,
-                election_event_id: event_uuid,
-                purpose: MessagePurpose::NOTICE,
-                first_channel: first,
-                fallback,
-                recipient: voter_recipient(user, &elections_by_area),
-                contents,
-                language: first_attribute(user, LOCALE_ATTR_NAME).cloned(),
-                template_alias: body.alias.clone(),
-                logical_key: format!("send-template:{send_id}:{voter_id}"),
-                expires_at: None,
-                account_id: None,
-                template_key: body.alias.clone(),
-                provider_templates: provider_templates(&body),
-            };
-            let result = match deliver(&mut delivery_client, dispatcher, &delivery).await {
-                Ok(result) => result,
+            let delivery = voter_delivery(
+                &body,
+                tenant_uuid,
+                event_uuid,
+                recipient,
+                &contents,
+                language,
+                logical_key,
+            );
+            let notice = match send_voter_notice(&mut delivery_client, dispatcher, &delivery).await
+            {
+                Ok(notice) => notice,
                 Err(error) => {
                     event!(Level::ERROR, "voter {voter_id}: {error:?}, continuing..");
                     continue;
                 }
             };
-            if let Some(after) = result.retry_after {
-                retry_voter(
-                    &body,
-                    &send_id,
-                    &voter_id,
-                    &tenant_id,
-                    &admin_id,
-                    &election_event_id,
-                    after,
-                )
-                .await;
-            }
-            let sent = matches!(
-                result.state,
-                MessageAttemptState::ACCEPTED | MessageAttemptState::DELIVERED
-            );
-            if let (true, Some(channel)) = (sent, result.channel) {
+            // Only what this run recorded counts: a replayed job neither
+            // counts a voter again nor logs them again. A transient failure
+            // is retried on the same channel by the messaging sweep.
+            if let Some(channel) = notice.counted {
                 update_metrics(&mut metrics, &elections_by_area, user, channel, true);
-                let area_id = user.area.as_ref().and_then(|area| area.id.clone());
-                if let Err(error) = on_success_send_message(
-                    &hasura_transaction,
-                    election_event.clone(),
-                    Some(voter_id.clone()),
-                    user.username.clone(),
-                    &ledger_audit_message(&result),
-                    &tenant_id,
-                    &admin_id,
-                    area_id,
-                )
-                .await
-                {
-                    event!(Level::ERROR, "Error processing success message: {error:?}");
-                }
             }
+            log_recorded_attempts(
+                &hasura_transaction,
+                &mut delivery_client,
+                &election_event,
+                &notice.to_log,
+                user.username.clone(),
+                &tenant_id,
+                &admin_id,
+                area_id,
+            )
+            .await;
         }
 
         processed += TryInto::<i32>::try_into(users.len()).map_err(|err| anyhow!("{err}"))?;
@@ -920,149 +1161,21 @@ pub async fn send_template(
     Ok(())
 }
 
-/// In the case of rejection:
-/// admin_id and election_event are not needed so both can be set to None.
-///
-/// Since there is no user_id, the User object must be constructed from the data in applications table and its id set to None.
-///
-/// Also we do not write the rejections in the Elecoral log since anyone can apply, it would overbloat the electoral log.
-///
-/// In the case of acceptance:
-/// All the fields are required.
-#[instrument(skip_all, err)]
-pub async fn send_template_email_or_sms(
-    hasura_transaction: &Transaction<'_>,
-    user: &User,
-    election_event: &Option<ElectionEvent>,
-    tenant_id: &str,
-    admin_id_opt: Option<String>,
-    email_config: &Option<EmailConfig>,
-    sms_config: &Option<SmsConfig>,
-    email_sender: &EmailSender,
-    sms_sender: &SmsSender,
-    communication_method: Option<TemplateMethod>,
-    time_context: &NotificationTimeContext,
-) -> Result<()> {
-    event!(
-        Level::INFO,
-        "Sending template to user with id={id:?} and email={email:?}",
-        id = user.id,
-        email = user.email,
-    );
-    let admin_id = admin_id_opt.unwrap_or("".into());
-    let mut variables: Map<String, Value> = get_variables(
-        user,
-        election_event.clone(),
-        tenant_id.to_string(),
-        AuthAction::Login,
-    )?;
-
-    let user_area_id = user.attributes.as_ref().and_then(|attributes| {
-        attributes
-            .get(AREA_ID_ATTR_NAME)
-            .and_then(|area_id| area_id.first().cloned())
-    });
-    insert_template_time_variables(
-        &mut variables,
-        time_context.variables_for(user_area_id.as_deref()),
-    );
-
-    match communication_method {
-        Some(TemplateMethod::EMAIL) => {
-            let sending_result = send_template_email(
-                &user.email,   // receiver user email
-                email_config,  // Template content: EmailConfig
-                &variables,    // Variables for the template
-                &email_sender, // Sender client to send emails: EmailSender
-            )
-            .await;
-            match sending_result {
-                Ok(Some(message)) if user.id.is_some() => {
-                    if let Err(e) = on_success_send_message(
-                        hasura_transaction,
-                        election_event.clone(),
-                        user.id.clone(),
-                        user.username.clone(),
-                        &message,
-                        &tenant_id,
-                        &admin_id,
-                        user_area_id,
-                    )
-                    .await
-                    {
-                        event!(Level::ERROR, "Error processing success message: {e:?}");
-                    }
-                    Ok(())
-                }
-                Ok(Some(_)) => Ok(()),
-                Ok(None) => {
-                    event!(Level::WARN, "No email was sent.");
-                    Ok(())
-                }
-                Err(error) => {
-                    event!(Level::ERROR, "error sending email: {error:?}, continuing..");
-                    Err(error)
-                }
-            }
-        }
-        Some(TemplateMethod::SMS) => {
-            let sending_result = send_template_sms(
-                /* receiver */ &user.get_mobile_phone(),
-                /* template */ sms_config,
-                /* variables */ &variables,
-                /* sender */ &sms_sender,
-            )
-            .await;
-            match sending_result {
-                Ok(Some(message)) if user.id.is_some() => {
-                    if let Err(e) = on_success_send_message(
-                        hasura_transaction,
-                        election_event.clone(),
-                        user.id.clone(),
-                        None,
-                        &message,
-                        tenant_id,
-                        &admin_id,
-                        user_area_id,
-                    )
-                    .await
-                    {
-                        event!(Level::ERROR, "Error processing success message: {e:?}");
-                    }
-                    Ok(())
-                }
-                Ok(Some(_)) => Ok(()),
-                Ok(None) => {
-                    event!(Level::WARN, "No sms was sent.");
-                    Ok(())
-                }
-                Err(error) => {
-                    event!(Level::ERROR, "error sending sms: {error:?}, continuing..");
-                    Err(error)
-                    // Err(Error::String(format!("")))
-                }
-            }
-        }
-        _ => {
-            //nothing to do
-            Ok(())
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::{
-        audience_user_ids, delivery_audit_message, election_statistics_increments, first_channel,
-        get_variables, render_contents, voter_recipient, Metrics, MetricsUnit,
+        audience_user_ids, bulk_logical_key, election_statistics_increments, get_variables,
+        referenced_secret_attribute_names, render_contents, voter_delivery, voter_recipient,
+        Metrics, MetricsUnit,
     };
     use sequent_core::services::generate_urls::AuthAction;
     use sequent_core::types::keycloak::{User, UserArea};
-    use sequent_core::types::messaging::MessageChannel;
-    use sequent_core::types::templates::{AudienceSelection, ChannelSelection, SendTemplateBody};
+    use sequent_core::types::messaging::{MessageChannel, MessageContent};
+    use sequent_core::types::templates::{AudienceSelection, SendTemplateBody};
     use serde_json::{json, Map};
     use std::collections::BTreeMap;
     use std::collections::HashMap;
+    use uuid::Uuid;
 
     fn voter(attributes: &[(&str, &[&str])]) -> User {
         User {
@@ -1083,80 +1196,127 @@ mod tests {
     }
 
     #[test]
-    fn recipients_take_each_channel_address_from_the_voter() {
+    fn each_voter_gets_their_one_recorded_channel() {
         let user = voter(&[
             ("sequent.read-only.mobile-number", &["+639171234567"]),
-            ("sequent.read-only.whatsapp-number", &["+639181234567"]),
-            ("sequent.read-only.messenger-id", &["6543210"]),
-            (
-                "sequent.read-only.verified-channels",
-                &["WHATSAPP", "EMAIL", "NOT_A_CHANNEL"],
-            ),
+            ("sequent.read-only.message-channel", &["WHATSAPP"]),
+            ("sequent.read-only.message-number", &["+639181234567"]),
         ]);
         let elections = HashMap::from([("area-1".to_string(), vec!["election-1".to_string()])]);
-        let recipient = voter_recipient(&user, &elections);
-        assert_eq!(
-            recipient.destinations,
-            BTreeMap::from([
-                (MessageChannel::EMAIL, "voter@example.org".to_string()),
-                (MessageChannel::SMS, "+639171234567".to_string()),
-                (MessageChannel::WHATSAPP, "+639181234567".to_string()),
-                (MessageChannel::MESSENGER, "6543210".to_string()),
-            ])
-        );
-        assert_eq!(
-            recipient.verified,
-            vec![MessageChannel::EMAIL, MessageChannel::WHATSAPP]
-        );
+        let recipient = voter_recipient(&user, &elections).expect("a channel");
+        assert_eq!(recipient.channel, MessageChannel::WHATSAPP);
+        assert_eq!(recipient.destination, "+639181234567");
         assert_eq!(recipient.election_ids, vec!["election-1".to_string()]);
     }
 
+    /// R7-02: a Messenger voter's notice (and its retry, rendered again
+    /// from their record) carries their Page, so a send through an
+    /// account of another Page is refused.
     #[test]
-    fn voters_without_verified_channels_keep_email_and_sms() {
-        let user = voter(&[("sequent.read-only.mobile-number", &["+639171234567"])]);
-        let recipient = voter_recipient(&user, &HashMap::new());
-        assert_eq!(
-            recipient.verified,
-            vec![MessageChannel::EMAIL, MessageChannel::SMS]
-        );
+    fn a_messenger_voter_carries_their_page() {
+        let user = voter(&[
+            ("sequent.read-only.message-channel", &["MESSENGER"]),
+            ("sequent.read-only.messenger-id", &["6543210"]),
+            ("sequent.read-only.messenger-page", &["page-old"]),
+        ]);
+        let recipient = voter_recipient(&user, &HashMap::new()).expect("a channel");
+        assert_eq!(recipient.channel, MessageChannel::MESSENGER);
+        assert_eq!(recipient.destination, "6543210");
+        assert_eq!(recipient.messenger_page.as_deref(), Some("page-old"));
     }
 
     #[test]
-    fn the_first_channel_follows_the_selection_policy() {
-        let user = voter(&[("sequent.read-only.message-channel", &["VIBER"])]);
+    fn legacy_voters_have_email_else_sms_and_some_have_no_channel() {
+        let user = voter(&[("sequent.read-only.mobile-number", &["+639171234567"])]);
         assert_eq!(
-            first_channel(
-                ChannelSelection::SINGLE_CHANNEL,
-                Some(MessageChannel::SMS),
-                &user
-            ),
-            Some(MessageChannel::SMS)
+            voter_recipient(&user, &HashMap::new()).unwrap().channel,
+            MessageChannel::EMAIL
         );
+        let no_email = User {
+            email: None,
+            ..user.clone()
+        };
         assert_eq!(
-            first_channel(
-                ChannelSelection::VOTER_PREFERENCE,
-                Some(MessageChannel::SMS),
-                &user
-            ),
-            Some(MessageChannel::VIBER)
+            voter_recipient(&no_email, &HashMap::new()).unwrap().channel,
+            MessageChannel::SMS
         );
-        let no_preference = voter(&[]);
+        let nothing = User {
+            email: None,
+            attributes: None,
+            ..user
+        };
+        assert_eq!(voter_recipient(&nothing, &HashMap::new()), None);
+    }
+
+    #[test]
+    fn the_send_channel_choice_is_ignored() {
+        // The first release's override: every voter on SMS.
+        let body: SendTemplateBody = serde_json::from_value(json!({
+            "audience_selection": "ALL_USERS",
+            "communication_method": "SMS",
+            "channel_selection": "SINGLE_CHANNEL",
+            "sms": {"message": "Vote"},
+            "whatsapp": {"message": "Vote", "provider_template": "reminder"},
+        }))
+        .unwrap();
+        let user = voter(&[
+            ("sequent.read-only.message-channel", &["WHATSAPP"]),
+            ("sequent.read-only.message-number", &["+639181234567"]),
+        ]);
+        let recipient = voter_recipient(&user, &HashMap::new()).unwrap();
+        let contents = BTreeMap::from([
+            (MessageChannel::SMS, content("Vote")),
+            (MessageChannel::WHATSAPP, content("Vote")),
+        ]);
+        let delivery = voter_delivery(
+            &body,
+            Uuid::nil(),
+            None,
+            recipient,
+            &contents,
+            None,
+            bulk_logical_key("send-1", "voter-1"),
+        );
+        assert_eq!(delivery.recipient.channel, MessageChannel::WHATSAPP);
+        assert_eq!(delivery.content, Some(content("Vote")));
         assert_eq!(
-            first_channel(
-                ChannelSelection::VOTER_PREFERENCE,
-                Some(MessageChannel::SMS),
-                &no_preference
-            ),
-            Some(MessageChannel::SMS)
+            delivery.provider_template.map(|t| t.name),
+            Some("reminder".to_string())
         );
-        assert_eq!(
-            first_channel(ChannelSelection::VOTER_PREFERENCE, None, &no_preference),
-            Some(MessageChannel::EMAIL)
+        assert_eq!(delivery.logical_key, "send-template:send-1:voter-1");
+    }
+
+    #[test]
+    fn a_voter_without_content_for_their_channel_gets_none() {
+        let body: SendTemplateBody = serde_json::from_value(json!({
+            "audience_selection": "ALL_USERS",
+            "sms": {"message": "Vote"},
+        }))
+        .unwrap();
+        let user = voter(&[
+            ("sequent.read-only.message-channel", &["VIBER"]),
+            ("sequent.read-only.message-number", &["+639181234567"]),
+        ]);
+        let delivery = voter_delivery(
+            &body,
+            Uuid::nil(),
+            None,
+            voter_recipient(&user, &HashMap::new()).unwrap(),
+            &BTreeMap::from([(MessageChannel::SMS, content("Vote"))]),
+            None,
+            bulk_logical_key("send-1", "voter-1"),
         );
-        assert_eq!(
-            first_channel(ChannelSelection::SINGLE_CHANNEL, None, &user),
-            None
-        );
+        assert_eq!(delivery.content, None);
+    }
+
+    fn content(text: &str) -> MessageContent {
+        MessageContent {
+            subject: None,
+            text: text.to_string(),
+            html: None,
+            template_parameters: vec![],
+            code: None,
+        }
     }
 
     #[test]
@@ -1240,6 +1400,25 @@ mod tests {
     }
 
     #[test]
+    fn secret_attributes_count_only_inside_template_expressions() {
+        let body: SendTemplateBody = serde_json::from_value(json!({
+            "audience_selection": "ALL_USERS",
+            "sms": {"message": "Your pin-code: {{user.pin}}"},
+            "whatsapp": {"message": "x", "parameters": ["{{lookup user.attributes \"ref\"}}"]},
+            "email": {"subject": "About your pin", "plaintext_body": "{{user.pinned}}",
+                      "html_body": null},
+        }))
+        .unwrap();
+        let names = |list: &[&str]| list.iter().map(|n| n.to_string()).collect();
+        assert_eq!(
+            referenced_secret_attribute_names(&body, &names(&["pin", "ref", "other"])),
+            vec!["pin".to_string(), "ref".to_string()]
+        );
+        // Prose and longer names don't count.
+        assert!(referenced_secret_attribute_names(&body, &names(&["code", "pinn"])).is_empty());
+    }
+
+    #[test]
     fn selected_audience_requires_voter_ids() {
         assert!(audience_user_ids(&AudienceSelection::SELECTED, &None).is_err());
         assert!(audience_user_ids(&AudienceSelection::SELECTED, &Some(vec![])).is_err());
@@ -1301,26 +1480,5 @@ mod tests {
             json!(["untrusted-collision"])
         );
         assert_eq!(variables["user"]["attributes"]["empty"], json!([]));
-    }
-
-    #[test]
-    fn delivery_audit_message_keeps_delivery_metadata_without_rendered_bodies() {
-        let email = delivery_audit_message("email", "voter@example.com");
-
-        assert_eq!(
-            serde_json::from_str::<serde_json::Value>(&email).expect("valid audit JSON"),
-            json!({
-                "channel": "email",
-                "receiver": "voter@example.com",
-            })
-        );
-        assert!(!email.contains("login_hint__"));
-
-        let sms = delivery_audit_message("sms", "+34600000000");
-
-        assert_eq!(
-            serde_json::from_str::<serde_json::Value>(&sms).expect("valid audit JSON"),
-            json!({"channel": "sms", "receiver": "+34600000000"})
-        );
     }
 }

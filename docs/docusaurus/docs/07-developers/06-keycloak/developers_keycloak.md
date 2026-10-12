@@ -287,3 +287,60 @@ KEYCLOAK_UI_URL=http://127.0.0.1:8090 yarn test:real tests/architect-realm.spec.
 The real test creates a disposable copy of the realm with a random test-mode
 code and covers the username-first page, email-code sign-in, a wrong code,
 denial without the role, an unknown address and Spanish.
+
+## Tenant realm bootstrap
+
+Realm templates do not contain user passwords, OTPs or other user credentials.
+Realm imports remove user credentials while preserving user metadata and configured
+client-backed service accounts. New tenants retain their service-account users and
+an `admin` account without a password, with the `UPDATE_PASSWORD` required action.
+Other human template users, including demonstration API and trustee accounts, are
+not seeded into a new tenant.
+
+An operator must initialize each new tenant administrator through the authenticated
+Keycloak administration console: select the new tenant realm, open the `admin`
+user's Credentials tab and set a temporary password. The administrator then signs
+in interactively and chooses their own password. Create actual trustee accounts
+through the normal trustee workflow. Service-account client authentication keeps
+its configured client secrets and roles. The development stack imports the template
+as it is, so its `admin` also starts without a password; `step-dev scenario` and the
+backend journeys set the one in `ADMIN_PORTAL_TEST_PASSWORD`.
+
+The remote deployment configuration script also removes user credentials from its
+prepared realm JSON while continuing to generate client secrets. Updating templates
+or configuration files does not rotate existing deployed accounts. For existing
+realms, replace passwords for the seeded human accounts or disable unused accounts,
+terminate their sessions and inspect their login events. Coordinate changes with
+actual trustees before a ceremony. Update both the mounted realm template and the
+S3 object referenced by `KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY`; otherwise a later
+MinIO configuration run can upload an older template again. No application import
+should be used as a substitute for this operator migration.
+
+Run the focused Windmill `realm_user_credentials` and `tenant_bootstrap_admin`
+regressions. The source-only configuration regression runs with
+`python3 scripts/test_tenant_bootstrap_configuration.py` against an isolated tree
+with synthetic accounts and credentials.
+
+## Harvest request authentication
+
+Harvest verifies bearer-token signatures, expiry and issuer before trusting
+Hasura authorization claims. The issuer realm must match the token's tenant and
+the election-event claim when present. Older event templates may omit that
+optional claim; their keys still come from the exact issuer realm. Signing keys are fetched from `KEYCLOAK_URL`
+over the configured internal connection and cached for five minutes. Requests
+fail authentication when a needed signing key cannot be retrieved, including
+while thirty-two key downloads are already in progress.
+
+Harvest requires `KEYCLOAK_URL` and trusts it as an issuer base.
+`KEYCLOAK_PUBLIC_URL` is optional and needed when tokens use that public URL as
+their issuer; `KIOSK_KEYCLOAK_URL` is likewise optional for kiosk issuers. Deployments using additional frontend aliases must supply
+their exact HTTP(S) base URLs in the comma-separated `HARVEST_JWT_ISSUER_URLS`
+setting, including any `/auth` prefix. These URLs select accepted issuers;
+key downloads always use the internal `KEYCLOAK_URL`. The checked-in local and
+air-gapped configurations explicitly include their localhost issuer aliases.
+
+Before restarting Harvest with this change, verify that every normal and kiosk
+login issuer is configured and that Harvest can reach each realm's internal
+`protocol/openid-connect/certs` endpoint. Existing Keycloak RS256 access tokens
+and Datafix client-credential tokens use the same verification boundary. No
+database or realm migration is required.

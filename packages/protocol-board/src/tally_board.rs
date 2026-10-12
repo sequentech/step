@@ -193,6 +193,19 @@ impl SignedBallots {
         })
     }
 
+    /// Read the encrypted inputs from this verified manager message.
+    pub fn ciphertexts(
+        &self,
+    ) -> Result<Vec<cryptography::cryptosystem::naoryung::Ciphertext<Ctx, 1>>>
+    {
+        let body = self
+            .message
+            .body
+            .as_deref()
+            .context("Ballots message has no body")?;
+        Ok(Ballots::<Ctx, 1>::deser(body)?.ciphertexts)
+    }
+
     /// The message's canonical bytes, which is what the database stores.
     pub fn to_bytes(&self) -> Vec<u8> {
         self.message.ser()

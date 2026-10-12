@@ -2506,54 +2506,6 @@
   "adminEventsDetailsEnabled": false,
   "identityProviders": [
     {
-      "alias": "yourcompany-idp",
-      "displayName": "SimpleSAMLphp IdP",
-      "internalId": "2d2219ca-33ff-426c-9869-8ce720d60350",
-      "providerId": "saml",
-      "enabled": true,
-      "updateProfileFirstLoginMode": "on",
-      "trustEmail": false,
-      "storeToken": false,
-      "addReadTokenRoleOnCreate": false,
-      "authenticateByDefault": false,
-      "linkOnly": false,
-      "firstBrokerLoginFlowAlias": "saml-first-broker-flow",
-      "config": {
-        "postBindingLogout": "true",
-        "singleLogoutServiceUrl": "http://127.0.0.1:8083/simplesaml/saml2/idp/SingleLogoutService.php",
-        "postBindingResponse": "true",
-        "backchannelSupported": "false",
-        "idpEntityId": "http://127.0.0.1:8083/simplesaml/saml2/idp/metadata.php",
-        "loginHint": "false",
-        "allowCreate": "true",
-        "enabledFromMetadata": "true",
-        "authnContextComparisonType": "exact",
-        "syncMode": "IMPORT",
-        "singleSignOnServiceUrl": "http://127.0.0.1:8083/simplesaml/saml2/idp/SSOService.php",
-        "wantAuthnRequestsSigned": "true",
-        "allowedClockSkew": "0",
-        "encryptionPublicKey": "MIICmjCCAYICCQDX5sKPsYV3+jANBgkqhkiG9w0BAQsFADAPMQ0wCwYDVQQDDAR0ZXN0MB4XDTE5MTIyMzA5MDI1MVoXDTIwMDEyMjA5MDI1MVowDzENMAsGA1UEAwwEdGVzdDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMdtDJ278DQTp84O5Nq5F8s5YOR34GFOGI2Swb/3pU7X7918lVljiKv7WVM65S59nJSyXV+fa15qoXLfsdRnq3yw0hTSTs2YDX+jl98kK3ksk3rROfYh1LIgByj4/4NeNpExgeB6rQk5Ay7YS+ARmMzEjXa0favHxu5BOdB2y6WvRQyjPS2lirT/PKWBZc04QZepsZ56+W7bd557tdedcYdY/nKI1qmSQClG2qgslzgqFOv1KCOw43a3mcK/TiiD8IXyLMJNC6OFW3xTL/BG6SOZ3dQ9rjQOBga+6GIaQsDjC4Xp7Kx+FkSvgaw0sJV8gt1mlZy+27Sza6d+hHD2pWECAwEAATANBgkqhkiG9w0BAQsFAAOCAQEAm2fk1+gd08FQxK7TL04O8EK1f0bzaGGUxWzlh98a3Dm8+OPhVQRi/KLsFHliLC86lsZQKunYdDB+qd0KUk2oqDG6tstG/htmRYD/S/jNmt8gyPAVi11dHUqW3IvQgJLwxZtoAv6PNs188hvT1WK3VWJ4YgFKYi5XQYnR5sv69Vsr91lYAxyrIlMKahjSW1jTD3ByRfAQghsSLk6fV0OyJHyhuF1TxOVBVf8XOdaqfmvD90JGIPGtfMLPUX4m35qaGAU48PwCL7L3cRHYs9wZWc0ifXZcBENLtHYCLi5txR8c5lyHB9d3AQHzKHMFNjLswn5HsckKg83RH7+eVqHqGw==",
-        "guiOrder": "0",
-        "hideOnLoginPage": "false",
-        "validateSignature": "true",
-        "signingCertificate": "MIICmjCCAYICCQDX5sKPsYV3+jANBgkqhkiG9w0BAQsFADAPMQ0wCwYDVQQDDAR0ZXN0MB4XDTE5MTIyMzA5MDI1MVoXDTIwMDEyMjA5MDI1MVowDzENMAsGA1UEAwwEdGVzdDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMdtDJ278DQTp84O5Nq5F8s5YOR34GFOGI2Swb/3pU7X7918lVljiKv7WVM65S59nJSyXV+fa15qoXLfsdRnq3yw0hTSTs2YDX+jl98kK3ksk3rROfYh1LIgByj4/4NeNpExgeB6rQk5Ay7YS+ARmMzEjXa0favHxu5BOdB2y6WvRQyjPS2lirT/PKWBZc04QZepsZ56+W7bd557tdedcYdY/nKI1qmSQClG2qgslzgqFOv1KCOw43a3mcK/TiiD8IXyLMJNC6OFW3xTL/BG6SOZ3dQ9rjQOBga+6GIaQsDjC4Xp7Kx+FkSvgaw0sJV8gt1mlZy+27Sza6d+hHD2pWECAwEAATANBgkqhkiG9w0BAQsFAAOCAQEAm2fk1+gd08FQxK7TL04O8EK1f0bzaGGUxWzlh98a3Dm8+OPhVQRi/KLsFHliLC86lsZQKunYdDB+qd0KUk2oqDG6tstG/htmRYD/S/jNmt8gyPAVi11dHUqW3IvQgJLwxZtoAv6PNs188hvT1WK3VWJ4YgFKYi5XQYnR5sv69Vsr91lYAxyrIlMKahjSW1jTD3ByRfAQghsSLk6fV0OyJHyhuF1TxOVBVf8XOdaqfmvD90JGIPGtfMLPUX4m35qaGAU48PwCL7L3cRHYs9wZWc0ifXZcBENLtHYCLi5txR8c5lyHB9d3AQHzKHMFNjLswn5HsckKg83RH7+eVqHqGw==",
-        "principalAttribute": "email",
-        "nameIDPolicyFormat": "urn:oasis:names:tc:SAML:2.0:nameid-format:transient",
-        "entityId": "tenant-49d8de09-df08-401e-8dad-a31002a5a01e-event-379c316c-afaa-4280-b4d6-d186a967176f",
-        "signSpMetadata": "false",
-        "wantAssertionsEncrypted": "false",
-        "sendClientIdOnLogout": "false",
-        "wantAssertionsSigned": "false",
-        "metadataDescriptorUrl": "https://simplesamlphp:8080/simplesaml/saml2/idp/metadata.php",
-        "sendIdTokenOnLogout": "true",
-        "postBindingAuthnRequest": "true",
-        "forceAuthn": "false",
-        "attributeConsumingServiceIndex": "0",
-        "addExtensionsElementWithKeyInfo": "false",
-        "principalType": "ATTRIBUTE"
-      }
-    },
-    {
       "addReadTokenRoleOnCreate": false,
       "alias": "digital-certificates",
       "authenticateByDefault": false,
@@ -2719,7 +2671,7 @@
         "subComponents": {},
         "config": {
           "kc.user.profile.config": [
-            "{\"attributes\":[{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"annotations\":{\"html-attribute:autocomplete\":\"given-name\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"annotations\":{},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"up-username-not-idn-homograph\":{},\"length\":{\"min\":\"3\",\"max\":\"40\"}},\"annotations\":{\"hidden\":\"true\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"area-id\",\"displayName\":\"Area Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"vote-weight\",\"displayName\":\"Vote Weight\",\"validations\":{\"integer\":{\"min\":\"1\",\"max\":\"100000\"}},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"authorized-election-ids\",\"displayName\":\"Authorized Elections\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":true},{\"name\":\"annotations\",\"displayName\":\"annotations\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":true},{\"name\":\"support-materials-acknowledged\",\"displayName\":\"Support Materials Acknowledged\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":true},{\"name\":\"sequent.read-only.message-channel\",\"displayName\":\"Notification channel\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.whatsapp-number\",\"displayName\":\"WhatsApp number\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.viber-number\",\"displayName\":\"Viber number\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.messenger-id\",\"displayName\":\"Messenger ID\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.messenger-page\",\"displayName\":\"Messenger Page\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.verified-channels\",\"displayName\":\"Verified channels\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":true},{\"name\":\"sequent.read-only.message-consent\",\"displayName\":\"Messaging consent\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false}],\"groups\":[]}"
+            "{\"attributes\":[{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"annotations\":{\"html-attribute:autocomplete\":\"given-name\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"annotations\":{},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"up-username-not-idn-homograph\":{},\"length\":{\"min\":\"3\",\"max\":\"40\"}},\"annotations\":{\"hidden\":\"true\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"area-id\",\"displayName\":\"Area Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"vote-weight\",\"displayName\":\"Vote Weight\",\"validations\":{\"integer\":{\"min\":\"1\",\"max\":\"100000\"}},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"authorized-election-ids\",\"displayName\":\"Authorized Elections\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":true},{\"name\":\"annotations\",\"displayName\":\"annotations\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":true},{\"name\":\"support-materials-acknowledged\",\"displayName\":\"Support Materials Acknowledged\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":true},{\"name\":\"sequent.read-only.message-channel\",\"displayName\":\"Contact channel\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.message-number\",\"displayName\":\"Messaging number\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.whatsapp-number\",\"displayName\":\"WhatsApp number\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.viber-number\",\"displayName\":\"Viber number\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.messenger-id\",\"displayName\":\"Messenger ID\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.messenger-page\",\"displayName\":\"Messenger Page\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.verified-channels\",\"displayName\":\"Verified channels\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":true},{\"name\":\"sequent.read-only.message-consent\",\"displayName\":\"Messaging consent\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false}],\"groups\":[]}"
           ]
         }
       }
@@ -3064,6 +3016,42 @@
           "authenticatorFlow": false,
           "requirement": "DISABLED",
           "priority": 2,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 3,
+          "autheticatorFlow": true,
+          "flowAlias": "message channel OTP",
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "id": "6d0f4c52-8e1b-4f0a-9c3e-2b7a5d1e9f40",
+      "alias": "message channel OTP",
+      "description": "Sends the sign-in code to the voter's contact channel, only for voters who have one",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorConfig": "has-message-channel",
+          "authenticator": "conditional-user-attr",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 0,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorConfig": "message-channel-otp",
+          "authenticator": "message-otp-authenticator",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 1,
           "autheticatorFlow": false,
           "userSetupAllowed": false
         }
@@ -3904,19 +3892,6 @@
       }
     },
     {
-      "id": "de345d16-c62f-484a-994b-6a5ed2d7dbb8",
-      "alias": "auth-note-email",
-      "config": {
-        "one-time-link": "false",
-        "senderId": "Keycloak",
-        "telUserAttribute": "sequent.read-only.mobile-number",
-        "length": "6",
-        "ttl": "300",
-        "deferredUserAttribute": "true",
-        "messageCourierAttribute": "EMAIL"
-      }
-    },
-    {
       "id": "5ed05550-3e24-4e9a-b716-52235a9ed14c",
       "alias": "choose-user",
       "config": {
@@ -3928,30 +3903,6 @@
       }
     },
     {
-      "id": "097f9568-bf0d-453f-8349-d9216057ef88",
-      "alias": "cond-email",
-      "config": {
-        "negate": "true",
-        "conditional-auth-note-key": "email"
-      }
-    },
-    {
-      "id": "9b4da3cb-77a2-4226-9ef9-193ed84ef4ee",
-      "alias": "cond-sms",
-      "config": {
-        "negate": "true",
-        "conditional-auth-note-key": "sequent.read-only.mobile-number"
-      }
-    },
-    {
-      "id": "c718c8dc-ef28-408b-a00c-79dbe43f56c3",
-      "alias": "conditional-sms",
-      "config": {
-        "negate": "true",
-        "conditional-auth-note-key": "sequent.read-only.mobile-number"
-      }
-    },
-    {
       "id": "c195cc06-1c4b-4a58-a1cc-16191459d29b",
       "alias": "create unique user config",
       "config": {
@@ -3959,39 +3910,11 @@
       }
     },
     {
-      "id": "7f9027ec-eb42-4ace-af5f-24970267f67b",
-      "alias": "deferred-otp-subflow-sms",
-      "config": {}
-    },
-    {
       "id": "c7d6bf5b-ecda-4c4e-a402-96868d1166ed",
       "alias": "drupc",
       "config": {
         "search-attributes": "country",
         "user-status": "sequent.read-only.id-card-number-validated"
-      }
-    },
-    {
-      "id": "7d9cab2f-e945-46d0-bc2b-1422edcf2200",
-      "alias": "email-sms",
-      "config": {
-        "length": "6",
-        "senderId": "Keycloak",
-        "ttl": "300",
-        "telUserAttribute": "sequent.read-only.mobile-number"
-      }
-    },
-    {
-      "id": "5e6509d7-fe74-429e-8223-85fc464c9b84",
-      "alias": "email-sms",
-      "config": {
-        "one-time-link": "false",
-        "senderId": "Keycloak",
-        "telUserAttribute": "sequent.read-only.mobile-number",
-        "length": "6",
-        "ttl": "300",
-        "messageCourierAttribute": "BOTH",
-        "deferredUserAttribute": "false"
       }
     },
     {
@@ -4039,7 +3962,7 @@
       "config": {
         "one-time-link": "false",
         "auto-2fa": "true",
-        "update-attributes": "sequent.read-only.id-card-number-validated,email,sequent.read-only.mobile-number,embassy,country,emailAndOrMobile,dateOfBirth,sequent.read-only.id-card-type,sequent.read-only.id-card-number",
+        "update-attributes": "sequent.read-only.id-card-number-validated,email,sequent.read-only.mobile-number,embassy,country,dateOfBirth,sequent.read-only.id-card-type,sequent.read-only.id-card-number",
         "search-attributes": "firstName,lastName,country",
         "telUserAttribute": "sequent.read-only.mobile-number",
         "messageCourierAttribute": "NONE",
@@ -4079,76 +4002,6 @@
       "config": {
         "userAttribute": "sequent.read-only.expirationDate",
         "negate": "true"
-      }
-    },
-    {
-      "id": "0971d245-e973-4646-81d8-04071031f206",
-      "alias": "otp-email",
-      "config": {
-        "one-time-link": "false",
-        "senderId": "Keycloak",
-        "resendCoudActivationTimer": "60",
-        "otpMethod": "email",
-        "telUserAttribute": "sequent.read-only.mobile-number",
-        "length": "6",
-        "messageCourierAttribute": "EMAIL",
-        "ttl": "300",
-        "deferredUserAttribute": "true"
-      }
-    },
-    {
-      "id": "0f084287-3810-4bd8-a697-5b21701081d0",
-      "alias": "otp-email",
-      "config": {
-        "one-time-link": "false",
-        "senderId": "Keycloak",
-        "telUserAttribute": "sequent.read-only.mobile-number",
-        "length": "6",
-        "ttl": "300",
-        "messageCourierAttribute": "EMAIL",
-        "deferredUserAttribute": "true"
-      }
-    },
-    {
-      "id": "01f3c5b4-2c6b-4fc7-a556-e5fd3ba45e77",
-      "alias": "otp-sms",
-      "config": {
-        "one-time-link": "false",
-        "senderId": "Keycloak",
-        "resendCoudActivationTimer": "60",
-        "telUserAttribute": "sequent.read-only.mobile-number",
-        "length": "6",
-        "messageCourierAttribute": "SMS",
-        "deferredUserAttribute": "true",
-        "ttl": "300"
-      }
-    },
-    {
-      "id": "8515064d-be81-4caf-84a7-868d4b88cb10",
-      "alias": "otp-sms",
-      "config": {
-        "one-time-link": "false",
-        "senderId": "Keycloak",
-        "otpMethod": "sms",
-        "telUserAttribute": "sequent.read-only.mobile-number",
-        "length": "6",
-        "deferredUserAttribute": "false",
-        "messageCourierAttribute": "BOTH",
-        "ttl": "300"
-      }
-    },
-    {
-      "id": "6fb95291-be55-498d-8709-f18e453fb3ab",
-      "alias": "otp-sms",
-      "config": {
-        "one-time-link": "false",
-        "senderId": "Keycloak",
-        "otpMethod": "sms",
-        "telUserAttribute": "sequent.read-only.mobile-number",
-        "length": "6",
-        "ttl": "300",
-        "deferredUserAttribute": "false",
-        "messageCourierAttribute": "BOTH"
       }
     },
     {
@@ -4381,6 +4234,28 @@
         "negate": "true",
         "conditional-auth-note-key": "cert-type"
       }
+    },
+    {
+      "id": "0e5b7c3a-41d2-4f6e-8a90-3c1d2b4e5f61",
+      "alias": "has-message-channel",
+      "config": {
+        "userAttribute": "sequent.read-only.message-channel",
+        "negate": "false"
+      }
+    },
+    {
+      "id": "a3c9e1f7-5b2d-4e8a-9f06-7d4c1b2a3e58",
+      "alias": "message-channel-otp",
+      "config": {
+        "code-page-disclosure": "NAMED",
+        "messageCourierAttribute": "CHOSEN",
+        "deferredUserAttribute": "false",
+        "telUserAttribute": "sequent.read-only.mobile-number",
+        "ttl": "300",
+        "length": "6",
+        "resendCoudActivationTimer": "60",
+        "max-code-attempts": "5"
+      }
     }
   ],
   "requiredActions": [
@@ -4527,6 +4402,17 @@
       "defaultAction": false,
       "priority": 1004,
       "config": {}
+    },
+    {
+      "alias": "message-channel-ra",
+      "name": "Change how we contact you",
+      "providerId": "message-channel-ra",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 1005,
+      "config": {
+        "max_auth_age": "300"
+      }
     }
   ],
   "browserFlow": "sequent browser flow",

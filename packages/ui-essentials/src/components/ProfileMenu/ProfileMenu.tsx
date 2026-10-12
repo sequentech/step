@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {Box, Menu, MenuItem, Typography} from "@mui/material"
+import {Box, Divider, ListItemIcon, Menu, MenuItem, Typography} from "@mui/material"
 import React, {useEffect, useState} from "react"
 import {useTranslation, Trans} from "react-i18next"
 import {
@@ -27,6 +27,12 @@ const Span = styled("span")`
 const Name = styled("span")`
     font-weight: 400;
 `
+
+// Account details are information, so keyboard navigation skips them.
+const ProfileIdentity = Object.assign(
+    styled("li")(({theme}) => ({padding: theme.spacing(1, 2)})),
+    {muiSkipListHighlight: true}
+)
 
 export const StyledButtonTooltipText = styled(Typography)`
     padding: 0;
@@ -172,6 +178,9 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                     <StyledButton
                         className="logout-button profile-menu-button"
                         aria-labelledby="welcome-text-name"
+                        aria-haspopup="menu"
+                        aria-controls={anchorEl ? "menu-appbar" : undefined}
+                        aria-expanded={Boolean(anchorEl)}
                         onClick={handleMenu}
                     >
                         <AccountCircle className="profile-menu-icon" sx={{fontSize: 40}} />
@@ -217,12 +226,16 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                     vertical: "top",
                     horizontal: "right",
                 }}
-                sx={{maxWidth: 220}}
+                slotProps={{paper: {sx: {minWidth: 200, maxWidth: "calc(100vw - 32px)"}}}}
+                sx={{
+                    "& .MuiMenuItem-root": {color: "text.primary"},
+                    "& .MuiListItemIcon-root": {color: "inherit"},
+                }}
                 open={Boolean(anchorEl)}
                 onClose={handleClose}
             >
                 {(!!userProfile.firstName || !!userProfile.username || !!userProfile.email) && (
-                    <MenuItem className="user-details">
+                    <ProfileIdentity role="presentation" className="user-details">
                         <Box
                             className="profile-menu-identity"
                             sx={{
@@ -254,8 +267,9 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                                 </Span>
                             )}
                         </Box>
-                    </MenuItem>
+                    </ProfileIdentity>
                 )}
+                <Divider className="profile-menu-divider" />
                 {userProfile.openLink && (
                     <MenuItem
                         className="profile"
@@ -264,19 +278,40 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                             userProfile?.openLink?.()
                         }}
                     >
-                        <AccountCircle className="profile-menu-icon" sx={{marginRight: "14px"}} />
+                        <ListItemIcon className="profile-menu-action-icon">
+                            <AccountCircle className="profile-menu-icon" aria-hidden />
+                        </ListItemIcon>
                         {t("header.profile")}
                     </MenuItem>
                 )}
+                {userProfile.menuActions?.map((action) => (
+                    <MenuItem
+                        key={action.id}
+                        className="profile-menu-action"
+                        onClick={() => {
+                            handleClose()
+                            action.onSelect()
+                        }}
+                    >
+                        {action.icon && (
+                            <ListItemIcon className="profile-menu-action-icon">
+                                {action.icon}
+                            </ListItemIcon>
+                        )}
+                        {action.label}
+                    </MenuItem>
+                ))}
                 {logoutFn && (
                     <MenuItem
-                        className="logout-button"
+                        className="profile-logout-option"
                         onClick={() => {
                             setOpenModal(true)
                             handleClose()
                         }}
                     >
-                        <LogoutIcon className="profile-logout-icon" sx={{marginRight: "14px"}} />
+                        <ListItemIcon className="profile-menu-action-icon">
+                            <LogoutIcon className="profile-logout-icon" aria-hidden />
+                        </ListItemIcon>
                         {t("logout.buttonText")}
                     </MenuItem>
                 )}

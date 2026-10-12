@@ -10,6 +10,7 @@ use crate::{
         delete_election_event::{
             archive_election_event_audit, archive_protocol_boards,
             delete_election_event_related_documents, delete_keycloak_realm,
+            find_election_event_deletion_refusal,
         },
         providers::transactions_provider::provide_hasura_transaction,
     },
@@ -41,9 +42,21 @@ async fn delete_election_event(
     tenant_id: String,
     election_event_id: String,
     realm: String,
+    permission_labels: Vec<String>,
 ) -> AnyhowResult<()> {
     provide_hasura_transaction(|hasura_transaction| {
         Box::pin(async move {
+            if let Some(refusal) = find_election_event_deletion_refusal(
+                hasura_transaction,
+                &tenant_id,
+                &election_event_id,
+                &permission_labels,
+            )
+            .await?
+            {
+                return Err(refusal.into());
+            }
+
             delete_election_event_in(hasura_transaction, &tenant_id, &election_event_id, &realm)
                 .await
         })
@@ -91,8 +104,9 @@ pub async fn delete_election_event_t(
     election_event_id: String,
     realm: String,
     task_execution: TasksExecution,
+    permission_labels: Vec<String>,
 ) -> Result<()> {
-    let res = delete_election_event(tenant_id, election_event_id, realm).await;
+    let res = delete_election_event(tenant_id, election_event_id, realm, permission_labels).await;
 
     let _ = match res {
         Ok(_) => {

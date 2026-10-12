@@ -196,6 +196,72 @@ pub async fn check_private_key(
     Ok(true)
 }
 
+/// How the ceremony's reported key relates to its verified native board.
+#[derive(Debug, PartialEq, Eq)]
+pub enum CeremonyPublicKeyState {
+    NoPublicKey,
+    OnBoard(String),
+    NotOnBoard,
+}
+
+/// Inspect only the public-key field so malformed status cannot hide a reported key.
+pub fn ceremony_public_key_state(
+    ceremony: &KeysCeremony,
+    board_public_key: Option<&str>,
+) -> CeremonyPublicKeyState {
+    match ceremony
+        .status
+        .as_ref()
+        .and_then(|status| status.get("public_key"))
+    {
+        None | Some(serde_json::Value::Null) => CeremonyPublicKeyState::NoPublicKey,
+        Some(serde_json::Value::String(key)) if board_public_key == Some(key.as_str()) => {
+            CeremonyPublicKeyState::OnBoard(key.clone())
+        }
+        Some(_) => CeremonyPublicKeyState::NotOnBoard,
+    }
+}
+
+/// Verify the key against the signed configuration stored for this ceremony.
+#[instrument(skip(transaction, ceremony), err)]
+pub async fn verify_keys_ceremony_public_key(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    ceremony: &KeysCeremony,
+) -> Result<CeremonyPublicKeyState> {
+    if ceremony_public_key_state(ceremony, None) == CeremonyPublicKeyState::NoPublicKey {
+        return Ok(CeremonyPublicKeyState::NoPublicKey);
+    }
+    let row = crate::postgres::protocol_board::get_dkg_board_by_keys_ceremony(
+        transaction,
+        tenant_id,
+        election_event_id,
+        &ceremony.id,
+    )
+    .await?;
+    let Some(_) = row else {
+        return Ok(CeremonyPublicKeyState::NotOnBoard);
+    };
+    let dkg = crate::services::protocol_board::load_dkg_board(
+        transaction,
+        tenant_id,
+        election_event_id,
+        &ceremony.id,
+    )
+    .await?;
+    let view = crate::services::protocol_board::board_handle(&dkg.name)?
+        .fetch_dkg_status(dkg.configuration.hash())
+        .await?;
+    let board_key = match view.status {
+        protocol_board::DkgStatus::Completed {
+            joint_public_key, ..
+        } => Some(joint_public_key),
+        _ => None,
+    };
+    Ok(ceremony_public_key_state(ceremony, board_key.as_deref()))
+}
+
 /// A request to create a keys ceremony.
 pub struct KeysCeremonyRequest<'a> {
     pub tenant_id: &'a str,

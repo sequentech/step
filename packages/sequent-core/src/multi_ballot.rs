@@ -17,6 +17,9 @@ use crate::ballot::get_ballot_bytes_for_signing;
 use crate::ballot::SignedContent;
 use crate::ballot::INCOMPLETE_BALLOT_SIGNATURE_ERROR;
 use crate::ballot::TYPES_VERSION;
+use crate::ballot::{
+    check_types_version, ContestEncryptionPolicy, StyleBoundHashableBallot,
+};
 use crate::ballot::{BallotStyle, ReplicationChoice};
 use base64::engine::general_purpose;
 use base64::Engine;
@@ -131,13 +134,7 @@ impl TryFrom<&AuditableMultiBallot> for HashableMultiBallot {
     type Error = BallotError;
 
     fn try_from(value: &AuditableMultiBallot) -> Result<Self, Self::Error> {
-        if TYPES_VERSION != value.version {
-            return Err(BallotError::Serialization(format!(
-                "Unexpected version {}, expected {}",
-                value.version.to_string(),
-                TYPES_VERSION
-            )));
-        }
+        let version = check_types_version(value.version)?;
 
         let contests = value.deserialize_contests()?;
         let hashable_ballot_contests =
@@ -152,7 +149,7 @@ impl TryFrom<&AuditableMultiBallot> for HashableMultiBallot {
             })?;
 
         Ok(HashableMultiBallot {
-            version: TYPES_VERSION,
+            version,
             issue_date: value.issue_date.clone(),
             contests: HashableMultiBallot::serialize_contests(
                 &hashable_ballot_contests,
@@ -167,13 +164,7 @@ impl TryFrom<&AuditableMultiBallot> for SignedHashableMultiBallot {
     type Error = BallotError;
 
     fn try_from(value: &AuditableMultiBallot) -> Result<Self, Self::Error> {
-        if TYPES_VERSION != value.version {
-            return Err(BallotError::Serialization(format!(
-                "Unexpected version {}, expected {}",
-                value.version.to_string(),
-                TYPES_VERSION
-            )));
-        }
+        let version = check_types_version(value.version)?;
 
         let contests = value.deserialize_contests()?;
         let hashable_ballot_contests =
@@ -188,7 +179,7 @@ impl TryFrom<&AuditableMultiBallot> for SignedHashableMultiBallot {
             })?;
 
         Ok(SignedHashableMultiBallot {
-            version: TYPES_VERSION,
+            version,
             issue_date: value.issue_date.clone(),
             contests: HashableMultiBallot::serialize_contests(
                 &hashable_ballot_contests,
@@ -206,16 +197,10 @@ impl TryFrom<&SignedHashableMultiBallot> for HashableMultiBallot {
     fn try_from(
         value: &SignedHashableMultiBallot,
     ) -> Result<Self, Self::Error> {
-        if TYPES_VERSION != value.version {
-            return Err(BallotError::Serialization(format!(
-                "Unexpected version {}, expected {}",
-                value.version.to_string(),
-                TYPES_VERSION
-            )));
-        }
+        let version = check_types_version(value.version)?;
 
         Ok(HashableMultiBallot {
-            version: TYPES_VERSION,
+            version,
             issue_date: value.issue_date.clone(),
             contests: value.contests.clone(),
             config: value.config.clone(),

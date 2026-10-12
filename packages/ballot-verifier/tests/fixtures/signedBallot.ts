@@ -13,10 +13,13 @@ type SequentCore = typeof import("sequent-core")
 /**
  * Encrypts and signs the fixture's first candidates with an initialized
  * sequent-core build, in Node or in a browser, independently of the verifier.
+ * The signature covers the hash of the ballot style, so a verifier that shows
+ * the ballot with a published style only accepts a ballot encrypted with that
+ * same style, which `publishedStyle` provides.
  */
-export function encryptAndSign(core: SequentCore, multiple = false) {
+export function encryptAndSign(core: SequentCore, multiple = false, publishedStyle?: IBallotStyle) {
     const wire = electionFixture().ballot
-    const style: IBallotStyle = {
+    const style: IBallotStyle = publishedStyle ?? {
         id: wire.id,
         tenant_id: wire.tenant_id,
         election_event_id: wire.election_event_id,

@@ -946,6 +946,17 @@ class RepositoryModelTest(unittest.TestCase):
             for action in check.actions:
                 self.assertTrue((ROOT / ".github/actions" / action).is_dir(), check.id)
 
+    def test_rust_dependency_patch_selects_native_consumers(self):
+        selection, chosen = self.select(
+            "packages/patches/dependency.patch"
+        )
+        self.assertFalse(selection.fallback)
+        self.assertTrue(
+            {"cargo-test:protocol-board", "cargo-test:sequent-core", "cargo-test:windmill"}
+            <= chosen
+        )
+        self.assertNotIn("jest:voting-portal", chosen)
+
     def test_documentation_only_change(self):
         selection, chosen = self.select(
             "docs/docusaurus/docs/07-developers/03-development-environment/fast-feedback.md"

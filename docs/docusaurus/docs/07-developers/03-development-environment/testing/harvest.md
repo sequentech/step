@@ -19,9 +19,10 @@ at a deployment.
 checking missing/malformed credentials, document permissions, role mutation
 permissions, tenant separation and Datafix error responses. Datafix requests
 carry valid bodies, so only the missing credentials can produce their error.
-Synthetic JWTs model claims already verified by the identity gateway. They are
-not a test of JWT signature verification or a substitute for deployment access
-controls.
+Synthetic JWTs are signed with the public test key of Core's verification
+fixtures, and the tests register matching issuer settings backed by a local key
+server, so the request guards verify them as they do real tokens. They are not
+a substitute for deployment access controls.
 
 `support/error_contracts.rs` checks the error JSON consumed by the portals,
 including password-policy counts and truncated profile-validation totals.

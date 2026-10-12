@@ -5,6 +5,32 @@ import {writeFile} from "node:fs/promises"
 import {resolve} from "node:path"
 import {test, expect, fixture, login, db, output} from "./fixtures"
 
+const json = (value: unknown) => `$seed$${JSON.stringify(value)}$seed$::jsonb`
+
+/**
+ * Publication authority and published ballot material only change inside a
+ * transaction that sets `sequent.trusted_write`, as the server publication
+ * workflow does. run_sql executes the whole script in one transaction.
+ */
+async function trustedSql(sql: string) {
+    const response = await fetch("http://graphql-engine:8080/v2/query", {
+        method: "POST",
+        headers: {
+            "content-type": "application/json",
+            "x-hasura-admin-secret": process.env.HASURA_ADMIN_SECRET!,
+        },
+        body: JSON.stringify({
+            type: "run_sql",
+            args: {
+                source: "backend-db",
+                sql: `SELECT set_config('sequent.trusted_write', 'on', true);\n${sql}`,
+            },
+        }),
+    })
+    expect(await response.text()).not.toMatch(/"error"/)
+    expect(response.status).toBe(200)
+}
+
 test("the authenticated verifier can read only active published ballot styles in its voter scope", async ({
     page,
 }) => {
@@ -34,10 +60,11 @@ test("the authenticated verifier can read only active published ballot styles in
     const hiddenStyles = [randomUUID(), randomUUID(), randomUUID()]
     const publishedAt = "2024-01-01T00:00:00Z"
     try {
-        await db(
-            `mutation($objects:[sequent_backend_ballot_publication_insert_input!]!) { insert_sequent_backend_ballot_publication(objects:$objects) { affected_rows } }`,
-            {
-                objects: [
+        await trustedSql(`
+            INSERT INTO sequent_backend.ballot_publication
+            SELECT * FROM jsonb_populate_recordset(
+                null::sequent_backend.ballot_publication,
+                ${json([
                     {
                         id: unpublished,
                         tenant_id: fixture.tenantId,
@@ -53,19 +80,18 @@ test("the authenticated verifier can read only active published ballot styles in
                         published_at: publishedAt,
                         deleted_at: publishedAt,
                     },
-                ],
-            }
-        )
-        await db(
-            `mutation($objects:[sequent_backend_ballot_style_insert_input!]!) { insert_sequent_backend_ballot_style(objects:$objects) { affected_rows } }`,
-            {
-                objects: [
+                ])}
+            );
+            INSERT INTO sequent_backend.ballot_style
+            SELECT * FROM jsonb_populate_recordset(
+                null::sequent_backend.ballot_style,
+                ${json([
                     {...original, id: hiddenStyles[0], ballot_publication_id: unpublished},
                     {...original, id: hiddenStyles[1], ballot_publication_id: deletedPublication},
                     {...original, id: hiddenStyles[2], deleted_at: publishedAt},
-                ],
-            }
-        )
+                ])}
+            );
+        `)
         const response = await fetch("http://graphql-engine:8080/v1/graphql", {
             method: "POST",
             headers: {"content-type": "application/json", authorization},
@@ -109,13 +135,9 @@ test("the authenticated verifier can read only active published ballot styles in
             },
         ])
     } finally {
-        await db(
-            `mutation($ids:[uuid!]!) { delete_sequent_backend_ballot_style(where:{id:{_in:$ids}}) { affected_rows } }`,
-            {ids: hiddenStyles}
-        )
-        await db(
-            `mutation($ids:[uuid!]!) { delete_sequent_backend_ballot_publication(where:{id:{_in:$ids}}) { affected_rows } }`,
-            {ids: [unpublished, deletedPublication]}
-        )
+        await trustedSql(`
+            DELETE FROM sequent_backend.ballot_style WHERE id IN (SELECT jsonb_array_elements_text(${json(hiddenStyles)})::uuid);
+            DELETE FROM sequent_backend.ballot_publication WHERE id IN (SELECT jsonb_array_elements_text(${json([unpublished, deletedPublication])})::uuid);
+        `)
     }
 })

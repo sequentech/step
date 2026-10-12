@@ -253,7 +253,7 @@ Your Sequent Step environment should now be up and running! You can access the d
 *   **Keycloak:** `https://login-remote-deployment.sequent.vote`
 *   **MinIO:** `https://minio-remote-deployment.sequent.vote`
 
-> **⚠️ Security Warning:** The default credentials for the Admin Portal are set to `admin` / `admin`. **You MUST change this immediately** in a production environment: Login to the Admin Portal, go to Users and Roles → For the User name `admin` click on Actions → Change Password. 
+> **First Admin Portal login:** The realm template contains no passwords, so the `admin` user cannot sign in until you set one. Open the Keycloak console (`KEYCLOAK_ADMIN` and `KEYCLOAK_ADMIN_PASSWORD` in the `.env` file), select the `tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5` realm, go to Users → `admin` → Credentials and set a temporary password. Sign in to the Admin Portal as `admin` with it and choose your own password when asked.
 > - **Keycloak admin console password:** If you need to login to the keycloak console, the password is stored in the `.env` file as `KEYCLOAK_ADMIN_PASSWORD`. This password was randomly generated during the deployment process and is unique to your deployment, the same for MinIO and Hasura Console.
 
 ## Troubleshooting
@@ -426,6 +426,12 @@ docker compose -f docker-compose-remote.yml build <service-name>
 # Restart services to apply changes
 docker compose -f docker-compose-remote.yml up -d
 ```
+
+### Trustee Configuration
+
+Generate each trustee's native identity with `trustee generate --trustee-config trustee.toml`, provision that file at `TRUSTEE_CONFIG_PATH`, and register both keys printed by `trustee public-keys` in the Admin Portal. The runner reads an existing identity and refuses to replace it or generate a new one at startup. Keep the identity and its `message_store` directory in persistent storage.
+
+Configure the trustee's Keycloak account and Harvest endpoint using the variables in the [wbraid trustee guide](../../07-developers/09-braid/braid_trustees_configuration.md). The trustee discovers its assigned boards through Harvest and connects to the native board service at `B4_URL`. Use newly generated identities for deployments; the files under `packages/trustee/dev/` are development fixtures.
 
 ### Fixing Nginx Proxy Issues
 

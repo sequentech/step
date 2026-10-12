@@ -6,6 +6,7 @@ import {type DocumentNode, type OperationDefinitionNode} from "graphql"
 import {introspectSchema} from "ra-data-graphql/dist/cjs/introspection"
 import {customBuildQuery} from "./customBuildQuery"
 import {electionSearchFilter} from "../services/ElectionSearch"
+import {ACTIVE_SCHEDULED_EVENTS} from "../services/ScheduledEvent"
 
 // The log range filter reads its wall times with the timezone service.
 jest.mock("@sequentech/ui-core", () => ({
@@ -219,6 +220,18 @@ describe("resource list variables", () => {
     })
 })
 
+describe("scheduled events", () => {
+    it("lists only active rows: a sent notification, stored archived, never shows (Follow-up 2)", () => {
+        const built = list("sequent_backend_scheduled_event", {
+            sort: {field: "created_at", order: "ASC"},
+            filter: {election_event_id: EVENT, ...ACTIVE_SCHEDULED_EVENTS},
+        })
+        expect((built.variables.where as {_and: unknown[]})._and).toContainEqual({
+            archived_at: {_is_null: true},
+        })
+    })
+})
+
 describe("task and application lists", () => {
     it("orders tasks by a task column", () => {
         const built = list("sequent_backend_tasks_execution", {
@@ -265,6 +278,45 @@ describe("task and application lists", () => {
             _and: [
                 {election_event_id: {_eq: EVENT}},
                 {applicant_data: {_cast: {String: {_ilike: "%dela cruz%"}}}},
+            ],
+        })
+    })
+
+    it("finds an application by the support reference the voter was given (EF-1)", () => {
+        const built = list("sequent_backend_applications", {
+            sort: {field: "created_at", order: "ASC"},
+            filter: {
+                election_event_id: EVENT,
+                q: "65sr mssd",
+                support_reference: {reference: "65SR-MSSD", ids: ["app-1"]},
+            },
+        })
+        expect(built.variables.where).toEqual({
+            _and: [
+                {election_event_id: {_eq: EVENT}},
+                {
+                    _or: [
+                        {applicant_data: {_cast: {String: {_ilike: "%65sr mssd%"}}}},
+                        {id: {_in: ["app-1"]}},
+                    ],
+                },
+            ],
+        })
+    })
+
+    it("ignores a support reference resolved for another search text", () => {
+        const built = list("sequent_backend_applications", {
+            sort: {field: "created_at", order: "ASC"},
+            filter: {
+                election_event_id: EVENT,
+                q: "Q5KW-8RFX",
+                support_reference: {reference: "65SR-MSSD", ids: ["app-1"]},
+            },
+        })
+        expect(built.variables.where).toEqual({
+            _and: [
+                {election_event_id: {_eq: EVENT}},
+                {applicant_data: {_cast: {String: {_ilike: "%Q5KW-8RFX%"}}}},
             ],
         })
     })

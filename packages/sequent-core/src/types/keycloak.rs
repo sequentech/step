@@ -73,13 +73,13 @@ pub const MAX_TOTAL_VOTE_WEIGHT: u64 = 1_000_000;
 pub const VOTE_WEIGHT_BATCHES: u32 =
     u64::BITS - MAX_VOTE_WEIGHT.leading_zeros();
 
-/// Below this many ballots, a weight batch is small enough that mixing it
-/// protects little: its plaintexts are published, so a batch holding one ballot
-/// publishes that voter's choice. Which batches are small depends on the spread
-/// of weights, not on the bit -- 999 voters at weight 2 and one at weight 3
-/// leave the *lowest* batch holding a single ballot. Warned about rather than
-/// refused, and it does not detect every way a voter can be isolated -- see the
-/// note on this policy in the election event documentation.
+/// Below this many voters, a batch is small enough that mixing it protects
+/// little: its plaintexts are published, so a batch holding one ballot
+/// publishes that voter's choice. Under voter-weighted voting, which batches
+/// are small depends on the spread of weights, not on the bit -- 999 voters at
+/// weight 2 and one at weight 3 leave the *lowest* batch holding a single
+/// ballot. `BatchAnonymityPolicy` decides whether a smaller batch is warned
+/// about or refused.
 pub const MIN_WEIGHT_BATCH_ANONYMITY: usize = 5;
 
 /// Bit `bit` of `weight` decides whether that voter's ciphertext goes into the
@@ -106,8 +106,10 @@ pub const AUTHORIZED_ELECTION_IDS_NAME: &str = "authorized-election-ids";
 pub const TENANT_ID_ATTR_NAME: &str = "tenant-id";
 pub const PERMISSION_TO_EDIT: &str = "admin";
 pub const MOBILE_PHONE_ATTR_NAME: &str = "sequent.read-only.mobile-number";
-/// The voter's preferred channel for notices (a `MessageChannel`).
+/// The voter's one channel (a `MessageChannel`); see `voter_channel`.
 pub const MESSAGE_CHANNEL_ATTR_NAME: &str = "sequent.read-only.message-channel";
+/// E.164 number of the voter's WhatsApp, Viber or SMS channel.
+pub const MESSAGE_NUMBER_ATTR_NAME: &str = "sequent.read-only.message-number";
 pub const WHATSAPP_NUMBER_ATTR_NAME: &str = "sequent.read-only.whatsapp-number";
 pub const VIBER_NUMBER_ATTR_NAME: &str = "sequent.read-only.viber-number";
 /// Page-scoped ID, valid only for `MESSENGER_PAGE_ATTR_NAME`.

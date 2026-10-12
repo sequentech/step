@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
@@ -23,6 +24,7 @@ import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import java.lang.reflect.Method;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -279,6 +281,84 @@ class DeferredRegistrationUserCreationTest {
     verify(provider, times(2)).encodedCredential("SlightlyLongerDummyPassword", -1);
   }
 
+  /** A validation context for a REGISTRATION form that searches the voter by email. */
+  private static ValidationContext registrationByEmail(
+      String typedEmail, String profileEmail, EventBuilder event) {
+    ValidationContext context = mock(ValidationContext.class);
+    AuthenticatorConfigModel config = mock(AuthenticatorConfigModel.class);
+    KeycloakSession session = mock(KeycloakSession.class);
+    RealmModel realm = mock(RealmModel.class);
+    HttpRequest request = mock(HttpRequest.class);
+    AuthenticationSessionModel authenticationSession = mock(AuthenticationSessionModel.class);
+    RootAuthenticationSessionModel root = mock(RootAuthenticationSessionModel.class);
+    UserProfile profile = mock(UserProfile.class);
+    Attributes attributes = mock(Attributes.class);
+    MultivaluedMap<String, String> formData = new MultivaluedHashMap<>();
+    formData.add(UserModel.EMAIL, typedEmail);
+    when(context.getAuthenticatorConfig()).thenReturn(config);
+    when(config.getConfig())
+        .thenReturn(
+            Map.of(
+                DeferredRegistrationUserCreation.SEARCH_ATTRIBUTES,
+                UserModel.EMAIL,
+                DeferredRegistrationUserCreation.FORM_MODE,
+                DeferredRegistrationUserCreation.FormMode.REGISTRATION.getValue()));
+    when(context.getSession()).thenReturn(session);
+    when(context.getRealm()).thenReturn(realm);
+    when(realm.getAttributes()).thenReturn(Map.of());
+    when(realm.isRegistrationEmailAsUsername()).thenReturn(true);
+    when(context.getHttpRequest()).thenReturn(request);
+    when(request.getDecodedFormParameters()).thenReturn(formData);
+    when(context.getEvent()).thenReturn(event);
+    when(context.getAuthenticationSession()).thenReturn(authenticationSession);
+    when(authenticationSession.getParentSession()).thenReturn(root);
+    when(root.getId()).thenReturn("synthetic-session");
+    when(session.getAttribute("UP_REGISTER")).thenReturn(profile);
+    when(profile.getAttributes()).thenReturn(attributes);
+    when(attributes.getFirst(UserModel.EMAIL)).thenReturn(profileEmail);
+    return context;
+  }
+
+  /**
+   * R7-13: with email as username, the typed email isn't put in the event; and when no voter
+   * matches, the typed search values aren't logged.
+   */
+  @Test
+  void theTypedIdentifiersReachNeitherTheEventNorTheLog() {
+    EventBuilder event = mock(EventBuilder.class, org.mockito.Mockito.RETURNS_SELF);
+    java.util.logging.Logger logger =
+        java.util.logging.Logger.getLogger(DeferredRegistrationUserCreation.class.getName());
+    StringBuilder logged = new StringBuilder();
+    java.util.logging.Handler handler =
+        new java.util.logging.Handler() {
+          @Override
+          public void publish(java.util.logging.LogRecord record) {
+            logged.append(new java.util.logging.SimpleFormatter().format(record));
+          }
+
+          @Override
+          public void flush() {}
+
+          @Override
+          public void close() {}
+        };
+    logger.addHandler(handler);
+    try (MockedStatic<Utils> utils = mockStatic(Utils.class)) {
+      new DeferredRegistrationUserCreation()
+          .validate(
+              registrationByEmail("maria.cruz@example.test", "maria.cruz@example.test", event));
+      new DeferredRegistrationUserCreation()
+          .validate(registrationByEmail("maria.cruz@example.test", null, event));
+    } finally {
+      logger.removeHandler(handler);
+    }
+    verify(event, never())
+        .detail(eq(org.keycloak.events.Details.USERNAME), ArgumentMatchers.<String>any());
+    verify(event, never()).detail(ArgumentMatchers.anyString(), eq("maria.cruz@example.test"));
+    assertFalse(logged.isEmpty());
+    assertFalse(logged.toString().contains("maria.cruz"), logged.toString());
+  }
+
   @Test
   void failedLoginCredentialRetainsAttemptedUsernameForBruteForceAccounting() {
     ValidationContext context = mock(ValidationContext.class);
@@ -336,6 +416,7 @@ class DeferredRegistrationUserCreationTest {
     verify(authenticationSession)
         .setAuthNote(AbstractUsernameFormAuthenticator.ATTEMPTED_USERNAME, "voter");
     verify(context, never()).success();
+    verify(authenticationSession, never()).setAuthNote(eq("PASSWORD_VALIDATED"), any());
   }
 
   @Test
@@ -391,7 +472,8 @@ class DeferredRegistrationUserCreationTest {
     when(authenticationSession.getParentSession()).thenReturn(rootSession);
     when(rootSession.getId()).thenReturn("session-id");
     when(session.users()).thenReturn(users);
-    when(users.searchForUserStream(realm, Map.of("phone", "123")))
+    when(users.searchForUserStream(
+            realm, Map.of("phone", "123", UserModel.EXACT, Boolean.TRUE.toString())))
         .thenReturn(Stream.of(user, duplicate));
 
     try (MockedStatic<Utils> utils = mockStatic(Utils.class)) {
@@ -419,6 +501,56 @@ class DeferredRegistrationUserCreationTest {
     notes
         .verify(authenticationSession)
         .removeAuthNote(AbstractUsernameFormAuthenticator.ATTEMPTED_USERNAME);
+    // Like Keycloak's password form: a later code step knows the password was checked (R7-10).
+    verify(authenticationSession).setAuthNote("PASSWORD_VALIDATED", "true");
+  }
+
+  @Test
+  void loginWithoutPasswordDoesNotAuthenticateWhenASearchAttributeIsMissing() {
+    ValidationContext context = mock(ValidationContext.class);
+    AuthenticatorConfigModel config = mock(AuthenticatorConfigModel.class);
+    KeycloakSession session = mock(KeycloakSession.class);
+    RealmModel realm = mock(RealmModel.class);
+    HttpRequest request = mock(HttpRequest.class);
+    EventBuilder event = mock(EventBuilder.class);
+    AuthenticationSessionModel authenticationSession = mock(AuthenticationSessionModel.class);
+    RootAuthenticationSessionModel rootSession = mock(RootAuthenticationSessionModel.class);
+    UserProfile profile = mock(UserProfile.class);
+    Attributes attributes = mock(Attributes.class);
+    UserProvider users = mock(UserProvider.class);
+    UserModel user = mock(UserModel.class);
+    MultivaluedMap<String, String> formData = new MultivaluedHashMap<>();
+    formData.add(UserModel.USERNAME, "123456");
+
+    when(context.getAuthenticatorConfig()).thenReturn(config);
+    when(config.getConfig())
+        .thenReturn(
+            Map.of(
+                DeferredRegistrationUserCreation.SEARCH_ATTRIBUTES,
+                UserModel.USERNAME + ",dateOfBirth",
+                DeferredRegistrationUserCreation.FORM_MODE,
+                DeferredRegistrationUserCreation.FormMode.LOGIN.getValue(),
+                DeferredRegistrationUserCreation.PASSWORD_REQUIRED,
+                "false"));
+    when(context.getSession()).thenReturn(session);
+    when(context.getRealm()).thenReturn(realm);
+    when(realm.getAttributes()).thenReturn(Map.of());
+    when(context.getHttpRequest()).thenReturn(request);
+    when(request.getDecodedFormParameters()).thenReturn(formData);
+    when(context.getEvent()).thenReturn(event);
+    when(context.getAuthenticationSession()).thenReturn(authenticationSession);
+    when(authenticationSession.getParentSession()).thenReturn(rootSession);
+    when(rootSession.getId()).thenReturn("session-id");
+    when(session.getAttribute("UP_REGISTER")).thenReturn(profile);
+    when(profile.getAttributes()).thenReturn(attributes);
+    when(session.users()).thenReturn(users);
+    when(users.searchForUserStream(any(RealmModel.class), anyMap())).thenReturn(Stream.of(user));
+
+    new DeferredRegistrationUserCreation().validate(context);
+
+    verify(authenticationSession, never()).setAuthenticatedUser(any());
+    verify(context, never()).success();
+    verify(context).validationError(eq(formData), anyList());
   }
 
   @Test
@@ -490,6 +622,40 @@ class DeferredRegistrationUserCreationTest {
     assertFalse(normalized.containsKey(UserModel.LOCALE));
     assertFalse(normalized.containsKey(CUSTOM_HIDDEN_ATTRIBUTE));
     assertTrue(normalized.containsKey(UserModel.EMAIL));
+  }
+
+  /**
+   * The event listener classifies events by these details, so they must come only from the
+   * authenticators that set them, while ordinary form fields stay in the registration event.
+   */
+  @Test
+  void eventDetailsKeepFormFieldsExceptListenerDetails() throws Exception {
+    ValidationContext context = mock(ValidationContext.class);
+    EventBuilder event = mock(EventBuilder.class);
+    when(context.getEvent()).thenReturn(event);
+    List<String> listenerDetails =
+        List.of("type", "msgBody", "voter_cert_subject_dn", "ca_cert_issuer_cn", "deny-type");
+    MultivaluedMap<String, String> formData = new MultivaluedHashMap<>();
+    formData.add(UserModel.FIRST_NAME, "Ana");
+    listenerDetails.forEach(detail -> formData.add(detail, "communications"));
+
+    Method method =
+        DeferredRegistrationUserCreation.class.getDeclaredMethod(
+            "buildEventDetails",
+            MultivaluedMap.class,
+            ValidationContext.class,
+            UserModel.class,
+            Set.class);
+    method.setAccessible(true);
+    method.invoke(
+        new DeferredRegistrationUserCreation(), formData, context, null, Set.of(UserModel.LOCALE));
+
+    verify(event).detail(UserModel.FIRST_NAME, List.of("Ana"));
+    listenerDetails.forEach(
+        detail -> {
+          verify(event, never()).detail(eq(detail), ArgumentMatchers.<Collection<String>>any());
+          verify(event, never()).detail(eq(detail), ArgumentMatchers.<String>any());
+        });
   }
 
   @Test

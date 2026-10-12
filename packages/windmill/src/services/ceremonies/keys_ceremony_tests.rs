@@ -792,3 +792,57 @@ fn assign(fixture: &Fixture, election_id: &str, keys_ceremony_id: &str) {
         }
     }
 }
+
+#[test]
+fn reported_public_key_must_match_the_verified_board() {
+    let mut ceremony = keys_ceremony(KeysCeremonyExecutionStatus::SUCCESS, &[]);
+    ceremony.status = Some(json!({"public_key": ELECTION_PUBLIC_KEY}));
+    assert_eq!(
+        ceremony_public_key_state(&ceremony, Some(ELECTION_PUBLIC_KEY)),
+        CeremonyPublicKeyState::OnBoard(ELECTION_PUBLIC_KEY.into())
+    );
+    for board_key in [None, Some("another-key")] {
+        assert_eq!(
+            ceremony_public_key_state(&ceremony, board_key),
+            CeremonyPublicKeyState::NotOnBoard
+        );
+    }
+}
+
+#[test]
+fn missing_reported_public_key_requires_no_board_comparison() {
+    let mut ceremony = keys_ceremony(KeysCeremonyExecutionStatus::IN_PROGRESS, &[]);
+    for status in [
+        None,
+        Some(json!({"public_key": null})),
+        Some(json!({"trustees": 7})),
+    ] {
+        ceremony.status = status;
+        for board_key in [None, Some(ELECTION_PUBLIC_KEY)] {
+            assert_eq!(
+                ceremony_public_key_state(&ceremony, board_key),
+                CeremonyPublicKeyState::NoPublicKey
+            );
+        }
+    }
+}
+
+#[test]
+fn malformed_ceremony_status_cannot_hide_a_reported_public_key() {
+    let mut ceremony = keys_ceremony(KeysCeremonyExecutionStatus::SUCCESS, &[]);
+    ceremony.status = Some(json!({"public_key": ELECTION_PUBLIC_KEY, "trustees": "invalid"}));
+    assert!(ceremony.status().is_err());
+    assert_eq!(
+        ceremony_public_key_state(&ceremony, Some(ELECTION_PUBLIC_KEY)),
+        CeremonyPublicKeyState::OnBoard(ELECTION_PUBLIC_KEY.into())
+    );
+    assert_eq!(
+        ceremony_public_key_state(&ceremony, None),
+        CeremonyPublicKeyState::NotOnBoard
+    );
+    ceremony.status = Some(json!({"public_key": 7}));
+    assert_eq!(
+        ceremony_public_key_state(&ceremony, Some(ELECTION_PUBLIC_KEY)),
+        CeremonyPublicKeyState::NotOnBoard
+    );
+}

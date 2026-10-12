@@ -226,6 +226,10 @@ jobs:
       WBRAID_AUDIT_DATABASE_URL: postgres://test:test@127.0.0.1:3323/sequent_audit
       WBRAID_BOARD_DATABASE_URL: postgres://test:test@127.0.0.1:3323/sequent_audit
       WBRAID_AUDIT_TEST_DATABASE_URL: postgres://test:test@127.0.0.1:3323/sequent_audit
+      # Each integration target links the service; full debug symbols exhaust runners.
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
+      CARGO_INCREMENTAL: "0"
       # The ballot box seal tests post to boards of their own on this server.
     services:
       postgres:
@@ -309,6 +313,13 @@ jobs:
       - name: Remove the voting-flow database fixture
         if: always() && steps.castvote-fixture.outputs.created == 'true'
         run: docker rm --force --volumes step-castvote-fixture
+
+      - name: Run PostgreSQL-backed delegate-count regression
+        run: >-
+          cargo test
+          services::users::tests::delegate_count_only_counts_eligible_delegators_without_a_ballot
+          -- --ignored --exact
+        working-directory: packages/windmill
 
   run-frontend-tests:
     name: ${{ matrix.package }} focused tests

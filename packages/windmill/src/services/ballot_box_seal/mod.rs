@@ -362,6 +362,7 @@ impl SealEnvironment for ProductionSealEnvironment {
                 election_alias,
                 &users_file.path().to_path_buf(),
                 multiplicity_column,
+                &[],
             )
             .await?;
         }

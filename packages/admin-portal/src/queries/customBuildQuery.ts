@@ -3,6 +3,11 @@ import {Order_By} from "./../../../voting-portal/src/gql/graphql"
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {
+    ISupportReferenceMatch,
+    SUPPORT_REFERENCE_FILTER,
+    normalizeSupportReference,
+} from "@/resources/Approvals/supportReference"
 import {buildQuery, buildVariables} from "ra-data-hasura"
 import {getPgauditVariables, getPgAudit} from "./ListPgAudit"
 import {
@@ -20,6 +25,7 @@ import {isString} from "lodash"
 import {COLUMNS_MAP} from "@/types/query"
 import {GetCastVotesByIp} from "./GetCastVotesByIp"
 import {GET_ELECTIONS_BY_EXTERNAL_ID} from "./GetElectionsByExternalID"
+import {LOG_FILTER_CHANNEL, LOG_FILTER_OUTCOME} from "@/components/logs/messagingLogFilters"
 
 export interface ParamsSort {
     field: string
@@ -127,6 +133,9 @@ export const customBuildQuery =
                 "created",
                 "statement_timestamp",
                 "statement_kind",
+                // Messages a SendCommunications entry records (the Messaging tab's Failed links).
+                LOG_FILTER_CHANNEL,
+                LOG_FILTER_OUTCOME,
                 ...ELECTORAL_LOG_RANGE_FILTERS,
                 ELECTORAL_LOG_ZONE_FILTER,
                 ELECTORAL_LOG_DEFAULT_ZONE_FILTER,
@@ -364,7 +373,13 @@ export const customBuildQuery =
         } else if (resourceName === "sequent_backend_applications" && raFetchType === "GET_LIST") {
             // `q` is the queue's search box: the name, email or ID number the
             // applicant gave, anywhere in the applicant data.
-            const {q: search, ...columnFilters} = params.filter ?? {}
+            // A search that reads as a support reference also matches the
+            // applications whose reference it is, resolved by the queue.
+            const {
+                q: search,
+                [SUPPORT_REFERENCE_FILTER]: referenceMatch,
+                ...columnFilters
+            } = params.filter ?? {}
             let ret = buildQuery(introspectionResults)(raFetchType, resourceName, {
                 ...params,
                 filter: columnFilters,
@@ -405,9 +420,14 @@ export const customBuildQuery =
             })
 
             if (typeof search === "string" && search.trim()) {
-                transformedParams.push({
-                    applicant_data: {_cast: {String: {_ilike: `%${search.trim()}%`}}},
-                })
+                const text = {applicant_data: {_cast: {String: {_ilike: `%${search.trim()}%`}}}}
+                const match = referenceMatch as ISupportReferenceMatch | undefined
+                const reference = normalizeSupportReference(search)
+                transformedParams.push(
+                    reference && match?.reference === reference
+                        ? {_or: [text, {id: {_in: match.ids}}]}
+                        : text
+                )
             }
 
             ret.variables.where = transformedRawParams

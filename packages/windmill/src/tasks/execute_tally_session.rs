@@ -428,29 +428,15 @@ async fn process_plaintexts(
         found_area_contests.len()
     );
 
-    let filtered_area_contests: Vec<AreaContestDataType> = almost_vec
-        .clone()
-        .into_iter()
-        .filter(|area_contest| {
-            event!(Level::WARN, "find_path_to_area {}", area_contest.area.id);
-            let Some(tree_path) = areas_tree.find_path_to_area(&area_contest.area.id) else {
-                event!(Level::WARN, "NOT FOUND");
-                return false;
-            };
-            /*tree_path.iter().all(|tree_node| {
-                found_area_contests
-                    .contains(&(tree_node.id.clone(), area_contest.contest.id.clone()))
-            })*/
-            true
-        })
-        .collect();
-    event!(
-        Level::WARN,
-        "Num filtered_area_contests = {}",
-        filtered_area_contests.len()
-    );
+    if let Some(area_contest) = almost_vec.iter().find(|area_contest| {
+        areas_tree
+            .find_path_to_area(&area_contest.area.id)
+            .is_none()
+    }) {
+        return Err(anyhow!("Area {} not found in the area tree", area_contest.area.id).into());
+    }
 
-    Ok(filtered_area_contests)
+    Ok(almost_vec)
 }
 
 #[instrument]
@@ -671,6 +657,7 @@ async fn create_tally_boards(
         configuration.get_contest_encryption_policy(),
         configuration.get_delegated_voting_policy(),
         configuration.get_weighted_voting_policy(),
+        configuration.get_batch_anonymity_policy(),
     )
     .await?;
 
@@ -830,9 +817,9 @@ fn codec_payloads(
             );
         }
 
-        // Until the voter path step encodes ballots for the new core, a cast
-        // vote can carry any payload, and the codec indexes past one whose
-        // length byte is above 29. Such a payload is not a ballot.
+        // A valid ciphertext can decrypt to an invalid ballot payload. Guard
+        // the codec's length byte before decoding untrusted plaintexts; a
+        // malformed payload cannot be assigned to a voting channel.
         let total = payloads.len();
         let readable: Vec<ElementPayload> = payloads.into_iter().filter(is_codec_payload).collect();
         let dropped = total - readable.len();

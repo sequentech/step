@@ -21,6 +21,8 @@ RUST = (
     "voting-crypto",
     "protocol-board",
     "trustee",
+    "messaging",
+    "messaging-webhooks",
     "sequent-core",
     "step-cli",
     "velvet",

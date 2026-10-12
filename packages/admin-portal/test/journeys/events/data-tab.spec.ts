@@ -102,6 +102,7 @@ const SAVED_PRESENTATION_DEFAULTS = {
     voter_certificate_policy: "disabled",
     voter_accessibility_settings_policy: "disabled",
     audio_instructions_policy: "disabled",
+    batch_anonymity_policy: "warn",
 }
 
 async function save(page: Page, portal: AdminPortal) {

@@ -38,7 +38,23 @@ use voting_crypto::ballot::BallotCiphertext;
 use voting_crypto::signing::{Signature, SigningKey, VerificationKey};
 use voting_crypto::RecordSerialize;
 
+/// Version of the ballots encrypted by this crate. Their tracker covers the
+/// ballot format and the ballot style besides the contests.
 pub const TYPES_VERSION: u32 = 3;
+
+/// Version of the ballots whose tracker covers only the issue date and the
+/// contests. They are still read, and hashed as they were cast.
+pub const LEGACY_TYPES_VERSION: u32 = 2;
+
+pub(crate) fn check_types_version(version: u32) -> Result<u32, BallotError> {
+    match version {
+        TYPES_VERSION | LEGACY_TYPES_VERSION => Ok(version),
+        _ => Err(BallotError::Serialization(format!(
+            "Unexpected version {version}, expected {TYPES_VERSION} or \
+             {LEGACY_TYPES_VERSION}"
+        ))),
+    }
+}
 
 pub type I18nContent<T = Option<String>> = HashMap<String, T>;
 
@@ -154,6 +170,20 @@ pub struct RawHashableBallot {
     pub contests: Vec<HashableBallotContest>,
 }
 
+/// What the tracker of a ballot of [`TYPES_VERSION`] is the hash of. Besides
+/// what [`RawHashableBallot`] covers, it names the ballot format and the
+/// ballot style (its id and hash), so the same contests under another format,
+/// election, public key or candidate list get another tracker.
+#[derive(BorshSerialize, PartialEq, Eq, Debug, Clone)]
+pub struct StyleBoundHashableBallot<T> {
+    pub version: u32,
+    pub format: ContestEncryptionPolicy,
+    pub issue_date: String,
+    pub config: String,
+    pub ballot_style_hash: String,
+    pub contests: T,
+}
+
 impl HashableBallot {
     pub fn deserialize_contests(
         &self,
@@ -227,13 +257,7 @@ impl TryFrom<&AuditableBallot> for SignedHashableBallot {
     type Error = BallotError;
 
     fn try_from(value: &AuditableBallot) -> Result<Self, Self::Error> {
-        if TYPES_VERSION != value.version {
-            return Err(BallotError::Serialization(format!(
-                "Unexpected version {}, expected {}",
-                value.version.to_string(),
-                TYPES_VERSION
-            )));
-        }
+        let version = check_types_version(value.version)?;
 
         let contests = value.deserialize_contests()?;
         let hashable_ballot_contest: Vec<HashableBallotContest> = contests
@@ -252,7 +276,7 @@ impl TryFrom<&AuditableBallot> for SignedHashableBallot {
                 ))
             })?;
         Ok(SignedHashableBallot {
-            version: TYPES_VERSION,
+            version,
             issue_date: value.issue_date.clone(),
             contests: HashableBallot::serialize_contests(
                 &hashable_ballot_contest,
@@ -268,16 +292,8 @@ impl TryFrom<&AuditableBallot> for SignedHashableBallot {
 impl TryFrom<&SignedHashableBallot> for HashableBallot {
     type Error = BallotError;
     fn try_from(value: &SignedHashableBallot) -> Result<Self, Self::Error> {
-        if TYPES_VERSION != value.version {
-            return Err(BallotError::Serialization(format!(
-                "Unexpected version {}, expected {}",
-                value.version.to_string(),
-                TYPES_VERSION
-            )));
-        }
-
         Ok(HashableBallot {
-            version: TYPES_VERSION,
+            version: check_types_version(value.version)?,
             issue_date: value.issue_date.clone(),
             contests: value.contests.clone(),
             config: value.config.clone(),
@@ -1291,6 +1307,8 @@ pub struct ElectionEventPresentation {
     #[serde(default, deserialize_with = "deserialize_optional_json_string")]
     pub results_website: Option<String>,
     pub voting_portal_datetime_format: Option<VotingPortalDateTimeFormat>,
+    #[borsh(skip)]
+    pub batch_anonymity_policy: Option<BatchAnonymityPolicy>,
     /// Skipped by Borsh for the reason `Contest::is_acclaimed` is: one more
     /// positional field would change `ballot_style_hash` for every election.
     #[borsh(skip)]
@@ -1325,6 +1343,9 @@ pub struct ElectionEventPresentation {
     #[borsh(skip)]
     #[serde(default)]
     pub ballot_box_seal_record_policy: Option<BallotBoxSealRecordPolicy>,
+    #[borsh(skip)]
+    #[serde(default)]
+    pub ballot_tracker_policy: Option<BallotTrackerPolicy>,
 }
 
 impl ElectionEventPresentation {
@@ -2179,6 +2200,35 @@ impl Contest {
 
         Ok(())
     }
+}
+
+/// Which ballots a cast vote is accepted with. A ballot of [`TYPES_VERSION`]
+/// must always name the ballot style published for the voter's area and
+/// election. A ballot of [`LEGACY_TYPES_VERSION`], whose tracker does not
+/// cover the ballot style, is only accepted with `ALLOW_LEGACY`.
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum BallotTrackerPolicy {
+    #[default]
+    #[strum(serialize = "style-bound")]
+    #[serde(rename = "style-bound")]
+    STYLE_BOUND,
+    #[strum(serialize = "allow-legacy")]
+    #[serde(rename = "allow-legacy")]
+    ALLOW_LEGACY,
 }
 
 #[allow(non_camel_case_types)]
@@ -3390,6 +3440,38 @@ pub enum DelegatedVotingPolicy {
     ENABLED,
 }
 
+/// What extracting the ballots for a tally does with a contest area batch
+/// whose decrypted votes would not stay hidden among others: one holding the
+/// ballots of fewer than `MIN_WEIGHT_BATCH_ANONYMITY` voters, or one that
+/// differs from the ballots another tally session already posted for the same
+/// election, area and contest.
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+pub enum BatchAnonymityPolicy {
+    /// Log a warning and post the batch.
+    #[default]
+    #[strum(serialize = "warn")]
+    #[serde(rename = "warn")]
+    WARN,
+    /// Refuse the tally without posting the contest area's ballots to the
+    /// bulletin board.
+    #[strum(serialize = "refuse")]
+    #[serde(rename = "refuse")]
+    REFUSE,
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -3736,14 +3818,35 @@ mod presentation_borsh_compat_tests {
     }
 
     #[test]
+    fn batch_anonymity_policy_round_trips_through_borsh() {
+        for policy in [BatchAnonymityPolicy::WARN, BatchAnonymityPolicy::REFUSE]
+        {
+            let bytes = borsh::to_vec(&policy).unwrap();
+            assert_eq!(
+                borsh::from_slice::<BatchAnonymityPolicy>(&bytes).unwrap(),
+                policy
+            );
+        }
+        assert!(borsh::from_slice::<BatchAnonymityPolicy>(&[2]).is_err());
+    }
+
+    #[test]
     fn json_only_results_fields_do_not_change_borsh_bytes() {
         let event_presentation = ElectionEventPresentation::default();
         let event_bytes = borsh::to_vec(&event_presentation).unwrap();
         let event_with_results = ElectionEventPresentation {
             results_website: Some("enabled".to_string()),
-            ..event_presentation
+            ..event_presentation.clone()
         };
         assert_eq!(borsh::to_vec(&event_with_results).unwrap(), event_bytes);
+        let event_with_batch_policy = ElectionEventPresentation {
+            batch_anonymity_policy: Some(BatchAnonymityPolicy::REFUSE),
+            ..event_presentation
+        };
+        assert_eq!(
+            borsh::to_vec(&event_with_batch_policy).unwrap(),
+            event_bytes
+        );
 
         let event_with_accessibility = ElectionEventPresentation {
             voter_accessibility_settings_policy: Some(
@@ -3771,6 +3874,17 @@ mod presentation_borsh_compat_tests {
             ..election_presentation
         };
         assert_eq!(borsh::to_vec(&election_with_css).unwrap(), election_bytes);
+    }
+
+    #[test]
+    fn ballot_tracker_policy_does_not_change_borsh_bytes() {
+        let event_bytes =
+            borsh::to_vec(&ElectionEventPresentation::default()).unwrap();
+        let event_with_policy = ElectionEventPresentation {
+            ballot_tracker_policy: Some(BallotTrackerPolicy::ALLOW_LEGACY),
+            ..ElectionEventPresentation::default()
+        };
+        assert_eq!(borsh::to_vec(&event_with_policy).unwrap(), event_bytes);
     }
 }
 

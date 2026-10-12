@@ -568,3 +568,135 @@ async fn a_built_in_permission_cannot_be_deleted() {
         );
     }
 }
+
+const RESERVED_NAMES: [&str; 5] = [
+    "admin",
+    "service-account",
+    "datafix-account",
+    "super-admin-user",
+    "cli-account-admin",
+];
+
+fn tenant_event() -> Event {
+    Event {
+        tenant_id: "00000000-0000-4000-8000-00000000000a".into(),
+        election_event_id: "00000000-0000-4000-8000-00000000000e".into(),
+    }
+}
+
+/// A permission named after a role the platform keeps for itself can't be
+/// created, assigned or set on a new role; Keycloak is never asked.
+#[rocket::async_test]
+async fn reserved_permission_names_are_refused_before_keycloak() {
+    let event = tenant_event();
+    for name in RESERVED_NAMES {
+        let peer = HttpServer::start(vec![]);
+        let services =
+            Services::without_database().with_identity(keycloak(&peer));
+        let client = services.client().await;
+        let cases = [
+            (
+                "/create-permission",
+                vec![Permissions::USER_PERMISSION_CREATE],
+                json!({"tenant_id": event.tenant_id, "permission": {"name": name}}),
+            ),
+            (
+                "/set-role-permission",
+                vec![
+                    Permissions::USER_PERMISSION_WRITE,
+                    Permissions::ROLE_WRITE,
+                ],
+                body(&event, name),
+            ),
+            (
+                "/create-role",
+                vec![Permissions::ROLE_CREATE],
+                json!({"tenant_id": event.tenant_id, "role": {
+                    "name": "Clerks", "permissions": ["role-read", name],
+                }}),
+            ),
+        ];
+        for (path, roles, request) in cases {
+            let caller = Claims::new(&event.tenant_id, EDITOR_ID).roles(roles);
+
+            let (status, message) =
+                text(post(&client, path, &caller, &request).await).await;
+
+            assert_eq!(status, Status::BadRequest, "{path} {name}");
+            assert!(message.contains(name), "{path}: {message}");
+        }
+        assert!(peer.finish().is_empty(), "{name} reached Keycloak");
+    }
+}
+
+/// Other names are still assigned to a role and set on a new one.
+#[rocket::async_test]
+async fn ordinary_permission_names_are_still_accepted() {
+    let event = tenant_event();
+    let peer = HttpServer::start(vec![
+        permission(&event, "election-event-read"),
+        mapping(&event, "POST", 204),
+        Exchange::json("POST", &realm_path(&event, "/groups"), 201, json!({})),
+        Exchange::json(
+            "GET",
+            &realm_path(&event, "/groups"),
+            200,
+            json!([{"id": ROLE_ID, "name": "Clerks"}]),
+        ),
+        permission(&event, "role-read"),
+        mapping(&event, "POST", 204),
+    ]);
+    let services = Services::without_database().with_identity(keycloak(&peer));
+    let client = services.client().await;
+    let cases = [
+        (
+            "/set-role-permission",
+            vec![Permissions::USER_PERMISSION_WRITE, Permissions::ROLE_WRITE],
+            body(&event, "election-event-read"),
+        ),
+        (
+            "/create-role",
+            vec![Permissions::ROLE_CREATE],
+            json!({"tenant_id": event.tenant_id, "role": {
+                "name": "Clerks", "permissions": ["role-read"],
+            }}),
+        ),
+    ];
+    for (path, roles, request) in cases {
+        let caller = Claims::new(&event.tenant_id, EDITOR_ID).roles(roles);
+
+        let (status, answer) =
+            json(post(&client, path, &caller, &request).await).await;
+
+        assert_eq!(status, Status::Ok, "{path}: {answer}");
+    }
+    peer.finish();
+}
+
+/// A reserved permission a role already holds can still be taken off it.
+#[rocket::async_test]
+async fn a_reserved_permission_can_still_be_removed_from_a_role() {
+    let event = tenant_event();
+    let peer = HttpServer::start(vec![
+        permission(&event, "service-account"),
+        mapping(&event, "DELETE", 204),
+    ]);
+    let services = Services::without_database().with_identity(keycloak(&peer));
+    let client = services.client().await;
+    let caller = Claims::new(&event.tenant_id, EDITOR_ID)
+        .roles([Permissions::USER_PERMISSION_WRITE, Permissions::ROLE_WRITE]);
+
+    let (status, answer) = json(
+        post(
+            &client,
+            "/delete-role-permission",
+            &caller,
+            &body(&event, "service-account"),
+        )
+        .await,
+    )
+    .await;
+
+    assert_eq!(status, Status::Ok, "{answer}");
+    peer.finish();
+}

@@ -57,6 +57,8 @@ pub struct AuditQuery {
     /// Preserve event-wide entries alongside the selected election or areas.
     pub election_id: Option<String>,
     pub area_ids: Vec<String>,
+    /// Server-derived election permissions; an empty list keeps event-wide rows only.
+    pub permitted_election_ids: Option<Vec<String>>,
     pub only_with_user: bool,
     pub scoped: bool,
     /// `true` for descending, `false` for ascending.
@@ -121,6 +123,12 @@ impl AuditQuery {
                 "((election_id IS NULL OR election_id='') AND (area_id IS NULL OR area_id='')))",
             );
         }
+        if let Some(permitted) = &self.permitted_election_ids {
+            query
+                .push(" AND (election_id IS NULL OR election_id='' OR election_id=ANY(")
+                .push_bind(permitted)
+                .push("))");
+        }
         if self.only_with_user {
             query.push(" AND user_id IS NOT NULL AND user_id<>''");
         }
@@ -183,5 +191,41 @@ impl From<super::audit_types::WhereClauseBTreeMap> for AuditQuery {
                 .collect(),
             ..Self::default()
         }
+    }
+}
+
+#[cfg(test)]
+mod permission_tests {
+    use super::*;
+    use sqlx::Execute;
+
+    #[test]
+    fn permission_scope_is_bound_and_keeps_event_wide_rows() {
+        let query = AuditQuery {
+            election_id: Some("north".into()),
+            permitted_election_ids: Some(vec!["north".into(), "south' OR TRUE".into()]),
+            ..Default::default()
+        };
+        for count in [true, false] {
+            let mut builder = query.build("board", count).unwrap();
+            let sql = builder.build().sql().to_owned();
+            assert!(
+                sql.contains(" AND (election_id IS NULL OR election_id='' OR election_id=ANY($3))")
+            );
+            assert!(!sql.contains("south"));
+        }
+    }
+
+    #[test]
+    fn empty_permission_scope_allows_only_event_wide_rows() {
+        let query = AuditQuery {
+            permitted_election_ids: Some(vec![]),
+            ..Default::default()
+        };
+        let mut builder = query.build("board", true).unwrap();
+        assert!(builder
+            .build()
+            .sql()
+            .contains(" AND (election_id IS NULL OR election_id='' OR election_id=ANY($2))"));
     }
 }

@@ -623,6 +623,13 @@ pub struct VoterCastVoteState {
     pub has_valid_vote: bool,
 }
 
+impl VoterCastVoteState {
+    /// The voter has a ballot the tally will count or is still resolving.
+    pub fn has_active_vote(&self) -> bool {
+        self.has_unresolved_vote || self.has_valid_vote
+    }
+}
+
 /// Computes `VoterCastVoteState` for the voter in a single round-trip.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_voter_cast_vote_state(

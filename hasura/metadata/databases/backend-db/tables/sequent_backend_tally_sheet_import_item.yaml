@@ -2,6 +2,17 @@ table:
     name: tally_sheet_import_item
     schema: sequent_backend
 object_relationships:
+    - name: election
+      using:
+          manual_configuration:
+              column_mapping:
+                  election_event_id: election_event_id
+                  election_id: id
+                  tenant_id: tenant_id
+              insertion_order: null
+              remote_table:
+                  name: election
+                  schema: sequent_backend
     - name: generated_tally_sheet
       using:
           foreign_key_constraint_on:
@@ -40,8 +51,15 @@ select_permissions:
               - tenant_id
               - validation_warnings
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
@@ -100,8 +118,15 @@ select_permissions:
               - tenant_id
               - validation_warnings
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
       role: tally-sheet-import-view
     - comment: ""
       permission:
@@ -131,8 +156,15 @@ select_permissions:
               - tenant_id
               - validation_warnings
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
       role: tally-sheet-import-create
     - comment: ""
       permission:
@@ -162,6 +194,13 @@ select_permissions:
               - tenant_id
               - validation_warnings
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
       role: tally-sheet-import-review

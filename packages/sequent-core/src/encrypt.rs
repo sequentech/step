@@ -8,7 +8,7 @@ use crate::ballot_codec::PlaintextCodec;
 use crate::error::BallotError;
 use crate::multi_ballot::{
     AuditableMultiBallot, AuditableMultiBallotContests, HashableMultiBallot,
-    RawHashableMultiBallot,
+    HashableMultiBallotContests, RawHashableMultiBallot,
 };
 use crate::plaintext::map_decoded_ballot_choices_to_decoded_contests;
 use crate::plaintext::DecodedVoteContest;
@@ -487,10 +487,26 @@ pub fn hash_ballot_style(
 pub fn hash_ballot_sha512(
     hashable_ballot: &HashableBallot,
 ) -> AnyhowResult<Hash> {
-    let raw_hashable_ballot = RawHashableBallot::try_from(hashable_ballot)
-        .map_err(|error| anyhow!("{error:?}"))?;
-
-    let bytes = raw_hashable_ballot.ser();
+    let bytes = match hashable_ballot.version {
+        LEGACY_TYPES_VERSION => RawHashableBallot::try_from(hashable_ballot)
+            .map_err(|error| anyhow!("{error:?}"))?
+            .ser(),
+        TYPES_VERSION => StyleBoundHashableBallot {
+            version: hashable_ballot.version,
+            format: ContestEncryptionPolicy::SINGLE_CONTEST,
+            issue_date: hashable_ballot.issue_date.clone(),
+            config: hashable_ballot.config.clone(),
+            ballot_style_hash: hashable_ballot.ballot_style_hash.clone(),
+            contests: hashable_ballot
+                .deserialize_contests()
+                .map_err(|error| anyhow!("{error:?}"))?
+                .iter()
+                .map(Serializable::ser)
+                .collect::<Vec<_>>(),
+        }
+        .record_serialize()?,
+        version => return Err(anyhow!("Unexpected ballot version {version}")),
+    };
     hash::hash_to_array(&bytes)
 }
 
@@ -597,10 +613,26 @@ pub fn hash_multi_ballot(
 pub fn hash_multi_ballot_sha512(
     hashable_ballot: &HashableMultiBallot,
 ) -> AnyhowResult<Hash> {
-    let raw_hashable_ballot = RawHashableMultiBallot::try_from(hashable_ballot)
-        .map_err(|error| anyhow!("{error:?}"))?;
-
-    let bytes = raw_hashable_ballot.ser();
+    let bytes = match hashable_ballot.version {
+        LEGACY_TYPES_VERSION => {
+            RawHashableMultiBallot::try_from(hashable_ballot)
+                .map_err(|error| anyhow!("{error:?}"))?
+                .ser()
+        }
+        TYPES_VERSION => StyleBoundHashableBallot {
+            version: hashable_ballot.version,
+            format: ContestEncryptionPolicy::MULTIPLE_CONTESTS,
+            issue_date: hashable_ballot.issue_date.clone(),
+            config: hashable_ballot.config.clone(),
+            ballot_style_hash: hashable_ballot.ballot_style_hash.clone(),
+            contests: hashable_ballot
+                .deserialize_contests()
+                .map_err(|error| anyhow!("{error:?}"))?
+                .ser(),
+        }
+        .record_serialize()?,
+        version => return Err(anyhow!("Unexpected ballot version {version}")),
+    };
     hash::hash_to_array(&bytes)
 }
 
@@ -781,6 +813,232 @@ mod tests {
                 &invalid_candidate_ids,
             )
         );
+    }
+
+    mod ballot_tracker {
+        use crate::ballot::BallotStyle;
+        use crate::ballot::{
+            AuditableBallot, HashableBallot, HashableBallotContest,
+            PublicKeyConfig, RawHashableBallot, SignedHashableBallot,
+            LEGACY_TYPES_VERSION, TYPES_VERSION,
+        };
+        use crate::encrypt::{
+            encrypt_decoded_contest, encrypt_decoded_multi_contest,
+        };
+        use crate::encrypt::{
+            hash_ballot, hash_ballot_style, hash_multi_ballot, shorten_hash,
+        };
+        use crate::fixtures::ballot_codec::{
+            get_test_contest, get_test_decoded_vote_contest,
+            get_writein_ballot_style,
+        };
+        use crate::multi_ballot::{
+            AuditableMultiBallot, HashableMultiBallot,
+            HashableMultiBallotContests, RawHashableMultiBallot,
+        };
+        use cryptography::context::RistrettoCtx;
+        use cryptography::utils::serialization::Serializable;
+        use voting_crypto::hash::hash_to_array;
+
+        /// A plurality contest with three candidates under a ballot style
+        /// that carries a public key, so both codecs can encrypt it.
+        fn ballot_style() -> BallotStyle {
+            BallotStyle {
+                contests: vec![get_test_contest()],
+                ..get_writein_ballot_style()
+            }
+        }
+
+        fn single_ballot() -> AuditableBallot {
+            encrypt_decoded_contest(
+                &RistrettoCtx,
+                &vec![get_test_decoded_vote_contest()],
+                &ballot_style(),
+            )
+            .unwrap()
+        }
+
+        fn multi_ballot() -> AuditableMultiBallot {
+            encrypt_decoded_multi_contest(
+                &RistrettoCtx,
+                &vec![get_test_decoded_vote_contest()],
+                &ballot_style(),
+            )
+            .unwrap()
+        }
+
+        fn single_tracker(ballot: &AuditableBallot) -> String {
+            let signed = SignedHashableBallot::try_from(ballot).unwrap();
+            hash_ballot(&HashableBallot::try_from(&signed).unwrap()).unwrap()
+        }
+
+        fn multi_tracker(ballot: &AuditableMultiBallot) -> String {
+            hash_multi_ballot(&HashableMultiBallot::try_from(ballot).unwrap())
+                .unwrap()
+        }
+
+        fn other_public_key() -> Option<PublicKeyConfig> {
+            Some(PublicKeyConfig {
+                public_key: "4M8lEfQGWg8DtBIxXJrIYNKvsAx2RKEj8+Y1pncbH1U"
+                    .to_string(),
+                is_demo: false,
+                keys_ceremony_id: None,
+                configuration_id: None,
+            })
+        }
+
+        fn short_hash_hex(bytes: &[u8]) -> String {
+            hex::encode(shorten_hash(&hash_to_array(bytes).unwrap()))
+        }
+
+        #[test]
+        fn single_ballot_tracker_matches_its_own_ballot_style() {
+            let ballot = single_ballot();
+
+            assert_eq!(single_tracker(&ballot), ballot.ballot_hash);
+        }
+
+        #[test]
+        fn single_ballot_tracker_covers_the_public_key() {
+            let ballot = single_ballot();
+            let mut other_key = ballot.clone();
+            other_key.config.public_key = other_public_key();
+
+            assert_ne!(single_tracker(&other_key), ballot.ballot_hash);
+        }
+
+        #[test]
+        fn single_ballot_tracker_covers_the_candidate_order() {
+            let ballot = single_ballot();
+            let mut reordered = ballot.clone();
+            reordered.config.contests[0].candidates.reverse();
+
+            assert_ne!(single_tracker(&reordered), ballot.ballot_hash);
+        }
+
+        #[test]
+        fn single_ballot_tracker_covers_the_election() {
+            let ballot = single_ballot();
+            let mut other_election = ballot.clone();
+            other_election.config.election_id = "other-election".to_string();
+
+            assert_ne!(single_tracker(&other_election), ballot.ballot_hash);
+        }
+
+        #[test]
+        fn multi_ballot_tracker_covers_the_public_key() {
+            let ballot = multi_ballot();
+            let mut other_key = ballot.clone();
+            other_key.config.public_key = other_public_key();
+
+            assert_eq!(multi_tracker(&ballot), ballot.ballot_hash);
+            assert_ne!(multi_tracker(&other_key), ballot.ballot_hash);
+        }
+
+        #[test]
+        fn multi_ballot_tracker_covers_the_candidate_order() {
+            let ballot = multi_ballot();
+            let mut reordered = ballot.clone();
+            reordered.config.contests[0].candidates.reverse();
+
+            assert_ne!(multi_tracker(&reordered), ballot.ballot_hash);
+        }
+
+        /// A one-contest single ballot and a multi ballot over the same
+        /// contest, ciphertext and proof must not share a tracker.
+        #[test]
+        fn single_and_multi_ballot_trackers_differ() {
+            let ballot = single_ballot();
+            let contest = ballot.deserialize_contests().unwrap().remove(0);
+            let config = ballot.config.id.clone();
+            let ballot_style_hash = hash_ballot_style(&ballot_style()).unwrap();
+
+            let single = HashableBallot {
+                version: TYPES_VERSION,
+                issue_date: ballot.issue_date.clone(),
+                contests: HashableBallot::serialize_contests(&vec![
+                    HashableBallotContest {
+                        contest_ids: vec![contest.contest_id.clone()],
+                        ciphertext: contest.choice.ciphertext.clone(),
+                    },
+                ])
+                .unwrap(),
+                config: config.clone(),
+                ballot_style_hash: ballot_style_hash.clone(),
+            };
+            let multi = HashableMultiBallot {
+                version: TYPES_VERSION,
+                issue_date: ballot.issue_date.clone(),
+                contests: HashableMultiBallot::serialize_contests(
+                    &HashableMultiBallotContests {
+                        contest_ids: vec![contest.contest_id.clone()],
+                        ciphertext: contest.choice.ciphertext.clone(),
+                    },
+                )
+                .unwrap(),
+                config,
+                ballot_style_hash,
+            };
+
+            assert_ne!(
+                hash_ballot(&single).unwrap(),
+                hash_multi_ballot(&multi).unwrap()
+            );
+        }
+
+        /// Ballots cast before the tracker covered the ballot style keep the
+        /// tracker they were cast with.
+        #[test]
+        fn legacy_single_ballot_keeps_its_tracker() {
+            let mut ballot = single_ballot();
+            ballot.version = LEGACY_TYPES_VERSION;
+            let signed = SignedHashableBallot::try_from(&ballot).unwrap();
+            let hashable = HashableBallot::try_from(&signed).unwrap();
+            let raw = RawHashableBallot::try_from(&hashable).unwrap();
+
+            assert_eq!(hashable.version, LEGACY_TYPES_VERSION);
+            assert_eq!(
+                hash_ballot(&hashable).unwrap(),
+                short_hash_hex(&raw.ser())
+            );
+        }
+
+        #[test]
+        fn legacy_multi_ballot_keeps_its_tracker() {
+            let mut ballot = multi_ballot();
+            ballot.version = LEGACY_TYPES_VERSION;
+            let hashable = HashableMultiBallot::try_from(&ballot).unwrap();
+            let raw = RawHashableMultiBallot::try_from(&hashable).unwrap();
+
+            assert_eq!(hashable.version, LEGACY_TYPES_VERSION);
+            assert_eq!(
+                hash_multi_ballot(&hashable).unwrap(),
+                short_hash_hex(&raw.ser())
+            );
+        }
+
+        #[test]
+        fn unknown_ballot_version_is_rejected() {
+            let mut single = single_ballot();
+            single.version = 99;
+            let mut multi = multi_ballot();
+            multi.version = 99;
+
+            assert!(SignedHashableBallot::try_from(&single).is_err());
+            assert!(HashableMultiBallot::try_from(&multi).is_err());
+
+            let mut hashable_single = HashableBallot::try_from(
+                &SignedHashableBallot::try_from(&single_ballot()).unwrap(),
+            )
+            .unwrap();
+            hashable_single.version = 99;
+            let mut hashable_multi =
+                HashableMultiBallot::try_from(&multi_ballot()).unwrap();
+            hashable_multi.version = 99;
+
+            assert!(hash_ballot(&hashable_single).is_err());
+            assert!(hash_multi_ballot(&hashable_multi).is_err());
+        }
     }
 
     /*

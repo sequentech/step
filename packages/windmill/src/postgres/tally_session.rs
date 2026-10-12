@@ -251,6 +251,24 @@ pub async fn get_tally_session_by_id(
     election_event_id: &str,
     tally_session_id: &str,
 ) -> Result<TallySession> {
+    get_tally_session_by_id_if_exist(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+    )
+    .await?
+    .ok_or(anyhow!("Tally Session {tally_session_id} not found"))
+}
+
+/// The tally session, or `None` when the event has no session with that id.
+#[instrument(err, skip(hasura_transaction))]
+pub async fn get_tally_session_by_id_if_exist(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+) -> Result<Option<TallySession>> {
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -285,10 +303,7 @@ pub async fn get_tally_session_by_id(
         })
         .collect::<Result<Vec<TallySession>>>()?;
 
-    elements
-        .get(0)
-        .map(|tally_session: &TallySession| tally_session.clone())
-        .ok_or(anyhow!("Tally Session {tally_session_id} not found"))
+    Ok(elements.into_iter().next())
 }
 
 /// The tally session, with its row locked until the surrounding transaction

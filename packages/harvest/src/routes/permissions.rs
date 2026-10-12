@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::access::{deletable_permission, RolePermissionEdit};
-use crate::services::authorization::authorize;
+use crate::services::authorization::{authorize, require_ordinary_permission};
 use crate::services::dependencies::HarvestServices;
 use crate::services::role_permissions::change_role_permission;
 
@@ -14,6 +14,7 @@ use rocket::serde::json::Json;
 use rocket::State;
 use sequent_core::services::jwt;
 use sequent_core::services::keycloak::get_tenant_realm;
+use sequent_core::services::keycloak::validate_keycloak_scope;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::keycloak::Permission;
 use sequent_core::types::permissions::Permissions;
@@ -36,6 +37,8 @@ pub async fn get_permissions(
     body: Json<GetPermissionsBody>,
 ) -> Result<Json<DataList<Permission>>, (Status, String)> {
     let input = body.into_inner();
+    validate_keycloak_scope(&input.tenant_id, None)
+        .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
         &claims,
         true,
@@ -73,12 +76,17 @@ pub async fn create_permission(
     body: Json<CreatePermissionsBody>,
 ) -> Result<Json<Permission>, (Status, String)> {
     let input = body.into_inner();
+    validate_keycloak_scope(&input.tenant_id, None)
+        .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
         &claims,
         true,
         Some(input.tenant_id.clone()),
         vec![Permissions::USER_PERMISSION_CREATE],
     )?;
+    if let Some(name) = &input.permission.name {
+        require_ordinary_permission(name)?;
+    }
     let realm = get_tenant_realm(&input.tenant_id);
     let client = KeycloakAdminClient::new()
         .await
@@ -138,6 +146,8 @@ async fn edit_role_permission(
     input: SetOrDeleteRolePermissionsBody,
     change: RolePermissionChange,
 ) -> Result<Json<OptionalId>, (Status, String)> {
+    validate_keycloak_scope(&input.tenant_id, None)
+        .map_err(|error| (Status::BadRequest, error.to_string()))?;
     let holds_user_permission_write = claims
         .hasura_claims
         .allowed_roles
@@ -147,6 +157,12 @@ async fn edit_role_permission(
         holds_user_permission_write,
     );
     authorize(claims, true, Some(input.tenant_id.clone()), edit.required())?;
+    match change {
+        RolePermissionChange::Added => {
+            require_ordinary_permission(&input.permission_name)?
+        }
+        RolePermissionChange::Removed => {}
+    }
     change_role_permission(
         services,
         claims,
@@ -173,6 +189,8 @@ pub async fn delete_permission(
     body: Json<DeletePermissionBody>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
+    validate_keycloak_scope(&input.tenant_id, None)
+        .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
         &claims,
         true,

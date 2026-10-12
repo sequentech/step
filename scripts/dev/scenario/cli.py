@@ -78,10 +78,13 @@ def _context(output: OutputFormat) -> Context:
     )
 
 
-def _backend(context: Context, timeout: float | None) -> StackBackend:
+def _backend(
+    context: Context, timeout: float | None, scenario: Scenario | None = None
+) -> StackBackend:
     (context.store.directory / LOG_DIRECTORY).mkdir(parents=True, exist_ok=True)
     os.environ.update(context.environment)
     # The journeys' clients read their endpoints from the environment on import.
+    from . import tenants
     from .backend import StackBackend
 
     return StackBackend(
@@ -91,6 +94,8 @@ def _backend(context: Context, timeout: float | None) -> StackBackend:
         context.store.directory,
         context.say,
         timeout,
+        # A scenario of an organization with its own tenant runs there.
+        tenants.find(scenario.tenant) if scenario is not None else None,
     )
 
 
@@ -175,7 +180,7 @@ def _prepare(
 def command_up(
     context: Context, scenario: Scenario, timeout: float | None, step_cli: str | None
 ) -> int:
-    backend = _backend(context, timeout)
+    backend = _backend(context, timeout, scenario)
     try:
         _prepare(context, backend, scenario, step_cli)
         context.say(f"scenario {scenario.name}: {scenario.summary}")
@@ -219,7 +224,7 @@ def command_reset(
     if context.store.load(scenario.name) is None:
         outcome = runner.ResetOutcome.NOTHING
     else:
-        backend = _backend(context, timeout)
+        backend = _backend(context, timeout, scenario)
         try:
             _prepare(context, backend, None, step_cli)
             outcome = runner.reset(scenario, backend, context.store, context.say)
@@ -246,7 +251,6 @@ def _status_entry(
 
 
 def command_status(context: Context, scenarios: Sequence[Scenario]) -> int:
-    backend = None
     entries: dict[str, dict[str, Any]] = {}
     for scenario in scenarios:
         state = context.store.load(scenario.name)
@@ -255,11 +259,16 @@ def command_status(context: Context, scenarios: Sequence[Scenario]) -> int:
             report = StatusReport(Progress.ABSENT)
         else:
             try:
-                backend = backend or _backend(context, None)
+                # Each scenario's own backend: it may run in another tenant.
+                backend = _backend(context, None, scenario)
                 report = runner.status(scenario, backend, context.store)
             except (OSError, AssertionError) as failure:
                 report = StatusReport(Progress.INCOMPLETE, state)
                 error = f"backend unreachable: {failure}"
+            except ScenarioError as failure:
+                # The scenario's tenant is gone.
+                report = StatusReport(Progress.INCOMPLETE, state)
+                error = str(failure)
         entries[scenario.name] = _status_entry(context, scenario, report, error)
     if context.output is OutputFormat.JSON:
         print(
@@ -275,16 +284,21 @@ def command_status(context: Context, scenarios: Sequence[Scenario]) -> int:
             detail += f" (next: {entry['next']})"
         if entry["unverified"]:
             detail += f" ({entry['unverified']})"
-        context.say(f"  {name:<20}{entry['state']:<12}{detail}")
+        context.say(f"  {name:<{NAME_WIDTH}}{entry['state']:<12}{detail}")
     return EXIT_OK
+
+
+# Wide enough for the longest scenario name, so names never run into the text.
+NAME_WIDTH = max(20, max(len(scenario.name) for scenario in SCENARIOS) + 2)
 
 
 def command_list() -> int:
     for scenario in SCENARIOS:
-        print(f"{scenario.name:<20}{scenario.summary}")
+        print(f"{scenario.name:<{NAME_WIDTH}}{scenario.summary}")
         stages = ", ".join(STAGE_DESCRIPTIONS[stage] for stage in scenario.stages)
-        print(f"{'':<20}stages  {stages}")
-        print(f"{'':<20}links   {', '.join(link.value for link in scenario.links)}")
+        print(f"{'':<{NAME_WIDTH}}stages  {stages}")
+        links = ", ".join(link.value for link in scenario.links)
+        print(f"{'':<{NAME_WIDTH}}links   {links}")
         print()
     return EXIT_OK
 

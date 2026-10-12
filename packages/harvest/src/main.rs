@@ -66,7 +66,8 @@ fn build_application() -> rocket::Rocket<rocket::Build> {
 fn build_application_with(
     services: HarvestServices,
 ) -> rocket::Rocket<rocket::Build> {
-    rocket::build()
+    let fake_provider_routes = services.messaging_fake_provider_routes;
+    let rocket = rocket::build()
         .register(
             "/",
             catchers![
@@ -165,18 +166,22 @@ fn build_application_with(
                 routes::messaging::create_messenger_link,
                 routes::messaging::messenger_link_status,
                 routes::messaging::confirm_messenger_link,
-                routes::messaging::meta_webhook_subscription,
-                routes::messaging::meta_webhook,
-                routes::messaging::viber_webhook,
-                routes::messaging::aws_webhook,
-                routes::messaging::http_webhook,
-                routes::messaging::http_webhook_query,
+                routes::messaging::messaging_callbacks,
                 routes::messaging::upsert_messaging_account,
                 routes::messaging::delete_messaging_account,
                 routes::messaging::replace_messaging_account_credentials,
                 routes::messaging::check_messaging_account,
+                routes::messaging::messaging_account_callback_url,
+                routes::messaging::messaging_account_change_impact,
+                routes::messaging::messaging_callback_status,
                 routes::messaging::test_messaging_account,
                 routes::messaging::update_event_messaging_config,
+                routes::messaging_insights::messaging_event_stats,
+                routes::messaging_insights::messaging_audience_preview,
+                routes::messaging_insights::messaging_voter_counts,
+                routes::messaging_insights::messaging_recount_voters,
+                routes::messaging_insights::messaging_monthly_volumes,
+                routes::messaging_insights::find_by_support_reference,
                 routes::upload_document::get_upload_url,
                 routes::keys_ceremony::create_keys_ceremony,
                 routes::keys_ceremony::get_private_key,
@@ -250,6 +255,7 @@ fn build_application_with(
                 routes::set_voter_authentication::set_voter_authentication,
                 routes::export_tally_results::export_tally_results_route,
                 routes::google_meet::generate_google_meeting,
+                routes::google_meet::set_google_service_account_key,
                 routes::generate_preview_url::generate_preview_url,
                 routes::import_certificate_authority::import_certificate_authority,
                 routes::delete_certificate_authority::delete_certificate_authority_route,
@@ -284,5 +290,7 @@ fn build_application_with(
         )
         .mount("/", routes![routes::plugins::plugin_routes])
         .manage(LastDatafixAccessToken::init())
-        .manage(services)
+        .manage(services);
+    // Only with MESSAGING_FAKE_PROVIDER_ROUTES=ENABLED (development).
+    routes::fake_provider::mount(rocket, fake_provider_routes)
 }

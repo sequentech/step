@@ -16,7 +16,15 @@ import {AdminStoryProvider, EVENT_ID, graphqlBoundary} from "@/__stories__/Admin
 import {eventPresentation, eventRecord} from "@/__stories__/fixtures"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {ElectionEventTabs} from "./ElectionEventTabs"
-import {answerOrPending, readsOf, recordsOrPending} from "./__stories__/ElectionEventFixture"
+import {
+    answerOrPending,
+    paramsOf,
+    readsOf,
+    recordsOrPending,
+} from "./__stories__/ElectionEventFixture"
+import {logsFilterSearch} from "@/components/logs/messagingLogFilters"
+import {EMessageChannel} from "@/types/messaging"
+import {IPermissions} from "@/types/keycloak"
 import {jsonEditorDefects} from "./__stories__/IvrFixture"
 import {legacyMonitoring} from "@/components/monitoring/__stories__/MonitoringFixture"
 import {EStoryPermissions, useStoryGlobals} from "../../../../ui-essentials/.storybook/globals"
@@ -128,7 +136,12 @@ const meta = {
         graphql = graphqlBoundary(answerOrPending(legacyMonitoring()), {
             schema: true,
             // The header's list for signers: the schema has no signing types yet.
-            unvalidated: ["GetWaitingSigningRequests", "SigningEventInfo"],
+            unvalidated: [
+                "GetWaitingSigningRequests",
+                "SigningEventInfo",
+                "GetMessagingCallbackStatus",
+                "GetEventMessagingConfigAuthor",
+            ],
         })
         // The dashboard builds the voting portal addresses with sequent-core.
         await Promise.all([graphql.ready, initCore()])
@@ -383,7 +396,7 @@ export const Messaging: Story = {
     play: tabPlay("Messaging", {
         text: /^The channels voters of this event can choose for codes and notices/,
         reads: ["getList sequent_backend_election"],
-        operations: ["GetMessagingAccounts", "GetMessageDeliveryStats"],
+        operations: ["GetMessagingAccounts", "GetEventMessagingConfig", "GetMessagingEventStats"],
     }),
 }
 
@@ -510,6 +523,53 @@ export const Logs: Story = {
         text: "General logs of the main and IAM databases",
         reads: ["getList electoral_log"],
     }),
+}
+
+/**
+ * The event tab's Failed count links here: Logs opens filtered to the
+ * channel's failed messages, and the list's first read already carries the
+ * filter (it isn't wiped when the list mounts).
+ */
+export const FailedMessagesLinkedFromMessaging: Story = {
+    parameters: {
+        router: {
+            path: "/sequent_backend_election_event/:id/*",
+            initialEntries: [
+                `/sequent_backend_election_event/${EVENT_ID}${logsFilterSearch(EMessageChannel.SMS)}`,
+            ],
+        },
+        widgets: ["LogsTab"],
+    },
+    play: async ({canvasElement}) => {
+        const tab = await within(canvasElement).findByRole("tab", {name: "Logs"})
+        await waitFor(() => expect(tab).toHaveAttribute("aria-selected", "true"))
+        await waitFor(() => expect(readsOf(data)).toContain("getList electoral_log"), {
+            timeout: LAZY_LOAD_MS,
+        })
+        const params = paramsOf(data, "getList", "electoral_log") as {
+            filter?: Record<string, unknown>
+        }
+        expect(params.filter).toMatchObject({
+            statement_kind: "SendCommunications",
+            channel: EMessageChannel.SMS,
+            outcome: "FAILED",
+        })
+    },
+}
+
+/** With messaging-config-write alone, the tab shows and says reading needs the read role. */
+export const MessagingForAWriteOnlyUser: Story = {
+    args: {roles: [IPermissions.MESSAGING_CONFIG_WRITE]},
+    parameters: {widgets: ["MessagingTab"]},
+    play: async ({canvasElement}) => {
+        expect(await tabNames(canvasElement)).toContain("Messaging")
+        await openTab(canvasElement, "Messaging")
+        await expect(
+            await within(canvasElement).findByText(
+                "Reading these settings needs the messaging-config-read permission."
+            )
+        ).toBeVisible()
+    },
 }
 
 export const ScheduledEvents: Story = {

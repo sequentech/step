@@ -16,6 +16,7 @@ members = [
     "windmill",
     "wrap-map-err",
     "messaging",
+    "messaging-webhooks",
     "step-cli",
     "e2e/src/mock_server",
     "e2e",

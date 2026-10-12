@@ -114,6 +114,25 @@ async fn board_delivery_is_atomic_idempotent_and_rebuilds_its_query_index() {
     filter.area_ids.clear();
     assert_eq!(client.count_query(&board, Some(&filter)).await.unwrap(), 1);
     filter = AuditQuery {
+        permitted_election_ids: Some(vec!["election-a".into()]),
+        ..Default::default()
+    };
+    assert_eq!(client.count_query(&board, Some(&filter)).await.unwrap(), 6);
+    assert!(client
+        .query_messages(&board, &filter)
+        .await
+        .unwrap()
+        .iter()
+        .all(|row| row
+            .election_id
+            .as_deref()
+            .is_none_or(|id| id == "election-a")));
+    filter.permitted_election_ids = Some(vec![]);
+    assert_eq!(client.count_query(&board, Some(&filter)).await.unwrap(), 5);
+    filter.permitted_election_ids = Some(vec!["' OR TRUE --".into()]);
+    assert_eq!(client.count_query(&board, Some(&filter)).await.unwrap(), 5);
+
+    filter = AuditQuery {
         predicates: vec![AuditPredicate {
             column: AuditColumn::StatementTimestamp,
             operator: Op::GreaterThanOrEqual,

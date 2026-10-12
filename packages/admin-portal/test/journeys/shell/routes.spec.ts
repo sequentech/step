@@ -175,18 +175,6 @@ export const SMOKE: Record<string, Smoke> = {
             await cell(page, "PUBLISHED")
         },
     },
-    "/sequent_backend_ballot_style/create": {
-        url: "/sequent_backend_ballot_style/create",
-        shows: (page) => text(page, "Ballot Style creation"),
-    },
-    "/sequent_backend_ballot_style/:id": {
-        url: `/sequent_backend_ballot_style/${SHELL_IDS.ballotStyle}`,
-        shows: async (page) => {
-            await text(page, "Ballot Style configuration")
-            await text(page, SHELL_IDS.ballotStyle)
-        },
-        checkConsole: true,
-    },
     "/sequent_backend_area": {
         url: "/sequent_backend_area",
         shows: async (page) => {

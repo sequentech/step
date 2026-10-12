@@ -107,7 +107,7 @@ export function useProfileForm(params: {
     return {kcContext, i18n, attributes, locked, values, toggles, filters, setValues, setFilter}
 }
 
-function optionLabel(attribute: Attribute, option: string, i18n: I18n): string {
+export function optionLabel(attribute: Attribute, option: string, i18n: I18n): string {
     const labels = attribute.annotations.inputOptionLabels
     if (labels !== undefined) return i18n.advancedMsgStr(labels[option] ?? option)
     const prefix = attribute.annotations.inputOptionLabelsI18nPrefix
