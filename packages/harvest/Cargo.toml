@@ -65,3 +65,5 @@ sha2 = "0.10"
 keycloak = "24.0"
 # The test PKI of the signing certificate routes.
 openssl = "0.10"
+# Signs the bearer tokens of the route tests.
+jsonwebtoken = { version = "10.3", features = ["aws_lc_rs"] }

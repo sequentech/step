@@ -190,7 +190,9 @@ update_permissions:
       role: admin-user
     - comment: ""
       permission:
-          check: null
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
           columns:
               - created_by
               - event_processor
