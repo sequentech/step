@@ -7,6 +7,11 @@ import {render} from "@testing-library/react"
 import {MemoryRouter, Route, Routes} from "react-router-dom"
 import {PortalChrome} from "./PortalChrome"
 
+jest.mock("../../../ui-essentials/src/components/Header/Header", () => ({
+    __esModule: true,
+    default: () => null,
+}))
+
 jest.mock("react-i18next", () => ({
     useTranslation: () => ({t: (key: string) => key, i18n: {language: "en"}}),
 }))
@@ -21,7 +26,9 @@ jest.mock(
 )
 jest.mock("@sequentech/ui-essentials/public/Sequent_logo.svg", () => "logo", {virtual: true})
 jest.mock("@sequentech/ui-essentials/public/blank_logo.svg", () => "logo", {virtual: true})
+jest.mock("keycloak-js", () => ({__esModule: true, default: jest.fn()}))
 jest.mock("../providers/AuthContextProvider", () => ({
+    ...jest.requireActual("../providers/AuthContextProvider"),
     AuthContext: require("react").createContext({
         isAuthenticated: true,
         getExpiry: () => undefined,
@@ -29,6 +36,14 @@ jest.mock("../providers/AuthContextProvider", () => ({
 }))
 jest.mock("../providers/SettingsContextProvider", () => ({
     SettingsContext: require("react").createContext({globalSettings: {DISABLE_AUTH: false}}),
+}))
+jest.mock("../../../ui-essentials/src/components/Footer/Footer", () => ({
+    __esModule: true,
+    default: () => null,
+}))
+jest.mock("../../../ui-essentials/src/components/PageBanner/PageBanner", () => ({
+    __esModule: true,
+    default: ({children}: React.PropsWithChildren) => <main>{children}</main>,
 }))
 jest.mock("./WaterMark/Watermark", () => ({__esModule: true, default: () => null}))
 jest.mock("./ScreenAudioInstructions/ScreenAudioInstructions", () => ({

@@ -24,8 +24,18 @@ const SERVER_ASSIGNED_COLUMNS = [
     "status",
 ]
 const pendingTenantFilter = {
-    status: {_eq: "PENDING"},
-    tenant_id: {_eq: "X-Hasura-Tenant-Id"},
+    _and: [
+        {status: {_eq: "PENDING"}},
+        {tenant_id: {_eq: "X-Hasura-Tenant-Id"}},
+        {
+            election: {
+                _or: [
+                    {permission_label: {_is_null: true}},
+                    {permission_label: {_in: "X-Hasura-Permission-Labels"}},
+                ],
+            },
+        },
+    ],
 }
 
 const clientPermissions = (operation) =>

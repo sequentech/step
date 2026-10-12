@@ -155,6 +155,28 @@ beforeEach(() => {
 afterEach(() => jest.restoreAllMocks())
 
 describe("comparing the audited ballot style with the published one", () => {
+    it("checks the original signed ballot while displaying the published presentation", async () => {
+        const single = singleContestBallot()
+        const published = {
+            ...single,
+            ballot: {
+                ...single.ballot,
+                config: {...single.ballot.config, description: "Published presentation"},
+            },
+        }
+        recordSequentCore(single)
+        const {lastReported} = renderImportStep(published)
+
+        await importFile(JSON.stringify(single.ballot))
+
+        await expectAccepted("audited-ballot.json")
+        expect(sequentCore.hash_auditable_ballot_js).toHaveBeenCalledWith(single.ballot)
+        expect(sequentCore.verify_ballot_signature_js).toHaveBeenCalledWith(
+            single.ballotId, single.ballot.config.election_id, single.ballot
+        )
+        expect(lastReported()).toEqual({...confirmationOf(single), election_config: published.ballot.config})
+    })
+
     it("rejects a ballot whose ballot style carries another public key", async () => {
         const single = singleContestBallot()
         const forged = {
