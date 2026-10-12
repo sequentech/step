@@ -11,6 +11,8 @@ import {S3Mock} from "@sequentech/ui-test-kit/mocks/s3"
 import {ViolationLog} from "@sequentech/ui-test-kit/mocks/violations"
 import {FIXED_TIME, IDS, electionFixture} from "@sequentech/ui-test-kit/fixtures"
 
+const PUBLICATION_ID = "00000000-0000-4000-8000-0000000000b1"
+
 const directory = resolve(__dirname, "../..")
 export const eventPath = `/tenant/${IDS.tenant}/event/${IDS.event}/start?lang=en`
 export const realm = `tenant-${IDS.tenant}-event-${IDS.event}`
@@ -46,7 +48,21 @@ export async function routeVerifier(context: BrowserContext, portal: PortalServi
     return unroute
 }
 
-export function verifierServices(origin: string): PortalServices {
+export interface PublishedBallotStyle {
+    id: string
+    tenant_id: string
+    election_event_id: string
+    election_id: string
+    area_id: string
+}
+
+export interface VerifierServices extends PortalServices {
+    /** Ballot styles of the published publication that GetBallotStyles returns. */
+    publishedStyles: PublishedBallotStyle[]
+}
+
+export function verifierServices(origin: string): VerifierServices {
+    const publishedStyles: PublishedBallotStyle[] = []
     const violations = new ViolationLog()
     const s3 = new S3Mock({origin, violations})
     const graphql = new GraphQLMock({
@@ -79,9 +95,32 @@ export function verifierServices(origin: string): PortalServices {
         const token = headers.authorization?.replace(/^Bearer /, "")
         if (!token || !oidc.verifyAccessToken(token))
             violations.add("Verifier did not send an issued bearer token")
-        return {data: {sequent_backend_ballot_publication: [], sequent_backend_ballot_style: []}}
+        return {
+            data: {
+                sequent_backend_ballot_publication: publishedStyles.length
+                    ? [{id: PUBLICATION_ID, published_at: FIXED_TIME}]
+                    : [],
+                sequent_backend_ballot_style: publishedStyles.map((style) => ({
+                    id: style.id,
+                    ballot_publication_id: PUBLICATION_ID,
+                    election_id: style.election_id,
+                    election_event_id: style.election_event_id,
+                    status: null,
+                    tenant_id: style.tenant_id,
+                    ballot_eml: JSON.stringify(style),
+                    ballot_signature: null,
+                    created_at: FIXED_TIME,
+                    area_id: style.area_id,
+                    annotations: {},
+                    labels: {},
+                    last_updated_at: FIXED_TIME,
+                    deleted_at: null,
+                })),
+            },
+        }
     })
     return {
+        publishedStyles,
         origin,
         violations,
         s3,
@@ -102,7 +141,7 @@ export function verifierServices(origin: string): PortalServices {
     }
 }
 export const test = base.extend<
-    {portal: PortalServices},
+    {portal: VerifierServices},
     {dist: Awaited<ReturnType<typeof serveDist>>}
 >({
     dist: [

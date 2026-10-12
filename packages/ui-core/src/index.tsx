@@ -20,6 +20,7 @@ export * from "./services/WasmContext"
 export {
     stringToHtml,
     stringToText,
+    escapeHtml,
     escapeTranslationValues,
     translateHtml,
 } from "./services/stringToHtml"
@@ -52,6 +53,7 @@ export * from "./services/translationScopes"
 export * from "./services/timeZones"
 export * from "./types/ScheduledOutcome"
 export * from "./services/sanitizeFilename"
+export * from "./services/sanitizePresentationCss"
 export * from "./types/AreaPresentation"
 export * from "./services/candidatePresentation"
 export * from "./services/categoryService"

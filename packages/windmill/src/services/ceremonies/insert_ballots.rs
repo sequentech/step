@@ -6,22 +6,29 @@ use crate::postgres::area::get_event_areas;
 use crate::postgres::cast_vote::count_unresolved_cast_votes;
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::tally_session_contest::get_other_sessions_tally_session_contests;
 use crate::postgres::trustee::get_trustees_by_name;
 use crate::services::cast_votes::{find_area_ballots, CastVote};
 use crate::services::celery_app::get_worker_threads;
+use crate::services::ceremonies::batch_anonymity::{
+    enforce_batch_anonymity, session_divergences, small_batch, PostedBatch,
+};
 use crate::services::ceremonies::sealed_box_ballots::{
     check_sealed_boxes_tallied, sealed_box_ballots, sealed_elections, SealedBox, SealedBoxLog,
 };
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::election::{get_election_event_elections, ElectionHead};
 use crate::services::join::merge_join_csv;
+use crate::services::join::read_valid_ballot_voter_ids;
 use crate::services::join::{MergeJoinResult, MultiplicitySource};
 use crate::services::protocol_manager::*;
 use crate::services::public_keys::deserialize_public_key;
 use crate::services::users::{
     list_keycloak_enabled_users_by_area_id_and_authorized_elections, VoterMultiplicityColumn,
 };
-use crate::services::weight_batches::{reconcile_batch, weight_batch_offsets, BatchReconciliation};
+use crate::services::weight_batches::{
+    contest_weight_batches, reconcile_batch, weight_batch_offsets, BatchReconciliation,
+};
 use anyhow::{anyhow, Context, Result};
 use b4::messages::artifact::Ballots;
 use b4::messages::message::Message;
@@ -37,8 +44,8 @@ use chrono::{DateTime, Utc};
 use csv::WriterBuilder;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{
-    ContestEncryptionPolicy, DelegatedVotingPolicy, ElectionPresentation, HashableBallot,
-    WeightedVotingPolicy,
+    BatchAnonymityPolicy, ContestEncryptionPolicy, DelegatedVotingPolicy, ElectionPresentation,
+    HashableBallot, WeightedVotingPolicy,
 };
 use sequent_core::multi_ballot::HashableMultiBallot;
 use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
@@ -50,11 +57,10 @@ use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::{
     TallySession, TallySessionContest, TallySessionContestAnnotations,
 };
-use sequent_core::types::keycloak::{
-    MAX_TOTAL_VOTE_WEIGHT, MIN_WEIGHT_BATCH_ANONYMITY, VOTE_WEIGHT_BATCHES,
-};
+use sequent_core::types::keycloak::{MAX_TOTAL_VOTE_WEIGHT, VOTE_WEIGHT_BATCHES};
 use serde_json::json;
 use std::collections::{HashMap, HashSet};
+use std::fs::File;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::elgamal::Ciphertext;
 use strand::serialization::StrandDeserialize;
@@ -168,6 +174,19 @@ pub async fn sealed_boxes_for_execution(
     Ok(Some(sealed_boxes))
 }
 
+/// The voters of the ballots CSV (voter id in column 0, cast-vote status in
+/// column 3) whose valid ballot replaces their delegation. Only the delegate
+/// count depends on them.
+fn voters_replacing_their_delegation(
+    multiplicity_column: VoterMultiplicityColumn,
+    ballots_file: &File,
+) -> Result<Vec<String>> {
+    match multiplicity_column {
+        VoterMultiplicityColumn::DelegateCount => read_valid_ballot_voter_ids(ballots_file, 0, 3),
+        VoterMultiplicityColumn::VoteWeight | VoterMultiplicityColumn::None => Ok(Vec::new()),
+    }
+}
+
 #[instrument(skip_all, err)]
 pub async fn insert_ballots_messages(
     hasura_transaction: &Transaction<'_>,
@@ -181,6 +200,7 @@ pub async fn insert_ballots_messages(
     delegated_voting_policy: DelegatedVotingPolicy,
     weighted_voting_policy: WeightedVotingPolicy,
     tally_session: &TallySession,
+    batch_anonymity_policy: BatchAnonymityPolicy,
 ) -> Result<Vec<TallySessionContest>> {
     // A delegate's ballot has no defined weighted semantics, so refuse rather
     // than silently computing weight * (1 + delegate_count). This is a backstop:
@@ -273,6 +293,7 @@ pub async fn insert_ballots_messages(
             let sealed_boxes_clone = sealed_boxes.clone();
             let weighted_voting_policy_clone = weighted_voting_policy.clone();
             let contest_encryption_policy_clone = contest_encryption_policy.clone();
+            let batch_anonymity_policy_clone = batch_anonymity_policy.clone();
             let realm_clone = realm.clone();
             let board_messages_clone = Arc::clone(&board_messages); // board_messages also needs to be cloned if it's not Sync + Send
             let multiplicity_column = if delegated_voting_policy == DelegatedVotingPolicy::ENABLED {
@@ -393,6 +414,12 @@ pub async fn insert_ballots_messages(
                             )
                             .await?;
 
+                            // A delegator's own valid ballot replaces their delegation.
+                            let voters_with_valid_ballot = voters_replacing_their_delegation(
+                                multiplicity_column,
+                                &ballots_temp_file.reopen()?,
+                            )?;
+
                             let ballots_temp_file = ballots_temp_file.reopen()?;
 
                             // Create a temporary file (auto-deleted when dropped)
@@ -420,6 +447,7 @@ pub async fn insert_ballots_messages(
                                 &election_alias,
                                 &users_temp_file.path().to_path_buf(),
                                 multiplicity_column,
+                                &voters_with_valid_ballot,
                             )
                             .await?;
 
@@ -574,6 +602,7 @@ pub async fn insert_ballots_messages(
                         // fills only the first.
                         let mut batches: Vec<Vec<Ciphertext<RistrettoCtx>>> =
                             vec![Vec::new(); VOTE_WEIGHT_BATCHES as usize];
+                        let mut batch_voters: Vec<usize> = vec![0; VOTE_WEIGHT_BATCHES as usize];
                         for (ballot_str, multiplicity) in merge_result.ballot_contents {
                             let ciphertext: Ciphertext<RistrettoCtx> =
                                 if ContestEncryptionPolicy::MULTIPLE_CONTESTS
@@ -611,14 +640,37 @@ pub async fn insert_ballots_messages(
                                 // board shows no repetition to read a weight off.
                                 for bit in weight_batch_offsets(multiplicity)? {
                                     batches[bit as usize].push(ciphertext.clone());
+                                    batch_voters[bit as usize] += 1;
                                 }
                             } else {
                                 // Delegated voting still repeats within the one
                                 // batch, exactly as it did before weighting.
                                 batches[0]
                                     .extend(std::iter::repeat_n(ciphertext, multiplicity as usize));
+                                batch_voters[0] += 1;
                             }
                         }
+
+                        // Like the reconciliation below, decided before
+                        // anything is appended to the board.
+                        let mut anonymity_issues: Vec<_> = batch_voters
+                            .iter()
+                            .enumerate()
+                            .filter_map(|(bit, voters)| small_batch(bit as u32, *voters))
+                            .collect();
+                        let posted_elsewhere = posted_by_other_sessions(
+                            &hasura_transaction_clone,
+                            &tally_session_contest,
+                            &board_messages_clone,
+                        )
+                        .await?;
+                        anonymity_issues.extend(session_divergences(&batches, &posted_elsewhere));
+                        enforce_batch_anonymity(
+                            &batch_anonymity_policy_clone,
+                            &tally_session_contest.election_id,
+                            &tally_session_contest.area_id,
+                            &anonymity_issues,
+                        )?;
 
                         // Reconcile against the board before appending
                         // anything to it. A run that is going to refuse must not
@@ -707,34 +759,6 @@ pub async fn insert_ballots_messages(
                                 ciphertexts.len(),
                                 bit
                             );
-                            // The mix hides a ballot among the others in its
-                            // batch, and a batch this small has few others, so
-                            // its decrypted votes are close to individually
-                            // attributable. This is one way a voter can be
-                            // isolated, not the only one -- comparing two
-                            // batches whose memberships differ by one voter
-                            // exposes that voter however large both are -- so a
-                            // silent run is not evidence of the opposite. Not a
-                            // refusal: the dump runs after voting has closed,
-                            // where refusing would leave no remedy, and this
-                            // policy already publishes the weights.
-                            if is_voter_weighted
-                                && !ciphertexts.is_empty()
-                                && ciphertexts.len() < MIN_WEIGHT_BATCH_ANONYMITY
-                            {
-                                event!(
-                                    Level::WARN,
-                                    "Weight batch offset {} for election {} area {} holds only \
-                                     {} ballot(s), so its decrypted votes are close to \
-                                     individually attributable to the voters whose weight sets \
-                                     bit {}",
-                                    bit,
-                                    tally_session_contest.election_id,
-                                    tally_session_contest.area_id,
-                                    ciphertexts.len(),
-                                    bit
-                                );
-                            }
                             add_ballots_to_board(
                                 &protocol_manager_arc_clone, // Use the Arc clone here
                                 &mut board,
@@ -766,6 +790,40 @@ pub async fn insert_ballots_messages(
     }
 
     Ok(tally_session_contests_updated)
+}
+
+/// The Ballots batches other tally sessions have posted on the board for the
+/// same election, area and contest.
+async fn posted_by_other_sessions(
+    hasura_transaction: &Transaction<'_>,
+    tally_session_contest: &TallySessionContest,
+    board_messages: &[Message],
+) -> Result<Vec<PostedBatch>> {
+    let mut posted = Vec::new();
+    for other in
+        get_other_sessions_tally_session_contests(hasura_transaction, tally_session_contest).await?
+    {
+        for (batch, _) in contest_weight_batches(&other)? {
+            let Some(ciphertexts) = board_messages
+                .iter()
+                .find(|message| {
+                    message.statement.get_batch_number() as i64 == batch
+                        && StatementType::Ballots == message.statement.get_kind()
+                })
+                .and_then(|message| message.artifact.as_deref())
+                .and_then(|artifact| Ballots::<RistrettoCtx>::strand_deserialize(artifact).ok())
+                .map(|ballots| ballots.ciphertexts.0)
+            else {
+                continue;
+            };
+            posted.push(PostedBatch {
+                tally_session_id: other.tally_session_id.clone(),
+                offset: u32::try_from(batch - other.session_id as i64)?,
+                ciphertexts,
+            });
+        }
+    }
+    Ok(posted)
 }
 
 #[instrument(skip_all, err)]
@@ -807,8 +865,49 @@ pub async fn get_elections_end_dates(
 
 #[cfg(test)]
 mod tests {
-    use super::election_voter_authorization_aliases;
+    use super::{election_voter_authorization_aliases, voters_replacing_their_delegation};
+    use crate::services::users::VoterMultiplicityColumn;
     use std::collections::HashMap;
+    use std::io::Write;
+
+    fn ballots_file() -> tempfile::NamedTempFile {
+        let mut ballots = tempfile::NamedTempFile::new().unwrap();
+        writeln!(
+            ballots,
+            "alice,content-a,ONLINE,valid,10000000-0000-4000-8000-000000000001\n\
+             bob,content-b,ONLINE,discarded,10000000-0000-4000-8000-000000000002"
+        )
+        .unwrap();
+        ballots.flush().unwrap();
+        ballots
+    }
+
+    #[test]
+    fn only_the_delegate_count_reads_the_voters_with_a_valid_ballot() {
+        let ballots = ballots_file();
+        let voters =
+            |column| voters_replacing_their_delegation(column, &ballots.reopen().unwrap()).unwrap();
+
+        assert_eq!(
+            voters(VoterMultiplicityColumn::DelegateCount),
+            vec!["alice".to_string()]
+        );
+        assert!(voters(VoterMultiplicityColumn::VoteWeight).is_empty());
+        assert!(voters(VoterMultiplicityColumn::None).is_empty());
+    }
+
+    #[test]
+    fn a_ballots_file_without_the_status_column_is_an_error() {
+        let mut ballots = tempfile::NamedTempFile::new().unwrap();
+        writeln!(ballots, "alice,content-a").unwrap();
+        ballots.flush().unwrap();
+
+        assert!(voters_replacing_their_delegation(
+            VoterMultiplicityColumn::DelegateCount,
+            &ballots.reopen().unwrap()
+        )
+        .is_err());
+    }
 
     #[test]
     fn election_authorization_alias_uses_the_election_id_without_an_external_id() {

@@ -15,6 +15,9 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::ballot_box_key::ballot_box_key_for_publication;
+use crate::services::ceremonies::keys_ceremony::{
+    verify_keys_ceremony_public_key, CeremonyPublicKeyState,
+};
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_public_event_document;
 use crate::services::election_dates::get_election_dates;
@@ -366,6 +369,31 @@ async fn generate_election_event_ballot_styles(
         &contests_map.values().cloned().collect::<Vec<Contest>>(),
         &candidates_map.values().cloned().collect::<Vec<Candidate>>(),
     )?;
+    let mut verified_keys_ceremonies = HashSet::new();
+    for election_id in ballot_publication.election_ids.iter().flatten() {
+        let Some(keys_ceremony) = elections_map
+            .get(election_id)
+            .and_then(|election| election.keys_ceremony_id.as_ref())
+            .and_then(|keys_ceremony_id| keys_ceremonies_map.get(keys_ceremony_id))
+        else {
+            continue;
+        };
+        if verified_keys_ceremonies.insert(keys_ceremony.id.clone())
+            && verify_keys_ceremony_public_key(
+                &transaction,
+                tenant_id,
+                election_event_id,
+                keys_ceremony,
+            )
+            .await?
+                == CeremonyPublicKeyState::NotOnBoard
+        {
+            return Err(anyhow!(
+                "Keys ceremony {} reports a public key that is not on its board",
+                keys_ceremony.id
+            ));
+        }
+    }
 
     let basic_areas = areas.iter().map(|area| area.into()).collect();
     let areas_tree = TreeNode::from_areas(basic_areas)?;

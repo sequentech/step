@@ -399,9 +399,13 @@ const galegoTranslation: TranslationType = {
             common: {
                 gapiKey: "Clave de Conta de Servizo de Google Calendar",
                 gapiEmail: "Correo de Autenticación de Google Calendar",
+                gapiKeyHelper:
+                    "A clave gardada non se amosa. Pegue unha clave nova para substituíla.",
+                gapiKeySaved: "Clave de Conta de Servizo de Google Calendar gardada",
             },
             errors: {
                 invalidGapiKey: "Formato de Clave de Conta de Servizo de Google Calendar inválido",
+                saveGapiKey: "Non se puido gardar a Clave de Conta de Servizo de Google Calendar",
             },
         },
         lookAndFeelScreen: {
@@ -944,6 +948,15 @@ const galegoTranslation: TranslationType = {
                     options: {
                         enabled: "Activado",
                         disabled: "Desactivado",
+                    },
+                },
+                batchAnonymityPolicy: {
+                    policyLabel: "Política de Anonimato de Lotes",
+                    helperText:
+                        "Rexeitar detén o escrutinio cando o lote de papeletas dunha área ten menos de cinco votantes, ou difire do lote que outro escrutinio xa publicou para a mesma área e concurso.",
+                    options: {
+                        warn: "Advertir",
+                        refuse: "Rexeitar",
                     },
                 },
                 languageDetectionPolicy: {
