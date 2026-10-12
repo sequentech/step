@@ -19,7 +19,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -70,9 +69,9 @@ public class Utils {
   private static final String USER_ID = "userId";
 
   /**
-   * Notes that only Keycloak sets: the code and its state, what a code verified and the
-   * verification outcome. A submitted form field with one of these names must not become a note, or
-   * it could plant a code or a verified contact.
+   * Notes that only Keycloak sets: the code and its state, what a code verified, the verification
+   * outcome, the stored field list and the matched user. A submitted form field with one of these
+   * names must not become a note, or it could plant a code, a verified contact or another voter.
    */
   private static final Set<String> RESERVED_NOTES =
       Stream.concat(
@@ -82,17 +81,22 @@ public class Utils {
                   sequent.keycloak.authenticator.Utils.CODE_TTL,
                   sequent.keycloak.authenticator.Utils.CODE_ATTEMPTS,
                   sequent.keycloak.authenticator.Utils.OTL_VISITED,
-                  "Email verified",
-                  "verificationCompleted",
-                  "verificationStatus",
-                  "verificationRejectionReason",
-                  "verificationMismatchedFields",
-                  "fields_match",
-                  KEYS_USERDATA))
+                  sequent.keycloak.authenticator.Utils.EMAIL_VERIFIED,
+                  LookupAndUpdateUser.VERIFICATION_COMPLETED,
+                  LookupAndUpdateUser.VERIFICATION_STATUS,
+                  LookupAndUpdateUser.VERIFICATION_REJECTION_REASON,
+                  LookupAndUpdateUser.VERIFICATION_MISMATCHED_FIELDS,
+                  LookupAndUpdateUser.FIELDS_MATCH,
+                  KEYS_USERDATA,
+                  USER_ID))
           .collect(Collectors.toUnmodifiableSet());
 
+  /**
+   * Whether a submitted form field is stored as a note and listed in {@link #KEYS_USERDATA}: its
+   * name is not reserved and does not contain the list separator.
+   */
   static boolean isFormNote(String key) {
-    return !RESERVED_NOTES.contains(key);
+    return !RESERVED_NOTES.contains(key) && !key.contains(KEYS_USERDATA_SEPARATOR);
   }
 
   String escapeJson(String value) {
@@ -136,25 +140,33 @@ public class Utils {
     // Lookup user by attributes using form data
     UserModel user = Utils.lookupUserByFormData(context, searchAttributesList, formData);
 
+    Map<Boolean, List<String>> fieldsByStored =
+        formData.keySet().stream().collect(Collectors.partitioningBy(Utils::isFormNote));
+    List<String> storedFields = fieldsByStored.get(true);
+    List<String> ignoredFields = fieldsByStored.get(false);
+
     // We store each key
-    String keys = Utils.serializeUserdataKeys(formData.keySet());
+    String keys = Utils.serializeUserdataKeys(storedFields);
 
     log.debug(
         "storeUserDataInAuthSessionNotes: setAuthNote(" + Utils.KEYS_USERDATA + ", " + keys + ")");
     sessionModel.setAuthNote(Utils.KEYS_USERDATA, keys);
 
-    formData.forEach(
-        (key, value) -> {
-          if (!isFormNote(key)) {
-            log.warnv("storeUserDataInAuthSessionNotes: ignoring reserved field {0}", key);
-            return;
-          }
+    storedFields.forEach(
+        key -> {
           String values = Utils.serializeUserdataKeys(formData.get(key));
           log.debug("storeUserDataInAuthSessionNotes: setAuthNote(" + key + ")");
           sessionModel.setAuthNote(key, values);
         });
+    if (!ignoredFields.isEmpty()) {
+      log.warnv("storeUserDataInAuthSessionNotes: ignoring fields {0}", ignoredFields);
+    }
 
-    sessionModel.setAuthNote(USER_ID, user.getId());
+    if (user != null) {
+      sessionModel.setAuthNote(USER_ID, user.getId());
+    } else {
+      sessionModel.removeAuthNote(USER_ID);
+    }
   }
 
   /** We retrieve the user data stored in the session notes and create a new user in this realm. */
@@ -228,22 +240,37 @@ public class Utils {
     KeycloakSession session = context.getSession();
     RealmModel realm = context.getRealm();
 
-    Map<String, String> firstValueFormData =
-        formData.entrySet().stream()
-            .filter(e -> attributes.contains(e.getKey()))
-            .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().get(0).trim()));
+    if (attributes.isEmpty()) {
+      return null;
+    }
 
-    Stream<UserModel> userStream = session.users().searchForUserStream(realm, firstValueFormData);
+    Map<String, String> searchValues = new HashMap<>();
+    for (String attribute : attributes) {
+      String value = formData.getFirst(attribute);
+      if (value == null || value.isBlank()) {
+        log.infov("lookupUserByFormData(): search attribute {0} was not provided", attribute);
+        return null;
+      }
+      searchValues.put(attribute, value.trim());
+    }
+    searchValues.put(UserModel.EXACT, Boolean.TRUE.toString());
 
-    // Return the first user that matches all attributes, if any
-    Optional<UserModel> userOptional = userStream.findFirst();
-    return userOptional.orElse(null);
+    List<UserModel> users =
+        session
+            .users()
+            .searchForUserStream(realm, searchValues)
+            .limit(2)
+            .collect(Collectors.toList());
+
+    if (users.size() != 1) {
+      log.infov("lookupUserByFormData(): {0} users matched the search attributes", users.size());
+      return null;
+    }
+    return users.get(0);
   }
 
   private static String serializeUserdataKeys(Collection<String> keys, String separator) {
-    final StringBuilder key = new StringBuilder();
-    keys.forEach((s -> key.append(separator).append(s)));
-    return key.deleteCharAt(0).toString();
+    return String.join(separator, keys);
   }
 
   private static String serializeUserdataKeys(Collection<String> keys) {
@@ -251,7 +278,7 @@ public class Utils {
   }
 
   private static List<String> deserializeUserdataKeys(String key, String separator) {
-    if (key == null) {
+    if (key == null || key.isEmpty()) {
       return Collections.emptyList();
     }
     return List.of(key.split(separator));
