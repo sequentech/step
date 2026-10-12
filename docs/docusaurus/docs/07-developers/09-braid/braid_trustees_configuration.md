@@ -12,6 +12,22 @@ This document provides a comprehensive guide to configuring Braid Trustees, whic
 
 Braid Trustees are containerized services that handle key generation, management, and cryptographic operations during elections. Each trustee holds a share of the election's private key, ensuring that no single entity can decrypt votes without cooperation from other trustees.
 
+## Bulletin board authentication
+
+Windmill provisions each board's signed configuration through its trusted database
+connection. The b4 bulletin board accepts messages only after verifying a
+configured member's signature, configuration hash, and attached artifact hash;
+it cannot bootstrap or replace a board configuration. Windmill independently
+anchors board reads to the protocol-manager key stored in Vault. Election keys
+require matching statements from every configured trustee, and tally results
+wait for matching statements from the selected decryption trustees.
+
+Existing boards retain their wire format and trustee credentials. Before resuming
+a board that fails verification, operators must inspect and quarantine invalid
+rows against the original Vault key; replacing that trust anchor is not a repair.
+Keep database access limited to trusted services and the configured network rules
+around the board endpoint.
+
 ## Configuration Options
 
 ### Environment Variables
@@ -134,6 +150,10 @@ The generated configuration will be:
 3. **Access Control**: Limit access to trustee configuration and secrets to authorized personnel only.
 
 4. **Key Storage**: The trustee's cryptographic keys are critical. Ensure proper backup and access control procedures.
+
+## Upgrading Trustees
+
+Each keys ceremony records its key generation rules in the configuration of its board. A keys ceremony created after a platform upgrade can use rules that earlier trustee builds cannot read, and those trustees cannot take part in it. Upgrade every trustee before creating a new keys ceremony. Keys ceremonies created before the upgrade keep their rules and continue to work with upgraded trustees.
 
 ## Troubleshooting
 

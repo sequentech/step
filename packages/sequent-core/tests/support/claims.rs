@@ -2,16 +2,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Synthetic JWT claims, as the identity gateway forwards them once it has
-//! verified a token. The payload is unsigned, so these fixtures exercise the
-//! authorization decisions after that boundary, not signature verification.
+//! Synthetic JWT claims. [`Claims::bearer`] signs them with the public test key
+//! of [`signing`], so the request guards accept them only after verifying the
+//! signature, expiry and issuer, as they do for real tokens.
 //!
 //! Claims are built as JSON and parsed through the public claims schema, so a
 //! renamed or newly required claim breaks every fixture that relies on it.
 
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use sequent_core::services::jwt::JwtClaims;
 use serde_json::{json, Value};
+
+#[path = "signing.rs"]
+pub mod signing;
 
 const HASURA_CLAIMS: &str = "https://hasura.io/jwt/claims";
 
@@ -21,8 +23,8 @@ impl Claims {
     /// An admin portal identity in `tenant_id` that holds no roles.
     pub fn new(tenant_id: &str, user_id: &str) -> Self {
         Self(json!({
-            "exp": 2_000_000_000, "iat": 1_900_000_000,
-            "jti": "synthetic", "iss": "https://identity.invalid", "sub": user_id,
+            "exp": signing::EXPIRY, "iat": 1_900_000_000,
+            "jti": "synthetic", "iss": signing::issuer_of(tenant_id), "sub": user_id,
             "typ": "Bearer", "azp": "admin-portal", "acr": "1", "allowed-origins": [],
             "scope": "openid", "email_verified": false,
             HASURA_CLAIMS: {
@@ -94,7 +96,6 @@ impl Claims {
 
     /// The Authorization header value carrying these claims.
     pub fn bearer(&self) -> String {
-        let payload = serde_json::to_vec(&self.0).unwrap();
-        format!("Bearer fixture.{}.fixture", URL_SAFE_NO_PAD.encode(payload))
+        format!("Bearer {}", signing::token(&self.0))
     }
 }
