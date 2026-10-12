@@ -421,6 +421,7 @@ select_permissions:
     - comment: ""
       permission:
           columns:
+              - annotations
               - audit_election_event_id
               - bulletin_board_reference
               - created_at
@@ -446,7 +447,6 @@ select_permissions:
     - comment: ""
       permission:
           columns:
-              - annotations
               - audit_election_event_id
               - bulletin_board_reference
               - created_at
