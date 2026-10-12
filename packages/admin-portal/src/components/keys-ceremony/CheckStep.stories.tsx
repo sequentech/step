@@ -144,7 +144,7 @@ const checkCall = async (key: string, signingRequestId?: string) => ({
         privateKeyBase64: key,
         ...(signingRequestId ? {signingRequestId} : {keyShareSha256: await sha256(key)}),
     },
-    headers: {},
+    headers: {"x-hasura-role": "trustee-ceremony"},
 })
 
 export const Populated: Story = {

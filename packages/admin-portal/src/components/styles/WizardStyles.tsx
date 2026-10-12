@@ -21,7 +21,11 @@ interface CustomToolbarProps {
 // Try to mimic the react-admin v3 toolbar
 export const CustomToolbar = ({children, ...props}: CustomToolbarProps) => (
     <WizardStyles.Paper elevation={2}>
-        <Toolbar {...props}>{children}</Toolbar>
+        {/* A fixed mobile toolbar is clipped by the sticky wizard Paper. Keep
+            it in the Paper's flow so the footer owns its height. */}
+        <Toolbar {...props} sx={{"&.RaToolbar-mobileToolbar": {position: "static"}}}>
+            {children}
+        </Toolbar>
     </WizardStyles.Paper>
 )
 
@@ -39,6 +43,7 @@ export const WizardStyles = {
     Paper: styled(Paper)`
         bottom: 0;
         position: sticky;
+        z-index: 1;
         clip-path: inset(-10px -10px 0px -10px);
     `,
     Toolbar: styled(CustomToolbar as any)`
@@ -51,10 +56,16 @@ export const WizardStyles = {
         background-color: ${({theme}) => theme.palette.white};
         color: ${({theme}) => theme.palette.brandColor};
         padding: 0px 4rem;
+        ${({theme}) => theme.breakpoints.down("sm")} {
+            padding: 0 1rem;
+        }
     `,
     NextButton: styled(Button)`
         margin-left: auto;
         padding: 0px 4rem;
+        ${({theme}) => theme.breakpoints.down("sm")} {
+            padding: 0 1rem;
+        }
     `,
     DownloadButton: styled(Button)`
         width: fit-content;

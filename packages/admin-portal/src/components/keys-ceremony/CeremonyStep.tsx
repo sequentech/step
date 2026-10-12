@@ -8,6 +8,7 @@ import {useTranslation} from "react-i18next"
 
 import {theme, Dialog} from "@sequentech/ui-essentials"
 import {
+    hasGeneratedCeremonyKeys,
     IKeysCeremonyExecutionStatus as EStatus,
     IKeysCeremonyTrusteeStatus as TStatus,
     IExecutionStatus,
@@ -19,7 +20,8 @@ import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline"
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty"
-import {Accordion, AccordionSummary, Typography} from "@mui/material"
+import {Accordion, AccordionSummary, Alert, Typography} from "@mui/material"
+import {getContrastRatio} from "@mui/material/styles"
 import Table from "@mui/material/Table"
 import TableBody from "@mui/material/TableBody"
 import TableCell from "@mui/material/TableCell"
@@ -49,11 +51,15 @@ export const statusColor: (status: EStatus) => string = (status) => {
     }
 }
 
-const trusteeStepIcon = (status: TStatus, pending: Array<TStatus>) => {
+const trusteeStepIcon = (status: TStatus, pending: Array<TStatus>, label: string) => {
     if (status === TStatus.HALTED) {
-        return <WizardStyles.HaltedIcon />
+        return <WizardStyles.HaltedIcon titleAccess={label} />
     }
-    return pending.includes(status) ? <HourglassEmptyIcon /> : <WizardStyles.DoneIcon />
+    return pending.includes(status) ? (
+        <HourglassEmptyIcon titleAccess={label} />
+    ) : (
+        <WizardStyles.DoneIcon titleAccess={label} />
+    )
 }
 
 export interface CeremonyStepProps {
@@ -99,6 +105,21 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
         [ceremony?.status?.trustees]
     )
 
+    const stepIcon = (trusteeStatus: TStatus, pending: TStatus[]) =>
+        trusteeStepIcon(
+            trusteeStatus,
+            pending,
+            String(
+                t(
+                    trusteeStatus === TStatus.HALTED
+                        ? "keysGeneration.ceremonyStep.halted"
+                        : pending.includes(trusteeStatus)
+                          ? "keysGeneration.ceremonyStep.waiting"
+                          : "keysGeneration.ceremonyStep.complete"
+                )
+            )
+        )
+
     const confirmCancelCeremony = () => {}
 
     const status: IExecutionStatus = ceremony?.status
@@ -111,13 +132,18 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     return (
         <WizardStyles.WizardContainer>
             <WizardStyles.ContentWrapper>
-                {!status?.public_key && message}
+                {(!status || !hasGeneratedCeremonyKeys(status)) && message}
+                {status?.failure && <Alert severity="error">{status.failure}</Alert>}
                 <Accordion
                     sx={{width: "100%"}}
                     expanded={progressExpanded}
                     onChange={() => setProgressExpanded(!progressExpanded)}
                 >
-                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                    <AccordionSummary
+                        id={`${currentCeremonyId}-progress-heading`}
+                        aria-controls={`${currentCeremonyId}-progress-content`}
+                        expandIcon={<ExpandMoreIcon />}
+                    >
                         <WizardStyles.AccordionTitle>
                             {t("keysGeneration.ceremonyStep.progressHeader")}
                         </WizardStyles.AccordionTitle>
@@ -127,7 +153,16 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                     (ceremony?.execution_status as EStatus) ??
                                         EStatus.USER_CONFIGURATION
                                 ),
-                                color: theme.palette.background.default,
+                                color:
+                                    getContrastRatio(
+                                        statusColor(
+                                            (ceremony?.execution_status as EStatus) ??
+                                                EStatus.USER_CONFIGURATION
+                                        ),
+                                        theme.palette.common.white
+                                    ) >= 4.5
+                                        ? theme.palette.common.white
+                                        : theme.palette.common.black,
                             }}
                             className="keys-ceremony-status"
                             label={String(
@@ -171,7 +206,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                     {orderedTrustees?.map((trustee) => {
                                         return (
                                             <TableRow
-                                                key={trustee.name as any}
+                                                key={trustee.name}
                                                 sx={{
                                                     "&:last-child td, &:last-child th": {border: 0},
                                                 }}
@@ -180,21 +215,24 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                                     {trustee.name}
                                                 </TableCell>
                                                 <TableCell align="center">
-                                                    {trusteeStepIcon(trustee.status, [
+                                                    {stepIcon(trustee.status, [
                                                         TStatus.WAITING,
+                                                        TStatus.SHARES_POSTED,
                                                     ])}
                                                 </TableCell>
                                                 {!isAutomaticCeremony && (
                                                     <>
                                                         <TableCell align="center">
-                                                            {trusteeStepIcon(trustee.status, [
+                                                            {stepIcon(trustee.status, [
                                                                 TStatus.WAITING,
+                                                                TStatus.SHARES_POSTED,
                                                                 TStatus.KEY_GENERATED,
                                                             ])}
                                                         </TableCell>
                                                         <TableCell align="center">
-                                                            {trusteeStepIcon(trustee.status, [
+                                                            {stepIcon(trustee.status, [
                                                                 TStatus.WAITING,
+                                                                TStatus.SHARES_POSTED,
                                                                 TStatus.KEY_GENERATED,
                                                                 TStatus.KEY_RETRIEVED,
                                                             ])}

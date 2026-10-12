@@ -18,12 +18,14 @@ import unittest
 import uuid
 import zipfile
 from datetime import datetime, timezone
+from pathlib import Path
 
 from . import bootstrap, fixtures
 from .client import (
     B4_URL,
     ENV,
     OUTPUT,
+    ROOT,
     S3_URL,
     TENANT_ID,
     TENANT_REALM,
@@ -1219,3 +1221,287 @@ class BackendJourneys(unittest.TestCase):
         self.assertEqual(
             by_name, {"Alice": 3, "Bob": 5, "Carol": 0, "Dave": 3, "Erin": 5}
         )
+
+    def test_b_manual_key_ceremony_and_tally(self):
+        """Each trustee proves local custody before publication and a manual tally."""
+        document = fixtures.election_event(
+            ENV["VOTING_PORTAL_URL"], self.tag + "-manual"
+        )
+        document["election_event"]["presentation"].update(
+            ceremonies_policy="manual-ceremonies", batch_anonymity_policy="warn"
+        )
+        event_id = self.import_event(document, "manual-custody")
+        ceremony_id = StepCli.last_id(
+            self.step(
+                "start-key-ceremony",
+                "--election-event-id",
+                event_id,
+                "--threshold",
+                "2",
+            )
+        )
+
+        def ceremony():
+            (row,) = self.admin.query(
+                "query ($id: uuid!) { sequent_backend_keys_ceremony(where: {id: {_eq: $id}}) { execution_status settings status } }",
+                {"id": ceremony_id},
+            )["sequent_backend_keys_ceremony"]
+            self.assertNotIn(row["execution_status"], ("FAILED", "CANCELLED"), row)
+            return row
+
+        def generated():
+            row = ceremony()
+            return row if row["status"].get("public_key_hash") else None
+
+        ready = wait_until(
+            "manual native joint key verification", generated, timeout=600
+        )
+        self.assertEqual(ready["execution_status"], "IN_PROGRESS")
+        self.assertEqual(ready["settings"]["policy"], "manual-ceremonies")
+        self.assertEqual(
+            {t["status"] for t in ready["status"]["trustees"]}, {"KEY_GENERATED"}
+        )
+        with self.assertRaisesRegex(
+            StepCliError, "must complete before ballot publication"
+        ):
+            self.step("publish", "--election-event-id", event_id)
+        publications = self.admin.query(
+            "query ($event: uuid!) { sequent_backend_ballot_publication(where: {election_event_id: {_eq: $event}}) { published_at } }",
+            {"event": event_id},
+        )["sequent_backend_ballot_publication"]
+        self.assertTrue(publications)
+        self.assertTrue(all(p["published_at"] is None for p in publications))
+        joint_key = ready["status"]["public_key"]
+        trustee_clients = {}
+        requests = {}
+        apis = {}
+        for name in bootstrap.TRUSTEES:
+            cli = StepCli()
+            cli.step(
+                "config",
+                "--tenant-id",
+                TENANT_ID,
+                "--endpoint-url",
+                ENV["HASURA_ENDPOINT"],
+                "--keycloak-url",
+                ENV["KEYCLOAK_URL"],
+                "--keycloak-user",
+                name,
+                "--keycloak-password",
+                ENV[f"{name.upper()}_PASSWORD"],
+                "--keycloak-client-id",
+                "api-key-client",
+                "--keycloak-client-secret",
+                ENV["API_KEY_CLIENT_SECRET"],
+            )
+            trustee_clients[name] = cli
+            token = self.keycloak.password_grant(
+                TENANT_REALM,
+                "api-key-client",
+                name,
+                ENV[f"{name.upper()}_PASSWORD"],
+                ENV["API_KEY_CLIENT_SECRET"],
+            )["access_token"]
+            self.assertEqual(jwt_claims(token)["trustee"], name)
+            apis[name] = Hasura(token=token, role="trustee-ceremony")
+            request = apis[name].query(
+                """mutation ($event: String!, $ceremony: String!) {
+                  get_private_key(object: {election_event_id: $event, keys_ceremony_id: $ceremony}) { private_key_base64 }
+                }""",
+                {"event": event_id, "ceremony": ceremony_id},
+            )["get_private_key"]["private_key_base64"]
+            requests[name] = request
+            self.assertEqual(
+                json.loads(request),
+                {
+                    "tenant_id": TENANT_ID,
+                    "election_event_id": event_id,
+                    "keys_ceremony_id": ceremony_id,
+                    "tally_session_id": None,
+                    "trustee_name": name,
+                    **bootstrap.trustee_public_keys(name),
+                },
+            )
+
+        def attest(name, request):
+            cli = trustee_clients[name]
+            request_path = cli.directory / "custody-request.json"
+            proof_path = cli.directory / "custody-proof.json"
+            request_path.write_text(request)
+            subprocess.run(
+                [
+                    str(
+                        Path(ENV.get("STEP_E2E_BIN_DIR", "/opt/step-e2e/bin"))
+                        / "trustee"
+                    ),
+                    "attest",
+                    "--request",
+                    str(request_path),
+                    "--trustee-config",
+                    str(ROOT / f"packages/trustee/dev/{name}.toml"),
+                    "--output",
+                    str(proof_path),
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            return proof_path.read_text()
+
+        check_query = """mutation ($event: String!, $ceremony: String!, $proof: String!) {
+          check_private_key(object: {election_event_id: $event, keys_ceremony_id: $ceremony,
+                                    private_key_base64: $proof}) { is_valid }
+        }"""
+        # A valid proof from the other trustee must not complete this trustee's step.
+        wrong = apis["trustee1"].query(
+            check_query,
+            {
+                "event": event_id,
+                "ceremony": ceremony_id,
+                "proof": attest("trustee2", requests["trustee2"]),
+            },
+        )["check_private_key"]
+        self.assertFalse(wrong["is_valid"])
+        self.assertEqual(
+            {t["status"] for t in ceremony()["status"]["trustees"]}, {"KEY_RETRIEVED"}
+        )
+        for index, name in enumerate(bootstrap.TRUSTEES):
+            output = trustee_clients[name].step(
+                "complete-key-ceremony",
+                "--election-event-id",
+                event_id,
+                "--key-ceremony-id",
+                ceremony_id,
+                "--trustee-config",
+                str(ROOT / f"packages/trustee/dev/{name}.toml"),
+            )
+            self.assertIn("Success! Completed key custody", output)
+            row = ceremony()
+            self.assertEqual(
+                row["execution_status"], "IN_PROGRESS" if index == 0 else "SUCCESS"
+            )
+            self.assertEqual(row["status"]["public_key"], joint_key)
+        # Rechecking uses the saved public request and cannot downgrade completed custody.
+        self.assertIn(
+            "Success! Completed key custody",
+            trustee_clients["trustee1"].step(
+                "complete-key-ceremony",
+                "--election-event-id",
+                event_id,
+                "--key-ceremony-id",
+                ceremony_id,
+                "--trustee-config",
+                str(ROOT / "packages/trustee/dev/trustee1.toml"),
+            ),
+        )
+        self.assertEqual(
+            {t["status"] for t in ceremony()["status"]["trustees"]}, {"KEY_CHECKED"}
+        )
+
+        voters = fixtures.census(self.tag + "-manual", {"A": 1})
+        path = self.cli.directory / "manual-voters.csv"
+        fixtures.write_census(path, voters, {"A": f"e2e-main-{self.tag}-manual"})
+        self.step(
+            "import-voters",
+            "--election-event-id",
+            event_id,
+            "--file-path",
+            str(path),
+            "--is-local",
+        )
+        self.step("publish", "--election-event-id", event_id)
+        self.step(
+            "update-event-voting-status",
+            "--election-event-id",
+            event_id,
+            "--voting-status",
+            "OPEN",
+            "--voting-channel",
+            "ONLINE",
+        )
+        portal = Portal(event_id, self.cli)
+        token = portal.login(voters[0].username)
+        (file,) = portal.status(token)["get_ballot_files_urls"]["files"]
+        style, _ = portal.ballot_style(file)
+        self.assertEqual(style["public_key"]["public_key"], joint_key)
+        self.assertEqual(
+            style["public_key"]["configuration_id"], str(uuid.UUID(ceremony_id).int)
+        )
+        ballot = portal.encrypt(style, "Alice")
+        receipt, errors = portal.cast(token, ballot)
+        self.assertIsNone(errors)
+        self.assertEqual(receipt["ballot_id"], ballot["ballotId"])
+        self.step(
+            "update-event-voting-status",
+            "--election-event-id",
+            event_id,
+            "--voting-status",
+            "CLOSED",
+            "--voting-channel",
+            "ONLINE",
+        )
+        tally_id = StepCli.last_id(
+            self.step(
+                "start-tally",
+                "--election-event-id",
+                event_id,
+                "--tally-type",
+                "ELECTORAL_RESULTS",
+            )
+        )
+        for name in bootstrap.TRUSTEES:
+            output = trustee_clients[name].step(
+                "confirm-key-tally",
+                "--election-event-id",
+                event_id,
+                "--tally-id",
+                tally_id,
+                "--trustee-config",
+                str(ROOT / f"packages/trustee/dev/{name}.toml"),
+            )
+            self.assertIn("Success! Successfully confirmed key", output)
+        self.step(
+            "update-tally",
+            "--election-event-id",
+            event_id,
+            "--tally-id",
+            tally_id,
+            "--status",
+            "IN_PROGRESS",
+        )
+
+        def tallied():
+            (row,) = self.admin.query(
+                "query ($id: uuid!) { sequent_backend_tally_session(where: {id: {_eq: $id}}) { execution_status } }",
+                {"id": tally_id},
+            )["sequent_backend_tally_session"]
+            self.assertNotIn(row["execution_status"], ("FAILED", "CANCELLED"), row)
+            return row["execution_status"] == "SUCCESS"
+
+        wait_until("manual native tally", tallied, timeout=900)
+        counted = self.admin.query(
+            """query ($event: uuid!, $contest: uuid!) {
+              sequent_backend_results_contest(where: {election_event_id: {_eq: $event}, contest_id: {_eq: $contest}}) { total_votes total_valid_votes }
+              sequent_backend_results_contest_candidate(where: {election_event_id: {_eq: $event}, contest_id: {_eq: $contest}}) { candidate_id cast_votes }
+            }""",
+            {"event": event_id, "contest": style["contests"][0]["id"]},
+        )
+        self.assertEqual(
+            counted["sequent_backend_results_contest"],
+            [{"total_votes": 1, "total_valid_votes": 1}],
+        )
+        alice = next(
+            c["id"]
+            for c in style["contests"][0]["candidates"]
+            if candidate_name(c) == "Alice"
+        )
+        self.assertEqual(
+            next(
+                r["cast_votes"]
+                for r in counted["sequent_backend_results_contest_candidate"]
+                if r["candidate_id"] == alice
+            ),
+            1,
+        )
+        self.passed("manual ceremony")

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {IPermissions} from "@/types/keycloak"
 import {useMutation} from "@apollo/client"
 import React, {useContext, useState} from "react"
 import {Alert, FormControlLabel, FormGroup, Typography, Checkbox} from "@mui/material"
@@ -21,6 +22,7 @@ import {Dialog} from "@sequentech/ui-essentials"
 import {useGetOne, useNotify} from "react-admin"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {
+    hasGeneratedCeremonyKeys,
     IKeysCeremonyExecutionStatus as EStatus,
     IKeysCeremonyTrusteeStatus as TStatus,
 } from "@/services/KeyCeremony"
@@ -45,7 +47,7 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
     const [downloaded, setDownloaded] = useState<boolean>(false)
     const [downloading, setDownloading] = useState<boolean>(false)
     const [openConfirmationModal, setOpenConfirmationModal] = useState(false)
-    const [errors, setErrors] = useState<String | null>(null)
+    const [errors, setErrors] = useState<string | null>(null)
     const [downloadUnavailable, setDownloadUnavailable] = useState(false)
     const notify = useNotify()
 
@@ -54,8 +56,6 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
         secondCheckbox: false,
     })
     const handleCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        console.log("aa changed", event.target.checked)
-
         setCheckboxState({
             ...checkboxState,
             [event.target.name]: event.target.checked,
@@ -74,6 +74,7 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
     const isDownloadUnavailable =
         downloadUnavailable ||
         trusteeStatus === TStatus.KEY_CHECKED ||
+        !hasGeneratedCeremonyKeys(latestCeremony?.status ?? currentCeremony.status) ||
         (latestCeremony?.execution_status ?? currentCeremony.execution_status) !==
             EStatus.IN_PROGRESS
     const downloadUnavailableMessage =
@@ -81,7 +82,9 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
             ? "keysGeneration.downloadStep.alreadyVerified"
             : "keysGeneration.downloadStep.unavailable"
 
-    const [getPrivateKeysMutation] = useMutation<GetPrivateKeyMutation>(GET_PRIVATE_KEY)
+    const [getPrivateKeysMutation] = useMutation<GetPrivateKeyMutation>(GET_PRIVATE_KEY, {
+        context: {headers: {"x-hasura-role": IPermissions.TRUSTEE_CEREMONY}},
+    })
     const download = async () => {
         setErrors(null)
         setDownloaded(false)
@@ -110,13 +113,14 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                     setErrors(t("keysGeneration.downloadStep.errorEmptyKey"))
                     return
                 }
-                const blob = new Blob([privateKey], {type: "text/plain"})
+                const blob = new Blob([privateKey], {type: "application/json"})
                 const blobUrl = window.URL.createObjectURL(blob)
                 const fileName = "custody-request.json"
-                var tempLink = document.createElement("a")
+                const tempLink = document.createElement("a")
                 tempLink.href = blobUrl
                 tempLink.setAttribute("download", fileName)
                 tempLink.click()
+                window.URL.revokeObjectURL(blobUrl)
                 setDownloaded(true)
             }
         } catch (exception: unknown) {

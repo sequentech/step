@@ -2328,6 +2328,9 @@ const englishTranslation = {
             ceremonyStep: {
                 cancel: "Cancel Key Ceremony",
                 progressHeader: "Key Ceremony Progress",
+                waiting: "Waiting",
+                complete: "Complete",
+                halted: "Halted",
                 description:
                     "This screen shows the progress and logs of the Election Event's Key Ceremony. Each trustee generates and keeps their key share on their trustee machine, then confirms custody using a signed proof.",
                 executionStatus: "Status: {{status}}",

@@ -8,6 +8,7 @@ export enum IKeysCeremonyExecutionStatus {
     IN_PROGRESS = "IN_PROGRESS",
     SUCCESS = "SUCCESS",
     CANCELLED = "CANCELLED",
+    FAILED = "FAILED",
 }
 
 export interface IKeysCeremonyLog {
@@ -17,6 +18,7 @@ export interface IKeysCeremonyLog {
 
 export enum IKeysCeremonyTrusteeStatus {
     WAITING = "WAITING",
+    SHARES_POSTED = "SHARES_POSTED",
     KEY_GENERATED = "KEY_GENERATED",
     KEY_RETRIEVED = "KEY_RETRIEVED",
     KEY_CHECKED = "KEY_CHECKED",
@@ -25,7 +27,8 @@ export enum IKeysCeremonyTrusteeStatus {
 
 export const isKeysCeremonyTerminal = (status: IKeysCeremonyExecutionStatus): boolean =>
     status === IKeysCeremonyExecutionStatus.SUCCESS ||
-    status === IKeysCeremonyExecutionStatus.CANCELLED
+    status === IKeysCeremonyExecutionStatus.CANCELLED ||
+    status === IKeysCeremonyExecutionStatus.FAILED
 
 export interface IKeysCeremonyTrustee {
     name: string
@@ -34,7 +37,9 @@ export interface IKeysCeremonyTrustee {
 
 export interface IExecutionStatus {
     stop_date?: string
-    public_key?: string
+    public_key?: string | null
+    public_key_hash?: string | null
+    failure?: string | null
     logs: Array<IKeysCeremonyLog>
     trustees: Array<IKeysCeremonyTrustee>
 }
@@ -59,3 +64,15 @@ export const canTrusteeRecheckPrivateKey = ({
         executionStatus === IKeysCeremonyExecutionStatus.SUCCESS
     )
 }
+
+/** Custody steps require the joint key verified by the native DKG board. */
+export const hasGeneratedCeremonyKeys = (status: IExecutionStatus): boolean =>
+    Boolean(status.public_key && status.public_key_hash) &&
+    status.trustees.length > 0 &&
+    status.trustees.every((trustee) =>
+        [
+            IKeysCeremonyTrusteeStatus.KEY_GENERATED,
+            IKeysCeremonyTrusteeStatus.KEY_RETRIEVED,
+            IKeysCeremonyTrusteeStatus.KEY_CHECKED,
+        ].includes(trustee.status)
+    )

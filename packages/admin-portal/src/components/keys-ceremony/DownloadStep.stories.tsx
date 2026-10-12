@@ -118,7 +118,7 @@ async function download(canvasElement: HTMLElement) {
 const keyRequest = {
     name: "GetPrivateKey",
     variables: {electionEventId: EVENT_ID, keysCeremonyId: STORY_IDS.keysCeremony},
-    headers: {},
+    headers: {"x-hasura-role": "trustee-ceremony"},
 }
 
 export const Populated: Story = {
@@ -260,5 +260,13 @@ export const Back: Story = {
     play: async ({canvasElement, args}) => {
         await userEvent.click(await within(canvasElement).findByRole("button", {name: "Back"}))
         expect(args.goBack).toHaveBeenCalledTimes(1)
+    },
+}
+
+export const SharesPostedCannotDownload: Story = {
+    args: {trustee: TStatus.SHARES_POSTED},
+    play: async ({canvasElement}) => {
+        await expect(await downloadButton(canvasElement)).toBeDisabled()
+        expect(graphql.calls).toEqual([])
     },
 }

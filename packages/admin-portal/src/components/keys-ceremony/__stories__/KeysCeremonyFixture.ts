@@ -50,12 +50,21 @@ export function ceremony(
     overrides: Partial<StoryRecord<Sequent_Backend_Keys_Ceremony>> = {}
 ): Sequent_Backend_Keys_Ceremony {
     const base = keysCeremonyRecord()
-    const success = execution_status === IKeysCeremonyExecutionStatus.SUCCESS
+    const generated =
+        trustees.length > 0 &&
+        trustees.every((status) =>
+            [
+                IKeysCeremonyTrusteeStatus.KEY_GENERATED,
+                IKeysCeremonyTrusteeStatus.KEY_RETRIEVED,
+                IKeysCeremonyTrusteeStatus.KEY_CHECKED,
+            ].includes(status)
+        )
     return {
         ...base,
         execution_status,
         status: {
-            public_key: success ? "synthetic-public-key" : undefined,
+            public_key: generated ? "synthetic-public-key" : null,
+            public_key_hash: generated ? "synthetic-public-key-hash" : null,
             trustees: trustees.map((status, index) => ({name: trusteeRecords[index].name, status})),
             logs: [{created_date: "2026-01-05T09:00:00Z", log_text: "Created keys ceremony"}],
         },

@@ -22,7 +22,7 @@ describe("canTrusteeRecheckPrivateKey", () => {
         }
     )
 
-    it.each([EStatus.USER_CONFIGURATION, EStatus.STARTED, EStatus.CANCELLED])(
+    it.each([EStatus.USER_CONFIGURATION, EStatus.STARTED, EStatus.CANCELLED, EStatus.FAILED])(
         "rejects execution status %s",
         (executionStatus) => {
             expect(
@@ -35,18 +35,22 @@ describe("canTrusteeRecheckPrivateKey", () => {
         }
     )
 
-    it.each([undefined, TStatus.WAITING, TStatus.KEY_GENERATED, TStatus.KEY_RETRIEVED])(
-        "rejects trustee status %s",
-        (trusteeStatus) => {
-            expect(
-                canTrusteeRecheckPrivateKey({
-                    executionStatus: EStatus.IN_PROGRESS,
-                    trusteeStatus,
-                    isAutomaticCeremony: false,
-                })
-            ).toBe(false)
-        }
-    )
+    it.each([
+        undefined,
+        TStatus.WAITING,
+        TStatus.SHARES_POSTED,
+        TStatus.HALTED,
+        TStatus.KEY_GENERATED,
+        TStatus.KEY_RETRIEVED,
+    ])("rejects trustee status %s", (trusteeStatus) => {
+        expect(
+            canTrusteeRecheckPrivateKey({
+                executionStatus: EStatus.IN_PROGRESS,
+                trusteeStatus,
+                isAutomaticCeremony: false,
+            })
+        ).toBe(false)
+    })
 
     it("rejects automatic ceremonies", () => {
         expect(

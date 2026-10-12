@@ -6,6 +6,7 @@ import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials
 import {AuthContext, AuthContextValues} from "@/providers/AuthContextProvider"
 import {
     canTrusteeRecheckPrivateKey,
+    hasGeneratedCeremonyKeys,
     IKeysCeremonyExecutionStatus as EStatus,
     IKeysCeremonyTrusteeStatus as TStatus,
     IExecutionStatus,
@@ -80,9 +81,7 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
     const trusteeCheckedKeys = hasTrusteeCheckedKeys(currentCeremony, authContext)
     const status: IExecutionStatus = currentCeremony.status
     const keysGenerated =
-        status.public_key !== undefined &&
-        currentCeremony.execution_status === EStatus.IN_PROGRESS &&
-        !status.trustees.find((trustee) => trustee.status === TStatus.WAITING)
+        currentCeremony.execution_status === EStatus.IN_PROGRESS && hasGeneratedCeremonyKeys(status)
     const ceremonyTerminal = isKeysCeremonyTerminal(currentCeremony.execution_status as EStatus)
     const isAutomaticCeremony =
         electionEvent?.presentation?.ceremonies_policy ===
@@ -204,6 +203,7 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
             {currentStep === WizardStep.Success && (
                 <CeremonyStep
                     currentCeremonyId={currentCeremony?.id}
+                    setCurrentCeremony={setCurrentCeremony}
                     electionEvent={electionEvent}
                     goBack={goBack}
                     verifyPrivateKey={canRecheckPrivateKey ? startPrivateKeyRecheck : undefined}

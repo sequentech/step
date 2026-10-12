@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {IPermissions} from "@/types/keycloak"
 import React, {useCallback, useContext, useEffect, useState} from "react"
 import Button from "@mui/material/Button"
 import {BreadCrumbSteps, BreadCrumbStepsVariant, DropFile} from "@sequentech/ui-essentials"
@@ -201,7 +202,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
     const [restorePrivateKeyMutation] = useMutation<
         RestorePrivateKeyMutation,
         RestorePrivateKeyMutationVariables
-    >(RESTORE_PRIVATE_KEY)
+    >(RESTORE_PRIVATE_KEY, {context: {headers: {"x-hasura-role": IPermissions.TRUSTEE_CEREMONY}}})
     const submit = useCallback(
         async (submission: IKeyShareSubmission): Promise<IKeyShareAnswer> => {
             const {data, errors} = await restorePrivateKeyMutation({

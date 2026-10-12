@@ -211,9 +211,15 @@ pub fn validate_private_key_download(
         .find(|trustee| trustee.name == trustee_name)
         .ok_or_else(|| anyhow!("Trustee not part of the keys ceremony"))?;
 
-    // downloading again would move a trustee who already checked the key
-    // back to KEY_RETRIEVED
-    if trustee.status == TrusteeStatus::KEY_CHECKED {
+    // A custody request is actionable only after the native DKG verifies the
+    // joint key. Do not promote a waiting, failed, or already checked trustee.
+    if current_status.public_key.is_none()
+        || current_status.public_key_hash.is_none()
+        || !matches!(
+            trustee.status,
+            TrusteeStatus::KEY_GENERATED | TrusteeStatus::KEY_RETRIEVED
+        )
+    {
         return Err(PrivateKeyDownloadUnavailable.into());
     }
 
@@ -648,13 +654,37 @@ mod tests {
     }
 
     #[test]
-    fn a_trustee_waiting_for_its_key_may_still_download_it() {
-        let ceremony = keys_ceremony(
-            KeysCeremonyExecutionStatus::IN_PROGRESS,
+    fn custody_download_requires_a_verified_joint_key_and_a_generated_trustee_key() {
+        for trustee_status in [TrusteeStatus::KEY_GENERATED, TrusteeStatus::KEY_RETRIEVED] {
+            let ceremony = keys_ceremony(KeysCeremonyExecutionStatus::IN_PROGRESS, trustee_status);
+            assert!(validate_private_key_download(&ceremony, TRUSTEE).is_ok());
+        }
+        for trustee_status in [
             TrusteeStatus::WAITING,
-        );
-
-        assert!(validate_private_key_download(&ceremony, TRUSTEE).is_ok());
+            TrusteeStatus::SHARES_POSTED,
+            TrusteeStatus::HALTED,
+            TrusteeStatus::KEY_CHECKED,
+        ] {
+            let ceremony = keys_ceremony(KeysCeremonyExecutionStatus::IN_PROGRESS, trustee_status);
+            let error = validate_private_key_download(&ceremony, TRUSTEE).unwrap_err();
+            assert!(error
+                .downcast_ref::<PrivateKeyDownloadUnavailable>()
+                .is_some());
+        }
+        for missing in ["public_key", "public_key_hash"] {
+            let mut ceremony = keys_ceremony(
+                KeysCeremonyExecutionStatus::IN_PROGRESS,
+                TrusteeStatus::KEY_GENERATED,
+            );
+            ceremony.status.as_mut().unwrap()[missing] = serde_json::Value::Null;
+            let error = validate_private_key_download(&ceremony, TRUSTEE).unwrap_err();
+            assert!(
+                error
+                    .downcast_ref::<PrivateKeyDownloadUnavailable>()
+                    .is_some(),
+                "{missing}"
+            );
+        }
     }
 
     #[test]

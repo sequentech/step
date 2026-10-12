@@ -67,14 +67,9 @@ const meta = {
         reads: {control: "inline-radio", options: ["records", "loading", "error"]},
         execution: {control: "select", options: Object.values(EStatus)},
     },
-    parameters: {
-        expectedFailure: {
-            reason: "The ceremony status chip puts white text on its light status colour, and the progress and logs accordions are two unnamed regions.",
-            a11y: ["color-contrast", "landmark-unique"],
-        },
-    },
     beforeEach: async ({args}) => {
         const record = storyCeremony(args)
+        if (args.execution === EStatus.FAILED) record.status.failure = "Trustee protocol halted"
         data = resourceBoundary({[KEYS_CEREMONY_RESOURCE]: [record]}, {reads: args.reads})
         graphql = graphqlBoundary({}, {schema: true})
         await graphql.ready
@@ -104,7 +99,7 @@ const trusteeRows = (canvasElement: HTMLElement) =>
         .filter((row) => /^trustee/.test(row.textContent ?? ""))
         .map((row) =>
             [
-                row.textContent,
+                within(row).getByRole("rowheader").textContent,
                 ...Array.from(row.querySelectorAll("svg")).map((icon) =>
                     icon.getAttribute("data-testid") === "HourglassEmptyIcon" ? "waiting" : "done"
                 ),
@@ -173,7 +168,7 @@ export const AutomatedCeremony: Story = {
         // Trustees neither download nor check a key, and the ceremony advances by itself.
         expect(canvas.queryByText("Private Key Fragment Downloaded")).not.toBeInTheDocument()
         expect(canvas.queryByRole("button", {name: "Next"})).not.toBeInTheDocument()
-        await expect(canvas.getByRole("button", {name: "Verify key"})).toBeVisible()
+        await expect(canvas.getByRole("button", {name: "Verify Custody Proof"})).toBeVisible()
     },
 }
 
@@ -203,14 +198,14 @@ export const WithoutNextStep: Story = {
         const canvas = within(canvasElement)
         await canvas.findByText("Status: IN_PROGRESS")
         expect(canvas.queryByRole("button", {name: "Next"})).not.toBeInTheDocument()
-        expect(canvas.queryByRole("button", {name: "Verify key"})).not.toBeInTheDocument()
+        expect(canvas.queryByRole("button", {name: "Verify Custody Proof"})).not.toBeInTheDocument()
     },
 }
 
 export const Navigation: Story = {
     play: async ({canvasElement, args}) => {
         const canvas = within(canvasElement)
-        await userEvent.click(await canvas.findByRole("button", {name: "Verify key"}))
+        await userEvent.click(await canvas.findByRole("button", {name: "Verify Custody Proof"}))
         expect(args.verifyPrivateKey).toHaveBeenCalledTimes(1)
         await userEvent.click(canvas.getByRole("button", {name: "Next"}))
         expect(args.goNext).toHaveBeenCalledTimes(1)
@@ -226,5 +221,15 @@ export const CollapseProgress: Story = {
         expect(summary).toHaveAttribute("aria-expanded", "true")
         await userEvent.click(summary)
         await waitFor(() => expect(summary).toHaveAttribute("aria-expanded", "false"))
+    },
+}
+
+export const NativeFailureIsDisplayed: Story = {
+    args: {execution: EStatus.FAILED, withNext: false},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByText("Status: FAILED")).toBeVisible()
+        await expect(canvas.getByRole("alert")).toHaveTextContent("Trustee protocol halted")
+        expect(canvas.queryByRole("button", {name: "Next"})).not.toBeInTheDocument()
     },
 }

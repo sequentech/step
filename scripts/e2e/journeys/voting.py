@@ -6,7 +6,16 @@
 import json
 import subprocess
 
-from .client import ENV, ROOT, TENANT_ID, Hasura, Keycloak, event_realm, http_get
+from .client import (
+    ENV,
+    ROOT,
+    TENANT_ID,
+    Hasura,
+    Keycloak,
+    event_realm,
+    http_get,
+    wait_until,
+)
 from .fixtures import VOTER_PASSWORD
 
 
@@ -47,7 +56,27 @@ class Portal:
             username,
             VOTER_PASSWORD,
         )
-        return tokens["access_token"]
+        token = tokens["access_token"]
+
+        def realm_key_is_loaded():
+            # Newly imported realms publish keys synchronously, but Hasura's
+            # shared JWKS document has a 30-second cache window. Probe only
+            # authentication, without creating a ballot/voting session.
+            result = Hasura(token=token).execute("{ __typename }")
+            errors = result.get("errors")
+            if errors:
+                if all(
+                    (error.get("extensions") or {}).get("code") == "invalid-jwt"
+                    for error in errors
+                ):
+                    return False
+                raise AssertionError(json.dumps(errors))
+            return True
+
+        wait_until(
+            "Hasura to load the new voter realm key", realm_key_is_loaded, timeout=60
+        )
+        return token
 
     def status(self, token):
         """GetVoterStatus: the voter's ballot files and their own cast votes."""

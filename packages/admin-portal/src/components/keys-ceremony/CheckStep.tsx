@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {IPermissions} from "@/types/keycloak"
 import {useMutation} from "@apollo/client"
 import React, {useCallback, useContext, useState} from "react"
 import {Alert, Typography} from "@mui/material"
@@ -47,7 +48,7 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
     const [checkPrivateKeysMutation] = useMutation<
         CheckPrivateKeyMutation,
         CheckPrivateKeyMutationVariables
-    >(CHECK_PRIVATE_KEY)
+    >(CHECK_PRIVATE_KEY, {context: {headers: {"x-hasura-role": IPermissions.TRUSTEE_CEREMONY}}})
     const submit = useCallback(
         async (submission: IKeyShareSubmission): Promise<IKeyShareAnswer> => {
             const {data, errors} = await checkPrivateKeysMutation({

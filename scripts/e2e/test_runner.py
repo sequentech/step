@@ -492,5 +492,60 @@ class CombinedBallotInputContracts(unittest.TestCase):
             )
 
 
+class VoterRealmReadinessContracts(unittest.TestCase):
+    def test_voter_login_waits_for_the_new_realm_key_without_opening_a_ballot(self):
+        from scripts.e2e.journeys import voting
+
+        with patch.dict(
+            os.environ, {"VOTING_PORTAL_URL": "https://voting.invalid"}
+        ), patch.object(voting, "Keycloak") as keycloak, patch.object(
+            voting, "Hasura"
+        ) as hasura, patch(
+            "scripts.e2e.journeys.client.time.sleep"
+        ):
+            keycloak.return_value.browser_login.return_value = {
+                "access_token": "new-realm-token"
+            }
+            hasura.return_value.execute.side_effect = [
+                {
+                    "errors": [
+                        {
+                            "message": "Could not verify JWT",
+                            "extensions": {"code": "invalid-jwt"},
+                        }
+                    ]
+                },
+                {"data": {"__typename": "query_root"}},
+            ]
+            self.assertEqual(
+                voting.Portal("event", MagicMock()).login("voter"), "new-realm-token"
+            )
+            self.assertEqual(
+                hasura.return_value.execute.call_args_list,
+                [
+                    unittest.mock.call("{ __typename }"),
+                    unittest.mock.call("{ __typename }"),
+                ],
+            )
+
+    def test_voter_login_does_not_retry_other_graphql_errors(self):
+        from scripts.e2e.journeys import voting
+
+        with patch.dict(
+            os.environ, {"VOTING_PORTAL_URL": "https://voting.invalid"}
+        ), patch.object(voting, "Keycloak") as keycloak, patch.object(
+            voting, "Hasura"
+        ) as hasura:
+            keycloak.return_value.browser_login.return_value = {"access_token": "token"}
+            hasura.return_value.execute.return_value = {
+                "errors": [
+                    {"message": "unauthorized", "extensions": {"code": "access-denied"}}
+                ]
+            }
+            with self.assertRaisesRegex(AssertionError, "unauthorized"):
+                voting.Portal("event", MagicMock()).login("voter")
+            hasura.return_value.execute.assert_called_once()
+
+
 if __name__ == "__main__":
     unittest.main()
