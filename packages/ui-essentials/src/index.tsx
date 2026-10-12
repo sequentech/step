@@ -87,6 +87,7 @@ export {
     TALLY_RESULTS_PIE_HEIGHT,
     TALLY_RESULTS_PIE_PANEL_WIDTH,
 } from "./components/TallyResults/TallyResults"
+export {withEscapedChartText} from "./services/chartOptions"
 export {
     default as ResultsSelectorTabs,
     ResultsSelectorTabs as ResultsSelectorTabsComponent,

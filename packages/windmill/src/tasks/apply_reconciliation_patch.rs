@@ -12,16 +12,17 @@
 //! structured task annotation and a single electoral log entry, not written
 //! back onto anything else.
 
-use crate::postgres::document::get_document;
 use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
-use crate::services::documents::get_document_as_temp_file;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::external::reconciliation::apply::{apply_voter_changes, VoterApplyOutcome};
 use crate::services::external::reconciliation::bulk_create::apply_voters_added_bulk;
 use crate::services::external::reconciliation::diff::{DiffItem, ReconciliationApplyEnvelope};
 use crate::services::external::reconciliation::patch::DiffItemArrayWriter;
+use crate::services::external::reconciliation::round::{
+    download_round_document, get_generated_round, load_round_envelope,
+};
 use crate::services::external::types::{ReconciliationChangeCategory, ReconciliationPatchSource};
 use crate::services::external::utils::set_datafix_reconciliation_state;
 use crate::services::protocol_manager::get_event_board;
@@ -53,6 +54,9 @@ pub struct ApplyReconciliationPatchBody {
     /// The `ReconciliationDiff` envelope document from the generate round
     /// being applied — re-fetched and re-parsed here, never trusted from the
     /// client, for the safety checks below (staleness, external side clean).
+    /// Only the envelope of a successful generate task of this election
+    /// event is read, and both it and the Sequent apply stream it references
+    /// must match the hashes that task recorded.
     pub diff_document_id: String,
     pub applied_by_user_id: String,
     pub applied_by_username: Option<String>,
@@ -244,11 +248,25 @@ async fn run_apply_reconciliation_patch(
         .await
         .map_err(|err| format!("Error starting Hasura transaction: {err}"))?;
 
-    let envelope: ReconciliationApplyEnvelope = fetch_json_document(
+    let round = get_generated_round(
         &hasura_transaction,
         &body.tenant_id,
         &body.election_event_id,
         &body.diff_document_id,
+    )
+    .await
+    .map_err(|err| format!("Error loading the reconciliation round: {err:?}"))?
+    .ok_or_else(|| {
+        format!(
+            "Reconciliation diff {} was not produced by a successful generate round of this election event",
+            body.diff_document_id
+        )
+    })?;
+    let envelope: ReconciliationApplyEnvelope = load_round_envelope(
+        &hasura_transaction,
+        &body.tenant_id,
+        &body.election_event_id,
+        &round,
     )
     .await
     .map_err(|err| format!("Error loading the reconciliation diff: {err:?}"))?;
@@ -314,23 +332,15 @@ async fn run_apply_reconciliation_patch(
     }
 
     let realm = get_event_realm(&body.tenant_id, &body.election_event_id);
-    let patch_document = get_document(
+    let patch_temp = download_round_document(
         &hasura_transaction,
         &body.tenant_id,
-        Some(body.election_event_id.clone()),
+        &body.election_event_id,
         &envelope.sequent_patch_document_id,
+        &round.sequent_patch_sha256,
     )
     .await
-    .map_err(|err| format!("Error loading the Sequent apply stream: {err:?}"))?
-    .ok_or_else(|| {
-        format!(
-            "Sequent apply stream document {} not found",
-            envelope.sequent_patch_document_id
-        )
-    })?;
-    let patch_temp = get_document_as_temp_file(&body.tenant_id, &patch_document)
-        .await
-        .map_err(|err| format!("Error downloading the Sequent apply stream: {err:?}"))?;
+    .map_err(|err| format!("Error loading the Sequent apply stream: {err:?}"))?;
 
     let mut keycloak_client = get_keycloak_pool()
         .await
@@ -590,28 +600,6 @@ async fn flush_voters_added<W: Write>(
         .map_err(|err| format!("Error writing reconciliation audit artifact: {err}"))?;
     row_failures.extend(bulk_failures);
     Ok(())
-}
-
-/// Downloads a `Document` and deserializes its content as JSON — shared by
-/// the diff-envelope and Sequent-patch reads above.
-#[instrument(skip(hasura_transaction), err)]
-async fn fetch_json_document<T: serde::de::DeserializeOwned>(
-    hasura_transaction: &deadpool_postgres::Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-    document_id: &str,
-) -> anyhow::Result<T> {
-    let document = get_document(
-        hasura_transaction,
-        tenant_id,
-        Some(election_event_id.to_string()),
-        document_id,
-    )
-    .await?
-    .ok_or_else(|| anyhow::anyhow!("Document {document_id} not found"))?;
-    let temp_file = get_document_as_temp_file(tenant_id, &document).await?;
-    let file = File::open(temp_file.path())?;
-    Ok(serde_json::from_reader(BufReader::new(file))?)
 }
 
 #[cfg(test)]

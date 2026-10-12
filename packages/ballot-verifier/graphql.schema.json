@@ -8838,6 +8838,34 @@
       },
       {
         "kind": "OBJECT",
+        "name": "SetGoogleServiceAccountKeyOutput",
+        "description": null,
+        "isOneOf": null,
+        "fields": [
+          {
+            "name": "client_email",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
         "name": "SetRolePermissionOutput",
         "description": null,
         "isOneOf": null,
@@ -24746,6 +24774,35 @@
             "type": {
               "kind": "OBJECT",
               "name": "SetCustomUrlsOutput",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "set_google_service_account_key",
+            "description": "store the tenant Google service account key in the vault",
+            "args": [
+              {
+                "name": "service_account_key",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "jsonb",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "OBJECT",
+              "name": "SetGoogleServiceAccountKeyOutput",
               "ofType": null
             },
             "isDeprecated": false,

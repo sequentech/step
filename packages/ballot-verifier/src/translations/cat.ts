@@ -35,6 +35,11 @@ const catalanTranslation: TranslationType = {
                 "Hi ha hagut un problema en importar el vot auditable. Has triat el fitxer correcte?",
             importErrorMoreInfo: "Més informació",
             importErrorTitle: "Error",
+            verificationErrorTitle: "La verificació del vot ha fallat",
+            unpublishedStyleErrorDescription:
+                "Aquest vot auditable no correspon a cap papereta publicada per a aquest esdeveniment electoral, per la qual cosa no es pot verificar.",
+            unavailableStyleErrorDescription:
+                "No s'han pogut carregar les paperetes publicades per a aquest esdeveniment electoral, per la qual cosa aquest vot auditable encara no es pot verificar. Torneu-ho a provar.",
             useSampleLink: "Utilitza vot d'exemple",
             nextButton: "Continuar",
             ballotIdLabel: "ID de papereta",

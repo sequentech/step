@@ -11,6 +11,9 @@ mod realm_password_policy;
 mod role;
 mod user;
 
+#[cfg(test)]
+mod path_segment_tests;
+
 pub use self::admin_client::*;
 pub use self::path_segment::*;
 pub use self::permission::*;

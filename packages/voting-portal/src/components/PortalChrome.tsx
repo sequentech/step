@@ -14,6 +14,7 @@ import {
     USER_LANGUAGE_COOKIE_NAME,
     setCookie,
     getValueFromCookie,
+    sanitizePresentationCss,
 } from "@sequentech/ui-core"
 import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
@@ -134,6 +135,7 @@ export const PortalChrome: React.FC<PortalChromeProps> = ({
     children,
 }) => {
     const {t} = useTranslation()
+    const {globalSettings} = useContext(SettingsContext)
     const {eventId} = useParams<TenantEventType>()
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const electionIds = useAppSelector(selectElectionIds)
@@ -145,17 +147,23 @@ export const PortalChrome: React.FC<PortalChromeProps> = ({
         return electionId ? selectBallotStyleByElectionId(String(electionId))(state) : undefined
     })
 
+    const css =
+        ballotStyle?.ballot_eml.election_event_presentation?.css ??
+        electionEvent?.presentation?.css ??
+        ""
+    const customCss = useMemo(
+        () =>
+            sanitizePresentationCss(css, {
+                baseUrl: document.baseURI,
+                publicBucketUrl: globalSettings.PUBLIC_BUCKET_URL,
+            }),
+        [css, globalSettings.PUBLIC_BUCKET_URL]
+    )
+
     useElectionClassName()
 
     return (
-        <StyledAppWrapper
-            className="voting-portal-wrapper"
-            customCss={
-                ballotStyle?.ballot_eml.election_event_presentation?.css ??
-                electionEvent?.presentation?.css ??
-                ""
-            }
-        >
+        <StyledAppWrapper className="voting-portal-wrapper" customCss={customCss}>
             <StyledApp className="voting-portal app-root">
                 {before}
                 <a className="skip-link" href="#main-content">
