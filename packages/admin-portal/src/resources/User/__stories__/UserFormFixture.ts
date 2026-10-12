@@ -36,13 +36,16 @@ export function userServices(outcome: UserServiceOutcome, activeRoleIds: string[
                     throw new Error("Synthetic user service failure")
                 return {data: {edit_user: {user: null, task_execution: null}}}
             },
+            GetVoterUnsettledMessages: () => ({
+                data: {sequent_backend_message: []},
+            }),
             ListUserRoles: () => ({
                 data: {list_user_roles: activeRoleIds.map((id) => ({id}))},
             }),
             SetUserRole: () => ({data: {set_user_role: {id: STORY_IDS.user}}}),
             DeleteUserRole: () => ({data: {delete_user_role: {id: STORY_IDS.user}}}),
         },
-        {schema: true}
+        {schema: true, unvalidated: ["GetVoterUnsettledMessages"]}
     )
 }
 
