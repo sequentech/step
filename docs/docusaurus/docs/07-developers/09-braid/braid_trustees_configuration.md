@@ -23,15 +23,15 @@ Generation refuses to replace an existing file. Back up `trustee.toml` and the
 runner's `message_store` directory. The runner does not generate replacement
 keys when its configured identity is missing.
 
-| Variable | Purpose |
-| --- | --- |
-| `TRUSTEE_CONFIG_PATH` | Local native keys file, unless supplied with `--trustee-config` |
-| `B4_URL` | Native board URL, unless supplied with `--b4-url` |
-| `TRUSTEE_HARVEST_URL` | Platform API that lists this trustee's assigned boards |
-| `TRUSTEE_NAME`, `TRUSTEE_PASSWORD` | Trustee's Keycloak account |
-| `TRUSTEE_KEYCLOAK_URL`, `TRUSTEE_KEYCLOAK_REALM` | Tenant's authentication server and realm |
-| `TRUSTEE_KEYCLOAK_CLIENT_ID`, `TRUSTEE_KEYCLOAK_CLIENT_SECRET` | Authentication client; omit the secret for a public client |
-| `LOG_LEVEL` | Runner tracing filter |
+| Variable                                                       | Purpose                                                         |
+| -------------------------------------------------------------- | --------------------------------------------------------------- |
+| `TRUSTEE_CONFIG_PATH`                                          | Local native keys file, unless supplied with `--trustee-config` |
+| `B4_URL`                                                       | Native board URL, unless supplied with `--b4-url`               |
+| `TRUSTEE_HARVEST_URL`                                          | Platform API that lists this trustee's assigned boards          |
+| `TRUSTEE_NAME`, `TRUSTEE_PASSWORD`                             | Trustee's Keycloak account                                      |
+| `TRUSTEE_KEYCLOAK_URL`, `TRUSTEE_KEYCLOAK_REALM`               | Tenant's authentication server and realm                        |
+| `TRUSTEE_KEYCLOAK_CLIENT_ID`, `TRUSTEE_KEYCLOAK_CLIENT_SECRET` | Authentication client; omit the secret for a public client      |
+| `LOG_LEVEL`                                                    | Runner tracing filter                                           |
 
 Set an initial password for each trustee account and complete its required
 profile fields and MFA enrollment through the tenant portal before starting
@@ -56,7 +56,6 @@ Private keys stay in the runner's keys file.
 The ballot context is the signed configuration's immutable decimal identifier.
 Export/import can remap platform UUIDs and board names while preserving signed
 canonical messages and that cryptographic identifier.
-
 
 ## Browser trustees
 
@@ -101,10 +100,10 @@ the Web Locks API, and cross-origin isolation. The admin image serves COOP `same
 The board service and its presigned S3 URLs must be reachable by the browser, use
 HTTPS in production, and permit the portal origin through CORS. Configure:
 
-| Setting | Purpose |
-| --- | --- |
-| Admin `WBRAID_BOARD_URL` | Browser-reachable native board URL; Compose reads `WBRAID_BOARD_PUBLIC_URL` |
-| Admin `HARVEST_URL` | Browser-reachable Harvest API URL |
+| Setting                                   | Purpose                                                                                                                              |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Admin `WBRAID_BOARD_URL`                  | Browser-reachable native board URL; Compose reads `WBRAID_BOARD_PUBLIC_URL`                                                          |
+| Admin `HARVEST_URL`                       | Browser-reachable Harvest API URL                                                                                                    |
 | Harvest `HARVEST_TRUSTEE_ALLOWED_ORIGINS` | Comma-separated exact portal origins, including scheme and port, without trailing slashes; defaults to `ADMIN_PORTAL_URL` when unset |
 
 Harvest permits preflight only for the trustee board endpoints; actual requests
@@ -134,7 +133,9 @@ scripts/e2e/run-browser-trustees.sh
 This disposable journey stops its own native trustees and runs two real Chromium
 participants. It verifies manual DKG, browser custody proofs, reload from local
 session records, restoration into a fresh browser, a cast vote, and a complete
-native tally with an independently checked result. Reports are in
+native tally with an independently checked result. The same browser participants
+then complete automatic DKG and tally without manual custody confirmations, with
+ballot publication, voting admission, revotes and grace-period checks. Reports are in
 `.cache/backend-e2e/<project>/browser-journey.json`. `--skip-images --skip-build`
 reuses prebuilt backend fixtures; browser bindings must already match the source.
 The runner cleans up only its own stack and controller.

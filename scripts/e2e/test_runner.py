@@ -49,6 +49,57 @@ class DriverOutput(unittest.TestCase):
 
 
 class RunnerContracts(DriverOutput):
+    def test_browser_run_covers_both_ceremonies_voting_and_tally(self):
+        browser_driver = importlib.import_module("scripts.e2e.journeys.browser_journey")
+        observed = []
+
+        class Journeys(unittest.TestCase):
+            def test_b_manual_key_ceremony_and_tally(self):
+                observed.append("manual")
+
+            def test_4_automatic_key_ceremony(self):
+                observed.append("automatic")
+
+            def test_6_online_voting_rules(self):
+                observed.append("voting")
+
+            def test_7_tally_matches_cast_ballots(self):
+                observed.append("tally")
+
+            def test_8_native_archive_preserves_crypto_and_results(self):
+                self.fail("Archive recovery is outside this ceremony run")
+
+        with (
+            patch.object(browser_driver, "BackendJourneys", Journeys),
+            patch.object(browser_driver, "OUTPUT", self.output),
+            patch.dict(
+                browser_driver.ENV,
+                {"STEP_E2E_BROWSER_TRUSTEES_URL": "https://browser.invalid"},
+            ),
+        ):
+            self.assertEqual(browser_driver.main(), 0)
+        self.assertEqual(observed, ["manual", "automatic", "voting", "tally"])
+        records = json.loads((self.output / "browser-journey.json").read_text())
+        self.assertEqual([r["outcome"] for r in records], ["pass"] * 4)
+
+    def test_browser_run_cannot_pass_when_manual_ceremony_is_skipped(self):
+        browser_driver = importlib.import_module("scripts.e2e.journeys.browser_journey")
+
+        class Journeys(unittest.TestCase):
+            @unittest.skip("browser ceremony prerequisite unavailable")
+            def test_b_manual_key_ceremony_and_tally(self):
+                pass
+
+        with (
+            patch.object(browser_driver, "BackendJourneys", Journeys),
+            patch.object(browser_driver, "OUTPUT", self.output),
+            patch.dict(
+                browser_driver.ENV,
+                {"STEP_E2E_BROWSER_TRUSTEES_URL": "https://browser.invalid"},
+            ),
+        ):
+            self.assertEqual(browser_driver.main(), 1)
+
     def test_filter_runs_prerequisites_and_records_only_the_selected_sequence(self):
         observed = []
 
