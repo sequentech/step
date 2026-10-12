@@ -4,6 +4,7 @@
 
 use crate::postgres::maintenance::vacuum_analyze_direct;
 use crate::services::electoral_log::ElectoralLogAdminContext;
+use crate::services::import::import_users::ImportUsersPrivileges;
 use crate::services::import::rejection::problems_of;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::tasks_execution::{update_complete, update_fail, update_fail_with_problems};
@@ -32,6 +33,10 @@ pub struct ImportElectionEventBody {
     /// signing configuration's log entries name them.
     #[serde(default)]
     pub importer: Option<ElectoralLogAdminContext>,
+    /// What the importing user may grant through the voters file, derived by
+    /// the server from that user's permissions.
+    #[serde(default)]
+    pub privileges: ImportUsersPrivileges,
 }
 
 #[instrument(err)]
