@@ -66,7 +66,11 @@ test("publication managers keep drafts and deleted styles within their labels", 
                     election: {
                         _or: [
                             {permission_label: {_is_null: true}},
-                            {permission_label: {_in: "X-Hasura-Permission-Labels"}},
+                            {
+                                permission_label: {
+                                    _in: "X-Hasura-Permission-Labels",
+                                },
+                            },
                         ],
                     },
                 },
