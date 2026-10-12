@@ -51,6 +51,8 @@ To facilitate navigation, a **search field** is provided that allows you to sear
 
 Election Events are categorized into **Active** and **Archived** for better organization. This allows users to archive election events that have been finalized or used for testing purposes, maintaining a clean tree structure with only the events currently in progress.
 
+Deleting an Election Event removes it permanently. An Election Event can only be deleted when it is not locked down, when voting is not open or paused on any channel of the event or its elections, and when your permission labels cover every election in it.
+
 ---
 
 ## 4. Main Content Area
