@@ -343,6 +343,11 @@ pub(crate) fn cast_vote_error_response(
             &msg,
             ErrorCode::BallotIdMismatch,
         ),
+        CastVoteError::GetBallotStyleFailed(_) => ErrorResponse::new(
+            Status::InternalServerError,
+            ErrorCode::InternalServerError.to_string().as_str(),
+            ErrorCode::InternalServerError,
+        ),
     }
 }
 

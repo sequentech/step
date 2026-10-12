@@ -396,9 +396,12 @@ const englishTranslation = {
             common: {
                 gapiKey: "Google Calendar Service Account Key",
                 gapiEmail: "Google Calendar Authentication Email",
+                gapiKeyHelper: "The stored key is not shown. Paste a new key to replace it.",
+                gapiKeySaved: "Google Calendar Service Account Key saved",
             },
             errors: {
                 invalidGapiKey: "Invalid Google Calendar Service Account Key format",
+                saveGapiKey: "Could not save the Google Calendar Service Account Key",
             },
         },
         lookAndFeelScreen: {
@@ -934,6 +937,15 @@ const englishTranslation = {
                     options: {
                         enabled: "Enabled",
                         disabled: "Disabled",
+                    },
+                },
+                batchAnonymityPolicy: {
+                    policyLabel: "Batch Anonymity Policy",
+                    helperText:
+                        "Refuse stops the tally when an area's ballot batch has fewer than five voters, or differs from the batch another tally already posted for the same area and contest.",
+                    options: {
+                        warn: "Warn",
+                        refuse: "Refuse",
                     },
                 },
                 languageDetectionPolicy: {
