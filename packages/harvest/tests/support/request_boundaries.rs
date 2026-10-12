@@ -29,7 +29,7 @@ const OTHER_TENANT_ID: &str = "c1a9d4f7-3e58-4b62-8f0d-6a2e7b9c4d31";
 const SUPER_ADMIN_TENANT_ID: &str = "fixture-super-admin";
 const USER_ID: &str = "test-user";
 // Update only with a reviewed change to the checked-in route inventory.
-const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 169;
+const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 170;
 
 const CHILD: &str = "HARVEST_ISOLATED_TEST_CHILD";
 
@@ -924,4 +924,118 @@ async fn deleting_an_event_with_ballot_box_seals_is_refused_before_its_task() {
         error.starts_with("Failed to check the ballot box seals"),
         "{error}"
     );
+}
+
+#[rocket::async_test]
+async fn setting_the_google_service_account_key_stores_it_in_the_vault() {
+    const TEST: &str = "request_boundaries::setting_the_google_service_account_key_stores_it_in_the_vault";
+    if !is_isolated_child() {
+        run_isolated_with_postgres(TEST, "http://127.0.0.1:9", true);
+        return;
+    }
+    use crate::route_services::{
+        json as response_json, post, rows, text, Services,
+    };
+    use windmill::services::google_meet::service_account_key_secret_name;
+    std::env::set_var("MASTER_SECRET", "5a".repeat(32));
+    let services = Services::on_test_database().await;
+    let database: String =
+        rows::query(&services.hasura, "SELECT current_database() AS name", &[])
+            .await[0]
+            .get("name");
+    std::env::set_var("HASURA_DB__DBNAME", database);
+    let client = services.client().await;
+    let service_account_key = |token_uri: &str| {
+        json!({
+            "type": "service_account",
+            "private_key": "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----\n",
+            "client_email": "meet@project.iam.gserviceaccount.com",
+            "token_uri": token_uri,
+        })
+    };
+
+    let event = rows::event(&services.hasura).await;
+    let tenant_id = uuid::Uuid::parse_str(&event.tenant_id).unwrap();
+    rows::execute(
+        &services.hasura,
+        "UPDATE sequent_backend.tenant SET settings = $1 WHERE id = $2",
+        &[
+            &json!({
+                "gapi_key": service_account_key("https://oauth2.googleapis.com/token"),
+                "gapi_email": "organizer@example.org",
+            }),
+            &tenant_id,
+        ],
+    )
+    .await;
+    let writer = Claims::new(&event.tenant_id, USER_ID)
+        .roles([Permissions::TENANT_WRITE]);
+
+    let (status, output) = response_json(
+        post(
+            &client,
+            "/set-google-service-account-key",
+            &writer,
+            &json!({"service_account_key": service_account_key("https://oauth2.googleapis.com/token")}),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{output}");
+    assert_eq!(
+        output,
+        json!({"client_email": "meet@project.iam.gserviceaccount.com"})
+    );
+    let secrets = rows::query(
+        &services.hasura,
+        "SELECT count(*) AS n FROM sequent_backend.secret WHERE tenant_id = $1 AND key = $2",
+        &[&tenant_id, &service_account_key_secret_name(&event.tenant_id)],
+    )
+    .await;
+    assert_eq!(secrets[0].get::<_, i64>("n"), 1);
+    let settings = rows::query(
+        &services.hasura,
+        "SELECT settings FROM sequent_backend.tenant WHERE id = $1",
+        &[&tenant_id],
+    )
+    .await;
+    assert_eq!(
+        settings[0].get::<_, Value>("settings"),
+        json!({"gapi_email": "organizer@example.org"})
+    );
+
+    // A key that cannot be used is the caller's mistake.
+    for (body, message) in [
+        (
+            json!({"service_account_key": {"type": "service_account"}}),
+            "Failed to parse service account key",
+        ),
+        (
+            json!({"service_account_key": service_account_key("https://example.org/token")}),
+            "Token URI not allowed",
+        ),
+    ] {
+        let (status, error) = text(
+            post(&client, "/set-google-service-account-key", &writer, &body)
+                .await,
+        )
+        .await;
+        assert_eq!(status, Status::BadRequest, "{error}");
+        assert!(error.contains(message), "{error}");
+    }
+
+    // A tenant that does not exist cannot own a secret.
+    let stranger = Claims::new(&uuid::Uuid::new_v4().to_string(), USER_ID)
+        .roles([Permissions::TENANT_WRITE]);
+    let (status, error) = text(
+        post(
+            &client,
+            "/set-google-service-account-key",
+            &stranger,
+            &json!({"service_account_key": service_account_key("https://oauth2.googleapis.com/token")}),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::InternalServerError, "{error}");
 }

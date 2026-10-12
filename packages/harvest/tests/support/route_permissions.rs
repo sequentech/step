@@ -358,6 +358,7 @@ fn cases() -> Vec<Case> {
         // The other processors are not authorized, and only return an id.
         case!(Admin, "/scheduled-event", {"tenant_id": OTHER_TENANT_ID, "event_processor": "START_VOTING_PERIOD", "event_payload": {}}, [], BACKEND),
         case!(Admin, "/set-custom-url", {"origin": "https://origin.invalid", "redirect_to": "https://redirect.invalid", "dns_prefix": "test", "election_id": EVENT_ID, "key": "login"}, [ELECTION_EVENT_WRITE], BACKEND, FORBIDDEN),
+        case!(Admin, "/set-google-service-account-key", {"service_account_key": {}}, [TENANT_WRITE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/set-role-permission", {"tenant_id": TENANT_ID, "role_id": "test-role", "permission_name": "test-permission"}, [USER_PERMISSION_WRITE, ROLE_WRITE], BACKEND_TEXT, UNAUTHORIZED),
         // A sign permission also passes with role-write alone; the change opens the database first.
         case!(UuidTenant, "/set-role-permission", {"tenant_id": UUID_TENANT_ID, "role_id": "test-role", "permission_name": "sign-close-voting"}, [ROLE_WRITE], BACKEND, UNAUTHORIZED),
