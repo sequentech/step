@@ -268,7 +268,7 @@ mod master_secret_tests {
             let error = result
                 .expect("vault data must not panic")
                 .expect_err("invalid key must fail");
-            assert_eq!(format!("{error:?}"), expected);
+            assert_eq!(format!("{error:#}"), expected);
         }
     }
 }

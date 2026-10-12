@@ -41,9 +41,7 @@ use sequent_core::sqlite::election::create_election_sqlite;
 use sequent_core::sqlite::election_event::create_election_event_sqlite;
 use sequent_core::types::ceremonies::TallySessionResolutionData;
 use sequent_core::types::ceremonies::TallyType;
-use sequent_core::types::hasura::core::{
-    Area, Election, ElectionEvent, TallySession, TallySheet,
-};
+use sequent_core::types::hasura::core::{Area, Election, ElectionEvent, TallySession, TallySheet};
 use sequent_core::types::participation::VotesByChannel;
 use sequent_core::types::scheduled_event::ScheduledEvent;
 use sequent_core::types::templates::PrintToPdfOptionsLocal;

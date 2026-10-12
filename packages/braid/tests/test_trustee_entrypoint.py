@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
 """Entrypoint behavior in an offline Ubuntu 26.04 container with explicit test binaries.
 
 Run after importing the Ubuntu image: python3 -m unittest discover -s packages/braid/tests

@@ -12,6 +12,7 @@ import globals from "globals"
 export default [
     {
         ignores: [
+            "rust/pkg/**",
             "node_modules/**",
             "dist/**",
             "target/**",

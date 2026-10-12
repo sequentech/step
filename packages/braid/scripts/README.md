@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
 # Trustee configuration
 
 Generate each local trustee configuration using the `gen_trustee_config` binary

@@ -164,3 +164,18 @@ path = [
 precedence = "aggregate"
 SPDX-FileCopyrightText = "ruescasd <david@sequentech.io>"
 SPDX-License-Identifier = "LicenseRef-Trellis-Upstream"
+
+[[annotations]]
+path = [
+	"packages/third_party/celery-codegen/Cargo.toml",
+	"packages/third_party/celery-codegen/src/**"
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = ["", "epwalsh <epwalsh10@gmail.com> and the rusty-celery contributors", "2026 Sequent Tech Inc <legal@sequentech.io>"]
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "packages/third_party/celery-codegen/UPSTREAM.json"
+precedence = "aggregate"
+SPDX-FileCopyrightText = ["", "2026 Sequent Tech Inc <legal@sequentech.io>"]
+SPDX-License-Identifier = "AGPL-3.0-only"

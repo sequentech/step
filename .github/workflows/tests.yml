@@ -169,8 +169,27 @@ jobs:
   # ===========================================================================
   # Runs the Jest frontend tests and the Node.js theme tests.
   # ===========================================================================
+  build-sequent-core-wasm:
+    name: Build sequent-core WebAssembly package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Build the sequent-core WebAssembly package
+        uses: ./.github/actions/build-sequent-core-wasm
+
+      - name: Upload the package
+        uses: actions/upload-artifact@v4
+        with:
+          name: sequent-core-wasm
+          path: packages/sequent-core/pkg
+          retention-days: 1
+
   run-frontend-tests:
     name: Run frontend tests
+    needs: build-sequent-core-wasm
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
@@ -200,6 +219,22 @@ jobs:
           node-version: '20'
           cache: yarn
           cache-dependency-path: packages/yarn.lock
+
+      - name: Download the sequent-core WebAssembly package
+        uses: actions/download-artifact@v4
+        with:
+          name: sequent-core-wasm
+          path: packages/sequent-core/pkg
+
+      - name: Place it where the workspace packages expect it
+        working-directory: packages
+        run: |
+          set -euo pipefail
+          for dir in ui-core admin-portal voting-portal ballot-verifier; do
+            rm -rf "${dir}/rust/pkg"
+            mkdir -p "${dir}/rust"
+            cp -a sequent-core/pkg "${dir}/rust/pkg"
+          done
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile --non-interactive --prefer-offline
