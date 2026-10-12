@@ -174,9 +174,9 @@ const englishTranslation = {
             unfilledContestsDialog: {
                 title: "Some selections are unfilled",
                 content:
-                    "You may leave a selection blank or choose fewer options than allowed. Check the following before continuing.",
+                    "You may leave an office blank or select fewer candidates. Check the following before continuing.",
                 selected: "{{selected}} of {{max}} selected",
-                nothingSelected: "Nothing selected",
+                nothingSelected: "No vote for this office",
                 ok: "Continue with these selections",
                 cancel: "Review selections",
             },
@@ -429,15 +429,16 @@ const englishTranslation = {
         },
         slates: {
             title: "Slates",
-            description:
-                "A slate is a group of candidates running together. Each candidate shows the slate they belong to.",
             independent: "Independent",
             contestMembers: "{{slate}} candidates for {{contest}}",
             noCandidate: "No candidate",
+            note: "A slate selects its candidates and leaves offices without a slate candidate blank. You can change individual choices at any time.",
             coverage: {
                 full: "Full slate",
                 singleContest: "{{contest}} only",
                 partial: "Partial slate",
+                everyOffice: "Candidates for every office.",
+                someOffices: "Candidates for {{offices}}. Other offices are left blank.",
                 candidates_one: "{{count}} candidate",
                 candidates_other: "{{count}} candidates",
                 offices_one: "{{count}} office",
@@ -448,18 +449,27 @@ const englishTranslation = {
                 hide: "Hide candidates",
             },
             tabs: {
-                label: "Ways to fill in your ballot",
+                label: "Selection method",
                 slates: "Choose a slate",
                 candidates: "Individual candidates",
             },
+            count: {
+                short: "{{selected}} / {{seats}} candidates selected",
+                long: "· {{selected}} of {{seats}} candidates selected",
+                individual: "Individual selections",
+                none: "No candidates selected",
+            },
+            allSelections: {
+                label: "Your current selections",
+                none: "No selection",
+            },
             review: {
                 title: "Your selections",
-                total: "Candidates selected: {{selected}} of {{seats}}",
-                slate: "{{slate}}: {{status}}",
-                independent: "Independent candidates selected: {{count}}",
-                note: "Your vote is recorded for each selected candidate. A slate is not a vote of its own.",
+                of: "of {{seats}}",
+                selected: "Candidates selected",
+                note: "Your vote is recorded for each selected candidate.",
                 contestCount: "{{selected}} of {{max}} selected",
-                edit: "Edit",
+                unfilled: "No candidate selected",
                 editLabel: "Edit {{contest}}",
             },
             selection: {
@@ -470,32 +480,56 @@ const englishTranslation = {
                 edit: "Edit selections",
             },
             apply: {
-                button: "Choose this slate",
-                buttonLabel: "Choose slate {{slate}}",
-                chosen: "{{slate}} chosen. Candidates selected: {{candidates}}. Contests: {{contests}}.",
+                button: "Select slate",
+                buttonLabel: "Select slate {{slate}}",
+                applied: "{{slate}} selected. You can still change any candidate.",
+                appliedPartial_one:
+                    "{{slate}} selected. It has no candidate for {{offices}}, so that office is blank. You can still change any candidate.",
+                appliedPartial_other:
+                    "{{slate}} selected. It has no candidate for {{offices}}, so those offices are blank. You can still change any candidate.",
                 overMaximum:
-                    "{{slate}} cannot be chosen: it has {{candidates}} candidates for {{contest}}, which allows {{max}}. You can still choose candidates individually.",
+                    "{{slate}} cannot be selected: it has {{candidates}} candidates for {{contest}}, which allows {{max}}. You can still choose candidates individually.",
                 unavailable:
-                    "{{slate}} cannot be chosen on this ballot. You can still choose candidates individually.",
+                    "{{slate}} cannot be selected on this ballot. You can still choose candidates individually.",
                 replaceDialog: {
-                    title: "Replace your current choices?",
-                    content:
-                        "Choosing {{slate}} sets your whole ballot to its candidates. Any contest where it has no candidate is left blank. These choices change:",
-                    removed: "Removed:",
-                    added: "Selected instead:",
-                    ok: "Replace choices",
-                    cancel: "Keep my choices",
+                    title: "Replace these selections?",
+                    content_one:
+                        "Selecting <strong>{{slate}}</strong> will change the following office.",
+                    content_other:
+                        "Selecting <strong>{{slate}}</strong> will change the following offices.",
+                    current: "Current selections",
+                    blankNote:
+                        "{{slate}} has no candidate for some offices. Those offices will be blank.",
+                    ok: "Replace selections",
+                    okOffice: "Replace {{office}}",
+                    cancel: "Keep my selections",
                 },
             },
             clear: {
                 cleared: "All your choices have been cleared.",
                 dialog: {
                     title: "Clear all your choices?",
-                    content:
-                        "Clearing removes every choice on your ballot. These choices are removed:",
+                    content: "Clearing removes every choice on your ballot. These offices change:",
+                    after: "After clearing",
                     ok: "Clear choices",
                     cancel: "Keep my choices",
                 },
+            },
+            offices: {
+                label: "Offices",
+                picker: "Office",
+                index: "Office {{index}} of {{total}}",
+                count: "{{selected}}/{{max}}",
+                previous: "Previous office",
+                next: "Next office",
+                last: "Last office",
+                instruction_one: "Select up to {{count}} candidate. {{selected}} selected.",
+                instruction_other: "Select up to {{count}} candidates. {{selected}} selected.",
+            },
+            clearContest: {
+                button: "Clear",
+                label: "Clear {{contest}}",
+                cleared: "Selections cleared for {{contest}}.",
             },
         },
         ballotLocator: {

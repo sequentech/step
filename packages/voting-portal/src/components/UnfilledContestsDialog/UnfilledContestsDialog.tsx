@@ -58,7 +58,7 @@ const UnfilledContestsDialog: React.FC<UnfilledContestsDialogProps> = ({
             title={t("reviewScreen.unfilledContestsDialog.title")}
             ok={t("reviewScreen.unfilledContestsDialog.ok")}
             cancel={t("reviewScreen.unfilledContestsDialog.cancel")}
-            variant="softwarning"
+            variant="info"
         >
             <Typography className="unfilled-contests-content" margin={0}>
                 {t("reviewScreen.unfilledContestsDialog.content")}

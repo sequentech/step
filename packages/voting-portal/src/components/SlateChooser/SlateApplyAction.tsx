@@ -4,8 +4,8 @@
 
 import React, {useId, useMemo, useState} from "react"
 import {Box, Button, Typography} from "@mui/material"
-import {translate} from "@sequentech/ui-core"
-import {useTranslation} from "react-i18next"
+import {isAcclaimedContest, translate} from "@sequentech/ui-core"
+import {Trans, useTranslation} from "react-i18next"
 import {
     computeSlateChoices,
     ISlateChoices,
@@ -24,14 +24,19 @@ import {SlateChangesDialog} from "./SlateChangesDialog"
 export interface SlateApplyActionProps {
     ballotStyle: IBallotStyle
     slate: IResolvedSlate
+    /** Told once the slate's candidates are the selection. */
+    onApplied?: (slate: IResolvedSlate) => void
 }
 
-export const SlateApplyAction: React.FC<SlateApplyActionProps> = ({ballotStyle, slate}) => {
+export const SlateApplyAction: React.FC<SlateApplyActionProps> = ({
+    ballotStyle,
+    slate,
+    onApplied,
+}) => {
     const {t, i18n} = useTranslation()
     const dispatch = useAppDispatch()
     const selection = useAppSelector(selectBallotSelectionByElectionId(ballotStyle.election_id))
     const [pending, setPending] = useState<ISlateChoices | undefined>()
-    const [wasChosen, setWasChosen] = useState(false)
     const unavailableId = useId()
 
     const slateName = getSlateName(
@@ -71,7 +76,7 @@ export const SlateApplyAction: React.FC<SlateApplyActionProps> = ({ballotStyle, 
 
     const apply = () => {
         dispatch(applySlateSelection({ballotStyle, slate}))
-        setWasChosen(true)
+        onApplied?.(slate)
     }
 
     const handleChoose = () => {
@@ -92,17 +97,24 @@ export const SlateApplyAction: React.FC<SlateApplyActionProps> = ({ballotStyle, 
         }
     }
 
-    const isSelection = wasChosen && choices?.changes.length === 0
-    const candidatesCount = slate.contests.reduce(
-        (total, entry) => total + entry.candidates.length,
-        0
+    const affected = (pending?.changes ?? []).filter((change) => change.removed.length > 0)
+    const [onlyAffected] = affected
+    const onlyAffectedContest =
+        affected.length === 1
+            ? ballotStyle.ballot_eml.contests.find(
+                  (contest) => contest.id === onlyAffected.contestId
+              )
+            : undefined
+    const leavesOfficesBlank = ballotStyle.ballot_eml.contests.some(
+        (contest) =>
+            !isAcclaimedContest(contest) &&
+            !slate.contests.some((entry) => entry.contest.id === contest.id)
     )
 
     return (
         <Box className="slate-apply">
             <Button
                 className="slate-apply-button"
-                variant="secondary"
                 onClick={handleChoose}
                 disabled={!choices}
                 aria-label={t("slates.apply.buttonLabel", {slate: slateName})}
@@ -110,15 +122,6 @@ export const SlateApplyAction: React.FC<SlateApplyActionProps> = ({ballotStyle, 
             >
                 {t("slates.apply.button")}
             </Button>
-            <Typography className="slate-apply-status" role="status" variant="body2">
-                {isSelection
-                    ? t("slates.apply.chosen", {
-                          slate: slateName,
-                          candidates: candidatesCount,
-                          contests: slate.contests.length,
-                      })
-                    : null}
-            </Typography>
             {unavailableReason && (
                 <Typography className="slate-apply-unavailable" id={unavailableId} variant="body2">
                     {unavailableReason}
@@ -127,11 +130,33 @@ export const SlateApplyAction: React.FC<SlateApplyActionProps> = ({ballotStyle, 
             <SlateChangesDialog
                 className="slate-replace-dialog"
                 pending={pending}
+                current={selection}
                 contests={ballotStyle.ballot_eml.contests}
                 handleClose={handleClose}
                 title={t("slates.apply.replaceDialog.title")}
-                content={t("slates.apply.replaceDialog.content", {slate: slateName})}
-                ok={t("slates.apply.replaceDialog.ok")}
+                content={
+                    <Trans
+                        i18nKey="slates.apply.replaceDialog.content"
+                        values={{slate: slateName}}
+                        count={affected.length}
+                        components={{strong: <strong className="slate-replace-slate" />}}
+                    />
+                }
+                afterLabel={slateName}
+                note={
+                    leavesOfficesBlank
+                        ? t("slates.apply.replaceDialog.blankNote", {slate: slateName})
+                        : undefined
+                }
+                ok={
+                    onlyAffectedContest
+                        ? t("slates.apply.replaceDialog.okOffice", {
+                              office: (
+                                  translate(onlyAffectedContest, "name", i18n.language) ?? ""
+                              ).toLocaleLowerCase(),
+                          })
+                        : t("slates.apply.replaceDialog.ok")
+                }
                 cancel={t("slates.apply.replaceDialog.cancel")}
             />
         </Box>

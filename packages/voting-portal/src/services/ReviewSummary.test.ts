@@ -5,8 +5,12 @@
 import {BallotSelection, IContest} from "@sequentech/ui-core"
 import {aCandidate, aContest, marks} from "../testing/ballotHarness"
 import {PRESIDENT, SLATES, TRUSTEES} from "../testing/slateFixtures"
-import {getBallotReviewSummary} from "./ReviewSummary"
-import {ESlateSelectionStatus} from "./SlateSelection"
+import {
+    EBallotSelectionLabel,
+    getBallotReviewSummary,
+    getBallotSelectionCount,
+    getBallotSelectionLabel,
+} from "./ReviewSummary"
 import {resolveSlates} from "./Slates"
 
 const CONTESTS = [PRESIDENT, TRUSTEES]
@@ -17,13 +21,10 @@ const ballot = (president: string[], trustees: string[]): BallotSelection => [
     marks(TRUSTEES, Object.fromEntries(trustees.map((id) => [id, 0]))),
 ]
 
-const slateLines = (selection: BallotSelection) =>
-    getBallotReviewSummary(CONTESTS, RESOLVED, selection).slates.map(({slate, summary}) => [
-        slate.id,
-        summary.status,
-        summary.selected,
-        summary.total,
-    ])
+const labelOf = (selection: BallotSelection) => {
+    const {label} = getBallotReviewSummary(CONTESTS, RESOLVED, selection)
+    return [label.kind, label.slate?.id]
+}
 
 describe("getBallotReviewSummary", () => {
     it("counts the selected candidates of every contest against its maximum", () => {
@@ -41,30 +42,24 @@ describe("getBallotReviewSummary", () => {
         expect(summary.seats).toBe(4)
     })
 
-    it("reads a fully selected slate as all selected", () => {
-        expect(slateLines(ballot(["f-president"], ["f-t1", "f-t2"]))).toEqual([
-            ["forward", ESlateSelectionStatus.ALL, 3, 3],
+    it("names the slate the ballot holds exactly", () => {
+        expect(labelOf(ballot(["f-president"], ["f-t1", "f-t2"]))).toEqual([
+            EBallotSelectionLabel.SLATE,
+            "forward",
         ])
     })
 
-    it("reads a slate changed by hand as mixed, with the replacement counted as independent", () => {
-        const selection = ballot(["i-president"], ["f-t1", "f-t2"])
-
-        expect(slateLines(selection)).toEqual([["forward", ESlateSelectionStatus.MIXED, 2, 3]])
-        expect(getBallotReviewSummary(CONTESTS, RESOLVED, selection).independent).toBe(1)
-    })
-
-    it("reads a slate with a member removed as partly selected", () => {
-        expect(slateLines(ballot(["f-president"], ["f-t1"]))).toEqual([
-            ["forward", ESlateSelectionStatus.PARTLY, 2, 3],
+    it("reads a slate changed by hand as individual selections", () => {
+        expect(labelOf(ballot(["i-president"], ["f-t1", "f-t2"]))).toEqual([
+            EBallotSelectionLabel.INDIVIDUAL,
+            undefined,
         ])
     })
 
-    it("lists every slate with a selected member, in the configured order", () => {
-        expect(slateLines(ballot([], ["v-t1", "m-t1", "f-t1"]))).toEqual([
-            ["forward", ESlateSelectionStatus.MIXED, 1, 3],
-            ["members", ESlateSelectionStatus.MIXED, 1, 2],
-            ["voices", ESlateSelectionStatus.MIXED, 1, 1],
+    it("reads a slate with a member removed as individual selections", () => {
+        expect(labelOf(ballot(["f-president"], ["f-t1"]))).toEqual([
+            EBallotSelectionLabel.INDIVIDUAL,
+            undefined,
         ])
     })
 
@@ -73,8 +68,7 @@ describe("getBallotReviewSummary", () => {
             selected: 0,
             seats: 4,
             contests: {president: {selected: 0, max: 1}, trustees: {selected: 0, max: 3}},
-            slates: [],
-            independent: 0,
+            label: {kind: EBallotSelectionLabel.NONE},
         })
     })
 
@@ -106,7 +100,6 @@ describe("getBallotReviewSummary", () => {
         ])
 
         expect(summary.contests.auditor).toEqual({selected: 0, max: 1})
-        expect(summary.independent).toBe(0)
     })
 
     it("ignores a choice that is not a candidate of the contest", () => {
@@ -127,5 +120,45 @@ describe("getBallotReviewSummary", () => {
 
         expect(summary.seats).toBe(1)
         expect(summary.contests).toEqual({president: {selected: 1, max: 1}})
+    })
+})
+
+describe("getBallotSelectionCount", () => {
+    it("counts the selected candidates against the seats of the ballot", () => {
+        expect(
+            getBallotSelectionCount(CONTESTS, ballot(["f-president"], ["f-t1", "i-t1"]))
+        ).toEqual({selected: 3, seats: 4})
+    })
+
+    it("counts nothing for a ballot without selections yet", () => {
+        expect(getBallotSelectionCount(CONTESTS, undefined)).toEqual({selected: 0, seats: 4})
+    })
+
+    it("leaves acclaimed contests out", () => {
+        const acclaimed = {...PRESIDENT, is_acclaimed: true}
+        expect(getBallotSelectionCount([acclaimed, TRUSTEES], ballot([], ["f-t1"]))).toEqual({
+            selected: 1,
+            seats: 3,
+        })
+    })
+})
+
+describe("getBallotSelectionLabel", () => {
+    it("names the slate the ballot holds exactly", () => {
+        const label = getBallotSelectionLabel(RESOLVED, ballot(["f-president"], ["f-t1", "f-t2"]))
+        expect(label.kind).toBe(EBallotSelectionLabel.SLATE)
+        expect(label.slate?.id).toBe("forward")
+    })
+
+    it("speaks of individual selections otherwise", () => {
+        expect(getBallotSelectionLabel(RESOLVED, ballot(["i-president"], ["f-t1"])).kind).toBe(
+            EBallotSelectionLabel.INDIVIDUAL
+        )
+    })
+
+    it("says nothing is selected on an empty ballot", () => {
+        expect(getBallotSelectionLabel(RESOLVED, ballot([], [])).kind).toBe(
+            EBallotSelectionLabel.NONE
+        )
     })
 })

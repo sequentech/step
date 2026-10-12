@@ -27,6 +27,21 @@ export interface SlateBallotTabsProps {
  * effects, so unmounting them while the voter looks at the slates would lose
  * the checks that run before review.
  */
+const TAB_STYLE = {
+    "minHeight": "44px",
+    "minWidth": 0,
+    "padding": {xs: "11px 0 12px", sm: "12px 0 14px"},
+    "marginRight": {xs: 0, sm: "22px"},
+    "textTransform": "none",
+    "overflowWrap": "anywhere",
+    "fontSize": {xs: "15px", sm: "16px"},
+    "color": "customGrey.dark",
+    "&.Mui-selected": {
+        color: "brandColor",
+        fontWeight: 600,
+    },
+} as const
+
 export const SlateBallotTabs: React.FC<SlateBallotTabsProps> = ({
     value,
     onChange,
@@ -73,6 +88,12 @@ export const SlateBallotTabs: React.FC<SlateBallotTabsProps> = ({
                     variant={isPhone ? "fullWidth" : "standard"}
                     indicatorColor="primary"
                     textColor="inherit"
+                    sx={{
+                        "& .MuiTabs-indicator": {
+                            height: "3px",
+                            backgroundColor: theme.palette.brandColor,
+                        },
+                    }}
                     aria-label={t("slates.tabs.label")}
                     value={value}
                     onChange={(_event, next: ESlateBallotTab) => onChange(next)}
@@ -83,12 +104,7 @@ export const SlateBallotTabs: React.FC<SlateBallotTabsProps> = ({
                         value={ESlateBallotTab.SLATES}
                         id={tabId(ESlateBallotTab.SLATES)}
                         aria-controls={panelId(ESlateBallotTab.SLATES)}
-                        sx={{
-                            minHeight: "44px",
-                            minWidth: 0,
-                            textTransform: "none",
-                            overflowWrap: "anywhere",
-                        }}
+                        sx={TAB_STYLE}
                     />
                     <Tab
                         className="slate-ballot-tab-candidates"
@@ -96,12 +112,7 @@ export const SlateBallotTabs: React.FC<SlateBallotTabsProps> = ({
                         value={ESlateBallotTab.CANDIDATES}
                         id={tabId(ESlateBallotTab.CANDIDATES)}
                         aria-controls={panelId(ESlateBallotTab.CANDIDATES)}
-                        sx={{
-                            minHeight: "44px",
-                            minWidth: 0,
-                            textTransform: "none",
-                            overflowWrap: "anywhere",
-                        }}
+                        sx={TAB_STYLE}
                     />
                 </Tabs>
             </Box>

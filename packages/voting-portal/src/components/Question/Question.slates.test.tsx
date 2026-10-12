@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {act, screen} from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import type {ICandidate} from "@sequentech/ui-core"
 
 import {aCandidate, aContest, i18n, marks, mountContest} from "../../testing/ballotHarness"
@@ -128,5 +129,35 @@ describe("the slate of a selected candidate in review", () => {
         expect(labelOf("Rowan Scott")).toBe("Forward Together")
         expect(labelOf("Blair Lewis")).toBe("Independent")
         expect(screen.queryByText("Harper Lane")).not.toBeInTheDocument()
+    })
+})
+
+describe("clearing one contest on a ballot with slates", () => {
+    it("is offered, and only when the contest holds a choice", () => {
+        mountContest(TRUSTEES, {slates: SLATES})
+
+        expect(screen.getByRole("button", {name: "Clear Trustees"})).toBeDisabled()
+    })
+
+    it("removes the contest's choices and says so", async () => {
+        mountContest(TRUSTEES, {slates: SLATES, selection: marks(TRUSTEES, {"f-t1": 0, "i-t1": 0})})
+
+        const clear = screen.getByRole("button", {name: "Clear Trustees"})
+        expect(clear).toBeEnabled()
+        await userEvent.click(clear)
+
+        expect(
+            screen.getByRole("checkbox", {name: "Rowan Scott Forward Together"})
+        ).not.toBeChecked()
+        expect(screen.getByRole("checkbox", {name: "Blair Lewis Independent"})).not.toBeChecked()
+        expect(document.querySelector(".contest-clear-status")).toHaveAttribute("role", "status")
+        expect(document.querySelector(".contest-clear-status")).toHaveTextContent(
+            "Selections cleared for Trustees."
+        )
+    })
+
+    it("is not offered on a ballot without slates or in review", () => {
+        mountContest(TRUSTEES)
+        expect(screen.queryByRole("button", {name: "Clear Trustees"})).toBeNull()
     })
 })

@@ -279,3 +279,26 @@ export const apply_slate_js = (slateJson: unknown, contestsJson: unknown, curren
         changes,
     }
 }
+
+interface IStubSortableCandidate {
+    name?: string | null
+    alias?: string | null
+    presentation?: {sort_order?: number | null} | null
+}
+
+/** The candidate order of `sort_candidates_list_js`, without the shuffle. */
+export const sort_candidates_list_js = <Candidate extends IStubSortableCandidate>(
+    candidates: Array<Candidate>,
+    order?: string
+): Array<Candidate> => {
+    const sorted = [...candidates]
+    if (order === "alphabetical") {
+        const key = (candidate: Candidate) =>
+            (candidate.alias ?? candidate.name ?? "").toLowerCase()
+        sorted.sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0))
+    } else if (order === "custom") {
+        const key = (candidate: Candidate) => candidate.presentation?.sort_order ?? -1
+        sorted.sort((a, b) => key(a) - key(b))
+    }
+    return sorted
+}

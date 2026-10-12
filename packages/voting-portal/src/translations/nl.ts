@@ -170,9 +170,9 @@ const dutchTranslation: TranslationType = {
             unfilledContestsDialog: {
                 title: "Sommige keuzes zijn niet ingevuld",
                 content:
-                    "U mag een keuze leeg laten of minder opties kiezen dan toegestaan. Controleer het volgende voordat u doorgaat.",
+                    "U mag een functie leeg laten of minder kandidaten selecteren. Controleer het volgende voordat u verdergaat.",
                 selected: "{{selected}} van {{max}} geselecteerd",
-                nothingSelected: "Niets geselecteerd",
+                nothingSelected: "Geen stem voor deze functie",
                 ok: "Doorgaan met deze keuzes",
                 cancel: "Keuzes controleren",
             },
@@ -430,15 +430,16 @@ const dutchTranslation: TranslationType = {
         },
         slates: {
             title: "Lijsten",
-            description:
-                "Een lijst is een groep kandidaten die zich samen verkiesbaar stellen. Bij elke kandidaat staat de lijst waartoe die behoort.",
             independent: "Onafhankelijk",
             contestMembers: "Kandidaten van {{slate}} voor {{contest}}",
             noCandidate: "Geen kandidaat",
+            note: "Een lijst selecteert haar kandidaten en laat functies zonder kandidaat van de lijst leeg. U kunt afzonderlijke keuzes op elk moment wijzigen.",
             coverage: {
                 full: "Volledige lijst",
                 singleContest: "Alleen {{contest}}",
                 partial: "Gedeeltelijke lijst",
+                everyOffice: "Kandidaten voor elke functie.",
+                someOffices: "Kandidaten voor {{offices}}. Andere functies blijven leeg.",
                 candidates_one: "{{count}} kandidaat",
                 candidates_other: "{{count}} kandidaten",
                 offices_one: "{{count}} functie",
@@ -449,18 +450,27 @@ const dutchTranslation: TranslationType = {
                 hide: "Kandidaten verbergen",
             },
             tabs: {
-                label: "Manieren om uw stembiljet in te vullen",
+                label: "Selectiemethode",
                 slates: "Kies een lijst",
                 candidates: "Individuele kandidaten",
             },
+            count: {
+                short: "{{selected}} / {{seats}} kandidaten geselecteerd",
+                long: "· {{selected}} van {{seats}} kandidaten geselecteerd",
+                individual: "Individuele selecties",
+                none: "Geen kandidaten geselecteerd",
+            },
+            allSelections: {
+                label: "Uw huidige selecties",
+                none: "Geen selectie",
+            },
             review: {
                 title: "Uw selecties",
-                total: "Geselecteerde kandidaten: {{selected}} van {{seats}}",
-                slate: "{{slate}}: {{status}}",
-                independent: "Geselecteerde onafhankelijke kandidaten: {{count}}",
-                note: "Uw stem wordt geregistreerd voor elke geselecteerde kandidaat. Een lijst is op zichzelf geen stem.",
+                of: "van {{seats}}",
+                selected: "Kandidaten geselecteerd",
+                note: "Uw stem wordt geregistreerd voor elke geselecteerde kandidaat.",
                 contestCount: "{{selected}} van {{max}} geselecteerd",
-                edit: "Bewerken",
+                unfilled: "Geen kandidaat geselecteerd",
                 editLabel: "{{contest}} bewerken",
             },
             selection: {
@@ -468,24 +478,32 @@ const dutchTranslation: TranslationType = {
                 mixed: "Gemengd · {{selected}} van {{total}} geselecteerd",
                 partly: "Gedeeltelijk geselecteerd · {{selected}} van {{total}}",
                 selected: "Geselecteerd",
-                edit: "Selectie bewerken",
+                edit: "Selecties bewerken",
             },
             apply: {
-                button: "Deze lijst kiezen",
-                buttonLabel: "Lijst {{slate}} kiezen",
-                chosen: "{{slate}} gekozen. Geselecteerde kandidaten: {{candidates}}. Verkiezingen: {{contests}}.",
+                button: "Lijst selecteren",
+                buttonLabel: "Lijst {{slate}} selecteren",
+                applied: "{{slate}} geselecteerd. U kunt nog elke kandidaat wijzigen.",
+                appliedPartial_one:
+                    "{{slate}} geselecteerd. De lijst heeft geen kandidaat voor {{offices}}, dus die functie blijft leeg. U kunt nog elke kandidaat wijzigen.",
+                appliedPartial_other:
+                    "{{slate}} geselecteerd. De lijst heeft geen kandidaat voor {{offices}}, dus die functies blijven leeg. U kunt nog elke kandidaat wijzigen.",
                 overMaximum:
-                    "{{slate}} kan niet worden gekozen: de lijst heeft {{candidates}} kandidaten voor {{contest}}, waar {{max}} is toegestaan. U kunt nog steeds afzonderlijke kandidaten kiezen.",
+                    "{{slate}} kan niet worden geselecteerd: de lijst heeft {{candidates}} kandidaten voor {{contest}}, waar {{max}} is toegestaan. U kunt nog steeds afzonderlijke kandidaten kiezen.",
                 unavailable:
-                    "{{slate}} kan op dit stembiljet niet worden gekozen. U kunt nog steeds afzonderlijke kandidaten kiezen.",
+                    "{{slate}} kan op dit stembiljet niet worden geselecteerd. U kunt nog steeds afzonderlijke kandidaten kiezen.",
                 replaceDialog: {
-                    title: "Uw huidige keuzes vervangen?",
-                    content:
-                        "Als u {{slate}} kiest, wordt uw hele stembiljet gevuld met de kandidaten van die lijst. Verkiezingen waarin de lijst geen kandidaat heeft, blijven leeg. Deze keuzes veranderen:",
-                    removed: "Verwijderd:",
-                    added: "In plaats daarvan geselecteerd:",
-                    ok: "Keuzes vervangen",
-                    cancel: "Mijn keuzes behouden",
+                    title: "Deze selecties vervangen?",
+                    content_one:
+                        "Als u <strong>{{slate}}</strong> selecteert, verandert de volgende functie.",
+                    content_other:
+                        "Als u <strong>{{slate}}</strong> selecteert, veranderen de volgende functies.",
+                    current: "Huidige selecties",
+                    blankNote:
+                        "{{slate}} heeft voor sommige functies geen kandidaat. Die functies blijven leeg.",
+                    ok: "Selecties vervangen",
+                    okOffice: "{{office}} vervangen",
+                    cancel: "Mijn selecties behouden",
                 },
             },
             clear: {
@@ -493,10 +511,29 @@ const dutchTranslation: TranslationType = {
                 dialog: {
                     title: "Al uw keuzes wissen?",
                     content:
-                        "Wissen verwijdert alle keuzes op uw stembiljet. Deze keuzes worden verwijderd:",
+                        "Wissen verwijdert alle keuzes op uw stembiljet. Deze functies veranderen:",
+                    after: "Na wissen",
                     ok: "Keuzes wissen",
                     cancel: "Mijn keuzes behouden",
                 },
+            },
+            offices: {
+                label: "Functies",
+                picker: "Functie",
+                index: "Functie {{index}} van {{total}}",
+                count: "{{selected}}/{{max}}",
+                previous: "Vorige functie",
+                next: "Volgende functie",
+                last: "Laatste functie",
+                instruction_one:
+                    "Selecteer maximaal {{count}} kandidaat. {{selected}} geselecteerd.",
+                instruction_other:
+                    "Selecteer maximaal {{count}} kandidaten. {{selected}} geselecteerd.",
+            },
+            clearContest: {
+                button: "Wissen",
+                label: "{{contest}} wissen",
+                cleared: "Selecties voor {{contest}} gewist.",
             },
         },
         ballotLocator: {

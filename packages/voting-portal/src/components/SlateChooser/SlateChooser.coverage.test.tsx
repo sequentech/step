@@ -70,8 +70,14 @@ const cardOf = (name: string): HTMLElement => {
     return card
 }
 
-const coverageOf = (name: string): string =>
-    cardOf(name).querySelector(".slate-coverage")?.textContent ?? ""
+const textOf = (name: string, selector: string): string =>
+    cardOf(name).querySelector(selector)?.textContent ?? ""
+
+const coverageOf = (name: string): Array<string> => [
+    textOf(name, ".slate-coverage-chip"),
+    textOf(name, ".slate-coverage-sentence"),
+    textOf(name, ".slate-count"),
+]
 
 const officeOf = (name: string, contestId: string): HTMLElement => {
     const office = cardOf(name).querySelector<HTMLElement>(`[data-contest-id="${contestId}"]`)
@@ -91,19 +97,31 @@ describe("what a slate covers", () => {
     it("is a full slate when it has a candidate for every seat", () => {
         mount()
 
-        expect(coverageOf("Forward Together")).toBe("Full slate · 4 candidates · 2 offices")
+        expect(coverageOf("Forward Together")).toEqual([
+            "Full slate",
+            "Candidates for every office.",
+            "4 candidates · 2 offices",
+        ])
     })
 
     it("is partial when a seat is left without a candidate", () => {
         mount()
 
-        expect(coverageOf("Members First")).toBe("Partial slate · 2 candidates · 2 offices")
+        expect(coverageOf("Members First")).toEqual([
+            "Partial slate",
+            "Candidates for every office.",
+            "2 candidates · 2 offices",
+        ])
     })
 
     it("names the only office of a slate that leaves the others", () => {
         mount()
 
-        expect(coverageOf("Independent Voices")).toBe("Trustees only · 1 candidate · 1 office")
+        expect(coverageOf("Independent Voices")).toEqual([
+            "Trustees only",
+            "Candidates for trustees. Other offices are left blank.",
+            "1 candidate · 1 office",
+        ])
     })
 })
 

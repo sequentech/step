@@ -171,9 +171,9 @@ const galegoTranslation: TranslationType = {
             unfilledContestsDialog: {
                 title: "Hai seleccións sen completar",
                 content:
-                    "Pode deixar seleccións en branco ou escoller menos opcións das permitidas. Revise o seguinte antes de continuar.",
+                    "Pode deixar un cargo en branco ou seleccionar menos candidatos. Revise o seguinte antes de continuar.",
                 selected: "{{selected}} de {{max}} seleccionadas",
-                nothingSelected: "Sen selección",
+                nothingSelected: "Sen voto para este cargo",
                 ok: "Continuar con estas seleccións",
                 cancel: "Revisar seleccións",
             },
@@ -430,73 +430,108 @@ const galegoTranslation: TranslationType = {
         },
         slates: {
             title: "Candidaturas conxuntas",
-            description:
-                "Unha candidatura conxunta é un grupo de candidatos que se presentan xuntos. Cada candidato mostra a candidatura á que pertence.",
             independent: "Independente",
             contestMembers: "Candidatos de {{slate}} para {{contest}}",
             noCandidate: "Sen candidato",
+            note: "Unha lista selecciona os seus candidatos e deixa en branco os cargos nos que non ten candidato. Podes cambiar calquera opción individual en calquera momento.",
             coverage: {
                 full: "Candidatura completa",
                 singleContest: "Só {{contest}}",
                 partial: "Candidatura parcial",
+                everyOffice: "Candidatos para todos os cargos.",
+                someOffices: "Candidatos para {{offices}}. Os demais cargos quedan en branco.",
                 candidates_one: "{{count}} candidato",
                 candidates_other: "{{count}} candidatos",
                 offices_one: "{{count}} cargo",
                 offices_other: "{{count}} cargos",
             },
             candidateList: {
-                show: "Amosar candidaturas",
-                hide: "Agochar candidaturas",
+                show: "Amosar candidatos",
+                hide: "Agochar candidatos",
             },
             tabs: {
-                label: "Formas de cubrir a súa papeleta",
+                label: "Forma de selección",
                 slates: "Elixir unha lista",
                 candidates: "Candidaturas individuais",
             },
+            count: {
+                short: "{{selected}} / {{seats}} candidatos seleccionados",
+                long: "· {{selected}} de {{seats}} candidatos seleccionados",
+                individual: "Seleccións individuais",
+                none: "Ningún candidato seleccionado",
+            },
+            allSelections: {
+                label: "As túas seleccións actuais",
+                none: "Sen selección",
+            },
             review: {
                 title: "As túas seleccións",
-                total: "Candidaturas seleccionadas: {{selected}} de {{seats}}",
-                slate: "{{slate}}: {{status}}",
-                independent: "Candidaturas independentes seleccionadas: {{count}}",
-                note: "O teu voto rexístrase para cada candidatura seleccionada. Unha lista non é un voto por si mesma.",
-                contestCount: "{{selected}} de {{max}} seleccionadas",
-                edit: "Editar",
+                of: "de {{seats}}",
+                selected: "Candidatos seleccionados",
+                note: "O teu voto rexístrase para cada candidato seleccionado.",
+                contestCount: "{{selected}} de {{max}} seleccionados",
+                unfilled: "Ningún candidato seleccionado",
                 editLabel: "Editar {{contest}}",
             },
             selection: {
-                all: "As {{total}} seleccionadas",
-                mixed: "Mixta · {{selected}} de {{total}} seleccionadas",
+                all: "Os {{total}} seleccionados",
+                mixed: "Mixta · {{selected}} de {{total}} seleccionados",
                 partly: "Seleccionada en parte · {{selected}} de {{total}}",
-                selected: "Seleccionada",
-                edit: "Editar a selección",
+                selected: "Seleccionado",
+                edit: "Editar seleccións",
             },
             apply: {
-                button: "Elixir esta candidatura",
-                buttonLabel: "Elixir a candidatura {{slate}}",
-                chosen: "{{slate}} elixida. Candidatos seleccionados: {{candidates}}. Contendas: {{contests}}.",
+                button: "Seleccionar lista",
+                buttonLabel: "Seleccionar a lista {{slate}}",
+                applied: "{{slate}} seleccionada. Aínda podes cambiar calquera candidato.",
+                appliedPartial_one:
+                    "{{slate}} seleccionada. Non ten candidato para {{offices}}, así que ese cargo queda en branco. Aínda podes cambiar calquera candidato.",
+                appliedPartial_other:
+                    "{{slate}} seleccionada. Non ten candidato para {{offices}}, así que eses cargos quedan en branco. Aínda podes cambiar calquera candidato.",
                 overMaximum:
-                    "{{slate}} non se pode elixir: ten {{candidates}} candidaturas para {{contest}}, que permite {{max}}. Pode seguir elixindo candidaturas individualmente.",
+                    "{{slate}} non se pode seleccionar: ten {{candidates}} candidatos para {{contest}}, que permite {{max}}. Podes seguir elixindo candidatos individualmente.",
                 unavailable:
-                    "{{slate}} non se pode elixir nesta papeleta. Pode seguir elixindo candidaturas individualmente.",
+                    "{{slate}} non se pode seleccionar nesta papeleta. Podes seguir elixindo candidatos individualmente.",
                 replaceDialog: {
-                    title: "Substituír as túas opcións actuais?",
-                    content:
-                        "Elixir {{slate}} fixa toda a túa papeleta cos seus candidatos. As contendas nas que non ten candidatos quedan en branco. Estas opcións cambian:",
-                    removed: "Quítase:",
-                    added: "Selecciónase no seu lugar:",
-                    ok: "Substituír opcións",
-                    cancel: "Manter as miñas opcións",
+                    title: "Substituír estas seleccións?",
+                    content_one:
+                        "Seleccionar <strong>{{slate}}</strong> cambiará o seguinte cargo.",
+                    content_other:
+                        "Seleccionar <strong>{{slate}}</strong> cambiará os seguintes cargos.",
+                    current: "Seleccións actuais",
+                    blankNote:
+                        "{{slate}} non ten candidato para algúns cargos. Eses cargos quedarán en branco.",
+                    ok: "Substituír seleccións",
+                    okOffice: "Substituír {{office}}",
+                    cancel: "Manter as miñas seleccións",
                 },
             },
             clear: {
                 cleared: "Borráronse todas as túas opcións.",
                 dialog: {
                     title: "Borrar todas as túas opcións?",
-                    content:
-                        "Borrar quita todas as opcións da túa papeleta. Quítanse estas opcións:",
+                    content: "Borrar quita todas as opcións da túa papeleta. Estes cargos cambian:",
+                    after: "Despois de borrar",
                     ok: "Borrar opcións",
                     cancel: "Manter as miñas opcións",
                 },
+            },
+            offices: {
+                label: "Cargos",
+                picker: "Cargo",
+                index: "Cargo {{index}} de {{total}}",
+                count: "{{selected}}/{{max}}",
+                previous: "Cargo anterior",
+                next: "Cargo seguinte",
+                last: "Último cargo",
+                instruction_one: "Selecciona ata {{count}} candidato. {{selected}} seleccionados.",
+                instruction_other:
+                    "Selecciona ata {{count}} candidatos. {{selected}} seleccionados.",
+            },
+            clearContest: {
+                button: "Borrar",
+                label: "Borrar {{contest}}",
+                cleared: "Borráronse as seleccións de {{contest}}.",
             },
         },
         ballotLocator: {

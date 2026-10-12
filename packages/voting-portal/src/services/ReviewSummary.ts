@@ -10,22 +10,12 @@ import {
     IContest,
     isAcclaimedContest,
 } from "@sequentech/ui-core"
-import {
-    ESlateSelectionStatus,
-    getSlateMembers,
-    getSlateSelectionSummary,
-    ISlateSelectionSummary,
-} from "./SlateSelection"
+import {ESlateSelectionStatus, getSlateMembers, getSlateSelectionSummary} from "./SlateSelection"
 import {IBallotSlates, IResolvedSlate} from "./Slates"
 
 export interface IContestReviewCount {
     selected: number
     max: number
-}
-
-export interface ISlateReviewLine {
-    slate: IResolvedSlate
-    summary: ISlateSelectionSummary
 }
 
 export interface IBallotReviewSummary {
@@ -35,10 +25,8 @@ export interface IBallotReviewSummary {
     seats: number
     /** The count of each contest, by contest id. Acclaimed contests have none. */
     contests: Record<string, IContestReviewCount>
-    /** The slates with a selected member, in their configured order. */
-    slates: Array<ISlateReviewLine>
-    /** The selected candidates that belong to no slate. */
-    independent: number
+    /** What the ballot holds as a whole. */
+    label: IBallotSelectionLabel
 }
 
 const getSelectedCandidateIds = (
@@ -72,36 +60,78 @@ export const getBallotReviewSummary = (
     slates: IBallotSlates,
     selection: BallotSelection | undefined
 ): IBallotReviewSummary => {
-    const slateMemberIds = new Set(
-        slates.slates.flatMap((slate) =>
-            slate.contests.flatMap((entry) => entry.candidates.map((candidate) => candidate.id))
+    const counted = contests.filter((contest) => !isAcclaimedContest(contest))
+    const {selected, seats} = getBallotSelectionCount(counted, selection)
+    return {
+        selected,
+        seats,
+        contests: Object.fromEntries(
+            counted.map((contest) => [
+                contest.id,
+                {
+                    selected: getSelectedCandidateIds(contest, selection).length,
+                    max: contest.max_votes,
+                },
+            ])
+        ),
+        label: getBallotSelectionLabel(slates, selection),
+    }
+}
+
+export interface IBallotSelectionCount {
+    selected: number
+    seats: number
+}
+
+/** How many candidates the ballot holds, out of how many it may hold. */
+/** How many candidates a contest holds. */
+export const getContestSelectionCount = (
+    contest: IContest,
+    selection: BallotSelection | undefined
+): number => getSelectedCandidateIds(contest, selection).length
+
+export const getBallotSelectionCount = (
+    contests: Array<IContest>,
+    selection: BallotSelection | undefined
+): IBallotSelectionCount =>
+    contests
+        .filter((contest) => !isAcclaimedContest(contest))
+        .reduce(
+            (count, contest) => ({
+                selected: count.selected + getSelectedCandidateIds(contest, selection).length,
+                seats: count.seats + contest.max_votes,
+            }),
+            {selected: 0, seats: 0}
         )
+
+export enum EBallotSelectionLabel {
+    SLATE = "slate",
+    INDIVIDUAL = "individual",
+    NONE = "none",
+}
+
+export interface IBallotSelectionLabel {
+    kind: EBallotSelectionLabel
+    /** The slate the ballot holds exactly, with nothing else. */
+    slate?: IResolvedSlate
+}
+
+/** What the ballot holds as a whole: exactly one slate, other choices, or nothing. */
+export const getBallotSelectionLabel = (
+    slates: IBallotSlates,
+    selection: BallotSelection | undefined
+): IBallotSelectionLabel => {
+    const exact = slates.slates.find(
+        (slate) =>
+            getSlateSelectionSummary(getSlateMembers(slate), selection).status ===
+            ESlateSelectionStatus.ALL
     )
-    const summary: IBallotReviewSummary = {
-        selected: 0,
-        seats: 0,
-        contests: {},
-        slates: [],
-        independent: 0,
+    if (exact) {
+        return {kind: EBallotSelectionLabel.SLATE, slate: exact}
     }
-
-    for (const contest of contests) {
-        if (isAcclaimedContest(contest)) {
-            continue
-        }
-        const selectedIds = getSelectedCandidateIds(contest, selection)
-        summary.contests[contest.id] = {selected: selectedIds.length, max: contest.max_votes}
-        summary.selected += selectedIds.length
-        summary.seats += contest.max_votes
-        summary.independent += selectedIds.filter((id) => !slateMemberIds.has(id)).length
-    }
-
-    summary.slates = slates.slates
-        .map((slate) => ({
-            slate,
-            summary: getSlateSelectionSummary(getSlateMembers(slate), selection),
-        }))
-        .filter((line) => line.summary.status !== ESlateSelectionStatus.NONE)
-
-    return summary
+    const hasChoice = (selection ?? []).some(
+        (contest) =>
+            contest.is_explicit_invalid || contest.choices.some((choice) => choice.selected > -1)
+    )
+    return {kind: hasChoice ? EBallotSelectionLabel.INDIVIDUAL : EBallotSelectionLabel.NONE}
 }

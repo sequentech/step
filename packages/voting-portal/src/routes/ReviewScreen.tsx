@@ -91,6 +91,7 @@ import {isSameBallotSelection} from "../services/BallotSelectionComparison"
 import {getBallotReviewSummary} from "../services/ReviewSummary"
 import {ReviewContestFooter} from "../components/ReviewSummary/ReviewContestFooter"
 import {ReviewSelectionSummary} from "../components/ReviewSummary/ReviewSelectionSummary"
+import {SlateBallotCount} from "../components/SlateChooser/SlateBallotSummary"
 import UnfilledContestsDialog from "../components/UnfilledContestsDialog/UnfilledContestsDialog"
 import {getUnfilledContests, IUnfilledContest} from "../services/UnfilledContests"
 
@@ -938,6 +939,29 @@ export const ReviewScreen: React.FC = () => {
         ? []
         : getUnfilledContests(contests, errorSelectionState)
 
+    const contestList = contests.map((question, index) => {
+        const count = reviewSummary?.contests[question.id]
+        return (
+            <Box
+                key={question.id}
+                className={`contest-container contest-${index} ${getContestClassName(question.external_id)}`.trim()}
+            >
+                <Question
+                    ballotStyle={ballotStyle}
+                    question={question}
+                    isReview={true}
+                    setDecodedContests={() => undefined}
+                    errorSelectionState={errorSelectionState}
+                    isDeclineToVote={isDeclineToVote}
+                    isBlankBallot={isBlankBallot}
+                />
+                {count ? (
+                    <ReviewContestFooter contest={question} count={count} to={votePath} />
+                ) : null}
+            </Box>
+        )
+    })
+
     return (
         <BallotSlatesProvider slates={slates.config}>
             <PageLimit maxWidth="lg" className="review-screen screen">
@@ -1062,38 +1086,37 @@ export const ReviewScreen: React.FC = () => {
                               : t("reviewScreen.description")
                     )}
                 </Typography>
+                {reviewSummary ? <SlateBallotCount ballotStyle={ballotStyle} /> : null}
                 {reviewSummary ? (
-                    <ReviewSelectionSummary
-                        summary={reviewSummary}
-                        defaultLanguage={defaultLanguageCode}
-                    />
-                ) : null}
-                {contests.map((question, index) => {
-                    const count = reviewSummary?.contests[question.id]
-                    return (
-                        <Box
-                            key={question.id}
-                            className={`contest-container contest-${index} ${getContestClassName(question.external_id)}`.trim()}
-                        >
-                            <Question
-                                ballotStyle={ballotStyle}
-                                question={question}
-                                isReview={true}
-                                setDecodedContests={() => undefined}
-                                errorSelectionState={errorSelectionState}
-                                isDeclineToVote={isDeclineToVote}
-                                isBlankBallot={isBlankBallot}
-                            />
-                            {count ? (
-                                <ReviewContestFooter
-                                    contest={question}
-                                    count={count}
-                                    to={votePath}
-                                />
-                            ) : null}
+                    <Box
+                        className="review-slate-layout"
+                        sx={{
+                            display: "grid",
+                            gridTemplateColumns: {
+                                xs: "minmax(0, 1fr)",
+                                sm: "minmax(0, 1fr) 265px",
+                            },
+                            gap: "35px",
+                            alignItems: "start",
+                        }}
+                    >
+                        <Box className="review-slate-contests" sx={{minWidth: 0}}>
+                            {contestList}
                         </Box>
-                    )
-                })}
+                        <Box
+                            component="aside"
+                            className="review-slate-aside"
+                            sx={{display: {xs: "none", sm: "block"}}}
+                        >
+                            <ReviewSelectionSummary
+                                summary={reviewSummary}
+                                defaultLanguage={defaultLanguageCode}
+                            />
+                        </Box>
+                    </Box>
+                ) : (
+                    contestList
+                )}
                 {!isCastingBallot.current && (
                     <ActionButtons
                         ballotStyle={ballotStyle}

@@ -85,30 +85,33 @@ const mount = (...slateIds: string[]) => {
 describe("SlateApplyAction", () => {
     it("names the slate on its button", () => {
         mount("forward")
-        expect(screen.getByRole("button", {name: "Choose slate Forward Together"})).toBeVisible()
+        expect(screen.getByRole("button", {name: "Select slate Forward Together"})).toBeVisible()
     })
 
-    it("marks the slate's candidates in every contest and says so", async () => {
+    it("marks the slate's candidates in every contest", async () => {
         const {selected} = mount("forward")
-        await userEvent.click(screen.getByRole("button", {name: "Choose slate Forward Together"}))
+        await userEvent.click(screen.getByRole("button", {name: "Select slate Forward Together"}))
         expect(selected(PRESIDENT)).toEqual(["p-forward"])
         expect(selected(SECRETARY)).toEqual(["s-forward"])
         expect(selected(TRUSTEES)).toEqual(["t-forward-1", "t-forward-2", "t-forward-3"])
         expect(screen.queryByRole("dialog")).toBeNull()
-        expect(screen.getByRole("status")).toHaveTextContent(
-            "Forward Together chosen. Candidates selected: 5. Contests: 3."
-        )
     })
 
     it("asks before removing choices and lists what changes", async () => {
         const {selected, mark} = mount("forward")
         mark(PRESIDENT, "p-independent")
-        await userEvent.click(screen.getByRole("button", {name: "Choose slate Forward Together"}))
-        const dialog = screen.getByRole("dialog")
-        expect(within(dialog).getByText("President")).toBeVisible()
-        expect(within(dialog).getByText("Renata Halloran")).toBeVisible()
-        expect(within(dialog).getByText("Amara Lindqvist")).toBeVisible()
+        await userEvent.click(screen.getByRole("button", {name: "Select slate Forward Together"}))
+        const dialog = screen.getByRole("dialog", {name: "Replace these selections?"})
+        expect(dialog).toHaveTextContent(
+            "Selecting Forward Together will change the following office."
+        )
+        const president = within(dialog).getByText("President").closest(".slate-replace-contest")
+        expect(within(president as HTMLElement).getByText("Current selections")).toBeVisible()
+        expect(within(president as HTMLElement).getByText("Renata Halloran")).toBeVisible()
+        expect(within(president as HTMLElement).getByText("Forward Together")).toBeVisible()
+        expect(within(president as HTMLElement).getByText("Amara Lindqvist")).toBeVisible()
         expect(within(dialog).queryByText("Trustees")).toBeNull()
+        expect(dialog.querySelector(".slate-replace-note")).toBeNull()
         expect(selected(PRESIDENT)).toEqual(["p-independent"])
         expect(selected(TRUSTEES)).toEqual([])
     })
@@ -116,45 +119,43 @@ describe("SlateApplyAction", () => {
     it("changes nothing when the voter keeps the current choices", async () => {
         const {selected, mark} = mount("forward")
         mark(PRESIDENT, "p-independent")
-        await userEvent.click(screen.getByRole("button", {name: "Choose slate Forward Together"}))
-        await userEvent.click(screen.getByRole("button", {name: "Keep my choices"}))
+        await userEvent.click(screen.getByRole("button", {name: "Select slate Forward Together"}))
+        await userEvent.click(screen.getByRole("button", {name: "Keep my selections"}))
         expect(selected(PRESIDENT)).toEqual(["p-independent"])
         expect(selected(SECRETARY)).toEqual([])
-        expect(await screen.findByRole("status")).toBeEmptyDOMElement()
     })
 
     it("replaces the choices once the voter confirms", async () => {
         const {selected, mark} = mount("forward")
         mark(PRESIDENT, "p-independent")
-        await userEvent.click(screen.getByRole("button", {name: "Choose slate Forward Together"}))
-        await userEvent.click(screen.getByRole("button", {name: "Replace choices"}))
+        await userEvent.click(screen.getByRole("button", {name: "Select slate Forward Together"}))
+        await userEvent.click(screen.getByRole("button", {name: "Replace president"}))
         expect(selected(PRESIDENT)).toEqual(["p-forward"])
         expect(selected(TRUSTEES)).toEqual(["t-forward-1", "t-forward-2", "t-forward-3"])
     })
 
     it("does not ask when a partial slate is chosen on an empty ballot", async () => {
         const {selected} = mount("independent-voices")
-        await userEvent.click(screen.getByRole("button", {name: "Choose slate Independent Voices"}))
+        await userEvent.click(screen.getByRole("button", {name: "Select slate Independent Voices"}))
         expect(screen.queryByRole("dialog")).toBeNull()
         expect(selected(TRUSTEES)).toEqual(["t-voices-1", "t-voices-2"])
-        expect(screen.getByRole("status")).toHaveTextContent(
-            "Independent Voices chosen. Candidates selected: 2. Contests: 1."
-        )
     })
 
     it("asks before clearing a choice in a contest a partial slate does not cover", async () => {
         const {selected, mark} = mount("independent-voices")
         mark(PRESIDENT, "p-independent")
-        await userEvent.click(screen.getByRole("button", {name: "Choose slate Independent Voices"}))
+        await userEvent.click(screen.getByRole("button", {name: "Select slate Independent Voices"}))
         const dialog = screen.getByRole("dialog")
         const president = within(dialog).getByText("President").closest(".slate-replace-contest")
         expect(president).not.toBeNull()
         expect(within(president as HTMLElement).getByText("Renata Halloran")).toBeVisible()
         expect(within(president as HTMLElement).getByText("No candidate")).toBeVisible()
-        expect(dialog).not.toHaveTextContent(/stay as they are/)
+        expect(dialog.querySelector(".slate-replace-note")).toHaveTextContent(
+            "Independent Voices has no candidate for some offices. Those offices will be blank."
+        )
         expect(selected(PRESIDENT)).toEqual(["p-independent"])
 
-        await userEvent.click(screen.getByRole("button", {name: "Keep my choices"}))
+        await userEvent.click(screen.getByRole("button", {name: "Keep my selections"}))
         expect(selected(PRESIDENT)).toEqual(["p-independent"])
         expect(selected(TRUSTEES)).toEqual([])
     })
@@ -162,31 +163,24 @@ describe("SlateApplyAction", () => {
     it("clears that choice once the voter confirms", async () => {
         const {selected, mark} = mount("independent-voices")
         mark(PRESIDENT, "p-independent")
-        await userEvent.click(screen.getByRole("button", {name: "Choose slate Independent Voices"}))
-        await userEvent.click(screen.getByRole("button", {name: "Replace choices"}))
+        await userEvent.click(screen.getByRole("button", {name: "Select slate Independent Voices"}))
+        await userEvent.click(screen.getByRole("button", {name: "Replace president"}))
         expect(selected(PRESIDENT)).toEqual([])
         expect(selected(TRUSTEES)).toEqual(["t-voices-1", "t-voices-2"])
     })
 
     it("keeps nothing of a slate chosen before", async () => {
         const {selected} = mount("forward", "independent-voices")
-        await userEvent.click(screen.getByRole("button", {name: "Choose slate Forward Together"}))
-        await userEvent.click(screen.getByRole("button", {name: "Choose slate Independent Voices"}))
+        await userEvent.click(screen.getByRole("button", {name: "Select slate Forward Together"}))
+        await userEvent.click(screen.getByRole("button", {name: "Select slate Independent Voices"}))
         const dialog = screen.getByRole("dialog")
         expect(within(dialog).getByText("President")).toBeVisible()
         expect(within(dialog).getByText("Secretary-Treasurer")).toBeVisible()
         expect(within(dialog).getByText("Trustees")).toBeVisible()
-        await userEvent.click(screen.getByRole("button", {name: "Replace choices"}))
+        await userEvent.click(screen.getByRole("button", {name: "Replace selections"}))
         expect(selected(PRESIDENT)).toEqual([])
         expect(selected(SECRETARY)).toEqual([])
         expect(selected(TRUSTEES)).toEqual(["t-voices-1", "t-voices-2"])
-    })
-
-    it("stops announcing the slate once its candidates are no longer the selection", async () => {
-        const {mark} = mount("independent-voices")
-        await userEvent.click(screen.getByRole("button", {name: "Choose slate Independent Voices"}))
-        mark(TRUSTEES, "t-independent")
-        expect(await screen.findByRole("status")).toBeEmptyDOMElement()
     })
 })
 
@@ -218,7 +212,7 @@ describe("SlateApplyAction in the slate cards", () => {
         const card = screen.getByRole("heading", {level: 3, name: "Members First"}).closest("li")
         expect(card).not.toBeNull()
         await userEvent.click(
-            within(card as HTMLElement).getByRole("button", {name: "Choose slate Members First"})
+            within(card as HTMLElement).getByRole("button", {name: "Select slate Members First"})
         )
         const selection = store.getState().ballotSelections[ballotStyle.election_id] ?? []
         expect(

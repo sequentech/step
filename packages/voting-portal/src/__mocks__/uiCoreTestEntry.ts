@@ -12,9 +12,11 @@ import {
     apply_slate_js,
     get_ballot_style_slates_coverage_js,
     get_ballot_style_slates_js,
+    sort_candidates_list_js,
 } from "sequent-core"
 import type {IDecodedVoteContest} from "sequent-core"
-import type {IBallotStyle, IContest} from "../../../ui-core/src/types/CoreTypes"
+import type {IBallotStyle, ICandidate, IContest} from "../../../ui-core/src/types/CoreTypes"
+import type {CandidatesOrder} from "../../../ui-core/src/types/ContestPresentation"
 import {SLATES_ANNOTATION} from "../../../ui-core/src/types/Slates"
 import type {ISlate, ISlateChoices, ISlatesConfig} from "../../../ui-core/src/types/Slates"
 import type {ISlateCoverage} from "../../../ui-core/src/types/SlateCoverage"
@@ -35,8 +37,8 @@ export * from "../../../ui-core/src/types/SlateCoverage"
 export * from "../../../ui-core/src/services/slates"
 export * from "../../../ui-core/src/services/acclamation"
 
-// services/wasm.ts pulls in the whole ui-core barrel, so its slate calls are
-// repeated here. sequent-core underneath is src/__mocks__/sequentCoreStub.ts.
+// services/wasm.ts pulls in the whole ui-core barrel, so the calls these
+// tests need are repeated here. sequent-core underneath is src/__mocks__/sequentCoreStub.ts.
 const hasSlates = (ballotStyle: IBallotStyle): boolean =>
     SLATES_ANNOTATION in (ballotStyle.election_annotations ?? {})
 
@@ -53,3 +55,9 @@ export const applySlate = (
     contests: Array<IContest>,
     current: Array<IDecodedVoteContest>
 ): ISlateChoices => apply_slate_js(slate, contests, current)
+
+export const sortCandidatesInContest = (
+    candidates: Array<ICandidate>,
+    order?: CandidatesOrder,
+    applyRandom?: boolean
+): Array<ICandidate> => sort_candidates_list_js(candidates, order, applyRandom)

@@ -15,7 +15,7 @@ import {
     ISlatesConfig,
 } from "@sequentech/ui-core"
 
-import {sortContestsInBallotOrder} from "./ContestOrder"
+import {sortCandidatesInBallotOrder, sortContestsInBallotOrder} from "./ContestOrder"
 import {ESlateOfficesLayout, getSlateOffices} from "./SlateCoverage"
 
 export {getSlateName} from "@sequentech/ui-core"
@@ -71,8 +71,19 @@ const resolveCoveredSlate = (
     offices: getSlateOffices(coverage, contests, ESlateOfficesLayout.ALIGNED),
 })
 
+const candidatesInBallotOrder = (slateContest: ISlateContest): ISlateContest => ({
+    ...slateContest,
+    candidates: sortCandidatesInBallotOrder(slateContest.contest, slateContest.candidates),
+})
+
+const inBallotOrder = (slate: IResolvedSlate): IResolvedSlate => ({
+    ...slate,
+    contests: slate.contests.map(candidatesInBallotOrder),
+    offices: slate.offices?.map(candidatesInBallotOrder),
+})
+
 /**
- * The slates of a ballot, with the contests in ballot order. With `coverage`,
+ * The slates of a ballot, with the contests and candidates in ballot order. With `coverage`,
  * only the slates it lists are kept, with the candidates it counts.
  */
 export const resolveSlates = (
@@ -81,7 +92,7 @@ export const resolveSlates = (
     coverage?: Array<ISlateCoverage> | null
 ): IBallotSlates => {
     const contests = sortContestsInBallotOrder(ballotContests)
-    const slates = coverage
+    const resolved = coverage
         ? coverage.flatMap((slateCoverage) => {
               const slate = config.slates.find((entry) => entry.id === slateCoverage.slate_id)
               return slate ? [resolveCoveredSlate(slate, contests, slateCoverage)] : []
@@ -89,6 +100,7 @@ export const resolveSlates = (
         : config.slates
               .map((slate) => resolveSlate(slate, contests))
               .filter((slate) => slate.contests.length > 0)
+    const slates = resolved.map(inBallotOrder)
     const covered = new Set(
         slates.flatMap((slate) => slate.contests.map(({contest}) => contest.id))
     )

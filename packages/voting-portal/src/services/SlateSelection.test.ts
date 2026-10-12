@@ -75,13 +75,19 @@ describe("getSlateSelectionSummary", () => {
         expect(summary.selectedMemberIds).toEqual(["f-president", "f-vice", "f-t1", "f-t2", "f-t3"])
     })
 
-    it("keeps a partial slate as all selected when other offices have choices", () => {
+    it("reports a partial slate as all selected only when the other offices are blank", () => {
+        const summary = getSlateSelectionSummary(VOICES, ballot(["v-t1", "v-t2", "v-t3"]))
+
+        expect(summary).toMatchObject({status: ESlateSelectionStatus.ALL, selected: 3, total: 3})
+    })
+
+    it("reports a partial slate as mixed when another office holds a choice", () => {
         const summary = getSlateSelectionSummary(
             VOICES,
             ballot(["f-president", "i-vice", "v-t1", "v-t2", "v-t3"])
         )
 
-        expect(summary).toMatchObject({status: ESlateSelectionStatus.ALL, selected: 3, total: 3})
+        expect(summary).toMatchObject({status: ESlateSelectionStatus.MIXED, selected: 3, total: 3})
     })
 
     it("reports partly selected when only its members are selected in its offices", () => {
@@ -95,14 +101,29 @@ describe("getSlateSelectionSummary", () => {
         })
     })
 
-    it("reports partly selected for a partial slate whatever the other offices hold", () => {
-        const summary = getSlateSelectionSummary(VOICES, ballot(["m-president", "v-t1", "v-t3"]))
+    it("reports partly selected for a partial slate when only its members are selected", () => {
+        const summary = getSlateSelectionSummary(VOICES, ballot(["v-t1", "v-t3"]))
 
         expect(summary).toMatchObject({
             status: ESlateSelectionStatus.PARTLY,
             selected: 2,
             total: 3,
         })
+    })
+
+    it("reports mixed for a partial slate when an office it does not cover holds a choice", () => {
+        const summary = getSlateSelectionSummary(VOICES, ballot(["m-president", "v-t1", "v-t3"]))
+
+        expect(summary).toMatchObject({status: ESlateSelectionStatus.MIXED, selected: 2})
+    })
+
+    it("treats an explicitly invalid office the slate does not cover as a choice outside it", () => {
+        const summary = getSlateSelectionSummary(
+            VOICES,
+            ballot(["v-t1", "v-t2", "v-t3"], {[PRESIDENT]: {is_explicit_invalid: true}})
+        )
+
+        expect(summary.status).toBe(ESlateSelectionStatus.MIXED)
     })
 
     it("reports mixed when a covered office also holds a candidate outside the slate", () => {

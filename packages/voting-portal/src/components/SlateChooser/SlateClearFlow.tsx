@@ -71,10 +71,12 @@ export const useSlateClear = (ballotStyle: IBallotStyle): ISlateClear => {
             <SlateChangesDialog
                 className="slate-clear-dialog"
                 pending={pending}
+                current={selection}
                 contests={contests}
                 handleClose={handleClose}
                 title={t("slates.clear.dialog.title")}
                 content={t("slates.clear.dialog.content")}
+                afterLabel={t("slates.clear.dialog.after")}
                 ok={t("slates.clear.dialog.ok")}
                 cancel={t("slates.clear.dialog.cancel")}
             />

@@ -17,10 +17,11 @@ const Toggle = styled("button")(({theme}) => ({
     "justifyContent": "space-between",
     "width": "100%",
     "minHeight": "44px",
-    "padding": "0",
+    "padding": "7px 0",
     "border": "none",
     "background": "none",
     "font": "inherit",
+    "fontSize": "13px",
     "fontWeight": 500,
     "color": theme.palette.brandColor,
     "textAlign": "start",
@@ -33,6 +34,13 @@ const Toggle = styled("button")(({theme}) => ({
 
 // On desktop the offices are laid out by the slate card, across cards.
 const List = styled("div")(({theme}) => ({
+    [theme.breakpoints.down("sm")]: {
+        margin: "0 0 14px",
+        padding: "0 12px",
+        border: "1px solid #e7eaee",
+        borderRadius: "6px",
+        background: "#fbfcff",
+    },
     [theme.breakpoints.up("sm")]: {
         display: "contents",
     },

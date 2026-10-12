@@ -56,6 +56,40 @@ describe("resolveSlates", () => {
         expect(voices?.offices?.map(({contest}) => contest.id)).toEqual(["president", "trustees"])
     })
 
+    it("lists each slate's candidates in the order the ballot shows them", () => {
+        const trustees = {
+            ...TRUSTEES,
+            presentation: {candidates_order: "custom"},
+            candidates: TRUSTEES.candidates.map((candidate, index) => ({
+                ...candidate,
+                presentation: {sort_order: TRUSTEES.candidates.length - index},
+            })),
+        } as typeof TRUSTEES
+        const {slates} = resolveSlates(SLATES, [PRESIDENT, trustees])
+
+        expect(slates[0].contests[1].candidates.map(({id}) => id)).toEqual(["f-t2", "f-t1"])
+    })
+
+    it("lists a covered slate's candidates in the order the ballot shows them", () => {
+        const trustees = {
+            ...TRUSTEES,
+            presentation: {candidates_order: "custom"},
+            candidates: TRUSTEES.candidates.map((candidate, index) => ({
+                ...candidate,
+                presentation: {sort_order: TRUSTEES.candidates.length - index},
+            })),
+        } as typeof TRUSTEES
+        const style = aSlateBallotStyle(JSON.stringify(SLATES))
+        const ballot = resolveBallotStyleSlates({
+            ...style.ballot_eml,
+            contests: [PRESIDENT, trustees],
+        })
+        const forward = ballot?.slates.find((slate) => slate.id === "forward")
+
+        expect(forward?.contests[1].candidates.map(({id}) => id)).toEqual(["f-t2", "f-t1"])
+        expect(forward?.offices?.[1].candidates.map(({id}) => id)).toEqual(["f-t2", "f-t1"])
+    })
+
     it("lists only the contests a slate has candidates in", () => {
         const {slates} = resolveSlates(SLATES, [PRESIDENT, TRUSTEES])
         const voices = slates[2]

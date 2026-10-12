@@ -86,7 +86,7 @@ const mount = (slates: IResolvedSlate[]) => {
 
 const candidate = (name: string): HTMLElement => screen.getByRole("checkbox", {name})
 const chooseSlate = (name: string) =>
-    userEvent.click(screen.getByRole("button", {name: `Choose slate ${name}`}))
+    userEvent.click(screen.getByRole("button", {name: `Select slate ${name}`}))
 
 describe("selection limits on the ballot", () => {
     it("keeps one candidate in a single-seat office when another is chosen", async () => {
@@ -137,7 +137,7 @@ describe("selection limits on the ballot", () => {
         const selected = mount([buildSlate(ballot, "members-first")])
         await userEvent.click(candidate("Renata Halloran"))
         await chooseSlate("Members First")
-        await userEvent.click(screen.getByRole("button", {name: "Replace choices"}))
+        await userEvent.click(screen.getByRole("button", {name: "Replace president"}))
         expect(selected(PRESIDENT)).toEqual(["p-members"])
     })
 })
@@ -151,10 +151,10 @@ describe("a slate with more candidates than a contest allows", () => {
 
     it("cannot be chosen and says why", () => {
         mount([tooMany()])
-        const button = screen.getByRole("button", {name: "Choose slate Forward Together"})
+        const button = screen.getByRole("button", {name: "Select slate Forward Together"})
         expect(button).toBeDisabled()
         expect(button).toHaveAccessibleDescription(
-            "Forward Together cannot be chosen: it has 3 candidates for Trustees, which allows 2. You can still choose candidates individually."
+            "Forward Together cannot be selected: it has 3 candidates for Trustees, which allows 2. You can still choose candidates individually."
         )
     })
 

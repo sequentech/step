@@ -145,3 +145,28 @@ describe("the contests of the confirmation", () => {
         expect(names).toEqual(["President", "Secretary-Treasurer", "Trustees"])
     })
 })
+
+describe("the candidates of the confirmation", () => {
+    it("follow the order the ballot shows them", async () => {
+        const reordered = buildSlatesBallot()
+        reordered.contests = reordered.contests.map((contest) => ({
+            ...contest,
+            presentation: {...contest.presentation, candidates_order: "custom"},
+            candidates: contest.candidates.map((candidate, index) => ({
+                ...candidate,
+                presentation: {sort_order: contest.candidates.length - index},
+            })),
+        })) as typeof reordered.contests
+        const {mark} = mount(buildSlatesBallotStyle(reordered))
+        mark(TRUSTEES, "t-forward-1")
+        mark(TRUSTEES, "t-forward-2")
+        await userEvent.click(screen.getByRole("button", {name: CLEAR}))
+
+        const names = Array.from(
+            screen
+                .getByRole("dialog")
+                .querySelectorAll(".slate-replace-removed .slate-change-candidate")
+        ).map((name) => name.textContent)
+        expect(names).toEqual(["Saoirse Nakamura", "Elio Marchetti"])
+    })
+})

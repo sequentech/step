@@ -20,7 +20,6 @@ import ballotSelectionsReducer, {
     setBallotSelectionVoteChoice,
 } from "../../store/ballotSelections/ballotSelectionsSlice"
 import extraReducer from "../../store/extra/extraSlice"
-import {SlateApplyAction} from "./SlateApplyAction"
 import {SlateSelectionChooser} from "./SlateSelectionChooser"
 
 jest.mock("@mui/material/useMediaQuery")
@@ -59,9 +58,6 @@ const mount = (store: Store, onEditSelections = jest.fn()) =>
                         slates={RESOLVED}
                         defaultLanguage="en"
                         onEditSelections={onEditSelections}
-                        renderApplyAction={(slate) => (
-                            <SlateApplyAction ballotStyle={BALLOT_STYLE} slate={slate} />
-                        )}
                     />
                 </ThemeProvider>
             </I18nextProvider>
@@ -120,14 +116,15 @@ describe("the slates of a ballot with selections", () => {
         expect(cardOf("Independent Voices").getByText("Mixed · 1 of 1 selected")).toBeVisible()
     })
 
-    it("say all are selected when the covered offices hold exactly the slate", () => {
+    it("say all are selected only when the whole ballot holds exactly the slate", () => {
         const store = newStore()
         mount(store)
 
-        choose(store, "president", "i-president")
         choose(store, "trustees", "v-t1")
-
         expect(cardOf("Independent Voices").getByText("All 1 selected")).toBeVisible()
+
+        choose(store, "president", "i-president")
+        expect(cardOf("Independent Voices").getByText("Mixed · 1 of 1 selected")).toBeVisible()
     })
 
     it("turn a full slate into a mixed one when an independent replaces a member", () => {
@@ -177,7 +174,7 @@ describe("the slates of a ballot with selections", () => {
 
         expect(
             cardOf("Independent Voices").getByRole("button", {
-                name: "Choose slate Independent Voices",
+                name: "Select slate Independent Voices",
             })
         ).toBeVisible()
         expect(screen.queryByRole("button", {name: "Edit selections"})).toBeNull()
@@ -186,7 +183,7 @@ describe("the slates of a ballot with selections", () => {
 
         expect(
             cardOf("Independent Voices").queryByRole("button", {
-                name: "Choose slate Independent Voices",
+                name: "Select slate Independent Voices",
             })
         ).toBeNull()
         await user.click(
@@ -194,17 +191,17 @@ describe("the slates of a ballot with selections", () => {
         )
         expect(onEditSelections).toHaveBeenCalledTimes(1)
         expect(
-            cardOf("Forward Together").getByRole("button", {name: "Choose slate Forward Together"})
+            cardOf("Forward Together").getByRole("button", {name: "Select slate Forward Together"})
         ).toBeVisible()
     })
 
-    it("mark the whole slate, keep its announcement and focus Edit selections once it is selected", async () => {
+    it("mark the whole slate, announce it and focus Edit selections once it is selected", async () => {
         const user = userEvent.setup()
         const store = newStore()
         mount(store)
 
         await user.click(
-            cardOf("Forward Together").getByRole("button", {name: "Choose slate Forward Together"})
+            cardOf("Forward Together").getByRole("button", {name: "Select slate Forward Together"})
         )
 
         expect(selectedNames("Forward Together")).toEqual([
@@ -213,8 +210,8 @@ describe("the slates of a ballot with selections", () => {
             "Charlie Kim",
         ])
         expect(cardOf("Forward Together").getByText("All 3 selected")).toBeVisible()
-        expect(cardOf("Forward Together").getByRole("status")).toHaveTextContent(
-            "Forward Together chosen"
+        expect(document.querySelector(".slate-applied-notice")).toHaveTextContent(
+            "Forward Together selected. You can still change any candidate."
         )
         expect(
             cardOf("Forward Together").getByRole("button", {name: "Edit selections"})
@@ -226,7 +223,7 @@ describe("the slates of a ballot with selections", () => {
         const store = newStore()
         mount(store)
         await user.click(
-            cardOf("Forward Together").getByRole("button", {name: "Choose slate Forward Together"})
+            cardOf("Forward Together").getByRole("button", {name: "Select slate Forward Together"})
         )
 
         choose(store, "trustees", "f-t2", -1)
@@ -236,7 +233,7 @@ describe("the slates of a ballot with selections", () => {
         expect(cardOf("Forward Together").getByText("Mixed · 2 of 3 selected")).toBeVisible()
         expect(cardOf("Independent Voices").getByText("Mixed · 1 of 1 selected")).toBeVisible()
         expect(
-            cardOf("Forward Together").getByRole("button", {name: "Choose slate Forward Together"})
+            cardOf("Forward Together").getByRole("button", {name: "Select slate Forward Together"})
         ).toBeVisible()
         expect(
             cardOf("Forward Together").queryByRole("button", {name: "Edit selections"})
@@ -274,5 +271,111 @@ describe("the slates of a ballot with selections", () => {
             expect(cardOf("Forward Together").getByText("Rowan Scott")).toBeVisible()
             expect(selectedNames("Forward Together")).toEqual(["Rowan Scott"])
         })
+    })
+})
+
+describe("the announcement of a selected slate", () => {
+    it("names the offices a partial slate leaves blank", async () => {
+        const user = userEvent.setup()
+        const store = newStore()
+        mount(store)
+
+        await user.click(
+            cardOf("Independent Voices").getByRole("button", {
+                name: "Select slate Independent Voices",
+            })
+        )
+
+        expect(document.querySelector(".slate-applied-notice")).toHaveAttribute("role", "status")
+        expect(document.querySelector(".slate-applied-notice")).toHaveTextContent(
+            "Independent Voices selected. It has no candidate for President, so that office is blank. You can still change any candidate."
+        )
+    })
+
+    it("stops once the slate's candidates are no longer the selection", async () => {
+        const user = userEvent.setup()
+        const store = newStore()
+        mount(store)
+        await user.click(
+            cardOf("Independent Voices").getByRole("button", {
+                name: "Select slate Independent Voices",
+            })
+        )
+
+        choose(store, "president", "i-president")
+
+        expect(document.querySelector(".slate-applied-notice")).toBeEmptyDOMElement()
+    })
+})
+
+describe("the summary of the current selections", () => {
+    it("is not shown before anything is selected", () => {
+        mount(newStore())
+
+        expect(document.querySelector(".slate-all-selections")).toBeNull()
+    })
+
+    it("lists every office, with No selection where nothing is selected", () => {
+        const store = newStore()
+        mount(store)
+        choose(store, "trustees", "v-t1")
+
+        const summary = screen.getByRole("group", {name: "Your current selections"})
+        expect(within(summary).getByText("Harper Lane")).toBeVisible()
+        expect(summary.querySelector('[data-contest-id="president"]')).toHaveTextContent(
+            "PresidentNo selection"
+        )
+    })
+})
+
+describe("the names of the current selections", () => {
+    it("follow the order the ballot shows the candidates", () => {
+        const trustees = {
+            ...TRUSTEES,
+            presentation: {candidates_order: "custom"},
+            candidates: TRUSTEES.candidates.map((candidate, index) => ({
+                ...candidate,
+                presentation: {sort_order: TRUSTEES.candidates.length - index},
+            })),
+        } as typeof TRUSTEES
+        const style = aSlateBallotStyle(JSON.stringify(SLATES))
+        const ballotStyle = {
+            ...style,
+            ballot_eml: {...style.ballot_eml, contests: [PRESIDENT, trustees]},
+        }
+        const store = configureStore({
+            reducer: {extra: extraReducer, ballotSelections: ballotSelectionsReducer},
+        })
+        store.dispatch(resetBallotSelection({ballotStyle, force: true}))
+        for (const id of ["f-t1", "f-t2"]) {
+            store.dispatch(
+                setBallotSelectionVoteChoice({
+                    ballotStyle,
+                    contestId: "trustees",
+                    voteChoice: {id, selected: 0},
+                })
+            )
+        }
+        render(
+            <Provider store={store}>
+                <I18nextProvider i18n={i18n}>
+                    <ThemeProvider theme={theme}>
+                        <SlateSelectionChooser
+                            ballotStyle={ballotStyle}
+                            slates={resolveSlates(SLATES, [PRESIDENT, trustees])}
+                            defaultLanguage="en"
+                            onEditSelections={jest.fn()}
+                        />
+                    </ThemeProvider>
+                </I18nextProvider>
+            </Provider>
+        )
+
+        const strip = screen.getByRole("group", {name: "Your current selections"})
+        expect(
+            Array.from(
+                strip.querySelectorAll('[data-contest-id="trustees"] .slate-all-selections-name')
+            ).map((name) => name.textContent)
+        ).toEqual(["Charlie Kim", "Rowan Scott"])
     })
 })

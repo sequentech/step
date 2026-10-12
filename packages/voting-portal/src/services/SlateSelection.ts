@@ -34,8 +34,9 @@ export interface ISlateSelectionSummary {
  * candidate selections. No slate choice is stored anywhere: a member chosen
  * one by one counts exactly like one chosen through the slate.
  *
- * Only the contests the slate covers are looked at, so a partial slate whose
- * members are all selected is ALL whatever the other offices hold.
+ * The whole ballot is looked at: a slate is ALL only when the ballot holds
+ * exactly its candidates and nothing in the offices it has none for. Any
+ * other choice next to its members makes it MIXED.
  */
 export const getSlateSelectionSummary = (
     members: SlateMembers,
@@ -45,11 +46,8 @@ export const getSlateSelectionSummary = (
     let total = 0
     let hasOutsideChoice = false
 
-    for (const [contestId, memberIds] of Object.entries(members)) {
-        const contest = selection?.find((decoded) => decoded.contest_id === contestId)
-        if (!contest) {
-            continue
-        }
+    for (const contest of selection ?? []) {
+        const memberIds = members[contest.contest_id] ?? []
         if (contest.is_explicit_invalid) {
             hasOutsideChoice = true
         }

@@ -94,7 +94,7 @@ describe("SlateMember", () => {
         const member = screen.getByRole("listitem")
         expect(member).not.toHaveClass("slate-member-selected")
         expect(member).not.toHaveTextContent("Selected")
-        expect(member.querySelector(".slate-member-check")).toBeNull()
+        expect(member.querySelector(".slate-member-check")).not.toBeVisible()
     })
 })
 

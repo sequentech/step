@@ -53,7 +53,8 @@ import {useBallotStyleSlates} from "../hooks/useBallotStyleSlates"
 import {BallotSlatesProvider} from "../providers/BallotSlatesProvider"
 import {SlateSelectionChooser} from "../components/SlateChooser/SlateSelectionChooser"
 import {ESlateBallotTab, SlateBallotTabs} from "../components/SlateChooser/SlateBallotTabs"
-import {SlateApplyAction} from "../components/SlateChooser/SlateApplyAction"
+import {SlateOfficeNavigator} from "../components/SlateChooser/SlateOfficeNavigator"
+import {SlateBallotCount, SlateSelectionLabel} from "../components/SlateChooser/SlateBallotSummary"
 import {useSlateClear} from "../components/SlateChooser/SlateClearFlow"
 import {getEditContestId} from "../services/EditContest"
 import {sortContestsInBallotOrder} from "../services/ContestOrder"
@@ -200,6 +201,10 @@ interface ContestPaginationProps {
     encryptAndReview: () => void
     disableNextButton: (contests?: IContest[]) => boolean
     slateChooser?: React.ReactNode
+    /** How many candidates the ballot holds, shown with the slates. */
+    slateCount?: React.ReactNode
+    /** What the ballot holds as a whole, above the individual candidates. */
+    slateLabel?: React.ReactNode
     slateTab: ESlateBallotTab
     onSlateTabChange: (tab: ESlateBallotTab) => void
     editContestId?: string
@@ -213,6 +218,8 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
     encryptAndReview,
     disableNextButton,
     slateChooser,
+    slateCount,
+    slateLabel,
     slateTab,
     onSlateTabChange,
     editContestId,
@@ -239,6 +246,8 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
     // The review screen sends the voter back to edit one contest: its page is
     // opened and its heading takes the focus.
     const isEditContestShown = useRef(false)
+    const [office, setOffice] = useState(0)
+    const sortedContests = sortContestList(contests[pageIndex], contestsOrderType)
     useEffect(() => {
         if (!editContestId || isEditContestShown.current) {
             return
@@ -253,14 +262,20 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
             setPageIndex(editPageIndex)
             return
         }
+        const editOffice = (sortedContests ?? []).findIndex(
+            (contest) => contest.id === editContestId
+        )
+        if (slateChooser && editOffice >= 0 && editOffice !== office) {
+            setOffice(editOffice)
+            return
+        }
         isEditContestShown.current = true
         const title = document.getElementById(contestTitleId(editContestId))
         if (title) {
             title.tabIndex = -1
             title.focus()
         }
-    }, [contests, pageIndex, editContestId])
-    const sortedContests = sortContestList(contests[pageIndex], contestsOrderType)
+    }, [contests, pageIndex, editContestId, office, sortedContests, slateChooser])
     const ballotSelectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle.election_id)
     )
@@ -329,6 +344,22 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
         }
     }
 
+    const renderContest = (contest: IContest, index: number) => (
+        <Box
+            key={contest.id}
+            className={`contest-container contest-${index} ${getContestClassName(contest.external_id)}`.trim()}
+        >
+            <Question
+                ballotStyle={ballotStyle}
+                question={contest}
+                isReview={false}
+                setDisableNext={() => onSetDisableNext(contest.id)}
+                setDecodedContests={onSetDecodedContests(contest.id)}
+                errorSelectionState={errorSelectionState}
+            />
+        </Box>
+    )
+
     const contestList = (
         <>
             {/* Paging through a multi-page ballot swaps the contests in place
@@ -342,34 +373,39 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
             >
                 {t("a11y.stepOf", {current: pageIndex + 1, total: contests.length})}
             </VisuallyHidden>
-            {sortedContests &&
-                sortedContests.map((contest, index) => (
-                    <Box
-                        key={contest.id}
-                        className={`contest-container contest-${index} ${getContestClassName(contest.external_id)}`.trim()}
-                    >
-                        <Question
-                            ballotStyle={ballotStyle}
-                            question={contest}
-                            isReview={false}
-                            setDisableNext={() => onSetDisableNext(contest.id)}
-                            setDecodedContests={onSetDecodedContests(contest.id)}
-                            errorSelectionState={errorSelectionState}
-                        />
-                    </Box>
-                ))}
+            {slateChooser && sortedContests?.length ? (
+                <SlateOfficeNavigator
+                    contests={sortedContests}
+                    selection={ballotSelectionState}
+                    office={office}
+                    onOfficeChange={setOffice}
+                    renderContest={(contest) =>
+                        renderContest(contest, sortedContests.indexOf(contest))
+                    }
+                />
+            ) : (
+                sortedContests?.map(renderContest)
+            )}
         </>
     )
 
     return (
         <>
             {slateChooser ? (
-                <SlateBallotTabs
-                    value={slateTab}
-                    onChange={onSlateTabChange}
-                    slates={slateChooser}
-                    candidates={contestList}
-                />
+                <>
+                    {slateCount}
+                    <SlateBallotTabs
+                        value={slateTab}
+                        onChange={onSlateTabChange}
+                        slates={slateChooser}
+                        candidates={
+                            <>
+                                {slateLabel}
+                                {contestList}
+                            </>
+                        }
+                    />
+                </>
             ) : (
                 contestList
             )}
@@ -425,6 +461,7 @@ const VotingScreen: React.FC = () => {
 
     const submit = useSubmit()
     const slates = useBallotStyleSlates(ballotStyle)
+    const hasSlates = !!slates.resolved && slates.resolved.slates.length > 0
 
     const onSetDisableNext = (id: string) => (value: boolean) => {
         setDisableNext({
@@ -574,14 +611,16 @@ const VotingScreen: React.FC = () => {
             }
             contestsPages.get(contestPageName)!.push(contest)
         }
-        const contestsAsArrays = Array.from(contestsPages.values())
+        // A ballot with slates goes through its offices with the office
+        // navigator instead of pages.
+        const contestsAsArrays = hasSlates ? [contests] : Array.from(contestsPages.values())
         setContestsPerPage(contestsAsArrays)
 
         setDisableNext((state) => ({
             ...state,
             minmax_global: minMaxGlobal,
         }))
-    }, [selectionState, ballotStyle])
+    }, [selectionState, ballotStyle, hasSlates])
 
     if (!ballotStyle || !election) {
         return <CircularProgress className="voting-progress" aria-label={t("a11y.loading")} />
@@ -641,15 +680,22 @@ const VotingScreen: React.FC = () => {
 
                 <ContestPagination
                     slateChooser={
-                        slates.resolved && slates.resolved.slates.length > 0 ? (
+                        hasSlates && slates.resolved ? (
                             <SlateSelectionChooser
                                 ballotStyle={ballotStyle}
                                 slates={slates.resolved}
                                 defaultLanguage={defaultLanguageCode}
                                 onEditSelections={() => setSlateTab(ESlateBallotTab.CANDIDATES)}
-                                renderApplyAction={(slate) => (
-                                    <SlateApplyAction ballotStyle={ballotStyle} slate={slate} />
-                                )}
+                            />
+                        ) : undefined
+                    }
+                    slateCount={<SlateBallotCount ballotStyle={ballotStyle} />}
+                    slateLabel={
+                        slates.resolved ? (
+                            <SlateSelectionLabel
+                                ballotStyle={ballotStyle}
+                                slates={slates.resolved}
+                                defaultLanguage={defaultLanguageCode}
                             />
                         ) : undefined
                     }

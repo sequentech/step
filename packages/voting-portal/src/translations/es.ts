@@ -170,9 +170,9 @@ const spanishTranslation: TranslationType = {
             unfilledContestsDialog: {
                 title: "Hay selecciones sin completar",
                 content:
-                    "Puede dejar selecciones en blanco o elegir menos opciones de las permitidas. Revise lo siguiente antes de continuar.",
+                    "Puede dejar un cargo en blanco o seleccionar menos candidatos. Revise lo siguiente antes de continuar.",
                 selected: "{{selected}} de {{max}} seleccionadas",
-                nothingSelected: "Sin selección",
+                nothingSelected: "Sin voto para este cargo",
                 ok: "Continuar con estas selecciones",
                 cancel: "Revisar selecciones",
             },
@@ -432,62 +432,80 @@ const spanishTranslation: TranslationType = {
         },
         slates: {
             title: "Candidaturas conjuntas",
-            description:
-                "Una candidatura conjunta es un grupo de candidatos que se presentan juntos. Cada candidato muestra la candidatura a la que pertenece.",
             independent: "Independiente",
             contestMembers: "Candidatos de {{slate}} para {{contest}}",
             noCandidate: "Sin candidato",
+            note: "Una lista selecciona sus candidatos y deja en blanco los cargos en los que no tiene candidato. Puedes cambiar cualquier opción individual en cualquier momento.",
             coverage: {
                 full: "Candidatura completa",
                 singleContest: "Solo {{contest}}",
                 partial: "Candidatura parcial",
+                everyOffice: "Candidatos para todos los cargos.",
+                someOffices: "Candidatos para {{offices}}. Los demás cargos quedan en blanco.",
                 candidates_one: "{{count}} candidato",
                 candidates_other: "{{count}} candidatos",
                 offices_one: "{{count}} cargo",
                 offices_other: "{{count}} cargos",
             },
             candidateList: {
-                show: "Mostrar candidaturas",
-                hide: "Ocultar candidaturas",
+                show: "Mostrar candidatos",
+                hide: "Ocultar candidatos",
             },
             tabs: {
-                label: "Formas de rellenar su papeleta",
+                label: "Forma de selección",
                 slates: "Elegir una lista",
                 candidates: "Candidaturas individuales",
             },
+            count: {
+                short: "{{selected}} / {{seats}} candidatos seleccionados",
+                long: "· {{selected}} de {{seats}} candidatos seleccionados",
+                individual: "Selecciones individuales",
+                none: "Ningún candidato seleccionado",
+            },
+            allSelections: {
+                label: "Tus selecciones actuales",
+                none: "Sin selección",
+            },
             review: {
                 title: "Tus selecciones",
-                total: "Candidaturas seleccionadas: {{selected}} de {{seats}}",
-                slate: "{{slate}}: {{status}}",
-                independent: "Candidaturas independientes seleccionadas: {{count}}",
-                note: "Tu voto se registra para cada candidatura seleccionada. Una lista no es un voto por sí misma.",
-                contestCount: "{{selected}} de {{max}} seleccionadas",
-                edit: "Editar",
+                of: "de {{seats}}",
+                selected: "Candidatos seleccionados",
+                note: "Tu voto se registra para cada candidato seleccionado.",
+                contestCount: "{{selected}} de {{max}} seleccionados",
+                unfilled: "Ningún candidato seleccionado",
                 editLabel: "Editar {{contest}}",
             },
             selection: {
-                all: "Las {{total}} seleccionadas",
-                mixed: "Mixta · {{selected}} de {{total}} seleccionadas",
+                all: "Los {{total}} seleccionados",
+                mixed: "Mixta · {{selected}} de {{total}} seleccionados",
                 partly: "Seleccionada en parte · {{selected}} de {{total}}",
-                selected: "Seleccionada",
-                edit: "Editar la selección",
+                selected: "Seleccionado",
+                edit: "Editar selecciones",
             },
             apply: {
-                button: "Elegir esta candidatura",
-                buttonLabel: "Elegir la candidatura {{slate}}",
-                chosen: "{{slate}} elegida. Candidatos seleccionados: {{candidates}}. Contiendas: {{contests}}.",
+                button: "Seleccionar lista",
+                buttonLabel: "Seleccionar la lista {{slate}}",
+                applied: "{{slate}} seleccionada. Aún puedes cambiar cualquier candidato.",
+                appliedPartial_one:
+                    "{{slate}} seleccionada. No tiene candidato para {{offices}}, así que ese cargo queda en blanco. Aún puedes cambiar cualquier candidato.",
+                appliedPartial_other:
+                    "{{slate}} seleccionada. No tiene candidato para {{offices}}, así que esos cargos quedan en blanco. Aún puedes cambiar cualquier candidato.",
                 overMaximum:
-                    "{{slate}} no se puede elegir: tiene {{candidates}} candidaturas para {{contest}}, que permite {{max}}. Puede seguir eligiendo candidaturas individualmente.",
+                    "{{slate}} no se puede seleccionar: tiene {{candidates}} candidatos para {{contest}}, que permite {{max}}. Puedes seguir eligiendo candidatos individualmente.",
                 unavailable:
-                    "{{slate}} no se puede elegir en esta papeleta. Puede seguir eligiendo candidaturas individualmente.",
+                    "{{slate}} no se puede seleccionar en esta papeleta. Puedes seguir eligiendo candidatos individualmente.",
                 replaceDialog: {
-                    title: "¿Reemplazar tus opciones actuales?",
-                    content:
-                        "Elegir {{slate}} fija toda tu papeleta con sus candidatos. Las contiendas en las que no tiene candidatos quedan en blanco. Estas opciones cambian:",
-                    removed: "Se quita:",
-                    added: "Se selecciona en su lugar:",
-                    ok: "Reemplazar opciones",
-                    cancel: "Mantener mis opciones",
+                    title: "¿Reemplazar estas selecciones?",
+                    content_one:
+                        "Seleccionar <strong>{{slate}}</strong> cambiará el siguiente cargo.",
+                    content_other:
+                        "Seleccionar <strong>{{slate}}</strong> cambiará los siguientes cargos.",
+                    current: "Selecciones actuales",
+                    blankNote:
+                        "{{slate}} no tiene candidato para algunos cargos. Esos cargos quedarán en blanco.",
+                    ok: "Reemplazar selecciones",
+                    okOffice: "Reemplazar {{office}}",
+                    cancel: "Mantener mis selecciones",
                 },
             },
             clear: {
@@ -495,10 +513,29 @@ const spanishTranslation: TranslationType = {
                 dialog: {
                     title: "¿Borrar todas tus opciones?",
                     content:
-                        "Borrar quita todas las opciones de tu papeleta. Se quitan estas opciones:",
+                        "Borrar quita todas las opciones de tu papeleta. Estos cargos cambian:",
+                    after: "Después de borrar",
                     ok: "Borrar opciones",
                     cancel: "Mantener mis opciones",
                 },
+            },
+            offices: {
+                label: "Cargos",
+                picker: "Cargo",
+                index: "Cargo {{index}} de {{total}}",
+                count: "{{selected}}/{{max}}",
+                previous: "Cargo anterior",
+                next: "Cargo siguiente",
+                last: "Último cargo",
+                instruction_one:
+                    "Selecciona hasta {{count}} candidato. {{selected}} seleccionados.",
+                instruction_other:
+                    "Selecciona hasta {{count}} candidatos. {{selected}} seleccionados.",
+            },
+            clearContest: {
+                button: "Borrar",
+                label: "Borrar {{contest}}",
+                cleared: "Selecciones borradas para {{contest}}.",
             },
         },
         ballotLocator: {

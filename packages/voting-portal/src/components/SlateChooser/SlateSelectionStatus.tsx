@@ -8,12 +8,16 @@ import {useTranslation} from "react-i18next"
 import {ESlateSelectionStatus, ISlateSelectionSummary} from "../../services/SlateSelection"
 
 const StatusLine = styled("p")(({theme}) => ({
-    "margin": "0 0 12px",
-    "fontSize": "0.875rem",
-    "fontWeight": 700,
+    "margin": "8px 0 0",
+    "fontSize": "13px",
+    "fontWeight": 600,
+    "lineHeight": 1.5,
     "color": theme.palette.brandColor,
     "&.slate-selection-status-all": {
-        color: theme.palette.green.dark,
+        color: "#047857",
+    },
+    [theme.breakpoints.down("sm")]: {
+        fontSize: "12px",
     },
 }))
 

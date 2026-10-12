@@ -39,14 +39,11 @@ const mountSummary = (selection: BallotSelection) =>
         </I18nextProvider>
     )
 
-const lines = () =>
-    within(screen.getByRole("list"))
-        .getAllByRole("listitem")
-        .map((item) => item.textContent)
-
 afterEach(async () => {
     await act(() => i18n.changeLanguage("en"))
 })
+
+const labelText = () => document.querySelector(".review-selection-label")?.textContent
 
 describe("the summary of the selections in review", () => {
     it("is a region named Your selections with the total of the ballot", () => {
@@ -54,7 +51,8 @@ describe("the summary of the selections in review", () => {
 
         const region = screen.getByRole("region", {name: "Your selections"})
         expect(within(region).getByRole("heading", {level: 2})).toHaveTextContent("Your selections")
-        expect(region).toHaveTextContent("Candidates selected: 3 of 4")
+        expect(region.querySelector(".review-selection-total")).toHaveTextContent("3 of 4")
+        expect(region).toHaveTextContent("Candidates selected")
     })
 
     it("lets long slate names wrap instead of overflowing", () => {
@@ -65,52 +63,36 @@ describe("the summary of the selections in review", () => {
         ).toHaveProperty("overflowWrap", "anywhere")
     })
 
-    it("says a slate is fully selected", () => {
+    it("names the slate the ballot holds exactly", () => {
         mountSummary(ballot(["f-president"], ["f-t1", "f-t2"]))
 
-        expect(lines()).toEqual(["Forward Together: All 3 selected"])
+        expect(labelText()).toBe("Forward Together")
     })
 
-    it("follows a slate that was changed by hand", () => {
-        mountSummary(ballot(["i-president"], ["f-t1", "f-t2", "v-t1"]))
+    it("speaks of individual selections once a slate was changed by hand", () => {
+        mountSummary(ballot(["i-president"], ["f-t1", "f-t2"]))
 
-        expect(lines()).toEqual([
-            "Forward Together: Mixed · 2 of 3 selected",
-            "Independent Voices: Mixed · 1 of 1 selected",
-            "Independent candidates selected: 1",
-        ])
+        expect(labelText()).toBe("Individual selections")
     })
 
-    it("says a slate is partly selected", () => {
-        mountSummary(ballot(["f-president"], []))
-
-        expect(lines()).toEqual(["Forward Together: Partly selected · 1 of 3"])
-    })
-
-    it("lists no slate for a blank ballot", () => {
+    it("says nothing is selected on a blank ballot", () => {
         mountSummary(ballot([], []))
 
-        expect(screen.getByRole("region")).toHaveTextContent("Candidates selected: 0 of 4")
-        expect(screen.queryByRole("list")).toBeNull()
+        expect(screen.getByRole("region")).toHaveTextContent("0 of 4")
+        expect(labelText()).toBe("No candidates selected")
     })
 
     it("explains that only candidates are voted", () => {
         mountSummary(ballot([], []))
 
-        expect(
-            screen.getByText(
-                "Your vote is recorded for each selected candidate. A slate is not a vote of its own."
-            )
-        ).toBeVisible()
+        expect(screen.getByText("Your vote is recorded for each selected candidate.")).toBeVisible()
     })
 
-    it("names the slates in the voter's language, else in the default language", async () => {
+    it("names the slate in the voter's language", async () => {
         await act(() => i18n.changeLanguage("es"))
-        mountSummary(ballot(["m-president"], ["f-t1"]))
+        mountSummary(ballot(["f-president"], ["f-t1", "f-t2"]))
 
-        const [forward, members] = lines()
-        expect(forward).toContain("Adelante Juntos")
-        expect(members).toContain("Members First")
+        expect(labelText()).toBe("Adelante Juntos")
     })
 })
 
@@ -152,8 +134,16 @@ describe("the footer of a contest in review", () => {
         mountFooter()
 
         const edit = screen.getByRole("link", {name: "Edit Trustees"})
-        expect(edit).toHaveTextContent("Edit")
         expect(edit).toHaveAttribute("href", "/election/vote?lang=en")
+    })
+
+    it("marks a contest with unused choices", () => {
+        mountFooter()
+
+        expect(document.querySelector(".review-contest-footer")).toHaveClass(
+            "review-contest-unfilled"
+        )
+        expect(document.querySelector(".review-contest-blank")).toBeNull()
     })
 
     it("goes to the voting screen and says which contest to open", async () => {

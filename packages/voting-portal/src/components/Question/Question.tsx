@@ -42,8 +42,12 @@ import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {InvalidErrorsList, contestErrorsId} from "../InvalidErrorsList/InvalidErrorsList"
 import {useTranslation} from "react-i18next"
 import {IDecodedVoteContest, IInvalidPlaintextError} from "@sequentech/ui-core"
-import {useAppSelector} from "../../store/hooks"
-import {selectBallotSelectionQuestion} from "../../store/ballotSelections/ballotSelectionsSlice"
+import {useAppDispatch, useAppSelector} from "../../store/hooks"
+import {
+    resetBallotSelection,
+    selectBallotSelectionQuestion,
+} from "../../store/ballotSelections/ballotSelectionsSlice"
+import {useBallotSlates} from "../../providers/BallotSlatesProvider"
 import {sortCandidatesInContest, checkIsBlank} from "@sequentech/ui-core"
 import {provideBallotService} from "../../services/BallotService"
 import {faAngleDown, faAngleRight} from "@fortawesome/free-solid-svg-icons"
@@ -157,6 +161,7 @@ export const Question: React.FC<IQuestionProps> = ({
     // offers no explicit blank or invalid options, reports no selection
     // errors, and is not part of a declined or blank ballot either.
     const isAcclaimed = isAcclaimedContest(question)
+    const contestName = translate(question, "name", i18n.language) || ""
     const markerCandidates = isAcclaimed ? [] : invalidOrBlankCandidates
     const defaultLanguageCode =
         ballotStyle.ballot_eml.election_presentation?.language_conf?.default_language_code ??
@@ -164,6 +169,12 @@ export const Question: React.FC<IQuestionProps> = ({
     const showDeclineToVote = !!isDeclineToVote && !isAcclaimed
     const showBlankBallot = !!isBlankBallot && !isAcclaimed
     const [isTouched, setIsTouched] = useState(isReview)
+    const dispatch = useAppDispatch()
+    const ballotSlates = useBallotSlates()
+    // A ballot with slates is edited office by office: each office can be
+    // cleared on its own and says how many of its choices are taken.
+    const isSlateBallot = !!ballotSlates && !isReview && !isAcclaimedContest(question)
+    const [clearedAnnouncement, setClearedAnnouncement] = useState("")
     const contestState = useAppSelector(
         selectBallotSelectionQuestion(ballotStyle.election_id, question.id)
     )
@@ -362,7 +373,53 @@ export const Question: React.FC<IQuestionProps> = ({
                             : t("candidatesList.collapseAll")}
                     </Button>
                 ) : null}
+                {isSlateBallot ? (
+                    <Button
+                        className="contest-clear-button"
+                        variant="secondary"
+                        sx={{
+                            flexShrink: 0,
+                            minHeight: "44px",
+                            fontSize: "14px",
+                            border: "none",
+                            background: "transparent",
+                        }}
+                        disabled={selectedChoicesSum === 0}
+                        aria-label={t("slates.clearContest.label", {contest: contestName})}
+                        onClick={() => {
+                            dispatch(
+                                resetBallotSelection({
+                                    ballotStyle,
+                                    force: true,
+                                    contestId: question.id,
+                                })
+                            )
+                            setClearedAnnouncement(
+                                t("slates.clearContest.cleared", {contest: contestName})
+                            )
+                        }}
+                    >
+                        {t("slates.clearContest.button")}
+                    </Button>
+                ) : null}
             </StyledTitle>
+            {isSlateBallot ? (
+                <>
+                    <Typography
+                        className="contest-selection-count"
+                        variant="body2"
+                        sx={{margin: "4px 0 0", color: theme.palette.customGrey.dark}}
+                    >
+                        {t("slates.offices.instruction", {
+                            count: question.max_votes,
+                            selected: selectedChoicesSum,
+                        })}
+                    </Typography>
+                    <VisuallyHidden className="contest-clear-status" role="status">
+                        {clearedAnnouncement}
+                    </VisuallyHidden>
+                </>
+            ) : null}
             {question.description || question.description_i18n?.[i18n.language] ? (
                 <Typography
                     className="contest-description"

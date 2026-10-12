@@ -3,27 +3,67 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
-import {Box, Typography} from "@mui/material"
+import {styled} from "@mui/material/styles"
 import {useTranslation} from "react-i18next"
 import {IContest, ISlateCoverage, translate} from "@sequentech/ui-core"
-import {theme} from "@sequentech/ui-essentials"
 
 import {ESlateCoverageLabel, getSlateCoverageLabel} from "../../services/SlateCoverage"
+import type {IResolvedSlate} from "../../services/Slates"
 
-export interface ISlateCoverageLineProps {
+const Chip = styled("span")(({theme}) => ({
+    display: "inline-flex",
+    padding: "4px 8px",
+    borderRadius: "4px",
+    background: theme.palette.lightBackground,
+    color: theme.palette.customGrey.dark,
+    fontSize: "12px",
+    lineHeight: 1.35,
+    textAlign: "end",
+    overflowWrap: "anywhere",
+    [theme.breakpoints.down("sm")]: {
+        fontSize: "11px",
+        padding: "4px 6px",
+    },
+}))
+
+const Sentence = styled("p")(({theme}) => ({
+    margin: "6px 0 13px",
+    fontSize: "14px",
+    lineHeight: 1.55,
+    color: theme.palette.customGrey.dark,
+    overflowWrap: "anywhere",
+    [theme.breakpoints.down("sm")]: {
+        fontSize: "13px",
+        margin: "7px 0 0",
+    },
+}))
+
+const Count = styled("p")(({theme}) => ({
+    margin: "4px 0 12px",
+    paddingTop: "12px",
+    borderTop: `1px solid ${theme.palette.customGrey.light}`,
+    fontSize: "13px",
+    lineHeight: 1.55,
+    color: theme.palette.customGrey.dark,
+    [theme.breakpoints.down("sm")]: {
+        fontSize: "12px",
+        border: 0,
+        padding: 0,
+        margin: "8px 0 1px",
+    },
+}))
+
+export interface ISlateCoverageChipProps {
     coverage: ISlateCoverage
     /** The contests of the ballot the slate has candidates in. */
     contests: Array<IContest>
 }
 
-/**
- * What a slate covers: whether it is a full slate and how many candidates it
- * has in how many offices.
- */
-export const SlateCoverageLine: React.FC<ISlateCoverageLineProps> = ({coverage, contests}) => {
+/** Whether a slate is full, covers one office only, or is partial. */
+export const SlateCoverageChip: React.FC<ISlateCoverageChipProps> = ({coverage, contests}) => {
     const {t, i18n} = useTranslation()
     const {label, contest} = getSlateCoverageLabel(coverage, contests)
-    const kind =
+    const text =
         label === ESlateCoverageLabel.FULL
             ? t("slates.coverage.full")
             : label === ESlateCoverageLabel.SINGLE_CONTEST && contest
@@ -33,26 +73,43 @@ export const SlateCoverageLine: React.FC<ISlateCoverageLineProps> = ({coverage, 
               : t("slates.coverage.partial")
 
     return (
-        <Box className="slate-coverage" data-coverage={coverage.kind}>
-            <Typography
-                className="slate-coverage-kind"
-                component="span"
-                fontSize="0.875rem"
-                fontWeight="bold"
-            >
-                {kind}
-            </Typography>
-            <Typography
-                className="slate-coverage-count"
-                component="span"
-                fontSize="0.875rem"
-                color={theme.palette.customGrey.dark}
-            >
+        <Chip className="slate-coverage-chip" data-coverage={coverage.kind}>
+            {text}
+        </Chip>
+    )
+}
+
+export interface ISlateCoverageSummaryProps {
+    slate: IResolvedSlate
+}
+
+/**
+ * Which offices a slate has candidates for, and how many candidates and
+ * offices that makes.
+ */
+export const SlateCoverageSummary: React.FC<ISlateCoverageSummaryProps> = ({slate}) => {
+    const {t, i18n} = useTranslation()
+    const candidates = slate.contests.reduce((total, entry) => total + entry.candidates.length, 0)
+    const offices = slate.contests.length
+    const coversEveryOffice = !slate.coverage || slate.coverage.uncovered_contest_ids.length === 0
+    const officeNames = slate.contests
+        .map(({contest}) => (translate(contest, "name", i18n.language) ?? "").toLocaleLowerCase())
+        .join(", ")
+
+    return (
+        <>
+            {slate.coverage ? (
+                <Sentence className="slate-coverage-sentence">
+                    {coversEveryOffice
+                        ? t("slates.coverage.everyOffice")
+                        : t("slates.coverage.someOffices", {offices: officeNames})}
+                </Sentence>
+            ) : null}
+            <Count className="slate-count">
+                {t("slates.coverage.candidates", {count: candidates})}
                 {" · "}
-                {t("slates.coverage.candidates", {count: coverage.members})}
-                {" · "}
-                {t("slates.coverage.offices", {count: coverage.covered.length})}
-            </Typography>
-        </Box>
+                {t("slates.coverage.offices", {count: offices})}
+            </Count>
+        </>
     )
 }

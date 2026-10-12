@@ -1061,16 +1061,33 @@ describe("slate ballot tabs", () => {
         expect(container.querySelector(".slate-ballot-panel-slates")).toHaveAttribute("hidden")
     })
 
-    it("goes through the contest pages when Next is pressed on the slates", async () => {
+    it("goes to review from the slates, as every office is on the ballot screen", async () => {
         configureSlate()
-        const {router} = renderRoute(<VotingScreen />, "vote")
+        renderRoute(<VotingScreen />, "vote")
 
         await userEvent
             .setup()
             .click(screen.getByRole("button", {name: "votingScreen.reviewButton"}))
 
-        expect(selectedTab()).toBe("slates.tabs.candidates")
-        expect(router.state.location.pathname).toBe(`${ELECTION_PATH}/vote`)
+        expect(selectedTab()).toBe("slates.tabs.slates")
+        expect(mockDispatch).toHaveBeenCalledWith(
+            expect.objectContaining({type: "extra/setIsVoted"})
+        )
+    })
+
+    it("shows the individual candidates one office at a time", async () => {
+        configureSlate()
+        const user = userEvent.setup()
+        renderRoute(<VotingScreen />, "vote")
+        await user.click(screen.getByRole("tab", {name: "slates.tabs.candidates"}))
+
+        const [first, second] = mockState.ballotStyles["election-1"]!.ballot_eml.contests
+        expect(screen.getByRole("heading", {level: 2, name: first.name ?? ""})).toBeVisible()
+        expect(
+            screen.getByRole("heading", {level: 2, name: second.name ?? "", hidden: true})
+        ).not.toBeVisible()
+        await user.click(screen.getByRole("button", {name: "slates.offices.next"}))
+        expect(screen.getByRole("heading", {level: 2, name: second.name ?? ""})).toBeVisible()
     })
 
     it("marks a member selected individually and opens the candidates from Edit selections", async () => {
@@ -1231,18 +1248,18 @@ describe("reviewing a ballot with slates", () => {
         const {container} = renderRoute(<ReviewScreen />, "review")
 
         expect(screen.getByRole("region", {name: "slates.review.title"})).toBeVisible()
-        expect(container.querySelector(".review-selection-slate-all")).toBeVisible()
+        expect(container.querySelector(".review-selection-label-slate")).toHaveTextContent(
+            "Forward"
+        )
         expect(container.querySelectorAll(".review-contest-count")).toHaveLength(2)
-        expect(container.querySelector(".review-selection-independent")).toBeNull()
     })
 
     it("reports a slate changed by hand as mixed, not as the slate that was chosen", () => {
         configure(([first, second]) => [[first.candidates[1].id], [second.candidates[0].id]])
         const {container} = renderRoute(<ReviewScreen />, "review")
 
-        expect(container.querySelector(".review-selection-slate-all")).toBeNull()
-        expect(container.querySelector(".review-selection-slate-mixed")).toBeVisible()
-        expect(container.querySelector(".review-selection-independent")).toBeVisible()
+        expect(container.querySelector(".review-selection-label-slate")).toBeNull()
+        expect(container.querySelector(".review-selection-label-individual")).toBeVisible()
     })
 
     it("lists no slate for a blank ballot, and still counts every contest", () => {
@@ -1250,8 +1267,9 @@ describe("reviewing a ballot with slates", () => {
         const {container} = renderRoute(<ReviewScreen />, "review")
 
         expect(screen.getByRole("region", {name: "slates.review.title"})).toBeVisible()
-        expect(container.querySelector(".review-selection-lines")).toBeNull()
+        expect(container.querySelector(".review-selection-label-none")).toBeVisible()
         expect(container.querySelectorAll(".review-contest-count")).toHaveLength(2)
+        expect(container.querySelectorAll(".review-contest-blank")).toHaveLength(2)
     })
 
     it("says nothing about selections on a declined ballot", () => {
