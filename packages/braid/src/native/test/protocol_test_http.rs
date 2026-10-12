@@ -352,27 +352,13 @@ pub async fn create_protocol_test<C: Ctx>(
         PhantomData,
     );
 
-    // Bootstrap message will be sent by first session
+    // The board configuration is provisioned through the database, not through the HTTP API
     let message = Message::bootstrap_msg(&cfg, &pm)?;
-
-    // Create HTTP client to initialize board
-    let client = reqwest::Client::new();
+    let pool = b4::db::init_db().await?;
 
     // Create board (ignore error if already exists)
-    let _ = client
-        .post(format!("{}/boards", HTTP_URL))
-        .json(&serde_json::json!({
-            "name": TEST_BOARD
-        }))
-        .send()
-        .await;
-
-    // Send bootstrap message
-    let board_params = HttpB3BoardParams::new(HTTP_URL).await;
-    let mut temp_board = board_params.create_board(TEST_BOARD, None);
-    temp_board
-        .insert_messages(TEST_BOARD, vec![message.try_into().unwrap()])
-        .await?;
+    let _ = b4::db::create_board(&pool, TEST_BOARD).await;
+    b4::db::insert_configuration(&pool, TEST_BOARD, &message).await?;
 
     Ok(ProtocolTest {
         ctx,

@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::ports::user_tasks::*;
-use crate::services::access::{create_permission, read_permission, UserScope};
+use crate::services::access::{
+    create_permission, import_users_privileges, read_permission, UserScope,
+};
 use rocket::http::Status;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
@@ -63,6 +65,11 @@ pub async fn import_users_with(
     task_input.secret_write_initiator = task_input
         .may_write_secret_attributes
         .then(|| ElectoralLogAdminContext::from_claims(&claims));
+    task_input.privileges = import_users_privileges(|permissions| {
+        authorization
+            .authorize(&claims, input.tenant_id.clone(), permissions)
+            .is_ok()
+    });
 
     match dispatch
         .import(&celery_app, task_input, task_execution.clone())
