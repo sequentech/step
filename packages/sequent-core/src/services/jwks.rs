@@ -4,7 +4,7 @@
 
 //! Verifies Keycloak access tokens with `certs.json`, the JWKS that Windmill
 //! publishes for Hasura. A token is only trusted for the realm of the key that
-//! signed it.
+//! signed it, and only when it was issued for Harvest's audience.
 
 use crate::services::jwt::JwtClaims;
 use crate::services::keycloak::parse_realm;
@@ -33,6 +33,12 @@ const JWKS_FETCH_TIMEOUT_ENV: &str = "AWS_S3_JWKS_FETCH_TIMEOUT_SECS";
 const JWKS_MIN_REFRESH_ENV: &str = "AWS_S3_JWKS_MIN_REFRESH_SECS";
 const DEFAULT_JWKS_FETCH_TIMEOUT_SECS: u64 = 5;
 const DEFAULT_JWKS_MIN_REFRESH_SECS: u64 = 10;
+/// Comma-separated audiences a token must carry to be accepted by Harvest.
+pub const AUDIENCES_ENV: &str = "HARVEST_JWT_AUDIENCES";
+/// Audiences Keycloak adds to most user tokens, whatever client requested
+/// them. Expecting one of them would accept tokens minted for any client.
+const GENERIC_KEYCLOAK_AUDIENCES: [&str; 3] =
+    ["account", "realm-management", "broker"];
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct JWKKey {
@@ -101,6 +107,40 @@ static FETCH_TIMEOUT: LazyLock<Duration> = LazyLock::new(|| {
 static MIN_REFRESH: LazyLock<Duration> = LazyLock::new(|| {
     seconds_setting(JWKS_MIN_REFRESH_ENV, DEFAULT_JWKS_MIN_REFRESH_SECS)
 });
+
+/// The audiences of a `HARVEST_JWT_AUDIENCES` setting. With none, or with a
+/// generic Keycloak audience, no token can be accepted.
+pub fn expected_audiences(setting: Option<&str>) -> Result<Vec<String>> {
+    let audiences: Vec<String> = setting
+        .unwrap_or_default()
+        .split(',')
+        .map(str::trim)
+        .filter(|audience| !audience.is_empty())
+        .map(str::to_string)
+        .collect();
+    if audiences.is_empty() {
+        bail!("{AUDIENCES_ENV} is not set, so no token is accepted");
+    }
+    if let Some(generic) = audiences.iter().find(|audience| {
+        GENERIC_KEYCLOAK_AUDIENCES.contains(&audience.as_str())
+    }) {
+        bail!(
+            "{AUDIENCES_ENV} includes {generic}, which Keycloak gives tokens \
+             of any client, so no token is accepted"
+        );
+    }
+    Ok(audiences)
+}
+
+static AUDIENCES: LazyLock<Result<Vec<String>, String>> = LazyLock::new(|| {
+    expected_audiences(env::var(AUDIENCES_ENV).ok().as_deref())
+        .map_err(|error| error.to_string())
+});
+
+/// The audiences configured in `HARVEST_JWT_AUDIENCES`, read once.
+pub fn configured_audiences() -> Result<&'static [String]> {
+    AUDIENCES.as_deref().map_err(|error| anyhow!(error.clone()))
+}
 
 /// Reads `certs.json` from `AWS_S3_PRIVATE_URI`/`AWS_S3_PUBLIC_BUCKET`, where
 /// Windmill writes it. A missing file has no keys.
@@ -253,7 +293,14 @@ fn claims_match_realm(claims: &JwtClaims, realm: &str) -> bool {
             .is_none_or(|claimed| Some(claimed) == event_id.as_ref())
 }
 
-fn verify_with_key(token: &str, key: &JWKKey) -> Result<JwtClaims> {
+fn verify_with_key(
+    token: &str,
+    key: &JWKKey,
+    audiences: &[String],
+) -> Result<JwtClaims> {
+    if audiences.is_empty() {
+        bail!("No expected audience, so no token is accepted");
+    }
     let realm = key_realm(key)
         .ok_or_else(|| anyhow!("Key {} has no realm", key.kid))?;
     let algorithm = Algorithm::from_str(&key.alg)
@@ -261,7 +308,8 @@ fn verify_with_key(token: &str, key: &JWKKey) -> Result<JwtClaims> {
     let decoding_key = DecodingKey::from_rsa_components(&key.n, &key.e)
         .with_context(|| format!("Key {} is not an RSA key", key.kid))?;
     let mut validation = Validation::new(algorithm);
-    validation.validate_aud = false;
+    validation.set_audience(audiences);
+    validation.set_required_spec_claims(&["exp", "aud"]);
     let claims = decode::<JwtClaims>(token, &decoding_key, &validation)
         .context("Invalid token")?
         .claims;
@@ -279,16 +327,18 @@ fn verify_with_key(token: &str, key: &JWKKey) -> Result<JwtClaims> {
 }
 
 /// Verifies a token's signature and expiry with the key of `certs.json` its
-/// header names, and that the token and its tenant and election event claims
-/// are of that key's realm.
+/// header names, that it was issued for one of the audiences configured in
+/// `HARVEST_JWT_AUDIENCES`, and that the token and its tenant and election
+/// event claims are of that key's realm.
 #[instrument(skip_all)]
 pub async fn verify_jwt(token: &str) -> Result<JwtClaims> {
+    let audiences = configured_audiences()?;
     let kid = decode_header(token)
         .context("Invalid token header")?
         .kid
         .ok_or_else(|| anyhow!("Token without a key id"))?;
     let key = JWKS_CACHE.key(&kid).await?;
-    verify_with_key(token, &key)
+    verify_with_key(token, &key, audiences)
 }
 
 #[cfg(test)]
@@ -306,6 +356,15 @@ mod tests {
     const TENANT: &str = "t1";
     const EVENT: &str = "e1";
     const KID: &str = "k1";
+    const HARVEST: &str = "harvest";
+
+    fn audiences() -> Vec<String> {
+        vec![HARVEST.to_string()]
+    }
+
+    fn verify(token: &str, key: &JWKKey) -> Result<JwtClaims> {
+        verify_with_key(token, key, &audiences())
+    }
 
     fn key_pair(realm: &str) -> (EncodingKey, JWKKey) {
         let pair = KeyPair::generate(KeySize::Rsa2048).unwrap();
@@ -333,7 +392,7 @@ mod tests {
         json!({
             "exp": exp, "iat": 0, "jti": "jti", "sub": "user",
             "iss": format!("http://keycloak:8090/realms/{realm}"),
-            "aud": "account", "typ": "Bearer", "azp": "voting-portal",
+            "aud": ["account", HARVEST], "typ": "Bearer", "azp": "voting-portal",
             "acr": "1", "allowed-origins": [], "scope": "openid",
             "email_verified": false,
             "https://hasura.io/jwt/claims": {
@@ -361,14 +420,14 @@ mod tests {
         let tenant_realm = get_tenant_realm(TENANT);
         let (key, jwk) = key_pair(&tenant_realm);
         let token = sign(&key, &claims(&tenant_realm, None, valid_until()));
-        assert!(verify_with_key(&token, &jwk).is_ok());
+        assert!(verify(&token, &jwk).is_ok());
 
         let event_realm = get_event_realm(TENANT, EVENT);
         let (key, jwk) = key_pair(&event_realm);
         for event_id in [Some(EVENT), None] {
             let token =
                 sign(&key, &claims(&event_realm, event_id, valid_until()));
-            assert!(verify_with_key(&token, &jwk).is_ok());
+            assert!(verify(&token, &jwk).is_ok());
         }
     }
 
@@ -378,10 +437,10 @@ mod tests {
         let (key, jwk) = key_pair(&realm);
         let (forger, _) = key_pair(&realm);
         let forged = sign(&forger, &claims(&realm, None, valid_until()));
-        assert!(verify_with_key(&forged, &jwk).is_err());
+        assert!(verify(&forged, &jwk).is_err());
 
         let expired = sign(&key, &claims(&realm, None, 1));
-        assert!(verify_with_key(&expired, &jwk).is_err());
+        assert!(verify(&expired, &jwk).is_err());
 
         let unsigned = format!(
             "{}.{}.",
@@ -389,7 +448,7 @@ mod tests {
             URL_SAFE_NO_PAD
                 .encode(claims(&realm, None, valid_until()).to_string())
         );
-        assert!(verify_with_key(&unsigned, &jwk).is_err());
+        assert!(verify(&unsigned, &jwk).is_err());
     }
 
     #[test]
@@ -401,23 +460,23 @@ mod tests {
             &key,
             &claims(&get_tenant_realm(TENANT), None, valid_until()),
         );
-        assert!(verify_with_key(&other_issuer, &jwk).is_err());
+        assert!(verify(&other_issuer, &jwk).is_err());
         // A token claiming another election event than its realm's.
         let other_event =
             sign(&key, &claims(&event_realm, Some("e2"), valid_until()));
-        assert!(verify_with_key(&other_event, &jwk).is_err());
+        assert!(verify(&other_event, &jwk).is_err());
         // A token claiming another tenant than its realm's.
         let other_realm = get_tenant_realm("t2");
         let (key, jwk) = key_pair(&other_realm);
         let other_tenant =
             sign(&key, &claims(&other_realm, None, valid_until()));
-        assert!(verify_with_key(&other_tenant, &jwk).is_err());
+        assert!(verify(&other_tenant, &jwk).is_err());
         // A key without a realm or certificate.
         let realm = get_tenant_realm(TENANT);
         let (key, mut jwk) = key_pair(&realm);
         jwk.realm = None;
         let token = sign(&key, &claims(&realm, None, valid_until()));
-        assert!(verify_with_key(&token, &jwk).is_err());
+        assert!(verify(&token, &jwk).is_err());
     }
 
     #[test]
@@ -433,6 +492,104 @@ mod tests {
         );
         jwk.realm = Some("tenant-t1".into());
         assert_eq!(key_realm(&jwk).as_deref(), Some("tenant-t1"));
+    }
+
+    /// The claims of `claims`, with `aud` replaced, or removed when `None`.
+    fn with_audience(realm: &str, aud: Option<Value>) -> Value {
+        let mut claims = claims(realm, None, valid_until());
+        match aud {
+            Some(aud) => claims["aud"] = aud,
+            None => {
+                claims.as_object_mut().unwrap().remove("aud");
+            }
+        }
+        claims
+    }
+
+    #[test]
+    fn accepts_tokens_for_the_configured_audience() {
+        let realm = get_tenant_realm(TENANT);
+        let (key, jwk) = key_pair(&realm);
+        for aud in [
+            json!(HARVEST),
+            json!([HARVEST]),
+            json!(["account", HARVEST]),
+        ] {
+            let token = sign(&key, &with_audience(&realm, Some(aud.clone())));
+            assert!(verify(&token, &jwk).is_ok(), "{aud}");
+        }
+        // Any one of several configured audiences.
+        let token =
+            sign(&key, &with_audience(&realm, Some(json!("harvest-kiosk"))));
+        let configured = vec![HARVEST.to_string(), "harvest-kiosk".to_string()];
+        assert!(verify_with_key(&token, &jwk, &configured).is_ok());
+    }
+
+    #[test]
+    fn rejects_tokens_minted_for_other_audiences() {
+        let realm = get_tenant_realm(TENANT);
+        let (key, jwk) = key_pair(&realm);
+        for aud in [
+            // Keycloak's generic audience, carried by most user tokens.
+            json!("account"),
+            json!(["account", "realm-management"]),
+            // A token minted for another service of the same realm.
+            json!("ivr-service"),
+            json!("voting-portal"),
+        ] {
+            let token = sign(&key, &with_audience(&realm, Some(aud.clone())));
+            assert!(verify(&token, &jwk).is_err(), "{aud}");
+        }
+        // The authorized party is chosen by whoever requests the token: it
+        // never stands in for the audience.
+        let mut claims = with_audience(&realm, Some(json!("account")));
+        claims["azp"] = json!(HARVEST);
+        assert!(verify(&sign(&key, &claims), &jwk).is_err());
+    }
+
+    #[test]
+    fn rejects_missing_empty_and_malformed_audiences() {
+        let realm = get_tenant_realm(TENANT);
+        let (key, jwk) = key_pair(&realm);
+        let missing = sign(&key, &with_audience(&realm, None));
+        assert!(verify(&missing, &jwk).is_err());
+        for aud in [
+            json!(""),
+            json!([]),
+            json!([""]),
+            json!(42),
+            json!({"aud": HARVEST}),
+        ] {
+            let token = sign(&key, &with_audience(&realm, Some(aud.clone())));
+            assert!(verify(&token, &jwk).is_err(), "{aud}");
+        }
+    }
+
+    #[test]
+    fn verifies_nothing_without_an_expected_audience() {
+        let realm = get_tenant_realm(TENANT);
+        let (key, jwk) = key_pair(&realm);
+        let token = sign(&key, &claims(&realm, None, valid_until()));
+        assert!(verify_with_key(&token, &jwk, &[]).is_err());
+    }
+
+    #[test]
+    fn reads_the_expected_audiences() {
+        assert_eq!(expected_audiences(Some(HARVEST)).unwrap(), audiences());
+        assert_eq!(
+            expected_audiences(Some(" harvest , harvest-kiosk ,, ")).unwrap(),
+            vec!["harvest".to_string(), "harvest-kiosk".to_string()]
+        );
+        for setting in [None, Some(""), Some("  "), Some(" , ,")] {
+            assert!(expected_audiences(setting).is_err(), "{setting:?}");
+        }
+        // Audiences Keycloak adds to most tokens would accept tokens minted
+        // for any client.
+        for setting in
+            ["account", "harvest,account", "realm-management", "broker"]
+        {
+            assert!(expected_audiences(Some(setting)).is_err(), "{setting}");
+        }
     }
 
     #[test]
