@@ -11,6 +11,7 @@ cfg_if::cfg_if! {
         use serde::Deserialize;
         use b3::client::pgsql::{PgsqlB3Client, PgsqlConnectionParams};
         use b3::grpc::server::PgsqlB3Server;
+        use b3::postgres::{PgTlsConfig, PgTlsMode};
         use b3::grpc::B3Server;
         use b3::grpc::MAX_MESSAGE_SIZE;
 
@@ -22,6 +23,8 @@ cfg_if::cfg_if! {
             pg_user: String,
             pg_password: String,
             pg_database: String,
+            pg_ssl_mode: PgTlsMode,
+            pg_ca_path: Option<PathBuf>,
             bind: String,
             blob_root: Option<PathBuf>,
             max_message_size_bytes: usize,
@@ -35,6 +38,8 @@ cfg_if::cfg_if! {
                     pg_user: "postgres".to_string(),
                     pg_password: "postgrespw".to_string(),
                     pg_database: "protocoldb".to_string(),
+                    pg_ssl_mode: PgTlsMode::default(),
+                    pg_ca_path: None,
                     bind: "127.0.0.1:50051".to_string(),
                     blob_root: None,
                     max_message_size_bytes: MAX_MESSAGE_SIZE,
@@ -43,6 +48,13 @@ cfg_if::cfg_if! {
         }
 
         impl ServerConfig {
+            fn tls_config(&self) -> PgTlsConfig {
+                PgTlsConfig {
+                    mode: self.pg_ssl_mode,
+                    ca_path: self.pg_ca_path.clone().filter(|path| !path.as_os_str().is_empty()),
+                }
+            }
+
             pub fn from_env() -> Result<Self, config::ConfigError> {
                 Config::builder()
                     .add_source(Environment::default().prefix("B3"))
@@ -57,9 +69,10 @@ cfg_if::cfg_if! {
 
             let config = ServerConfig::from_env()?;
 
-            info!("Starting b3 with configuration: {:#?}", config);
+            info!(host = %config.pg_host, port = config.pg_port, database = %config.pg_database, tls_mode = ?config.pg_ssl_mode, "Starting b3");
 
-            let c = PgsqlConnectionParams::new(&config.pg_host, config.pg_port, &config.pg_user, &config.pg_password);
+            let c = PgsqlConnectionParams::new(&config.pg_host, config.pg_port, &config.pg_user, &config.pg_password)
+                .with_tls(config.tls_config());
             let c_db = c.with_database(&config.pg_database);
             let mut client = PgsqlB3Client::new(&c_db).await?;
             info!("pgsql connection ok");
@@ -79,6 +92,48 @@ cfg_if::cfg_if! {
             Server::builder().add_service(service).serve(addr).await?;
 
             Ok(())
+        }
+
+        #[cfg(test)]
+        mod tests {
+            use super::*;
+
+            #[test]
+            #[serial_test::serial]
+            fn server_environment_enforces_transport_policy() {
+                struct Restore(Vec<(&'static str, Option<std::ffi::OsString>)>);
+                impl Drop for Restore {
+                    fn drop(&mut self) {
+                        for (name, value) in &self.0 {
+                            match value {
+                                Some(value) => std::env::set_var(name, value),
+                                None => std::env::remove_var(name),
+                            }
+                        }
+                    }
+                }
+                let names = ["B3_PG_SSL_MODE", "B3_PG_CA_PATH"];
+                let _restore = Restore(names.iter().map(|name| (*name, std::env::var_os(name))).collect());
+                for name in names { std::env::remove_var(name); }
+                assert_eq!(ServerConfig::from_env().unwrap().tls_config().mode, PgTlsMode::VerifyFull);
+                for value in ["verify-full", "require"] {
+                    std::env::set_var("B3_PG_SSL_MODE", value);
+                    assert_eq!(ServerConfig::from_env().unwrap().tls_config().mode, PgTlsMode::VerifyFull);
+                }
+                for value in ["", "prefer", "allow", "verify-ca", "unexpected"] {
+                    std::env::set_var("B3_PG_SSL_MODE", value);
+                    assert!(ServerConfig::from_env().is_err());
+                }
+                std::env::set_var("B3_PG_SSL_MODE", "disable");
+                std::env::set_var("B3_PG_CA_PATH", "");
+                let tls = ServerConfig::from_env().unwrap().tls_config();
+                assert_eq!(tls.mode, PgTlsMode::Disable);
+                assert!(tls.ca_path.is_none());
+                std::env::set_var("B3_PG_CA_PATH", "/b3-test-missing/ca.pem");
+                let tls = ServerConfig::from_env().unwrap().tls_config();
+                let mut config = tokio_postgres::Config::new(); config.host("localhost");
+                assert!(tls.configure(&mut config).is_err());
+            }
         }
 
         use std::str::FromStr;

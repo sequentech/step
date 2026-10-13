@@ -9,6 +9,8 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     protobuf-compiler \
     libprotobuf-dev \
+    pkg-config \
+    libssl-dev \
     m4 \
     make \
     && rm -rf /var/lib/apt/lists/*
