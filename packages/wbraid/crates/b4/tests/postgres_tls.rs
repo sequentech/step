@@ -45,8 +45,7 @@ async fn assert_rejected_on_both_paths(url: &str, expected: &str) {
         .expect("server accepted invalid TLS");
     let archive_error = archive_pool(url)
         .await
-        .err()
-        .expect("archive pool accepted invalid TLS");
+        .expect_err("archive pool accepted invalid TLS");
     for error in [server_error, archive_error] {
         let message = format!("{error:#}").to_lowercase();
         assert!(
