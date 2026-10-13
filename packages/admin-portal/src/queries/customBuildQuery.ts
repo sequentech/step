@@ -15,7 +15,15 @@ import {
     ELECTORAL_LOG_RANGE_FILTERS,
     ELECTORAL_LOG_ZONE_FILTER,
     ELECTORAL_LOG_DEFAULT_ZONE_FILTER,
+    LIST_TENANT_LOG,
+    TENANT_LOG_CONTEXT,
 } from "./ListElectoralLog"
+import {
+    ELogScope,
+    LOG_FILTER_EVENT_TYPE,
+    LOG_FILTER_LOG_TYPE,
+    LOG_SCOPE_META,
+} from "@/components/logs/logScope"
 import {LIST_USERS, customBuildGetUsersVariables} from "./GetUsers"
 import {getPermissions} from "./GetPermissions"
 import {getRoles} from "./GetRoles"
@@ -103,13 +111,17 @@ export const customBuildQuery =
         }
 
         if (resourceName === "electoral_log" && raFetchType === "GET_LIST") {
+            const tenantLog = params.meta?.[LOG_SCOPE_META] === ELogScope.TENANT
             let validFilters = [
-                "election_event_id",
+                // The tenant log has no election event.
+                ...(tenantLog ? [] : ["election_event_id"]),
                 "user_id",
                 "username",
                 "created",
                 "statement_timestamp",
                 "statement_kind",
+                LOG_FILTER_EVENT_TYPE,
+                LOG_FILTER_LOG_TYPE,
                 // Messages a SendCommunications entry records (the Messaging tab's Failed links).
                 LOG_FILTER_CHANNEL,
                 LOG_FILTER_OUTCOME,
@@ -130,7 +142,8 @@ export const customBuildQuery =
                 },
             }
             return {
-                query: getElectoralLog(params),
+                query: tenantLog ? LIST_TENANT_LOG : getElectoralLog(params),
+                ...(tenantLog ? {context: TENANT_LOG_CONTEXT} : {}),
                 variables: getElectoralLogVariables(
                     buildVariables(introspectionResults)(resource, raFetchType, params, null)
                 ),

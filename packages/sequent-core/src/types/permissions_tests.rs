@@ -724,3 +724,43 @@ fn every_realm_template_only_holds_ordinary_roles() {
         }
     }
 }
+
+/// Only administrators read and export the tenant log; the realm sends its
+/// events, admin events included, to the listener that feeds that log.
+#[test]
+fn every_realm_grants_the_tenant_log_to_its_administrators_and_feeds_it() {
+    for (permission, role) in [
+        (Permissions::TENANT_LOGS_READ, "tenant-logs-read"),
+        (Permissions::TENANT_LOGS_EXPORT, "tenant-logs-export"),
+    ] {
+        assert_eq!(permission.to_string(), role);
+        assert_eq!(Permissions::from_str(role), Ok(permission));
+        for (name, text) in REALMS {
+            let realm: Value = serde_json::from_str(text)
+                .unwrap_or_else(|why| panic!("{name}: {why}"));
+            assert!(
+                realm_role_names(&realm).contains(&role),
+                "{name}: no {role} role"
+            );
+            assert_eq!(
+                groups_granting(&realm, role),
+                BTreeSet::from(["admin".to_string()]),
+                "{name}: {role}"
+            );
+        }
+    }
+    for (name, text) in REALMS {
+        let realm: Value = serde_json::from_str(text)
+            .unwrap_or_else(|why| panic!("{name}: {why}"));
+        assert!(
+            realm["eventsListeners"]
+                .as_array()
+                .is_some_and(|listeners| listeners
+                    .iter()
+                    .any(|listener| listener == "custom-event-listener")),
+            "{name}: the listener is off"
+        );
+        assert_eq!(realm["adminEventsEnabled"], true, "{name}");
+        assert_eq!(realm["adminEventsDetailsEnabled"], true, "{name}");
+    }
+}

@@ -2,14 +2,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::tenant_bootstrap_admin::TenantBootstrapAdminPolicy;
+use crate::postgres::audit_log_outbox::AuditLogTarget;
 use crate::postgres::tenant::{
     get_tenant_by_id_if_exist, get_tenant_by_slug_if_exist, insert_tenant,
 };
+use crate::services::audit_log::{
+    self, AdminAction, AdminChange, AuditActor, AuditObject, AuditOrigin,
+};
 use crate::services::database::get_hasura_pool;
+use crate::services::electoral_log_board::ensure_tenant_log;
 use crate::services::import::import_election_event::remove_keycloak_realm_secrets;
 use crate::services::jwks::upsert_realm_jwks;
 use crate::services::keycloak::read_realm_config_from_s3;
 use crate::services::tasks_execution::{update_complete, update_fail};
+use crate::tasks::audit_log_outbox::kick_audit_log_outbox;
 use crate::types::error::Result;
 use ::keycloak::types::RealmRepresentation;
 use anyhow::{Context, Result as AnyhowResult};
@@ -98,11 +104,27 @@ pub async fn process_insert_tenant(tenant_id: String, slug: String) -> Result<()
 
     upsert_keycloak_realm(tenant_id.as_str(), slug.as_str()).await?;
     insert_tenant_db(&hasura_transaction, &tenant_id, &slug).await?;
+    // The tenant's log and its system key exist from the start, and its first
+    // entry is the tenant's creation.
+    ensure_tenant_log(&hasura_transaction, &tenant_id).await?;
+    let created = AdminChange::new(
+        AuditLogTarget {
+            tenant_id: uuid::Uuid::parse_str(&tenant_id)
+                .map_err(|err| format!("Invalid tenant id: {err}"))?,
+            election_event_id: None,
+        },
+        AuditObject::new("tenant", &tenant_id, Some(&slug)),
+        AdminAction::Create,
+        AuditActor::default(),
+        AuditOrigin::Windmill,
+    );
+    audit_log::stage(&hasura_transaction, &created).await?;
 
     hasura_transaction
         .commit()
         .await
         .map_err(|err| format!("Error committing hasura transaction: {err}"))?;
+    kick_audit_log_outbox();
 
     Ok(())
 }

@@ -2,15 +2,19 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit_log::{stage, AdminAction, AuditActor};
 use crate::services::database::get_hasura_pool;
 use crate::services::export::export_tenant_config::process_export_zip;
+use crate::services::task_audit;
 use crate::services::tasks_execution::*;
+use crate::tasks::audit_log_outbox::kick_audit_log_outbox;
 use crate::types::error::{Error, Result};
 use anyhow::Context;
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::types::hasura::core::TasksExecution;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use tracing::{event, instrument, Level};
 
 #[instrument(err)]
@@ -20,6 +24,7 @@ pub async fn export_tenant_config(
     tenant_id: String,
     document_id: String,
     task_execution: TasksExecution,
+    audit_actor: Option<AuditActor>,
 ) -> Result<()> {
     let mut hasura_db_client: DbClient = match get_hasura_pool().await.get().await {
         Ok(client) => client,
@@ -67,6 +72,27 @@ pub async fn export_tenant_config(
         }
     }
 
+    let staged = match task_audit::tenant_config(
+        audit_actor,
+        &tenant_id,
+        AdminAction::Export,
+        json!({"document_id": document_id}),
+    ) {
+        Ok(entry) => stage(&hasura_transaction, &entry).await.map(|_| ()),
+        Err(err) => Err(err),
+    };
+    if let Err(err) = staged {
+        let err_str = format!("Failed to queue the audit entry: {err:#}");
+        if let Err(update_err) = update_fail(&task_execution, &err_str).await {
+            event!(
+                Level::ERROR,
+                "Failed to update task execution status to FAILED: {:?}",
+                update_err
+            );
+        }
+        return Err(Error::String(err_str));
+    }
+
     match hasura_transaction.commit().await {
         Ok(_) => (),
         Err(err) => {
@@ -81,6 +107,8 @@ pub async fn export_tenant_config(
             return Err(Error::String(err_str));
         }
     };
+
+    kick_audit_log_outbox();
 
     update_complete(&task_execution, Some(document_id.to_string()))
         .await

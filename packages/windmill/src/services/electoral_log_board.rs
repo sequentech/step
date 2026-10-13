@@ -113,6 +113,70 @@ pub fn get_event_board(tenant_id: &str, election_event_id: &str, slug: &str) -> 
         .collect()
 }
 
+/// The board of a tenant's log, which records what happens outside election
+/// events: named like an event's board without the event, with the whole tenant
+/// ID, which routes it to the tenant's log database.
+pub fn get_tenant_board(tenant_id: &str, slug: &str) -> String {
+    format!("{slug}tenant{tenant_id}")
+        .chars()
+        .filter(|&c| c != '-')
+        .collect()
+}
+
+/// The board of the tenant's log in this environment.
+pub fn tenant_board(tenant_id: &str) -> Result<String> {
+    let slug = std::env::var("ENV_SLUG").context("missing env var ENV_SLUG")?;
+    Ok(get_tenant_board(tenant_id, &slug))
+}
+
+/// A tenant's log: its board and the system key that signs its entries.
+pub struct TenantLog {
+    pub board: String,
+    pub system_key: SigningKey,
+}
+
+/// The tenant's log, created with its database, board and system key the
+/// first time. The key is saved in `hasura_transaction`: a caller that rolls
+/// back makes the next call generate it again, for a log that holds no entry
+/// signed with the lost one.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn ensure_tenant_log(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+) -> Result<TenantLog> {
+    let board = tenant_board(tenant_id)?;
+    let path = get_protocol_manager_secret_path(&board);
+    // Callers creating the same log take turns, so one key is saved.
+    hasura_transaction
+        .execute(
+            "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+            &[&format!("tenant-log:{tenant_id}")],
+        )
+        .await
+        .context("Error taking the tenant log lock")?;
+    if let Some(contents) = vault::read_secret(hasura_transaction, tenant_id, None, &path).await? {
+        return Ok(TenantLog {
+            board,
+            system_key: parse_signing_identity(&contents)?,
+        });
+    }
+    get_event_databases()
+        .await?
+        .create_tenant(tenant_id)
+        .await?;
+    get_board_client().await?.create_board(&board).await?;
+    let system_key = SigningKey::generate()?;
+    #[derive(serde::Serialize)]
+    struct SigningIdentity {
+        signing_key: String,
+    }
+    let identity = toml::to_string(&SigningIdentity {
+        signing_key: system_key.to_b64_string()?,
+    })?;
+    vault::save_secret(hasura_transaction, tenant_id, None, &path, &identity).await?;
+    Ok(TenantLog { board, system_key })
+}
+
 pub fn get_election_board(tenant_id: &str, election_id: &str, slug: &str) -> String {
     let tenant: String = tenant_id
         .to_string()

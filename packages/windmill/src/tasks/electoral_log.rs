@@ -2,13 +2,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::election_event::get_election_event_by_id_if_exist;
+use crate::services::audit_log_writer::{emit_monitoring_line, monitoring_line};
 use crate::services::celery_app::Queue;
 use crate::services::database::get_hasura_pool;
 use crate::services::database::get_keycloak_pool;
 use crate::services::database::get_queue_pool;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
-use crate::services::electoral_log_board::{get_board_client, get_protocol_manager_secret_path};
+use crate::services::electoral_log_board::{
+    ensure_tenant_log, get_board_client, get_protocol_manager_secret_path,
+};
 use crate::services::electoral_log_dead_letter::{
     dead_letter_events, dead_letter_message, DeadLetterStage,
 };
@@ -22,10 +25,15 @@ use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use celery::task::Task;
 use deadpool_postgres::{Client as DbClient, Transaction};
+use electoral_log::adapters::events::{owner_of_board, BoardOwner};
+use electoral_log::messages::message::Message;
+use electoral_log::messages::newtypes::{AuditLogEntry, AuditStatementKind, EventIdString};
+use electoral_log::messages::statement::{StatementEventType, StatementLogType};
 use electoral_log::{ElectoralLogMessage, LogEntry};
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_event_realm;
 use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use tracing::{event, info, instrument};
@@ -128,7 +136,21 @@ pub struct LogEventInput {
     /// Absent from messages sent before the listener said.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub event_time_ms: Option<i64>,
+    /// What Keycloak knows of a user event beyond its type: the client, the
+    /// IP address, the error and the authentication used.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub details: Option<serde_json::Value>,
+    /// A Keycloak admin event, sent with [`KEYCLOAK_ADMIN_EVENT`] as the
+    /// message type: the operation, the resource, its new representation
+    /// and who made it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub admin_event: Option<serde_json::Value>,
 }
+
+/// The message type of a Keycloak admin event.
+pub const KEYCLOAK_ADMIN_EVENT: &str = "KEYCLOAK_ADMIN_EVENT";
+/// What the listener sends for a user id or a username it does not have.
+const ABSENT: &str = "null";
 
 /// Enqueue the electoral log event.
 /// This task is routed to the durable electoral_log_event_queue, which only the dispatcher reads.
@@ -238,9 +260,12 @@ async fn store_batch(events: &[LogEventInput]) -> anyhow::Result<()> {
     let client = get_board_client().await?;
     let mut failures = Vec::new();
     for (board, messages) in built.by_board {
-        if let Err(error) = client.append(&board, &messages).await {
-            tracing::error!("Error appending electoral-log batch for board {board}: {error:?}");
-            failures.push(format!("{board}: {error:#}"));
+        match client.append(&board, &messages).await {
+            Ok(stored) => emit_monitoring_lines(&board, &messages, &stored),
+            Err(error) => {
+                tracing::error!("Error appending electoral-log batch for board {board}: {error:?}");
+                failures.push(format!("{board}: {error:#}"));
+            }
         }
     }
     anyhow::ensure!(
@@ -249,6 +274,30 @@ async fn store_batch(events: &[LogEventInput]) -> anyhow::Result<()> {
         failures.join("; ")
     );
     Ok(())
+}
+
+/// Whether monitoring collects a record: every record of a tenant's log, and
+/// the Keycloak admin events of an election event's.
+fn is_monitored(board: &str, message: &ElectoralLogMessage) -> bool {
+    matches!(owner_of_board(board), Ok(BoardOwner::Tenant(_)))
+        || message.statement_kind == AuditStatementKind::KeycloakAdminEvent.to_string()
+}
+
+/// Writes the monitoring line of each record the board stored now; a record
+/// it held already had its line when it was first stored.
+fn emit_monitoring_lines(
+    board: &str,
+    messages: &[LogEntry],
+    stored: &[electoral_log::StoredRecord],
+) {
+    for record in stored {
+        let entry = messages
+            .iter()
+            .find(|entry| entry.delivery_id == record.delivery_id);
+        if let Some(entry) = entry.filter(|entry| is_monitored(board, &entry.message)) {
+            emit_monitoring_line(&monitoring_line(board, Some(record.id), &entry.message));
+        }
+    }
 }
 
 /// Why an event of a batch could not be turned into log records.
@@ -308,6 +357,13 @@ trait BatchLookups {
         election_event_id: &str,
         board: &str,
     ) -> anyhow::Result<Option<ElectoralLog>>;
+
+    /// The board of the tenant's log and its system signer. The log is created
+    /// the first time.
+    async fn tenant_log(&mut self, tenant_id: &str) -> anyhow::Result<(String, ElectoralLog)>;
+
+    /// The client whose service account Step uses on Keycloak's admin API.
+    fn service_client(&self) -> String;
 }
 
 struct DbLookups<'a, 'b> {
@@ -367,13 +423,27 @@ impl BatchLookups for DbLookups<'_, '_> {
             &protocol_manager,
         )))
     }
+
+    async fn tenant_log(&mut self, tenant_id: &str) -> anyhow::Result<(String, ElectoralLog)> {
+        let log = ensure_tenant_log(self.hasura, tenant_id)
+            .await
+            .context("Error getting the tenant log")?;
+        let signer = ElectoralLog::for_system_with_signing_key(&log.board, &log.system_key);
+        Ok((log.board, signer))
+    }
+
+    fn service_client(&self) -> String {
+        std::env::var("KEYCLOAK_ADMIN_CLIENT_ID").unwrap_or_default()
+    }
 }
 
-/// Lookups already made for this batch, by (tenant, election event).
+/// Lookups already made for this batch, by (tenant, election event), and the
+/// tenants' logs by tenant.
 #[derive(Default)]
 struct BatchCache {
     boards: HashMap<(String, String), Option<String>>,
     signers: HashMap<(String, String), Option<ElectoralLog>>,
+    tenant_logs: HashMap<String, (String, ElectoralLog)>,
 }
 
 async fn build_batch<L: BatchLookups + Send>(
@@ -427,6 +497,10 @@ async fn build_event<L: BatchLookups + Send>(
     Uuid::parse_str(&input.tenant_id)
         .context("Invalid tenant ID")
         .map_err(Permanent)?;
+    // The tenant realm's events name no election event.
+    if input.election_event_id.is_empty() {
+        return build_tenant_event(lookups, cache, input, delivery_id, None).await;
+    }
     Uuid::parse_str(&input.election_event_id)
         .context("Invalid election event ID")
         .map_err(Permanent)?;
@@ -439,12 +513,21 @@ async fn build_event<L: BatchLookups + Send>(
             .map_err(Transient)?;
         cache.boards.insert(key.clone(), board);
     }
-    let board = cache.boards.get(&key).cloned().flatten().ok_or_else(|| {
-        Permanent(anyhow!(
+    let Some(board) = cache.boards.get(&key).cloned().flatten() else {
+        let reason = format!(
             "Election event {} does not exist or has no electoral-log board",
             input.election_event_id
-        ))
-    })?;
+        );
+        return match input.message_type {
+            LogMessageType::Internal => Err(Permanent(anyhow!(reason))),
+            LogMessageType::KeycloakEvent(_) => {
+                build_tenant_event(lookups, cache, input, delivery_id, Some(reason)).await
+            }
+        };
+    };
+    if input.message_type == LogMessageType::KeycloakEvent(KEYCLOAK_ADMIN_EVENT.to_string()) {
+        return build_event_realm_admin_event(lookups, cache, input, delivery_id, board).await;
+    }
 
     let mut entries = Vec::new();
     let mut attempt = None;
@@ -469,16 +552,18 @@ async fn build_event<L: BatchLookups + Send>(
                     .map_err(Transient)?;
                 cache.signers.insert(key.clone(), signer);
             }
+            if cache.signers.get(&key).is_some_and(Option::is_none) {
+                let reason = format!(
+                    "Election event {} has no protocol-manager key",
+                    input.election_event_id
+                );
+                return build_tenant_event(lookups, cache, input, delivery_id, Some(reason)).await;
+            }
             let signer = cache
                 .signers
                 .get(&key)
                 .and_then(Option::as_ref)
-                .ok_or_else(|| {
-                    Permanent(anyhow!(
-                        "Election event {} has no protocol-manager key",
-                        input.election_event_id
-                    ))
-                })?;
+                .ok_or_else(|| Transient(anyhow!("The signer of a board was not loaded")))?;
 
             if let LogEventBody::Communications(ref template_body) = input.body {
                 let send_template_msg = signer
@@ -524,6 +609,224 @@ async fn build_event<L: BatchLookups + Send>(
     Ok(BuiltEvent {
         entries,
         login_attempt: attempt,
+    })
+}
+
+/// Who made a Keycloak admin event.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, strum_macros::Display)]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum AdminEventAuthor {
+    /// Step, through its service account: the change an admin made in the
+    /// Admin Portal, as Keycloak saw it.
+    ServiceAccount,
+    /// Anyone else, in Keycloak's console or through its API.
+    Operator,
+}
+
+/// Prefix Keycloak gives the username of a client's service account.
+const SERVICE_ACCOUNT_PREFIX: &str = "service-account-";
+
+/// Who made an admin event: Step's service account is the service account
+/// of the client `service_client`.
+pub fn admin_event_author(admin_event: &Value, service_client: &str) -> AdminEventAuthor {
+    let actor = &admin_event["actor"];
+    let is_service = !service_client.is_empty()
+        && actor["username"].as_str().is_some_and(|name| {
+            name.eq_ignore_ascii_case(&format!("{SERVICE_ACCOUNT_PREFIX}{service_client}"))
+        });
+    if is_service {
+        AdminEventAuthor::ServiceAccount
+    } else {
+        AdminEventAuthor::Operator
+    }
+}
+
+/// A user id or username of the listener, which sends `"null"` for none.
+fn present(value: &Option<String>) -> Option<String> {
+    value
+        .clone()
+        .filter(|value| !value.is_empty() && value != ABSENT)
+}
+
+/// The record of a Keycloak admin event, signed by the log's system key: a
+/// SYSTEM entry when Step's service account made it, a USER entry otherwise.
+fn admin_event_message(
+    signer: &ElectoralLog,
+    statement_event: &str,
+    input: &LogEventInput,
+    delivery_id: &str,
+    author: AdminEventAuthor,
+) -> anyhow::Result<ElectoralLogMessage> {
+    let admin_event = input
+        .admin_event
+        .as_ref()
+        .ok_or_else(|| anyhow!("A Keycloak admin event without its details"))?;
+    let mut details = admin_event.clone();
+    details["made_by"] = json!(author.to_string());
+    let text = |field: &str| admin_event[field].as_str().unwrap_or_default().to_string();
+    let description = format!(
+        "Keycloak: {} {} {}",
+        text("operation"),
+        text("resource_type"),
+        text("resource_path")
+    )
+    .trim_end()
+    .to_string();
+    let timestamp = input
+        .event_time_ms
+        .and_then(|ms| u64::try_from(ms / 1000).ok())
+        .unwrap_or_else(electoral_log::timestamp);
+    let message = Message::audit_message(
+        EventIdString(statement_event.to_string()),
+        AuditLogEntry {
+            kind: AuditStatementKind::KeycloakAdminEvent,
+            event_type: match author {
+                AdminEventAuthor::ServiceAccount => StatementEventType::SYSTEM,
+                AdminEventAuthor::Operator => StatementEventType::USER,
+            },
+            log_type: if admin_event["error"].is_null() {
+                StatementLogType::INFO
+            } else {
+                StatementLogType::ERROR
+            },
+            description,
+            details_json: details.to_string(),
+            entry_id: delivery_id.to_string(),
+        },
+        timestamp,
+        &signer.sd,
+        present(&input.user_id),
+        present(&input.username),
+        None,
+        None,
+    )?;
+    ElectoralLogMessage::try_from(&message)
+}
+
+/// The records of an event that belongs in the tenant's log: an event of the
+/// tenant realm, or one that names an election event it cannot be placed in
+/// (`unplaced` says why), which becomes an ERROR entry.
+async fn build_tenant_event<L: BatchLookups + Send>(
+    lookups: &mut L,
+    cache: &mut BatchCache,
+    input: &LogEventInput,
+    delivery_id: &str,
+    unplaced: Option<String>,
+) -> std::result::Result<BuiltEvent, EventFailure> {
+    use EventFailure::{Permanent, Transient};
+
+    let LogMessageType::KeycloakEvent(event_type) = &input.message_type else {
+        return Err(Permanent(anyhow!(
+            "An internal message names no election event"
+        )));
+    };
+    if !cache.tenant_logs.contains_key(&input.tenant_id) {
+        let log = lookups
+            .tenant_log(&input.tenant_id)
+            .await
+            .map_err(Transient)?;
+        cache.tenant_logs.insert(input.tenant_id.clone(), log);
+    }
+    let (board, signer) = cache
+        .tenant_logs
+        .get(&input.tenant_id)
+        .ok_or_else(|| Transient(anyhow!("The tenant log was not loaded")))?;
+
+    let message = if event_type == KEYCLOAK_ADMIN_EVENT && unplaced.is_none() {
+        let author = input
+            .admin_event
+            .as_ref()
+            .map(|event| admin_event_author(event, &lookups.service_client()))
+            .unwrap_or(AdminEventAuthor::Operator);
+        admin_event_message(signer, &input.tenant_id, input, delivery_id, author)
+            .map_err(Permanent)?
+    } else {
+        let mut details = input.details.clone().unwrap_or_else(|| {
+            let error = Some(input.body.as_raw()).filter(|error| error != ABSENT);
+            json!({ "error": error })
+        });
+        if let Some(reason) = &unplaced {
+            details["unplaced"] = json!({
+                "election_event_id": input.election_event_id,
+                "reason": reason,
+            });
+            if details["error"].is_null() {
+                details["error"] = json!("event_not_placed");
+            }
+        }
+        signer
+            .build_keycloak_event_message(
+                input.tenant_id.clone(),
+                event_type.clone(),
+                details.to_string(),
+                present(&input.user_id),
+                present(&input.username),
+                None,
+            )
+            .context("Error building keycloak event message")
+            .map_err(Permanent)?
+    };
+    Ok(BuiltEvent {
+        entries: vec![(
+            board.clone(),
+            LogEntry {
+                delivery_id: format!("{delivery_id}:event"),
+                message,
+            },
+        )],
+        login_attempt: None,
+    })
+}
+
+/// The record of an admin event on an election event's realm. Step's own
+/// changes there (voters, their credentials) are recorded by what made them,
+/// so only the changes made outside Step are.
+async fn build_event_realm_admin_event<L: BatchLookups + Send>(
+    lookups: &mut L,
+    cache: &mut BatchCache,
+    input: &LogEventInput,
+    delivery_id: &str,
+    board: String,
+) -> std::result::Result<BuiltEvent, EventFailure> {
+    use EventFailure::{Permanent, Transient};
+
+    let author = input
+        .admin_event
+        .as_ref()
+        .map(|event| admin_event_author(event, &lookups.service_client()))
+        .unwrap_or(AdminEventAuthor::Operator);
+    if author == AdminEventAuthor::ServiceAccount {
+        return Ok(BuiltEvent {
+            entries: vec![],
+            login_attempt: None,
+        });
+    }
+    let key = (input.tenant_id.clone(), input.election_event_id.clone());
+    if !cache.signers.contains_key(&key) {
+        let signer = lookups
+            .signer(&input.tenant_id, &input.election_event_id, &board)
+            .await
+            .map_err(Transient)?;
+        cache.signers.insert(key.clone(), signer);
+    }
+    let Some(signer) = cache.signers.get(&key).and_then(Option::as_ref) else {
+        let reason = format!(
+            "Election event {} has no protocol-manager key",
+            input.election_event_id
+        );
+        return build_tenant_event(lookups, cache, input, delivery_id, Some(reason)).await;
+    };
+    let message = admin_event_message(signer, &input.election_event_id, input, delivery_id, author)
+        .map_err(Permanent)?;
+    Ok(BuiltEvent {
+        entries: vec![(
+            board,
+            LogEntry {
+                delivery_id: format!("{delivery_id}:event"),
+                message,
+            },
+        )],
+        login_attempt: None,
     })
 }
 
@@ -874,6 +1177,8 @@ mod delivery_tests {
             username: None,
             body: LogEventBody::Plain("null".into()),
             event_time_ms: None,
+            details: None,
+            admin_event: None,
         };
         assert!(retain_delivery_id(&mut input, None).is_err());
         retain_delivery_id(&mut input, Some("original-id")).unwrap();
@@ -906,7 +1211,9 @@ mod delivery_tests {
 mod batch_build_tests {
     use super::*;
     use crate::services::electoral_log_dead_letter::event_message;
+    use electoral_log::messages::statement::{Statement, StatementBody};
     use voting_crypto::signing::SigningKey;
+    use voting_crypto::RecordDeserialize;
 
     const TENANT: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
     const EVENT: &str = "fdd21db2-dd68-4974-90eb-7f2750b2b5df";
@@ -918,6 +1225,7 @@ mod batch_build_tests {
         unreachable_event: Option<&'static str>,
         board_calls: usize,
         signer_calls: usize,
+        tenant_log_calls: usize,
     }
 
     impl FakeLookups {
@@ -927,6 +1235,7 @@ mod batch_build_tests {
                 unreachable_event: None,
                 board_calls: 0,
                 signer_calls: 0,
+                tenant_log_calls: 0,
             }
         }
     }
@@ -964,6 +1273,17 @@ mod batch_build_tests {
             Ok((election_event_id != KEYLESS_EVENT)
                 .then(|| ElectoralLog::for_system_with_signing_key(board, &self.signing_key)))
         }
+
+        async fn tenant_log(&mut self, tenant_id: &str) -> anyhow::Result<(String, ElectoralLog)> {
+            self.tenant_log_calls += 1;
+            let board = format!("tenant-board-{tenant_id}");
+            let signer = ElectoralLog::for_system_with_signing_key(&board, &self.signing_key);
+            Ok((board, signer))
+        }
+
+        fn service_client(&self) -> String {
+            "step".to_string()
+        }
     }
 
     fn keycloak_event(delivery_id: Option<&str>, election_event_id: &str) -> LogEventInput {
@@ -976,6 +1296,8 @@ mod batch_build_tests {
             tenant_id: TENANT.into(),
             body: LogEventBody::Plain("{}".into()),
             event_time_ms: None,
+            details: None,
+            admin_event: None,
         }
     }
 
@@ -1044,7 +1366,7 @@ mod batch_build_tests {
         let mut lookups = FakeLookups::new();
         let built = build_batch(&mut lookups, &events).await.unwrap();
 
-        assert_eq!(built.by_board.len(), 1);
+        assert_eq!(built.by_board.len(), 2);
         assert_eq!(
             delivery_ids(&built.by_board[&format!("board-{EVENT}")]),
             vec![
@@ -1055,16 +1377,10 @@ mod batch_build_tests {
                 "d8:event"
             ]
         );
+        // Unreadable messages are set aside.
         assert_eq!(
             dead_letter_ids(&built),
-            vec![
-                Some("d4"),
-                Some("d5"),
-                Some("d6"),
-                None,
-                Some(""),
-                Some("d7")
-            ]
+            vec![Some("d4"), Some("d6"), None, Some("")]
         );
         let reasons: Vec<&str> = built
             .dead_letters
@@ -1072,14 +1388,214 @@ mod batch_build_tests {
             .map(|(_, reason)| reason.as_str())
             .collect();
         assert!(reasons[0].contains("ElectoralLogMessage"), "{}", reasons[0]);
-        assert!(reasons[1].contains("does not exist"), "{}", reasons[1]);
-        assert!(reasons[2].contains("Invalid tenant ID"), "{}", reasons[2]);
+        assert!(reasons[1].contains("Invalid tenant ID"), "{}", reasons[1]);
+        assert!(reasons[2].contains("delivery ID"), "{}", reasons[2]);
         assert!(reasons[3].contains("delivery ID"), "{}", reasons[3]);
-        assert!(reasons[4].contains("delivery ID"), "{}", reasons[4]);
+
+        // Events that can't be placed in their election event's log are ERROR
+        // entries of the tenant's log.
+        let unplaced = &built.by_board[&format!("tenant-board-{TENANT}")];
+        assert_eq!(delivery_ids(unplaced), vec!["d5:event", "d7:event"]);
+        let (statement, text) = keycloak_statement(&unplaced[0]);
+        assert_eq!(statement.head.log_type, StatementLogType::ERROR);
+        assert_eq!(statement.head.description, "LOGIN {}");
+        assert_eq!(text["unplaced"]["election_event_id"], DELETED_EVENT);
+        assert!(text["unplaced"]["reason"]
+            .as_str()
+            .unwrap()
+            .contains("does not exist"));
+        let (_, text) = keycloak_statement(&unplaced[1]);
+        assert!(text["unplaced"]["reason"]
+            .as_str()
+            .unwrap()
+            .contains("protocol-manager key"));
+    }
+
+    /// The statement of a Keycloak user event record, and its text as JSON.
+    fn keycloak_statement(entry: &LogEntry) -> (Statement, Value) {
+        let message = Message::record_deserialize(&entry.message.message).unwrap();
+        let StatementBody::KeycloakUserEvent(text, _) = &message.statement.body else {
+            panic!("not a Keycloak user event");
+        };
+        let text = serde_json::from_str(&text.0).unwrap();
+        (message.statement, text)
+    }
+
+    fn tenant_event(delivery_id: &str, event_type: &str, details: Value) -> LogEventInput {
+        LogEventInput {
+            message_type: LogMessageType::KeycloakEvent(event_type.into()),
+            user_id: Some("admin-id".into()),
+            username: Some("admin".into()),
+            body: LogEventBody::Plain("null".into()),
+            details: Some(details),
+            ..keycloak_event(Some(delivery_id), "")
+        }
+    }
+
+    fn admin_event(delivery_id: &str, election_event_id: &str, username: &str) -> LogEventInput {
+        LogEventInput {
+            message_type: LogMessageType::KeycloakEvent(KEYCLOAK_ADMIN_EVENT.into()),
+            user_id: Some("actor-id".into()),
+            username: Some(username.into()),
+            body: LogEventBody::Plain("null".into()),
+            event_time_ms: Some(1_778_511_600_123),
+            admin_event: Some(json!({
+                "operation": "CREATE",
+                "resource_type": "REALM_ROLE_MAPPING",
+                "resource_path": "users/42/role-mappings/realm",
+                "representation": [{"name": "tenant-write"}],
+                "error": null,
+                "actor": {"user_id": "actor-id", "username": username,
+                    "client_id": "security-admin-console", "realm": "master",
+                    "ip_address": "10.0.0.7"},
+            })),
+            ..keycloak_event(Some(delivery_id), election_event_id)
+        }
+    }
+
+    fn audit_entry(entry: &LogEntry) -> (Message, AuditLogEntry, Value) {
+        let message = Message::record_deserialize(&entry.message.message).unwrap();
+        let StatementBody::Audit(audit) = &message.statement.body else {
+            panic!("not an audit entry");
+        };
+        let audit = audit.clone();
+        let details = serde_json::from_str(&audit.details_json).unwrap();
+        (message, audit, details)
+    }
+
+    #[tokio::test]
+    async fn the_tenant_realms_events_go_to_the_tenant_log() {
+        let mut unknown = tenant_event(
+            "d2",
+            "LOGIN_ERROR",
+            json!({"error": "user_not_found", "client_id": "admin-portal",
+                "ip_address": "10.0.0.7", "unknown_account": true}),
+        );
+        unknown.user_id = Some("null".into());
+        unknown.username = Some("null".into());
+        let events = vec![
+            tenant_event(
+                "d1",
+                "LOGIN",
+                json!({"error": null, "client_id": "admin-portal", "ip_address": "10.0.0.7"}),
+            ),
+            unknown,
+            tenant_event(
+                "d3",
+                "USER_DISABLED_BY_TEMPORARY_LOCKOUT",
+                json!({"error": null}),
+            ),
+            internal_event("d4", internal_message()),
+        ];
+        let mut events = events;
+        events[3].election_event_id = String::new();
+
+        let mut lookups = FakeLookups::new();
+        let built = build_batch(&mut lookups, &events).await.unwrap();
+
+        assert_eq!((lookups.tenant_log_calls, lookups.board_calls), (1, 0));
+        assert_eq!(built.by_board.len(), 1);
+        let entries = &built.by_board[&format!("tenant-board-{TENANT}")];
+        assert_eq!(
+            delivery_ids(entries),
+            vec!["d1:event", "d2:event", "d3:event"]
+        );
+        let (signed_in, text) = keycloak_statement(&entries[0]);
+        assert_eq!(signed_in.head.event.0, TENANT);
+        assert_eq!(signed_in.head.log_type, StatementLogType::INFO);
+        assert_eq!(signed_in.head.description, "LOGIN");
+        assert_eq!(text["ip_address"], "10.0.0.7");
+        assert_eq!(entries[0].message.user_id.as_deref(), Some("admin-id"));
+        assert_eq!(entries[0].message.username.as_deref(), Some("admin"));
+        // The name typed for an unknown account is not recorded.
+        let (failed, text) = keycloak_statement(&entries[1]);
+        assert_eq!(failed.head.log_type, StatementLogType::ERROR);
+        assert_eq!(failed.head.description, "LOGIN_ERROR user_not_found");
+        assert_eq!(text["unknown_account"], true);
+        assert_eq!(entries[1].message.user_id, None);
+        assert_eq!(entries[1].message.username, None);
+        let (locked, _) = keycloak_statement(&entries[2]);
+        assert_eq!(locked.head.log_type, StatementLogType::ERROR);
+        // An internal message belongs to an election event.
+        assert_eq!(dead_letter_ids(&built), vec![Some("d4")]);
+        assert!(built.login_attempts.is_empty());
+    }
+
+    #[tokio::test]
+    async fn keycloak_admin_events_say_who_made_them() {
+        let events = vec![
+            admin_event("d1", "", "ada"),
+            admin_event("d2", "", "service-account-step"),
+            admin_event("d3", EVENT, "ada"),
+            // Step's own changes to an event's realm are not repeated.
+            admin_event("d4", EVENT, "service-account-step"),
+        ];
+        let built = build_batch(&mut FakeLookups::new(), &events).await.unwrap();
+        assert!(built.dead_letters.is_empty());
+        let tenant = &built.by_board[&format!("tenant-board-{TENANT}")];
+        let event = &built.by_board[&format!("board-{EVENT}")];
+        assert_eq!(delivery_ids(tenant), vec!["d1:event", "d2:event"]);
+        assert_eq!(delivery_ids(event), vec!["d3:event"]);
+
+        let (message, operator, details) = audit_entry(&tenant[0]);
+        assert_eq!(operator.kind, AuditStatementKind::KeycloakAdminEvent);
+        assert_eq!(operator.event_type, StatementEventType::USER);
+        assert_eq!(operator.log_type, StatementLogType::INFO);
+        assert_eq!(
+            operator.description,
+            "Keycloak: CREATE REALM_ROLE_MAPPING users/42/role-mappings/realm"
+        );
+        assert_eq!(operator.entry_id, "d1");
+        assert_eq!(details["made_by"], "OPERATOR");
+        assert_eq!(details["representation"][0]["name"], "tenant-write");
+        assert_eq!(message.statement.head.timestamp, 1_778_511_600);
+        assert_eq!(message.username.as_deref(), Some("ada"));
+
+        let (_, service, details) = audit_entry(&tenant[1]);
+        assert_eq!(service.event_type, StatementEventType::SYSTEM);
+        assert_eq!(details["made_by"], "SERVICE_ACCOUNT");
+
+        let (message, in_event, _) = audit_entry(&event[0]);
+        assert_eq!(in_event.event_type, StatementEventType::USER);
+        assert_eq!(message.statement.head.event.0, EVENT);
+    }
+
+    #[test]
+    fn an_admin_event_is_steps_own_only_from_its_service_account() {
+        let event = |username: Value| json!({"actor": {"username": username}});
+        assert_eq!(
+            admin_event_author(&event(json!("Service-Account-Step")), "step"),
+            AdminEventAuthor::ServiceAccount
+        );
+        for (username, client) in [
+            (json!("ada"), "step"),
+            (json!("service-account-other"), "step"),
+            (json!("service-account-"), ""),
+            (Value::Null, "step"),
+        ] {
+            assert_eq!(
+                admin_event_author(&event(username.clone()), client),
+                AdminEventAuthor::Operator,
+                "{username} {client}"
+            );
+        }
+        let mut failed = admin_event("d1", "", "ada");
+        failed.admin_event.as_mut().unwrap()["error"] = json!("forbidden");
+        failed.event_time_ms = None;
+        let signer =
+            ElectoralLog::for_system_with_signing_key("board", &SigningKey::generate().unwrap());
+        let message =
+            admin_event_message(&signer, TENANT, &failed, "d1", AdminEventAuthor::Operator)
+                .unwrap();
+        let record = LogEntry {
+            delivery_id: String::new(),
+            message,
+        };
+        assert_eq!(audit_entry(&record).1.log_type, StatementLogType::ERROR);
+        failed.admin_event = None;
         assert!(
-            reasons[5].contains("protocol-manager key"),
-            "{}",
-            reasons[5]
+            admin_event_message(&signer, TENANT, &failed, "d1", AdminEventAuthor::Operator)
+                .is_err()
         );
     }
 
@@ -1099,7 +1615,10 @@ mod batch_build_tests {
 
         assert_eq!(lookups.board_calls, 3);
         assert_eq!(lookups.signer_calls, 2);
-        assert_eq!(built.dead_letters.len(), 4);
+        // The four events that can't be placed share one tenant log lookup.
+        assert_eq!(lookups.tenant_log_calls, 1);
+        assert!(built.dead_letters.is_empty());
+        assert_eq!(built.by_board[&format!("tenant-board-{TENANT}")].len(), 4);
     }
 
     #[tokio::test]
@@ -1195,6 +1714,8 @@ mod batch_build_tests {
                 tenant_id: TENANT.into(),
                 body: LogEventBody::Plain("null".into()),
                 event_time_ms: Some(1_778_511_600_123),
+                details: None,
+                admin_event: None,
             }
         );
     }
@@ -1290,6 +1811,8 @@ mod pgmq_tests {
             tenant_id: "test-tenant".into(),
             body: LogEventBody::Plain("test".into()),
             event_time_ms: None,
+            details: None,
+            admin_event: None,
         }
     }
 

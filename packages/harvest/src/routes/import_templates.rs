@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -84,6 +85,7 @@ pub async fn import_templates_route(
             document_id,
             body.sha256.clone(),
             task_execution.clone(),
+            Some(audit::actor(&claims)),
         ))
         .await;
 

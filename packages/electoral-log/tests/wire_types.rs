@@ -427,3 +427,45 @@ fn empty_lists_and_absent_lists_remain_distinct() {
         vec![0, 0]
     );
 }
+
+/// Field order is signed: every field of an audit entry, in order, as
+/// independently assembled bytes.
+#[test]
+fn an_audit_entry_is_encoded_field_by_field() {
+    let text = |value: &str| {
+        let mut bytes = (value.len() as u32).to_le_bytes().to_vec();
+        bytes.extend_from_slice(value.as_bytes());
+        bytes
+    };
+    let entry = AuditLogEntry {
+        kind: AuditStatementKind::LogsExported,
+        event_type: StatementEventType::USER,
+        log_type: StatementLogType::INFO,
+        description: "Exported the tenant log as SQL: 4 entries".into(),
+        details_json: r#"{"format":"SQL","entries":4}"#.into(),
+        entry_id: "0d1b2c3d-4e5f-4071-8293-a4b5c6d7e8f9".into(),
+    };
+    let mut expected = vec![2, 0, 0];
+    expected.extend(text("Exported the tenant log as SQL: 4 entries"));
+    expected.extend(text(r#"{"format":"SQL","entries":4}"#));
+    expected.extend(text("0d1b2c3d-4e5f-4071-8293-a4b5c6d7e8f9"));
+    assert_eq!(borsh::to_vec(&entry).unwrap(), expected);
+    assert_eq!(
+        borsh::from_slice::<AuditLogEntry>(&expected).unwrap(),
+        entry
+    );
+    let mut trailing = expected.clone();
+    trailing.push(0);
+    assert!(borsh::from_slice::<AuditLogEntry>(&trailing).is_err());
+    assert!(borsh::from_slice::<AuditLogEntry>(&expected[..expected.len() - 1]).is_err());
+    for (kind, tag) in [
+        (AuditStatementKind::AdminChange, 0u8),
+        (AuditStatementKind::KeycloakAdminEvent, 1),
+        (AuditStatementKind::LogsExported, 2),
+        (AuditStatementKind::LogWriterStarted, 3),
+        (AuditStatementKind::LogWriterStopped, 4),
+    ] {
+        assert_eq!(borsh::to_vec(&kind).unwrap(), vec![tag]);
+        assert_eq!(kind.statement_type().to_string(), kind.to_string());
+    }
+}

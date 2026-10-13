@@ -4,11 +4,13 @@
 
 use crate::postgres::document::get_document;
 use crate::postgres::maintenance::vacuum_analyze_direct;
+use crate::services::audit_log::{AdminAction, AdminChange, AuditActor};
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::get_document_as_temp_file;
 use crate::services::electoral_log::ElectoralLogAdminContext;
 use crate::services::import::import_users::{import_users_file, ImportUsersPrivileges};
 use crate::services::import::rejection::problems_in;
+use crate::services::task_audit;
 use crate::services::tasks_execution::*;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
@@ -22,6 +24,7 @@ use sequent_core::services::{keycloak, reports};
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::util::integrity_check::{integrity_check, HashFileVerifyError};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::io::Seek;
 use tempfile::NamedTempFile;
 use tracing::{error, info, instrument};
@@ -43,6 +46,10 @@ pub struct ImportUsersBody {
     #[serde(default)]
     pub privileges: ImportUsersPrivileges,
     pub sha256: Option<String>,
+    /// The admin who asked for the import, for its audit entry. Set by the
+    /// server from that user's token.
+    #[serde(default)]
+    pub audit_actor: Option<AuditActor>,
 }
 
 fn default_is_admin() -> bool {
@@ -55,6 +62,29 @@ pub struct ImportUsersOutput {
 }
 
 impl ImportUsersBody {
+    /// The import's entry: in the election event's log for voters, in the
+    /// tenant's for staff.
+    fn audit_entry(&self, file: &mut NamedTempFile, separator: u8) -> anyhow::Result<AdminChange> {
+        let target = task_audit::target(&self.tenant_id, self.election_event_id.as_deref())?;
+        let (kind, named) = match target.election_event_id {
+            Some(_) => ("voter", "voters"),
+            None => ("staff_account", "staff accounts"),
+        };
+        let count = task_audit::csv_rows(file.as_file_mut(), separator)?;
+        Ok(task_audit::bulk(
+            self.audit_actor.clone(),
+            target,
+            kind,
+            AdminAction::Import,
+            format!("Imported {count} {named}"),
+            json!({
+                "count": count,
+                "document_id": self.document_id,
+                "file_sha256": task_audit::file_sha256(file.as_file_mut())?,
+            }),
+        ))
+    }
+
     #[instrument(ret)]
     async fn get_s3_document_as_temp_file(
         &self,
@@ -154,6 +184,15 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
         }
     }
 
+    let audit_entry = match body.audit_entry(&mut voters_file, separator) {
+        Ok(entry) => entry,
+        Err(err) => {
+            let err_str = format!("Error preparing the audit entry: {err:#}");
+            update_fail(&task_execution, &err_str).await?;
+            return Err(Error::String(err_str));
+        }
+    };
+
     match import_users_file(
         &hasura_transaction,
         &voters_file,
@@ -184,9 +223,89 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
         }
     }
 
+    if let Err(err) = task_audit::record(audit_entry).await {
+        let err_str = format!("Users imported, but the audit entry could not be queued: {err:#}");
+        update_fail(&task_execution, &err_str).await?;
+        return Err(Error::String(err_str));
+    }
+
     update_complete(&task_execution, Some(body.document_id.clone()))
         .await
         .context("Failed to update task execution status to COMPLETED")?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::audit_log::{AuditObject, AuditOrigin};
+    use serde_json::json;
+    use std::io::Write;
+
+    const TENANT_ID: &str = "4f1c6b38-9f5e-4a59-8d3b-2a7f0c1e5d61";
+    const EVENT_ID: &str = "b7e2d915-3c4a-4e8f-9a61-5d0f2c8b7e43";
+    const FILE: &[u8] = b"username,email\nada,ada@example.test\nbob,bob@example.test\n";
+
+    fn file_sha256() -> String {
+        use sha2::{Digest, Sha256};
+        hex::encode(Sha256::digest(FILE))
+    }
+
+    fn body(json: serde_json::Value) -> ImportUsersBody {
+        serde_json::from_value(json).unwrap()
+    }
+
+    fn file() -> NamedTempFile {
+        let mut file = NamedTempFile::new().unwrap();
+        file.write_all(FILE).unwrap();
+        file
+    }
+
+    #[test]
+    fn a_staff_import_is_one_entry_in_the_tenant_log() {
+        let body = body(json!({
+            "tenant_id": TENANT_ID, "document_id": "document-1", "sha256": null,
+            "audit_actor": {"user_id": "admin-id", "username": "ada", "role": "admin-user"},
+        }));
+        let entry = body.audit_entry(&mut file(), b',').unwrap();
+
+        assert_eq!(entry.target.election_event_id, None);
+        assert_eq!(entry.object, AuditObject::new("staff_account", "*", None));
+        assert_eq!(entry.action, AdminAction::Import);
+        assert_eq!(entry.origin, AuditOrigin::Windmill);
+        assert_eq!(entry.actor.username.as_deref(), Some("ada"));
+        assert_eq!(entry.extra["count"], 2);
+        assert_eq!(entry.extra["document_id"], "document-1");
+        assert_eq!(entry.extra["file_sha256"], file_sha256());
+        assert_eq!(entry.describe(), "Imported 2 staff accounts");
+    }
+
+    #[test]
+    fn a_voter_import_goes_to_its_election_event_log() {
+        let body = body(json!({
+            "tenant_id": TENANT_ID, "document_id": "document-1",
+            "election_event_id": EVENT_ID, "sha256": null,
+        }));
+        let entry = body.audit_entry(&mut file(), b',').unwrap();
+
+        assert_eq!(
+            entry.target.election_event_id.map(|id| id.to_string()),
+            Some(EVENT_ID.to_string())
+        );
+        assert_eq!(entry.object.kind, "voter");
+        assert_eq!(entry.describe(), "Imported 2 voters");
+    }
+
+    #[test]
+    fn a_message_queued_before_the_actor_existed_still_reads() {
+        let body = body(json!({
+            "tenant_id": TENANT_ID, "document_id": "document-1", "sha256": null,
+        }));
+        assert_eq!(body.audit_actor, None);
+        assert_eq!(
+            body.audit_entry(&mut file(), b',').unwrap().actor,
+            AuditActor::default()
+        );
+    }
 }

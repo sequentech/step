@@ -55,6 +55,10 @@ pub enum TextColumn {
     ElectionId,
     AreaId,
     Version,
+    /// The signed statement's event type: `USER` or `SYSTEM`.
+    EventType,
+    /// The signed statement's log type: `INFO` or `ERROR`.
+    LogType,
 }
 
 pub type ElectoralLogVarCharColumn = TextColumn;

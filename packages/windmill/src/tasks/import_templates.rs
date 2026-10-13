@@ -3,8 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::template::insert_templates;
+use crate::services::audit_log::{stage, AdminAction, AdminChange, AuditActor};
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
+use crate::services::task_audit;
 use crate::services::tasks_execution::{update_complete, update_fail};
+use crate::tasks::audit_log_outbox::kick_audit_log_outbox;
 use crate::types::error::{Error, Result};
 use crate::{postgres::document::get_document, services::documents::get_document_as_temp_file};
 use anyhow::{anyhow, Error as AnyhowError, Result as AnyhowResult};
@@ -13,6 +16,7 @@ use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::types::hasura::core::{TasksExecution, Template};
 use sequent_core::util::integrity_check::{integrity_check, HashFileVerifyError};
+use serde_json::json;
 
 use std::io::{Read, Seek};
 use tracing::{info, instrument};
@@ -56,13 +60,41 @@ fn parse_templates_csv<R: Read>(reader: R, tenant_id: &str) -> AnyhowResult<Vec<
     Ok(templates)
 }
 
+/// What an import read: its templates and its file's SHA-256.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportedTemplates {
+    pub count: usize,
+    pub file_sha256: String,
+}
+
+/// The tenant log's entry of an import.
+fn imported_entry(
+    actor: Option<AuditActor>,
+    tenant_id: &str,
+    document_id: &str,
+    imported: &ImportedTemplates,
+) -> AnyhowResult<AdminChange> {
+    Ok(task_audit::bulk(
+        actor,
+        task_audit::target(tenant_id, None)?,
+        task_audit::TEMPLATE,
+        AdminAction::Import,
+        format!("Imported {} templates", imported.count),
+        json!({
+            "count": imported.count,
+            "document_id": document_id,
+            "file_sha256": imported.file_sha256,
+        }),
+    ))
+}
+
 #[instrument(err)]
 pub async fn import_templates(
     hasura_transaction: &Transaction<'_>,
     tenant_id: String,
     document_id: String,
     sha256: Option<String>,
-) -> AnyhowResult<()> {
+) -> AnyhowResult<ImportedTemplates> {
     let document = get_document(hasura_transaction, &tenant_id, None, &document_id)
         .await
         .map_err(|e| anyhow!("Error obtaining the document: {:?}", e))?
@@ -90,11 +122,15 @@ pub async fn import_templates(
         }
     }
 
+    let file_sha256 = task_audit::file_sha256(temp_file.as_file_mut())?;
     let templates = parse_templates_csv(temp_file, &tenant_id)?;
 
     insert_templates(hasura_transaction, &templates).await?;
 
-    Ok(())
+    Ok(ImportedTemplates {
+        count: templates.len(),
+        file_sha256,
+    })
 }
 
 #[instrument(err)]
@@ -105,16 +141,30 @@ pub async fn import_templates_task(
     document_id: String,
     sha256: Option<String>,
     task_execution: TasksExecution,
+    audit_actor: Option<AuditActor>,
 ) -> Result<()> {
     let result = provide_hasura_transaction(|hasura_transaction| {
         let document_copy = document_id.clone();
         Box::pin(async move {
-            import_templates(hasura_transaction, tenant_id, document_copy, sha256).await
+            let imported = import_templates(
+                hasura_transaction,
+                tenant_id.clone(),
+                document_copy.clone(),
+                sha256,
+            )
+            .await?;
+            stage(
+                hasura_transaction,
+                &imported_entry(audit_actor, &tenant_id, &document_copy, &imported)?,
+            )
+            .await?;
+            Ok(())
         })
     })
     .await;
     match result {
         Ok(_) => {
+            kick_audit_log_outbox();
             let _res = update_complete(&task_execution, Some(document_id.clone())).await;
             Ok(())
         }
@@ -147,6 +197,33 @@ mod tests {
         assert_eq!(templates.len(), 1);
         assert_eq!(templates[0].tenant_id, TASK_TENANT_ID);
         assert_eq!(templates[0].alias, "welcome");
+    }
+
+    #[test]
+    fn an_import_is_one_entry_with_its_count_and_file_hash() {
+        let imported = ImportedTemplates {
+            count: 3,
+            file_sha256: "ab12".into(),
+        };
+        let admin = AuditActor {
+            user_id: Some("admin-id".into()),
+            username: Some("ada".into()),
+            role: None,
+        };
+        let entry =
+            imported_entry(Some(admin.clone()), TASK_TENANT_ID, "document-1", &imported).unwrap();
+
+        assert_eq!(entry.target.election_event_id, None);
+        assert_eq!(entry.object.kind, "template");
+        assert_eq!(entry.object.id, "*");
+        assert_eq!(entry.action, AdminAction::Import);
+        assert_eq!(entry.actor, admin);
+        assert_eq!(entry.describe(), "Imported 3 templates");
+        assert_eq!(
+            entry.extra,
+            json!({"count": 3, "document_id": "document-1", "file_sha256": "ab12"})
+        );
+        assert!(imported_entry(None, "tenant", "document-1", &imported).is_err());
     }
 
     #[test]

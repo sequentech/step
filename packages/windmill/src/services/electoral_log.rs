@@ -7,9 +7,11 @@ use crate::postgres::messaging::{latest_attempt_ids, ChannelFilter};
 use crate::services::celery_app::try_get_celery_app;
 use crate::services::database::{get_hasura_pool, PgConfig};
 use crate::services::election_event_board::get_election_event_board;
+use crate::services::electoral_log_board::ensure_tenant_log;
 use crate::services::electoral_log_board::get_board_client;
 use crate::services::electoral_log_board::get_board_signing_key;
 use crate::services::electoral_log_board::get_event_board;
+use crate::services::electoral_log_board::get_tenant_board;
 use crate::services::electoral_log_checkpoint_copies::{
     store_checkpoint_copy, CheckpointCopyConfig,
 };
@@ -736,7 +738,6 @@ impl ElectoralLog {
 
         let sk = vault::get_admin_user_signing_key(
             hasura_transaction,
-            elog_database,
             tenant_id,
             user_id,
             username,
@@ -794,6 +795,8 @@ impl ElectoralLog {
                     .with_context(|| "Error serializing ElectoralLogMessage")?,
             ),
             event_time_ms: None,
+            details: None,
+            admin_event: None,
         };
 
         let celery_app = try_get_celery_app().await?;
@@ -803,20 +806,14 @@ impl ElectoralLog {
         Ok(())
     }
 
-    /// Posts an admin user's public key
+    /// Posts an admin user's public key to the tenant's log: the key is one
+    /// per tenant and signs the admin's entries in every election event.
     ///
     /// Because admin users are cross election event entities, a
     /// dummy election event id will be used instead, with value
     /// electoral_log::messages::Message:GENERIC_EVENT.
-    ///
-    /// FIXME: it may be necessary to implement a tenant-wide electoral
-    /// log to save this type of message. An admin user could be created
-    /// in the context of one event and the notification will only
-    /// be present in its log, even if the corresponding signing private key
-    /// would be used in other events.
     pub async fn post_admin_pk(
         hasura_transaction: &Transaction<'_>,
-        elog_database: &str,
         tenant_id: &str,
         user_id: &str,
         username: Option<String>,
@@ -824,9 +821,9 @@ impl ElectoralLog {
         elections_ids: Option<String>,
         user_area_id: Option<String>,
     ) -> Result<()> {
-        let protocol_manager =
-            get_board_signing_key(hasura_transaction, tenant_id, None, elog_database).await?;
-        let system_sk = protocol_manager.clone();
+        let tenant_log = ensure_tenant_log(hasura_transaction, tenant_id).await?;
+        let elog_database = tenant_log.board.as_str();
+        let system_sk = tenant_log.system_key;
         let sd = SigningData::new(system_sk.clone(), "", system_sk.clone());
 
         let message = Message::admin_public_key_message(
@@ -903,52 +900,14 @@ impl ElectoralLog {
                     .with_context(|| "Error serializing post cast vote")?,
             ),
             event_time_ms: None,
+            details: None,
+            admin_event: None,
         };
         let celery_app = try_get_celery_app().await?;
         celery_app
             .send_task(enqueue_electoral_log_event::new(input))
             .await?;
         Ok(())
-    }
-
-    #[instrument(skip(self))]
-    pub async fn post_phone_blacklist_entry_created(
-        &self,
-        event_id: String,
-        number_e164: String,
-        user_id: Option<String>,
-        username: Option<String>,
-    ) -> Result<()> {
-        let event = EventIdString(event_id);
-        let message = Message::phone_blacklist_entry_created_message(
-            event,
-            PhoneE164String(number_e164),
-            &self.sd,
-            user_id,
-            username,
-        )?;
-
-        self.post(&message).await
-    }
-
-    #[instrument(skip(self))]
-    pub async fn post_phone_blacklist_entry_deleted(
-        &self,
-        event_id: String,
-        number_e164: String,
-        user_id: Option<String>,
-        username: Option<String>,
-    ) -> Result<()> {
-        let event = EventIdString(event_id);
-        let message = Message::phone_blacklist_entry_deleted_message(
-            event,
-            PhoneE164String(number_e164),
-            &self.sd,
-            user_id,
-            username,
-        )?;
-
-        self.post(&message).await
     }
 
     #[instrument(skip_all, fields(direction = %direction, api_name = %api_name), err)]
@@ -992,6 +951,8 @@ impl ElectoralLog {
                     .with_context(|| "Error serializing ElectoralLogMessage")?,
             ),
             event_time_ms: None,
+            details: None,
+            admin_event: None,
         };
         let celery_app = try_get_celery_app().await?;
         celery_app
@@ -1825,9 +1786,25 @@ impl MinuteRange {
     }
 }
 
+/// The log a request reads: one election event's, or the tenant's.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LogOf<'a> {
+    Event(&'a str),
+    Tenant,
+}
+
+/// An absent or `null` text as the empty one.
+fn text_or_empty<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> std::result::Result<String, D::Error> {
+    Ok(Option::<String>::deserialize(deserializer)?.unwrap_or_default())
+}
+
 #[derive(Deserialize, Debug, Default, Clone)]
 pub struct GetElectoralLogBody {
     pub tenant_id: String,
+    /// Empty, absent or `null` for the tenant's log.
+    #[serde(default, deserialize_with = "text_or_empty")]
     pub election_event_id: String,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
@@ -1850,6 +1827,23 @@ pub struct GetElectoralLogBody {
 }
 
 impl GetElectoralLogBody {
+    /// The log the request reads.
+    pub fn log(&self) -> LogOf<'_> {
+        match self.election_event_id.trim() {
+            "" => LogOf::Tenant,
+            event => LogOf::Event(event),
+        }
+    }
+
+    /// The board of the log the request reads.
+    pub fn board(&self) -> Result<String> {
+        let slug = std::env::var("ENV_SLUG").context("missing env var ENV_SLUG")?;
+        Ok(match self.log() {
+            LogOf::Event(event) => get_event_board(&self.tenant_id, event, &slug),
+            LogOf::Tenant => get_tenant_board(&self.tenant_id, &slug),
+        })
+    }
+
     /// The communications filter, from `communications` or from the
     /// `channel` and `outcome` keys of `filter`.
     pub fn communications_filter(&self) -> Option<CommunicationsFilter> {
@@ -1946,10 +1940,18 @@ impl GetElectoralLogBody {
                     ),
                     // Matched on the decoded message (`CommunicationsFilter`).
                     OrderField::Channel | OrderField::Outcome => {}
-                    OrderField::EventType
-                    | OrderField::LogType
-                    | OrderField::Description
-                    | OrderField::Message => {}
+                    // The statement's own types, matched whole in any case.
+                    OrderField::EventType | OrderField::LogType => {
+                        let wanted = value.trim().to_uppercase();
+                        if !wanted.is_empty() {
+                            query.filters.push(Filter::Text(
+                                field.to_string().parse()?,
+                                SqlCompOperators::Equal,
+                                wanted,
+                            ));
+                        }
+                    }
+                    OrderField::Description | OrderField::Message => {}
                 }
             }
         }
@@ -2270,8 +2272,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
         return list_communications(input, filter).await;
     }
     let client = get_board_client().await?;
-    let slug = std::env::var("ENV_SLUG").context("missing env var ENV_SLUG")?;
-    let board = get_event_board(&input.tenant_id, &input.election_event_id, &slug);
+    let board = input.board()?;
     let query = input.as_query()?;
     let items = client
         .query(&board, &query)

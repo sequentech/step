@@ -152,6 +152,7 @@ fn build_application_with(
                 routes::delete_tenant::delete_tenant_f,
                 routes::import_tenant_config::import_tenant_config_route,
                 routes::export_tenant_config::export_tenant_config_route,
+                routes::export_tenant_logs::export_tenant_logs_route,
                 routes::insert_tenant::insert_tenant,
                 routes::users::create_user,
                 routes::users::import_users_f,

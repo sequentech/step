@@ -1014,6 +1014,24 @@
         "attributes": {}
       },
       {
+        "id": "9ec69c04-81cc-41a4-8623-d18ebbab943f",
+        "name": "tenant-logs-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "b132f94a-7507-4e18-81c2-078fb6323088",
+        "name": "tenant-logs-export",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "8b6b57c5-8bc2-426b-94c4-52d00d41bb7c",
         "name": "electoral-log-audit",
         "description": "",
@@ -2784,6 +2802,8 @@
         "election-event-approvals-tab",
         "candidate-delete",
         "logs-read",
+        "tenant-logs-read",
+        "tenant-logs-export",
         "electoral-log-audit",
         "electoral-log-console-read",
         "electoral-log-console-query",
@@ -5013,6 +5033,7 @@
   "eventsEnabled": true,
   "eventsExpiration": 15552000,
   "eventsListeners": [
+    "custom-event-listener",
     "jboss-logging"
   ],
   "enabledEventTypes": [
@@ -5096,8 +5117,8 @@
     "GRANT_CONSENT_ERROR",
     "IDENTITY_PROVIDER_FIRST_LOGIN_ERROR"
   ],
-  "adminEventsEnabled": false,
-  "adminEventsDetailsEnabled": false,
+  "adminEventsEnabled": true,
+  "adminEventsDetailsEnabled": true,
   "identityProviders": [],
   "identityProviderMappers": [],
   "components": {

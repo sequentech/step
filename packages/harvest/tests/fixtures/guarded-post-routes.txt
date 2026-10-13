@@ -57,6 +57,7 @@
 /export-tasks-execution
 /export-template
 /export-tenant-config
+/export-tenant-logs
 /export-tenant-users
 /export-trustees
 /export-users

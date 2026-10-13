@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::access::{deletable_permission, RolePermissionEdit};
+use crate::services::audit;
 use crate::services::authorization::{authorize, require_ordinary_permission};
 use crate::services::dependencies::HarvestServices;
 use crate::services::role_permissions::change_role_permission;
@@ -20,6 +21,7 @@ use sequent_core::types::keycloak::Permission;
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
 use tracing::instrument;
+use windmill::services::audit_log::AdminAction;
 use windmill::services::signing::permissions::RolePermissionChange;
 
 #[derive(Deserialize, Debug)]
@@ -69,11 +71,14 @@ pub struct CreatePermissionsBody {
     permission: Permission,
 }
 
-#[instrument(skip(claims))]
+/// Creates a permission, and logs it in the tenant's log once Keycloak
+/// created it.
+#[instrument(skip(claims, services))]
 #[post("/create-permission", format = "json", data = "<body>")]
 pub async fn create_permission(
     claims: jwt::JwtClaims,
     body: Json<CreatePermissionsBody>,
+    services: &State<HarvestServices>,
 ) -> Result<Json<Permission>, (Status, String)> {
     let input = body.into_inner();
     validate_keycloak_scope(&input.tenant_id, None)
@@ -88,13 +93,21 @@ pub async fn create_permission(
         require_ordinary_permission(name)?;
     }
     let realm = get_tenant_realm(&input.tenant_id);
-    let client = KeycloakAdminClient::new()
+    let target = audit::target(&input.tenant_id, None)?;
+    let client = services
+        .identity
+        .client()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     let permission = client
         .create_permission(&realm, &input.permission)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    audit::record(
+        services,
+        &audit::permission_created(&claims, target, &permission),
+    )
+    .await?;
     Ok(Json(permission))
 }
 
@@ -182,11 +195,14 @@ pub struct DeletePermissionBody {
     permission_name: String,
 }
 
-#[instrument(skip(claims))]
+/// Deletes a permission, and logs it in the tenant's log once Keycloak
+/// deleted it.
+#[instrument(skip(claims, services))]
 #[post("/delete-permission", format = "json", data = "<body>")]
 pub async fn delete_permission(
     claims: jwt::JwtClaims,
     body: Json<DeletePermissionBody>,
+    services: &State<HarvestServices>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
     validate_keycloak_scope(&input.tenant_id, None)
@@ -200,13 +216,26 @@ pub async fn delete_permission(
     deletable_permission(&input.permission_name)
         .map_err(|error| (Status::Forbidden, error.to_string()))?;
     let realm = get_tenant_realm(&input.tenant_id);
-    let client = KeycloakAdminClient::new()
+    let target = audit::target(&input.tenant_id, None)?;
+    let client = services
+        .identity
+        .client()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     client
         .delete_permission(&realm, &input.permission_name)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    audit::record(
+        services,
+        &audit::change(
+            &claims,
+            target,
+            audit::permission(&input.permission_name),
+            AdminAction::Delete,
+        ),
+    )
+    .await?;
     Ok(Json(Default::default()))
 }
 

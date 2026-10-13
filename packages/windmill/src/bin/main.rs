@@ -14,7 +14,9 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use tokio::runtime::Builder;
 use tracing::{event, Level};
+use windmill::services::audit_log_writer::{record_log_writer, LogWriterEvent};
 use windmill::services::celery_app::{self as celery_cfg, Queue};
+use windmill::services::database::get_hasura_pool;
 use windmill::services::monitoring::cadence;
 use windmill::services::probe::{setup_probe, AppName};
 use windmill::services::task_queues::set_up_task_queue_database;
@@ -77,6 +79,23 @@ fn find_duplicates(input: Vec<&str>) -> Vec<&str> {
         }
     }
     duplicates
+}
+
+/// Queues the log writer's start or stop in every tenant's log. A failure is
+/// logged: the worker starts and stops whether or not it can be recorded.
+async fn record_log_writer_event(event: LogWriterEvent) {
+    let recorded = async {
+        let mut client = get_hasura_pool().await.get().await?;
+        record_log_writer(&mut client, event).await
+    }
+    .await;
+    match recorded {
+        Ok(tenants) => event!(
+            Level::INFO,
+            "Log writer {event:?} recorded for {tenants} tenants"
+        ),
+        Err(error) => event!(Level::WARN, "Log writer {event:?} not recorded: {error:#}"),
+    }
 }
 
 fn read_worker_threads(opt: &CeleryOpt) -> usize {
@@ -208,9 +227,20 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
             // Read now rather than at the first pass, so the cadence and any
             // value it had to replace are logged when the worker starts.
             cadence::configured();
+            // The worker of this queue posts the audit log outbox: its start
+            // and its stop are entries of every tenant's log.
+            let writes_logs = queues
+                .iter()
+                .any(|consumed| consumed == Queue::ElectoralLogBeat.queue_name());
+            if writes_logs {
+                record_log_writer_event(LogWriterEvent::Started).await;
+            }
             celery_cfg::set_is_app_active(true);
             celery_app.consume_from(&vec_str[..]).await?;
             celery_cfg::set_is_app_active(false);
+            if writes_logs {
+                record_log_writer_event(LogWriterEvent::Stopped).await;
+            }
             celery_app.close().await?;
         }
         CeleryOpt::Produce => {

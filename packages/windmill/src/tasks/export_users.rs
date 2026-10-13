@@ -2,12 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::document::insert_document_with_annotations;
+use crate::services::audit_log::{stage, AdminAction, AdminChange, AuditActor};
 use crate::services::database::get_hasura_pool;
 use crate::services::export::export_users::{export_users_file, ExportBody};
+use crate::services::task_audit;
 use crate::services::tasks_execution::{
     is_matching_completed_export_task, update_export_complete, update_export_fail,
     validate_secret_export_task, validate_secret_export_task_for_recovery,
 };
+use crate::tasks::audit_log_outbox::kick_audit_log_outbox;
 use crate::types::error::{Error, Result};
 use anyhow::Context;
 use celery::error::TaskError;
@@ -16,6 +19,9 @@ use sequent_core::services::s3;
 use sequent_core::types::hasura::core::{DocumentAnnotations, TasksExecution};
 use sequent_core::util;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
+use std::fs::File;
+use std::io::{Read, Seek};
 use tracing::instrument;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -48,10 +54,40 @@ fn event_export_scope(body: &ExportBody) -> Result<Option<(String, String, bool)
     }
 }
 
+/// The export's entry: in the election event's log for voters, in the
+/// tenant's for staff.
+fn export_entry<F: Read + Seek>(
+    actor: Option<AuditActor>,
+    tenant_id: &str,
+    election_event_id: &str,
+    document_id: &str,
+    file: &mut F,
+) -> anyhow::Result<AdminChange> {
+    let target = task_audit::target(tenant_id, Some(election_event_id))?;
+    let (kind, named) = match target.election_event_id {
+        Some(_) => ("voter", "voters"),
+        None => ("staff_account", "staff accounts"),
+    };
+    let count = task_audit::csv_rows(file, b',')?;
+    Ok(task_audit::bulk(
+        actor,
+        target,
+        kind,
+        AdminAction::Export,
+        format!("Exported {count} {named}"),
+        json!({
+            "count": count,
+            "document_id": document_id,
+            "file_sha256": task_audit::file_sha256(file)?,
+        }),
+    ))
+}
+
 async fn export_users_impl(
     body: ExportBody,
     document_id: String,
     task_execution: Option<TasksExecution>,
+    audit_actor: Option<AuditActor>,
 ) -> Result<()> {
     let mut hasura_db_client: DbClient = match get_hasura_pool().await.get().await {
         Ok(client) => client,
@@ -292,6 +328,18 @@ async fn export_users_impl(
         .await
         .map_err(|err| Error::String(format!("Error inserting document: {err:?}")))?;
 
+        let entry = export_entry(
+            audit_actor,
+            &tenant_id,
+            &election_event_id,
+            &document_id,
+            &mut File::open(&temp_path)?,
+        )
+        .map_err(|err| Error::String(format!("Error preparing the audit entry: {err:#}")))?;
+        stage(&hasura_transaction, &entry)
+            .await
+            .map_err(|err| Error::String(format!("Error queueing the audit entry: {err:#}")))?;
+
         // The resource must be durable before SUCCESS is observable. If the
         // worker dies after this commit, the advisory lock is released and a
         // retry repairs the task from the existing document.
@@ -299,6 +347,7 @@ async fn export_users_impl(
             .commit()
             .await
             .context("Failed to commit voter export document")?;
+        kick_audit_log_outbox();
         Ok(())
     }
     .await;
@@ -370,8 +419,9 @@ pub async fn export_users(
     body: ExportBody,
     document_id: String,
     task_execution: Option<TasksExecution>,
+    audit_actor: Option<AuditActor>,
 ) -> Result<()> {
-    export_users_impl(body, document_id, task_execution).await
+    export_users_impl(body, document_id, task_execution, audit_actor).await
 }
 
 #[cfg(test)]
@@ -410,6 +460,52 @@ mod tests {
         };
 
         assert!(event_export_scope(&body).is_err());
+    }
+
+    #[test]
+    fn an_export_is_one_entry_with_its_rows_and_file_hash() {
+        const TENANT_ID: &str = "4f1c6b38-9f5e-4a59-8d3b-2a7f0c1e5d61";
+        const EVENT_ID: &str = "b7e2d915-3c4a-4e8f-9a61-5d0f2c8b7e43";
+        let admin = AuditActor {
+            user_id: Some("admin-id".into()),
+            username: Some("ada".into()),
+            role: None,
+        };
+        let csv = b"id,username\n1,ada\n2,bob\n3,eve\n".to_vec();
+
+        let staff = export_entry(
+            Some(admin.clone()),
+            TENANT_ID,
+            "",
+            "document-1",
+            &mut std::io::Cursor::new(csv.clone()),
+        )
+        .unwrap();
+        assert_eq!(staff.target.election_event_id, None);
+        assert_eq!(staff.object.kind, "staff_account");
+        assert_eq!(staff.action, AdminAction::Export);
+        assert_eq!(staff.actor, admin);
+        assert_eq!(staff.describe(), "Exported 3 staff accounts");
+        assert_eq!(
+            staff.extra,
+            json!({"count": 3, "document_id": "document-1",
+                "file_sha256": task_audit::file_sha256(&mut std::io::Cursor::new(csv.clone())).unwrap()})
+        );
+
+        let voters = export_entry(
+            None,
+            TENANT_ID,
+            EVENT_ID,
+            "document-2",
+            &mut std::io::Cursor::new(csv),
+        )
+        .unwrap();
+        assert_eq!(
+            voters.target.election_event_id.map(|id| id.to_string()),
+            Some(EVENT_ID.to_string())
+        );
+        assert_eq!(voters.object.kind, "voter");
+        assert!(export_entry(None, "tenant", "", "d", &mut std::io::Cursor::new(vec![])).is_err());
     }
 
     #[test]

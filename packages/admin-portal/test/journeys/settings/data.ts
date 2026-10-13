@@ -7,8 +7,15 @@ import {FIXED_TIME, IDS} from "@sequentech/ui-test-kit/fixtures"
 import {TENANT_ID, type AdminPortal} from "../fixtures"
 
 type Row = Record<string, unknown>
-/** The settings screen requires both roles; specs add the per-tab permissions they exercise. */
+/** The settings tabs but Logs require both roles; specs add the per-tab permissions they exercise. */
 export const SETTINGS_ROLES = ["admin-user", "tenant-write", "settings-menu"]
+/** A read-only auditor: no admin-user role, and only the Logs tab of Settings. */
+export const AUDITOR_ROLES = [
+    "election-event-read",
+    "settings-menu",
+    "tenant-logs-read",
+    "tenant-logs-export",
+]
 export const TENANT_WHERE = {id: {_eq: TENANT_ID}}
 export const LANGUAGE_CONF = {enabled_language_codes: ["en"], default_language_code: "en"}
 
@@ -214,4 +221,126 @@ export async function commitUndoable(
             return portal.graphql.callsTo(operation).length
         })
         .toBe(count)
+}
+
+export const TENANT_LOG_SUBTITLE =
+    "Sign-ins, staff accounts and roles, settings and election events of this organization. Each election event keeps its own log in its Logs tab."
+export const SETTINGS_CHANGED = "Settings changed: Languages and Integrations"
+export const SIGN_IN_FAILED = "Sign-in failed: wrong password"
+export const KEYCLOAK_CHANGE = "Keycloak: user lena.ortiz created by Step's service account"
+/** 3 February 2028, 09:21:37 UTC. */
+const TENANT_LOG_TIME = Date.parse("2028-02-03T09:21:37Z") / 1000
+
+interface ITenantLogEntry {
+    id: number
+    kind: string
+    username: string | null
+    eventType: "USER" | "SYSTEM"
+    logType: "INFO" | "ERROR"
+    description: string
+    body: Row
+}
+
+const auditBody = (kind: string, details: Row): Row => ({
+    Audit: {kind, details_json: JSON.stringify(details), entry_id: `entry-${kind}`},
+})
+
+const TENANT_LOG: ITenantLogEntry[] = [
+    {
+        id: 5259,
+        kind: "AdminChange",
+        username: "rosa.marin",
+        eventType: "USER",
+        logType: "INFO",
+        description: SETTINGS_CHANGED,
+        body: auditBody("AdminChange", {
+            object: {type: "tenant", id: TENANT_ID, name: "Synthetic"},
+            action: "update",
+            actor: {user_id: IDS.voter, username: "rosa.marin", role: "admin-user"},
+            origin: "hasura",
+            changes: [
+                {path: "settings.logs_timezone", old: "UTC", new: "Europe/Madrid"},
+                {path: "settings.gapi_key", secret: true},
+            ],
+        }),
+    },
+    {
+        id: 5258,
+        kind: "KeycloakAdminEvent",
+        username: null,
+        eventType: "SYSTEM",
+        logType: "INFO",
+        description: KEYCLOAK_CHANGE,
+        body: auditBody("KeycloakAdminEvent", {
+            operation: "CREATE",
+            resource_type: "USER",
+            resource_path: "users/60000000-0000-4000-8000-000000000001",
+            representation: {username: "lena.ortiz", enabled: true},
+            error: null,
+            actor: {username: "service-account", client_id: "service-account", realm: "tenant"},
+            made_by: "SERVICE_ACCOUNT",
+        }),
+    },
+    {
+        id: 5257,
+        kind: "KeycloakUserEvent",
+        username: "lena.ortiz",
+        eventType: "USER",
+        logType: "ERROR",
+        description: SIGN_IN_FAILED,
+        body: {
+            KeycloakUserEvent: [
+                JSON.stringify({
+                    error: "invalid_user_credentials",
+                    client_id: "admin-portal",
+                    ip_address: "203.0.113.77",
+                    auth_method: "openid-connect",
+                    auth_type: "code",
+                    credential_type: "password",
+                }),
+                "LOGIN_ERROR",
+            ],
+        },
+    },
+]
+
+/**
+ * Answers the tenant log's list (`listTenantLog`) with three entries, newest
+ * first, keeping only those the request's filter asks for.
+ */
+export function mockTenantLog(portal: AdminPortal) {
+    portal.graphql.on("listTenantLog", ({variables}) => {
+        const filter = (variables.filter ?? {}) as Record<string, string | undefined>
+        const items = TENANT_LOG.filter(
+            (entry) =>
+                (!filter.event_type || filter.event_type === entry.eventType) &&
+                (!filter.log_type || filter.log_type === entry.logType) &&
+                (!filter.statement_kind || filter.statement_kind === entry.kind) &&
+                (!filter.username || filter.username === entry.username)
+        ).map((entry, index) => ({
+            id: entry.id,
+            created: TENANT_LOG_TIME - index * 60 + 1,
+            statement_timestamp: TENANT_LOG_TIME - index * 60,
+            statement_kind: entry.kind,
+            // The client schema makes the row's user_id non-null, though SYSTEM entries have none.
+            user_id: entry.username ? IDS.voter : "",
+            message: JSON.stringify({
+                sender: {name: entry.eventType === "USER" ? "Rosa Marin" : "", pk: "admin-key"},
+                sender_signature: "sender-signature",
+                system_signature: "system-signature",
+                user_id: entry.username ? IDS.voter : null,
+                username: entry.username,
+                statement: {
+                    head: {
+                        kind: entry.kind,
+                        event_type: entry.eventType,
+                        log_type: entry.logType,
+                        description: entry.description,
+                    },
+                    body: entry.body,
+                },
+            }),
+        }))
+        return {data: {listElectoralLog: {items, total: {aggregate: {count: items.length}}}}}
+    })
 }

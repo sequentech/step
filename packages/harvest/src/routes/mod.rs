@@ -30,6 +30,7 @@ pub mod export_tally_results;
 pub mod export_tasks_execution;
 pub mod export_template;
 pub mod export_tenant_config;
+pub mod export_tenant_logs;
 pub mod external_reconciliation;
 pub mod fake_provider;
 pub mod fetch_document;

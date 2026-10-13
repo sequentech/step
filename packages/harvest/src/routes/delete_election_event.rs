@@ -174,6 +174,11 @@ pub async fn delete_election_event_f(
             realm.clone(),
             task_execution.clone(),
             permission_labels,
+            Some(windmill::services::audit_log::AuditActor {
+                user_id: Some(claims.hasura_claims.user_id.clone()),
+                username: claims.preferred_username.clone(),
+                role: None,
+            }),
         ))
         .await;
 
