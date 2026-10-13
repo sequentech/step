@@ -99,10 +99,8 @@ export const SMOKE: Record<string, Smoke> = {
     "/trustee": {
         url: "/trustee",
         shows: async (page) => {
-            await heading(page, "Wbraid trustee")
-            await expect(
-                page.getByText(/trustee generate --trustee-config/)
-            ).toBeVisible()
+            await heading(page, "Trustee dashboard")
+            await expect(page.getByText(/trustee generate --trustee-config/)).toBeVisible()
         },
         checkConsole: true,
     },

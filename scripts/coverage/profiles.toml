@@ -508,11 +508,14 @@ ELECTORAL_LOG_PG_DATABASE = "test"
 ELECTORAL_LOG_PG_SSLMODE = "disable"
 ENV_SLUG = "electoral-log-tests"
 WBRAID_BOARD_DATABASE_URL = "postgres://test:test@127.0.0.1:3322/test"
+
 [profiles.voting-crypto]
 package = "voting-crypto"
 features = []
 limitations = ["Application signing and ballot boundary contracts against wbraid's crypto implementation."]
 issue = "https://github.com/sequentech/meta/issues/12886"
+
+[profiles.voting-crypto.scope_exceptions]
 
 [profiles.protocol-board]
 package = "protocol-board"
@@ -520,8 +523,12 @@ features = []
 limitations = ["Native in-memory DKG, mixing, decryption and custody protocols."]
 issue = "https://github.com/sequentech/meta/issues/12886"
 
+[profiles.protocol-board.scope_exceptions]
+
 [profiles.trustee]
 package = "trustee"
 features = []
 limitations = ["Native trustee sessions, persistence and custody tooling."]
 issue = "https://github.com/sequentech/meta/issues/12886"
+
+[profiles.trustee.scope_exceptions]

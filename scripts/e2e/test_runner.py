@@ -542,7 +542,10 @@ class CombinedBallotInputContracts(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             cli = MagicMock(directory=Path(directory), binary=Path("step-cli"))
-            portal = Portal("event", cli)
+            with patch.dict(
+                os.environ, {"VOTING_PORTAL_URL": "https://voting.invalid"}
+            ):
+                portal = Portal("event", cli)
             style = {
                 "contests": [
                     {
