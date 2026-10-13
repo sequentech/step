@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Reference Overview | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3885/docs/technology/cryptographic-protocol-spec"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Reference Overview | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3885/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3885/docs/technology/cryptographic-protocol-spec"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3885/docs/technology/cryptographic-protocol-spec" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3885/docs/technology/cryptographic-protocol-spec" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Reference Overview","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3885/docs/technology/cryptographic-protocol-spec"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3885/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3885/assets/js/runtime~main.b713ed5f.js" defer="defer"></script>
-<script src="/docusaurus/pr-preview/pr-3885/assets/js/main.8d0a2bd8.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3885/assets/js/runtime~main.c8220f97.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3885/assets/js/main.7a26fdb3.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg style="display: none;"><defs>
@@ -24,7 +24,7 @@ Automatic ceremonies skip manual custody confirmation while retaining the same
 cryptographic protocol. Both require the selected trustees&#x27; runners to participate.
 The platform receives neither trustee identity files nor election shares, and
 threshold decryption does not reconstruct the private key.</p>
-<p>See <a class="" href="/docusaurus/pr-preview/pr-3885/docs/developers/braid/braid_trustees_configuration">native and browser trustee configuration</a>
+<p>See <a class="" href="/docusaurus/pr-preview/pr-3885/docs/developers/wbraid/trustee-configuration">native and browser trustee configuration</a>
 for setup, backups and recovery.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="verification-evidence">Verification evidence<a href="#verification-evidence" class="hash-link" aria-label="Direct link to Verification evidence" title="Direct link to Verification evidence" translate="no">​</a></h2>
 <p>Single-contest and combined-contest audit decoding verifies the Naor–Yung proof
@@ -38,7 +38,7 @@ as its trust anchor. Incomplete evidence does not pass verification.</p>
 <p>Cryptographic transcript verification checks the published tally input. Checking
 how that input was selected from the sealed ballot box, including revotes and
 weights, also requires ballot-box evidence and the platform&#x27;s batching and counting
-checks. See <a class="" href="/docusaurus/pr-preview/pr-3885/docs/developers/braid/public-verification">public verification</a>
+checks. See <a class="" href="/docusaurus/pr-preview/pr-3885/docs/developers/wbraid/public-verification">public verification</a>
 and <a class="" href="/docusaurus/pr-preview/pr-3885/docs/election_auditors/tutorials/auditor_verify-ballot-box-seal">ballot-box seal verification</a>.</p>
 <p>The detailed supplied protocol and canonical serialization specification live in
 <code>packages/wbraid/PROTOCOL.md</code> and <code>packages/wbraid/SERIALIZATION.md</code>. General TLS,

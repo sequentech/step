@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Demonstrate the ballot box seal | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3885/docs/election_managers/tutorials/admin_portal_tutorials_ballot-box-seal-demonstration"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Demonstrate the ballot box seal | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3885/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3885/docs/election_managers/tutorials/admin_portal_tutorials_ballot-box-seal-demonstration"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3885/docs/election_managers/tutorials/admin_portal_tutorials_ballot-box-seal-demonstration" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3885/docs/election_managers/tutorials/admin_portal_tutorials_ballot-box-seal-demonstration" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Demonstrate the ballot box seal","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3885/docs/election_managers/tutorials/admin_portal_tutorials_ballot-box-seal-demonstration"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3885/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3885/assets/js/runtime~main.b713ed5f.js" defer="defer"></script>
-<script src="/docusaurus/pr-preview/pr-3885/assets/js/main.8d0a2bd8.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3885/assets/js/runtime~main.c8220f97.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3885/assets/js/main.7a26fdb3.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg style="display: none;"><defs>
@@ -26,7 +26,8 @@ tally the event;</li>
 <li class="">the fingerprint of the event&#x27;s system key (32 hex digits), from your
 platform operator, taken before the close (see
 <a class="" href="/docusaurus/pr-preview/pr-3885/docs/election_auditors/tutorials/auditor_verify-ballot-box-seal#which-key-to-trust">Which key to trust</a>);</li>
-<li class="">for the database step, a demonstration environment where you may run SQL.</li>
+<li class="">for the database step, a demonstration environment where you may run SQL in
+the event&#x27;s electoral-log database.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-prepare-the-event">1. Prepare the event<a href="#1-prepare-the-event" class="hash-link" aria-label="Direct link to 1. Prepare the event" title="Direct link to 1. Prepare the event" translate="no">​</a></h2>
 <ol>
@@ -58,15 +59,15 @@ says that the ballot boxes are then sealed and that voting cannot start
 again. Confirm.</li>
 <li class="">Open the election&#x27;s <strong>Dashboard</strong>. On the <strong>Ballot boxes</strong> card, each area
 goes from <strong>Sealing now</strong> to <strong>Sealed, publishing</strong> and then
-<strong>Sealed</strong>, normally within seconds. (In a test run, the seal was made one
-second after Stop Voting and published half a second later.) The card names
-who closed the election, and shows the ballots in the box, the ballots
-counted, the seal time and the seal hash.</li>
+<strong>Sealed</strong>, normally within seconds. The card names who closed the
+election, and shows the ballots in the box, the ballots counted, the seal
+time and the seal hash.</li>
 <li class="">Open the event&#x27;s <strong>Logs</strong> tab and filter by the statement kind
 <code>BallotBoxSealed</code>. There is one entry per area, for example &quot;Ballot box of
-<em>election</em>, <em>area</em> sealed: 3 of 4 ballots counted.&quot; It is signed by the
-event&#x27;s system key and carries the seal hash and the counts. Note the seal
-hash of each entry: step 5 compares it with the record.</li>
+<em>election</em>, <em>area</em> sealed: 3 of 4 ballots counted.&quot; It comes after every
+<code>CastVote</code> entry of its area. It is signed by the event&#x27;s system key and
+carries the seal hash and the counts. Note the seal hash of each entry:
+step 5 compares it with the record.</li>
 <li class="">On the card, select <strong>Seal record</strong> for each area and save the JSON files.
 With <strong>Restricted</strong>, the button downloads each record through a short-lived
 signed link, and you hand the files to the observers. With <strong>Public</strong>, it is
@@ -79,12 +80,14 @@ record also names the Close voting request, its signing code and each signer&#x2
 certificate fingerprint.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="4-refused-writes">4. Refused writes<a href="#4-refused-writes" class="hash-link" aria-label="Direct link to 4. Refused writes" title="Direct link to 4. Refused writes" translate="no">​</a></h2>
 <p>Show that the sealed ballot box no longer changes:</p>
-<table><thead><tr><th>Try</th><th>Result</th></tr></thead><tbody><tr><td>A voter casts a ballot after the close</td><td>The voting portal shows the usual &quot;voting is closed&quot; error, and <code>CastVoteError</code> entries appear in the Logs.</td></tr><tr><td><strong>Start Voting</strong> on the closed election</td><td>The Admin Portal doesn&#x27;t offer it. Through the API, the server refuses: &quot;Voting can&#x27;t start again: with the Ballot Box Seal Policy set to Seal at close, voting that has closed stays closed and its ballot boxes are sealed.&quot;</td></tr><tr><td>Delete the election</td><td>The Admin Portal checks for seals first and refuses: &quot;This election has sealed ballot boxes and cannot be deleted. Archive its election event instead.&quot; The database refuses it through any other path.</td></tr><tr><td>Delete the election event</td><td>The Admin Portal checks for seals first and refuses: &quot;This election event has sealed ballot boxes and cannot be deleted. Archive it instead.&quot; The server refuses it through any other path, before anything is deleted.</td></tr><tr><td>Change the event&#x27;s contest encryption, delegated or weighted voting policy</td><td>Refused by the database: it can&#x27;t change after voting has opened.</td></tr><tr><td>In the demonstration environment&#x27;s database, <code>INSERT</code>, <code>UPDATE</code>, <code>DELETE</code> or <code>TRUNCATE</code> on the sealed box&#x27;s rows of <code>sequent_backend.cast_vote</code>, or moving a row to another area</td><td>Refused: <code>ERROR: ballot_box_sealed</code> (SQLSTATE <code>42501</code>), &quot;A sealed ballot box takes no new ballots and no changes.&quot; The box keeps its rows.</td></tr></tbody></table>
-<p>The database step shows the guard against a direct write. In a demonstration
-environment the services may connect as a database superuser, who could disable
-the guard; production needs a least-privilege role (see
-<a class="" href="/docusaurus/pr-preview/pr-3885/docs/reference/cryptography_security/security/ballot_box_seal_database_role">Database role for the ballot box seal</a>,
-which also explains what a superuser could still do and how it is caught).</p>
+<table><thead><tr><th>Try</th><th>Result</th></tr></thead><tbody><tr><td>A voter casts a ballot after the close</td><td>The voting portal shows the usual &quot;voting is closed&quot; error, and <code>CastVoteError</code> entries appear in the Logs.</td></tr><tr><td><strong>Start Voting</strong> on the closed election</td><td>The Admin Portal doesn&#x27;t offer it. Through the API, the server refuses: &quot;Voting can&#x27;t start again: with the Ballot Box Seal Policy set to Seal at close, voting that has closed stays closed and its ballot boxes are sealed.&quot;</td></tr><tr><td>Delete the election</td><td>The Admin Portal checks for seals first and refuses: &quot;This election has sealed ballot boxes and cannot be deleted. Archive its election event instead.&quot; The database refuses it through any other path.</td></tr><tr><td>Delete the election event</td><td>The Admin Portal checks for seals first and refuses: &quot;This election event has sealed ballot boxes and cannot be deleted. Archive it instead.&quot; The server refuses it through any other path, before anything is deleted.</td></tr><tr><td>Change the event&#x27;s contest encryption, delegated or weighted voting policy</td><td>Refused by the database: it can&#x27;t change after voting has opened.</td></tr><tr><td>In the event&#x27;s electoral-log database, <code>INSERT</code>, <code>UPDATE</code>, <code>DELETE</code> or <code>TRUNCATE</code> on the sealed box&#x27;s rows of <code>ballot_box_ballot</code>, or moving a row to another area</td><td>Refused: <code>ERROR: ballot_box_sealed</code> (SQLSTATE <code>42501</code>), &quot;The ballot box of election <em>id</em>, area <em>id</em> is sealed.&quot; The box keeps its rows.</td></tr></tbody></table>
+<p>The database step shows the guard against a direct write. The role that owns
+the event&#x27;s database, which the services connect as, can still disable the
+guard: this is not prevented in this release, it is detected. To show it, a
+superuser can change a ballot of the sealed box past the guard (<code>SET session_replication_role = replica</code>) before step 6: the tally then refuses the
+box and logs a <code>TallyBallotBoxRejected</code> entry that says what differs. See
+<a class="" href="/docusaurus/pr-preview/pr-3885/docs/reference/cryptography_security/security/ballot_box_seal_database_role">Database role for the ballot box seal</a>
+for what the guard can&#x27;t stop and how it is caught.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="5-verify-the-record-offline">5. Verify the record offline<a href="#5-verify-the-record-offline" class="hash-link" aria-label="Direct link to 5. Verify the record offline" title="Direct link to 5. Verify the record offline" translate="no">​</a></h2>
 <p>On a computer without access to the system, follow
 <a class="" href="/docusaurus/pr-preview/pr-3885/docs/election_auditors/tutorials/auditor_verify-ballot-box-seal">Verify a ballot box seal</a>:</p>

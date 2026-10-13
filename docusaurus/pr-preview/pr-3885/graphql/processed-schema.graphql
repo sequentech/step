@@ -68,6 +68,19 @@ type ApprovalMatrixOutput {
   version: Int!
 }
 
+input AuthorizeTallyCustodyInput {
+  custody_proof_json: String!
+  custody_proof_sha256: String
+  election_event_id: String!
+  signing_request_id: uuid
+  tally_session_id: String!
+}
+
+type AuthorizeTallyCustodyOutput {
+  is_valid: Boolean!
+  signing_request: SigningRequestSummary
+}
+
 type BallotPublicationStyles {
   ballot_publication_id: String!
   ballot_styles: jsonb!
@@ -102,10 +115,8 @@ type CastBallotOutput {
 
 type CastVoteEntry {
   ballot_id: String!
-  message: String
   statement_kind: String!
   statement_timestamp: Int!
-  username: String
 }
 
 type CastVotesByIp {
@@ -131,24 +142,24 @@ type CheckMessagingAccountOutput {
   status: jsonb!
 }
 
-input CheckPrivateKeyInput {
-  election_event_id: String!
-  key_share_sha256: String
-  keys_ceremony_id: String!
-  private_key_base64: String!
-  signing_request_id: uuid
-}
-
-type CheckPrivateKeyOutput {
-  is_valid: Boolean!
-  signing_request: SigningRequestSummary
-}
-
 type ConfigureResultsWebsitePolicyOutput {
   access: ResultsWebsiteAccess!
   election_event_id: String!
   status: ResultsWebsiteStatus!
   visibility_scope: ResultsWebsiteVisibilityScope!
+}
+
+input ConfirmKeyCustodyInput {
+  custody_proof_json: String!
+  custody_proof_sha256: String
+  election_event_id: String!
+  keys_ceremony_id: String!
+  signing_request_id: uuid
+}
+
+type ConfirmKeyCustodyOutput {
+  is_valid: Boolean!
+  signing_request: SigningRequestSummary
 }
 
 input CountUsersInput {
@@ -232,13 +243,19 @@ type CreateTallyOutput {
   tally_session_id: uuid
 }
 
-type DataListElectoralLog {
-  items: [ElectoralLogRow]!
-  total: TotalAggregate!
+input CustodyProofSignatureStatusInput {
+  election_event_id: String!
+  keys_ceremony_id: String
+  tally_session_id: String
 }
 
-type DataListPgAudit {
-  items: [PgAuditRow]!
+type CustodyProofSignatureStatusOutput {
+  signature_needed: Boolean!
+  signed: Boolean!
+}
+
+type DataListElectoralLog {
+  items: [ElectoralLogRow]!
   total: TotalAggregate!
 }
 
@@ -503,6 +520,15 @@ type GetBallotPublicationChangesOutput {
   previous: BallotPublicationStyles
 }
 
+input GetCustodyRequestInput {
+  election_event_id: String!
+  keys_ceremony_id: String!
+}
+
+type GetCustodyRequestOutput {
+  custody_request_json: String!
+}
+
 type GetLifecycleSnapshotsOutput {
   snapshots: jsonb!
 }
@@ -528,15 +554,6 @@ input GetPermissionsInput {
 type GetPermissionsOutput {
   items: [KeycloakPermission!]!
   total: TotalAggregate!
-}
-
-input GetPrivateKeyInput {
-  election_event_id: String!
-  keys_ceremony_id: String!
-}
-
-type GetPrivateKeyOutput {
-  private_key_base64: String!
 }
 
 type GetRealmAttributesOutput {
@@ -645,7 +662,7 @@ type InsertCastVoteOutput {
   annotations: jsonb
   area_id: uuid!
   ballot_id: String
-  cast_ballot_signature: bytea!
+  cast_ballot_signature: bytea
   content: String
   created_at: timestamptz
   election_event_id: uuid!
@@ -696,17 +713,6 @@ input Int_comparison_exp {
   _lte: Int
   _neq: Int
   _nin: [Int!]
-}
-
-input KeyShareSignatureStatusInput {
-  election_event_id: String!
-  keys_ceremony_id: String
-  tally_session_id: String
-}
-
-type KeyShareSignatureStatusOutput {
-  signature_needed: Boolean!
-  signed: Boolean!
 }
 
 type KeycloakPermission {
@@ -812,10 +818,6 @@ type LocateBallotOutput {
   checks_available_until: String
   content: String
   status: String!
-}
-
-type LogEventOutput {
-  electionEventId: String
 }
 
 type ManageElectionDatesOutput {
@@ -1163,46 +1165,6 @@ enum OrderDirection {
   desc
 }
 
-input PgAuditFilter {
-  audit_type: String
-  class: String
-  command: String
-  dbname: String
-  id: String
-  session_id: String
-  statement: String
-  user: String
-}
-
-input PgAuditOrderBy {
-  audit_type: OrderDirection
-  class: OrderDirection
-  command: OrderDirection
-  dbname: OrderDirection
-  id: OrderDirection
-  server_timestamp: OrderDirection
-  session_id: OrderDirection
-  statement: OrderDirection
-  user: OrderDirection
-}
-
-type PgAuditRow {
-  audit_type: String!
-  class: String!
-  command: String!
-  dbname: String!
-  id: Int!
-  server_timestamp: Int!
-  session_id: String!
-  statement: String!
-  user: String!
-}
-
-enum PgAuditTable {
-  pgaudit_hasura
-  pgaudit_keycloak
-}
-
 type PhoneBlacklistEntry {
   created_at: String
   created_by: String
@@ -1300,17 +1262,10 @@ type ResolveResultsPublicationOutput {
   tenant_id: String!
 }
 
-input RestorePrivateKeyInput {
-  election_event_id: String!
-  key_share_sha256: String
-  private_key_base64: String!
-  signing_request_id: uuid
-  tally_session_id: String!
-}
-
-type RestorePrivateKeyOutput {
-  is_valid: Boolean!
-  signing_request: SigningRequestSummary
+enum RestorePrivateKeyOutcome {
+  ALREADY_RESTORED
+  INVALID
+  RESTORED
 }
 
 enum ResultsPublicationStatus {
@@ -1682,6 +1637,18 @@ type UserProfileConfiguration {
   groups: [UserProfileAttributeGroup!]!
 }
 
+type VoterCastVote {
+  area_id: String
+  ballot_id: String
+  content: String
+  created_at: String
+  election_event_id: String!
+  election_id: String
+  id: String!
+  status: String!
+  tenant_id: String!
+}
+
 type VoterInformationLetterOutput {
   document_id: String!
   pdf_password: String!
@@ -1849,14 +1816,16 @@ type mutation_root {
   apply_external_reconciliation_changes(diff_document_id: String!, election_event_id: uuid!): taskOutput
   """Apply scheduled dates recomputed with the current timezone database"""
   apply_schedule_recompute(election_event_id: uuid!): ApplyScheduleRecomputeOutput
+  audit_electoral_log(election_event_id: String!): taskOutput!
+  authorize_tally_custody(object: AuthorizeTallyCustodyInput!): AuthorizeTallyCustodyOutput
   call_plugin_route(data: jsonb!, path: String!): PluginsRouteOutput!
   """cast_ballot"""
   cast_ballot(ballot_id: String!, cast_signature: String!, election_id: uuid!): CastBallotOutput
   check_messaging_account(id: uuid!): CheckMessagingAccountOutput
-  """check private key"""
-  check_private_key(object: CheckPrivateKeyInput!): CheckPrivateKeyOutput
   """Configure the results website policy for an election event"""
   configureResultsWebsitePolicy(access: ResultsWebsiteAccess!, election_event_id: uuid!, status: ResultsWebsiteStatus!, visibility_scope: ResultsWebsiteVisibilityScope!): ConfigureResultsWebsitePolicyOutput!
+  """confirm trustee custody with a public proof"""
+  confirm_key_custody(object: ConfirmKeyCustodyInput!): ConfirmKeyCustodyOutput
   """create scheduled event"""
   createScheduledEvent(created_by: String, cron_config: String, election_event_id: uuid, event_payload: jsonb!, event_processor: String!, tenant_id: String!): ScheduledEventOutput3
   """create_ballot_receipt"""
@@ -1975,17 +1944,6 @@ type mutation_root {
   """
   delete_sequent_backend_candidate_by_pk(election_event_id: uuid!, id: uuid!, tenant_id: uuid!): candidate
   """
-  delete data from the table: "sequent_backend.cast_vote"
-  """
-  delete_sequent_backend_cast_vote(
-    """filter the rows which have to be deleted"""
-    where: cast_vote_bool_exp!
-  ): cast_vote_mutation_response
-  """
-  delete single row from the table: "sequent_backend.cast_vote"
-  """
-  delete_sequent_backend_cast_vote_by_pk(election_event_id: uuid!, id: uuid!, tenant_id: uuid!): cast_vote
-  """
   delete data from the table: "sequent_backend.certificate_authority"
   """
   delete_sequent_backend_certificate_authority(
@@ -2062,6 +2020,17 @@ type mutation_root {
   delete single row from the table: "sequent_backend.election_type"
   """
   delete_sequent_backend_election_type_by_pk(id: uuid!, tenant_id: uuid!): election_type
+  """
+  delete data from the table: "sequent_backend.electoral_log_checkpoint"
+  """
+  delete_sequent_backend_electoral_log_checkpoint(
+    """filter the rows which have to be deleted"""
+    where: electoral_log_checkpoint_bool_exp!
+  ): electoral_log_checkpoint_mutation_response
+  """
+  delete single row from the table: "sequent_backend.electoral_log_checkpoint"
+  """
+  delete_sequent_backend_electoral_log_checkpoint_by_pk(id: uuid!): electoral_log_checkpoint
   """
   delete data from the table: "sequent_backend.event_execution"
   """
@@ -2179,6 +2148,17 @@ type mutation_root {
   delete single row from the table: "sequent_backend.preview"
   """
   delete_sequent_backend_preview_by_pk(id: uuid!): preview
+  """
+  delete data from the table: "sequent_backend.protocol_board"
+  """
+  delete_sequent_backend_protocol_board(
+    """filter the rows which have to be deleted"""
+    where: protocol_board_bool_exp!
+  ): protocol_board_mutation_response
+  """
+  delete single row from the table: "sequent_backend.protocol_board"
+  """
+  delete_sequent_backend_protocol_board_by_pk(id: uuid!): protocol_board
   """
   delete data from the table: "sequent_backend.report"
   """
@@ -2531,9 +2511,9 @@ type mutation_root {
   generate_transmission_report(election_event_id: uuid!, election_id: uuid, tally_session_id: String, tenant_id: String!): generateReportOutput
   generate_voter_information_letter(election_event_id: uuid!, voter_id: String!): VoterInformationLetterOutput!
   get_ballot_publication_changes(ballot_publication_id: uuid!, election_event_id: uuid!, limit: Int): GetBallotPublicationChangesOutput
+  """download the public trustee custody request"""
+  get_custody_request(object: GetCustodyRequestInput!): GetCustodyRequestOutput
   get_manual_verification_pdf(body: GetManualVerificationInput!): GetManualVerificationOutput
-  """get private key"""
-  get_private_key(object: GetPrivateKeyInput!): GetPrivateKeyOutput
   get_upload_url(election_event_id: String, is_local: Boolean, is_public: Boolean!, media_type: String!, name: String!, size: Int!): GetUploadUrlOutput
   get_user(election_event_id: uuid, tenant_id: uuid!, user_id: String!): KeycloakUser!
   get_user_template(template_type: String!): GetUserTemplateOutput
@@ -2699,24 +2679,6 @@ type mutation_root {
     on_conflict: candidate_on_conflict
   ): candidate
   """
-  insert data into the table: "sequent_backend.cast_vote"
-  """
-  insert_sequent_backend_cast_vote(
-    """the rows to be inserted"""
-    objects: [cast_vote_insert_input!]!
-    """upsert condition"""
-    on_conflict: cast_vote_on_conflict
-  ): cast_vote_mutation_response
-  """
-  insert a single row into the table: "sequent_backend.cast_vote"
-  """
-  insert_sequent_backend_cast_vote_one(
-    """the row to be inserted"""
-    object: cast_vote_insert_input!
-    """upsert condition"""
-    on_conflict: cast_vote_on_conflict
-  ): cast_vote
-  """
   insert data into the table: "sequent_backend.certificate_authority"
   """
   insert_sequent_backend_certificate_authority(
@@ -2842,6 +2804,24 @@ type mutation_root {
     """upsert condition"""
     on_conflict: election_type_on_conflict
   ): election_type
+  """
+  insert data into the table: "sequent_backend.electoral_log_checkpoint"
+  """
+  insert_sequent_backend_electoral_log_checkpoint(
+    """the rows to be inserted"""
+    objects: [electoral_log_checkpoint_insert_input!]!
+    """upsert condition"""
+    on_conflict: electoral_log_checkpoint_on_conflict
+  ): electoral_log_checkpoint_mutation_response
+  """
+  insert a single row into the table: "sequent_backend.electoral_log_checkpoint"
+  """
+  insert_sequent_backend_electoral_log_checkpoint_one(
+    """the row to be inserted"""
+    object: electoral_log_checkpoint_insert_input!
+    """upsert condition"""
+    on_conflict: electoral_log_checkpoint_on_conflict
+  ): electoral_log_checkpoint
   """
   insert data into the table: "sequent_backend.event_execution"
   """
@@ -3036,6 +3016,24 @@ type mutation_root {
     """upsert condition"""
     on_conflict: preview_on_conflict
   ): preview
+  """
+  insert data into the table: "sequent_backend.protocol_board"
+  """
+  insert_sequent_backend_protocol_board(
+    """the rows to be inserted"""
+    objects: [protocol_board_insert_input!]!
+    """upsert condition"""
+    on_conflict: protocol_board_on_conflict
+  ): protocol_board_mutation_response
+  """
+  insert a single row into the table: "sequent_backend.protocol_board"
+  """
+  insert_sequent_backend_protocol_board_one(
+    """the row to be inserted"""
+    object: protocol_board_insert_input!
+    """upsert condition"""
+    on_conflict: protocol_board_on_conflict
+  ): protocol_board
   """
   insert data into the table: "sequent_backend.report"
   """
@@ -3594,7 +3592,6 @@ type mutation_root {
   refreshResultsPublicationIndex(election_event_id: uuid!): RefreshResultsPublicationIndexOutput!
   render_document_pdf(document_id: uuid!, election_event_id: uuid, tally_session_id: uuid): RenderDocumentPDFOutput
   replace_messaging_account_credentials(credentials: jsonb!, generate_report_credentials: Boolean, generate_verify_token: Boolean, id: uuid!): ReplaceMessagingAccountCredentialsOutput
-  restore_private_key(object: RestorePrivateKeyInput!): RestorePrivateKeyOutput
   """review_tally_sheet"""
   review_tally_sheet(election_event_id: uuid!, new_status: String!, tally_sheet_id: String!): TallySheetOutput
   """review_tally_sheet_import"""
@@ -3648,6 +3645,8 @@ type mutation_root {
   signingRevokeCertificate(certificate_id: uuid!, election_event_id: uuid!, reason: String!): SigningCertificateIdOutput!
   """Submit tally resolutions"""
   submit_tally_resolution(election_event_id: uuid!, resolutions: [TallyResolutionInput!]!, tally_session_id: uuid!): SubmitTallyResolutionOutput
+  """Replay or discard dead-lettered electoral-log events"""
+  task_queues_dead_letters(message_ids: [String!]!, operation: String!): jsonb!
   test_messaging_account(destination: String!, id: uuid!, language: String, purpose: String!, template: String): TestMessagingAccountOutput
   update_election_voting_status(election_event_id: uuid!, election_id: uuid!, voting_channels: [VotingStatusChannel], voting_status: VotingStatus!): UpdateElectionVotingStatusOutput
   update_event_messaging_config(config: jsonb!, election_event_id: uuid!): UpdateEventMessagingConfigOutput
@@ -4111,62 +4110,6 @@ type mutation_root {
     updates: [candidate_updates!]!
   ): [candidate_mutation_response]
   """
-  update data of the table: "sequent_backend.cast_vote"
-  """
-  update_sequent_backend_cast_vote(
-    """append existing jsonb value of filtered columns with new jsonb value"""
-    _append: cast_vote_append_input
-    """
-    delete the field or element with specified path (for JSON arrays, negative integers count from the end)
-    """
-    _delete_at_path: cast_vote_delete_at_path_input
-    """
-    delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
-    """
-    _delete_elem: cast_vote_delete_elem_input
-    """
-    delete key/value pair or string element. key/value pairs are matched based on their key value
-    """
-    _delete_key: cast_vote_delete_key_input
-    """prepend existing jsonb value of filtered columns with new jsonb value"""
-    _prepend: cast_vote_prepend_input
-    """sets the columns of the filtered rows to the given values"""
-    _set: cast_vote_set_input
-    """filter the rows which have to be updated"""
-    where: cast_vote_bool_exp!
-  ): cast_vote_mutation_response
-  """
-  update single row of the table: "sequent_backend.cast_vote"
-  """
-  update_sequent_backend_cast_vote_by_pk(
-    """append existing jsonb value of filtered columns with new jsonb value"""
-    _append: cast_vote_append_input
-    """
-    delete the field or element with specified path (for JSON arrays, negative integers count from the end)
-    """
-    _delete_at_path: cast_vote_delete_at_path_input
-    """
-    delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
-    """
-    _delete_elem: cast_vote_delete_elem_input
-    """
-    delete key/value pair or string element. key/value pairs are matched based on their key value
-    """
-    _delete_key: cast_vote_delete_key_input
-    """prepend existing jsonb value of filtered columns with new jsonb value"""
-    _prepend: cast_vote_prepend_input
-    """sets the columns of the filtered rows to the given values"""
-    _set: cast_vote_set_input
-    pk_columns: cast_vote_pk_columns_input!
-  ): cast_vote
-  """
-  update multiples rows of table: "sequent_backend.cast_vote"
-  """
-  update_sequent_backend_cast_vote_many(
-    """updates to execute, in order"""
-    updates: [cast_vote_updates!]!
-  ): [cast_vote_mutation_response]
-  """
   update data of the table: "sequent_backend.certificate_authority"
   """
   update_sequent_backend_certificate_authority(
@@ -4538,6 +4481,34 @@ type mutation_root {
     """updates to execute, in order"""
     updates: [election_type_updates!]!
   ): [election_type_mutation_response]
+  """
+  update data of the table: "sequent_backend.electoral_log_checkpoint"
+  """
+  update_sequent_backend_electoral_log_checkpoint(
+    """increments the numeric columns with given value of the filtered values"""
+    _inc: electoral_log_checkpoint_inc_input
+    """sets the columns of the filtered rows to the given values"""
+    _set: electoral_log_checkpoint_set_input
+    """filter the rows which have to be updated"""
+    where: electoral_log_checkpoint_bool_exp!
+  ): electoral_log_checkpoint_mutation_response
+  """
+  update single row of the table: "sequent_backend.electoral_log_checkpoint"
+  """
+  update_sequent_backend_electoral_log_checkpoint_by_pk(
+    """increments the numeric columns with given value of the filtered values"""
+    _inc: electoral_log_checkpoint_inc_input
+    """sets the columns of the filtered rows to the given values"""
+    _set: electoral_log_checkpoint_set_input
+    pk_columns: electoral_log_checkpoint_pk_columns_input!
+  ): electoral_log_checkpoint
+  """
+  update multiples rows of table: "sequent_backend.electoral_log_checkpoint"
+  """
+  update_sequent_backend_electoral_log_checkpoint_many(
+    """updates to execute, in order"""
+    updates: [electoral_log_checkpoint_updates!]!
+  ): [electoral_log_checkpoint_mutation_response]
   """
   update data of the table: "sequent_backend.event_execution"
   """
@@ -5048,6 +5019,34 @@ type mutation_root {
     """updates to execute, in order"""
     updates: [preview_updates!]!
   ): [preview_mutation_response]
+  """
+  update data of the table: "sequent_backend.protocol_board"
+  """
+  update_sequent_backend_protocol_board(
+    """increments the numeric columns with given value of the filtered values"""
+    _inc: protocol_board_inc_input
+    """sets the columns of the filtered rows to the given values"""
+    _set: protocol_board_set_input
+    """filter the rows which have to be updated"""
+    where: protocol_board_bool_exp!
+  ): protocol_board_mutation_response
+  """
+  update single row of the table: "sequent_backend.protocol_board"
+  """
+  update_sequent_backend_protocol_board_by_pk(
+    """increments the numeric columns with given value of the filtered values"""
+    _inc: protocol_board_inc_input
+    """sets the columns of the filtered rows to the given values"""
+    _set: protocol_board_set_input
+    pk_columns: protocol_board_pk_columns_input!
+  ): protocol_board
+  """
+  update multiples rows of table: "sequent_backend.protocol_board"
+  """
+  update_sequent_backend_protocol_board_many(
+    """updates to execute, in order"""
+    updates: [protocol_board_updates!]!
+  ): [protocol_board_mutation_response]
   """
   update data of the table: "sequent_backend.report"
   """
@@ -6623,6 +6622,19 @@ enum order_by {
 
 type query_root {
   count_users(body: CountUsersInput!): CountUsersOutput!
+  custody_proof_signature_status(object: CustodyProofSignatureStatusInput!): CustodyProofSignatureStatusOutput
+  """A page of an election event's electoral-log records or ballot box"""
+  electoral_log_console_page(after: String, election_event_id: String!, filters: jsonb, limit: Int, order: String, table: String!, tenant_id: String): jsonb!
+  """
+  A read-only SQL query on the electoral-log database, for the super-admin tenant
+  """
+  electoral_log_console_query(election_event_id: String!, sql: String!, tenant_id: String!): jsonb!
+  """An electoral-log record with its message decoded"""
+  electoral_log_console_record(election_event_id: String!, position: Int!, tenant_id: String): jsonb!
+  """
+  Every tenant with its election events, for the super-admin tenant's electoral-log console
+  """
+  electoral_log_console_tenants: jsonb!
   """Try an enrollment against approval matrix rules without saving"""
   evaluate_approval_matrix(election_event_id: uuid!, enrollment: jsonb!, matrix: jsonb!): EvaluateApprovalMatrixOutput!
   """fetch document"""
@@ -6656,19 +6668,16 @@ type query_root {
   get_user_profile_attributes(election_event_id: String, tenant_id: String!): [UserProfileAttribute!]!
   get_user_profile_configuration(election_event_id: String, tenant_id: String!): UserProfileConfiguration!
   get_users(body: GetUsersInput!): GetUsersOutput!
-  key_share_signature_status(object: KeyShareSignatureStatusInput!): KeyShareSignatureStatusOutput
+  """The voter's own cast votes, from the election event's ballot box"""
+  get_voter_cast_votes(ballot_id: String, ballot_id_prefix: String, election_event_id: String!, election_id: String): [VoterCastVote!]!
   """List Electoral Log"""
   listElectoralLog(election_event_id: String, filter: ElectoralLogFilter, limit: Int, offset: Int, order_by: ElectoralLogOrderBy): DataListElectoralLog
-  """List PostgreSQL audit logs"""
-  listPgaudit(audit_table: PgAuditTable, filter: PgAuditFilter, limit: Int, offset: Int, order_by: PgAuditOrderBy): DataListPgAudit
   """List electoral log entries of statement_kind CastVote"""
   list_cast_vote_messages(ballot_id: String!, election_event_id: uuid!, election_id: uuid, limit: Int, offset: Int, order_by: ElectoralLogOrderBy, tenant_id: String!): ListCastVoteMessagesOutput
   list_keys_ceremony(election_event_id: String!): ListKeysCeremonyOutput
   list_user_roles(election_event_id: String, tenant_id: String!, user_id: String!): [KeycloakRole!]!
   """Look up one of the voter's own cast ballots while checks are open"""
   locate_ballot(ballot_id: String!, election_event_id: uuid!, election_id: uuid!): LocateBallotOutput
-  """log an event in native wbraid audit storage"""
-  logEvent(body: String!, election_event_id: uuid!, message_type: String!, user_id: String): LogEventOutput
   """The full callback URL of an account, or why there is none"""
   messaging_account_callback_url(account_id: uuid!): MessagingAccountCallbackUrlOutput
   """
@@ -6993,40 +7002,6 @@ type query_root {
   """
   sequent_backend_candidate_by_pk(election_event_id: uuid!, id: uuid!, tenant_id: uuid!): candidate
   """
-  fetch data from the table: "sequent_backend.cast_vote"
-  """
-  sequent_backend_cast_vote(
-    """distinct select on columns"""
-    distinct_on: [cast_vote_select_column!]
-    """limit the number of rows returned"""
-    limit: Int
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-    """sort the rows by one or more columns"""
-    order_by: [cast_vote_order_by!]
-    """filter the rows returned"""
-    where: cast_vote_bool_exp
-  ): [cast_vote!]!
-  """
-  fetch aggregated fields from the table: "sequent_backend.cast_vote"
-  """
-  sequent_backend_cast_vote_aggregate(
-    """distinct select on columns"""
-    distinct_on: [cast_vote_select_column!]
-    """limit the number of rows returned"""
-    limit: Int
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-    """sort the rows by one or more columns"""
-    order_by: [cast_vote_order_by!]
-    """filter the rows returned"""
-    where: cast_vote_bool_exp
-  ): cast_vote_aggregate!
-  """
-  fetch data from the table: "sequent_backend.cast_vote" using primary key columns
-  """
-  sequent_backend_cast_vote_by_pk(election_event_id: uuid!, id: uuid!, tenant_id: uuid!): cast_vote
-  """
   fetch data from the table: "sequent_backend.certificate_authority"
   """
   sequent_backend_certificate_authority(
@@ -7264,6 +7239,40 @@ type query_root {
   fetch data from the table: "sequent_backend.election_type" using primary key columns
   """
   sequent_backend_election_type_by_pk(id: uuid!, tenant_id: uuid!): election_type
+  """
+  fetch data from the table: "sequent_backend.electoral_log_checkpoint"
+  """
+  sequent_backend_electoral_log_checkpoint(
+    """distinct select on columns"""
+    distinct_on: [electoral_log_checkpoint_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [electoral_log_checkpoint_order_by!]
+    """filter the rows returned"""
+    where: electoral_log_checkpoint_bool_exp
+  ): [electoral_log_checkpoint!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.electoral_log_checkpoint"
+  """
+  sequent_backend_electoral_log_checkpoint_aggregate(
+    """distinct select on columns"""
+    distinct_on: [electoral_log_checkpoint_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [electoral_log_checkpoint_order_by!]
+    """filter the rows returned"""
+    where: electoral_log_checkpoint_bool_exp
+  ): electoral_log_checkpoint_aggregate!
+  """
+  fetch data from the table: "sequent_backend.electoral_log_checkpoint" using primary key columns
+  """
+  sequent_backend_electoral_log_checkpoint_by_pk(id: uuid!): electoral_log_checkpoint
   """
   fetch data from the table: "sequent_backend.event_execution"
   """
@@ -7634,6 +7643,40 @@ type query_root {
   fetch data from the table: "sequent_backend.preview" using primary key columns
   """
   sequent_backend_preview_by_pk(id: uuid!): preview
+  """
+  fetch data from the table: "sequent_backend.protocol_board"
+  """
+  sequent_backend_protocol_board(
+    """distinct select on columns"""
+    distinct_on: [protocol_board_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [protocol_board_order_by!]
+    """filter the rows returned"""
+    where: protocol_board_bool_exp
+  ): [protocol_board!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.protocol_board"
+  """
+  sequent_backend_protocol_board_aggregate(
+    """distinct select on columns"""
+    distinct_on: [protocol_board_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [protocol_board_order_by!]
+    """filter the rows returned"""
+    where: protocol_board_bool_exp
+  ): protocol_board_aggregate!
+  """
+  fetch data from the table: "sequent_backend.protocol_board" using primary key columns
+  """
+  sequent_backend_protocol_board_by_pk(id: uuid!): protocol_board
   """
   fetch data from the table: "sequent_backend.report"
   """
@@ -8634,6 +8677,14 @@ type query_root {
   signingHeldReportRequests(election_event_id: uuid!): SigningHeldReportRequestsOutput!
   """How many people can sign a protected action in each Post"""
   signingRuleCapacity(action: String!, election_event_id: uuid!, requester_signing: String, signatures: Int): SigningRuleCapacityOutput!
+  """Messages of a task queue, without their tasks' arguments"""
+  task_queues_messages(before: String, limit: Int, queue: String!, state: String!): jsonb!
+  """The depth and last hour's outcomes of every task queue"""
+  task_queues_overview: jsonb!
+  """A read-only SQL query on the environment's task-queue database"""
+  task_queues_query(sql: String!): jsonb!
+  """Processed messages of a task queue over time, by outcome"""
+  task_queues_throughput(bucket_minutes: Int, hours: Int, queue: String!): jsonb!
 }
 
 """
@@ -10012,12 +10063,13 @@ type ballot_box_seal {
   election_event_id: uuid!
   election_id: uuid!
   election_name: String
-  failure_posted_at: timestamptz
   failure_reason: String
   grace_deadline: timestamptz!
   id: uuid!
   last_attempt_at: timestamptz
-  log_entry_id: bigint
+  log_delivery_id: String
+  log_leaf_index: bigint
+  log_uid: uuid
   manifest: bytea
   """
   The seal record's document: public or private, by the event's Seal Record Publication policy.
@@ -10070,7 +10122,7 @@ input ballot_box_seal_append_input {
 type ballot_box_seal_avg_fields {
   ballots_counted: Float
   ballots_in_box: Float
-  log_entry_id: Float
+  log_leaf_index: Float
 }
 
 """
@@ -10092,12 +10144,13 @@ input ballot_box_seal_bool_exp {
   election_event_id: uuid_comparison_exp
   election_id: uuid_comparison_exp
   election_name: String_comparison_exp
-  failure_posted_at: timestamptz_comparison_exp
   failure_reason: String_comparison_exp
   grace_deadline: timestamptz_comparison_exp
   id: uuid_comparison_exp
   last_attempt_at: timestamptz_comparison_exp
-  log_entry_id: bigint_comparison_exp
+  log_delivery_id: String_comparison_exp
+  log_leaf_index: bigint_comparison_exp
+  log_uid: uuid_comparison_exp
   manifest: bytea_comparison_exp
   public_document_id: uuid_comparison_exp
   public_path: String_comparison_exp
@@ -10151,7 +10204,7 @@ input type for incrementing numeric columns in table "sequent_backend.ballot_box
 input ballot_box_seal_inc_input {
   ballots_counted: bigint
   ballots_in_box: bigint
-  log_entry_id: bigint
+  log_leaf_index: bigint
 }
 
 """
@@ -10170,12 +10223,13 @@ input ballot_box_seal_insert_input {
   election_event_id: uuid
   election_id: uuid
   election_name: String
-  failure_posted_at: timestamptz
   failure_reason: String
   grace_deadline: timestamptz
   id: uuid
   last_attempt_at: timestamptz
-  log_entry_id: bigint
+  log_delivery_id: String
+  log_leaf_index: bigint
+  log_uid: uuid
   manifest: bytea
   """
   The seal record's document: public or private, by the event's Seal Record Publication policy.
@@ -10206,12 +10260,13 @@ type ballot_box_seal_max_fields {
   election_event_id: uuid
   election_id: uuid
   election_name: String
-  failure_posted_at: timestamptz
   failure_reason: String
   grace_deadline: timestamptz
   id: uuid
   last_attempt_at: timestamptz
-  log_entry_id: bigint
+  log_delivery_id: String
+  log_leaf_index: bigint
+  log_uid: uuid
   """
   The seal record's document: public or private, by the event's Seal Record Publication policy.
   """
@@ -10240,12 +10295,13 @@ type ballot_box_seal_min_fields {
   election_event_id: uuid
   election_id: uuid
   election_name: String
-  failure_posted_at: timestamptz
   failure_reason: String
   grace_deadline: timestamptz
   id: uuid
   last_attempt_at: timestamptz
-  log_entry_id: bigint
+  log_delivery_id: String
+  log_leaf_index: bigint
+  log_uid: uuid
   """
   The seal record's document: public or private, by the event's Seal Record Publication policy.
   """
@@ -10297,12 +10353,13 @@ input ballot_box_seal_order_by {
   election_event_id: order_by
   election_id: order_by
   election_name: order_by
-  failure_posted_at: order_by
   failure_reason: order_by
   grace_deadline: order_by
   id: order_by
   last_attempt_at: order_by
-  log_entry_id: order_by
+  log_delivery_id: order_by
+  log_leaf_index: order_by
+  log_uid: order_by
   manifest: order_by
   public_document_id: order_by
   public_path: order_by
@@ -10352,8 +10409,6 @@ enum ballot_box_seal_select_column {
   """column name"""
   election_name
   """column name"""
-  failure_posted_at
-  """column name"""
   failure_reason
   """column name"""
   grace_deadline
@@ -10362,7 +10417,11 @@ enum ballot_box_seal_select_column {
   """column name"""
   last_attempt_at
   """column name"""
-  log_entry_id
+  log_delivery_id
+  """column name"""
+  log_leaf_index
+  """column name"""
+  log_uid
   """column name"""
   manifest
   """column name"""
@@ -10400,12 +10459,13 @@ input ballot_box_seal_set_input {
   election_event_id: uuid
   election_id: uuid
   election_name: String
-  failure_posted_at: timestamptz
   failure_reason: String
   grace_deadline: timestamptz
   id: uuid
   last_attempt_at: timestamptz
-  log_entry_id: bigint
+  log_delivery_id: String
+  log_leaf_index: bigint
+  log_uid: uuid
   manifest: bytea
   """
   The seal record's document: public or private, by the event's Seal Record Publication policy.
@@ -10428,21 +10488,21 @@ input ballot_box_seal_set_input {
 type ballot_box_seal_stddev_fields {
   ballots_counted: Float
   ballots_in_box: Float
-  log_entry_id: Float
+  log_leaf_index: Float
 }
 
 """aggregate stddev_pop on columns"""
 type ballot_box_seal_stddev_pop_fields {
   ballots_counted: Float
   ballots_in_box: Float
-  log_entry_id: Float
+  log_leaf_index: Float
 }
 
 """aggregate stddev_samp on columns"""
 type ballot_box_seal_stddev_samp_fields {
   ballots_counted: Float
   ballots_in_box: Float
-  log_entry_id: Float
+  log_leaf_index: Float
 }
 
 """
@@ -10468,12 +10528,13 @@ input ballot_box_seal_stream_cursor_value_input {
   election_event_id: uuid
   election_id: uuid
   election_name: String
-  failure_posted_at: timestamptz
   failure_reason: String
   grace_deadline: timestamptz
   id: uuid
   last_attempt_at: timestamptz
-  log_entry_id: bigint
+  log_delivery_id: String
+  log_leaf_index: bigint
+  log_uid: uuid
   manifest: bytea
   """
   The seal record's document: public or private, by the event's Seal Record Publication policy.
@@ -10496,7 +10557,7 @@ input ballot_box_seal_stream_cursor_value_input {
 type ballot_box_seal_sum_fields {
   ballots_counted: bigint
   ballots_in_box: bigint
-  log_entry_id: bigint
+  log_leaf_index: bigint
 }
 
 """
@@ -10526,8 +10587,6 @@ enum ballot_box_seal_update_column {
   """column name"""
   election_name
   """column name"""
-  failure_posted_at
-  """column name"""
   failure_reason
   """column name"""
   grace_deadline
@@ -10536,7 +10595,11 @@ enum ballot_box_seal_update_column {
   """column name"""
   last_attempt_at
   """column name"""
-  log_entry_id
+  log_delivery_id
+  """column name"""
+  log_leaf_index
+  """column name"""
+  log_uid
   """column name"""
   manifest
   """column name"""
@@ -10588,21 +10651,21 @@ input ballot_box_seal_updates {
 type ballot_box_seal_var_pop_fields {
   ballots_counted: Float
   ballots_in_box: Float
-  log_entry_id: Float
+  log_leaf_index: Float
 }
 
 """aggregate var_samp on columns"""
 type ballot_box_seal_var_samp_fields {
   ballots_counted: Float
   ballots_in_box: Float
-  log_entry_id: Float
+  log_leaf_index: Float
 }
 
 """aggregate variance on columns"""
 type ballot_box_seal_variance_fields {
   ballots_counted: Float
   ballots_in_box: Float
-  log_entry_id: Float
+  log_leaf_index: Float
 }
 
 """
@@ -11753,380 +11816,6 @@ input candidate_updates {
   _set: candidate_set_input
   """filter the rows which have to be updated"""
   where: candidate_bool_exp!
-}
-
-"""
-columns and relationships of "sequent_backend.cast_vote"
-"""
-type cast_vote {
-  annotations(
-    """JSON select path"""
-    path: String
-  ): jsonb
-  area_id: uuid
-  ballot_id: String
-  cast_ballot_signature: bytea
-  cast_receipt_signature: String
-  content: String
-  created_at: timestamptz
-  """An object relationship"""
-  election: election
-  election_event_id: uuid!
-  election_id: uuid
-  id: uuid!
-  labels(
-    """JSON select path"""
-    path: String
-  ): jsonb
-  last_updated_at: timestamptz
-  received_ballot_id: uuid
-  status: String!
-  tenant_id: uuid!
-  voter_id_string: String
-}
-
-"""
-aggregated selection of "sequent_backend.cast_vote"
-"""
-type cast_vote_aggregate {
-  aggregate: cast_vote_aggregate_fields
-  nodes: [cast_vote!]!
-}
-
-"""
-aggregate fields of "sequent_backend.cast_vote"
-"""
-type cast_vote_aggregate_fields {
-  count(columns: [cast_vote_select_column!], distinct: Boolean): Int!
-  max: cast_vote_max_fields
-  min: cast_vote_min_fields
-}
-
-"""append existing jsonb value of filtered columns with new jsonb value"""
-input cast_vote_append_input {
-  annotations: jsonb
-  labels: jsonb
-}
-
-"""
-Boolean expression to filter rows from the table "sequent_backend.cast_vote". All fields are combined with a logical 'AND'.
-"""
-input cast_vote_bool_exp {
-  _and: [cast_vote_bool_exp!]
-  _not: cast_vote_bool_exp
-  _or: [cast_vote_bool_exp!]
-  annotations: jsonb_comparison_exp
-  area_id: uuid_comparison_exp
-  ballot_id: String_comparison_exp
-  cast_ballot_signature: bytea_comparison_exp
-  cast_receipt_signature: String_comparison_exp
-  content: String_comparison_exp
-  created_at: timestamptz_comparison_exp
-  election: election_bool_exp
-  election_event_id: uuid_comparison_exp
-  election_id: uuid_comparison_exp
-  id: uuid_comparison_exp
-  labels: jsonb_comparison_exp
-  last_updated_at: timestamptz_comparison_exp
-  received_ballot_id: uuid_comparison_exp
-  status: String_comparison_exp
-  tenant_id: uuid_comparison_exp
-  voter_id_string: String_comparison_exp
-}
-
-"""
-unique or primary key constraints on table "sequent_backend.cast_vote"
-"""
-enum cast_vote_constraint {
-  """
-  unique or primary key constraint on columns "id", "tenant_id", "election_event_id"
-  """
-  cast_vote_pkey
-}
-
-"""
-delete the field or element with specified path (for JSON arrays, negative integers count from the end)
-"""
-input cast_vote_delete_at_path_input {
-  annotations: [String!]
-  labels: [String!]
-}
-
-"""
-delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
-"""
-input cast_vote_delete_elem_input {
-  annotations: Int
-  labels: Int
-}
-
-"""
-delete key/value pair or string element. key/value pairs are matched based on their key value
-"""
-input cast_vote_delete_key_input {
-  annotations: String
-  labels: String
-}
-
-"""
-input type for inserting data into table "sequent_backend.cast_vote"
-"""
-input cast_vote_insert_input {
-  annotations: jsonb
-  area_id: uuid
-  ballot_id: String
-  cast_ballot_signature: bytea
-  cast_receipt_signature: String
-  content: String
-  created_at: timestamptz
-  election: election_obj_rel_insert_input
-  election_event_id: uuid
-  election_id: uuid
-  id: uuid
-  labels: jsonb
-  last_updated_at: timestamptz
-  received_ballot_id: uuid
-  status: String
-  tenant_id: uuid
-  voter_id_string: String
-}
-
-"""aggregate max on columns"""
-type cast_vote_max_fields {
-  area_id: uuid
-  ballot_id: String
-  cast_receipt_signature: String
-  content: String
-  created_at: timestamptz
-  election_event_id: uuid
-  election_id: uuid
-  id: uuid
-  last_updated_at: timestamptz
-  received_ballot_id: uuid
-  status: String
-  tenant_id: uuid
-  voter_id_string: String
-}
-
-"""aggregate min on columns"""
-type cast_vote_min_fields {
-  area_id: uuid
-  ballot_id: String
-  cast_receipt_signature: String
-  content: String
-  created_at: timestamptz
-  election_event_id: uuid
-  election_id: uuid
-  id: uuid
-  last_updated_at: timestamptz
-  received_ballot_id: uuid
-  status: String
-  tenant_id: uuid
-  voter_id_string: String
-}
-
-"""
-response of any mutation on the table "sequent_backend.cast_vote"
-"""
-type cast_vote_mutation_response {
-  """number of rows affected by the mutation"""
-  affected_rows: Int!
-  """data from the rows affected by the mutation"""
-  returning: [cast_vote!]!
-}
-
-"""
-on_conflict condition type for table "sequent_backend.cast_vote"
-"""
-input cast_vote_on_conflict {
-  constraint: cast_vote_constraint!
-  update_columns: [cast_vote_update_column!]! = []
-  where: cast_vote_bool_exp
-}
-
-"""Ordering options when selecting data from "sequent_backend.cast_vote"."""
-input cast_vote_order_by {
-  annotations: order_by
-  area_id: order_by
-  ballot_id: order_by
-  cast_ballot_signature: order_by
-  cast_receipt_signature: order_by
-  content: order_by
-  created_at: order_by
-  election: election_order_by
-  election_event_id: order_by
-  election_id: order_by
-  id: order_by
-  labels: order_by
-  last_updated_at: order_by
-  received_ballot_id: order_by
-  status: order_by
-  tenant_id: order_by
-  voter_id_string: order_by
-}
-
-"""primary key columns input for table: sequent_backend.cast_vote"""
-input cast_vote_pk_columns_input {
-  election_event_id: uuid!
-  id: uuid!
-  tenant_id: uuid!
-}
-
-"""prepend existing jsonb value of filtered columns with new jsonb value"""
-input cast_vote_prepend_input {
-  annotations: jsonb
-  labels: jsonb
-}
-
-"""
-select columns of table "sequent_backend.cast_vote"
-"""
-enum cast_vote_select_column {
-  """column name"""
-  annotations
-  """column name"""
-  area_id
-  """column name"""
-  ballot_id
-  """column name"""
-  cast_ballot_signature
-  """column name"""
-  cast_receipt_signature
-  """column name"""
-  content
-  """column name"""
-  created_at
-  """column name"""
-  election_event_id
-  """column name"""
-  election_id
-  """column name"""
-  id
-  """column name"""
-  labels
-  """column name"""
-  last_updated_at
-  """column name"""
-  received_ballot_id
-  """column name"""
-  status
-  """column name"""
-  tenant_id
-  """column name"""
-  voter_id_string
-}
-
-"""
-input type for updating data in table "sequent_backend.cast_vote"
-"""
-input cast_vote_set_input {
-  annotations: jsonb
-  area_id: uuid
-  ballot_id: String
-  cast_ballot_signature: bytea
-  cast_receipt_signature: String
-  content: String
-  created_at: timestamptz
-  election_event_id: uuid
-  election_id: uuid
-  id: uuid
-  labels: jsonb
-  last_updated_at: timestamptz
-  received_ballot_id: uuid
-  status: String
-  tenant_id: uuid
-  voter_id_string: String
-}
-
-"""
-Streaming cursor of the table "sequent_backend_cast_vote"
-"""
-input cast_vote_stream_cursor_input {
-  """Stream column input with initial value"""
-  initial_value: cast_vote_stream_cursor_value_input!
-  """cursor ordering"""
-  ordering: cursor_ordering
-}
-
-"""Initial value of the column from where the streaming should start"""
-input cast_vote_stream_cursor_value_input {
-  annotations: jsonb
-  area_id: uuid
-  ballot_id: String
-  cast_ballot_signature: bytea
-  cast_receipt_signature: String
-  content: String
-  created_at: timestamptz
-  election_event_id: uuid
-  election_id: uuid
-  id: uuid
-  labels: jsonb
-  last_updated_at: timestamptz
-  received_ballot_id: uuid
-  status: String
-  tenant_id: uuid
-  voter_id_string: String
-}
-
-"""
-update columns of table "sequent_backend.cast_vote"
-"""
-enum cast_vote_update_column {
-  """column name"""
-  annotations
-  """column name"""
-  area_id
-  """column name"""
-  ballot_id
-  """column name"""
-  cast_ballot_signature
-  """column name"""
-  cast_receipt_signature
-  """column name"""
-  content
-  """column name"""
-  created_at
-  """column name"""
-  election_event_id
-  """column name"""
-  election_id
-  """column name"""
-  id
-  """column name"""
-  labels
-  """column name"""
-  last_updated_at
-  """column name"""
-  received_ballot_id
-  """column name"""
-  status
-  """column name"""
-  tenant_id
-  """column name"""
-  voter_id_string
-}
-
-input cast_vote_updates {
-  """append existing jsonb value of filtered columns with new jsonb value"""
-  _append: cast_vote_append_input
-  """
-  delete the field or element with specified path (for JSON arrays, negative integers count from the end)
-  """
-  _delete_at_path: cast_vote_delete_at_path_input
-  """
-  delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
-  """
-  _delete_elem: cast_vote_delete_elem_input
-  """
-  delete key/value pair or string element. key/value pairs are matched based on their key value
-  """
-  _delete_key: cast_vote_delete_key_input
-  """prepend existing jsonb value of filtered columns with new jsonb value"""
-  _prepend: cast_vote_prepend_input
-  """sets the columns of the filtered rows to the given values"""
-  _set: cast_vote_set_input
-  """filter the rows which have to be updated"""
-  where: cast_vote_bool_exp!
 }
 
 """
@@ -15379,6 +15068,344 @@ order by variance() on columns of table "sequent_backend.election"
 """
 input election_variance_order_by {
   num_allowed_revotes: order_by
+}
+
+"""
+Signed checkpoints of election event electoral logs, kept outside the electoral-log database. The application only inserts rows.
+"""
+type electoral_log_checkpoint {
+  board_name: String!
+  created_at: timestamptz!
+  election_event_id: uuid!
+  id: uuid!
+  """
+  Identity of the Trellis log: the event's board, or a sealed log it continues after an import.
+  """
+  log_uid: uuid!
+  reason: String!
+  root: String!
+  signature: String!
+  signer_pk: String!
+  tenant_id: uuid!
+  tree_size: bigint!
+}
+
+"""
+aggregated selection of "sequent_backend.electoral_log_checkpoint"
+"""
+type electoral_log_checkpoint_aggregate {
+  aggregate: electoral_log_checkpoint_aggregate_fields
+  nodes: [electoral_log_checkpoint!]!
+}
+
+"""
+aggregate fields of "sequent_backend.electoral_log_checkpoint"
+"""
+type electoral_log_checkpoint_aggregate_fields {
+  avg: electoral_log_checkpoint_avg_fields
+  count(columns: [electoral_log_checkpoint_select_column!], distinct: Boolean): Int!
+  max: electoral_log_checkpoint_max_fields
+  min: electoral_log_checkpoint_min_fields
+  stddev: electoral_log_checkpoint_stddev_fields
+  stddev_pop: electoral_log_checkpoint_stddev_pop_fields
+  stddev_samp: electoral_log_checkpoint_stddev_samp_fields
+  sum: electoral_log_checkpoint_sum_fields
+  var_pop: electoral_log_checkpoint_var_pop_fields
+  var_samp: electoral_log_checkpoint_var_samp_fields
+  variance: electoral_log_checkpoint_variance_fields
+}
+
+"""aggregate avg on columns"""
+type electoral_log_checkpoint_avg_fields {
+  tree_size: Float
+}
+
+"""
+Boolean expression to filter rows from the table "sequent_backend.electoral_log_checkpoint". All fields are combined with a logical 'AND'.
+"""
+input electoral_log_checkpoint_bool_exp {
+  _and: [electoral_log_checkpoint_bool_exp!]
+  _not: electoral_log_checkpoint_bool_exp
+  _or: [electoral_log_checkpoint_bool_exp!]
+  board_name: String_comparison_exp
+  created_at: timestamptz_comparison_exp
+  election_event_id: uuid_comparison_exp
+  id: uuid_comparison_exp
+  log_uid: uuid_comparison_exp
+  reason: String_comparison_exp
+  root: String_comparison_exp
+  signature: String_comparison_exp
+  signer_pk: String_comparison_exp
+  tenant_id: uuid_comparison_exp
+  tree_size: bigint_comparison_exp
+}
+
+"""
+unique or primary key constraints on table "sequent_backend.electoral_log_checkpoint"
+"""
+enum electoral_log_checkpoint_constraint {
+  """
+  unique or primary key constraint on columns "tree_size", "log_uid", "tenant_id", "election_event_id"
+  """
+  electoral_log_checkpoint_log_uid_tree_size_key
+  """
+  unique or primary key constraint on columns "id"
+  """
+  electoral_log_checkpoint_pkey
+}
+
+"""
+input type for incrementing numeric columns in table "sequent_backend.electoral_log_checkpoint"
+"""
+input electoral_log_checkpoint_inc_input {
+  tree_size: bigint
+}
+
+"""
+input type for inserting data into table "sequent_backend.electoral_log_checkpoint"
+"""
+input electoral_log_checkpoint_insert_input {
+  board_name: String
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  """
+  Identity of the Trellis log: the event's board, or a sealed log it continues after an import.
+  """
+  log_uid: uuid
+  reason: String
+  root: String
+  signature: String
+  signer_pk: String
+  tenant_id: uuid
+  tree_size: bigint
+}
+
+"""aggregate max on columns"""
+type electoral_log_checkpoint_max_fields {
+  board_name: String
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  """
+  Identity of the Trellis log: the event's board, or a sealed log it continues after an import.
+  """
+  log_uid: uuid
+  reason: String
+  root: String
+  signature: String
+  signer_pk: String
+  tenant_id: uuid
+  tree_size: bigint
+}
+
+"""aggregate min on columns"""
+type electoral_log_checkpoint_min_fields {
+  board_name: String
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  """
+  Identity of the Trellis log: the event's board, or a sealed log it continues after an import.
+  """
+  log_uid: uuid
+  reason: String
+  root: String
+  signature: String
+  signer_pk: String
+  tenant_id: uuid
+  tree_size: bigint
+}
+
+"""
+response of any mutation on the table "sequent_backend.electoral_log_checkpoint"
+"""
+type electoral_log_checkpoint_mutation_response {
+  """number of rows affected by the mutation"""
+  affected_rows: Int!
+  """data from the rows affected by the mutation"""
+  returning: [electoral_log_checkpoint!]!
+}
+
+"""
+on_conflict condition type for table "sequent_backend.electoral_log_checkpoint"
+"""
+input electoral_log_checkpoint_on_conflict {
+  constraint: electoral_log_checkpoint_constraint!
+  update_columns: [electoral_log_checkpoint_update_column!]! = []
+  where: electoral_log_checkpoint_bool_exp
+}
+
+"""
+Ordering options when selecting data from "sequent_backend.electoral_log_checkpoint".
+"""
+input electoral_log_checkpoint_order_by {
+  board_name: order_by
+  created_at: order_by
+  election_event_id: order_by
+  id: order_by
+  log_uid: order_by
+  reason: order_by
+  root: order_by
+  signature: order_by
+  signer_pk: order_by
+  tenant_id: order_by
+  tree_size: order_by
+}
+
+"""
+primary key columns input for table: sequent_backend.electoral_log_checkpoint
+"""
+input electoral_log_checkpoint_pk_columns_input {
+  id: uuid!
+}
+
+"""
+select columns of table "sequent_backend.electoral_log_checkpoint"
+"""
+enum electoral_log_checkpoint_select_column {
+  """column name"""
+  board_name
+  """column name"""
+  created_at
+  """column name"""
+  election_event_id
+  """column name"""
+  id
+  """column name"""
+  log_uid
+  """column name"""
+  reason
+  """column name"""
+  root
+  """column name"""
+  signature
+  """column name"""
+  signer_pk
+  """column name"""
+  tenant_id
+  """column name"""
+  tree_size
+}
+
+"""
+input type for updating data in table "sequent_backend.electoral_log_checkpoint"
+"""
+input electoral_log_checkpoint_set_input {
+  board_name: String
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  """
+  Identity of the Trellis log: the event's board, or a sealed log it continues after an import.
+  """
+  log_uid: uuid
+  reason: String
+  root: String
+  signature: String
+  signer_pk: String
+  tenant_id: uuid
+  tree_size: bigint
+}
+
+"""aggregate stddev on columns"""
+type electoral_log_checkpoint_stddev_fields {
+  tree_size: Float
+}
+
+"""aggregate stddev_pop on columns"""
+type electoral_log_checkpoint_stddev_pop_fields {
+  tree_size: Float
+}
+
+"""aggregate stddev_samp on columns"""
+type electoral_log_checkpoint_stddev_samp_fields {
+  tree_size: Float
+}
+
+"""
+Streaming cursor of the table "sequent_backend_electoral_log_checkpoint"
+"""
+input electoral_log_checkpoint_stream_cursor_input {
+  """Stream column input with initial value"""
+  initial_value: electoral_log_checkpoint_stream_cursor_value_input!
+  """cursor ordering"""
+  ordering: cursor_ordering
+}
+
+"""Initial value of the column from where the streaming should start"""
+input electoral_log_checkpoint_stream_cursor_value_input {
+  board_name: String
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  """
+  Identity of the Trellis log: the event's board, or a sealed log it continues after an import.
+  """
+  log_uid: uuid
+  reason: String
+  root: String
+  signature: String
+  signer_pk: String
+  tenant_id: uuid
+  tree_size: bigint
+}
+
+"""aggregate sum on columns"""
+type electoral_log_checkpoint_sum_fields {
+  tree_size: bigint
+}
+
+"""
+update columns of table "sequent_backend.electoral_log_checkpoint"
+"""
+enum electoral_log_checkpoint_update_column {
+  """column name"""
+  board_name
+  """column name"""
+  created_at
+  """column name"""
+  election_event_id
+  """column name"""
+  id
+  """column name"""
+  log_uid
+  """column name"""
+  reason
+  """column name"""
+  root
+  """column name"""
+  signature
+  """column name"""
+  signer_pk
+  """column name"""
+  tenant_id
+  """column name"""
+  tree_size
+}
+
+input electoral_log_checkpoint_updates {
+  """increments the numeric columns with given value of the filtered values"""
+  _inc: electoral_log_checkpoint_inc_input
+  """sets the columns of the filtered rows to the given values"""
+  _set: electoral_log_checkpoint_set_input
+  """filter the rows which have to be updated"""
+  where: electoral_log_checkpoint_bool_exp!
+}
+
+"""aggregate var_pop on columns"""
+type electoral_log_checkpoint_var_pop_fields {
+  tree_size: Float
+}
+
+"""aggregate var_samp on columns"""
+type electoral_log_checkpoint_var_samp_fields {
+  tree_size: Float
+}
+
+"""aggregate variance on columns"""
+type electoral_log_checkpoint_variance_fields {
+  tree_size: Float
 }
 
 """
@@ -19285,6 +19312,411 @@ input preview_updates {
   _set: preview_set_input
   """filter the rows which have to be updated"""
   where: preview_bool_exp!
+}
+
+"""
+columns and relationships of "sequent_backend.protocol_board"
+"""
+type protocol_board {
+  """
+  The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.
+  """
+  batch: Int
+  created_at: timestamptz!
+  election_event_id: uuid!
+  id: uuid!
+  keys_ceremony_id: uuid!
+  """
+  The canonical bytes of the message published by the protocol manager it when the ceremony was created. Configuration for dkg, and Ballots for tally.
+  """
+  manager_message: bytea!
+  name: String!
+  """
+  The parent board of a child board, or NULL for parent. A child board is any tally board, and its parent is dkg.
+  """
+  parent_id: uuid
+  """
+  The tally session of a tally board, or NULL for dkg. Set together with parent_id and batch.
+  """
+  tally_session_id: uuid
+  tenant_id: uuid!
+}
+
+"""
+aggregated selection of "sequent_backend.protocol_board"
+"""
+type protocol_board_aggregate {
+  aggregate: protocol_board_aggregate_fields
+  nodes: [protocol_board!]!
+}
+
+"""
+aggregate fields of "sequent_backend.protocol_board"
+"""
+type protocol_board_aggregate_fields {
+  avg: protocol_board_avg_fields
+  count(columns: [protocol_board_select_column!], distinct: Boolean): Int!
+  max: protocol_board_max_fields
+  min: protocol_board_min_fields
+  stddev: protocol_board_stddev_fields
+  stddev_pop: protocol_board_stddev_pop_fields
+  stddev_samp: protocol_board_stddev_samp_fields
+  sum: protocol_board_sum_fields
+  var_pop: protocol_board_var_pop_fields
+  var_samp: protocol_board_var_samp_fields
+  variance: protocol_board_variance_fields
+}
+
+"""aggregate avg on columns"""
+type protocol_board_avg_fields {
+  """
+  The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.
+  """
+  batch: Float
+}
+
+"""
+Boolean expression to filter rows from the table "sequent_backend.protocol_board". All fields are combined with a logical 'AND'.
+"""
+input protocol_board_bool_exp {
+  _and: [protocol_board_bool_exp!]
+  _not: protocol_board_bool_exp
+  _or: [protocol_board_bool_exp!]
+  batch: Int_comparison_exp
+  created_at: timestamptz_comparison_exp
+  election_event_id: uuid_comparison_exp
+  id: uuid_comparison_exp
+  keys_ceremony_id: uuid_comparison_exp
+  manager_message: bytea_comparison_exp
+  name: String_comparison_exp
+  parent_id: uuid_comparison_exp
+  tally_session_id: uuid_comparison_exp
+  tenant_id: uuid_comparison_exp
+}
+
+"""
+unique or primary key constraints on table "sequent_backend.protocol_board"
+"""
+enum protocol_board_constraint {
+  """
+  unique or primary key constraint on columns "name"
+  """
+  protocol_board_name_key
+  """
+  unique or primary key constraint on columns "keys_ceremony_id"
+  """
+  protocol_board_one_root_per_ceremony_idx
+  """
+  unique or primary key constraint on columns "id"
+  """
+  protocol_board_pkey
+  """
+  unique or primary key constraint on columns "tally_session_id", "batch"
+  """
+  protocol_board_tally_session_id_batch_key
+}
+
+"""
+input type for incrementing numeric columns in table "sequent_backend.protocol_board"
+"""
+input protocol_board_inc_input {
+  """
+  The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.
+  """
+  batch: Int
+}
+
+"""
+input type for inserting data into table "sequent_backend.protocol_board"
+"""
+input protocol_board_insert_input {
+  """
+  The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.
+  """
+  batch: Int
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  keys_ceremony_id: uuid
+  """
+  The canonical bytes of the message published by the protocol manager it when the ceremony was created. Configuration for dkg, and Ballots for tally.
+  """
+  manager_message: bytea
+  name: String
+  """
+  The parent board of a child board, or NULL for parent. A child board is any tally board, and its parent is dkg.
+  """
+  parent_id: uuid
+  """
+  The tally session of a tally board, or NULL for dkg. Set together with parent_id and batch.
+  """
+  tally_session_id: uuid
+  tenant_id: uuid
+}
+
+"""aggregate max on columns"""
+type protocol_board_max_fields {
+  """
+  The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.
+  """
+  batch: Int
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  keys_ceremony_id: uuid
+  name: String
+  """
+  The parent board of a child board, or NULL for parent. A child board is any tally board, and its parent is dkg.
+  """
+  parent_id: uuid
+  """
+  The tally session of a tally board, or NULL for dkg. Set together with parent_id and batch.
+  """
+  tally_session_id: uuid
+  tenant_id: uuid
+}
+
+"""aggregate min on columns"""
+type protocol_board_min_fields {
+  """
+  The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.
+  """
+  batch: Int
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  keys_ceremony_id: uuid
+  name: String
+  """
+  The parent board of a child board, or NULL for parent. A child board is any tally board, and its parent is dkg.
+  """
+  parent_id: uuid
+  """
+  The tally session of a tally board, or NULL for dkg. Set together with parent_id and batch.
+  """
+  tally_session_id: uuid
+  tenant_id: uuid
+}
+
+"""
+response of any mutation on the table "sequent_backend.protocol_board"
+"""
+type protocol_board_mutation_response {
+  """number of rows affected by the mutation"""
+  affected_rows: Int!
+  """data from the rows affected by the mutation"""
+  returning: [protocol_board!]!
+}
+
+"""
+on_conflict condition type for table "sequent_backend.protocol_board"
+"""
+input protocol_board_on_conflict {
+  constraint: protocol_board_constraint!
+  update_columns: [protocol_board_update_column!]! = []
+  where: protocol_board_bool_exp
+}
+
+"""
+Ordering options when selecting data from "sequent_backend.protocol_board".
+"""
+input protocol_board_order_by {
+  batch: order_by
+  created_at: order_by
+  election_event_id: order_by
+  id: order_by
+  keys_ceremony_id: order_by
+  manager_message: order_by
+  name: order_by
+  parent_id: order_by
+  tally_session_id: order_by
+  tenant_id: order_by
+}
+
+"""primary key columns input for table: sequent_backend.protocol_board"""
+input protocol_board_pk_columns_input {
+  id: uuid!
+}
+
+"""
+select columns of table "sequent_backend.protocol_board"
+"""
+enum protocol_board_select_column {
+  """column name"""
+  batch
+  """column name"""
+  created_at
+  """column name"""
+  election_event_id
+  """column name"""
+  id
+  """column name"""
+  keys_ceremony_id
+  """column name"""
+  manager_message
+  """column name"""
+  name
+  """column name"""
+  parent_id
+  """column name"""
+  tally_session_id
+  """column name"""
+  tenant_id
+}
+
+"""
+input type for updating data in table "sequent_backend.protocol_board"
+"""
+input protocol_board_set_input {
+  """
+  The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.
+  """
+  batch: Int
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  keys_ceremony_id: uuid
+  """
+  The canonical bytes of the message published by the protocol manager it when the ceremony was created. Configuration for dkg, and Ballots for tally.
+  """
+  manager_message: bytea
+  name: String
+  """
+  The parent board of a child board, or NULL for parent. A child board is any tally board, and its parent is dkg.
+  """
+  parent_id: uuid
+  """
+  The tally session of a tally board, or NULL for dkg. Set together with parent_id and batch.
+  """
+  tally_session_id: uuid
+  tenant_id: uuid
+}
+
+"""aggregate stddev on columns"""
+type protocol_board_stddev_fields {
+  """
+  The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.
+  """
+  batch: Float
+}
+
+"""aggregate stddev_pop on columns"""
+type protocol_board_stddev_pop_fields {
+  """
+  The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.
+  """
+  batch: Float
+}
+
+"""aggregate stddev_samp on columns"""
+type protocol_board_stddev_samp_fields {
+  """
+  The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.
+  """
+  batch: Float
+}
+
+"""
+Streaming cursor of the table "sequent_backend_protocol_board"
+"""
+input protocol_board_stream_cursor_input {
+  """Stream column input with initial value"""
+  initial_value: protocol_board_stream_cursor_value_input!
+  """cursor ordering"""
+  ordering: cursor_ordering
+}
+
+"""Initial value of the column from where the streaming should start"""
+input protocol_board_stream_cursor_value_input {
+  """
+  The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.
+  """
+  batch: Int
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  keys_ceremony_id: uuid
+  """
+  The canonical bytes of the message published by the protocol manager it when the ceremony was created. Configuration for dkg, and Ballots for tally.
+  """
+  manager_message: bytea
+  name: String
+  """
+  The parent board of a child board, or NULL for parent. A child board is any tally board, and its parent is dkg.
+  """
+  parent_id: uuid
+  """
+  The tally session of a tally board, or NULL for dkg. Set together with parent_id and batch.
+  """
+  tally_session_id: uuid
+  tenant_id: uuid
+}
+
+"""aggregate sum on columns"""
+type protocol_board_sum_fields {
+  """
+  The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.
+  """
+  batch: Int
+}
+
+"""
+update columns of table "sequent_backend.protocol_board"
+"""
+enum protocol_board_update_column {
+  """column name"""
+  batch
+  """column name"""
+  created_at
+  """column name"""
+  election_event_id
+  """column name"""
+  id
+  """column name"""
+  keys_ceremony_id
+  """column name"""
+  manager_message
+  """column name"""
+  name
+  """column name"""
+  parent_id
+  """column name"""
+  tally_session_id
+  """column name"""
+  tenant_id
+}
+
+input protocol_board_updates {
+  """increments the numeric columns with given value of the filtered values"""
+  _inc: protocol_board_inc_input
+  """sets the columns of the filtered rows to the given values"""
+  _set: protocol_board_set_input
+  """filter the rows which have to be updated"""
+  where: protocol_board_bool_exp!
+}
+
+"""aggregate var_pop on columns"""
+type protocol_board_var_pop_fields {
+  """
+  The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.
+  """
+  batch: Float
+}
+
+"""aggregate var_samp on columns"""
+type protocol_board_var_samp_fields {
+  """
+  The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.
+  """
+  batch: Float
+}
+
+"""aggregate variance on columns"""
+type protocol_board_variance_fields {
+  """
+  The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.
+  """
+  batch: Float
 }
 
 """
@@ -23459,6 +23891,10 @@ input scheduled_event_bool_exp {
 unique or primary key constraints on table "sequent_backend.scheduled_event"
 """
 enum scheduled_event_constraint {
+  """
+  unique or primary key constraint on columns "task_id", "tenant_id", "election_event_id"
+  """
+  scheduled_event_active_voting_task_idx
   """
   unique or primary key constraint on columns "id"
   """
@@ -31931,6 +32367,10 @@ type trustee {
   last_updated_at: timestamptz
   name: String
   public_key: String
+  """
+  Base64 of the canonical group element bytes. NULL until the trustee has a key.
+  """
+  share_encryption_public_key: String
   tenant_id: uuid
 }
 
@@ -32000,6 +32440,7 @@ input trustee_bool_exp {
   last_updated_at: timestamptz_comparison_exp
   name: String_comparison_exp
   public_key: String_comparison_exp
+  share_encryption_public_key: String_comparison_exp
   tenant_id: uuid_comparison_exp
 }
 
@@ -32048,6 +32489,10 @@ input trustee_insert_input {
   last_updated_at: timestamptz
   name: String
   public_key: String
+  """
+  Base64 of the canonical group element bytes. NULL until the trustee has a key.
+  """
+  share_encryption_public_key: String
   tenant_id: uuid
 }
 
@@ -32058,6 +32503,10 @@ type trustee_max_fields {
   last_updated_at: timestamptz
   name: String
   public_key: String
+  """
+  Base64 of the canonical group element bytes. NULL until the trustee has a key.
+  """
+  share_encryption_public_key: String
   tenant_id: uuid
 }
 
@@ -32070,6 +32519,10 @@ input trustee_max_order_by {
   last_updated_at: order_by
   name: order_by
   public_key: order_by
+  """
+  Base64 of the canonical group element bytes. NULL until the trustee has a key.
+  """
+  share_encryption_public_key: order_by
   tenant_id: order_by
 }
 
@@ -32080,6 +32533,10 @@ type trustee_min_fields {
   last_updated_at: timestamptz
   name: String
   public_key: String
+  """
+  Base64 of the canonical group element bytes. NULL until the trustee has a key.
+  """
+  share_encryption_public_key: String
   tenant_id: uuid
 }
 
@@ -32092,6 +32549,10 @@ input trustee_min_order_by {
   last_updated_at: order_by
   name: order_by
   public_key: order_by
+  """
+  Base64 of the canonical group element bytes. NULL until the trustee has a key.
+  """
+  share_encryption_public_key: order_by
   tenant_id: order_by
 }
 
@@ -32123,6 +32584,7 @@ input trustee_order_by {
   last_updated_at: order_by
   name: order_by
   public_key: order_by
+  share_encryption_public_key: order_by
   tenant_id: order_by
 }
 
@@ -32156,6 +32618,8 @@ enum trustee_select_column {
   """column name"""
   public_key
   """column name"""
+  share_encryption_public_key
+  """column name"""
   tenant_id
 }
 
@@ -32170,6 +32634,10 @@ input trustee_set_input {
   last_updated_at: timestamptz
   name: String
   public_key: String
+  """
+  Base64 of the canonical group element bytes. NULL until the trustee has a key.
+  """
+  share_encryption_public_key: String
   tenant_id: uuid
 }
 
@@ -32192,6 +32660,10 @@ input trustee_stream_cursor_value_input {
   last_updated_at: timestamptz
   name: String
   public_key: String
+  """
+  Base64 of the canonical group element bytes. NULL until the trustee has a key.
+  """
+  share_encryption_public_key: String
   tenant_id: uuid
 }
 
@@ -32213,6 +32685,8 @@ enum trustee_update_column {
   name
   """column name"""
   public_key
+  """column name"""
+  share_encryption_public_key
   """column name"""
   tenant_id
 }
@@ -32602,51 +33076,6 @@ type subscription_root {
     where: candidate_bool_exp
   ): [candidate!]!
   """
-  fetch data from the table: "sequent_backend.cast_vote"
-  """
-  sequent_backend_cast_vote(
-    """distinct select on columns"""
-    distinct_on: [cast_vote_select_column!]
-    """limit the number of rows returned"""
-    limit: Int
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-    """sort the rows by one or more columns"""
-    order_by: [cast_vote_order_by!]
-    """filter the rows returned"""
-    where: cast_vote_bool_exp
-  ): [cast_vote!]!
-  """
-  fetch aggregated fields from the table: "sequent_backend.cast_vote"
-  """
-  sequent_backend_cast_vote_aggregate(
-    """distinct select on columns"""
-    distinct_on: [cast_vote_select_column!]
-    """limit the number of rows returned"""
-    limit: Int
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-    """sort the rows by one or more columns"""
-    order_by: [cast_vote_order_by!]
-    """filter the rows returned"""
-    where: cast_vote_bool_exp
-  ): cast_vote_aggregate!
-  """
-  fetch data from the table: "sequent_backend.cast_vote" using primary key columns
-  """
-  sequent_backend_cast_vote_by_pk(election_event_id: uuid!, id: uuid!, tenant_id: uuid!): cast_vote
-  """
-  fetch data from the table in a streaming manner: "sequent_backend.cast_vote"
-  """
-  sequent_backend_cast_vote_stream(
-    """maximum number of rows returned in a single batch"""
-    batch_size: Int!
-    """cursor to stream the results returned by the query"""
-    cursor: [cast_vote_stream_cursor_input]!
-    """filter the rows returned"""
-    where: cast_vote_bool_exp
-  ): [cast_vote!]!
-  """
   fetch data from the table: "sequent_backend.certificate_authority"
   """
   sequent_backend_certificate_authority(
@@ -32961,6 +33390,51 @@ type subscription_root {
     """filter the rows returned"""
     where: election_type_bool_exp
   ): [election_type!]!
+  """
+  fetch data from the table: "sequent_backend.electoral_log_checkpoint"
+  """
+  sequent_backend_electoral_log_checkpoint(
+    """distinct select on columns"""
+    distinct_on: [electoral_log_checkpoint_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [electoral_log_checkpoint_order_by!]
+    """filter the rows returned"""
+    where: electoral_log_checkpoint_bool_exp
+  ): [electoral_log_checkpoint!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.electoral_log_checkpoint"
+  """
+  sequent_backend_electoral_log_checkpoint_aggregate(
+    """distinct select on columns"""
+    distinct_on: [electoral_log_checkpoint_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [electoral_log_checkpoint_order_by!]
+    """filter the rows returned"""
+    where: electoral_log_checkpoint_bool_exp
+  ): electoral_log_checkpoint_aggregate!
+  """
+  fetch data from the table: "sequent_backend.electoral_log_checkpoint" using primary key columns
+  """
+  sequent_backend_electoral_log_checkpoint_by_pk(id: uuid!): electoral_log_checkpoint
+  """
+  fetch data from the table in a streaming manner: "sequent_backend.electoral_log_checkpoint"
+  """
+  sequent_backend_electoral_log_checkpoint_stream(
+    """maximum number of rows returned in a single batch"""
+    batch_size: Int!
+    """cursor to stream the results returned by the query"""
+    cursor: [electoral_log_checkpoint_stream_cursor_input]!
+    """filter the rows returned"""
+    where: electoral_log_checkpoint_bool_exp
+  ): [electoral_log_checkpoint!]!
   """
   fetch data from the table: "sequent_backend.event_execution"
   """
@@ -33452,6 +33926,51 @@ type subscription_root {
     """filter the rows returned"""
     where: preview_bool_exp
   ): [preview!]!
+  """
+  fetch data from the table: "sequent_backend.protocol_board"
+  """
+  sequent_backend_protocol_board(
+    """distinct select on columns"""
+    distinct_on: [protocol_board_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [protocol_board_order_by!]
+    """filter the rows returned"""
+    where: protocol_board_bool_exp
+  ): [protocol_board!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.protocol_board"
+  """
+  sequent_backend_protocol_board_aggregate(
+    """distinct select on columns"""
+    distinct_on: [protocol_board_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [protocol_board_order_by!]
+    """filter the rows returned"""
+    where: protocol_board_bool_exp
+  ): protocol_board_aggregate!
+  """
+  fetch data from the table: "sequent_backend.protocol_board" using primary key columns
+  """
+  sequent_backend_protocol_board_by_pk(id: uuid!): protocol_board
+  """
+  fetch data from the table in a streaming manner: "sequent_backend.protocol_board"
+  """
+  sequent_backend_protocol_board_stream(
+    """maximum number of rows returned in a single batch"""
+    batch_size: Int!
+    """cursor to stream the results returned by the query"""
+    cursor: [protocol_board_stream_cursor_input]!
+    """filter the rows returned"""
+    where: protocol_board_bool_exp
+  ): [protocol_board!]!
   """
   fetch data from the table: "sequent_backend.report"
   """
