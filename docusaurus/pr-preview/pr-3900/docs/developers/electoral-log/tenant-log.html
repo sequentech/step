@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Tenant Log | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3900/docs/developers/electoral-log/tenant-log"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Tenant Log | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3900/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3900/docs/developers/electoral-log/tenant-log"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3900/docs/developers/electoral-log/tenant-log" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3900/docs/developers/electoral-log/tenant-log" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Tenant log","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3900/docs/developers/electoral-log/tenant-log"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3900/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3900/assets/js/runtime~main.48e667a1.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3900/assets/js/runtime~main.2e54a4a7.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3900/assets/js/main.a21d5b2a.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -71,7 +71,9 @@ election event.</li>
 <li class=""><strong>Keycloak.</strong> <code>custom-event-listener</code> recognizes the tenant realm (<code>tenant-&lt;tenant id&gt;</code>)
 and sends its events with no election event. For that realm it leaves out token
 housekeeping (<code>CODE_TO_TOKEN</code>, <code>REFRESH_TOKEN</code>, <code>INTROSPECT_TOKEN</code>, <code>USER_INFO_REQUEST</code>,
-<code>CLIENT_LOGIN</code>, <code>TOKEN_EXCHANGE</code>, <code>PERMISSION_TOKEN</code>); their <code>_ERROR</code> types are kept.</li>
+<code>CLIENT_LOGIN</code>, <code>TOKEN_EXCHANGE</code>, <code>PERMISSION_TOKEN</code>); their <code>_ERROR</code> types are kept.
+A message Keycloak sends to an account, such as a sign-in code, arrives as an event with
+the message as its body; Windmill records it as <code>MESSAGE_SENT</code> and leaves the text out.</li>
 <li class=""><strong>Windmill.</strong> <code>build_tenant_event</code> opens the tenant&#x27;s log once per batch and builds the
 record. An event for a tenant that doesn&#x27;t exist, a body that is not a <code>TenantActivity</code>,
 a <code>tenant_activity</code> that names an election event and an internal record without one are
