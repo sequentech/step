@@ -615,7 +615,7 @@ pub enum StatementBody {
     // "Creación de llave criptográfica"
     KeyGeneration,
     // /workspaces/step/packages/harvest/src/main.rs
-    // routes::tally_ceremony::restore_private_key
+    // routes::tally_ceremony::authorize_tally_custody
     //
     // "Ingreso de los fragmentos de la llave privada"
     KeyInsertionStart,

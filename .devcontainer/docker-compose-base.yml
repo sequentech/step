@@ -86,12 +86,11 @@ services:
     volumes:
       - db_logs:/logs
       - keycloak_db_logs:/keycloak_logs
-      - b4_db_logs:/b4_logs
       - b4v6_db_logs:/b4v6_logs
     user: root
     group_add:
       - '999'
-    command: chown -R 999:999 /logs /keycloak_logs /b4_logs /b4v6_logs
+    command: chown -R 999:999 /logs /keycloak_logs /b4v6_logs
 
   postgres:
     profiles: ["full", "base"]
@@ -210,7 +209,7 @@ services:
   # The image is pinned to the 4.x line: from the 2026 calendar releases on,
   # localstack/localstack:latest exits at startup without an auth token.
   localstack:
-    profiles: [ "wbraid" ]
+    profiles: ["full", "base", "wbraid"]
     container_name: ${DEVCONTAINER_NAME_PREFIX:-}localstack
     image: "localstack/localstack:4@sha256:3ebc37595918b8accb852f8048fef2aff047d465167edd655528065b07bc364a"
     ports:
@@ -228,7 +227,7 @@ services:
   # Creates the wbraid-messages bucket and applies its CORS rules — the twin of
   # what localstack.ps1 does inline on Windows.
   configure-localstack:
-    profiles: [ "wbraid" ]
+    profiles: ["full", "base", "wbraid"]
     container_name: ${DEVCONTAINER_NAME_PREFIX:-}configure-localstack
     image: amazon/aws-cli
     volumes:
@@ -247,7 +246,7 @@ services:
       --bucket wbraid-messages --cors-configuration file:///aws/s3-cors.json"
 
   postgres-b4v6:
-    profiles: [ "wbraid" ]
+    profiles: ["full", "base", "wbraid"]
     image: sequentech.local/postgresql-b4v6
     build:
       context: ./postgresql-b4v6
@@ -270,19 +269,12 @@ services:
     depends_on:
       - postgres-volume-init
 
-  # wbraid's bulletin board (packages/wbraid/crates/b4, binary b4v6), built and
-  # run from the mounted checkout like the other Rust services: cargo-watch
-  # rebuilds it when crates/b4 changes. Same opt-in `wbraid` profile as
-  # localstack; packages/wbraid/b4.sh brings it up by name. Reachable as
-  # http://b4v6:3005 on the project network (WBRAID_B4_URL for the live tests)
-  # and, forwarded by devcontainer.json, as http://127.0.0.1:3005 on the host
-  # for emulator.html.
-  # b4 only presigns S3 URLs, it never calls S3 itself, so AWS_ENDPOINT_URL is
-  # the address the *clients* fetch bodies from: the localstack service name,
-  # which the host browser resolves through a hosts-file entry (TESTING.md).
-  # The SQLite file lives in a named volume, b4.sh --reset clears it.
+  # The supplied wbraid board server stores protocol rows in PostgreSQL.
+  # AWS_ENDPOINT_URL is embedded in presigned URLs fetched by workers and
+  # trustees, so it must be reachable from those clients. Host browser tools
+  # resolve localstack through the hosts-file entry described in TESTING.md.
   b4v6:
-    profiles: [ "wbraid" ]
+    profiles: ["full", "base", "wbraid"]
     image: sequentech.local/cargo-packages
     build:
       context: ../packages/
@@ -299,7 +291,7 @@ services:
       "--watch", "Cargo.toml",
       "--watch", "Cargo.lock",
       "-x",
-      "run --bin b4v6 --features postgres --release"
+      "run --locked --bin b4v6 --features postgres --release"
     ]
     volumes:
       - b4v6_data:/var/lib/b4v6
@@ -321,6 +313,7 @@ services:
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       RUST_LOG: b4=info,b4v6=info
+      CARGO_TARGET_DIR: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/rust-local-target/docker-dev
       WBRAID_B4_BIND: 0.0.0.0:3005
       WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
       DATABASE_URL: postgres://postgres@postgres-b4v6:5432/b4
@@ -656,6 +649,7 @@ services:
       "run"
     ]
     environment:
+      CARGO_TARGET_DIR: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/rust-local-target/docker-dev
       # Monitoring snapshot cadence, the same on beat, windmill and harvest:
       # seconds between passes (5..3600), and between full voter reads.
       MONITORING_SNAPSHOT_INTERVAL_SECONDS: ${MONITORING_SNAPSHOT_INTERVAL_SECONDS:-30}
@@ -667,7 +661,7 @@ services:
       ROCKET_ADDRESS: ${ROCKET_ADDRESS}
       ROCKET_PORT: ${HARVEST_PORT}
       RUSTFLAGS: ${RUSTFLAGS}
-      # Keep linker settings compatible for units sharing packages/target.
+      # Keep linker settings compatible for units sharing rust-local-target/docker-dev.
       # The wrapper preserves debug flags and uses cc when bundled LLD is absent.
       CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/.devcontainer/scripts/rust-lld-cc.sh
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
@@ -754,11 +748,9 @@ services:
       CLOUDFLARE_ZONE: ${CLOUDFLARE_ZONE}
       CLOUDFLARE_API_KEY: ${CLOUDFLARE_API_KEY}
       CUSTOM_URLS_IP_DNS_CONTENT: ${CUSTOM_URLS_IP_DNS_CONTENT}
-      B4_PG_HOST: ${B4_PG_HOST}
-      B4_PG_PORT: ${B4_PG_PORT}
-      B4_PG_USER: ${B4_PG_USER}
-      B4_PG_PASSWORD: ${B4_PG_PASSWORD}
-      B4_PG_DATABASE: ${B4_PG_DATABASE}
+      WBRAID_B4_URL: http://b4v6:3005
+      WBRAID_BOARD_DATABASE_URL: postgres://postgres@postgres-b4v6:5432/b4
+      WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       ENV_SLUG: ${ENV_SLUG}
       APP_VERSION: ${APP_VERSION}
@@ -881,75 +873,102 @@ services:
       retries: 10
       start_period: 30s
 
+  # Native trustees discover their assigned boards through Harvest.
   trustee1:
-    profiles: ["full"]
+    profiles: ["full", "base", "wbraid"]
     stdin_open: true
+    image: sequentech.local/cargo-packages
     container_name: ${DEVCONTAINER_NAME_PREFIX:-}trustee1
-    image: sequentech.local/braid
-    volumes:
-      - trustee1_data:/opt/braid
-      - "${LOCAL_WORKSPACE_FOLDER:-..}/packages/braid/scripts/trustee1.toml:/opt/braid/trustee1.toml:ro"
-    # TODO: be able to reuse the `sequentech.local/cargo-packages` image
-    build:
-      context: ../packages/
-      dockerfile: ./braid/Dockerfile
-    environment:
-        TRUSTEE_NAME: trustee1
-        TRUSTEE_CONFIG_PATH: ${TRUSTEE1_CONFIG}
-        TRUSTEE_SAMPLE_KEYS_POLICY: ${TRUSTEE_SAMPLE_KEYS_POLICY:-Allow}
-        IGNORE_BOARDS: ${IGNORE_BOARDS}
-        SECRETS_BACKEND: ${SECRETS_BACKEND}
-        VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-        VAULT_TOKEN: ${VAULT_TOKEN}
-        B4_URL: ${B4_URL}
+    # make sure to depend on the `harvest` container to ensure
+    # that the `sequentech.local/cargo-packages` image is locally build, so
+    # that we can reuse it:
     depends_on:
-      - b4
+      harvest:
+        condition: service_started
+      b4v6:
+        condition: service_healthy
+    volumes_from:
+      - devcontainer
+    volumes:
+      - trustee1_data:${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/trustee/message_store
+    working_dir: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/trustee
+    entrypoint: ["/usr/local/bin/entrypoint.sh"]
+    command: [
+      "cargo",
+      "watch",
+      "--why",
+      # ignoring rust-local-target/ since it's used for local builds and
+      # otherwise triggers a rebuild all the time (probably rust analyzer)
+      "--ignore",
+      "rust-local-target/",
+      # the session stores are written every cycle
+      "--ignore",
+      "message_store/",
+      "-x",
+      "run --locked --release -- start"
+    ]
+    environment:
+      RUSTFLAGS: ${RUSTFLAGS}
+      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
+      LOG_LEVEL: ${LOG_LEVEL}
+      TRUSTEE_NAME: trustee1
+      CARGO_TARGET_DIR: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/rust-local-target/docker-dev
+      B4_URL: http://b4v6:3005
+      TRUSTEE_CONFIG_PATH: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/trustee/dev/trustee1.toml
+      TRUSTEE_PASSWORD: ${TRUSTEE1_PASSWORD}
+      TRUSTEE_PLATFORM_URL: ${TRUSTEE_PLATFORM_URL:-${HASURA_ENDPOINT}}
+      TRUSTEE_KEYCLOAK_URL: ${KEYCLOAK_URL}
+      TRUSTEE_KEYCLOAK_REALM: tenant-${TENANT_ID}
+      TRUSTEE_KEYCLOAK_CLIENT_ID: ${TRUSTEE_KEYCLOAK_CLIENT_ID}
+      TRUSTEE_KEYCLOAK_CLIENT_SECRET: ${TRUSTEE_KEYCLOAK_CLIENT_SECRET}
 
   trustee2:
-    profiles: ["full"]
+    profiles: ["full", "base", "wbraid"]
     stdin_open: true
-    image: sequentech.local/braid
+    image: sequentech.local/cargo-packages
     container_name: ${DEVCONTAINER_NAME_PREFIX:-}trustee2
-    volumes:
-      - trustee2_data:/opt/braid
-      - "${LOCAL_WORKSPACE_FOLDER:-..}/packages/braid/scripts/trustee2.toml:/opt/braid/trustee2.toml:ro"
-    # depending on the `trustee1` container to ensure that the
-    # `sequentech.local/braid` image is locally build, so that we can reuse
-    # it:
+    # make sure to depend on the `harvest` container to ensure
+    # that the `sequentech.local/cargo-packages` image is locally build, so
+    # that we can reuse it:
     depends_on:
-      - trustee1
+      harvest:
+        condition: service_started
+      b4v6:
+        condition: service_healthy
+    volumes_from:
+      - devcontainer
+    volumes:
+      - trustee2_data:${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/trustee/message_store
+    working_dir: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/trustee
+    entrypoint: ["/usr/local/bin/entrypoint.sh"]
+    command: [
+      "cargo",
+      "watch",
+      "--why",
+      # ignoring rust-local-target/ since it's used for local builds and
+      # otherwise triggers a rebuild all the time (probably rust analyzer)
+      "--ignore",
+      "rust-local-target/",
+      # the session stores are written every cycle
+      "--ignore",
+      "message_store/",
+      "-x",
+      "run --locked --release -- start"
+    ]
     environment:
-        TRUSTEE_NAME: trustee2
-        TRUSTEE_CONFIG_PATH: ${TRUSTEE2_CONFIG}
-        TRUSTEE_SAMPLE_KEYS_POLICY: ${TRUSTEE_SAMPLE_KEYS_POLICY:-Allow}
-        IGNORE_BOARDS: ${IGNORE_BOARDS}
-        SECRETS_BACKEND: ${SECRETS_BACKEND}
-        VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-        VAULT_TOKEN: ${VAULT_TOKEN}
-        B4_URL: ${B4_URL}
-
-  # trustee3:
-  #   profiles: ["full"]
-  #   stdin_open: true
-  #   image: sequentech.local/braid
-  #   container_name: trustee3
-  #   volumes:
-  #     - trustee3_data:/opt/braid
-  #     - "${LOCAL_WORKSPACE_FOLDER:-..}/packages/braid/scripts/trustee3.toml:/opt/braid/trustee3.toml:ro"
-  #   # depending on the `trustee1` container to ensure that the
-  #   # `sequentech.local/braid` image is locally build, so that we can reuse
-  #   # it:
-  #   depends_on:
-  #     - trustee1
-  #   environment:
-  #       TRUSTEE_NAME: trustee3
-  #       TRUSTEE_CONFIG_PATH: ${TRUSTEE3_CONFIG}
-  #       TRUSTEE_SAMPLE_KEYS_POLICY: ${TRUSTEE_SAMPLE_KEYS_POLICY:-Allow}
-  #       IGNORE_BOARDS: ${IGNORE_BOARDS}
-  #       SECRETS_BACKEND: ${SECRETS_BACKEND}
-  #       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-  #       VAULT_TOKEN: ${VAULT_TOKEN}
-  #       B4_URL: ${B4_URL}
+      RUSTFLAGS: ${RUSTFLAGS}
+      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
+      LOG_LEVEL: ${LOG_LEVEL}
+      TRUSTEE_NAME: trustee2
+      CARGO_TARGET_DIR: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/rust-local-target/docker-dev
+      B4_URL: http://b4v6:3005
+      TRUSTEE_CONFIG_PATH: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/trustee/dev/trustee2.toml
+      TRUSTEE_PASSWORD: ${TRUSTEE2_PASSWORD}
+      TRUSTEE_PLATFORM_URL: ${TRUSTEE_PLATFORM_URL:-${HASURA_ENDPOINT}}
+      TRUSTEE_KEYCLOAK_URL: ${KEYCLOAK_URL}
+      TRUSTEE_KEYCLOAK_REALM: tenant-${TENANT_ID}
+      TRUSTEE_KEYCLOAK_CLIENT_ID: ${TRUSTEE_KEYCLOAK_CLIENT_ID}
+      TRUSTEE_KEYCLOAK_CLIENT_SECRET: ${TRUSTEE_KEYCLOAK_CLIENT_SECRET}
 
 
   registry:
@@ -1037,6 +1056,7 @@ services:
     entrypoint: ["/usr/local/bin/entrypoint.sh"]
     command: ["cargo", "run", "--bin", "main", "--", "setup-queue-database"]
     environment:
+      CARGO_TARGET_DIR: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/rust-local-target/docker-dev
       RUSTFLAGS: ${RUSTFLAGS}
       CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/.devcontainer/scripts/rust-lld-cc.sh
       LOG_LEVEL: ${LOG_LEVEL}
@@ -1074,7 +1094,7 @@ services:
       "windmill/core",
       # Build first, so a compile error waits for the next change instead of the restart loop.
       "-x", "build --bin main",
-      "-s", "sh ../../.devcontainer/restart-worker.sh ../target/debug/main consume -q beat short_queue tally_queue reports_queue communication_queue import_export_queue electoral_log_batch_queue electoral_log_beat_queue monitoring_queue --prefetch-count 1"
+      "-s", "sh ../../.devcontainer/restart-worker.sh ../rust-local-target/docker-dev/debug/main consume -q beat short_queue tally_queue reports_queue communication_queue import_export_queue electoral_log_batch_queue electoral_log_beat_queue monitoring_queue --prefetch-count 1"
     ]
     volumes_from:
       - devcontainer
@@ -1090,6 +1110,7 @@ services:
       #- postgres
       #- postgres-keycloak
     environment:
+      CARGO_TARGET_DIR: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/rust-local-target/docker-dev
       # Monitoring snapshot cadence, the same on beat, windmill and harvest:
       # seconds between passes (5..3600), and between full voter reads.
       MONITORING_SNAPSHOT_INTERVAL_SECONDS: ${MONITORING_SNAPSHOT_INTERVAL_SECONDS:-30}
@@ -1206,11 +1227,9 @@ services:
       PUBLIC_ASSETS_PATH: ${PUBLIC_ASSETS_PATH}
        #Demo key
       DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
-      B4_PG_HOST: ${B4_PG_HOST}
-      B4_PG_PORT: ${B4_PG_PORT}
-      B4_PG_USER: ${B4_PG_USER}
-      B4_PG_PASSWORD: ${B4_PG_PASSWORD}
-      B4_PG_DATABASE: ${B4_PG_DATABASE}
+      WBRAID_B4_URL: http://b4v6:3005
+      WBRAID_BOARD_DATABASE_URL: postgres://postgres@postgres-b4v6:5432/b4
+      WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       BALLOT_VERIFIER_URL: ${BALLOT_VERIFIER_URL}
       ENV_SLUG: ${ENV_SLUG}
@@ -1244,9 +1263,10 @@ services:
       "--ignore",
       "rust-local-target/",
       "-x", "build --bin beat",
-      "-s", "sh ../../.devcontainer/restart-worker.sh ../target/debug/beat"
+      "-s", "sh ../../.devcontainer/restart-worker.sh ../rust-local-target/docker-dev/debug/beat"
     ]
     environment:
+      CARGO_TARGET_DIR: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/rust-local-target/docker-dev
       # Monitoring snapshot cadence, the same on beat, windmill and harvest:
       # seconds between passes (5..3600), and between full voter reads.
       MONITORING_SNAPSHOT_INTERVAL_SECONDS: ${MONITORING_SNAPSHOT_INTERVAL_SECONDS:-30}
@@ -1280,74 +1300,6 @@ services:
       MESSAGING_INFOBIP_URL: ${MESSAGING_INFOBIP_URL:-}
       MESSAGING_AWS_ENDPOINT_URL: ${MESSAGING_AWS_ENDPOINT_URL:-}
 
-  postgres-b4:
-    profiles: ["full", "base"]
-    image: sequentech.local/postgresql-b4
-    container_name: ${DEVCONTAINER_NAME_PREFIX:-}postgres-b4
-    build:
-      context: ./postgresql-b4
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    volumes:
-      - b4_db_data:/var/lib/postgresql
-      - b4_db_logs:/logs
-    command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
-    environment:
-      POSTGRES_PASSWORD: ${B4_PG_PASSWORD}
-    user: "999:999"  # This ensures that the postgres user inside the container is used
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready  -U postgres"]
-      interval: 5s
-      timeout: 10s
-      retries: 15
-      start_period: 5s
-    depends_on:
-      - postgres-volume-init
-
-  b4:
-    profiles: ["full", "base"]
-    stdin_open: true
-    image: sequentech.local/cargo-packages
-    container_name: ${DEVCONTAINER_NAME_PREFIX:-}b4
-    restart: always
-    ports:
-      - "50051:50051"
-    build:
-      context: ../packages/
-      dockerfile: ./Dockerfile.cargo-packages
-    volumes_from:
-      - devcontainer
-    depends_on:
-      #- devcontainer
-      - postgres-b4
-    working_dir: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/b4
-    entrypoint: [
-      "cargo",
-      "watch",
-      "--why",
-      # ignoring rust-local-target/ since it's used for local builds and
-      # otherwise triggers a rebuild all the time (probably rust analyzer)
-      "--ignore",
-      "rust-local-target/",
-      "--features",
-      "\"native monitor\"",
-      "-x",
-      "run --bin b4 --release -- --host $B4_PG_HOST --port $B4_PG_PORT --username $B4_PG_USER --password $B4_PG_PASSWORD --database $B4_PG_DATABASE --bind $B4_BIND",
-    ]
-    environment:
-      RUSTFLAGS: ${RUSTFLAGS}
-      RUST_BACKTRACE: ${RUST_BACKTRACE}
-      LOG_LEVEL: ${LOG_LEVEL}
-      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
-      B4_PG_HOST: ${B4_PG_HOST}
-      B4_PG_PORT: ${B4_PG_PORT}
-      B4_PG_USER: ${B4_PG_USER}
-      B4_PG_PASSWORD: ${B4_PG_PASSWORD}
-      B4_PG_DATABASE: ${B4_PG_DATABASE}
-      B4_BIND: ${B4_BIND}
-      AWS_S3_UPLOAD_EXPIRATION_SECS: ${AWS_S3_UPLOAD_EXPIRATION_SECS}
-      AWS_S3_FETCH_EXPIRATION_SECS: ${AWS_S3_FETCH_EXPIRATION_SECS}
-
 networks:
   # Harvest and the monitoring renderer only; no route out.
   monitoring-renderer:
@@ -1361,10 +1313,7 @@ volumes:
   minio_storage:
   trustee1_data:
   trustee2_data:
-  trustee3_data:
   protocol_manager_data:
-  b4_db_logs:
-  b4_db_data:
   b4v6_data:
   b4v6_db_data:
   b4v6_db_logs:

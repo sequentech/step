@@ -220,23 +220,23 @@ export const HomeScreen: React.FC<IProps> = ({
         // The ballot is decoded and shown with the published ballot style,
         // never with the copy of it that the file carries.
         const auditableBallot: IAuditableBallot = {...file, config: ballotStyle}
-        let isMultiContest = false
+        const contests = (file as IAuditableSingleBallot | IAuditableMultiBallot).contests
+        const isMultiContest = typeof contests === "string"
+        if (!isMultiContest && !Array.isArray(contests)) {
+            rejectBallot(true)
+            return
+        }
         let decodedBallot = null
         try {
-            decodedBallot =
-                ballotService.decodeAuditableBallot(auditableBallot as IAuditableSingleBallot) ||
-                null
+            decodedBallot = isMultiContest
+                ? ballotService.decodeAuditableMultiBallot(auditableBallot as IAuditableMultiBallot)
+                : ballotService.decodeAuditableBallot(auditableBallot as IAuditableSingleBallot)
         } catch (error) {
-            const decodedMultiBallot =
-                (!decodedBallot &&
-                    ballotService.decodeAuditableMultiBallot(
-                        auditableBallot as IAuditableMultiBallot
-                    )) ||
-                null
-            isMultiContest = true
-            decodedBallot = decodedMultiBallot
+            console.log(error)
+            rejectBallot(true)
+            return
         }
-        if (null === decodedBallot) {
+        if (decodedBallot == null) {
             rejectBallot(true)
             return
         }
@@ -268,11 +268,11 @@ export const HomeScreen: React.FC<IProps> = ({
 
         // sequent-core also rejects a signature without its public key, and the reverse.
         if (
-            auditableBallot?.voter_ballot_signature !== undefined ||
-            auditableBallot?.voter_signing_pk !== undefined
+            auditableBallot?.voter_ballot_signature != null ||
+            auditableBallot?.voter_signing_pk != null
         ) {
             try {
-                let _signatureVerificationResult = isMultiContest
+                const signatureVerified = isMultiContest
                     ? ballotService.verifyMultiBallotSignature(
                           ballotHash,
                           ballotStyle.election_id,
@@ -283,6 +283,10 @@ export const HomeScreen: React.FC<IProps> = ({
                           ballotStyle.election_id,
                           file as IAuditableSingleBallot
                       )
+                if (signatureVerified !== true) {
+                    rejectBallot(true)
+                    return
+                }
             } catch (error) {
                 console.log(error)
                 rejectBallot(true)

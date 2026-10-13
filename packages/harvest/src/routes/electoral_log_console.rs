@@ -30,7 +30,7 @@ use uuid::Uuid;
 use windmill::postgres::election_event::get_election_event_by_id_if_exist;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::election_event_board::get_election_event_board;
-use windmill::services::protocol_manager::get_event_databases;
+use windmill::services::electoral_log_board::get_event_databases;
 
 /// Rows of a page unless the request asks for another number.
 const DEFAULT_PAGE_ROWS: i64 = 25;

@@ -63,7 +63,7 @@ impl HttpTransport {
 
     /// Fetch every message on the board as raw bytes, enforcing the version
     /// exact-match (§10.1). S3-backed bodies are downloaded via the presigned URL.
-    async fn fetch_raw(&self) -> Result<Vec<Vec<u8>>> {
+    pub async fn fetch_raw(&self) -> Result<Vec<Vec<u8>>> {
         let url = format!("{}/boards/{}/messages", self.base_url, self.board);
         let resp = self.client.get(&url).send().await?;
         if !resp.status().is_success() {

@@ -169,7 +169,11 @@ test("the real WebAssembly module generates, hashes and decodes its sample ballo
         text(ballot.config),
         text(ballot.ballot_style_hash),
         u32(ballot.contests.length),
-        ...ballot.contests.map((contest) => Buffer.from(contest, "base64")),
+        // Each native canonical ciphertext is carried as a Borsh byte vector.
+        ...ballot.contests.map((contest) => {
+            const bytes = Buffer.from(contest, "base64")
+            return Buffer.concat([u32(bytes.length), bytes])
+        }),
     ])
     assert.equal(result.digest, createHash("sha512").update(envelope).digest("hex").slice(0, 64))
     assert.equal(result.digest, result.aliasDigest)

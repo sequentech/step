@@ -13,15 +13,17 @@ use crate::services::vault::{
 };
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
+use cryptography::utils::serialization::{Deserializable, Serializable};
+use cryptography::utils::symm::{
+    decrypt, encrypt, gen_key, sk_from_bytes, EncryptionData, SymmetricKey,
+};
 use deadpool_postgres::Transaction;
 use std::str::FromStr;
-use strand::serialization::{StrandDeserialize, StrandSerialize};
-use strand::signature::{StrandSignaturePk, StrandSignatureSk};
-use strand::symm::{decrypt, encrypt, gen_key, EncryptionData, SymmetricKey};
 use strum_macros::{Display, EnumString};
 use tokio;
 use tokio::sync::OnceCell;
 use tracing::{info, instrument};
+use voting_crypto::signing::{SigningKey, VerificationKey};
 
 const MASTER_SECRET_KEY_NAME: &str = "master_secret";
 
@@ -53,11 +55,12 @@ async fn initialize_master_secret() -> Result<SymmetricKey> {
 
     match vault.read_secret(MASTER_SECRET_KEY_NAME.to_string()).await {
         Ok(Some(secret)) => {
-            let bytes = hex::decode(secret).expect("Failed to decode master secret");
-            Ok(SymmetricKey::from_slice(&bytes).to_owned())
+            let bytes = hex::decode(secret).context("Failed to decode master secret")?;
+            sk_from_bytes(&bytes).map_err(|err| anyhow!("Invalid master secret: {err}"))
         }
         Ok(None) => {
-            let new_key = gen_key();
+            let new_key =
+                gen_key().map_err(|err| anyhow!("Failed to generate master secret: {err}"))?;
             let hex_key = hex::encode(new_key.as_slice());
             vault
                 .save_secret(MASTER_SECRET_KEY_NAME.to_string(), hex_key.clone())
@@ -131,11 +134,9 @@ pub async fn save_secret_and_return(
         return Err(anyhow!("Unexpected: key already exists"));
     }
     let master_secret = get_master_secret().await?;
-    let encrypted_data =
-        encrypt(master_secret, value.as_bytes()).context("Error encrypting secret")?;
-    let encrypted_bytes = encrypted_data
-        .strand_serialize()
-        .context("Error serializing encrypted data")?;
+    let encrypted_data = encrypt(master_secret, value.as_bytes())
+        .map_err(|err| anyhow!("Error encrypting secret: {err}"))?;
+    let encrypted_bytes = encrypted_data.ser();
 
     insert_secret(
         hasura_transaction,
@@ -152,15 +153,13 @@ pub async fn save_secret_and_return(
 /// master key.
 pub async fn encrypt_with_master_secret(plaintext: &[u8]) -> Result<Vec<u8>> {
     let master_secret = get_master_secret().await?;
-    encrypt(master_secret, plaintext)
+    Ok(encrypt(master_secret, plaintext)
         .context("Error encrypting data")?
-        .strand_serialize()
-        .context("Error serializing encrypted data")
+        .ser())
 }
 
 pub async fn decrypt_with_master_secret(ciphertext: &[u8]) -> Result<Vec<u8>> {
-    let encrypted_data =
-        EncryptionData::strand_deserialize(ciphertext).context("Error deserializing data")?;
+    let encrypted_data = EncryptionData::deser(ciphertext).context("Error deserializing data")?;
     let master_secret = get_master_secret().await?;
     decrypt(&master_secret, &encrypted_data).context("Error decrypting data")
 }
@@ -177,8 +176,7 @@ pub async fn replace_secret(
     let master_secret = get_master_secret().await?;
     let encrypted_bytes = encrypt(master_secret, value.as_bytes())
         .context("Error encrypting secret")?
-        .strand_serialize()
-        .context("Error serializing encrypted data")?;
+        .ser();
     if !update_secret_value(hasura_transaction, tenant_id, key, &encrypted_bytes).await? {
         insert_secret(hasura_transaction, tenant_id, None, key, &encrypted_bytes)
             .await
@@ -197,11 +195,11 @@ pub async fn delete_secret(
 }
 
 async fn decrypt_stored_secret(secret: &Secret) -> Result<String> {
-    let encrypted_data = EncryptionData::strand_deserialize(&secret.value)
+    let encrypted_data = voting_crypto::envelope::read_encrypted_value(&secret.value)
         .context("Error deserializing encrypted data")?;
     let master_secret = get_master_secret().await?;
-    let decrypted_bytes =
-        decrypt(&master_secret, &encrypted_data).context("Error decrypting secret")?;
+    let decrypted_bytes = decrypt(&master_secret, &encrypted_data)
+        .map_err(|err| anyhow!("Error decrypting secret: {err}"))?;
     String::from_utf8(decrypted_bytes).context("Error converting decrypted bytes to string")
 }
 
@@ -247,21 +245,21 @@ pub async fn get_admin_user_signing_key(
     username: Option<String>,
     elections_ids: Option<String>,
     user_area_id: Option<String>,
-) -> Result<StrandSignatureSk> {
+) -> Result<SigningKey> {
     let lookup_key = admin_vault_lookup_key(&tenant_id, &user_id);
     let sk_der_b64 = read_secret(hasura_transaction, tenant_id, None, &lookup_key).await?;
 
     let sk = if let Some(sk_der_b64) = sk_der_b64 {
-        StrandSignatureSk::from_der_b64_string(&sk_der_b64)?
+        SigningKey::from_b64_string(&sk_der_b64)?
     } else {
         info!(
             "Vault: generating private signing key for admin user {}",
             lookup_key.clone()
         );
-        let sk = StrandSignatureSk::generate()?;
-        let sk_string = sk.to_der_b64_string()?;
-        let pk = StrandSignaturePk::from_sk(&sk)?;
-        let pk = pk.to_der_b64_string()?;
+        let sk = SigningKey::generate()?;
+        let sk_string = sk.to_b64_string()?;
+        let pk = VerificationKey::from_sk(&sk)?;
+        let pk = pk.to_b64_string()?;
 
         // We save the secret right before notifying the public key
         // to minimize the chances that the second call fails while

@@ -141,7 +141,7 @@ source counters. Preserve local fixture isolation when adding browser scenarios.
 ## Package guides
 
 - [Sequent Core Tests](testing/sequent-core.md)
-- [Strand boundary tests](testing/strand.md)
+- [Voting crypto boundary tests](testing/voting-crypto.md)
 - [Error conversion macro tests](testing/wrap-map-err.md)
 - [Harvest request boundary tests](testing/harvest.md)
 - [Windmill boundary tests](../08-windmill/test-coverage.md)

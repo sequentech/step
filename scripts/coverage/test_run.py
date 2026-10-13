@@ -538,9 +538,9 @@ HASURA_DB__HOST = "127.0.0.1"
             + 'serde = "1"\n'
         )
         requested, summary = self.comparison_base_features(
-            '["default_features", "keycloak", "rug", "zip", "strand/rayon", "serde"]'
+            '["default_features", "keycloak", "rug", "zip", "wbraid/core", "serde"]'
         )
-        self.assertEqual(requested, ["default_features,keycloak,rug,zip,strand/rayon"])
+        self.assertEqual(requested, ["default_features,keycloak,rug,zip,wbraid/core"])
         # A required dependency is not a feature Cargo would accept.
         self.assertEqual(summary["features_absent_from_base"], ["serde"])
 

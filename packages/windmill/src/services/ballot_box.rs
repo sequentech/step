@@ -10,11 +10,10 @@ use crate::services::ballot_box_reads::get_event_ballot_box;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
-use crate::services::protocol_manager::{
-    get_event_databases, get_event_store, get_protocol_manager,
+use crate::services::electoral_log_board::{
+    get_board_signing_key, get_event_databases, get_event_store,
 };
 use anyhow::{Context, Result};
-use b4::messages::message::Signer;
 use deadpool_postgres::Transaction;
 use electoral_log::adapters::ballot_box::{AcceptBallot, AcceptOutcome, PendingBallot};
 use electoral_log::adapters::ballot_box_status::VoterBallotState;
@@ -29,11 +28,11 @@ use electoral_log::ports::ElectoralLogStore;
 use electoral_log::LogEntry;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
-use strand::backend::ristretto::RistrettoCtx;
-use strand::hash::Hash;
-use strand::signature::StrandSignatureSk;
 use strum_macros::{Display, EnumString};
 use tracing::instrument;
+use voting_crypto::hash::Hash;
+use voting_crypto::signing::SigningKey;
+use voting_crypto::RistrettoCtx;
 
 /// Most ballots one sequencer append covers.
 pub const SEQUENCER_BATCH: i64 = 5_000;
@@ -146,7 +145,7 @@ pub fn ballot_record(
     board: &str,
     election_event_id: &str,
     ballot: &PendingBallot,
-    signing_key: &StrandSignatureSk,
+    signing_key: &SigningKey,
 ) -> Result<LogEntry> {
     let log = ElectoralLog::for_voter_with_signing_key(board, &ballot.voter_id, signing_key);
     let message = Message::cast_vote_with_channel_message(
@@ -182,14 +181,9 @@ pub async fn sequence_event(tenant_id: &str, election_event_id: &str) -> Result<
         let event = get_election_event_by_id(&transaction, tenant_id, election_event_id).await?;
         let board = get_election_event_board(event.bulletin_board_reference)
             .context("Election event has no electoral-log board")?;
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
-            &transaction,
-            tenant_id,
-            Some(election_event_id),
-            &board,
-        )
-        .await?;
-        (board, protocol_manager.get_signing_key().clone())
+        let protocol_manager =
+            get_board_signing_key(&transaction, tenant_id, Some(election_event_id), &board).await?;
+        (board, protocol_manager.clone())
     };
     let store = get_event_store(election_event_id).await?;
     let holder = uuid::Uuid::new_v4().to_string();
@@ -211,7 +205,7 @@ async fn append_pending(
     store: &PostgresStore,
     board: &str,
     election_event_id: &str,
-    signing_key: &StrandSignatureSk,
+    signing_key: &SigningKey,
 ) -> Result<usize> {
     let started = Instant::now();
     let mut appended = 0;
@@ -396,7 +390,7 @@ mod tests {
         let board = format!("test-ballot-box-{event}");
         store.create_board(&board).await?;
         store.create_ballot_box(&event).await?;
-        let key = StrandSignatureSk::generate()?;
+        let key = SigningKey::generate()?;
         for (index, voter) in ["v1", "v2", "v3"].iter().enumerate() {
             let ballot_id = format!("{index:064x}");
             let outcome = store

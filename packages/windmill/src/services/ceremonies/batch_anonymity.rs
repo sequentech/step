@@ -6,11 +6,11 @@
 //! when they do not.
 
 use anyhow::{anyhow, Result};
+use cryptography::context::RistrettoCtx;
+use cryptography::cryptosystem::naoryung::Ciphertext;
 use sequent_core::ballot::BatchAnonymityPolicy;
 use sequent_core::types::keycloak::MIN_WEIGHT_BATCH_ANONYMITY;
 use std::fmt;
-use strand::backend::ristretto::RistrettoCtx;
-use strand::elgamal::Ciphertext;
 use tracing::{event, Level};
 
 /// A batch another tally session already posted for the same election, area
@@ -19,7 +19,7 @@ use tracing::{event, Level};
 pub struct PostedBatch {
     pub tally_session_id: String,
     pub offset: u32,
-    pub ciphertexts: Vec<Ciphertext<RistrettoCtx>>,
+    pub ciphertexts: Vec<Ciphertext<RistrettoCtx, 1>>,
 }
 
 /// Why a batch would not keep its decrypted votes among others.
@@ -67,7 +67,7 @@ pub fn small_batch(offset: u32, voters: usize) -> Option<BatchAnonymityIssue> {
 /// batch is caught too. A session that posted only empty batches decrypted
 /// nothing and is not compared.
 pub fn session_divergences(
-    built: &[Vec<Ciphertext<RistrettoCtx>>],
+    built: &[Vec<Ciphertext<RistrettoCtx, 1>>],
     posted_elsewhere: &[PostedBatch],
 ) -> Vec<BatchAnonymityIssue> {
     let mut sessions: Vec<&str> = posted_elsewhere
@@ -143,21 +143,21 @@ pub fn enforce_batch_anonymity(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use cryptography::context::Context;
     use sequent_core::types::keycloak::VOTE_WEIGHT_BATCHES;
-    use strand::context::Ctx;
 
-    fn pool(size: usize) -> Vec<Ciphertext<RistrettoCtx>> {
-        let ctx = RistrettoCtx::default();
-        let mut rng = ctx.get_rng();
+    fn pool(size: usize) -> Vec<Ciphertext<RistrettoCtx, 1>> {
+        let joint_key = RistrettoCtx::random_element();
         (0..size)
-            .map(|_| Ciphertext {
-                mhr: ctx.rnd(&mut rng),
-                gr: ctx.rnd(&mut rng),
+            .map(|_| {
+                voting_crypto::ballot::encrypt_payload(1, &joint_key, &[0; 30])
+                    .unwrap()
+                    .0
             })
             .collect()
     }
 
-    fn unweighted(batch: &[Ciphertext<RistrettoCtx>]) -> Vec<Vec<Ciphertext<RistrettoCtx>>> {
+    fn unweighted(batch: &[Ciphertext<RistrettoCtx, 1>]) -> Vec<Vec<Ciphertext<RistrettoCtx, 1>>> {
         let mut batches = vec![Vec::new(); VOTE_WEIGHT_BATCHES as usize];
         batches[0] = batch.to_vec();
         batches
@@ -166,7 +166,7 @@ mod tests {
     fn posted(
         tally_session_id: &str,
         offset: u32,
-        ciphertexts: &[Ciphertext<RistrettoCtx>],
+        ciphertexts: &[Ciphertext<RistrettoCtx, 1>],
     ) -> PostedBatch {
         PostedBatch {
             tally_session_id: tally_session_id.to_string(),

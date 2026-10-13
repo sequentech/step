@@ -4,7 +4,7 @@
 use super::*;
 use chrono::Duration;
 use sequent_core::ballot_receipt::verify_received_ballot;
-use strand::signature::StrandSignaturePk;
+use voting_crypto::signing::VerificationKey;
 
 fn envelope(public_key: Option<&str>, signature: Option<&str>) -> BallotEnvelope {
     BallotEnvelope {
@@ -110,11 +110,11 @@ fn signed_times_keep_milliseconds_and_utc() {
 
 #[test]
 fn a_stored_ballot_reads_back_as_the_receipt_the_ballot_box_signed() {
-    let signing_key = StrandSignatureSk::generate().unwrap();
-    let voter_key = StrandSignatureSk::generate().unwrap();
-    let voter_signing_pk = StrandSignaturePk::from_sk(&voter_key)
+    let signing_key = SigningKey::generate().unwrap();
+    let voter_key = SigningKey::generate().unwrap();
+    let voter_signing_pk = VerificationKey::from_sk(&voter_key)
         .unwrap()
-        .to_der_b64_string()
+        .to_b64_string()
         .unwrap();
     let voter_ballot_signature = voter_key.sign(b"ballot").unwrap().to_b64_string().unwrap();
     let (tenant, event, election) = (Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4());
@@ -160,11 +160,11 @@ fn a_stored_ballot_reads_back_as_the_receipt_the_ballot_box_signed() {
 
 #[test]
 fn the_ballot_box_signs_a_receipt_voters_can_check_with_its_published_key() {
-    let signing_key = StrandSignatureSk::generate().unwrap();
-    let voter_key = StrandSignatureSk::generate().unwrap();
-    let voter_signing_pk = StrandSignaturePk::from_sk(&voter_key)
+    let signing_key = SigningKey::generate().unwrap();
+    let voter_key = SigningKey::generate().unwrap();
+    let voter_signing_pk = VerificationKey::from_sk(&voter_key)
         .unwrap()
-        .to_der_b64_string()
+        .to_b64_string()
         .unwrap();
     let voter_ballot_signature = voter_key.sign(b"ballot").unwrap().to_b64_string().unwrap();
     let (tenant, event, election) = (Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4());
@@ -208,7 +208,7 @@ fn the_ballot_box_signs_a_receipt_voters_can_check_with_its_published_key() {
 
 #[test]
 fn a_malformed_voter_key_cannot_be_signed_for() {
-    let signing_key = StrandSignatureSk::generate().unwrap();
+    let signing_key = SigningKey::generate().unwrap();
     let (tenant, event, election) = (Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4());
     let scope = ReceivedBallotScope {
         tenant_id: &tenant,

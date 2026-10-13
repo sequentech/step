@@ -6,7 +6,16 @@
 import json
 import subprocess
 
-from .client import ENV, ROOT, TENANT_ID, Hasura, Keycloak, event_realm, http_get
+from .client import (
+    ENV,
+    ROOT,
+    TENANT_ID,
+    Hasura,
+    Keycloak,
+    event_realm,
+    http_get,
+    wait_until,
+)
 from .fixtures import VOTER_PASSWORD
 
 
@@ -47,7 +56,27 @@ class Portal:
             username,
             VOTER_PASSWORD,
         )
-        return tokens["access_token"]
+        token = tokens["access_token"]
+
+        def realm_key_is_loaded():
+            # Newly imported realms publish keys synchronously, but Hasura's
+            # shared JWKS document has a 30-second cache window. Probe only
+            # authentication, without creating a ballot/voting session.
+            result = Hasura(token=token).execute("{ __typename }")
+            errors = result.get("errors")
+            if errors:
+                if all(
+                    (error.get("extensions") or {}).get("code") == "invalid-jwt"
+                    for error in errors
+                ):
+                    return False
+                raise AssertionError(json.dumps(errors))
+            return True
+
+        wait_until(
+            "Hasura to load the new voter realm key", realm_key_is_loaded, timeout=60
+        )
+        return token
 
     def status(self, token):
         """GetVoterStatus: the voter's ballot files and their own cast votes."""
@@ -78,29 +107,36 @@ class Portal:
         return json.loads(text), wrapper
 
     def encrypt(self, style, candidate):
-        """Encrypt a vote for `candidate` (a display name) with step-cli's ballot encoder."""
-        (contest,) = style["contests"]
-        names = [candidate_name(c) for c in contest["candidates"]]
-        if candidate not in names:
-            raise AssertionError(f"{candidate} is not on the ballot: {names}")
-        choices = [
-            {
-                "contest_id": contest["id"],
-                "is_explicit_invalid": False,
-                "is_decline_to_vote": False,
-                "is_blank_ballot": False,
-                "invalid_errors": [],
-                "invalid_alerts": [],
-                "choices": [
-                    {
-                        "id": c["id"],
-                        "selected": 0 if name == candidate else -1,
-                        "write_in_text": None,
-                    }
-                    for c, name in zip(contest["candidates"], names)
-                ],
-            }
-        ]
+        """Encrypt a name or per-contest selections with the native ballot encoder."""
+        if isinstance(candidate, str):
+            (contest,) = style["contests"]
+            selections = {contest["id"]: candidate}
+        else:
+            selections = candidate
+        choices = []
+        for contest in style["contests"]:
+            selected = selections[contest["id"]]
+            names = [candidate_name(c) for c in contest["candidates"]]
+            if selected not in names:
+                raise AssertionError(f"{selected} is not on the ballot: {names}")
+            choices.append(
+                {
+                    "contest_id": contest["id"],
+                    "is_explicit_invalid": False,
+                    "is_decline_to_vote": False,
+                    "is_blank_ballot": False,
+                    "invalid_errors": [],
+                    "invalid_alerts": [],
+                    "choices": [
+                        {
+                            "id": c["id"],
+                            "selected": 0 if name == selected else -1,
+                            "write_in_text": None,
+                        }
+                        for c, name in zip(contest["candidates"], names)
+                    ],
+                }
+            )
         style_path = self.cli.directory / "style.json"
         choices_path = self.cli.directory / "choices.json"
         style_path.write_text(json.dumps(style))

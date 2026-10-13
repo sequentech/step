@@ -162,7 +162,7 @@ def main():
         if not row["executed_functions"]
     ]
     # These continuous-profile services terminate through init on SIGTERM.
-    terminated = {"beat", "b4", "trustee1", "trustee2"}
+    terminated = {"beat", "b4v6", "trustee1", "trustee2"}
     for row in inventory:
         # The ephemeral driver is removed; run.sh propagates its exit status.
         if row["profile"] == "step-cli":

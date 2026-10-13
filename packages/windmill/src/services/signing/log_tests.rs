@@ -8,8 +8,8 @@ use super::*;
 use chrono::{TimeZone, Utc};
 use electoral_log::messages::statement::{StatementBody, StatementType};
 use std::sync::{Arc, Mutex};
-use strand::serialization::StrandDeserialize;
-use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+use voting_crypto::signing::{SigningKey, VerificationKey};
+use voting_crypto::RecordDeserialize;
 
 const STEP: &str = "2b7c9e40-1f5d-4a8e-9c3b-6d2e1f0a9b87";
 const POST: &str = "6f1d2c3b-4a5e-4f60-8a7b-9c0d1e2f3a4b";
@@ -43,15 +43,15 @@ fn row(event_type: StatementEventType, log_type: StatementLogType) -> SigningLog
 }
 
 struct Keys {
-    sender: StrandSignatureSk,
-    system: StrandSignatureSk,
+    sender: SigningKey,
+    system: SigningKey,
 }
 
 impl Keys {
     fn new() -> Self {
         Keys {
-            sender: StrandSignatureSk::generate().unwrap(),
-            system: StrandSignatureSk::generate().unwrap(),
+            sender: SigningKey::generate().unwrap(),
+            system: SigningKey::generate().unwrap(),
         }
     }
 
@@ -88,7 +88,7 @@ fn a_user_row_is_a_user_entry_of_its_person() {
     // Signed by the sender key given (the admin's, for USER rows).
     assert_eq!(
         message.sender.pk,
-        StrandSignaturePk::from_sk(&keys.sender).unwrap()
+        VerificationKey::from_sk(&keys.sender).unwrap()
     );
 
     let entry = entry_of(&message);
@@ -198,7 +198,7 @@ fn the_board_row_carries_the_step_time_and_columns() {
     assert_eq!(board_message.election_id.as_deref(), Some(POST));
     assert_eq!(board_message.area_id.as_deref(), Some(COUNTRY));
     // The stored bytes are the signed message.
-    let decoded = Message::strand_deserialize(&board_message.message).unwrap();
+    let decoded = Message::record_deserialize(&board_message.message).unwrap();
     assert_eq!(entry_of(&decoded).step_id, STEP);
 }
 
@@ -458,11 +458,11 @@ fn entries_are_signed_with_the_loaded_keys() {
     };
     assert_eq!(
         signed_by(&user),
-        StrandSignaturePk::from_sk(&admin.sender).unwrap()
+        VerificationKey::from_sk(&admin.sender).unwrap()
     );
     assert_eq!(
         signed_by(&system),
-        StrandSignaturePk::from_sk(&event.sender).unwrap()
+        VerificationKey::from_sk(&event.sender).unwrap()
     );
     let mut other = user.clone();
     other.user_id = Some("user-jose".to_string());

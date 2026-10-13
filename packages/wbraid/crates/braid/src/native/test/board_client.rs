@@ -67,7 +67,7 @@ async fn run_restart_anti_rewrite<C: Context>() -> Result<()> {
         2,
         share_enc_keys,
         PhantomData,
-    );
+    )?;
     let cfg_hash = ConfigurationHash::from_configuration(&cfg)?;
     let cfg_message = ProtocolMessage::<C>::configuration(&pm, DATE, &cfg);
 
@@ -152,7 +152,7 @@ async fn run_own_post_restart<C: Context>() -> Result<()> {
         2,
         share_enc_keys,
         PhantomData,
-    );
+    )?;
     let cfg_hash = ConfigurationHash::from_configuration(&cfg)?;
     let board = MemoryBoard::<C>::new();
     board.push(ProtocolMessage::<C>::configuration(&pm, DATE, &cfg));

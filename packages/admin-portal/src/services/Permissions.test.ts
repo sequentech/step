@@ -16,6 +16,16 @@ const roleOf = (name: string | undefined, isTrustee = false, isAdminUser = true)
     )
 
 it.each([
+    "ConfirmKeyCustody",
+    "AuthorizeTallyCustody",
+    "GetCustodyRequest",
+    "ListTrusteeBoards",
+    "ReportTrusteeBoard",
+])("uses the trustee ceremony permission for the public custody action %s", (name) => {
+    expect(roleOf(name)).toBe(IPermissions.TRUSTEE_CEREMONY)
+})
+
+it.each([
     ["sequent_backend_area", IPermissions.AREA_READ],
     ["insert_sequent_backend_candidate", IPermissions.CANDIDATE_CREATE],
     ["update_sequent_backend_candidate", IPermissions.CANDIDATE_WRITE],
@@ -63,8 +73,8 @@ it.each(["sequent_backend_keys_ceremony", "sequent_backend_tally_session_executi
     }
 )
 it("asks whether a trustee's key step needs a signature with the trustee ceremony role", () => {
-    expect(roleOf("KeyShareSignatureStatus", true)).toBe(IPermissions.TRUSTEE_CEREMONY)
-    expect(roleOf("KeyShareSignatureStatus")).toBe(IPermissions.ADMIN_USER)
+    expect(roleOf("CustodyProofSignatureStatus", true)).toBe(IPermissions.TRUSTEE_CEREMONY)
+    expect(roleOf("CustodyProofSignatureStatus")).toBe(IPermissions.ADMIN_USER)
 })
 it("keeps the trustee user lookup separate from the admin fallback", () => {
     expect(roleOf("getUsers", true)).toBe(IPermissions.VOTER_READ)
@@ -154,9 +164,9 @@ const TRUSTEE_OPERATIONS = [
     "sequent_backend_tally_session_execution",
     "sequent_backend_trustee",
     "TrusteeNames",
-    "GetPrivateKey",
-    "CheckPrivateKey",
-    "RestorePrivateKey",
+    "GetCustodyRequest",
+    "ConfirmKeyCustody",
+    "AuthorizeTallyCustody",
 ]
 
 const LOCKDOWN_OPERATIONS = [...SHELL_OPERATIONS, "sequent_backend_ballot_publication"]

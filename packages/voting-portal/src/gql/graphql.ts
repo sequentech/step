@@ -87,6 +87,20 @@ export type ApprovalMatrixOutput = {
   version: Scalars['Int']['output'];
 };
 
+export type AuthorizeTallyCustodyInput = {
+  custody_proof_json: Scalars['String']['input'];
+  custody_proof_sha256?: InputMaybe<Scalars['String']['input']>;
+  election_event_id: Scalars['String']['input'];
+  signing_request_id?: InputMaybe<Scalars['uuid']['input']>;
+  tally_session_id: Scalars['String']['input'];
+};
+
+export type AuthorizeTallyCustodyOutput = {
+  __typename?: 'AuthorizeTallyCustodyOutput';
+  is_valid: Scalars['Boolean']['output'];
+  signing_request?: Maybe<SigningRequestSummary>;
+};
+
 export type BallotPublicationStyles = {
   __typename?: 'BallotPublicationStyles';
   ballot_publication_id: Scalars['String']['output'];
@@ -152,26 +166,26 @@ export type CheckMessagingAccountOutput = {
   status: Scalars['jsonb']['output'];
 };
 
-export type CheckPrivateKeyInput = {
-  election_event_id: Scalars['String']['input'];
-  key_share_sha256?: InputMaybe<Scalars['String']['input']>;
-  keys_ceremony_id: Scalars['String']['input'];
-  private_key_base64: Scalars['String']['input'];
-  signing_request_id?: InputMaybe<Scalars['uuid']['input']>;
-};
-
-export type CheckPrivateKeyOutput = {
-  __typename?: 'CheckPrivateKeyOutput';
-  is_valid: Scalars['Boolean']['output'];
-  signing_request?: Maybe<SigningRequestSummary>;
-};
-
 export type ConfigureResultsWebsitePolicyOutput = {
   __typename?: 'ConfigureResultsWebsitePolicyOutput';
   access: ResultsWebsiteAccess;
   election_event_id: Scalars['String']['output'];
   status: ResultsWebsiteStatus;
   visibility_scope: ResultsWebsiteVisibilityScope;
+};
+
+export type ConfirmKeyCustodyInput = {
+  custody_proof_json: Scalars['String']['input'];
+  custody_proof_sha256?: InputMaybe<Scalars['String']['input']>;
+  election_event_id: Scalars['String']['input'];
+  keys_ceremony_id: Scalars['String']['input'];
+  signing_request_id?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+export type ConfirmKeyCustodyOutput = {
+  __typename?: 'ConfirmKeyCustodyOutput';
+  is_valid: Scalars['Boolean']['output'];
+  signing_request?: Maybe<SigningRequestSummary>;
 };
 
 export type CountUsersInput = {
@@ -258,6 +272,18 @@ export type CreateTallyOutput = {
   __typename?: 'CreateTallyOutput';
   signing_request?: Maybe<SigningRequestSummary>;
   tally_session_id?: Maybe<Scalars['uuid']['output']>;
+};
+
+export type CustodyProofSignatureStatusInput = {
+  election_event_id: Scalars['String']['input'];
+  keys_ceremony_id?: InputMaybe<Scalars['String']['input']>;
+  tally_session_id?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type CustodyProofSignatureStatusOutput = {
+  __typename?: 'CustodyProofSignatureStatusOutput';
+  signature_needed: Scalars['Boolean']['output'];
+  signed: Scalars['Boolean']['output'];
 };
 
 export type DataListElectoralLog = {
@@ -560,6 +586,16 @@ export type GetBallotPublicationChangesOutput = {
   previous?: Maybe<BallotPublicationStyles>;
 };
 
+export type GetCustodyRequestInput = {
+  election_event_id: Scalars['String']['input'];
+  keys_ceremony_id: Scalars['String']['input'];
+};
+
+export type GetCustodyRequestOutput = {
+  __typename?: 'GetCustodyRequestOutput';
+  custody_request_json: Scalars['String']['output'];
+};
+
 export type GetLifecycleSnapshotsOutput = {
   __typename?: 'GetLifecycleSnapshotsOutput';
   snapshots: Scalars['jsonb']['output'];
@@ -588,16 +624,6 @@ export type GetPermissionsOutput = {
   __typename?: 'GetPermissionsOutput';
   items: Array<KeycloakPermission>;
   total: TotalAggregate;
-};
-
-export type GetPrivateKeyInput = {
-  election_event_id: Scalars['String']['input'];
-  keys_ceremony_id: Scalars['String']['input'];
-};
-
-export type GetPrivateKeyOutput = {
-  __typename?: 'GetPrivateKeyOutput';
-  private_key_base64: Scalars['String']['output'];
 };
 
 export type GetRealmAttributesOutput = {
@@ -767,18 +793,6 @@ export type Int_Comparison_Exp = {
   _lte?: InputMaybe<Scalars['Int']['input']>;
   _neq?: InputMaybe<Scalars['Int']['input']>;
   _nin?: InputMaybe<Array<Scalars['Int']['input']>>;
-};
-
-export type KeyShareSignatureStatusInput = {
-  election_event_id: Scalars['String']['input'];
-  keys_ceremony_id?: InputMaybe<Scalars['String']['input']>;
-  tally_session_id?: InputMaybe<Scalars['String']['input']>;
-};
-
-export type KeyShareSignatureStatusOutput = {
-  __typename?: 'KeyShareSignatureStatusOutput';
-  signature_needed: Scalars['Boolean']['output'];
-  signed: Scalars['Boolean']['output'];
 };
 
 export type KeycloakPermission = {
@@ -1398,26 +1412,11 @@ export type ResolveResultsPublicationOutput = {
   tenant_id: Scalars['String']['output'];
 };
 
-export type RestorePrivateKeyInput = {
-  election_event_id: Scalars['String']['input'];
-  key_share_sha256?: InputMaybe<Scalars['String']['input']>;
-  private_key_base64: Scalars['String']['input'];
-  signing_request_id?: InputMaybe<Scalars['uuid']['input']>;
-  tally_session_id: Scalars['String']['input'];
-};
-
 export enum RestorePrivateKeyOutcome {
   AlreadyRestored = 'ALREADY_RESTORED',
   Invalid = 'INVALID',
   Restored = 'RESTORED'
 }
-
-export type RestorePrivateKeyOutput = {
-  __typename?: 'RestorePrivateKeyOutput';
-  is_valid: Scalars['Boolean']['output'];
-  outcome: RestorePrivateKeyOutcome;
-  signing_request?: Maybe<SigningRequestSummary>;
-};
 
 export enum ResultsPublicationStatus {
   Failed = 'Failed',
@@ -1760,6 +1759,23 @@ export type TotalAggregate = {
   aggregate: Aggregate;
 };
 
+export type TrusteeBoard = {
+  __typename?: 'TrusteeBoard';
+  kind: Scalars['String']['output'];
+  name: Scalars['String']['output'];
+  parent?: Maybe<Scalars['String']['output']>;
+};
+
+export type TrusteeBoardsOutput = {
+  __typename?: 'TrusteeBoardsOutput';
+  boards: Array<TrusteeBoard>;
+};
+
+export type TrusteeReportOutput = {
+  __typename?: 'TrusteeReportOutput';
+  accepted: Scalars['Boolean']['output'];
+};
+
 export type UpdateElectionVotingStatusOutput = {
   __typename?: 'UpdateElectionVotingStatusOutput';
   election_id?: Maybe<Scalars['uuid']['output']>;
@@ -1985,14 +2001,15 @@ export type Mutation_Root = {
   /** Apply scheduled dates recomputed with the current timezone database */
   apply_schedule_recompute?: Maybe<ApplyScheduleRecomputeOutput>;
   audit_electoral_log: TaskOutput;
+  authorize_tally_custody?: Maybe<AuthorizeTallyCustodyOutput>;
   call_plugin_route: PluginsRouteOutput;
   /** cast_ballot */
   cast_ballot?: Maybe<CastBallotOutput>;
   check_messaging_account?: Maybe<CheckMessagingAccountOutput>;
-  /** check private key */
-  check_private_key?: Maybe<CheckPrivateKeyOutput>;
   /** Configure the results website policy for an election event */
   configureResultsWebsitePolicy: ConfigureResultsWebsitePolicyOutput;
+  /** confirm trustee custody with a public proof */
+  confirm_key_custody?: Maybe<ConfirmKeyCustodyOutput>;
   /** create scheduled event */
   createScheduledEvent?: Maybe<ScheduledEventOutput3>;
   /** create_ballot_receipt */
@@ -2126,6 +2143,10 @@ export type Mutation_Root = {
   delete_sequent_backend_preview?: Maybe<Sequent_Backend_Preview_Mutation_Response>;
   /** delete single row from the table: "sequent_backend.preview" */
   delete_sequent_backend_preview_by_pk?: Maybe<Sequent_Backend_Preview>;
+  /** delete data from the table: "sequent_backend.protocol_board" */
+  delete_sequent_backend_protocol_board?: Maybe<Sequent_Backend_Protocol_Board_Mutation_Response>;
+  /** delete single row from the table: "sequent_backend.protocol_board" */
+  delete_sequent_backend_protocol_board_by_pk?: Maybe<Sequent_Backend_Protocol_Board>;
   /** delete data from the table: "sequent_backend.report" */
   delete_sequent_backend_report?: Maybe<Sequent_Backend_Report_Mutation_Response>;
   /** delete single row from the table: "sequent_backend.report" */
@@ -2275,9 +2296,9 @@ export type Mutation_Root = {
   generate_transmission_report?: Maybe<GenerateReportOutput>;
   generate_voter_information_letter: VoterInformationLetterOutput;
   get_ballot_publication_changes?: Maybe<GetBallotPublicationChangesOutput>;
+  /** download the public trustee custody request */
+  get_custody_request?: Maybe<GetCustodyRequestOutput>;
   get_manual_verification_pdf?: Maybe<GetManualVerificationOutput>;
-  /** get private key */
-  get_private_key?: Maybe<GetPrivateKeyOutput>;
   get_upload_url?: Maybe<GetUploadUrlOutput>;
   get_user: KeycloakUser;
   get_user_template?: Maybe<GetUserTemplateOutput>;
@@ -2406,6 +2427,10 @@ export type Mutation_Root = {
   insert_sequent_backend_preview?: Maybe<Sequent_Backend_Preview_Mutation_Response>;
   /** insert a single row into the table: "sequent_backend.preview" */
   insert_sequent_backend_preview_one?: Maybe<Sequent_Backend_Preview>;
+  /** insert data into the table: "sequent_backend.protocol_board" */
+  insert_sequent_backend_protocol_board?: Maybe<Sequent_Backend_Protocol_Board_Mutation_Response>;
+  /** insert a single row into the table: "sequent_backend.protocol_board" */
+  insert_sequent_backend_protocol_board_one?: Maybe<Sequent_Backend_Protocol_Board>;
   /** insert data into the table: "sequent_backend.report" */
   insert_sequent_backend_report?: Maybe<Sequent_Backend_Report_Mutation_Response>;
   /** insert a single row into the table: "sequent_backend.report" */
@@ -2552,7 +2577,8 @@ export type Mutation_Root = {
   refreshResultsPublicationIndex: RefreshResultsPublicationIndexOutput;
   render_document_pdf?: Maybe<RenderDocumentPdfOutput>;
   replace_messaging_account_credentials?: Maybe<ReplaceMessagingAccountCredentialsOutput>;
-  restore_private_key?: Maybe<RestorePrivateKeyOutput>;
+  /** Record an authenticated trustee's halt report */
+  report_trustee_board: TrusteeReportOutput;
   /** review_tally_sheet */
   review_tally_sheet?: Maybe<TallySheetOutput>;
   /** review_tally_sheet_import */
@@ -2766,6 +2792,12 @@ export type Mutation_Root = {
   update_sequent_backend_preview_by_pk?: Maybe<Sequent_Backend_Preview>;
   /** update multiples rows of table: "sequent_backend.preview" */
   update_sequent_backend_preview_many?: Maybe<Array<Maybe<Sequent_Backend_Preview_Mutation_Response>>>;
+  /** update data of the table: "sequent_backend.protocol_board" */
+  update_sequent_backend_protocol_board?: Maybe<Sequent_Backend_Protocol_Board_Mutation_Response>;
+  /** update single row of the table: "sequent_backend.protocol_board" */
+  update_sequent_backend_protocol_board_by_pk?: Maybe<Sequent_Backend_Protocol_Board>;
+  /** update multiples rows of table: "sequent_backend.protocol_board" */
+  update_sequent_backend_protocol_board_many?: Maybe<Array<Maybe<Sequent_Backend_Protocol_Board_Mutation_Response>>>;
   /** update data of the table: "sequent_backend.report" */
   update_sequent_backend_report?: Maybe<Sequent_Backend_Report_Mutation_Response>;
   /** update single row of the table: "sequent_backend.report" */
@@ -2988,6 +3020,12 @@ export type Mutation_RootAudit_Electoral_LogArgs = {
 
 
 /** mutation root */
+export type Mutation_RootAuthorize_Tally_CustodyArgs = {
+  object: AuthorizeTallyCustodyInput;
+};
+
+
+/** mutation root */
 export type Mutation_RootCall_Plugin_RouteArgs = {
   data: Scalars['jsonb']['input'];
   path: Scalars['String']['input'];
@@ -3009,17 +3047,17 @@ export type Mutation_RootCheck_Messaging_AccountArgs = {
 
 
 /** mutation root */
-export type Mutation_RootCheck_Private_KeyArgs = {
-  object: CheckPrivateKeyInput;
-};
-
-
-/** mutation root */
 export type Mutation_RootConfigureResultsWebsitePolicyArgs = {
   access: ResultsWebsiteAccess;
   election_event_id: Scalars['uuid']['input'];
   status: ResultsWebsiteStatus;
   visibility_scope: ResultsWebsiteVisibilityScope;
+};
+
+
+/** mutation root */
+export type Mutation_RootConfirm_Key_CustodyArgs = {
+  object: ConfirmKeyCustodyInput;
 };
 
 
@@ -3516,6 +3554,18 @@ export type Mutation_RootDelete_Sequent_Backend_PreviewArgs = {
 
 /** mutation root */
 export type Mutation_RootDelete_Sequent_Backend_Preview_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Protocol_BoardArgs = {
+  where: Sequent_Backend_Protocol_Board_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Protocol_Board_By_PkArgs = {
   id: Scalars['uuid']['input'];
 };
 
@@ -4129,14 +4179,14 @@ export type Mutation_RootGet_Ballot_Publication_ChangesArgs = {
 
 
 /** mutation root */
-export type Mutation_RootGet_Manual_Verification_PdfArgs = {
-  body: GetManualVerificationInput;
+export type Mutation_RootGet_Custody_RequestArgs = {
+  object: GetCustodyRequestInput;
 };
 
 
 /** mutation root */
-export type Mutation_RootGet_Private_KeyArgs = {
-  object: GetPrivateKeyInput;
+export type Mutation_RootGet_Manual_Verification_PdfArgs = {
+  body: GetManualVerificationInput;
 };
 
 
@@ -4634,6 +4684,20 @@ export type Mutation_RootInsert_Sequent_Backend_PreviewArgs = {
 export type Mutation_RootInsert_Sequent_Backend_Preview_OneArgs = {
   object: Sequent_Backend_Preview_Insert_Input;
   on_conflict?: InputMaybe<Sequent_Backend_Preview_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Protocol_BoardArgs = {
+  objects: Array<Sequent_Backend_Protocol_Board_Insert_Input>;
+  on_conflict?: InputMaybe<Sequent_Backend_Protocol_Board_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Protocol_Board_OneArgs = {
+  object: Sequent_Backend_Protocol_Board_Insert_Input;
+  on_conflict?: InputMaybe<Sequent_Backend_Protocol_Board_On_Conflict>;
 };
 
 
@@ -5201,8 +5265,8 @@ export type Mutation_RootReplace_Messaging_Account_CredentialsArgs = {
 
 
 /** mutation root */
-export type Mutation_RootRestore_Private_KeyArgs = {
-  object: RestorePrivateKeyInput;
+export type Mutation_RootReport_Trustee_BoardArgs = {
+  report: Scalars['jsonb']['input'];
 };
 
 
@@ -6239,6 +6303,28 @@ export type Mutation_RootUpdate_Sequent_Backend_Preview_ManyArgs = {
 
 
 /** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Protocol_BoardArgs = {
+  _inc?: InputMaybe<Sequent_Backend_Protocol_Board_Inc_Input>;
+  _set?: InputMaybe<Sequent_Backend_Protocol_Board_Set_Input>;
+  where: Sequent_Backend_Protocol_Board_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Protocol_Board_By_PkArgs = {
+  _inc?: InputMaybe<Sequent_Backend_Protocol_Board_Inc_Input>;
+  _set?: InputMaybe<Sequent_Backend_Protocol_Board_Set_Input>;
+  pk_columns: Sequent_Backend_Protocol_Board_Pk_Columns_Input;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Protocol_Board_ManyArgs = {
+  updates: Array<Sequent_Backend_Protocol_Board_Updates>;
+};
+
+
+/** mutation root */
 export type Mutation_RootUpdate_Sequent_Backend_ReportArgs = {
   _append?: InputMaybe<Sequent_Backend_Report_Append_Input>;
   _delete_at_path?: InputMaybe<Sequent_Backend_Report_Delete_At_Path_Input>;
@@ -7177,6 +7263,7 @@ export enum Order_By {
 export type Query_Root = {
   __typename?: 'query_root';
   count_users: CountUsersOutput;
+  custody_proof_signature_status?: Maybe<CustodyProofSignatureStatusOutput>;
   /** A page of an election event's electoral-log records or ballot box */
   electoral_log_console_page: Scalars['jsonb']['output'];
   /** A read-only SQL query on the electoral-log database, for the super-admin tenant */
@@ -7218,12 +7305,13 @@ export type Query_Root = {
   get_users: GetUsersOutput;
   /** The voter's own cast votes, from the election event's ballot box */
   get_voter_cast_votes: Array<VoterCastVote>;
-  key_share_signature_status?: Maybe<KeyShareSignatureStatusOutput>;
   /** List Electoral Log */
   listElectoralLog?: Maybe<DataListElectoralLog>;
   /** List electoral log entries of statement_kind CastVote */
   list_cast_vote_messages?: Maybe<ListCastVoteMessagesOutput>;
   list_keys_ceremony?: Maybe<ListKeysCeremonyOutput>;
+  /** Discover boards assigned to the authenticated trustee */
+  list_trustee_boards: TrusteeBoardsOutput;
   list_user_roles: Array<KeycloakRole>;
   /** Look up one of the voter's own cast ballots while checks are open */
   locate_ballot?: Maybe<LocateBallotOutput>;
@@ -7424,6 +7512,12 @@ export type Query_Root = {
   sequent_backend_preview_aggregate: Sequent_Backend_Preview_Aggregate;
   /** fetch data from the table: "sequent_backend.preview" using primary key columns */
   sequent_backend_preview_by_pk?: Maybe<Sequent_Backend_Preview>;
+  /** fetch data from the table: "sequent_backend.protocol_board" */
+  sequent_backend_protocol_board: Array<Sequent_Backend_Protocol_Board>;
+  /** fetch aggregated fields from the table: "sequent_backend.protocol_board" */
+  sequent_backend_protocol_board_aggregate: Sequent_Backend_Protocol_Board_Aggregate;
+  /** fetch data from the table: "sequent_backend.protocol_board" using primary key columns */
+  sequent_backend_protocol_board_by_pk?: Maybe<Sequent_Backend_Protocol_Board>;
   /** fetch data from the table: "sequent_backend.report" */
   sequent_backend_report: Array<Sequent_Backend_Report>;
   /** fetch aggregated fields from the table: "sequent_backend.report" */
@@ -7622,6 +7716,11 @@ export type Query_RootCount_UsersArgs = {
 };
 
 
+export type Query_RootCustody_Proof_Signature_StatusArgs = {
+  object: CustodyProofSignatureStatusInput;
+};
+
+
 export type Query_RootElectoral_Log_Console_PageArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   election_event_id: Scalars['String']['input'];
@@ -7761,11 +7860,6 @@ export type Query_RootGet_Voter_Cast_VotesArgs = {
   ballot_id_prefix?: InputMaybe<Scalars['String']['input']>;
   election_event_id: Scalars['String']['input'];
   election_id?: InputMaybe<Scalars['String']['input']>;
-};
-
-
-export type Query_RootKey_Share_Signature_StatusArgs = {
-  object: KeyShareSignatureStatusInput;
 };
 
 
@@ -8552,6 +8646,29 @@ export type Query_RootSequent_Backend_Preview_AggregateArgs = {
 
 
 export type Query_RootSequent_Backend_Preview_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Query_RootSequent_Backend_Protocol_BoardArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Protocol_Board_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Protocol_Board_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Protocol_Board_Bool_Exp>;
+};
+
+
+export type Query_RootSequent_Backend_Protocol_Board_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Protocol_Board_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Protocol_Board_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Protocol_Board_Bool_Exp>;
+};
+
+
+export type Query_RootSequent_Backend_Protocol_Board_By_PkArgs = {
   id: Scalars['uuid']['input'];
 };
 
@@ -19370,6 +19487,334 @@ export type Sequent_Backend_Preview_Updates = {
   _set?: InputMaybe<Sequent_Backend_Preview_Set_Input>;
   /** filter the rows which have to be updated */
   where: Sequent_Backend_Preview_Bool_Exp;
+};
+
+/** columns and relationships of "sequent_backend.protocol_board" */
+export type Sequent_Backend_Protocol_Board = {
+  __typename?: 'sequent_backend_protocol_board';
+  /** The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset. */
+  batch?: Maybe<Scalars['Int']['output']>;
+  created_at: Scalars['timestamptz']['output'];
+  election_event_id: Scalars['uuid']['output'];
+  id: Scalars['uuid']['output'];
+  keys_ceremony_id: Scalars['uuid']['output'];
+  /** The canonical bytes of the message published by the protocol manager it when the ceremony was created. Configuration for dkg, and Ballots for tally. */
+  manager_message: Scalars['bytea']['output'];
+  name: Scalars['String']['output'];
+  /** The parent board of a child board, or NULL for parent. A child board is any tally board, and its parent is dkg. */
+  parent_id?: Maybe<Scalars['uuid']['output']>;
+  /** The tally session of a tally board, or NULL for dkg. Set together with parent_id and batch. */
+  tally_session_id?: Maybe<Scalars['uuid']['output']>;
+  tenant_id: Scalars['uuid']['output'];
+};
+
+/** aggregated selection of "sequent_backend.protocol_board" */
+export type Sequent_Backend_Protocol_Board_Aggregate = {
+  __typename?: 'sequent_backend_protocol_board_aggregate';
+  aggregate?: Maybe<Sequent_Backend_Protocol_Board_Aggregate_Fields>;
+  nodes: Array<Sequent_Backend_Protocol_Board>;
+};
+
+/** aggregate fields of "sequent_backend.protocol_board" */
+export type Sequent_Backend_Protocol_Board_Aggregate_Fields = {
+  __typename?: 'sequent_backend_protocol_board_aggregate_fields';
+  avg?: Maybe<Sequent_Backend_Protocol_Board_Avg_Fields>;
+  count: Scalars['Int']['output'];
+  max?: Maybe<Sequent_Backend_Protocol_Board_Max_Fields>;
+  min?: Maybe<Sequent_Backend_Protocol_Board_Min_Fields>;
+  stddev?: Maybe<Sequent_Backend_Protocol_Board_Stddev_Fields>;
+  stddev_pop?: Maybe<Sequent_Backend_Protocol_Board_Stddev_Pop_Fields>;
+  stddev_samp?: Maybe<Sequent_Backend_Protocol_Board_Stddev_Samp_Fields>;
+  sum?: Maybe<Sequent_Backend_Protocol_Board_Sum_Fields>;
+  var_pop?: Maybe<Sequent_Backend_Protocol_Board_Var_Pop_Fields>;
+  var_samp?: Maybe<Sequent_Backend_Protocol_Board_Var_Samp_Fields>;
+  variance?: Maybe<Sequent_Backend_Protocol_Board_Variance_Fields>;
+};
+
+
+/** aggregate fields of "sequent_backend.protocol_board" */
+export type Sequent_Backend_Protocol_Board_Aggregate_FieldsCountArgs = {
+  columns?: InputMaybe<Array<Sequent_Backend_Protocol_Board_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+/** aggregate avg on columns */
+export type Sequent_Backend_Protocol_Board_Avg_Fields = {
+  __typename?: 'sequent_backend_protocol_board_avg_fields';
+  /** The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset. */
+  batch?: Maybe<Scalars['Float']['output']>;
+};
+
+/** Boolean expression to filter rows from the table "sequent_backend.protocol_board". All fields are combined with a logical 'AND'. */
+export type Sequent_Backend_Protocol_Board_Bool_Exp = {
+  _and?: InputMaybe<Array<Sequent_Backend_Protocol_Board_Bool_Exp>>;
+  _not?: InputMaybe<Sequent_Backend_Protocol_Board_Bool_Exp>;
+  _or?: InputMaybe<Array<Sequent_Backend_Protocol_Board_Bool_Exp>>;
+  batch?: InputMaybe<Int_Comparison_Exp>;
+  created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
+  id?: InputMaybe<Uuid_Comparison_Exp>;
+  keys_ceremony_id?: InputMaybe<Uuid_Comparison_Exp>;
+  manager_message?: InputMaybe<Bytea_Comparison_Exp>;
+  name?: InputMaybe<String_Comparison_Exp>;
+  parent_id?: InputMaybe<Uuid_Comparison_Exp>;
+  tally_session_id?: InputMaybe<Uuid_Comparison_Exp>;
+  tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
+};
+
+/** unique or primary key constraints on table "sequent_backend.protocol_board" */
+export enum Sequent_Backend_Protocol_Board_Constraint {
+  /** unique or primary key constraint on columns "name" */
+  ProtocolBoardNameKey = 'protocol_board_name_key',
+  /** unique or primary key constraint on columns "keys_ceremony_id" */
+  ProtocolBoardOneRootPerCeremonyIdx = 'protocol_board_one_root_per_ceremony_idx',
+  /** unique or primary key constraint on columns "id" */
+  ProtocolBoardPkey = 'protocol_board_pkey',
+  /** unique or primary key constraint on columns "tally_session_id", "batch" */
+  ProtocolBoardTallySessionIdBatchKey = 'protocol_board_tally_session_id_batch_key'
+}
+
+/** input type for incrementing numeric columns in table "sequent_backend.protocol_board" */
+export type Sequent_Backend_Protocol_Board_Inc_Input = {
+  /** The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset. */
+  batch?: InputMaybe<Scalars['Int']['input']>;
+};
+
+/** input type for inserting data into table "sequent_backend.protocol_board" */
+export type Sequent_Backend_Protocol_Board_Insert_Input = {
+  /** The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset. */
+  batch?: InputMaybe<Scalars['Int']['input']>;
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  keys_ceremony_id?: InputMaybe<Scalars['uuid']['input']>;
+  /** The canonical bytes of the message published by the protocol manager it when the ceremony was created. Configuration for dkg, and Ballots for tally. */
+  manager_message?: InputMaybe<Scalars['bytea']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  /** The parent board of a child board, or NULL for parent. A child board is any tally board, and its parent is dkg. */
+  parent_id?: InputMaybe<Scalars['uuid']['input']>;
+  /** The tally session of a tally board, or NULL for dkg. Set together with parent_id and batch. */
+  tally_session_id?: InputMaybe<Scalars['uuid']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+/** aggregate max on columns */
+export type Sequent_Backend_Protocol_Board_Max_Fields = {
+  __typename?: 'sequent_backend_protocol_board_max_fields';
+  /** The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset. */
+  batch?: Maybe<Scalars['Int']['output']>;
+  created_at?: Maybe<Scalars['timestamptz']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  keys_ceremony_id?: Maybe<Scalars['uuid']['output']>;
+  name?: Maybe<Scalars['String']['output']>;
+  /** The parent board of a child board, or NULL for parent. A child board is any tally board, and its parent is dkg. */
+  parent_id?: Maybe<Scalars['uuid']['output']>;
+  /** The tally session of a tally board, or NULL for dkg. Set together with parent_id and batch. */
+  tally_session_id?: Maybe<Scalars['uuid']['output']>;
+  tenant_id?: Maybe<Scalars['uuid']['output']>;
+};
+
+/** aggregate min on columns */
+export type Sequent_Backend_Protocol_Board_Min_Fields = {
+  __typename?: 'sequent_backend_protocol_board_min_fields';
+  /** The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset. */
+  batch?: Maybe<Scalars['Int']['output']>;
+  created_at?: Maybe<Scalars['timestamptz']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  keys_ceremony_id?: Maybe<Scalars['uuid']['output']>;
+  name?: Maybe<Scalars['String']['output']>;
+  /** The parent board of a child board, or NULL for parent. A child board is any tally board, and its parent is dkg. */
+  parent_id?: Maybe<Scalars['uuid']['output']>;
+  /** The tally session of a tally board, or NULL for dkg. Set together with parent_id and batch. */
+  tally_session_id?: Maybe<Scalars['uuid']['output']>;
+  tenant_id?: Maybe<Scalars['uuid']['output']>;
+};
+
+/** response of any mutation on the table "sequent_backend.protocol_board" */
+export type Sequent_Backend_Protocol_Board_Mutation_Response = {
+  __typename?: 'sequent_backend_protocol_board_mutation_response';
+  /** number of rows affected by the mutation */
+  affected_rows: Scalars['Int']['output'];
+  /** data from the rows affected by the mutation */
+  returning: Array<Sequent_Backend_Protocol_Board>;
+};
+
+/** on_conflict condition type for table "sequent_backend.protocol_board" */
+export type Sequent_Backend_Protocol_Board_On_Conflict = {
+  constraint: Sequent_Backend_Protocol_Board_Constraint;
+  update_columns?: Array<Sequent_Backend_Protocol_Board_Update_Column>;
+  where?: InputMaybe<Sequent_Backend_Protocol_Board_Bool_Exp>;
+};
+
+/** Ordering options when selecting data from "sequent_backend.protocol_board". */
+export type Sequent_Backend_Protocol_Board_Order_By = {
+  batch?: InputMaybe<Order_By>;
+  created_at?: InputMaybe<Order_By>;
+  election_event_id?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  keys_ceremony_id?: InputMaybe<Order_By>;
+  manager_message?: InputMaybe<Order_By>;
+  name?: InputMaybe<Order_By>;
+  parent_id?: InputMaybe<Order_By>;
+  tally_session_id?: InputMaybe<Order_By>;
+  tenant_id?: InputMaybe<Order_By>;
+};
+
+/** primary key columns input for table: sequent_backend.protocol_board */
+export type Sequent_Backend_Protocol_Board_Pk_Columns_Input = {
+  id: Scalars['uuid']['input'];
+};
+
+/** select columns of table "sequent_backend.protocol_board" */
+export enum Sequent_Backend_Protocol_Board_Select_Column {
+  /** column name */
+  Batch = 'batch',
+  /** column name */
+  CreatedAt = 'created_at',
+  /** column name */
+  ElectionEventId = 'election_event_id',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  KeysCeremonyId = 'keys_ceremony_id',
+  /** column name */
+  ManagerMessage = 'manager_message',
+  /** column name */
+  Name = 'name',
+  /** column name */
+  ParentId = 'parent_id',
+  /** column name */
+  TallySessionId = 'tally_session_id',
+  /** column name */
+  TenantId = 'tenant_id'
+}
+
+/** input type for updating data in table "sequent_backend.protocol_board" */
+export type Sequent_Backend_Protocol_Board_Set_Input = {
+  /** The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset. */
+  batch?: InputMaybe<Scalars['Int']['input']>;
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  keys_ceremony_id?: InputMaybe<Scalars['uuid']['input']>;
+  /** The canonical bytes of the message published by the protocol manager it when the ceremony was created. Configuration for dkg, and Ballots for tally. */
+  manager_message?: InputMaybe<Scalars['bytea']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  /** The parent board of a child board, or NULL for parent. A child board is any tally board, and its parent is dkg. */
+  parent_id?: InputMaybe<Scalars['uuid']['input']>;
+  /** The tally session of a tally board, or NULL for dkg. Set together with parent_id and batch. */
+  tally_session_id?: InputMaybe<Scalars['uuid']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+/** aggregate stddev on columns */
+export type Sequent_Backend_Protocol_Board_Stddev_Fields = {
+  __typename?: 'sequent_backend_protocol_board_stddev_fields';
+  /** The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset. */
+  batch?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate stddev_pop on columns */
+export type Sequent_Backend_Protocol_Board_Stddev_Pop_Fields = {
+  __typename?: 'sequent_backend_protocol_board_stddev_pop_fields';
+  /** The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset. */
+  batch?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate stddev_samp on columns */
+export type Sequent_Backend_Protocol_Board_Stddev_Samp_Fields = {
+  __typename?: 'sequent_backend_protocol_board_stddev_samp_fields';
+  /** The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset. */
+  batch?: Maybe<Scalars['Float']['output']>;
+};
+
+/** Streaming cursor of the table "sequent_backend_protocol_board" */
+export type Sequent_Backend_Protocol_Board_Stream_Cursor_Input = {
+  /** Stream column input with initial value */
+  initial_value: Sequent_Backend_Protocol_Board_Stream_Cursor_Value_Input;
+  /** cursor ordering */
+  ordering?: InputMaybe<Cursor_Ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type Sequent_Backend_Protocol_Board_Stream_Cursor_Value_Input = {
+  /** The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset. */
+  batch?: InputMaybe<Scalars['Int']['input']>;
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  keys_ceremony_id?: InputMaybe<Scalars['uuid']['input']>;
+  /** The canonical bytes of the message published by the protocol manager it when the ceremony was created. Configuration for dkg, and Ballots for tally. */
+  manager_message?: InputMaybe<Scalars['bytea']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  /** The parent board of a child board, or NULL for parent. A child board is any tally board, and its parent is dkg. */
+  parent_id?: InputMaybe<Scalars['uuid']['input']>;
+  /** The tally session of a tally board, or NULL for dkg. Set together with parent_id and batch. */
+  tally_session_id?: InputMaybe<Scalars['uuid']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+/** aggregate sum on columns */
+export type Sequent_Backend_Protocol_Board_Sum_Fields = {
+  __typename?: 'sequent_backend_protocol_board_sum_fields';
+  /** The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset. */
+  batch?: Maybe<Scalars['Int']['output']>;
+};
+
+/** update columns of table "sequent_backend.protocol_board" */
+export enum Sequent_Backend_Protocol_Board_Update_Column {
+  /** column name */
+  Batch = 'batch',
+  /** column name */
+  CreatedAt = 'created_at',
+  /** column name */
+  ElectionEventId = 'election_event_id',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  KeysCeremonyId = 'keys_ceremony_id',
+  /** column name */
+  ManagerMessage = 'manager_message',
+  /** column name */
+  Name = 'name',
+  /** column name */
+  ParentId = 'parent_id',
+  /** column name */
+  TallySessionId = 'tally_session_id',
+  /** column name */
+  TenantId = 'tenant_id'
+}
+
+export type Sequent_Backend_Protocol_Board_Updates = {
+  /** increments the numeric columns with given value of the filtered values */
+  _inc?: InputMaybe<Sequent_Backend_Protocol_Board_Inc_Input>;
+  /** sets the columns of the filtered rows to the given values */
+  _set?: InputMaybe<Sequent_Backend_Protocol_Board_Set_Input>;
+  /** filter the rows which have to be updated */
+  where: Sequent_Backend_Protocol_Board_Bool_Exp;
+};
+
+/** aggregate var_pop on columns */
+export type Sequent_Backend_Protocol_Board_Var_Pop_Fields = {
+  __typename?: 'sequent_backend_protocol_board_var_pop_fields';
+  /** The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset. */
+  batch?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate var_samp on columns */
+export type Sequent_Backend_Protocol_Board_Var_Samp_Fields = {
+  __typename?: 'sequent_backend_protocol_board_var_samp_fields';
+  /** The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset. */
+  batch?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate variance on columns */
+export type Sequent_Backend_Protocol_Board_Variance_Fields = {
+  __typename?: 'sequent_backend_protocol_board_variance_fields';
+  /** The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset. */
+  batch?: Maybe<Scalars['Float']['output']>;
 };
 
 /** columns and relationships of "sequent_backend.report" */
@@ -31518,6 +31963,8 @@ export type Sequent_Backend_Trustee = {
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   name?: Maybe<Scalars['String']['output']>;
   public_key?: Maybe<Scalars['String']['output']>;
+  /** Base64 of the canonical group element bytes. NULL until the trustee has a key. */
+  share_encryption_public_key?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
 };
 
@@ -31598,6 +32045,7 @@ export type Sequent_Backend_Trustee_Bool_Exp = {
   last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   name?: InputMaybe<String_Comparison_Exp>;
   public_key?: InputMaybe<String_Comparison_Exp>;
+  share_encryption_public_key?: InputMaybe<String_Comparison_Exp>;
   tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
 };
 
@@ -31634,6 +32082,8 @@ export type Sequent_Backend_Trustee_Insert_Input = {
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   public_key?: InputMaybe<Scalars['String']['input']>;
+  /** Base64 of the canonical group element bytes. NULL until the trustee has a key. */
+  share_encryption_public_key?: InputMaybe<Scalars['String']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
 };
 
@@ -31645,6 +32095,8 @@ export type Sequent_Backend_Trustee_Max_Fields = {
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   name?: Maybe<Scalars['String']['output']>;
   public_key?: Maybe<Scalars['String']['output']>;
+  /** Base64 of the canonical group element bytes. NULL until the trustee has a key. */
+  share_encryption_public_key?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
 };
 
@@ -31655,6 +32107,8 @@ export type Sequent_Backend_Trustee_Max_Order_By = {
   last_updated_at?: InputMaybe<Order_By>;
   name?: InputMaybe<Order_By>;
   public_key?: InputMaybe<Order_By>;
+  /** Base64 of the canonical group element bytes. NULL until the trustee has a key. */
+  share_encryption_public_key?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
 };
 
@@ -31666,6 +32120,8 @@ export type Sequent_Backend_Trustee_Min_Fields = {
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   name?: Maybe<Scalars['String']['output']>;
   public_key?: Maybe<Scalars['String']['output']>;
+  /** Base64 of the canonical group element bytes. NULL until the trustee has a key. */
+  share_encryption_public_key?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
 };
 
@@ -31676,6 +32132,8 @@ export type Sequent_Backend_Trustee_Min_Order_By = {
   last_updated_at?: InputMaybe<Order_By>;
   name?: InputMaybe<Order_By>;
   public_key?: InputMaybe<Order_By>;
+  /** Base64 of the canonical group element bytes. NULL until the trustee has a key. */
+  share_encryption_public_key?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
 };
 
@@ -31704,6 +32162,7 @@ export type Sequent_Backend_Trustee_Order_By = {
   last_updated_at?: InputMaybe<Order_By>;
   name?: InputMaybe<Order_By>;
   public_key?: InputMaybe<Order_By>;
+  share_encryption_public_key?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
 };
 
@@ -31735,6 +32194,8 @@ export enum Sequent_Backend_Trustee_Select_Column {
   /** column name */
   PublicKey = 'public_key',
   /** column name */
+  ShareEncryptionPublicKey = 'share_encryption_public_key',
+  /** column name */
   TenantId = 'tenant_id'
 }
 
@@ -31747,6 +32208,8 @@ export type Sequent_Backend_Trustee_Set_Input = {
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   public_key?: InputMaybe<Scalars['String']['input']>;
+  /** Base64 of the canonical group element bytes. NULL until the trustee has a key. */
+  share_encryption_public_key?: InputMaybe<Scalars['String']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
 };
 
@@ -31767,6 +32230,8 @@ export type Sequent_Backend_Trustee_Stream_Cursor_Value_Input = {
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   public_key?: InputMaybe<Scalars['String']['input']>;
+  /** Base64 of the canonical group element bytes. NULL until the trustee has a key. */
+  share_encryption_public_key?: InputMaybe<Scalars['String']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
 };
 
@@ -31786,6 +32251,8 @@ export enum Sequent_Backend_Trustee_Update_Column {
   Name = 'name',
   /** column name */
   PublicKey = 'public_key',
+  /** column name */
+  ShareEncryptionPublicKey = 'share_encryption_public_key',
   /** column name */
   TenantId = 'tenant_id'
 }
@@ -32023,6 +32490,14 @@ export type Subscription_Root = {
   sequent_backend_preview_by_pk?: Maybe<Sequent_Backend_Preview>;
   /** fetch data from the table in a streaming manner: "sequent_backend.preview" */
   sequent_backend_preview_stream: Array<Sequent_Backend_Preview>;
+  /** fetch data from the table: "sequent_backend.protocol_board" */
+  sequent_backend_protocol_board: Array<Sequent_Backend_Protocol_Board>;
+  /** fetch aggregated fields from the table: "sequent_backend.protocol_board" */
+  sequent_backend_protocol_board_aggregate: Sequent_Backend_Protocol_Board_Aggregate;
+  /** fetch data from the table: "sequent_backend.protocol_board" using primary key columns */
+  sequent_backend_protocol_board_by_pk?: Maybe<Sequent_Backend_Protocol_Board>;
+  /** fetch data from the table in a streaming manner: "sequent_backend.protocol_board" */
+  sequent_backend_protocol_board_stream: Array<Sequent_Backend_Protocol_Board>;
   /** fetch data from the table: "sequent_backend.report" */
   sequent_backend_report: Array<Sequent_Backend_Report>;
   /** fetch aggregated fields from the table: "sequent_backend.report" */
@@ -33077,6 +33552,36 @@ export type Subscription_RootSequent_Backend_Preview_StreamArgs = {
   batch_size: Scalars['Int']['input'];
   cursor: Array<InputMaybe<Sequent_Backend_Preview_Stream_Cursor_Input>>;
   where?: InputMaybe<Sequent_Backend_Preview_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Protocol_BoardArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Protocol_Board_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Protocol_Board_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Protocol_Board_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Protocol_Board_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Protocol_Board_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Protocol_Board_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Protocol_Board_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Protocol_Board_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Subscription_RootSequent_Backend_Protocol_Board_StreamArgs = {
+  batch_size: Scalars['Int']['input'];
+  cursor: Array<InputMaybe<Sequent_Backend_Protocol_Board_Stream_Cursor_Input>>;
+  where?: InputMaybe<Sequent_Backend_Protocol_Board_Bool_Exp>;
 };
 
 

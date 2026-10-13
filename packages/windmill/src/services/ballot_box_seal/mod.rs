@@ -25,15 +25,14 @@ use crate::services::ballot_box::request_sequencer;
 use crate::services::documents::{
     upload_and_return_document, upload_and_return_public_event_document,
 };
-use crate::services::protocol_manager::{
-    get_event_databases, get_event_store, get_protocol_manager,
+use crate::services::electoral_log_board::{
+    get_board_signing_key, get_event_databases, get_event_store,
 };
 use crate::services::users::{
     list_keycloak_enabled_users_by_area_id_and_authorized_elections, VoterMultiplicityColumn,
 };
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use b4::messages::message::Signer;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use electoral_log::adapters::ballot_box_seal::is_sealed_refusal;
@@ -48,11 +47,11 @@ use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::hasura::core::{ElectionEvent, VotingChannels};
 use sequent_core::types::keycloak::{MAX_VOTE_WEIGHT, MIN_VOTE_WEIGHT};
 use std::collections::{BTreeSet, HashMap};
-use strand::backend::ristretto::RistrettoCtx;
-use strand::signature::StrandSignatureSk;
 use tempfile::NamedTempFile;
 use tracing::{error, info, instrument};
 use uuid::Uuid;
+use voting_crypto::signing::SigningKey;
+use voting_crypto::RistrettoCtx;
 
 /// What a voter or a writer is told when the guard refuses a write to a
 /// sealed ballot box.
@@ -268,7 +267,7 @@ pub trait SealEnvironment: Send + Sync {
         tenant_id: &str,
         election_event_id: &str,
         board: &str,
-    ) -> Result<StrandSignatureSk>;
+    ) -> Result<SigningKey>;
 
     /// The census of the area for the election (alias `election_alias`).
     async fn census(
@@ -319,16 +318,14 @@ impl SealEnvironment for ProductionSealEnvironment {
         tenant_id: &str,
         election_event_id: &str,
         board: &str,
-    ) -> Result<StrandSignatureSk> {
-        Ok(get_protocol_manager::<RistrettoCtx>(
+    ) -> Result<SigningKey> {
+        get_board_signing_key(
             hasura_transaction,
             tenant_id,
             Some(election_event_id),
             board,
         )
-        .await?
-        .get_signing_key()
-        .clone())
+        .await
     }
 
     async fn census(

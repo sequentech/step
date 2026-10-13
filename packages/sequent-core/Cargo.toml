@@ -20,6 +20,8 @@ required-features = ["reports"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+voting-crypto = { path = "../voting-crypto" }
+vsc = { workspace = true }
 # serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -34,8 +36,6 @@ serde-wasm-bindgen = { version = "0.6", optional = true }
 web-sys = { version = "0.3", features = ['Performance', 'console'], optional = true}
 cfg-if = "1.0"
 # signatures
-ed25519-dalek = {version = "3.0", features = ["serde"]}
-curve25519-dalek = { version = "5.0", features = [] }
 # aws
 aws-config = { version = "1.6", features = ["behavior-version-latest"], optional = true }
 aws-sdk-sesv2 = { version = "1.70", optional = true }
@@ -58,9 +58,7 @@ base64 = "0.22"
 
 # rust to json schema
 schemars = { version = "0.8", features = ["chrono"]}
-# strand
-strand = { path="../strand", features = [], optional = true}
-
+# Ballot encoding arithmetic
 num-bigint = { version = "0.4", features = ["rand"], optional = true }
 num-traits = "0.2"
 quick-error = "2.0"
@@ -183,7 +181,7 @@ ptree = "0.5"
 wasm-bindgen-test = "0.3.42"
 
 [features]
-wasmtest = ["wasm", "dep:web-sys", "strand/wasmtest"]
+wasmtest = ["wasm", "dep:web-sys"]
 wasm = ["dep:wasm-bindgen", "areas", "dep:serde-wasm-bindgen"]
 signatures=["dep:tracing"]
 default = []
@@ -199,7 +197,7 @@ lambda_inplace = []
 lambda_openwhisk = []
 lambda_aws_lambda = []
 plugins_wit = ["dep:wasmtime", "dep:wasmtime-wasi"]
-default_features = ["dep:strand", "dep:num-bigint", "dep:tempfile", "dep:ammonia", "dep:sha1", "dep:sha2", "dep:hmac", "dep:uuid"]
+default_features = ["dep:num-bigint", "dep:tempfile", "dep:ammonia", "dep:sha1", "dep:sha2", "dep:hmac", "dep:uuid"]
 # Reading .xlsx into an election_config::sheet::Workbook. Separate from
 # default_features because admin-portal and voting-portal have no workbook to
 # read and should not pay for a spreadsheet parser in their bundle.

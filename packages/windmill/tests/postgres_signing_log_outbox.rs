@@ -18,10 +18,10 @@ use electoral_log::ElectoralLogMessage;
 use serde_json::json;
 use std::collections::HashMap;
 use std::time::Duration;
-use strand::serialization::StrandDeserialize;
-use strand::signature::StrandSignatureSk;
 use tokio::sync::{oneshot, Mutex};
 use uuid::Uuid;
+use voting_crypto::signing::SigningKey;
+use voting_crypto::RecordDeserialize;
 use windmill::postgres::signing::{
     list_signing_log_outbox_events, SigningLogOutboxRow, SigningLogOutboxUser,
 };
@@ -92,7 +92,7 @@ struct TestKeys {
 
 impl TestKeys {
     fn new() -> Self {
-        let sk = StrandSignatureSk::generate().unwrap();
+        let sk = SigningKey::generate().unwrap();
         TestKeys {
             sd: SigningData::new(sk.clone(), "", sk),
             prepared: vec![],
@@ -146,7 +146,7 @@ impl MemoryBoard {
         self.entries
             .iter()
             .map(|entry| {
-                let message = Message::strand_deserialize(&entry.message).unwrap();
+                let message = Message::record_deserialize(&entry.message).unwrap();
                 match message.statement.body {
                     StatementBody::Signing(entry) => {
                         (Uuid::parse_str(&entry.step_id).unwrap(), entry.event_type)

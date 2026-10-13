@@ -40,9 +40,9 @@ use serde_json::json;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::Once;
-use strand::serialization::{StrandDeserialize, StrandSerialize};
-use strand::signature::StrandSignatureSk;
 use uuid::Uuid;
+use voting_crypto::signing::SigningKey;
+use voting_crypto::{RecordDeserialize, RecordSerialize};
 use windmill::postgres::ballot_box_seal::{
     insert_pending, list_for_elections, mark_published, mark_sealed, ClosedBy, NewPendingSeal,
     PublishedFields, SealLogRecord, SealedFields,
@@ -51,13 +51,13 @@ use windmill::postgres::tally_session::get_tally_session_by_id;
 use windmill::postgres::tally_session_contest::insert_tally_session_contest;
 use windmill::services::ballot_box_seal::is_ballot_box_sealed;
 use windmill::services::ballot_box_seal::seal::seal_delivery_id;
-use windmill::services::ceremonies::insert_ballots::sealed_boxes_for_execution;
 use windmill::services::ceremonies::sealed_box_ballots::{
     check_sealed_boxes_tallied, sealed_box_ballots, sealed_elections, SealedBox, SealedBoxBallots,
     SealedBoxLog,
 };
+use windmill::services::ceremonies::tally_boards::sealed_boxes_for_execution;
 use windmill::services::election::get_election_event_elections;
-use windmill::services::protocol_manager::create_protocol_manager_keys;
+use windmill::services::electoral_log_board::create_protocol_manager_keys;
 
 const SESSION: &str = "tally-session";
 const ELECTION_NAME: &str = "Mayor";
@@ -78,7 +78,7 @@ struct World {
     election: Uuid,
     area: Uuid,
     database: EventDatabase,
-    key: StrandSignatureSk,
+    key: SigningKey,
 }
 
 impl World {
@@ -90,7 +90,7 @@ impl World {
             election: Uuid::new_v4(),
             area: Uuid::new_v4(),
             database: EventDatabase::create(tenant, event).await,
-            key: StrandSignatureSk::generate().unwrap(),
+            key: SigningKey::generate().unwrap(),
         };
         tx.execute(
             "INSERT INTO sequent_backend.tenant (id, slug) VALUES ($1, $2)",
@@ -201,7 +201,7 @@ impl World {
     }
 
     /// The signed `BallotBoxSealed` message of `manifest`.
-    fn signed(&self, manifest: BallotBoxSealManifest, signer: &StrandSignatureSk) -> Message {
+    fn signed(&self, manifest: BallotBoxSealManifest, signer: &SigningKey) -> Message {
         let built = build(manifest).unwrap();
         Message::ballot_box_sealed_message(
             &built.manifest,
@@ -220,7 +220,7 @@ impl World {
         &self,
         tx: &Transaction<'_>,
         manifest: BallotBoxSealManifest,
-        signer: &StrandSignatureSk,
+        signer: &SigningKey,
     ) -> Message {
         self.store_seal(tx, manifest, signer, self.board()).await
     }
@@ -231,7 +231,7 @@ impl World {
         &self,
         tx: &Transaction<'_>,
         manifest: BallotBoxSealManifest,
-        signer: &StrandSignatureSk,
+        signer: &SigningKey,
     ) -> Message {
         let elsewhere = format!("{}elsewhere", self.board());
         self.database.store.create_board(&elsewhere).await.unwrap();
@@ -242,12 +242,12 @@ impl World {
         &self,
         tx: &Transaction<'_>,
         manifest: BallotBoxSealManifest,
-        signer: &StrandSignatureSk,
+        signer: &SigningKey,
         board: &str,
     ) -> Message {
         let built = build(manifest).unwrap();
         let message = self.signed(built.manifest.clone(), signer);
-        let signed_message = message.strand_serialize().unwrap();
+        let signed_message = message.record_serialize().unwrap();
         let (event, election, area) = (
             self.event.to_string(),
             self.election.to_string(),
@@ -411,7 +411,7 @@ impl World {
             .await
             .unwrap()
             .iter()
-            .map(|row| Message::strand_deserialize(&row.message).unwrap())
+            .map(|row| Message::record_deserialize(&row.message).unwrap())
             .collect()
     }
 
@@ -672,7 +672,7 @@ fn copies_of_the_seal_entry_and_unsigned_entries_do_not_block_the_tally() {
         // Anyone who can write the log could add a byte-identical copy, or an
         // entry for this box signed by another key.
         w.post(&message).await;
-        let other = StrandSignatureSk::generate().unwrap();
+        let other = SigningKey::generate().unwrap();
         w.post(&w.signed(manifest, &other)).await;
         let counted = w.count(&tx).await.unwrap();
         assert_eq!(counted.seal_hash, seal_hash_of(&message));
@@ -888,7 +888,7 @@ fn a_seal_signed_with_another_key_is_rejected() {
         let tx = client.transaction().await.unwrap();
         let w = World::new(&tx, "seal-at-close").await;
         let entries = cast_all(&w).await;
-        let other = StrandSignatureSk::generate().unwrap();
+        let other = SigningKey::generate().unwrap();
         w.seal(&tx, w.manifest(entries, 4), &other).await;
         assert_rejected(
             &w,
@@ -1060,7 +1060,7 @@ fn a_seal_row_without_the_stored_seal_is_rejected() {
         w.publish_row(
             &tx,
             &built,
-            message.strand_serialize().unwrap(),
+            message.record_serialize().unwrap(),
             SealLogRecord {
                 delivery_id: "ballot-box-seal:restored".into(),
                 log_uid: Uuid::new_v4(),

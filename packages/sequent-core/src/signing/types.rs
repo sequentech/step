@@ -41,10 +41,10 @@ signing_enum! {
         ApproveConfiguration,
         #[serde(rename = "key-ceremony")]
         #[strum(serialize = "key-ceremony")]
-        ConfirmKeyShare,
+        ConfirmCustodyProof,
         #[serde(rename = "tally-key")]
         #[strum(serialize = "tally-key")]
-        ContributeKeyShare,
+        ContributeCustodyProof,
     }
 }
 
@@ -110,8 +110,12 @@ impl SigningAction {
             SigningAction::ApproveConfiguration => {
                 Permissions::SIGN_APPROVE_CONFIGURATION
             }
-            SigningAction::ConfirmKeyShare => Permissions::SIGN_KEY_CEREMONY,
-            SigningAction::ContributeKeyShare => Permissions::SIGN_TALLY_KEY,
+            SigningAction::ConfirmCustodyProof => {
+                Permissions::SIGN_KEY_CEREMONY
+            }
+            SigningAction::ContributeCustodyProof => {
+                Permissions::SIGN_TALLY_KEY
+            }
         }
     }
 
@@ -128,8 +132,8 @@ impl SigningAction {
             | SigningAction::GenerateElectionReturns
             | SigningAction::TransmitResults => SigningScope::PostAndCountry,
             SigningAction::ApproveConfiguration => SigningScope::Event,
-            SigningAction::ConfirmKeyShare
-            | SigningAction::ContributeKeyShare => SigningScope::Trustee,
+            SigningAction::ConfirmCustodyProof
+            | SigningAction::ContributeCustodyProof => SigningScope::Trustee,
         }
     }
 
@@ -167,8 +171,8 @@ impl SigningAction {
             }
             SigningAction::ApproveVoter => SigningActionGroup::Enrollment,
             SigningAction::ApproveConfiguration
-            | SigningAction::ConfirmKeyShare
-            | SigningAction::ContributeKeyShare => {
+            | SigningAction::ConfirmCustodyProof
+            | SigningAction::ContributeCustodyProof => {
                 SigningActionGroup::ConfigurationAndKeys
             }
         }
@@ -610,14 +614,14 @@ pub struct ApproveConfigurationSubject {
 pub struct KeyCeremonySubject {
     pub keys_ceremony_id: String,
     pub trustee_id: String,
-    pub key_share_sha256: String,
+    pub custody_proof_sha256: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TallyKeySubject {
     pub tally_session_id: String,
     pub trustee_id: String,
-    pub key_share_sha256: String,
+    pub custody_proof_sha256: String,
 }
 
 #[cfg(test)]

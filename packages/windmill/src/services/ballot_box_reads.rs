@@ -7,7 +7,7 @@
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::cast_votes::CastVoteStatus;
 use crate::services::election_event_board::get_election_event_board;
-use crate::services::protocol_manager::get_event_store;
+use crate::services::electoral_log_board::get_event_store;
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;

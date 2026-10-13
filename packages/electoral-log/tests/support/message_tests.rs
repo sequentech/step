@@ -5,11 +5,7 @@ use super::*;
 
 #[test]
 fn results_publication_message_keeps_actor_and_action_details() -> Result<()> {
-    let signing_data = SigningData::new(
-        StrandSignatureSk::generate()?,
-        "admin",
-        StrandSignatureSk::generate()?,
-    );
+    let signing_data = SigningData::new(SigningKey::generate()?, "admin", SigningKey::generate()?);
     let details = ResultsPublicationDetails {
         publication_id: ResultsPublicationIdString("publication-id".to_string()),
         action: ResultsPublicationAction::Revoke,
@@ -42,11 +38,8 @@ fn results_publication_message_keeps_actor_and_action_details() -> Result<()> {
 
 #[test]
 fn only_channel_aware_cast_votes_use_schema_version_two() -> Result<()> {
-    let signing_data = SigningData::new(
-        StrandSignatureSk::generate()?,
-        "windmill",
-        StrandSignatureSk::generate()?,
-    );
+    let signing_data =
+        SigningData::new(SigningKey::generate()?, "windmill", SigningKey::generate()?);
     let legacy = Message::cast_vote_message(
         EventIdString("event-id".to_string()),
         ElectionIdString(Some("election-id".to_string())),
@@ -86,8 +79,8 @@ fn only_channel_aware_cast_votes_use_schema_version_two() -> Result<()> {
 
 #[test]
 fn publication_failures_are_signed_errors_with_task_and_publication_context() -> Result<()> {
-    let system_sk = StrandSignatureSk::generate()?;
-    let system_pk = StrandSignaturePk::from_sk(&system_sk)?;
+    let system_sk = SigningKey::generate()?;
+    let system_pk = VerificationKey::from_sk(&system_sk)?;
     let signing_data = SigningData::new(system_sk.clone(), "", system_sk);
     for stage in [
         BallotPublicationStage::Generate,

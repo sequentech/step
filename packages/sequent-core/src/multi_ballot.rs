@@ -2,14 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use borsh::{BorshDeserialize, BorshSerialize};
+use cryptography::utils::serialization::{Deserializable, Serializable};
+use cryptography::Canonical;
 use serde::{Deserialize, Serialize};
+use voting_crypto::ballot::BallotCiphertext;
+use voting_crypto::signing::{Signature, SigningKey, VerificationKey};
+use voting_crypto::RecordSerialize;
 
 use crate::encrypt::hash_ballot_style;
 use crate::error::BallotError;
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
-use strand::elgamal::Ciphertext;
-use strand::zkp::Schnorr;
-use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
 
 use crate::ballot::get_ballot_bytes_for_signing;
 use crate::ballot::SignedContent;
@@ -21,10 +23,6 @@ use crate::ballot::{
 use crate::ballot::{BallotStyle, ReplicationChoice};
 use base64::engine::general_purpose;
 use base64::Engine;
-use strand::serialization::StrandSerialize;
-use strand::signature::StrandSignature;
-use strand::signature::StrandSignaturePk;
-use strand::signature::StrandSignatureSk;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct AuditableMultiBallot {
@@ -41,11 +39,10 @@ pub struct AuditableMultiBallot {
     pub voter_ballot_signature: Option<String>,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
-pub struct AuditableMultiBallotContests<C: Ctx> {
+#[derive(PartialEq, Debug, Clone, Canonical)]
+pub struct AuditableMultiBallotContests {
     pub contest_ids: Vec<String>,
-    pub choice: ReplicationChoice<C>,
-    pub proof: Schnorr<C>,
+    pub choice: ReplicationChoice,
 }
 
 #[derive(
@@ -74,65 +71,60 @@ pub struct SignedHashableMultiBallot {
     pub voter_ballot_signature: Option<String>,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
-pub struct HashableMultiBallotContests<C: Ctx> {
-    pub contest_ids: Vec<String>,
-    pub ciphertext: Ciphertext<C>,
-    pub proof: Schnorr<C>,
-}
+pub type HashableMultiBallotContests = BallotCiphertext;
 
-#[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
-pub struct RawHashableMultiBallot<C: Ctx> {
+#[derive(PartialEq, Debug, Clone, Canonical)]
+pub struct RawHashableMultiBallot {
     pub version: u32,
     pub issue_date: String,
-    pub contests: HashableMultiBallotContests<C>,
+    pub contests: HashableMultiBallotContests,
 }
 
 impl AuditableMultiBallot {
-    pub fn deserialize_contests<C: Ctx>(
+    pub fn deserialize_contests(
         &self,
-    ) -> Result<AuditableMultiBallotContests<C>, BallotError> {
+    ) -> Result<AuditableMultiBallotContests, BallotError> {
         let ret = Base64Deserialize::deserialize(self.contests.clone())
             .map_err(|err| BallotError::Serialization(err.to_string()));
 
         ret
     }
 
-    pub fn serialize_contests<C: Ctx>(
-        contests: &AuditableMultiBallotContests<C>,
+    pub fn serialize_contests(
+        contests: &AuditableMultiBallotContests,
     ) -> Result<String, BallotError> {
         Base64Serialize::serialize(&contests)
     }
 }
 
 impl HashableMultiBallot {
-    pub fn deserialize_contests<C: Ctx>(
+    pub fn deserialize_contests(
         &self,
-    ) -> Result<HashableMultiBallotContests<C>, BallotError> {
+    ) -> Result<HashableMultiBallotContests, BallotError> {
         let ret = Base64Deserialize::deserialize(self.contests.clone())
             .map_err(|err| BallotError::Serialization(err.to_string()));
 
         ret
     }
 
-    pub fn serialize_contests<C: Ctx>(
-        contest: &HashableMultiBallotContests<C>,
+    pub fn serialize_contests(
+        contest: &HashableMultiBallotContests,
     ) -> Result<String, BallotError> {
         Base64Serialize::serialize(&contest)
     }
 }
 
 impl SignedHashableMultiBallot {
-    pub fn deserialize_contests<C: Ctx>(
+    pub fn deserialize_contests(
         &self,
-    ) -> Result<HashableMultiBallotContests<C>, BallotError> {
+    ) -> Result<HashableMultiBallotContests, BallotError> {
         let hashable_ballot = HashableMultiBallot::try_from(self)?;
 
         hashable_ballot.deserialize_contests()
     }
 
-    pub fn serialize_contests<C: Ctx>(
-        contest: &HashableMultiBallotContests<C>,
+    pub fn serialize_contests(
+        contest: &HashableMultiBallotContests,
     ) -> Result<String, BallotError> {
         HashableMultiBallot::serialize_contests(contest)
     }
@@ -144,9 +136,9 @@ impl TryFrom<&AuditableMultiBallot> for HashableMultiBallot {
     fn try_from(value: &AuditableMultiBallot) -> Result<Self, Self::Error> {
         let version = check_types_version(value.version)?;
 
-        let contests = value.deserialize_contests::<RistrettoCtx>()?;
+        let contests = value.deserialize_contests()?;
         let hashable_ballot_contests =
-            HashableMultiBallotContests::<RistrettoCtx>::from(&contests);
+            HashableMultiBallotContests::from(&contests);
 
         let ballot_style_hash =
             hash_ballot_style(&value.config).map_err(|error| {
@@ -159,7 +151,7 @@ impl TryFrom<&AuditableMultiBallot> for HashableMultiBallot {
         Ok(HashableMultiBallot {
             version,
             issue_date: value.issue_date.clone(),
-            contests: HashableMultiBallot::serialize_contests::<RistrettoCtx>(
+            contests: HashableMultiBallot::serialize_contests(
                 &hashable_ballot_contests,
             )?,
             config: value.config.id.clone(),
@@ -174,9 +166,9 @@ impl TryFrom<&AuditableMultiBallot> for SignedHashableMultiBallot {
     fn try_from(value: &AuditableMultiBallot) -> Result<Self, Self::Error> {
         let version = check_types_version(value.version)?;
 
-        let contests = value.deserialize_contests::<RistrettoCtx>()?;
+        let contests = value.deserialize_contests()?;
         let hashable_ballot_contests =
-            HashableMultiBallotContests::<RistrettoCtx>::from(&contests);
+            HashableMultiBallotContests::from(&contests);
 
         let ballot_style_hash =
             hash_ballot_style(&value.config).map_err(|error| {
@@ -189,7 +181,7 @@ impl TryFrom<&AuditableMultiBallot> for SignedHashableMultiBallot {
         Ok(SignedHashableMultiBallot {
             version,
             issue_date: value.issue_date.clone(),
-            contests: HashableMultiBallot::serialize_contests::<RistrettoCtx>(
+            contests: HashableMultiBallot::serialize_contests(
                 &hashable_ballot_contests,
             )?,
             config: value.config.id.clone(),
@@ -217,11 +209,11 @@ impl TryFrom<&SignedHashableMultiBallot> for HashableMultiBallot {
     }
 }
 
-impl<C: Ctx> TryFrom<&HashableMultiBallot> for RawHashableMultiBallot<C> {
+impl TryFrom<&HashableMultiBallot> for RawHashableMultiBallot {
     type Error = BallotError;
 
     fn try_from(value: &HashableMultiBallot) -> Result<Self, Self::Error> {
-        let contests = value.deserialize_contests::<C>()?;
+        let contests = value.deserialize_contests()?;
         Ok(RawHashableMultiBallot {
             version: value.version,
             issue_date: value.issue_date.clone(),
@@ -230,33 +222,13 @@ impl<C: Ctx> TryFrom<&HashableMultiBallot> for RawHashableMultiBallot<C> {
     }
 }
 
-impl<C: Ctx> TryFrom<&HashableMultiBallot>
-    for StyleBoundHashableBallot<HashableMultiBallotContests<C>>
-{
-    type Error = BallotError;
-
-    fn try_from(value: &HashableMultiBallot) -> Result<Self, Self::Error> {
-        Ok(StyleBoundHashableBallot {
-            version: value.version,
-            format: ContestEncryptionPolicy::MULTIPLE_CONTESTS,
-            issue_date: value.issue_date.clone(),
-            config: value.config.clone(),
-            ballot_style_hash: value.ballot_style_hash.clone(),
-            contests: value.deserialize_contests::<C>()?,
-        })
-    }
-}
-
-impl<C: Ctx> From<&AuditableMultiBallotContests<C>>
-    for HashableMultiBallotContests<C>
-{
+impl From<&AuditableMultiBallotContests> for HashableMultiBallotContests {
     fn from(
-        value: &AuditableMultiBallotContests<C>,
-    ) -> HashableMultiBallotContests<C> {
+        value: &AuditableMultiBallotContests,
+    ) -> HashableMultiBallotContests {
         HashableMultiBallotContests {
             contest_ids: value.contest_ids.clone(),
             ciphertext: value.choice.ciphertext.clone(),
-            proof: value.proof.clone(),
         }
     }
 }
@@ -266,7 +238,7 @@ pub fn sign_hashable_multi_ballot_with_ephemeral_voter_signing_key(
     election_id: &str,
     hashable_multi_ballot: &HashableMultiBallot,
 ) -> Result<SignedContent, String> {
-    let secret_key = StrandSignatureSk::generate()
+    let secret_key = SigningKey::generate()
         .map_err(|err| format!("Error generating secret key: {err}"))?;
     sign_hashable_multi_ballot_with_voter_signing_key(
         &secret_key,
@@ -277,19 +249,19 @@ pub fn sign_hashable_multi_ballot_with_ephemeral_voter_signing_key(
 }
 
 pub fn sign_hashable_multi_ballot_with_voter_signing_key(
-    secret_key: &StrandSignatureSk,
+    secret_key: &SigningKey,
     ballot_id: &str,
     election_id: &str,
     hashable_multi_ballot: &HashableMultiBallot,
 ) -> Result<SignedContent, String> {
     // Get ballot_bytes_for_signing
     let content_bytes = hashable_multi_ballot
-        .strand_serialize()
+        .record_serialize()
         .map_err(|err| format!("Error getting signature bytes: {err}"))?;
     let ballot_bytes =
         get_ballot_bytes_for_signing(ballot_id, election_id, &content_bytes);
 
-    let public_key = StrandSignaturePk::from_sk(secret_key)
+    let public_key = VerificationKey::from_sk(secret_key)
         .map_err(|err| format!("Error generating public key: {err}"))?;
 
     let ballot_signature = secret_key
@@ -297,7 +269,7 @@ pub fn sign_hashable_multi_ballot_with_voter_signing_key(
         .map_err(|err| format!("Failed to sign the ballot: {err}"))?;
 
     let public_key = public_key
-        .to_der_b64_string()
+        .to_b64_string()
         .map_err(|err| format!("Failed to serialize the public key: {err}"))?;
 
     let signature = ballot_signature
@@ -314,7 +286,7 @@ pub fn verify_multi_ballot_signature(
     ballot_id: &str,
     election_id: &str,
     signed_hashable_multi_ballot: &SignedHashableMultiBallot,
-) -> Result<Option<(StrandSignaturePk, StrandSignature)>, String> {
+) -> Result<Option<(VerificationKey, Signature)>, String> {
     let (signature, public_key) =
         if let (Some(voter_ballot_signature), Some(voter_signing_pk)) = (
             signed_hashable_multi_ballot.voter_ballot_signature.clone(),
@@ -331,7 +303,7 @@ pub fn verify_multi_ballot_signature(
             return Err(INCOMPLETE_BALLOT_SIGNATURE_ERROR.into());
         };
 
-    let voter_signing_pk = StrandSignaturePk::from_der_b64_string(&public_key)
+    let voter_signing_pk = VerificationKey::from_b64_string(&public_key)
         .map_err(|err| {
             format!(
                 "Failed to deserialize signature from hashable multi ballot: {}",
@@ -344,7 +316,7 @@ pub fn verify_multi_ballot_signature(
             format!("Failed to convert to hashable multi ballot: {}", err)
         })?;
 
-    let content = hashable_multi_ballot.strand_serialize().map_err(|err| {
+    let content = hashable_multi_ballot.record_serialize().map_err(|err| {
         format!(
             "Failed to deserialize signature from hashable multi ballot: {}",
             err
@@ -354,7 +326,7 @@ pub fn verify_multi_ballot_signature(
     let ballot_bytes =
         get_ballot_bytes_for_signing(ballot_id, election_id, &content);
 
-    let ballot_signature = StrandSignature::from_b64_string(&signature)
+    let ballot_signature = Signature::from_b64_string(&signature)
         .map_err(|err| {
             format!(
                 "Failed to deserialize signature from hashable multi ballot: {}",

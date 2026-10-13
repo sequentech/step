@@ -50,6 +50,58 @@ describe("checkAuditedBallotStyle", () => {
         expect(checkAuditedBallotStyle(audited, [ballotStyle()])).toBe(EBallotStyleCheck.MISMATCH)
     })
 
+    it.each([
+        ["another configuration", "340282366920938463463374607431768211451"],
+        ["an omitted configuration", undefined],
+    ])("rejects a ballot style carrying %s", (_name, configuration_id) => {
+        const published = ballotStyle({
+            public_key: {
+                public_key: "key-1",
+                is_demo: false,
+                configuration_id: "340282366920938463463374607431768211450",
+                keys_ceremony_id: "00000000-0000-4000-8000-000000000001",
+            },
+        })
+        const audited = {...published, public_key: {...published.public_key!}}
+        audited.public_key!.configuration_id = configuration_id
+        expect(checkAuditedBallotStyle(published, [published])).toBe(EBallotStyleCheck.MATCHES)
+        expect(checkAuditedBallotStyle(audited, [published])).toBe(EBallotStyleCheck.MISMATCH)
+    })
+
+    it("binds the ceremony when an immutable configuration ID is absent", () => {
+        const published = ballotStyle({
+            public_key: {
+                public_key: "key-1",
+                is_demo: false,
+                keys_ceremony_id: "00000000-0000-4000-8000-000000000001",
+            },
+        })
+        const audited = {...published, public_key: {...published.public_key!}}
+        audited.public_key!.keys_ceremony_id = "00000000-0000-4000-8000-000000000002"
+        expect(checkAuditedBallotStyle(audited, [published])).toBe(EBallotStyleCheck.MISMATCH)
+    })
+
+    it("preserves the immutable domain when recovery remaps the ceremony", () => {
+        const published = ballotStyle({
+            public_key: {
+                public_key: "key-1",
+                is_demo: false,
+                configuration_id: "340282366920938463463374607431768211450",
+                keys_ceremony_id: "00000000-0000-4000-8000-000000000001",
+            },
+        })
+        const audited = {...published, public_key: {...published.public_key!}}
+        audited.public_key!.keys_ceremony_id = "00000000-0000-4000-8000-000000000002"
+        expect(checkAuditedBallotStyle(audited, [published])).toBe(EBallotStyleCheck.MATCHES)
+    })
+
+    it("rejects a demo key presented as an election key", () => {
+        const published = ballotStyle()
+        const audited = {...published, public_key: {...published.public_key!}}
+        audited.public_key!.is_demo = true
+        expect(checkAuditedBallotStyle(audited, [published])).toBe(EBallotStyleCheck.MISMATCH)
+    })
+
     it("rejects a ballot style with reordered candidates", () => {
         const audited = ballotStyle()
         audited.contests[0].candidates.reverse()

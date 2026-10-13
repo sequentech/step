@@ -29,9 +29,9 @@ use std::{
     io::Write,
     path::PathBuf,
 };
-use strand::hash::hash_b64;
 use tracing::{instrument, warn};
 use uuid::Uuid;
+use voting_crypto::hash::hash_b64;
 
 use crate::{
     config::generate_reports::{

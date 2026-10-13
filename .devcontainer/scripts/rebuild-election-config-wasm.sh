@@ -35,7 +35,7 @@ echo "==> Building ${PACKAGE_NAME} WASM..."
 # Without it cargo is free to re-resolve, and the set it chooses need not be the
 # one `Cargo.lock` records. The WASM build depends on that set: curve25519-dalek
 # 5.0 pulls `getrandom 0.4` beside the `0.3.4` this repository pins, and each line
-# compiles for `wasm32-unknown-unknown` only because `strand/Cargo.toml` names it
+# compiles for `wasm32-unknown-unknown` only because `wbraid/crates/vsc/Cargo.toml` names it
 # directly with `wasm_js` on. A resolution that brings in another getrandom line
 # fails with
 #

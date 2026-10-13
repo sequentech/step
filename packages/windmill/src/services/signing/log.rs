@@ -32,7 +32,7 @@ use crate::postgres::signing::{
 };
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
-use crate::services::protocol_manager::{get_board_client, get_event_databases};
+use crate::services::electoral_log_board::{get_board_client, get_event_databases};
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client, Transaction};
@@ -49,9 +49,9 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::future::Future;
 use std::time::Duration;
-use strand::serialization::StrandDeserialize;
 use tracing::{debug, error, info, instrument, warn};
 use uuid::Uuid;
+use voting_crypto::RecordDeserialize;
 
 /// The person a step is logged for. For an expiry it is the requester.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -316,7 +316,7 @@ pub fn payload_hash(row: &SigningLogOutboxRow) -> Result<String> {
 
 /// [`payload_hash`] of a signing entry the board holds.
 pub fn stored_payload_hash(stored: &ElectoralLogMessage) -> Result<String> {
-    let message = Message::strand_deserialize(&stored.message)
+    let message = Message::record_deserialize(&stored.message)
         .map_err(|error| anyhow!("The board's entry can't be read: {error:?}"))?;
     let StatementBody::Signing(entry) = &message.statement.body else {
         return Err(anyhow!(

@@ -315,8 +315,8 @@ export const overseas = (): ISigningOrganization => {
             r(SigningAction.TransmitResults, 2, 60, RequesterSigning.NotAllowed),
             r(SigningAction.ApproveVoter, 1, null),
             r(SigningAction.ApproveConfiguration, 2, 1440),
-            r(SigningAction.ConfirmKeyShare, 1),
-            r(SigningAction.ContributeKeyShare, 1),
+            r(SigningAction.ConfirmCustodyProof, 1),
+            r(SigningAction.ContributeCustodyProof, 1),
         ],
         capacities: {
             [SigningAction.InitializeVoting]: sbei([3, 2, 2]),
@@ -331,8 +331,8 @@ export const overseas = (): ISigningOrganization => {
                 [],
                 [2]
             ),
-            [SigningAction.ConfirmKeyShare]: cap(["Trustee"], [], [3]),
-            [SigningAction.ContributeKeyShare]: cap(["Trustee"], [], [3]),
+            [SigningAction.ConfirmCustodyProof]: cap(["Trustee"], [], [3]),
+            [SigningAction.ContributeCustodyProof]: cap(["Trustee"], [], [3]),
         },
         configVersion,
         editor,

@@ -77,6 +77,10 @@ pub struct ImportElectionEventSchema {
     pub reports: Vec<Report>,
 
     pub keys_ceremonies: Option<Vec<KeysCeremony>>,
+    /// Native board lineage and immutable signed manager messages.
+    #[serde(default)]
+    pub protocol_boards:
+        Option<Vec<crate::types::protocol_board::ProtocolBoard>>,
     pub applications: Option<Vec<Application>>,
 
     /// Voter-facing help documents — rules, candidate statements, a guide to voting.

@@ -2,11 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-pub mod check_private_key;
+pub mod confirm_key_custody;
 pub mod get;
 pub mod get_ceremony_status;
-pub mod get_trustee_private_key;
-pub mod store_private_key;
+pub mod get_trustee_custody_request;
+pub mod store_custody_request;
 
 use reqwest::blocking::{Client, RequestBuilder};
 use sequent_core::types::permissions::Permissions;

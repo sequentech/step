@@ -19,12 +19,12 @@ use electoral_log::{ElectoralLogMessage, LogEntry};
 use serde_json::json;
 use std::future::Future;
 use std::sync::OnceLock;
-use strand::signature::StrandSignatureSk;
 use tokio::runtime::Runtime;
 use tokio_postgres::types::ToSql;
 use uuid::Uuid;
+use voting_crypto::signing::SigningKey;
 use windmill::services::ballot_box::BallotFormat;
-use windmill::services::protocol_manager::get_event_databases;
+use windmill::services::electoral_log_board::get_event_databases;
 
 /// Runs a test that reaches election events' electoral-log databases on the
 /// runtime those tests share. The services keep the event databases'
@@ -410,7 +410,7 @@ impl Event {
         election_id: &str,
         voter: &str,
     ) -> i64 {
-        let key = StrandSignatureSk::generate().expect("signing key");
+        let key = SigningKey::generate().expect("signing key");
         let message = Message::cast_vote_message(
             EventIdString(self.election_event_id.clone()),
             ElectionIdString(Some(election_id.to_string())),

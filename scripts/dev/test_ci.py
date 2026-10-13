@@ -29,6 +29,15 @@ class PlanTests(unittest.TestCase):
         self.assertFalse(any(plan["jobs"].values()))
         self.assertFalse(any(plan["ui_jobs"].values()))
 
+    def test_native_protocol_tests_use_optimized_builds(self):
+        for package in ("voting-crypto", "protocol-board", "trustee"):
+            with self.subTest(package=package):
+                plan = self.plan(f"packages/{package}/src/lib.rs")
+                job = next(row for row in plan["rust"] if row["service"] == package)
+                self.assertIn("--release", job["extra"])
+                check = next(check for check in self.model.checks if check.id == f"cargo-test:{package}")
+                self.assertIn("--release", check.command)
+
     def test_docs_change_does_not_compile_application_code(self):
         plan = self.plan("docs/docusaurus/docs/07-developers/example.md")
         self.assertTrue(plan["jobs"]["docs"])
@@ -80,7 +89,9 @@ class PlanTests(unittest.TestCase):
                         "trellis",
                         "pgmq-broker",
                         "harvest",
-                        "strand",
+                        "voting-crypto",
+                        "protocol-board",
+                        "trustee",
                         "messaging",
                         "messaging-webhooks",
                         "sequent-core",

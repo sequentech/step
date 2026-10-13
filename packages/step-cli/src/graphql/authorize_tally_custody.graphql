@@ -1,0 +1,15 @@
+mutation AuthorizeTallyCustody(
+        $electionEventId: String!
+        $tallySessionId: String!
+        $custodyProofJson: String!
+    ) {
+        authorize_tally_custody(
+            object: {
+                election_event_id: $electionEventId
+                tally_session_id: $tallySessionId
+                custody_proof_json: $custodyProofJson
+            }
+        ) {
+            is_valid
+        }
+    }

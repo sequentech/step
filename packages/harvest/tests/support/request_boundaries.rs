@@ -31,7 +31,7 @@ const UUID_TENANT_ID: &str = "00000000-0000-0000-0000-00000000000a";
 const SUPER_ADMIN_TENANT_ID: &str = "fixture-super-admin";
 const USER_ID: &str = "test-user";
 // Update only with a reviewed change to the checked-in route inventory.
-const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 193;
+const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 194;
 
 const CHILD: &str = "HARVEST_ISOLATED_TEST_CHILD";
 
@@ -905,12 +905,12 @@ async fn document_and_ceremony_reads_require_their_specific_permissions() {
     for (path, body) in [
         ("/fetch-document", json!({"document_id":"test-document"})),
         (
-            "/get-private-key",
+            "/get-custody-request",
             json!({"election_event_id":"test-event","keys_ceremony_id":"test-ceremony"}),
         ),
         (
-            "/check-private-key",
-            json!({"election_event_id":"test-event","keys_ceremony_id":"test-ceremony","private_key_base64":"not-a-key"}),
+            "/confirm-key-custody",
+            json!({"election_event_id":"test-event","keys_ceremony_id":"test-ceremony","custody_proof_json":"not-a-key"}),
         ),
         (
             "/create-election",

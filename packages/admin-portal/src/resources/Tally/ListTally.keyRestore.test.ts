@@ -220,7 +220,7 @@ describe("ListTally key restore for trustees", () => {
 
     it("reads each row's trustee status from that row's own execution", () => {
         mockExecutions = [
-            execution("tally-01", ITallyTrusteeStatus.KEY_RESTORED),
+            execution("tally-01", ITallyTrusteeStatus.CUSTODY_CONFIRMED),
             ...mockExecutions.slice(1),
         ]
 

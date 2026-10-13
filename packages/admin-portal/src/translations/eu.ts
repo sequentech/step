@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Enric Badia <enric@xtremis.com>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {TranslationType} from "./en"
+import englishTranslation, {TranslationType} from "./en"
 
 const basqueTranslation: TranslationType = {
     translations: {
@@ -2337,13 +2337,14 @@ const basqueTranslation: TranslationType = {
             createContestError: "Errorea galdera sortzerakoan",
         },
         keysGeneration: {
+            ...englishTranslation.translations.keysGeneration,
             configureStep: {
                 create: "Sortu Giltzen Zeremonia",
                 name: "Giltzen Zeremonia Izena",
                 allElections: "Hauteskunde Guztiak",
                 title: "Sortu Hauteskunde Gertaera Giltzen Zeremonia",
                 subtitle:
-                    "Giltzen Zeremonoan fideikomisario bakoitzak Hauteskunde Gertaerarako giltza pribatuaren zatia sortuko eta deskargatuko du. Jarraitzeko, mesedez aukeratu zeremonoan parte hartuko duten fideikomisarioak eta atalasea, zenbaketerako behar den fideikomisario gutxieneko kopurua.",
+                    "Arduradun bakoitzak bere gakoak tokian sortu eta gordetzen ditu, eta zaintza berresten du. Hautatu arduradunak eta zenbaketarako beharrezko gutxieneko kopurua.",
                 threshold: "Atalasea",
                 trusteeList: "Fideikomisarioak",
                 errorMinTrustees_one:
@@ -2365,18 +2366,18 @@ const basqueTranslation: TranslationType = {
                     description:
                         "Giltzen Zeremonia sortzear zaude. Ekintza honek Fideikomisarioei jakinaraziko die Hauteskunde Gertaera Giltzen sorkuntzan eta banaketan parte har dezaten.",
                     automaticCeremonyDescription:
-                        "Giltza-ekitaldi automatiko bat sortzear zaude. Honek ez die arduradunei parte hartzeko jakinaraziko.",
+                        "Zeremonia automatikoek eskuzko zaintza-berrespenak saltatzen dituzte. Arduradunen exekutatzaileek hauteskunde-gakoak sortu eta egiaztatu behar dituzte.",
                 },
                 filterTrustees: "Iragazi Fideikomisarioak",
                 errorPermisionLabels:
                     "Errorea Giltzen Zeremonia sortzerakoan: Gutxienez baimen-etiketa bat falta da.",
                 automaticCeremonyToggle: "Zeremonia automatikoa",
             },
+            // Native custody instructions use the English fallback until translated.
             ceremonyStep: {
+                ...englishTranslation.translations.keysGeneration.ceremonyStep,
                 cancel: "Ezeztatu Giltzen Zeremonia",
                 progressHeader: "Giltzen Zeremonia Aurrerapena",
-                description:
-                    "Pantaila honek Hauteskunde Gertaeraren Giltzen Zeremonaren aurrerapena eta egunkariak erakusten ditu. Giltzen Zeremonoan fideikomisario bakoitzak Hauteskunde Gertaerarako giltza pribatuaren zatia sortuko eta deskargatuko du.",
                 executionStatus: "Egoera: {{status}}",
                 confirmdDialog: {
                     ok: "Bai, Ezeztatu Giltzen Zeremonia Sortu",
@@ -2386,10 +2387,9 @@ const basqueTranslation: TranslationType = {
                         "Giltzen Zeremonia ezeztatuera zaude. Ekintza hau egin ondoren, Giltzen Zeremonia arrakastatsua izan dadin berri bat sortu beharko duzu.",
                 },
                 header: {
+                    ...englishTranslation.translations.keysGeneration.ceremonyStep.header,
                     trusteeName: "Fideikomisario Izena",
                     fragment: "Giltza Zatia Sortua",
-                    downloaded: "Giltza Pribatu Zatia Deskargatua",
-                    checked: "Giltza Pribatu Zatia Egiaztatua",
                 },
                 logsHeader: {
                     title: "Egunkariak",
@@ -2397,48 +2397,6 @@ const basqueTranslation: TranslationType = {
                     entry: "Sarrera",
                 },
                 emptyLogs: "Ez dago egunkaririk oraindik.",
-            },
-            startStep: {
-                title: "Fideikomisario Giltzen Zeremonia",
-                subtitle:
-                    "Giltzen Zeremonoan Fideikomisario gisa (<strong>{{name}}</strong>) parte hartzear zaude. Honek urrats hauek dakartza:",
-                one: "<strong>Deskargatu</strong> zure Zifratutako Giltza Pribatua.",
-                two: "Sortu Zifratutako Giltza Pribatuaren <strong>Babeskopia</strong> anitz.",
-                three: "<strong>Egiaztatu</strong> babeskopiak ondo funtzionatzen dutela.",
-            },
-            downloadStep: {
-                title: "Deskargatu Zifratutako Giltza Pribatua",
-                subtitle:
-                    "Jarraitzeko, mesedez deskargatu eta gorde zure Zifratutako Giltza Pribatua gutxienez bi gailu desberdinetan:",
-                downloadButton: "Deskargatu zure Zifratutako Giltza Pribatua",
-                downloaded: "Zifratutako Giltza Pribatua behar bezala deskargatu da.",
-                errorEmptyKey: "Deskarga errorea, fitxategi hutsa",
-                unexpectedError: "Ezin izan da giltza pribatua deskargatu. Saiatu berriro.",
-                alreadyVerified: "Zure giltza pribatua deskargatuta eta egiaztatuta zegoen.",
-                unavailable:
-                    "Giltza pribatuaren deskarga jada ez dago erabilgarri, zeremoniak aurrera egin duelako.",
-                confirmdDialog: {
-                    ok: "Berretsi Babeskopiak eta Jarraitu",
-                    cancel: "Itzuli",
-                    title: "Egin babeskopia zure Zifratutako Giltza Pribatuari",
-                    description:
-                        "Mesedez, egin babeskopia zure Zifratutako Giltza Pribatuari gutxienez bi leku seguru desberdinetan eta gero berretsi behean:",
-                    firstCopy: "Lehen babeskopia segurua",
-                    secondCopy: "Bigarren babeskopia segurua",
-                    confirmError:
-                        "Sortu behar diren babeskopiak eta markatu berrespena laukiak jarraitzeko",
-                },
-            },
-            checkStep: {
-                title: "Egiaztatu zure Zifratutako Giltza Pribatu Babeskopiak",
-                verifyButton: "Egiaztatu gakoa",
-                subtitle:
-                    "Igo Zifratutako Giltza Pribatu Babeskopia bat zuzena dela egiaztatzeko. Behar adina aldiz saia zaitezke, zure babeskopia desberdinetatik:",
-                errorUploading:
-                    "Zifratutako Giltza Pribatu Babeskopia baliogabea, mesedez saiatu berriro",
-                errorEmptyFile: "Fitxategia hutsa edo ez da aurkitu",
-                verified: "Babeskopia arrakastaz egiaztatua.",
-                alreadyRestored: "Zure giltza lehendik leheneratuta zegoen.",
             },
         },
         miruExport: {
@@ -2600,7 +2558,7 @@ const basqueTranslation: TranslationType = {
             resultsTitle: "Emaitzak eta Parte-hartzea",
             generalInfoTitle: "Informazio Orokorra",
             trusteeTallyTitle: "Fideikomisarioak",
-            trusteeTallySubTitle: "Giltza zatiaren inportazio egoera",
+            trusteeTallySubTitle: "Zaintzaren berrespenaren egoera",
             ballotBoxes: {
                 unavailable: "Zigiluak ez daude eskuragarri",
                 sealed: "{{sealed}}/{{total}} zigilatuta",
@@ -2652,7 +2610,7 @@ const basqueTranslation: TranslationType = {
             recountTallyCeremonyError: "Ezin izan da birzenbaketa hasi",
             recountTallyCeremonyOk: "Berriro zenbatu",
             trusteeTitle: "Fideikomisarioen prozesua",
-            trusteeSubTitle: "Mesedez igo zure giltza zatia",
+            trusteeSubTitle: "Igo zure custody-proof.json fitxategi publikoa",
             invited: "Zenbaketa zeremonoia batean parte hartzeko gonbidatu zaituzte. Mesedez ",
             click: "sakatu zenbaketa Ekintzan",
             participate: "parte hartzeko.",
@@ -2671,7 +2629,7 @@ const basqueTranslation: TranslationType = {
                 date: "Zenbaketa Data",
                 global: "Orokorra",
                 noTrustees: "Ez dago fideikomisariorik oraindik",
-                imported: " fideikomisarioak giltza inportatu dute",
+                imported: " arduradunek zaintza berretsi dute",
                 needed: " fideikomisario behar",
                 start: "Hasi Zenbaketa",
                 ceremony: "Hasi Zenbaketa Zeremonia",
@@ -2686,11 +2644,11 @@ const basqueTranslation: TranslationType = {
                     tallyTitle: "Ziur zaude zenbaketa hasi nahi duzula?",
                     cancelTitle: "Ziur zaude zenbaketa ezeztatu nahi duzula?",
                     message:
-                        "Zenbaketa zeremonia bat hasi nahian zaude. Ekintza honek fideikomisarioei jakinaraziko die beren giltza zatiak inportatzeko.",
+                        "Zenbaketa zeremonia honek zaintza-froga publikoak eskatzen dizkie arduradunei. Mantendu haien exekutatzaileak aktibo protokoloaren tokiko egoerarekin.",
                     cancelMessage:
                         "Zenbaketa zeremonia ezeztatuzera noa. Ekintza hau ezin da desegin.",
                     ceremony:
-                        "Beharrezko fideikomisario guztiek beren giltza zatiak egiaztatu dituzte. Dena prest dago emaitzak jasotzen hasteko. Zenbaketa hasi nahi duzu?",
+                        "Beharrezko arduradunek zaintza berretsi dute. Hasi zenbaketa haien exekutatzaileak aktibo daudela?",
                     startAutomatedTallyMessage:
                         "Hautatu 'Start Tally' zenbaketa-prozesua exekutatzeko eta emaitzak bistaratzeko, edo 'Close' ezeztatzeko.",
                 },
@@ -4836,7 +4794,7 @@ const basqueTranslation: TranslationType = {
                 keys_ceremony_id: "Zeremonia",
                 tally_session_id: "Zenbaketa-saioa",
                 trustee_id: "Fideikomisarioa",
-                key_share_sha256: "Giltza-zatiaren SHA-256",
+                custody_proof_sha256: "Zaintza-frogaaren SHA-256",
                 channel: "Kanala",
                 channels: "Kanalak",
                 publication_id: "Boto-txartelen argitalpena",
@@ -4940,22 +4898,22 @@ const basqueTranslation: TranslationType = {
             notes: {
                 afterApproval: "Onartu ondoren",
                 afterApprovalValue: "Hautesleari kredentzialak igorri eta bidaltzen zaizkio",
-                keyShare: "Zure giltza-zatia",
-                keyShareChecked: "Egiaztatuta: zeremonia honetarako zure giltza-zatia da",
+                custodyProof: "Zure zaintza-frogaa",
+                custodyProofChecked: "Egiaztatuta: zeremonia honetarako zure zaintza-frogaa da",
                 recordedIn: "Non jasotzen den",
                 recordedInCeremony: "Giltzen zeremonia eta iragarki-taula",
                 recordedInTally: "Zenbaketa-saioa",
             },
-            keyShare: {
+            custodyProof: {
                 signing:
-                    "Sinatu zure giltza-zatia sinadura-panelean. Sinatu ondoren erregistratzen da.",
-                record: "Erregistratu nire giltza-zatia",
-                failed: "Ezin izan da zure giltza-zati sinatua erregistratu: {{error}}",
+                    "Sinatu zure zaintza-frogaa sinadura-panelean. Sinatu ondoren erregistratzen da.",
+                record: "Erregistratu nire zaintza-frogaa",
+                failed: "Ezin izan da zure zaintza-froga sinatua erregistratu: {{error}}",
                 dropAgain:
-                    "Jaregin berriro zure giltza-zatiaren fitxategia zure giltza-zati sinatua erregistratzeko.",
-                redo: "Zure giltza-zatia zure sinadurarik gabe eman zen, eta hauteskunde honek orain sinadura behar du. Eman berriro eta sinatu.",
+                    "Jaregin berriro zure zaintza-frogaaren fitxategia zure zaintza-froga sinatua erregistratzeko. (custody-proof.json)",
+                redo: "Zure zaintza-frogaa zure sinadurarik gabe eman zen, eta hauteskunde honek orain sinadura behar du. Eman berriro eta sinatu.",
                 notTaken:
-                    "Zeremoniak ez du giltza-zati hau onartzen jada. Jaregin berriro zure giltza-zatiaren fitxategia.",
+                    "Zeremoniak ez du zaintza-froga hau onartzen jada. Jaregin berriro zure zaintza-frogaaren fitxategia. (custody-proof.json)",
             },
         },
         lifecycle: {

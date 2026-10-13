@@ -43,7 +43,7 @@ pub enum ErrorCode {
     UserProfileValidation,
     DocumentPasswordUnavailable,
     VoterInformationLetterUnavailable,
-    PrivateKeyDownloadUnavailable,
+    CustodyRequestDownloadUnavailable,
     ConfirmPolicyShowCastVoteLogsFailed,
     BallotChecksEnded,
     BallotIdMismatch,

@@ -4,8 +4,8 @@
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
-use strand::hash::{Hash, HashWrapper};
 use strum_macros::Display;
+use voting_crypto::hash::{Hash, HashWrapper};
 
 use crate::messages::statement::{StatementEventType, StatementLogType, StatementType};
 

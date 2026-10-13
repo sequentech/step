@@ -16,13 +16,13 @@ use crate::services::ceremonies::keys_ceremony::{
     ceremony_public_key_state, verify_keys_ceremony_public_key, CeremonyPublicKeyState,
 };
 use crate::services::electoral_log::ElectoralLogAdminContext;
+use crate::services::electoral_log_board::get_event_board;
 use crate::services::import::import_publications::{
     import_ballot_publications, import_election_event_config_file,
 };
 use crate::services::import::import_scheduled_events::import_scheduled_events;
 use crate::services::import::import_tally::process_tally_file;
 use crate::services::keycloak::{read_realm_config_from_s3, require_enrollment_window_checks};
-use crate::services::protocol_manager::get_event_board;
 use crate::services::reports::template_renderer::EReportEncryption;
 use crate::services::reports_vault::get_report_key_pair;
 use crate::services::tasks_execution::update_fail;
@@ -107,14 +107,13 @@ use crate::services::documents::upload_and_return_document;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_board::BoardSerializable;
 use crate::services::electoral_log::ElectoralLog;
+use crate::services::electoral_log_board::{
+    create_protocol_manager_keys, get_election_board, get_event_databases,
+    get_protocol_manager_secret_path,
+};
 use crate::services::electoral_log_transfer::import_electoral_log;
 use crate::services::import::import_bulletin_boards::*;
 use crate::services::jwks::upsert_realm_jwks;
-use crate::services::protocol_manager::get_election_board;
-use crate::services::protocol_manager::get_protocol_manager_secret_path;
-use crate::services::protocol_manager::{
-    create_protocol_manager_keys, get_b3_pgsql_client, get_event_databases,
-};
 use crate::services::signing::certificates::parse_chain;
 use crate::services::signing::configuration::{import_bundle_signing, import_bundle_staff_issuers};
 use crate::tasks::import_election_event::ImportElectionEventBody;
@@ -149,7 +148,7 @@ pub use sequent_core::election_config::ImportElectionEventSchema;
 use sequent_core::election_config::{import_problems, Rejected};
 
 #[instrument(err)]
-pub async fn upsert_b3_and_elog(
+pub async fn ensure_election_audit_boards(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
@@ -158,86 +157,35 @@ pub async fn upsert_b3_and_elog(
 ) -> Result<Value> {
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
     let board_name = get_event_board(tenant_id, election_event_id, &slug);
-    let electoral_log = get_event_databases()
+    let client = get_event_databases()
         .await?
         .create_event(tenant_id, election_event_id)
         .await?;
-    electoral_log.create_board(&board_name).await?;
-    electoral_log.create_ballot_box(election_event_id).await?;
-
-    let mut board_client = get_b3_pgsql_client().await?;
-
-    // Create board and protocol manager keys for election event (assert)
-    let existing: Option<b4::client::pgsql::B3IndexRow> =
-        board_client.get_board(board_name.as_str()).await?;
-    // insert into the index of boards
-    board_client.create_index_ine().await?;
-    // create board table
-    board_client.create_board_ine(board_name.as_str()).await?;
-
-    if existing.is_none() && !dont_auto_generate_keys {
-        event!(
-            Level::INFO,
-            "creating protocol manager keys for Election event {}",
-            election_event_id
-        );
-        create_protocol_manager_keys(
-            hasura_transaction,
-            &tenant_id,
-            &election_event_id,
-            &board_name,
-        )
-        .await?;
-    }
-
-    // board was created, checking it is now present
-    let board = board_client
-        .get_board(board_name.as_str())
-        .await?
-        .ok_or(anyhow!(
-            "Unexpected error: could not retrieve created board '{}'",
-            &board_name
-        ))?;
-
-    for election_id in election_ids.clone() {
-        // Create board and protocol manager keys for election (insert, not asssert)
-        let board_name = get_election_board(tenant_id, &election_id, &slug);
-
-        let existing: Option<b4::client::pgsql::B3IndexRow> =
-            board_client.get_board(board_name.as_str()).await?;
-
-        // assert board table
-        board_client.create_board_ine(board_name.as_str()).await?;
-        // create board table
-
-        if existing.is_none() && !dont_auto_generate_keys {
-            event!(
-                Level::INFO,
-                "creating protocol manager keys for election {}",
-                election_id
-            );
+    client.create_ballot_box(election_event_id).await?;
+    let mut identities = vec![board_name.clone()];
+    identities.extend(
+        election_ids
+            .iter()
+            .map(|id| get_election_board(tenant_id, id, &slug)),
+    );
+    for identity in identities {
+        let existing = client.has_board(&identity).await?;
+        client.create_board(&identity).await?;
+        if !existing && !dont_auto_generate_keys {
             create_protocol_manager_keys(
                 hasura_transaction,
                 tenant_id,
                 election_event_id,
-                &board_name,
+                &identity,
             )
             .await?;
         }
-        // board was created, checking it is now present
-        board_client
-            .get_board(board_name.as_str())
-            .await?
-            .ok_or(anyhow!(
-                "Unexpected error: could not retrieve created board '{}'",
-                &board_name
-            ))?;
     }
-
-    let board_serializable: BoardSerializable = board.into();
-
-    let board_value = serde_json::to_value(board_serializable.clone())?;
-    Ok(board_value)
+    Ok(serde_json::to_value(BoardSerializable {
+        id: 0,
+        database_name: board_name,
+        is_archived: false,
+    })?)
 }
 
 #[instrument(err)]
@@ -952,7 +900,7 @@ pub async fn insert_election_event_db(
         encryption_protocol: object
             .encryption_protocol
             .clone()
-            .unwrap_or("RSA256".to_string()),
+            .unwrap_or("WBRAID".to_string()),
         is_audit: object.is_audit.clone(),
         audit_election_event_id: object.audit_election_event_id.clone(),
         statistics: Some(json!({
@@ -1003,12 +951,48 @@ pub fn replace_ids(
     // - Preserving UUIDs in Keycloak authenticator configurations
     // - Preserving tenant_id and election_event_id in the keep list before UUID replacement
     // - Applying explicit tenant_id and election_event_id replacements after UUID replacement
-    let (new_data, mut replacement_map) = replace_realm_ids(
+    let (mut new_data, mut replacement_map) = replace_realm_ids(
         data_str,
         vec![], // Empty keep list - replace_realm_ids will populate it automatically
         tenant_id_replacement,
         election_event_id_replacement,
     )?;
+
+    // Explicit scope replacements are applied to JSON outside replace_uuids;
+    // auxiliary archive members need those same entries in their shared map.
+    replacement_map.insert(original_data.tenant_id.clone(), tenant_id.clone());
+    replacement_map.insert(
+        original_data.election_event.id.clone(),
+        election_event_id.clone(),
+    );
+
+    // Board names encode compact UUIDs; remap only outer metadata references.
+    // The signed manager-message bytes and cryptographic domain IDs stay intact.
+    if let Some(boards) = &original_data.protocol_boards {
+        for board in boards {
+            let name = if board.parent_id.is_none() {
+                let id = replacement_map
+                    .get(&board.keys_ceremony_id)
+                    .context("missing ceremony ID replacement")?;
+                protocol_board::BoardName::for_dkg(&Uuid::parse_str(id)?)
+            } else {
+                let session = board
+                    .tally_session_id
+                    .as_ref()
+                    .and_then(|id| replacement_map.get(id))
+                    .context("missing tally ID replacement")?;
+                protocol_board::BoardName::for_tally(
+                    &Uuid::parse_str(session)?,
+                    board.batch.context("missing tally batch")?,
+                )
+            };
+            new_data = new_data.replace(
+                &serde_json::to_string(&board.name)?,
+                &serde_json::to_string(&name.to_string())?,
+            );
+            replacement_map.insert(board.name.clone(), name.to_string());
+        }
+    }
 
     // Parse the modified JSON string back into the structured format
     let data: ImportElectionEventSchema = deserialize_str(&new_data)?;
@@ -1145,28 +1129,29 @@ pub async fn get_document(
 #[instrument(err, skip_all)]
 pub async fn decrypt_document(
     password: Option<String>,
-    mut temp_file_path: NamedTempFile,
+    temp_file_path: NamedTempFile,
 ) -> Result<NamedTempFile> {
     let password = password.unwrap_or_else(|| "".to_string());
     let is_encrypted = !password.is_empty();
 
     if is_encrypted {
-        let decrypted_path = env::temp_dir().join("election-event.zip");
+        // Native archives contain manager identities. Each request owns its
+        // private plaintext file, including partial output on cipher failure.
+        let directory = temp_file_path
+            .path()
+            .parent()
+            .context("missing archive directory")?;
+        let decrypted = NamedTempFile::new_in(directory)?;
 
         decrypt_file_aes_256_cbc(
             &temp_file_path.path().to_string_lossy().to_string(),
-            &decrypted_path.as_path().to_string_lossy().to_string(),
+            &decrypted.path().to_string_lossy(),
             &password,
         )
         .map_err(|_| reject("election event file", import_problems::cannot_decrypt()))
         .context("Error generating decrypted file")?;
 
-        // Create a new NamedTempFile for the decrypted content
-        let mut temp_file = NamedTempFile::new()?;
-        let content = fs::read(decrypted_path)?;
-        temp_file.write_all(&content)?;
-
-        return Ok(temp_file);
+        return Ok(decrypted);
     }
 
     Ok(temp_file_path)
@@ -1372,7 +1357,7 @@ pub async fn process_election_event_file(
         .with_context(|| "Error managing dates")?;
 
     // Upsert immutable board
-    let board = upsert_b3_and_elog(hasura_transaction, tenant_id.as_str(), &election_event_id, &election_ids, is_importing_keys)
+    let board = ensure_election_audit_boards(hasura_transaction, tenant_id.as_str(), &election_event_id, &election_ids, is_importing_keys)
         .await
         .with_context(|| format!("Error upserting b3 board for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
 
@@ -1951,6 +1936,31 @@ pub async fn get_zip_entries(
     Ok((zip_entries, spooled, election_event_schema))
 }
 
+/// Include tally UUID references in valid JSON so one replacement map covers
+/// both the event and its CSV members. The temporary field is ignored by the
+/// typed event schema and never becomes stored event data.
+fn schema_with_tally_references(schema: &str, entries: &[(String, Vec<u8>)]) -> Result<String> {
+    let tally_prefix = format!("{}/", EDocuments::TALLY.to_file_name());
+    let references = entries
+        .iter()
+        .filter(|(name, _)| name.starts_with(&tally_prefix) && name.ends_with(".csv"))
+        .map(|(_, bytes)| std::str::from_utf8(bytes))
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    if references.is_empty() {
+        return Ok(schema.to_owned());
+    }
+    let mut document: Value = serde_json::from_str(schema)
+        .map_err(|err| reject("election event file", import_problems::not_json(&err)))?;
+    document
+        .as_object_mut()
+        .context("archive election event schema must be an object")?
+        .insert(
+            "_tally_archive_references".into(),
+            serde_json::to_value(references)?,
+        );
+    Ok(serde_json::to_string(&document)?)
+}
+
 /// Imports the document. Returns what the import left out, each with its
 /// reason, for the task's log.
 #[instrument(err, skip_all)]
@@ -1984,30 +1994,8 @@ pub async fn process_document(
 
     let election_event_id_clone = election_event_id.clone();
 
-    let tally_session_file = zip_entries
-        .iter()
-        .find(|(name, _)| name.contains(ETallyDocuments::TALLY_SESSION.to_file_name()));
-    let results_event_file = zip_entries
-        .iter()
-        .find(|(name, _)| name.contains(ETallyDocuments::RESULTS_EVENT.to_file_name()));
-
-    let mut tally_files_content: Option<String> = None;
-    if let (Some(tally_session_file), Some(results_event_file)) =
-        (tally_session_file, results_event_file)
-    {
-        let tally_session_file_content = String::from_utf8(tally_session_file.1.clone())?;
-        let results_event_file_content = String::from_utf8(results_event_file.1.clone())?;
-        tally_files_content = Some(format!(
-            "\n{}\n{}",
-            tally_session_file_content, results_event_file_content
-        ));
-    }
-    let file_election_event_schema = match tally_files_content {
-        Some(tally_files_content) => {
-            format!("{}\n{}", file_election_event_schema, tally_files_content)
-        }
-        None => file_election_event_schema,
-    };
+    let file_election_event_schema =
+        schema_with_tally_references(&file_election_event_schema, &zip_entries)?;
 
     let may_write_secret_attributes = object.may_write_secret_attributes;
     let secret_write_initiator = object.secret_write_initiator.clone();
@@ -2193,6 +2181,10 @@ pub async fn process_document(
                     &election_event_schema.election_event.id,
                     temp_file,
                     replacement_map.clone(),
+                    election_event_schema
+                        .protocol_boards
+                        .as_deref()
+                        .unwrap_or_default(),
                 )
                 .await
                 .context("Failed to import bulletin boards")?;
@@ -2352,6 +2344,43 @@ pub async fn process_document(
         }
     };
 
+    // Parent rows precede children; tally foreign keys have been imported above.
+    if let Some(boards) = &election_event_schema.protocol_boards {
+        for parent in [false, true] {
+            for row in boards
+                .iter()
+                .filter(|row| row.parent_id.is_some() == parent)
+            {
+                if !parent {
+                    protocol_board::SignedConfiguration::parse(&row.manager_message)?;
+                } else {
+                    let cfg = boards
+                        .iter()
+                        .find(|cfg| Some(&cfg.id) == row.parent_id.as_ref())
+                        .context("missing imported DKG parent")?;
+                    protocol_board::SignedBallots::parse(
+                        &row.manager_message,
+                        &protocol_board::SignedConfiguration::parse(&cfg.manager_message)?,
+                    )?;
+                }
+                crate::postgres::protocol_board::insert_protocol_board(
+                    hasura_transaction,
+                    &crate::postgres::protocol_board::NewProtocolBoard {
+                        id: Some(row.id.clone()),
+                        tenant_id: row.tenant_id.clone(),
+                        election_event_id: row.election_event_id.clone(),
+                        parent_id: row.parent_id.clone(),
+                        keys_ceremony_id: row.keys_ceremony_id.clone(),
+                        tally_session_id: row.tally_session_id.clone(),
+                        batch: row.batch,
+                        name: row.name.clone(),
+                        manager_message: row.manager_message.clone(),
+                    },
+                )
+                .await?;
+            }
+        }
+    }
     let election_keys_ceremonies: HashMap<&str, &str> = election_event_schema
         .elections
         .iter()
@@ -2853,6 +2882,80 @@ mod tests {
         assert!(spooled.is_empty());
     }
 
+    #[test]
+    fn tally_csv_references_are_remapped_without_invalidating_event_json() {
+        let event_id = "10101010-1010-4010-8010-101010101010";
+        let result_id = "20202020-2020-4020-8020-202020202020";
+        let row_id = "30303030-3030-4030-8030-303030303030";
+        let schema = serde_json::json!({"id": event_id}).to_string();
+        let members = vec![
+            (
+                format!("{}/results_event.csv", EDocuments::TALLY.to_file_name()),
+                format!("id,event_id\n{result_id},{event_id}\n").into_bytes(),
+            ),
+            (
+                format!("{}/results_contest.csv", EDocuments::TALLY.to_file_name()),
+                format!("id,result_id\n{row_id},{result_id}\n").into_bytes(),
+            ),
+        ];
+        let combined = schema_with_tally_references(&schema, &members).unwrap();
+        let valid: Value = serde_json::from_str(&combined).unwrap();
+        assert_eq!(valid["id"], event_id);
+        let (remapped, replacements) = replace_realm_ids(&combined, vec![], None, None).unwrap();
+        let remapped: Value = serde_json::from_str(&remapped).unwrap();
+        assert_eq!(remapped["id"], replacements[event_id]);
+        for id in [event_id, result_id, row_id] {
+            assert_ne!(replacements[id], id);
+            assert!(Uuid::parse_str(&replacements[id]).is_ok());
+        }
+        assert_eq!(schema_with_tally_references(&schema, &[]).unwrap(), schema);
+    }
+
+    /// Native archives contain manager keys; plaintext must have request-owned storage.
+    #[tokio::test]
+    async fn decrypted_archives_use_private_owned_files_and_leave_no_plaintext() {
+        let directory = tempfile::tempdir().unwrap();
+        let password = "synthetic-native-archive-password";
+        let encrypted = |contents: &[u8]| {
+            let mut plain = NamedTempFile::new_in(directory.path()).unwrap();
+            plain.write_all(contents).unwrap();
+            let cipher = NamedTempFile::new_in(directory.path()).unwrap();
+            crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc(
+                plain.path().to_str().unwrap(),
+                cipher.path().to_str().unwrap(),
+                password,
+            )
+            .unwrap();
+            cipher
+        };
+        let first = decrypt_document(Some(password.into()), encrypted(b"first native manager"))
+            .await
+            .unwrap();
+        assert_eq!(first.path().parent().unwrap(), directory.path());
+        let second = decrypt_document(Some(password.into()), encrypted(b"second native manager"))
+            .await
+            .unwrap();
+        assert_ne!(first.path(), second.path());
+        assert_eq!(fs::read(first.path()).unwrap(), b"first native manager");
+        assert_eq!(fs::read(second.path()).unwrap(), b"second native manager");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                first.path().metadata().unwrap().permissions().mode() & 0o777,
+                0o600
+            );
+        }
+        drop((first, second));
+        assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 0);
+        // A real encrypted control with a wrong password must clean up partial plaintext too.
+        let error = decrypt_document(Some("wrong password".into()), encrypted(b"native manager"))
+            .await
+            .unwrap_err();
+        assert_eq!(problem_id(&error).as_deref(), Some("file.cannot-decrypt"));
+        assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 0);
+    }
+
     /// A file that does not decrypt with the password given names the password.
     #[tokio::test]
     async fn a_file_that_does_not_decrypt_is_a_named_problem() {
@@ -3038,6 +3141,28 @@ mod import_scope_tests {
                     assert_eq!(row_event, imported.election_event.id);
                 }
             }
+        }
+    }
+
+    #[test]
+    fn auxiliary_archive_members_receive_explicit_tenant_and_event_mappings() {
+        let source_tenant = new_id();
+        let source_event = new_id();
+        let input = bundle(&source_tenant, &source_event);
+        let original: ImportElectionEventSchema = serde_json::from_value(input.clone()).unwrap();
+        for target_tenant in [source_tenant.clone(), new_id()] {
+            let target_event = new_id();
+            let (data, replacements) = replace_ids(
+                &input.to_string(),
+                &original,
+                Some(target_event.clone()),
+                target_tenant.clone(),
+            )
+            .unwrap();
+            assert_eq!(replacements[&source_tenant], target_tenant);
+            assert_eq!(replacements[&source_event], target_event);
+            assert_eq!(data.election_event.id, replacements[&source_event]);
+            assert_eq!(data.tenant_id, replacements[&source_tenant]);
         }
     }
 

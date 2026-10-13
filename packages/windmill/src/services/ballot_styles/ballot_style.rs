@@ -165,6 +165,20 @@ pub async fn create_ballot_style_postgres(
             // there. A browser does not, which is why the parameter exists.
             None,
         )?;
+        if let Some(published) = election_dto.public_key.as_mut().filter(|key| !key.is_demo) {
+            let ceremony_id = election
+                .keys_ceremony_id
+                .as_deref()
+                .context("Election has a public key without a keys ceremony")?;
+            let dkg = crate::services::protocol_board::load_dkg_board(
+                transaction,
+                tenant_id,
+                &election_event.id,
+                ceremony_id,
+            )
+            .await?;
+            published.configuration_id = Some(dkg.configuration.configuration_id()?.to_string());
+        }
         election_dto.ballot_box_key = ballot_box_key.cloned();
 
         let is_multi_contest = election_dto

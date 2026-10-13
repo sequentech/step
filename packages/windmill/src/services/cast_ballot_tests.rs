@@ -6,21 +6,21 @@ use chrono::TimeZone;
 use sequent_core::ballot_receipt::{
     sign_cast_statement, sign_received_ballot, verify_cast_receipt, ReceivedStatement,
 };
-use strand::signature::StrandSignaturePk;
+use voting_crypto::signing::VerificationKey;
 
 const ELECTION_ID: &str = "f2f1065e-b784-46d1-b81a-c71bfeb9ad55";
 const ELECTION_EVENT_ID: &str = "33f18502-a67c-4853-8333-a58630663559";
 
 struct Fixture {
-    ballot_box_sk: StrandSignatureSk,
-    voter_sk: StrandSignatureSk,
+    ballot_box_sk: SigningKey,
+    voter_sk: SigningKey,
     received_ballot: ReceivedBallot,
 }
 
 impl Fixture {
     fn new() -> Self {
-        let ballot_box_sk = StrandSignatureSk::generate().unwrap();
-        let voter_sk = StrandSignatureSk::generate().unwrap();
+        let ballot_box_sk = SigningKey::generate().unwrap();
+        let voter_sk = SigningKey::generate().unwrap();
         let received_at = Utc.timestamp_millis_opt(1_841_367_600_000).unwrap();
         let received = sign_received_ballot(
             &ballot_box_sk,
@@ -29,9 +29,9 @@ impl Fixture {
                 election_event_id: ELECTION_EVENT_ID.into(),
                 election_id: ELECTION_ID.into(),
                 ballot_hash: "ballot-hash".into(),
-                voter_signing_pk: StrandSignaturePk::from_sk(&voter_sk)
+                voter_signing_pk: VerificationKey::from_sk(&voter_sk)
                     .unwrap()
-                    .to_der_b64_string()
+                    .to_b64_string()
                     .unwrap(),
                 voter_ballot_signature: voter_sk.sign(b"ballot").unwrap().to_b64_string().unwrap(),
                 received_at: format_signed_time(&received_at),
@@ -108,7 +108,7 @@ fn the_key_that_signed_the_ballot_casts_it() {
 #[test]
 fn a_cast_signature_by_another_key_or_for_another_ballot_is_refused() {
     let f = Fixture::new();
-    let another_voter = StrandSignatureSk::generate().unwrap();
+    let another_voter = SigningKey::generate().unwrap();
     let ballot_id = f.received_ballot.ballot_id.clone();
 
     for (case, signature) in [
@@ -219,7 +219,7 @@ fn a_cast_takes_the_received_ballot_and_signs_a_receipt_for_it() {
 #[test]
 fn only_the_key_that_received_the_ballot_signs_its_cast_receipt() {
     let f = Fixture::new();
-    let another_key = StrandSignatureSk::generate().unwrap();
+    let another_key = SigningKey::generate().unwrap();
 
     assert!(matches!(
         received_cast(f.received_ballot.clone(), f.cast_signature(), another_key),

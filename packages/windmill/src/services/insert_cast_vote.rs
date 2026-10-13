@@ -15,15 +15,14 @@ use crate::services::cast_votes::{CastVote, CastVoteStatus};
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
+use crate::services::electoral_log_board::get_board_signing_key;
 use crate::services::external::utils::{
     datafix_annotations, external_voter_lock_key, is_datafix_election_event,
     DATAFIX_VOTER_LOCK_SECS,
 };
 use crate::services::pg_lock::PgLock;
-use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::receive_ballot::must_be_received;
 use anyhow::{anyhow, Context, Result};
-use b4::messages::message::Signer;
 use base64::{engine::general_purpose, Engine as _};
 use chrono::{DateTime, Duration, Local};
 use deadpool_postgres::Client as DbClient;
@@ -36,6 +35,7 @@ use sequent_core::ballot::BallotTrackerPolicy;
 use sequent_core::ballot::ContestEncryptionPolicy;
 // The tests build presentations with it; the grace period itself comes from
 // `ballot_box_seal::deadline::grace_period`.
+use anyhow::Error;
 #[cfg(test)]
 use sequent_core::ballot::EGracePeriodPolicy;
 use sequent_core::ballot::ElectionEventPresentation;
@@ -51,7 +51,6 @@ use sequent_core::encrypt::hash_ballot_sha512;
 use sequent_core::encrypt::hash_ballot_style;
 use sequent_core::encrypt::hash_multi_ballot;
 use sequent_core::encrypt::hash_multi_ballot_sha512;
-use sequent_core::encrypt::DEFAULT_PLAINTEXT_LABEL;
 use sequent_core::error::BallotError;
 use sequent_core::multi_ballot::verify_multi_ballot_signature;
 use sequent_core::multi_ballot::HashableMultiBallot;
@@ -65,16 +64,14 @@ use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Serializer;
 use std::time::Instant;
-use strand::backend::ristretto::RistrettoCtx;
-use strand::hash::{hash_to_array, Hash, HashWrapper};
-use strand::serialization::StrandSerialize;
-use strand::signature::StrandSignature;
-use strand::signature::StrandSignaturePk;
-use strand::util::StrandError;
-use strand::zkp::Zkp;
 use strum_macros::Display;
 use tracing::{debug, error, info, instrument, trace};
 use uuid::Uuid;
+use voting_crypto::hash::{hash_to_array, Hash, HashWrapper};
+use voting_crypto::signing::Signature;
+use voting_crypto::signing::VerificationKey;
+use voting_crypto::RecordSerialize;
+use voting_crypto::RistrettoCtx;
 
 /// Emits one duration even when a phase fails or its future is cancelled.
 struct CastVotePhase {
@@ -516,6 +513,19 @@ pub(crate) async fn try_cast(
         }
     };
 
+    crate::services::receive_ballot::check_published_ballot(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        area_id,
+        &input,
+        presentation
+            .contest_encryption_policy
+            .clone()
+            .unwrap_or_default(),
+    )
+    .await?;
+
     let (ballot_tracker_policy, published_ballot_styles) = ballot_tracker_context(
         &hasura_transaction,
         Some(&presentation),
@@ -754,7 +764,7 @@ pub fn deserialize_and_check_ballot(
     (
         PseudonymHash,
         CastVoteHash,
-        Option<(StrandSignaturePk, StrandSignature)>,
+        Option<(VerificationKey, Signature)>,
     ),
     CastVoteError,
 > {
@@ -797,16 +807,6 @@ pub fn deserialize_and_check_ballot(
     let pseudonym_h = PseudonymHash(HashWrapper::new(pseudonym_hash_bytes));
     let vote_h = CastVoteHash(HashWrapper::new(vote_hash_bytes));
 
-    let hashable_ballot_contests = hashable_ballot
-        .deserialize_contests()
-        .map_err(|e| CastVoteError::DeserializeContestsFailed(e.to_string()))?;
-
-    hashable_ballot_contests
-        .iter()
-        .map(check_popk)
-        .collect::<Result<Vec<()>>>()
-        .map_err(|e| CastVoteError::PokValidationFailed(e.to_string()))?;
-
     // Check ballot signature
     let election_id = input.election_id.to_string();
     let signature_opt = verify_ballot_signature(
@@ -832,7 +832,7 @@ pub fn deserialize_and_check_multi_ballot(
     (
         PseudonymHash,
         CastVoteHash,
-        Option<(StrandSignaturePk, StrandSignature)>,
+        Option<(VerificationKey, Signature)>,
     ),
     CastVoteError,
 > {
@@ -876,13 +876,6 @@ pub fn deserialize_and_check_multi_ballot(
     let pseudonym_h = PseudonymHash(HashWrapper::new(pseudonym_hash_bytes));
     let vote_h = CastVoteHash(HashWrapper::new(vote_hash_bytes));
 
-    let hashable_multi_ballot_contests = hashable_multi_ballot
-        .deserialize_contests()
-        .map_err(|e| CastVoteError::DeserializeContestsFailed(e.to_string()))?;
-
-    check_popk_multi(&hashable_multi_ballot_contests)
-        .map_err(|e| CastVoteError::PokValidationFailed(e.to_string()))?;
-
     // Check ballot signature
     let election_id = input.election_id.to_string();
     let voter_signature_opt = verify_multi_ballot_signature(
@@ -910,7 +903,7 @@ struct BallotToAccept<'a> {
     voter_ip: &'a Option<String>,
     voter_country: &'a Option<String>,
     username: &'a Option<String>,
-    voter_signature_data: &'a Option<(StrandSignaturePk, StrandSignature)>,
+    voter_signature_data: &'a Option<(VerificationKey, Signature)>,
     is_early_voting_area: bool,
     pseudonym_hash: &'a PseudonymHash,
     ballot_hash: &'a CastVoteHash,
@@ -1052,8 +1045,8 @@ async fn accept_into_ballot_box(
 }
 
 /// A voter's pseudonym, stored with the voter's ballots and in their records.
-pub fn hash_voter_id(voter_id: &str) -> Result<Hash, StrandError> {
-    let bytes = voter_id.to_string().strand_serialize()?;
+pub fn hash_voter_id(voter_id: &str) -> Result<Hash> {
+    let bytes = voter_id.to_string().record_serialize()?;
     hash_to_array(&bytes)
 }
 
@@ -1066,7 +1059,7 @@ async fn get_electoral_log(
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
         .with_context(|| "missing bulletin board")?;
 
-    let protocol_manager = get_protocol_manager::<RistrettoCtx>(
+    let protocol_manager = get_board_signing_key(
         hasura_transaction,
         tenant_id,
         Some(&election_event.id),
@@ -1075,7 +1068,7 @@ async fn get_electoral_log(
     .await?;
     Ok(ElectoralLog::for_system_with_signing_key(
         board_name.as_str(),
-        protocol_manager.get_signing_key(),
+        &protocol_manager,
     ))
 }
 
@@ -1434,46 +1427,6 @@ pub async fn check_seal_deadline(
         }
         _ => Ok(()),
     }
-}
-
-#[instrument(skip_all, err)]
-fn check_popk(ballot_contest: &HashableBallotContest<RistrettoCtx>) -> Result<()> {
-    let zkp = Zkp::new(&RistrettoCtx);
-    let popk_ok = zkp.encryption_popk_verify(
-        &ballot_contest.ciphertext.mhr,
-        &ballot_contest.ciphertext.gr,
-        &ballot_contest.proof,
-        &DEFAULT_PLAINTEXT_LABEL,
-    )?;
-
-    if !popk_ok {
-        return Err(anyhow!(
-            "Popk validation failed for contest {}",
-            ballot_contest.contest_id
-        ));
-    }
-
-    Ok(())
-}
-
-#[instrument(skip_all, err)]
-fn check_popk_multi(ballot_contest: &HashableMultiBallotContests<RistrettoCtx>) -> Result<()> {
-    let zkp = Zkp::new(&RistrettoCtx);
-    let popk_ok = zkp.encryption_popk_verify(
-        &ballot_contest.ciphertext.mhr,
-        &ballot_contest.ciphertext.gr,
-        &ballot_contest.proof,
-        &DEFAULT_PLAINTEXT_LABEL,
-    )?;
-
-    if !popk_ok {
-        return Err(anyhow!(
-            "Popk validation failed for contest ids {:?}",
-            ballot_contest.contest_ids
-        ));
-    }
-
-    Ok(())
 }
 
 #[cfg(test)]

@@ -8,20 +8,17 @@ use crate::services::database::get_keycloak_pool;
 use crate::services::database::get_queue_pool;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
+use crate::services::electoral_log_board::{get_board_client, get_protocol_manager_secret_path};
 use crate::services::electoral_log_dead_letter::{
     dead_letter_events, dead_letter_message, DeadLetterStage,
 };
 use crate::services::monitoring::login_counter::{
     count_login_attempts_apart, login_attempt, LoginAttempt,
 };
-use crate::services::protocol_manager::{
-    deserialize_protocol_manager, get_board_client, get_protocol_manager_secret_path,
-};
 use crate::services::users::get_user_area_id;
 use crate::services::vault;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
-use b4::messages::message::Signer;
 use celery::error::TaskError;
 use celery::task::Task;
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -31,9 +28,9 @@ use sequent_core::services::keycloak::get_event_realm;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
-use strand::backend::ristretto::RistrettoCtx;
 use tracing::{event, info, instrument};
 use uuid::Uuid;
+use voting_crypto::RistrettoCtx;
 
 /// Classifies the type of an incoming log event.
 ///
@@ -362,11 +359,12 @@ impl BatchLookups for DbLookups<'_, '_> {
         else {
             return Ok(None);
         };
-        let protocol_manager = deserialize_protocol_manager::<RistrettoCtx>(contents)
-            .context("Error decoding the protocol-manager key")?;
+        let protocol_manager =
+            crate::services::electoral_log_board::parse_signing_identity(&contents)
+                .context("Error decoding the protocol-manager key")?;
         Ok(Some(ElectoralLog::for_system_with_signing_key(
             board,
-            protocol_manager.get_signing_key(),
+            &protocol_manager,
         )))
     }
 }
@@ -908,7 +906,7 @@ mod delivery_tests {
 mod batch_build_tests {
     use super::*;
     use crate::services::electoral_log_dead_letter::event_message;
-    use strand::signature::StrandSignatureSk;
+    use voting_crypto::signing::SigningKey;
 
     const TENANT: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
     const EVENT: &str = "fdd21db2-dd68-4974-90eb-7f2750b2b5df";
@@ -916,7 +914,7 @@ mod batch_build_tests {
     const KEYLESS_EVENT: &str = "2b8e4a1d-7c6f-4e93-b0a2-5d9c8f1e3a47";
 
     struct FakeLookups {
-        signing_key: StrandSignatureSk,
+        signing_key: SigningKey,
         unreachable_event: Option<&'static str>,
         board_calls: usize,
         signer_calls: usize,
@@ -925,7 +923,7 @@ mod batch_build_tests {
     impl FakeLookups {
         fn new() -> Self {
             Self {
-                signing_key: StrandSignatureSk::generate().unwrap(),
+                signing_key: SigningKey::generate().unwrap(),
                 unreachable_event: None,
                 board_calls: 0,
                 signer_calls: 0,

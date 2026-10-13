@@ -16,7 +16,7 @@ use crate::services::electoral_log::{
     count_electoral_log, ElectoralLogRow, GetElectoralLogBody, MinuteRange, OrderField,
     ELECTORAL_LOG_ROWS_LIMIT,
 };
-use crate::services::protocol_manager::{get_board_client, get_event_board};
+use crate::services::electoral_log_board::{get_board_client, get_event_board};
 use crate::services::providers::email_sender::{Attachment, EmailSender};
 use crate::services::time_zones::parse_zone;
 use anyhow::{anyhow, Context, Result};
@@ -43,12 +43,12 @@ use std::collections::HashMap;
 use std::io::Write;
 use std::mem;
 use std::path::Path;
-use strand::serialization::StrandDeserialize;
 use strum_macros::EnumString;
 use tempfile::NamedTempFile;
 use tokio::sync::OnceCell;
 use tracing::{debug, info, instrument, warn};
 use velvet::pipes::report_manifest::csv_stamp_line;
+use voting_crypto::RecordDeserialize;
 
 #[derive(Serialize, Deserialize, Debug, Clone, EnumString, PartialEq, Copy)]
 pub enum ReportFormat {
@@ -589,7 +589,7 @@ impl ActivityLogRow {
             instant(electoral_log.statement_timestamp, "statement_timestamp")?
                 .to_rfc3339_opts(SecondsFormat::Secs, true);
 
-        let deserialized_message = Message::strand_deserialize(&electoral_log.message)
+        let deserialized_message = Message::record_deserialize(&electoral_log.message)
             .map_err(|e| anyhow!("Error deserializing message: {e:?}"))?;
 
         let head_data = deserialized_message.statement.head.clone();
@@ -982,7 +982,7 @@ pub async fn generate_export_data(
 mod tests {
     use super::*;
     use crate::services::electoral_log::exported_log_reader;
-    use crate::services::protocol_manager::get_event_board;
+    use crate::services::electoral_log_board::get_event_board;
     use crate::services::reports::template_renderer::ReportOriginatedFrom;
     use chrono::Utc;
     use sequent_core::util::external_config::load_external_config;
@@ -1004,9 +1004,9 @@ mod tests {
             EventIdString, SigningLogEntry, SigningStatementKind,
         };
         use electoral_log::messages::statement::{StatementEventType, StatementLogType};
-        use strand::signature::StrandSignatureSk;
+        use voting_crypto::signing::SigningKey;
 
-        let sk = StrandSignatureSk::generate().unwrap();
+        let sk = SigningKey::generate().unwrap();
         let sd = SigningData::new(sk.clone(), "", sk);
         let message = Message::signing_message(
             EventIdString("event".to_string()),
@@ -1360,9 +1360,9 @@ mod tests {
             EventIdString, SigningLogEntry, SigningStatementKind,
         };
         use electoral_log::messages::statement::{StatementEventType, StatementLogType};
-        use strand::signature::StrandSignatureSk;
+        use voting_crypto::signing::SigningKey;
 
-        let sk = StrandSignatureSk::generate().unwrap();
+        let sk = SigningKey::generate().unwrap();
         let sd = SigningData::new(sk.clone(), "", sk);
         let message = Message::signing_message(
             EventIdString("event".to_string()),

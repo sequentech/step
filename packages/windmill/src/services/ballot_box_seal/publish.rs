@@ -28,10 +28,10 @@ use sequent_core::ballot::BallotBoxSealRecordPolicy;
 use sequent_core::services::s3::get_public_election_event_document_name_key;
 use sequent_core::types::hasura::core::ElectionEvent;
 use sha2::{Digest, Sha256};
-use strand::serialization::{StrandDeserialize, StrandSerialize};
-use strand::signature::StrandSignaturePk;
 use tracing::{info, instrument};
 use uuid::Uuid;
+use voting_crypto::signing::VerificationKey;
+use voting_crypto::{RecordDeserialize, RecordSerialize};
 
 /// What [`publish_box`] did.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -91,8 +91,8 @@ pub fn record_public_path(
 
 /// The key that signed a seal message as system: its sender's, checked
 /// against the system signature (the event key signs as both).
-pub fn signing_key_of(message: &Message) -> Result<StrandSignaturePk> {
-    let statement = message.statement.strand_serialize()?;
+pub fn signing_key_of(message: &Message) -> Result<VerificationKey> {
+    let statement = message.statement.record_serialize()?;
     message
         .sender
         .pk
@@ -124,7 +124,7 @@ pub async fn publish_box(
         .signed_message
         .clone()
         .ok_or_else(|| anyhow!("Sealed ballot box seal {seal_id} has no signed message"))?;
-    let message = Message::strand_deserialize(&signed_message).map_err(|error| {
+    let message = Message::record_deserialize(&signed_message).map_err(|error| {
         anyhow!("The signed message of seal {seal_id} does not decode: {error}")
     })?;
     let tenant_id = seal.tenant_id.to_string();

@@ -57,7 +57,7 @@ flowchart LR
 | Where | What |
 |---|---|
 | `packages/sequent-core/src/signing/` | `types.rs` (`SigningAction` with `sign_permission`, `scope`, `mode`, `document`, `group`; `SigningRule`, `SigningChecks` and the policy enums), `canonical.rs` (canonical JSON, `SigningPayload`), `code.rs` (signing code, payload hash). |
-| `packages/windmill/src/services/signing/` | `guard.rs`, `approve.rs`, `requests.rs` (panel, cancel, handover, open failures, expiry, export, sweeper, claims), `rules.rs`, `signers.rs` (eligible signers from the Keycloak database), `executors.rs`, `certificates.rs`, `crl.rs`, `issuers.rs`, `staff_certificates.rs`, `pades.rs` and `pdf.rs` (PDF revisions), `key_shares.rs` (trustee gates), `actions/` (executors of the voting, configuration, voter, transmission and report actions), `log.rs` (outbox staging), `permissions.rs` (`SigningPermissionChanged`), `configuration.rs` (export and import). |
+| `packages/windmill/src/services/signing/` | `guard.rs`, `approve.rs`, `requests.rs` (panel, cancel, handover, open failures, expiry, export, sweeper, claims), `rules.rs`, `signers.rs` (eligible signers from the Keycloak database), `executors.rs`, `certificates.rs`, `crl.rs`, `issuers.rs`, `staff_certificates.rs`, `pades.rs` and `pdf.rs` (PDF revisions), `custody_proofs.rs` (trustee gates), `actions/` (executors of the voting, configuration, voter, transmission and report actions), `log.rs` (outbox staging), `permissions.rs` (`SigningPermissionChanged`), `configuration.rs` (export and import). |
 | `packages/windmill/src/postgres/signing*.rs` | Queries and row types of the signing tables. |
 | `packages/windmill/src/tasks/` | `signing_log_outbox.rs`, `signing_requests.rs` (expiry and sweeper), `refresh_staff_crls.rs`, `run_signed_action.rs`, `migrate_realm_permissions.rs`. |
 | `packages/harvest/src/routes/signing.rs`, `signing_certificates.rs` | The routes; `services/signing_http.rs` holds the error body and `authorize_403`; `services/access.rs` the role-permission edit policy. |
@@ -164,6 +164,12 @@ logging `SigningRequestExpired` with the requester as the USER.
 Gate actions: the trustee route first answers `signing_request`; once it is completed the
 portal calls the route again with `signing_request_id`, and the route calls `consume_gate`
 (same caller, same subject) to mark it executed in the transaction that runs the step.
+
+Trustee gates validate a public wbraid custody proof scoped to the trustee and
+ceremony, and to the tally session when authorizing a tally. The signed subject's
+`custody_proof_sha256` field binds the exact public proof text. This approval
+signature is separate from the trustee identity signature inside the proof.
+The routes never receive the trustee's identity file or election shares.
 
 ### Locking and ordering
 

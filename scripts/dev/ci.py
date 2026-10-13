@@ -20,7 +20,9 @@ RUST = (
     "trellis",
     "pgmq-broker",
     "harvest",
-    "strand",
+    "voting-crypto",
+    "protocol-board",
+    "trustee",
     "messaging",
     "messaging-webhooks",
     "sequent-core",
@@ -48,6 +50,9 @@ SEQUENT_CORE_FEATURES = (
 )
 # Test arguments of the packages whose suites need features beyond the default.
 RUST_EXTRA = {
+    "voting-crypto": "--release",
+    "protocol-board": "--release",
+    "trustee": "--release",
     "sequent-core": f"--features {SEQUENT_CORE_FEATURES}",
     "trellis": "--features upstream-service --lib --example monitor --example post",
 }

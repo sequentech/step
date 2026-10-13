@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {TranslationType} from "./en"
+import englishTranslation, {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
@@ -2368,13 +2368,14 @@ const frenchTranslation: TranslationType = {
             createContestError: "Erreur lors de la création du scrutin",
         },
         keysGeneration: {
+            ...englishTranslation.translations.keysGeneration,
             configureStep: {
                 create: "Créer une Cérémonie de Clés",
                 name: "Nom de la Cérémonie des Clés",
                 allElections: "Toutes les Élections",
                 title: "Créer une Cérémonie de Clés de l'Événement Électoral",
                 subtitle:
-                    "Dans cette cérémonie, chaque autorité générera et téléchargera sa part des clés privées pour l'Événement Électoral. Pour continuer, choisissez les autorités qui participeront à la cérémonie et le seuil, qui est le nombre minimum d'autorités nécessaires pour compter.",
+                    "Chaque dépositaire génère et conserve ses clés localement, puis en confirme la garde. Choisissez les dépositaires et le nombre minimum nécessaire au dépouillement.",
                 trusteeList: "Autorités",
                 threshold: "Seuil",
                 errorMinTrustees_one:
@@ -2397,18 +2398,18 @@ const frenchTranslation: TranslationType = {
                     description:
                         "Vous êtes sur le point de Créer une Cérémonie de Clés. Cette action notifiera aux Autorités de participer à la création et distribution des Clés de l'Événement Électoral.",
                     automaticCeremonyDescription:
-                        "Vous êtes sur le point de créer une cérémonie de clés automatique. Cela n'informera pas les fiduciaires de leur participation.",
+                        "Les cérémonies automatiques omettent les confirmations manuelles de garde. Les exécutants des dépositaires doivent générer et vérifier les clés électorales.",
                 },
                 filterTrustees: "Filtre des Autorités",
                 errorPermisionLabels:
                     "Impossible de créer la cérémonie de clés : une ou plusieurs étiquettes d’autorisations sont manquantes.",
                 automaticCeremonyToggle: "Cérémonie automatique",
             },
+            // Native custody instructions use the English fallback until translated.
             ceremonyStep: {
+                ...englishTranslation.translations.keysGeneration.ceremonyStep,
                 cancel: "Annuler la Cérémonie de Clés",
                 progressHeader: "Progrès de la Cérémonie de Clés",
-                description:
-                    "Cet écran montre le progrès et les journaux de la Cérémonie de Clés de l'Événement Électoral. Dans la Cérémonie de Clés, chaque autorité générera et téléchargera son fragment de la clé privée pour l'Événement Électoral.",
                 executionStatus: "État : {{status}}",
                 confirmdDialog: {
                     ok: "Oui, Annuler la Création de la Cérémonie de Clés",
@@ -2418,10 +2419,9 @@ const frenchTranslation: TranslationType = {
                         "Vous êtes sur le point d'Annuler la Cérémonie de Clés. Après avoir effectué cette action, pour avoir une Cérémonie de Clés réussie, vous devrez en Créer une nouvelle.",
                 },
                 header: {
+                    ...englishTranslation.translations.keysGeneration.ceremonyStep.header,
                     trusteeName: "Nom de l'Autorité",
                     fragment: "Fragment de Clé Généré",
-                    downloaded: "Fragment Privé de Clé Téléchargé",
-                    checked: "Fragment Privé de Clé Vérifié",
                 },
                 logsHeader: {
                     title: "Journaux",
@@ -2429,48 +2429,6 @@ const frenchTranslation: TranslationType = {
                     entry: "Entrée",
                 },
                 emptyLogs: "Pas de journaux pour l'instant.",
-            },
-            startStep: {
-                title: "Cérémonie de Clés de l'Autorité",
-                subtitle:
-                    "Vous êtes sur le point de participer à la Cérémonie de Clés en tant qu'Autorité (<strong>{{name}}</strong>). Cela implique les étapes suivantes :",
-                one: "<strong>Télécharger</strong> votre Clé Privée Cryptée.",
-                two: "Créer plusieurs <strong>Copies de sauvegarde</strong> de votre Clé Privée Cryptée.",
-                three: "<strong>Vérifier</strong> que les copies de sauvegarde fonctionnent correctement.",
-            },
-            downloadStep: {
-                title: "Télécharger Clé Privée Cryptée",
-                subtitle:
-                    "Pour continuer, veuillez télécharger et sauvegarder votre Clé Privée Cryptée sur au moins deux appareils différents :",
-                downloadButton: "Télécharger votre Clé Privée Cryptée",
-                downloaded: "Clé Privée Cryptée téléchargée avec succès.",
-                errorEmptyKey: "Erreur de téléchargement, fichier vide",
-                unexpectedError: "La clé privée n'a pas pu être téléchargée. Veuillez réessayer.",
-                alreadyVerified: "Votre clé privée a déjà été téléchargée et vérifiée.",
-                unavailable:
-                    "Le téléchargement de la clé privée n'est plus disponible car la cérémonie a progressé.",
-                confirmdDialog: {
-                    ok: "Confirmer les copies de sauvegarde et Continuer",
-                    cancel: "Revenir",
-                    title: "Copie de sauvegarde de votre Clé Privée Cryptée",
-                    description:
-                        "Veuillez effectuer une copie de sauvegarde de votre Clé Privée Cryptée à au moins deux emplacements sécurisés différents et confirmez-le ensuite :",
-                    firstCopy: "Première copie de sauvegarde réalisée",
-                    secondCopy: "Deuxième copie de sauvegarde réalisée",
-                    confirmError:
-                        "Créez les sauvegardes requises et cochez les cases de confirmation pour continuer",
-                },
-            },
-            checkStep: {
-                title: "Vérifiez vos Copies de Sauvegarde de votre Clé Privée Cryptée",
-                verifyButton: "Vérifier la clé",
-                subtitle:
-                    "Chargez la Copie de Sauvegarde de votre Clé Privée Cryptée pour vérifier qu'elle est correcte. Vous pouvez essayer autant de fois que nécessaire, depuis vos différentes copies de sauvegarde :",
-                errorUploading:
-                    "Copa de Sauvegarde de la Clé Privée Cryptée invalide, veuillez réessayer",
-                errorEmptyFile: "Fichier vide ou non trouvé",
-                verified: "Copie de sauvegarde vérifiée avec succès.",
-                alreadyRestored: "Votre clé avait déjà été restaurée.",
             },
         },
         miruExport: {
@@ -2635,7 +2593,7 @@ const frenchTranslation: TranslationType = {
             resultsTitle: "Résultats & Participation",
             generalInfoTitle: "Informations Générales",
             trusteeTallyTitle: "Trustee",
-            trusteeTallySubTitle: "État d'importation du fragment de clé",
+            trusteeTallySubTitle: "État de confirmation de garde",
             ballotBoxes: {
                 unavailable: "Scellés indisponibles",
                 sealed: "{{sealed}} sur {{total}} scellées",
@@ -2688,7 +2646,7 @@ const frenchTranslation: TranslationType = {
             recountTallyCeremonyError: "Impossible de démarrer le recomptage",
             recountTallyCeremonyOk: "Recompter",
             trusteeTitle: "Processus du trustee",
-            trusteeSubTitle: "Veuillez importer votre fragment de clé",
+            trusteeSubTitle: "Importez votre fichier public custody-proof.json",
             invited: "Vous avez été invité à participer à une cérémonie de comptage. Veuillez, ",
             click: "cliquez sur l'action de comptage",
             participate: "pour participer.",
@@ -2707,7 +2665,7 @@ const frenchTranslation: TranslationType = {
                 date: "Date de Comptage",
                 global: "Global",
                 noTrustees: "Aucun trustee pour l'instant",
-                imported: " trustees ont importé leur fragment de clé",
+                imported: " dépositaires ont confirmé la garde",
                 needed: " trustees nécessaires pour le comptage",
                 start: "Commencer Comptage",
                 ceremony: "Commencer Cérémonie de Comptage",
@@ -2722,11 +2680,11 @@ const frenchTranslation: TranslationType = {
                     tallyTitle: "Êtes-vous sûr de vouloir commencer le comptage ?",
                     cancelTitle: "Êtes-vous sûr de vouloir annuler le comptage ?",
                     message:
-                        "Vous êtes sur le point de commencer une cérémonie de comptage. Cette action notifiera aux trustees d'importer leurs fragments de clé.",
+                        "Cette cérémonie demande des preuves publiques de garde aux dépositaires. Gardez leurs exécutants actifs avec leur état local du protocole.",
                     cancelMessage:
                         "Vous êtes sur le point d'annuler la cérémonie de comptage. Cette action ne peut pas être annulée.",
                     ceremony:
-                        "Tous les trustees requis ont vérifié leurs fragments de clé. Tout est prêt pour commencer à recevoir les résultats. Voulez-vous commencer le Comptage ?",
+                        "Les dépositaires nécessaires ont confirmé la garde. Démarrer le dépouillement avec leurs exécutants actifs ?",
                     startAutomatedTallyMessage:
                         "Sélectionnez 'Start Tally' pour lancer le processus de décompte et afficher les résultats, ou 'Close' pour annuler.",
                 },
@@ -4886,7 +4844,7 @@ const frenchTranslation: TranslationType = {
                 keys_ceremony_id: "Cérémonie",
                 tally_session_id: "Session de dépouillement",
                 trustee_id: "Autorité",
-                key_share_sha256: "SHA-256 du fragment de clé",
+                custody_proof_sha256: "SHA-256 du preuve de garde",
                 channel: "Canal",
                 channels: "Canaux",
                 publication_id: "Publication des bulletins",
@@ -4991,22 +4949,22 @@ const frenchTranslation: TranslationType = {
                 afterApproval: "Après l'approbation",
                 afterApprovalValue:
                     "Les identifiants de l'électeur sont délivrés et lui sont envoyés",
-                keyShare: "Votre fragment de clé",
-                keyShareChecked: "Vérifié : c'est votre fragment de clé pour cette cérémonie",
+                custodyProof: "Votre preuve de garde",
+                custodyProofChecked: "Vérifié : c'est votre preuve de garde pour cette cérémonie",
                 recordedIn: "Consigné dans",
                 recordedInCeremony: "La cérémonie des clés et le tableau d'affichage",
                 recordedInTally: "La session de dépouillement",
             },
-            keyShare: {
+            custodyProof: {
                 signing:
-                    "Signez votre fragment de clé dans le panneau de signature. Il est consigné une fois signé.",
-                record: "Consigner mon fragment de clé",
-                failed: "Votre fragment de clé signé n'a pas pu être consigné : {{error}}",
+                    "Signez votre preuve de garde dans le panneau de signature. Il est consigné une fois signé.",
+                record: "Consigner mon preuve de garde",
+                failed: "Votre preuve de garde signé n'a pas pu être consigné : {{error}}",
                 dropAgain:
-                    "Déposez à nouveau votre fichier de fragment de clé pour consigner votre fragment de clé signé.",
-                redo: "Votre fragment de clé a été apporté sans votre signature, que cette élection exige désormais. Apportez-le à nouveau et signez-le.",
+                    "Déposez à nouveau votre fichier de preuve de garde pour consigner votre preuve de garde signé. (custody-proof.json)",
+                redo: "Votre preuve de garde a été apporté sans votre signature, que cette élection exige désormais. Apportez-le à nouveau et signez-le.",
                 notTaken:
-                    "La cérémonie n'accepte plus ce fragment de clé. Déposez à nouveau votre fichier de fragment de clé.",
+                    "La cérémonie n'accepte plus ce preuve de garde. Déposez à nouveau votre fichier de preuve de garde. (custody-proof.json)",
             },
         },
         lifecycle: {

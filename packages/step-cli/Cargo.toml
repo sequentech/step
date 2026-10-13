@@ -9,6 +9,8 @@ edition = "2021"
 default-run = "step-cli"
 
 [dependencies]
+protocol-board = { path = "../protocol-board" }
+voting-crypto = { path = "../voting-crypto" }
 anyhow = "1.0"
 clap = { version = "4.5", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -27,7 +29,6 @@ graphql_client = "0.14"
 rayon = "1.5"
 sequent-core = { path="../sequent-core", features = ["keycloak", "probe", "reports", "default_features", "election_config_xlsx", "election_config_archive", "election_config_signing"] }
 windmill = { path="../windmill" }
-strand = { path="../strand" }
 electoral-log = { path="../electoral-log" }
 
 uuid = { version = "1.5", features = ["v4", "fast-rng"] }

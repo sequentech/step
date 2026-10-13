@@ -140,9 +140,14 @@ missing package still requires `miru-create` and uses the existing task flow.
 
 Routes that start a protected action answer their usual output plus an optional
 `signing_request: {id, code, required, expires_at}` when the rule is `Required`; their
-Hasura output types gain the optional field. The trustee routes (`/check-private-key`,
-`/restore-private-key`) take an optional `key_share_sha256` and `signing_request_id`. A
-transmission package is sent only when its request is executed.
+Hasura output types gain the optional field. The trustee routes (`/confirm-key-custody`,
+`/authorize-tally-custody`) take an optional `custody_proof_sha256` and `signing_request_id`.
+Their `custody_proof_json` field carries the public custody-proof JSON text;
+`custody_proof_sha256` is SHA-256 of that exact UTF-8 text.
+The `get_custody_request` action returns public JSON in `custody_request_json`.
+The `/custody-proof-signature-status` route returns the approval state. Native
+identities and election shares are never transferred through these routes.
+A transmission package is sent only when its request is executed.
 
 ## Enums
 
@@ -186,7 +191,7 @@ Subjects per action:
 | Approve a configuration version | `{ballot_publication_id, digest, signing_rules, scheduled_events, ballots_and_contests, policies, open_voting, close_voting, schedule, initialization_report_policies}`; each `signing_rules` entry is `ACTION=BEFORE>AFTER` (`off` or the signatures needed; `BEFORE` from the first rule change logged since the last publication), or `ACTION=AFTER` without a logged change. The request's `config_revision` is the version publishing makes: the next one for an event-level publication, the one in force for a Post's. |
 
 The configuration also signs the lifecycle it authorizes; see [scheduled openings and closings](./01-signing-architecture.md#scheduled-openings-and-closings).
-| Key ceremony / tally key share | `{keys_ceremony_id or tally_session_id, trustee_id, key_share_sha256, ceremony_name, trustee_name}` |
+| Key ceremony / tally custody confirmation | `{keys_ceremony_id or tally_session_id, trustee_id, custody_proof_sha256, ceremony_name, trustee_name}`; the hash binds the submitted public custody proof |
 
 Everything the dialog shows is in the subject, so what is shown is what is signed.
 

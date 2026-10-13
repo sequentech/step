@@ -7,9 +7,9 @@ use crate::postgres::tenant::get_tenant_by_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::delete_election_event::drop_uncommitted_event_database;
 use crate::services::election_event_board::BoardSerializable;
+use crate::services::import::import_election_event::ensure_election_audit_boards;
 use crate::services::import::import_election_event::ensure_new_election_event;
 use crate::services::import::import_election_event::insert_election_event_db;
-use crate::services::import::import_election_event::upsert_b3_and_elog;
 use crate::services::import::import_election_event::upsert_keycloak_realm;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::Result;
@@ -118,7 +118,7 @@ pub async fn insert_election_event_anyhow(
         }
     };
 
-    let board = upsert_b3_and_elog(
+    let board = ensure_election_audit_boards(
         &hasura_transaction,
         tenant_id.as_str(),
         &id.as_ref(),

@@ -26,6 +26,7 @@ pub mod messaging_insights;
 pub mod monitoring_config;
 pub mod phone_blacklist;
 pub mod preview;
+pub mod protocol_board;
 pub mod publication_files;
 pub mod rate_bucket;
 pub mod render_report;

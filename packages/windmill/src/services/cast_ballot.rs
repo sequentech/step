@@ -8,11 +8,11 @@
 //! stored.
 
 use crate::services::ballot_box_key::{get_ballot_box_signing_key, published_key};
+use crate::services::electoral_log_board::{get_event_databases, get_event_store};
 use crate::services::insert_cast_vote::{
     try_cast, CastOutcome, CastRequest, CastVoteError, InsertCastVoteInput, InsertCastVoteOutput,
     InsertCastVoteResult,
 };
-use crate::services::protocol_manager::{get_event_databases, get_event_store};
 use crate::services::receive_ballot::{format_signed_time, truncate_to_milliseconds};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
@@ -29,9 +29,9 @@ use sequent_core::ballot_receipt::{
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::ElectionEvent;
 use serde::{Deserialize, Serialize};
-use strand::signature::{StrandSignature, StrandSignatureSk};
 use tracing::instrument;
 use uuid::Uuid;
+use voting_crypto::signing::{Signature, SigningKey};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CastBallotInput {
@@ -115,7 +115,7 @@ fn check_cast_signature(
         cast_signature,
     )
     .map_err(|error| refused(&error))?;
-    StrandSignature::from_b64_string(cast_signature)
+    Signature::from_b64_string(cast_signature)
         .and_then(|signature| signature.to_b64_string())
         .map_err(|error| refused(&error))
 }
@@ -143,7 +143,7 @@ fn cast_or_stored_receipt(
 pub struct ReceivedCast {
     pub received_ballot: ReceivedBallot,
     pub cast_signature: String,
-    pub ballot_box_key: StrandSignatureSk,
+    pub ballot_box_key: SigningKey,
     pub key_id: String,
 }
 
@@ -215,7 +215,7 @@ pub async fn find_received_cast(
 pub fn received_cast(
     received: ReceivedBallot,
     cast_signature: String,
-    ballot_box_key: StrandSignatureSk,
+    ballot_box_key: SigningKey,
 ) -> Result<(InsertCastVoteInput, ReceivedCast), CastVoteError> {
     let key_id = published_key(&ballot_box_key)
         .map_err(|e| CastVoteError::BallotSignFailed(e.to_string()))?
@@ -436,14 +436,14 @@ mod postgres_wiring_tests {
     use sequent_core::ballot_receipt::{
         sign_cast_statement, sign_received_ballot, ReceivedStatement,
     };
-    use strand::signature::StrandSignaturePk;
+    use voting_crypto::signing::VerificationKey;
 
     struct Event {
         id: String,
         election: String,
         area: String,
         store: PostgresStore,
-        ballot_box_sk: StrandSignatureSk,
+        ballot_box_sk: SigningKey,
     }
 
     impl Event {
@@ -461,17 +461,17 @@ mod postgres_wiring_tests {
                 election: Uuid::new_v4().to_string(),
                 area: Uuid::new_v4().to_string(),
                 store,
-                ballot_box_sk: StrandSignatureSk::generate().unwrap(),
+                ballot_box_sk: SigningKey::generate().unwrap(),
             }
         }
 
         /// A ballot of the voter the ballot box received, with the voter's
         /// key and the Cast signature for it.
         async fn receive(&self, ballot_hash: &str) -> (ReceivedBallot, String) {
-            let voter_sk = StrandSignatureSk::generate().unwrap();
-            let voter_signing_pk = StrandSignaturePk::from_sk(&voter_sk)
+            let voter_sk = SigningKey::generate().unwrap();
+            let voter_signing_pk = VerificationKey::from_sk(&voter_sk)
                 .unwrap()
-                .to_der_b64_string()
+                .to_b64_string()
                 .unwrap();
             let voter_ballot_signature = voter_sk.sign(b"ballot").unwrap().to_b64_string().unwrap();
             let outcome = self

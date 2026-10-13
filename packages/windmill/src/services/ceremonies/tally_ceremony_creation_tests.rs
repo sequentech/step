@@ -139,9 +139,9 @@ fn keys_ceremony(execution_status: &str, policy: &str) -> KeysCeremony {
         "trustee_ids": [], "threshold": 2, "execution_status": execution_status,
         "settings": {"policy": policy},
         "status": {"stop_date": null, "public_key": "public-key", "logs": [], "trustees": [
-            {"name": "alice", "status": "KEY_CHECKED"},
-            {"name": "bob", "status": "KEY_CHECKED"},
-            {"name": "carol", "status": "KEY_CHECKED"},
+            {"name": "alice", "status": "CUSTODY_CONFIRMED"},
+            {"name": "bob", "status": "CUSTODY_CONFIRMED"},
+            {"name": "carol", "status": "CUSTODY_CONFIRMED"},
         ]},
     }))
     .unwrap()

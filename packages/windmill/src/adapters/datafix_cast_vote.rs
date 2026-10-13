@@ -14,11 +14,11 @@ use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDat
 use crate::services::ballot_box_reads::{ballot_box_time, cast_vote_status};
 use crate::services::cast_votes::{CastVote, CastVoteStatus};
 use crate::services::database::get_hasura_pool;
+use crate::services::electoral_log_board::get_event_store;
 use crate::services::external::datafix_types::{SoapRequest, SoapRequestResult};
 use crate::services::external::utils::post_operation_result_to_electoral_log;
 use crate::services::external::voterview_requests::{self, PreparedSoapRequest, SoapSendError};
 use crate::services::pg_lock::PgLock;
-use crate::services::protocol_manager::get_event_store;
 use crate::types::error::Result;
 use anyhow::anyhow;
 use chrono::{DateTime, Local};
@@ -326,7 +326,7 @@ mod tests {
 mod postgres_wiring_tests {
     use super::*;
     use crate::services::ballot_box::BallotFormat;
-    use crate::services::protocol_manager::get_event_databases;
+    use crate::services::electoral_log_board::get_event_databases;
     use electoral_log::adapters::ballot_box::{AcceptBallot, AcceptOutcome};
 
     #[tokio::test]

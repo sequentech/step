@@ -23,8 +23,8 @@ use electoral_log::{
     ElectoralLogMessage, LogEntry, LogQuery,
 };
 use std::sync::Arc;
-use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use uuid::Uuid;
+use voting_crypto::signing::{SigningKey, VerificationKey};
 
 fn databases() -> Result<EventDatabases> {
     EventDatabases::from_env()
@@ -218,14 +218,14 @@ async fn export(store: &PostgresStore) -> Result<(Vec<ExportedRecord>, ExportMan
 }
 
 fn sign(
-    key: &StrandSignatureSk,
+    key: &SigningKey,
     checkpoint: &electoral_log::proofs::Checkpoint,
 ) -> Result<SignedCheckpoint> {
     let reason = ElectoralLogCheckpointReason::Periodic;
     Ok(SignedCheckpoint {
         checkpoint: checkpoint.clone(),
         reason,
-        signer_pk: StrandSignaturePk::from_sk(key)?.to_der_b64_string()?,
+        signer_pk: VerificationKey::from_sk(key)?.to_b64_string()?,
         signature: key
             .sign(&checkpoint_signing_bytes(checkpoint, reason)?)?
             .to_b64_string()?,
@@ -298,7 +298,7 @@ async fn exported_logs_import_with_their_roots_and_tampering_is_refused() -> Res
     let tenant = Uuid::new_v4();
     let [source_event, target_event, tampered_event, chained_event, unlinked_event] =
         [(); 5].map(|_| Uuid::new_v4());
-    let key = StrandSignatureSk::generate()?;
+    let key = SigningKey::generate()?;
     let sd = SigningData::new(key.clone(), "", key.clone());
     let source_board = board(&tenant, &source_event);
     let source = databases

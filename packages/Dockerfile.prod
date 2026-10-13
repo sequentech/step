@@ -62,6 +62,10 @@ RUN rm -rf /usr/share/nginx/html/*
 # Copy custom NGINX config
 COPY default.conf /etc/nginx/conf.d/
 ARG SPA_NAME
+# Browser trustee workers require isolation on both documents and module assets.
+RUN if [ "$SPA_NAME" = "admin-portal" ]; then \
+        sed -i '/index  index.html;/a\    add_header Cross-Origin-Opener-Policy same-origin always;\n    add_header Cross-Origin-Embedder-Policy require-corp always;' /etc/nginx/conf.d/default.conf; \
+    fi
 # Copy the built SPA from the 'dist' directory of the build stage to the Nginx server
 COPY --from=builder /usr/src/app/${SPA_NAME}/dist /usr/share/nginx/html
 COPY nginx-entrypoint.sh entrypoint.sh

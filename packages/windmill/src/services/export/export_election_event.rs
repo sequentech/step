@@ -48,11 +48,11 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
-use strand::hash::hash_sha256_file;
 use tempfile::{NamedTempFile, TempPath};
 use tokio::io::{self, AsyncWriteExt};
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
+use voting_crypto::hash::hash_sha256_file;
 use zip::write::FileOptions;
 
 use super::export_bulletin_boards;
@@ -197,6 +197,21 @@ pub async fn read_export_data(
         scheduled_events: None,
         reports: export_reports,
         keys_ceremonies: Some(export_keys_ceremonies),
+        protocol_boards: if export_config.bulletin_board {
+            Some(
+                crate::postgres::protocol_board::get_event_protocol_boards(
+                    transaction,
+                    tenant_id,
+                    election_event_id,
+                )
+                .await?
+                .into_iter()
+                .filter(|row| export_config.tally || row.parent_id.is_none())
+                .collect(),
+            )
+        } else {
+            None
+        },
         applications: Some(export_applications),
         support_materials: Some(export_support_materials),
         signing_rules: None,
@@ -853,6 +868,7 @@ pub async fn process_export_zip(
             &hasura_transaction,
             tenant_id,
             election_event_id,
+            export_config.tally,
         )
         .await
         .map_err(|e| anyhow!("Error reading bulletin boards data: {e:?}"))?;

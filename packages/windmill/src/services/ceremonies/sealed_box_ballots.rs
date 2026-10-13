@@ -22,12 +22,11 @@ use crate::services::ceremonies::tally_validation::{
     validate_sealed_boxes_tallied, ExpectedBallotBox,
 };
 use crate::services::election_event_board::get_election_event_board;
-use crate::services::join::MergeJoinResult;
-use crate::services::protocol_manager::{
-    get_event_databases, get_event_store, get_protocol_manager,
+use crate::services::electoral_log_board::{
+    get_board_signing_key, get_event_databases, get_event_store,
 };
+use crate::services::join::MergeJoinResult;
 use anyhow::{anyhow, Context, Result};
-use b4::messages::message::Signer;
 use deadpool_postgres::Transaction;
 use electoral_log::adapters::ballot_box_seal::{BallotBoxId, SealOutcome, StoredSeal};
 use electoral_log::adapters::postgres::PostgresStore;
@@ -48,12 +47,12 @@ use sequent_core::types::participation::{ParticipationChannel, VotesByChannel};
 use sequent_core::util::retry::retry_with_exponential_backoff;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::time::Duration;
-use strand::backend::ristretto::RistrettoCtx;
-use strand::hash::Hash;
-use strand::serialization::StrandDeserialize;
-use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
+use voting_crypto::hash::Hash;
+use voting_crypto::signing::{SigningKey, VerificationKey};
+use voting_crypto::RecordDeserialize;
+use voting_crypto::RistrettoCtx;
 
 /// The event presentation key of the ballot box seal policy.
 const BALLOT_BOX_SEAL_POLICY_KEY: &str = "ballot_box_seal_policy";
@@ -89,7 +88,7 @@ pub fn event_ballot_box_seal_policy(election_event: &ElectionEvent) -> BallotBox
 pub struct SealedBoxLog {
     board: String,
     store: PostgresStore,
-    system_pk: StrandSignaturePk,
+    system_pk: VerificationKey,
     signing_data: SigningData,
 }
 
@@ -102,7 +101,7 @@ impl SealedBoxLog {
     ) -> Result<Self> {
         let board = get_election_event_board(election_event.bulletin_board_reference.clone())
             .with_context(|| "missing bulletin board")?;
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
+        let protocol_manager = get_board_signing_key(
             hasura_transaction,
             tenant_id,
             Some(&election_event.id),
@@ -110,7 +109,7 @@ impl SealedBoxLog {
         )
         .await?;
         let store = get_event_store(&election_event.id).await?;
-        Self::with_signing_key(board, store, protocol_manager.get_signing_key().clone())
+        Self::with_signing_key(board, store, protocol_manager)
     }
 
     /// The electoral log `board` in the event's database `store`, signed
@@ -118,12 +117,12 @@ impl SealedBoxLog {
     pub fn with_signing_key(
         board: String,
         store: PostgresStore,
-        system_sk: StrandSignatureSk,
+        system_sk: SigningKey,
     ) -> Result<Self> {
         Ok(SealedBoxLog {
             board,
             store,
-            system_pk: StrandSignaturePk::from_sk(&system_sk)?,
+            system_pk: VerificationKey::from_sk(&system_sk)?,
             signing_data: SigningData::new(system_sk.clone(), "", system_sk),
         })
     }
@@ -442,7 +441,7 @@ async fn verify_box(
 /// could add one, and it must not block the box's tally).
 fn signed_seal_entries(
     entries: &[ElectoralLogMessage],
-    system_pk: &StrandSignaturePk,
+    system_pk: &VerificationKey,
 ) -> Result<Vec<Message>> {
     let system_der = system_pk.to_der()?;
     let mut seen: HashSet<&[u8]> = HashSet::new();
@@ -451,7 +450,7 @@ fn signed_seal_entries(
         if !seen.insert(entry.message.as_slice()) {
             continue;
         }
-        let message = match Message::strand_deserialize(&entry.message) {
+        let message = match Message::record_deserialize(&entry.message) {
             Ok(message) => message,
             Err(error) => {
                 warn!(

@@ -6,7 +6,6 @@ import {IPermissions} from "../../../src/types/keycloak"
 import {test, expect, TENANT_ID, type AdminPortal} from "../fixtures"
 import {appRoutes} from "./routes"
 import {serveAdminTenant, SHELL_IDS} from "./data"
-import {serveTrusteeWorkerHelper} from "../tally/trustee-startup"
 
 /**
  * One entry per router route. The matrix gives breadth: each route loads with
@@ -100,9 +99,9 @@ export const SMOKE: Record<string, Smoke> = {
     "/trustee": {
         url: "/trustee",
         shows: async (page) => {
-            await heading(page, "Braid Trustee Node")
+            await heading(page, "Wbraid trustee")
             await expect(
-                page.getByText(/braid-wasm loaded and thread pool initialized/)
+                page.getByText(/trustee generate --trustee-config/)
             ).toBeVisible()
         },
         checkConsole: true,
@@ -349,14 +348,6 @@ test.describe("route smoke", () => {
 
     async function checkRoute(page: Page, portal: AdminPortal, smoke: Smoke) {
         serveAdminTenant(portal)
-        if (smoke.url === "/trustee")
-            await page.addInitScript(() => {
-                Object.defineProperty(navigator, "hardwareConcurrency", {value: 2})
-            })
-        const unroute =
-            smoke.url === "/trustee"
-                ? await serveTrusteeWorkerHelper(page.context(), portal)
-                : undefined
         let consoleErrors: string[] = []
         try {
             consoleErrors = await open(page, portal, smoke)
@@ -365,7 +356,6 @@ test.describe("route smoke", () => {
                 await expect(page).toHaveURL((url) => url.pathname === smoke.settlesAt)
             await nextFrames(page)
         } finally {
-            await unroute?.()
             expect(portal.violations.list(), "unexpected service requests").toEqual([])
             expect(consoleErrors, "console errors").toEqual([])
         }

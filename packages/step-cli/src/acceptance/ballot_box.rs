@@ -12,7 +12,7 @@ use electoral_log::adapters::ballot_box_received::ReceivedStatus;
 use electoral_log::adapters::postgres::PostgresStore;
 use std::time::{Duration, Instant};
 use windmill::services::ballot_box_reads::ballot_box_time;
-use windmill::services::protocol_manager::get_event_store;
+use windmill::services::electoral_log_board::get_event_store;
 
 /// How long the read waits for the sequencer to record the accepted ballots.
 const RECORDED_WAIT: Duration = Duration::from_secs(60);

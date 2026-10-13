@@ -2,14 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::jwks::remove_realm_jwks;
-use super::protocol_manager::{get_b3_pgsql_client, get_election_board};
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::{
     election_event_id_exists, get_election_event_by_id_if_exist,
 };
 use crate::services::database::get_hasura_pool;
-use crate::services::protocol_manager::get_event_board;
-use crate::services::protocol_manager::get_event_databases;
+use crate::services::electoral_log_board::get_event_board;
+use crate::services::electoral_log_board::get_event_databases;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
@@ -138,30 +137,40 @@ fn realm_deletion_result(result: std::result::Result<(), KeycloakError>) -> Resu
     }
 }
 
-#[instrument(err)]
-pub async fn delete_election_event_b3(
+/// Retire protocol boards while preserving their signed records.
+pub async fn archive_protocol_boards(
+    transaction: &Transaction<'_>,
     tenant_id: &str,
-    election_event_id: &str,
-    election_ids: &Vec<String>,
+    event_id: &str,
 ) -> Result<()> {
-    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-    let board_name = get_event_board(tenant_id, election_event_id, &slug);
-    let mut board_client = get_b3_pgsql_client().await?;
-    let existing: Option<b4::client::pgsql::B3IndexRow> =
-        board_client.get_board(board_name.as_str()).await?;
-
-    if existing.is_some() {
-        board_client.delete_board(board_name.as_str()).await?;
+    let boards = crate::postgres::protocol_board::get_event_protocol_boards(
+        transaction,
+        tenant_id,
+        event_id,
+    )
+    .await?;
+    if boards.is_empty() {
+        return Ok(());
     }
-
-    for election_id in election_ids {
-        let board_name = get_election_board(tenant_id, &election_id, &slug);
-        let existing: Option<b4::client::pgsql::B3IndexRow> =
-            board_client.get_board(board_name.as_str()).await?;
-
-        if existing.is_some() {
-            board_client.delete_board(board_name.as_str()).await?;
-        }
+    let url = std::env::var("WBRAID_BOARD_DATABASE_URL")
+        .context("WBRAID_BOARD_DATABASE_URL must be set")?;
+    let mut options: sqlx::postgres::PgConnectOptions = url.parse()?;
+    if let Ok(password) = std::env::var("WBRAID_B4_PG_PASSWORD") {
+        options = options.password(&password);
+    }
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .connect_with(options)
+        .await?;
+    let db = wbraid_b4::db::BoardDb::from_postgres_pool(pool).await?;
+    let pool = db
+        .postgres_pool()
+        .context("native board archive requires PostgreSQL")?;
+    for row in boards {
+        sqlx::query("UPDATE boards SET status='archived' WHERE name=$1")
+            .bind(&row.name)
+            .execute(pool)
+            .await?;
     }
     Ok(())
 }

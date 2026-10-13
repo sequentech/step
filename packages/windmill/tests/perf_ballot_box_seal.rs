@@ -27,7 +27,6 @@ mod schema;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use b4::messages::message::Signer;
 use deadpool_postgres::Transaction;
 use electoral_log::adapters::ballot_box_seal::{box_ballots, BallotBoxId};
 use electoral_log::adapters::postgres::PostgresStore;
@@ -41,17 +40,17 @@ use sequent_core::ballot::{
 use serde_json::{json, Value};
 use std::sync::{Mutex, Once};
 use std::time::Instant;
-use strand::backend::ristretto::RistrettoCtx;
-use strand::serialization::StrandSerialize;
-use strand::signature::StrandSignatureSk;
 use uuid::Uuid;
+use voting_crypto::signing::SigningKey;
+use voting_crypto::RecordSerialize;
+use voting_crypto::RistrettoCtx;
 use windmill::postgres::ballot_box_seal::list_for_elections;
 use windmill::postgres::trusted_write;
 use windmill::services::ballot_box_seal::publish::publish_box;
 use windmill::services::ballot_box_seal::seal::{computed_ballot_id, entries, seal_box};
 use windmill::services::ballot_box_seal::{Census, ProductionSealEnvironment, SealEnvironment};
-use windmill::services::protocol_manager::{
-    create_protocol_manager_keys, get_event_store, get_protocol_manager,
+use windmill::services::electoral_log_board::{
+    create_protocol_manager_keys, get_board_signing_key, get_event_store,
 };
 use windmill::services::voting_status::update_election_status;
 
@@ -96,7 +95,7 @@ impl SealEnvironment for PerfEnvironment {
         tenant_id: &str,
         election_event_id: &str,
         board: &str,
-    ) -> Result<StrandSignatureSk> {
+    ) -> Result<SigningKey> {
         ProductionSealEnvironment
             .signing_key(hasura_transaction, tenant_id, election_event_id, board)
             .await
@@ -303,16 +302,11 @@ fn seal_130_boxes_the_largest_with_50k_ballots() {
             create_protocol_manager_keys(&tx, &tenant.to_string(), &event.to_string(), &board)
                 .await
                 .unwrap();
-            let key = get_protocol_manager::<RistrettoCtx>(
-                &tx,
-                &tenant.to_string(),
-                Some(&event.to_string()),
-                &board,
-            )
-            .await
-            .unwrap()
-            .get_signing_key()
-            .clone();
+            let key =
+                get_board_signing_key(&tx, &tenant.to_string(), Some(&event.to_string()), &board)
+                    .await
+                    .unwrap()
+                    .clone();
             tx.commit().await.unwrap();
             key
         };
@@ -510,7 +504,7 @@ fn seal_130_boxes_the_largest_with_50k_ballots() {
                 &SigningData::new(key.clone(), "", key.clone()),
             )
             .unwrap();
-            let bytes = message.strand_serialize().unwrap();
+            let bytes = message.record_serialize().unwrap();
             println!(
                 "largest: sign the BallotBoxSealed message: {} ({} bytes)",
                 secs(started.elapsed()),

@@ -17,7 +17,7 @@ use rocket::local::asynchronous::Client;
 use sequent_core::types::permissions::Permissions;
 use serde_json::{json, Value};
 use std::sync::Once;
-use windmill::services::protocol_manager::get_event_board;
+use windmill::services::electoral_log_board::get_event_board;
 
 /// The environment slug boards are named with, unless the environment sets
 /// `ENV_SLUG`.
