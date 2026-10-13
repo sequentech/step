@@ -297,10 +297,13 @@ pub fn with_key_checked(
     signatures: &TrusteeSignatures,
 ) -> (KeysCeremonyStatus, KeysCeremonyExecutionStatus) {
     let new_status = with_trustee_status(status, trustee_name, &TrusteeStatus::KEY_CHECKED, logs);
-    // When the rule makes trustees sign, an unsigned check doesn't count.
-    let execution_status = if new_status.trustees.iter().all(|trustee| {
-        trustee.status == TrusteeStatus::KEY_CHECKED && signatures.counts(&trustee.name)
-    }) {
+    // When the rule makes trustees sign, an unsigned check doesn't count. A
+    // ceremony without its public key can't succeed: its elections would be
+    // published with the demo key.
+    let execution_status = if new_status.public_key.is_some()
+        && new_status.trustees.iter().all(|trustee| {
+            trustee.status == TrusteeStatus::KEY_CHECKED && signatures.counts(&trustee.name)
+        }) {
         KeysCeremonyExecutionStatus::SUCCESS
     } else {
         KeysCeremonyExecutionStatus::IN_PROGRESS
