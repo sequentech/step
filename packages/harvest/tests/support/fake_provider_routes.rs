@@ -1640,15 +1640,25 @@ async fn adapters_send_and_check_through_the_routes_and_reports_reach_the_ledger
     assert_eq!(code_message["sender"], page_id.as_str());
     assert_eq!(code_message["recipient"], psid.as_str());
     assert_eq!(code_message["content"]["text"], "Your code is 482619.");
+    // The link is marked once the provider has accepted the code, which the
+    // provider's own list shows a moment earlier.
     let (state, bound): (String, Option<String>) = {
-        let rows = rows::query(
-            &stack.services.hasura,
-            "SELECT state, page_scoped_id FROM sequent_backend.messenger_link
-             WHERE tenant_id = $1",
-            &[&Uuid::parse_str(&stack.event.tenant_id).unwrap()],
-        )
-        .await;
-        (rows[0].get(0), rows[0].get(1))
+        let deadline = Instant::now() + Duration::from_secs(20);
+        loop {
+            let rows = rows::query(
+                &stack.services.hasura,
+                "SELECT state, page_scoped_id FROM sequent_backend.messenger_link
+                 WHERE tenant_id = $1",
+                &[&Uuid::parse_str(&stack.event.tenant_id).unwrap()],
+            )
+            .await;
+            let link: (String, Option<String>) =
+                (rows[0].get(0), rows[0].get(1));
+            if link.0 != "PENDING" || Instant::now() >= deadline {
+                break link;
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
     };
     assert_eq!(
         (state.as_str(), bound.as_deref()),
