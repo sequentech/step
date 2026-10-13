@@ -3399,6 +3399,20 @@
             "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-permission-labels",
             "jsonType.label": "String"
           }
+        },
+        {
+          "id": "8acb7a06-9d1f-5446-b0eb-6fe1247d56ca",
+          "name": "harvest-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "harvest",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true",
+            "lightweight.claim": "false"
+          }
         }
       ],
       "defaultClientScopes": [
@@ -4086,6 +4100,20 @@
             "access.token.claim": "true",
             "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-user-id",
             "jsonType.label": "String"
+          }
+        },
+        {
+          "id": "0d904711-83f7-544c-a126-c1e8630b8913",
+          "name": "harvest-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "harvest",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true",
+            "lightweight.claim": "false"
           }
         }
       ],
