@@ -1,4 +1,26 @@
 type Query {
+    list_trustee_boards: TrusteeBoardsOutput!
+}
+
+type Mutation {
+    report_trustee_board(report: jsonb!): TrusteeReportOutput!
+}
+
+type TrusteeBoard {
+    name: String!
+    kind: String!
+    parent: String
+}
+
+type TrusteeBoardsOutput {
+    boards: [TrusteeBoard!]!
+}
+
+type TrusteeReportOutput {
+    accepted: Boolean!
+}
+
+type Query {
     get_ballot_files_urls(election_event_id: String!): jsonb!
 }
 

@@ -27,6 +27,7 @@ def main():
             BackendJourneys("test_b_manual_key_ceremony_and_tally"),
             *automatic,
             BackendJourneys("test_a_combined_contest_weighted_voting"),
+            BackendJourneys("test_c_trustee_graphql_board_api"),
         ]
     )
     result = unittest.TextTestRunner(verbosity=2, resultclass=JourneyResult).run(suite)

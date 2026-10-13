@@ -1365,7 +1365,7 @@ class BackendJourneys(unittest.TestCase):
                     name=name,
                     keys=(ROOT / f"packages/trustee/dev/{name}.toml").read_text(),
                     boardUrl=B4_URL,
-                    platform=ENV["TRUSTEE_HARVEST_URL"],
+                    platform=ENV["HASURA_ENDPOINT"],
                     token=token,
                 )
 
@@ -1482,7 +1482,8 @@ class BackendJourneys(unittest.TestCase):
         )["confirm_key_custody"]
         self.assertFalse(wrong["is_valid"])
         self.assertEqual(
-            {t["status"] for t in ceremony()["status"]["trustees"]}, {"CUSTODY_REQUEST_RETRIEVED"}
+            {t["status"] for t in ceremony()["status"]["trustees"]},
+            {"CUSTODY_REQUEST_RETRIEVED"},
         )
         for index, name in enumerate(bootstrap.TRUSTEES):
             if browser_url:
@@ -1557,7 +1558,8 @@ class BackendJourneys(unittest.TestCase):
                 ),
             )
         self.assertEqual(
-            {t["status"] for t in ceremony()["status"]["trustees"]}, {"CUSTODY_CONFIRMED"}
+            {t["status"] for t in ceremony()["status"]["trustees"]},
+            {"CUSTODY_CONFIRMED"},
         )
 
         voters = fixtures.census(self.tag + "-manual", {"A": 1})
@@ -1711,3 +1713,89 @@ class BackendJourneys(unittest.TestCase):
             cast_content = json.loads(ballot["content"])
             self.verify_public_transcripts(event_id, cast_content["contests"])
         self.passed("manual ceremony")
+
+    def test_c_trustee_graphql_board_api(self):
+        """The public API scopes board discovery and acknowledges authorized halts."""
+        document = fixtures.election_event(
+            ENV["VOTING_PORTAL_URL"], self.tag + "-graphql-halt"
+        )
+        document["election_event"]["presentation"].update(
+            ceremonies_policy="manual-ceremonies", batch_anonymity_policy="warn"
+        )
+        event_id = self.import_event(document, "graphql-halt")
+        ceremony_id = StepCli.last_id(
+            self.step(
+                "start-key-ceremony",
+                "--election-event-id",
+                event_id,
+                "--threshold",
+                "2",
+            )
+        )
+        token = self.keycloak.password_grant(
+            TENANT_REALM,
+            "api-key-client",
+            "trustee1",
+            ENV["TRUSTEE1_PASSWORD"],
+            ENV["API_KEY_CLIENT_SECRET"],
+        )["access_token"]
+        api = Hasura(token=token, role="trustee-ceremony")
+        listing = "query { list_trustee_boards { boards { name kind parent } } }"
+        board_rows = wait_until(
+            "the GraphQL halt fixture's DKG board",
+            lambda: self.admin.query(
+                "query($id: uuid!) { sequent_backend_protocol_board(where: {keys_ceremony_id: {_eq: $id}, parent_id: {_is_null: true}}) { name } }",
+                {"id": ceremony_id},
+            )["sequent_backend_protocol_board"],
+            timeout=120,
+        )
+        name = board_rows[0]["name"]
+        expected_board = {"name": name, "kind": "DKG", "parent": None}
+
+        def available_boards():
+            boards = api.query(listing)["list_trustee_boards"]["boards"]
+            return boards if expected_board in boards else None
+
+        # The board row is committed before asynchronous ceremony initialization
+        # makes it available to its assigned trustees.
+        boards = wait_until(
+            "the GraphQL halt fixture's assigned trustee board",
+            available_boards,
+            timeout=120,
+        )
+        self.assertIn(expected_board, boards)
+        anonymous = Http().post(
+            ENV["HASURA_ENDPOINT"],
+            json_body={"query": listing},
+            headers={"x-hasura-role": "trustee-ceremony"},
+        )
+        self.assertTrue(anonymous.json().get("errors"))
+        self.assertTrue(
+            Hasura(token=token, role="trustee-read").execute(listing).get("errors")
+        )
+        self.assertTrue(
+            api.execute(
+                'query { list_trustee_boards(trustee_name: "trustee2") { boards { name } } }'
+            ).get("errors")
+        )
+        mutation = "mutation($report: jsonb!) { report_trustee_board(report: $report) { accepted } }"
+        report = {
+            "board": "dkg_" + uuid.uuid4().hex,
+            "kind": "HALTED",
+            "detail": "E2E halt report",
+        }
+        self.assertTrue(api.execute(mutation, {"report": report}).get("errors"))
+        report["board"] = name
+        self.assertEqual(
+            api.query(mutation, {"report": report}),
+            {"report_trustee_board": {"accepted": True}},
+        )
+        (ceremony,) = self.admin.query(
+            "query($id: uuid!) { sequent_backend_keys_ceremony(where: {id: {_eq: $id}}) { execution_status status } }",
+            {"id": ceremony_id},
+        )["sequent_backend_keys_ceremony"]
+        self.assertEqual(ceremony["execution_status"], "FAILED")
+        if ENV.get("STEP_E2E_BROWSER_TRUSTEES_URL"):
+            health = Http().get(ENV["STEP_E2E_BROWSER_TRUSTEES_URL"] + "/health").json()
+            self.assertEqual(health["failures"], [])
+        self.passed("trustee GraphQL API")

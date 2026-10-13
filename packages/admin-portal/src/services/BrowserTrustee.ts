@@ -110,6 +110,43 @@ export function parseBoards(value: unknown): TrusteeBoard[] {
     })
 }
 
+async function trusteeGraphql<T>(
+    platform: string,
+    token: string,
+    query: string,
+    variables: Record<string, unknown> = {}
+): Promise<T> {
+    if (!token) throw new Error("Sign in as a trustee to run assigned boards.")
+    const response = await fetch(platform, {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+            "x-hasura-role": "trustee-ceremony",
+        },
+        body: JSON.stringify({query, variables}),
+    })
+    if (!response.ok) throw new Error(`Trustee API request failed (${response.status}).`)
+    const result: {data?: T; errors?: {message: string}[]} = await response.json()
+    if (result.errors?.length)
+        throw new Error(result.errors.map((error) => error.message).join("; "))
+    if (!result.data) throw new Error("Invalid trustee API response.")
+    return result.data
+}
+
+/** Discover assigned boards through the platform's public GraphQL endpoint. */
+export async function listBrowserTrusteeBoards(
+    platform: string,
+    token: string
+): Promise<TrusteeBoard[]> {
+    const data = await trusteeGraphql<{list_trustee_boards: unknown}>(
+        platform,
+        token,
+        "query ListTrusteeBoards { list_trustee_boards { boards { name kind parent } } }"
+    )
+    return parseBoards(data.list_trustee_boards)
+}
+
 /** One sequential cycle; callers never overlap cycles or release a busy engine. */
 export async function runBrowserCycle(
     engine: TrusteeEngine,
@@ -117,20 +154,18 @@ export async function runBrowserCycle(
     token: string,
     remember: (boards: TrusteeBoard[]) => void
 ): Promise<TrusteeBoard[]> {
-    if (!token) throw new Error("Sign in as a trustee to run assigned boards.")
-    const headers = {Authorization: `Bearer ${token}`}
-    const response = await fetch(`${platform.replace(/\/$/, "")}/trustee/boards`, {headers})
-    if (!response.ok) throw new Error(`Could not read assigned boards (${response.status}).`)
-    const boards = parseBoards(await response.json())
+    const boards = await listBrowserTrusteeBoards(platform, token)
     remember(boards)
     const reports: TrusteeReport[] = JSON.parse(await engine.advance(JSON.stringify(boards)))
     for (const report of reports) {
-        const response = await fetch(`${platform.replace(/\/$/, "")}/trustee/boards/report`, {
-            method: "POST",
-            headers: {...headers, "Content-Type": "application/json"},
-            body: JSON.stringify(report),
-        })
-        if (!response.ok) throw new Error(`Could not report halted board (${response.status}).`)
+        const data = await trusteeGraphql<{report_trustee_board: {accepted: boolean} | null}>(
+            platform,
+            token,
+            "mutation ReportTrusteeBoard($report: jsonb!) { report_trustee_board(report: $report) { accepted } }",
+            {report}
+        )
+        if (data.report_trustee_board?.accepted !== true)
+            throw new Error("The platform did not acknowledge the halted board.")
         engine.settle(report.board)
     }
     return boards

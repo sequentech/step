@@ -15,12 +15,15 @@ const roleOf = (name: string | undefined, isTrustee = false, isAdminUser = true)
             : role === IPermissions.ADMIN_USER && isAdminUser
     )
 
-it.each(["ConfirmKeyCustody", "AuthorizeTallyCustody", "GetCustodyRequest"])(
-    "uses the trustee ceremony permission for the public custody action %s",
-    (name) => {
-        expect(roleOf(name)).toBe(IPermissions.TRUSTEE_CEREMONY)
-    }
-)
+it.each([
+    "ConfirmKeyCustody",
+    "AuthorizeTallyCustody",
+    "GetCustodyRequest",
+    "ListTrusteeBoards",
+    "ReportTrusteeBoard",
+])("uses the trustee ceremony permission for the public custody action %s", (name) => {
+    expect(roleOf(name)).toBe(IPermissions.TRUSTEE_CEREMONY)
+})
 
 it.each([
     ["sequent_backend_area", IPermissions.AREA_READ],

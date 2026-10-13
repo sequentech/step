@@ -1,4 +1,32 @@
 actions:
+    - name: list_trustee_boards
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/trustee/boards
+          forward_client_headers: true
+          request_transform:
+              method: GET
+              body:
+                  action: remove
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: trustee-ceremony
+      comment: Discover boards assigned to the authenticated trustee
+    - name: report_trustee_board
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/trustee/boards/report
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input.report}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: trustee-ceremony
+      comment: Record an authenticated trustee's halt report
     - name: get_ballot_files_urls
       definition:
           type: query
@@ -2892,6 +2920,9 @@ custom_types:
         - name: CountUsersInput
         - name: SigningRoleChangesInput
     objects:
+        - name: TrusteeBoard
+        - name: TrusteeBoardsOutput
+        - name: TrusteeReportOutput
         - name: MonitoringSnapshot
         - name: MonitoringDashboardSummary
         - name: MonitoringPresetName

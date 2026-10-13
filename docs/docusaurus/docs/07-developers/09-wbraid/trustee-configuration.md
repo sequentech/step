@@ -155,15 +155,17 @@ the Web Locks API, and cross-origin isolation. The admin image serves COOP `same
 The board service and its presigned S3 URLs must be reachable by the browser, use
 HTTPS in production, and permit the portal origin through CORS. Configure:
 
-| Setting                                   | Purpose                                                                                                                              |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Admin `WBRAID_BOARD_URL`                  | Browser-reachable native board URL; Compose reads `WBRAID_BOARD_PUBLIC_URL`                                                          |
-| Admin `HARVEST_URL`                       | Browser-reachable Harvest API URL                                                                                                    |
-| Harvest `HARVEST_TRUSTEE_ALLOWED_ORIGINS` | Comma-separated exact portal origins, including scheme and port, without trailing slashes; defaults to `ADMIN_PORTAL_URL` when unset |
+| Setting                  | Purpose                                                                                                                |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| Admin `WBRAID_BOARD_URL` | Browser-reachable native board URL; Compose reads `WBRAID_BOARD_PUBLIC_URL`                                            |
+| Admin `HASURA_URL`       | Public GraphQL endpoint used for assigned-board discovery and halt reports; locally `http://localhost:8080/v1/graphql` |
 
-Harvest permits preflight only for the trustee board endpoints; actual requests
-still require the trustee's JWT and ceremony permission. It does not grant CORS
-access to unrelated origins or other APIs.
+The displayed **Platform URL** is `HASURA_URL`. Browser trustees use the
+`list_trustee_boards` query and `report_trustee_board` mutation with their bearer
+token and the `trustee-ceremony` role. Hasura forwards those calls internally to
+Harvest, which independently verifies the JWT, tenant, trustee identity and
+assigned board. Harvest remains private and needs no browser-facing URL or CORS
+configuration. Native trustees continue using the internal `TRUSTEE_HARVEST_URL`.
 
 ## Building and validating browser trustees
 

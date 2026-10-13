@@ -115,6 +115,10 @@ const server = createServer(async (request, response) => {
     if (path === "/start") {
       if (clients.has(input.name)) throw new Error("duplicate trustee");
       const context = await browser.newContext();
+      await context.route(/^https?:\/\/harvest(?::\d+)?\//, (route) => {
+        failures.push("Browser attempted to access internal Harvest");
+        return route.abort();
+      });
       const page = await context.newPage();
       page.on("pageerror", (error) => failures.push(error.message));
       await page.goto("http://localhost:9229/");

@@ -9,9 +9,15 @@ use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
+use serde::Serialize;
 use tracing::instrument;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::trustee_boards;
+
+#[derive(Serialize)]
+pub struct TrusteeReportOutput {
+    accepted: bool,
+}
 
 /// The boards the calling trustee has work on, with their kind and parent.
 #[instrument(skip(claims))]
@@ -54,7 +60,7 @@ pub async fn list_trustee_boards(
 pub async fn report_trustee_board(
     body: Json<TrusteeReport>,
     claims: JwtClaims,
-) -> Result<(), (Status, String)> {
+) -> Result<Json<TrusteeReportOutput>, (Status, String)> {
     authorize(
         &claims,
         true,
@@ -80,16 +86,6 @@ pub async fn report_trustee_board(
         body.into_inner(),
     )
     .await
+    .map(|_| Json(TrusteeReportOutput { accepted: true }))
     .map_err(|e| (Status::InternalServerError, format!("{e:?}")))
-}
-
-/// Browser authorization uses a preflight; actual operations still require JWTs.
-#[options("/trustee/boards")]
-pub fn trustee_boards_preflight() -> Status {
-    Status::NoContent
-}
-
-#[options("/trustee/boards/report")]
-pub fn trustee_report_preflight() -> Status {
-    Status::NoContent
 }

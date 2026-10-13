@@ -100,6 +100,7 @@ export const test = base.extend<
             },
         }
         graphql.on("IntrospectionQuery", () => ({data: {}}))
+        graphql.on("ListTrusteeBoards", () => ({data: {list_trustee_boards: {boards: []}}}))
         // Synthetic events are unpublished unless a journey supplies a signed snapshot.
         graphql.on("GetLifecycleSnapshots", () => ({
             data: {get_lifecycle_snapshots: {snapshots: []}},

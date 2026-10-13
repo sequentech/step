@@ -1809,6 +1809,23 @@ export type TotalAggregate = {
     aggregate: Aggregate
 }
 
+export type TrusteeBoard = {
+    __typename?: "TrusteeBoard"
+    kind: Scalars["String"]["output"]
+    name: Scalars["String"]["output"]
+    parent?: Maybe<Scalars["String"]["output"]>
+}
+
+export type TrusteeBoardsOutput = {
+    __typename?: "TrusteeBoardsOutput"
+    boards: Array<TrusteeBoard>
+}
+
+export type TrusteeReportOutput = {
+    __typename?: "TrusteeReportOutput"
+    accepted: Scalars["Boolean"]["output"]
+}
+
 export type UpdateElectionVotingStatusOutput = {
     __typename?: "UpdateElectionVotingStatusOutput"
     election_id?: Maybe<Scalars["uuid"]["output"]>
@@ -2596,6 +2613,8 @@ export type Mutation_Root = {
     refreshResultsPublicationIndex: RefreshResultsPublicationIndexOutput
     render_document_pdf?: Maybe<RenderDocumentPdfOutput>
     replace_messaging_account_credentials?: Maybe<ReplaceMessagingAccountCredentialsOutput>
+    /** Record an authenticated trustee's halt report */
+    report_trustee_board: TrusteeReportOutput
     /** review_tally_sheet */
     review_tally_sheet?: Maybe<TallySheetOutput>
     /** review_tally_sheet_import */
@@ -5064,6 +5083,11 @@ export type Mutation_RootReplace_Messaging_Account_CredentialsArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootReport_Trustee_BoardArgs = {
+    report: Scalars["jsonb"]["input"]
+}
+
+/** mutation root */
 export type Mutation_RootReview_Tally_SheetArgs = {
     election_event_id: Scalars["uuid"]["input"]
     new_status: Scalars["String"]["input"]
@@ -6891,6 +6915,8 @@ export type Query_Root = {
     /** List electoral log entries of statement_kind CastVote */
     list_cast_vote_messages?: Maybe<ListCastVoteMessagesOutput>
     list_keys_ceremony?: Maybe<ListKeysCeremonyOutput>
+    /** Discover boards assigned to the authenticated trustee */
+    list_trustee_boards: TrusteeBoardsOutput
     list_user_roles: Array<KeycloakRole>
     /** Look up one of the voter's own cast ballots while checks are open */
     locate_ballot?: Maybe<LocateBallotOutput>

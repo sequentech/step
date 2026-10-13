@@ -98,12 +98,13 @@ for (const width of [1280, 390])
 
 test("prevents the same trustee from running in two tabs", async ({page, context, portal}) => {
     portal.trustee = "browser-trustee"
-    portal.settings.HARVEST_URL = portal.origin
-    await context.route(`${portal.origin}/trustee/boards`, async (route) => {
-        expect(route.request().headers().authorization).toMatch(/^Bearer /)
-        await route.fulfill({status: 200, contentType: "application/json", body: '{"boards":[]}'})
+    portal.graphql.on("ListTrusteeBoards", ({headers}) => {
+        expect(headers.authorization).toMatch(/^Bearer /)
+        expect(headers["x-hasura-role"]).toBe("trustee-ceremony")
+        return {data: {list_trustee_boards: {boards: []}}}
     })
     await page.goto(`${portal.origin}/trustee?lang=en`)
+    await expect(page.getByLabel("Platform URL")).toHaveValue(`${portal.origin}/v1/graphql`)
     await page.getByRole("button", {name: "Generate browser keys"}).click()
     await expect(page.getByLabel("Signing public key", {exact: true})).not.toHaveValue("")
     const download = page.waitForEvent("download")

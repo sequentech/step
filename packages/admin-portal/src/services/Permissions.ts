@@ -5,6 +5,8 @@ import {IPermissions} from "@/types/keycloak"
 import {GraphQLRequest} from "@apollo/client"
 
 const AdminOperationMap: Record<string, IPermissions> = {
+    ListTrusteeBoards: IPermissions.TRUSTEE_CEREMONY,
+    ReportTrusteeBoard: IPermissions.TRUSTEE_CEREMONY,
     ConfirmKeyCustody: IPermissions.TRUSTEE_CEREMONY,
     AuthorizeTallyCustody: IPermissions.TRUSTEE_CEREMONY,
     GetCustodyRequest: IPermissions.TRUSTEE_CEREMONY,

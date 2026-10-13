@@ -68,7 +68,6 @@ fn build_application_with(
 ) -> rocket::Rocket<rocket::Build> {
     let fake_provider_routes = services.messaging_fake_provider_routes;
     let rocket = rocket::build()
-        .attach(services::trustee_cors::TrusteeCors::from_environment())
         .register(
             "/",
             catchers![
@@ -188,8 +187,6 @@ fn build_application_with(
                 routes::keys_ceremony::get_custody_request,
                 routes::keys_ceremony::confirm_key_custody,
                 routes::keys_ceremony::list_keys_ceremonies,
-                routes::trustee_boards::trustee_boards_preflight,
-                routes::trustee_boards::trustee_report_preflight,
                 routes::trustee_boards::list_trustee_boards,
                 routes::trustee_boards::report_trustee_board,
                 routes::tally_ceremony::create_tally_ceremony,

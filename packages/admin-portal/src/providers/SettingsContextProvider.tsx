@@ -12,7 +12,6 @@ export interface GlobalSettings {
     ONLINE_VOTING_CLIENT_ID: string
     KEYCLOAK_URL: string
     WBRAID_BOARD_URL?: string
-    HARVEST_URL?: string
     HASURA_URL: string
     APP_VERSION: string
     APP_HASH: string

@@ -69,6 +69,9 @@ class RunnerContracts(DriverOutput):
             def test_a_combined_contest_weighted_voting(self):
                 observed.append("weighted")
 
+            def test_c_trustee_graphql_board_api(self):
+                observed.append("trustee API")
+
             def test_8_native_archive_preserves_crypto_and_results(self):
                 self.fail("Archive recovery is outside this ceremony run")
 
@@ -82,10 +85,11 @@ class RunnerContracts(DriverOutput):
         ):
             self.assertEqual(browser_driver.main(), 0)
         self.assertEqual(
-            observed, ["manual", "automatic", "voting", "tally", "weighted"]
+            observed,
+            ["manual", "automatic", "voting", "tally", "weighted", "trustee API"],
         )
         records = json.loads((self.output / "browser-journey.json").read_text())
-        self.assertEqual([r["outcome"] for r in records], ["pass"] * 5)
+        self.assertEqual([r["outcome"] for r in records], ["pass"] * 6)
 
     def test_browser_run_cannot_pass_when_manual_ceremony_is_skipped(self):
         browser_driver = importlib.import_module("scripts.e2e.journeys.browser_journey")
@@ -96,6 +100,9 @@ class RunnerContracts(DriverOutput):
                 pass
 
             def test_a_combined_contest_weighted_voting(self):
+                pass
+
+            def test_c_trustee_graphql_board_api(self):
                 pass
 
         with (
@@ -117,6 +124,33 @@ class RunnerContracts(DriverOutput):
 
             @unittest.skip("weighted voting prerequisite unavailable")
             def test_a_combined_contest_weighted_voting(self):
+                pass
+
+            def test_c_trustee_graphql_board_api(self):
+                pass
+
+        with (
+            patch.object(browser_driver, "BackendJourneys", Journeys),
+            patch.object(browser_driver, "OUTPUT", self.output),
+            patch.dict(
+                browser_driver.ENV,
+                {"STEP_E2E_BROWSER_TRUSTEES_URL": "https://browser.invalid"},
+            ),
+        ):
+            self.assertEqual(browser_driver.main(), 1)
+
+    def test_browser_run_cannot_pass_when_trustee_api_is_skipped(self):
+        browser_driver = importlib.import_module("scripts.e2e.journeys.browser_journey")
+
+        class Journeys(unittest.TestCase):
+            def test_b_manual_key_ceremony_and_tally(self):
+                pass
+
+            def test_a_combined_contest_weighted_voting(self):
+                pass
+
+            @unittest.skip("public trustee API prerequisite unavailable")
+            def test_c_trustee_graphql_board_api(self):
                 pass
 
         with (

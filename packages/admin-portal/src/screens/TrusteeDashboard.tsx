@@ -6,6 +6,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {
     loadBrowserTrustee,
+    listBrowserTrusteeBoards,
     runBrowserCycle,
     runExclusiveBrowserTrustee,
     type TrusteeEngine,
@@ -21,7 +22,7 @@ interface TrusteeBoard {
 export const TrusteeDashboard = () => {
     const auth = useContext(AuthContext)
     const {globalSettings} = useContext(SettingsContext)
-    const platform = globalSettings.HARVEST_URL || "http://localhost:8400"
+    const platform = globalSettings.HASURA_URL
     const [boards, setBoards] = useState<TrusteeBoard[]>([])
     const [error, setError] = useState("")
     const [loading, setLoading] = useState(false)
@@ -32,14 +33,7 @@ export const TrusteeDashboard = () => {
         try {
             const token = localStorage.getItem("token")?.split(":")[0]
             if (!token) throw new Error("Sign in as a trustee to list assigned boards.")
-            const response = await fetch(`${platform.replace(/\/$/, "")}/trustee/boards`, {
-                headers: {Authorization: `Bearer ${token}`},
-            })
-            if (!response.ok)
-                throw new Error(`Could not read assigned boards (${response.status}).`)
-            const result = (await response.json()) as {boards: TrusteeBoard[]}
-            if (!Array.isArray(result.boards)) throw new Error("Invalid board response.")
-            setBoards(result.boards)
+            setBoards(await listBrowserTrusteeBoards(platform, token))
             setLoaded(true)
         } catch (error) {
             setError(error instanceof Error ? error.message : String(error))
