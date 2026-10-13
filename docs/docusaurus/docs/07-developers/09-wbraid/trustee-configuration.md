@@ -67,12 +67,58 @@ retries authentication while the account is being configured.
 `scripts/dev/step-dev mode` reads `.env.development` first and `.env` second.
 Existing workspaces therefore inherit new settings without replacing local
 overrides or secrets. Explicit local values still win: remove an obsolete
-override or update it when migrating a workspace. In particular,
-`WBRAID_S3_ENDPOINT_URL=http://localstack:4566` must be reachable from both native
-trustees and browser trustees. Add `127.0.0.1 localstack` to the browser host's
-hosts file and forward port `4566` from the workspace.
+override or update it when migrating a workspace. The default
+`WBRAID_S3_ENDPOINT_URL=http://localhost.localstack.cloud:4566` reaches LocalStack
+through public loopback DNS from a browser and a network alias inside Compose.
+No browser-host hosts-file change is needed. Older workspaces with an explicit
+`http://localstack:4566` override must update it to this default.
 The browser board URL defaults to `http://localhost:3005` through
 `WBRAID_BOARD_PUBLIC_URL`.
+
+The full and backend devcontainers forward ports **3002** (admin portal),
+**3005** (board), **4566** (storage), **8080** (Hasura) and **8090** (Keycloak).
+These ports must retain their local numbers; VS Code reports a conflict instead
+of silently selecting another port. Use the local forwarded admin URL,
+`http://localhost:3002/trustee`, when developing through a remote workspace.
+An HTTPS preview URL also requires HTTPS board and storage endpoints.
+
+### Browser trustee accounts
+
+The default development realm includes `trustee1-wbraid` and `trustee2-wbraid`,
+whose `trustee` attributes match their usernames. They belong to the trustee
+group and are separate from the native runners' `trustee1` and `trustee2` accounts.
+The backend/full post-create setup provisions their initial passwords. To apply
+the same setup to an existing realm, run from the checkout root:
+
+```sh
+scripts/dev/step-dev browser_trustees
+```
+
+When initial password settings are unset or empty, the passwords default to
+`trustee1-wbraid` and `trustee2-wbraid`, respectively. Override them with
+`BROWSER_TRUSTEE1_PASSWORD` and `BROWSER_TRUSTEE2_PASSWORD` in `.devcontainer/.env`
+or the command's environment. Process environment values take precedence over
+the file settings. Setup preserves existing passwords, MFA credentials, profile
+fields and unrelated attributes. Accounts without MFA receive a synthetic email OTP enrollment marker;
+existing MFA methods are preserved. Setup enables message OTP test mode in the
+default development tenant because the dummy sender suppresses email content.
+Sign in using code **123456** on the email OTP page.
+`BROWSER_TRUSTEE_OTP_CODE` overrides this synthetic code. The command leaves
+other tenants and the checked-in realm's authentication policy unchanged.
+
+Use a separate browser profile for each account. Generate keys on `/trustee`,
+back them up, and register **both public keys** under the corresponding
+`trustee1-wbraid` or `trustee2-wbraid` name in **Settings → Trustees** before creating
+the ceremony. Select those trustees when creating it. For an existing ceremony,
+import its original keys or browser backup instead of generating another identity.
+The account's `trustee` claim, rather than its username or loaded public keys,
+selects the assigned boards. **Boards assigned to** must show the selected trustee
+name; sign out and back in after changing account attributes.
+
+If a configuration was posted but no board appears, verify the account's claim
+matches a selected trustee and the ceremony is still **IN_PROGRESS**. Discovery
+uses the dashboard's **Platform URL** (`HASURA_URL`); the **Board service URL** is
+used after discovery. Click **Refresh boards**, then **Start browser trustee**.
 
 To apply only the crypto service changes to an existing workspace, after checking
 its local settings and trustee enrollment, run from the checkout root:
