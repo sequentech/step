@@ -392,6 +392,8 @@ services:
       B3_PG_USER: ${B3_PG_USER}
       B3_PG_PASSWORD: ${B3_PG_PASSWORD}
       B3_PG_DATABASE: ${B3_PG_DATABASE}
+      B3_PG_SSL_MODE: ${B3_PG_SSL_MODE:-verify-full}
+      B3_PG_CA_PATH: ${B3_PG_CA_PATH:-}
     ports:
      - ${HARVEST_PORT}:${HARVEST_PORT}
 
@@ -414,6 +416,8 @@ services:
       B3_PG_USER: ${B3_PG_USER}
       B3_PG_PASSWORD: ${B3_PG_PASSWORD}
       B3_PG_DATABASE: ${B3_PG_DATABASE}
+      B3_PG_SSL_MODE: ${B3_PG_SSL_MODE:-verify-full}
+      B3_PG_CA_PATH: ${B3_PG_CA_PATH:-}
       B3_BIND: ${B3_BIND}
 
   trustee1:
