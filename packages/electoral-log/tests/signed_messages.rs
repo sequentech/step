@@ -953,3 +953,27 @@ fn a_tenant_activity_entry_belongs_to_no_election_event() -> Result<()> {
     assert_eq!(opened.user_id, None);
     Ok(())
 }
+
+#[test]
+fn a_keycloak_event_keeps_the_time_keycloak_saw_it() -> Result<()> {
+    let (data, public) = signer()?;
+    let seen_at = electoral_log::timestamp() - 90;
+    let message = Message::keycloak_user_event_at(
+        EventIdString(GENERIC_EVENT.into()),
+        KeycloakEventTypeString("LOGIN_ERROR".into()),
+        ErrorMessageString("invalid_user_credentials".into()),
+        seen_at,
+        actor(),
+        actor(),
+        &data,
+        None,
+    )?;
+    assert_record(&message, &public, "KeycloakUserEvent", None)?;
+    assert_eq!(message.statement.head.timestamp, seen_at);
+    assert_eq!(message.statement.head.log_type, StatementLogType::ERROR);
+    assert_eq!(
+        message.statement.head.description,
+        "LOGIN_ERROR invalid_user_credentials"
+    );
+    Ok(())
+}

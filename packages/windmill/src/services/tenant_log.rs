@@ -187,18 +187,20 @@ impl TenantLog {
     }
 
     /// The entry of a Keycloak event of the tenant's realm, such as an
-    /// administrator signing in.
+    /// administrator signing in, at the time Keycloak saw it.
     pub fn keycloak_event_message(
         &self,
         event_type: &str,
         error_message: String,
+        occurred_at: Timestamp,
         user_id: Option<String>,
         username: Option<String>,
     ) -> Result<ElectoralLogMessage> {
-        let message = Message::keycloak_user_event(
+        let message = Message::keycloak_user_event_at(
             EventIdString(GENERIC_EVENT.to_string()),
             KeycloakEventTypeString(event_type.to_string()),
             ErrorMessageString(error_message),
+            occurred_at,
             user_id,
             username,
             &self.signer.sd,
@@ -442,11 +444,13 @@ mod tests {
             .keycloak_event_message(
                 "LOGIN_ERROR",
                 "invalid_user_credentials".into(),
+                1_800_000_000,
                 Some("admin-id".into()),
                 Some("admin".into()),
             )
             .unwrap();
         assert_eq!(stored.statement_kind, "KeycloakUserEvent");
+        assert_eq!(stored.statement_timestamp, 1_800_000_000);
         assert_eq!(stored.area_id, None);
         let message = Message::record_deserialize(&stored.message).unwrap();
         message.verify(&public).unwrap();

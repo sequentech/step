@@ -113,6 +113,11 @@ To record a new tenant-level action, add a variant to `TenantAction`
   settings, are not recorded.
 - The tenant log has no checkpoints published to Hasura, no export and no audit action yet.
 - The console's reader role is granted on event databases, not on the base database.
+- With the listener on the tenant realm, a sign-in to the Admin Portal enqueues its event
+  as a voter's sign-in does. Under the default `ELECTORAL_LOG_PUBLISH_FAILURE_POLICY`
+  (`fail-request`) the sign-in fails while the task-queue database cannot be reached or is
+  not set up yet; `log-and-continue` lets it through and loses the entry
+  ([Task queues](../03-development-environment/task-queues-pgmq.md)).
 
 ## 6. Enabling it for an existing tenant
 

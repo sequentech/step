@@ -2646,6 +2646,7 @@ mod postgres_wiring_tests {
         let sign_in = log.keycloak_event_message(
             "LOGIN",
             "null".into(),
+            1_799_999_000,
             Some("admin-id".into()),
             Some("admin".into()),
         )?;

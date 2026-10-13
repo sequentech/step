@@ -610,6 +610,12 @@ async fn build_tenant_event<L: BatchLookups + Send>(
         .and_then(Option::as_ref)
         .ok_or_else(|| Permanent(anyhow!("Tenant {} does not exist", input.tenant_id)))?;
 
+    // When the producer saw the event; a message sent before producers said is
+    // stamped as it is stored.
+    let occurred_at = input
+        .event_time_ms
+        .and_then(|millis| u64::try_from(millis / 1000).ok())
+        .unwrap_or_else(electoral_log::timestamp);
     let message = match &input.message_type {
         LogMessageType::Internal => {
             return Err(Permanent(anyhow!(
@@ -620,10 +626,6 @@ async fn build_tenant_event<L: BatchLookups + Send>(
             let activity = deserialize_str::<TenantActivity>(&input.body.as_raw())
                 .context("Error parsing the body as a TenantActivity")
                 .map_err(Permanent)?;
-            let occurred_at = input
-                .event_time_ms
-                .and_then(|millis| u64::try_from(millis / 1000).ok())
-                .unwrap_or_else(electoral_log::timestamp);
             log.activity_message(
                 &activity,
                 occurred_at,
@@ -637,6 +639,7 @@ async fn build_tenant_event<L: BatchLookups + Send>(
             .keycloak_event_message(
                 event_type,
                 input.body.as_raw(),
+                occurred_at,
                 Some(
                     input
                         .user_id
@@ -1257,6 +1260,7 @@ mod batch_build_tests {
         sign_in.message_type = LogMessageType::KeycloakEvent("LOGIN_ERROR".into());
         sign_in.body = LogEventBody::Plain("invalid_user_credentials".into());
         sign_in.user_id = None;
+        sign_in.event_time_ms = Some(1_799_999_000_500);
         let mut unknown_tenant = tenant_activity("t5", DELETED_AN_EVENT);
         unknown_tenant.tenant_id = UNKNOWN_TENANT.into();
         let mut for_an_event = tenant_activity("t6", DELETED_AN_EVENT);
@@ -1295,6 +1299,7 @@ mod batch_build_tests {
         assert_eq!(stored[0].message.statement_timestamp, 1_800_000_000);
         assert_eq!(stored[0].message.user_id.as_deref(), Some("admin-id"));
         assert_eq!(stored[1].message.statement_kind, "KeycloakUserEvent");
+        assert_eq!(stored[1].message.statement_timestamp, 1_799_999_000);
         assert_eq!(stored[1].message.user_id.as_deref(), Some("unknown_user"));
         assert_eq!(stored[1].message.area_id, None);
         assert!(stored[2].message.statement_timestamp >= before);

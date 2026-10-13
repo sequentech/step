@@ -363,6 +363,38 @@ impl Message {
         Self::from_body(event, body, sd, user_id, username, None, area_id, None)
     }
 
+    /// A Keycloak event stamped with when Keycloak saw it, not with when the
+    /// entry is posted.
+    #[allow(clippy::too_many_arguments)]
+    pub fn keycloak_user_event_at(
+        event: EventIdString,
+        event_type: KeycloakEventTypeString,
+        error: ErrorMessageString,
+        timestamp: Timestamp,
+        user_id: Option<String>,
+        username: Option<String>,
+        sd: &SigningData,
+        area_id: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::KeycloakUserEvent(error, event_type);
+        let head = StatementHead {
+            timestamp,
+            ..StatementHead::from_body(event, &body)
+        };
+        Message::sign(
+            Statement::new(head, body),
+            None,
+            &sd.sender_sk,
+            &sd.sender_name,
+            &sd.system_sk,
+            user_id,
+            username,
+            None,
+            area_id,
+            None,
+        )
+    }
+
     pub fn keygen_message(
         event: EventIdString,
         sd: &SigningData,
