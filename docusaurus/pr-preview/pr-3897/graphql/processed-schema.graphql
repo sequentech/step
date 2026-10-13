@@ -68,6 +68,19 @@ type ApprovalMatrixOutput {
   version: Int!
 }
 
+input AuthorizeTallyCustodyInput {
+  custody_proof_json: String!
+  custody_proof_sha256: String
+  election_event_id: String!
+  signing_request_id: uuid
+  tally_session_id: String!
+}
+
+type AuthorizeTallyCustodyOutput {
+  is_valid: Boolean!
+  signing_request: SigningRequestSummary
+}
+
 type BallotPublicationStyles {
   ballot_publication_id: String!
   ballot_styles: jsonb!
@@ -129,24 +142,24 @@ type CheckMessagingAccountOutput {
   status: jsonb!
 }
 
-input CheckPrivateKeyInput {
-  election_event_id: String!
-  key_share_sha256: String
-  keys_ceremony_id: String!
-  private_key_base64: String!
-  signing_request_id: uuid
-}
-
-type CheckPrivateKeyOutput {
-  is_valid: Boolean!
-  signing_request: SigningRequestSummary
-}
-
 type ConfigureResultsWebsitePolicyOutput {
   access: ResultsWebsiteAccess!
   election_event_id: String!
   status: ResultsWebsiteStatus!
   visibility_scope: ResultsWebsiteVisibilityScope!
+}
+
+input ConfirmKeyCustodyInput {
+  custody_proof_json: String!
+  custody_proof_sha256: String
+  election_event_id: String!
+  keys_ceremony_id: String!
+  signing_request_id: uuid
+}
+
+type ConfirmKeyCustodyOutput {
+  is_valid: Boolean!
+  signing_request: SigningRequestSummary
 }
 
 input CountUsersInput {
@@ -228,6 +241,17 @@ input CreatePermissionInput {
 type CreateTallyOutput {
   signing_request: SigningRequestSummary
   tally_session_id: uuid
+}
+
+input CustodyProofSignatureStatusInput {
+  election_event_id: String!
+  keys_ceremony_id: String
+  tally_session_id: String
+}
+
+type CustodyProofSignatureStatusOutput {
+  signature_needed: Boolean!
+  signed: Boolean!
 }
 
 type DataListElectoralLog {
@@ -496,6 +520,15 @@ type GetBallotPublicationChangesOutput {
   previous: BallotPublicationStyles
 }
 
+input GetCustodyRequestInput {
+  election_event_id: String!
+  keys_ceremony_id: String!
+}
+
+type GetCustodyRequestOutput {
+  custody_request_json: String!
+}
+
 type GetLifecycleSnapshotsOutput {
   snapshots: jsonb!
 }
@@ -521,15 +554,6 @@ input GetPermissionsInput {
 type GetPermissionsOutput {
   items: [KeycloakPermission!]!
   total: TotalAggregate!
-}
-
-input GetPrivateKeyInput {
-  election_event_id: String!
-  keys_ceremony_id: String!
-}
-
-type GetPrivateKeyOutput {
-  private_key_base64: String!
 }
 
 type GetRealmAttributesOutput {
@@ -689,17 +713,6 @@ input Int_comparison_exp {
   _lte: Int
   _neq: Int
   _nin: [Int!]
-}
-
-input KeyShareSignatureStatusInput {
-  election_event_id: String!
-  keys_ceremony_id: String
-  tally_session_id: String
-}
-
-type KeyShareSignatureStatusOutput {
-  signature_needed: Boolean!
-  signed: Boolean!
 }
 
 type KeycloakPermission {
@@ -1249,24 +1262,10 @@ type ResolveResultsPublicationOutput {
   tenant_id: String!
 }
 
-input RestorePrivateKeyInput {
-  election_event_id: String!
-  key_share_sha256: String
-  private_key_base64: String!
-  signing_request_id: uuid
-  tally_session_id: String!
-}
-
 enum RestorePrivateKeyOutcome {
   ALREADY_RESTORED
   INVALID
   RESTORED
-}
-
-type RestorePrivateKeyOutput {
-  is_valid: Boolean!
-  outcome: RestorePrivateKeyOutcome!
-  signing_request: SigningRequestSummary
 }
 
 enum ResultsPublicationStatus {
@@ -1818,14 +1817,15 @@ type mutation_root {
   """Apply scheduled dates recomputed with the current timezone database"""
   apply_schedule_recompute(election_event_id: uuid!): ApplyScheduleRecomputeOutput
   audit_electoral_log(election_event_id: String!): taskOutput!
+  authorize_tally_custody(object: AuthorizeTallyCustodyInput!): AuthorizeTallyCustodyOutput
   call_plugin_route(data: jsonb!, path: String!): PluginsRouteOutput!
   """cast_ballot"""
   cast_ballot(ballot_id: String!, cast_signature: String!, election_id: uuid!): CastBallotOutput
   check_messaging_account(id: uuid!): CheckMessagingAccountOutput
-  """check private key"""
-  check_private_key(object: CheckPrivateKeyInput!): CheckPrivateKeyOutput
   """Configure the results website policy for an election event"""
   configureResultsWebsitePolicy(access: ResultsWebsiteAccess!, election_event_id: uuid!, status: ResultsWebsiteStatus!, visibility_scope: ResultsWebsiteVisibilityScope!): ConfigureResultsWebsitePolicyOutput!
+  """confirm trustee custody with a public proof"""
+  confirm_key_custody(object: ConfirmKeyCustodyInput!): ConfirmKeyCustodyOutput
   """create scheduled event"""
   createScheduledEvent(created_by: String, cron_config: String, election_event_id: uuid, event_payload: jsonb!, event_processor: String!, tenant_id: String!): ScheduledEventOutput3
   """create_ballot_receipt"""
@@ -2148,6 +2148,17 @@ type mutation_root {
   delete single row from the table: "sequent_backend.preview"
   """
   delete_sequent_backend_preview_by_pk(id: uuid!): preview
+  """
+  delete data from the table: "sequent_backend.protocol_board"
+  """
+  delete_sequent_backend_protocol_board(
+    """filter the rows which have to be deleted"""
+    where: protocol_board_bool_exp!
+  ): protocol_board_mutation_response
+  """
+  delete single row from the table: "sequent_backend.protocol_board"
+  """
+  delete_sequent_backend_protocol_board_by_pk(id: uuid!): protocol_board
   """
   delete data from the table: "sequent_backend.report"
   """
@@ -2500,9 +2511,9 @@ type mutation_root {
   generate_transmission_report(election_event_id: uuid!, election_id: uuid, tally_session_id: String, tenant_id: String!): generateReportOutput
   generate_voter_information_letter(election_event_id: uuid!, voter_id: String!): VoterInformationLetterOutput!
   get_ballot_publication_changes(ballot_publication_id: uuid!, election_event_id: uuid!, limit: Int): GetBallotPublicationChangesOutput
+  """download the public trustee custody request"""
+  get_custody_request(object: GetCustodyRequestInput!): GetCustodyRequestOutput
   get_manual_verification_pdf(body: GetManualVerificationInput!): GetManualVerificationOutput
-  """get private key"""
-  get_private_key(object: GetPrivateKeyInput!): GetPrivateKeyOutput
   get_upload_url(election_event_id: String, is_local: Boolean, is_public: Boolean!, media_type: String!, name: String!, size: Int!): GetUploadUrlOutput
   get_user(election_event_id: uuid, tenant_id: uuid!, user_id: String!): KeycloakUser!
   get_user_template(template_type: String!): GetUserTemplateOutput
@@ -3005,6 +3016,24 @@ type mutation_root {
     """upsert condition"""
     on_conflict: preview_on_conflict
   ): preview
+  """
+  insert data into the table: "sequent_backend.protocol_board"
+  """
+  insert_sequent_backend_protocol_board(
+    """the rows to be inserted"""
+    objects: [protocol_board_insert_input!]!
+    """upsert condition"""
+    on_conflict: protocol_board_on_conflict
+  ): protocol_board_mutation_response
+  """
+  insert a single row into the table: "sequent_backend.protocol_board"
+  """
+  insert_sequent_backend_protocol_board_one(
+    """the row to be inserted"""
+    object: protocol_board_insert_input!
+    """upsert condition"""
+    on_conflict: protocol_board_on_conflict
+  ): protocol_board
   """
   insert data into the table: "sequent_backend.report"
   """
@@ -3563,7 +3592,6 @@ type mutation_root {
   refreshResultsPublicationIndex(election_event_id: uuid!): RefreshResultsPublicationIndexOutput!
   render_document_pdf(document_id: uuid!, election_event_id: uuid, tally_session_id: uuid): RenderDocumentPDFOutput
   replace_messaging_account_credentials(credentials: jsonb!, generate_report_credentials: Boolean, generate_verify_token: Boolean, id: uuid!): ReplaceMessagingAccountCredentialsOutput
-  restore_private_key(object: RestorePrivateKeyInput!): RestorePrivateKeyOutput
   """review_tally_sheet"""
   review_tally_sheet(election_event_id: uuid!, new_status: String!, tally_sheet_id: String!): TallySheetOutput
   """review_tally_sheet_import"""
@@ -4991,6 +5019,34 @@ type mutation_root {
     """updates to execute, in order"""
     updates: [preview_updates!]!
   ): [preview_mutation_response]
+  """
+  update data of the table: "sequent_backend.protocol_board"
+  """
+  update_sequent_backend_protocol_board(
+    """increments the numeric columns with given value of the filtered values"""
+    _inc: protocol_board_inc_input
+    """sets the columns of the filtered rows to the given values"""
+    _set: protocol_board_set_input
+    """filter the rows which have to be updated"""
+    where: protocol_board_bool_exp!
+  ): protocol_board_mutation_response
+  """
+  update single row of the table: "sequent_backend.protocol_board"
+  """
+  update_sequent_backend_protocol_board_by_pk(
+    """increments the numeric columns with given value of the filtered values"""
+    _inc: protocol_board_inc_input
+    """sets the columns of the filtered rows to the given values"""
+    _set: protocol_board_set_input
+    pk_columns: protocol_board_pk_columns_input!
+  ): protocol_board
+  """
+  update multiples rows of table: "sequent_backend.protocol_board"
+  """
+  update_sequent_backend_protocol_board_many(
+    """updates to execute, in order"""
+    updates: [protocol_board_updates!]!
+  ): [protocol_board_mutation_response]
   """
   update data of the table: "sequent_backend.report"
   """
@@ -6566,6 +6622,7 @@ enum order_by {
 
 type query_root {
   count_users(body: CountUsersInput!): CountUsersOutput!
+  custody_proof_signature_status(object: CustodyProofSignatureStatusInput!): CustodyProofSignatureStatusOutput
   """A page of an election event's electoral-log records or ballot box"""
   electoral_log_console_page(after: String, election_event_id: String!, filters: jsonb, limit: Int, order: String, table: String!, tenant_id: String): jsonb!
   """
@@ -6613,7 +6670,6 @@ type query_root {
   get_users(body: GetUsersInput!): GetUsersOutput!
   """The voter's own cast votes, from the election event's ballot box"""
   get_voter_cast_votes(ballot_id: String, ballot_id_prefix: String, election_event_id: String!, election_id: String): [VoterCastVote!]!
-  key_share_signature_status(object: KeyShareSignatureStatusInput!): KeyShareSignatureStatusOutput
   """List Electoral Log"""
   listElectoralLog(election_event_id: String, filter: ElectoralLogFilter, limit: Int, offset: Int, order_by: ElectoralLogOrderBy): DataListElectoralLog
   """List electoral log entries of statement_kind CastVote"""
@@ -7587,6 +7643,40 @@ type query_root {
   fetch data from the table: "sequent_backend.preview" using primary key columns
   """
   sequent_backend_preview_by_pk(id: uuid!): preview
+  """
+  fetch data from the table: "sequent_backend.protocol_board"
+  """
+  sequent_backend_protocol_board(
+    """distinct select on columns"""
+    distinct_on: [protocol_board_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [protocol_board_order_by!]
+    """filter the rows returned"""
+    where: protocol_board_bool_exp
+  ): [protocol_board!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.protocol_board"
+  """
+  sequent_backend_protocol_board_aggregate(
+    """distinct select on columns"""
+    distinct_on: [protocol_board_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [protocol_board_order_by!]
+    """filter the rows returned"""
+    where: protocol_board_bool_exp
+  ): protocol_board_aggregate!
+  """
+  fetch data from the table: "sequent_backend.protocol_board" using primary key columns
+  """
+  sequent_backend_protocol_board_by_pk(id: uuid!): protocol_board
   """
   fetch data from the table: "sequent_backend.report"
   """
@@ -19222,6 +19312,411 @@ input preview_updates {
   _set: preview_set_input
   """filter the rows which have to be updated"""
   where: preview_bool_exp!
+}
+
+"""
+columns and relationships of "sequent_backend.protocol_board"
+"""
+type protocol_board {
+  """
+  The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.
+  """
+  batch: Int
+  created_at: timestamptz!
+  election_event_id: uuid!
+  id: uuid!
+  keys_ceremony_id: uuid!
+  """
+  The canonical bytes of the message published by the protocol manager it when the ceremony was created. Configuration for dkg, and Ballots for tally.
+  """
+  manager_message: bytea!
+  name: String!
+  """
+  The parent board of a child board, or NULL for parent. A child board is any tally board, and its parent is dkg.
+  """
+  parent_id: uuid
+  """
+  The tally session of a tally board, or NULL for dkg. Set together with parent_id and batch.
+  """
+  tally_session_id: uuid
+  tenant_id: uuid!
+}
+
+"""
+aggregated selection of "sequent_backend.protocol_board"
+"""
+type protocol_board_aggregate {
+  aggregate: protocol_board_aggregate_fields
+  nodes: [protocol_board!]!
+}
+
+"""
+aggregate fields of "sequent_backend.protocol_board"
+"""
+type protocol_board_aggregate_fields {
+  avg: protocol_board_avg_fields
+  count(columns: [protocol_board_select_column!], distinct: Boolean): Int!
+  max: protocol_board_max_fields
+  min: protocol_board_min_fields
+  stddev: protocol_board_stddev_fields
+  stddev_pop: protocol_board_stddev_pop_fields
+  stddev_samp: protocol_board_stddev_samp_fields
+  sum: protocol_board_sum_fields
+  var_pop: protocol_board_var_pop_fields
+  var_samp: protocol_board_var_samp_fields
+  variance: protocol_board_variance_fields
+}
+
+"""aggregate avg on columns"""
+type protocol_board_avg_fields {
+  """
+  The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.
+  """
+  batch: Float
+}
+
+"""
+Boolean expression to filter rows from the table "sequent_backend.protocol_board". All fields are combined with a logical 'AND'.
+"""
+input protocol_board_bool_exp {
+  _and: [protocol_board_bool_exp!]
+  _not: protocol_board_bool_exp
+  _or: [protocol_board_bool_exp!]
+  batch: Int_comparison_exp
+  created_at: timestamptz_comparison_exp
+  election_event_id: uuid_comparison_exp
+  id: uuid_comparison_exp
+  keys_ceremony_id: uuid_comparison_exp
+  manager_message: bytea_comparison_exp
+  name: String_comparison_exp
+  parent_id: uuid_comparison_exp
+  tally_session_id: uuid_comparison_exp
+  tenant_id: uuid_comparison_exp
+}
+
+"""
+unique or primary key constraints on table "sequent_backend.protocol_board"
+"""
+enum protocol_board_constraint {
+  """
+  unique or primary key constraint on columns "name"
+  """
+  protocol_board_name_key
+  """
+  unique or primary key constraint on columns "keys_ceremony_id"
+  """
+  protocol_board_one_root_per_ceremony_idx
+  """
+  unique or primary key constraint on columns "id"
+  """
+  protocol_board_pkey
+  """
+  unique or primary key constraint on columns "tally_session_id", "batch"
+  """
+  protocol_board_tally_session_id_batch_key
+}
+
+"""
+input type for incrementing numeric columns in table "sequent_backend.protocol_board"
+"""
+input protocol_board_inc_input {
+  """
+  The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.
+  """
+  batch: Int
+}
+
+"""
+input type for inserting data into table "sequent_backend.protocol_board"
+"""
+input protocol_board_insert_input {
+  """
+  The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.
+  """
+  batch: Int
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  keys_ceremony_id: uuid
+  """
+  The canonical bytes of the message published by the protocol manager it when the ceremony was created. Configuration for dkg, and Ballots for tally.
+  """
+  manager_message: bytea
+  name: String
+  """
+  The parent board of a child board, or NULL for parent. A child board is any tally board, and its parent is dkg.
+  """
+  parent_id: uuid
+  """
+  The tally session of a tally board, or NULL for dkg. Set together with parent_id and batch.
+  """
+  tally_session_id: uuid
+  tenant_id: uuid
+}
+
+"""aggregate max on columns"""
+type protocol_board_max_fields {
+  """
+  The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.
+  """
+  batch: Int
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  keys_ceremony_id: uuid
+  name: String
+  """
+  The parent board of a child board, or NULL for parent. A child board is any tally board, and its parent is dkg.
+  """
+  parent_id: uuid
+  """
+  The tally session of a tally board, or NULL for dkg. Set together with parent_id and batch.
+  """
+  tally_session_id: uuid
+  tenant_id: uuid
+}
+
+"""aggregate min on columns"""
+type protocol_board_min_fields {
+  """
+  The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.
+  """
+  batch: Int
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  keys_ceremony_id: uuid
+  name: String
+  """
+  The parent board of a child board, or NULL for parent. A child board is any tally board, and its parent is dkg.
+  """
+  parent_id: uuid
+  """
+  The tally session of a tally board, or NULL for dkg. Set together with parent_id and batch.
+  """
+  tally_session_id: uuid
+  tenant_id: uuid
+}
+
+"""
+response of any mutation on the table "sequent_backend.protocol_board"
+"""
+type protocol_board_mutation_response {
+  """number of rows affected by the mutation"""
+  affected_rows: Int!
+  """data from the rows affected by the mutation"""
+  returning: [protocol_board!]!
+}
+
+"""
+on_conflict condition type for table "sequent_backend.protocol_board"
+"""
+input protocol_board_on_conflict {
+  constraint: protocol_board_constraint!
+  update_columns: [protocol_board_update_column!]! = []
+  where: protocol_board_bool_exp
+}
+
+"""
+Ordering options when selecting data from "sequent_backend.protocol_board".
+"""
+input protocol_board_order_by {
+  batch: order_by
+  created_at: order_by
+  election_event_id: order_by
+  id: order_by
+  keys_ceremony_id: order_by
+  manager_message: order_by
+  name: order_by
+  parent_id: order_by
+  tally_session_id: order_by
+  tenant_id: order_by
+}
+
+"""primary key columns input for table: sequent_backend.protocol_board"""
+input protocol_board_pk_columns_input {
+  id: uuid!
+}
+
+"""
+select columns of table "sequent_backend.protocol_board"
+"""
+enum protocol_board_select_column {
+  """column name"""
+  batch
+  """column name"""
+  created_at
+  """column name"""
+  election_event_id
+  """column name"""
+  id
+  """column name"""
+  keys_ceremony_id
+  """column name"""
+  manager_message
+  """column name"""
+  name
+  """column name"""
+  parent_id
+  """column name"""
+  tally_session_id
+  """column name"""
+  tenant_id
+}
+
+"""
+input type for updating data in table "sequent_backend.protocol_board"
+"""
+input protocol_board_set_input {
+  """
+  The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.
+  """
+  batch: Int
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  keys_ceremony_id: uuid
+  """
+  The canonical bytes of the message published by the protocol manager it when the ceremony was created. Configuration for dkg, and Ballots for tally.
+  """
+  manager_message: bytea
+  name: String
+  """
+  The parent board of a child board, or NULL for parent. A child board is any tally board, and its parent is dkg.
+  """
+  parent_id: uuid
+  """
+  The tally session of a tally board, or NULL for dkg. Set together with parent_id and batch.
+  """
+  tally_session_id: uuid
+  tenant_id: uuid
+}
+
+"""aggregate stddev on columns"""
+type protocol_board_stddev_fields {
+  """
+  The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.
+  """
+  batch: Float
+}
+
+"""aggregate stddev_pop on columns"""
+type protocol_board_stddev_pop_fields {
+  """
+  The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.
+  """
+  batch: Float
+}
+
+"""aggregate stddev_samp on columns"""
+type protocol_board_stddev_samp_fields {
+  """
+  The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.
+  """
+  batch: Float
+}
+
+"""
+Streaming cursor of the table "sequent_backend_protocol_board"
+"""
+input protocol_board_stream_cursor_input {
+  """Stream column input with initial value"""
+  initial_value: protocol_board_stream_cursor_value_input!
+  """cursor ordering"""
+  ordering: cursor_ordering
+}
+
+"""Initial value of the column from where the streaming should start"""
+input protocol_board_stream_cursor_value_input {
+  """
+  The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.
+  """
+  batch: Int
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  keys_ceremony_id: uuid
+  """
+  The canonical bytes of the message published by the protocol manager it when the ceremony was created. Configuration for dkg, and Ballots for tally.
+  """
+  manager_message: bytea
+  name: String
+  """
+  The parent board of a child board, or NULL for parent. A child board is any tally board, and its parent is dkg.
+  """
+  parent_id: uuid
+  """
+  The tally session of a tally board, or NULL for dkg. Set together with parent_id and batch.
+  """
+  tally_session_id: uuid
+  tenant_id: uuid
+}
+
+"""aggregate sum on columns"""
+type protocol_board_sum_fields {
+  """
+  The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.
+  """
+  batch: Int
+}
+
+"""
+update columns of table "sequent_backend.protocol_board"
+"""
+enum protocol_board_update_column {
+  """column name"""
+  batch
+  """column name"""
+  created_at
+  """column name"""
+  election_event_id
+  """column name"""
+  id
+  """column name"""
+  keys_ceremony_id
+  """column name"""
+  manager_message
+  """column name"""
+  name
+  """column name"""
+  parent_id
+  """column name"""
+  tally_session_id
+  """column name"""
+  tenant_id
+}
+
+input protocol_board_updates {
+  """increments the numeric columns with given value of the filtered values"""
+  _inc: protocol_board_inc_input
+  """sets the columns of the filtered rows to the given values"""
+  _set: protocol_board_set_input
+  """filter the rows which have to be updated"""
+  where: protocol_board_bool_exp!
+}
+
+"""aggregate var_pop on columns"""
+type protocol_board_var_pop_fields {
+  """
+  The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.
+  """
+  batch: Float
+}
+
+"""aggregate var_samp on columns"""
+type protocol_board_var_samp_fields {
+  """
+  The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.
+  """
+  batch: Float
+}
+
+"""aggregate variance on columns"""
+type protocol_board_variance_fields {
+  """
+  The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.
+  """
+  batch: Float
 }
 
 """
@@ -31872,6 +32367,10 @@ type trustee {
   last_updated_at: timestamptz
   name: String
   public_key: String
+  """
+  Base64 of the canonical group element bytes. NULL until the trustee has a key.
+  """
+  share_encryption_public_key: String
   tenant_id: uuid
 }
 
@@ -31941,6 +32440,7 @@ input trustee_bool_exp {
   last_updated_at: timestamptz_comparison_exp
   name: String_comparison_exp
   public_key: String_comparison_exp
+  share_encryption_public_key: String_comparison_exp
   tenant_id: uuid_comparison_exp
 }
 
@@ -31989,6 +32489,10 @@ input trustee_insert_input {
   last_updated_at: timestamptz
   name: String
   public_key: String
+  """
+  Base64 of the canonical group element bytes. NULL until the trustee has a key.
+  """
+  share_encryption_public_key: String
   tenant_id: uuid
 }
 
@@ -31999,6 +32503,10 @@ type trustee_max_fields {
   last_updated_at: timestamptz
   name: String
   public_key: String
+  """
+  Base64 of the canonical group element bytes. NULL until the trustee has a key.
+  """
+  share_encryption_public_key: String
   tenant_id: uuid
 }
 
@@ -32011,6 +32519,10 @@ input trustee_max_order_by {
   last_updated_at: order_by
   name: order_by
   public_key: order_by
+  """
+  Base64 of the canonical group element bytes. NULL until the trustee has a key.
+  """
+  share_encryption_public_key: order_by
   tenant_id: order_by
 }
 
@@ -32021,6 +32533,10 @@ type trustee_min_fields {
   last_updated_at: timestamptz
   name: String
   public_key: String
+  """
+  Base64 of the canonical group element bytes. NULL until the trustee has a key.
+  """
+  share_encryption_public_key: String
   tenant_id: uuid
 }
 
@@ -32033,6 +32549,10 @@ input trustee_min_order_by {
   last_updated_at: order_by
   name: order_by
   public_key: order_by
+  """
+  Base64 of the canonical group element bytes. NULL until the trustee has a key.
+  """
+  share_encryption_public_key: order_by
   tenant_id: order_by
 }
 
@@ -32064,6 +32584,7 @@ input trustee_order_by {
   last_updated_at: order_by
   name: order_by
   public_key: order_by
+  share_encryption_public_key: order_by
   tenant_id: order_by
 }
 
@@ -32097,6 +32618,8 @@ enum trustee_select_column {
   """column name"""
   public_key
   """column name"""
+  share_encryption_public_key
+  """column name"""
   tenant_id
 }
 
@@ -32111,6 +32634,10 @@ input trustee_set_input {
   last_updated_at: timestamptz
   name: String
   public_key: String
+  """
+  Base64 of the canonical group element bytes. NULL until the trustee has a key.
+  """
+  share_encryption_public_key: String
   tenant_id: uuid
 }
 
@@ -32133,6 +32660,10 @@ input trustee_stream_cursor_value_input {
   last_updated_at: timestamptz
   name: String
   public_key: String
+  """
+  Base64 of the canonical group element bytes. NULL until the trustee has a key.
+  """
+  share_encryption_public_key: String
   tenant_id: uuid
 }
 
@@ -32154,6 +32685,8 @@ enum trustee_update_column {
   name
   """column name"""
   public_key
+  """column name"""
+  share_encryption_public_key
   """column name"""
   tenant_id
 }
@@ -33393,6 +33926,51 @@ type subscription_root {
     """filter the rows returned"""
     where: preview_bool_exp
   ): [preview!]!
+  """
+  fetch data from the table: "sequent_backend.protocol_board"
+  """
+  sequent_backend_protocol_board(
+    """distinct select on columns"""
+    distinct_on: [protocol_board_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [protocol_board_order_by!]
+    """filter the rows returned"""
+    where: protocol_board_bool_exp
+  ): [protocol_board!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.protocol_board"
+  """
+  sequent_backend_protocol_board_aggregate(
+    """distinct select on columns"""
+    distinct_on: [protocol_board_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [protocol_board_order_by!]
+    """filter the rows returned"""
+    where: protocol_board_bool_exp
+  ): protocol_board_aggregate!
+  """
+  fetch data from the table: "sequent_backend.protocol_board" using primary key columns
+  """
+  sequent_backend_protocol_board_by_pk(id: uuid!): protocol_board
+  """
+  fetch data from the table in a streaming manner: "sequent_backend.protocol_board"
+  """
+  sequent_backend_protocol_board_stream(
+    """maximum number of rows returned in a single batch"""
+    batch_size: Int!
+    """cursor to stream the results returned by the query"""
+    cursor: [protocol_board_stream_cursor_input]!
+    """filter the rows returned"""
+    where: protocol_board_bool_exp
+  ): [protocol_board!]!
   """
   fetch data from the table: "sequent_backend.report"
   """
