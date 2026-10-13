@@ -1645,16 +1645,9 @@ type CustodyProofSignatureStatusOutput {
     signed: Boolean!
 }
 
-enum RestorePrivateKeyOutcome {
-    RESTORED
-    INVALID
-    ALREADY_RESTORED
-}
-
 type AuthorizeTallyCustodyOutput {
     is_valid: Boolean!
     signing_request: SigningRequestSummary
-    outcome: RestorePrivateKeyOutcome!
 }
 
 type InsertCastVoteOutput {
