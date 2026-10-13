@@ -84,6 +84,8 @@ Keycloak tenant realm ── event listener ──┘
   and sends its events with no election event. For that realm it leaves out token
   housekeeping (`CODE_TO_TOKEN`, `REFRESH_TOKEN`, `INTROSPECT_TOKEN`, `USER_INFO_REQUEST`,
   `CLIENT_LOGIN`, `TOKEN_EXCHANGE`, `PERMISSION_TOKEN`); their `_ERROR` types are kept.
+  A message Keycloak sends to an account, such as a sign-in code, arrives as an event with
+  the message as its body; Windmill records it as `MESSAGE_SENT` and leaves the text out.
 - **Windmill.** `build_tenant_event` opens the tenant's log once per batch and builds the
   record. An event for a tenant that doesn't exist, a body that is not a `TenantActivity`,
   a `tenant_activity` that names an election event and an internal record without one are

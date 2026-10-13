@@ -50,6 +50,9 @@ pub enum LogMessageType {
     KeycloakEvent(String),
 }
 
+/// Event type of the tenant-log entry of a message Keycloak sent to an account.
+pub const TENANT_MESSAGE_SENT_EVENT: &str = "MESSAGE_SENT";
+
 /// Wire name of `LogMessageType::TenantActivity`. Keycloak's event types are upper
 /// case, so none is taken for it.
 const TENANT_ACTIVITY_MESSAGE_TYPE: &str = "tenant_activity";
@@ -635,10 +638,17 @@ async fn build_tenant_event<L: BatchLookups + Send>(
             .context("Error building the tenant activity message")
             .map_err(Permanent)?
         }
-        LogMessageType::KeycloakEvent(event_type) => log
-            .keycloak_event_message(
+        LogMessageType::KeycloakEvent(event_type) => {
+            // Keycloak reports a message it sent, such as a sign-in code, as an
+            // event of the step that sent it, with the message as its body. The
+            // entry says a message was sent and leaves its text out.
+            let (event_type, body) = match &input.body {
+                LogEventBody::Communications(_) => (TENANT_MESSAGE_SENT_EVENT, String::new()),
+                LogEventBody::Plain(body) => (event_type.as_str(), body.clone()),
+            };
+            log.keycloak_event_message(
                 event_type,
-                input.body.as_raw(),
+                body,
                 occurred_at,
                 Some(
                     input
@@ -649,7 +659,8 @@ async fn build_tenant_event<L: BatchLookups + Send>(
                 input.username.clone(),
             )
             .context("Error building keycloak event message")
-            .map_err(Permanent)?,
+            .map_err(Permanent)?
+        }
     };
     Ok(BuiltEvent {
         scope: LogScope::Tenant,
@@ -1043,7 +1054,9 @@ mod delivery_tests {
 mod batch_build_tests {
     use super::*;
     use crate::services::electoral_log_dead_letter::event_message;
+    use electoral_log::messages::message::Message;
     use voting_crypto::signing::SigningKey;
+    use voting_crypto::RecordDeserialize;
 
     const TENANT: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
     const EVENT: &str = "fdd21db2-dd68-4974-90eb-7f2750b2b5df";
@@ -1269,6 +1282,8 @@ mod batch_build_tests {
         internal.election_event_id = String::new();
         let mut untimed = tenant_activity("t8", DELETED_AN_EVENT);
         untimed.event_time_ms = None;
+        let mut code_sent = keycloak_event(Some("t9"), "");
+        code_sent.body = LogEventBody::Communications("Your code is 123456".into());
         let events = vec![
             tenant_activity("t1", DELETED_AN_EVENT),
             sign_in,
@@ -1278,6 +1293,7 @@ mod batch_build_tests {
             for_an_event,
             internal,
             untimed,
+            code_sent,
         ];
 
         let mut lookups = FakeLookups::new();
@@ -1293,8 +1309,12 @@ mod batch_build_tests {
         let stored = &built.by_tenant_board[&format!("tenant-board-{TENANT}")];
         assert_eq!(
             delivery_ids(stored),
-            vec!["t1:event", "t2:event", "t8:event"]
+            vec!["t1:event", "t2:event", "t8:event", "t9:event"]
         );
+        // A sent message is an entry of its own, without the message's text.
+        let sent = Message::record_deserialize(&stored[3].message.message).unwrap();
+        assert_eq!(sent.statement.head.description, "MESSAGE_SENT");
+        assert!(!sent.to_string().contains("123456"));
         assert_eq!(stored[0].message.statement_kind, "TenantAdminAction");
         assert_eq!(stored[0].message.statement_timestamp, 1_800_000_000);
         assert_eq!(stored[0].message.user_id.as_deref(), Some("admin-id"));

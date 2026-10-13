@@ -18,7 +18,7 @@ activity from the first sign-in to the last.
 | Statement kind | Recorded when | What the entry holds |
 |---|---|---|
 | `TenantLogOpened` | The log is created, the first time the tenant has something to record. | The name of the log and the public key its entries are signed with. |
-| `KeycloakUserEvent` | Someone signs in to the Admin Portal, fails to, signs out, or changes a password or an authenticator. | The Keycloak event type, such as `LOGIN` or `LOGIN_ERROR`, the error code of a failure, and the account. A failed sign-in for an account that doesn't exist is recorded as `unknown_user`. |
+| `KeycloakUserEvent` | Someone signs in to the Admin Portal, fails to, signs out, or changes a password or an authenticator. | The Keycloak event type, such as `LOGIN` or `LOGIN_ERROR`, the error code of a failure, and the account. A failed sign-in for an account that doesn't exist is recorded as `unknown_user`. A code sent to an account is recorded as `MESSAGE_SENT`, without the code. |
 | `TenantAdminAction` | An administrator asks the platform for something that belongs to no election event. | The action, who asked, how the request ended and what it was made on. |
 
 The administrator requests recorded are:
