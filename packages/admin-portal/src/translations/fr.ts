@@ -2592,6 +2592,7 @@ const frenchTranslation: TranslationType = {
             logsTitle: "Journaux",
             resultsTitle: "Résultats & Participation",
             generalInfoTitle: "Informations Générales",
+            selectedQuorum: "Quorum sélectionné",
             trusteeTallyTitle: "Trustee",
             trusteeTallySubTitle: "État de confirmation de garde",
             ballotBoxes: {

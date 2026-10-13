@@ -13,6 +13,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 The Tally section starts a tally ceremony, collects trustee authorizations, runs
 mixing and threshold decryption, and displays the counted results.
 
+Open the tally ceremony's progress panel to see **Selected quorum** above the
+election progress table. These are the trustees selected to mix and decrypt this
+tally, in mixing order. The list comes from the stored signed Ballots messages
+and remains the same when the tally resumes. It is separate from the full trustee
+list and custody confirmations. The list appears once the quorum has been selected;
+older in-progress tallies acquire it when the backend next reads their boards.
+
 ## Closing Key Ceremony
 During a tally, the selected quorum of wbraid trustees uses its locally retained
 election shares to decrypt the shuffled ballots:

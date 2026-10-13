@@ -209,6 +209,7 @@ fn generate_initial_tally_status(
     keys_ceremony_status: &KeysCeremonyStatus,
 ) -> TallyCeremonyStatus {
     TallyCeremonyStatus {
+        quorum: None,
         boards: None,
         failure: None,
         stop_date: None,

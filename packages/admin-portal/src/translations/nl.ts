@@ -2566,6 +2566,7 @@ const dutchTranslation: TranslationType = {
             logsTitle: "Logs",
             resultsTitle: "Resultaten & Deelname",
             generalInfoTitle: "Algemene Informatie",
+            selectedQuorum: "Geselecteerd quorum",
             trusteeTallyTitle: "Trustees",
             trusteeTallySubTitle: "Status van bevestigingen van bewaring",
             ballotBoxes: {

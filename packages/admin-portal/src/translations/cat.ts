@@ -2581,6 +2581,7 @@ const catalanTranslation: TranslationType = {
             logsTitle: "Registres",
             resultsTitle: "Resultats & Participació",
             generalInfoTitle: "Informació General",
+            selectedQuorum: "Quòrum seleccionat",
             trusteeTallyTitle: "Trustee",
             trusteeTallySubTitle: "Estat de confirmació de custòdia",
             ballotBoxes: {

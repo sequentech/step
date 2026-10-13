@@ -2578,6 +2578,7 @@ const englishTranslation = {
             logsTitle: "Logs",
             resultsTitle: "Results & Participation",
             generalInfoTitle: "General Information",
+            selectedQuorum: "Selected quorum",
             trusteeTallyTitle: "Trustees",
             trusteeTallySubTitle: "Custody confirmation status",
             ballotBoxes: {

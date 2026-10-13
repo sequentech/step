@@ -224,6 +224,22 @@ impl SignedBallots {
     pub(crate) fn quorum(&self) -> &[TrusteeIndex] {
         &self.quorum
     }
+
+    /// Resolve the signed quorum's one-based indices in the original committee.
+    pub fn quorum_names(
+        &self,
+        committee_names: &[String],
+    ) -> Result<Vec<String>> {
+        self.quorum
+            .iter()
+            .map(|index| {
+                index.checked_sub(1)
+                    .and_then(|position| committee_names.get(position))
+                    .cloned()
+                    .with_context(|| format!("quorum trustee index {index} is outside the committee"))
+            })
+            .collect()
+    }
 }
 
 #[cfg(test)]
@@ -310,6 +326,26 @@ mod tests {
             Predicate::Ballots(ballots) => ballots,
             other => panic!("expected a Ballots predicate, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn signed_ballots_report_only_the_selected_quorum_in_mixing_order() {
+        let fixture = setup(4, 2);
+        let board = tally_board(&fixture, &fixture.manager).unwrap();
+        let stored = SignedBallots::parse(
+            &board.input.to_bytes(),
+            &fixture.dkg.configuration,
+        )
+        .unwrap();
+        assert_eq!(
+            stored.quorum_names(&fixture.names).unwrap(),
+            names(&["trustee3", "trustee1"])
+        );
+        assert_eq!(
+            stored.quorum_names(&names(&["trustee1", "trustee2"]))
+                .unwrap_err().to_string(),
+            "quorum trustee index 3 is outside the committee"
+        );
     }
 
     #[test]

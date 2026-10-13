@@ -2570,6 +2570,7 @@ const spanishTranslation: TranslationType = {
             logsTitle: "Logs",
             resultsTitle: "Resultados & Participación",
             generalInfoTitle: "Información General",
+            selectedQuorum: "Quórum seleccionado",
             trusteeTallyTitle: "Trustee",
             trusteeTallySubTitle: "Estado de confirmación de custodia",
             ballotBoxes: {

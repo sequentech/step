@@ -2581,6 +2581,7 @@ const tagalogTranslation: TranslationType = {
             logsTitle: "Mga Logs",
             resultsTitle: "Mga Resulta at Pakikilahok",
             generalInfoTitle: "Pangkalahatang Impormasyon",
+            selectedQuorum: "Napiling quorum",
             trusteeTallyTitle: "Tagapagtiwala",
             trusteeTallySubTitle: "Katayuan ng pagkumpirma ng pag-iingat",
             ballotBoxes: {

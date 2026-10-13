@@ -21,6 +21,8 @@ import {
 } from "../../../../ui-essentials/.storybook/globals"
 
 interface Scenario {
+    /** The trustees selected in the stored tally boards. */
+    quorum?: string[]
     /** Whether the tally exists; before the tally step there is none. */
     tally: boolean
     /** Whether the tally's executions have loaded; they report each election's progress. */
@@ -29,13 +31,15 @@ interface Scenario {
 
 let boundary: ReturnType<typeof graphqlBoundary>
 
-function Fixture({tally, executed}: Scenario) {
+function Fixture({tally, executed, quorum}: Scenario) {
     const {workflow} = useStoryGlobals()
+    const execution = tallyExecution(workflow)
+    execution.status = {...execution.status, quorum}
     return (
         <AdminStoryProvider boundary={boundary}>
             <TallyElectionsProgress
                 tally={tally ? tallySession(workflow) : undefined}
-                tallySessionExecutions={executed ? [tallyExecution(workflow)] : undefined}
+                tallySessionExecutions={executed ? [execution] : undefined}
                 allElections={[COUNCIL_ELECTION, DEPUTY_ELECTION] as Sequent_Backend_Election[]}
             />
         </AdminStoryProvider>
@@ -87,6 +91,21 @@ export const TallyCompleted: Story = {
     play: async ({canvasElement}) => {
         const bars = await within(canvasElement).findAllByRole("progressbar")
         expect(bars.map((bar) => bar.getAttribute("aria-valuenow"))).toEqual(["100", "100"])
+    },
+}
+
+export const SelectedQuorum: Story = {
+    args: {quorum: ["Alice", "Carol"]},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(canvas.getByText("Alice, Carol", {exact: false})).toBeVisible()
+        expect(canvas.queryByText("Bob", {exact: false})).toBeNull()
+    },
+}
+
+export const OlderTallyWithoutQuorum: Story = {
+    play: async ({canvasElement}) => {
+        expect(within(canvasElement).queryByText(/Selected quorum/)).toBeNull()
     },
 }
 
