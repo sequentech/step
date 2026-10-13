@@ -190,6 +190,25 @@ fn kubernetes(directory: &Path, settings: &Settings, workers: usize) -> Result<(
         files::save(&directory.join("job.json"), &job)?;
         kubectl(settings, &["create", "-f", "-"], Some(&job))?;
         let wait = wait_for_job(settings, &name);
+        if wait.is_err() {
+            // Foreground deletion waits for worker pods; the PVC and saved Job
+            // manifest retain diagnostics even when the workload is cancelled.
+            kubectl(
+                settings,
+                &[
+                    "delete",
+                    &format!("job/{name}"),
+                    "--cascade=foreground",
+                    "--wait=true",
+                    "--timeout",
+                    &settings.execution.wait_timeout,
+                ],
+                None,
+            )
+            .context(
+                "Could not stop Kubernetes workers; they may still be running and results remain on the PVC",
+            )?;
+        }
         let collect = kubectl(
             settings,
             &[

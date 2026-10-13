@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 const tagalogTranslation = {
     translations: {
-        welcome: "Kamusta <br/> <strong>World</strong>",
         404: {
             title: "Hindi natagpuan ang pahina",
             subtitle: "Ang pahinang hinahanap mo ay wala",
@@ -31,6 +30,9 @@ const tagalogTranslation = {
                 "Nagkaroon ng problema sa pag-import ng sinisiyasat na balota. Tama ba ang napili mong file?",
             importErrorMoreInfo: "Karagdagang impormasyon",
             importErrorTitle: "Error",
+            ciphertextErrorTitle: "Nabigo ang pagberipika ng balota",
+            ciphertextErrorDescription:
+                "Ang ciphertext ng sinisiyasat na balotang ito ay hindi ang pag-encrypt ng plaintext at randomness na nilalaman nito. Hindi mapagkakatiwalaan ang balota.",
             verificationErrorTitle: "Nabigo ang pagberipika ng balota",
             unpublishedStyleErrorDescription:
                 "Ang sinisiyasat na balotang ito ay hindi tumutugma sa alinmang balotang inilathala para sa election event na ito, kaya hindi ito maberipika.",
@@ -78,7 +80,9 @@ const tagalogTranslation = {
                     "Ang mga susunod na piling balota ay na-decode mula sa balota na iyong in-import. Suriin ang mga ito at tiyakin na tumutugma ang mga ito sa mga napili mo sa Voting Portal. Kung ang iyong mga napili ay hindi tumutugma, mangyaring makipag-ugnayan sa mga awtoridad ng halalan...",
             },
             markedInvalid: "Ang balota ay tahasang minarkahan bilang hindi wasto",
-            points: "({{points}} Mga Punto)",
+            points_one: "({{count}} Mga Punto)",
+            points_many: "({{count}} Mga Punto)",
+            points_other: "({{count}} Mga Punto)",
             contestNotFound: "Paligsahan hindi natagpuan: {{contestId}}",
             declineToVote: "Hindi bumoto",
             blankBallot: "Blangkong balota",
@@ -97,14 +101,9 @@ const tagalogTranslation = {
                     "Error sa pag-convert ng write-in mula sa bytes papuntang UTF-8 string: {{errorMessage}}",
                 ballotTooLarge: "Ang balota ay mas malaki kaysa sa inaasahan",
             },
-            implicit: {
-                selectedMax: "Bilang ng mga napili {{numSelected}} ay higit sa maximum {{max}}",
-                selectedMin:
-                    "Bilang ng mga napili {{numSelected}} ay mas mababa sa minimum {{min}}",
-            },
             explicit: {
                 notAllowed:
-                    "Ang balota ay minarkahan nang tahasan bilang hindi wasto ngunit hindi ito pinapayagan ng tanong",
+                    "Ang balota ay minarkahan nang tahasan bilang hindi wasto ngunit hindi ito pinapayagan ng paligsahan",
             },
         },
     },

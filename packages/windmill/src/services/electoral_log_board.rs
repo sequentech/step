@@ -8,9 +8,11 @@
 use crate::services::vault;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
+use electoral_log::adapters::events::EventDatabases;
+use electoral_log::adapters::postgres::PostgresStore;
 use electoral_log::BoardClient;
-use immudb_rs::{sql_value::Value, Client, NamedParam, SqlValue};
-use std::env;
+use std::sync::Arc;
+use tokio::sync::OnceCell;
 use tracing::instrument;
 use voting_crypto::signing::SigningKey;
 
@@ -58,43 +60,44 @@ pub async fn get_board_signing_key(
     let contents = vault::read_secret(hasura_transaction, tenant_id, election_event_id, &path)
         .await?
         .ok_or_else(|| anyhow!("audit board signing key not found"))?;
+    parse_signing_identity(&contents)
+}
+
+/// Decode the native audit signing identity stored in the vault.
+pub fn parse_signing_identity(contents: &str) -> Result<SigningKey> {
     #[derive(serde::Deserialize)]
     struct SigningIdentity {
         signing_key: String,
     }
     let identity: SigningIdentity =
-        toml::from_str(&contents).context("Invalid audit signing identity")?;
+        toml::from_str(contents).context("Invalid audit signing identity")?;
     SigningKey::from_b64_string(&identity.signing_key)
 }
 
-#[instrument(err)]
+static ELECTORAL_LOG_DATABASES: OnceCell<EventDatabases> = OnceCell::const_new();
+static ELECTORAL_LOG_CLIENT: OnceCell<BoardClient> = OnceCell::const_new();
+
+/// The process-wide pools of the election events' electoral-log databases.
+pub async fn get_event_databases() -> Result<EventDatabases> {
+    let databases = ELECTORAL_LOG_DATABASES
+        .get_or_try_init(|| async { EventDatabases::from_env() })
+        .await?;
+    Ok(databases.clone())
+}
+
+/// The store of an election event's electoral-log database.
+pub async fn get_event_store(election_event_id: &str) -> Result<PostgresStore> {
+    get_event_databases().await?.store(election_event_id).await
+}
+
+/// Boards of every election event, each in its event's database.
 pub async fn get_board_client() -> Result<BoardClient> {
-    let username = env::var("IMMUDB_USER").context("IMMUDB_USER must be set")?;
-    let password = env::var("IMMUDB_PASSWORD").context("IMMUDB_PASSWORD must be set")?;
-    let server_url = env::var("IMMUDB_SERVER_URL").context("IMMUDB_SERVER_URL must be set")?;
-
-    let board_client = BoardClient::new(&server_url, &username, &password).await?;
-
-    Ok(board_client)
-}
-
-#[instrument(err)]
-pub async fn get_immudb_client() -> Result<Client> {
-    let username = env::var("IMMUDB_USER").context("IMMUDB_USER must be set")?;
-    let password = env::var("IMMUDB_PASSWORD").context("IMMUDB_PASSWORD must be set")?;
-    let server_url = env::var("IMMUDB_SERVER_URL").context("IMMUDB_SERVER_URL must be set")?;
-
-    let mut client = Client::new(&server_url, &username, &password).await?;
-    client.login().await?;
-
-    Ok(client)
-}
-
-pub fn create_named_param(name: String, value: Value) -> NamedParam {
-    NamedParam {
-        name,
-        value: Some(SqlValue { value: Some(value) }),
-    }
+    let client = ELECTORAL_LOG_CLIENT
+        .get_or_try_init(|| async {
+            Ok::<_, anyhow::Error>(BoardClient::new(Arc::new(get_event_databases().await?)))
+        })
+        .await?;
+    Ok(client.clone())
 }
 
 pub fn get_event_board(tenant_id: &str, election_event_id: &str, slug: &str) -> String {

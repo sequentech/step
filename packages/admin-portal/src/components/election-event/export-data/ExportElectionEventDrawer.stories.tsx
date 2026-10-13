@@ -194,11 +194,10 @@ export const ExportStartsATask: Story = {
 
 export const BulletinBoardForcesEncryption: Story = {
     parameters: {
+        // The modal password dialog makes the task widget behind it inert.
         expectedFailure: {
-            reason:
-                "The generated password's read-only fields have no label, and the task " +
-                "widget's success chip has white text below 4.5 contrast.",
-            a11y: ["color-contrast", "label"],
+            reason: "The generated password's read-only fields have no label.",
+            a11y: ["label"],
         },
     },
     play: async () => {

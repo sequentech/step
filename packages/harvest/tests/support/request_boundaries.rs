@@ -31,7 +31,7 @@ const UUID_TENANT_ID: &str = "00000000-0000-0000-0000-00000000000a";
 const SUPER_ADMIN_TENANT_ID: &str = "fixture-super-admin";
 const USER_ID: &str = "test-user";
 // Update only with a reviewed change to the checked-in route inventory.
-const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 181;
+const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 194;
 
 const CHILD: &str = "HARVEST_ISOLATED_TEST_CHILD";
 
@@ -86,11 +86,21 @@ fn run_isolated_with_postgres(
             command.env(name, value);
         }
     }
+    // The electoral-log proof routes need a server to mount. None listens
+    // here, so without the integration fixture nothing reaches a database.
+    command
+        .env("ELECTORAL_LOG_PG_HOST", "127.0.0.1")
+        .env("ELECTORAL_LOG_PG_PORT", "1")
+        .env("ELECTORAL_LOG_PG_USER", "synthetic")
+        .env("ELECTORAL_LOG_PG_PASSWORD", "synthetic")
+        .env("ELECTORAL_LOG_PG_DATABASE", "synthetic")
+        .env("ELECTORAL_LOG_PG_SSLMODE", "disable");
     if postgres {
         // Only this explicit integration fixture retains its owned test server.
         for (name, value) in std::env::vars().filter(|(name, _)| {
             name.starts_with("HASURA_DB__")
                 || name.starts_with("KEYCLOAK_DB__")
+                || name.starts_with("ELECTORAL_LOG_PG_")
                 || [
                     "LOW_SQL_LIMIT",
                     "DEFAULT_SQL_LIMIT",

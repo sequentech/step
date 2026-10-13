@@ -304,6 +304,59 @@ pub async fn get_publication_ballot_styles(
     Ok(styles)
 }
 
+/// `None` unless the ballot style is the one published for the voter's area
+/// and election. Its `ballot_eml` is read only when `with_ballot_eml` asks
+/// for it, since it is large.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_published_ballot_eml(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    election_id: &Uuid,
+    area_id: &Uuid,
+    ballot_style_id: &Uuid,
+    with_ballot_eml: bool,
+) -> Result<Option<Option<String>>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT CASE WHEN $6 THEN style.ballot_eml END AS ballot_eml
+                FROM sequent_backend.ballot_style style
+                JOIN sequent_backend.ballot_publication publication ON
+                    publication.id = style.ballot_publication_id AND
+                    publication.tenant_id = style.tenant_id AND
+                    publication.election_event_id = style.election_event_id
+                WHERE
+                    style.id = $5 AND
+                    style.tenant_id = $1 AND
+                    style.election_event_id = $2 AND
+                    style.election_id = $3 AND
+                    style.area_id = $4 AND
+                    style.deleted_at IS NULL AND
+                    publication.deleted_at IS NULL AND
+                    publication.published_at IS NOT NULL;
+            "#,
+        )
+        .await?;
+    let row = hasura_transaction
+        .query_opt(
+            &statement,
+            &[
+                &tenant_id,
+                &election_event_id,
+                &election_id,
+                &area_id,
+                &ballot_style_id,
+                &with_ballot_eml,
+            ],
+        )
+        .await?;
+
+    Ok(row
+        .map(|row| row.try_get::<_, Option<String>>("ballot_eml"))
+        .transpose()?)
+}
+
 /// The content of the ballot styles of the current, published ballot
 /// publication for `area_id` and `election_id`.
 #[instrument(skip(hasura_transaction), err)]

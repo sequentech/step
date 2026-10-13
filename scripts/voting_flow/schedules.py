@@ -21,6 +21,7 @@ from database import (
     ROOT,
     RESULTS,
     SCHEDULE_INDEX,
+    SCHEDULE_MIGRATION,
     WINDOW_MIGRATION,
     local_database,
 )
@@ -141,6 +142,7 @@ def main():
         # Keep planning mode constant across placements. A cached generic plan
         # from the previous distribution can hide a selective index lookup.
         database.connection.prepare_threshold = None
+        database.apply(SCHEDULE_MIGRATION)
         database.apply(WINDOW_MIGRATION)
         database.apply(ONLINE_WINDOW_MIGRATION)
         index_sql = database.scalar(

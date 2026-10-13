@@ -63,7 +63,7 @@ lets you detect a later change.
 | `ballots` | `in_the_box` (every ballot, in any status) and `counted` (the number of counted ballots). |
 | `close_request` | The signed Close voting request, if there was one: its `id`, `signing_code`, and each signer's `name` and `certificate_sha256`. `null` for Stop Voting without signatures and for the scheduled close. Only the request ID is signed. |
 | `seal_hash` | SHA-512 of the manifest, hex. |
-| `log_entry` | The `id` of the `BallotBoxSealed` entry on the electoral log, and its `statement_kind`. **Not signed.** |
+| `log_entry` | Where the `BallotBoxSealed` entry is on the event's electoral log: its `delivery_id` (`ballot-box-seal:<event>:<election>:<area>`), the log it is in (`log_uid`) and its position there (`leaf_index`), which a copy of the log keeps, and its `id` in the database that stored the log, which a copy can change; and its `statement_kind`. Records made before the log's leaves were recorded have only the `id`. **Not signed.** |
 | `system_public_key` | The public key that signed the entry (base64 SPKI DER), taken from the signed message. |
 | `message` | The signed log message, as readable JSON. |
 | `message_b64` | The same message as the exact bytes the log stores (base64). |
@@ -122,7 +122,7 @@ Ballots       4 in the box, 3 counted, 4 eligible voters
 ✓ Sender signature   a system entry: the sender is the same key
 ✓ Time               the signed statement says 2026-10-06T19:22:17Z; closed, grace deadline and seal in order
 ✓ Close request      none: closed without a signed Close voting request
-- Log entry          #11 (not signed): check that the bulletin board's BallotBoxSealed entry for this box has this seal hash
+- Log entry          leaf 11 of log 6f1c2b9e-4a7d-4e2f-9c3b-1d5e8a0f7b42 (not signed): check that the bulletin board's BallotBoxSealed entry for this box has this seal hash
 ✓ Expected box       election ad2eff27-72e1-42ef-aad7-bac61a1438ba, area f84aa227-9a4d-4c15-831f-49a1ba804b4a: the one you gave
 ✓ Ballot ID 4918c9c58f6fea195877ade1f00a944eb99870ade68b71333923903e145ac950 in the ballot box: counted
 ✓ CastVote entries   4 in j1_cast_votes.csv; sealed ballots without an entry: 0; entries without a sealed ballot: 0
@@ -217,7 +217,7 @@ If all three hold, the seal is genuine and only its readable names are newer.
 | Sender signature | The statement is a system entry: its sender is the system key itself. | The entry did not come from the system. A record signed by any other sender is "Seal NOT valid". |
 | Time | The seal time in the signed statement equals the manifest's, and close time ≤ grace deadline ≤ seal time. | The statement and the manifest disagree on the seal time, or the times are out of order. |
 | Close request | The statement's Close voting request is the manifest's. The signing code and signers are shown, but they are not signed. | The statement and the manifest disagree on the close request. |
-| Log entry | Not checked: the log entry ID is not signed. | |
+| Log entry | Not checked: where the entry is on the log is not signed. The command shows its leaf and log, or, for an older record, its entry ID. | |
 | Expected box | With `--election-id` or `--area-id`, the signed IDs are the ones you gave. | The record is for another ballot box. |
 
 What a valid seal does **not** prove on its own:
@@ -227,7 +227,7 @@ What a valid seal does **not** prove on its own:
   could sign a second record for the same box, and it would pass this command.
   Compare the full seal hash with the `BallotBoxSealed` entry for this box in
   the event's Logs tab or its export, and with the copies other observers kept.
-  The log entry ID in the record is not signed;
+  Where the record says the entry is on the log is not signed;
 - the event name, and the signers' names and signing code: they are not signed;
 - that the eligibility decisions (`not-eligible`, weights) were right; the seal
   fixes them, it does not justify them;
@@ -251,9 +251,10 @@ the database anchors it today:
 - Someone with superuser access to the database can point the event at another
   bulletin board and key, and have a new seal signed for a changed ballot box.
   The tally would then check against that board and key. What still catches it
-  is the original `BallotBoxSealed` entry, which stays on the original board,
-  the copies of records and seal hashes kept by observers, and a check with
-  `--expected-key` using a key obtained before the change. See
+  is the original `BallotBoxSealed` entry, which stays on the original board
+  and is covered by the checkpoints published of it, the copies of records and
+  seal hashes kept by observers, and a check with `--expected-key` using a key
+  obtained before the change. See
   [what a database superuser can still do](../../05-reference/05-cryptography_security/02-security/03-ballot-box-seal-database-role.md#what-a-superuser-can-still-do).
 
 So:
@@ -287,8 +288,9 @@ matter. The command says how it counts:
 
 ## What `--cast-votes` proves
 
-Each cast also writes a signed `CastVote` entry to the electoral log, with the
-ballot hash, election, area and Ballot ID. The `step-cli step
+Each ballot the ballot box accepts also gets a signed `CastVote` entry on the
+electoral log, with the ballot hash, election, area and Ballot ID. The seal of
+a box comes after every `CastVote` entry of its ballots. The `step-cli step
 export-cast-votes` command exports those entries to a CSV file. It reads the
 log directly, so it needs read access to the log.
 

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {IPermissions} from "@/types/keycloak"
 import {trusteeFilename} from "@/services/trusteeFilename"
-import React, {useCallback, useContext, useEffect, useState} from "react"
+import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
 import Button from "@mui/material/Button"
 import {BreadCrumbSteps, BreadCrumbStepsVariant, DropFile} from "@sequentech/ui-essentials"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
@@ -25,10 +25,9 @@ import {
 } from "@/queries/CustodyProofSignatureStatus"
 import {useMutation, useQuery} from "@apollo/client"
 import {
-    ICeremonyStatus,
+    ETallyKeyRestoreEligibility,
     ITallyExecutionStatus,
     ITallyTrusteeStatus,
-    ITrusteeStatus,
 } from "@/types/ceremonies"
 import {Alert, Box, Typography} from "@mui/material"
 import {
@@ -48,6 +47,8 @@ import {
     type ICustodyProofAnswer,
     type ICustodyProofSubmission,
 } from "@/components/keys-ceremony/useCustodyProofSigning"
+import {getTallyTrusteeStatus} from "@/services/tallyCeremonyParticipation"
+import {getTallyKeyRestoreEligibility} from "./utils"
 
 const WizardSteps = {
     Start: 0,
@@ -66,14 +67,13 @@ export const TallyCeremonyTrustees: React.FC = () => {
     const keysFilename = trusteeFilename(trustee, "private-keys.toml")
     const proofFilename = trusteeFilename(trustee, "custody-proof.json")
 
-    const [page, setPage] = useState<number>(WizardSteps.Start)
+    const [hasContinuedToStatus, setHasContinuedToStatus] = useState(false)
     const [selectedElections, setSelectedElections] = useState<string[]>([])
     const [selectedTrustees, setSelectedTrustees] = useState<boolean>(false)
     const [tally, setTally] = useState<Sequent_Backend_Tally_Session>()
     const [verified, setVerified] = useState<boolean>(false)
     const [uploading, setUploading] = useState<boolean>(false)
     const [errors, setErrors] = useState<String | null>(null)
-    const [trusteeStatus, setTrusteeStatus] = useState<ITrusteeStatus | null>(null)
     const {globalSettings} = useContext(SettingsContext)
     const [isTallyCompleted, setIsTallyCompleted] = useState<boolean>(false)
 
@@ -83,6 +83,9 @@ export const TallyCeremonyTrustees: React.FC = () => {
             id: tallyId,
         },
         {
+            refetchInterval: isTallyCompleted
+                ? undefined
+                : globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
@@ -138,16 +141,10 @@ export const TallyCeremonyTrustees: React.FC = () => {
         }
     }, [data])
 
-    useEffect(() => {
-        if (tallySessionExecutions) {
-            const username = authContext?.username
-            const ceremonyStatus: ICeremonyStatus | undefined = tallySessionExecutions?.[0]?.status
-            const trusteeStatus = ceremonyStatus?.trustees.find(
-                (item) => item.name === username
-            )?.status
-            setTrusteeStatus(trusteeStatus ?? null)
-        }
-    }, [tallySessionExecutions])
+    const trusteeStatus = useMemo(
+        () => getTallyTrusteeStatus(tallySessionExecutions?.[0], trustee),
+        [trustee, tallySessionExecutions]
+    )
 
     // A trustee who confirmed custody unsigned before the rule made trustees
     // sign contributes it again, signed.
@@ -171,16 +168,14 @@ export const TallyCeremonyTrustees: React.FC = () => {
         !!signatureStatus?.custody_proof_signature_status?.signature_needed &&
         !signatureStatus.custody_proof_signature_status.signed
 
-    useEffect(() => {
-        setPage(
-            !trusteeStatus && tally?.execution_status !== ITallyExecutionStatus.CANCELLED
-                ? WizardSteps.Start
-                : (trusteeStatus === ITrusteeStatus.WAITING || redoSigned) &&
-                    tally?.execution_status !== ITallyExecutionStatus.CANCELLED
-                  ? WizardSteps.Start
-                  : WizardSteps.Status
-        )
-    }, [trusteeStatus, redoSigned])
+    const eligibility = getTallyKeyRestoreEligibility(
+        redoSigned ? ITallyTrusteeStatus.WAITING : trusteeStatus,
+        tally?.execution_status
+    )
+    const page =
+        eligibility === ETallyKeyRestoreEligibility.ALLOWED && !hasContinuedToStatus
+            ? WizardSteps.Start
+            : WizardSteps.Status
 
     const CancelButton = styled(Button)`
         background-color: ${({theme}) => theme.palette.white};
@@ -383,7 +378,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
                     {page < WizardSteps.Status && (
                         <NextButton
                             color="primary"
-                            onClick={() => setPage(WizardSteps.Status)}
+                            onClick={() => setHasContinuedToStatus(true)}
                             disabled={!verified}
                         >
                             <>

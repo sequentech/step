@@ -4,54 +4,65 @@
 
 //! Sealing one ballot box (VOTE-FREEZE), in two steps.
 //!
-//! 1. **Checks**, in a short transaction that doesn't wait for a row
+//! 1. **Checks**, in a short Hasura transaction that doesn't wait for a row
 //!    another run holds: the seal is pending and due, no channel holds the
-//!    seal, no Datafix vote of the box is in progress, the
-//!    event has a bulletin board and no seal for the box is on it yet. Then
-//!    the signing key, and the census outside any lock.
-//! 2. **The seal**, in one READ COMMITTED transaction: take the box's lock
-//!    without waiting, recheck the seal, read every ballot of the box,
+//!    seal, the event has a bulletin board, its electoral-log database holds
+//!    no seal of the box yet (if it does, the row takes it: an earlier run
+//!    stored the seal and stopped before updating the row), and no Datafix
+//!    vote of the box is in progress. Then the signing key, the census
+//!    outside any lock, and the sequencer: every accepted ballot of the box
+//!    must be on the electoral log before the seal.
+//! 2. **The seal**, in one READ COMMITTED transaction of the event's
+//!    electoral-log database: take the box's seal lock without waiting,
+//!    recheck the seal and the sequencer, read every ballot of the box,
 //!    check that the channel of each is closed, decide how each counts,
 //!    check every Ballot ID, build and hash the manifest, sign the
-//!    `BallotBoxSealed` entry and store it on the row.
+//!    `BallotBoxSealed` record, append it to the board and store the seal.
+//!    From the commit on, the database's guard refuses every write to the
+//!    box. Then the row of `sequent_backend.ballot_box_seal` takes the seal.
 //!
 //! Each attempt that leaves the seal pending records why on the row
 //! (`last_attempt_at`, `waiting_reason`), e.g. a channel that holds the
-//! seal ([`super::deadline::holding_channel`]) or a ballot of a channel
-//! that isn't closed. Only a ballot whose Ballot ID doesn't match its
-//! content (or that has no content or no Ballot ID, or whose channel is
-//! none of the voting channels), an event without a bulletin board, or a
-//! seal for the box already on the bulletin board fails the seal: the row becomes `failed` (the box stays
-//! locked) and [`post_failure`] posts a `BallotBoxSealFailed` ERROR entry.
-//! A ballot that can't be read, or a configuration that doesn't parse, is
-//! an error the next attempt retries. Publishing is [`super::publish`]'s.
+//! seal ([`super::deadline::holding_channel`]), a ballot of a channel that
+//! isn't closed, or ballots the sequencer hasn't appended yet. Only a ballot
+//! whose Ballot ID doesn't match its content (or that has no content or no
+//! Ballot ID, or whose channel is none of the voting channels), a ballot the
+//! sequencer removed from its queue without its record on the board, an
+//! event without a bulletin board, or a seal record of the box already on
+//! the bulletin board fails the seal: the seal is stored `failed` with its
+//! `BallotBoxSealFailed` ERROR record, in the same transaction, and the box
+//! stays locked. A ballot that can't be read, or a configuration that
+//! doesn't parse, is an error the next attempt retries. Publishing is
+//! [`super::publish`]'s.
 
 use super::deadline::{holding_channel, HoldingChannel};
-use super::publish::{deliver, event_board, genuine_entries, sealed_entries, sha256_hex};
+use super::publish::event_board;
 use super::record::{area_name, election_name};
-use super::{
-    error_category, strict_presentation, with_timeout, Census, SealEnvironment, SealErrorCategory,
-};
+use super::{error_category, with_timeout, Census, SealEnvironment, SealErrorCategory};
 use crate::postgres::ballot_box_seal::{
-    mark_failed_with_names, mark_failure_posted, mark_sealed_with_names, record_attempt, try_lock,
-    BallotBoxSeal, BallotBoxSealStatus, SealedFields, SealedNames, TryLocked, WaitingReason,
+    mark_failed_with_names, mark_sealed_with_names, record_attempt, try_lock, BallotBoxSeal,
+    BallotBoxSealStatus, SealLogRecord, SealedFields, SealedNames, TryLocked, WaitingReason,
 };
-use crate::postgres::cast_vote::count_unresolved_cast_votes;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::services::cast_votes::CastVoteStatus;
+use crate::services::ballot_box::{wait_for_sequencer, BallotFormat};
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use electoral_log::adapters::ballot_box::BallotStatus;
+use electoral_log::adapters::ballot_box_seal::{
+    ballot_box_seal_in, box_ballots, insert_seal, try_lock_ballot_box, BallotBoxId, BoxBallot,
+    NewSeal, SealOutcome as StoredOutcome, StoredSeal,
+};
+use electoral_log::adapters::postgres::{append_in, PostgresStore};
 use electoral_log::messages::message::{Message, SigningData};
 use electoral_log::messages::newtypes::EventIdString;
 use electoral_log::seal::{
-    ballot_hash, build, BallotBoxSealManifest, SealDisposition, SealEntry, DEFAULT_SEAL_CHANNEL,
-    SEAL_FORMAT_V1,
+    ballot_hash, build, BallotBoxSealManifest, SealDisposition, SealEntry, SEAL_FORMAT_V1,
 };
+use electoral_log::LogEntry;
 use sequent_core::ballot::{
-    ContestEncryptionPolicy, ElectionStatus, HashableBallot, SignedHashableBallot, VotingStatus,
-    VotingStatusChannel,
+    ElectionStatus, HashableBallot, SignedHashableBallot, VotingStatus, VotingStatusChannel,
 };
 use sequent_core::encrypt::{hash_ballot, hash_multi_ballot};
 use sequent_core::multi_ballot::{HashableMultiBallot, SignedHashableMultiBallot};
@@ -59,19 +70,24 @@ use sequent_core::serialization::deserialize_with_path::{deserialize_str, deseri
 use sequent_core::types::hasura::core::{Election, ElectionEvent, VotingChannels};
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
+use std::time::Duration;
 use tokio_postgres::IsolationLevel;
 use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
-use voting_crypto::signing::VerificationKey;
+use voting_crypto::signing::SigningKey;
 use voting_crypto::RecordSerialize;
 
-/// Why a seal fails when the event's log already has a seal for the box
-/// (e.g. after restoring a database older than the seal).
+/// Why a seal fails when the event's log already has a seal record for the
+/// box but its database has no seal.
 pub const ALREADY_ON_BOARD_REASON: &str =
     "a seal for this ballot box is already on the bulletin board";
 
 /// Why a seal fails when the event has no bulletin board to post it to.
 pub const NO_BOARD_REASON: &str = "the election event has no bulletin board";
+
+/// How long one attempt waits for the sequencer to append the box's
+/// accepted ballots before it leaves the seal to the next attempt.
+pub const SEAL_SEQUENCER_WAIT: Duration = Duration::from_secs(60);
 
 /// What [`seal_box`] did.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -85,11 +101,14 @@ pub enum SealOutcome {
     /// A channel of the election holds the seal, or the box has ballots of
     /// a channel that isn't closed.
     WaitingForChannel(String),
-    /// Another run holds the box (or a cast is in flight); the next tick
+    /// Another run holds the box (or a write is in flight); the next tick
     /// retries.
     Busy,
     /// Datafix votes of the box are still in progress; the next tick retries.
     WaitingForVotes(i64),
+    /// Accepted ballots of the box are not on the electoral log yet; the
+    /// next tick retries.
+    WaitingForSequencer(i64),
     Sealed,
     Failed(String),
 }
@@ -104,16 +123,58 @@ pub enum EntriesError {
     Retry(String),
 }
 
-/// One `cast_vote` row of the box, as the seal reads it.
-#[derive(Debug, Clone)]
-pub struct BoxBallot {
-    pub id: Uuid,
-    pub voter_id: Option<String>,
-    pub status: String,
-    pub content: Option<String>,
-    pub ballot_id: Option<String>,
-    pub channel: String,
-    pub created_at: Option<DateTime<Utc>>,
+/// The delivery ID of a ballot box's `BallotBoxSealed` record: one per box
+/// on the board.
+pub fn seal_delivery_id(ballot_box: BallotBoxId<'_>) -> String {
+    format!(
+        "ballot-box-seal:{}:{}:{}",
+        ballot_box.election_event_id, ballot_box.election_id, ballot_box.area_id
+    )
+}
+
+/// The delivery ID of a ballot box's `BallotBoxSealFailed` record.
+pub fn failure_delivery_id(ballot_box: BallotBoxId<'_>) -> String {
+    format!(
+        "ballot-box-seal-failed:{}:{}:{}",
+        ballot_box.election_event_id, ballot_box.election_id, ballot_box.area_id
+    )
+}
+
+/// The ids of a seal row's ballot box, as the event's database names it.
+struct BoxIds {
+    election_event_id: String,
+    election_id: String,
+    area_id: String,
+}
+
+impl BoxIds {
+    fn of(seal: &BallotBoxSeal) -> Self {
+        BoxIds {
+            election_event_id: seal.election_event_id.to_string(),
+            election_id: seal.election_id.to_string(),
+            area_id: seal.area_id.to_string(),
+        }
+    }
+
+    fn ballot_box(&self) -> BallotBoxId<'_> {
+        BallotBoxId {
+            election_event_id: &self.election_event_id,
+            election_id: &self.election_id,
+            area_id: &self.area_id,
+        }
+    }
+}
+
+/// What the checks found to seal a box with.
+struct Prepared {
+    seal: BallotBoxSeal,
+    ids: BoxIds,
+    store: PostgresStore,
+    board: String,
+    status: ElectionStatus,
+    signing_key: SigningKey,
+    census: Census,
+    names: SealedNames,
 }
 
 /// Seals the ballot box of seal `seal_id` if it is pending and due. An
@@ -153,171 +214,283 @@ async fn seal_box_once(
     environment: &dyn SealEnvironment,
     seal_id: &Uuid,
 ) -> Result<SealOutcome> {
-    // 1. The checks, then the census outside any lock.
-    let (key, census, signing_key, names) = {
-        let transaction = client.transaction().await?;
-        let seal = match try_lock(&transaction, seal_id).await? {
-            TryLocked::Locked(seal) => seal,
-            TryLocked::Busy => return Ok(SealOutcome::Busy),
-            TryLocked::NotFound => return Ok(SealOutcome::NotFound),
-        };
-        if seal.status != BallotBoxSealStatus::Pending {
-            transaction.commit().await?;
-            return Ok(SealOutcome::NotPending(seal.status));
-        }
-        if seal.grace_deadline > Utc::now() {
-            record_attempt(&transaction, seal_id, &WaitingReason::Deadline).await?;
-            transaction.commit().await?;
-            return Ok(SealOutcome::NotDue);
-        }
-        let (election_event, election) = event_and_election(&transaction, &seal).await?;
-        if let Some(holding) = open_channel(&election).context(SealErrorCategory::Settings)? {
-            let channel = holding.channel().to_string();
-            let reason = match holding {
-                HoldingChannel::Enabled(_) => WaitingReason::ChannelOpen(channel.clone()),
-                HoldingChannel::NotEnabled(_) => WaitingReason::ChannelNotEnabled(channel.clone()),
-            };
-            record_attempt(&transaction, seal_id, &reason).await?;
-            transaction.commit().await?;
-            return Ok(SealOutcome::WaitingForChannel(channel));
-        }
-        if let Some(outcome) = waiting_for_votes(&transaction, &seal).await? {
-            transaction.commit().await?;
-            return Ok(outcome);
-        }
-        let names = SealedNames {
-            election_name: election_name(&election_event, &election),
-            area_name: area_name(
-                &transaction,
-                &seal.tenant_id.to_string(),
-                &seal.area_id.to_string(),
-            )
-            .await?,
-        };
-        let Ok(board) = event_board(&election_event) else {
-            return fail(transaction, &seal, NO_BOARD_REASON.to_string(), &names).await;
-        };
-        let signing_key = with_timeout(
-            "Reading the event's signing key",
-            environment.signing_key(
-                &transaction,
-                &seal.tenant_id.to_string(),
-                &seal.election_event_id.to_string(),
-                &board,
-            ),
-        )
-        .await
-        .context(SealErrorCategory::Keystore)?;
-        // Only a seal signed by the event key counts; anything else on the
-        // log is ignored.
-        let entries = sealed_entries(
-            &board,
-            &seal.election_id.to_string(),
-            &seal.area_id.to_string(),
-        )
-        .await
-        .context(SealErrorCategory::Board)?;
-        if !genuine_entries(entries, &VerificationKey::from_sk(&signing_key)?).is_empty() {
-            return fail(
-                transaction,
-                &seal,
-                ALREADY_ON_BOARD_REASON.to_string(),
-                &names,
-            )
-            .await;
-        }
-        transaction.commit().await?;
-        let alias = election
-            .external_id
-            .clone()
-            .filter(|alias| !alias.is_empty())
-            .unwrap_or_else(|| election.id.clone());
-        let census = environment
-            .census(&election_event, &seal.area_id.to_string(), &alias)
-            .await
-            .context(SealErrorCategory::Census)?;
-        (seal.lock_key(), census, signing_key, names)
+    let prepared = match prepare(client, environment, seal_id).await? {
+        Ok(prepared) => prepared,
+        Err(outcome) => return Ok(outcome),
     };
-
-    // 2. The seal, under the box lock.
-    let transaction = client
-        .build_transaction()
-        .isolation_level(IsolationLevel::ReadCommitted)
-        .start()
-        .await?;
-    let locked: bool = transaction
-        .query_one(
-            "SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0))",
-            &[&key],
-        )
-        .await
-        .with_context(|| format!("Error locking ballot box {key}"))?
-        .try_get(0)?;
-    if !locked {
-        // The holder may be a cast in flight: say so on the row.
-        record_attempt(&transaction, seal_id, &WaitingReason::Busy).await?;
-        transaction.commit().await?;
-        return Ok(SealOutcome::Busy);
+    if let Some(outcome) = wait_for_ballots(client, environment, &prepared).await? {
+        return Ok(outcome);
     }
+    seal_prepared(client, prepared).await
+}
+
+/// Step 1: the checks, then the census outside any lock. `Err` is what the
+/// attempt ends with.
+async fn prepare(
+    client: &mut DbClient,
+    environment: &dyn SealEnvironment,
+    seal_id: &Uuid,
+) -> Result<std::result::Result<Prepared, SealOutcome>> {
+    let transaction = client.transaction().await?;
     let seal = match try_lock(&transaction, seal_id).await? {
         TryLocked::Locked(seal) => seal,
-        TryLocked::Busy => return Ok(SealOutcome::Busy),
-        TryLocked::NotFound => return Ok(SealOutcome::NotFound),
+        TryLocked::Busy => return Ok(Err(SealOutcome::Busy)),
+        TryLocked::NotFound => return Ok(Err(SealOutcome::NotFound)),
     };
     if seal.status != BallotBoxSealStatus::Pending {
         transaction.commit().await?;
-        return Ok(SealOutcome::NotPending(seal.status));
+        return Ok(Err(SealOutcome::NotPending(seal.status)));
     }
-    if let Some(outcome) = waiting_for_votes(&transaction, &seal).await? {
+    if seal.grace_deadline > Utc::now() {
+        record_attempt(&transaction, seal_id, &WaitingReason::Deadline).await?;
         transaction.commit().await?;
-        return Ok(outcome);
+        return Ok(Err(SealOutcome::NotDue));
+    }
+    let (election_event, election) = event_and_election(&transaction, &seal).await?;
+    if let Some(holding) = open_channel(&election).context(SealErrorCategory::Settings)? {
+        let channel = holding.channel().to_string();
+        let reason = match holding {
+            HoldingChannel::Enabled(_) => WaitingReason::ChannelOpen(channel.clone()),
+            HoldingChannel::NotEnabled(_) => WaitingReason::ChannelNotEnabled(channel.clone()),
+        };
+        record_attempt(&transaction, seal_id, &reason).await?;
+        transaction.commit().await?;
+        return Ok(Err(SealOutcome::WaitingForChannel(channel)));
+    }
+    let status = election_status(election.status.clone()).context(SealErrorCategory::Settings)?;
+    let names = SealedNames {
+        election_name: election_name(&election_event, &election),
+        area_name: area_name(
+            &transaction,
+            &seal.tenant_id.to_string(),
+            &seal.area_id.to_string(),
+        )
+        .await?,
+    };
+    let Ok(board) = event_board(&election_event) else {
+        // Without a board the event takes no ballots and has nowhere to
+        // record the seal: only the row fails.
+        mark_failed_with_names(&transaction, &seal.id, NO_BOARD_REASON, None, &names).await?;
+        transaction.commit().await?;
+        error!(seal_id = %seal.id, reason = NO_BOARD_REASON, "The ballot box could not be sealed");
+        return Ok(Err(SealOutcome::Failed(NO_BOARD_REASON.to_string())));
+    };
+    let ids = BoxIds::of(&seal);
+    let store = environment
+        .event_store(&ids.election_event_id)
+        .await
+        .context(SealErrorCategory::Board)?;
+    if let Some(stored) = store
+        .ballot_box_seal(ids.ballot_box())
+        .await
+        .context(SealErrorCategory::Board)?
+    {
+        let outcome = take_stored_seal(&transaction, &seal, &stored, &names).await?;
+        transaction.commit().await?;
+        return Ok(Err(outcome));
+    }
+    if let Some(outcome) = waiting_for_votes(&transaction, &seal, &store, &ids).await? {
+        transaction.commit().await?;
+        return Ok(Err(outcome));
+    }
+    let signing_key = with_timeout(
+        "Reading the event's signing key",
+        environment.signing_key(
+            &transaction,
+            &seal.tenant_id.to_string(),
+            &seal.election_event_id.to_string(),
+            &board,
+        ),
+    )
+    .await
+    .context(SealErrorCategory::Keystore)?;
+    transaction.commit().await?;
+    let alias = election
+        .external_id
+        .clone()
+        .filter(|alias| !alias.is_empty())
+        .unwrap_or_else(|| election.id.clone());
+    let census = environment
+        .census(&election_event, &seal.area_id.to_string(), &alias)
+        .await
+        .context(SealErrorCategory::Census)?;
+    Ok(Ok(Prepared {
+        seal,
+        ids,
+        store,
+        board,
+        status,
+        signing_key,
+        census,
+        names,
+    }))
+}
+
+/// Asks the sequencer for the box's accepted ballots that aren't on the
+/// electoral log yet and waits for them, at most the environment's
+/// [`SealEnvironment::sequencer_wait`].
+/// `Some` when some still wait (recorded on the row).
+async fn wait_for_ballots(
+    client: &mut DbClient,
+    environment: &dyn SealEnvironment,
+    prepared: &Prepared,
+) -> Result<Option<SealOutcome>> {
+    let ids = &prepared.ids;
+    let unsequenced = || {
+        prepared
+            .store
+            .unsequenced_count(&ids.election_event_id, &ids.election_id, &ids.area_id)
+    };
+    if unsequenced().await.context(SealErrorCategory::Board)? == 0 {
+        return Ok(None);
+    }
+    environment
+        .request_sequencer(&ids.election_event_id)
+        .await
+        .context(SealErrorCategory::Board)?;
+    let waiting = wait_for_sequencer(environment.sequencer_wait(), unsequenced)
+        .await
+        .context(SealErrorCategory::Board)?;
+    if waiting == 0 {
+        return Ok(None);
+    }
+    record(
+        client,
+        &prepared.seal.id,
+        &WaitingReason::Sequencer(waiting),
+    )
+    .await?;
+    Ok(Some(SealOutcome::WaitingForSequencer(waiting)))
+}
+
+/// Step 2: the seal, under the box's seal lock in the event's database.
+async fn seal_prepared(client: &mut DbClient, prepared: Prepared) -> Result<SealOutcome> {
+    let Prepared {
+        seal,
+        ids,
+        store,
+        board,
+        status,
+        signing_key,
+        census,
+        names,
+    } = prepared;
+    let ballot_box = ids.ballot_box();
+    let mut event_client = store.client().await.context(SealErrorCategory::Board)?;
+    let tx = event_client
+        .build_transaction()
+        .isolation_level(IsolationLevel::ReadCommitted)
+        .start()
+        .await
+        .context(SealErrorCategory::Board)?;
+    if !try_lock_ballot_box(&tx, ballot_box).await? {
+        // The holder may be a write in flight: say so on the row.
+        drop(tx);
+        record(client, &seal.id, &WaitingReason::Busy).await?;
+        return Ok(SealOutcome::Busy);
+    }
+    if let Some(stored) = ballot_box_seal_in(&tx, ballot_box).await? {
+        drop(tx);
+        return take_stored(client, &seal, &stored, &names).await;
+    }
+    let unsequenced = store
+        .unsequenced_count(&ids.election_event_id, &ids.election_id, &ids.area_id)
+        .await?;
+    if unsequenced > 0 {
+        drop(tx);
+        record(client, &seal.id, &WaitingReason::Sequencer(unsequenced)).await?;
+        return Ok(SealOutcome::WaitingForSequencer(unsequenced));
+    }
+    let unresolved = store
+        .pending_status_count(&ids.election_event_id, &ids.election_id, &ids.area_id)
+        .await?;
+    if unresolved > 0 {
+        drop(tx);
+        record(client, &seal.id, &WaitingReason::DatafixVotes(unresolved)).await?;
+        return Ok(SealOutcome::WaitingForVotes(unresolved));
+    }
+    let signing_data = SigningData::new(signing_key.clone(), "", signing_key);
+    let unrecorded = store
+        .unrecorded_count(
+            &board,
+            &ids.election_event_id,
+            &ids.election_id,
+            &ids.area_id,
+        )
+        .await?;
+    if unrecorded > 0 {
+        let reason = unrecorded_reason(unrecorded);
+        return fail(
+            client,
+            tx,
+            &seal,
+            &board,
+            &ids,
+            reason,
+            &names,
+            &signing_data,
+        )
+        .await;
     }
 
-    let (election_event, election) = event_and_election(&transaction, &seal).await?;
-    let presentation = strict_presentation(&election_event).context(SealErrorCategory::Settings)?;
-    let ballots = read_box(&transaction, &seal).await?;
+    let mut ballots = Vec::new();
+    box_ballots(&tx, ballot_box, |ballot| {
+        ballots.push(ballot);
+        Ok(())
+    })
+    .await
+    .context(SealErrorCategory::Ballots)?;
     // The ballots are evidence: none may come from a channel that isn't
     // closed, whatever the election enables.
-    let status = election_status(election.status.clone()).context(SealErrorCategory::Settings)?;
     match open_ballot_channel(&ballots, &status) {
         Ok(None) => {}
         Ok(Some(channel)) => {
+            drop(tx);
             let channel = channel.to_string();
-            record_attempt(
-                &transaction,
-                seal_id,
+            record(
+                client,
+                &seal.id,
                 &WaitingReason::ChannelHasBallots(channel.clone()),
             )
             .await?;
-            transaction.commit().await?;
             return Ok(SealOutcome::WaitingForChannel(channel));
         }
         Err(EntriesError::Incident(reason)) => {
-            return fail(transaction, &seal, reason, &names).await
+            return fail(
+                client,
+                tx,
+                &seal,
+                &board,
+                &ids,
+                reason,
+                &names,
+                &signing_data,
+            )
+            .await
         }
         Err(EntriesError::Retry(reason)) => {
             return Err(anyhow!(reason).context(SealErrorCategory::Ballots))
         }
     }
-    let entries = match entries(
-        &ballots,
-        &census,
-        presentation.contest_encryption_policy.unwrap_or_default(),
-    ) {
+    let entries = match entries(&ballots, &census) {
         Ok(entries) => entries,
         Err(EntriesError::Incident(reason)) => {
-            return fail(transaction, &seal, reason, &names).await
+            return fail(
+                client,
+                tx,
+                &seal,
+                &board,
+                &ids,
+                reason,
+                &names,
+                &signing_data,
+            )
+            .await
         }
         Err(EntriesError::Retry(reason)) => {
             return Err(anyhow!(reason).context(SealErrorCategory::Ballots))
         }
     };
-
-    let signing_data = SigningData::new(signing_key.clone(), "", signing_key);
-    let SealedNames {
-        election_name,
-        area_name,
-    } = names;
 
     // Whole seconds, rounded up, so the row and the signed manifest say the
     // same time and it is never before the deadline.
@@ -328,9 +501,9 @@ async fn seal_box_once(
     let built = build(BallotBoxSealManifest {
         format: SEAL_FORMAT_V1.to_string(),
         tenant_id: seal.tenant_id.to_string(),
-        election_event_id: seal.election_event_id.to_string(),
-        election_id: seal.election_id.to_string(),
-        area_id: seal.area_id.to_string(),
+        election_event_id: ids.election_event_id.clone(),
+        election_id: ids.election_id.clone(),
+        area_id: ids.area_id.clone(),
         closed_at: unix_seconds(seal.closed_at)?,
         grace_deadline: unix_seconds(seal.grace_deadline)?,
         sealed_at: unix_seconds(sealed_at)?,
@@ -341,37 +514,169 @@ async fn seal_box_once(
     let message = Message::ballot_box_sealed_message(
         &built.manifest,
         built.hash,
-        &election_name,
-        &area_name,
+        &names.election_name,
+        &names.area_name,
         &signing_data,
     )?;
+    let signed_message = message.record_serialize()?;
+    let entry = LogEntry {
+        delivery_id: seal_delivery_id(ballot_box),
+        message: (&message).try_into()?,
+    };
+    let stored = append_in(&tx, &board, &[entry])
+        .await
+        .context(SealErrorCategory::Board)?;
+    let Some(record) = stored.first() else {
+        // The box has no seal, yet its seal record is on the board.
+        return fail(
+            client,
+            tx,
+            &seal,
+            &board,
+            &ids,
+            ALREADY_ON_BOARD_REASON.to_string(),
+            &names,
+            &signing_data,
+        )
+        .await;
+    };
+    let outcome = StoredOutcome::Sealed {
+        seal_hash: built.hash.to_vec(),
+        manifest: built.bytes.clone(),
+        ballots_in_box: i64::try_from(built.manifest.ballots_in_box())?,
+        ballots_counted: i64::try_from(built.manifest.ballots_counted())?,
+    };
+    if !insert_seal(
+        &tx,
+        &NewSeal {
+            ballot_box,
+            outcome: &outcome,
+            signed_message: &signed_message,
+            record,
+        },
+    )
+    .await?
+    {
+        return Err(anyhow!(
+            "Ballot box of election {} area {} got a seal while it was locked",
+            ids.election_id,
+            ids.area_id
+        ));
+    }
+    let log_record = SealLogRecord::from(record);
+    tx.commit().await.context(SealErrorCategory::Board)?;
     let fields = SealedFields {
         sealed_at,
         ballots_in_box: i64::try_from(built.manifest.ballots_in_box())?,
         ballots_counted: i64::try_from(built.manifest.ballots_counted())?,
         seal_hash: hex::encode(built.hash),
         manifest: built.bytes,
-        signed_message: message.record_serialize()?,
+        signed_message,
+        log_record,
     };
-    mark_sealed_with_names(
-        &transaction,
-        &seal.id,
-        &fields,
-        &SealedNames {
-            election_name: election_name.clone(),
-            area_name: area_name.clone(),
-        },
-    )
-    .await?;
-    transaction.commit().await?;
     info!(
         seal_id = %seal.id,
         ballots_in_box = fields.ballots_in_box,
         ballots_counted = fields.ballots_counted,
         seal_hash = %fields.seal_hash,
+        log_delivery_id = %fields.log_record.delivery_id,
+        log_leaf_index = fields.log_record.leaf_index,
         "Sealed the ballot box"
     );
+    if let Some(transaction) = pending_row(client, &seal.id).await? {
+        mark_sealed_with_names(&transaction, &seal.id, &fields, &names).await?;
+        transaction.commit().await?;
+    }
     Ok(SealOutcome::Sealed)
+}
+
+/// Why a seal fails when ballots of the box have no cast-vote record on the
+/// board although the sequencer is done with them.
+pub fn unrecorded_reason(unrecorded: i64) -> String {
+    format!(
+        "{unrecorded} ballot(s) of the ballot box have no cast-vote record on the bulletin board"
+    )
+}
+
+/// A transaction holding the seal row `seal_id` while it is pending, to
+/// update it once the event's database holds the seal; `None` when another
+/// run holds the row or already updated it.
+async fn pending_row<'a>(
+    client: &'a mut DbClient,
+    seal_id: &Uuid,
+) -> Result<Option<Transaction<'a>>> {
+    let transaction = client.transaction().await?;
+    Ok(match try_lock(&transaction, seal_id).await? {
+        TryLocked::Locked(seal) if seal.status == BallotBoxSealStatus::Pending => Some(transaction),
+        _ => None,
+    })
+}
+
+/// The row takes the seal the event's database holds for the box, in
+/// `transaction` (which holds the row): an earlier run stored it and
+/// stopped before updating the row.
+async fn take_stored_seal(
+    transaction: &Transaction<'_>,
+    seal: &BallotBoxSeal,
+    stored: &StoredSeal,
+    names: &SealedNames,
+) -> Result<SealOutcome> {
+    let log_record = SealLogRecord {
+        delivery_id: stored.log_delivery_id.clone(),
+        log_uid: stored.log_uid,
+        leaf_index: stored.log_leaf_index,
+    };
+    match &stored.outcome {
+        StoredOutcome::Sealed {
+            seal_hash,
+            manifest,
+            ballots_in_box,
+            ballots_counted,
+        } => {
+            let sealed_at = BallotBoxSealManifest::from_bytes(manifest)
+                .context("The stored seal's manifest does not decode")?
+                .sealed_at;
+            let sealed_at = DateTime::<Utc>::from_timestamp(i64::try_from(sealed_at)?, 0)
+                .ok_or_else(|| anyhow!("The stored seal's time is out of range"))?;
+            let fields = SealedFields {
+                sealed_at,
+                ballots_in_box: *ballots_in_box,
+                ballots_counted: *ballots_counted,
+                seal_hash: hex::encode(seal_hash),
+                manifest: manifest.clone(),
+                signed_message: stored.signed_message.clone(),
+                log_record,
+            };
+            mark_sealed_with_names(transaction, &seal.id, &fields, names).await?;
+            info!(seal_id = %seal.id, "The seal row took the ballot box's stored seal");
+            Ok(SealOutcome::Sealed)
+        }
+        StoredOutcome::Failed { reason } => {
+            mark_failed_with_names(transaction, &seal.id, reason, Some(&log_record), names).await?;
+            error!(seal_id = %seal.id, %reason, "The ballot box could not be sealed: it stays locked");
+            Ok(SealOutcome::Failed(reason.clone()))
+        }
+    }
+}
+
+/// [`take_stored_seal`] in a transaction of its own.
+async fn take_stored(
+    client: &mut DbClient,
+    seal: &BallotBoxSeal,
+    stored: &StoredSeal,
+    names: &SealedNames,
+) -> Result<SealOutcome> {
+    let transaction = client.transaction().await?;
+    let outcome = match try_lock(&transaction, &seal.id).await? {
+        TryLocked::Locked(row) if row.status == BallotBoxSealStatus::Pending => {
+            take_stored_seal(&transaction, &row, stored, names).await?
+        }
+        TryLocked::Locked(row) => SealOutcome::NotPending(row.status),
+        TryLocked::Busy => SealOutcome::Busy,
+        TryLocked::NotFound => SealOutcome::NotFound,
+    };
+    transaction.commit().await?;
+    Ok(outcome)
 }
 
 /// The first channel of the election that holds its seal (see
@@ -404,15 +709,13 @@ pub(crate) fn election_status(status: Option<serde_json::Value>) -> Result<Elect
 async fn waiting_for_votes(
     transaction: &Transaction<'_>,
     seal: &BallotBoxSeal,
+    store: &PostgresStore,
+    ids: &BoxIds,
 ) -> Result<Option<SealOutcome>> {
-    let unresolved = count_unresolved_cast_votes(
-        transaction,
-        &seal.tenant_id,
-        &seal.election_event_id,
-        &seal.election_id,
-        &seal.area_id,
-    )
-    .await?;
+    let unresolved = store
+        .pending_status_count(&ids.election_event_id, &ids.election_id, &ids.area_id)
+        .await
+        .context(SealErrorCategory::Board)?;
     if unresolved == 0 {
         return Ok(None);
     }
@@ -444,123 +747,75 @@ async fn event_and_election(
     Ok((election_event, election))
 }
 
-/// Fails the seal: the row becomes `failed` with `reason`. The caller then
-/// posts its `BallotBoxSealFailed` entry with [`post_failure`].
+/// Fails the seal in `tx`, which holds the box's seal lock: appends its
+/// `BallotBoxSealFailed` ERROR record and stores the failed seal, which
+/// keeps the box locked, then the row takes it.
+#[allow(clippy::too_many_arguments)]
 async fn fail(
-    transaction: Transaction<'_>,
+    client: &mut DbClient,
+    tx: deadpool_postgres::Transaction<'_>,
     seal: &BallotBoxSeal,
+    board: &str,
+    ids: &BoxIds,
     reason: String,
     names: &SealedNames,
+    signing_data: &SigningData,
 ) -> Result<SealOutcome> {
-    mark_failed_with_names(&transaction, &seal.id, &reason, names).await?;
-    transaction.commit().await?;
-    error!(seal_id = %seal.id, %reason, "The ballot box could not be sealed: it stays locked");
-    Ok(SealOutcome::Failed(reason))
-}
-
-/// Posts the `BallotBoxSealFailed` ERROR entry of a failed seal and records
-/// it (`failure_posted_at`), so the dispatcher stops repeating it. The
-/// delivery id and payload are fixed per seal, so posting it again is a
-/// no-op. An event without a bulletin board has nowhere to post it: that
-/// is recorded too, with an `error!`. Does nothing unless the seal failed
-/// and its entry isn't recorded yet. Returns whether it inserted the entry.
-#[instrument(skip(client, environment), err)]
-pub async fn post_failure(
-    client: &mut DbClient,
-    environment: &dyn SealEnvironment,
-    seal_id: &Uuid,
-) -> Result<bool> {
-    let transaction = client.transaction().await?;
-    let TryLocked::Locked(seal) = try_lock(&transaction, seal_id).await? else {
-        return Ok(false);
-    };
-    let (BallotBoxSealStatus::Failed, Some(reason), None) = (
-        seal.status,
-        seal.failure_reason.clone(),
-        seal.failure_posted_at,
-    ) else {
-        return Ok(false);
-    };
-    let (election_event, election) = event_and_election(&transaction, &seal).await?;
-    let Ok(board) = event_board(&election_event) else {
-        error!(%seal_id, %reason, "No bulletin board to post the failed seal to");
-        mark_failure_posted(&transaction, seal_id).await?;
-        transaction.commit().await?;
-        return Ok(false);
-    };
-    let signing_key = environment
-        .signing_key(
-            &transaction,
-            &seal.tenant_id.to_string(),
-            &seal.election_event_id.to_string(),
-            &board,
-        )
-        .await?;
-    let area_name = area_name(
-        &transaction,
-        &seal.tenant_id.to_string(),
-        &seal.area_id.to_string(),
-    )
-    .await?;
+    let ballot_box = ids.ballot_box();
     let message = Message::ballot_box_seal_failed_message(
-        EventIdString(seal.election_event_id.to_string()),
-        &seal.election_id.to_string(),
-        &seal.area_id.to_string(),
-        &election_name(&election_event, &election),
-        &area_name,
+        EventIdString(ids.election_event_id.clone()),
+        &ids.election_id,
+        &ids.area_id,
+        &names.election_name,
+        &names.area_name,
         reason.clone(),
-        &SigningData::new(signing_key.clone(), "", signing_key),
+        signing_data,
     )?;
-    let (delivery_id, payload_hash) = failure_delivery(&seal.id, &reason);
-    let inserted = deliver(&board, &delivery_id, &payload_hash, &message).await?;
-    mark_failure_posted(&transaction, seal_id).await?;
-    transaction.commit().await?;
-    if inserted {
-        error!(seal_id = %seal.id, %reason, "Posted BallotBoxSealFailed to the electoral log");
-    }
-    Ok(inserted)
-}
-
-/// The fixed delivery id and payload hash of a seal's failure entry.
-pub fn failure_delivery(seal_id: &Uuid, reason: &str) -> (String, String) {
-    (
-        sha256_hex(format!("ballot-box-seal-failed:{seal_id}").as_bytes()),
-        sha256_hex(format!("{seal_id}:{reason}").as_bytes()),
-    )
-}
-
-/// Every `cast_vote` row of the box, in any status.
-async fn read_box(transaction: &Transaction<'_>, seal: &BallotBoxSeal) -> Result<Vec<BoxBallot>> {
-    let rows = transaction
-        .query(
-            "SELECT id, voter_id_string, status, content, ballot_id,
-                    COALESCE(annotations->>'voting_channel', $5) AS channel, created_at
-             FROM sequent_backend.cast_vote
-             WHERE tenant_id = $1 AND election_event_id = $2 AND election_id = $3
-               AND area_id = $4",
-            &[
-                &seal.tenant_id,
-                &seal.election_event_id,
-                &seal.election_id,
-                &seal.area_id,
-                &DEFAULT_SEAL_CHANNEL,
-            ],
-        )
+    let signed_message = message.record_serialize()?;
+    let entry = LogEntry {
+        delivery_id: failure_delivery_id(ballot_box),
+        message: (&message).try_into()?,
+    };
+    let stored = append_in(&tx, board, &[entry])
         .await
-        .context("Error reading the ballots of the box")?;
-    rows.into_iter()
-        .map(|row| {
-            Ok(BoxBallot {
-                id: row.try_get("id")?,
-                voter_id: row.try_get("voter_id_string")?,
-                status: row.try_get("status")?,
-                content: row.try_get("content")?,
-                ballot_id: row.try_get("ballot_id")?,
-                channel: row.try_get("channel")?,
-                created_at: row.try_get("created_at")?,
-            })
-        })
-        .collect()
+        .context(SealErrorCategory::Board)?;
+    let record = stored.first().ok_or_else(|| {
+        anyhow!(
+            "The failure record of the ballot box of election {} area {} is already on the \
+             bulletin board, but the box has no seal",
+            ids.election_id,
+            ids.area_id
+        )
+        .context(SealErrorCategory::Board)
+    })?;
+    let outcome = StoredOutcome::Failed {
+        reason: reason.clone(),
+    };
+    if !insert_seal(
+        &tx,
+        &NewSeal {
+            ballot_box,
+            outcome: &outcome,
+            signed_message: &signed_message,
+            record,
+        },
+    )
+    .await?
+    {
+        return Err(anyhow!(
+            "Ballot box of election {} area {} got a seal while it was locked",
+            ids.election_id,
+            ids.area_id
+        ));
+    }
+    let log_record = SealLogRecord::from(record);
+    tx.commit().await.context(SealErrorCategory::Board)?;
+    error!(seal_id = %seal.id, %reason, "The ballot box could not be sealed: it stays locked");
+    if let Some(transaction) = pending_row(client, &seal.id).await? {
+        mark_failed_with_names(&transaction, &seal.id, &reason, Some(&log_record), names).await?;
+        transaction.commit().await?;
+    }
+    Ok(SealOutcome::Failed(reason))
 }
 
 /// The first channel, in the order the ballots come, that has a ballot in
@@ -573,10 +828,10 @@ pub fn open_ballot_channel(
 ) -> std::result::Result<Option<VotingStatusChannel>, EntriesError> {
     let mut open = None;
     for ballot in ballots {
-        let channel = VotingStatusChannel::from_str(&ballot.channel).map_err(|_| {
+        let channel = VotingStatusChannel::from_str(&ballot.voting_channel).map_err(|_| {
             EntriesError::Incident(format!(
                 "a ballot has the unknown voting channel {:?}",
-                ballot.channel
+                ballot.voting_channel
             ))
         })?;
         if open.is_none() && status.status_by_channel(channel) != VotingStatus::CLOSED {
@@ -586,98 +841,88 @@ pub fn open_ballot_channel(
     Ok(open)
 }
 
-/// How each ballot of the box counts, as the tally used to decide:
-/// each voter's latest valid ballot (by `created_at`, then id) is counted,
-/// with the voter's census weight, if the voter is in the census, and not
-/// eligible otherwise; an older valid ballot is replaced; a discarded one
-/// is discarded. A ballot without content or Ballot ID, or whose Ballot
-/// ID doesn't match its content, is an incident; one that can't be read is
-/// retried.
+/// How each ballot of the box counts, as the tally decides: each voter's
+/// latest valid ballot (by acceptance order) is counted, with the voter's
+/// census weight, if the voter is in the census, and not eligible
+/// otherwise; an older valid ballot is replaced; a rejected one is
+/// discarded. A ballot without content or Ballot ID, or whose Ballot ID
+/// doesn't match its content, is an incident; one that can't be read, or
+/// whose outcome is still pending, is retried.
 pub fn entries(
     ballots: &[BoxBallot],
     census: &Census,
-    contest_encryption_policy: ContestEncryptionPolicy,
 ) -> std::result::Result<Vec<SealEntry>, EntriesError> {
-    let valid = CastVoteStatus::Valid.to_string();
     // Each voter's latest valid ballot.
-    let mut latest: HashMap<Option<&str>, &BoxBallot> = HashMap::new();
-    for ballot in ballots.iter().filter(|ballot| ballot.status == valid) {
+    let mut latest: HashMap<&str, i64> = HashMap::new();
+    for ballot in ballots
+        .iter()
+        .filter(|ballot| ballot.status == BallotStatus::Valid)
+    {
         latest
-            .entry(ballot.voter_id.as_deref())
-            .and_modify(|current| {
-                if (ballot.created_at, ballot.id) > (current.created_at, current.id) {
-                    *current = ballot;
-                }
-            })
-            .or_insert(ballot);
+            .entry(ballot.voter_id.as_str())
+            .and_modify(|seq| *seq = (*seq).max(ballot.seq))
+            .or_insert(ballot.seq);
     }
-    let candidates: HashSet<Uuid> = latest.values().map(|ballot| ballot.id).collect();
+    let candidates: HashSet<i64> = latest.values().copied().collect();
 
     let mut entries = Vec::with_capacity(ballots.len());
     for ballot in ballots {
-        let (Some(content), Some(ballot_id)) = (&ballot.content, &ballot.ballot_id) else {
+        if ballot.content.is_empty() || ballot.ballot_id.is_empty() {
             return Err(EntriesError::Incident(format!(
                 "the ballot {} has no content or no Ballot ID",
-                ballot.id
-            )));
-        };
-        let computed =
-            computed_ballot_id(content, &contest_encryption_policy).map_err(|error| {
-                EntriesError::Retry(format!("the ballot {} can't be read: {error}", ballot.id))
-            })?;
-        if computed != *ballot_id {
-            return Err(EntriesError::Incident(format!(
-                "a ballot does not match its Ballot ID (stored {ballot_id}, content hashes to {computed})"
+                ballot.seq
             )));
         }
-        let status = CastVoteStatus::from_str(&ballot.status).map_err(|_| {
-            EntriesError::Retry(format!(
-                "the ballot {} has status {}",
-                ballot.id, ballot.status
-            ))
+        let computed = computed_ballot_id(&ballot.content, &ballot.format).map_err(|error| {
+            EntriesError::Retry(format!("the ballot {} can't be read: {error}", ballot.seq))
         })?;
-        let (disposition, weight) = match status {
-            CastVoteStatus::Discarded => (SealDisposition::Discarded, 0),
-            CastVoteStatus::InProgress => {
+        if computed != ballot.ballot_id {
+            return Err(EntriesError::Incident(format!(
+                "a ballot does not match its Ballot ID (stored {}, content hashes to {computed})",
+                ballot.ballot_id
+            )));
+        }
+        let (disposition, weight) = match ballot.status {
+            BallotStatus::Rejected => (SealDisposition::Discarded, 0),
+            BallotStatus::Pending => {
                 return Err(EntriesError::Retry(format!(
                     "the ballot {} is still in progress",
-                    ballot.id
+                    ballot.seq
                 )))
             }
-            CastVoteStatus::Valid if !candidates.contains(&ballot.id) => {
+            BallotStatus::Valid if !candidates.contains(&ballot.seq) => {
                 (SealDisposition::Replaced, 0)
             }
-            CastVoteStatus::Valid => match ballot
-                .voter_id
-                .as_ref()
-                .and_then(|voter_id| census.get(voter_id))
-            {
+            BallotStatus::Valid => match census.get(&ballot.voter_id) {
                 Some(weight) => (SealDisposition::Counted, *weight),
                 None => (SealDisposition::NotEligible, 0),
             },
         };
         entries.push(SealEntry {
-            ballot_hash: ballot_hash(content)
+            ballot_hash: ballot_hash(&ballot.content)
                 .map_err(|error| EntriesError::Retry(error.to_string()))?,
-            ballot_id: ballot_id.clone(),
+            ballot_id: ballot.ballot_id.clone(),
             disposition,
             weight,
-            channel: ballot.channel.clone(),
+            channel: ballot.voting_channel.clone(),
         });
     }
     Ok(entries)
 }
 
-/// The Ballot ID of a stored ballot's content, as the cast computes it.
-pub fn computed_ballot_id(content: &str, policy: &ContestEncryptionPolicy) -> Result<String> {
-    Ok(match policy {
-        ContestEncryptionPolicy::MULTIPLE_CONTESTS => {
+/// The Ballot ID of a stored ballot's content in `format`, as the cast
+/// computes it.
+pub fn computed_ballot_id(content: &str, format: &str) -> Result<String> {
+    let format =
+        BallotFormat::from_str(format).map_err(|_| anyhow!("unknown ballot format {format:?}"))?;
+    Ok(match format {
+        BallotFormat::HashableMultiBallot => {
             let signed: SignedHashableMultiBallot =
                 deserialize_str(content).map_err(|error| anyhow!("{error}"))?;
             let hashable: HashableMultiBallot = (&signed).try_into()?;
             hash_multi_ballot(&hashable)?
         }
-        ContestEncryptionPolicy::SINGLE_CONTEST => {
+        BallotFormat::HashableBallot => {
             let signed: SignedHashableBallot =
                 deserialize_str(content).map_err(|error| anyhow!("{error}"))?;
             let hashable: HashableBallot = (&signed).try_into()?;
@@ -696,8 +941,11 @@ mod tests {
     use crate::services::ballot_box_seal::census_from_csv;
     use crate::services::join::{merge_join_csv, MultiplicitySource};
     use crate::services::users::VoterMultiplicityColumn;
-    use sequent_core::ballot::{SignedHashableBallot, TYPES_VERSION};
+    use electoral_log::seal::DEFAULT_SEAL_CHANNEL;
+    use sequent_core::ballot::TYPES_VERSION;
     use std::io::Write;
+
+    const SINGLE: &str = "hashable-ballot";
 
     /// A stored ballot's content (no contests, which hashing allows) and
     /// its Ballot ID.
@@ -712,13 +960,8 @@ mod tests {
             voter_ballot_signature: None,
         })
         .unwrap();
-        let ballot_id =
-            computed_ballot_id(&content, &ContestEncryptionPolicy::SINGLE_CONTEST).unwrap();
+        let ballot_id = computed_ballot_id(&content, SINGLE).unwrap();
         (content, ballot_id)
-    }
-
-    fn at(minute: i64) -> Option<DateTime<Utc>> {
-        DateTime::from_timestamp(1_800_000_000 + minute * 60, 0)
     }
 
     #[test]
@@ -734,34 +977,48 @@ mod tests {
         assert!(election_status(Some(serde_json::json!("closed"))).is_err());
     }
 
-    fn row(voter: Option<&str>, status: &str, seed: &str, minute: i64) -> BoxBallot {
+    fn row(voter: &str, status: BallotStatus, seed: &str, seq: i64) -> BoxBallot {
         let (content, ballot_id) = ballot(seed);
         BoxBallot {
-            id: Uuid::new_v4(),
-            voter_id: voter.map(str::to_owned),
-            status: status.to_string(),
-            content: Some(content),
-            ballot_id: Some(ballot_id),
-            channel: DEFAULT_SEAL_CHANNEL.to_string(),
-            created_at: at(minute),
+            seq,
+            voter_id: voter.to_string(),
+            status,
+            format: SINGLE.to_string(),
+            content,
+            ballot_id,
+            voting_channel: DEFAULT_SEAL_CHANNEL.to_string(),
         }
     }
 
     fn disposition_of(entries: &[SealEntry], ballot: &BoxBallot) -> (SealDisposition, u64) {
         let entry = entries
             .iter()
-            .find(|entry| Some(&entry.ballot_id) == ballot.ballot_id.as_ref())
+            .find(|entry| entry.ballot_id == ballot.ballot_id)
             .unwrap();
         (entry.disposition, entry.weight)
+    }
+
+    #[test]
+    fn the_delivery_ids_name_the_box() {
+        let ballot_box = BallotBoxId {
+            election_event_id: "e",
+            election_id: "l",
+            area_id: "a",
+        };
+        assert_eq!(seal_delivery_id(ballot_box), "ballot-box-seal:e:l:a");
+        assert_eq!(
+            failure_delivery_id(ballot_box),
+            "ballot-box-seal-failed:e:l:a"
+        );
     }
 
     #[test]
     fn a_ballot_of_a_channel_that_is_not_closed_is_named() {
         let mut status = ElectionStatus::default();
         status.set_status_by_channel(VotingStatusChannel::ONLINE, VotingStatus::CLOSED);
-        let online = row(Some("alice"), "valid", "a", 1);
-        let mut kiosk = row(Some("bob"), "discarded", "b", 1);
-        kiosk.channel = "KIOSK".to_string();
+        let online = row("alice", BallotStatus::Valid, "a", 1);
+        let mut kiosk = row("bob", BallotStatus::Rejected, "b", 2);
+        kiosk.voting_channel = "KIOSK".to_string();
         assert_eq!(open_ballot_channel(&[online.clone()], &status), Ok(None));
         assert_eq!(
             open_ballot_channel(&[online.clone(), kiosk.clone()], &status),
@@ -775,9 +1032,9 @@ mod tests {
     #[test]
     fn a_ballot_of_an_unknown_channel_is_an_incident() {
         let status = ElectionStatus::default();
-        let mut paper = row(Some("alice"), "valid", "a", 1);
-        paper.channel = "PAPER".to_string();
-        let open = row(Some("bob"), "valid", "b", 1);
+        let mut paper = row("alice", BallotStatus::Valid, "a", 1);
+        paper.voting_channel = "PAPER".to_string();
+        let open = row("bob", BallotStatus::Valid, "b", 2);
         // Even after a ballot of a channel that isn't closed.
         assert_eq!(
             open_ballot_channel(&[open, paper], &status),
@@ -790,19 +1047,19 @@ mod tests {
     #[test]
     fn each_ballot_gets_its_disposition() {
         let census = Census::from([("alice".to_string(), 1), ("bob".to_string(), 3)]);
-        let alice_old = row(Some("alice"), "valid", "a1", 1);
-        let alice_new = row(Some("alice"), "valid", "a2", 2);
-        let bob = row(Some("bob"), "valid", "b1", 1);
-        let carol = row(Some("carol"), "valid", "c1", 1);
-        let dave = row(Some("dave"), "discarded", "d1", 1);
+        let alice_old = row("alice", BallotStatus::Valid, "a1", 1);
+        let alice_new = row("alice", BallotStatus::Valid, "a2", 4);
+        let bob = row("bob", BallotStatus::Valid, "b1", 2);
+        let carol = row("carol", BallotStatus::Valid, "c1", 3);
+        let dave = row("dave", BallotStatus::Rejected, "d1", 5);
         let ballots = vec![
             alice_old.clone(),
-            alice_new.clone(),
             bob.clone(),
             carol.clone(),
+            alice_new.clone(),
             dave.clone(),
         ];
-        let entries = entries(&ballots, &census, ContestEncryptionPolicy::SINGLE_CONTEST).unwrap();
+        let entries = entries(&ballots, &census).unwrap();
         assert_eq!(entries.len(), 5);
         assert_eq!(
             disposition_of(&entries, &alice_old),
@@ -827,28 +1084,19 @@ mod tests {
         // The entry hashes the stored content exactly.
         let entry = entries
             .iter()
-            .find(|entry| Some(&entry.ballot_id) == bob.ballot_id.as_ref())
+            .find(|entry| entry.ballot_id == bob.ballot_id)
             .unwrap();
-        assert_eq!(
-            entry.ballot_hash,
-            ballot_hash(bob.content.as_deref().unwrap()).unwrap()
-        );
+        assert_eq!(entry.ballot_hash, ballot_hash(&bob.content).unwrap());
     }
 
     #[test]
-    fn the_latest_ballot_is_by_time_then_id_and_a_missing_time_is_oldest() {
+    fn the_latest_ballot_is_the_last_accepted_valid_one() {
         let census = Census::from([("alice".to_string(), 1)]);
-        let untimed = BoxBallot {
-            created_at: None,
-            ..row(Some("alice"), "valid", "u", 0)
-        };
-        let mut first = row(Some("alice"), "valid", "x", 5);
-        let mut second = row(Some("alice"), "valid", "y", 5);
-        // Same time: the larger id is the latest.
-        first.id = Uuid::from_u128(1);
-        second.id = Uuid::from_u128(2);
-        let ballots = vec![untimed.clone(), second.clone(), first.clone()];
-        let entries = entries(&ballots, &census, ContestEncryptionPolicy::SINGLE_CONTEST).unwrap();
+        let first = row("alice", BallotStatus::Valid, "x", 1);
+        let second = row("alice", BallotStatus::Valid, "y", 2);
+        let rejected = row("alice", BallotStatus::Rejected, "z", 3);
+        let ballots = vec![second.clone(), rejected.clone(), first.clone()];
+        let entries = entries(&ballots, &census).unwrap();
         assert_eq!(
             disposition_of(&entries, &second).0,
             SealDisposition::Counted
@@ -858,42 +1106,25 @@ mod tests {
             SealDisposition::Replaced
         );
         assert_eq!(
-            disposition_of(&entries, &untimed).0,
-            SealDisposition::Replaced
+            disposition_of(&entries, &rejected).0,
+            SealDisposition::Discarded
         );
     }
 
     #[test]
-    fn ballots_without_a_voter_are_one_voter_and_not_eligible() {
-        let census = Census::new();
-        let older = row(None, "valid", "n1", 1);
-        let newer = row(None, "valid", "n2", 2);
-        let entries = entries(
-            &[older.clone(), newer.clone()],
-            &census,
-            ContestEncryptionPolicy::SINGLE_CONTEST,
-        )
-        .unwrap();
+    fn a_ballot_still_pending_is_retried() {
+        let pending = row("alice", BallotStatus::Pending, "a1", 7);
         assert_eq!(
-            disposition_of(&entries, &older).0,
-            SealDisposition::Replaced
-        );
-        assert_eq!(
-            disposition_of(&entries, &newer).0,
-            SealDisposition::NotEligible
+            entries(&[pending], &Census::new()).unwrap_err(),
+            EntriesError::Retry("the ballot 7 is still in progress".to_string())
         );
     }
 
     #[test]
     fn a_ballot_id_mismatch_fails_the_seal() {
-        let mut tampered = row(Some("alice"), "valid", "a1", 1);
-        tampered.ballot_id = Some(ballot("other").1);
-        let reason = entries(
-            &[tampered],
-            &Census::new(),
-            ContestEncryptionPolicy::SINGLE_CONTEST,
-        )
-        .unwrap_err();
+        let mut tampered = row("alice", BallotStatus::Valid, "a1", 1);
+        tampered.ballot_id = ballot("other").1;
+        let reason = entries(&[tampered], &Census::new()).unwrap_err();
         assert!(
             matches!(&reason, EntriesError::Incident(text) if text.starts_with("a ballot does not match its Ballot ID")),
             "{reason:?}"
@@ -902,20 +1133,20 @@ mod tests {
 
     #[test]
     fn a_ballot_that_cant_be_read_is_retried_not_an_incident() {
-        let mut unreadable = row(Some("alice"), "valid", "a1", 1);
+        let mut unreadable = row("alice", BallotStatus::Valid, "a1", 1);
         // Another types version: the content doesn't convert.
-        unreadable.content = Some(
-            unreadable
-                .content
-                .unwrap()
-                .replace(&format!("\"version\":{TYPES_VERSION}"), "\"version\":999"),
+        unreadable.content = unreadable
+            .content
+            .replace(&format!("\"version\":{TYPES_VERSION}"), "\"version\":999");
+        let reason = entries(&[unreadable.clone()], &Census::new()).unwrap_err();
+        assert!(
+            matches!(&reason, EntriesError::Retry(text) if text.contains("can't be read")),
+            "{reason:?}"
         );
-        let reason = entries(
-            &[unreadable],
-            &Census::new(),
-            ContestEncryptionPolicy::SINGLE_CONTEST,
-        )
-        .unwrap_err();
+        // So is one of a format the seal doesn't know.
+        let mut unknown = row("alice", BallotStatus::Valid, "a1", 1);
+        unknown.format = "paper".to_string();
+        let reason = entries(&[unknown], &Census::new()).unwrap_err();
         assert!(
             matches!(&reason, EntriesError::Retry(text) if text.contains("can't be read")),
             "{reason:?}"
@@ -923,37 +1154,32 @@ mod tests {
     }
 
     #[test]
+    fn the_format_decides_how_the_content_is_read() {
+        let (content, ballot_id) = ballot("a1");
+        assert_eq!(computed_ballot_id(&content, SINGLE).unwrap(), ballot_id);
+        assert!(computed_ballot_id(&content, "hashable-multi-ballot").is_err());
+    }
+
+    #[test]
     fn a_ballot_without_content_or_id_fails_the_seal() {
         for missing_content in [true, false] {
-            let mut ballot = row(Some("alice"), "valid", "a1", 1);
+            let mut ballot = row("alice", BallotStatus::Valid, "a1", 9);
             if missing_content {
-                ballot.content = None;
+                ballot.content = String::new();
             } else {
-                ballot.ballot_id = None;
+                ballot.ballot_id = String::new();
             }
-            let reason = entries(
-                &[ballot.clone()],
-                &Census::new(),
-                ContestEncryptionPolicy::SINGLE_CONTEST,
-            )
-            .unwrap_err();
+            let reason = entries(&[ballot.clone()], &Census::new()).unwrap_err();
             assert_eq!(
                 reason,
-                EntriesError::Incident(format!(
-                    "the ballot {} has no content or no Ballot ID",
-                    ballot.id
-                ))
+                EntriesError::Incident("the ballot 9 has no content or no Ballot ID".to_string())
             );
         }
     }
 
     #[test]
     fn an_empty_box_has_no_entries() {
-        assert!(
-            entries(&[], &Census::new(), ContestEncryptionPolicy::SINGLE_CONTEST)
-                .unwrap()
-                .is_empty()
-        );
+        assert!(entries(&[], &Census::new()).unwrap().is_empty());
     }
 
     fn file_with(text: &str) -> std::fs::File {
@@ -984,12 +1210,11 @@ mod tests {
         ];
         for (column, source, voters) in cases {
             let census = census_from_csv(voters.as_bytes(), column).unwrap();
-            let alice = row(Some("alice"), "valid", "a", 1);
-            let bob = row(Some("bob"), "valid", "b", 1);
-            let dave = row(Some("dave"), "valid", "d", 1);
+            let alice = row("alice", BallotStatus::Valid, "a", 1);
+            let bob = row("bob", BallotStatus::Valid, "b", 2);
+            let dave = row("dave", BallotStatus::Valid, "d", 3);
             let ballots = [alice.clone(), bob.clone(), dave.clone()];
-            let sealed =
-                entries(&ballots, &census, ContestEncryptionPolicy::SINGLE_CONTEST).unwrap();
+            let sealed = entries(&ballots, &census).unwrap();
 
             // The tally's join over the same voters and the voters' latest
             // valid ballots, both sorted by voter id.
@@ -998,9 +1223,7 @@ mod tests {
                 .map(|ballot| {
                     format!(
                         "{},{},{}\n",
-                        ballot.voter_id.as_deref().unwrap(),
-                        ballot.ballot_id.as_deref().unwrap(),
-                        ballot.channel
+                        ballot.voter_id, ballot.ballot_id, ballot.voting_channel
                     )
                 })
                 .collect();
@@ -1019,11 +1242,7 @@ mod tests {
             for ballot in [&alice, &bob] {
                 let (disposition, weight) = disposition_of(&sealed, ballot);
                 assert_eq!(disposition, SealDisposition::Counted);
-                assert_eq!(
-                    Some(&weight),
-                    tally.get(ballot.ballot_id.as_deref().unwrap()),
-                    "{column:?}"
-                );
+                assert_eq!(Some(&weight), tally.get(&ballot.ballot_id), "{column:?}");
             }
             assert_eq!(
                 disposition_of(&sealed, &dave).0,
@@ -1037,6 +1256,14 @@ mod tests {
     fn a_vote_weight_out_of_range_is_refused_like_the_tally() {
         assert!(
             census_from_csv("alice,0\n".as_bytes(), VoterMultiplicityColumn::VoteWeight).is_err()
+        );
+    }
+
+    #[test]
+    fn an_unrecorded_ballot_is_named_in_the_reason() {
+        assert_eq!(
+            unrecorded_reason(2),
+            "2 ballot(s) of the ballot box have no cast-vote record on the bulletin board"
         );
     }
 }

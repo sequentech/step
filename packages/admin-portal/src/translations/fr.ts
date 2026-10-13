@@ -209,6 +209,13 @@ const frenchTranslation: TranslationType = {
             actions: {
                 csv: "Exporter en CSV",
                 pdf: "Exporter en PDF",
+                audit: "Auditer",
+            },
+            auditDialog: {
+                title: "Auditer le journal électoral",
+                confirm: "Auditer",
+                description:
+                    "L'audit vérifie chaque entrée du journal par rapport à son journal Merkle et contrôle les points de contrôle publiés. Le résultat est enregistré en tant que tâche.",
             },
             exportdialog: {
                 description:
@@ -326,6 +333,7 @@ const frenchTranslation: TranslationType = {
                 PUBLISH_BALLOT: "Publier le bulletin",
                 VOTER_INFORMATION_LETTER: "Lettre d'information de l'électeur",
                 EXPORT_MONITORING_DATA: "Exporter les Données de Suivi",
+                AUDIT_ELECTORAL_LOG: "Auditer le journal électoral",
                 EXPORT_ELECTION_EVENT: "Exporter l'événement électoral",
                 CREATE_ELECTION_EVENT: "Créer Événement Électoral",
                 IMPORT_ELECTION_EVENT: "Importer l'événement électoral",
@@ -347,7 +355,7 @@ const frenchTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Exporter les Modèles",
                 IMPORT_TEMPLATES: "Importer les Modèles",
                 DELETE_ELECTION_EVENT: "Supprimer l'événement électoral",
-                DELETE_VOTERS: "Delete Voters",
+                DELETE_VOTERS: "Supprimer les électeurs",
                 PREPARE_PUBLICATION_PREVIEW: "Préparer l'aperçu de la publication",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporter les résultats du dépouillement au format XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exporter les autorités de certification",
@@ -386,7 +394,7 @@ const frenchTranslation: TranslationType = {
             createAreaSuccess: "Zone créée",
             updateAreaSuccess: "Zone mise à jour",
             createAreaError: "Erreur lors de la création de la zone",
-            sequent_backend_area_contest: "Questions de la Zone",
+            sequent_backend_area_contest: "Scrutins de la Zone",
             empty: {
                 header: "Aucune Zone pour l'instant.",
                 action: "Créer une Zone",
@@ -549,7 +557,7 @@ const frenchTranslation: TranslationType = {
                 },
                 help: {
                     publishing:
-                        "L'urne est verrouillée. Son entrée est en cours de republication sur le tableau d'affichage.",
+                        "L'urne est verrouillée et son scellé figure sur le tableau d'affichage. Son procès-verbal de scellement est en cours de publication.",
                     counted:
                         "Bulletins comptés : le dernier bulletin valide de chaque électeur éligible. Les autres bulletins de l'urne ont été remplacés par un bulletin ultérieur de l'électeur, écartés, ou déposés par un électeur non éligible.",
                 },
@@ -590,6 +598,10 @@ const frenchTranslation: TranslationType = {
                         "{{count}} vote est en cours dans Datafix : l'urne est scellée une fois qu'il est résolu.",
                     datafixVotes_other:
                         "{{count}} votes sont en cours dans Datafix : l'urne est scellée une fois qu'ils sont résolus.",
+                    sequencer_one:
+                        "{{count}} bulletin n'est pas encore sur le tableau d'affichage : l'urne est scellée une fois que le séquenceur l'a ajouté.",
+                    sequencer_other:
+                        "{{count}} bulletins ne sont pas encore sur le tableau d'affichage : l'urne est scellée une fois que le séquenceur les a ajoutés.",
                     stale: "Dernière tentative à {{time}} : le service de scellement n'est peut-être pas en cours d'exécution. Vérifiez Beat et le worker de scellement.",
                     notTried:
                         "Aucune tentative pour l'instant : le service de scellement n'est peut-être pas en cours d'exécution. Vérifiez Beat et le worker de scellement.",
@@ -618,6 +630,7 @@ const frenchTranslation: TranslationType = {
                         "Un scellé de cette urne figure déjà sur le tableau d'affichage.",
                     noBoard: "L'événement électoral n'a pas de tableau d'affichage.",
                     unknownChannel: "Un bulletin a un canal de vote inconnu.",
+                    unrecorded: "Un bulletin n'a pas d'entrée de vote sur le tableau d'affichage.",
                 },
                 incident: {
                     title_one: "{{count}} urne n'a pas pu être scellée",
@@ -628,7 +641,7 @@ const frenchTranslation: TranslationType = {
             },
             ipAddress: {
                 emptyState: "Pas encore de votes.",
-                title: "IP Addresses",
+                title: "Adresses IP",
                 ip: "IP",
                 country: "Pays",
                 VoteCount: "Nombre de votes",
@@ -642,7 +655,8 @@ const frenchTranslation: TranslationType = {
                 showMore: "Afficher plus",
                 showLess: "Afficher moins",
                 adminPortal: "Portail d'administration",
-                allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
+                allowPublishAfterLockdown:
+                    "N'autoriser la publication de l'événement électoral qu'après le verrouillage",
                 reset: "Réinitialiser le filtre personnalisé",
             },
             edit: {
@@ -661,16 +675,20 @@ const frenchTranslation: TranslationType = {
                 importCandidates: "Importer des Candidats",
                 custom_filters: "Filtres personnalisés",
                 voter_authentication: "Authentification des électeurs",
-                realm_attributes: "Keycloak realm attributes",
-                realm_attributes_load_error: "Error loading Keycloak realm attributes",
-                realm_attributes_update_error: "Error updating Keycloak realm attributes",
+                realm_attributes: "Attributs du realm Keycloak",
+                realm_attributes_load_error:
+                    "Erreur lors du chargement des attributs du realm Keycloak",
+                realm_attributes_update_error:
+                    "Erreur lors de la mise à jour des attributs du realm Keycloak",
                 realm_attributes_not_loaded:
-                    "Keycloak realm attributes have not loaded, changes were not saved",
-                password_policy: "Password Policy",
-                password_policy_load_error: "Error loading Keycloak password policy",
-                password_policy_update_error: "Error updating Keycloak password policy",
+                    "Les attributs du realm Keycloak n'ont pas été chargés ; les modifications n'ont pas été enregistrées",
+                password_policy: "Politique de mots de passe",
+                password_policy_load_error:
+                    "Erreur lors du chargement de la politique de mots de passe Keycloak",
+                password_policy_update_error:
+                    "Erreur lors de la mise à jour de la politique de mots de passe Keycloak",
                 password_policy_not_loaded:
-                    "Keycloak password policy has not loaded, changes were not saved",
+                    "La politique de mots de passe Keycloak n'a pas été chargée ; les modifications n'ont pas été enregistrées",
             },
             customUrls: {
                 login: "Connexion",
@@ -853,19 +871,19 @@ const frenchTranslation: TranslationType = {
                 },
                 contestEncryptionPolicy: {
                     options: {
-                        "single-contest": "Concours unique",
-                        "multiple-contests": "Plusieurs concours",
+                        "single-contest": "Scrutin unique",
+                        "multiple-contests": "Plusieurs scrutins",
                     },
-                    policyLabel: "Politique de chiffrement de concours",
+                    policyLabel: "Politique de chiffrement de scrutin",
                 },
                 votingPortalDateTimeFormat: {
                     policyLabel: "Format de date et d'heure du portail de vote",
                     helperText:
                         "S'applique à tout l'événement. Pour le remplacer par langue, ajoutez la clé \"votingPortalDateTimeFormat\" dans l'onglet Localisation avec les jetons yyyy, MM, dd, HH, mm, ss (ex. dd/MM/yyyy HH:mm). Consultez la documentation pour plus de détails.",
                     options: {
-                        "legacy-gb-24h": "Legacy GB 24h (dd/MM/yyyy HH:mm, 24h)",
-                        "iso-local": "ISO Local (yyyy-MM-dd HH:mm)",
-                        "us-12h": "US 12h (MM/dd/yyyy h:mm AM/PM)",
+                        "legacy-gb-24h": "GB hérité 24 h (dd/MM/yyyy HH:mm, 24h)",
+                        "iso-local": "ISO local (yyyy-MM-dd HH:mm)",
+                        "us-12h": "États-Unis 12 h (MM/dd/yyyy h:mm AM/PM)",
                         "locale-medium": "Locale Medium (date moyenne, heure courte)",
                         "date-only": "Date Only (sans heure)",
                         "custom": "Format personnalisé",
@@ -904,7 +922,7 @@ const frenchTranslation: TranslationType = {
                         "Ce réglage ne peut plus être modifié une fois le vote commencé.",
                 },
                 VoterCertificatePolicy: {
-                    policyLabel: "Voter Digital Certificate Policy",
+                    policyLabel: "Politique de certificat numérique du votant",
                     enabled: "Activé",
                     disabled: "Désactivé",
                 },
@@ -1062,7 +1080,7 @@ const frenchTranslation: TranslationType = {
                 elegibleVoters: "Électeurs",
                 voters: "Votants",
                 elections: "Élections",
-                contests: "Questions",
+                contests: "Scrutins",
                 areas: "Zones",
                 sentEmails: "Emails Envoyés",
                 sentSMS: "SMS Envoyés",
@@ -1113,7 +1131,7 @@ const frenchTranslation: TranslationType = {
                 events: "Événement Planifié",
                 notifications: "Notifications",
                 reports: "Rapport",
-                approvals: "Approvals",
+                approvals: "Approbations",
                 cas: "Certificats",
             },
             tally: {
@@ -1162,7 +1180,7 @@ const frenchTranslation: TranslationType = {
                     "Importer des zones en utilisant un fichier tableur au format Valeurs Séparées par des Virgules (CSV).",
                 importSuccess: "Zones Importées avec Succès",
                 importError: "Erreur lors de l'importation des Zones",
-                upsert: "Upsert Areas",
+                upsert: "Insérer ou mettre à jour les zones",
             },
             import: {
                 eetitle: "Importer un Événement Électoral",
@@ -1184,8 +1202,8 @@ const frenchTranslation: TranslationType = {
                 importVotersSuccess:
                     "Importation des Électeurs lancée en arrière-plan avec succès.",
                 importVotersError: "Erreur lors de l'Importation des Électeurs.",
-                importElectionEventSuccess: "Election event imported Successfully",
-                importElectionEventError: "Error importing election event",
+                importElectionEventSuccess: "Événement électoral importé avec succès",
+                importElectionEventError: "Erreur lors de l'importation de l'événement électoral",
                 shaDialog: {
                     ok: "Oui, Importer Sans Vérification de l'Intégrité",
                     cancel: "Retour",
@@ -1247,7 +1265,7 @@ const frenchTranslation: TranslationType = {
                 image: "Image",
                 advanced: "Configuration Avancée",
                 numAllowedVotes: "Nombre de votes permis",
-                reorder: "Réorganiser les concours",
+                reorder: "Réorganiser les scrutins",
                 castVoteConfirm: "Modal de Confirmation de Vote",
                 gracePeriodPolicy: "Politique de période de grâce",
                 allowTallyPolicy: "Autoriser le décompte",
@@ -1291,7 +1309,7 @@ const frenchTranslation: TranslationType = {
                 voters: "Électeurs",
                 publish: "Publier",
                 logs: "Journaux",
-                approvals: "Approvals",
+                approvals: "Approbations",
                 tallySheets: "Feuilles de Comptage",
             },
             gracePeriodPolicy: {
@@ -1311,10 +1329,10 @@ const frenchTranslation: TranslationType = {
                 "required": "Requis",
             },
             castVoteGoldLevelPolicy: {
-                label: "Gold level Authentication Policy",
+                label: "Politique d'authentification de niveau or",
                 options: {
-                    "gold-level": "Gold level Authentication",
-                    "no-gold-level": "No Gold level Authentication",
+                    "gold-level": "Authentification de niveau or",
+                    "no-gold-level": "Pas d'authentification de niveau or",
                 },
             },
             slates: {
@@ -1423,7 +1441,7 @@ const frenchTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "A voté",
-                    "support_materials_viewed": "Support Materials Viewed",
+                    "support_materials_viewed": "Matériaux de Support consultés",
                     "vote-weight": "Poids du vote",
                     "voted-channel": "Canal de vote",
                     "disable-comment": "Commentaire de désactivation",
@@ -1455,11 +1473,12 @@ const frenchTranslation: TranslationType = {
                 delete: {
                     body: "Êtes-vous sûr de vouloir supprimer cet utilisateur ?",
                     bulkBody: "Êtes-vous sûr de vouloir supprimer les utilisateurs sélectionnés ?",
-                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodySelected:
+                        "Supprimer les {{count}} utilisateurs sélectionnés ? Cette action est irréversible.",
                     bulkBodyChoose:
-                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
-                    okSelected: "Delete {{count}} selected",
-                    okAllMatching: "Delete all matching",
+                        "{{count}} utilisateurs sont sélectionnés. Vous pouvez plutôt supprimer tous les utilisateurs correspondant aux filtres actuels, qui peuvent être plus nombreux. Cette action est irréversible.",
+                    okSelected: "Supprimer les {{count}} sélectionnés",
+                    okAllMatching: "Supprimer tous les résultats correspondants",
                 },
                 notifications: {
                     exportError: "Erreur lors de l'exportation des utilisateurs",
@@ -1555,11 +1574,11 @@ const frenchTranslation: TranslationType = {
                     body: "Êtes-vous sûr de vouloir supprimer cet électeur ?",
                     bulkBody: "Êtes-vous sûr de vouloir supprimer les électeurs sélectionnés ?",
                     bulkBodySelected:
-                        "Delete the {{count}} selected voters? This cannot be undone.",
+                        "Supprimer les {{count}} électeurs sélectionnés ? Cette action est irréversible.",
                     bulkBodyChoose:
-                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
-                    okSelected: "Delete {{count}} selected",
-                    okAllMatching: "Delete all matching",
+                        "{{count}} électeurs sont sélectionnés. Vous pouvez plutôt supprimer tous les électeurs correspondant aux filtres actuels, qui peuvent être plus nombreux. Cette action est irréversible.",
+                    okSelected: "Supprimer les {{count}} sélectionnés",
+                    okAllMatching: "Supprimer tous les résultats correspondants",
                 },
                 notifications: {
                     exportError: "Erreur lors de l'exportation des électeurs",
@@ -1636,8 +1655,8 @@ const frenchTranslation: TranslationType = {
                 "election-event-create": "Créer Événement Électoral",
                 "election-event-read": "Lire Événement Électoral",
                 "election-event-write": "Éditer Événement Électoral",
-                "keycloak-realm-attributes-read": "Read Keycloak realm attributes",
-                "keycloak-realm-attributes-write": "Edit Keycloak realm attributes",
+                "keycloak-realm-attributes-read": "Lire les attributs du realm Keycloak",
+                "keycloak-realm-attributes-write": "Modifier les attributs du realm Keycloak",
                 "election-event-delete": "Supprimer Événement Électoral",
                 "voter-create": "Créer Électeur",
                 "voter-read": "Lire Électeur",
@@ -1680,6 +1699,14 @@ const frenchTranslation: TranslationType = {
                 "publish-results-read": "Lire Publication des Résultats",
                 "publish-results-write": "Éditer Publication des Résultats",
                 "logs-read": "Lire Journaux",
+                "electoral-log-audit": "Auditer le Journal Électoral",
+                "electoral-log-console-read": "Parcourir le Journal Électoral",
+                "electoral-log-console-query": "Interroger le Journal Électoral",
+                "electoral-log-personal-data-read":
+                    "Lire les Données Personnelles du Journal Électoral",
+                "task-queues-read": "Lire les Files de Tâches",
+                "task-queues-write": "Gérer les Files de Tâches",
+                "task-queues-query": "Interroger les Files de Tâches",
                 "tasks-read": "Lire l'Exécution des Tâches",
                 "keys-read": "Lire Clés",
                 "document-upload": "Télécharger Documents",
@@ -1695,30 +1722,29 @@ const frenchTranslation: TranslationType = {
                 "tally-sheet-view": "Voir Acte de Comptage",
                 "admin-ceremony": "Administrer Cérémonie de Clés",
                 "tally-sheet-delete": "Supprimer Acte de Comptage",
-                "cast-vote-read": "Lire Votes Émis",
                 "document-read": "Lire Documents",
                 "document-write": "Éditer Documents",
                 "support-material-read": "Lire Matériaux de Support",
                 "support-material-write": "Éditer Matériaux de Support",
-                "miru-create": "Miru Create",
-                "miru-download": "Miru Download",
-                "miru-send": "Miru Send",
-                "miru-sign": "Miru Sign",
-                "contest-write": "Éditer Concours",
-                "contest-read": "Lire le Concours",
+                "miru-create": "Créer Miru",
+                "miru-download": "Télécharger Miru",
+                "miru-send": "Envoyer Miru",
+                "miru-sign": "Signer Miru",
+                "contest-write": "Éditer le Scrutin",
+                "contest-read": "Lire le Scrutin",
                 "candidate-write": "Éditer le candidats",
                 "candidate-read": "Lire le candidats",
                 "permission-label-write": "Modifier l'étiquette de permission",
                 "scheduled-event-write": "Modifier des Événements Planifiés",
-                "contest-create": "Create Contest",
-                "contest-delete": "Delete Contest",
-                "candidate-create": "Create Candidate",
-                "candidate-delete": "Delete Candidate",
-                "election-create": "Create Election",
-                "election-read": "Read Election",
-                "election-write": "Edit Election",
-                "election-delete": "Delete Election",
-                "election-event-archive": "Archive Election Event",
+                "contest-create": "Créer un Scrutin",
+                "contest-delete": "Supprimer le Scrutin",
+                "candidate-create": "Créer un Candidat",
+                "candidate-delete": "Supprimer le Candidat",
+                "election-create": "Créer une Élection",
+                "election-read": "Lire l'Élection",
+                "election-write": "Modifier l'Élection",
+                "election-delete": "Supprimer l'Élection",
+                "election-event-archive": "Archiver l'Événement Électoral",
                 "election-data-tab": "Voir les Données de l'Élection",
                 "election-event-areas-tab": "Voir les Zones de l'Événement Électoral",
                 "election-event-data-tab": "Voir les Données de l'Événement Électoral",
@@ -1885,10 +1911,10 @@ const frenchTranslation: TranslationType = {
             },
             eventType: {
                 label: "Type",
-                ALLOW_INIT_REPORT: "Allow Initialization Report",
+                ALLOW_INIT_REPORT: "Autoriser le rapport d'initialisation",
                 START_VOTING_PERIOD: "Début de la Période de Vote",
                 END_VOTING_PERIOD: "Fin de la Période de Vote",
-                ALLOW_VOTING_PERIOD_END: "Allow Voting Period End",
+                ALLOW_VOTING_PERIOD_END: "Autoriser la fin de la période de vote",
                 START_ENROLLMENT_PERIOD: "Début de la période d'inscription",
                 END_ENROLLMENT_PERIOD: "Fin de la période d'inscription",
                 START_LOCKDOWN_PERIOD: "Début de la période de blocage des données du recensement",
@@ -2036,7 +2062,7 @@ const frenchTranslation: TranslationType = {
             resources: {
                 electionEvent: "Événement Électoral",
                 election: "Élection",
-                contest: "Concours",
+                contest: "Scrutin",
                 candidate: "Candidat",
                 noResult: {
                     askCreate: "Voulez-vous en créer un ?",
@@ -2102,20 +2128,23 @@ const frenchTranslation: TranslationType = {
         createResource: {
             electionEvent: "Créer un Événement Électoral",
             election: "Créer une Élection",
-            contest: "Créer un Concours",
+            contest: "Créer un Scrutin",
             candidate: "Créer un Candidat",
         },
         importResource: {
             electionEvent: "Importer un Événement Électoral",
             election: "Importer une Élection",
-            contest: "Importer un Concours",
+            contest: "Importer un Scrutin",
             candidate: "Importer un Candidat",
-            ImportHashMismatch: "Hashes don't match. Integrity check failure.",
+            ImportHashMismatch:
+                "Les empreintes ne correspondent pas. Échec du contrôle d'intégrité.",
         },
         sideMenu: {
             electionEvents: "Processus Électoraux",
             search: "Chercher",
             usersAndRoles: "Utilisateurs et Rôles",
+            electoralLogConsole: "Journal Électoral",
+            taskQueues: "Files de Tâches",
             logs: "Journaux",
             settings: "Configuration",
             help: "Aide",
@@ -2125,7 +2154,7 @@ const frenchTranslation: TranslationType = {
             addResource: {
                 electionEvent: "Créer un Événement Électoral",
                 election: "Créer une Élection",
-                contest: "Créer un Concours",
+                contest: "Créer un Scrutin",
                 candidate: "Créer un Candidat",
             },
             menuActions: {
@@ -2135,13 +2164,13 @@ const frenchTranslation: TranslationType = {
                 unarchive: {
                     electionEvent: "Désarchiver cet Événement Électoral",
                     election: "Désarchiver cette Élection",
-                    contest: "Désarchiver ce Concours",
+                    contest: "Désarchiver ce Scrutin",
                     candidate: "Désarchiver ce Candidat",
                 },
                 remove: {
                     electionEvent: "Supprimer cet Événement Électoral",
                     election: "Supprimer cette Élection",
-                    contest: "Supprimer ce Concours",
+                    contest: "Supprimer ce Scrutin",
                     candidate: "Supprimer ce Candidat",
                 },
                 messages: {
@@ -2217,7 +2246,7 @@ const frenchTranslation: TranslationType = {
         },
         contestScreen: {
             common: {
-                subtitle: "Configuration des questions.",
+                subtitle: "Configuration du scrutin.",
             },
             edit: {
                 externalId: "ID externe",
@@ -2323,7 +2352,7 @@ const frenchTranslation: TranslationType = {
             isAcclaimed: {
                 label: "Acquis par acclamation",
                 helperText:
-                    "Les électeurs voient ce vote mais ne peuvent rien sélectionner, rien n'est enregistré et tous les candidats sont déclarés élus avec zéro voix. À définir avant la publication des bulletins : le modifier ensuite invalide les bulletins déjà déposés.",
+                    "Les électeurs voient ce scrutin mais ne peuvent rien sélectionner, rien n'est enregistré et tous les candidats sont déclarés élus avec zéro voix. À définir avant la publication des bulletins : le modifier ensuite invalide les bulletins déjà déposés.",
             },
             allowWriteins: {
                 label: "Autoriser les candidatures manuscrites",
@@ -2335,8 +2364,8 @@ const frenchTranslation: TranslationType = {
                     "Position de classement la plus haute disponible (ex. '5' signifie positions 1 à 5). Doit être au moins égal au nombre de candidats à classer (vote préférentiel).",
             },
             error: {},
-            createContestSuccess: "Question créée",
-            createContestError: "Erreur lors de la création de la question",
+            createContestSuccess: "Scrutin créé",
+            createContestError: "Erreur lors de la création du scrutin",
         },
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
@@ -2351,6 +2380,8 @@ const frenchTranslation: TranslationType = {
                 threshold: "Seuil",
                 errorMinTrustees_one:
                     "Vous avez sélectionné seulement {{selected}} autorité, mais vous devez en sélectionner au moins {{threshold}}.",
+                errorMinTrustees_many:
+                    "Vous avez sélectionné seulement {{selected}} autorités, mais vous devez en sélectionner au moins {{threshold}}.",
                 errorMinTrustees_other:
                     "Vous avez sélectionné seulement {{selected}} autorités, mais vous devez en sélectionner au moins {{threshold}}.",
                 errorThreshold:
@@ -2415,54 +2446,57 @@ const frenchTranslation: TranslationType = {
                 "Une erreur s'est produite lors du téléchargement de la signature",
             downloadTransmissionPackage: "Télécharger le paquet",
             resultsPublication: {
-                sectionTitle: "Publish to results website",
-                policyTitle: "Results Website",
-                policyAccess: "Results Website Access",
-                policyVisibility: "Results Website Visibility",
-                enabled: "Enabled",
-                disabled: "Disabled",
-                fullEvent: "Full event",
-                areaBased: "Area based",
-                publishStarted: "Results publication started",
-                publishError: "Could not start results publication",
-                revoked: "Results publication revoked",
-                revokeError: "Could not revoke results publication",
-                waitingForTally: "Results can be published after this tally has completed.",
+                sectionTitle: "Publier sur le site web des résultats",
+                policyTitle: "Site web des résultats",
+                policyAccess: "Accès au site web des résultats",
+                policyVisibility: "Visibilité du site web des résultats",
+                enabled: "Activé",
+                disabled: "Désactivé",
+                fullEvent: "Événement complet",
+                areaBased: "Par zone",
+                publishStarted: "Publication des résultats démarrée",
+                publishError: "Impossible de démarrer la publication des résultats",
+                revoked: "Publication des résultats révoquée",
+                revokeError: "Impossible de révoquer la publication des résultats",
+                waitingForTally:
+                    "Les résultats pourront être publiés une fois ce dépouillement terminé.",
                 writePermissionRequired:
-                    "You need publish-results-write permission to publish or revoke results.",
+                    "Vous avez besoin de la permission publish-results-write pour publier ou révoquer des résultats.",
                 readPermissionRequired:
-                    "You need publish-results-read permission to view publication history.",
+                    "Vous avez besoin de la permission publish-results-read pour consulter l'historique des publications.",
                 disabledPolicy:
-                    "Results website publishing is disabled for this election event. Enable it in the election event data before publishing results.",
-                loadingElectionContext: "Results publication is loading election context.",
+                    "La publication sur le site web des résultats est désactivée pour cet événement électoral. Activez-la dans les données de l'événement électoral avant de publier les résultats.",
+                loadingElectionContext:
+                    "La publication des résultats charge le contexte de l'élection.",
                 route: "Route",
-                eventResults: "Event results",
-                electionResults: "Election results",
-                election: "Election",
-                access: "Access",
-                publicAccess: "Public access",
-                authenticatedAccess: "Authenticated access",
-                visibility: "Visibility",
-                fullPublishedScope: "Full published scope",
-                personalVisibility: "Personal visibility",
-                contests: "Contests",
-                noTalliedContests: "No tallied contests available.",
-                publishSelectedContests: "Publish selected contests",
-                selectedContestCount: "{{count}} contest selected",
-                selectedContestCount_plural: "{{count}} contests selected",
-                history: "Publication history",
+                eventResults: "Résultats de l'événement",
+                electionResults: "Résultats de l'élection",
+                election: "Élection",
+                access: "Accès",
+                publicAccess: "Accès public",
+                authenticatedAccess: "Accès authentifié",
+                visibility: "Visibilité",
+                fullPublishedScope: "Portée publiée complète",
+                personalVisibility: "Visibilité personnelle",
+                contests: "Scrutins",
+                noTalliedContests: "Aucun scrutin dépouillé disponible.",
+                publishSelectedContests: "Publier les scrutins sélectionnés",
+                selectedContestCount_one: "{{count}} scrutin sélectionné",
+                selectedContestCount_many: "{{count}} scrutins sélectionnés",
+                selectedContestCount_other: "{{count}} scrutins sélectionnés",
+                history: "Historique des publications",
                 version: "Version",
-                status: "Status",
-                published: "Published",
-                revokedAt: "Revoked",
+                status: "Statut",
+                published: "Publié",
+                revokedAt: "Révoqué",
                 actions: "Actions",
-                open: "Open",
-                revoke: "Revoke",
-                noPublications: "No publications yet.",
-                confirmTitle: "Start publish to results website?",
+                open: "Ouvrir",
+                revoke: "Révoquer",
+                noPublications: "Aucune publication pour le moment.",
+                confirmTitle: "Démarrer la publication sur le site web des résultats ?",
                 confirmDescription:
-                    "This will create a new publication from the current tally execution. The existing voter-facing results stay active until this publish task succeeds.",
-                close: "Close",
+                    "Cela créera une nouvelle publication à partir du dépouillement actuel. Les résultats visibles par les électeurs restent actifs jusqu'à la réussite de cette tâche de publication.",
+                close: "Fermer",
             },
             transmissionPackage: {
                 title: "Paquet de Transmission pour la Zone '{{name}}' y Elección '{{eventName}}'",
@@ -2507,7 +2541,7 @@ const frenchTranslation: TranslationType = {
                     },
                     download: {
                         title: "Télécharger",
-                        emlTitle: "Download EML {{date}}",
+                        emlTitle: "Télécharger EML {{date}}",
                         transmissionPackageTitle: "Télécharger le Paquet de Transmission {{date}}",
                         transmissionReportTitle: "Télécharger le rapport de transmission",
                         dialog: {
@@ -2537,7 +2571,7 @@ const frenchTranslation: TranslationType = {
                         trusteeName: "Membre",
                         signed: "A Signé",
                     },
-                    status: "{{signed}} sur {{total}} Ont Signé",
+                    status: "{{signed}} sur {{total}} Ont Signé, minimum {{minimum}}",
                 },
             },
             sendToTransmissionPackageServers:
@@ -2563,10 +2597,11 @@ const frenchTranslation: TranslationType = {
             ballotBoxes: {
                 unavailable: "Scellés indisponibles",
                 sealed: "{{sealed}} sur {{total}} scellées",
-                publishing: "Scellées, {{published}} sur {{total}} sur le tableau d'affichage",
+                publishing:
+                    "Scellées, {{published}} procès-verbaux de scellement publiés sur {{total}}",
                 sealing: "Scellement à {{time}}",
                 notSealed: "Non scellées",
-                help: "Une élection peut être dépouillée une fois que chaque urne est scellée et que son scellé figure sur le tableau d'affichage.",
+                help: "Une élection peut être dépouillée une fois que chaque urne est scellée et que son procès-verbal de scellement est publié.",
                 failed: "Non scellée : incident",
                 overdue: "Scellement en retard",
                 blocked: "{{name}} : {{reason}}",
@@ -2577,7 +2612,7 @@ const frenchTranslation: TranslationType = {
                     "overdue":
                         "ses urnes ont dépassé leur échéance et ne sont pas encore scellées (voir son Tableau de Bord)",
                     "publishing":
-                        "certains de ses scellés sont encore en cours de publication sur le tableau d'affichage",
+                        "les procès-verbaux de scellement de certaines de ses urnes sont encore en cours de publication",
                     "failed":
                         "une urne n'a pas pu être scellée, c'est un incident (voir son Tableau de Bord)",
                     "unavailable": "les scellés de ses urnes n'ont pas pu être lus",
@@ -2593,7 +2628,7 @@ const frenchTranslation: TranslationType = {
                 endVoting:
                     "Terminez le vote de chaque élection sélectionnée et arrêtez ses canaux actifs avant de créer le dépouillement.",
                 sealBallotBoxes:
-                    "Une élection peut être dépouillée une fois que chaque urne est scellée et que son scellé figure sur le tableau d'affichage.",
+                    "Une élection peut être dépouillée une fois que chaque urne est scellée et que son procès-verbal de scellement est publié.",
             },
             createTallySuccess: "Comptage créé",
             createTallyError: "Erreur lors de la création du comptage",
@@ -2708,7 +2743,7 @@ const frenchTranslation: TranslationType = {
                 channel_postal: "Postal",
                 channel_in_person: "En personne",
                 acclamation_note:
-                    "Élu par acclamation. Ce vote a été acquis sans scrutin : aucune voix n'a été enregistrée.",
+                    "Élu par acclamation. Ce scrutin a été tranché sans vote : aucune voix n'a été enregistrée.",
             },
             pendingResolutions: {
                 round: "Tour {{round}}",
@@ -2729,7 +2764,7 @@ const frenchTranslation: TranslationType = {
                 save: "Enregistrer",
                 pendingApplyStatus: "Calcul en attente",
                 filterElection: "Élection",
-                filterContest: "Concours",
+                filterContest: "Scrutin",
                 filterArea: "Zone",
                 filterStatusLabel: "Statut",
                 clearFilters: "Effacer les filtres",
@@ -2950,7 +2985,7 @@ const frenchTranslation: TranslationType = {
                 ALL_USERS: "Tous",
                 NOT_VOTED: "Ceux qui n'ont pas voté",
                 VOTED: "Ceux qui ont déjà voté",
-                SELECTED: "À {{total}} Électeurs sélectionnés",
+                SELECTED: "À {{total}} {{voters}} sélectionnés",
             },
             path: {
                 users: "utilisateurs",
@@ -3007,7 +3042,7 @@ const frenchTranslation: TranslationType = {
                 blankBallotsInconsistent:
                     "Les Bulletins Blancs doivent avoir la même valeur sur toutes les feuilles de dépouillement de cette urne",
                 blankBallotsOutOfBounds:
-                    "La valeur des Bulletins Blancs est en dehors de la plage impliquée par les décomptes de votes blancs par candidature de cette urne",
+                    "La valeur des Bulletins Blancs est en dehors de la plage impliquée par les décomptes de votes blancs par scrutin de cette urne",
             },
             label: {
                 area: "Zone",
@@ -3060,7 +3095,7 @@ const frenchTranslation: TranslationType = {
             },
             table: {
                 area: "Zone",
-                contest: "Cotienda",
+                contest: "Scrutin",
                 approvedVersion: "Version approuvée",
                 latestVersion: "Dernière version",
                 labels: "Étiquettes",
@@ -6189,6 +6224,201 @@ const frenchTranslation: TranslationType = {
                     "Aucun compte Messenger de cette organisation n'utilise cette Page",
                 SEVERAL_PAGE_ACCOUNTS:
                     "Plusieurs comptes Messenger de cette organisation utilisent cette Page",
+            },
+        },
+        electoralLogConsole: {
+            title: "Journal Électoral",
+            subtitle:
+                "Parcourez le journal électoral et l'urne d'un événement électoral, ou interrogez la base de données de son journal électoral. Rien sur cette page ne modifie les données.",
+            notAllowed:
+                "Vous avez besoin de la permission electoral-log-console-read pour ouvrir le journal électoral.",
+            tabs: {
+                tables: "Tables",
+                query: "Requête",
+            },
+            electionEvent: "Événement Électoral",
+            tenant: "Locataire",
+            table: "Table",
+            tables: {
+                records: "Entrées",
+                ballots: "Bulletins",
+                voters: "Électeurs",
+                queue: "File du Séquenceur",
+            },
+            order: {
+                "label": "Ordre",
+                "newest-first": "Plus récents d'abord",
+                "oldest-first": "Plus anciens d'abord",
+            },
+            filters: {
+                statement_kind: "Type",
+                election_id: "Élection",
+                area_id: "ID de Zone",
+                user_id: "ID d'Utilisateur ou d'Électeur",
+                ballot_id: "ID de Bulletin",
+                status: "Statut",
+                created_after: "Du",
+                created_before: "Au",
+                any: "Tous",
+                apply: "Appliquer les Filtres",
+                clear: "Effacer",
+                invalid:
+                    "Vérifiez les filtres signalés : les dates doivent être valides et les ID de zone de l'urne doivent être des UUID.",
+            },
+            statuses: {
+                valid: "Valide",
+                pending: "En attente",
+                rejected: "Rejeté",
+            },
+            estimatedRows: "Environ {{rows}} lignes dans cette table avant filtrage.",
+            personalDataHidden:
+                "Les noms d'utilisateur, adresses IP et pays sont masqués : les voir nécessite la permission electoral-log-personal-data-read.",
+            loadError: "Le journal électoral n'a pas pu être lu.",
+            record: {
+                title: "Entrée {{position}}",
+                view: "Voir l'entrée",
+                message: "Message (décodé)",
+                copy: "Copier le JSON",
+                close: "Fermer",
+                loadError: "L'entrée n'a pas pu être lue.",
+            },
+            query: {
+                help: "Les requêtes s'exécutent sur la base de données du journal électoral de l'événement électoral dans une transaction en lecture seule. Ses tables sont electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending et ballot_box_sequencer ; trellis_logs décrit ses journaux Merkle.",
+                scope: "Chaque événement électoral a sa propre base de données : une requête lit un seul événement.",
+                chooseEvent: "Choisissez l'événement électoral à interroger.",
+                placeholder: "SELECT …",
+                limits: "Lecture seule · jusqu'à 1 000 lignes · délai de 30 s · chaque requête est consignée dans les journaux du serveur avec votre utilisateur",
+                run: "Exécuter la Requête",
+                summary: "Lignes : {{rows}} · {{ms}} ms",
+                truncated: "Seules les {{rows}} premières lignes sont affichées.",
+                error: "La requête n'a pas pu s'exécuter.",
+            },
+        },
+        taskQueues: {
+            title: "Files de Tâches",
+            subtitle:
+                "Les files de tâches de l'environnement : ce qui attend, ce qui a été traité et en combien de temps. Les listes des files n'affichent jamais les arguments des tâches.",
+            notAllowed:
+                "Vous avez besoin de la permission task-queues-read du tenant de super-administration pour ouvrir les files de tâches.",
+            live: "En direct",
+            updated: "Mis à jour à {{time}}",
+            error: "Impossible de charger les files de tâches.",
+            columns: {
+                queue: "File",
+                ready: "Prêts",
+                runningOrScheduled: "En cours ou planifiés",
+                oldest: "Plus ancien",
+                processed: "Traités (dernière heure)",
+                lastHour: "Résultats (dernière heure)",
+                sent: "Envoyés (total)",
+            },
+            outcomes: {
+                succeeded: "Réussis",
+                failed: "Échoués",
+                expired: "Expirés",
+                rejected: "Rejetés",
+                discarded: "Écartés",
+                unknown: "Inconnu",
+            },
+            graphs: {
+                title: "Débit",
+                period: "Période",
+                periods: {
+                    hour: "Dernière heure",
+                    sixHours: "6 dernières heures",
+                    day: "24 dernières heures",
+                    week: "7 derniers jours",
+                },
+                outcomes: "Messages traités par résultat",
+                durations: "Temps moyen d'attente et de traitement",
+                wait: "Attente",
+                processing: "Traitement",
+                seconds: "Secondes",
+                empty: "Aucun message de cette file n'a été traité sur cette période.",
+            },
+            messages: {
+                title: "Messages",
+                states: {
+                    queued: "En file",
+                    archived: "Archivés",
+                },
+                argumentsHidden:
+                    "Les arguments des tâches ne sont jamais affichés, car ils peuvent contenir des données d'électeurs.",
+                refresh: "Actualiser",
+                newest: "Les plus récents",
+                newer: "Plus récents",
+                older: "Plus anciens",
+                empty: "Aucun message",
+                unreadable: "Message illisible",
+                columns: {
+                    id: "ID",
+                    task: "Tâche",
+                    outcome: "Résultat",
+                    event: "Événement",
+                    error: "Erreur",
+                    enqueued: "Mis en file",
+                    reads: "Lectures",
+                    retries: "Nouvelles tentatives",
+                    archived: "Archivé",
+                    visible: "Visible à partir de",
+                    size: "Taille",
+                    taskId: "ID de tâche",
+                },
+            },
+            deadLetters: {
+                help: "Ces événements du journal électoral n'ont pas pu être traités. Sélectionnez des événements pour les renvoyer vers la file d'événements ou pour les écarter ; les événements écartés restent dans l'archive.",
+                noWrite:
+                    "Vous avez besoin de la permission task-queues-write pour renvoyer ou écarter ces événements.",
+                replay: "Renvoyer",
+                discard: "Écarter",
+                cancel: "Annuler",
+                confirmTitle: {
+                    replay: "Renvoyer les événements ?",
+                    discard: "Écarter les événements ?",
+                },
+                confirmBody: {
+                    replay_one:
+                        "{{count}} événement sera renvoyé vers la file d'événements du journal électoral. S'il échoue à nouveau, il reviendra ici.",
+                    replay_many:
+                        "{{count}} événements seront renvoyés vers la file d'événements du journal électoral. Les événements qui échouent à nouveau reviendront ici.",
+                    replay_other:
+                        "{{count}} événements seront renvoyés vers la file d'événements du journal électoral. Les événements qui échouent à nouveau reviendront ici.",
+                    discard_one:
+                        "{{count}} événement sera déplacé vers l'archive et ne sera pas ajouté au journal électoral.",
+                    discard_many:
+                        "{{count}} événements seront déplacés vers l'archive et ne seront pas ajoutés au journal électoral.",
+                    discard_other:
+                        "{{count}} événements seront déplacés vers l'archive et ne seront pas ajoutés au journal électoral.",
+                },
+                queued: {
+                    replay_one: "Renvoi de {{count}} événement mis en file comme tâche {{taskId}}.",
+                    replay_many:
+                        "Renvoi de {{count}} événements mis en file comme tâche {{taskId}}.",
+                    replay_other:
+                        "Renvoi de {{count}} événements mis en file comme tâche {{taskId}}.",
+                    discard_one:
+                        "Mise à l'écart de {{count}} événement mise en file comme tâche {{taskId}}.",
+                    discard_many:
+                        "Mise à l'écart de {{count}} événements mise en file comme tâche {{taskId}}.",
+                    discard_other:
+                        "Mise à l'écart de {{count}} événements mise en file comme tâche {{taskId}}.",
+                },
+                failed: "L'opération n'a pas pu être mise en file.",
+            },
+            tabs: {
+                queues: "Files",
+                query: "Requête",
+            },
+            query: {
+                help: "Les requêtes s'exécutent sur la base de données des files de tâches de l'environnement dans une transaction en lecture seule, avec son rôle de lecture. Chaque file a une table des messages en attente, pgmq.q_<file>, et une des messages traités, pgmq.a_<file>.",
+                arguments:
+                    "Les requêtes lisent les messages tels qu'ils sont stockés, avec les arguments de leurs tâches, qui peuvent contenir des données d'électeurs.",
+                placeholder: "SELECT …",
+                limits: "Lecture seule · jusqu'à 1 000 lignes · délai de 30 s · chaque requête est consignée dans les journaux du serveur avec votre utilisateur",
+                run: "Exécuter la Requête",
+                summary: "Lignes : {{rows}} · {{ms}} ms",
+                truncated: "Seules les {{rows}} premières lignes sont affichées.",
+                error: "La requête n'a pas pu s'exécuter.",
             },
         },
     },

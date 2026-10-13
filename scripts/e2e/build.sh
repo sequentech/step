@@ -93,7 +93,6 @@ $DOCKER run --rm \
         build -p windmill --bin main --bin beat
         build -p harvest --bin harvest
         build -p messaging-webhooks --bin messaging-webhooks
-        build -p immu-board --bin bb_helper
         build -p step-cli --bin step-cli
         build --release -p trustee --bin trustee
         build --manifest-path wbraid/Cargo.toml --release -p b4 --features postgres --bin b4v6
@@ -101,7 +100,6 @@ $DOCKER run --rm \
         install -m 0755 "$CARGO_TARGET_DIR/debug/beat" /out/beat
         install -m 0755 "$CARGO_TARGET_DIR/debug/harvest" /out/harvest
         install -m 0755 "$CARGO_TARGET_DIR/debug/messaging-webhooks" /out/messaging-webhooks
-        install -m 0755 "$CARGO_TARGET_DIR/debug/bb_helper" /out/bb_helper
         install -m 0755 "$CARGO_TARGET_DIR/debug/step-cli" /out/step-cli
         install -m 0755 "$CARGO_TARGET_DIR/release/b4v6" /out/b4v6
         install -m 0755 "$CARGO_TARGET_DIR/release/trustee" /out/trustee

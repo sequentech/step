@@ -51,6 +51,11 @@ export enum ITallyTrusteeStatus {
     HALTED = "HALTED",
 }
 
+export enum ETallyKeyRestoreEligibility {
+    ALLOWED = "ALLOWED",
+    DENIED = "DENIED",
+}
+
 export interface ITallyTrustee {
     name: string
     status: ITallyTrusteeStatus

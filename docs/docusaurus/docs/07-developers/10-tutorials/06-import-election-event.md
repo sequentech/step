@@ -630,6 +630,10 @@ The import process may take time for large election events. Consider:
 
 A keys ceremony is restored when it has no public key yet, or when its public key is the one on the imported bulletin board. Otherwise it is left out, and a new keys ceremony can be run for the imported event. An archive with a tally session that uses a keys ceremony that is left out is rejected. Generating ballots for a publication fails while an election's keys ceremony reports a public key that is not on its bulletin board.
 
+### Publish Imported Ballots Again
+
+An import never publishes ballots. Ballot publications in the archive are restored as unpublished drafts, and voters see no ballot until a user with the ballot publication permission publishes one. A draft keeps its generated ballots when every ballot carries the public key of its election's restored keys ceremony, or a demo key. Otherwise the draft is restored without generated ballots; generate a new publication once the keys ceremony is complete.
+
 ## 8. Next Steps
 
 Now that you can import election events via the API, explore other operations:

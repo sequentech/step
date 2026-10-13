@@ -77,9 +77,6 @@ in
     postgresql_18
     openssh
 
-    # immudb
-    go
-
     # To be able to use vim in the terminal
     vim
 

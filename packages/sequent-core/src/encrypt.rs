@@ -135,6 +135,75 @@ pub fn verify_ballot_ciphertexts(
     Ok(())
 }
 
+/// Verify a revealed single-contest ballot using its native proofs and openings.
+pub fn verify_auditable_ballot_ciphertexts(
+    _ctx: &RistrettoCtx,
+    ballot: &AuditableBallot,
+) -> Result<(), BallotError> {
+    let contests = ballot.deserialize_contests()?;
+    let expected: Vec<String> = ballot
+        .config
+        .votable_contests()
+        .map(|c| c.id.clone())
+        .collect();
+    let actual: Vec<String> =
+        contests.iter().map(|c| c.contest_id.clone()).collect();
+    if actual != expected {
+        return Err(BallotError::ConsistencyCheck(
+            "Auditable contest coverage differs from the ballot style".into(),
+        ));
+    }
+    let public_key = parse_public_key(&ballot.config)?;
+    let configuration_id = ballot_configuration_id(&ballot.config)?;
+    for contest in contests {
+        verify_auditable_choice(
+            &contest.choice,
+            configuration_id,
+            &public_key,
+        )?;
+    }
+    Ok(())
+}
+
+/// Verify a revealed multi-contest ballot using its native proof and opening.
+pub fn verify_auditable_multi_ballot_ciphertext(
+    _ctx: &RistrettoCtx,
+    ballot: &AuditableMultiBallot,
+) -> Result<(), BallotError> {
+    let contests = ballot.deserialize_contests()?;
+    let expected: Vec<String> = ballot
+        .config
+        .votable_contests()
+        .map(|c| c.id.clone())
+        .collect();
+    if contests.contest_ids != expected {
+        return Err(BallotError::ConsistencyCheck(
+            "Auditable contest coverage differs from the ballot style".into(),
+        ));
+    }
+    verify_auditable_choice(
+        &contests.choice,
+        ballot_configuration_id(&ballot.config)?,
+        &parse_public_key(&ballot.config)?,
+    )
+}
+
+fn verify_auditable_choice(
+    choice: &ReplicationChoice,
+    configuration_id: u128,
+    public_key: &<RistrettoCtx as Context>::Element,
+) -> Result<(), BallotError> {
+    let entry = BallotCiphertext::new(Vec::new(), choice.ciphertext.clone());
+    verify_opening(
+        &entry,
+        configuration_id,
+        public_key,
+        &choice.plaintext,
+        &choice.randomness,
+    )
+    .map_err(|err| BallotError::CryptographicCheck(err.to_string()))
+}
+
 /// Encrypt the ballot codec's payload with wbraid's Naor–Yung tooling.
 pub fn encrypt_plaintext_candidate(
     _ctx: &RistrettoCtx,
@@ -651,6 +720,82 @@ mod tests {
 
     use cryptography::context::Context;
     use cryptography::context::RistrettoCtx;
+
+    #[test]
+    fn auditable_ciphertexts_reject_changed_openings_and_contest_coverage() {
+        let style = get_writein_ballot_style();
+        let selections = vec![get_writein_plaintext()];
+        let mut ballot =
+            encrypt_decoded_contest(&RistrettoCtx, &selections, &style)
+                .unwrap();
+        encrypt::verify_auditable_ballot_ciphertexts(&RistrettoCtx, &ballot)
+            .unwrap();
+        let mut contests = ballot.deserialize_contests().unwrap();
+        contests[0].choice.plaintext[0] ^= 1;
+        ballot.contests =
+            crate::ballot::AuditableBallot::serialize_contests(&contests)
+                .unwrap();
+        assert!(matches!(
+            encrypt::verify_auditable_ballot_ciphertexts(
+                &RistrettoCtx,
+                &ballot
+            ),
+            Err(crate::error::BallotError::CryptographicCheck(_))
+        ));
+        contests[0].choice.plaintext[0] ^= 1;
+        contests[0].contest_id = "foreign-contest".into();
+        ballot.contests =
+            crate::ballot::AuditableBallot::serialize_contests(&contests)
+                .unwrap();
+        assert!(encrypt::verify_auditable_ballot_ciphertexts(
+            &RistrettoCtx,
+            &ballot
+        )
+        .is_err());
+        ballot.contests.clear();
+        assert!(encrypt::verify_auditable_ballot_ciphertexts(
+            &RistrettoCtx,
+            &ballot
+        )
+        .is_err());
+
+        let mut multi = encrypt::encrypt_decoded_multi_contest(
+            &RistrettoCtx,
+            &selections,
+            &style,
+        )
+        .unwrap();
+        encrypt::verify_auditable_multi_ballot_ciphertext(
+            &RistrettoCtx,
+            &multi,
+        )
+        .unwrap();
+        let mut contests = multi.deserialize_contests().unwrap();
+        contests.choice.randomness = RistrettoCtx::random_scalar();
+        multi.contests =
+            crate::multi_ballot::AuditableMultiBallot::serialize_contests(
+                &contests,
+            )
+            .unwrap();
+        assert!(matches!(
+            encrypt::verify_auditable_multi_ballot_ciphertext(
+                &RistrettoCtx,
+                &multi
+            ),
+            Err(crate::error::BallotError::CryptographicCheck(_))
+        ));
+        contests.contest_ids.push(contests.contest_ids[0].clone());
+        multi.contests =
+            crate::multi_ballot::AuditableMultiBallot::serialize_contests(
+                &contests,
+            )
+            .unwrap();
+        assert!(encrypt::verify_auditable_multi_ballot_ciphertext(
+            &RistrettoCtx,
+            &multi
+        )
+        .is_err());
+    }
 
     #[test]
     fn published_style_binds_ciphertexts_to_ceremony_and_contest_order() {

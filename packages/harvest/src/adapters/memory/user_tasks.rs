@@ -19,6 +19,7 @@ pub enum UserTaskCall {
     CreateImport,
     CreateExport,
     Fail,
+    Connect,
     SendImport,
     SendExport,
     Audit,
@@ -157,8 +158,10 @@ impl UserTaskAuthorization for InMemoryUserTasks {
 
 impl UserTaskDispatch for InMemoryUserTasks {
     type Connection = ();
-    async fn connect(&self) {
-        self.state().connection_count += 1;
+    async fn connect(&self) -> Result<(), UserTaskSendFailure> {
+        let mut state = self.state();
+        state.connection_count += 1;
+        state.check_send(UserTaskCall::Connect)
     }
     async fn import(
         &self,

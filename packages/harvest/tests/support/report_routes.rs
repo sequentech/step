@@ -171,6 +171,33 @@ async fn a_render_that_cannot_be_enqueued_leaves_its_task_row_in_progress() {
 }
 
 #[rocket::async_test]
+async fn a_render_the_task_queues_cannot_take_writes_no_task_row() {
+    let services = Services::on_test_database()
+        .await
+        .with_tasks(MemoryTaskQueue::unreachable());
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let document_id = html_document(&services, &event).await;
+
+    let response = post(
+        &client,
+        "/render-document-pdf",
+        &reader(&event, &[Permissions::REPORT_READ]),
+        &render_request(&event, &document_id),
+    )
+    .await;
+    assert_eq!(
+        text(response).await,
+        (
+            Status::InternalServerError,
+            "The task queues are not available: Timed out connecting to the task-queue database"
+                .into()
+        )
+    );
+    assert!(services.ledger.tasks().is_empty());
+}
+
+#[rocket::async_test]
 async fn a_render_whose_task_row_cannot_be_written_is_not_queued() {
     let services = Services::on_test_database()
         .await

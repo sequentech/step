@@ -6,7 +6,8 @@
 //! countries, with votes over a week, applications and sign-in counters.
 //!
 //! Each size seeds a synthetic event in bulk, including a Keycloak-shaped
-//! realm (the tables and indexes the projection's query reads), then runs
+//! realm (the tables and indexes the projection's query reads) and a ballot
+//! box in memory (the first valid votes the event's ballot box reads), then runs
 //! the snapshot job's own pass over it: a first pass, an unchanged one, one
 //! after 1% of the voters voted, a full pass over the accounts with nothing
 //! changed, pruning, and a CSV and SQL export of every dashboard. It prints
@@ -23,12 +24,14 @@ mod schema;
 use async_trait::async_trait;
 use chrono::{Duration, Utc};
 use deadpool_postgres::{Client, Transaction};
+use electoral_log::adapters::ballot_box_reads::{FirstValidVote, FirstValidVotes};
 use indexmap::IndexMap;
 use sequent_core::monitoring::payload::ScopePayload;
 use sequent_core::monitoring::presets;
 use sequent_core::monitoring::revision::DashboardMode;
 use sequent_core::monitoring::sources::DataSourceId;
 use std::collections::BTreeMap;
+use std::sync::Mutex;
 use std::time::{Duration as Elapsed, Instant};
 use tokio_postgres::IsolationLevel;
 use uuid::Uuid;
@@ -38,7 +41,9 @@ use windmill::services::monitoring::config_store::{
 use windmill::services::monitoring::export::{
     build_file, collect_export, MonitoringExportFormat, MonitoringExportRequest,
 };
-use windmill::services::monitoring::projection::refresh_voter_activity;
+use windmill::services::monitoring::projection::{
+    refresh_voter_activity, FirstVoteSource, FirstVotes,
+};
 use windmill::services::monitoring::snapshot::{
     live_snapshot, prune_snapshots, read_scope, refresh_event_snapshot, request_election_set,
     PassOptions, PassOutcome, Recount, ScopeRead,
@@ -52,8 +57,67 @@ const COUNTRIES: i32 = 150;
 const VOTER_GROUP: &str = "voter";
 /// The schema standing in for the Keycloak database.
 const KEYCLOAK: &str = "monitoring_scale_keycloak";
-/// Voters whose ballots one statement inserts.
-const VOTE_CHUNK: usize = 2_000;
+
+/// The event's ballot box in memory: its valid ballots in sequence order.
+#[derive(Debug, Default)]
+struct MemoryBallotBox {
+    valid: Mutex<Vec<FirstValidVote>>,
+}
+
+impl MemoryBallotBox {
+    fn cast(&self, ballots: impl IntoIterator<Item = FirstValidVote>) {
+        self.valid.lock().unwrap().extend(ballots);
+    }
+}
+
+#[async_trait]
+impl FirstVoteSource for MemoryBallotBox {
+    async fn first_valid_votes(
+        &self,
+        _: EventRef,
+        after_seq: i64,
+    ) -> anyhow::Result<FirstValidVotes> {
+        let valid = self.valid.lock().unwrap();
+        let mut first: BTreeMap<(String, String), i64> = BTreeMap::new();
+        for ballot in valid.iter().skip(usize::try_from(after_seq)?) {
+            let at = first
+                .entry((ballot.election_id.clone(), ballot.voter_id.clone()))
+                .or_insert(ballot.accepted_at);
+            *at = (*at).min(ballot.accepted_at);
+        }
+        Ok(FirstValidVotes {
+            votes: first
+                .into_iter()
+                .map(|((election_id, voter_id), accepted_at)| FirstValidVote {
+                    election_id,
+                    voter_id,
+                    accepted_at,
+                })
+                .collect(),
+            next_seq: after_seq.max(i64::try_from(valid.len())?),
+        })
+    }
+}
+
+/// The ballots `query` returns as (election, voter, accepted at in Unix
+/// microseconds).
+async fn ballots(
+    client: &Client,
+    query: &str,
+    params: &[&(dyn tokio_postgres::types::ToSql + Sync)],
+) -> Vec<FirstValidVote> {
+    client
+        .query(query, params)
+        .await
+        .unwrap()
+        .iter()
+        .map(|row| FirstValidVote {
+            election_id: row.get(0),
+            voter_id: row.get(1),
+            accepted_at: row.get(2),
+        })
+        .collect()
+}
 
 struct NoAudit;
 
@@ -154,9 +218,15 @@ async fn keycloak_schema(client: &Client) {
         .unwrap();
 }
 
-/// A synthetic event of `voters` voters, seeded in bulk. Every choice is a
-/// hash of the voter's number, so a size seeds the same event every time.
-async fn seed(client: &mut Client, keycloak: &Client, voters: i32) -> EventRef {
+/// A synthetic event of `voters` voters, seeded in bulk, with its valid
+/// ballots in `ballot_box`. Every choice is a hash of the voter's number, so
+/// a size seeds the same event every time.
+async fn seed(
+    client: &mut Client,
+    keycloak: &Client,
+    ballot_box: &MemoryBallotBox,
+    voters: i32,
+) -> EventRef {
     let event = EventRef {
         tenant_id: Uuid::new_v4(),
         election_event_id: Uuid::new_v4(),
@@ -300,53 +370,34 @@ async fn seed(client: &mut Client, keycloak: &Client, voters: i32) -> EventRef {
     .unwrap();
     tx.commit().await.unwrap();
     // 60% of voters vote, over seven days ending an hour ago; one in six of
-    // them votes again later; a few leave a discarded or unfinished ballot.
-    // In chunks: the revote limit's trigger takes a lock per voter, which
-    // one transaction cannot hold for tens of thousands.
-    for from in (0..voters).step_by(VOTE_CHUNK) {
-        client
-            .execute(
-                "WITH voters AS (
-             SELECT i, md5($2::uuid::text || '/voter/' || i)::uuid::text AS voter,
-                    ((hashint4(i) & 2147483647) % ($3::int + $5::int)) AS a,
-                    (hashint4(i * 7 + 1) & 2147483647) % 100 AS roll,
-                    (hashint4(i * 7 + 2) & 2147483647) % (7 * 24 * 3600) AS second
-             FROM generate_series($6::int, least($4::int, $6::int + $7::int) - 1) AS i
-         ),
-         placed AS (
-             SELECT *, md5($2::uuid::text || '/area/' || a)::uuid AS area,
-                    CASE WHEN a < $3::int THEN a ELSE a - $3::int END AS p
-             FROM voters
-         ),
-         ballots AS (
-             SELECT area, p, voter, 'valid' AS status, second FROM placed WHERE roll < 60
-             UNION ALL
-             SELECT area, p, voter, 'valid', second + (7 * 24 * 3600 - second) / 2
-             FROM placed WHERE roll < 10
-             UNION ALL
-             SELECT area, p, voter, CASE WHEN roll < 63 THEN 'discarded' ELSE 'in-progress' END,
-                    second
-             FROM placed WHERE roll >= 60 AND roll < 65
-         )
-         INSERT INTO sequent_backend.cast_vote
-             (tenant_id, election_event_id, election_id, area_id, voter_id_string, status,
-              created_at)
-         SELECT $1, $2, md5($2::uuid::text || '/post/' || p)::uuid, area, voter, status,
-                now() - interval '7 days 1 hour' + make_interval(secs => second)
-         FROM ballots",
-                &[
-                    &tenant,
-                    &id,
-                    &POSTS,
-                    &voters,
-                    &SHARED_AREAS,
-                    &from,
-                    &(VOTE_CHUNK as i32),
-                ],
-            )
-            .await
-            .unwrap();
-    }
+    // them votes again later.
+    ballot_box.cast(
+        ballots(
+            client,
+            "WITH voters AS (
+                 SELECT i, md5($1::uuid::text || '/voter/' || i)::uuid::text AS voter,
+                        ((hashint4(i) & 2147483647) % ($2::int + $4::int)) AS a,
+                        (hashint4(i * 7 + 1) & 2147483647) % 100 AS roll,
+                        (hashint4(i * 7 + 2) & 2147483647) % (7 * 24 * 3600) AS second
+                 FROM generate_series(0, $3::int - 1) AS i
+             ),
+             placed AS (
+                 SELECT *, CASE WHEN a < $2::int THEN a ELSE a - $2::int END AS p FROM voters
+             ),
+             ballots AS (
+                 SELECT p, voter, second FROM placed WHERE roll < 60
+                 UNION ALL
+                 SELECT p, voter, second + (7 * 24 * 3600 - second) / 2
+                 FROM placed WHERE roll < 10
+             )
+             SELECT md5($1::uuid::text || '/post/' || p)::uuid::text, voter,
+                    (extract(epoch FROM now() - interval '7 days 1 hour'
+                                        + make_interval(secs => second)) * 1000000)::bigint
+             FROM ballots",
+            &[&id, &POSTS, &voters, &SHARED_AREAS],
+        )
+        .await,
+    );
 
     let ResetOutcome::Reset { .. } = reset_to_preset(
         client,
@@ -435,6 +486,7 @@ async fn seed(client: &mut Client, keycloak: &Client, voters: i32) -> EventRef {
 async fn pass(
     hasura: &mut Client,
     keycloak: &mut Client,
+    ballot_box: &MemoryBallotBox,
     event: EventRef,
     now: chrono::DateTime<Utc>,
 ) -> PassOutcome {
@@ -446,6 +498,7 @@ async fn pass(
             voter_group: VOTER_GROUP,
             full_pass_every: Duration::minutes(5),
             now,
+            ballot_box,
         },
     )
     .await
@@ -579,7 +632,8 @@ async fn at_size(voters: i32) {
     let mut keycloak = pool.get().await.unwrap();
     keycloak_schema(&keycloak).await;
 
-    let (event, took) = timed(seed(&mut hasura, &keycloak, voters)).await;
+    let ballot_box = MemoryBallotBox::default();
+    let (event, took) = timed(seed(&mut hasura, &keycloak, &ballot_box, voters)).await;
     println!("[scale] voters={voters} step=seed ms={}", took.as_millis());
     let posts: Vec<Uuid> = hasura
         .query(
@@ -595,7 +649,7 @@ async fn at_size(voters: i32) {
     let now = Utc::now();
 
     // The first pass: every account read, every scope written.
-    let (first, took) = timed(pass(&mut hasura, &mut keycloak, event, now)).await;
+    let (first, took) = timed(pass(&mut hasura, &mut keycloak, &ballot_box, event, now)).await;
     let PassOutcome::Completed {
         revision,
         figures_written,
@@ -629,8 +683,10 @@ async fn at_size(voters: i32) {
     // Bringing enrollment and first votes up to date, on its own, before
     // the table's statistics catch up with the rows just written.
     {
+        let read = ballot_box.first_valid_votes(event, 0).await.unwrap();
+        let first_votes = FirstVotes::from_read(&read.votes, true).unwrap();
         let tx = hasura.transaction().await.unwrap();
-        let (changed, took) = timed(refresh_voter_activity(&tx, event)).await;
+        let (changed, took) = timed(refresh_voter_activity(&tx, event, &first_votes)).await;
         assert_eq!(
             changed.unwrap(),
             0,
@@ -674,7 +730,7 @@ async fn at_size(voters: i32) {
     }
 
     // Nothing changed: nothing is counted, no run is written.
-    let (second, took) = timed(pass(&mut hasura, &mut keycloak, event, now)).await;
+    let (second, took) = timed(pass(&mut hasura, &mut keycloak, &ballot_box, event, now)).await;
     assert_eq!(
         second,
         PassOutcome::Unchanged {
@@ -685,13 +741,11 @@ async fn at_size(voters: i32) {
     check(voters, "unchanged_pass", took, budget(voters, 300, 200));
 
     // 1% of the voters vote now.
-    hasura
-        .execute(
-            "INSERT INTO sequent_backend.cast_vote
-                 (tenant_id, election_event_id, election_id, area_id, voter_id_string, status,
-                  created_at)
-             SELECT v.tenant_id, v.election_event_id, v.election_id, v.area_id, v.voter_id,
-                    'valid', now()
+    ballot_box.cast(
+        ballots(
+            &hasura,
+            "SELECT v.election_id::text, v.voter_id,
+                    (extract(epoch FROM now()) * 1000000)::bigint
              FROM (SELECT DISTINCT ON (voter_id) * FROM sequent_backend.monitoring_voter
                    WHERE tenant_id = $1 AND election_event_id = $2 AND first_voted_at IS NULL
                    ORDER BY voter_id) v
@@ -702,9 +756,9 @@ async fn at_size(voters: i32) {
                 &i64::from((voters / 100).max(1)),
             ],
         )
-        .await
-        .unwrap();
-    let (changed, took) = timed(pass(&mut hasura, &mut keycloak, event, now)).await;
+        .await,
+    );
+    let (changed, took) = timed(pass(&mut hasura, &mut keycloak, &ballot_box, event, now)).await;
     let PassOutcome::Completed {
         revision: after_change,
         figures_written: changed_figures,
@@ -731,7 +785,7 @@ async fn at_size(voters: i32) {
 
     // A full pass over the accounts, which changed in nothing.
     let later = now + Duration::minutes(10);
-    let (full, took) = timed(pass(&mut hasura, &mut keycloak, event, later)).await;
+    let (full, took) = timed(pass(&mut hasura, &mut keycloak, &ballot_box, event, later)).await;
     assert_eq!(
         full,
         PassOutcome::Unchanged {

@@ -158,6 +158,22 @@ async fn a_pending_vote_is_accepted_when_its_processing_cannot_be_enqueued() {
 }
 
 #[rocket::async_test]
+async fn a_pending_vote_is_accepted_when_the_task_queues_are_unreachable() {
+    let services = Services::without_database()
+        .with_tasks(MemoryTaskQueue::unreachable())
+        .with_cast_votes(ScriptedCastVotes::answering([Ok(
+            InsertCastVoteResult::PendingDatafix(cast_vote(
+                CastVoteStatus::InProgress,
+            )),
+        )]));
+    let client = services.client().await;
+
+    let (status, _) = json(cast(&client, &voter()).await).await;
+    assert_eq!(status, Status::Ok);
+    assert!(services.tasks.sent().is_empty());
+}
+
+#[rocket::async_test]
 async fn a_failed_attempt_is_retried() {
     let services = Services::without_database().with_cast_votes(
         ScriptedCastVotes::answering([

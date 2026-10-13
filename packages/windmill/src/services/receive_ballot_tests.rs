@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::*;
+use chrono::Duration;
 use sequent_core::ballot_receipt::verify_received_ballot;
 use voting_crypto::signing::VerificationKey;
 
@@ -90,9 +91,71 @@ fn the_received_time_is_signed_to_the_millisecond() {
     let time = Utc.timestamp_nanos(1_841_367_600_007_654_321);
 
     assert_eq!(
-        format_received_at(&truncate_to_milliseconds(time).unwrap()),
+        format_signed_time(&truncate_to_milliseconds(time).unwrap()),
         "2028-05-08T03:00:00.007Z"
     );
+}
+
+#[test]
+fn signed_times_keep_milliseconds_and_utc() {
+    assert_eq!(
+        format_signed_time(&Utc.timestamp_millis_opt(1_841_367_600_007).unwrap()),
+        "2028-05-08T03:00:00.007Z"
+    );
+    assert_eq!(
+        format_signed_time(&Utc.timestamp_millis_opt(1_841_367_600_000).unwrap()),
+        "2028-05-08T03:00:00.000Z"
+    );
+}
+
+#[test]
+fn a_stored_ballot_reads_back_as_the_receipt_the_ballot_box_signed() {
+    let signing_key = SigningKey::generate().unwrap();
+    let voter_key = SigningKey::generate().unwrap();
+    let voter_signing_pk = VerificationKey::from_sk(&voter_key)
+        .unwrap()
+        .to_b64_string()
+        .unwrap();
+    let voter_ballot_signature = voter_key.sign(b"ballot").unwrap().to_b64_string().unwrap();
+    let (tenant, event, election) = (Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4());
+    let scope = ReceivedBallotScope {
+        tenant_id: &tenant,
+        election_event_id: &event,
+        election_id: &election,
+        ballot_hash: "ballot-hash",
+    };
+    let received_at = truncate_to_milliseconds(Utc::now()).unwrap();
+    let received = sign_received(
+        &signing_key,
+        &scope,
+        &voter_signing_pk,
+        &voter_ballot_signature,
+        &received_at,
+    )
+    .unwrap();
+    let stored = StoredReceivedBallot {
+        id: Uuid::new_v4().to_string(),
+        election_event_id: event.to_string(),
+        election_id: election.to_string(),
+        area_id: Uuid::new_v4().to_string(),
+        voter_id: "voter".into(),
+        ballot_id: received.ballot_id.clone(),
+        ballot_hash: "ballot-hash".into(),
+        content: "ciphertext".into(),
+        voter_signing_pk,
+        voter_ballot_signature,
+        received_at,
+        key_id: received.statement.key_id.clone(),
+        received_signature: received.received_signature.clone(),
+        status: electoral_log::adapters::ballot_box_received::ReceivedStatus::Received,
+        cast_at: None,
+        cast_signature: None,
+        cast_receipt_signature: None,
+    };
+
+    let read_back = stored_receipt(&tenant, stored);
+    assert_eq!(read_back, received);
+    verify_received_ballot(&published_key(&signing_key).unwrap(), &read_back).unwrap();
 }
 
 #[test]
@@ -109,7 +172,6 @@ fn the_ballot_box_signs_a_receipt_voters_can_check_with_its_published_key() {
         tenant_id: &tenant,
         election_event_id: &event,
         election_id: &election,
-        voter_id: "voter",
         ballot_hash: "ballot-hash",
     };
     let received_at = truncate_to_milliseconds(Utc::now()).unwrap();
@@ -152,7 +214,6 @@ fn a_malformed_voter_key_cannot_be_signed_for() {
         tenant_id: &tenant,
         election_event_id: &event,
         election_id: &election,
-        voter_id: "voter",
         ballot_hash: "ballot-hash",
     };
 

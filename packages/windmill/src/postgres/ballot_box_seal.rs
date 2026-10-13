@@ -5,11 +5,12 @@
 //! Ballot box seals (VOTE-FREEZE), table `sequent_backend.ballot_box_seal`
 //! (migration `1791000001600_ballot_box_seal`).
 //!
-//! A ballot box is the `cast_vote` rows of one tenant, event, election and
-//! area. Closing an election whose event seals at close creates one
-//! `pending` row per box; the sealer moves it to `sealed` (or `failed`) and
-//! the publisher to `published`. Triggers keep the rows permanent and refuse
-//! any write to the `cast_vote` rows of a box whose seal isn't `pending`.
+//! A ballot box is the ballots of one election and area in the event's
+//! ballot box. Closing an election whose event seals at close creates one
+//! `pending` row per box; the sealer moves it to `sealed` (or `failed`) once
+//! the seal is stored in the event's electoral-log database, and the
+//! publisher to `published`. Triggers keep the rows permanent; the event's
+//! database refuses the writes to a sealed box.
 
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
@@ -20,20 +21,6 @@ use strum_macros::{Display, EnumString};
 use tokio_postgres::Row;
 use tracing::instrument;
 use uuid::Uuid;
-
-/// The prefix of a ballot box's advisory-lock key; the migration's
-/// `ballot_box_lock_key` builds the same text.
-const LOCK_KEY_PREFIX: &str = "ballot-box";
-
-/// The `RAISE EXCEPTION` message of the `cast_vote` guard when a write
-/// reaches a sealed ballot box.
-pub const BALLOT_BOX_SEALED_ERROR: &str = "ballot_box_sealed";
-
-/// The `RAISE EXCEPTION` message of the `cast_vote` guard when a write to a
-/// seal-at-close event runs above READ COMMITTED (its snapshot could miss a
-/// seal committed while it waited for the box lock).
-pub const BALLOT_BOX_SEAL_REQUIRES_READ_COMMITTED_ERROR: &str =
-    "ballot_box_seal_requires_read_committed";
 
 /// Where a seal is in its life: `pending → sealed → published`, or
 /// `pending → failed`. A `failed` seal keeps its box locked.
@@ -76,6 +63,26 @@ pub enum ClosedBy {
     Scheduled,
 }
 
+/// Where a seal's record, or a failed seal's, is on the event's electoral
+/// log: its delivery ID, the log it is in and its leaf there, which stay the
+/// same wherever the log is copied.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SealLogRecord {
+    pub delivery_id: String,
+    pub log_uid: Uuid,
+    pub leaf_index: i64,
+}
+
+impl From<&electoral_log::StoredRecord> for SealLogRecord {
+    fn from(record: &electoral_log::StoredRecord) -> Self {
+        SealLogRecord {
+            delivery_id: record.delivery_id.clone(),
+            log_uid: record.log_uid,
+            leaf_index: record.leaf_index,
+        }
+    }
+}
+
 /// One row of `sequent_backend.ballot_box_seal`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct BallotBoxSeal {
@@ -99,7 +106,9 @@ pub struct BallotBoxSeal {
     /// The exact Borsh `Message`, as the electoral log stores it.
     pub signed_message: Option<Vec<u8>>,
     pub failure_reason: Option<String>,
-    pub log_entry_id: Option<i64>,
+    /// The seal's record on the electoral log; a failed seal has one unless
+    /// the event has no electoral log.
+    pub log_record: Option<SealLogRecord>,
     pub public_document_id: Option<Uuid>,
     pub public_path: Option<String>,
     pub published_at: Option<DateTime<Utc>>,
@@ -108,24 +117,10 @@ pub struct BallotBoxSeal {
     /// sealed yet ([`WaitingReason`] as text).
     pub last_attempt_at: Option<DateTime<Utc>>,
     pub waiting_reason: Option<String>,
-    /// When a failed seal's `BallotBoxSealFailed` entry was posted.
-    pub failure_posted_at: Option<DateTime<Utc>>,
     /// The election and area names the seal signed (unset on seals made
     /// before they were kept).
     pub election_name: Option<String>,
     pub area_name: Option<String>,
-}
-
-impl BallotBoxSeal {
-    /// The advisory-lock key of this row's ballot box.
-    pub fn lock_key(&self) -> String {
-        ballot_box_lock_key(
-            &self.tenant_id,
-            &self.election_event_id,
-            &self.election_id,
-            &self.area_id,
-        )
-    }
 }
 
 impl TryFrom<Row> for BallotBoxSeal {
@@ -154,17 +149,32 @@ impl TryFrom<Row> for BallotBoxSeal {
             manifest: optional_column(&row, "manifest")?,
             signed_message: optional_column(&row, "signed_message")?,
             failure_reason: row.try_get("failure_reason")?,
-            log_entry_id: row.try_get("log_entry_id")?,
+            log_record: log_record(&row)?,
             public_document_id: row.try_get("public_document_id")?,
             public_path: row.try_get("public_path")?,
             published_at: row.try_get("published_at")?,
             created_at: row.try_get("created_at")?,
             last_attempt_at: row.try_get("last_attempt_at")?,
             waiting_reason: row.try_get("waiting_reason")?,
-            failure_posted_at: row.try_get("failure_posted_at")?,
             election_name: row.try_get("election_name")?,
             area_name: row.try_get("area_name")?,
         })
+    }
+}
+
+/// The log record columns of a row: all set, or none.
+fn log_record(row: &Row) -> Result<Option<SealLogRecord>> {
+    let delivery_id: Option<String> = row.try_get("log_delivery_id")?;
+    let log_uid: Option<Uuid> = row.try_get("log_uid")?;
+    let leaf_index: Option<i64> = row.try_get("log_leaf_index")?;
+    match (delivery_id, log_uid, leaf_index) {
+        (Some(delivery_id), Some(log_uid), Some(leaf_index)) => Ok(Some(SealLogRecord {
+            delivery_id,
+            log_uid,
+            leaf_index,
+        })),
+        (None, None, None) => Ok(None),
+        _ => Err(anyhow!("A ballot box seal has an incomplete log record")),
     }
 }
 
@@ -190,12 +200,12 @@ pub struct SealedFields {
     pub seal_hash: String,
     pub manifest: Vec<u8>,
     pub signed_message: Vec<u8>,
+    pub log_record: SealLogRecord,
 }
 
 /// What publishing a seal stores.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PublishedFields {
-    pub log_entry_id: i64,
     /// The seal record's document: public or private, by the event's Seal
     /// Record Publication policy.
     pub public_document_id: Uuid,
@@ -205,39 +215,20 @@ pub struct PublishedFields {
     pub published_at: DateTime<Utc>,
 }
 
-/// The advisory-lock key of a ballot box, the same text as the SQL
-/// `ballot_box_lock_key` the `cast_vote` guard locks (shared):
-/// `ballot-box:{tenant}:{event}:{election}:{area}`, lowercase hyphenated
-/// UUIDs as PostgreSQL prints them.
-pub fn ballot_box_lock_key(
-    tenant_id: &Uuid,
-    election_event_id: &Uuid,
-    election_id: &Uuid,
-    area_id: &Uuid,
-) -> String {
-    format!(
-        "{LOCK_KEY_PREFIX}:{}:{}:{}:{}",
-        tenant_id.hyphenated(),
-        election_event_id.hyphenated(),
-        election_id.hyphenated(),
-        area_id.hyphenated()
-    )
-}
-
 /// Every column but the two large ones (`manifest`, `signed_message`):
 /// what the lists read. A row read this way has `None` for those two.
 const STATE_COLUMNS: &str = "id, tenant_id, election_event_id, election_id, area_id, status, \
      closed_at, grace_deadline, close_request_id, closed_by, sealed_at, ballots_in_box, \
-     ballots_counted, seal_hash, failure_reason, log_entry_id, public_document_id, \
-     public_path, published_at, created_at, last_attempt_at, waiting_reason, \
-     failure_posted_at, election_name, area_name";
+     ballots_counted, seal_hash, failure_reason, log_delivery_id, log_uid, log_leaf_index, \
+     public_document_id, public_path, published_at, created_at, last_attempt_at, \
+     waiting_reason, election_name, area_name";
 
 /// Every column: what reading one seal returns.
 const SELECT_COLUMNS: &str = "id, tenant_id, election_event_id, election_id, area_id, status, \
      closed_at, grace_deadline, close_request_id, closed_by, sealed_at, ballots_in_box, \
-     ballots_counted, seal_hash, failure_reason, log_entry_id, public_document_id, \
-     public_path, published_at, created_at, last_attempt_at, waiting_reason, \
-     failure_posted_at, election_name, area_name, manifest, signed_message";
+     ballots_counted, seal_hash, failure_reason, log_delivery_id, log_uid, log_leaf_index, \
+     public_document_id, public_path, published_at, created_at, last_attempt_at, \
+     waiting_reason, election_name, area_name, manifest, signed_message";
 
 /// A column the query may have left out: `None` when it did.
 fn optional_column<'a, T: tokio_postgres::types::FromSql<'a>>(
@@ -320,22 +311,6 @@ pub async fn list_due_pending(
         .await
         .context("Error listing the due pending ballot box seals")?;
     rows_to_seals(rows)
-}
-
-/// Takes the ballot box's advisory lock exclusively until the transaction
-/// ends. Run it as the first statement of a READ COMMITTED transaction: a
-/// cast already holding the shared lock commits first and is sealed; a cast
-/// arriving later waits and then sees the seal.
-#[instrument(skip(transaction), err)]
-pub async fn lock_box(transaction: &Transaction<'_>, key: &str) -> Result<()> {
-    transaction
-        .execute(
-            "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
-            &[&key],
-        )
-        .await
-        .with_context(|| format!("Error locking ballot box {key}"))?;
-    Ok(())
 }
 
 /// The seal `id`, locked FOR UPDATE until the transaction ends.
@@ -442,7 +417,8 @@ async fn seal_row(
             "UPDATE sequent_backend.ballot_box_seal
              SET status = $2, sealed_at = $3, ballots_in_box = $4, ballots_counted = $5,
                  seal_hash = $6, manifest = $7, signed_message = $8,
-                 election_name = $10, area_name = $11
+                 election_name = $10, area_name = $11, log_delivery_id = $12,
+                 log_uid = $13, log_leaf_index = $14
              WHERE id = $1 AND status = $9",
             &[
                 id,
@@ -456,6 +432,9 @@ async fn seal_row(
                 &BallotBoxSealStatus::Pending.to_string(),
                 &election_name,
                 &area_name,
+                &fields.log_record.delivery_id,
+                &fields.log_record.log_uid,
+                &fields.log_record.leaf_index,
             ],
         )
         .await
@@ -466,11 +445,17 @@ async fn seal_row(
     Ok(())
 }
 
-/// Moves a `pending` seal to `failed` with its reason. The box stays
-/// locked. Fails if the seal isn't pending.
+/// Moves a `pending` seal to `failed` with its reason and the record of
+/// the failure on the electoral log, when it has one. The box stays locked.
+/// Fails if the seal isn't pending.
 #[instrument(skip(transaction), err)]
-pub async fn mark_failed(transaction: &Transaction<'_>, id: &Uuid, reason: &str) -> Result<()> {
-    fail_row(transaction, id, reason, None).await
+pub async fn mark_failed(
+    transaction: &Transaction<'_>,
+    id: &Uuid,
+    reason: &str,
+    log_record: Option<&SealLogRecord>,
+) -> Result<()> {
+    fail_row(transaction, id, reason, log_record, None).await
 }
 
 /// [`mark_failed`], keeping the election and area names for the incident.
@@ -479,15 +464,17 @@ pub async fn mark_failed_with_names(
     transaction: &Transaction<'_>,
     id: &Uuid,
     reason: &str,
+    log_record: Option<&SealLogRecord>,
     names: &SealedNames,
 ) -> Result<()> {
-    fail_row(transaction, id, reason, Some(names)).await
+    fail_row(transaction, id, reason, log_record, Some(names)).await
 }
 
 async fn fail_row(
     transaction: &Transaction<'_>,
     id: &Uuid,
     reason: &str,
+    log_record: Option<&SealLogRecord>,
     names: Option<&SealedNames>,
 ) -> Result<()> {
     let election_name = names.map(|names| names.election_name.clone());
@@ -495,7 +482,8 @@ async fn fail_row(
     let updated = transaction
         .execute(
             "UPDATE sequent_backend.ballot_box_seal
-             SET status = $2, failure_reason = $3, election_name = $5, area_name = $6
+             SET status = $2, failure_reason = $3, election_name = $5, area_name = $6,
+                 log_delivery_id = $7, log_uid = $8, log_leaf_index = $9
              WHERE id = $1 AND status = $4",
             &[
                 id,
@@ -504,6 +492,9 @@ async fn fail_row(
                 &BallotBoxSealStatus::Pending.to_string(),
                 &election_name,
                 &area_name,
+                &log_record.map(|record| record.delivery_id.as_str()),
+                &log_record.map(|record| record.log_uid),
+                &log_record.map(|record| record.leaf_index),
             ],
         )
         .await
@@ -535,8 +526,8 @@ pub async fn list_sealed_unpublished(
     rows_to_seals(rows)
 }
 
-/// Moves a `sealed` seal to `published` with its log entry and public
-/// record. Fails if the seal isn't sealed.
+/// Moves a `sealed` seal to `published` with its record document. Fails if
+/// the seal isn't sealed.
 #[instrument(skip(transaction), err)]
 pub async fn mark_published(
     transaction: &Transaction<'_>,
@@ -546,13 +537,11 @@ pub async fn mark_published(
     let updated = transaction
         .execute(
             "UPDATE sequent_backend.ballot_box_seal
-             SET status = $2, log_entry_id = $3, public_document_id = $4,
-                 public_path = $5, published_at = $6
-             WHERE id = $1 AND status = $7",
+             SET status = $2, public_document_id = $3, public_path = $4, published_at = $5
+             WHERE id = $1 AND status = $6",
             &[
                 id,
                 &BallotBoxSealStatus::Published.to_string(),
-                &fields.log_entry_id,
                 &fields.public_document_id,
                 &fields.public_path,
                 &fields.published_at,
@@ -615,6 +604,9 @@ pub enum WaitingReason {
     ChannelHasBallots(String),
     /// Datafix votes of the box are still in progress.
     DatafixVotes(i64),
+    /// Ballots of the box are not on the electoral log yet: the sequencer
+    /// appends them.
+    Sequencer(i64),
     /// Another run holds the box.
     Busy,
     /// The attempt failed; the next one retries.
@@ -636,6 +628,7 @@ impl std::fmt::Display for WaitingReason {
                 write!(f, "channel_has_ballots:{channel}")
             }
             WaitingReason::DatafixVotes(count) => write!(f, "datafix_votes:{count}"),
+            WaitingReason::Sequencer(count) => write!(f, "sequencer:{count}"),
             WaitingReason::Busy => write!(f, "busy"),
             WaitingReason::Error(error) => {
                 let short: String = error.chars().take(WAITING_ERROR_CHARS).collect();
@@ -670,22 +663,6 @@ pub async fn record_attempt(
     Ok(())
 }
 
-/// Records that a failed seal's `BallotBoxSealFailed` entry is on the log.
-/// Does nothing if it was recorded already.
-#[instrument(skip(transaction), err)]
-pub async fn mark_failure_posted(transaction: &Transaction<'_>, id: &Uuid) -> Result<()> {
-    transaction
-        .execute(
-            "UPDATE sequent_backend.ballot_box_seal
-             SET failure_posted_at = now()
-             WHERE id = $1 AND status = 'failed' AND failure_posted_at IS NULL",
-            &[id],
-        )
-        .await
-        .with_context(|| format!("Error recording the failure entry of ballot box seal {id}"))?;
-    Ok(())
-}
-
 /// The full seal (with its manifest and signed message) of one ballot box,
 /// if it has one.
 #[instrument(skip(transaction), err)]
@@ -712,11 +689,10 @@ pub async fn get_for_box(
     row.map(BallotBoxSeal::try_from).transpose()
 }
 
-/// The ids of the `pending` seals due at `now`, of the `sealed` ones to
-/// publish, and of the `failed` ones whose failure entry may not be posted
-/// yet: what the dispatcher enqueues. At most `limit` of each: pending ones
-/// least recently tried first, the others in random order, so rows that
-/// keep failing don't starve the rest.
+/// The ids of the `pending` seals due at `now` and of the `sealed` ones to
+/// publish: what the dispatcher enqueues. At most `limit` of each: pending
+/// ones least recently tried first, sealed ones in random order, so rows
+/// that keep failing don't starve the rest.
 #[instrument(skip(transaction), err)]
 pub async fn list_open_work_ids(
     transaction: &Transaction<'_>,
@@ -730,11 +706,7 @@ pub async fn list_open_work_ids(
                ORDER BY last_attempt_at NULLS FIRST, grace_deadline, id LIMIT $2)
              UNION ALL
              (SELECT id FROM sequent_backend.ballot_box_seal
-               WHERE status = 'sealed' ORDER BY random() LIMIT $2)
-             UNION ALL
-             (SELECT id FROM sequent_backend.ballot_box_seal
-               WHERE status = 'failed' AND failure_posted_at IS NULL
-               ORDER BY random() LIMIT $2)",
+               WHERE status = 'sealed' ORDER BY random() LIMIT $2)",
             &[&now, &limit],
         )
         .await
@@ -836,19 +808,6 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn lock_key_matches_the_sql_text() {
-        let tenant = Uuid::parse_str("90505c8a-23a9-4cdf-a26b-4e19f6a097d5").unwrap();
-        let event = Uuid::parse_str("A0000000-0000-0000-0000-00000000000B").unwrap();
-        let election = Uuid::nil();
-        let area = Uuid::max();
-        assert_eq!(
-            ballot_box_lock_key(&tenant, &event, &election, &area),
-            "ballot-box:90505c8a-23a9-4cdf-a26b-4e19f6a097d5:a0000000-0000-0000-0000-00000000000b:\
-             00000000-0000-0000-0000-000000000000:ffffffff-ffff-ffff-ffff-ffffffffffff"
-        );
-    }
-
-    #[test]
     fn closed_by_matches_the_column_json() {
         assert_eq!(
             serde_json::to_value(ClosedBy::User {
@@ -896,6 +855,7 @@ mod tests {
                 WaitingReason::ChannelHasBallots("TELEPHONE".into()),
                 "channel_has_ballots:TELEPHONE",
             ),
+            (WaitingReason::Sequencer(3), "sequencer:3"),
         ] {
             assert_eq!(reason.to_string(), text);
         }

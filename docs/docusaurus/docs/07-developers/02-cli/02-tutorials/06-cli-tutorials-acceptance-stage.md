@@ -17,7 +17,8 @@ Voters vote as they would in a real election, on their own devices and in front 
 
 ## Prerequisites
 
-- The CLI is configured with a tenant administrator who can read voters, cast votes and the election event's log. See [Getting Started With the CLI](./01-cli-tutorials-getting-started.md).
+- The CLI is configured with a tenant administrator who can read voters and the election event's log. See [Getting Started With the CLI](./01-cli-tutorials-getting-started.md).
+- The `ELECTORAL_LOG_PG_*` variables name the electoral-log PostgreSQL server, as for `step-cli export-cast-votes`. The run reads the voters' stored ballots from the election event's ballot box there, because administrators' GraphQL access never returns ballot contents. It waits up to a minute for every accepted ballot to reach the event's log.
 - The election event is published and voting is open.
 
 ---

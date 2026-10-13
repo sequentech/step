@@ -3,7 +3,8 @@
 
 # UI + Keycloak devcontainer mode (.devcontainer/ui-keycloak): Keycloak and its
 # database without the backend. The containers are the same as in the full
-# stack; only the start order changes, so switching modes recreates nothing.
+# stack except for Keycloak's electoral-log publishing policy; otherwise only the
+# start order changes.
 services:
   # Builds the image it shares with `postgres` itself instead of waiting for
   # that service, and still gets its log volume prepared.
@@ -16,8 +17,12 @@ services:
         condition: service_completed_successfully
 
   # Harvest only serves the per-event certificate authorities that Keycloak
-  # fetches when a user logs in to an election event realm.
+  # fetches when a user logs in to an election event realm. Without the
+  # task-queue database, Keycloak logs its electoral-log events instead of
+  # failing the requests that produce them.
   keycloak:
     depends_on: !override
       postgres-keycloak:
         condition: service_healthy
+    environment:
+      ELECTORAL_LOG_PUBLISH_FAILURE_POLICY: log-and-continue

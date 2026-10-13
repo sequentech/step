@@ -2,11 +2,46 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Minimal rows on the migrated test database. Every event gets a fresh
-//! tenant, so tests never see each other's rows.
+//! tenant unless the test names one, so tests never see each other's rows.
 
 use deadpool_postgres::Pool;
+use electoral_log::adapters::ballot_box::{
+    AcceptBallot, AcceptOutcome, BallotStatus,
+};
+use electoral_log::adapters::postgres::PostgresStore;
+use electoral_log::messages::message::{Message, SigningData};
+use electoral_log::messages::newtypes::{
+    CastVoteHash, ElectionIdString, EventIdString, PseudonymHash,
+    VoterCountryString, VoterIpString,
+};
+use electoral_log::ports::ElectoralLogStore;
+use electoral_log::{ElectoralLogMessage, LogEntry};
+use serde_json::json;
+use std::future::Future;
+use std::sync::OnceLock;
+use tokio::runtime::Runtime;
 use tokio_postgres::types::ToSql;
 use uuid::Uuid;
+use voting_crypto::signing::SigningKey;
+use windmill::services::ballot_box::BallotFormat;
+use windmill::services::electoral_log_board::get_event_databases;
+
+/// Runs a test that reaches election events' electoral-log databases on the
+/// runtime those tests share. The services keep the event databases'
+/// connections in one pool per process, and a connection dies with the
+/// runtime that opened it, so such a test must not run on a runtime of its
+/// own that ends while another test still uses its connections.
+pub fn run<F: Future>(test: F) -> F::Output {
+    static RUNTIME: OnceLock<Runtime> = OnceLock::new();
+    RUNTIME
+        .get_or_init(|| {
+            tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .expect("the event database tests' runtime")
+        })
+        .block_on(test)
+}
 
 pub struct Event {
     pub tenant_id: String,
@@ -43,11 +78,17 @@ fn uuid(id: &str) -> Uuid {
 
 /// A tenant with one election event.
 pub async fn event(pool: &Pool) -> Event {
-    let tenant_id = Uuid::new_v4();
+    event_of(pool, &Uuid::new_v4().to_string()).await
+}
+
+/// An election event of `tenant_id`, which is created unless it exists.
+pub async fn event_of(pool: &Pool, tenant_id: &str) -> Event {
+    let tenant_id = uuid(tenant_id);
     let election_event_id = Uuid::new_v4();
     execute(
         pool,
-        "INSERT INTO sequent_backend.tenant (id, slug) VALUES ($1, $2)",
+        "INSERT INTO sequent_backend.tenant (id, slug) VALUES ($1, $2)
+         ON CONFLICT DO NOTHING",
         &[&tenant_id, &tenant_id.to_string()],
     )
     .await;
@@ -82,6 +123,20 @@ impl Event {
         )
         .await;
         id.to_string()
+    }
+
+    /// An election that only admins whose permission labels include `label`
+    /// may see.
+    pub async fn labelled_election(&self, pool: &Pool, label: &str) -> String {
+        let id = self.election(pool).await;
+        execute(
+            pool,
+            "UPDATE sequent_backend.election SET permission_label = $2
+             WHERE id = $1",
+            &[&uuid(&id), &label],
+        )
+        .await;
+        id
     }
 
     /// A contest of `election_id` with the given counting algorithm.
@@ -269,30 +324,119 @@ impl Event {
         id.to_string()
     }
 
-    /// A valid vote `voter` cast in `election_id` from `area_id`.
+    /// The board [`Event::ballot_box`] names on the event's row.
+    pub fn board(&self) -> String {
+        let (tenant_id, election_event_id) = self.ids();
+        format!(
+            "tenant{}event{}",
+            tenant_id.simple(),
+            election_event_id.simple()
+        )
+    }
+
+    /// The event's ballot box, in an electoral-log database of its own on the
+    /// server `ELECTORAL_LOG_PG_*` names, and its board on the event's row.
+    pub async fn ballot_box(&self, pool: &Pool) -> PostgresStore {
+        let (_, election_event_id) = self.ids();
+        let board = self.board();
+        execute(
+            pool,
+            "UPDATE sequent_backend.election_event
+             SET bulletin_board_reference = $2 WHERE id = $1",
+            &[
+                &election_event_id,
+                &json!({"id": 1, "database_name": board, "is_archived": false}),
+            ],
+        )
+        .await;
+        let store = get_event_databases()
+            .await
+            .expect("ELECTORAL_LOG_PG_* must name the test PostgreSQL server")
+            .create_event(&self.tenant_id, &self.election_event_id)
+            .await
+            .expect("event database");
+        store
+            .create_ballot_box(&self.election_event_id)
+            .await
+            .expect("ballot box");
+        store
+    }
+
+    /// A valid vote `voter` cast in `election_id` from `area_id`, accepted
+    /// into the event's `ballot_box`.
     pub async fn cast_vote(
         &self,
-        pool: &Pool,
+        ballot_box: &PostgresStore,
         election_id: &str,
         area_id: &str,
         voter: &str,
     ) {
-        let (tenant_id, election_event_id) = self.ids();
-        execute(
-            pool,
-            "INSERT INTO sequent_backend.cast_vote
-                (id, tenant_id, election_event_id, election_id, area_id,
-                 voter_id_string, status)
-             VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, 'valid')",
-            &[
-                &tenant_id,
-                &election_event_id,
-                &uuid(election_id),
-                &uuid(area_id),
-                &voter,
-            ],
+        let ballot_id = Uuid::new_v4().simple().to_string();
+        let format = BallotFormat::HashableBallot.to_string();
+        let outcome = ballot_box
+            .accept_ballot(&AcceptBallot {
+                election_event_id: &self.election_event_id,
+                election_id,
+                area_id,
+                voter_id: voter,
+                ballot_id: &ballot_id,
+                format: &format,
+                content: "ballot",
+                voter_signature: None,
+                pseudonym_hash: &[0; 64],
+                ballot_hash: &[0; 64],
+                voting_channel: "ONLINE",
+                status: BallotStatus::Valid,
+                voter_ip: Some("192.0.2.1"),
+                voter_country: Some("ES"),
+                username: Some(voter),
+                allowed_votes: 0,
+            })
+            .await
+            .expect("accepted ballot");
+        assert!(
+            matches!(outcome, AcceptOutcome::Accepted { .. }),
+            "{outcome:?}"
+        );
+    }
+
+    /// The signed record of a vote `voter` cast in `election_id`, appended to
+    /// `board` in the event's electoral-log database `store`. Returns its
+    /// position.
+    pub async fn cast_vote_record(
+        &self,
+        store: &PostgresStore,
+        board: &str,
+        election_id: &str,
+        voter: &str,
+    ) -> i64 {
+        let key = SigningKey::generate().expect("signing key");
+        let message = Message::cast_vote_message(
+            EventIdString(self.election_event_id.clone()),
+            ElectionIdString(Some(election_id.to_string())),
+            PseudonymHash::new([1; 64]),
+            CastVoteHash::new([2; 64]),
+            &SigningData::new(key.clone(), "voting", key),
+            VoterIpString("192.0.2.1".into()),
+            VoterCountryString("ES".into()),
+            Some(voter.to_string()),
+            Some(voter.to_string()),
+            String::new(),
         )
-        .await;
+        .expect("cast vote message");
+        let entry = LogEntry {
+            delivery_id: Uuid::new_v4().to_string(),
+            message: ElectoralLogMessage::try_from(&message)
+                .expect("cast vote record"),
+        };
+        store.create_board(board).await.expect("board");
+        store
+            .append(board, &mut std::iter::once(Ok(entry)))
+            .await
+            .expect("appended record")
+            .first()
+            .expect("stored record")
+            .id
     }
 
     /// The Keycloak realm of the event's voters.

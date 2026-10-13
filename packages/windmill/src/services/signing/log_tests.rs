@@ -7,7 +7,6 @@
 use super::*;
 use chrono::{TimeZone, Utc};
 use electoral_log::messages::statement::{StatementBody, StatementType};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use voting_crypto::signing::{SigningKey, VerificationKey};
 use voting_crypto::RecordDeserialize;
@@ -210,12 +209,9 @@ fn a_delivery_is_the_same_for_every_attempt() {
     let keys = Keys::new();
     let user = row(StatementEventType::USER, StatementLogType::INFO);
     let first = outbox_delivery(&user, &keys.signing_data()).unwrap();
-    // Expected: SHA-256 of the literal id text.
     assert_eq!(
         first.delivery_id,
-        hex::encode(Sha256::digest(
-            b"signing:2b7c9e40-1f5d-4a8e-9c3b-6d2e1f0a9b87:USER"
-        ))
+        "signing:2b7c9e40-1f5d-4a8e-9c3b-6d2e1f0a9b87:USER"
     );
     assert_eq!(first.row_id, 7);
     // The message is the row's board message.
@@ -263,7 +259,7 @@ fn a_delivery_differs_per_entry_and_content() {
         |row| row.statement_kind = SigningStatementKind::SigningHandover,
         |row| row.username = Some("sbei-madrid-2".to_string()),
         |row| row.election_id = None,
-        |row| row.occurred_at += chrono::Duration::microseconds(1),
+        |row| row.occurred_at += chrono::Duration::seconds(1),
     ];
     for change in changes {
         let mut changed = user.clone();
@@ -285,87 +281,78 @@ fn a_failing_entry_waits_longer_after_each_failure() {
     assert_eq!(wait(-1), 1);
 }
 
-/// A connection that logs its calls to `log`.
-struct FakeConnection {
-    log: Arc<Mutex<Vec<String>>>,
-    receipts: Arc<Mutex<HashMap<String, String>>>,
-    fail_insert: Option<String>,
-}
-
-impl FakeConnection {
-    fn note(&self, call: String) {
-        self.log.lock().unwrap().push(call);
+/// What the board holds says what its row says, whatever key signed it; a
+/// different row's entry doesn't.
+#[test]
+fn the_board_entry_of_a_row_says_what_the_row_says() {
+    for event_type in [StatementEventType::USER, StatementEventType::SYSTEM] {
+        let row = row(event_type, StatementLogType::INFO);
+        let held = outbox_board_message(&row, &Keys::new().signing_data()).unwrap();
+        assert_eq!(
+            stored_payload_hash(&held).unwrap(),
+            payload_hash(&row).unwrap()
+        );
     }
+    let user = row(StatementEventType::USER, StatementLogType::INFO);
+    let mut other = user.clone();
+    other.body["details"]["count"] = json!(2);
+    let held = outbox_board_message(&other, &Keys::new().signing_data()).unwrap();
+    assert_ne!(
+        stored_payload_hash(&held).unwrap(),
+        payload_hash(&user).unwrap()
+    );
 }
 
-impl BoardConnection for FakeConnection {
-    async fn append(
-        &mut self,
-        board: &str,
-        deliveries: &[SigningLogDelivery],
-    ) -> Result<Vec<bool>> {
-        self.note(format!("append {board}"));
-        let mut receipts = self.receipts.lock().unwrap();
-        let mut next = receipts.clone();
-        let mut results = Vec::new();
-        for delivery in deliveries {
-            if self.fail_insert.as_deref() == Some(delivery.delivery_id.as_str()) {
-                return Err(anyhow!("board unavailable"));
+/// A store that logs its calls and keeps the entries it appended.
+#[derive(Default)]
+struct FakeStore {
+    log: Arc<Mutex<Vec<String>>>,
+    entries: Arc<Mutex<Vec<LogEntry>>>,
+    unreachable: bool,
+}
+
+impl SigningLogStore for FakeStore {
+    async fn append(&self, board: &str, entries: &[LogEntry]) -> Result<Vec<StoredRecord>> {
+        self.log
+            .lock()
+            .unwrap()
+            .push(format!("append {board} {}", entries.len()));
+        if self.unreachable {
+            return Err(anyhow!("board unreachable"));
+        }
+        let mut held = self.entries.lock().unwrap();
+        let mut stored = vec![];
+        for entry in entries {
+            if held.iter().any(|old| old.delivery_id == entry.delivery_id) {
+                continue;
             }
-            results.push(match next.get(&delivery.delivery_id) {
-                Some(hash) if hash == &delivery.payload_hash => false,
-                Some(_) => return Err(anyhow!("delivery ID reused with different input")),
-                None => {
-                    next.insert(delivery.delivery_id.clone(), delivery.payload_hash.clone());
-                    true
-                }
+            held.push(entry.clone());
+            stored.push(StoredRecord {
+                delivery_id: entry.delivery_id.clone(),
+                id: held.len() as i64,
+                log_uid: Uuid::nil(),
+                leaf_index: held.len() as i64 - 1,
             });
         }
-        *receipts = next;
-        self.note("committed".into());
-        Ok(results)
+        Ok(stored)
     }
-}
 
-struct FakeBoard {
-    board: BoardSigningLog<FakeConnection>,
-    log: Arc<Mutex<Vec<String>>>,
-    fail_insert: Arc<Mutex<Option<String>>>,
-    fail_connect: Arc<AtomicBool>,
-}
-
-fn fake_board() -> FakeBoard {
-    let log = Arc::new(Mutex::new(vec![]));
-    let receipts = Arc::new(Mutex::new(HashMap::new()));
-    let fail_insert = Arc::new(Mutex::new(None));
-    let fail_connect = Arc::new(AtomicBool::new(false));
-    let (l, r, f, c) = (
-        log.clone(),
-        receipts.clone(),
-        fail_insert.clone(),
-        fail_connect.clone(),
-    );
-    let connect: Connect<FakeConnection> = Box::new(move || {
-        let (log, receipts, fail_insert, fail_connect) =
-            (l.clone(), r.clone(), f.clone(), c.clone());
-        Box::pin(async move {
-            if fail_connect.load(Ordering::SeqCst) {
-                return Err(anyhow!("audit board unreachable"));
-            }
-            log.lock().unwrap().push("connect".to_string());
-            let fail_insert = fail_insert.lock().unwrap().clone();
-            Ok(FakeConnection {
-                log,
-                receipts,
-                fail_insert,
-            })
-        })
-    });
-    FakeBoard {
-        board: BoardSigningLog::new(connect),
-        log,
-        fail_insert,
-        fail_connect,
+    async fn delivered(
+        &self,
+        board: &str,
+        delivery_id: &str,
+    ) -> Result<Option<ElectoralLogMessage>> {
+        self.log
+            .lock()
+            .unwrap()
+            .push(format!("delivered {board} {delivery_id}"));
+        Ok(self
+            .entries
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|entry| entry.delivery_id == delivery_id)
+            .map(|entry| entry.message.clone()))
     }
 }
 
@@ -380,68 +367,69 @@ fn deliveries(keys: &Keys) -> Vec<SigningLogDelivery> {
         .collect()
 }
 
-/// One board transaction per call, through one connection kept across
-/// calls; a delivery with a receipt is not written again.
+/// One append per call; a delivery the board holds is not written again,
+/// once it is found to say the same.
 #[tokio::test]
-async fn the_board_writes_a_call_in_one_transaction_on_one_connection() {
-    let keys = Keys::new();
-    let mut fake = fake_board();
-    let both = deliveries(&keys);
-    let written = fake.board.deliver("event-board", &both).await.unwrap();
+async fn the_board_appends_a_call_at_once_and_checks_what_it_held() {
+    let store = FakeStore::default();
+    let (log, entries) = (store.log.clone(), store.entries.clone());
+    let mut board = BoardSigningLog::new(store);
+    let both = deliveries(&Keys::new());
+    let written = board.deliver("event-board", &both).await.unwrap();
     assert_eq!(written, vec![true, true]);
-    let written = fake.board.deliver("event-board", &both[1..]).await.unwrap();
+    // Signed again with other keys, as after a lost answer.
+    let again = deliveries(&Keys::new());
+    let written = board.deliver("event-board", &again[1..]).await.unwrap();
     assert_eq!(written, vec![false]);
+    assert_eq!(entries.lock().unwrap().len(), 2);
     assert_eq!(
-        *fake.log.lock().unwrap(),
+        *log.lock().unwrap(),
         [
-            "connect",
-            "append event-board",
-            "committed",
-            "append event-board",
-            "committed"
+            "append event-board 2".to_string(),
+            "append event-board 1".to_string(),
+            format!("delivered event-board {}", both[1].delivery_id),
         ]
     );
 }
 
-/// A failed transaction is not committed, and its connection is dropped:
-/// the next call connects again.
+/// The board holds the delivery id with other content: the call fails,
+/// naming the row.
 #[tokio::test]
-async fn a_failed_delivery_drops_the_connection() {
+async fn a_delivery_the_board_holds_with_other_content_fails() {
     let keys = Keys::new();
-    let mut fake = fake_board();
+    let store = FakeStore::default();
+    let entries = store.entries.clone();
+    let mut board = BoardSigningLog::new(store);
     let both = deliveries(&keys);
-    *fake.fail_insert.lock().unwrap() = Some(both[1].delivery_id.clone());
-    let error = fake.board.deliver("event-board", &both).await.unwrap_err();
-    assert_eq!(error.to_string(), "board unavailable");
-    assert!(!fake
-        .log
-        .lock()
-        .unwrap()
-        .iter()
-        .any(|call| call.starts_with("commit")));
+    let mut changed = row(StatementEventType::SYSTEM, StatementLogType::ERROR);
+    changed.id = 2;
+    entries.lock().unwrap().push(LogEntry {
+        delivery_id: both[1].delivery_id.clone(),
+        message: outbox_board_message(&changed, &keys.signing_data()).unwrap(),
+    });
 
-    *fake.fail_insert.lock().unwrap() = None;
-    fake.log.lock().unwrap().clear();
-    let written = fake.board.deliver("event-board", &both).await.unwrap();
-    assert_eq!(written, vec![true, true]);
-    assert_eq!(fake.log.lock().unwrap()[0], "connect");
-
-    fake.fail_connect.store(true, Ordering::SeqCst);
-    // The kept connection is used; no new one is needed.
-    assert!(fake.board.deliver("event-board", &both[..1]).await.is_ok());
+    let error = board.deliver("event-board", &both).await.unwrap_err();
+    assert_eq!(
+        error.downcast_ref::<ReusedDelivery>(),
+        Some(&ReusedDelivery {
+            row_id: 2,
+            delivery_id: both[1].delivery_id.clone(),
+        })
+    );
 }
 
 #[tokio::test]
 async fn an_unreachable_board_fails_the_delivery() {
-    let keys = Keys::new();
-    let mut fake = fake_board();
-    fake.fail_connect.store(true, Ordering::SeqCst);
-    let error = fake
-        .board
-        .deliver("event-board", &deliveries(&keys))
+    let store = FakeStore {
+        unreachable: true,
+        ..Default::default()
+    };
+    let mut board = BoardSigningLog::new(store);
+    let error = board
+        .deliver("event-board", &deliveries(&Keys::new()))
         .await
         .unwrap_err();
-    assert_eq!(error.to_string(), "audit board unreachable");
+    assert_eq!(error.to_string(), "board unreachable");
 }
 
 /// Keys loaded for the event sign its SYSTEM entries and its people's

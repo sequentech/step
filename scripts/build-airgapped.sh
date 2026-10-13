@@ -84,6 +84,16 @@ add-janitor-to-tarball() {
     tar --append -C $JANITOR_PARENT --file=$DELIVERABLE_TARBALL janitor
 }
 
+add-database-init-to-tarball() {
+    tmpdir=$(mktemp -d)
+    mkdir -p $tmpdir/initdb
+    cp "$PROJECT_ROOT/.devcontainer/postgresql/init-electoral-log.sh" "$tmpdir/initdb/20-electoral-log.sh"
+    cp "$PROJECT_ROOT/.devcontainer/postgresql/init-task-queues.sh" "$tmpdir/initdb/30-task-queues.sh"
+    cp "$PROJECT_ROOT/packages/electoral-log/catalog.sql" "$tmpdir/electoral-log-catalog.sql"
+    tar --append -C "$tmpdir" --file="$DELIVERABLE_TARBALL" electoral-log-catalog.sql
+
+    tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL initdb
+}
 
 add-readme-to-tarball() {
     tmpdir=$(mktemp -d)

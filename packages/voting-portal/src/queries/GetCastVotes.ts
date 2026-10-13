@@ -4,8 +4,8 @@
 import {gql} from "@apollo/client"
 
 export const GET_CAST_VOTES = gql`
-    query GetCastVotes {
-        sequent_backend_cast_vote {
+    query GetCastVotes($electionEventId: String!) {
+        cast_votes: get_voter_cast_votes(election_event_id: $electionEventId) {
             id
             tenant_id
             election_id

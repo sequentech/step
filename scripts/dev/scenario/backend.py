@@ -54,8 +54,6 @@ REQUIRED_SERVICES = (
     "postgres-keycloak",
     "postgres-b4v6",
     "minio",
-    "rabbitmq",
-    "immudb",
     "keycloak",
     "graphql-engine",
     "harvest",
@@ -134,10 +132,8 @@ BALLOT_PUBLICATIONS = """query ($event: uuid!) {
 BALLOT_STYLE = """query ($id: uuid!) {
   sequent_backend_ballot_style(where: {id: {_eq: $id}}) { ballot_eml }
 }"""
-CAST_VOTERS = """query ($event: uuid!) {
-  sequent_backend_cast_vote(where: {election_event_id: {_eq: $event}}) {
-    voter_id_string
-  }
+VOTED_USERS = """query ($body: GetUsersInput!) {
+  get_users(body: $body) { items { id votes_info { num_votes } } }
 }"""
 TALLY_SESSIONS = """query ($event: uuid!) {
   sequent_backend_tally_session(
@@ -603,11 +599,25 @@ class StackBackend:
         )
         return {user["username"]: user["id"] for user in users}
 
-    def _voters_with_votes(self, event_id: str) -> set[str]:
-        rows = self.admin.query(CAST_VOTERS, {"event": event_id})[
-            "sequent_backend_cast_vote"
+    def _administrator(self) -> Hasura:
+        """Hasura as the tenant administrator, for the actions Harvest answers."""
+        return Hasura(token=bootstrap.admin_token(self.keycloak))
+
+    def _voters_with_votes(self, event_id: str, user_ids: list[str]) -> set[str]:
+        """The users among ``user_ids`` with a vote in the event's ballot box."""
+        if not user_ids:
+            return set()
+        body = {
+            "tenant_id": self.tenant_id,
+            "election_event_id": event_id,
+            "user_ids": user_ids,
+            "show_votes_info": True,
+            "limit": len(user_ids),
+        }
+        rows = self._administrator().query(VOTED_USERS, {"body": body})["get_users"][
+            "items"
         ]
-        return {row["voter_id_string"] for row in rows}
+        return {row["id"] for row in rows if row["votes_info"]}
 
     def _keys_ceremonies(self, event_id: str) -> list[dict[str, Any]]:
         return self.admin.query(KEYS_CEREMONIES, {"event": event_id})[
@@ -677,10 +687,11 @@ class StackBackend:
             return self._voting_status(event_id, KIOSK) == OPEN
         if stage is Stage.VOTES:
             users = self._realm_users(event_id)
-            voted = self._voters_with_votes(event_id)
-            return all(
-                users.get(voter_username(scenario, vote)) in voted
-                for vote in scenario.votes
+            voters = {
+                users.get(voter_username(scenario, vote)) for vote in scenario.votes
+            }
+            return None not in voters and voters <= self._voters_with_votes(
+                event_id, sorted(voters)
             )
         if stage is Stage.ONLINE_CLOSED:
             return self._voting_status(event_id, ONLINE) == CLOSED
@@ -915,7 +926,10 @@ class StackBackend:
         if self.cli is None:
             raise ScenarioError("step-cli is not open")
         users = self._realm_users(event_id)
-        voted = self._voters_with_votes(event_id)
+        planned = {voter_username(scenario, vote) for vote in scenario.votes}
+        voted = self._voters_with_votes(
+            event_id, sorted(users[name] for name in planned if name in users)
+        )
         portal = Portal(event_id, self.cli)
         for vote in scenario.votes:
             username = voter_username(scenario, vote)

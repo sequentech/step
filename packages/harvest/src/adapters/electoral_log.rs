@@ -8,11 +8,14 @@ use crate::ports::electoral_log::{
 };
 use anyhow::anyhow;
 use deadpool_postgres::Transaction;
+use electoral_log::messages::newtypes::BallotPublicationStage;
+use sequent_core::types::hasura::core::TasksExecution;
 use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::election_event_board::get_election_event_board;
 use windmill::services::electoral_log::{
-    post_voter_secret_attribute_audit, ElectoralLog, ElectoralLogAdminContext,
-    VoterSecretAttributeAction, VoterSecretAttributeAudit,
+    log_ballot_publication_failure, post_voter_secret_attribute_audit,
+    ElectoralLog, ElectoralLogAdminContext, VoterSecretAttributeAction,
+    VoterSecretAttributeAudit,
 };
 
 /// The election event's electoral log on its bulletin board.
@@ -119,6 +122,17 @@ impl ElectoralLogs for BoardElectoralLogs {
                 Some(entry.user_id.to_string()),
                 entry.username,
             )
+            .await
+    }
+
+    async fn ballot_publication_failure(
+        &self,
+        task: &TasksExecution,
+        publication_id: &str,
+        stage: BallotPublicationStage,
+        message: &str,
+    ) -> anyhow::Result<()> {
+        log_ballot_publication_failure(task, publication_id, stage, message)
             .await
     }
 }

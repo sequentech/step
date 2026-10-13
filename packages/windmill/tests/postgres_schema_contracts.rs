@@ -104,7 +104,6 @@ async fn every_backend_migration_builds_the_schema_the_adapters_query() {
         "area",
         "ballot_publication",
         "ballot_style",
-        "cast_vote",
         "keys_ceremony",
         "tally_session",
         "tally_session_execution",

@@ -24,6 +24,11 @@ import {IAuditableBallot, IAuditableMultiBallot, IAuditableSingleBallot} from "@
 import {useNavigate} from "react-router-dom"
 import {Box} from "@mui/material"
 import {IBallotService, IConfirmationBallot} from "../services/BallotService"
+import {
+    EBallotCiphertextCheck,
+    EBallotEncoding,
+    checkAuditableBallotCiphertext,
+} from "../services/ballotCiphertextVerification"
 import TextField from "@mui/material/TextField"
 import {faCircleQuestion, faAngleRight} from "@fortawesome/free-solid-svg-icons"
 import JsonImg from "../public/json.png"
@@ -148,6 +153,7 @@ export const HomeScreen: React.FC<IProps> = ({
 }) => {
     const {t} = useTranslation()
     const [showError, setShowError] = useState(false)
+    const [showCiphertextError, setShowCiphertextError] = useState(false)
     const [showStyleError, setShowStyleError] = useState(false)
     const [showLegacyWarning, setShowLegacyWarning] = useState(false)
     const [styleLookupFailure, setStyleLookupFailure] =
@@ -181,6 +187,7 @@ export const HomeScreen: React.FC<IProps> = ({
         failure: EPublishedBallotStyleLookup | null = null
     ) => {
         setShowError(showImportError)
+        setShowCiphertextError(false)
         setStyleLookupFailure(failure)
         setShowStyleError(false)
         setShowLegacyWarning(false)
@@ -233,6 +240,25 @@ export const HomeScreen: React.FC<IProps> = ({
             rejectBallot(true)
             return
         }
+        // Decoding only reads the plaintext. The ballot is not verified until the
+        // plaintext and randomness are shown to reproduce the ciphertext.
+        const encoding = isMultiContest
+            ? EBallotEncoding.MULTI_CONTEST
+            : EBallotEncoding.SINGLE_CONTEST
+        const ciphertextCheck = checkAuditableBallotCiphertext(
+            ballotService,
+            auditableBallot,
+            encoding
+        )
+        if (EBallotCiphertextCheck.VERIFIED !== ciphertextCheck) {
+            // Only a ciphertext that fails to reproduce is a failed
+            // verification. A ballot that could not be checked at all is a
+            // problem with the file, and reports the generic import error.
+            const isMismatch = EBallotCiphertextCheck.MISMATCH === ciphertextCheck
+            rejectBallot(!isMismatch)
+            setShowCiphertextError(isMismatch)
+            return
+        }
         setShowLegacyWarning(isPublishedBallot && LEGACY_BALLOT_VERSION === auditableBallot.version)
         // Signatures and trackers cover the uploaded configuration; the published
         // presentation is used for decoding and display after the layout matches.
@@ -274,6 +300,7 @@ export const HomeScreen: React.FC<IProps> = ({
             decoded_questions: decodedBallot,
         })
         setShowError(false)
+        setShowCiphertextError(false)
         setStyleLookupFailure(null)
         setShowStyleError(false)
     }
@@ -362,7 +389,11 @@ export const HomeScreen: React.FC<IProps> = ({
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                 {t("homeScreen.description1")}
             </Typography>
-            <Alert severity="error" style={{display: showError ? undefined : "none"}}>
+            <Alert
+                severity="error"
+                style={{display: showError ? undefined : "none"}}
+                data-testid="import-error"
+            >
                 <AlertTitle>{t("homeScreen.importErrorTitle")}</AlertTitle>
                 <Typography variant="body2">{t("homeScreen.importErrorDescription")}</Typography>
                 <RouterLink
@@ -372,6 +403,16 @@ export const HomeScreen: React.FC<IProps> = ({
                 >
                     {t("homeScreen.importErrorMoreInfo")}
                 </RouterLink>
+            </Alert>
+            <Alert
+                severity="error"
+                style={{display: showCiphertextError ? undefined : "none"}}
+                data-testid="ciphertext-error"
+            >
+                <AlertTitle>{t("homeScreen.ciphertextErrorTitle")}</AlertTitle>
+                <Typography variant="body2">
+                    {t("homeScreen.ciphertextErrorDescription")}
+                </Typography>
             </Alert>
             <Alert
                 severity="error"

@@ -11,6 +11,7 @@ import {faLanguage, faCaretDown} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
 import {toBCP47} from "@sequentech/ui-core"
+import {useInertBackground} from "../../services/useInertBackground"
 
 interface ButtonProps {
     isactive?: string
@@ -33,6 +34,7 @@ const LanguageMenu: React.FC<{
     const {t, i18n} = useTranslation()
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
     const open = Boolean(anchorEl)
+    const setModalRoot = useInertBackground(open)
 
     const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
         setAnchorEl(event.currentTarget)
@@ -93,6 +95,9 @@ const LanguageMenu: React.FC<{
                 <FontAwesomeIcon className="language-selector-caret" icon={faCaretDown} size="lg" />
             </StyledButton>
             <Menu
+                ref={setModalRoot}
+                role="region"
+                aria-label={t("language")}
                 className="language-selector-menu"
                 classes={{paper: "language-selector-paper", list: "language-selector-options"}}
                 id="lang-menu"

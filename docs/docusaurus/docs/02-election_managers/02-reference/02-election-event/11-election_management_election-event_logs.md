@@ -15,15 +15,15 @@ These are application-level actions being recorded. Access the system log to mon
 
 - Select **Columns** in order to hide/show different points of data per log entry.
 
-## Immutability
+## Integrity
 
-The Logs tab reads immudb in a private PostgreSQL database.
-Deliveries append opaque batches; a recoverable SQL index supports queries.
-Application electoral-log messages retain their sender and system signatures.
-Ballot-box seals bind the stored ballots at close.
+Log entries are stored in PostgreSQL. Each entry is also committed to a Merkle log for its election event. Through the platform's API and command-line tools, operators can obtain inclusion proofs for individual entries and consistency proofs showing that the log has only been extended since an earlier checkpoint.
 
-Integrity checks use those signatures and seals. Native storage does not provide
-the retired database's Merkle verification protocol, and database access alone
-does not establish that the complete history is unchanged. Preserve the native
-blobs, application database and signing keys in backups. See
-[storage and delivery behavior](../../../07-developers/03-development-environment/testing/electoral-log.md).
+These proofs show tampering only relative to a checkpoint saved outside the log. The platform publishes a signed checkpoint when voting closes and when each results tally completes, stored separately from the log and recorded in it as an "Electoral log checkpoint published" entry. You can also save checkpoints independently, for example at the start and end of voting, and verify later proofs against them. Deleting an election event also deletes its log.
+
+## Audit
+
+An audit checks that every log entry matches its Merkle log, that the stored Merkle tree is complete and consistent, and that every published checkpoint is correctly signed and part of the log's history. An audit runs automatically when a results tally completes; its result appears in the tally logs.
+
+- Select **Audit** to start an audit manually. This requires the logs-read and electoral-log-audit permissions.
+- The audit runs as an "Audit Electoral Log" task. It succeeds when the log is consistent and fails when it finds a problem, listing each finding in the task logs. Audits only report problems; they never change the log.

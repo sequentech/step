@@ -9,7 +9,7 @@ import {I18nextProvider} from "react-i18next"
 import {EVotingPortalDateTimeFormat, formatVotingPortalDateTime} from "@sequentech/ui-core"
 import SelectElection from "./SelectElection"
 import theme from "../../services/theme"
-import english from "../../translations/en"
+import english from "../../../../ui-core/src/translations/en"
 import core from "../../../../ui-core/src/translations/en"
 import {
     ASSOCIATION,

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{authorize, cast_vote_read_elections};
 use crate::services::dependencies::HarvestServices;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use anyhow::Result;
@@ -101,11 +101,19 @@ pub async fn get_election_event_stats(
             )
         })?;
 
+    let elections = cast_vote_read_elections(
+        &hasura_transaction,
+        &claims,
+        &input.election_event_id,
+        None,
+    )
+    .await?;
+
     let voters_by_channel = get_count_distinct_voters_by_channel(
         &hasura_transaction,
         tenant_id.as_str(),
         input.election_event_id.as_str(),
-        None,
+        elections.as_deref(),
     )
     .await
     .map_err(|err| {
@@ -149,7 +157,7 @@ pub async fn get_election_event_stats(
         &input.election_event_id.as_str(),
         &input.start_date.as_str(),
         &input.end_date.as_str(),
-        None,
+        elections.as_deref(),
         &input.user_timezone.as_str(),
         input.time_resolution,
         input.bucket_count,
@@ -226,8 +234,15 @@ pub async fn get_election_event_top_votes_by_ip(
                 format!("Error creating a transaction: {err}"),
             )
         })?;
+    let elections = cast_vote_read_elections(
+        &hasura_transaction,
+        &claims,
+        &input.election_event_id,
+        input.election_id.as_deref(),
+    )
+    .await?;
     let filter = ListCastVotesByIpFilter {
-        election_id: input.election_id.clone(),
+        elections,
         limit: input.limit,
         offset: input.offset,
         ip: input.ip,

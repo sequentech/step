@@ -288,7 +288,7 @@ describe("ElectionSelectionScreen with timezones", () => {
         )
     })
 
-    it("keeps the closed alert hidden while this voter can use early voting", async () => {
+    const earlyVotingBallot = (onlineStatus: string) => {
         at("2028-04-09T03:00:00Z")
         const item = ballot(
             "election-1",
@@ -297,15 +297,15 @@ describe("ElectionSelectionScreen with timezones", () => {
                 ...MAIN_DATES,
                 last_stopped_at: "2028-04-09T02:00:00Z",
             },
-            "CLOSED"
+            onlineStatus
         )
         item.election.status = {
-            voting_status: "CLOSED",
+            voting_status: onlineStatus,
             early_voting_status: "OPEN",
         } as unknown as string
-        setUp(true, "CLOSED", [item])
+        setUp(true, onlineStatus, [item])
         mockState.electionEvent["event-1"]!.status = {
-            voting_status: "CLOSED",
+            voting_status: onlineStatus,
             early_voting_status: "OPEN",
         } as unknown as string
         const style = mockState.ballotStyles["election-1"]!
@@ -313,7 +313,19 @@ describe("ElectionSelectionScreen with timezones", () => {
             ...style.ballot_eml,
             area_presentation: {allow_early_voting: EEarlyVotingPolicy.ALLOW_EARLY_VOTING},
         }
+    }
+
+    it("keeps the closed alert hidden while this voter can use early voting", async () => {
+        earlyVotingBallot("NOT_STARTED")
         expect((await show()).closed).toBeNull()
+    })
+
+    // Early voting applies before online voting starts, as the ballot box checks it.
+    it("shows the closed alert once online voting has closed", async () => {
+        earlyVotingBallot("CLOSED")
+        expect((await show()).closed?.replace(/\s+/g, " ")).toBe(
+            "electionSelectionScreen.votingClosedAt|2028-04-09 10:00 Philippine Standard Time|2028-04-09 06:00 Gulf Standard Time"
+        )
     })
     it("refreshes status on window focus without an idle polling loop", async () => {
         at(OVERSEAS.now.open)

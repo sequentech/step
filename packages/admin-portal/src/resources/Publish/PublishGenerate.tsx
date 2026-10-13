@@ -4,7 +4,7 @@
 
 import React from "react"
 import {styled} from "@mui/material/styles"
-import {Alert, AlertTitle, Box, CircularProgress} from "@mui/material"
+import {Box, CircularProgress} from "@mui/material"
 import {Button, Identifier, useNotify} from "react-admin"
 import {useTranslation} from "react-i18next"
 import {ArrowBackIosNew, Publish} from "@mui/icons-material"
@@ -63,8 +63,6 @@ const PublishGenerateStyled = {
 export type TPublishGenerate = {
     ballotPublicationId?: string | Identifier | null
     data: any
-    publishError?: string | null
-    onDismissPublishError?: () => void
     publishType: EPublishType.Election | EPublishType.Event
     readOnly: boolean
     status: PublishStatus
@@ -86,8 +84,6 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
     ballotPublicationId,
     publishType,
     data,
-    publishError,
-    onDismissPublishError,
     status,
     changingStatus,
     readOnly,
@@ -160,24 +156,21 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                     {readOnly && <PublishExport ballotPublicationId={ballotPublicationId} />}
                 </PublishGenerateStyled.TitleWrapper>
 
-                <DiffView
-                    currentTitle={
-                        readOnly ? t("publish.label.previous") : t("publish.label.current")
-                    }
-                    diffTitle={readOnly ? t("publish.label.publication") : t("publish.label.diff")}
-                    current={data?.previous || null}
-                    modify={data?.current || null}
-                    fetchAllPublishChanges={fetchAllPublishChanges}
-                />
+                {(data || status === PublishStatus.GeneratedLoading) && (
+                    <DiffView
+                        currentTitle={
+                            readOnly ? t("publish.label.previous") : t("publish.label.current")
+                        }
+                        diffTitle={
+                            readOnly ? t("publish.label.publication") : t("publish.label.diff")
+                        }
+                        current={data?.previous || null}
+                        modify={data?.current || null}
+                        fetchAllPublishChanges={fetchAllPublishChanges}
+                    />
+                )}
 
                 <PublishGenerateStyled.Bottom>
-                    {publishError ? (
-                        <Alert severity="error" onClose={onDismissPublishError}>
-                            <AlertTitle>{t("publish.dialog.error_publish")}</AlertTitle>
-                            <Box sx={{whiteSpace: "pre-line"}}>{publishError}</Box>
-                        </Alert>
-                    ) : null}
-
                     <PublishGenerateStyled.Actions>
                         {/* Left container for the back button */}
                         <div>
@@ -201,6 +194,7 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                             {showPublishPreview && showPublishView ? (
                                 <Button
                                     onClick={onPreviewClick}
+                                    disabled={status !== PublishStatus.Generated || !data}
                                     label={String(t("publish.preview.action"))}
                                     className="publish-preview-button"
                                 >
@@ -211,7 +205,7 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                             {!readOnly && canWritePublish && (
                                 <Button
                                     onClick={onPublish}
-                                    disabled={status === PublishStatus.PublishedLoading}
+                                    disabled={status !== PublishStatus.Generated || !data}
                                     label={String(t("publish.action.publish"))}
                                     className="publish-publish-button"
                                     style={{

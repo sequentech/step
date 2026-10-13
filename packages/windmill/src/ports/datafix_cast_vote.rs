@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! What resolving a Datafix vote needs from outside: the event's cast votes
+//! What resolving a Datafix vote needs from outside: the event's ballot box
 //! and configuration, its Keycloak voters, VoterView, the per-voter lock and
 //! the electoral log.
 
@@ -16,6 +16,7 @@ use std::future::Future;
 use uuid::Uuid;
 
 pub trait DatafixVotes: Sync {
+    /// The vote, while its outcome is pending.
     fn load(
         &self,
         tenant_id: &str,
@@ -31,12 +32,14 @@ pub trait DatafixVotes: Sync {
         voter_id: &str,
     ) -> impl Future<Output = anyhow::Result<bool>> + Send;
 
-    /// Moves the vote from `expected` to `next` and commits, returning whether
-    /// it moved: `false` means it was no longer `expected`.
+    /// Moves the voter's vote from `expected` to `next`, returning whether it
+    /// moved: `false` means it was no longer `expected`. Fails when the vote's
+    /// ballot box is sealed.
     fn compare_and_set(
         &self,
         tenant_id: &str,
         election_event_id: &str,
+        voter_id: &str,
         cast_vote_id: &Uuid,
         expected: CastVoteStatus,
         next: CastVoteStatus,

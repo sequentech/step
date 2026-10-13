@@ -4,12 +4,14 @@
 import {readFileSync} from "node:fs"
 import {
     buildClientSchema,
+    defaultFieldResolver,
     execute,
     getOperationAST,
     getVariableValues,
     parse,
     validate,
     type DocumentNode,
+    type GraphQLFieldResolver,
     type GraphQLFormattedError,
     type GraphQLSchema,
     type IntrospectionQuery,
@@ -38,6 +40,16 @@ export type GraphQLReply =
 export type GraphQLHandler = (call: GraphQLCall) => GraphQLReply | Promise<GraphQLReply>
 
 const schemas = new Map<string, GraphQLSchema>()
+
+// Mock data may use the response key (an alias) or the field name.
+const aliasOrField: GraphQLFieldResolver<unknown, unknown> = (source, args, context, info) => {
+    const record = source as Record<string, unknown> | null
+    if (record && typeof record === "object" && info.path.key in record) {
+        const value = record[info.path.key as string]
+        return typeof value === "function" ? value(args, context, info) : value
+    }
+    return defaultFieldResolver(source, args, context, info)
+}
 
 /** Builds (once per process) the schema from a portal's `graphql.schema.json`. */
 export function loadClientSchema(introspectionPath: string): GraphQLSchema {
@@ -168,6 +180,7 @@ export class GraphQLMock {
             operationName: operationName || undefined,
             rootValue: reply.data,
             variableValues: variables,
+            fieldResolver: aliasOrField,
         })
         if (result.errors?.length) {
             this.violations.add(

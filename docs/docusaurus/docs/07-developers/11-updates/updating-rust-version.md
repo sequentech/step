@@ -90,8 +90,6 @@ Update the `FROM rust:X.Y.Z` line in **all** Dockerfiles:
 - **`packages/wbraid/crates/b4/Dockerfile`**
 - **`packages/e2e/src/mock_server/Dockerfile.prod`**
 - **`packages/loadtesting/Dockerfile`**
-- **`packages/Dockerfile.immudb-init-vstl-dependencies`**
-- **`packages/Dockerfile.immudb-init.prod`**
 - **`packages/step-cli/Dockerfile`**
 - **`packages/orare/doc_renderer/Dockerfile`**
 
@@ -326,8 +324,6 @@ Here's the complete list of files that need updating:
 - `packages/wbraid/crates/b4/Dockerfile`
 - `packages/e2e/src/mock_server/Dockerfile.prod`
 - `packages/loadtesting/Dockerfile`
-- `packages/Dockerfile.immudb-init-vstl-dependencies`
-- `packages/Dockerfile.immudb-init.prod`
 - `packages/step-cli/Dockerfile`
 - `packages/orare/doc_renderer/Dockerfile`
 

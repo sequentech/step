@@ -18,6 +18,7 @@ use crate::services::celery_app::get_celery_app;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::monitoring::cadence;
 use crate::services::monitoring::login_counter::prune_login_counter_receipts;
+use crate::services::monitoring::projection::EventBallotBoxes;
 use crate::services::monitoring::snapshot::{
     prune_snapshots, refresh_event_snapshot, PassOptions, EXPORT_WINDOW,
 };
@@ -247,6 +248,7 @@ async fn pass(event: EventRef) -> Result<()> {
             voter_group: &voter_group,
             full_pass_every: full_pass_every(),
             now: Utc::now(),
+            ballot_box: &EventBallotBoxes,
         },
     )
     .await?;

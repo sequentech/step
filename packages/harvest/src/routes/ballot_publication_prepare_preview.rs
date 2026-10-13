@@ -92,6 +92,7 @@ pub async fn prepare_ballot_publication_preview(
     {
         Ok(celery_task) => celery_task,
         Err(err) => {
+            let _ = update_fail(&task_execution, &err.to_string()).await;
             return Ok(Json(PreparePublPreviewOutput {
                 error_msg: Some(format!(
                     "Error sending prepare_publication_preview task: ${err}"

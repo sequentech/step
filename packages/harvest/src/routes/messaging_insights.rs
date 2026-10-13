@@ -285,8 +285,6 @@ pub async fn ask_recount(
     if asked {
         services
             .tasks
-            .connect()
-            .await
             .send_task(recount_messaging_voters::new(
                 tenant_id.to_string(),
                 election_event_id.to_string(),

@@ -5,11 +5,12 @@
 //! Ballot box seals (VOTE-FREEZE). With the event's Ballot Box Seal Policy
 //! set to Seal at close, closing an election creates one `pending` seal per
 //! ballot box ([`on_close`], in the close transaction). Once the grace
-//! period ends, [`seal::seal_box`] locks, hashes and signs each box, and
-//! [`publish::publish_box`] posts the signed entry to the event's electoral
-//! log and uploads the seal record: a private event document, or a public
-//! one, by the event's Seal Record Publication policy. The `cast_vote` guard refuses
-//! every write to a box whose seal isn't pending.
+//! period ends, [`seal::seal_box`] locks, hashes and signs each box and
+//! stores the seal with its `BallotBoxSealed` record in the event's
+//! electoral-log database, in one transaction; from then on that database's
+//! guard refuses every write to the box. [`publish::publish_box`] then
+//! uploads the seal record: a private event document, or a public one, by
+//! the event's Seal Record Publication policy.
 
 pub mod deadline;
 pub mod publish;
@@ -17,15 +18,16 @@ pub mod record;
 pub mod seal;
 pub mod sink;
 
-use crate::postgres::ballot_box_seal::{
-    insert_pending, ClosedBy, NewPendingSeal, BALLOT_BOX_SEALED_ERROR,
-};
+use crate::postgres::ballot_box_seal::{insert_pending, ClosedBy, NewPendingSeal};
 use crate::postgres::ballot_style::get_ballot_styles_by_elections;
 use crate::postgres::election::get_election_by_id;
+use crate::services::ballot_box::request_sequencer;
 use crate::services::documents::{
     upload_and_return_document, upload_and_return_public_event_document,
 };
-use crate::services::electoral_log_board::get_board_signing_key;
+use crate::services::electoral_log_board::{
+    get_board_signing_key, get_event_databases, get_event_store,
+};
 use crate::services::users::{
     list_keycloak_enabled_users_by_area_id_and_authorized_elections, VoterMultiplicityColumn,
 };
@@ -33,6 +35,8 @@ use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use electoral_log::adapters::ballot_box_seal::is_sealed_refusal;
+use electoral_log::adapters::postgres::PostgresStore;
 use sequent_core::ballot::{
     BallotBoxSealPolicy, BallotBoxSealRecordPolicy, BallotStyle as SequentBallotStyle,
     DelegatedVotingPolicy, ElectionEventPresentation, WeightedVotingPolicy,
@@ -112,8 +116,8 @@ pub fn strict_presentation(election_event: &ElectionEvent) -> Result<ElectionEve
         .unwrap_or_default())
 }
 
-/// How long a call to native audit or the public bucket may take before the
-/// attempt fails and the next one retries.
+/// How long a call to the electoral log or the public bucket may take before
+/// the attempt fails and the next one retries.
 pub const REMOTE_CALL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
 
 /// `call`, failing after [`REMOTE_CALL_TIMEOUT`].
@@ -163,18 +167,15 @@ pub fn error_category(error: &anyhow::Error) -> SealErrorCategory {
     SealErrorCategory::Other
 }
 
-/// Whether `error` is the guard refusing a write to a sealed ballot box
-/// (SQLSTATE 42501, message `ballot_box_sealed`).
+/// Whether `error` is the guard of the event's ballot box refusing a write
+/// to a sealed ballot box (SQLSTATE 42501, message `ballot_box_sealed`).
 pub fn is_ballot_box_sealed(error: &anyhow::Error) -> bool {
-    error.chain().any(|cause| {
-        cause
-            .downcast_ref::<tokio_postgres::Error>()
-            .and_then(|error| error.as_db_error())
-            .is_some_and(|error| {
-                error.code() == &tokio_postgres::error::SqlState::INSUFFICIENT_PRIVILEGE
-                    && error.message() == BALLOT_BOX_SEALED_ERROR
-            })
-    })
+    is_sealed_refusal(error)
+        || error.chain().any(|cause| {
+            cause
+                .downcast_ref::<tokio_postgres::Error>()
+                .is_some_and(electoral_log::adapters::ballot_box_seal::is_ballot_box_sealed)
+        })
 }
 
 /// Refuses to delete an election event with ballot box seals, in any
@@ -195,38 +196,6 @@ pub async fn refuse_sealed_event_delete(
         return Err(crate::postgres::election_event::SealedEventDeleteRefusal.into());
     }
     Ok(())
-}
-
-/// The sealed ballot boxes (election, area) that hold active (`valid` or
-/// `in-progress`) ballots of the voter: a discard leaves those ballots as
-/// they were sealed.
-pub async fn voter_sealed_boxes(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &Uuid,
-    election_event_id: &Uuid,
-    voter_id: &str,
-) -> Result<Vec<(Uuid, Uuid)>> {
-    hasura_transaction
-        .query(
-            "SELECT DISTINCT cast_vote.election_id, cast_vote.area_id
-             FROM sequent_backend.cast_vote
-             JOIN sequent_backend.ballot_box_seal AS seal
-               ON seal.tenant_id = cast_vote.tenant_id
-              AND seal.election_event_id = cast_vote.election_event_id
-              AND seal.election_id = cast_vote.election_id
-              AND seal.area_id = cast_vote.area_id
-             WHERE cast_vote.tenant_id = $1 AND cast_vote.election_event_id = $2
-               AND cast_vote.voter_id_string = $3
-               AND cast_vote.status IN ('valid', 'in-progress')
-               AND seal.status <> 'pending'
-             ORDER BY 1, 2",
-            &[tenant_id, election_event_id, &voter_id],
-        )
-        .await
-        .context("Error listing the voter's sealed ballot boxes")?
-        .into_iter()
-        .map(|row| Ok((row.try_get(0)?, row.try_get(1)?)))
-        .collect()
 }
 
 /// Whether the election has any ballot box seal, in any status.
@@ -270,11 +239,26 @@ pub async fn box_grace_deadline(
 /// for the election, with the weight its ballot counts with.
 pub type Census = HashMap<String, u64>;
 
-/// What sealing and publishing need besides the Hasura database and the
-/// event's electoral log: the key that signs the log, the census, and the
-/// document storage. Production uses [`ProductionSealEnvironment`].
+/// What sealing and publishing need besides the Hasura database: the
+/// event's electoral-log database, its sequencer, the key that signs the
+/// log, the census, and the document storage. Production uses
+/// [`ProductionSealEnvironment`].
 #[async_trait]
 pub trait SealEnvironment: Send + Sync {
+    /// The event's electoral-log database, which holds its ballot box, its
+    /// board and its seals.
+    async fn event_store(&self, election_event_id: &str) -> Result<PostgresStore>;
+
+    /// Asks the sequencer to append the event's accepted ballots to its
+    /// board soon.
+    async fn request_sequencer(&self, election_event_id: &str) -> Result<()>;
+
+    /// How long an attempt waits for the sequencer before it leaves the box
+    /// to the next attempt.
+    fn sequencer_wait(&self) -> std::time::Duration {
+        seal::SEAL_SEQUENCER_WAIT
+    }
+
     /// The event's protocol manager key, which signs its electoral log as
     /// sender and system.
     async fn signing_key(
@@ -310,8 +294,8 @@ pub trait SealEnvironment: Send + Sync {
     ) -> Result<Uuid>;
 }
 
-/// The vault's protocol manager key, the Keycloak census and the document
-/// buckets.
+/// The event databases of `ELECTORAL_LOG_PG_*`, the vault's protocol
+/// manager key, the Keycloak census and the document buckets.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ProductionSealEnvironment;
 
@@ -320,6 +304,14 @@ const RECORD_MEDIA_TYPE: &str = "application/json";
 
 #[async_trait]
 impl SealEnvironment for ProductionSealEnvironment {
+    async fn event_store(&self, election_event_id: &str) -> Result<PostgresStore> {
+        get_event_store(election_event_id).await
+    }
+
+    async fn request_sequencer(&self, election_event_id: &str) -> Result<()> {
+        request_sequencer(election_event_id).await
+    }
+
     async fn signing_key(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -327,13 +319,13 @@ impl SealEnvironment for ProductionSealEnvironment {
         election_event_id: &str,
         board: &str,
     ) -> Result<SigningKey> {
-        Ok(get_board_signing_key(
+        get_board_signing_key(
             hasura_transaction,
             tenant_id,
             Some(election_event_id),
             board,
         )
-        .await?)
+        .await
     }
 
     async fn census(
@@ -653,7 +645,8 @@ pub async fn on_close(
 
 /// The areas of the election's ballot boxes: those of
 /// [`expected_ballot_boxes`], plus every area that already has ballots of
-/// the election. Empty boxes are sealed too. A published style that can't
+/// the election in the event's ballot box (an event without an electoral-log
+/// database has none). Empty boxes are sealed too. A published style that can't
 /// be read never stops the close: its row's area counts as a box, and an
 /// `error!` names the style (the tally's readiness reports it too).
 async fn election_areas(
@@ -701,21 +694,16 @@ async fn election_areas(
             Err(_) => error!(%election_id, %area_id, "A ballot style names an invalid area id"),
         }
     }
-    let rows = hasura_transaction
-        .query(
-            "SELECT DISTINCT area_id FROM sequent_backend.cast_vote
-             WHERE tenant_id = $1 AND election_event_id = $2 AND election_id = $3
-               AND area_id IS NOT NULL",
-            &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(election_id)?,
-            ],
-        )
-        .await
-        .context("Error listing the areas with ballots")?;
-    for row in rows {
-        areas.insert(row.try_get("area_id")?);
+    let databases = get_event_databases().await?;
+    if databases.has_event(election_event_id).await? {
+        let with_ballots = databases
+            .store(election_event_id)
+            .await?
+            .ballot_box_areas(election_event_id, election_id)
+            .await?;
+        for area_id in with_ballots {
+            areas.insert(Uuid::parse_str(&area_id)?);
+        }
     }
     Ok(areas)
 }

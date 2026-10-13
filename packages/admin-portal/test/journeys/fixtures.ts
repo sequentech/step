@@ -22,7 +22,7 @@ export interface AdminPortal extends PortalServices {
     user: Omit<OidcUser, "attributes">
 }
 export const test = base.extend<
-    {portal: AdminPortal; roles: string[]},
+    {portal: AdminPortal; roles: string[]; trustee: string | undefined},
     {dist: Awaited<ReturnType<typeof serveDist>>}
 >({
     roles: [
@@ -35,6 +35,8 @@ export const test = base.extend<
         ],
         {option: true},
     ],
+    /** The `trustee` claim Keycloak adds for a user with the trustee attribute. */
+    trustee: [undefined, {option: true}],
     dist: [
         // Playwright requires an object pattern for a fixture without dependencies.
         // eslint-disable-next-line no-empty-pattern
@@ -48,7 +50,7 @@ export const test = base.extend<
         },
         {scope: "worker"},
     ],
-    portal: async ({context, page, dist, roles}, use) => {
+    portal: async ({context, page, dist, roles, trustee}, use) => {
         const {origin} = dist
         const violations = new ViolationLog()
         const s3 = new S3Mock({origin, violations})
@@ -74,6 +76,7 @@ export const test = base.extend<
                         "x-hasura-tenant-id": tenantId,
                         "x-hasura-user-id": user.id,
                     },
+                    ...(trustee === undefined ? {} : {trustee}),
                 }),
             })),
         })

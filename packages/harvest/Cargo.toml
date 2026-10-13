@@ -40,11 +40,11 @@ tracing = "0.1"
 
 
 electoral-log = { path="../electoral-log" }
-immudb-rs = { path="../immudb-rs" }
 sequent-core = { path="../sequent-core", features = ["keycloak", "s3", "probe", "default_features", "monitoring"] }
 windmill = { path="../windmill" }
 protocol-board = { path = "../protocol-board" }
 messaging = { path = "../messaging" }
+pgmq-broker = { path="../pgmq-broker" }
 # Verifies Keycloak's service tokens on /messages/*.
 jsonwebtoken = { version = "10.3", features = ["aws_lc_rs"] }
 

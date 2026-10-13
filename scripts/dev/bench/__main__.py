@@ -654,6 +654,13 @@ def add_monitoring_viewers(
     parser.add_argument("--backend-db", default="postgres")
     parser.add_argument("--keycloak-db-container", default="postgres-keycloak")
     parser.add_argument("--keycloak-db", default="postgres")
+    parser.add_argument("--electoral-log-db-container", default="postgres")
+    parser.add_argument(
+        "--electoral-log-db",
+        default="electoral_log",
+        help="the electoral-log base database (ELECTORAL_LOG_PG_DATABASE); the "
+        "event's own is named after it (default: %(default)s)",
+    )
     parser.add_argument("--harvest-container", default="harvest")
     parser.add_argument(
         "--container",
@@ -703,6 +710,10 @@ def run_monitoring_viewers(arguments: argparse.Namespace) -> Path:
             backend_database=arguments.backend_db,
             keycloak_container=arguments.keycloak_db_container,
             keycloak_database=arguments.keycloak_db,
+            electoral_log_container=arguments.electoral_log_db_container,
+            electoral_log_database=monitoring_viewers.event_database(
+                arguments.electoral_log_db, arguments.election_event_id
+            ),
             harvest_container=arguments.harvest_container,
             containers=containers,
         ),

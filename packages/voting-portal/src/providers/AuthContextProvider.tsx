@@ -5,7 +5,7 @@ import {StartupError} from "../components/StartupError"
 import React, {useContext} from "react"
 
 import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
-import {createContext, useEffect, useState} from "react"
+import {createContext, useCallback, useEffect, useState} from "react"
 import {getValueFromCookie, sleep, toBCP47, USER_LANGUAGE_COOKIE_NAME} from "@sequentech/ui-core"
 import {SettingsContext} from "./SettingsContextProvider"
 import {getLanguageFromURL} from "../utils/queryParams"
@@ -554,19 +554,22 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         }
     }, [keycloak, isAuthenticated, isKeycloakInitialized])
 
-    const setTenantEvent = (
-        tenantId: string,
-        eventId: string,
-        authType?: "register" | "login",
-        defaultLocale?: string,
-        initialLoginHints?: LoginHints
-    ) => {
-        setTenantId(tenantId)
-        setEventId(eventId)
-        setDefaultLocale(defaultLocale)
-        authType && setAuthType(authType)
-        setLoginHints(initialLoginHints ?? {})
-    }
+    const setTenantEvent = useCallback(
+        (
+            tenantId: string,
+            eventId: string,
+            authType?: "register" | "login",
+            defaultLocale?: string,
+            initialLoginHints?: LoginHints
+        ) => {
+            setTenantId(tenantId)
+            setEventId(eventId)
+            setDefaultLocale(defaultLocale)
+            authType && setAuthType(authType)
+            setLoginHints(initialLoginHints ?? {})
+        },
+        []
+    )
 
     const getRedirectUrl = (redirectUrl?: string) => {
         return getLogoutRedirectUrl({

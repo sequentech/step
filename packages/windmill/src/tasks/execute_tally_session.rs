@@ -5,7 +5,6 @@ use crate::adapters::tally_execution::{PgTallyExecution, RandomTrusteeOrder, Tal
 use crate::domain::tally_execution::{execution_conclusion, TrusteeSelection};
 use crate::ports::tally_execution::{ExecutionRecord, ExecutionScope};
 use crate::postgres::area::get_event_areas;
-use crate::postgres::cast_vote::count_unresolved_cast_votes;
 use crate::postgres::election::set_election_initialization_report_generated;
 use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
 use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
@@ -21,7 +20,8 @@ use crate::postgres::tally_session_execution::insert_tally_session_execution;
 use crate::postgres::tally_session_resolution::get_resolution_by_tally_session;
 use crate::postgres::tally_sheet::get_approved_tally_sheets_by_event;
 use crate::postgres::template::get_template_by_alias;
-use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
+use crate::services::ballot_box_reads::count_unresolved_votes;
+use crate::services::cast_votes::ElectionCastVotes;
 use crate::services::celery_app::get_celery_app;
 use crate::services::ceremonies::results::populate_results_tables;
 use crate::services::ceremonies::serialize_logs::{append_tally_finished, append_tally_updated};
@@ -934,7 +934,7 @@ async fn map_plaintext_data(
         let election_uuid =
             parse_uuid_v4(&contest.election_id).with_context(|| "Error parsing election_id")?;
         let area_uuid = parse_uuid_v4(&contest.area_id).with_context(|| "Error parsing area_id")?;
-        let unresolved_count = count_unresolved_cast_votes(
+        let unresolved_count = count_unresolved_votes(
             hasura_transaction,
             &tenant_uuid,
             &election_event_uuid,

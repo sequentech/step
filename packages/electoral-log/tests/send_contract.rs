@@ -2,22 +2,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Audit operations must be usable by the backend's Send task executors.
-use electoral_log::{AuditQuery, BoardClient};
+use electoral_log::{BoardClient, LogQuery};
 fn require_send<T: Send>(_: T) {}
+fn require_send_type<T: Send>() {}
 #[test]
-fn immudb_audit_futures_can_run_in_worker_tasks() {
-    require_send(BoardClient::new(
-        "http://unused:3322",
-        "synthetic",
-        "synthetic",
-    ));
-    let _operations = |mut client: BoardClient| {
+fn postgres_audit_futures_can_run_in_worker_tasks() {
+    require_send_type::<BoardClient>();
+    let _operations = |client: BoardClient| {
         require_send(async move {
-            client.append_deliveries("test", &[]).await?;
-            client
-                .query_messages("test", &AuditQuery::default())
-                .await?;
-            client.count_query("test", None).await?;
+            client.append("test", &[]).await?;
+            client.query("test", &LogQuery::default()).await?;
+            client.count("test", &LogQuery::default()).await?;
             anyhow::Ok(())
         });
     };

@@ -18,6 +18,7 @@ SERVICES = ("harvest", "windmill", "beat")
 LINKER = "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER"
 LINKER_SCRIPT = DEVCONTAINER / "scripts" / "rust-lld-cc.sh"
 WORKSPACE = "/workspaces/rust-linker-contract"
+RESTART_WORKER = "../../.devcontainer/restart-worker.sh"
 
 
 def available(*command):
@@ -60,10 +61,10 @@ class ServiceConfigurationTests(unittest.TestCase):
         cls.services = compose_services()
 
     def test_each_watcher_runs_its_service_with_its_own_feature_graph(self):
-        for service, package, prefix in (
-            ("harvest", "harvest", ["run"]),
-            ("windmill", "windmill", ["run", "--bin", "main", "consume"]),
-            ("beat", "windmill", ["run", "--bin", "beat"]),
+        for service, package, prefix, worker in (
+            ("harvest", "harvest", ["run"], None),
+            ("windmill", "windmill", ["build", "--bin", "main"], ["main", "consume"]),
+            ("beat", "windmill", ["build", "--bin", "beat"], ["beat"]),
         ):
             with self.subTest(service=service):
                 configuration = self.services[service]
@@ -72,14 +73,23 @@ class ServiceConfigurationTests(unittest.TestCase):
                 )
                 command = configuration["command"]
                 self.assertEqual(command[:2], ["cargo", "watch"])
-                # A cross-package prebuild unifies features that cargo run may
-                # not enable, causing a second compilation instead of reuse.
-                self.assertNotIn("-s", command)
                 self.assertEqual(command.count("-x"), 1)
                 cargo = shlex.split(command[command.index("-x") + 1])
                 self.assertEqual(cargo[: len(prefix)], prefix)
+                # A cross-package prebuild unifies features that the service's
+                # own build may not enable, causing a second compilation.
                 self.assertNotIn("--package", cargo)
                 self.assertNotIn("-p", cargo)
+                if worker is None:
+                    self.assertNotIn("-s", command)
+                else:
+                    # The restart loop runs the binary just built, without Cargo.
+                    self.assertEqual(command.count("-s"), 1)
+                    shell = shlex.split(command[command.index("-s") + 1])
+                    self.assertEqual(shell[:2], ["sh", RESTART_WORKER])
+                    self.assertEqual(shell[2], f"../target/debug/{worker[0]}")
+                    self.assertEqual(shell[3 : 2 + len(worker)], worker[1:])
+                    self.assertNotIn("cargo", shell)
                 # Keep cargo-watch's metadata-derived local dependency scope.
                 self.assertNotIn("--skip-local-deps", command)
                 self.assertNotIn("--watch", command)

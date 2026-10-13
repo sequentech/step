@@ -174,3 +174,21 @@ are added: no role receives them. Assign them to roles in **Users and Roles** > 
 lists each of these permissions with its label in Users and Roles, and the sample preset's
 groups and rules; [Signatures](../../02-election-event/16-signatures/01-election_management_election-event_signatures.md)
 describes the tab.
+
+## Electoral Log Permissions
+
+| Permission | Allows |
+|---|---|
+| `electoral-log-console-read` | Open the **Electoral Log** page and browse the records, ballots, voters and sequencer queue of the tenant's election events, or, in the super-admin tenant, of any tenant's. Usernames, IP addresses and countries show as `hidden`. |
+| `electoral-log-personal-data-read` | See usernames, IP addresses and countries on the **Electoral Log** page. |
+| `electoral-log-console-query` | Run read-only SQL queries on the **Electoral Log** page, in the super-admin tenant. A query reads the database of one election event, of any tenant, and also needs `electoral-log-personal-data-read`, because it reads personal data as it is stored. |
+
+## Task Queue Permissions
+
+These apply to users of the super-admin tenant only; in other tenants they grant nothing.
+
+| Permission | Allows |
+|---|---|
+| `task-queues-read` | Open the **Task Queues** page: the environment's queues, their recent outcomes and throughput, and the messages in them, without their tasks' arguments. |
+| `task-queues-write` | Replay or discard dead-lettered electoral-log events on the **Task Queues** page. Also needs `task-queues-read`. |
+| `task-queues-query` | Run read-only SQL queries on the task-queue database from the **Task Queues** page. Queries read messages as they are stored, with their tasks' arguments, which can include voters' data. Also needs `task-queues-read`. |

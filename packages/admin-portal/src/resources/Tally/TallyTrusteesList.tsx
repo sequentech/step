@@ -72,7 +72,7 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
     }, [keyCeremony])
 
     useEffect(() => {
-        if (!tallySessionExecutions?.[0].status || !trustees) {
+        if (!tallySessionExecutions?.[0]?.status || !trustees) {
             return
         }
         let status: ITallyCeremonyStatus = tallySessionExecutions[0].status

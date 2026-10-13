@@ -1,6 +1,6 @@
 /* eslint-disable */
-import * as types from "./graphql"
-import {TypedDocumentNode as DocumentNode} from "@graphql-typed-document-node/core"
+import * as types from './graphql';
+import { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/core';
 
 /**
  * Map of all GraphQL operations in the project.
@@ -14,15 +14,13 @@ import {TypedDocumentNode as DocumentNode} from "@graphql-typed-document-node/co
  * Learn more about it here: https://the-guild.dev/graphql/codegen/plugins/presets/preset-client#reducing-bundle-size
  */
 type Documents = {
-    "\n    query ResolveResultsPublication($eeId: String!, $electionId: uuid) {\n        resolveResultsPublication(ee_id: $eeId, election_id: $electionId) {\n            tenant_id\n            election_event_id\n            access\n            route_scope\n            election_ids\n            publication_id\n            manifest_public_path\n            manifest_url\n            manifest\n        }\n    }\n": typeof types.ResolveResultsPublicationDocument
-    "\n    query FetchResultsArtifact(\n        $electionEventId: uuid!\n        $electionId: uuid\n        $publicationId: String!\n    ) {\n        fetchResultsArtifact(\n            election_event_id: $electionEventId\n            election_id: $electionId\n            publication_id: $publicationId\n        ) {\n            urls\n        }\n    }\n": typeof types.FetchResultsArtifactDocument
-}
+    "\n    query ResolveResultsPublication($eeId: String!, $electionId: uuid) {\n        resolveResultsPublication(ee_id: $eeId, election_id: $electionId) {\n            tenant_id\n            election_event_id\n            access\n            route_scope\n            election_ids\n            publication_id\n            manifest_public_path\n            manifest_url\n            manifest\n        }\n    }\n": typeof types.ResolveResultsPublicationDocument,
+    "\n    query FetchResultsArtifact(\n        $electionEventId: uuid!\n        $electionId: uuid\n        $publicationId: String!\n    ) {\n        fetchResultsArtifact(\n            election_event_id: $electionEventId\n            election_id: $electionId\n            publication_id: $publicationId\n        ) {\n            urls\n        }\n    }\n": typeof types.FetchResultsArtifactDocument,
+};
 const documents: Documents = {
-    "\n    query ResolveResultsPublication($eeId: String!, $electionId: uuid) {\n        resolveResultsPublication(ee_id: $eeId, election_id: $electionId) {\n            tenant_id\n            election_event_id\n            access\n            route_scope\n            election_ids\n            publication_id\n            manifest_public_path\n            manifest_url\n            manifest\n        }\n    }\n":
-        types.ResolveResultsPublicationDocument,
-    "\n    query FetchResultsArtifact(\n        $electionEventId: uuid!\n        $electionId: uuid\n        $publicationId: String!\n    ) {\n        fetchResultsArtifact(\n            election_event_id: $electionEventId\n            election_id: $electionId\n            publication_id: $publicationId\n        ) {\n            urls\n        }\n    }\n":
-        types.FetchResultsArtifactDocument,
-}
+    "\n    query ResolveResultsPublication($eeId: String!, $electionId: uuid) {\n        resolveResultsPublication(ee_id: $eeId, election_id: $electionId) {\n            tenant_id\n            election_event_id\n            access\n            route_scope\n            election_ids\n            publication_id\n            manifest_public_path\n            manifest_url\n            manifest\n        }\n    }\n": types.ResolveResultsPublicationDocument,
+    "\n    query FetchResultsArtifact(\n        $electionEventId: uuid!\n        $electionId: uuid\n        $publicationId: String!\n    ) {\n        fetchResultsArtifact(\n            election_event_id: $electionEventId\n            election_id: $electionId\n            publication_id: $publicationId\n        ) {\n            urls\n        }\n    }\n": types.FetchResultsArtifactDocument,
+};
 
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -36,24 +34,19 @@ const documents: Documents = {
  * The query argument is unknown!
  * Please regenerate the types.
  */
-export function graphql(source: string): unknown
+export function graphql(source: string): unknown;
 
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(
-    source: "\n    query ResolveResultsPublication($eeId: String!, $electionId: uuid) {\n        resolveResultsPublication(ee_id: $eeId, election_id: $electionId) {\n            tenant_id\n            election_event_id\n            access\n            route_scope\n            election_ids\n            publication_id\n            manifest_public_path\n            manifest_url\n            manifest\n        }\n    }\n"
-): (typeof documents)["\n    query ResolveResultsPublication($eeId: String!, $electionId: uuid) {\n        resolveResultsPublication(ee_id: $eeId, election_id: $electionId) {\n            tenant_id\n            election_event_id\n            access\n            route_scope\n            election_ids\n            publication_id\n            manifest_public_path\n            manifest_url\n            manifest\n        }\n    }\n"]
+export function graphql(source: "\n    query ResolveResultsPublication($eeId: String!, $electionId: uuid) {\n        resolveResultsPublication(ee_id: $eeId, election_id: $electionId) {\n            tenant_id\n            election_event_id\n            access\n            route_scope\n            election_ids\n            publication_id\n            manifest_public_path\n            manifest_url\n            manifest\n        }\n    }\n"): (typeof documents)["\n    query ResolveResultsPublication($eeId: String!, $electionId: uuid) {\n        resolveResultsPublication(ee_id: $eeId, election_id: $electionId) {\n            tenant_id\n            election_event_id\n            access\n            route_scope\n            election_ids\n            publication_id\n            manifest_public_path\n            manifest_url\n            manifest\n        }\n    }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(
-    source: "\n    query FetchResultsArtifact(\n        $electionEventId: uuid!\n        $electionId: uuid\n        $publicationId: String!\n    ) {\n        fetchResultsArtifact(\n            election_event_id: $electionEventId\n            election_id: $electionId\n            publication_id: $publicationId\n        ) {\n            urls\n        }\n    }\n"
-): (typeof documents)["\n    query FetchResultsArtifact(\n        $electionEventId: uuid!\n        $electionId: uuid\n        $publicationId: String!\n    ) {\n        fetchResultsArtifact(\n            election_event_id: $electionEventId\n            election_id: $electionId\n            publication_id: $publicationId\n        ) {\n            urls\n        }\n    }\n"]
+export function graphql(source: "\n    query FetchResultsArtifact(\n        $electionEventId: uuid!\n        $electionId: uuid\n        $publicationId: String!\n    ) {\n        fetchResultsArtifact(\n            election_event_id: $electionEventId\n            election_id: $electionId\n            publication_id: $publicationId\n        ) {\n            urls\n        }\n    }\n"): (typeof documents)["\n    query FetchResultsArtifact(\n        $electionEventId: uuid!\n        $electionId: uuid\n        $publicationId: String!\n    ) {\n        fetchResultsArtifact(\n            election_event_id: $electionEventId\n            election_id: $electionId\n            publication_id: $publicationId\n        ) {\n            urls\n        }\n    }\n"];
 
 export function graphql(source: string) {
-    return (documents as any)[source] ?? {}
+  return (documents as any)[source] ?? {};
 }
 
-export type DocumentType<TDocumentNode extends DocumentNode<any, any>> =
-    TDocumentNode extends DocumentNode<infer TType, any> ? TType : never
+export type DocumentType<TDocumentNode extends DocumentNode<any, any>> = TDocumentNode extends DocumentNode<  infer TType,  any>  ? TType  : never;

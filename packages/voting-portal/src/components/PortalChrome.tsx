@@ -218,10 +218,9 @@ export const PortalChrome: React.FC<PortalChromeProps> = ({
         return electionId ? selectBallotStyleByElectionId(String(electionId))(state) : undefined
     })
 
-    const css =
-        ballotStyle?.ballot_eml.election_event_presentation?.css ??
-        electionEvent?.presentation?.css ??
-        ""
+    const presentation =
+        ballotStyle?.ballot_eml.election_event_presentation ?? electionEvent?.presentation
+    const css = presentation?.css ?? ""
     const customCss = useMemo(
         () =>
             sanitizePresentationCss(css, {
@@ -237,9 +236,11 @@ export const PortalChrome: React.FC<PortalChromeProps> = ({
         <StyledAppWrapper className="voting-portal-wrapper" customCss={customCss}>
             <StyledApp className="voting-portal app-root">
                 {before}
-                <a className="skip-link" href="#main-content">
-                    {t("a11y.skipToContent")}
-                </a>
+                <nav className="skip-navigation" aria-label={t("a11y.skipToContent")}>
+                    <a className="skip-link" href="#main-content">
+                        {t("a11y.skipToContent")}
+                    </a>
+                </nav>
                 <Wrapper>
                     <HeaderWithContext />
                     <ContactChangeNotice />

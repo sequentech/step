@@ -32,6 +32,8 @@ READY_PREFIX = "STEP_PREBUILD_READY="
 SAMPLE_TIMEOUT = 600
 WARM_RESERVE = 180
 CLEANUP_TIMEOUT = 90
+# Deleting a seeded volume removes a whole Nix store copy, which can take minutes.
+VOLUME_REMOVE_TIMEOUT = 120
 TOOLS = ("node", "yarn", "rustc", "cargo", "wasm-pack", "wasm-bindgen")
 READINESS = """\
 import json, pathlib, subprocess, sys
@@ -223,7 +225,10 @@ class OwnedResources:
                 if kind == "container"
                 else [kind, "rm", name]
             )
-            self.docker.run(*arguments, timeout=10)
+            self.docker.run(
+                *arguments,
+                timeout=VOLUME_REMOVE_TIMEOUT if kind == "volume" else 10,
+            )
         elif kind == "container" and name in self.pending:
             # Killing the CLI does not cancel the daemon's create/copy request.
             # Keep the exact name until it appears and can be removed by owner.
@@ -444,24 +449,27 @@ def measure(
     cold, hot = runs
     volume = None
     primary = None
+    removal = 0.0
     try:
         # Only one copied store exists at a time, including during warm samples.
         for index in range(1, fresh + 1):
             remaining = deadline - time.monotonic()
             expected = (
-                (fresh - index + 1) * cold.result.samples[-1].seconds
+                (fresh - index + 1) * (cold.result.samples[-1].seconds + removal)
                 if index > 1
                 else 0
             )
             if index > 1 and remaining < expected + WARM_RESERVE:
                 cold.result.notes.append(
                     f"Fresh series limited to {index - 1}/{fresh}: "
-                    "observed copy time leaves insufficient budget for more "
-                    "fresh starts and warm samples."
+                    "observed copy and removal time leaves insufficient budget "
+                    "for more fresh starts and warm samples."
                 )
                 break
             if volume:
+                started = time.monotonic()
                 resources.remove("volume", volume)
+                removal = max(removal, time.monotonic() - started)
             volume = resources.volume()
             sample(
                 cold,

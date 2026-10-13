@@ -16,6 +16,15 @@ fn entry(content: &str, id: &str, disposition: SealDisposition, weight: u64) -> 
     }
 }
 
+fn log_entry(id: i64) -> SealRecordLogEntry {
+    SealRecordLogEntry::sealed(&StoredRecord {
+        delivery_id: "ballot-box-seal:event:election:area".to_string(),
+        id,
+        log_uid: uuid::Uuid::from_u128(7),
+        leaf_index: id - 1,
+    })
+}
+
 fn manifest(entries: Vec<SealEntry>) -> BallotBoxSealManifest {
     BallotBoxSealManifest {
         format: SEAL_FORMAT_V1.to_string(),
@@ -82,7 +91,7 @@ fn sealed_by(sender_sk: SigningKey, sk: SigningKey) -> Sealed {
                 certificate_sha256: "3B:9C".to_string(),
             }],
         }),
-        48213,
+        log_entry(48213),
     )
     .unwrap();
     Sealed { record, system_pk }
@@ -148,6 +157,30 @@ fn a_record_survives_its_json() {
         value["message"]["statement"]["body"]["BallotBoxSealed"][2],
         value["seal_hash"]
     );
+}
+
+#[test]
+fn a_record_names_its_log_entry_by_delivery_id_and_leaf() {
+    let sealed = sealed();
+    let value = serde_json::to_value(&sealed.record).unwrap();
+    assert_eq!(
+        value["log_entry"],
+        serde_json::json!({
+            "id": 48213,
+            "statement_kind": "BallotBoxSealed",
+            "delivery_id": "ballot-box-seal:event:election:area",
+            "log_uid": "00000000-0000-0000-0000-000000000007",
+            "leaf_index": 48212,
+        })
+    );
+
+    let mut earlier = value;
+    earlier["log_entry"] = serde_json::json!({"id": 48213, "statement_kind": "BallotBoxSealed"});
+    let parsed: SealRecord = serde_json::from_value(earlier.clone()).unwrap();
+    assert_eq!(parsed.log_entry.delivery_id, None);
+    assert_eq!(parsed.log_entry.leaf_index, None);
+    assert!(verify_record(&parsed, None).is_ok());
+    assert_eq!(serde_json::to_value(&parsed).unwrap(), earlier);
 }
 
 #[test]
@@ -551,7 +584,7 @@ fn assert_rule(change: impl Fn(&mut BallotBoxSealManifest), step: SealCheckStep)
             area: "Area".to_string(),
         },
         None,
-        1,
+        log_entry(1),
     )
     .unwrap();
     assert_eq!(step_of(verify_record(&record, None)), step);
@@ -711,13 +744,13 @@ fn a_record_is_not_built_from_a_stored_message_that_does_not_decode() {
         &system_pk,
         names.clone(),
         None,
-        1,
+        log_entry(1),
     )
     .unwrap_err();
     assert!(error
         .to_string()
         .starts_with("the stored message does not decode"));
-    assert!(SealRecord::from_parts(b"", b"", &system_pk, names, None, 1).is_err());
+    assert!(SealRecord::from_parts(b"", b"", &system_pk, names, None, log_entry(1)).is_err());
 }
 
 #[test]

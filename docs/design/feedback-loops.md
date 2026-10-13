@@ -196,7 +196,9 @@ The earlier 59.045 s warm baseline uses a weaker condition than strict backend
 readiness and cannot serve as its before value. Its preceding strict series
 failed all ten starts. Retained logs correlate those failures and all five
 optional-rule Windmill exits with AMQP connection refusal before RabbitMQ's
-listener opened. The final configuration waits for the RabbitMQ healthcheck.
+listener opened. The final configuration waited for the RabbitMQ healthcheck;
+since the task queues moved to PostgreSQL (PGMQ), Windmill and Beat run in a
+restart loop until the task-queue database is set up.
 
 The final UI-only warm series uses the same frozen source and original Nix
 volume, with competing task previews stopped. CLI completion takes 1.213 s

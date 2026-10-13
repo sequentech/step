@@ -463,6 +463,72 @@ export function serveAdminTenant(portal: PortalServices, tables = adminTables())
     portal.graphql.on("GetCastVotesByIp", () => ({
         data: {get_top_votes_by_ip: {items: [], total: {aggregate: {count: 0}}}},
     }))
+    // The tenant is the super-admin tenant: it sees the environment's task queues.
+    portal.graphql.on("TaskQueuesOverview", () => ({
+        data: {
+            task_queues_overview: {
+                queues: [
+                    {
+                        queue: "short_queue",
+                        ready: 2,
+                        running_or_scheduled: 1,
+                        oldest_age_secs: 725,
+                        total_sent: 18_234,
+                        last_hour: {succeeded: 120},
+                    },
+                ],
+            },
+        },
+    }))
+    portal.graphql.on("TaskQueuesThroughput", ({variables}) => ({
+        data: {
+            task_queues_throughput: {
+                queue: variables.queue,
+                hours: variables.hours,
+                bucket_minutes: variables.bucketMinutes,
+                buckets: [],
+            },
+        },
+    }))
+    portal.graphql.on("TaskQueuesMessages", () => ({
+        data: {task_queues_messages: {messages: []}},
+    }))
+    // It also browses the electoral log of any tenant's event, starting with its own.
+    portal.graphql.on("ElectoralLogConsoleTenants", () => ({
+        data: {
+            electoral_log_console_tenants: {
+                tenants: [
+                    {
+                        id: TENANT_ID,
+                        slug: "synthetic",
+                        events: [
+                            {
+                                id: SHELL_IDS.event,
+                                is_archived: false,
+                                presentation: {i18n: {en: {name: "Council 2026"}}},
+                                elections: [],
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+    }))
+    portal.graphql.on("ElectoralLogConsolePage", ({variables}) => ({
+        data: {
+            electoral_log_console_page:
+                variables.tenantId === TENANT_ID && variables.electionEventId === SHELL_IDS.event
+                    ? {
+                          columns: ["position", "created", "statement_kind"],
+                          rows: [[1, FIXED_TIME, "KeyGeneration"]],
+                          next: null,
+                          estimated_rows: 1,
+                          personal_columns: [],
+                          personal_data: "shown",
+                      }
+                    : {error: "Unknown election event"},
+        },
+    }))
     portal.graphql.on("ListKeysCeremony", () => ({
         data: {list_keys_ceremony: {items: [], total: {aggregate: {count: 0}}}},
     }))

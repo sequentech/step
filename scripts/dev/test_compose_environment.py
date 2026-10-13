@@ -193,7 +193,7 @@ class ComposeEnvironmentTest(unittest.TestCase):
             ],
             DEVCONTAINER / ".env.development",
         )
-        for service in ("immudb-init", "driver", "ui-browser"):
+        for service in ("driver", "ui-browser"):
             volumes = {
                 volume["target"]: Path(volume["source"])
                 for volume in model["services"][service]["volumes"]
@@ -206,6 +206,17 @@ class ComposeEnvironmentTest(unittest.TestCase):
             volume["source"] for volume in driver if volume["target"] == "/out"
         )
         self.assertEqual(Path(output), self.root / ".cache/backend-e2e/default")
+
+    def test_backend_rust_services_build_inside_the_checkout(self):
+        model = self.render(["docker-compose.yml"], DEVCONTAINER / ".env.development")
+        target = "/workspaces/step/packages/rust-local-target/docker-dev"
+        for name in ("harvest", "windmill", "beat", "task-queues-setup"):
+            with self.subTest(service=name):
+                self.assertEqual(model["services"][name]["environment"].get("CARGO_TARGET_DIR"), target)
+        for name, binary in (("windmill", "main"), ("beat", "beat")):
+            command = " ".join(model["services"][name]["command"])
+            self.assertIn(f"../rust-local-target/docker-dev/debug/{binary}", command)
+            self.assertNotIn("../target/", command)
 
     def test_e2e_run_paths_can_be_overridden_in_a_configuration_file(self):
         binaries = self.root / "owned-run/bin"

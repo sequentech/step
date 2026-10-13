@@ -72,8 +72,8 @@ sweep runs this recovery every minute before retrying signing executions.
 ## Ports and adapters
 
 Windmill separates business rules from the systems it talks to, so the rules
-can be unit-tested without PostgreSQL, Keycloak, the bulletin board, immudb or
-S3.
+can be unit-tested without PostgreSQL, Keycloak, the bulletin board, the
+electoral log or S3.
 
 | Module | Contains | May depend on |
 | --- | --- | --- |

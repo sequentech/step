@@ -37,4 +37,5 @@ export enum ETasksExecution {
     VOTER_INFORMATION_LETTER = "VOTER_INFORMATION_LETTER",
     /** A protected action that runs once its signing request has every signature. */
     RUN_SIGNED_ACTION = "RUN_SIGNED_ACTION",
+    AUDIT_ELECTORAL_LOG = "AUDIT_ELECTORAL_LOG",
 }

@@ -149,9 +149,21 @@ def run_step(step_cli_bin: str, *args: str, timeout: float = 600) -> str:
     except subprocess.TimeoutExpired as error:
         raise StepCliError(f"step-cli step {args[0] if args else ''} timed out after {timeout}s") from error
     out = _ANSI_RE.sub("", proc.stdout)
+    failed = proc.returncode != 0 or re.search(r"^Error!", out, re.MULTILINE)
+    # CLI parsers and servers can echo argument values in their diagnostics.
+    for index, arg in enumerate(args):
+        option, separator, value = arg.partition("=")
+        if option in ("--keycloak-password", "--keycloak-client-secret"):
+            secret = (
+                value
+                if separator
+                else (args[index + 1] if index + 1 < len(args) else "")
+            )
+            if secret:
+                out = out.replace(secret, "[REDACTED]")
     print(out, file=sys.stderr)
-    if proc.returncode != 0 or re.search(r"^Error!", out, re.MULTILINE):
-        raise StepCliError(f"step-cli step {' '.join(args)} failed")
+    if failed:
+        raise StepCliError(f"step-cli step {args[0] if args else 'command'} failed")
     return out
 
 
@@ -170,7 +182,7 @@ def retry_step(step_cli_bin: str, attempts: int, delay: float, *args: str) -> st
             return run_step(step_cli_bin, *args)
         except StepCliError:
             if attempt >= attempts:
-                die(f"step-cli step {' '.join(args)} did not succeed after {attempts} attempts")
+                die(f"step-cli step {args[0] if args else 'command'} did not succeed after {attempts} attempts")
             log(f"Retrying in {delay}s (attempt {attempt + 1}/{attempts})...")
             time.sleep(delay)
     raise AssertionError("unreachable")  # die() exits, but satisfies type checkers

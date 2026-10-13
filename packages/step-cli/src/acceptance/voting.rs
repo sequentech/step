@@ -41,8 +41,22 @@ pub struct UserEvent {
 pub struct StoredBallot {
     pub voter_id: String,
     pub ballot_id: String,
+    /// The Ballot ID of the receipt the ballot box signed when it received the
+    /// ballot, for ballots cast with signed receipts.
+    pub receipt_ballot_id: Option<String>,
     pub content: String,
     pub cast_at: DateTime<Utc>,
+}
+
+impl StoredBallot {
+    /// Whether a Ballot ID a voter was shown names this ballot.
+    fn presented_as(&self, id: &str) -> bool {
+        same_id(&self.ballot_id, id)
+            || self
+                .receipt_ballot_id
+                .as_deref()
+                .is_some_and(|receipt| same_id(receipt, id))
+    }
 }
 
 /// A cast vote statement in the event's log.
@@ -277,10 +291,7 @@ fn receipt_produced(facts: &Facts) -> Result<Vec<Finding>, String> {
     let mut findings: Vec<Finding> = presented
         .iter()
         .map(|id| {
-            if facts
-                .ballots()
-                .any(|(_, ballot)| same_id(&ballot.ballot_id, id))
-            {
+            if facts.ballots().any(|(_, ballot)| ballot.presented_as(id)) {
                 Finding::pass(
                     Subject::Ballot,
                     id,
@@ -298,7 +309,7 @@ fn receipt_produced(facts: &Facts) -> Result<Vec<Finding>, String> {
     let stored = facts.ballots().count();
     let missing = facts
         .ballots()
-        .filter(|(_, ballot)| !presented.iter().any(|id| same_id(&ballot.ballot_id, id)))
+        .filter(|(_, ballot)| !presented.iter().any(|id| ballot.presented_as(id)))
         .count();
     findings.push(if stored == 0 {
         Finding::fail(
@@ -457,6 +468,7 @@ pub(crate) mod tests {
                 event.ballots.push(StoredBallot {
                     voter_id: id.clone(),
                     ballot_id: ballot_id.clone(),
+                    receipt_ballot_id: None,
                     content,
                     cast_at: since() + Duration::minutes(2),
                 });
@@ -674,6 +686,17 @@ pub(crate) mod tests {
                 ids[1]
             )]
         );
+    }
+
+    #[test]
+    fn a_ballot_cast_with_a_signed_receipt_is_presented_by_the_receipts_ballot_id() {
+        let mut event = Event::voted(&["ana"]);
+        event.ballots[0].receipt_ballot_id = Some("FTBE-MHRX".into());
+
+        let facts = event.facts(&["ana"], vec!["ftbe-mhrx".into()]);
+        assert!(failed(Probe::ReceiptProduced, &facts).is_empty());
+        let facts = event.facts(&["ana"], event.ballot_ids());
+        assert!(failed(Probe::ReceiptProduced, &facts).is_empty());
     }
 
     #[test]

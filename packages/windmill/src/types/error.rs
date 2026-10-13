@@ -91,10 +91,4 @@ impl From<keycloak::KeycloakError> for Error {
     }
 }
 
-impl From<lapin::Error> for Error {
-    fn from(err: lapin::Error) -> Self {
-        Error::String(format!("{:?}", err))
-    }
-}
-
 pub type Result<T, E = Error> = std::result::Result<T, E>;

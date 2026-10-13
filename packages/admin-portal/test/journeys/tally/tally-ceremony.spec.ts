@@ -420,6 +420,7 @@ test.describe("as a trustee", () => {
             "tally-read",
             "election-event-tally-tab",
         ],
+        trustee: "synthetic-admin",
     })
 
     test("confirms native trustee custody for a started tally after a rejected proof", async ({

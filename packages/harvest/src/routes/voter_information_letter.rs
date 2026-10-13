@@ -298,8 +298,8 @@ pub async fn generate_voter_information_letter(
             .clone(),
         area_id: claims.hasura_claims.area_id.clone(),
     };
-    let celery_app = services.tasks.connect().await;
-    if let Err(_send_error) = celery_app
+    if let Err(_send_error) = services
+        .tasks
         .send_task(
             windmill::tasks::voter_information_letter::generate_voter_information_letter::new(
                 tenant_id,

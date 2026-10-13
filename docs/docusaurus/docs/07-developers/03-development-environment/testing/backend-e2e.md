@@ -5,8 +5,8 @@ title: Backend E2E journeys
 <!-- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io> -->
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
-The backend journeys use real PostgreSQL, Hasura, Keycloak, RabbitMQ, immudb,
-MinIO, B4 and two trustees. They exercise administrator commands and the voting
+The backend journeys use real PostgreSQL (with the electoral log's databases
+and the task queues), Hasura, Keycloak, MinIO, B4 and two trustees. They exercise administrator commands and the voting
 portal's GraphQL protocol, including ballot encryption and tallying.
 
 From the repository root, with Python 3, `flock`, Docker Engine and Compose 2.24.4 or newer:

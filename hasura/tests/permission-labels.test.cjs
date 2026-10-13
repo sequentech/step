@@ -66,10 +66,6 @@ const scopedTables = {
         writePredicate: publicationInLabels,
         parent: ["election", "election_event"],
     },
-    cast_vote: {
-        predicate: unlessNull("election_id", viaElection),
-        parent: "election",
-    },
     notification: {
         predicate: unlessNull("election_id", viaElection),
         parent: "election",

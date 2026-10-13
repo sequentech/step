@@ -2,13 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::cast_vote::find_voter_cast_votes_by_ballot_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::services::cast_votes::CastVote;
-use anyhow::{anyhow, Result};
+use crate::services::ballot_box_reads::{
+    ballot_box_time, get_event_ballot_box, get_voter_cast_votes, VoterCastVotes, VoterScope,
+};
+use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
+use electoral_log::adapters::ballot_box_reads;
 use sequent_core::ballot::{checks_period_from_presentation, ChecksPeriod};
 use sequent_core::ballot_receipt::normalize_ballot_id;
 use sequent_core::types::hasura::extra::VotingChannels;
@@ -47,25 +49,30 @@ pub struct LocateBallotOutput {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum BallotIdMatch {
+    /// The Ballot ID the ballot box signed for a received ballot.
+    Received(String),
     Exact(String),
     Prefix(String),
 }
 
 impl BallotIdMatch {
-    pub fn like_pattern(&self) -> String {
+    /// How the ballot box matches a Ballot ID of the ballot's hash.
+    fn ballot_box_match(&self) -> ballot_box_reads::BallotIdMatch<'_> {
         match self {
-            Self::Exact(ballot_id) => ballot_id.clone(),
-            Self::Prefix(prefix) => format!("{prefix}%"),
+            Self::Received(ballot_id) | Self::Exact(ballot_id) => {
+                ballot_box_reads::BallotIdMatch::Exact(ballot_id)
+            }
+            Self::Prefix(prefix) => ballot_box_reads::BallotIdMatch::Prefix(prefix),
         }
     }
 }
 
 /// A Ballot ID is the one the ballot box signed for a received ballot, or the
 /// hexadecimal hash of the ballot. Anything else matches no ballot and never
-/// reaches the query as a pattern.
+/// reaches the ballot box.
 pub fn ballot_id_match(ballot_id: &str, telephone_voting: bool) -> Option<BallotIdMatch> {
     if let Some(received_ballot_id) = normalize_ballot_id(ballot_id) {
-        return Some(BallotIdMatch::Exact(received_ballot_id));
+        return Some(BallotIdMatch::Received(received_ballot_id));
     }
     let normalized = ballot_id.trim().to_ascii_lowercase();
     if normalized.is_empty()
@@ -89,7 +96,18 @@ fn checks_available_until(period: &ChecksPeriod) -> Option<String> {
     }
 }
 
-pub fn locate_ballot_output(period: &ChecksPeriod, matches: &[CastVote]) -> LocateBallotOutput {
+/// A cast ballot of the voter whose Ballot ID matches the lookup.
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct LocatedBallot {
+    pub ballot_id: String,
+    pub content: String,
+    pub cast_at: DateTime<Utc>,
+}
+
+pub fn locate_ballot_output(
+    period: &ChecksPeriod,
+    matches: &[LocatedBallot],
+) -> LocateBallotOutput {
     let checks_available_until = checks_available_until(period);
     let without_ballot = |status| LocateBallotOutput {
         status,
@@ -103,13 +121,11 @@ pub fn locate_ballot_output(period: &ChecksPeriod, matches: &[CastVote]) -> Loca
     }
     match matches {
         [] => without_ballot(LocateBallotStatus::NotFound),
-        [cast_vote] => LocateBallotOutput {
+        [ballot] => LocateBallotOutput {
             status: LocateBallotStatus::Found,
-            ballot_id: cast_vote.ballot_id.clone(),
-            content: cast_vote.content.clone(),
-            cast_at: cast_vote
-                .created_at
-                .map(|created_at| created_at.to_rfc3339()),
+            ballot_id: Some(ballot.ballot_id.clone()),
+            content: Some(ballot.content.clone()),
+            cast_at: Some(ballot.cast_at.to_rfc3339()),
             checks_available_until,
         },
         _ => without_ballot(LocateBallotStatus::Ambiguous),
@@ -165,16 +181,64 @@ pub async fn locate_ballot(
     let Some(ballot_id_match) = ballot_id_match(ballot_id, telephone_voting) else {
         return Ok(locate_ballot_output(&period, &[]));
     };
-    let matches = find_voter_cast_votes_by_ballot_id(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
-        election_id,
-        area_id,
-        voter_id,
-        &ballot_id_match.like_pattern(),
-    )
-    .await?;
+    let matches = match &ballot_id_match {
+        BallotIdMatch::Received(_) => {
+            get_event_ballot_box(hasura_transaction, tenant_id, election_event_id)
+                .await?
+                .store
+                .received_cast_ballots(
+                    election_event_id,
+                    voter_id,
+                    election_id,
+                    ballot_id_match.ballot_box_match(),
+                )
+                .await?
+                .into_iter()
+                .filter(|cast| cast.ballot.ballot.area_id == area_id)
+                .map(|cast| {
+                    Ok(LocatedBallot {
+                        ballot_id: cast.received_ballot_id,
+                        cast_at: ballot_box_time(cast.ballot.ballot.accepted_at)?,
+                        content: cast.ballot.content,
+                    })
+                })
+                .collect::<Result<Vec<_>>>()?
+        }
+        BallotIdMatch::Exact(_) | BallotIdMatch::Prefix(_) => {
+            let election_ids = [election_id.to_string()];
+            let scope = VoterScope {
+                tenant_id,
+                election_event_id,
+                voter_id,
+                area_id,
+                election_ids: &election_ids,
+            };
+            get_voter_cast_votes(
+                hasura_transaction,
+                &scope,
+                VoterCastVotes::Matching {
+                    election_id,
+                    ballot_id: ballot_id_match.ballot_box_match(),
+                },
+            )
+            .await?
+            .into_iter()
+            .map(|vote| {
+                Ok(LocatedBallot {
+                    ballot_id: vote.ballot_id.context("A cast ballot has no Ballot ID")?,
+                    content: vote.content.context("A cast ballot has no content")?,
+                    cast_at: vote
+                        .created_at
+                        .as_deref()
+                        .map(DateTime::parse_from_rfc3339)
+                        .transpose()?
+                        .context("A cast ballot has no cast time")?
+                        .with_timezone(&Utc),
+                })
+            })
+            .collect::<Result<Vec<_>>>()?
+        }
+    };
 
     Ok(locate_ballot_output(&period, &matches))
 }
@@ -182,7 +246,6 @@ pub async fn locate_ballot(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::services::cast_votes::CastVoteStatus;
 
     fn at(value: &str) -> DateTime<Utc> {
         DateTime::parse_from_rfc3339(value)
@@ -190,20 +253,11 @@ mod tests {
             .with_timezone(&Utc)
     }
 
-    fn cast_vote(ballot_id: &str) -> CastVote {
-        CastVote {
-            id: "cast-vote".to_string(),
-            tenant_id: "tenant".to_string(),
-            election_id: Some("election".to_string()),
-            area_id: Some("area".to_string()),
-            created_at: Some(at("2028-05-08T10:00:00Z")),
-            last_updated_at: None,
-            content: Some("encrypted".to_string()),
-            voter_id_string: Some("voter".to_string()),
-            election_event_id: "event".to_string(),
-            ballot_id: Some(ballot_id.to_string()),
-            cast_ballot_signature: None,
-            status: CastVoteStatus::Valid,
+    fn cast_vote(ballot_id: &str) -> LocatedBallot {
+        LocatedBallot {
+            ballot_id: ballot_id.to_string(),
+            content: "encrypted".to_string(),
+            cast_at: at("2028-05-08T10:00:00Z"),
         }
     }
 
@@ -223,7 +277,10 @@ mod tests {
     fn telephone_elections_match_a_four_character_prefix() {
         let prefix = ballot_id_match("0ABC", true).unwrap();
         assert_eq!(prefix, BallotIdMatch::Prefix("0abc".to_string()));
-        assert_eq!(prefix.like_pattern(), "0abc%");
+        assert_eq!(
+            prefix.ballot_box_match(),
+            ballot_box_reads::BallotIdMatch::Prefix("0abc")
+        );
         assert_eq!(
             ballot_id_match("0abc12", true),
             Some(BallotIdMatch::Exact("0abc12".to_string()))
@@ -236,7 +293,7 @@ mod tests {
             for telephone_voting in [true, false] {
                 assert_eq!(
                     ballot_id_match(typed, telephone_voting),
-                    Some(BallotIdMatch::Exact("FTBE-MHRX".to_string())),
+                    Some(BallotIdMatch::Received("FTBE-MHRX".to_string())),
                     "{typed}"
                 );
             }

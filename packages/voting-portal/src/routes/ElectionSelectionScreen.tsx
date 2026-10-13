@@ -4,11 +4,10 @@
 
 import {getPublishedSupportMaterialsPolicy} from "../services/PublishedBallots"
 import {Box, Button, CircularProgress, Typography, Alert} from "@mui/material"
-import React, {useContext, useEffect, useMemo, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {Trans, useTranslation} from "react-i18next"
 import {Dialog, ElectionListLayout, IconButton, SelectElection} from "@sequentech/ui-essentials"
 import {
-    isString,
     stringToHtml,
     escapeTranslationValues,
     translateFromPresentation,
@@ -28,14 +27,10 @@ import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {
-    IBallotStyle,
     selectBallotStyleByElectionId,
     selectFirstBallotStyle,
-    setBallotStyle,
 } from "../store/ballotStyles/ballotStylesSlice"
-import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
 import {selectElectionById, setElection, selectElectionIds} from "../store/elections/electionsSlice"
-import {AppDispatch} from "../store/store"
 import {
     addCastVotes,
     parseCastVoteStatus,
@@ -46,12 +41,12 @@ import {Link as RouterLink, useLocation, useNavigate, useParams} from "react-rou
 import {useQuery} from "@apollo/client/react"
 import {isApolloTransportError} from "../services/ApolloErrors"
 import {useVoterContext} from "../hooks/useVoterContext"
+import {isElectionOpenForVoting} from "../services/VotingAvailability"
 import {
     GetCastVotesQuery,
     GetSupportMaterialsQuery,
     GetSupportMaterialsAcknowledgmentQuery,
 } from "../gql/graphql"
-import {ELECTIONS_LIST} from "../fixtures/election"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {GET_CAST_VOTES} from "../queries/GetCastVotes"
 import {
@@ -68,13 +63,10 @@ import {
 import {TenantEventType} from ".."
 import Stepper from "../components/Stepper"
 import {
-    clearIsVoted,
     isAcclaimedElectionCompleted,
     selectBypassChooser,
     setBypassChooser,
 } from "../store/extra/extraSlice"
-import {updateBallotStyleAndSelection} from "../services/BallotStyles"
-import {BallotStyleConfigurationError} from "../services/BallotStyles"
 import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
 import {GET_SUPPORT_MATERIALS_ACKNOWLEDGMENT} from "../queries/GetSupportMaterialsAcknowledgment"
 import {setSupportMaterial} from "../store/supportMaterials/supportMaterialsSlice"
@@ -141,24 +133,6 @@ const isElectionEventVotingClosed = (electionEvent?: IElectionEvent): boolean =>
     )
 }
 
-/** Match the channels this voter can actually use, including their area's early-voting policy. */
-const isElectionOpenForVoter = (
-    event: IElectionEvent | undefined,
-    status: IElectionStatus | null | undefined,
-    isKiosk: boolean,
-    area: IAreaPresentation | undefined
-): boolean => {
-    if (isKiosk) {
-        return status?.kiosk_voting_status === EVotingStatus.OPEN && isElectionEventKioskOpen(event)
-    }
-    return (
-        (status?.voting_status === EVotingStatus.OPEN && isElectionEventOnlineVotingOpen(event)) ||
-        (area?.allow_early_voting === EEarlyVotingPolicy.ALLOW_EARLY_VOTING &&
-            status?.early_voting_status === EVotingStatus.OPEN &&
-            isElectionEventEarlyVotingOpen(event))
-    )
-}
-
 const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     electionId,
     summary,
@@ -201,7 +175,13 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     const areaPresentation = (summary?.area_presentation ??
         ballotStyle?.ballot_eml?.area_presentation) as IAreaPresentation | undefined
     const isVotingOpen = () =>
-        isElectionOpenForVoter(electionEvent, electionStatus, isKiosk, areaPresentation)
+        isElectionOpenForVoting({
+            electionStatus,
+            eventStatus: electionEvent?.status as IElectionEventStatus | null,
+            channels: election.voting_channels,
+            areaPresentation,
+            isKiosk,
+        })
 
     const isEarlyVotingPolicyEnabled = () => {
         let area_presentation = (summary?.area_presentation ??
@@ -311,37 +291,6 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     )
 }
 
-const fakeUpdateBallotStyleAndSelection = (dispatch: AppDispatch) => {
-    for (let election of ELECTIONS_LIST) {
-        try {
-            const formattedBallotStyle: IBallotStyle = {
-                id: election.id,
-                election_id: election.id,
-                election_event_id: election.id,
-                tenant_id: election.id,
-                ballot_eml: election,
-                ballot_signature: null,
-                created_at: "",
-                area_id: election.id,
-                annotations: null,
-                labels: null,
-                last_updated_at: "",
-            }
-            dispatch(setElection({...election, image_document_id: ""}))
-            dispatch(setBallotStyle(formattedBallotStyle))
-            dispatch(clearIsVoted())
-            dispatch(
-                resetBallotSelection({
-                    ballotStyle: formattedBallotStyle,
-                })
-            )
-        } catch (error) {
-            console.log(`Error loading fake EML: ${error}`, election)
-            throw new VotingPortalError(VotingPortalErrorType.INTERNAL_ERROR)
-        }
-    }
-}
-
 const ElectionSelectionScreen: React.FC = () => {
     const {t, i18n} = useTranslation()
     const navigate = useNavigate()
@@ -372,16 +321,6 @@ const ElectionSelectionScreen: React.FC = () => {
     const isMaterialsVisible = materialsPolicy !== ESupportMaterialsPolicy.OFF
     const isMaterialsMandatory = materialsPolicy === ESupportMaterialsPolicy.MANDATORY_FOR_VOTING
     const bypassChooser = useAppSelector(selectBypassChooser())
-    const [errorMsg, setErrorMsg] = useState<ElectionScreenErrorType>()
-    const [errorMsgElectionIds, setErrorMsgElectionIds] = useState<string | undefined>(undefined)
-    const [ballotStyleConfigurationError, setBallotStyleConfigurationError] = useState<
-        | {
-              translationKey: string
-              translationParams: Record<string, string>
-          }
-        | undefined
-    >(undefined)
-    const [alertMsg, setAlertMsg] = useState<ElectionScreenMsgType>()
     const eventResultsUrl =
         globalSettings.RESULTS_PORTAL_URL &&
         eventId &&
@@ -390,18 +329,8 @@ const ElectionSelectionScreen: React.FC = () => {
             ? `${globalSettings.RESULTS_PORTAL_URL.replace(/\/+$/, "")}/${eventId}`
             : undefined
 
-    const voterContext = useVoterContext()
-    const dataBallotStyles = voterContext.data
-    const dataElectionEvent = voterContext.data
-    const dataElections = voterContext.elections
-    const errorBallotStyles = voterContext.error
-    const errorElectionEvent = voterContext.error
-    const errorElections = voterContext.error
-    const loadingBallotStyles = voterContext.loading
-    const loadingElectionEvent = voterContext.loading
-    const loadingElections = voterContext.loading
+    const {data, error, loading, summaries, refetch: refreshVoterStatus} = useVoterContext()
 
-    const refreshVoterStatus = voterContext.refetch
     useEffect(() => {
         if (
             globalSettings.DISABLE_AUTH ||
@@ -418,11 +347,7 @@ const ElectionSelectionScreen: React.FC = () => {
     }, [globalSettings.DISABLE_AUTH, tenantId, eventId, refreshVoterStatus])
 
     // Materials
-    const {
-        data: dataMaterials,
-        error: errorMaterials,
-        loading: loadingMaterials,
-    } = useQuery<GetSupportMaterialsQuery>(GET_SUPPORT_MATERIALS, {
+    const {data: dataMaterials} = useQuery<GetSupportMaterialsQuery>(GET_SUPPORT_MATERIALS, {
         variables: {
             electionEventId: eventId || "",
             tenantId: tenantId || "",
@@ -430,20 +355,19 @@ const ElectionSelectionScreen: React.FC = () => {
         skip: globalSettings.DISABLE_AUTH || !isMaterialsVisible, // Skip query if in demo mode
     })
 
-    const {
-        data: dataMaterialsAcknowledgment,
-        error: errorMaterialsAcknowledgment,
-        loading: loadingMaterialsAcknowledgment,
-    } = useQuery<GetSupportMaterialsAcknowledgmentQuery>(GET_SUPPORT_MATERIALS_ACKNOWLEDGMENT, {
-        variables: {
-            electionEventId: eventId || "",
-        },
-        // Support Materials writes the acknowledgment straight into the Apollo
-        // cache on Continue (see SupportMaterialsScreen), so the default
-        // cache-first policy already reflects it instantly on return here
-        // instead of re-gating the Ballot list behind a fresh network round trip.
-        skip: globalSettings.DISABLE_AUTH || !isMaterialsMandatory,
-    })
+    const {data: dataMaterialsAcknowledgment} = useQuery<GetSupportMaterialsAcknowledgmentQuery>(
+        GET_SUPPORT_MATERIALS_ACKNOWLEDGMENT,
+        {
+            variables: {
+                electionEventId: eventId || "",
+            },
+            // Support Materials writes the acknowledgment straight into the Apollo
+            // cache on Continue (see SupportMaterialsScreen), so the default
+            // cache-first policy already reflects it instantly on return here
+            // instead of re-gating the Ballot list behind a fresh network round trip.
+            skip: globalSettings.DISABLE_AUTH || !isMaterialsMandatory,
+        }
+    )
 
     // Whether we have a definitive answer yet. On a fresh page load the Apollo
     // cache starts empty, so these queries are genuinely loading for a moment -
@@ -470,7 +394,9 @@ const ElectionSelectionScreen: React.FC = () => {
 
     const hasPendingCastVotes = useAppSelector((state) =>
         Object.values(state.castVotes).some((votes) =>
-            votes.some((vote) => vote.status === CastVoteStatus.IN_PROGRESS)
+            // The cast action returns no status. Refresh that record before
+            // deciding whether it was accepted or discarded asynchronously.
+            votes.some((vote) => vote.status == null || vote.status === CastVoteStatus.IN_PROGRESS)
         )
     )
     const {
@@ -479,17 +405,17 @@ const ElectionSelectionScreen: React.FC = () => {
         startPolling: startCastVotePolling,
         stopPolling: stopCastVotePolling,
     } = useQuery<GetCastVotesQuery>(GET_CAST_VOTES, {
+        variables: {electionEventId: eventId ?? ""},
         // The bootstrap supplies the initial cast metadata. Only unresolved
         // casts need the existing narrow polling query.
         fetchPolicy: "network-only",
         skip:
             globalSettings.DISABLE_AUTH ||
+            !eventId ||
             (!hasPendingCastVotes &&
-                !voterContext.data?.sequent_backend_cast_vote.some(
-                    (vote) => vote.status === CastVoteStatus.IN_PROGRESS
-                )),
+                !data?.cast_votes.some((vote) => vote.status === CastVoteStatus.IN_PROGRESS)),
     })
-    const castVotes = polledCastVotes ?? voterContext.data
+    const castVotes = polledCastVotes ?? data
 
     const materialsPath = `/tenant/${tenantId}/event/${eventId}/materials${location.search}`
     const materialsTitle =
@@ -503,16 +429,8 @@ const ElectionSelectionScreen: React.FC = () => {
         navigate(materialsPath)
     }
 
-    // An empty style result is already definitive; do not send an empty-ID
-    // election query just to discover that there are no eligible elections.
-    const hasNoElections =
-        !loadingBallotStyles &&
-        !loadingElections &&
-        dataElections?.sequent_backend_election.length === 0
-    const isPublished = useMemo(
-        () => !!dataElectionEvent?.sequent_backend_election_event[0]?.status?.is_published,
-        [dataElectionEvent?.sequent_backend_election_event]
-    )
+    const hasNoElections = !loading && data?.sequent_backend_election.length === 0
+    const isPublished = !!data?.sequent_backend_election_event[0]?.status?.is_published
 
     useEffect(() => {
         if (!dataMaterials || globalSettings.DISABLE_AUTH || !isMaterialsVisible) {
@@ -524,75 +442,9 @@ const ElectionSelectionScreen: React.FC = () => {
         }
     }, [dataMaterials, globalSettings.DISABLE_AUTH, isMaterialsVisible])
 
-    // Errors handling
     useEffect(() => {
-        if (globalSettings.DISABLE_AUTH) {
-            return
-        }
-        if (errorElections || errorElectionEvent || errorBallotStyles || errorCastVote) {
-            if (errorBallotStyles?.message.includes("x-hasura-area-id")) {
-                setErrorMsg(ElectionScreenErrorType.NO_AREA)
-            } else if (
-                isApolloTransportError(errorElections) ||
-                isApolloTransportError(errorElectionEvent) ||
-                isApolloTransportError(errorBallotStyles) ||
-                isApolloTransportError(errorCastVote)
-            ) {
-                setErrorMsg(ElectionScreenErrorType.NETWORK)
-            } else {
-                setErrorMsg(ElectionScreenErrorType.FETCH_DATA)
-            }
-        } else if (dataElectionEvent?.sequent_backend_election_event.length === 0) {
-            setErrorMsg(ElectionScreenErrorType.NO_ELECTION_EVENT)
-        } else if (!isPublished) {
-            setAlertMsg(ElectionScreenMsgType.NOT_PUBLISHED)
-        } else if (hasNoElections) {
-            if (electionIds.length > 0) {
-                setErrorMsg(ElectionScreenErrorType.OBTAINING_ELECTION)
-                setErrorMsgElectionIds(JSON.stringify(electionIds))
-            } else {
-                setAlertMsg(ElectionScreenMsgType.NO_ELECTIONS)
-            }
-        } else {
-            setAlertMsg(undefined)
-            setErrorMsg(undefined)
-        }
-    }, [
-        errorBallotStyles,
-        errorCastVote,
-        errorElectionEvent,
-        errorElections,
-        isPublished,
-        hasNoElections,
-        dataElectionEvent,
-        globalSettings.DISABLE_AUTH,
-    ])
-
-    useEffect(() => {
-        if (dataBallotStyles && dataBallotStyles.sequent_backend_ballot_style.length > 0) {
-            try {
-                updateBallotStyleAndSelection(dataBallotStyles, dispatch)
-                setBallotStyleConfigurationError(undefined)
-            } catch (error: unknown) {
-                if (error instanceof BallotStyleConfigurationError) {
-                    setBallotStyleConfigurationError({
-                        translationKey: error.translationKey,
-                        translationParams: error.translationParams,
-                    })
-                    setErrorMsg(undefined)
-                } else {
-                    setBallotStyleConfigurationError(undefined)
-                    setErrorMsg(ElectionScreenErrorType.BALLOT_STYLES_EML)
-                }
-            }
-        } else if (globalSettings.DISABLE_AUTH) {
-            //fakeUpdateBallotStyleAndSelection(dispatch)
-        }
-    }, [globalSettings.DISABLE_AUTH, dataBallotStyles, dispatch])
-
-    useEffect(() => {
-        if (dataElections && dataElections.sequent_backend_election.length > 0) {
-            for (let election of dataElections.sequent_backend_election) {
+        if (data && data.sequent_backend_election.length > 0) {
+            for (let election of data.sequent_backend_election) {
                 dispatch(
                     setElection({
                         ...election,
@@ -615,7 +467,7 @@ const ElectionSelectionScreen: React.FC = () => {
                 )
             }
 
-            let foundTestElection = dataElections.sequent_backend_election.find((election) => {
+            let foundTestElection = data.sequent_backend_election.find((election) => {
                 const name = election.presentation
                     ? translateFromPresentation(election.presentation, "name", i18n.language, {
                           defaultLanguageCode:
@@ -632,7 +484,7 @@ const ElectionSelectionScreen: React.FC = () => {
 
             setTestElectionId(foundTestElection?.id || null)
         }
-    }, [dataElections, dispatch, eventDefaultLanguageCode, i18n.language])
+    }, [data, dispatch, eventDefaultLanguageCode, i18n.language])
 
     useEffect(() => {
         if (!testElectionId) {
@@ -642,15 +494,15 @@ const ElectionSelectionScreen: React.FC = () => {
     }, [castVotesTestElection, testElectionId, setCanVoteTest])
 
     useEffect(() => {
-        const record = dataElectionEvent?.sequent_backend_election_event?.[0]
+        const record = data?.sequent_backend_election_event?.[0]
         if (record) {
             dispatch(setElectionEvent(record))
         }
-    }, [dataElectionEvent, dispatch])
+    }, [data, dispatch])
 
     useEffect(() => {
-        if (castVotes?.sequent_backend_cast_vote) {
-            const castVoteList = castVotes.sequent_backend_cast_vote
+        if (castVotes?.cast_votes) {
+            const castVoteList = castVotes.cast_votes
             dispatch(
                 addCastVotes(
                     castVoteList.map((vote) => ({
@@ -660,9 +512,9 @@ const ElectionSelectionScreen: React.FC = () => {
                 )
             )
 
-            const hasUnresolvedCastVotes = castVoteList.some(
-                (castVote) => castVote.status === CastVoteStatus.IN_PROGRESS
-            )
+            const hasUnresolvedCastVotes =
+                hasPendingCastVotes ||
+                castVoteList.some((castVote) => castVote.status === CastVoteStatus.IN_PROGRESS)
             if (hasUnresolvedCastVotes) {
                 startCastVotePolling(globalSettings.QUERY_POLL_INTERVAL_MS)
             } else {
@@ -671,6 +523,7 @@ const ElectionSelectionScreen: React.FC = () => {
         }
     }, [
         castVotes,
+        hasPendingCastVotes,
         dispatch,
         globalSettings.QUERY_POLL_INTERVAL_MS,
         startCastVotePolling,
@@ -684,9 +537,9 @@ const ElectionSelectionScreen: React.FC = () => {
             skipPolicy &&
             1 === electionIds.length &&
             !errorCastVote &&
-            !isUndefined(castVotes) &&
+            (globalSettings.DISABLE_AUTH || !isUndefined(castVotes)) &&
             !!electionEvent &&
-            !!dataElections
+            (globalSettings.DISABLE_AUTH || !!data)
 
         if (newBypassChooser && !bypassChooser) {
             console.log("new baypass chooser", newBypassChooser)
@@ -696,41 +549,57 @@ const ElectionSelectionScreen: React.FC = () => {
         castVotes,
         electionIds,
         errorCastVote,
-        castVotes,
         electionEvent,
-        dataElections,
-        oneBallotStyle,
+        data,
+        bypassChooser,
+        dispatch,
+        globalSettings.DISABLE_AUTH,
     ])
 
     // warningMsg is rendered as HTML below, so its interpolated values are escaped
-    const warningMsg = errorMsg
-        ? t(
-              `electionSelectionScreen.errors.${errorMsg}`,
-              escapeTranslationValues({electionIds: errorMsgElectionIds})
-          )
-        : ballotStyleConfigurationError
-          ? t(
-                ballotStyleConfigurationError.translationKey,
-                escapeTranslationValues(ballotStyleConfigurationError.translationParams)
-            )
-          : alertMsg
-            ? t(`electionSelectionScreen.alerts.${alertMsg}`)
-            : undefined
+    let warningMsg: string | undefined
+    if (!globalSettings.DISABLE_AUTH) {
+        let errorType: ElectionScreenErrorType | undefined
+        let alertType: ElectionScreenMsgType | undefined
+        if (error || errorCastVote) {
+            errorType = error?.message.includes("x-hasura-area-id")
+                ? ElectionScreenErrorType.NO_AREA
+                : isApolloTransportError(error) || isApolloTransportError(errorCastVote)
+                  ? ElectionScreenErrorType.NETWORK
+                  : ElectionScreenErrorType.FETCH_DATA
+        } else if (data?.sequent_backend_election_event.length === 0) {
+            errorType = ElectionScreenErrorType.NO_ELECTION_EVENT
+        } else if (!isPublished) {
+            alertType = ElectionScreenMsgType.NOT_PUBLISHED
+        } else if (hasNoElections) {
+            if (electionIds.length > 0) errorType = ElectionScreenErrorType.OBTAINING_ELECTION
+            else alertType = ElectionScreenMsgType.NO_ELECTIONS
+        }
+        warningMsg = errorType
+            ? t(
+                  `electionSelectionScreen.errors.${errorType}`,
+                  escapeTranslationValues({electionIds: JSON.stringify(electionIds)})
+              )
+            : alertType
+              ? t(`electionSelectionScreen.alerts.${alertType}`)
+              : undefined
+    }
 
     // Another channel being open must not hide this voter's closing message.
     const allBallotsClosed =
         electionIds.length > 0 &&
         electionIds.every(
             (id) =>
-                !isElectionOpenForVoter(
-                    electionEvent,
-                    electionsById[id]?.status as IElectionStatus | null,
-                    isKioskVoter,
-                    (voterContext.summaries?.[id]?.area_presentation ??
+                !isElectionOpenForVoting({
+                    electionStatus: electionsById[id]?.status as IElectionStatus | null,
+                    eventStatus: electionEvent?.status as IElectionEventStatus | null,
+                    channels: electionsById[id]?.voting_channels,
+                    areaPresentation: (summaries?.[id]?.area_presentation ??
                         ballotStylesById[id]?.ballot_eml?.area_presentation) as
                         | IAreaPresentation
-                        | undefined
-                )
+                        | undefined,
+                    isKiosk: isKioskVoter,
+                })
         )
     const closedMsg = allBallotsClosed
         ? votingClosedMessage({
@@ -738,7 +607,7 @@ const ElectionSelectionScreen: React.FC = () => {
                   const ballotStyle = ballotStylesById[electionId]
                   return {
                       electionDates: currentElectionDates(
-                          voterContext.summaries?.[electionId]?.election_dates ??
+                          summaries?.[electionId]?.election_dates ??
                               ballotStyle?.ballot_eml?.election_dates,
                           electionsById[electionId]?.status as IElectionStatus | null,
                           isKioskVoter
@@ -774,7 +643,7 @@ const ElectionSelectionScreen: React.FC = () => {
     const showMaterialsGateBanner =
         isMaterialsMandatory && hasAcknowledgmentLoaded && !hasAcknowledgedSupportMaterials
 
-    if (loadingElectionEvent || loadingElections || loadingBallotStyles)
+    if (loading)
         return (
             <CircularProgress
                 className="election-selection-progress"
@@ -876,7 +745,7 @@ const ElectionSelectionScreen: React.FC = () => {
             {!hasNoElections ? (
                 electionIds.map((electionId) => (
                     <ElectionWrapper
-                        summary={voterContext.summaries?.[electionId]}
+                        summary={summaries?.[electionId]}
                         electionId={electionId}
                         key={electionId}
                         bypassChooser={bypassChooser}

@@ -9,10 +9,16 @@ use celery::beat::DeltaSchedule;
 use celery::prelude::Task;
 use clap::Parser;
 use dotenv::dotenv;
+use pgmq_broker::PgmqBrokerBuilder;
 use sequent_core::monitoring::cadence::{Cadence, SNAPSHOT_INTERVAL_ENV, VOTER_FULL_PASS_ENV};
 use sequent_core::util::init_log::init_log;
+use std::sync::Arc;
 use tokio::time::Duration;
 use windmill::services::celery_app::{set_is_app_active, Queue};
+use windmill::services::database::get_queue_pool;
+use windmill::services::electoral_log_audit::{
+    checkpoint_interval_secs, DEFAULT_CHECKPOINT_INTERVAL_SECS,
+};
 use windmill::services::messaging::checks::{
     check_messaging_accounts, CHECK_PASS_INTERVAL_SECONDS,
 };
@@ -22,6 +28,10 @@ use windmill::tasks::electoral_log::electoral_log_batch_dispatcher;
 use windmill::tasks::migrate_messaging_attributes::migrate_messaging_attributes;
 use windmill::tasks::migrate_realm_permissions::{migrate_realm_permissions, RunOnce};
 use windmill::tasks::migrate_registration_flows::migrate_registration_flows;
+use windmill::tasks::publish_electoral_log_checkpoint::publish_periodic_electoral_log_checkpoints;
+use windmill::tasks::purge_queue_archives::{
+    purge_interval_secs, purge_queue_archives, DEFAULT_PURGE_INTERVAL_SECS,
+};
 use windmill::tasks::recompute_schedule_instants::{
     recompute_schedule_instants, RECOMPUTE_INTERVAL_SECONDS,
 };
@@ -38,6 +48,7 @@ use windmill::tasks::review_cast_votes::review_cast_votes;
 use windmill::tasks::scheduled_events::scheduled_events;
 use windmill::tasks::scheduled_reports::scheduled_reports;
 use windmill::tasks::seal_ballot_boxes::{seal_ballot_boxes, SEAL_BALLOT_BOXES_INTERVAL_SECONDS};
+use windmill::tasks::sequence_ballot_box::schedule_ballot_box_sequencers;
 use windmill::tasks::signing_log_outbox::post_signing_log_outbox;
 use windmill::tasks::signing_requests::{
     expire_signing_requests, sweep_signing_executions, SIGNING_JOBS_INTERVAL_SECONDS,
@@ -70,12 +81,16 @@ struct CeleryOpt {
     /// Seconds between two refreshes of the staff issuers' revocation lists.
     #[arg(long, env = "STAFF_CRL_INTERVAL", default_value = "3600")]
     staff_crl_interval: u64,
+    /// Seconds between scans for ballots waiting for the sequencer.
+    #[arg(short = 'b', long, default_value = "2")]
+    ballot_box_interval: u64,
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenv().ok();
     init_log(true);
+    set_is_app_active(false);
     setup_probe(AppName::BEAT).await;
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
     let monitoring_cadence = Cadence::parse(
@@ -84,8 +99,49 @@ async fn main() -> Result<()> {
     );
     cadence::log(&monitoring_cadence);
 
+    // Refuse to start on an invalid interval; the schedule below cannot return errors.
+    checkpoint_interval_secs()?;
+    purge_interval_secs()?;
+
+    // A dedicated pooled session holds leadership for this environment's scheduler.
+    let pool = get_queue_pool().await;
+    let leader = Arc::new(
+        pool.get()
+            .await
+            .context("Error obtaining Beat leadership connection")?,
+    );
+    // The server ends the session soon after this process stops pinging it, so the lock of a
+    // Beat whose node died does not outlive it.
+    leader
+        .simple_query("SET idle_session_timeout = '30s'")
+        .await
+        .context("Error configuring Beat leadership connection")?;
+    let lock_name = format!("step:beat:{slug}");
+    // A second Beat, such as a rolling update's, waits as a ready standby until the leader
+    // stops.
+    set_is_app_active(true);
+    loop {
+        let acquired: bool = leader
+            .query_one(
+                "SELECT pg_try_advisory_lock(hashtextextended($1, 0))",
+                &[&lock_name],
+            )
+            .await?
+            .get(0);
+        if acquired {
+            break;
+        }
+        tracing::info!("Another Beat scheduler owns this environment; waiting");
+        tokio::time::sleep(Duration::from_secs(5)).await;
+    }
+    set_is_app_active(false);
+
     let mut beat = celery::beat!(
-        broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into()) },
+        broker_builder = Box::new(
+            PgmqBrokerBuilder::from_pool(pool.clone())
+                .environment(&slug)
+                .publisher_connection(leader.clone())
+        ),
         tasks = [
             review_boards::NAME => {
                 review_boards,
@@ -100,7 +156,7 @@ async fn main() -> Result<()> {
             scheduled_reports::NAME => {
                 scheduled_reports,
                 schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().schedule_reports_interval)),
-                args = (CeleryOpt::parse().schedule_events_interval),
+                args = (CeleryOpt::parse().schedule_reports_interval),
             },
             review_cast_votes::NAME => {
                 review_cast_votes,
@@ -147,6 +203,25 @@ async fn main() -> Result<()> {
                 schedule = DeltaSchedule::new(Duration::from_secs(SEAL_BALLOT_BOXES_INTERVAL_SECONDS)),
                 args = (),
             },
+            schedule_ballot_box_sequencers::NAME => {
+                schedule_ballot_box_sequencers,
+                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().ballot_box_interval)),
+                args = (),
+            },
+            publish_periodic_electoral_log_checkpoints::NAME => {
+                publish_periodic_electoral_log_checkpoints,
+                schedule = DeltaSchedule::new(Duration::from_secs(
+                    checkpoint_interval_secs().unwrap_or(DEFAULT_CHECKPOINT_INTERVAL_SECS),
+                )),
+                args = (),
+            },
+            purge_queue_archives::NAME => {
+                purge_queue_archives,
+                schedule = DeltaSchedule::new(Duration::from_secs(
+                    purge_interval_secs().unwrap_or(DEFAULT_PURGE_INTERVAL_SECS),
+                )),
+                args = (),
+            },
             // Hourly passes; each checks only the accounts due (daily, or
             // after an identity change).
             check_messaging_accounts::NAME => {
@@ -162,25 +237,29 @@ async fn main() -> Result<()> {
             },
         ],
         task_routes = [
-            review_boards::NAME => &Queue::Beat.queue_name(&slug),
-            scheduled_events::NAME => &Queue::Beat.queue_name(&slug),
-            scheduled_reports::NAME => &Queue::Beat.queue_name(&slug),
-            review_cast_votes::NAME => &Queue::Beat.queue_name(&slug),
-            electoral_log_batch_dispatcher::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
-            refresh_monitoring_snapshots::NAME => &Queue::Beat.queue_name(&slug),
-            migrate_realm_permissions::NAME => &Queue::Short.queue_name(&slug),
-            migrate_registration_flows::NAME => &Queue::Short.queue_name(&slug),
-            migrate_messaging_attributes::NAME => &Queue::Short.queue_name(&slug),
-            post_signing_log_outbox::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
-            expire_signing_requests::NAME => &Queue::Beat.queue_name(&slug),
-            sweep_signing_executions::NAME => &Queue::Beat.queue_name(&slug),
-            refresh_staff_crls::NAME => &Queue::Beat.queue_name(&slug),
-            recompute_schedule_instants::NAME => &Queue::Beat.queue_name(&slug),
-            reconcile_messages::NAME => &Queue::Beat.queue_name(&slug),
-            seal_ballot_boxes::NAME => &Queue::Beat.queue_name(&slug),
-            check_messaging_accounts::NAME => &Queue::Beat.queue_name(&slug),
-            recount_messaging_voters_due::NAME => &Queue::Beat.queue_name(&slug),
+            review_boards::NAME => Queue::Beat.queue_name(),
+            scheduled_events::NAME => Queue::Beat.queue_name(),
+            scheduled_reports::NAME => Queue::Beat.queue_name(),
+            review_cast_votes::NAME => Queue::Beat.queue_name(),
+            electoral_log_batch_dispatcher::NAME => Queue::ElectoralLogBeat.queue_name(),
+            refresh_monitoring_snapshots::NAME => Queue::Beat.queue_name(),
+            migrate_realm_permissions::NAME => Queue::Short.queue_name(),
+            migrate_registration_flows::NAME => Queue::Short.queue_name(),
+            migrate_messaging_attributes::NAME => Queue::Short.queue_name(),
+            post_signing_log_outbox::NAME => Queue::ElectoralLogBeat.queue_name(),
+            expire_signing_requests::NAME => Queue::Beat.queue_name(),
+            sweep_signing_executions::NAME => Queue::Beat.queue_name(),
+            refresh_staff_crls::NAME => Queue::Beat.queue_name(),
+            recompute_schedule_instants::NAME => Queue::Beat.queue_name(),
+            reconcile_messages::NAME => Queue::Beat.queue_name(),
+            seal_ballot_boxes::NAME => Queue::Beat.queue_name(),
+            publish_periodic_electoral_log_checkpoints::NAME => Queue::Beat.queue_name(),
+            schedule_ballot_box_sequencers::NAME => Queue::ElectoralLogBeat.queue_name(),
+            purge_queue_archives::NAME => Queue::Beat.queue_name(),
+            check_messaging_accounts::NAME => Queue::Beat.queue_name(),
+            recount_messaging_voters_due::NAME => Queue::Beat.queue_name(),
         ],
+        default_queue = Queue::Beat.queue_name(),
     ).await?;
     // Scheduled outside the macro, which cannot give a message its expiry.
     beat.schedule_named_task(
@@ -201,7 +280,29 @@ async fn main() -> Result<()> {
     beat.schedule_task(migrate_messaging_attributes::new(), RunOnce);
 
     set_is_app_active(true);
-    beat.start().await?;
+    let monitor = async {
+        loop {
+            tokio::time::sleep(Duration::from_secs(5)).await;
+            tokio::time::timeout(Duration::from_secs(5), leader.simple_query("SELECT 1"))
+                .await
+                .context("Beat leadership connection timed out")?
+                .context("Beat leadership connection lost")?;
+        }
+        #[allow(unreachable_code)]
+        Ok::<(), anyhow::Error>(())
+    };
+    let result = tokio::select! {
+        result = beat.start() => result.map_err(anyhow::Error::from),
+        result = monitor => result,
+    };
     set_is_app_active(false);
-    Ok(())
+    let _ = tokio::time::timeout(
+        Duration::from_secs(5),
+        leader.query_one(
+            "SELECT pg_advisory_unlock(hashtextextended($1, 0))",
+            &[&lock_name],
+        ),
+    )
+    .await;
+    result
 }
