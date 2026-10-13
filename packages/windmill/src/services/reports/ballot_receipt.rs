@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::ballot_tracker_url::{build_ballot_tracker_url, BallotTrackerPath};
 use super::template_renderer::*;
 use crate::postgres::reports::ReportType;
 use crate::postgres::{self};
@@ -150,9 +151,24 @@ impl TemplateRenderer for BallotTemplate {
             return Err(anyhow!("BallotID not found in cast votes for {voter_id}"));
         }
 
+        let kiosk_base = match std::env::var("KIOSK_VOTING_PORTAL_URL") {
+            Err(std::env::VarError::NotPresent) => None,
+            kiosk_base => Some(kiosk_base.context("Invalid KIOSK_VOTING_PORTAL_URL env var")?),
+        };
+
         Ok(UserData {
             ballot_id: ballot_id.to_string(),
-            ballot_tracker_url: ballot_tracker_url.to_string(),
+            ballot_tracker_url: build_ballot_tracker_url(
+                &std::env::var("VOTING_PORTAL_URL").context("VOTING_PORTAL_URL env var missing")?,
+                kiosk_base.as_deref(),
+                ballot_tracker_url,
+                BallotTrackerPath {
+                    tenant_id: &self.ids.tenant_id,
+                    election_event_id: &self.ids.election_event_id,
+                    election_id,
+                    ballot_id,
+                },
+            )?,
             qrcode: QR_CODE_TEMPLATE.to_string(),
             logo: LOGO_TEMPLATE.to_string(),
             timestamp: get_date_and_time(),
