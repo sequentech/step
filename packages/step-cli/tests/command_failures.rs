@@ -193,9 +193,9 @@ tar -xf - -C "$MOCK_IMAGE_CONTEXT"
     fs::set_permissions(&docker, fs::Permissions::from_mode(0o700)).unwrap();
     let context = root.join("context");
     fs::create_dir(&context).unwrap();
-    // The bundled files are unpacked into a cache of this test's own, then
-    // found there by the second build: a cache shared with other runs would
-    // decide which of the two paths a run takes.
+    // The bundled files are unpacked into a cache of this test's own, under
+    // its home directory, then found there by the second build: a cache
+    // shared with other runs would decide which of the two paths a run takes.
     for _ in 0..2 {
         let output = Command::new(env!("CARGO_BIN_EXE_step-cli"))
             .args(["load", "image", "--engine", "k6", "--tag", "synthetic:test"])
@@ -203,7 +203,8 @@ tar -xf - -C "$MOCK_IMAGE_CONTEXT"
                 "PATH",
                 format!("{}:{}", root.display(), std::env::var("PATH").unwrap()),
             )
-            .env("XDG_CACHE_HOME", root.join("cache"))
+            .env_remove("XDG_CACHE_HOME")
+            .env("HOME", root)
             .env("MOCK_IMAGE_CONTEXT", &context)
             .output()
             .unwrap();
