@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {IPermissions} from "@/types/keycloak"
+import {trusteeFilename} from "@/services/trusteeFilename"
 import React, {useCallback, useContext, useEffect, useState} from "react"
 import Button from "@mui/material/Button"
 import {BreadCrumbSteps, BreadCrumbStepsVariant, DropFile} from "@sequentech/ui-essentials"
@@ -60,6 +61,10 @@ export const TallyCeremonyTrustees: React.FC = () => {
     const {tallyId, setTallyId} = useElectionEventTallyStore()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
+    const trustee = authContext.trustee || authContext.username
+    const requestFilename = trusteeFilename(trustee, "custody-request.json")
+    const keysFilename = trusteeFilename(trustee, "private-keys.toml")
+    const proofFilename = trusteeFilename(trustee, "custody-proof.json")
 
     const [page, setPage] = useState<number>(WizardSteps.Start)
     const [selectedElections, setSelectedElections] = useState<string[]>([])
@@ -314,9 +319,9 @@ export const TallyCeremonyTrustees: React.FC = () => {
                                 <Alert severity="info" sx={{mb: 2}}>
                                     Create a custody proof locally using your saved request:
                                     <Typography component="pre" sx={{whiteSpace: "pre-wrap"}}>
-                                        {`trustee attest --request custody-request.json --trustee-config trustee.toml --tally-session-id ${tally?.id || tallyId} --output custody-proof.json`}
+                                        {`trustee attest --request ${requestFilename} --trustee-config ${keysFilename} --tally-session-id ${tally?.id || tallyId} --output ${proofFilename}`}
                                     </Typography>
-                                    Upload custody-proof.json. Keep trustee.toml on your trustee
+                                    Upload {proofFilename}. Keep {keysFilename} on your trustee
                                     machine.
                                 </Alert>
                                 <DropFile handleFiles={uploadCustodyProof} />

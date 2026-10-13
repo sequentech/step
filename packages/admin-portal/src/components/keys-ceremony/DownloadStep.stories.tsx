@@ -152,7 +152,7 @@ export const DownloadAndConfirmBackups: Story = {
         expect(graphql.calls).toEqual([keyRequest])
         expect(saved.downloads).toEqual([
             {
-                name: "custody-request.json",
+                name: "trustee1-custody-request.json",
                 href: expect.stringMatching(/^blob:/),
             },
         ])

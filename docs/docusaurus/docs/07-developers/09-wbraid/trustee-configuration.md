@@ -125,6 +125,10 @@ in WebAssembly. Sign in with the trustee account, then choose **Generate browser
 keys**, or **Import private keys** to use an existing native `trustee.toml`.
 Legacy browser configurations and protocol stores use incompatible crypto; generate
 a new native identity and run a new key ceremony for those elections.
+Downloads include the trustee name: for example, `trustee1-private-keys.toml`,
+`trustee1-browser-sessions.json` and `trustee1-custody-proof.json`. The ceremony
+wizard also prefixes custody request filenames with the trustee name, and the
+local command examples use those filenames.
 Download and privately back up the keys. Register both displayed public keys for
 this trustee before starting its key ceremony. The account's `trustee` attribute
 must match the registered trustee name.

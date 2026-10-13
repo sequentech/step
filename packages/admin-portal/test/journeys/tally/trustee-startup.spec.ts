@@ -6,16 +6,25 @@ import {readFile} from "node:fs/promises"
 
 test("provides native trustee setup and custody commands", async ({page, portal}) => {
     await page.goto(`${portal.origin}/trustee?lang=en`)
-    await expect(page.getByRole("heading", {name: "Wbraid trustee"})).toBeVisible()
-    await expect(page.getByText(/trustee generate --trustee-config/)).toBeVisible()
-    await expect(page.getByText(/trustee attest --request/)).toBeVisible()
+    await expect(page.getByRole("heading", {name: "Trustee dashboard"})).toBeVisible()
+    await expect(
+        page.locator("pre code").filter({hasText: "trustee generate --trustee-config"})
+    ).toBeVisible()
+    await expect(
+        page.locator("pre code").filter({hasText: "trustee attest --request"})
+    ).toBeVisible()
 })
 
 for (const width of [1280, 390])
-    test(`generates and restores browser trustee keys at ${width}px`, async ({page, portal}) => {
+    test(`generates and restores browser trustee keys at ${width}px`, async ({
+        page,
+        portal,
+    }, testInfo) => {
         await page.setViewportSize({width, height: 900})
         portal.trustee = "browser-trustee"
         await page.goto(`${portal.origin}/trustee?lang=en`)
+        await expect(page.getByRole("heading", {name: "Trustee dashboard"})).toBeVisible()
+        await page.screenshot({path: testInfo.outputPath("dashboard-initial.png"), fullPage: true})
         await page.getByRole("button", {name: "Generate browser keys"}).click()
         await expect(page.getByLabel("Signing public key", {exact: true})).not.toHaveValue("")
         await expect(page.getByLabel("Share encryption public key", {exact: true})).not.toHaveValue(
@@ -24,16 +33,24 @@ for (const width of [1280, 390])
         const download = page.waitForEvent("download")
         await page.getByRole("button", {name: "Download private keys"}).click()
         const keys = await download
-        expect(keys.suggestedFilename()).toBe("trustee.toml")
+        expect(keys.suggestedFilename()).toBe("browser-trustee-private-keys.toml")
         const path = await keys.path()
         if (!path) throw new Error("No local keys download")
         const keyFile = await readFile(path, "utf8")
         expect(keyFile).toMatch(/signing_key = "[^"\n]+"/)
         expect(keyFile).toMatch(/share_encryption_key = "[^"\n]+"/)
         const signing = await page.getByLabel("Signing public key", {exact: true}).inputValue()
+        await page.getByRole("button", {name: "Start browser trustee"}).scrollIntoViewIfNeeded()
+        await page.screenshot({path: testInfo.outputPath("dashboard-ready.png"), fullPage: true})
+        await page.locator("pre code").last().scrollIntoViewIfNeeded()
+        await page.screenshot({
+            path: testInfo.outputPath("dashboard-local-tool.png"),
+            fullPage: true,
+        })
         const backupDownload = page.waitForEvent("download")
         await page.getByRole("button", {name: "Back up browser sessions"}).click()
         const backup = await backupDownload
+        expect(backup.suggestedFilename()).toBe("browser-trustee-browser-sessions.json")
         const backupPath = await backup.path()
         if (!backupPath) throw new Error("No browser session backup")
         expect(JSON.parse(await readFile(backupPath, "utf8"))).toMatchObject({
@@ -63,7 +80,9 @@ for (const width of [1280, 390])
             mimeType: "application/json",
             buffer: Buffer.from(JSON.stringify(request)),
         })
-        const proofPath = await (await proofDownload).path()
+        const proofFile = await proofDownload
+        expect(proofFile.suggestedFilename()).toBe("browser-trustee-custody-proof.json")
+        const proofPath = await proofFile.path()
         if (!proofPath) throw new Error("No custody proof download")
         const proof = JSON.parse(await readFile(proofPath, "utf8"))
         expect(proof.request).toEqual(request)

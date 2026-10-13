@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {IPermissions} from "@/types/keycloak"
 import {useMutation} from "@apollo/client"
+import {trusteeFilename} from "@/services/trusteeFilename"
 import React, {useContext, useState} from "react"
 import {Alert, FormControlLabel, FormGroup, Typography, Checkbox} from "@mui/material"
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
@@ -43,6 +44,10 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
 }) => {
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
+    const trustee = authContext.trustee || authContext.username
+    const requestFilename = trusteeFilename(trustee, "custody-request.json")
+    const keysFilename = trusteeFilename(trustee, "private-keys.toml")
+    const proofFilename = trusteeFilename(trustee, "custody-proof.json")
     const {globalSettings} = useContext(SettingsContext)
     const [downloaded, setDownloaded] = useState<boolean>(false)
     const [downloading, setDownloading] = useState<boolean>(false)
@@ -118,10 +123,9 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                 }
                 const blob = new Blob([custodyRequest], {type: "application/json"})
                 const blobUrl = window.URL.createObjectURL(blob)
-                const fileName = "custody-request.json"
                 const tempLink = document.createElement("a")
                 tempLink.href = blobUrl
-                tempLink.setAttribute("download", fileName)
+                tempLink.setAttribute("download", requestFilename)
                 tempLink.click()
                 window.URL.revokeObjectURL(blobUrl)
                 setDownloaded(true)
@@ -146,8 +150,7 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                     <Alert severity="info">
                         Download the public custody request, then run{" "}
                         <code>
-                            trustee attest --request custody-request.json --trustee-config
-                            trustee.toml --output custody-proof.json
+                            {`trustee attest --request ${requestFilename} --trustee-config ${keysFilename} --output ${proofFilename}`}
                         </code>{" "}
                         locally. Upload the proof in the next step. Keep your trustee keys file
                         private.

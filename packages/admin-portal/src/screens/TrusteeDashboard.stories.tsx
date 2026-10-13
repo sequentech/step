@@ -22,7 +22,7 @@ type Story = StoryObj<Scenario>
 export const NativeTrustee: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await expect(canvas.getByRole("heading", {name: "Wbraid trustee"})).toBeVisible()
+        await expect(canvas.getByRole("heading", {name: "Trustee dashboard"})).toBeVisible()
         await expect(canvas.getByText(/trustee generate --trustee-config/)).toBeVisible()
         await expect(canvas.getByText(/trustee attest --request/)).toBeVisible()
     },

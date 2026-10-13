@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useState, useRef, useEffect} from "react"
 import {Alert, Box, Button, Card, CardContent, TextField, Typography} from "@mui/material"
+import {trusteeFilename} from "@/services/trusteeFilename"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {
@@ -19,10 +20,39 @@ interface TrusteeBoard {
     parent: string | null
 }
 
+const actionGrid = {
+    "display": "grid",
+    "gridTemplateColumns": {
+        xs: "1fr",
+        sm: "repeat(2, minmax(0, 1fr))",
+        lg: "repeat(3, minmax(0, 1fr))",
+    },
+    "gap": 1.5,
+    "& .MuiButton-root": {minHeight: 44},
+}
+
+const codeExample = {
+    my: 2,
+    p: 2,
+    bgcolor: "action.hover",
+    border: "1px solid",
+    borderColor: "divider",
+    borderRadius: 1,
+    fontFamily: "monospace",
+    fontSize: "0.875rem",
+    lineHeight: 1.6,
+    whiteSpace: "pre-wrap",
+    overflowWrap: "anywhere",
+}
+
 export const TrusteeDashboard = () => {
     const auth = useContext(AuthContext)
     const {globalSettings} = useContext(SettingsContext)
     const platform = globalSettings.HASURA_URL
+    const trustee = auth.trustee || auth.username
+    const keysFilename = trusteeFilename(trustee, "private-keys.toml")
+    const requestFilename = trusteeFilename(trustee, "custody-request.json")
+    const proofFilename = trusteeFilename(trustee, "custody-proof.json")
     const [boards, setBoards] = useState<TrusteeBoard[]>([])
     const [error, setError] = useState("")
     const [loading, setLoading] = useState(false)
@@ -82,7 +112,7 @@ export const TrusteeDashboard = () => {
         const url = URL.createObjectURL(new Blob([contents], {type}))
         const anchor = document.createElement("a")
         anchor.href = url
-        anchor.download = name
+        anchor.download = trusteeFilename(trustee, name)
         anchor.click()
         setTimeout(() => URL.revokeObjectURL(url), 0)
     }
@@ -249,9 +279,9 @@ export const TrusteeDashboard = () => {
             })
     }
     return (
-        <Box sx={{p: 3}}>
+        <Box sx={{p: {xs: 2, sm: 3}}}>
             <Typography variant="h4" component="h1">
-                Wbraid trustee
+                Trustee dashboard
             </Typography>
             <Typography sx={{my: 2}}>
                 Use the browser trustee below or run the native trustee tool with your local keys
@@ -276,8 +306,9 @@ export const TrusteeDashboard = () => {
                         fullWidth
                         sx={{mb: 2}}
                     />
-                    <Box sx={{display: "flex", flexWrap: "wrap", gap: 1}}>
+                    <Box sx={actionGrid}>
                         <Button
+                            variant="outlined"
                             disabled={Boolean(keys) || busy}
                             onClick={() => {
                                 void perform(async () => {
@@ -289,6 +320,7 @@ export const TrusteeDashboard = () => {
                             Generate browser keys
                         </Button>
                         <Button
+                            variant="outlined"
                             disabled={busy || running}
                             onClick={() => keysInput.current?.click()}
                         >
@@ -306,6 +338,7 @@ export const TrusteeDashboard = () => {
                             }}
                         />
                         <Button
+                            variant="outlined"
                             disabled={busy || running}
                             onClick={() => backupInput.current?.click()}
                         >
@@ -323,20 +356,22 @@ export const TrusteeDashboard = () => {
                             }}
                         />
                         <Button
+                            variant="outlined"
                             disabled={!keys || busy}
                             onClick={() =>
-                                download("trustee.toml", privateKeys.current, "text/plain")
+                                download("private-keys.toml", privateKeys.current, "text/plain")
                             }
                         >
                             Download private keys
                         </Button>
                         <Button
+                            variant="outlined"
                             disabled={!keys || busy || running}
                             onClick={() => {
                                 void perform(async () => {
                                     if (engine.current)
                                         download(
-                                            "browser-trustee-backup.json",
+                                            "browser-sessions.json",
                                             await engine.current.backup(
                                                 JSON.stringify(catalog.current)
                                             ),
@@ -348,6 +383,7 @@ export const TrusteeDashboard = () => {
                             Back up browser sessions
                         </Button>
                         <Button
+                            variant="outlined"
                             disabled={!keys || busy || running}
                             onClick={() => {
                                 engine.current?.free()
@@ -377,17 +413,20 @@ export const TrusteeDashboard = () => {
                             />
                         </Box>
                     )}
-                    <Button
-                        disabled={!keys || busy || running || !auth.trustee}
-                        onClick={() => {
-                            void start()
-                        }}
-                    >
-                        Start browser trustee
-                    </Button>
-                    <Button disabled={!running} onClick={stop}>
-                        Stop browser trustee
-                    </Button>
+                    <Box sx={{...actionGrid, mt: 2}}>
+                        <Button
+                            variant="contained"
+                            disabled={!keys || busy || running || !auth.trustee}
+                            onClick={() => {
+                                void start()
+                            }}
+                        >
+                            Start browser trustee
+                        </Button>
+                        <Button variant="outlined" disabled={!running} onClick={stop}>
+                            Stop browser trustee
+                        </Button>
+                    </Box>
                     <Typography role="status" sx={{my: 2}}>
                         {browserStatus}
                     </Typography>
@@ -399,12 +438,15 @@ export const TrusteeDashboard = () => {
                         fullWidth
                         sx={{mb: 2}}
                     />
-                    <Button
-                        disabled={!keys || busy || running}
-                        onClick={() => custodyInput.current?.click()}
-                    >
-                        Create custody proof
-                    </Button>
+                    <Box sx={actionGrid}>
+                        <Button
+                            variant="outlined"
+                            disabled={!keys || busy || running}
+                            onClick={() => custodyInput.current?.click()}
+                        >
+                            Create custody proof
+                        </Button>
+                    </Box>
                     <input
                         ref={custodyInput}
                         aria-label="Custody request"
@@ -423,23 +465,21 @@ export const TrusteeDashboard = () => {
                     <Typography variant="h6" component="h2">
                         Local trustee tool
                     </Typography>
-                    <Typography
-                        component="pre"
-                        sx={{whiteSpace: "pre-wrap"}}
-                    >{`trustee generate --trustee-config trustee.toml
-trustee start --trustee-config trustee.toml`}</Typography>
+                    <Box component="pre" sx={codeExample}>
+                        <code>{`trustee generate --trustee-config ${keysFilename}
+trustee start --trustee-config ${keysFilename}`}</code>
+                    </Box>
                     <Typography>
-                        Register both public keys printed by generate. Keep a private backup of
-                        trustee.toml and the message_store directory.
+                        Register both public keys printed by generate. Keep a private backup of{" "}
+                        {keysFilename} and the message_store directory.
                     </Typography>
                     <Typography sx={{mt: 2}}>
                         For a manual ceremony, download its custody request and create a proof to
                         upload to the portal:
                     </Typography>
-                    <Typography
-                        component="pre"
-                        sx={{whiteSpace: "pre-wrap"}}
-                    >{`trustee attest --request custody-request.json --trustee-config trustee.toml --output custody-proof.json`}</Typography>
+                    <Box component="pre" sx={codeExample}>
+                        <code>{`trustee attest --request ${requestFilename} --trustee-config ${keysFilename} --output ${proofFilename}`}</code>
+                    </Box>
                     <Typography>
                         For a tally restore, add --tally-session-id with the tally session's ID. The
                         proof contains a signature and public metadata.
@@ -449,15 +489,30 @@ trustee start --trustee-config trustee.toml`}</Typography>
             <Typography variant="h6" component="h2" sx={{mt: 3}}>
                 Boards assigned to {auth.trustee || "your trustee"}
             </Typography>
-            <TextField
-                label="Platform URL"
-                value={platform}
-                InputProps={{readOnly: true}}
-                sx={{my: 2, mr: 2}}
-            />
-            <Button onClick={refresh} disabled={loading}>
-                {loading ? "Loading boards…" : "Refresh boards"}
-            </Button>
+            <Box
+                sx={{
+                    display: "grid",
+                    gridTemplateColumns: {xs: "1fr", sm: "minmax(0, 1fr) auto"},
+                    alignItems: "center",
+                    gap: 2,
+                    my: 2,
+                }}
+            >
+                <TextField
+                    label="Platform URL"
+                    value={platform}
+                    InputProps={{readOnly: true}}
+                    fullWidth
+                />
+                <Button
+                    variant="outlined"
+                    onClick={refresh}
+                    disabled={loading}
+                    sx={{minHeight: 44}}
+                >
+                    {loading ? "Loading boards…" : "Refresh boards"}
+                </Button>
+            </Box>
             {error && <Alert severity="error">{error}</Alert>}
             {loaded && boards.length === 0 && (
                 <Typography>No boards are currently assigned.</Typography>

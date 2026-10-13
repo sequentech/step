@@ -169,7 +169,7 @@ async function downloadKey(canvasElement: HTMLElement) {
     await waitFor(() => expect(canvas.getByRole("button", {name: "Next"})).toBeEnabled())
     expect(downloads).toEqual([
         {
-            name: "custody-request.json",
+            name: "Alice-custody-request.json",
             href: "blob:synthetic-key-download",
         },
     ])

@@ -189,6 +189,9 @@ export const Populated: Story = {
         const canvas = within(canvasElement)
         await expect(await canvas.findByRole("checkbox", {name: "Council"})).toBeDisabled()
         await expect(canvas.getByText(i18n.t("tally.trusteeTitle"))).toBeVisible()
+        await expect(
+            canvas.getByText(/trustee attest --request trustee1-custody-request.json/)
+        ).toBeVisible()
         // The next step needs a verified key.
         await expect(nextButton(canvasElement)).toBeDisabled()
         expect(data.writes).toEqual([])

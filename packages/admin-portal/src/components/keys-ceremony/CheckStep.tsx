@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {IPermissions} from "@/types/keycloak"
+import {trusteeFilename} from "@/services/trusteeFilename"
 import {useMutation} from "@apollo/client"
 import React, {useCallback, useContext, useState} from "react"
 import {Alert, Typography} from "@mui/material"
@@ -41,6 +42,9 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
 }) => {
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
+    const trustee = authContext.trustee || authContext.username
+    const proofFilename = trusteeFilename(trustee, "custody-proof.json")
+    const keysFilename = trusteeFilename(trustee, "private-keys.toml")
     const [verified, setVerified] = useState<boolean>(false)
     const [uploading, setUploading] = useState<boolean>(false)
     const [errors, setErrors] = useState<String | null>(null)
@@ -117,8 +121,8 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
                 </WizardStyles.StepHeader>
                 <WizardStyles.MainContent>
                     <Alert severity="info">
-                        Select custody-proof.json produced by the native trustee tool. Keep
-                        trustee.toml on your machine.
+                        Select {proofFilename} produced by the trustee tool. Keep {keysFilename} on
+                        your machine.
                     </Alert>
                     <Typography variant="body1">
                         <Trans

@@ -151,6 +151,7 @@ export const Populated: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(canvas.getByRole("heading", {name: "Confirm Trustee Custody"})).toBeVisible()
+        await expect(canvas.getByText(/Select trustee1-custody-proof.json/)).toBeVisible()
         expect(canvas.getByRole("button", {name: "Next"})).toBeDisabled()
         expect(graphql.calls).toEqual([])
     },
