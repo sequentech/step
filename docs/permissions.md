@@ -46,6 +46,7 @@ CRUD endpoints for:
 - tally-resolution-submit
 - publish-read|write
 - logs-read
+- tenant-logs-read
 - electoral-log-audit
 - electoral-log-console-read|query
 - electoral-log-personal-data-read

@@ -201,6 +201,30 @@ const galegoTranslation: TranslationType = {
                 },
             },
         },
+        tenantLogs: {
+            tab: "Rexistros",
+            title: "Rexistros",
+            subtitle:
+                "Inicios de sesión no Portal de Administración e peticións feitas fóra de calquera evento electoral, asinados e gardados no rexistro da organización.",
+            noPermissions: "Non tes permiso para ler os rexistros da organización.",
+            kind: {
+                TenantLogOpened: "Rexistro aberto",
+                TenantAdminAction: "Petición de administrador",
+                KeycloakUserEvent: "Inicio de sesión e evento de conta",
+            },
+            explanation: {
+                action: "Acción: {{action}}",
+                outcome: {
+                    succeeded: "Aceptada (HTTP {{status}})",
+                    denied: "Denegada (HTTP {{status}})",
+                    failed: "Fallida (HTTP {{status}})",
+                },
+                by: "Pedida por {{username}} ({{userId}})",
+                detail: "{{name}}: {{value}}",
+                board: "Rexistro: {{board}}",
+                publicKey: "Clave pública do rexistro: {{key}}",
+            },
+        },
         logsScreen: {
             noPermissions: "Non tes permiso para acceder aos rexistros.",
             title: "Rexistros",
@@ -1686,6 +1710,7 @@ const galegoTranslation: TranslationType = {
                 "publish-results-read": "Leer Publicación de Resultados",
                 "publish-results-write": "Editar Publicación de Resultados",
                 "logs-read": "Leer Registros",
+                "tenant-logs-read": "Ler Rexistros da Organización",
                 "electoral-log-audit": "Auditar Rexistro Electoral",
                 "electoral-log-console-read": "Explorar Rexistro Electoral",
                 "electoral-log-console-query": "Consultar Rexistro Electoral",

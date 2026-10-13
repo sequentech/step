@@ -103,6 +103,7 @@ struct Inner {
     connection: PostgresConnection,
     catalog: PostgresStore,
     catalog_ready: OnceCell<()>,
+    tenant_logs_ready: OnceCell<()>,
     pool_size: usize,
     capacity: usize,
     open: Mutex<OpenEvents>,
@@ -217,6 +218,7 @@ impl EventDatabases {
                 connection,
                 catalog,
                 catalog_ready: OnceCell::new(),
+                tenant_logs_ready: OnceCell::new(),
                 pool_size,
                 capacity,
                 open: Mutex::new(OpenEvents {
@@ -236,6 +238,22 @@ impl EventDatabases {
     /// The store of the base database, which holds the catalog.
     pub fn catalog(&self) -> &PostgresStore {
         &self.inner.catalog
+    }
+
+    /// The store of the tenants' logs: boards of no election event, kept in the base
+    /// database next to the catalog. Creates their tables before the first use.
+    pub async fn tenant_logs(&self) -> Result<PostgresStore> {
+        self.inner
+            .tenant_logs_ready
+            .get_or_try_init(|| async {
+                self.inner
+                    .catalog
+                    .initialize_logs()
+                    .await
+                    .context("Error creating the tables of the tenant logs")
+            })
+            .await?;
+        Ok(self.inner.catalog.clone())
     }
 
     /// Name of an election event's database.

@@ -16,6 +16,7 @@ import {
     ELECTORAL_LOG_ZONE_FILTER,
     ELECTORAL_LOG_DEFAULT_ZONE_FILTER,
 } from "./ListElectoralLog"
+import {LIST_TENANT_LOG, TENANT_LOG_RESOURCE} from "./ListTenantLog"
 import {LIST_USERS, customBuildGetUsersVariables} from "./GetUsers"
 import {getPermissions} from "./GetPermissions"
 import {getRoles} from "./GetRoles"
@@ -99,6 +100,43 @@ export const customBuildQuery =
                         delete params.filter[f]
                     }
                 })
+            }
+        }
+
+        if (resourceName === TENANT_LOG_RESOURCE && raFetchType === "GET_LIST") {
+            // The tenant's log has no election event, election or message to select by.
+            const validFilters: string[] = [
+                "user_id",
+                "username",
+                "statement_kind",
+                ...ELECTORAL_LOG_RANGE_FILTERS,
+                ELECTORAL_LOG_ZONE_FILTER,
+                ELECTORAL_LOG_DEFAULT_ZONE_FILTER,
+            ]
+            Object.keys(params.filter).forEach((f) => {
+                if (!validFilters.includes(f)) {
+                    delete params.filter[f]
+                }
+            })
+            params = {...params, filter: electoralLogInstantFilters(params.filter)}
+            const resource: any = {
+                type: {
+                    fields: [],
+                    name: resourceName,
+                },
+            }
+            return {
+                query: LIST_TENANT_LOG,
+                variables: getElectoralLogVariables(
+                    buildVariables(introspectionResults)(resource, raFetchType, params, null)
+                ),
+                parseResponse: (res: any) => {
+                    const response = res.data.listTenantLog
+                    return {
+                        data: response.items,
+                        total: response.total.aggregate.count,
+                    }
+                },
             }
         }
 

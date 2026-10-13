@@ -202,6 +202,30 @@ const basqueTranslation: TranslationType = {
                 },
             },
         },
+        tenantLogs: {
+            tab: "Egunkariak",
+            title: "Egunkariak",
+            subtitle:
+                "Administrazio Atariko saio-hasierak eta hauteskunde-ekitaldietatik kanpo egindako eskaerak, sinatuta eta erakundearen egunkarian gordeta.",
+            noPermissions: "Ez duzu erakundearen egunkariak irakurtzeko baimenik.",
+            kind: {
+                TenantLogOpened: "Egunkaria irekita",
+                TenantAdminAction: "Administratzailearen eskaera",
+                KeycloakUserEvent: "Saio-hasiera eta kontuaren gertaera",
+            },
+            explanation: {
+                action: "Ekintza: {{action}}",
+                outcome: {
+                    succeeded: "Onartuta (HTTP {{status}})",
+                    denied: "Ukatuta (HTTP {{status}})",
+                    failed: "Huts eginda (HTTP {{status}})",
+                },
+                by: "Eskatzailea: {{username}} ({{userId}})",
+                detail: "{{name}}: {{value}}",
+                board: "Egunkaria: {{board}}",
+                publicKey: "Egunkariaren gako publikoa: {{key}}",
+            },
+        },
         logsScreen: {
             noPermissions: "Ez duzu egunkariak atzitzeko baimenik.",
             title: "Egunkariak",
@@ -1678,6 +1702,7 @@ const basqueTranslation: TranslationType = {
                 "publish-results-read": "Irakurri Emaitzen Argitalpena",
                 "publish-results-write": "Editatu Emaitzen Argitalpena",
                 "logs-read": "Irakurri Egunkariak",
+                "tenant-logs-read": "Irakurri Erakundearen Egunkariak",
                 "electoral-log-audit": "Hauteskunde Erregistroa Ikuskatu",
                 "electoral-log-console-read": "Hauteskunde Erregistroa Arakatu",
                 "electoral-log-console-query": "Hauteskunde Erregistroa Kontsultatu",

@@ -278,6 +278,30 @@ const catalanTranslation: TranslationType = {
                 error: "Error en exportar l'Execució de Tasques",
             },
         },
+        tenantLogs: {
+            tab: "Registres",
+            title: "Registres",
+            subtitle:
+                "Inicis de sessió al Portal d'Administració i peticions fetes fora de qualsevol esdeveniment electoral, signats i desats al registre de l'organització.",
+            noPermissions: "No tens permís per llegir els registres de l'organització.",
+            kind: {
+                TenantLogOpened: "Registre obert",
+                TenantAdminAction: "Petició d'administrador",
+                KeycloakUserEvent: "Inici de sessió i esdeveniment de compte",
+            },
+            explanation: {
+                action: "Acció: {{action}}",
+                outcome: {
+                    succeeded: "Acceptada (HTTP {{status}})",
+                    denied: "Denegada (HTTP {{status}})",
+                    failed: "Fallida (HTTP {{status}})",
+                },
+                by: "Demanada per {{username}} ({{userId}})",
+                detail: "{{name}}: {{value}}",
+                board: "Registre: {{board}}",
+                publicKey: "Clau pública del registre: {{key}}",
+            },
+        },
         logsScreen: {
             noPermissions: "No tens permís per accedir a les bitàcoles.",
             title: "Bitàcoles",
@@ -1692,6 +1716,7 @@ const catalanTranslation: TranslationType = {
                 "publish-results-read": "Llegir Publicació de Resultats",
                 "publish-results-write": "Editar Publicació de Resultats",
                 "logs-read": "Llegir Registres",
+                "tenant-logs-read": "Llegir Registres de l'Organització",
                 "electoral-log-audit": "Auditar Registre Electoral",
                 "electoral-log-console-read": "Explorar Registre Electoral",
                 "electoral-log-console-query": "Consultar Registre Electoral",

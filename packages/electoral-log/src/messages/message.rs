@@ -871,6 +871,35 @@ impl Message {
         )
     }
 
+    /// One entry of a tenant's log. It belongs to no election event, so its
+    /// head names `GENERIC_EVENT`. `timestamp` is when the activity happened,
+    /// not when the entry is posted.
+    pub fn tenant_activity_message(
+        entry: TenantActivityEntry,
+        timestamp: Timestamp,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::TenantActivity(entry);
+        let head = StatementHead {
+            timestamp,
+            ..StatementHead::from_body(EventIdString(GENERIC_EVENT.to_string()), &body)
+        };
+        Message::sign(
+            Statement::new(head, body),
+            None,
+            &sd.sender_sk,
+            &sd.sender_name,
+            &sd.system_sk,
+            user_id,
+            username,
+            None,
+            None,
+            None,
+        )
+    }
+
     fn from_body(
         event: EventIdString,
         body: StatementBody,

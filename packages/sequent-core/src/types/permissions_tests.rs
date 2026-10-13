@@ -724,3 +724,42 @@ fn every_realm_template_only_holds_ordinary_roles() {
         }
     }
 }
+
+/// The tenant's log has its own permission, apart from an election event's
+/// logs. Administrators hold it, and both realms send their events to the
+/// log: without the listener, sign-ins to the Admin Portal are not recorded.
+#[test]
+fn every_realm_lets_its_administrators_read_the_tenant_log() {
+    assert_eq!(
+        Permissions::from_str("tenant-logs-read"),
+        Ok(Permissions::TENANT_LOGS_READ)
+    );
+    let permission = Permissions::TENANT_LOGS_READ.to_string();
+    assert_ne!(permission, Permissions::LOGS_READ.to_string());
+    for (name, text) in REALMS {
+        let realm: Value = serde_json::from_str(text)
+            .unwrap_or_else(|why| panic!("{name}: {why}"));
+        let defined = realm["roles"]["realm"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter(|role| role["name"] == permission.as_str())
+            .count();
+        assert_eq!(defined, 1, "{name}: {permission} role");
+        assert_eq!(
+            groups_granting(&realm, &permission),
+            BTreeSet::from(["admin".to_string()]),
+            "{name}: {permission}"
+        );
+        let listeners: Vec<&str> = realm["eventsListeners"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .collect();
+        assert!(
+            listeners.contains(&"custom-event-listener"),
+            "{name}: {listeners:?}"
+        );
+    }
+}

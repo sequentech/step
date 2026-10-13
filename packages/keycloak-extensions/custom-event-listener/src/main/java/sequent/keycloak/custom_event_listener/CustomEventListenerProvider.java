@@ -12,10 +12,12 @@ import static sequent.keycloak.authenticator.Utils.sendRegistrationErrorToSuppor
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.events.Event;
@@ -43,22 +45,62 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     this.pgmqEventPublisher = pgmqEventPublisher;
   }
 
+  private static final String TENANT_REALM_PREFIX = "tenant-";
+  private static final String EVENT_REALM_INFIX = "-event-";
+
   /**
-   * Parses the realm name (from the realm ID) to extract tenant_id and election_event_id. Expected
-   * format: "tenant-<tenant_uuid>-event-<election_event_uuid>"
+   * Token housekeeping of a signed-in administrator, which a tenant's log leaves out: it is not
+   * something the administrator did. Their failures are separate event types and are kept.
+   */
+  private static final Set<EventType> TENANT_REALM_SKIPPED_EVENTS =
+      EnumSet.of(
+          EventType.CODE_TO_TOKEN,
+          EventType.REFRESH_TOKEN,
+          EventType.INTROSPECT_TOKEN,
+          EventType.USER_INFO_REQUEST,
+          EventType.CLIENT_LOGIN,
+          EventType.TOKEN_EXCHANGE,
+          EventType.PERMISSION_TOKEN);
+
+  /**
+   * Parses the realm name (from the realm ID) to extract tenant_id and election_event_id; see
+   * {@link #tenantAndEvent}.
    *
    * @param realmId the realm identifier
    * @return a String array where index 0 is tenant_id and index 1 is election_event_id.
    */
   private String[] parseRealm(String realmId) {
-    String realmName = session.realms().getRealm(realmId).getName();
-    if (realmName != null && realmName.startsWith("tenant-") && realmName.contains("-event-")) {
-      int eventIndex = realmName.indexOf("-event-");
-      String tenantId = realmName.substring("tenant-".length(), eventIndex);
-      String electionEventId = realmName.substring(eventIndex + "-event-".length());
-      return new String[] {tenantId, electionEventId};
+    return tenantAndEvent(session.realms().getRealm(realmId).getName());
+  }
+
+  /**
+   * The tenant and the election event a realm belongs to. An election event's realm is named
+   * "tenant-&lt;tenant_uuid&gt;-event-&lt;election_event_uuid&gt;". A tenant's realm,
+   * "tenant-&lt;tenant_uuid&gt;", has no election event: its events go to the tenant's log. Any
+   * other realm has neither.
+   *
+   * @return a String array where index 0 is tenant_id and index 1 is election_event_id.
+   */
+  static String[] tenantAndEvent(String realmName) {
+    if (realmName == null || !realmName.startsWith(TENANT_REALM_PREFIX)) {
+      return new String[] {"", ""};
     }
-    return new String[] {"", ""};
+    int eventIndex = realmName.indexOf(EVENT_REALM_INFIX);
+    if (eventIndex < 0) {
+      return new String[] {realmName.substring(TENANT_REALM_PREFIX.length()), ""};
+    }
+    String tenantId = realmName.substring(TENANT_REALM_PREFIX.length(), eventIndex);
+    String electionEventId = realmName.substring(eventIndex + EVENT_REALM_INFIX.length());
+    return new String[] {tenantId, electionEventId};
+  }
+
+  /**
+   * Whether an event is sent to the logs. An election event's realm sends every event. A tenant's
+   * realm leaves out token housekeeping.
+   */
+  static boolean isLogged(String tenantId, String electionEventId, EventType type) {
+    boolean tenantRealm = !tenantId.isEmpty() && electionEventId.isEmpty();
+    return !(tenantRealm && TENANT_REALM_SKIPPED_EVENTS.contains(type));
   }
 
   @Override
@@ -77,6 +119,9 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     String[] tenantAndEvent = parseRealm(event.getRealmId());
     String tenantId = tenantAndEvent[0];
     String electionEventId = tenantAndEvent[1];
+    if (!isLogged(tenantId, electionEventId, event.getType())) {
+      return;
+    }
 
     // Extract username from event details (default to "unknown" if absent)
     String username =

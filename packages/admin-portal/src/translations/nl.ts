@@ -203,6 +203,30 @@ const dutchTranslation: TranslationType = {
                 },
             },
         },
+        tenantLogs: {
+            tab: "Logs",
+            title: "Logs",
+            subtitle:
+                "Aanmeldingen bij het Beheerportaal en verzoeken buiten een verkiezingsevenement, ondertekend en bewaard in het log van de organisatie.",
+            noPermissions: "U hebt geen toestemming om de logs van de organisatie te lezen.",
+            kind: {
+                TenantLogOpened: "Log geopend",
+                TenantAdminAction: "Verzoek van beheerder",
+                KeycloakUserEvent: "Aanmelding en accountgebeurtenis",
+            },
+            explanation: {
+                action: "Actie: {{action}}",
+                outcome: {
+                    succeeded: "Geaccepteerd (HTTP {{status}})",
+                    denied: "Geweigerd (HTTP {{status}})",
+                    failed: "Mislukt (HTTP {{status}})",
+                },
+                by: "Gevraagd door {{username}} ({{userId}})",
+                detail: "{{name}}: {{value}}",
+                board: "Log: {{board}}",
+                publicKey: "Publieke sleutel van het log: {{key}}",
+            },
+        },
         logsScreen: {
             noPermissions: "U hebt geen toestemming om toegang te krijgen tot de logs.",
             title: "Logs",
@@ -1689,6 +1713,7 @@ const dutchTranslation: TranslationType = {
                 "publish-results-read": "Resultatenpublicatie Lezen",
                 "publish-results-write": "Resultatenpublicatie Bewerken",
                 "logs-read": "Logs Lezen",
+                "tenant-logs-read": "Logs van de Organisatie Lezen",
                 "electoral-log-audit": "Verkiezingslog Controleren",
                 "electoral-log-console-read": "Verkiezingslog Bekijken",
                 "electoral-log-console-query": "Verkiezingslog Bevragen",

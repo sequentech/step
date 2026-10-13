@@ -109,7 +109,7 @@ flowchart LR
 | Database | Holds | Owner |
 | --- | --- | --- |
 | An election event's database, `<base>_<event ID as 32 hexadecimal digits>` | The event's board, the sealed logs it continues, their records, leaves and subtrees, the size and root of each log, and the event's ballot box | The dedicated electoral-log role. The provisioning role creates it |
-| The base database, `ELECTORAL_LOG_PG_DATABASE` (`<client>_electoral_log` in the cloud, `electoral_log` in development) | `electoral_log_events`: the catalog of the event databases, with each event's tenant and the mark of events whose ballot boxes have work for background tasks ([ballot box](03-electoral-log-ballot-box.md), section 5) | The dedicated electoral-log role |
+| The base database, `ELECTORAL_LOG_PG_DATABASE` (`<client>_electoral_log` in the cloud, `electoral_log` in development) | `electoral_log_events`: the catalog of the event databases, with each event's tenant and the mark of events whose ballot boxes have work for background tasks ([ballot box](03-electoral-log-ballot-box.md), section 5). Also the tenants' logs, one board per tenant, for the activity that belongs to no election event ([tenant log](04-tenant-log.md)) | The dedicated electoral-log role |
 | Hasura's database, schema `sequent_backend` | `electoral_log_checkpoint`: published checkpoints | Hasura's database role |
 
 - **Why a database per event:** everything a checkpoint of an event commits to is in one database, which is backed up, restored, copied and dropped with the event. An event's queries, locks, vacuum and statistics do not touch other events' data, and a console query reads one event (section 9.6).

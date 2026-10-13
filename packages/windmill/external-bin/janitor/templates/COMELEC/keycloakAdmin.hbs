@@ -960,6 +960,15 @@
         "attributes": {}
       },
       {
+        "id": "5d0c7e0b-6a57-4f3e-9a1e-2c4b8f6d3a91",
+        "name": "tenant-logs-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "14d7e770-5841-4de9-949b-54597f986c2b",
         "name": "electoral-log-audit",
         "description": "",
@@ -2668,6 +2677,7 @@
         "election-event-publish-tab",
         "voter-write",
         "settings-menu",
+        "tenant-logs-read",
         "role-assign",
         "voting-channel-read",
         "tally-sheet-review",
@@ -5090,6 +5100,7 @@
   "eventsEnabled": true,
   "eventsExpiration": 15552000,
   "eventsListeners": [
+    "custom-event-listener",
     "jboss-logging"
   ],
   "enabledEventTypes": [

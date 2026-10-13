@@ -301,6 +301,8 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/get-user-template", {"template_type": "test-template"}, [REPORT_READ], BACKEND_TEXT, UNAUTHORIZED),
         case!(Admin, "/get-users", {"tenant_id": TENANT_ID}, [USER_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/get-users", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [VOTER_READ], BACKEND_TEXT, UNAUTHORIZED),
+        // ENV_SLUG names the tenant's log; the child process leaves it unset.
+        case!(Admin, "/tenant-log", {"tenant_id": TENANT_ID}, [TENANT_LOGS_READ], BACKEND_TEXT, UNAUTHORIZED),
         case!(Admin, "/trustee/boards/report", {"board": "dkg_d9792af071b849528aac94bc0fead5f7", "kind": "HALTED", "detail": "fixture error"}, [TRUSTEE_CEREMONY], BACKEND, UNAUTHORIZED),
         case!(Voter, "/get-voter-cast-votes", {"election_event_id": EVENT_ID}, [CAST_VOTE], BACKEND, FORBIDDEN),
         // Looking ballots up by their ID first reads the checks period.

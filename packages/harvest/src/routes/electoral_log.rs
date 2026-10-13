@@ -13,7 +13,8 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::electoral_log::{
-    list_electoral_log as get_logs, ElectoralLogRow, GetElectoralLogBody,
+    list_electoral_log as get_logs, list_tenant_log as get_tenant_logs,
+    ElectoralLogRow, GetElectoralLogBody,
 };
 use windmill::types::resources::DataList;
 
@@ -49,6 +50,32 @@ pub async fn list_electoral_log(
         .await?
     };
     let ret_val = get_logs(input)
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    Ok(Json(ret_val))
+}
+
+/// The tenant's log: the activity that belongs to none of its election events.
+#[instrument]
+#[post("/tenant-log", format = "json", data = "<body>")]
+pub async fn list_tenant_log(
+    body: Json<GetElectoralLogBody>,
+    claims: JwtClaims,
+) -> Result<Json<DataList<ElectoralLogRow>>, (Status, String)> {
+    let mut input = body.into_inner();
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![Permissions::TENANT_LOGS_READ],
+    )?;
+    // The tenant's log has no election event, election or area to select by.
+    input.election_event_id = String::new();
+    input.election_id = None;
+    input.area_ids = None;
+    input.communications = None;
+    let ret_val = get_tenant_logs(input)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
