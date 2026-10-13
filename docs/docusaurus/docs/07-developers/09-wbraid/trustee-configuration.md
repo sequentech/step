@@ -23,23 +23,29 @@ Generation refuses to replace an existing file. Back up `trustee.toml` and the
 runner's `message_store` directory. The runner does not generate replacement
 keys when its configured identity is missing.
 
-| Variable                                                       | Purpose                                                         |
-| -------------------------------------------------------------- | --------------------------------------------------------------- |
-| `TRUSTEE_CONFIG_PATH`                                          | Local native keys file, unless supplied with `--trustee-config` |
-| `B4_URL`                                                       | Native board URL, unless supplied with `--b4-url`               |
-| `TRUSTEE_HARVEST_URL`                                          | Platform API that lists this trustee's assigned boards          |
-| `TRUSTEE_NAME`, `TRUSTEE_PASSWORD`                             | Trustee's Keycloak account                                      |
-| `TRUSTEE_KEYCLOAK_URL`, `TRUSTEE_KEYCLOAK_REALM`               | Tenant's authentication server and realm                        |
-| `TRUSTEE_KEYCLOAK_CLIENT_ID`, `TRUSTEE_KEYCLOAK_CLIENT_SECRET` | Authentication client; omit the secret for a public client      |
-| `LOG_LEVEL`                                                    | Runner tracing filter                                           |
+| Variable                                                       | Purpose                                                             |
+| -------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `TRUSTEE_CONFIG_PATH`                                          | Local native keys file, unless supplied with `--trustee-config`     |
+| `B4_URL`                                                       | Native board URL, unless supplied with `--b4-url`                   |
+| `TRUSTEE_PLATFORM_URL`                                         | Full Hasura GraphQL endpoint; Compose defaults to `HASURA_ENDPOINT` |
+| `TRUSTEE_NAME`, `TRUSTEE_PASSWORD`                             | Trustee's Keycloak account                                          |
+| `TRUSTEE_KEYCLOAK_URL`, `TRUSTEE_KEYCLOAK_REALM`               | Tenant's authentication server and realm                            |
+| `TRUSTEE_KEYCLOAK_CLIENT_ID`, `TRUSTEE_KEYCLOAK_CLIENT_SECRET` | Authentication client; omit the secret for a public client          |
+| `LOG_LEVEL`                                                    | Runner tracing filter                                               |
 
 Set an initial password for each trustee account and complete its required
 profile fields and MFA enrollment through the tenant portal before starting
 the unattended runner. The account must belong to the trustee group and its
 `trustee` attribute must match `TRUSTEE_NAME`.
 
-The runner discovers DKG and tally boards through Harvest, verifies signed
-configuration and message lineage, and resumes its local protocol sessions.
+The runner discovers DKG and tally boards through the same public Hasura actions
+as browser trustees, verifies signed configuration and message lineage, and
+resumes its local protocol sessions. Set `TRUSTEE_PLATFORM_URL` to the full
+GraphQL endpoint, including `/v1/graphql`: `http://localhost:8080/v1/graphql`
+when running on the development host, or `http://graphql-engine:8080/v1/graphql`
+inside the development Compose network. A separately hosted trustee can use the
+production public endpoint. The runner sends fixed JSON requests using its
+existing HTTP client; it needs no GraphQL client library or schema generation.
 Containers use `http://b4v6:3005` for the supplied native board service.
 
 ## Development workspace
@@ -74,12 +80,12 @@ its local settings and trustee enrollment, run from the checkout root:
 ```sh
 docker compose --project-directory .devcontainer \
   --env-file .devcontainer/.env.development --env-file .devcontainer/.env \
-  -f .devcontainer/docker-compose.yml --profile wbraid up -d --build --no-deps \
+  -f .devcontainer/docker-compose.yml --profile full up -d --build --no-deps \
   postgres-b4v6 localstack configure-localstack b4v6 trustee1 trustee2
 ```
 
 This scopes recreation to the listed services and leaves the editor container
-running. Start them with existing Harvest and Keycloak services available.
+running. Start them with existing Hasura, Harvest and Keycloak services available.
 Generate a new key ceremony using the registered wbraid identities; legacy
 ceremonies and trustee session stores use incompatible protocol data.
 
@@ -165,7 +171,9 @@ The displayed **Platform URL** is `HASURA_URL`. Browser trustees use the
 token and the `trustee-ceremony` role. Hasura forwards those calls internally to
 Harvest, which independently verifies the JWT, tenant, trustee identity and
 assigned board. Harvest remains private and needs no browser-facing URL or CORS
-configuration. Native trustees continue using the internal `TRUSTEE_HARVEST_URL`.
+configuration. Server trustees use the same query and mutation, bearer token and
+role through `TRUSTEE_PLATFORM_URL`. Both require an explicit successful report
+acknowledgement before clearing a pending halt.
 
 ## Building and validating browser trustees
 

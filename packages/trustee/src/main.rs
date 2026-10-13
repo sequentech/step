@@ -142,14 +142,14 @@ async fn start(config: Config) -> Result<()> {
     info!(
         trustee = %config.trustee_name,
         board_service = %config.b4_url,
-        platform = %config.harvest_url,
+        platform = %config.platform_url,
         "session stores in {}",
         store_directory.display()
     );
     let boards =
         B4Boards::new(config.b4_url, SessionStores::new(store_directory)?);
     let platform =
-        PlatformClient::new(&config.harvest_url, config.credentials)?;
+        PlatformClient::new(&config.platform_url, config.credentials)?;
     daemon::run(
         platform,
         SessionSet::new(config.trustee_name, secrets, boards),

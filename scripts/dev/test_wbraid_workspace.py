@@ -48,6 +48,11 @@ class WorkspaceTrusteesTest(unittest.TestCase):
                 self.assertEqual(environment["TRUSTEE_NAME"], name)
                 self.assertEqual(environment["B4_URL"], "http://b4v6:3005")
                 self.assertEqual(
+                    environment["TRUSTEE_PLATFORM_URL"],
+                    "http://graphql-engine:8080/v1/graphql",
+                )
+                self.assertNotIn("TRUSTEE_HARVEST_URL", environment)
+                self.assertEqual(
                     environment["TRUSTEE_KEYCLOAK_URL"], "http://keycloak:8090"
                 )
                 self.assertEqual(

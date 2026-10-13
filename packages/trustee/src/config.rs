@@ -16,7 +16,7 @@ const B4_URL: &str = "B4_URL";
 const TRUSTEE_CONFIG_PATH: &str = "TRUSTEE_CONFIG_PATH";
 const TRUSTEE_NAME: &str = "TRUSTEE_NAME";
 const TRUSTEE_PASSWORD: &str = "TRUSTEE_PASSWORD";
-const TRUSTEE_HARVEST_URL: &str = "TRUSTEE_HARVEST_URL";
+const TRUSTEE_PLATFORM_URL: &str = "TRUSTEE_PLATFORM_URL";
 const TRUSTEE_KEYCLOAK_URL: &str = "TRUSTEE_KEYCLOAK_URL";
 const TRUSTEE_KEYCLOAK_REALM: &str = "TRUSTEE_KEYCLOAK_REALM";
 const TRUSTEE_KEYCLOAK_CLIENT_ID: &str = "TRUSTEE_KEYCLOAK_CLIENT_ID";
@@ -33,7 +33,7 @@ pub(crate) struct Config {
     /// The trustee's platform username, and the name braid stamps into the
     /// messages it signs.
     pub(crate) trustee_name: String,
-    pub(crate) harvest_url: String,
+    pub(crate) platform_url: String,
     pub(crate) credentials: Credentials,
 }
 
@@ -58,7 +58,7 @@ impl Config {
         Ok(Config {
             b4_url,
             keys_file,
-            harvest_url: required(TRUSTEE_HARVEST_URL)?,
+            platform_url: required(TRUSTEE_PLATFORM_URL)?,
             credentials: Credentials {
                 keycloak_url: required(TRUSTEE_KEYCLOAK_URL)?,
                 realm: required(TRUSTEE_KEYCLOAK_REALM)?,

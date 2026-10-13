@@ -119,6 +119,10 @@ class ComposeEnvironmentTest(unittest.TestCase):
         for trustee in ("trustee1", "trustee2"):
             environment = services[trustee]["environment"]
             self.assertEqual(
+                environment["TRUSTEE_PLATFORM_URL"],
+                "http://graphql-engine:8080/v1/graphql",
+            )
+            self.assertEqual(
                 environment["TRUSTEE_KEYCLOAK_CLIENT_ID"], "api-key-client"
             )
             self.assertTrue(environment["TRUSTEE_KEYCLOAK_CLIENT_SECRET"])
@@ -129,6 +133,7 @@ class ComposeEnvironmentTest(unittest.TestCase):
             "MESSAGING_WEBHOOKS_PUBLIC_URL=\n"
             "MESSAGING_RELAY_SECRET=synthetic-local-relay-secret\n"
             "ADMIN_PORTAL_URL=http://localhost:13002\n"
+            "TRUSTEE_PLATFORM_URL=https://trustees.example.invalid/v1/graphql\n"
             "TRUSTEE_KEYCLOAK_CLIENT_ID=local-trustee-client\n"
             "TRUSTEE_KEYCLOAK_CLIENT_SECRET=synthetic-local-trustee-secret\n"
         )
@@ -146,6 +151,10 @@ class ComposeEnvironmentTest(unittest.TestCase):
         )
         for trustee in ("trustee1", "trustee2"):
             environment = services[trustee]["environment"]
+            self.assertEqual(
+                environment["TRUSTEE_PLATFORM_URL"],
+                "https://trustees.example.invalid/v1/graphql",
+            )
             self.assertEqual(
                 environment["TRUSTEE_KEYCLOAK_CLIENT_ID"], "local-trustee-client"
             )

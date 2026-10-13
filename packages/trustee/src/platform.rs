@@ -10,65 +10,123 @@ use std::time::Duration;
 use anyhow::{bail, Context as _, Result};
 use protocol_board::{TrusteeBoard, TrusteeBoardsResponse, TrusteeReport};
 use serde::de::DeserializeOwned;
+use serde::Deserialize;
+use serde_json::{json, Value};
 
 use crate::login::{Credentials, TokenSource};
 
 /// How long a request to the platform may take before it counts as failed.
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
-/// harvest, called as the trustee's user.
+const TRUSTEE_ROLE: &str = "trustee-ceremony";
+const LIST_BOARDS: &str =
+    "query ListTrusteeBoards { list_trustee_boards { boards { name kind parent } } }";
+const REPORT_BOARD: &str =
+    "mutation ReportTrusteeBoard($report: jsonb!) { report_trustee_board(report: $report) { accepted } }";
+
+#[derive(Deserialize)]
+struct GraphqlResponse<T> {
+    data: Option<T>,
+    #[serde(default)]
+    errors: Vec<GraphqlError>,
+}
+
+#[derive(Deserialize)]
+struct GraphqlError {
+    message: String,
+}
+
+#[derive(Deserialize)]
+struct BoardListing {
+    list_trustee_boards: TrusteeBoardsResponse,
+}
+
+#[derive(Deserialize)]
+struct ReportResult {
+    report_trustee_board: Option<ReportAcknowledgement>,
+}
+
+#[derive(Deserialize)]
+struct ReportAcknowledgement {
+    accepted: bool,
+}
+
+/// The same public Hasura actions browser trustees call, using HTTP and JSON.
 pub(crate) struct PlatformClient {
     http: reqwest::Client,
-    boards_url: String,
-    report_url: String,
+    graphql_url: String,
     tokens: TokenSource,
 }
 
 impl PlatformClient {
     pub(crate) fn new(
-        harvest_url: &str,
+        graphql_url: &str,
         credentials: Credentials,
     ) -> Result<PlatformClient> {
         let http = reqwest::Client::builder()
             .timeout(REQUEST_TIMEOUT)
             .build()
             .context("building the platform's HTTP client")?;
-        let harvest_url = harvest_url.trim_end_matches('/');
         Ok(PlatformClient {
             tokens: TokenSource::new(http.clone(), credentials),
             http,
-            boards_url: format!("{harvest_url}/trustee/boards"),
-            report_url: format!("{harvest_url}/trustee/boards/report"),
+            graphql_url: graphql_url.to_owned(),
         })
     }
 
     /// The boards that need this trustee's work, oldest first.
     pub(crate) async fn list(&mut self) -> Result<Vec<TrusteeBoard>> {
-        let token = self.tokens.access_token().await?;
-        let answer: TrusteeBoardsResponse =
-            call(self.http.get(&self.boards_url).bearer_auth(token))
-                .await
-                .with_context(|| format!("GET {}", self.boards_url))?;
-        Ok(answer.boards)
+        let answer: BoardListing = self.query(LIST_BOARDS, json!({})).await?;
+        Ok(answer.list_trustee_boards.boards)
     }
 
-    /// Report a halt.
+    /// Report a halt; only an explicit acknowledgement settles it.
     pub(crate) async fn report(
         &mut self,
         report: &TrusteeReport,
     ) -> Result<()> {
+        let answer: ReportResult = self
+            .query(REPORT_BOARD, json!({"report": report}))
+            .await
+            .with_context(|| format!("reporting board {}", report.board))?;
+        if !answer
+            .report_trustee_board
+            .is_some_and(|acknowledgement| acknowledgement.accepted)
+        {
+            bail!("the platform did not acknowledge the halted board");
+        }
+        Ok(())
+    }
+
+    /// Fixed operations sent through the existing HTTP client. GraphQL errors
+    /// may arrive with HTTP 200 and partial data; neither counts as success.
+    async fn query<T: DeserializeOwned>(
+        &mut self,
+        query: &str,
+        variables: Value,
+    ) -> Result<T> {
         let token = self.tokens.access_token().await?;
-        send(
+        let answer: GraphqlResponse<T> = call(
             self.http
-                .post(&self.report_url)
+                .post(&self.graphql_url)
                 .bearer_auth(token)
-                .json(report),
+                .header("x-hasura-role", TRUSTEE_ROLE)
+                .json(&json!({"query": query, "variables": variables})),
         )
         .await
-        .with_context(|| {
-            format!("POST {} for board {}", self.report_url, report.board)
-        })?;
-        Ok(())
+        .with_context(|| format!("POST {}", self.graphql_url))?;
+        if !answer.errors.is_empty() {
+            bail!(
+                "trustee API: {}",
+                answer
+                    .errors
+                    .iter()
+                    .map(|error| error.message.as_str())
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            );
+        }
+        answer.data.context("the trustee API returned no data")
     }
 }
 
@@ -98,3 +156,7 @@ async fn send(request: reqwest::RequestBuilder) -> Result<reqwest::Response> {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "platform_tests.rs"]
+mod tests;
