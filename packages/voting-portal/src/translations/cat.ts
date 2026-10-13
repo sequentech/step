@@ -167,6 +167,15 @@ const catalanTranslation: TranslationType = {
                 ok: "Sí, vull emetre la meva papereta en blanc",
                 cancel: "Cancel·lar",
             },
+            unfilledContestsDialog: {
+                title: "Hi ha seleccions sense completar",
+                content:
+                    "Podeu deixar un càrrec en blanc o seleccionar menys candidats. Reviseu el següent abans de continuar.",
+                selected: "{{selected}} de {{max}} seleccionades",
+                nothingSelected: "Sense vot per a aquest càrrec",
+                ok: "Continuar amb aquestes seleccions",
+                cancel: "Revisar seleccions",
+            },
             error: {
                 NETWORK_ERROR:
                     "Hi ha hagut un problema de xarxa. Si us plau, torneu-ho a provar més tard o contacteu amb el servei d'assistència.",
@@ -419,6 +428,124 @@ const catalanTranslation: TranslationType = {
                 checkboxLabel: "He llegit els Materials de Suport",
                 continueButton: "Continuar",
                 error: "Hi ha hagut un problema en registrar la vostra confirmació. Si us plau, torneu-ho a intentar.",
+            },
+        },
+        slates: {
+            title: "Candidatures conjuntes",
+            independent: "Independent",
+            contestMembers: "Candidats de {{slate}} per a {{contest}}",
+            noCandidate: "Sense candidat",
+            note: "Una llista selecciona els seus candidats i deixa en blanc els càrrecs on no té candidat. Pots canviar qualsevol opció individual en qualsevol moment.",
+            coverage: {
+                full: "Candidatura completa",
+                singleContest: "Només {{contest}}",
+                partial: "Candidatura parcial",
+                everyOffice: "Candidats per a tots els càrrecs.",
+                someOffices: "Candidats per a {{offices}}. La resta de càrrecs queden en blanc.",
+                candidates_one: "{{count}} candidat",
+                candidates_other: "{{count}} candidats",
+                offices_one: "{{count}} càrrec",
+                offices_other: "{{count}} càrrecs",
+            },
+            candidateList: {
+                show: "Mostra els candidats",
+                hide: "Amaga els candidats",
+            },
+            tabs: {
+                label: "Forma de selecció",
+                slates: "Triar una llista",
+                candidates: "Candidatures individuals",
+            },
+            count: {
+                short: "{{selected}} / {{seats}} candidats seleccionats",
+                long: "· {{selected}} de {{seats}} candidats seleccionats",
+                individual: "Seleccions individuals",
+                none: "Cap candidat seleccionat",
+            },
+            allSelections: {
+                label: "Les teves seleccions actuals",
+                none: "Sense selecció",
+            },
+            review: {
+                title: "Les teves seleccions",
+                of: "de {{seats}}",
+                selected: "Candidats seleccionats",
+                note: "El teu vot es registra per a cada candidat seleccionat.",
+                contestCount: "{{selected}} de {{max}} seleccionats",
+                unfilled: "Cap candidat seleccionat",
+                editLabel: "Editar {{contest}}",
+            },
+            selection: {
+                all: "Els {{total}} seleccionats",
+                mixed: "Mixta · {{selected}} de {{total}} seleccionats",
+                partly: "Seleccionada en part · {{selected}} de {{total}}",
+                selected: "Seleccionat",
+                edit: "Editar les seleccions",
+            },
+            apply: {
+                button: "Selecciona la llista",
+                buttonLabel: "Selecciona la llista {{slate}}",
+                applied: "{{slate}} seleccionada. Encara pots canviar qualsevol candidat.",
+                appliedPartial_one:
+                    "{{slate}} seleccionada. No té candidat per a {{offices}}, així que aquest càrrec queda en blanc. Encara pots canviar qualsevol candidat.",
+                appliedPartial_other:
+                    "{{slate}} seleccionada. No té candidat per a {{offices}}, així que aquests càrrecs queden en blanc. Encara pots canviar qualsevol candidat.",
+                overMaximum:
+                    "{{slate}} no es pot seleccionar: té {{candidates}} candidats per a {{contest}}, que en permet {{max}}. Pots continuar triant candidats individualment.",
+                unavailable:
+                    "{{slate}} no es pot seleccionar en aquesta papereta. Pots continuar triant candidats individualment.",
+                replaceDialog: {
+                    title: "Vols substituir aquestes seleccions?",
+                    content_one:
+                        "Seleccionar <strong>{{slate}}</strong> canviarà el càrrec següent.",
+                    content_other:
+                        "Seleccionar <strong>{{slate}}</strong> canviarà els càrrecs següents.",
+                    current: "Seleccions actuals",
+                    blankNote:
+                        "{{slate}} no té candidat per a alguns càrrecs. Aquests càrrecs quedaran en blanc.",
+                    ok: "Substitueix les seleccions",
+                    okOffice: "Substitueix {{office}}",
+                    cancel: "Mantén les meves seleccions",
+                },
+            },
+            clear: {
+                cleared: "S'han esborrat totes les teves opcions.",
+                dialog: {
+                    title: "Vols esborrar totes les teves opcions?",
+                    content:
+                        "Esborrar treu totes les opcions de la teva papereta. Aquests càrrecs canvien:",
+                    after: "Després d'esborrar",
+                    ok: "Esborra les opcions",
+                    cancel: "Mantén les meves opcions",
+                },
+            },
+            offices: {
+                label: "Càrrecs",
+                picker: "Càrrec",
+                index: "Càrrec {{index}} de {{total}}",
+                count: "{{selected}}/{{max}}",
+                previous: "Càrrec anterior",
+                next: "Càrrec següent",
+                last: "Últim càrrec",
+                instruction_one: "Selecciona fins a {{count}} candidat. {{selected}} seleccionats.",
+                instruction_other:
+                    "Selecciona fins a {{count}} candidats. {{selected}} seleccionats.",
+            },
+            limit: "Pots seleccionar fins a {{count}}. Treu un candidat abans de triar-ne un altre.",
+            view: {
+                button: "Mostra la llista",
+                buttonLabel: "Mostra la llista {{slate}}",
+                summary: "{{coverage}} · {{candidates}}",
+                select: "Selecciona aquesta llista",
+                back: "Torna",
+            },
+            dialog: {
+                close: "Tanca el diàleg",
+            },
+            clearContest: {
+                button: "Esborra",
+                label: "Esborra {{contest}}",
+                cleared: "S'han esborrat les seleccions de {{contest}}.",
             },
         },
         ballotLocator: {
