@@ -20,33 +20,41 @@ jest.mock("react-admin", () => ({
     SelectInput: ({source, label}: {source: string; label: string}) =>
         require("react").createElement("div", {"data-testid": source}, label),
 }))
-jest.mock("@sequentech/ui-essentials", () => ({
-    Dialog: ({
-        open,
-        ok,
-        cancel,
-        children,
-        handleClose,
-    }: React.PropsWithChildren<{
-        open: boolean
-        ok: string
-        cancel: string
-        handleClose: (result: boolean) => void
-    }>) =>
-        open
-            ? require("react").createElement(
-                  "div",
-                  {role: "dialog"},
-                  children,
-                  require("react").createElement("button", {onClick: () => handleClose(true)}, ok),
-                  require("react").createElement(
-                      "button",
-                      {onClick: () => handleClose(false)},
-                      cancel
+jest.mock(
+    "@sequentech/ui-essentials",
+    () => ({
+        Dialog: ({
+            open,
+            ok,
+            cancel,
+            children,
+            handleClose,
+        }: React.PropsWithChildren<{
+            open: boolean
+            ok: string
+            cancel: string
+            handleClose: (result: boolean) => void
+        }>) =>
+            open
+                ? require("react").createElement(
+                      "div",
+                      {role: "dialog"},
+                      children,
+                      require("react").createElement(
+                          "button",
+                          {onClick: () => handleClose(true)},
+                          ok
+                      ),
+                      require("react").createElement(
+                          "button",
+                          {onClick: () => handleClose(false)},
+                          cancel
+                      )
                   )
-              )
-            : null,
-}))
+                : null,
+    }),
+    {virtual: true}
+)
 
 const EnabledValue: React.FC = () => {
     const enabled = useWatch({name: "slates_enabled"})
