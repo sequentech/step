@@ -100,9 +100,10 @@ that step-cli and the load tests import. When Windmill gives an election event
 realm a results portal client copied from its `voting-portal` client, the copy
 leaves out every mapper that adds Harvest's audience: the `harvest-audience`
 mapper, and any audience mapper, whatever its name, whose included audience is
-one of `HARVEST_JWT_AUDIENCES`. The results portal does not call Harvest. Windmill
-reads `HARVEST_JWT_AUDIENCES` for this; without it, only the `harvest-audience`
-mapper is left out.
+one of `HARVEST_JWT_AUDIENCES`. The results portal does not call Harvest.
+Windmill needs `HARVEST_JWT_AUDIENCES` to create that client: if the setting is
+unset, blank or includes a generic audience, the realm update fails with a
+configuration error and no results portal client is created.
 The `jwks` tests in sequent-core check these files.
 
 ### Rollout
@@ -116,7 +117,7 @@ to realms created after the change.
    `KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY`).
 2. Wait until the access tokens issued before the change have expired, or ask
    users to sign in again.
-3. Set `HARVEST_JWT_AUDIENCES` and deploy Harvest.
+3. Set `HARVEST_JWT_AUDIENCES` for Harvest and Windmill, and deploy them.
 
 Until every caller's tokens carry the audience, Harvest refuses those callers'
 requests with 401. To roll back, deploy the previous Harvest; the mappers can

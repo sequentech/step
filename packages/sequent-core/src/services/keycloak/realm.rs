@@ -89,6 +89,19 @@ fn adds_harvest_audience(
         })
 }
 
+/// The audiences the results portal client must not get, read from
+/// `HARVEST_JWT_AUDIENCES`. Without them, a renamed Harvest audience mapper
+/// could be copied, so the client is not created.
+fn results_portal_harvest_audiences(
+    setting: Option<&str>,
+) -> Result<Vec<String>> {
+    expected_audiences(setting).with_context(|| {
+        format!(
+            "Windmill needs {AUDIENCES_ENV} to create the results portal client"
+        )
+    })
+}
+
 /// The results portal client, made from the voting portal's. The results
 /// portal does not call Harvest, so it does not get Harvest's audience.
 fn results_portal_client(
@@ -798,9 +811,9 @@ impl KeycloakAdminClient {
                         "Event realm does not contain a voting portal client template"
                     )
                 })?;
-                let harvest_audiences =
-                    expected_audiences(env::var(AUDIENCES_ENV).ok().as_deref())
-                        .unwrap_or_default();
+                let harvest_audiences = results_portal_harvest_audiences(
+                    env::var(AUDIENCES_ENV).ok().as_deref(),
+                )?;
                 clients.push(results_portal_client(
                     voting_portal,
                     &results_portal_url,
@@ -867,8 +880,8 @@ impl KeycloakAdminClient {
 mod tests {
     use super::{
         include_results_portal_in_client_condition, kiosk_voting_portal_url,
-        results_portal_client, results_portal_redirect_uris,
-        voting_portal_redirect_uris,
+        results_portal_client, results_portal_harvest_audiences,
+        results_portal_redirect_uris, voting_portal_redirect_uris,
     };
     use crate::types::keycloak::HARVEST_AUDIENCE_MAPPER_NAME;
     use keycloak::types::ClientRepresentation;
@@ -944,6 +957,22 @@ mod tests {
             ),
         ]);
         assert_eq!(names, ["x-hasura-tenant-id", "ballot-verifier"]);
+    }
+
+    #[test]
+    fn copying_the_results_portal_needs_harvests_audience_setting() {
+        for setting in [None, Some(""), Some(" , "), Some("account")] {
+            let error = results_portal_harvest_audiences(setting)
+                .expect_err("an invalid setting is refused")
+                .to_string();
+            assert!(error.contains("HARVEST_JWT_AUDIENCES"), "{error}");
+            assert!(error.contains("results portal"), "{error}");
+        }
+        assert_eq!(
+            results_portal_harvest_audiences(Some("harvest, harvest-kiosk"))
+                .unwrap(),
+            ["harvest", "harvest-kiosk"]
+        );
     }
 
     #[test]
