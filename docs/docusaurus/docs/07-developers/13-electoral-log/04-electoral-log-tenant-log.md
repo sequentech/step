@@ -330,9 +330,11 @@ Each log has its own transactions, so one that fails does not hold up the others
 ### 4.4 The writer starting and stopping
 
 A Windmill worker that consumes `electoral_log_beat_queue` queues a `LogWriterStarted` entry for
-every tenant before it starts consuming, and a `LogWriterStopped` entry for every tenant when
-consuming ends (`record_log_writer`, called from `bin/main.rs`). A failure to queue them is logged
-and does not stop the worker. A worker that is killed queues no `LogWriterStopped`.
+every tenant when it starts consuming, and a `LogWriterStopped` entry for every tenant when
+consuming ends (`record_log_writer`, called from `bin/main.rs`). The start is queued in the
+background and tried again every 15 seconds, up to 40 times, while the database is not ready, as
+when the worker starts before the migrations ran. A failure to queue them is logged and does not
+stop the worker. A worker that is killed queues no `LogWriterStopped`.
 
 ## 5. Changes made through Hasura
 
@@ -499,7 +501,7 @@ own:
 
 | Event | Result |
 | --- | --- |
-| A user event without an election event | A `KeycloakUserEvent` record in the tenant log, signed by its system key |
+| A user event without an election event | A `KeycloakUserEvent` record in the tenant log, signed by its system key. An authenticator reports the steps of a sign-in (a code sent, a code checked) as `LOGIN` events of their own: those are recorded as `LOGIN_STEP`, so one sign-in reads as one `LOGIN` |
 | An admin event without an election event | A `KeycloakAdminEvent` record in the tenant log, `SERVICE_ACCOUNT` or `OPERATOR` |
 | An admin event of an event realm made by an operator | A `KeycloakAdminEvent` record in the event's log |
 | An admin event of an event realm made by Step's service account | Nothing: what made the change records it |
@@ -606,6 +608,7 @@ shows how an auditor loads the SQL file and checks its signatures.
 | `components/logs/LogEntryDialog.tsx`, `logEntryDetails.ts`, `logFieldLabels.ts` | The entry popup, the typed view of a row's message, and the translatable labels of known fields |
 | `components/logs/ExportLogsDialog.tsx`, `exportLogsRequest.ts` | The export dialog and the variables of the two export actions |
 | `resources/Settings/SettingsLanguages.tsx`, `components/logs/useLogZones.ts` | The tenant setting `logs_timezone` and the zones the tenant log is shown in |
+| `services/Permissions.ts` | Someone who holds `tenant-logs-read` and no event read role reads the schema, and their own tenant row (`id`, `slug`, `is_active`, `settings`), as `tenant-logs-read` |
 
 ## 10. Monitoring lines
 
@@ -664,9 +667,9 @@ Beat schedules `migrate_tenant_logs` once, whenever it starts (`short_queue`). I
 Every realm is tried. If any failed, the task fails naming them and is retried up to five times with
 a growing wait, as when Keycloak is still starting with beat.
 
-`migrate_realm_permissions` (also at beat start, and `step-cli step migrate-realm-permissions`) adds
-the realm roles `tenant-logs-read` and `tenant-logs-export` to existing tenant realms and grants them
-to the `admin` group.
+3. For every tenant realm, `grant_tenant_log_roles` adds the realm roles `tenant-logs-read` and
+   `tenant-logs-export` when the realm lacks them and grants them to the `admin` group, as the realm
+   templates do.
 
 ## 12. Operating notes
 

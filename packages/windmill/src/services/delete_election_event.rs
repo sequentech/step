@@ -269,16 +269,26 @@ pub async fn stage_election_event_deletion(
     let mut extra =
         deleted_event_log_state(tenant_id, election_event_id, board.as_deref(), retired_at).await?;
     extra["task_id"] = serde_json::json!(task_id);
+    // The name the event shows, else the one it was created with.
+    let name = match event_display_name(event.presentation.as_ref()) {
+        Some(name) => Some(name),
+        None => hasura_transaction
+            .query_opt(
+                "SELECT to_jsonb(e) ->> 'name' FROM sequent_backend.election_event e
+                 WHERE e.tenant_id = $1::text::uuid AND e.id = $2::text::uuid",
+                &[&tenant_id, &election_event_id],
+            )
+            .await
+            .context("Error reading the election event's name")?
+            .and_then(|row| row.get::<_, Option<String>>(0))
+            .filter(|name| !name.is_empty()),
+    };
     let change = AdminChange::new(
         AuditLogTarget {
             tenant_id: uuid::Uuid::parse_str(tenant_id)?,
             election_event_id: None,
         },
-        AuditObject::new(
-            "election_event",
-            election_event_id,
-            event_display_name(event.presentation.as_ref()).as_deref(),
-        ),
+        AuditObject::new("election_event", election_event_id, name.as_deref()),
         AdminAction::Delete,
         deleted_by.cloned().unwrap_or_default(),
         AuditOrigin::Windmill,

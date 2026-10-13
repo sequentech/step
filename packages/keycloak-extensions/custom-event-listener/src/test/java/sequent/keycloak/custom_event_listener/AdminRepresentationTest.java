@@ -37,7 +37,8 @@ class AdminRepresentationTest {
              "smtpServer": {"host": "smtp.example.com", "Password": "smtp-pass"},
              "config": {"clientSecret": "idp-secret", "bindCredential": ["ldap-pass"],
                         "privateKey": "-----BEGIN PRIVATE KEY-----", "clientId": "step"},
-             "attributes": {"registrationToken": ["abc"], "area": ["north"]},
+             "attributes": {"registrationToken": ["abc"], "area": ["north"],
+                            "test-mode-code": "123456", "countryCode": "PH"},
              "value": "kept"}
             """);
 
@@ -49,7 +50,8 @@ class AdminRepresentationTest {
              "smtpServer": {"host": "smtp.example.com", "Password": "**redacted**"},
              "config": {"clientSecret": "**redacted**", "bindCredential": "**redacted**",
                         "privateKey": "**redacted**", "clientId": "step"},
-             "attributes": {"registrationToken": "**redacted**", "area": ["north"]},
+             "attributes": {"registrationToken": "**redacted**", "area": ["north"],
+                            "test-mode-code": "**redacted**", "countryCode": "PH"},
              "value": "kept"}
             """),
         logged);

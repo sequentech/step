@@ -1606,6 +1606,28 @@ async fn setting_the_google_service_account_key_stores_it_in_the_vault() {
         settings[0].get::<_, Value>("settings"),
         json!({"gapi_email": "organizer@example.org"})
     );
+    // The change is one entry of the tenant's log, without the key.
+    let entries = rows::query(
+        &services.hasura,
+        "SELECT election_event_id, user_id, details FROM sequent_backend.audit_log_outbox WHERE tenant_id = $1",
+        &[&tenant_id],
+    )
+    .await;
+    assert_eq!(entries.len(), 1);
+    assert_eq!(
+        entries[0].get::<_, Option<uuid::Uuid>>("election_event_id"),
+        None
+    );
+    let details = entries[0].get::<_, Value>("details");
+    assert_eq!(
+        details["changes"],
+        json!([{"path": "settings.gapi_key", "secret": true}])
+    );
+    assert_eq!(
+        details["extra"]["client_email"],
+        "meet@project.iam.gserviceaccount.com"
+    );
+    assert!(!details.to_string().contains("PRIVATE KEY"));
 
     // A key that cannot be used is the caller's mistake.
     for (body, message) in [

@@ -24,7 +24,8 @@ final class AdminRepresentation {
 
   private static final Pattern SECRET_KEY =
       Pattern.compile(
-          "password|secret|private_?key|token|bindCredential", Pattern.CASE_INSENSITIVE);
+          "password|secret|private_?key|token|bindCredential|(^|[-_.])(code|otp)$",
+          Pattern.CASE_INSENSITIVE);
 
   /** Matched against the path of keys, so that it finds {@code credentials[].value}. */
   private static final Pattern SECRET_PATH =

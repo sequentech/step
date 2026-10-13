@@ -149,6 +149,10 @@ pub struct LogEventInput {
 
 /// The message type of a Keycloak admin event.
 pub const KEYCLOAK_ADMIN_EVENT: &str = "KEYCLOAK_ADMIN_EVENT";
+/// Keycloak's event type of a sign-in.
+const SIGN_IN_EVENT: &str = "LOGIN";
+/// What the type of a sign-in's step ends with.
+const SIGN_IN_STEP_SUFFIX: &str = "_STEP";
 /// What the listener sends for a user id or a username it does not have.
 const ABSENT: &str = "null";
 
@@ -703,6 +707,23 @@ fn admin_event_message(
     ElectoralLogMessage::try_from(&message)
 }
 
+/// The type a tenant realm's event is logged under. An authenticator reports
+/// the steps of a sign-in (a code sent, a code checked) as sign-ins of their
+/// own before Keycloak reports the sign-in, which is the one that carries the
+/// consent: the steps are logged as `<TYPE>_STEP`, so one sign-in reads as
+/// one `LOGIN`.
+fn tenant_event_type(event_type: &str, details: &Value) -> String {
+    let reported = &details["details"];
+    let is_step = event_type == SIGN_IN_EVENT
+        && !reported["authenticator_class_name"].is_null()
+        && reported["consent"].is_null();
+    if is_step {
+        format!("{event_type}{SIGN_IN_STEP_SUFFIX}")
+    } else {
+        event_type.to_string()
+    }
+}
+
 /// The records of an event that belongs in the tenant's log: an event of the
 /// tenant realm, or one that names an election event it cannot be placed in
 /// (`unplaced` says why), which becomes an ERROR entry.
@@ -757,7 +778,7 @@ async fn build_tenant_event<L: BatchLookups + Send>(
         signer
             .build_keycloak_event_message(
                 input.tenant_id.clone(),
-                event_type.clone(),
+                tenant_event_type(event_type, &details),
                 details.to_string(),
                 present(&input.user_id),
                 present(&input.username),
@@ -1519,6 +1540,19 @@ mod batch_build_tests {
         // An internal message belongs to an election event.
         assert_eq!(dead_letter_ids(&built), vec![Some("d4")]);
         assert!(built.login_attempts.is_empty());
+    }
+
+    #[test]
+    fn the_steps_of_a_sign_in_are_not_sign_ins() {
+        let step = json!({"details": {"authenticator_class_name": "MessageOTPAuthenticator",
+            "action": "send_code via EMAIL"}});
+        let signed_in = json!({"details": {"authenticator_class_name": "MessageOTPAuthenticator",
+            "consent": "no_consent_required"}});
+        assert_eq!(tenant_event_type("LOGIN", &step), "LOGIN_STEP");
+        assert_eq!(tenant_event_type("LOGIN", &signed_in), "LOGIN");
+        assert_eq!(tenant_event_type("LOGIN", &json!({"details": {}})), "LOGIN");
+        assert_eq!(tenant_event_type("LOGIN", &json!({})), "LOGIN");
+        assert_eq!(tenant_event_type("LOGIN_ERROR", &step), "LOGIN_ERROR");
     }
 
     #[tokio::test]
