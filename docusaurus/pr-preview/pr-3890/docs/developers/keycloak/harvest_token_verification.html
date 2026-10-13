@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Harvest token verification | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3890/docs/developers/keycloak/harvest_token_verification"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Harvest token verification | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3890/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3890/docs/developers/keycloak/harvest_token_verification"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3890/docs/developers/keycloak/harvest_token_verification" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3890/docs/developers/keycloak/harvest_token_verification" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Harvest token verification","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3890/docs/developers/keycloak/harvest_token_verification"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3890/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3890/assets/js/runtime~main.4ab0ed55.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3890/assets/js/runtime~main.cd4a138e.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3890/assets/js/main.2c54824b.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -51,13 +51,18 @@ tokens reach Harvest, directly or through a Hasura action, which forwards the
 caller&#x27;s <code>Authorization</code> header, needs an <strong>Audience</strong> mapper
 (<code>oidc-audience-mapper</code>) with:</p>
 <ul>
-<li class=""><strong>Included Custom Audience</strong>: the value of <code>HARVEST_JWT_AUDIENCES</code>, for
-example <code>harvest</code>.</li>
+<li class=""><strong>Name</strong>: <code>harvest-audience</code>.</li>
+<li class=""><strong>Included Custom Audience</strong>: one audience, written literally, that is one of
+the entries of <code>HARVEST_JWT_AUDIENCES</code>, for example <code>harvest</code>. A mapper emits
+exactly the text it is given, so never put the comma-separated setting itself
+here: with <code>HARVEST_JWT_AUDIENCES=harvest,harvest-kiosk</code>, a mapper emits
+either <code>harvest</code> or <code>harvest-kiosk</code>.</li>
 <li class=""><strong>Add to access token</strong>: on. <strong>Add to ID token</strong>: off.</li>
 </ul>
-<p>The mapper can go in each client&#x27;s dedicated scope, or in one client scope
-assigned as a default scope to those clients. In the realms Step creates, these
-clients send tokens to Harvest:</p>
+<p>Put the mapper on each calling client, in its dedicated scope. Do not add it to
+a client scope that is a default scope of the realm, or every client of the
+realm, including ones that never call Harvest, would get Harvest&#x27;s audience.</p>
+<p>These clients send tokens to Harvest:</p>
 <table><thead><tr><th>Realm</th><th>Client</th><th>Used by</th></tr></thead><tbody><tr><td><code>tenant-&lt;tenant_id&gt;</code></td><td><code>admin-portal</code></td><td>Admin Portal, and step-cli (<code>KEYCLOAK_CLI_CLIENT_ID</code>)</td></tr><tr><td><code>tenant-&lt;tenant_id&gt;</code></td><td><code>service-account</code> (<code>KEYCLOAK_CLIENT_ID</code>)</td><td>The voter enrollment Keycloak extension, for <code>/verify-application</code></td></tr><tr><td><code>tenant-&lt;tenant_id&gt;-event-&lt;election_event_id&gt;</code></td><td><code>voting-portal</code></td><td>Voting Portal</td></tr><tr><td><code>tenant-&lt;tenant_id&gt;-event-&lt;election_event_id&gt;</code></td><td><code>voting-portal-kiosk</code>, <code>onsite-voting-portal</code></td><td>Kiosk voting</td></tr><tr><td><code>tenant-&lt;tenant_id&gt;-event-&lt;election_event_id&gt;</code></td><td><code>ivr-voting</code></td><td>Telephone voting</td></tr></tbody></table>
 <p>These are the clients Harvest&#x27;s voter routes accept, plus the admin and service
 clients. Add the mapper to any other client whose tokens call Harvest, such as
@@ -69,11 +74,26 @@ treats these tokens.</p>
 <p>To check a client, open <strong>Client scopes &gt; Evaluate</strong> in the realm, pick a user
 and the client, and look at <strong>Generated access token</strong>: its <code>aud</code> must include
 the configured audience.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="realm-templates">Realm templates<a href="#realm-templates" class="hash-link" aria-label="Direct link to Realm templates" title="Direct link to Realm templates" translate="no">​</a></h3>
+<p>The tenant and election event realm templates in <code>.devcontainer/keycloak/import</code>,
+which <code>configure-minio</code> uploads as the defaults new realms are created from,
+have the <code>harvest-audience</code> mapper on exactly these clients, emitting <code>harvest</code>,
+the audience <code>.env.development</code> configures. So do the election event files
+that step-cli and the load tests import. When Windmill gives an election event
+realm a results portal client copied from its <code>voting-portal</code> client, the copy
+leaves out every mapper that adds Harvest&#x27;s audience: the <code>harvest-audience</code>
+mapper, and any audience mapper, whatever its name, whose included audience is
+one of <code>HARVEST_JWT_AUDIENCES</code>. The results portal does not call Harvest. Windmill
+reads <code>HARVEST_JWT_AUDIENCES</code> for this; without it, only the <code>harvest-audience</code>
+mapper is left out.
+The <code>jwks</code> tests in sequent-core check these files.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="rollout">Rollout<a href="#rollout" class="hash-link" aria-label="Direct link to Rollout" title="Direct link to Rollout" translate="no">​</a></h3>
+<p>Realms that already exist keep their configuration: the templates only apply
+to realms created after the change.</p>
 <ol>
-<li class="">Add the audience mapper to the clients above in every tenant and election
-event realm, and to the realm templates that new realms are created from
-(<code>KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY</code> and
+<li class="">Add the audience mapper to the clients above in every existing tenant and
+election event realm, and to the realm templates of the deployment if they
+are not the ones in this repository (<code>KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY</code> and
 <code>KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY</code>).</li>
 <li class="">Wait until the access tokens issued before the change have expired, or ask
 users to sign in again.</li>
@@ -100,6 +120,6 @@ than that after the last refresh is refused until the next one. If the file
 cannot be read, or has no keys, Harvest keeps the keys it has, so emptying it
 takes effect only when Harvest restarts. After a restart, Harvest refuses every
 token until it can read the file.</p>
-<table><thead><tr><th>Variable</th><th>Service</th><th>Default</th></tr></thead><tbody><tr><td><code>HARVEST_JWT_AUDIENCES</code></td><td>Harvest</td><td>none: every token is refused</td></tr><tr><td><code>AWS_S3_JWKS_MIN_REFRESH_SECS</code></td><td>Harvest</td><td>10</td></tr><tr><td><code>AWS_S3_JWKS_FETCH_TIMEOUT_SECS</code></td><td>Harvest, Windmill</td><td>5</td></tr><tr><td><code>AWS_S3_JWKS_CERTS_PATH</code></td><td>Harvest, Windmill</td><td><code>certs.json</code></td></tr></tbody></table></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/07-developers/06-keycloak/harvest_token_verification.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-3890/docs/developers/keycloak/developers_keycloak"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Developers Keycloak</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-3890/docs/developers/keycloak/idp_initiated_sso_design_implementation"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">IdP SSO Design &amp; Implementation</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#what-is-checked" class="table-of-contents__link toc-highlight">What is checked</a></li><li><a href="#audience" class="table-of-contents__link toc-highlight">Audience</a><ul><li><a href="#keycloak-audience-mapper" class="table-of-contents__link toc-highlight">Keycloak audience mapper</a></li><li><a href="#rollout" class="table-of-contents__link toc-highlight">Rollout</a></li></ul></li><li><a href="#realm-of-each-key" class="table-of-contents__link toc-highlight">Realm of each key</a></li><li><a href="#cache" class="table-of-contents__link toc-highlight">Cache</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
+<table><thead><tr><th>Variable</th><th>Service</th><th>Default</th></tr></thead><tbody><tr><td><code>HARVEST_JWT_AUDIENCES</code></td><td>Harvest, Windmill</td><td>none: Harvest refuses every token</td></tr><tr><td><code>AWS_S3_JWKS_MIN_REFRESH_SECS</code></td><td>Harvest</td><td>10</td></tr><tr><td><code>AWS_S3_JWKS_FETCH_TIMEOUT_SECS</code></td><td>Harvest, Windmill</td><td>5</td></tr><tr><td><code>AWS_S3_JWKS_CERTS_PATH</code></td><td>Harvest, Windmill</td><td><code>certs.json</code></td></tr></tbody></table></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/07-developers/06-keycloak/harvest_token_verification.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-3890/docs/developers/keycloak/developers_keycloak"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Developers Keycloak</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-3890/docs/developers/keycloak/idp_initiated_sso_design_implementation"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">IdP SSO Design &amp; Implementation</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#what-is-checked" class="table-of-contents__link toc-highlight">What is checked</a></li><li><a href="#audience" class="table-of-contents__link toc-highlight">Audience</a><ul><li><a href="#keycloak-audience-mapper" class="table-of-contents__link toc-highlight">Keycloak audience mapper</a></li><li><a href="#realm-templates" class="table-of-contents__link toc-highlight">Realm templates</a></li><li><a href="#rollout" class="table-of-contents__link toc-highlight">Rollout</a></li></ul></li><li><a href="#realm-of-each-key" class="table-of-contents__link toc-highlight">Realm of each key</a></li><li><a href="#cache" class="table-of-contents__link toc-highlight">Cache</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
 </body>
 </html>
