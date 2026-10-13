@@ -15,7 +15,7 @@ all require verified TLS by default.
 | --- | --- |
 | `B4_PG_SSL_MODE=verify-full` | Require TLS and verify the server's certificate chain and hostname. Default when unset. |
 | `B4_PG_SSL_MODE=require` | Alias of `verify-full`; it also verifies the certificate and hostname. |
-| `B4_PG_SSL_MODE=disable` | Explicit plaintext mode for an isolated local development database. |
+| `B4_PG_SSL_MODE=disable` | Explicit plaintext mode for an isolated local database or authenticated loopback proxy. |
 | `B4_PG_CA_PATH` | Optional PEM CA bundle inside each container. Unset or empty uses OpenSSL's system trust roots. |
 
 `prefer`, invalid modes, unreadable CA files and a CA path combined with `disable`
@@ -65,6 +65,27 @@ env example explicitly selects `disable` for its bundled non-TLS PostgreSQL.
 Existing installations with non-TLS databases must explicitly select that mode
 or configure a verified TLS endpoint before upgrading. No certificate, credential,
 database schema or live deployment change is performed by the source upgrade.
+
+## Existing Google Cloud proxy deployments
+
+Google Cloud deployments can already secure database traffic through a Cloud SQL
+Auth Proxy in each application's pod. The app connects to its own `127.0.0.1`
+listener without PostgreSQL TLS; the proxy authenticates and encrypts the remote
+connection to Cloud SQL. This is distinct from B4 negotiating TLS directly.
+
+When upgrading such a deployment to B4, retain the approved proxy and its startup
+probe, route **both B4 and every board-reading Windmill worker** to its own local
+proxy with `B4_PG_HOST=127.0.0.1`, and explicitly set `B4_PG_SSL_MODE=disable` for
+that local hop. Leave `B4_PG_CA_PATH` empty. The earlier B3 deployments use
+`B3_PG_*`; those names are not read by B4. Neither the existing proxy nor the
+database's encrypted-only policy should be weakened to enable an upgrade.
+
+The proxy is specific to Cloud SQL and relies on Google's API, IAM and certificate
+services. It does not provide a portable bridge to another managed PostgreSQL
+provider. Direct connections to such providers use B4's verified TLS mode and the
+provider's trusted CA and certificate hostname. See
+[Google's Cloud SQL Auth Proxy documentation](https://docs.cloud.google.com/sql/docs/postgres/sql-proxy)
+for the proxy's authentication, transport boundary and requirements.
 
 ## Sessions and trustees
 

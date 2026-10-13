@@ -16,7 +16,7 @@ pub type DbPool = Pool<PostgresConnectionManager<MakeTlsConnector>>;
 /// PostgreSQL transport policy. Plaintext must be explicitly selected.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum PgTlsMode {
-    /// Intended for local development on an isolated socket or network.
+    /// Plaintext on an isolated local socket/network or authenticated local proxy.
     Disable,
     /// Require TLS, a trusted certificate chain and a matching hostname.
     #[default]
