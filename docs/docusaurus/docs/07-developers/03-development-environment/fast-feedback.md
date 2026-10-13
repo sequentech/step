@@ -86,6 +86,12 @@ parent at `/workspaces` and again at its host path, where git worktree links
 resolve. Service containers build into the checkout's own `packages/target`;
 local Cargo builds use `rust-local-target`.
 
+From `.devcontainer`, `docker compose up harvest windmill beat` loads base-service
+defaults from the tracked `.env.development`. The checkout's local `.env`
+overrides those defaults, including explicitly empty values. Settings introduced
+after that local file was created therefore work without shell exports or
+rewriting local configuration.
+
 Harvest, Windmill and beat each run their own `cargo run` command. Cargo-watch
 finds the current crate's local dependency directories automatically: a Harvest
 leaf edit affects Harvest, while a Windmill edit also affects Harvest and beat.

@@ -106,6 +106,7 @@ select_permissions:
               - annotations
               - labels
               - public_key
+              - share_encryption_public_key
               - created_at
               - last_updated_at
               - id

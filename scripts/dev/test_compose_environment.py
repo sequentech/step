@@ -25,6 +25,9 @@ class ComposeEnvironmentTest(unittest.TestCase):
         self.project.mkdir()
         for source in DEVCONTAINER.glob("docker-compose*.yml"):
             shutil.copy2(source, self.project / source.name)
+        shutil.copy2(
+            DEVCONTAINER / ".env.development", self.project / ".env.development"
+        )
         # Keep only process/tool lookup settings, never application variables.
         self.environment = {
             key: os.environ[key] for key in ("PATH", "HOME") if key in os.environ
@@ -62,6 +65,94 @@ class ComposeEnvironmentTest(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         return json.loads(result.stdout)
+
+    def render_with_older_local_env(self, overrides=""):
+        missing = {
+            "MESSAGING_WEBHOOKS_PUBLIC_URL",
+            "MESSAGING_RELAY_SECRET",
+            "MESSAGING_WEBHOOKS_PORT",
+            "ADMIN_PORTAL_URL",
+            "TRUSTEE_KEYCLOAK_CLIENT_ID",
+            "TRUSTEE_KEYCLOAK_CLIENT_SECRET",
+        }
+        configuration = (
+            "\n".join(
+                line
+                for line in (DEVCONTAINER / ".env.development").read_text().splitlines()
+                if line.partition("=")[0] not in missing
+            )
+            + "\n"
+            + overrides
+        )
+        local = self.project / ".env"
+        local.write_text(configuration)
+        result = subprocess.run(
+            ["docker", "compose", "--profile", "*", "config", "--format", "json"],
+            cwd=self.project,
+            env=self.environment,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("variable is not set", result.stderr)
+        self.assertEqual(local.read_text(), configuration)
+        return json.loads(result.stdout)["services"]
+
+    def test_plain_compose_inherits_settings_missing_from_older_local_env(self):
+        services = self.render_with_older_local_env()
+        messaging = services["messaging-webhooks"]
+        self.assertEqual(messaging["ports"][0]["target"], 8410)
+        self.assertEqual(messaging["ports"][0]["published"], "8410")
+        harvest = services["harvest"]["environment"]
+        self.assertEqual(
+            services["windmill"]["environment"]["ADMIN_PORTAL_URL"],
+            "http://127.0.0.1:3002",
+        )
+        self.assertEqual(
+            harvest["MESSAGING_WEBHOOKS_PUBLIC_URL"], "http://messaging-webhooks:8410"
+        )
+        self.assertEqual(
+            harvest["MESSAGING_RELAY_SECRET"],
+            "dev-messaging-relay-secret-not-for-production",
+        )
+        for trustee in ("trustee1", "trustee2"):
+            environment = services[trustee]["environment"]
+            self.assertEqual(
+                environment["TRUSTEE_KEYCLOAK_CLIENT_ID"], "api-key-client"
+            )
+            self.assertTrue(environment["TRUSTEE_KEYCLOAK_CLIENT_SECRET"])
+
+    def test_plain_compose_preserves_local_values_and_explicit_empty_settings(self):
+        services = self.render_with_older_local_env(
+            "MESSAGING_WEBHOOKS_PORT=18410\n"
+            "MESSAGING_WEBHOOKS_PUBLIC_URL=\n"
+            "MESSAGING_RELAY_SECRET=synthetic-local-relay-secret\n"
+            "ADMIN_PORTAL_URL=http://localhost:13002\n"
+            "TRUSTEE_KEYCLOAK_CLIENT_ID=local-trustee-client\n"
+            "TRUSTEE_KEYCLOAK_CLIENT_SECRET=synthetic-local-trustee-secret\n"
+        )
+        messaging = services["messaging-webhooks"]
+        self.assertEqual(messaging["ports"][0]["target"], 18410)
+        self.assertEqual(messaging["ports"][0]["published"], "18410")
+        harvest = services["harvest"]["environment"]
+        self.assertEqual(harvest["MESSAGING_WEBHOOKS_PUBLIC_URL"], "")
+        self.assertEqual(
+            harvest["MESSAGING_RELAY_SECRET"], "synthetic-local-relay-secret"
+        )
+        self.assertEqual(
+            services["windmill"]["environment"]["ADMIN_PORTAL_URL"],
+            "http://localhost:13002",
+        )
+        for trustee in ("trustee1", "trustee2"):
+            environment = services[trustee]["environment"]
+            self.assertEqual(
+                environment["TRUSTEE_KEYCLOAK_CLIENT_ID"], "local-trustee-client"
+            )
+            self.assertEqual(
+                environment["TRUSTEE_KEYCLOAK_CLIENT_SECRET"],
+                "synthetic-local-trustee-secret",
+            )
 
     def test_deployment_configurations_render_without_shell_exports(self):
         for filename, env_source in (
