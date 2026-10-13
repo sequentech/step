@@ -539,6 +539,9 @@ const catalanTranslation: TranslationType = {
                 select: "Selecciona aquesta llista",
                 back: "Torna",
             },
+            dialog: {
+                close: "Tanca el diàleg",
+            },
             clearContest: {
                 button: "Esborra",
                 label: "Esborra {{contest}}",

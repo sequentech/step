@@ -536,6 +536,9 @@ const galegoTranslation: TranslationType = {
                 select: "Seleccionar esta lista",
                 back: "Volver",
             },
+            dialog: {
+                close: "Pechar o diálogo",
+            },
             clearContest: {
                 button: "Borrar",
                 label: "Borrar {{contest}}",

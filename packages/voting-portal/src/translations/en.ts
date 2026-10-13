@@ -534,6 +534,9 @@ const englishTranslation = {
                 select: "Select this slate",
                 back: "Back",
             },
+            dialog: {
+                close: "Close dialog",
+            },
             clearContest: {
                 button: "Clear",
                 label: "Clear {{contest}}",

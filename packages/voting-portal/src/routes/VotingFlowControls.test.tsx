@@ -923,6 +923,8 @@ describe("unfilled positions", () => {
             ],
         }) as unknown as IDecodedVoteContest
 
+    const unfilledDialog = () => screen.getByRole("dialog", {name: `${DIALOG}.title`})
+
     const setUpUnderVote = (policy: EUnderVotePolicy) => {
         const contest = mockState.ballotStyles["election-1"]!.ballot_eml.contests[0]
         contest.presentation = {...contest.presentation, under_vote_policy: policy}
@@ -936,9 +938,9 @@ describe("unfilled positions", () => {
         renderRoute(<ReviewScreen />, "review")
 
         await user.click(screen.getByRole("button", {name: CAST}))
-        expect(screen.getByTestId("open-dialog")).toHaveClass("unfilled-contests-dialog")
+        expect(unfilledDialog().closest(".unfilled-contests-dialog")).not.toBeNull()
         await user.click(screen.getByRole("button", {name: `${DIALOG}.cancel`}))
-        expect(screen.queryByTestId("open-dialog")).toBeNull()
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
         expect(mockInsertCastVote).not.toHaveBeenCalled()
         expect(screen.getByRole("heading", {name: "First contest"})).toBeVisible()
 
@@ -955,10 +957,11 @@ describe("unfilled positions", () => {
         renderRoute(<ReviewScreen />, "review")
 
         await user.click(screen.getByRole("button", {name: CAST}))
-        expect(screen.getByTestId("open-dialog")).toHaveClass("unfilled-contests-dialog")
+        expect(unfilledDialog().closest(".unfilled-contests-dialog")).not.toBeNull()
+        expect(screen.queryByTestId("open-dialog")).toBeNull()
         await user.click(screen.getByRole("button", {name: `${DIALOG}.ok`}))
         await waitFor(() => expect(mockInsertCastVote).toHaveBeenCalledTimes(1))
-        expect(screen.queryByTestId("open-dialog")).toBeNull()
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
     })
 
     it("leaves the election's cast confirmation alone when every position is filled", async () => {
@@ -1182,8 +1185,10 @@ describe("slate ballot tabs", () => {
         expect(clearButtons).toHaveLength(2)
         for (const button of clearButtons) {
             await user.click(button)
-            expect(await screen.findByTestId("open-dialog")).toHaveClass("slate-clear-dialog")
+            const dialog = await screen.findByRole("dialog", {name: "slates.clear.dialog.title"})
+            expect(dialog.closest(".slate-clear-dialog")).not.toBeNull()
             await user.click(screen.getByRole("button", {name: "slates.clear.dialog.cancel"}))
+            await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
         }
         expect(mockDispatch).not.toHaveBeenCalledWith(
             expect.objectContaining({type: "ballotSelections/clearBallotSelectionChoices"})

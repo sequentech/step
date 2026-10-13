@@ -537,6 +537,9 @@ const frenchTranslation: TranslationType = {
                 select: "Sélectionner cette liste",
                 back: "Retour",
             },
+            dialog: {
+                close: "Fermer la boîte de dialogue",
+            },
             clearContest: {
                 button: "Effacer",
                 label: "Effacer {{contest}}",

@@ -535,6 +535,9 @@ const basqueTranslation: TranslationType = {
                 select: "Hautatu zerrenda hau",
                 back: "Itzuli",
             },
+            dialog: {
+                close: "Itxi elkarrizketa-koadroa",
+            },
             clearContest: {
                 button: "Garbitu",
                 label: "Garbitu {{contest}}",

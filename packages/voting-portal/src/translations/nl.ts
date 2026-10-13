@@ -538,6 +538,9 @@ const dutchTranslation: TranslationType = {
                 select: "Deze lijst selecteren",
                 back: "Terug",
             },
+            dialog: {
+                close: "Dialoogvenster sluiten",
+            },
             clearContest: {
                 button: "Wissen",
                 label: "{{contest}} wissen",

@@ -6,31 +6,13 @@ import React from "react"
 import {Box, Typography} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import {faCircleInfo} from "@fortawesome/free-solid-svg-icons"
-import {Dialog, Icon} from "@sequentech/ui-essentials"
+import {Icon} from "@sequentech/ui-essentials"
+import {SlateDialog} from "../SlateDialog/SlateDialog"
 import {BallotSelection, translate} from "@sequentech/ui-core"
 import type {IContest} from "@sequentech/ui-core"
 import {useTranslation} from "react-i18next"
 import {sortCandidatesInBallotOrder, sortContestsInBallotOrder} from "../../services/ContestOrder"
 import type {ISlateChoices} from "../../services/SlateChoices"
-
-// On a phone the changes take the whole width of the dialog and the two
-// answers a row each, the one that applies the change first.
-const ChangesDialog = styled(Dialog)`
-    @media (max-width: 749.95px) {
-        .MuiDialogContent-root {
-            padding: 16px 20px 0 20px !important;
-        }
-        .MuiDialogActions-root {
-            flex-direction: column-reverse;
-            gap: 9px;
-            padding: 15px 20px 20px;
-        }
-        .MuiDialogActions-root > .MuiButtonBase-root {
-            width: 100%;
-            margin: 0;
-        }
-    }
-`
 
 const ChangeRow = styled("div")(({theme}) => ({
     "padding": "15px 0",
@@ -142,18 +124,26 @@ export const SlateChangesDialog: React.FC<SlateChangesDialogProps> = ({
         ))
 
     return (
-        <ChangesDialog
+        <SlateDialog
             className={className}
             open={!!pending}
             handleClose={handleClose}
             title={title}
             ok={ok}
             cancel={cancel}
-            variant="info"
-            maxWidth="sm"
         >
             <Box className="slate-changes" sx={{overflowWrap: "anywhere"}}>
-                <Typography className="slate-replace-content">{content}</Typography>
+                <Typography
+                    className="slate-replace-content"
+                    sx={{
+                        margin: "0 0 12px",
+                        fontSize: "inherit",
+                        lineHeight: "inherit",
+                        color: "customGrey.dark",
+                    }}
+                >
+                    {content}
+                </Typography>
                 {sortContestsInBallotOrder(contests).map((contest) => {
                     const change = pending?.changes.find((entry) => entry.contestId === contest.id)
                     if (!change || change.removed.length === 0) {
@@ -203,6 +193,6 @@ export const SlateChangesDialog: React.FC<SlateChangesDialogProps> = ({
                     </Notice>
                 ) : null}
             </Box>
-        </ChangesDialog>
+        </SlateDialog>
     )
 }

@@ -5,31 +5,12 @@
 import React from "react"
 import {Typography} from "@mui/material"
 import {styled} from "@mui/material/styles"
-import {Dialog} from "@sequentech/ui-essentials"
 import {translate} from "@sequentech/ui-core"
 import {useTranslation} from "react-i18next"
+import {SlateDialog} from "../SlateDialog/SlateDialog"
 
 import {ESlateCoverageLabel, getSlateCoverageLabel} from "../../services/SlateCoverage"
 import type {IResolvedSlate} from "../../services/Slates"
-
-// On a phone the dialog uses the whole width and its two answers a row each,
-// the one that selects the slate first.
-const DetailsDialog = styled(Dialog)`
-    @media (max-width: 749.95px) {
-        .MuiDialogContent-root {
-            padding: 16px 20px 0 20px !important;
-        }
-        .MuiDialogActions-root {
-            flex-direction: column-reverse;
-            gap: 9px;
-            padding: 15px 20px 20px;
-        }
-        .MuiDialogActions-root > .MuiButtonBase-root {
-            width: 100%;
-            margin: 0;
-        }
-    }
-`
 
 const OfficeList = styled("ul")(({theme}) => ({
     "listStyle": "none",
@@ -103,7 +84,7 @@ export const SlateDetailsDialog: React.FC<SlateDetailsDialogProps> = ({
     const count = t("slates.coverage.candidates", {count: candidates})
 
     return (
-        <DetailsDialog
+        <SlateDialog
             className="slate-details-dialog"
             open={open}
             handleClose={handleClose}
@@ -116,11 +97,16 @@ export const SlateDetailsDialog: React.FC<SlateDetailsDialogProps> = ({
                       : undefined
             }
             cancel={t("slates.view.back")}
-            variant="info"
-            maxWidth="sm"
-            hasCloseButton
         >
-            <Typography className="slate-details-summary" sx={{color: "customGrey.dark"}}>
+            <Typography
+                className="slate-details-summary"
+                sx={{
+                    margin: "0 0 12px",
+                    fontSize: "inherit",
+                    lineHeight: "inherit",
+                    color: "customGrey.dark",
+                }}
+            >
                 {coverage ? t("slates.view.summary", {coverage, candidates: count}) : count}
             </Typography>
             <OfficeList className="slate-details-offices">
@@ -141,6 +127,6 @@ export const SlateDetailsDialog: React.FC<SlateDetailsDialogProps> = ({
                     </li>
                 ))}
             </OfficeList>
-        </DetailsDialog>
+        </SlateDialog>
     )
 }

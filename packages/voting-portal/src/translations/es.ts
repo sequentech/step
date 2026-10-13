@@ -540,6 +540,9 @@ const spanishTranslation: TranslationType = {
                 select: "Seleccionar esta lista",
                 back: "Volver",
             },
+            dialog: {
+                close: "Cerrar el diálogo",
+            },
             clearContest: {
                 button: "Borrar",
                 label: "Borrar {{contest}}",

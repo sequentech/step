@@ -5,31 +5,9 @@ import React from "react"
 import {Box, Typography} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import {useTranslation} from "react-i18next"
-import {Dialog} from "@sequentech/ui-essentials"
+import {SlateDialog} from "../SlateDialog/SlateDialog"
 import {translate} from "@sequentech/ui-core"
 import {IUnfilledContest} from "../../services/UnfilledContests"
-
-// Both answers are sentences, so on a phone they take a row each.
-const StackedActionsDialog = styled(Dialog)`
-    @media (max-width: 749.95px) {
-        .MuiDialogContent-root {
-            padding: 16px 20px 0 20px !important;
-        }
-        .MuiDialogActions-root {
-            padding: 15px 20px 20px;
-        }
-    }
-    @media (max-width: 600px) {
-        .MuiDialogActions-root {
-            flex-direction: column-reverse;
-            gap: 8px;
-        }
-        .MuiDialogActions-root > .MuiButtonBase-root {
-            width: 100%;
-            margin: 0;
-        }
-    }
-`
 
 const ContestList = styled("ul")`
     list-style: none;
@@ -72,17 +50,23 @@ const UnfilledContestsDialog: React.FC<UnfilledContestsDialogProps> = ({
     const {t, i18n} = useTranslation()
 
     return (
-        <StackedActionsDialog
+        <SlateDialog
             className="unfilled-contests-dialog"
             handleClose={handleClose}
             open={open}
             title={t("reviewScreen.unfilledContestsDialog.title")}
             ok={t("reviewScreen.unfilledContestsDialog.ok")}
             cancel={t("reviewScreen.unfilledContestsDialog.cancel")}
-            variant="info"
-            maxWidth="sm"
         >
-            <Typography className="unfilled-contests-content" margin={0}>
+            <Typography
+                className="unfilled-contests-content"
+                sx={{
+                    margin: "0 0 12px",
+                    fontSize: "inherit",
+                    lineHeight: "inherit",
+                    color: "customGrey.dark",
+                }}
+            >
                 {t("reviewScreen.unfilledContestsDialog.content")}
             </Typography>
             <ContestList className="unfilled-contests-list">
@@ -100,7 +84,7 @@ const UnfilledContestsDialog: React.FC<UnfilledContestsDialogProps> = ({
                     </li>
                 ))}
             </ContestList>
-        </StackedActionsDialog>
+        </SlateDialog>
     )
 }
 

@@ -537,6 +537,9 @@ const tagalogTranslation: TranslationType = {
                 select: "Piliin ang slate na ito",
                 back: "Bumalik",
             },
+            dialog: {
+                close: "Isara ang dialog",
+            },
             clearContest: {
                 button: "I-clear",
                 label: "I-clear ang {{contest}}",
