@@ -312,6 +312,32 @@ async fn postgres_17_scram_auth_preserves_literal_credentials_over_verified_tls(
         .await
         .unwrap();
     server.require_password_auth();
+    let wrong = PgsqlConnectionParams::new(
+        "localhost",
+        server.port as u32,
+        "tls user",
+        "wrong synthetic password",
+    )
+    .with_tls(trusted(&server))
+    .with_database("tls user");
+    // Observe the asynchronous HBA reload before testing successful SCRAM auth.
+    tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        loop {
+            match PgsqlB3Client::new(&wrong).await {
+                Ok(client) => drop(client),
+                Err(error) => {
+                    assert!(
+                        format!("{error:#}").contains("password authentication failed"),
+                        "{error:#}"
+                    );
+                    break;
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .unwrap();
     let params = PgsqlConnectionParams::new(
         "localhost",
         server.port as u32,
@@ -332,18 +358,5 @@ async fn postgres_17_scram_auth_preserves_literal_credentials_over_verified_tls(
             .get_ref()
             .boards,
         vec!["scram_board"]
-    );
-    let wrong = PgsqlConnectionParams::new(
-        "localhost",
-        server.port as u32,
-        "tls user",
-        "wrong synthetic password",
-    )
-    .with_tls(trusted(&server))
-    .with_database("tls user");
-    let error = PgsqlB3Client::new(&wrong).await.err().unwrap();
-    assert!(
-        format!("{error:#}").contains("password authentication failed"),
-        "{error:#}"
     );
 }
