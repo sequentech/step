@@ -74,10 +74,6 @@ impl Postgres {
             "test",
             "postgres",
         )
-        .with_tls(b4::postgres::PgTlsConfig {
-            mode: b4::postgres::PgTlsMode::Disable,
-            ca_path: None,
-        })
     }
 }
 

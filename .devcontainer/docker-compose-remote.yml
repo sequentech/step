@@ -500,8 +500,6 @@ services:
       B4_PG_USER: ${B4_PG_USER}
       B4_PG_PASSWORD: ${B4_PG_PASSWORD}
       B4_PG_DATABASE: ${B4_PG_DATABASE}
-      B4_PG_SSL_MODE: ${B4_PG_SSL_MODE:-verify-full}
-      B4_PG_CA_PATH: ${B4_PG_CA_PATH:-}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       ENV_SLUG: ${ENV_SLUG}
       # Provider callbacks arrive only through messaging-webhooks.
@@ -807,8 +805,6 @@ services:
       B4_PG_USER: ${B4_PG_USER}
       B4_PG_PASSWORD: ${B4_PG_PASSWORD}
       B4_PG_DATABASE: ${B4_PG_DATABASE}
-      B4_PG_SSL_MODE: ${B4_PG_SSL_MODE:-verify-full}
-      B4_PG_CA_PATH: ${B4_PG_CA_PATH:-}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       BALLOT_VERIFIER_URL: ${BALLOT_VERIFIER_URL}
       ENV_SLUG: ${ENV_SLUG}
@@ -916,8 +912,6 @@ services:
       B4_PG_USER: ${B4_PG_USER}
       B4_PG_PASSWORD: ${B4_PG_PASSWORD}
       B4_PG_DATABASE: ${B4_PG_DATABASE}
-      B4_PG_SSL_MODE: ${B4_PG_SSL_MODE:-verify-full}
-      B4_PG_CA_PATH: ${B4_PG_CA_PATH:-}
       B4_BIND: ${B4_BIND}
       AWS_REGION: ${AWS_REGION}
       AWS_ACCESS_KEY_ID: ${AWS_S3_ACCESS_KEY}

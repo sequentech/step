@@ -402,8 +402,7 @@ pub async fn get_b3_pgsql_client() -> Result<PgsqlB3Client> {
 
     let port: u32 = port.parse::<u32>()?;
 
-    let c = PgsqlConnectionParams::new(&host, port, &username, &password)
-        .with_tls(b4::postgres::PgTlsConfig::from_env()?);
+    let c = PgsqlConnectionParams::new(&host, port, &username, &password);
     let c_db = c.with_database(&database);
     let client = PgsqlB3Client::new(&c_db).await?;
 

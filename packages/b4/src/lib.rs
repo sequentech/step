@@ -12,8 +12,6 @@ pub mod client;
 pub mod db;
 #[cfg(feature = "native")]
 pub mod handlers;
-#[cfg(feature = "postgres")]
-pub mod postgres;
 #[cfg(feature = "native")]
 pub mod s3;
 #[cfg(feature = "native")]

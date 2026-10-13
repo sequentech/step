@@ -1,10 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use bb8_postgres::bb8::PooledConnection;
 use bb8_postgres::PostgresConnectionManager;
-use postgres_openssl::MakeTlsConnector;
 use std::borrow::BorrowMut;
 use std::ops::Deref;
 use std::ops::DerefMut;
@@ -12,14 +11,14 @@ use std::time::Instant;
 use std::time::SystemTime;
 use strand::signature::StrandSignaturePk;
 use tokio_postgres::Client;
-use tokio_postgres::{Config, Row};
+use tokio_postgres::{NoTls, Row};
+use tracing::error;
 use tracing::instrument;
 
 use crate::messages::artifact::Configuration;
 use crate::messages::message::Message;
 use crate::messages::newtypes::Timestamp;
 use crate::messages::statement::StatementType;
-use crate::postgres::{self, PgTlsConfig};
 use strand::context::Ctx;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 
@@ -50,7 +49,6 @@ pub struct PgsqlConnectionParams {
     port: u32,
     username: String,
     password: String,
-    tls: PgTlsConfig,
 }
 impl PgsqlConnectionParams {
     pub fn new(host: &str, port: u32, username: &str, password: &str) -> PgsqlConnectionParams {
@@ -59,25 +57,13 @@ impl PgsqlConnectionParams {
             port,
             username: username.to_string(),
             password: password.to_string(),
-            tls: PgTlsConfig::default(),
         }
     }
-    pub fn with_tls(mut self, tls: PgTlsConfig) -> Self {
-        self.tls = tls;
-        self
-    }
-    pub fn config(&self) -> Result<Config> {
-        let mut config = Config::new();
-        config
-            .host(&self.host)
-            .port(
-                self.port
-                    .try_into()
-                    .context("B4_PG_PORT must fit a PostgreSQL port")?,
-            )
-            .user(&self.username)
-            .password(&self.password);
-        Ok(config)
+    pub fn connection_string(&self) -> String {
+        format!(
+            "host={} port={} user={} password={}",
+            self.host, self.port, self.username, self.password
+        )
     }
     pub fn with_database(&self, db_name: &str) -> PgsqlDbConnectionParams {
         PgsqlDbConnectionParams::new(self, db_name)
@@ -96,10 +82,12 @@ impl PgsqlDbConnectionParams {
             db_name: db_name.to_string(),
         }
     }
-    pub fn config(&self) -> Result<Config> {
-        let mut config = self.connection.config()?;
-        config.dbname(&self.db_name);
-        Ok(config)
+    pub fn connection_string(&self) -> String {
+        format!(
+            "{} dbname={}",
+            self.connection.connection_string(),
+            self.db_name
+        )
     }
 }
 
@@ -237,7 +225,15 @@ impl TryFrom<&Row> for B3IndexRow {
 #[instrument(err, skip(c))]
 pub async fn create_database(c: &PgsqlConnectionParams, dbname: &str) -> Result<()> {
     validate_identifier(dbname)?;
-    let client = postgres::connect(c.config()?, &c.tls).await?;
+    let (client, connection) = tokio_postgres::connect(&c.connection_string(), NoTls)
+        .await
+        .unwrap();
+
+    tokio::spawn(async move {
+        if let Err(e) = connection.await {
+            eprintln!("connection error: {}", e);
+        }
+    });
 
     client
         .execute(&format!("CREATE DATABASE {}", dbname), &[])
@@ -250,23 +246,32 @@ pub async fn create_database(c: &PgsqlConnectionParams, dbname: &str) -> Result<
 #[instrument(err, skip(c))]
 pub async fn drop_database(c: &PgsqlConnectionParams, dbname: &str) -> Result<()> {
     validate_identifier(dbname)?;
-    let client = postgres::connect(c.config()?, &c.tls).await?;
+    let (client, connection) = tokio_postgres::connect(&c.connection_string(), NoTls)
+        .await
+        .unwrap();
+
+    tokio::spawn(async move {
+        if let Err(e) = connection.await {
+            eprintln!("connection error: {}", e);
+        }
+    });
 
     client
         .execute(&format!("DROP DATABASE IF EXISTS {}", dbname), &[])
-        .await?;
+        .await
+        .unwrap();
 
     Ok(())
 }
 
 /// Version using database connection pool.
 pub struct PooledPgsqlB3Client<'a> {
-    client: PooledConnection<'a, PostgresConnectionManager<MakeTlsConnector>>,
+    client: PooledConnection<'a, PostgresConnectionManager<NoTls>>,
 }
 
 impl<'a> PooledPgsqlB3Client<'a> {
     pub fn new(
-        client: PooledConnection<'a, PostgresConnectionManager<MakeTlsConnector>>,
+        client: PooledConnection<'a, PostgresConnectionManager<NoTls>>,
     ) -> PooledPgsqlB3Client<'a> {
         PooledPgsqlB3Client { client }
     }
@@ -326,7 +331,16 @@ pub struct PgsqlB3Client {
 
 impl PgsqlB3Client {
     pub async fn new(params: &PgsqlDbConnectionParams) -> Result<PgsqlB3Client> {
-        let client = postgres::connect(params.config()?, &params.connection.tls).await?;
+        let (client, connection) =
+            tokio_postgres::connect(&params.connection_string(), NoTls).await?;
+
+        // The connection object performs the actual communication with the database,
+        // so spawn it off to run on its own.
+        tokio::spawn(async move {
+            if let Err(e) = connection.await {
+                error!("connection error: {}", e);
+            }
+        });
 
         let ret = PgsqlB3Client { client };
 
@@ -1220,11 +1234,7 @@ pub(crate) mod tests {
     const TEST_BOARD: &'static str = "testboard";
 
     async fn set_up() -> PgsqlB3Client {
-        let c =
-            PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW).with_tls(PgTlsConfig {
-                mode: crate::postgres::PgTlsMode::Disable,
-                ca_path: None,
-            });
+        let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
         drop_database(&c, PG_DATABASE).await.unwrap();
         create_database(&c, PG_DATABASE).await.unwrap();
 
