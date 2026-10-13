@@ -15,6 +15,10 @@ use tracing::{error, info};
 
 use crate::platform::PlatformClient;
 use protocol_board::trustee_sessions::{BoardAccess, SessionSet};
+use protocol_board::{
+    TrusteeActionKind, TrusteeActionOutcome, TrusteeActionResult,
+    TrusteeSecrets,
+};
 
 /// The pause between two cycles.
 const CYCLE_PAUSE: Duration = Duration::from_secs(1);
@@ -23,13 +27,15 @@ const CYCLE_PAUSE: Duration = Duration::from_secs(1);
 pub(crate) async fn run<A: BoardAccess>(
     mut platform: PlatformClient,
     mut sessions: SessionSet<A>,
+    trustee_name: String,
+    secrets: TrusteeSecrets,
 ) -> Result<()> {
     let mut terminate =
         signal(SignalKind::terminate()).context("listening for SIGTERM")?;
     let mut interrupt =
         signal(SignalKind::interrupt()).context("listening for SIGINT")?;
     loop {
-        poll_once(&mut platform, &mut sessions).await;
+        poll_once(&mut platform, &mut sessions, &trustee_name, &secrets).await;
         tokio::select! {
             () = sleep(CYCLE_PAUSE) => {}
             _ = terminate.recv() => {
@@ -49,6 +55,8 @@ pub(crate) async fn run<A: BoardAccess>(
 async fn poll_once<A: BoardAccess>(
     platform: &mut PlatformClient,
     sessions: &mut SessionSet<A>,
+    trustee_name: &str,
+    secrets: &TrusteeSecrets,
 ) {
     for report in sessions.pending_reports() {
         match platform.report(&report).await {
@@ -61,11 +69,47 @@ async fn poll_once<A: BoardAccess>(
             }
         }
     }
-    match platform.list().await {
-        Ok(boards) => {
-            sessions.reconcile(&boards).await;
+    match platform.updates().await {
+        Ok(updates) => {
+            for action in updates.actions {
+                match action.action {
+                    TrusteeActionKind::CreateCustodyProof { request } => {
+                        let outcome = if request.trustee_name != trustee_name {
+                            TrusteeActionOutcome::Failed {
+                                detail: "The request names another trustee"
+                                    .into(),
+                            }
+                        } else {
+                            match request.attest(secrets) {
+                                Ok(custody_proof_json) => {
+                                    TrusteeActionOutcome::Ready {
+                                        custody_proof_json,
+                                    }
+                                }
+                                Err(error) => TrusteeActionOutcome::Failed {
+                                    detail: format!("{error:#}"),
+                                },
+                            }
+                        };
+                        let result = TrusteeActionResult {
+                            id: action.id,
+                            request,
+                            outcome,
+                        };
+                        if let Err(error) =
+                            platform.action_result(&result).await
+                        {
+                            error!(action = %result.id, "Submitting trustee action result: {error:#}");
+                        }
+                    }
+                    TrusteeActionKind::Unknown => {
+                        tracing::debug!(action = %action.id, "Skipping unsupported trustee action")
+                    }
+                }
+            }
+            sessions.reconcile(&updates.boards).await;
             sessions.advance().await;
         }
-        Err(err) => error!("listing this trustee's boards: {err:#}"),
+        Err(err) => error!("fetching this trustee's event updates: {err:#}"),
     }
 }

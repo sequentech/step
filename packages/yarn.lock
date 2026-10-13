@@ -17974,7 +17974,7 @@ watchpack@^2.5.2:
 
 "wbraid-trustee@file:./admin-portal/rust/wbraid-trustee-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./admin-portal/rust/wbraid-trustee-0.1.0.tgz#281b6b7b59bfd766d93048922a131825f8899fa7"
+  resolved "file:./admin-portal/rust/wbraid-trustee-0.1.0.tgz#ebbf7768a81006f2e5a02cfb8c4d1eae040ce8d8"
 
 wbuf@^1.1.0, wbuf@^1.7.3:
   version "1.7.3"

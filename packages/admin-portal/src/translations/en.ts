@@ -2313,6 +2313,21 @@ const englishTranslation = {
             createContestError: "Error creating contest",
         },
         keysGeneration: {
+            serverCustody: {
+                waiting: "Waiting for your trustee server to create a custody proof…",
+                unavailable:
+                    "The trustee server has not responded. Check that it is running, then upload the ceremony file again.",
+                failed: "The trustee server could not create the proof: {{error}}",
+                invalidReply:
+                    "The trustee server returned an incomplete response. Please try again.",
+                cancelled: "The request was cancelled. Upload the file again to continue.",
+                downloadInstructions:
+                    "Download and save this public ceremony file. Upload the same file in the next step and for future tallies. It is not a backup of your private keys.",
+                uploadInstructions:
+                    "Upload the ceremony file you downloaded. Your server trustee will create the proof. You can also upload a proof created by an offline or browser trustee.",
+                tallyInstructions:
+                    "Upload the ceremony file saved during the key ceremony. Your server trustee will create a fresh proof for this tally. Offline and browser custody proofs are also accepted.",
+            },
             configureStep: {
                 create: "Create Key Ceremony",
                 name: "Key Ceremony Name",
@@ -2384,15 +2399,15 @@ const englishTranslation = {
                 title: "Trustee Key Ceremony",
                 subtitle:
                     "You are about to participate in the Key Ceremony as a Trustee (<strong>{{name}}</strong>). This involves the following steps:",
-                one: "<strong>Download</strong> the public custody request.",
-                two: "Keep secure <strong>Backups</strong> of your local trustee.toml keys file.",
-                three: "Create and upload a signed <strong>custody proof</strong> using your local keys.",
+                one: "<strong>Download</strong> the public ceremony file.",
+                two: "Keep copies of your public <strong>ceremony file</strong>. Trustee recovery backups are managed separately.",
+                three: "<strong>Upload</strong> the saved ceremony file. Your server trustee creates a custody proof; complete any required approval signature.",
             },
             downloadStep: {
-                title: "Download Custody Request",
+                title: "Download Ceremony File",
                 subtitle:
-                    "Download this public request. Keep your private trustee keys file on your trustee machine:",
-                downloadButton: "Download Custody Request",
+                    "Save this public ceremony file for custody confirmation and future tallies:",
+                downloadButton: "Download Ceremony File",
                 downloaded: "Public custody request downloaded successfully.",
                 errorEmptyKey: "Download error, empty file",
                 unexpectedError: "The custody request could not be downloaded. Please try again.",
@@ -2400,22 +2415,20 @@ const englishTranslation = {
                 unavailable:
                     "The custody request is no longer available because the ceremony has moved on.",
                 confirmdDialog: {
-                    ok: "Confirm Backups and Continue",
+                    ok: "Confirm Saved Copies and Continue",
                     cancel: "Go Back",
-                    title: "Back Up Your Local Trustee Keys",
+                    title: "Save Your Ceremony File",
                     description:
-                        "Back up trustee.toml from your trustee machine in at least two secure locations, then confirm below:",
-                    firstCopy: "First backup secured",
-                    secondCopy: "Second backup secured",
-                    confirmError:
-                        "Create required backups and check the confirmation boxes to continue",
+                        "Keep two copies of the public ceremony file. Trustee keys and election state must be backed up separately by the trustee server operator.",
+                    firstCopy: "First copy saved",
+                    secondCopy: "Second copy saved",
+                    confirmError: "Save both copies and check the confirmation boxes to continue",
                 },
             },
             checkStep: {
                 title: "Confirm Trustee Custody",
                 verifyButton: "Verify Custody Proof",
-                subtitle:
-                    "Upload custody-proof.json produced by the native trustee tool. Keep your private trustee.toml file on your machine:",
+                subtitle: "Upload your saved ceremony file or a signed custody proof:",
                 errorUploading: "Invalid custody proof, please try again",
                 errorEmptyFile: "File empty or not found",
                 verified: "Trustee custody confirmed successfully.",

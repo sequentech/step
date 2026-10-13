@@ -2338,6 +2338,21 @@ const basqueTranslation: TranslationType = {
         },
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
+            serverCustody: {
+                waiting: "Zure zaindariaren zerbitzariak zaintza-froga sortu arte zain…",
+                unavailable:
+                    "Zaindariaren zerbitzariak ez du erantzun. Egiaztatu martxan dagoela eta kargatu berriro zeremoniaren fitxategia.",
+                failed: "Zaindariaren zerbitzariak ezin izan du froga sortu: {{error}}",
+                invalidReply:
+                    "Zaindariaren zerbitzariak erantzun osatugabea bidali du. Saiatu berriro.",
+                cancelled: "Eskaera bertan behera utzi da. Kargatu berriro fitxategia jarraitzeko.",
+                downloadInstructions:
+                    "Deskargatu eta gorde zeremoniaren fitxategi publiko hau. Kargatu fitxategi bera hurrengo urratsean eta etorkizuneko zenbaketetan. Ez da zure gako pribatuen babeskopia.",
+                uploadInstructions:
+                    "Kargatu deskargatutako zeremoniaren fitxategia. Zure zaindariaren zerbitzariak froga sortuko du. Lineaz kanpoko edo nabigatzaileko zaindari batek sortutako froga ere karga dezakezu.",
+                tallyInstructions:
+                    "Kargatu gakoen zeremonian gordetako fitxategia. Zure zaindariaren zerbitzariak froga berria sortuko du zenbaketa honetarako. Lineaz kanpoko eta nabigatzaileko frogak ere onartzen dira.",
+            },
             configureStep: {
                 create: "Sortu Giltzen Zeremonia",
                 name: "Giltzen Zeremonia Izena",

@@ -152,7 +152,9 @@ async fn start(config: Config) -> Result<()> {
         PlatformClient::new(&config.platform_url, config.credentials)?;
     daemon::run(
         platform,
-        SessionSet::new(config.trustee_name, secrets, boards),
+        SessionSet::new(config.trustee_name.clone(), secrets.clone(), boards),
+        config.trustee_name,
+        secrets,
     )
     .await
 }

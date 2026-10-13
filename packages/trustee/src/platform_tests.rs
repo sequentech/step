@@ -230,3 +230,110 @@ async fn unsuccessful_http_responses_remain_errors_for_discovery_and_reporting()
         .contains("HTTP 503"));
     server.join().unwrap();
 }
+
+#[tokio::test]
+async fn updates_fetch_boards_and_actions_together_and_results_need_acknowledgement(
+) {
+    let (mut client, server) = platform(vec![
+        (200, TOKEN),
+        (
+            200,
+            r#"{"data":{"trustee_event_updates":{"boards":[],"actions":[]}}}"#,
+        ),
+        (
+            200,
+            r#"{"data":{"submit_trustee_action_result":{"accepted":true}}}"#,
+        ),
+    ]);
+    let updates = client.updates().await.unwrap();
+    assert!(updates.boards.is_empty());
+    assert!(updates.actions.is_empty());
+    let result = protocol_board::TrusteeActionResult {
+        id: "action".into(),
+        request: protocol_board::CustodyRequest {
+            tenant_id: "tenant".into(),
+            election_event_id: "event".into(),
+            keys_ceremony_id: "ceremony".into(),
+            tally_session_id: None,
+            trustee_name: "trustee1".into(),
+            signing_public_key: "signing".into(),
+            share_encryption_public_key: "encryption".into(),
+        },
+        outcome: protocol_board::TrusteeActionOutcome::Failed {
+            detail: "keys unavailable".into(),
+        },
+    };
+    client.action_result(&result).await.unwrap();
+    let requests = server.join().unwrap();
+    assert_eq!(
+        graphql_body(&requests[1])["query"],
+        "query TrusteeEventUpdates { trustee_event_updates }"
+    );
+    assert_eq!(
+        graphql_body(&requests[2])["variables"]["result"],
+        serde_json::to_value(result).unwrap()
+    );
+}
+
+#[tokio::test]
+async fn updates_fall_back_only_when_the_new_field_is_absent() {
+    for absent in [
+        r#"{"errors":[{"message":"Cannot query field \"trustee_event_updates\" on type \"query_root\"."}]}"#,
+        r#"{"errors":[{"message":"field 'trustee_event_updates' not found in type: 'query_root'","extensions":{"code":"validation-failed"}}]}"#,
+    ] {
+        let (mut client, server) = platform(vec![
+            (200, TOKEN),
+            (200, absent),
+            (200, r#"{"data":{"list_trustee_boards":{"boards":[]}}}"#),
+        ]);
+        assert!(client.updates().await.unwrap().actions.is_empty());
+        let requests = server.join().unwrap();
+        assert!(graphql_body(&requests[2])["query"]
+            .as_str()
+            .unwrap()
+            .contains("ListTrusteeBoards"));
+    }
+    let (mut client, server) = platform(vec![
+        (200, TOKEN),
+        (200, r#"{"errors":[{"message":"permission denied"}]}"#),
+    ]);
+    assert!(client.updates().await.is_err());
+    assert_eq!(server.join().unwrap().len(), 2);
+}
+
+#[tokio::test]
+async fn action_results_require_explicit_acknowledgement_and_are_retried() {
+    let result = protocol_board::TrusteeActionResult {
+        id: "action".into(),
+        request: protocol_board::CustodyRequest {
+            tenant_id: "tenant".into(),
+            election_event_id: "event".into(),
+            keys_ceremony_id: "ceremony".into(),
+            tally_session_id: None,
+            trustee_name: "trustee1".into(),
+            signing_public_key: "signing".into(),
+            share_encryption_public_key: "encryption".into(),
+        },
+        outcome: protocol_board::TrusteeActionOutcome::Failed {
+            detail: "keys unavailable".into(),
+        },
+    };
+    for rejected in [
+        r#"{"data":{"submit_trustee_action_result":{"accepted":false}}}"#,
+        r#"{"data":{"submit_trustee_action_result":null}}"#,
+        r#"{"data":{"submit_trustee_action_result":{"accepted":true}},"errors":[{"message":"try again"}]}"#,
+    ] {
+        let (mut client, server) = platform(vec![
+            (200, TOKEN),
+            (200, rejected),
+            (
+                200,
+                r#"{"data":{"submit_trustee_action_result":{"accepted":true}}}"#,
+            ),
+        ]);
+        assert!(client.action_result(&result).await.is_err());
+        client.action_result(&result).await.unwrap();
+        let requests = server.join().unwrap();
+        assert_eq!(graphql_body(&requests[1]), graphql_body(&requests[2]));
+    }
+}

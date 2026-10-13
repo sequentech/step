@@ -1,4 +1,13 @@
 type Query {
+    trustee_event_updates: jsonb!
+}
+
+type Mutation {
+    request_server_custody(object: jsonb!): jsonb!
+    submit_trustee_action_result(result: jsonb!): TrusteeReportOutput!
+}
+
+type Query {
     list_trustee_boards: TrusteeBoardsOutput!
 }
 

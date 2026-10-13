@@ -90,7 +90,9 @@ pub use tally::{
 pub use tally_board::{Quorum, SignedBallots, TallyBoard};
 pub use tally_view::TallyView;
 pub use trustee_api::{
-    TrusteeBoard, TrusteeBoardsResponse, TrusteeReport, TrusteeReportKind,
+    TrusteeAction, TrusteeActionKind, TrusteeActionOutcome,
+    TrusteeActionResult, TrusteeBoard, TrusteeBoardsResponse,
+    TrusteeEventUpdates, TrusteeReport, TrusteeReportKind,
 };
 pub use view::{DkgStatus, DkgView};
 

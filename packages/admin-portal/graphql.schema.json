@@ -33235,6 +33235,39 @@
             "deprecationReason": null
           },
           {
+            "name": "request_server_custody",
+            "description": null,
+            "args": [
+              {
+                "name": "object",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "jsonb",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "jsonb",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "review_tally_sheet",
             "description": "review_tally_sheet",
             "args": [
@@ -34883,6 +34916,39 @@
               "kind": "OBJECT",
               "name": "SubmitTallyResolutionOutput",
               "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "submit_trustee_action_result",
+            "description": null,
+            "args": [
+              {
+                "name": "result",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "jsonb",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "TrusteeReportOutput",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -65513,6 +65579,22 @@
                 "deprecationReason": null
               }
             ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "jsonb",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "trustee_event_updates",
+            "description": null,
+            "args": [],
             "type": {
               "kind": "NON_NULL",
               "name": null,

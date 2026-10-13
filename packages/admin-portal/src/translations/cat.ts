@@ -2360,6 +2360,22 @@ const catalanTranslation: TranslationType = {
         },
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
+            serverCustody: {
+                waiting: "Esperant que el teu servidor custodi creï una prova de custòdia…",
+                unavailable:
+                    "El servidor custodi no ha respost. Comprova que està actiu i torna a carregar el fitxer de cerimònia.",
+                failed: "El servidor custodi no ha pogut crear la prova: {{error}}",
+                invalidReply:
+                    "El servidor custodi ha retornat una resposta incompleta. Torna-ho a provar.",
+                cancelled:
+                    "La sol·licitud s’ha cancel·lat. Torna a carregar el fitxer per continuar.",
+                downloadInstructions:
+                    "Descarrega i desa aquest fitxer públic de cerimònia. Carrega el mateix fitxer al pas següent i als recomptes futurs. No és una còpia de seguretat de les teves claus privades.",
+                uploadInstructions:
+                    "Carrega el fitxer de cerimònia descarregat. El teu servidor custodi crearà la prova. També pots carregar una prova creada per un custodi fora de línia o de navegador.",
+                tallyInstructions:
+                    "Carrega el fitxer desat durant la cerimònia de claus. El teu servidor custodi crearà una prova nova per a aquest recompte. També s’accepten proves de custodis fora de línia o de navegador.",
+            },
             configureStep: {
                 create: "Crear Cerimònia de Claus",
                 name: "Nom de la Cerimònia de Claus",

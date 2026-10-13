@@ -2346,6 +2346,21 @@ const galegoTranslation: TranslationType = {
         },
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
+            serverCustody: {
+                waiting: "Agardando a que o servidor custodio cree unha proba de custodia…",
+                unavailable:
+                    "O servidor custodio non respondeu. Comproba que está activo e volve cargar o ficheiro da cerimonia.",
+                failed: "O servidor custodio non puido crear a proba: {{error}}",
+                invalidReply:
+                    "O servidor custodio devolveu unha resposta incompleta. Téntao de novo.",
+                cancelled: "A solicitude cancelouse. Volve cargar o ficheiro para continuar.",
+                downloadInstructions:
+                    "Descarga e garda este ficheiro público da cerimonia. Carga o mesmo ficheiro no seguinte paso e nos recontos futuros. Non é unha copia de seguridade das túas claves privadas.",
+                uploadInstructions:
+                    "Carga o ficheiro da cerimonia descargado. O servidor custodio creará a proba. Tamén podes cargar unha proba creada por un custodio sen conexión ou no navegador.",
+                tallyInstructions:
+                    "Carga o ficheiro gardado durante a cerimonia de claves. O servidor custodio creará unha nova proba para este reconto. Tamén se aceptan probas de custodios sen conexión ou no navegador.",
+            },
             configureStep: {
                 create: "Crear Cerimonia de Chaves",
                 name: "Nome da Cerimonia de Chaves",

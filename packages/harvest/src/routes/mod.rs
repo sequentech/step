@@ -70,6 +70,7 @@ pub mod tally_ceremony;
 pub mod tally_sheets;
 pub mod templates;
 pub mod trustee_boards;
+pub mod trustee_updates;
 pub mod trustees;
 pub mod upload_document;
 pub mod users;

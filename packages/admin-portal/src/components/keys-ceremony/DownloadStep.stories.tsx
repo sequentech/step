@@ -108,7 +108,7 @@ export default meta
 type Story = StoryObj<Scenario>
 
 const downloadButton = (canvasElement: HTMLElement) =>
-    within(canvasElement).findByRole("button", {name: "Download Custody Request"})
+    within(canvasElement).findByRole("button", {name: "Download Ceremony File"})
 
 async function download(canvasElement: HTMLElement) {
     const button = await downloadButton(canvasElement)
@@ -127,7 +127,7 @@ export const Populated: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await downloadButton(canvasElement)).toBeEnabled()
-        await expect(canvas.getByRole("heading", {name: "Download Custody Request"})).toBeVisible()
+        await expect(canvas.getByRole("heading", {name: "Download Ceremony File"})).toBeVisible()
         expect(canvas.getByRole("button", {name: "Next"})).toBeDisabled()
         await waitFor(() =>
             expect(data.calls[0]).toEqual({
@@ -158,11 +158,11 @@ export const DownloadAndConfirmBackups: Story = {
         ])
         await userEvent.click(canvas.getByRole("button", {name: "Next"}))
         const dialog = within(await within(document.body).findByRole("dialog"))
-        const confirm = dialog.getByRole("button", {name: "Confirm Backups and Continue"})
+        const confirm = dialog.getByRole("button", {name: "Confirm Saved Copies and Continue"})
         expect(confirm).toBeDisabled()
-        await userEvent.click(dialog.getByRole("checkbox", {name: "First backup secured"}))
+        await userEvent.click(dialog.getByRole("checkbox", {name: "First copy saved"}))
         expect(confirm).toBeDisabled()
-        await userEvent.click(dialog.getByRole("checkbox", {name: "Second backup secured"}))
+        await userEvent.click(dialog.getByRole("checkbox", {name: "Second copy saved"}))
         await userEvent.click(confirm)
         expect(args.goNext).toHaveBeenCalledTimes(1)
         await waitFor(() => expect(within(document.body).queryByRole("dialog")).toBeNull())
@@ -175,13 +175,13 @@ export const CancelBackupConfirmation: Story = {
         await download(canvasElement)
         await userEvent.click(await canvas.findByRole("button", {name: "Next"}))
         const dialog = within(await within(document.body).findByRole("dialog"))
-        await userEvent.click(dialog.getByRole("checkbox", {name: "First backup secured"}))
+        await userEvent.click(dialog.getByRole("checkbox", {name: "First copy saved"}))
         await userEvent.click(dialog.getByRole("button", {name: "Go Back"}))
         await waitFor(() => expect(within(document.body).queryByRole("dialog")).toBeNull())
         await userEvent.click(canvas.getByRole("button", {name: "Next"}))
         const reopened = within(await within(document.body).findByRole("dialog"))
         // Cancelling clears the acknowledgements.
-        expect(reopened.getByRole("checkbox", {name: "First backup secured"})).not.toBeChecked()
+        expect(reopened.getByRole("checkbox", {name: "First copy saved"})).not.toBeChecked()
         expect(args.goNext).not.toHaveBeenCalled()
         await userEvent.click(reopened.getByRole("button", {name: "Go Back"}))
         await waitFor(() => expect(within(document.body).queryByRole("dialog")).toBeNull())

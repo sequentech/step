@@ -2360,6 +2360,20 @@ const tagalogTranslation: TranslationType = {
         },
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
+            serverCustody: {
+                waiting: "Hinihintay ang trustee server na gumawa ng patunay ng pag-iingat…",
+                unavailable:
+                    "Hindi tumugon ang trustee server. Tiyaking tumatakbo ito, pagkatapos ay i-upload muli ang ceremony file.",
+                failed: "Hindi nagawa ng trustee server ang patunay: {{error}}",
+                invalidReply: "Hindi kumpleto ang tugon ng trustee server. Subukan muli.",
+                cancelled: "Nakansela ang kahilingan. I-upload muli ang file upang magpatuloy.",
+                downloadInstructions:
+                    "I-download at itago ang pampublikong ceremony file na ito. I-upload ang parehong file sa susunod na hakbang at sa mga susunod na pagbibilang. Hindi ito backup ng iyong mga pribadong susi.",
+                uploadInstructions:
+                    "I-upload ang na-download na ceremony file. Gagawa ng patunay ang iyong trustee server. Maaari ka ring mag-upload ng patunay mula sa offline o browser trustee.",
+                tallyInstructions:
+                    "I-upload ang file na itinago noong key ceremony. Gagawa ang trustee server ng bagong patunay para sa pagbibilang na ito. Tinatanggap din ang mga patunay mula sa offline at browser trustees.",
+            },
             configureStep: {
                 create: "Lumikha ng Seremonya ng Mga Susi",
                 name: "Pangalan ng Seremonya ng mga Susi",

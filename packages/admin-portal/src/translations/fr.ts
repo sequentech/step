@@ -2369,6 +2369,21 @@ const frenchTranslation: TranslationType = {
         },
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
+            serverCustody: {
+                waiting: "En attente de la preuve de garde créée par votre serveur dépositaire…",
+                unavailable:
+                    "Le serveur dépositaire n’a pas répondu. Vérifiez qu’il fonctionne, puis importez à nouveau le fichier de cérémonie.",
+                failed: "Le serveur dépositaire n’a pas pu créer la preuve : {{error}}",
+                invalidReply: "Le serveur dépositaire a renvoyé une réponse incomplète. Réessayez.",
+                cancelled:
+                    "La demande a été annulée. Importez à nouveau le fichier pour continuer.",
+                downloadInstructions:
+                    "Téléchargez et conservez ce fichier public de cérémonie. Importez le même fichier à l’étape suivante et lors des dépouillements futurs. Il ne constitue pas une sauvegarde de vos clés privées.",
+                uploadInstructions:
+                    "Importez le fichier de cérémonie téléchargé. Votre serveur dépositaire créera la preuve. Vous pouvez aussi importer une preuve créée par un dépositaire hors ligne ou dans le navigateur.",
+                tallyInstructions:
+                    "Importez le fichier conservé lors de la cérémonie des clés. Votre serveur dépositaire créera une nouvelle preuve pour ce dépouillement. Les preuves hors ligne ou du navigateur sont aussi acceptées.",
+            },
             configureStep: {
                 create: "Créer une Cérémonie de Clés",
                 name: "Nom de la Cérémonie des Clés",

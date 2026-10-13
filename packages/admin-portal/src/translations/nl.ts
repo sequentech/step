@@ -2347,6 +2347,21 @@ const dutchTranslation: TranslationType = {
         },
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
+            serverCustody: {
+                waiting: "Wachten tot uw trusteeserver een bewijs van sleutelbezit maakt…",
+                unavailable:
+                    "De trusteeserver heeft niet gereageerd. Controleer of deze actief is en upload het ceremoniebestand opnieuw.",
+                failed: "De trusteeserver kon het bewijs niet maken: {{error}}",
+                invalidReply: "De trusteeserver gaf een onvolledig antwoord. Probeer het opnieuw.",
+                cancelled:
+                    "Het verzoek is geannuleerd. Upload het bestand opnieuw om verder te gaan.",
+                downloadInstructions:
+                    "Download en bewaar dit openbare ceremoniebestand. Upload hetzelfde bestand bij de volgende stap en bij toekomstige tellingen. Het is geen back-up van uw privésleutels.",
+                uploadInstructions:
+                    "Upload het gedownloade ceremoniebestand. Uw trusteeserver maakt het bewijs. U kunt ook een bewijs uploaden dat door een offline trustee of browsertrustee is gemaakt.",
+                tallyInstructions:
+                    "Upload het bestand dat u tijdens de sleutelceremonie hebt bewaard. Uw trusteeserver maakt een nieuw bewijs voor deze telling. Bewijzen van offline trustees en browsertrustees worden ook geaccepteerd.",
+            },
             configureStep: {
                 create: "Sleutelceremonie Aanmaken",
                 name: "Naam Sleutelceremonie",

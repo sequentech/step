@@ -2349,6 +2349,21 @@ const spanishTranslation: TranslationType = {
         },
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
+            serverCustody: {
+                waiting: "Esperando a que tu servidor custodio cree una prueba de custodia…",
+                unavailable:
+                    "El servidor custodio no ha respondido. Comprueba que está activo y vuelve a cargar el archivo de ceremonia.",
+                failed: "El servidor custodio no pudo crear la prueba: {{error}}",
+                invalidReply:
+                    "El servidor custodio devolvió una respuesta incompleta. Inténtalo de nuevo.",
+                cancelled: "La solicitud se canceló. Vuelve a cargar el archivo para continuar.",
+                downloadInstructions:
+                    "Descarga y guarda este archivo público de ceremonia. Carga el mismo archivo en el siguiente paso y en futuros recuentos. No es una copia de seguridad de tus claves privadas.",
+                uploadInstructions:
+                    "Carga el archivo de ceremonia descargado. Tu servidor custodio creará la prueba. También puedes cargar una prueba creada por un custodio sin conexión o de navegador.",
+                tallyInstructions:
+                    "Carga el archivo guardado durante la ceremonia de claves. Tu servidor custodio creará una nueva prueba para este recuento. También se aceptan pruebas de custodios sin conexión o de navegador.",
+            },
             configureStep: {
                 create: "Crear Ceremonia de Claves",
                 name: "Nombre de la Ceremonia de Claves",

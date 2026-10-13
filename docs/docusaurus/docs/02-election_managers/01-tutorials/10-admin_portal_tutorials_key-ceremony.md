@@ -54,21 +54,29 @@ lower than the number of trustees.
 Each participating trustee signs in to the administration portal, selects the
 ceremony's key action, and completes these steps:
 
-1. Choose **Download Custody Request**. The downloaded `custody-request.json`
+1. Choose **Download Ceremony File**. The downloaded `<trustee>-custody-request.json`
    contains public identifiers and the trustee's registered public keys.
-2. Confirm two secure backups of the local trustee keys file. Preserve the
-   runner's protocol state as described above.
-3. On the trustee machine, produce a signed proof:
+2. Save two copies of this public file and confirm that you have saved them.
+3. Upload the same file at **Confirm Trustee Custody**. A running server trustee
+   creates the signed custody proof automatically. Wait for it to respond.
+4. If the tenant requires an additional approval signature, complete the signing
+   dialog. The proof alone does not complete that approval.
 
-   ```sh
-   trustee attest --request custody-request.json --trustee-config trustee.toml --output custody-proof.json
-   ```
+Keep the ceremony file for future manual tallies. No command or access to the
+trustee machine is needed for these portal steps. If the trustee server has not
+responded, check that it is running with the correct identity and upload the file
+again. Failed proof requests can also be retried by uploading the file again.
 
-4. Upload `custody-proof.json` at **Confirm Trustee Custody**. If the tenant
-   requires an additional approval signature, complete the signing dialog.
+The ceremony file contains no private key or recoverable protocol state. The
+server operator must separately back up `trustee.toml` and the runner's private
+protocol state as described above. Saving the public file does not prove that
+these private backups exist.
 
-The request and proof may be uploaded to the platform. Keep `trustee.toml`
-and the runner's private protocol state on the trustee machine.
+Offline trustees can still create a proof locally and upload it in the same step:
+
+```sh
+trustee attest --request trustee1-custody-request.json --trustee-config trustee.toml --output custody-proof.json
+```
 
 A proof is scoped to its tenant, election event, ceremony, and trustee. A proof
 from another trustee or ceremony is rejected. Confirming custody changes that
@@ -78,9 +86,10 @@ The administrator can then publish ballot styles and open voting.
 
 A trustee may verify its proof again using **Verify Custody Proof**. Completed
 custody cannot be downgraded by downloading another request. Retain the public
-request for future tally ceremonies. For manual tally authorization, produce
-a new proof with `--tally-session-id <tally UUID>`; a key ceremony proof cannot
-be replayed as a tally proof.
+file for future tally ceremonies. Upload that same file to authorize a manual
+tally; the server creates a new proof bound to that tally session. Offline
+trustees instead create a new proof with `--tally-session-id <tally UUID>`. A key
+ceremony proof cannot be replayed as a tally proof.
 
 If generation fails, the ceremony displays **FAILED** and its failure reason.
 Resolve the runner or protocol failure before arranging a replacement ceremony.

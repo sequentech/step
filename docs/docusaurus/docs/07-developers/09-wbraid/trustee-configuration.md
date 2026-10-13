@@ -149,16 +149,71 @@ Each launcher owns and cleans up its own Compose project and volumes.
 
 ## Manual custody proofs
 
-For manual ceremonies, download the public custody request from the portal and
-produce a signed proof locally:
+For a server trustee, **Download Ceremony File** in the key-ceremony wizard saves
+`<trustee>-custody-request.json`. The operator saves it and uploads that same file
+to confirm custody. Upload it again when authorizing a manual tally. The running
+trustee fetches the requested work and creates the signed proof automatically;
+no shell access or command is needed.
+
+A file upload queues work only. The portal waits for the result, then submits it
+through the existing `confirm_key_custody` or `authorize_tally_custody` action.
+Additional staff signatures remain required when the event's signing policy
+requires them, and bind the hash of the actual proof. Server action results do
+not advance ceremony status or consume staff approvals.
+
+The file is public metadata, not a backup of private keys or protocol state. A
+proof demonstrates control of the trustee's signing key for the named tenant,
+event, key ceremony and optional tally session. It does not demonstrate a backup
+exists or that the runner can recover its recorded DKG state. Operators must
+still back up both the runner's keys and its private protocol store.
+
+For an offline trustee, produce and upload a signed proof as before:
 
 ```sh
-trustee attest --request custody-request.json --trustee-config trustee.toml --output custody-proof.json
+trustee attest --request trustee1-custody-request.json --trustee-config trustee.toml --output custody-proof.json
 ```
 
-Upload the proof. For a tally restore, add `--tally-session-id <tally UUID>`.
-The proof is bound to the event, ceremony, trustee and, for restore, tally.
-Private keys stay in the runner's keys file.
+For tally authorization add `--tally-session-id <tally UUID>`. Offline and browser
+proof files remain accepted directly by both upload steps. Reusing the saved
+public file asks the server for a proof of the current tally; reusing an old
+signed proof cannot authorize another tally.
+
+### Trustee event updates
+
+Server trustees poll the `trustee_event_updates: jsonb!` Hasura query. Harvest's
+`GET /trustee/event-updates` returns assigned `boards` and pending `actions` in
+one authenticated response. Each action has an opaque `id`, a typed `kind`, and
+its payload. `CREATE_CUSTODY_PROOF` carries the canonical `request`. Native
+trustees skip unknown kinds, so more action types can be introduced without
+breaking older runners. If the query field is absent during an upgrade, discovery
+falls back to `list_trustee_boards`; queued proof work needs the new runner and API.
+
+The portal calls `request_server_custody(object: jsonb!): jsonb!`, forwarded to
+`POST /trustee/request-server-custody`. Input names `election_event_id`, exactly
+one of `keys_ceremony_id` or `tally_session_id`, and the uploaded
+`custody_request_json`. Optional `retry_policy` defaults to `KEEP`;
+`RETRY_FAILED` starts a new action after failure. Replies have `status` `PENDING`,
+`READY` with `custody_proof_json`, or `FAILED` with `detail`. The first upload
+requests a failed-action retry; subsequent polls keep the same action. The portal
+stops waiting after approximately two minutes, leaving pending work available
+for a later upload. It cancels local polling when navigating away.
+
+The runner submits `submit_trustee_action_result(result: jsonb!)`, forwarded to
+`POST /trustee/action-result`, and requires an explicit `{accepted: true}` before
+settling delivery. A result includes the action `id`, canonical `request`, and
+`status` `READY` with `custody_proof_json` or `FAILED` with `detail`. Pending work
+is replayed until acknowledged. Repeated identical results are accepted; stale
+IDs, changed scope, invalid signatures and changed completed results are refused.
+Unknown action kinds are left pending for a compatible runner.
+
+All three actions use the `trustee-ceremony` role and trustee JWT claim. Harvest
+rebuilds scope from the tenant's stored, signed DKG configuration, checks committee
+membership and current ceremony lifecycle, and validates uploaded files against
+that scope. The current tally ID is assigned by the platform, never taken from
+the saved file. Work and results are stored as JSON strings in existing ceremony
+annotations, under `trustee:server-custody:<trustee UUID>`, with a unique action ID
+and requesting user. No database migration is needed. A cancelled or inactive
+ceremony does not deliver pending work and cannot accept its result.
 
 The ballot context is the signed configuration's immutable decimal identifier.
 Export/import can remap platform UUIDs and board names while preserving signed
@@ -173,8 +228,7 @@ Legacy browser configurations and protocol stores use incompatible crypto; gener
 a new native identity and run a new key ceremony for those elections.
 Downloads include the trustee name: for example, `trustee1-private-keys.toml`,
 `trustee1-browser-sessions.json` and `trustee1-custody-proof.json`. The ceremony
-wizard also prefixes custody request filenames with the trustee name, and the
-local command examples use those filenames.
+wizard also prefixes ceremony filenames with the trustee name.
 Download and privately back up the keys. Register both displayed public keys for
 this trustee before starting its key ceremony. The account's `trustee` attribute
 must match the registered trustee name.
@@ -221,8 +275,9 @@ The displayed **Platform URL** is `HASURA_URL`. Browser trustees use the
 token and the `trustee-ceremony` role. Hasura forwards those calls internally to
 Harvest, which independently verifies the JWT, tenant, trustee identity and
 assigned board. Harvest remains private and needs no browser-facing URL or CORS
-configuration. Server trustees use the same query and mutation, bearer token and
-role through `TRUSTEE_PLATFORM_URL`. Both require an explicit successful report
+configuration. Server trustees use `trustee_event_updates` for discovery and pending work, and
+`report_trustee_board` for halts, with the same bearer token and role through
+`TRUSTEE_PLATFORM_URL`. Both require an explicit successful report
 acknowledgement before clearing a pending halt.
 
 ## Building and validating browser trustees

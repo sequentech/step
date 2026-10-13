@@ -48,6 +48,48 @@ pub struct TrusteeBoardsResponse {
     pub boards: Vec<TrusteeBoard>,
 }
 
+/// One polling response for board discovery and explicitly requested work.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TrusteeEventUpdates {
+    pub boards: Vec<TrusteeBoard>,
+    #[serde(default)]
+    pub actions: Vec<TrusteeAction>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TrusteeAction {
+    pub id: String,
+    #[serde(flatten)]
+    pub action: TrusteeActionKind,
+}
+
+/// Extensible actions: an older runner skips future kinds and continues its boards.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum TrusteeActionKind {
+    CreateCustodyProof {
+        request: crate::CustodyRequest,
+    },
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "status", rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum TrusteeActionOutcome {
+    Ready { custody_proof_json: String },
+    Failed { detail: String },
+}
+
+/// Results only supply a proof; they never authorize or complete a ceremony.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TrusteeActionResult {
+    pub id: String,
+    pub request: crate::CustodyRequest,
+    #[serde(flatten)]
+    pub outcome: TrusteeActionOutcome,
+}
+
 /// What a trustee reports about one of its boards.
 #[derive(
     Display,
@@ -174,5 +216,43 @@ mod tests {
             "detail": "the board was rewritten",
         });
         assert!(serde_json::from_value::<TrusteeReport>(report).is_err());
+    }
+
+    #[test]
+    fn updates_deliver_typed_actions_and_keep_boards_in_one_response() {
+        let wire = json!({
+            "boards": [{"name": DKG_NAME, "kind": "DKG", "parent": null}],
+            "actions": [{"id": "action", "kind": "CREATE_CUSTODY_PROOF", "request": {
+                "tenant_id": "tenant", "election_event_id": "event",
+                "keys_ceremony_id": "ceremony", "tally_session_id": "tally",
+                "trustee_name": "alice", "signing_public_key": "signing",
+                "share_encryption_public_key": "encryption"
+            }}]
+        });
+        let updates: TrusteeEventUpdates =
+            serde_json::from_value(wire.clone()).unwrap();
+        assert_eq!(
+            updates.boards[0],
+            TrusteeBoard::of(DKG_NAME, None).unwrap()
+        );
+        assert!(matches!(
+            updates.actions[0].action,
+            TrusteeActionKind::CreateCustodyProof { .. }
+        ));
+        assert_eq!(serde_json::to_value(updates).unwrap(), wire);
+    }
+
+    #[test]
+    fn unknown_actions_are_skipped_without_discarding_assigned_boards() {
+        let updates: TrusteeEventUpdates = serde_json::from_value(json!({
+            "boards": [{"name": DKG_NAME, "kind": "DKG", "parent": null}],
+            "actions": [{"id": "future", "kind": "FUTURE_ACTION"}]
+        }))
+        .unwrap();
+        assert_eq!(updates.boards.len(), 1);
+        assert!(matches!(
+            updates.actions[0].action,
+            TrusteeActionKind::Unknown
+        ));
     }
 }
