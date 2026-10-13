@@ -1050,6 +1050,12 @@ enum VotingStatusChannel {
     TELEPHONE
 }
 
+enum RestorePrivateKeyOutcome {
+    ALREADY_RESTORED
+    INVALID
+    RESTORED
+}
+
 input TemplateInput {
     template: String!
     format: String!
