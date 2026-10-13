@@ -15,6 +15,7 @@ use crate::services::election_event_status::get_election_event_status;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::private_keys::get_trustee_encrypted_private_key;
 use crate::services::protocol_manager::get_election_board;
+use crate::services::public_keys;
 use crate::tasks::create_keys::{create_keys, CreateKeysBody};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
@@ -273,11 +274,27 @@ pub async fn check_private_key(
         return Ok(false);
     }
 
+    // The ceremony records its public key on a board review; a trustee who
+    // checks first takes it from the board, so the ceremony can complete.
+    let public_key = match current_status.public_key.clone() {
+        Some(public_key) => Some(public_key),
+        None => {
+            let (board_name, _) = get_keys_ceremony_board(
+                transaction,
+                &tenant_id,
+                &election_event_id,
+                &keys_ceremony,
+            )
+            .await?;
+            public_keys::get_public_key(board_name).await.ok()
+        }
+    };
+
     // Update ceremony with the information that this trustee did get the
     // private key
     let new_status = KeysCeremonyStatus {
         stop_date: None,
-        public_key: current_status.public_key.clone(),
+        public_key,
         logs: append_keys_trustee_check_log(&current_status.logs, &trustee_name),
         trustees: current_status
             .trustees
@@ -295,15 +312,7 @@ pub async fn check_private_key(
             .collect::<Result<Vec<Trustee>>>()?,
     };
 
-    let all_trustees_checked = new_status
-        .trustees
-        .iter()
-        .all(|trustee| trustee.status == TrusteeStatus::KEY_CHECKED);
-    let new_execution_status = if all_trustees_checked {
-        KeysCeremonyExecutionStatus::SUCCESS
-    } else {
-        KeysCeremonyExecutionStatus::IN_PROGRESS
-    };
+    let new_execution_status = checked_execution_status(&new_status);
 
     // update keys-ceremony into the database using graphql
     keys_ceremony::update_keys_ceremony_status(
@@ -325,6 +334,42 @@ pub async fn check_private_key(
         trustee_name.clone()
     );
     Ok(true)
+}
+
+/// The execution status after a trustee checked its key: the ceremony
+/// succeeds once every trustee did, and only with its public key, as its
+/// elections would otherwise be published with the demo key.
+pub fn checked_execution_status(status: &KeysCeremonyStatus) -> KeysCeremonyExecutionStatus {
+    let all_trustees_checked = status
+        .trustees
+        .iter()
+        .all(|trustee| trustee.status == TrusteeStatus::KEY_CHECKED);
+    if all_trustees_checked && status.public_key.is_some() {
+        KeysCeremonyExecutionStatus::SUCCESS
+    } else {
+        KeysCeremonyExecutionStatus::IN_PROGRESS
+    }
+}
+
+/// Whether a publication may use the elections of this keys ceremony. A
+/// ceremony still in progress publishes with the demo key, as before; one
+/// that succeeded without a public key would do the same silently, so it is
+/// refused.
+pub fn validate_publication_public_key(keys_ceremony: &KeysCeremony) -> Result<()> {
+    let succeeded =
+        keys_ceremony.execution_status().ok() == Some(KeysCeremonyExecutionStatus::SUCCESS);
+    let has_public_key = keys_ceremony
+        .status()
+        .ok()
+        .and_then(|status| status.public_key)
+        .is_some();
+    if succeeded && !has_public_key {
+        return Err(anyhow!(
+            "Keys ceremony {} succeeded without a public key",
+            keys_ceremony.id
+        ));
+    }
+    Ok(())
 }
 
 #[instrument(err)]
@@ -589,6 +634,73 @@ mod tests {
                 .downcast_ref::<PrivateKeyDownloadUnavailable>()
                 .is_some()
         })
+    }
+
+    fn checked(public_key: Option<&str>, other_trustee: TrusteeStatus) -> KeysCeremonyStatus {
+        KeysCeremonyStatus {
+            stop_date: None,
+            public_key: public_key.map(str::to_string),
+            logs: vec![],
+            trustees: vec![
+                Trustee {
+                    name: TRUSTEE_NAME.to_string(),
+                    status: TrusteeStatus::KEY_CHECKED,
+                },
+                Trustee {
+                    name: "trustee2".to_string(),
+                    status: other_trustee,
+                },
+            ],
+        }
+    }
+
+    #[test]
+    fn the_ceremony_succeeds_once_every_trustee_checked_its_key() {
+        assert_eq!(
+            checked_execution_status(&checked(Some("public-key"), TrusteeStatus::KEY_CHECKED)),
+            KeysCeremonyExecutionStatus::SUCCESS
+        );
+        assert_eq!(
+            checked_execution_status(&checked(Some("public-key"), TrusteeStatus::KEY_RETRIEVED)),
+            KeysCeremonyExecutionStatus::IN_PROGRESS
+        );
+    }
+
+    #[test]
+    fn the_ceremony_does_not_succeed_without_its_public_key() {
+        // Publication would otherwise give its elections the demo key.
+        assert_eq!(
+            checked_execution_status(&checked(None, TrusteeStatus::KEY_CHECKED)),
+            KeysCeremonyExecutionStatus::IN_PROGRESS
+        );
+    }
+
+    #[test]
+    fn publication_refuses_a_succeeded_ceremony_without_a_public_key() {
+        let mut ceremony = keys_ceremony(
+            KeysCeremonyExecutionStatus::SUCCESS,
+            TrusteeStatus::KEY_CHECKED,
+        );
+        assert!(validate_publication_public_key(&ceremony).is_ok());
+
+        let mut status = ceremony.status().expect("valid status");
+        status.public_key = None;
+        ceremony.status = Some(serde_json::to_value(status).expect("serializable status"));
+        let error = validate_publication_public_key(&ceremony).unwrap_err();
+        assert!(error.to_string().contains("succeeded without a public key"));
+    }
+
+    #[test]
+    fn publication_still_allows_a_ceremony_in_progress() {
+        let mut ceremony = keys_ceremony(
+            KeysCeremonyExecutionStatus::IN_PROGRESS,
+            TrusteeStatus::KEY_GENERATED,
+        );
+        let mut status = ceremony.status().expect("valid status");
+        status.public_key = None;
+        ceremony.status = Some(serde_json::to_value(status).expect("serializable status"));
+
+        assert!(validate_publication_public_key(&ceremony).is_ok());
     }
 
     #[test]
