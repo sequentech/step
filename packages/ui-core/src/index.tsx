@@ -31,6 +31,7 @@ export {downloadBlob, downloadUrl} from "./services/downloadBlob"
 export {shuffle, splitList, keyBy} from "./utils/array"
 export {normalizeWriteInText} from "./services/normalizeWriteInText"
 export {
+    isLanguageEnabled,
     isTranslatablePresentation,
     translate,
     translateFromPresentation,

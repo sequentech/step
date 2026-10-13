@@ -87,6 +87,18 @@ const getPresentation = <K extends string>(
 const getPrimaryLanguageCode = (lang?: string): string | undefined =>
     lang?.split("-")[0].toLowerCase()
 
+export const isLanguageEnabled = (
+    lang: string | undefined,
+    enabledLanguageCodes: Array<string> | undefined
+): boolean => {
+    if (!lang || !enabledLanguageCodes) {
+        return false
+    }
+
+    const primaryLanguage = getPrimaryLanguageCode(lang)
+    return enabledLanguageCodes.some((code) => code === lang || code === primaryLanguage)
+}
+
 const getTranslatedValue = (
     presentation: TranslatablePresentation | undefined,
     language: string | undefined,

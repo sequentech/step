@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {isTranslatablePresentation, translateFromPresentation} from "./translate"
+import {isLanguageEnabled, isTranslatablePresentation, translateFromPresentation} from "./translate"
 
 const presentation = {
     i18n: {
@@ -135,5 +135,30 @@ describe("translateFromPresentation", () => {
 
     it("preserves the legacy value when no presentation translations exist", () => {
         expect(translateFromPresentation({name: "Election"}, "name", "en-GB")).toBe("Election")
+    })
+})
+
+describe("isLanguageEnabled", () => {
+    it("matches enabled internal language codes", () => {
+        expect(isLanguageEnabled("fr", ["en", "fr"])).toBe(true)
+        expect(isLanguageEnabled("cat", ["cat"])).toBe(true)
+    })
+
+    it("normalizes regional user locales to enabled internal language codes", () => {
+        expect(isLanguageEnabled("en-GB", ["en"])).toBe(true)
+        expect(isLanguageEnabled("EN-gb", ["en"])).toBe(true)
+        expect(isLanguageEnabled("fr-CA", ["en", "fr", "es"])).toBe(true)
+    })
+
+    it("rejects languages that are not enabled", () => {
+        expect(isLanguageEnabled("de-DE", ["en", "fr"])).toBe(false)
+        expect(isLanguageEnabled("es", ["en"])).toBe(false)
+        expect(isLanguageEnabled("fr-CA", [])).toBe(false)
+    })
+
+    it("rejects a missing language or language list", () => {
+        expect(isLanguageEnabled(undefined, ["en"])).toBe(false)
+        expect(isLanguageEnabled("", ["en"])).toBe(false)
+        expect(isLanguageEnabled("en", undefined)).toBe(false)
     })
 })
