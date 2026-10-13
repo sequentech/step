@@ -53,6 +53,8 @@ RUN apt-get update \
         libprotobuf-dev \
         m4 \
         make \
+        pkg-config \
+        libssl-dev \
         unzip \
         curl \
     && rm -rf /var/lib/apt/lists/*
