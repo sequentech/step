@@ -320,7 +320,7 @@ ELECTORAL_LOG_PG_PASSWORD = "test"
 ELECTORAL_LOG_PG_DATABASE = "test"
 ELECTORAL_LOG_PG_SSLMODE = "disable"
 ENV_SLUG = "electoral-log-tests"
-WBRAID_BOARD_DATABASE_URL = "postgres://test:test@127.0.0.1:3322/test"
+WBRAID_BOARD_DATABASE_URL = "postgres://test:test@127.0.0.1:3322/test?sslmode=disable"
 
 [profiles.windmill.excluded_files]
 "src/services/messaging/insights_tests.rs" = "Standalone unit-test module under cfg(test); the messaging audience preview and stats remain measured."
@@ -507,7 +507,7 @@ ELECTORAL_LOG_PG_PASSWORD = "test"
 ELECTORAL_LOG_PG_DATABASE = "test"
 ELECTORAL_LOG_PG_SSLMODE = "disable"
 ENV_SLUG = "electoral-log-tests"
-WBRAID_BOARD_DATABASE_URL = "postgres://test:test@127.0.0.1:3322/test"
+WBRAID_BOARD_DATABASE_URL = "postgres://test:test@127.0.0.1:3322/test?sslmode=disable"
 [profiles.voting-crypto]
 package = "voting-crypto"
 features = []
