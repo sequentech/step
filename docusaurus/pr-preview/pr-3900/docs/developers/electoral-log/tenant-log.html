@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Tenant Log | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3900/docs/developers/electoral-log/tenant-log"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Tenant Log | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3900/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3900/docs/developers/electoral-log/tenant-log"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3900/docs/developers/electoral-log/tenant-log" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3900/docs/developers/electoral-log/tenant-log" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Tenant log","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3900/docs/developers/electoral-log/tenant-log"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3900/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3900/assets/js/runtime~main.dc560d64.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3900/assets/js/runtime~main.48e667a1.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3900/assets/js/main.a21d5b2a.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -100,6 +100,11 @@ gap.</li>
 settings, are not recorded.</li>
 <li class="">The tenant log has no checkpoints published to Hasura, no export and no audit action yet.</li>
 <li class="">The console&#x27;s reader role is granted on event databases, not on the base database.</li>
+<li class="">With the listener on the tenant realm, a sign-in to the Admin Portal enqueues its event
+as a voter&#x27;s sign-in does. Under the default <code>ELECTORAL_LOG_PUBLISH_FAILURE_POLICY</code>
+(<code>fail-request</code>) the sign-in fails while the task-queue database cannot be reached or is
+not set up yet; <code>log-and-continue</code> lets it through and loses the entry
+(<a class="" href="/docusaurus/pr-preview/pr-3900/docs/developers/development-environment/task-queues-pgmq">Task queues</a>).</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="6-enabling-it-for-an-existing-tenant">6. Enabling it for an existing tenant<a href="#6-enabling-it-for-an-existing-tenant" class="hash-link" aria-label="Direct link to 6. Enabling it for an existing tenant" title="Direct link to 6. Enabling it for an existing tenant" translate="no">​</a></h2>
 <ul>
