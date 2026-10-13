@@ -104,6 +104,10 @@ RUN printf 'yarn-offline-mirror "/npm-packages-offline-cache"\nyarn-offline-mirr
 # build then fails on something that was never downloaded.
 FROM maven:3-amazoncorretto-17@sha256:046784a9c83821fc3e9ded94c2f18155e0daf1981c8a0813d0ff693a9dc4a51b AS keycloak-m2
 COPY ./keycloak-extensions/ /build/packages/keycloak-extensions/
+# OTP contract tests compare Java values with the shared Rust definitions, as
+# in Dockerfile.keycloak.
+COPY ./sequent-core/src/types/messaging.rs /build/packages/sequent-core/src/types/
+COPY ./sequent-core/src/types/dial_codes.rs /build/packages/sequent-core/src/types/
 WORKDIR /build
 RUN mvn -B -Dmaven.repo.local=/m2-repo \
         -f packages/keycloak-extensions/pom.xml clean package \
