@@ -155,6 +155,19 @@ fn stored(annotations: &Option<Value>, key: &str) -> Result<Option<StoredAction>
         .transpose()
 }
 
+/// Imported annotations may contain unreadable work. Skip it for discovery
+/// and let a validated current upload replace it; results still require a
+/// readable pending action and its exact canonical request.
+fn readable_action(annotations: &Option<Value>, key: &str) -> Option<StoredAction> {
+    match stored(annotations, key) {
+        Ok(action) => action,
+        Err(error) => {
+            tracing::debug!(%error, "Skipping unreadable stored trustee action");
+            None
+        }
+    }
+}
+
 /// Load only a registered committee member's canonical request, rechecking
 /// lifecycle status each time. Callers lock the target before writing.
 async fn scope(
@@ -242,7 +255,7 @@ pub async fn request_server_custody(
     validate_file(&file, &trusted)?;
     let trustee = trustee::get_trustee_by_name(tx, tenant, &trusted.trustee_name).await?;
     let key = action_key(&trustee.id);
-    if let Some(action) = stored(&annotations, &key)? {
+    if let Some(action) = readable_action(&annotations, &key) {
         // An imported event may retain work scoped to its original UUIDs.
         // Only a validated current file can replace that stale request.
         if action.request == trusted
@@ -280,7 +293,7 @@ pub async fn event_updates(
     let mut actions = Vec::new();
     for row in rows {
         let annotations: Option<Value> = row.try_get("annotations")?;
-        let Some(action) = stored(&annotations, &key)? else {
+        let Some(action) = readable_action(&annotations, &key) else {
             continue;
         };
         if action.outcome.is_some() {

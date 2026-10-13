@@ -342,8 +342,10 @@ mod tests {
             names(&["trustee3", "trustee1"])
         );
         assert_eq!(
-            stored.quorum_names(&names(&["trustee1", "trustee2"]))
-                .unwrap_err().to_string(),
+            stored
+                .quorum_names(&names(&["trustee1", "trustee2"]))
+                .unwrap_err()
+                .to_string(),
             "quorum trustee index 3 is outside the committee"
         );
     }

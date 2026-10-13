@@ -92,7 +92,6 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
                 const fileReader = new FileReader()
                 fileReader.onload = () => resolve(fileReader.result as string)
                 fileReader.onerror = (error) => reject(error)
-                // Read the file as a data URL (base64 encoded string)
                 fileReader.readAsText(file)
             })
         }
@@ -139,7 +138,10 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
                         ></Trans>
                     </Typography>
 
-                    <DropFile handleFiles={uploadCustodyProof} />
+                    <DropFile
+                        handleFiles={uploadCustodyProof}
+                        formatLabel={t("keysGeneration.serverCustody.fileFormat")}
+                    />
                     <WizardStyles.StatusBox>
                         {uploading ? <WizardStyles.DownloadProgress /> : null}
                         {errors ? (

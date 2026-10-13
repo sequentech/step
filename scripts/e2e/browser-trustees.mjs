@@ -8,6 +8,7 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { resolve, extname } from "node:path";
 import { chromium } from "../../packages/node_modules/playwright/index.mjs";
+import { verifyPublicTranscript } from "./public-transcripts.mjs";
 import ts from "../../packages/node_modules/typescript/lib/typescript.js";
 
 const root = resolve("packages/admin-portal/public");
@@ -126,60 +127,11 @@ const server = createServer(async (request, response) => {
       await initialize(page, input);
       clients.set(input.name, { page, context });
     } else if (path === "/verify") {
-      // A separate public observer page has no trustee identity or keys.
-      const context = await browser.newContext();
-      const page = await context.newPage();
-      try {
-        await page.goto("http://localhost:9229/");
-        await page.waitForFunction(() => Boolean(window.module));
-        result = await page.evaluate(async (input) => {
-          const verifier = window.module.WasmVerifier;
-          const anchors = {
-            ...input.anchors,
-            configuration_hash: verifier.configurationHash(
-              input.configurationMessage,
-            ),
-            ballots_hash: input.ballotsMessage
-              ? verifier.ballotsHash(input.ballotsMessage)
-              : null,
-          };
-          const transcript = await verifier.fetchTranscript(
-            input.boardUrl,
-            input.dkgBoard,
-            input.tallyBoard,
-          );
-          const report = JSON.parse(
-            verifier.verifyTranscript(transcript, JSON.stringify(anchors)),
-          );
-          const wrongAnchor = JSON.parse(
-            verifier.verifyTranscript(
-              transcript,
-              JSON.stringify({
-                ...anchors,
-                configuration_hash: "00".repeat(64),
-              }),
-            ),
-          );
-          const incomplete = JSON.parse(transcript);
-          if (incomplete.tally_messages) incomplete.tally_messages = [];
-          else incomplete.dkg_messages = [];
-          const truncated = JSON.parse(
-            verifier.verifyTranscript(
-              JSON.stringify(incomplete),
-              JSON.stringify(anchors),
-            ),
-          );
-          return {
-            transcript: JSON.parse(transcript),
-            anchors,
-            report,
-            wrongAnchor,
-            truncated,
-          };
-        }, input);
-      } finally {
-        await context.close();
-      }
+      result = await verifyPublicTranscript(
+        browser,
+        "http://localhost:9229",
+        input,
+      );
     } else {
       const client = clients.get(input.name);
       if (!client) throw new Error("trustee not started");

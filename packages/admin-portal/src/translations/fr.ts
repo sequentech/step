@@ -2370,6 +2370,7 @@ const frenchTranslation: TranslationType = {
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
             serverCustody: {
+                fileFormat: "Format accepté : JSON",
                 waiting: "En attente de la preuve de garde créée par votre serveur dépositaire…",
                 unavailable:
                     "Le serveur dépositaire n’a pas répondu. Vérifiez qu’il fonctionne, puis importez à nouveau le fichier de cérémonie.",

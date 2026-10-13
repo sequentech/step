@@ -2361,6 +2361,7 @@ const tagalogTranslation: TranslationType = {
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
             serverCustody: {
+                fileFormat: "Sinusuportahang format: JSON",
                 waiting: "Hinihintay ang trustee server na gumawa ng patunay ng pag-iingat…",
                 unavailable:
                     "Hindi tumugon ang trustee server. Tiyaking tumatakbo ito, pagkatapos ay i-upload muli ang ceremony file.",

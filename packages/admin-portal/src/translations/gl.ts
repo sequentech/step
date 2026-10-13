@@ -2347,6 +2347,7 @@ const galegoTranslation: TranslationType = {
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
             serverCustody: {
+                fileFormat: "Formato admitido: JSON",
                 waiting: "Agardando a que o servidor custodio cree unha proba de custodia…",
                 unavailable:
                     "O servidor custodio non respondeu. Comproba que está activo e volve cargar o ficheiro da cerimonia.",

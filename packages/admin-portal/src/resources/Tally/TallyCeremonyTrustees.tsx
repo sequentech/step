@@ -249,7 +249,6 @@ export const TallyCeremonyTrustees: React.FC = () => {
                 const fileReader = new FileReader()
                 fileReader.onload = () => resolve(fileReader.result as string)
                 fileReader.onerror = (error) => reject(error)
-                // Read the file as a data URL (base64 encoded string)
                 fileReader.readAsText(file)
             })
         }
@@ -312,7 +311,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
                             <Box>
                                 <ElectionHeader
                                     title={"tally.trusteeTitle"}
-                                    subtitle={"tally.trusteeSubTitle"}
+                                    subtitle={"keysGeneration.checkStep.subtitle"}
                                 />
                                 {redoSigned && !verified ? (
                                     <Typography variant="body1">
@@ -323,7 +322,10 @@ export const TallyCeremonyTrustees: React.FC = () => {
                                 <Alert severity="info" sx={{mb: 2}}>
                                     {t("keysGeneration.serverCustody.tallyInstructions")}
                                 </Alert>
-                                <DropFile handleFiles={uploadCustodyProof} />
+                                <DropFile
+                                    handleFiles={uploadCustodyProof}
+                                    formatLabel={t("keysGeneration.serverCustody.fileFormat")}
+                                />
 
                                 <WizardStyles.StatusBox>
                                     {uploading ? <WizardStyles.DownloadProgress /> : null}

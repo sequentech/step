@@ -195,8 +195,9 @@ one of `keys_ceremony_id` or `tally_session_id`, and the uploaded
 `RETRY_FAILED` starts a new action after failure. Replies have `status` `PENDING`,
 `READY` with `custody_proof_json`, or `FAILED` with `detail`. The first upload
 requests a failed-action retry; subsequent polls keep the same action. The portal
-stops waiting after approximately two minutes, leaving pending work available
-for a later upload. It cancels local polling when navigating away.
+stops waiting after two minutes, including stalled network requests, leaving
+pending work available for a later upload. It cancels polling and in-flight HTTP
+requests when navigating away.
 
 The runner submits `submit_trustee_action_result(result: jsonb!)`, forwarded to
 `POST /trustee/action-result`, and requires an explicit `{accepted: true}` before
@@ -213,7 +214,9 @@ that scope. The current tally ID is assigned by the platform, never taken from
 the saved file. Work and results are stored as JSON strings in existing ceremony
 annotations, under `trustee:server-custody:<trustee UUID>`, with a unique action ID
 and requesting user. No database migration is needed. A cancelled or inactive
-ceremony does not deliver pending work and cannot accept its result.
+ceremony does not deliver pending work and cannot accept its result. Unreadable
+imported action metadata is skipped during discovery so it cannot halt other
+boards; a validated current file can replace it with fresh work.
 
 The ballot context is the signed configuration's immutable decimal identifier.
 Export/import can remap platform UUIDs and board names while preserving signed
@@ -309,6 +312,24 @@ ballot publication, voting admission, revotes and grace-period checks. Reports a
 `.cache/backend-e2e/<project>/browser-journey.json`. `--skip-images --skip-build`
 reuses prebuilt backend fixtures; browser bindings must already match the source.
 The runner cleans up only its own stack and controller.
+
+```sh
+scripts/e2e/run-server-custody.sh
+```
+
+This separate disposable journey keeps the native trustee daemons running and
+opens the production administration portal in Chromium. Each trustee logs in,
+downloads its public ceremony file, saves two copies, rejects an incorrect file,
+and uploads the original to confirm key custody. The same saved file authorizes
+a subsequent manual tally without a server command. The journey also checks
+that pending custody blocks ballot publication, proofs cannot be replayed across
+ceremonies, votes produce the expected result, and an anonymous WASM observer
+verifies the public transcripts with invalid-anchor and truncated-transcript
+controls. Reports, saved files and screenshots are in
+`.cache/backend-e2e/<project>/`. The launcher builds the production portal;
+`--skip-ui-build` reuses it, and `--skip-images --skip-build` reuse backend
+fixtures. It restores synthetic OTP settings after browser login and cleans up
+only its own stack and controller.
 
 [Public ceremony and tally verification](./public-verification.md) describes
 the independent native and browser verifier, public exports, trust anchors and

@@ -351,3 +351,99 @@ async fn a_valid_current_file_can_replace_stale_work_after_an_event_import() {
     assert_ne!(f.pending(&tx, None).await.id, "old-action");
     tx.rollback().await.unwrap();
 }
+
+#[tokio::test]
+async fn malformed_stored_work_does_not_stop_board_discovery_and_can_be_requeued() {
+    let mut db = schema::pool().await.get().await.unwrap();
+    let tx = db.transaction().await.unwrap();
+    let f = Fixture::new(&tx).await;
+    let key = format!("trustee:server-custody:{}", f.trustee);
+    let annotations = json!({key: "malformed imported action"});
+    tx.execute(
+        "UPDATE sequent_backend.keys_ceremony SET annotations=$2 WHERE id=$1",
+        &[&f.keys, &annotations],
+    )
+    .await
+    .unwrap();
+    let updates = trustee_updates::event_updates(&tx, &f.claims)
+        .await
+        .unwrap();
+    assert!(updates.actions.is_empty());
+    assert!(updates
+        .boards
+        .iter()
+        .any(|board| board.name.as_str() == format!("dkg_{}", f.keys.simple())));
+    assert!(matches!(
+        trustee_updates::request_server_custody(&tx, &f.claims, &f.input(None))
+            .await
+            .unwrap(),
+        ServerCustodyReply::Pending
+    ));
+    let result = f.pending(&tx, None).await;
+    assert_eq!(result.request, f.request);
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn publishing_a_generated_ballot_still_requires_completed_human_custody() {
+    use windmill::domain::publication_files::{publication_root, FILES_ANNOTATION};
+    use windmill::services::ballot_styles::ballot_publication::{
+        update_publish_ballot, BallotPublicationValidationError,
+    };
+    use windmill::services::scheduled_outcome::PublicationLifecycle;
+
+    let mut db = schema::pool().await.get().await.unwrap();
+    let tx = db.transaction().await.unwrap();
+    let f = Fixture::new(&tx).await;
+    let election = Uuid::new_v4();
+    let area = Uuid::new_v4();
+    let publication = Uuid::new_v4();
+    let style = Uuid::new_v4();
+    tx.execute("INSERT INTO sequent_backend.election(id,tenant_id,election_event_id,keys_ceremony_id) VALUES ($1,$2,$3,$4)", &[&election,&f.tenant,&f.event,&f.keys]).await.unwrap();
+    tx.execute("INSERT INTO sequent_backend.area(id,tenant_id,election_event_id,name) VALUES ($1,$2,$3,'fixture')", &[&area,&f.tenant,&f.event]).await.unwrap();
+    let annotations =
+        json!({FILES_ANNOTATION: publication_root(f.tenant, f.event, publication, Uuid::new_v4())});
+    windmill::postgres::trusted_write(&tx).await.unwrap();
+    tx.execute("INSERT INTO sequent_backend.ballot_publication(id,tenant_id,election_event_id,election_ids,is_generated,annotations) VALUES ($1,$2,$3,$4,true,$5)", &[&publication,&f.tenant,&f.event,&vec![election],&annotations]).await.unwrap();
+    let mut ballot = json!({"id":style,"tenant_id":f.tenant,"election_event_id":f.event,"election_id":election,"area_id":area,"contests":[],"public_key":{"public_key":"verified-joint-key","is_demo":false,"keys_ceremony_id":f.keys}});
+    tx.execute("INSERT INTO sequent_backend.ballot_style(id,tenant_id,election_event_id,election_id,area_id,ballot_publication_id,ballot_eml) VALUES ($1,$2,$3,$4,$5,$6,$7)", &[&style,&f.tenant,&f.event,&election,&area,&publication,&ballot.to_string()]).await.unwrap();
+    // Both the verified native key and a cached demo fallback must hit the
+    // actual publication handler's custody guard before any publication write.
+    for demo in [false, true] {
+        ballot["public_key"]["is_demo"] = json!(demo);
+        tx.execute(
+            "UPDATE sequent_backend.ballot_style SET ballot_eml=$2 WHERE id=$1",
+            &[&style, &ballot.to_string()],
+        )
+        .await
+        .unwrap();
+        let error = update_publish_ballot(
+            &tx,
+            Uuid::new_v4().to_string(),
+            "fixture".into(),
+            f.tenant.to_string(),
+            f.event.to_string(),
+            publication.to_string(),
+            &PublicationLifecycle::Current,
+        )
+        .await
+        .unwrap_err();
+        assert!(error.is::<BallotPublicationValidationError>(), "{error:#}");
+        assert!(
+            error
+                .to_string()
+                .contains("must complete before ballot publication"),
+            "{error:#}"
+        );
+        let published: Option<chrono::DateTime<chrono::Utc>> = tx
+            .query_one(
+                "SELECT published_at FROM sequent_backend.ballot_publication WHERE id=$1",
+                &[&publication],
+            )
+            .await
+            .unwrap()
+            .get(0);
+        assert!(published.is_none());
+    }
+    tx.rollback().await.unwrap();
+}

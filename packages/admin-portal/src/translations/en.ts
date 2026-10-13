@@ -2314,6 +2314,7 @@ const englishTranslation = {
         },
         keysGeneration: {
             serverCustody: {
+                fileFormat: "Supported format: JSON",
                 waiting: "Waiting for your trustee server to create a custody proof…",
                 unavailable:
                     "The trustee server has not responded. Check that it is running, then upload the ceremony file again.",

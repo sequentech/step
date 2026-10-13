@@ -7,6 +7,7 @@ import {IPermissions} from "@/types/keycloak"
 import {REQUEST_SERVER_CUSTODY} from "@/queries/RequestServerCustody"
 import {
     resolveCustodyFile,
+    SERVER_CUSTODY_TIMEOUT_MS,
     ServerCustodyError,
     type IServerCustodyInput,
     type IServerCustodyReply,
@@ -18,9 +19,7 @@ export const useServerCustodyProof = (scope: IServerCustodyScope) => {
     const [request] = useMutation<
         {request_server_custody: IServerCustodyReply},
         {object: IServerCustodyInput}
-    >(REQUEST_SERVER_CUSTODY, {
-        context: {headers: {"x-hasura-role": IPermissions.TRUSTEE_CEREMONY}},
-    })
+    >(REQUEST_SERVER_CUSTODY)
     const [waiting, setWaiting] = useState(false)
     const controller = useRef<AbortController | null>(null)
     const {election_event_id, keys_ceremony_id, tally_session_id} = scope
@@ -40,12 +39,22 @@ export const useServerCustodyProof = (scope: IServerCustodyScope) => {
             const current = new AbortController()
             controller.current = current
             setWaiting(true)
+            const deadline = setTimeout(
+                () => current.abort(new ServerCustodyError("unavailable")),
+                SERVER_CUSTODY_TIMEOUT_MS
+            )
             try {
                 return await resolveCustodyFile(
                     text,
                     {election_event_id, keys_ceremony_id, tally_session_id},
                     async (object) => {
-                        const {data, errors} = await request({variables: {object}})
+                        const {data, errors} = await request({
+                            variables: {object},
+                            context: {
+                                headers: {"x-hasura-role": IPermissions.TRUSTEE_CEREMONY},
+                                fetchOptions: {signal: current.signal},
+                            },
+                        })
                         if (errors?.length)
                             throw new ServerCustodyError(
                                 "failed",
@@ -60,21 +69,26 @@ export const useServerCustodyProof = (scope: IServerCustodyScope) => {
                     current.signal
                 )
             } catch (error) {
-                const failure = current.signal.aborted
-                    ? new ServerCustodyError("cancelled")
-                    : error instanceof ServerCustodyError
-                      ? error
-                      : error instanceof ApolloError && error.graphQLErrors.length
-                        ? new ServerCustodyError(
-                              "failed",
-                              error.graphQLErrors.map(({message}) => message).join("; ")
-                          )
-                        : new ServerCustodyError("unavailable")
+                let failure = new ServerCustodyError("unavailable")
+                if (current.signal.aborted) {
+                    failure =
+                        current.signal.reason instanceof ServerCustodyError
+                            ? current.signal.reason
+                            : new ServerCustodyError("cancelled")
+                } else if (error instanceof ServerCustodyError) {
+                    failure = error
+                } else if (error instanceof ApolloError && error.graphQLErrors.length) {
+                    failure = new ServerCustodyError(
+                        "failed",
+                        error.graphQLErrors.map(({message}) => message).join("; ")
+                    )
+                }
                 failure.message = t(`keysGeneration.serverCustody.${failure.reason}`, {
                     error: failure.detail,
                 })
                 throw failure
             } finally {
+                clearTimeout(deadline)
                 if (controller.current === current) setWaiting(false)
             }
         },

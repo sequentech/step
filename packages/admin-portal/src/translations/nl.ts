@@ -2348,6 +2348,7 @@ const dutchTranslation: TranslationType = {
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
             serverCustody: {
+                fileFormat: "Ondersteund formaat: JSON",
                 waiting: "Wachten tot uw trusteeserver een bewijs van sleutelbezit maakt…",
                 unavailable:
                     "De trusteeserver heeft niet gereageerd. Controleer of deze actief is en upload het ceremoniebestand opnieuw.",

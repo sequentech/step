@@ -1,6 +1,10 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
-import {resolveCustodyFile} from "./serverCustody"
+import {readFileSync} from "node:fs"
+import {resolve} from "node:path"
+import {runInNewContext} from "node:vm"
+import ts from "typescript"
+import {resolveCustodyFile, ServerCustodyError} from "./serverCustody"
 
 const file = JSON.stringify({
     tenant_id: "tenant",
@@ -79,4 +83,41 @@ test("a cancelled upload cannot submit an offline proof either", async () => {
         resolveCustodyFile("offline proof", scope, request, undefined, undefined, controller.signal)
     ).rejects.toMatchObject({reason: "cancelled"})
     expect(request).not.toHaveBeenCalled()
+})
+
+test("cancelling a stalled server request finishes without waiting for the network", async () => {
+    const controller = new AbortController()
+    const request = jest.fn(() => new Promise<never>(() => undefined))
+    const result = resolveCustodyFile(file, scope, request, undefined, undefined, controller.signal)
+    controller.abort()
+    await expect(result).rejects.toMatchObject({reason: "cancelled"})
+})
+
+test("a deadline abort reports an unavailable server", async () => {
+    const controller = new AbortController()
+    const request = jest.fn(() => new Promise<never>(() => undefined))
+    const result = resolveCustodyFile(file, scope, request, undefined, undefined, controller.signal)
+    controller.abort(new ServerCustodyError("unavailable"))
+    await expect(result).rejects.toMatchObject({reason: "unavailable"})
+})
+
+// The production portal emits ES5; native Error subclasses must retain their
+// identity there so UI error handling and deadline reasons work after bundling.
+test("production ES5 errors retain their class and unavailable deadline reason", async () => {
+    const source = readFileSync(resolve(__dirname, "serverCustody.ts"), "utf8")
+    const compiled = ts.transpileModule(source, {
+        compilerOptions: {target: ts.ScriptTarget.ES5, module: ts.ModuleKind.CommonJS},
+    })
+    const exports = {} as {
+        ServerCustodyError: typeof ServerCustodyError
+        resolveCustodyFile: typeof resolveCustodyFile
+    }
+    runInNewContext(compiled.outputText, {exports, Error})
+    const error = new exports.ServerCustodyError("unavailable")
+    expect(error).toBeInstanceOf(exports.ServerCustodyError)
+    const controller = new AbortController()
+    controller.abort(error)
+    await expect(
+        exports.resolveCustodyFile(file, scope, jest.fn(), undefined, undefined, controller.signal)
+    ).rejects.toMatchObject({reason: "unavailable"})
 })

@@ -357,6 +357,7 @@ export const SavedCeremonyFileAuthorizesCurrentTally: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await canvas.findByRole("checkbox", {name: "Council"})
+        await expect(canvas.getByText(i18n.t("keysGeneration.checkStep.subtitle"))).toBeVisible()
         await uploadKey(canvasElement, CUSTODY_REQUEST)
         await waitFor(() => expect(nextButton(canvasElement)).toBeEnabled())
         const request = graphql.calls.find(({name}) => name === "RequestServerCustody")

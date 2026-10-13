@@ -2361,6 +2361,7 @@ const catalanTranslation: TranslationType = {
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
             serverCustody: {
+                fileFormat: "Format admès: JSON",
                 waiting: "Esperant que el teu servidor custodi creï una prova de custòdia…",
                 unavailable:
                     "El servidor custodi no ha respost. Comprova que està actiu i torna a carregar el fitxer de cerimònia.",

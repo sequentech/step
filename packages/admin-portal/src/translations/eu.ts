@@ -2339,6 +2339,7 @@ const basqueTranslation: TranslationType = {
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
             serverCustody: {
+                fileFormat: "Onartutako formatua: JSON",
                 waiting: "Zure zaindariaren zerbitzariak zaintza-froga sortu arte zain…",
                 unavailable:
                     "Zaindariaren zerbitzariak ez du erantzun. Egiaztatu martxan dagoela eta kargatu berriro zeremoniaren fitxategia.",

@@ -30,6 +30,7 @@ from .client import (
     TENANT_ID,
     TENANT_REALM,
     Hasura,
+    GraphQLError,
     Http,
     Keycloak,
     StepCli,
@@ -81,7 +82,9 @@ class BackendJourneys(unittest.TestCase):
 
     def verify_public_transcripts(self, event_id, ballot_ciphertexts=None):
         """An anonymous Chromium observer verifies all real public proofs."""
-        controller = ENV.get("STEP_E2E_BROWSER_TRUSTEES_URL")
+        controller = ENV.get("STEP_E2E_BROWSER_TRUSTEES_URL") or ENV.get(
+            "STEP_E2E_SERVER_CUSTODY_BROWSER_URL"
+        )
         if not controller:
             return
         boards = self.admin.query(
@@ -1035,10 +1038,10 @@ class BackendJourneys(unittest.TestCase):
         (publication,) = recovered["sequent_backend_ballot_publication"]
         self.assertNotEqual(publication["id"], original_publication["id"])
         self.assertTrue(publication["is_generated"])
-        self.assertEqual(
-            publication["published_at"], original_publication["published_at"]
-        )
-        self.assertTrue(publication["published_at"])
+        # Import preserves verified key material and generated ballots, but
+        # resets the live publication gate for the new event.
+        self.assertTrue(original_publication["published_at"])
+        self.assertIsNone(publication["published_at"])
         self.assertTrue(
             publication["annotations"]["ballot_files_v1"].startswith(
                 f"tenant-{TENANT_ID}/event-{recovered_id}/publication-{publication['id']}/"
@@ -1124,7 +1127,8 @@ class BackendJourneys(unittest.TestCase):
         )
         (publication,) = recovered["sequent_backend_ballot_publication"]
         self.assertTrue(publication["is_generated"])
-        self.assertTrue(publication["published_at"])
+        # Encrypted API import applies the same publication reset as CLI import.
+        self.assertIsNone(publication["published_at"])
         expected = sorted(sum(self.expected(key).values()) for key in ("A", "B", "C"))
         results = recovered["sequent_backend_results_contest"]
         self.assertEqual(sorted(r["total_votes"] for r in results), expected)
@@ -1253,10 +1257,10 @@ class BackendJourneys(unittest.TestCase):
                 self.assertEqual(
                     [e["extensions"]["code"] for e in errors], ["PokValidationFailed"]
                 )
-                stored = self.admin.query(
-                    "query ($event: uuid!) { sequent_backend_cast_vote(where: {election_event_id: {_eq: $event}}) { id } }",
+                stored = Hasura(token=token).query(
+                    "query ($event: String!) { get_voter_cast_votes(election_event_id: $event) { area_id election_id status } }",
                     {"event": event_id},
-                )["sequent_backend_cast_vote"]
+                )["get_voter_cast_votes"]
                 self.assertEqual(stored, [])
             receipt, errors = portal.cast(token, ballot)
             self.assertIsNone(errors)
@@ -1344,6 +1348,60 @@ class BackendJourneys(unittest.TestCase):
         # Optional real-browser participants use the same journey and independent
         # vote/result oracle. The owned native daemons must be stopped by the runner.
         browser_url = ENV.get("STEP_E2E_BROWSER_TRUSTEES_URL")
+        server_browser_url = ENV.get("STEP_E2E_SERVER_CUSTODY_BROWSER_URL")
+
+        def server_browser_call(operation, name, tally_id=None):
+            # Use the repository's synthetic OTP mode only during real UI login;
+            # restore the realm's actual configuration even on browser failure.
+            config = bootstrap.email_otp_config(self.keycloak)
+            original = config["config"].get("test-mode", "false")
+            config["config"]["test-mode"] = "true"
+            self.keycloak.admin(
+                "PUT",
+                f"{TENANT_REALM}/authentication/config/{config['id']}",
+                config,
+                expect=(204,),
+            )
+            try:
+                response = Http().post(
+                    server_browser_url + operation,
+                    json_body={
+                        "name": name,
+                        "password": ENV[f"{name.upper()}_PASSWORD"],
+                        "eventId": event_id,
+                        "ceremonyId": ceremony_id,
+                        "tallyId": tally_id,
+                        "otp": config["config"].get("test-mode-code", "123456"),
+                    },
+                    timeout=180,
+                )
+                self.assertEqual(response.status, 200, response.body.decode())
+                return response.json()
+            finally:
+                config["config"]["test-mode"] = original
+                self.keycloak.admin(
+                    "PUT",
+                    f"{TENANT_REALM}/authentication/config/{config['id']}",
+                    config,
+                    expect=(204,),
+                )
+
+        if server_browser_url:
+            health = Http().get(server_browser_url + "/health").json()
+            admin_origin = health["adminOrigin"]
+            clients = self.keycloak.admin(
+                "GET", f"{TENANT_REALM}/clients?clientId=admin-portal"
+            )
+            self.assertEqual(len(clients), 1)
+            client = clients[0]
+            client["redirectUris"] = [
+                *client.get("redirectUris", []),
+                admin_origin + "/*",
+            ]
+            client["webOrigins"] = [*client.get("webOrigins", []), admin_origin]
+            self.keycloak.admin(
+                "PUT", f"{TENANT_REALM}/clients/{client['id']}", client, expect=(204,)
+            )
 
         def browser_call(operation, **body):
             response = Http().post(browser_url + operation, json_body=body)
@@ -1438,33 +1496,67 @@ class BackendJourneys(unittest.TestCase):
                 },
             )
 
+        request_query = """mutation ($input: jsonb!) {
+          request_server_custody(object: $input)
+        }"""
+        if not browser_url:
+            # The human uploads the saved public file; no trustee-host command
+            # produces a proof, and another trustee's file must be refused.
+            with self.assertRaisesRegex(GraphQLError, "does not match this trustee"):
+                apis["trustee1"].query(
+                    request_query,
+                    {
+                        "input": {
+                            "election_event_id": event_id,
+                            "keys_ceremony_id": ceremony_id,
+                            "custody_request_json": requests["trustee2"],
+                        }
+                    },
+                )
+
         def attest(name, request):
             if browser_url:
                 return browser_call("/attest", name=name, request=request)["proof"]
-            cli = trustee_clients[name]
-            request_path = cli.directory / "custody-request.json"
-            proof_path = cli.directory / "custody-proof.json"
-            request_path.write_text(request)
-            subprocess.run(
-                [
-                    str(
-                        Path(ENV.get("STEP_E2E_BIN_DIR", "/opt/step-e2e/bin"))
-                        / "trustee"
-                    ),
-                    "attest",
-                    "--request",
-                    str(request_path),
-                    "--trustee-config",
-                    str(ROOT / f"packages/trustee/dev/{name}.toml"),
-                    "--output",
-                    str(proof_path),
-                ],
-                check=True,
-                capture_output=True,
-                text=True,
-                timeout=30,
+            scoped = json.loads(request)
+            tally_id = scoped["tally_session_id"]
+            target = (
+                {"tally_session_id": tally_id}
+                if tally_id
+                else {"keys_ceremony_id": ceremony_id}
             )
-            return proof_path.read_text()
+            saved_file = requests[name]
+            saved_path = trustee_clients[name].directory / "custody-request.json"
+            saved_path.write_text(saved_file)
+            input = {
+                "election_event_id": event_id,
+                **target,
+                "custody_request_json": saved_path.read_text(),
+                "retry_policy": "KEEP",
+            }
+
+            def ready_proof():
+                reply = apis[name].query(request_query, {"input": input})[
+                    "request_server_custody"
+                ]
+                self.assertIn(reply["status"], ("PENDING", "READY"), reply)
+                return (
+                    reply.get("custody_proof_json")
+                    if reply["status"] == "READY"
+                    else None
+                )
+
+            proof = wait_until(
+                f"{name}'s server custody proof", ready_proof, timeout=120
+            )
+            self.assertEqual(saved_path.read_text(), saved_file)
+            self.assertEqual(json.loads(proof)["request"], scoped)
+            updates = apis[name].query("query { trustee_event_updates }")[
+                "trustee_event_updates"
+            ]
+            self.assertFalse(
+                any(action.get("request") == scoped for action in updates["actions"])
+            )
+            return proof
 
         check_query = """mutation ($event: String!, $ceremony: String!, $proof: String!) {
           confirm_key_custody(object: {election_event_id: $event, keys_ceremony_id: $ceremony,
@@ -1485,28 +1577,36 @@ class BackendJourneys(unittest.TestCase):
             {"CUSTODY_REQUEST_RETRIEVED"},
         )
         for index, name in enumerate(bootstrap.TRUSTEES):
-            if browser_url:
+            # Server proof production is independently exercised above and
+            # leaves custody awaiting this explicit human approval.
+            before = ceremony()
+            self.assertEqual(
+                next(
+                    t["status"]
+                    for t in before["status"]["trustees"]
+                    if t["name"] == name
+                ),
+                "CUSTODY_REQUEST_RETRIEVED",
+            )
+            if server_browser_url:
+                browser_result = server_browser_call("/key-custody", name)
+                self.assertEqual(browser_result["file"], requests[name])
+                self.assertEqual(
+                    json.loads(browser_result["proof"])["request"],
+                    json.loads(requests[name]),
+                )
+            else:
+                proof = attest(name, requests[name])
                 self.assertTrue(
                     apis[name].query(
                         check_query,
                         {
                             "event": event_id,
                             "ceremony": ceremony_id,
-                            "proof": attest(name, requests[name]),
+                            "proof": proof,
                         },
                     )["confirm_key_custody"]["is_valid"]
                 )
-            else:
-                output = trustee_clients[name].step(
-                    "complete-key-ceremony",
-                    "--election-event-id",
-                    event_id,
-                    "--key-ceremony-id",
-                    ceremony_id,
-                    "--trustee-config",
-                    str(ROOT / f"packages/trustee/dev/{name}.toml"),
-                )
-                self.assertIn("Success! Completed key custody", output)
             row = ceremony()
             self.assertEqual(
                 row["execution_status"], "IN_PROGRESS" if index == 0 else "SUCCESS"
@@ -1531,31 +1631,17 @@ class BackendJourneys(unittest.TestCase):
                 browser_call("/restore-in-new-browser", name="trustee2")["restored"]
             )
 
-        # Rechecking uses the saved public request and cannot downgrade completed custody.
-        if browser_url:
-            self.assertTrue(
-                apis["trustee1"].query(
-                    check_query,
-                    {
-                        "event": event_id,
-                        "ceremony": ceremony_id,
-                        "proof": attest("trustee1", requests["trustee1"]),
-                    },
-                )["confirm_key_custody"]["is_valid"]
-            )
-        else:
-            self.assertIn(
-                "Success! Completed key custody",
-                trustee_clients["trustee1"].step(
-                    "complete-key-ceremony",
-                    "--election-event-id",
-                    event_id,
-                    "--key-ceremony-id",
-                    ceremony_id,
-                    "--trustee-config",
-                    str(ROOT / "packages/trustee/dev/trustee1.toml"),
-                ),
-            )
+        # Rechecking uses the saved public request and cannot downgrade custody.
+        self.assertTrue(
+            apis["trustee1"].query(
+                check_query,
+                {
+                    "event": event_id,
+                    "ceremony": ceremony_id,
+                    "proof": attest("trustee1", requests["trustee1"]),
+                },
+            )["confirm_key_custody"]["is_valid"]
+        )
         self.assertEqual(
             {t["status"] for t in ceremony()["status"]["trustees"]},
             {"CUSTODY_CONFIRMED"},
@@ -1631,28 +1717,46 @@ class BackendJourneys(unittest.TestCase):
                 "ELECTORAL_RESULTS",
             )
         )
-        if not browser_url:
-            for name in bootstrap.TRUSTEES:
-                output = trustee_clients[name].step(
-                    "confirm-key-tally",
-                    "--election-event-id",
-                    event_id,
-                    "--tally-id",
-                    tally_id,
-                    "--trustee-config",
-                    str(ROOT / f"packages/trustee/dev/{name}.toml"),
+        for name in bootstrap.TRUSTEES:
+            request = json.loads(requests[name])
+            request["tally_session_id"] = tally_id
+            proof = attest(name, json.dumps(request))
+            if not browser_url:
+                executions = self.admin.query(
+                    "query($tally: uuid!) { sequent_backend_tally_session_execution(where: {tally_session_id: {_eq: $tally}}, order_by: {created_at: desc}, limit: 1) { status } }",
+                    {"tally": tally_id},
+                )["sequent_backend_tally_session_execution"]
+                self.assertEqual(
+                    next(
+                        t["status"]
+                        for t in executions[0]["status"]["trustees"]
+                        if t["name"] == name
+                    ),
+                    "WAITING",
                 )
-                self.assertIn("Success! Successfully confirmed key", output)
-        if browser_url:
-            for name in bootstrap.TRUSTEES:
-                request = json.loads(requests[name])
-                request["tally_session_id"] = tally_id
-                proof = attest(name, json.dumps(request))
-                result = apis[name].query(
-                    """mutation ($event: String!, $tally: String!, $proof: String!) {
+                # A key-ceremony proof cannot authorize this tally.
+                replay = apis[name].query(
+                    """mutation($event: String!, $tally: String!, $proof: String!) {
                   authorize_tally_custody(object: {election_event_id: $event, tally_session_id: $tally,
                     custody_proof_json: $proof}) { is_valid }
                 }""",
+                    {
+                        "event": event_id,
+                        "tally": tally_id,
+                        "proof": attest(name, requests[name]),
+                    },
+                )
+                self.assertFalse(replay["authorize_tally_custody"]["is_valid"])
+            if server_browser_url:
+                browser_result = server_browser_call("/tally-custody", name, tally_id)
+                self.assertEqual(browser_result["file"], requests[name])
+                self.assertEqual(browser_result["proof"], proof)
+            else:
+                result = apis[name].query(
+                    """mutation ($event: String!, $tally: String!, $proof: String!) {
+                      authorize_tally_custody(object: {election_event_id: $event, tally_session_id: $tally,
+                        custody_proof_json: $proof}) { is_valid }
+                    }""",
                     {"event": event_id, "tally": tally_id, "proof": proof},
                 )["authorize_tally_custody"]
                 self.assertTrue(result["is_valid"])
@@ -1709,8 +1813,12 @@ class BackendJourneys(unittest.TestCase):
                 self.assertTrue(
                     any(board.startswith("tally_") for board in status["boards"])
                 )
-            cast_content = json.loads(ballot["content"])
-            self.verify_public_transcripts(event_id, cast_content["contests"])
+        if server_browser_url:
+            health = Http().get(server_browser_url + "/health").json()
+            self.assertEqual(health["failures"], [])
+            self.assertEqual(sorted(health["clients"]), sorted(bootstrap.TRUSTEES))
+        cast_content = json.loads(ballot["content"])
+        self.verify_public_transcripts(event_id, cast_content["contests"])
         self.passed("manual ceremony")
 
     def test_c_trustee_graphql_board_api(self):
@@ -1763,6 +1871,10 @@ class BackendJourneys(unittest.TestCase):
             timeout=120,
         )
         self.assertIn(expected_board, boards)
+        updates = api.query("query { trustee_event_updates }")["trustee_event_updates"]
+        self.assertIn(expected_board, updates["boards"])
+        self.assertEqual(updates["actions"], [])
+
         anonymous = Http().post(
             ENV["HASURA_ENDPOINT"],
             json_body={"query": listing},

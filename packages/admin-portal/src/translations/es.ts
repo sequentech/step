@@ -2350,6 +2350,7 @@ const spanishTranslation: TranslationType = {
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
             serverCustody: {
+                fileFormat: "Formato admitido: JSON",
                 waiting: "Esperando a que tu servidor custodio cree una prueba de custodia…",
                 unavailable:
                     "El servidor custodio no ha respondido. Comprueba que está activo y vuelve a cargar el archivo de ceremonia.",
