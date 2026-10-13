@@ -23,3 +23,17 @@ and reject new insertions at the storage boundary.
 
 Application audit records use the independent immudb backend. Its disposable
 database contracts are described in the [electoral-log test guide](./electoral-log.md).
+
+PostgreSQL TLS integration tests start disposable loopback PostgreSQL servers and
+generate short-lived synthetic certificates with OpenSSL. Install the complete
+PostgreSQL server tools (`initdb` and `pg_ctl`), then run from `packages/`:
+
+```sh
+PG_BIN=/path/to/postgresql/bin OPENSSL_BIN=/path/to/openssl \
+CARGO_TARGET_DIR="$PWD/rust-local-target" cargo test --manifest-path wbraid/Cargo.toml --locked -p b4 --features postgres --test postgres_tls
+```
+
+The fixture never uses a shared database. It checks verified TLS, wrong CA,
+untrusted certificates, hostname mismatch, missing CA configuration, plaintext
+refusal, explicit local mode and transaction advisory locks. See
+[native PostgreSQL TLS configuration](../../09-wbraid/postgresql-tls.md).

@@ -154,7 +154,7 @@ pub async fn archive_protocol_boards(
     }
     let url = std::env::var("WBRAID_BOARD_DATABASE_URL")
         .context("WBRAID_BOARD_DATABASE_URL must be set")?;
-    let mut options: sqlx::postgres::PgConnectOptions = url.parse()?;
+    let mut options = wbraid_b4::db::postgres_connect_options(&url)?;
     if let Ok(password) = std::env::var("WBRAID_B4_PG_PASSWORD") {
         options = options.password(&password);
     }

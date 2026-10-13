@@ -17,7 +17,7 @@ path = "src/main.rs"
 
 [features]
 native = ["dep:tokio", "dep:sqlx", "dep:aws-config", "dep:aws-sdk-s3", "dep:axum", "dep:tower", "dep:tower-http"]
-postgres = ["native", "sqlx/postgres", "sqlx/chrono"]
+postgres = ["native", "sqlx/postgres", "sqlx/chrono", "dep:url"]
 sqlite = ["native", "sqlx/sqlite"]
 
 [dependencies]
@@ -35,6 +35,7 @@ tower-http = { version = "0.6", features = ["cors"], optional = true }
 
 # Database
 sqlx = { version = "0.8", features = ["runtime-tokio-rustls"], optional = true }
+url = { version = "2", optional = true }
 
 # S3
 aws-config = { version = "1.5", features = ["behavior-version-latest"], optional = true }
@@ -45,3 +46,6 @@ uuid = { version = "1.10", features = ["v4", "serde"] }
 chrono = "0.4"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+tempfile = "3"
