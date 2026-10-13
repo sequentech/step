@@ -86,12 +86,6 @@ const meta = {
         current: {control: "select", options: ["none", ...Object.values(EStatus)]},
         stored: {control: "select", options: Object.values(EStatus)},
     },
-    parameters: {
-        expectedFailure: {
-            reason: "The ceremony status chip puts white text on its light status colour, and the progress and logs accordions are two unnamed regions.",
-            a11y: ["color-contrast", "landmark-unique"],
-        },
-    },
     beforeEach: async ({args}) => {
         data = resourceBoundary({
             [KEYS_CEREMONY_RESOURCE]: [statusCeremony(args.stored, args.automated)],
@@ -128,7 +122,6 @@ export const CeremonyInProgress: Story = {
 
 export const Configure: Story = {
     args: {current: "none"},
-    parameters: {expectedFailure: null},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(

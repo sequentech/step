@@ -2303,7 +2303,7 @@
       {
         "id": "6d44ec97-33ea-4a03-b155-76cb191fc610",
         "name": "sign-key-ceremony",
-        "description": "Sign: confirm a key share",
+        "description": "Sign: confirm custody",
         "composite": false,
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
@@ -2312,7 +2312,7 @@
       {
         "id": "e004425b-71da-4e36-9b24-6ff783c24716",
         "name": "sign-tally-key",
-        "description": "Sign: contribute a key share",
+        "description": "Sign: authorize tally custody",
         "composite": false,
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
