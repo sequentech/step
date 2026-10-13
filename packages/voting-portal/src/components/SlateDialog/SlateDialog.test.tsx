@@ -67,6 +67,20 @@ describe("SlateDialog", () => {
         expect(buttons).toEqual(["", "Back", "Select this slate"])
     })
 
+    it("draws the close button as the design's stroked X, hidden from assistive technology", async () => {
+        mount()
+        const dialog = await open()
+
+        const close = within(dialog).getByRole("button", {name: "Close dialog"})
+        const svg = close.querySelector("svg")
+        expect(svg).toHaveAttribute("aria-hidden", "true")
+        expect(svg).toHaveAttribute("viewBox", "0 0 24 24")
+        expect(svg).toHaveAttribute("fill", "none")
+        expect(svg).toHaveAttribute("stroke", "currentColor")
+        expect(svg).toHaveAttribute("stroke-width", "1.8")
+        expect(svg?.querySelector("path")).toHaveAttribute("d", "m6 6 12 12M6 18 18 6")
+    })
+
     it("moves the focus into the dialog", async () => {
         mount()
         const dialog = await open()

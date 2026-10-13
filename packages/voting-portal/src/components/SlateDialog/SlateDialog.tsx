@@ -6,8 +6,7 @@ import React, {PropsWithChildren, useId, useRef} from "react"
 import {Box, Button} from "@mui/material"
 import MaterialDialog from "@mui/material/Dialog"
 import {styled} from "@mui/material/styles"
-import {faXmark} from "@fortawesome/free-solid-svg-icons"
-import {Icon, theme} from "@sequentech/ui-essentials"
+import {theme} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 
 const PHONE = theme.breakpoints.down("sm")
@@ -72,6 +71,12 @@ const Panel = styled(MaterialDialog)`
         background: transparent;
         box-shadow: none;
         color: ${theme.palette.brandColor};
+    }
+
+    .dialog-close-icon {
+        width: 18px;
+        height: 18px;
+        flex: none;
     }
 
     .slate-dialog-actions {
@@ -160,7 +165,18 @@ export const SlateDialog: React.FC<SlateDialogProps> = ({
                         aria-label={t("slates.dialog.close")}
                         onClick={() => handleClose(false)}
                     >
-                        <Icon className="dialog-close-icon" icon={faXmark} aria-hidden="true" />
+                        <svg
+                            className="dialog-close-icon"
+                            aria-hidden="true"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        >
+                            <path className="dialog-close-path" d="m6 6 12 12M6 18 18 6" />
+                        </svg>
                     </Button>
                 </Box>
                 <Box className="slate-dialog-content">{children}</Box>
