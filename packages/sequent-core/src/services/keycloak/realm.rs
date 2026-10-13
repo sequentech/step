@@ -2,14 +2,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::serialization::deserialize_with_path::deserialize_str;
+use crate::services::jwks::{expected_audiences, AUDIENCES_ENV};
 use crate::services::{
     keycloak::KeycloakAdminClient, replace_uuids::replace_uuids,
 };
-use crate::types::keycloak::{Role, TENANT_ID_ATTR_NAME};
+use crate::types::keycloak::{
+    Role, HARVEST_AUDIENCE_MAPPER_NAME, TENANT_ID_ATTR_NAME,
+};
 use anyhow::{anyhow, Context, Result};
 use keycloak::types::{
-    AuthenticationExecutionInfoRepresentation, GroupRepresentation,
-    RealmRepresentation, RoleRepresentation,
+    AuthenticationExecutionInfoRepresentation, ClientRepresentation,
+    GroupRepresentation, ProtocolMapperRepresentation, RealmRepresentation,
+    RoleRepresentation,
 };
 use keycloak::{
     KeycloakAdmin, KeycloakAdminToken, KeycloakError, KeycloakTokenSupplier,
@@ -31,6 +35,10 @@ const KIOSK_VOTING_PORTAL_CLIENT_ID: &str = "voting-portal-kiosk";
 const ONSITE_VOTING_PORTAL_CLIENT_ID: &str = "onsite-voting-portal";
 const RESULTS_PORTAL_CLIENT_ID: &str = "results-portal";
 const CONDITIONAL_CLIENT_ID: &str = "conditional-client";
+const AUDIENCE_MAPPER: &str = "oidc-audience-mapper";
+/// Settings of an audience mapper that name the audience it adds.
+const AUDIENCE_MAPPER_SETTINGS: [&str; 2] =
+    ["included.custom.audience", "included.client.audience"];
 
 fn kiosk_voting_portal_url(
     voting_portal_url: &str,
@@ -53,6 +61,58 @@ fn voting_portal_redirect_uris(ballot_verifier_url: &str) -> Vec<String> {
 
 fn results_portal_redirect_uris(results_portal_url: &str) -> Vec<String> {
     vec![format!("{}/*", results_portal_url.trim_end_matches('/'))]
+}
+
+/// Whether a protocol mapper adds Harvest's audience: the mapper Step manages,
+/// or any audience mapper that adds one of `harvest_audiences`, whatever its
+/// name.
+fn adds_harvest_audience(
+    protocol_mapper: &ProtocolMapperRepresentation,
+    harvest_audiences: &[String],
+) -> bool {
+    if protocol_mapper.name.as_deref() == Some(HARVEST_AUDIENCE_MAPPER_NAME) {
+        return true;
+    }
+    if protocol_mapper.protocol_mapper.as_deref() != Some(AUDIENCE_MAPPER) {
+        return false;
+    }
+    let Some(config) = protocol_mapper.config.as_ref() else {
+        return false;
+    };
+    AUDIENCE_MAPPER_SETTINGS
+        .iter()
+        .filter_map(|setting| config.get(*setting))
+        .any(|audience| {
+            harvest_audiences
+                .iter()
+                .any(|harvest| harvest.as_str() == audience.trim())
+        })
+}
+
+/// The results portal client, made from the voting portal's. The results
+/// portal does not call Harvest, so it does not get Harvest's audience.
+fn results_portal_client(
+    voting_portal: ClientRepresentation,
+    results_portal_url: &str,
+    harvest_audiences: &[String],
+) -> ClientRepresentation {
+    let mut client = voting_portal;
+    client.id = None;
+    if let Some(protocol_mappers) = client.protocol_mappers.as_mut() {
+        protocol_mappers.retain(|protocol_mapper| {
+            !adds_harvest_audience(protocol_mapper, harvest_audiences)
+        });
+        for protocol_mapper in protocol_mappers {
+            protocol_mapper.id = None;
+        }
+    }
+    client.client_id = Some(RESULTS_PORTAL_CLIENT_ID.to_string());
+    client.name = Some("Results Portal".to_string());
+    client.root_url = Some(results_portal_url.to_string());
+    client.base_url = Some(results_portal_url.to_string());
+    client.redirect_uris =
+        Some(results_portal_redirect_uris(results_portal_url));
+    client
 }
 
 fn include_results_portal_in_client_condition(value: &str) -> String {
@@ -733,27 +793,19 @@ impl KeycloakAdminClient {
             if !clients.iter().any(|client| {
                 client.client_id.as_deref() == Some(RESULTS_PORTAL_CLIENT_ID)
             }) {
-                let mut results_client = voting_portal_template.ok_or_else(|| {
+                let voting_portal = voting_portal_template.ok_or_else(|| {
                     anyhow!(
                         "Event realm does not contain a voting portal client template"
                     )
                 })?;
-                results_client.id = None;
-                if let Some(protocol_mappers) =
-                    results_client.protocol_mappers.as_mut()
-                {
-                    for protocol_mapper in protocol_mappers {
-                        protocol_mapper.id = None;
-                    }
-                }
-                results_client.client_id =
-                    Some(RESULTS_PORTAL_CLIENT_ID.to_string());
-                results_client.name = Some("Results Portal".to_string());
-                results_client.root_url = Some(results_portal_url.clone());
-                results_client.base_url = Some(results_portal_url.clone());
-                results_client.redirect_uris =
-                    Some(results_portal_redirect_uris(&results_portal_url));
-                clients.push(results_client);
+                let harvest_audiences =
+                    expected_audiences(env::var(AUDIENCES_ENV).ok().as_deref())
+                        .unwrap_or_default();
+                clients.push(results_portal_client(
+                    voting_portal,
+                    &results_portal_url,
+                    &harvest_audiences,
+                ));
             }
 
             if let Some(authenticator_configs) =
@@ -815,8 +867,99 @@ impl KeycloakAdminClient {
 mod tests {
     use super::{
         include_results_portal_in_client_condition, kiosk_voting_portal_url,
-        results_portal_redirect_uris, voting_portal_redirect_uris,
+        results_portal_client, results_portal_redirect_uris,
+        voting_portal_redirect_uris,
     };
+    use crate::types::keycloak::HARVEST_AUDIENCE_MAPPER_NAME;
+    use keycloak::types::ClientRepresentation;
+    use serde_json::json;
+
+    fn audience_mapper(
+        name: &str,
+        setting: &str,
+        audience: &str,
+    ) -> serde_json::Value {
+        json!({
+            "id": format!("{name}-id"),
+            "name": name,
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-audience-mapper",
+            "config": {setting: audience, "access.token.claim": "true"}
+        })
+    }
+
+    fn results_portal_mapper_names(
+        mappers: Vec<serde_json::Value>,
+    ) -> Vec<String> {
+        let voting_portal: ClientRepresentation =
+            serde_json::from_value(json!({
+                "id": "client-id",
+                "clientId": "voting-portal",
+                "protocolMappers": mappers
+            }))
+            .unwrap();
+        let results_portal = results_portal_client(
+            voting_portal,
+            "https://results.example.test",
+            &["harvest".to_string(), "harvest-kiosk".to_string()],
+        );
+        assert_eq!(results_portal.client_id.as_deref(), Some("results-portal"));
+        assert_eq!(results_portal.id, None);
+        let mappers = results_portal.protocol_mappers.unwrap();
+        assert!(mappers.iter().all(|m| m.id.is_none()));
+        mappers.iter().filter_map(|m| m.name.clone()).collect()
+    }
+
+    #[test]
+    fn the_results_portal_does_not_get_harvests_audience() {
+        let names = results_portal_mapper_names(vec![
+            json!({
+                "id": "tenant-id",
+                "name": "x-hasura-tenant-id",
+                "protocol": "openid-connect",
+                "protocolMapper": "oidc-usermodel-attribute-mapper"
+            }),
+            audience_mapper(
+                HARVEST_AUDIENCE_MAPPER_NAME,
+                "included.custom.audience",
+                "harvest",
+            ),
+            // Added by an operator under other names.
+            audience_mapper("Harvest", "included.custom.audience", "harvest"),
+            audience_mapper(
+                "kiosk",
+                "included.custom.audience",
+                " harvest-kiosk ",
+            ),
+            audience_mapper(
+                "harvest-client",
+                "included.client.audience",
+                "harvest",
+            ),
+            // Audience mappers for other services stay.
+            audience_mapper(
+                "ballot-verifier",
+                "included.custom.audience",
+                "verifier",
+            ),
+        ]);
+        assert_eq!(names, ["x-hasura-tenant-id", "ballot-verifier"]);
+    }
+
+    #[test]
+    fn mappers_of_other_kinds_naming_harvest_are_kept() {
+        let names = results_portal_mapper_names(vec![json!({
+            "id": "claim-id",
+            "name": "service",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-hardcoded-claim-mapper",
+            "config": {
+                "included.custom.audience": "harvest",
+                "claim.value": "harvest"
+            }
+        })]);
+        assert_eq!(names, ["service"]);
+    }
 
     #[test]
     fn voting_portal_redirect_uris_exclude_the_results_portal() {

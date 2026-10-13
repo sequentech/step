@@ -55,13 +55,19 @@ tokens reach Harvest, directly or through a Hasura action, which forwards the
 caller's `Authorization` header, needs an **Audience** mapper
 (`oidc-audience-mapper`) with:
 
-- **Included Custom Audience**: the value of `HARVEST_JWT_AUDIENCES`, for
-  example `harvest`.
+- **Name**: `harvest-audience`.
+- **Included Custom Audience**: one audience, written literally, that is one of
+  the entries of `HARVEST_JWT_AUDIENCES`, for example `harvest`. A mapper emits
+  exactly the text it is given, so never put the comma-separated setting itself
+  here: with `HARVEST_JWT_AUDIENCES=harvest,harvest-kiosk`, a mapper emits
+  either `harvest` or `harvest-kiosk`.
 - **Add to access token**: on. **Add to ID token**: off.
 
-The mapper can go in each client's dedicated scope, or in one client scope
-assigned as a default scope to those clients. In the realms Step creates, these
-clients send tokens to Harvest:
+Put the mapper on each calling client, in its dedicated scope. Do not add it to
+a client scope that is a default scope of the realm, or every client of the
+realm, including ones that never call Harvest, would get Harvest's audience.
+
+These clients send tokens to Harvest:
 
 | Realm | Client | Used by |
 | --- | --- | --- |
@@ -84,11 +90,29 @@ To check a client, open **Client scopes > Evaluate** in the realm, pick a user
 and the client, and look at **Generated access token**: its `aud` must include
 the configured audience.
 
+### Realm templates
+
+The tenant and election event realm templates in `.devcontainer/keycloak/import`,
+which `configure-minio` uploads as the defaults new realms are created from,
+have the `harvest-audience` mapper on exactly these clients, emitting `harvest`,
+the audience `.env.development` configures. So do the election event files
+that step-cli and the load tests import. When Windmill gives an election event
+realm a results portal client copied from its `voting-portal` client, the copy
+leaves out every mapper that adds Harvest's audience: the `harvest-audience`
+mapper, and any audience mapper, whatever its name, whose included audience is
+one of `HARVEST_JWT_AUDIENCES`. The results portal does not call Harvest. Windmill
+reads `HARVEST_JWT_AUDIENCES` for this; without it, only the `harvest-audience`
+mapper is left out.
+The `jwks` tests in sequent-core check these files.
+
 ### Rollout
 
-1. Add the audience mapper to the clients above in every tenant and election
-   event realm, and to the realm templates that new realms are created from
-   (`KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY` and
+Realms that already exist keep their configuration: the templates only apply
+to realms created after the change.
+
+1. Add the audience mapper to the clients above in every existing tenant and
+   election event realm, and to the realm templates of the deployment if they
+   are not the ones in this repository (`KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY` and
    `KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY`).
 2. Wait until the access tokens issued before the change have expired, or ask
    users to sign in again.
@@ -122,7 +146,7 @@ token until it can read the file.
 
 | Variable | Service | Default |
 | --- | --- | --- |
-| `HARVEST_JWT_AUDIENCES` | Harvest | none: every token is refused |
+| `HARVEST_JWT_AUDIENCES` | Harvest, Windmill | none: Harvest refuses every token |
 | `AWS_S3_JWKS_MIN_REFRESH_SECS` | Harvest | 10 |
 | `AWS_S3_JWKS_FETCH_TIMEOUT_SECS` | Harvest, Windmill | 5 |
 | `AWS_S3_JWKS_CERTS_PATH` | Harvest, Windmill | `certs.json` |

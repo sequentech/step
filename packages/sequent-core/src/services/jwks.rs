@@ -344,7 +344,11 @@ pub async fn verify_jwt(token: &str) -> Result<JwtClaims> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::authorization::VoterClient;
     use crate::services::keycloak::{get_event_realm, get_tenant_realm};
+    use crate::types::keycloak::{
+        HARVEST_AUDIENCE_MAPPER_NAME, IVR_VOTING_CLIENT_ID,
+    };
     use aws_lc_rs::encoding::AsDer;
     use aws_lc_rs::rsa::{KeyPair, KeySize, PublicKeyComponents};
     use aws_lc_rs::signature::KeyPair as _;
@@ -562,6 +566,213 @@ mod tests {
         ] {
             let token = sign(&key, &with_audience(&realm, Some(aud.clone())));
             assert!(verify(&token, &jwk).is_err(), "{aud}");
+        }
+    }
+
+    #[test]
+    fn rejects_audience_lists_with_malformed_members() {
+        let realm = get_tenant_realm(TENANT);
+        let (key, jwk) = key_pair(&realm);
+        for aud in [
+            json!([HARVEST, null]),
+            json!([HARVEST, 42]),
+            json!([HARVEST, [HARVEST]]),
+            json!([HARVEST, {"aud": HARVEST}]),
+        ] {
+            let token = sign(&key, &with_audience(&realm, Some(aud.clone())));
+            assert!(verify(&token, &jwk).is_err(), "{aud}");
+        }
+    }
+
+    /// Admin and service clients of a tenant realm that call Harvest.
+    const TENANT_HARVEST_CLIENTS: [&str; 2] =
+        ["admin-portal", "service-account"];
+    /// Voter clients of an election event realm, as Harvest's voter routes
+    /// accept them.
+    const EVENT_HARVEST_CLIENTS: [&str; 4] = [
+        "voting-portal",
+        "voting-portal-kiosk",
+        "onsite-voting-portal",
+        IVR_VOTING_CLIENT_ID,
+    ];
+
+    #[test]
+    fn accepts_the_tokens_of_every_client_that_calls_harvest() {
+        let tenant_realm = get_tenant_realm(TENANT);
+        let event_realm = get_event_realm(TENANT, EVENT);
+        let cases = TENANT_HARVEST_CLIENTS
+            .iter()
+            .map(|client| (&tenant_realm, None, *client))
+            .chain(
+                EVENT_HARVEST_CLIENTS
+                    .iter()
+                    .map(|client| (&event_realm, Some(EVENT), *client)),
+            );
+        for (realm, event_id, client) in cases {
+            let (key, jwk) = key_pair(realm);
+            for aud in [json!(HARVEST), json!(["account", HARVEST])] {
+                let mut claims = claims(realm, event_id, valid_until());
+                claims["azp"] = json!(client);
+                claims["aud"] = aud.clone();
+                assert!(
+                    verify(&sign(&key, &claims), &jwk).is_ok(),
+                    "{client} in {realm} with {aud}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn refuses_the_tokens_of_clients_without_harvests_audience() {
+        let event_realm = get_event_realm(TENANT, EVENT);
+        let (key, jwk) = key_pair(&event_realm);
+        for client in [
+            "results-portal",
+            "account-console",
+            "security-admin-console",
+            "admin-cli",
+            "ivr-service",
+        ] {
+            for aud in [Some(json!("account")), None] {
+                let mut claims = with_audience(&event_realm, aud.clone());
+                claims["azp"] = json!(client);
+                assert!(
+                    verify(&sign(&key, &claims), &jwk).is_err(),
+                    "{client} with {aud:?}"
+                );
+            }
+        }
+    }
+
+    const DEVELOPMENT_ENV: &str =
+        include_str!("../../../../.devcontainer/.env.development");
+    const TENANT_REALM_TEMPLATE: &str = include_str!(
+        "../../../../.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json"
+    );
+    const EVENT_REALM_TEMPLATE: &str = include_str!(
+        "../../../../.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559.json"
+    );
+    /// Election event files whose realm is imported with the event.
+    const EVENT_FIXTURES: [&str; 4] = [
+        include_str!("../../../step-cli/data/test-election-template.json"),
+        include_str!("../../../step-cli/data/mock.json"),
+        include_str!(
+            "../../../step-cli/scripts/telephone-load-test-inputs/election-event.json"
+        ),
+        include_str!("../../../voting-load/fixtures/election.json"),
+    ];
+
+    /// The audience the development environment configures.
+    fn development_audience() -> String {
+        let setting = DEVELOPMENT_ENV
+            .lines()
+            .find_map(|line| line.strip_prefix(&format!("{AUDIENCES_ENV}=")))
+            .expect("HARVEST_JWT_AUDIENCES in .env.development")
+            .trim_matches('"');
+        let audiences = expected_audiences(Some(setting)).unwrap();
+        assert_eq!(audiences.len(), 1, "{setting}");
+        audiences[0].clone()
+    }
+
+    /// The audiences that a client's or client scope's mappers add.
+    fn mapped_audiences(entity: &Value) -> Vec<(String, String)> {
+        entity["protocolMappers"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter(|mapper| mapper["protocolMapper"] == "oidc-audience-mapper")
+            .map(|mapper| {
+                (
+                    mapper["name"].as_str().unwrap_or_default().to_string(),
+                    mapper["config"]["included.custom.audience"]
+                        .as_str()
+                        .unwrap_or_default()
+                        .to_string(),
+                )
+            })
+            .collect()
+    }
+
+    /// Checks that exactly `callers` get Harvest's audience in `realm`, from
+    /// one mapper each that emits the configured audience in access tokens.
+    fn assert_only_callers_get_harvests_audience(
+        realm: &Value,
+        callers: &[&str],
+        name: &str,
+    ) {
+        let audience = development_audience();
+        let mut found = vec![];
+        for client in realm["clients"].as_array().unwrap() {
+            let client_id = client["clientId"].as_str().unwrap();
+            let harvest: Vec<_> = mapped_audiences(client)
+                .into_iter()
+                .filter(|(mapper, aud)| {
+                    mapper == HARVEST_AUDIENCE_MAPPER_NAME || aud == &audience
+                })
+                .collect();
+            if !callers.contains(&client_id) {
+                assert!(
+                    harvest.is_empty(),
+                    "{name}: {client_id} gets {harvest:?}"
+                );
+                continue;
+            }
+            assert_eq!(
+                harvest,
+                [(HARVEST_AUDIENCE_MAPPER_NAME.to_string(), audience.clone())],
+                "{name}: {client_id}"
+            );
+            let mapper = client["protocolMappers"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|mapper| mapper["name"] == HARVEST_AUDIENCE_MAPPER_NAME)
+                .unwrap();
+            assert_eq!(
+                mapper["config"]["access.token.claim"], "true",
+                "{name}"
+            );
+            assert_eq!(mapper["config"]["id.token.claim"], "false", "{name}");
+            found.push(client_id);
+        }
+        assert!(!found.is_empty(), "{name}: no client calls Harvest");
+        for scope in realm["clientScopes"].as_array().into_iter().flatten() {
+            assert!(
+                mapped_audiences(scope).iter().all(|(mapper, aud)| mapper
+                    != HARVEST_AUDIENCE_MAPPER_NAME
+                    && aud != &audience),
+                "{name}: client scope {} adds Harvest's audience",
+                scope["name"]
+            );
+        }
+    }
+
+    #[test]
+    fn realm_templates_give_harvests_audience_to_its_callers_only() {
+        for client in EVENT_HARVEST_CLIENTS {
+            assert!(client.parse::<VoterClient>().is_ok(), "{client}");
+        }
+
+        let tenant: Value =
+            serde_json::from_str(TENANT_REALM_TEMPLATE).unwrap();
+        assert_only_callers_get_harvests_audience(
+            &tenant,
+            &TENANT_HARVEST_CLIENTS,
+            "tenant template",
+        );
+        let event: Value = serde_json::from_str(EVENT_REALM_TEMPLATE).unwrap();
+        assert_only_callers_get_harvests_audience(
+            &event,
+            &EVENT_HARVEST_CLIENTS,
+            "event template",
+        );
+        for (index, fixture) in EVENT_FIXTURES.iter().enumerate() {
+            let event: Value = serde_json::from_str(fixture).unwrap();
+            assert_only_callers_get_harvests_audience(
+                &event["keycloak_event_realm"],
+                &EVENT_HARVEST_CLIENTS,
+                &format!("event fixture {index}"),
+            );
         }
     }
 
