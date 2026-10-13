@@ -15,18 +15,18 @@ import {
     IKeysCeremonyExecutionStatus as EStatus,
     IKeysCeremonyTrusteeStatus as TStatus,
 } from "@/services/KeyCeremony"
-import {PRIVATE_KEY_DOWNLOAD_UNAVAILABLE_ERROR_CODE} from "@/services/privateKeyDownloadError"
+import {CUSTODY_REQUEST_DOWNLOAD_UNAVAILABLE_ERROR_CODE} from "@/services/custodyRequestDownloadError"
 import {EStoryPermissions} from "../../../../ui-essentials/.storybook/globals"
 import {DownloadStep} from "./DownloadStep"
 import {
     KEYS_CEREMONY_RESOURCE,
-    PRIVATE_KEY,
+    CUSTODY_REQUEST,
     ceremony,
     ceremonyEvent,
 } from "./__stories__/KeysCeremonyFixture"
 
 interface Scenario {
-    /** What the private key service answers. */
+    /** What the public custody request service answers. */
     key: "key" | "empty" | "unavailable" | "failure"
     /** The ceremony's execution status. */
     execution: EStatus
@@ -62,21 +62,23 @@ const meta = {
         data = resourceBoundary({[KEYS_CEREMONY_RESOURCE]: [currentCeremony(args)]})
         graphql = graphqlBoundary(
             {
-                GetPrivateKey: () => {
+                GetCustodyRequest: () => {
                     if (args.key === "failure") throw new Error("Synthetic key service failure")
                     if (args.key === "unavailable") {
                         return {
                             errors: [
                                 new GraphQLError("The ceremony has moved on", {
-                                    extensions: {code: PRIVATE_KEY_DOWNLOAD_UNAVAILABLE_ERROR_CODE},
+                                    extensions: {
+                                        code: CUSTODY_REQUEST_DOWNLOAD_UNAVAILABLE_ERROR_CODE,
+                                    },
                                 }),
                             ],
                         }
                     }
                     return {
                         data: {
-                            get_private_key: {
-                                private_key_base64: args.key === "empty" ? "" : PRIVATE_KEY,
+                            get_custody_request: {
+                                custody_request_json: args.key === "empty" ? "" : CUSTODY_REQUEST,
                             },
                         },
                     }
@@ -106,7 +108,7 @@ export default meta
 type Story = StoryObj<Scenario>
 
 const downloadButton = (canvasElement: HTMLElement) =>
-    within(canvasElement).findByRole("button", {name: "Download your Encrypted Private Key"})
+    within(canvasElement).findByRole("button", {name: "Download Custody Request"})
 
 async function download(canvasElement: HTMLElement) {
     const button = await downloadButton(canvasElement)
@@ -116,18 +118,16 @@ async function download(canvasElement: HTMLElement) {
 }
 
 const keyRequest = {
-    name: "GetPrivateKey",
+    name: "GetCustodyRequest",
     variables: {electionEventId: EVENT_ID, keysCeremonyId: STORY_IDS.keysCeremony},
-    headers: {},
+    headers: {"x-hasura-role": "trustee-ceremony"},
 }
 
 export const Populated: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await downloadButton(canvasElement)).toBeEnabled()
-        await expect(
-            canvas.getByRole("heading", {name: "Download Encrypted Private Key"})
-        ).toBeVisible()
+        await expect(canvas.getByRole("heading", {name: "Download Custody Request"})).toBeVisible()
         expect(canvas.getByRole("button", {name: "Next"})).toBeDisabled()
         await waitFor(() =>
             expect(data.calls[0]).toEqual({
@@ -147,12 +147,12 @@ export const DownloadAndConfirmBackups: Story = {
         const canvas = within(canvasElement)
         await download(canvasElement)
         await expect(
-            await canvas.findByText("Encrypted Private Key downloaded successfully.")
+            await canvas.findByText("Public custody request downloaded successfully.")
         ).toBeVisible()
         expect(graphql.calls).toEqual([keyRequest])
         expect(saved.downloads).toEqual([
             {
-                name: `encrypted_private_key_trustee_${STORY_TRUSTEE}_Council.txt`,
+                name: "trustee1-custody-request.json",
                 href: expect.stringMatching(/^blob:/),
             },
         ])
@@ -206,7 +206,9 @@ export const KeyServiceFailure: Story = {
         const canvas = within(canvasElement)
         await download(canvasElement)
         await expect(
-            await canvas.findByText("The private key could not be downloaded. Please try again.")
+            await canvas.findByText(
+                "The custody request could not be downloaded. Please try again."
+            )
         ).toBeVisible()
         // The download can be retried.
         await expect(await downloadButton(canvasElement)).toBeEnabled()
@@ -221,7 +223,7 @@ export const ServiceReportsTheCeremonyMovedOn: Story = {
         await download(canvasElement)
         await expect(
             await canvas.findByText(
-                "Private key download is no longer available because the ceremony has moved on."
+                "The custody request is no longer available because the ceremony has moved on."
             )
         ).toBeVisible()
         await expect(await downloadButton(canvasElement)).toBeDisabled()
@@ -231,11 +233,11 @@ export const ServiceReportsTheCeremonyMovedOn: Story = {
 }
 
 export const AlreadyVerified: Story = {
-    args: {trustee: TStatus.KEY_CHECKED},
+    args: {trustee: TStatus.CUSTODY_CONFIRMED},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(
-            await canvas.findByText("Your private key was already downloaded and verified.")
+            await canvas.findByText("Your trustee custody was already confirmed.")
         ).toBeVisible()
         await expect(await downloadButton(canvasElement)).toBeDisabled()
         expect(graphql.calls).toEqual([])
@@ -243,12 +245,12 @@ export const AlreadyVerified: Story = {
 }
 
 export const CeremonyFinished: Story = {
-    args: {execution: EStatus.SUCCESS, trustee: TStatus.KEY_RETRIEVED},
+    args: {execution: EStatus.SUCCESS, trustee: TStatus.CUSTODY_REQUEST_RETRIEVED},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(
             await canvas.findByText(
-                "Private key download is no longer available because the ceremony has moved on."
+                "The custody request is no longer available because the ceremony has moved on."
             )
         ).toBeVisible()
         await expect(await downloadButton(canvasElement)).toBeDisabled()
@@ -260,5 +262,13 @@ export const Back: Story = {
     play: async ({canvasElement, args}) => {
         await userEvent.click(await within(canvasElement).findByRole("button", {name: "Back"}))
         expect(args.goBack).toHaveBeenCalledTimes(1)
+    },
+}
+
+export const SharesPostedCannotDownload: Story = {
+    args: {trustee: TStatus.SHARES_POSTED},
+    play: async ({canvasElement}) => {
+        await expect(await downloadButton(canvasElement)).toBeDisabled()
+        expect(graphql.calls).toEqual([])
     },
 }

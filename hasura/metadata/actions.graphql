@@ -1,4 +1,26 @@
 type Query {
+    list_trustee_boards: TrusteeBoardsOutput!
+}
+
+type Mutation {
+    report_trustee_board(report: jsonb!): TrusteeReportOutput!
+}
+
+type TrusteeBoard {
+    name: String!
+    kind: String!
+    parent: String
+}
+
+type TrusteeBoardsOutput {
+    boards: [TrusteeBoard!]!
+}
+
+type TrusteeReportOutput {
+    accepted: Boolean!
+}
+
+type Query {
     get_ballot_files_urls(election_event_id: String!): jsonb!
 }
 
@@ -94,7 +116,9 @@ type Mutation {
 }
 
 type Mutation {
-    check_private_key(object: CheckPrivateKeyInput!): CheckPrivateKeyOutput
+    confirm_key_custody(
+        object: ConfirmKeyCustodyInput!
+    ): ConfirmKeyCustodyOutput
 }
 
 type Query {
@@ -102,9 +126,9 @@ type Query {
 }
 
 type Query {
-    key_share_signature_status(
-        object: KeyShareSignatureStatusInput!
-    ): KeyShareSignatureStatusOutput
+    custody_proof_signature_status(
+        object: CustodyProofSignatureStatusInput!
+    ): CustodyProofSignatureStatusOutput
 }
 
 type Query {
@@ -570,7 +594,9 @@ type Query {
 }
 
 type Mutation {
-    get_private_key(object: GetPrivateKeyInput!): GetPrivateKeyOutput
+    get_custody_request(
+        object: GetCustodyRequestInput!
+    ): GetCustodyRequestOutput
 }
 
 type Query {
@@ -804,9 +830,9 @@ type Mutation {
 }
 
 type Mutation {
-    restore_private_key(
-        object: RestorePrivateKeyInput!
-    ): RestorePrivateKeyOutput
+    authorize_tally_custody(
+        object: AuthorizeTallyCustodyInput!
+    ): AuthorizeTallyCustodyOutput
 }
 
 type Mutation {
@@ -1113,16 +1139,16 @@ input ElectionStatsInput {
     bucket_count: Int
 }
 
-input GetPrivateKeyInput {
+input GetCustodyRequestInput {
     election_event_id: String!
     keys_ceremony_id: String!
 }
 
-input CheckPrivateKeyInput {
+input ConfirmKeyCustodyInput {
     election_event_id: String!
     keys_ceremony_id: String!
-    private_key_base64: String!
-    key_share_sha256: String
+    custody_proof_json: String!
+    custody_proof_sha256: String
     signing_request_id: uuid
 }
 
@@ -1213,17 +1239,17 @@ input KeycloakRole2 {
     client_roles: jsonb
 }
 
-input KeyShareSignatureStatusInput {
+input CustodyProofSignatureStatusInput {
     election_event_id: String!
     keys_ceremony_id: String
     tally_session_id: String
 }
 
-input RestorePrivateKeyInput {
+input AuthorizeTallyCustodyInput {
     election_event_id: String!
-    private_key_base64: String!
+    custody_proof_json: String!
     tally_session_id: String!
-    key_share_sha256: String
+    custody_proof_sha256: String
     signing_request_id: uuid
 }
 
@@ -1327,8 +1353,8 @@ type CreateKeysCeremonyOutput {
     error_message: String
 }
 
-type GetPrivateKeyOutput {
-    private_key_base64: String!
+type GetCustodyRequestOutput {
+    custody_request_json: String!
 }
 
 type CastVotesPerDay {
@@ -1359,7 +1385,7 @@ type ElectionStatsOutput {
     votes_per_day: [CastVotesPerDay]!
 }
 
-type CheckPrivateKeyOutput {
+type ConfirmKeyCustodyOutput {
     is_valid: Boolean!
     signing_request: SigningRequestSummary
 }
@@ -1614,18 +1640,12 @@ type GetBallotPublicationChangesOutput {
     previous: BallotPublicationStyles
 }
 
-type KeyShareSignatureStatusOutput {
+type CustodyProofSignatureStatusOutput {
     signature_needed: Boolean!
     signed: Boolean!
 }
 
-enum RestorePrivateKeyOutcome {
-    RESTORED
-    INVALID
-    ALREADY_RESTORED
-}
-
-type RestorePrivateKeyOutput {
+type AuthorizeTallyCustodyOutput {
     is_valid: Boolean!
     signing_request: SigningRequestSummary
     outcome: RestorePrivateKeyOutcome!

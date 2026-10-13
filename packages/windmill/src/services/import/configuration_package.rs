@@ -24,8 +24,8 @@ use tracing::{info, instrument};
 use crate::postgres::configuration_packages;
 use crate::postgres::tenant::get_tenant_by_id;
 use crate::services::electoral_log::{ElectoralLog, ElectoralLogAdminContext};
+use crate::services::electoral_log_board::get_event_board;
 use crate::services::import::rejection::reject;
-use crate::services::protocol_manager::get_event_board;
 use electoral_log::messages::newtypes::{
     ConfigurationDesignDigest, ConfigurationPackageAction, ConfigurationPackageDetails,
 };

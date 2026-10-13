@@ -71,3 +71,15 @@ where
     trailing.push(0);
     assert!(borsh::from_slice::<T>(&trailing).is_err());
 }
+
+/// Crypto values use wbraid canonical encoding and reject extra or missing bytes.
+pub fn assert_canonical_contract<T>(value: &T, bytes: &[u8])
+where
+    T: cryptography::utils::serialization::Deserializable + PartialEq + Debug,
+{
+    assert_eq!(&T::deser(bytes).unwrap(), value);
+    let mut extended = bytes.to_vec();
+    extended.push(0);
+    assert!(T::deser(&extended).is_err());
+    assert!(T::deser(&bytes[..bytes.len() - 1]).is_err());
+}

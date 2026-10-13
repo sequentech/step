@@ -64,13 +64,13 @@ jobs:
             context: packages
             file: packages/harvest/Dockerfile.prod
 
-          - service: b4
-            context: packages
-            file: packages/b4/Dockerfile.prod
+          - service: b4v6
+            context: packages/wbraid
+            file: packages/wbraid/crates/b4/Dockerfile
 
-          - service: braid
+          - service: trustee
             context: packages
-            file: packages/braid/Dockerfile.prod
+            file: packages/trustee/Dockerfile.prod
 
           - service: windmill
             context: packages

@@ -1028,6 +1028,7 @@ async fn get_trustee_by_name_returns_the_trustee_with_its_columns() {
         Trustee {
             id: w.id(10),
             public_key: Some("public-key".into()),
+            share_encryption_public_key: None,
             name: Some("trustee-1".into()),
             created_at: Some(at(H10)),
             last_updated_at: Some(at(NEXT_DAY)),
@@ -2070,7 +2071,7 @@ async fn insert_tally_session_contest_rejects_a_batch_number_beyond_the_int4_col
         &w.event,
         &area_id,
         None,
-        i32::MAX as u64,
+        i64::from(i32::MAX),
         &session,
         &election_id,
     )
@@ -2161,7 +2162,7 @@ async fn get_tally_session_highest_batch_skips_the_weight_batches_of_the_last_co
         .unwrap();
 
     // Session 40 owns batches 40..40 + VOTE_WEIGHT_BATCHES under weighted voting.
-    assert_eq!(batch, 40 + u64::from(VOTE_WEIGHT_BATCHES));
+    assert_eq!(batch, 40 + i64::from(VOTE_WEIGHT_BATCHES));
     tx.rollback().await.unwrap();
 }
 
@@ -2429,6 +2430,8 @@ async fn insert_many_tally_session_contests_rejects_an_invalid_area_id_before_wr
 
 fn ceremony_status(election_id: &str) -> TallyCeremonyStatus {
     TallyCeremonyStatus {
+        boards: None,
+        failure: None,
         stop_date: None,
         logs: vec![Log {
             created_date: H10.into(),
@@ -2436,7 +2439,7 @@ fn ceremony_status(election_id: &str) -> TallyCeremonyStatus {
         }],
         trustees: vec![TallyTrustee {
             name: "trustee-1".into(),
-            status: TallyTrusteeStatus::KEY_RESTORED,
+            status: TallyTrusteeStatus::CUSTODY_CONFIRMED,
         }],
         elections_status: vec![TallyElection {
             election_id: election_id.into(),
@@ -2449,9 +2452,11 @@ fn ceremony_status(election_id: &str) -> TallyCeremonyStatus {
 /// `ceremony_status(election_id)` as the column stores it.
 fn ceremony_status_json(election_id: &str) -> Value {
     json!({
+        "boards": null,
+        "failure": null,
         "stop_date": null,
         "logs": [{"created_date": H10, "log_text": "Mixing"}],
-        "trustees": [{"name": "trustee-1", "status": "KEY_RESTORED"}],
+        "trustees": [{"name": "trustee-1", "status": "CUSTODY_CONFIRMED"}],
         "elections_status": [
             {"election_id": election_id, "status": "MIXING", "progress": 0.5}
         ],
@@ -2463,6 +2468,72 @@ fn execution_ids(executions: Vec<TallySessionExecution>) -> Vec<String> {
         .into_iter()
         .map(|execution| execution.id)
         .collect()
+}
+
+#[tokio::test]
+async fn an_event_without_protocol_boards_needs_no_native_archive_connection() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, ids!()).await;
+    windmill::services::delete_election_event::archive_protocol_boards(&tx, &w.tenant, &w.event)
+        .await
+        .unwrap();
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn restrictive_protocol_metadata_is_explicitly_deleted_only_for_its_event() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, ids!()).await;
+    let namespace = Uuid::new_v4().simple().to_string();
+    let board_name = |kind: &str, event: &str| format!("{kind}-{event}-{namespace}");
+    for (index, event) in [&w.event, &w.other_event].into_iter().enumerate() {
+        let ceremony = w.id(10 + index as u32);
+        let session = w.id(20 + index as u32);
+        keys_ceremony_row(&tx, &w.tenant, event, &ceremony).await;
+        tally_session_row(&tx, &w.tenant, event, &session, H10).await;
+        let parent = tx.query_one("INSERT INTO sequent_backend.protocol_board (tenant_id,election_event_id,keys_ceremony_id,name,manager_message) VALUES ($1::text::uuid,$2::text::uuid,$3::text::uuid,$4,''::bytea) RETURNING id", &[&w.tenant,event,&ceremony,&board_name("dkg", event)]).await.unwrap().get::<_,uuid::Uuid>(0);
+        tx.execute("INSERT INTO sequent_backend.protocol_board (tenant_id,election_event_id,keys_ceremony_id,tally_session_id,parent_id,batch,name,manager_message) VALUES ($1::text::uuid,$2::text::uuid,$3::text::uuid,$4::text::uuid,$5,0,$6,''::bytea)", &[&w.tenant,event,&ceremony,&session,&parent,&board_name("tally", event)]).await.unwrap();
+    }
+    let restrictive: bool = tx.query_one("SELECT bool_and(confdeltype='r') FROM pg_constraint WHERE conrelid='sequent_backend.protocol_board'::regclass AND contype='f'", &[]).await.unwrap().get(0);
+    assert!(restrictive);
+    let url = std::env::var("WBRAID_BOARD_DATABASE_URL").expect("isolated native archive database");
+    let pool = sqlx::PgPool::connect(&url).await.unwrap();
+    let native = wbraid_b4::db::BoardDb::from_postgres_pool(pool.clone())
+        .await
+        .unwrap();
+    for event in [&w.event, &w.other_event] {
+        for kind in ["dkg", "tally"] {
+            let name = board_name(kind, event);
+            native.create_board(&name).await.unwrap();
+            native
+                .insert_message(&name, Some(b"retained-signed-record"), None, "test")
+                .await
+                .unwrap();
+        }
+    }
+    windmill::services::delete_election_event::archive_protocol_boards(&tx, &w.tenant, &w.event)
+        .await
+        .unwrap();
+    for (event, status) in [(&w.event, "archived"), (&w.other_event, "active")] {
+        for kind in ["dkg", "tally"] {
+            let name = board_name(kind, event);
+            assert_eq!(
+                native.get_board(&name).await.unwrap().unwrap().status,
+                status
+            );
+            assert_eq!(native.list_messages(&name).await.unwrap().len(), 1);
+        }
+    }
+    windmill::postgres::protocol_board::delete_event_protocol_metadata(&tx, &w.tenant, &w.event)
+        .await
+        .unwrap();
+    for (event, expected) in [(&w.event, 0i64), (&w.other_event, 2)] {
+        let count:i64=tx.query_one("SELECT count(*) FROM sequent_backend.protocol_board WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid", &[&w.tenant,event]).await.unwrap().get(0);
+        assert_eq!(count, expected);
+    }
+    tx.rollback().await.unwrap();
 }
 
 #[tokio::test]

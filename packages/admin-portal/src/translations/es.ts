@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {TranslationType} from "./en"
+import englishTranslation, {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
@@ -2348,13 +2348,14 @@ const spanishTranslation: TranslationType = {
             createContestError: "Error al crear la pregunta",
         },
         keysGeneration: {
+            ...englishTranslation.translations.keysGeneration,
             configureStep: {
                 create: "Crear Ceremonia de Claves",
                 name: "Nombre de la Ceremonia de Claves",
                 allElections: "Todas las Elecciones",
                 title: "Crear Ceremonia de Claves del Evento Electoral",
                 subtitle:
-                    "En esta ceremonia cada autoridad generará y descargará su parte de las claves privadas para el Evento Electoral. Para continuar, elija los autoridades que participarán en la ceremonia y el umbral, que es el número mínimo de autoridades necesarios para contar.",
+                    "Cada autoridad genera y conserva sus claves localmente y confirma su custodia. Elija las autoridades y el número mínimo necesario para el recuento.",
                 trusteeList: "Autoridades",
                 threshold: "Umbral",
                 errorMinTrustees_one:
@@ -2376,18 +2377,18 @@ const spanishTranslation: TranslationType = {
                     description:
                         "Estás a punto de Crear una Ceremonia de Claves. Esta acción notificará a las Autoridades para participar en la creación y distribución de las Claves del Evento Electoral.",
                     automaticCeremonyDescription:
-                        "Estás a punto de crear una ceremonia de llaves automática. Esto no notificará a los fideicomisarios para que participen.",
+                        "Las ceremonias automáticas omiten las confirmaciones manuales de custodia. Los ejecutores de las autoridades deben generar y verificar las claves electorales.",
                 },
                 filterTrustees: "Filtrar Autoridades",
                 errorPermisionLabels:
                     "No se puede crear la ceremonia de claves: falta una o más etiquetas de permisos.",
                 automaticCeremonyToggle: "Ceremonia automática",
             },
+            // Native custody instructions use the English fallback until translated.
             ceremonyStep: {
+                ...englishTranslation.translations.keysGeneration.ceremonyStep,
                 cancel: "Cancelar Ceremonia de Claves",
                 progressHeader: "Progreso de Ceremonia de Claves",
-                description:
-                    "Esta pantalla muestra el progreso y los registros de la Ceremonia de Claves del Evento Electoral. En la Ceremonia de Claves, cada autoridad generará y descargará su fragmento de la clave privada para el Evento Electoral.",
                 executionStatus: "Estado: {{status}}",
                 confirmdDialog: {
                     ok: "Sí, Cancelar Creación de Ceremonia de Claves",
@@ -2397,10 +2398,9 @@ const spanishTranslation: TranslationType = {
                         "Estás a punto de Cancelar la Ceremonia de Claves. Después de realizar esta acción, para tener una Ceremonia de Claves exitosa tendrás que Crear una nueva.",
                 },
                 header: {
+                    ...englishTranslation.translations.keysGeneration.ceremonyStep.header,
                     trusteeName: "Nombre de Autoridad",
                     fragment: "Fragmento de Clave Generado",
-                    downloaded: "Fragmento Privado de Clave Descargado",
-                    checked: "Fragmento Privado de Clave Comprobado",
                 },
                 logsHeader: {
                     title: "Logs",
@@ -2408,48 +2408,6 @@ const spanishTranslation: TranslationType = {
                     entry: "Entrada",
                 },
                 emptyLogs: "Sin logs aún.",
-            },
-            startStep: {
-                title: "Ceremonia de Claves de Autoridad",
-                subtitle:
-                    "Estás a punto de participar en la Ceremonia de Claves como la Autoridad (<strong>{{name}}</strong>). Esto implica los siguientes pasos:",
-                one: "<strong>Descargar</strong> tu Clave Privada Encriptada.",
-                two: "Crear múltiples <strong>Copias de seguridad</strong> de tu Clave Privada Encriptada.",
-                three: "<strong>Verificar</strong> que las copias de seguridad funcionan correctamente.",
-            },
-            downloadStep: {
-                title: "Descargar Clave Privada Encriptada",
-                subtitle:
-                    "Para continuar, por favor descarga y guarda tu Clave Privada Encriptada en al menos dos dispositivos diferentes:",
-                downloadButton: "Descargar tu Clave Privada Encriptada",
-                downloaded: "Clave Privada Encriptada descargada correctamente.",
-                errorEmptyKey: "Error de descarga, fichero vacío",
-                unexpectedError: "No se pudo descargar la clave privada. Inténtalo de nuevo.",
-                alreadyVerified: "Tu clave privada ya se había descargado y verificado.",
-                unavailable:
-                    "La descarga de la clave privada ya no está disponible porque la ceremonia ha avanzado.",
-                confirmdDialog: {
-                    ok: "Confirmar copias de seguridad y Continuar",
-                    cancel: "Volver",
-                    title: "Copia de seguridad de tu Clave Privada Encriptada",
-                    description:
-                        "Por favor, realiza una copia de seguridad de tu Clave Privada Encriptada en al menos dos ubicaciones seguras diferentes y luego confírmalo a continuación:",
-                    firstCopy: "Primera copia de seguridad realizada",
-                    secondCopy: "Segunda copia de seguridad realizada",
-                    confirmError:
-                        "Cree las copias de seguridad requeridas y marque las casillas de confirmación para continuar",
-                },
-            },
-            checkStep: {
-                title: "Verifica tus Copias de Seguridad de tu Clave Privada Encriptada",
-                verifyButton: "Verificar clave",
-                subtitle:
-                    "Sube la Copia de Seguridad de tu Clave Privada Encriptada para verificar que sea correcta. Puedes intentarlo tantas veces como sea necesario, desde tus diferentes copias de seguridad:",
-                errorUploading:
-                    "Copa de Seguridad de la Clave Encriptada Privada inválida, por favor inténtalo de nuevo",
-                errorEmptyFile: "Fichero vacío o no encontrado",
-                verified: "Copia de seguridad verificada correctamente.",
-                alreadyRestored: "Tu clave ya se había restaurado.",
             },
         },
         miruExport: {
@@ -2613,7 +2571,7 @@ const spanishTranslation: TranslationType = {
             resultsTitle: "Resultados & Participación",
             generalInfoTitle: "Información General",
             trusteeTallyTitle: "Trustee",
-            trusteeTallySubTitle: "Estado de importación del fragmento de clave",
+            trusteeTallySubTitle: "Estado de confirmación de custodia",
             ballotBoxes: {
                 unavailable: "Sellos no disponibles",
                 sealed: "{{sealed}} de {{total}} selladas",
@@ -2664,7 +2622,7 @@ const spanishTranslation: TranslationType = {
             recountTallyCeremonyError: "No se ha podido iniciar el recuento",
             recountTallyCeremonyOk: "Repetir el recuento",
             trusteeTitle: "Proceso del trustee",
-            trusteeSubTitle: "Por favor, importe su fragmento de clave",
+            trusteeSubTitle: "Cargue su archivo público custody-proof.json",
             invited: "Has sido invitado a participar en una ceremonia de recuento. Por favor, ",
             click: "haz clic en la acción de recuento",
             participate: "para participar.",
@@ -2683,7 +2641,7 @@ const spanishTranslation: TranslationType = {
                 date: "Fecha de Recuento",
                 global: "Global",
                 noTrustees: "No hay trustees aún",
-                imported: " trustees han importado su fragmento de clave",
+                imported: " autoridades confirmaron la custodia",
                 needed: " trustees necesarios para el recuento",
                 start: "Iniciar Recuento",
                 ceremony: "Iniciar Ceremonia de Recuento",
@@ -2698,11 +2656,11 @@ const spanishTranslation: TranslationType = {
                     tallyTitle: "¿Estás seguro de que quieres iniciar el recuento?",
                     cancelTitle: "¿Estás seguro de que quieres cancelar el recuento?",
                     message:
-                        "Estás a punto de iniciar una ceremonia de recuento. Esta acción notificará a los trustees para importar sus fragmentos de clave.",
+                        "Esta ceremonia solicita a las autoridades pruebas públicas de custodia. Mantenga sus ejecutores activos con el estado local del protocolo.",
                     cancelMessage:
                         "Estás a punto de cancelar la ceremonia de recuento. Esta acción no se puede deshacer.",
                     ceremony:
-                        "Todos los trustees requeridos han verificado sus fragmentos de clave. Todo está listo para comenzar a recibir resultados. ¿Desea iniciar el Recuento?",
+                        "Las autoridades necesarias han confirmado la custodia. ¿Iniciar el recuento con sus ejecutores activos?",
                     startAutomatedTallyMessage:
                         "Selecciona 'Start Tally' para ejecutar el proceso de recuento y mostrar los resultados, o 'Close' para cancelar.",
                 },
@@ -4847,7 +4805,7 @@ const spanishTranslation: TranslationType = {
                 keys_ceremony_id: "Ceremonia",
                 tally_session_id: "Sesión de recuento",
                 trustee_id: "Autoridad",
-                key_share_sha256: "SHA-256 del fragmento de clave",
+                custody_proof_sha256: "SHA-256 del prueba de custodia",
                 channel: "Canal",
                 channels: "Canales",
                 publication_id: "Publicación de papeletas",
@@ -4951,22 +4909,22 @@ const spanishTranslation: TranslationType = {
             notes: {
                 afterApproval: "Tras la aprobación",
                 afterApprovalValue: "Se emiten las credenciales del votante y se le envían",
-                keyShare: "Su fragmento de clave",
-                keyShareChecked: "Comprobado: es su fragmento de clave para esta ceremonia",
+                custodyProof: "Su prueba de custodia",
+                custodyProofChecked: "Comprobado: es su prueba de custodia para esta ceremonia",
                 recordedIn: "Se registra en",
                 recordedInCeremony: "La ceremonia de claves y el tablón de anuncios",
                 recordedInTally: "La sesión de recuento",
             },
-            keyShare: {
+            custodyProof: {
                 signing:
-                    "Firme su fragmento de clave en el panel de firma. Se registra una vez que lo haya firmado.",
-                record: "Registrar mi fragmento de clave",
-                failed: "No se pudo registrar su fragmento de clave firmado: {{error}}",
+                    "Firme su prueba de custodia en el panel de firma. Se registra una vez que lo haya firmado.",
+                record: "Registrar mi prueba de custodia",
+                failed: "No se pudo registrar su prueba de custodia firmado: {{error}}",
                 dropAgain:
-                    "Vuelva a soltar su archivo de fragmento de clave para registrar su fragmento de clave firmado.",
-                redo: "Su fragmento de clave se aportó sin su firma, que esta elección ahora requiere. Apórtelo de nuevo y fírmelo.",
+                    "Vuelva a soltar su archivo de prueba de custodia para registrar su prueba de custodia firmado. (custody-proof.json)",
+                redo: "Su prueba de custodia se aportó sin su firma, que esta elección ahora requiere. Apórtelo de nuevo y fírmelo.",
                 notTaken:
-                    "La ceremonia ya no acepta este fragmento de clave. Vuelva a soltar su archivo de fragmento de clave.",
+                    "La ceremonia ya no acepta este prueba de custodia. Vuelva a soltar su archivo de prueba de custodia. (custody-proof.json)",
             },
         },
         lifecycle: {

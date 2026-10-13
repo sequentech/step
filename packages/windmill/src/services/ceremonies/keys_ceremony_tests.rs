@@ -5,15 +5,15 @@
 use super::*;
 use crate::adapters::memory::clock::{FixedClock, SequentialIds};
 use crate::adapters::memory::keys_ceremony::{
-    BoardCall, BoardConfiguration, MemoryKeysBoard, MemoryKeysCeremonyAudit,
-    MemoryKeysCeremonyStore, MemoryKeysCeremonyTasks, PostedMessage, QueuedTask, StoreCall,
+    MemoryKeysCeremonyAudit, MemoryKeysCeremonyStore, MemoryKeysCeremonyTasks, QueuedTask,
+    StoreCall,
 };
-use crate::domain::keys_ceremony::KeysBoardStatement;
-use crate::domain::trustee_signatures::TrusteeSignatures;
 use chrono::{DateTime, Local, TimeZone};
 use sequent_core::types::ceremonies::Log;
+use sequent_core::types::ceremonies::{Trustee, TrusteeStatus};
+use sequent_core::types::hasura::core::Trustee as TrusteeRecord;
 use sequent_core::types::hasura::core::{Election, ElectionEvent};
-use serde_json::json;
+use serde_json::{json, Value};
 
 const TENANT: &str = "tenant";
 const EVENT: &str = "election-event";
@@ -46,19 +46,15 @@ fn last_updated() -> DateTime<Local> {
         .expect("valid time")
 }
 
-fn public_key_of(trustee_name: &str) -> String {
-    format!("{trustee_name}-public-key")
-}
-
-fn private_key_of(trustee_name: &str) -> String {
-    format!("{trustee_name}-private-key")
-}
-
 fn trustee(name: &str) -> TrusteeRecord {
+    let keys = protocol_board::TrusteeSecrets::generate()
+        .public_keys()
+        .unwrap();
     serde_json::from_value(json!({
         "id": format!("{name}-id"),
         "name": name,
-        "public_key": public_key_of(name),
+        "public_key": keys.signing_public_key,
+        "share_encryption_public_key": keys.share_encryption_public_key,
         "tenant_id": TENANT,
     }))
     .expect("trustee")
@@ -96,6 +92,8 @@ fn keys_ceremony(
     trustees: &[(&str, TrusteeStatus)],
 ) -> KeysCeremony {
     let status = KeysCeremonyStatus {
+        public_key_hash: None,
+        failure: None,
         stop_date: Some("1699990000000".to_string()),
         public_key: None,
         logs: vec![Log {
@@ -159,37 +157,6 @@ fn with_policy(keys_ceremony: KeysCeremony, policy: CeremoniesPolicy) -> KeysCer
     }
 }
 
-fn statuses(status: &KeysCeremonyStatus) -> Vec<(String, TrusteeStatus)> {
-    status
-        .trustees
-        .iter()
-        .map(|trustee| (trustee.name.clone(), trustee.status.clone()))
-        .collect()
-}
-
-fn logs(status: &KeysCeremonyStatus) -> Vec<(String, String)> {
-    status
-        .logs
-        .iter()
-        .map(|log| (log.created_date.clone(), log.log_text.clone()))
-        .collect()
-}
-
-fn is_download_unavailable(error: &anyhow::Error) -> bool {
-    error
-        .downcast_ref::<PrivateKeyDownloadUnavailable>()
-        .is_some()
-}
-
-fn request(trustee: Option<&str>) -> TrusteeKeyRequest<'static> {
-    TrusteeKeyRequest {
-        trustee: trustee.map(str::to_string),
-        tenant_id: TENANT,
-        election_event_id: EVENT,
-        keys_ceremony_id: CEREMONY,
-    }
-}
-
 fn creation(
     election_id: Option<&str>,
     threshold: usize,
@@ -210,21 +177,16 @@ fn creation(
 
 struct Fixture {
     store: MemoryKeysCeremonyStore,
-    board: MemoryKeysBoard,
     audit: MemoryKeysCeremonyAudit,
     tasks: MemoryKeysCeremonyTasks,
     clock: FixedClock,
 }
-
 impl Fixture {
-    /// An election event with its own board, two elections and two trustees,
-    /// whose private keys are on the event board.
     fn new() -> Self {
-        let fixture = Fixture {
-            store: MemoryKeysCeremonyStore::default(),
-            board: MemoryKeysBoard::default(),
-            audit: MemoryKeysCeremonyAudit::default(),
-            tasks: MemoryKeysCeremonyTasks::default(),
+        let fixture = Self {
+            store: Default::default(),
+            audit: Default::default(),
+            tasks: Default::default(),
             clock: FixedClock::at(now()),
         };
         {
@@ -238,80 +200,29 @@ impl Fixture {
                 election(OTHER_ELECTION, None, Some(LABEL)),
             ];
         }
-        for name in [TRUSTEE, OTHER_TRUSTEE] {
-            fixture.board.boards().private_keys.insert(
-                (EVENT_BOARD.to_string(), public_key_of(name)),
-                private_key_of(name),
-            );
-        }
         fixture
     }
-
-    fn with_ceremony(self, keys_ceremony: KeysCeremony) -> Self {
-        self.store.tables().keys_ceremonies.push(keys_ceremony);
+    fn with_ceremony(self, ceremony: KeysCeremony) -> Self {
+        self.store.tables().keys_ceremonies.push(ceremony);
         self
     }
-
     fn ceremony(&self, id: &str) -> KeysCeremony {
         self.store
             .tables()
             .keys_ceremonies
             .iter()
-            .find(|keys_ceremony| keys_ceremony.id == id)
+            .find(|c| c.id == id)
             .cloned()
-            .expect("stored ceremony")
+            .unwrap()
     }
-
-    fn status(&self) -> KeysCeremonyStatus {
-        self.ceremony(CEREMONY).status().expect("readable status")
-    }
-
-    fn execution_status(&self) -> String {
-        self.ceremony(CEREMONY)
-            .execution_status
-            .expect("execution status")
-    }
-
-    fn nothing_written(&self) -> bool {
-        self.store.tables().status_updates.is_empty()
-    }
-
     fn nothing_created(&self) -> bool {
         let tables = self.store.tables();
-        tables
-            .keys_ceremonies
-            .iter()
-            .all(|keys_ceremony| keys_ceremony.id != NEW_CEREMONY)
+        tables.keys_ceremonies.iter().all(|c| c.id != NEW_CEREMONY)
             && tables
                 .elections
                 .iter()
-                .all(|election| election.keys_ceremony_id.is_none())
+                .all(|e| e.keys_ceremony_id.is_none())
     }
-
-    async fn board_of(&self, keys_ceremony: &KeysCeremony) -> Result<(String, Option<String>)> {
-        keys_ceremony_board(&self.store, &self.board, TENANT, EVENT, keys_ceremony).await
-    }
-
-    async fn download(&self, trustee: Option<&str>) -> Result<String> {
-        download_private_key(&self.store, &self.board, &self.clock, request(trustee)).await
-    }
-
-    async fn check(&self, trustee: Option<&str>, private_key: &str) -> Result<bool> {
-        check_trustee_private_key(
-            &self.store,
-            &self.board,
-            &self.clock,
-            request(trustee),
-            private_key,
-            &TrusteeSignatures::NotNeeded,
-        )
-        .await
-    }
-
-    async fn matches(&self, trustee: Option<&str>, private_key: &str) -> Result<bool> {
-        trustee_key_share_matches(&self.store, &self.board, request(trustee), private_key).await
-    }
-
     async fn create(&self, request: KeysCeremonyRequest<'_>) -> Result<String> {
         start_keys_ceremony(
             &self.store,
@@ -322,524 +233,20 @@ impl Fixture {
         )
         .await
     }
-
-    async fn allows(
-        &self,
-        election_id: Option<&str>,
-        user_permission_labels: Option<&str>,
-    ) -> Result<bool> {
+    async fn allows(&self, election_id: Option<&str>, labels: Option<&str>) -> Result<bool> {
         has_election_permission_labels(
             &self.store,
             TENANT,
             EVENT,
-            election_id.map(str::to_string),
-            user_permission_labels.map(str::to_string),
+            election_id.map(str::to_owned),
+            labels.map(str::to_owned),
         )
         .await
     }
-
-    async fn generate_keys(&self) -> Result<KeysCeremonyUpdate> {
-        generate_keys(&self.store, &self.board, TENANT, EVENT, CEREMONY).await
-    }
-
-    async fn record_public_key(&self) -> Result<KeysCeremonyUpdate> {
-        record_public_key(
-            &self.store,
-            &self.board,
-            &self.clock,
-            TENANT,
-            EVENT,
-            CEREMONY,
-        )
-        .await
-    }
-
     async fn dispatch(&self) -> Result<()> {
         dispatch_keys_ceremony_tasks(&self.store, &self.tasks, TENANT, EVENT).await
     }
 }
-
-fn not_default(keys_ceremony: KeysCeremony) -> KeysCeremony {
-    KeysCeremony {
-        is_default: Some(false),
-        ..keys_ceremony
-    }
-}
-
-fn assign(fixture: &Fixture, election_id: &str, keys_ceremony_id: &str) {
-    for election in fixture.store.tables().elections.iter_mut() {
-        if election.id == election_id {
-            election.keys_ceremony_id = Some(keys_ceremony_id.to_string());
-        }
-    }
-}
-
-#[tokio::test]
-async fn the_default_ceremony_uses_the_election_event_board() {
-    let fixture = Fixture::new();
-
-    let board = fixture
-        .board_of(&in_progress(
-            TrusteeStatus::KEY_GENERATED,
-            TrusteeStatus::KEY_GENERATED,
-        ))
-        .await
-        .unwrap();
-
-    assert_eq!(board, (EVENT_BOARD.to_string(), None));
-}
-
-#[tokio::test]
-async fn a_ceremony_that_does_not_say_whether_it_is_the_default_uses_the_election_event_board() {
-    let fixture = Fixture::new();
-    let keys_ceremony = KeysCeremony {
-        is_default: None,
-        ..in_progress(TrusteeStatus::KEY_GENERATED, TrusteeStatus::KEY_GENERATED)
-    };
-
-    let board = fixture.board_of(&keys_ceremony).await.unwrap();
-
-    assert_eq!(board, (EVENT_BOARD.to_string(), None));
-}
-
-#[tokio::test]
-async fn an_election_ceremony_uses_the_board_of_its_first_election() {
-    let fixture = Fixture::new();
-    assign(&fixture, OTHER_ELECTION, CEREMONY);
-    assign(&fixture, ELECTION, CEREMONY);
-    let keys_ceremony = not_default(in_progress(
-        TrusteeStatus::KEY_GENERATED,
-        TrusteeStatus::KEY_GENERATED,
-    ));
-
-    let board = fixture.board_of(&keys_ceremony).await.unwrap();
-
-    assert_eq!(
-        board,
-        (
-            MemoryKeysBoard::election_board_name(ELECTION),
-            Some(ELECTION.to_string())
-        )
-    );
-}
-
-#[tokio::test]
-async fn an_election_ceremony_without_elections_has_no_board() {
-    let fixture = Fixture::new();
-    let keys_ceremony = not_default(in_progress(
-        TrusteeStatus::KEY_GENERATED,
-        TrusteeStatus::KEY_GENERATED,
-    ));
-
-    let error = fixture.board_of(&keys_ceremony).await.unwrap_err();
-
-    assert_eq!(
-        error.to_string(),
-        "Can't find election with keys ceremony keys-ceremony"
-    );
-}
-
-#[tokio::test]
-async fn the_default_ceremony_needs_an_election_event_board() {
-    let fixture = Fixture::new();
-    fixture.store.tables().election_events = vec![election_event(None)];
-
-    let error = fixture
-        .board_of(&in_progress(
-            TrusteeStatus::KEY_GENERATED,
-            TrusteeStatus::KEY_GENERATED,
-        ))
-        .await
-        .unwrap_err();
-
-    assert_eq!(error.to_string(), "missing bulletin board");
-}
-
-#[tokio::test]
-async fn downloading_a_private_key_returns_it_and_marks_the_trustee_retrieved() {
-    let fixture = Fixture::new().with_ceremony(with_status(
-        in_progress(TrusteeStatus::KEY_GENERATED, TrusteeStatus::KEY_GENERATED),
-        |status| status.public_key = Some(ELECTION_PUBLIC_KEY.to_string()),
-    ));
-
-    let private_key = fixture.download(Some(TRUSTEE)).await.unwrap();
-
-    assert_eq!(private_key, private_key_of(TRUSTEE));
-    let status = fixture.status();
-    assert_eq!(
-        statuses(&status),
-        vec![
-            (TRUSTEE.to_string(), TrusteeStatus::KEY_RETRIEVED),
-            (OTHER_TRUSTEE.to_string(), TrusteeStatus::KEY_GENERATED),
-        ]
-    );
-    assert_eq!(status.public_key.as_deref(), Some(ELECTION_PUBLIC_KEY));
-    assert_eq!(status.stop_date, None);
-    assert_eq!(
-        logs(&status),
-        vec![
-            (
-                "2023-11-14T19:00:00+00:00".to_string(),
-                "Created Keys Ceremony".to_string()
-            ),
-            (
-                now().to_rfc3339(),
-                "Downloaded private key for trustee trustee1".to_string()
-            ),
-        ]
-    );
-    assert_eq!(fixture.execution_status(), "IN_PROGRESS");
-}
-
-#[tokio::test]
-async fn a_download_is_recorded_while_the_ceremony_is_locked() {
-    let fixture = Fixture::new().with_ceremony(in_progress(
-        TrusteeStatus::KEY_GENERATED,
-        TrusteeStatus::KEY_GENERATED,
-    ));
-
-    fixture.download(Some(TRUSTEE)).await.unwrap();
-
-    let updates = fixture.store.tables().status_updates.clone();
-    assert_eq!(updates.len(), 1);
-    assert!(updates[0].locked);
-}
-
-#[tokio::test]
-async fn a_download_without_a_trustee_claim_is_rejected() {
-    let fixture = Fixture::new().with_ceremony(in_progress(
-        TrusteeStatus::KEY_GENERATED,
-        TrusteeStatus::KEY_GENERATED,
-    ));
-
-    let error = fixture.download(None).await.unwrap_err();
-
-    assert_eq!(error.to_string(), "trustee name not found");
-    assert!(fixture.nothing_written());
-}
-
-#[tokio::test]
-async fn a_download_refused_by_the_ceremony_state_is_unavailable_and_writes_nothing() {
-    let cases = [
-        keys_ceremony(
-            KeysCeremonyExecutionStatus::SUCCESS,
-            &[(TRUSTEE, TrusteeStatus::KEY_GENERATED)],
-        ),
-        in_progress(TrusteeStatus::KEY_CHECKED, TrusteeStatus::KEY_GENERATED),
-    ];
-    for keys_ceremony in cases {
-        let fixture = Fixture::new().with_ceremony(keys_ceremony);
-
-        let error = fixture.download(Some(TRUSTEE)).await.unwrap_err();
-
-        assert!(is_download_unavailable(&error));
-        assert_eq!(
-            error.to_string(),
-            "Private key download is no longer available"
-        );
-        assert!(fixture.nothing_written());
-    }
-}
-
-#[tokio::test]
-async fn a_trustee_missing_from_the_database_cannot_download() {
-    let fixture = Fixture::new().with_ceremony(in_progress(
-        TrusteeStatus::KEY_GENERATED,
-        TrusteeStatus::KEY_GENERATED,
-    ));
-    fixture.store.tables().trustees = vec![trustee(OTHER_TRUSTEE)];
-
-    let error = fixture.download(Some(TRUSTEE)).await.unwrap_err();
-
-    assert_eq!(
-        format!("{error:#}"),
-        "can't find trustee in the database: Trustee trustee1 not found"
-    );
-    assert!(!is_download_unavailable(&error));
-    assert!(fixture.nothing_written());
-}
-
-#[tokio::test]
-async fn a_trustee_without_a_public_key_cannot_download() {
-    let fixture = Fixture::new().with_ceremony(in_progress(
-        TrusteeStatus::KEY_GENERATED,
-        TrusteeStatus::KEY_GENERATED,
-    ));
-    fixture.store.tables().trustees[0].public_key = None;
-
-    let error = fixture.download(Some(TRUSTEE)).await.unwrap_err();
-
-    assert_eq!(error.to_string(), "can't get trustee's public key");
-    assert!(fixture.nothing_written());
-}
-
-#[tokio::test]
-async fn a_private_key_missing_from_the_board_is_not_recorded_as_downloaded() {
-    let fixture = Fixture::new().with_ceremony(in_progress(
-        TrusteeStatus::KEY_GENERATED,
-        TrusteeStatus::KEY_GENERATED,
-    ));
-    fixture.board.boards().private_keys.clear();
-
-    let error = fixture.download(Some(TRUSTEE)).await.unwrap_err();
-
-    assert_eq!(error.to_string(), "Channel not found on board event-board");
-    assert!(!is_download_unavailable(&error));
-    assert!(fixture.nothing_written());
-}
-
-#[tokio::test]
-async fn a_failure_to_record_the_download_fails_it() {
-    let fixture = Fixture::new().with_ceremony(in_progress(
-        TrusteeStatus::KEY_GENERATED,
-        TrusteeStatus::KEY_GENERATED,
-    ));
-    fixture.store.fail(StoreCall::UpdateKeysCeremonyStatus);
-
-    let error = fixture.download(Some(TRUSTEE)).await.unwrap_err();
-
-    assert_eq!(
-        format!("{error:#}"),
-        "couldn't update keys ceremony: UpdateKeysCeremonyStatus failed"
-    );
-}
-
-#[tokio::test]
-async fn checking_the_right_private_key_marks_the_trustee_checked() {
-    let fixture = Fixture::new().with_ceremony(in_progress(
-        TrusteeStatus::KEY_RETRIEVED,
-        TrusteeStatus::KEY_RETRIEVED,
-    ));
-
-    let is_valid = fixture
-        .check(Some(TRUSTEE), &private_key_of(TRUSTEE))
-        .await
-        .unwrap();
-
-    assert!(is_valid);
-    let status = fixture.status();
-    assert_eq!(
-        statuses(&status),
-        vec![
-            (TRUSTEE.to_string(), TrusteeStatus::KEY_CHECKED),
-            (OTHER_TRUSTEE.to_string(), TrusteeStatus::KEY_RETRIEVED),
-        ]
-    );
-    assert_eq!(status.stop_date, None);
-    assert_eq!(
-        logs(&status).last(),
-        Some(&(
-            now().to_rfc3339(),
-            "Checked private key for trustee trustee1".to_string()
-        ))
-    );
-    assert_eq!(fixture.execution_status(), "IN_PROGRESS");
-}
-
-#[tokio::test]
-async fn the_ceremony_succeeds_when_the_last_trustee_checks_its_private_key() {
-    let fixture = Fixture::new().with_ceremony(in_progress(
-        TrusteeStatus::KEY_RETRIEVED,
-        TrusteeStatus::KEY_CHECKED,
-    ));
-
-    fixture
-        .check(Some(TRUSTEE), &private_key_of(TRUSTEE))
-        .await
-        .unwrap();
-
-    assert_eq!(fixture.execution_status(), "SUCCESS");
-}
-
-#[tokio::test]
-async fn a_check_is_recorded_while_the_ceremony_is_locked() {
-    let fixture = Fixture::new().with_ceremony(in_progress(
-        TrusteeStatus::KEY_RETRIEVED,
-        TrusteeStatus::KEY_RETRIEVED,
-    ));
-
-    fixture
-        .check(Some(TRUSTEE), &private_key_of(TRUSTEE))
-        .await
-        .unwrap();
-
-    let updates = fixture.store.tables().status_updates.clone();
-    assert_eq!(updates.len(), 1);
-    assert!(updates[0].locked);
-}
-
-#[tokio::test]
-async fn checking_a_wrong_private_key_fails_the_check_and_records_nothing() {
-    let fixture = Fixture::new().with_ceremony(in_progress(
-        TrusteeStatus::KEY_RETRIEVED,
-        TrusteeStatus::KEY_RETRIEVED,
-    ));
-
-    let is_valid = fixture
-        .check(Some(TRUSTEE), &private_key_of(OTHER_TRUSTEE))
-        .await
-        .unwrap();
-
-    assert!(!is_valid);
-    assert!(fixture.nothing_written());
-}
-
-#[tokio::test]
-async fn a_check_without_a_trustee_claim_is_rejected() {
-    let fixture = Fixture::new().with_ceremony(in_progress(
-        TrusteeStatus::KEY_RETRIEVED,
-        TrusteeStatus::KEY_RETRIEVED,
-    ));
-
-    let error = fixture
-        .check(None, &private_key_of(TRUSTEE))
-        .await
-        .unwrap_err();
-
-    assert_eq!(error.to_string(), "trustee name not found");
-    assert!(fixture.nothing_written());
-}
-
-#[tokio::test]
-async fn a_check_refused_by_the_ceremony_state_writes_nothing() {
-    let cases = [
-        (
-            keys_ceremony(
-                KeysCeremonyExecutionStatus::STARTED,
-                &[(TRUSTEE, TrusteeStatus::KEY_RETRIEVED)],
-            ),
-            "Keys ceremony not in ExecutionStatus::IN_PROCESS or  ExecutionStatus::SUCCESS",
-        ),
-        (
-            in_progress(TrusteeStatus::WAITING, TrusteeStatus::KEY_RETRIEVED),
-            "Trustee not part of the keys ceremony or has invalid state",
-        ),
-    ];
-    for (keys_ceremony, message) in cases {
-        let fixture = Fixture::new().with_ceremony(keys_ceremony);
-
-        let error = fixture
-            .check(Some(TRUSTEE), &private_key_of(TRUSTEE))
-            .await
-            .unwrap_err();
-
-        assert_eq!(error.to_string(), message);
-        assert!(fixture.nothing_written());
-    }
-}
-
-#[tokio::test]
-async fn a_key_share_is_matched_as_the_check_matches_it_without_recording_anything() {
-    let fixture = Fixture::new().with_ceremony(in_progress(
-        TrusteeStatus::KEY_RETRIEVED,
-        TrusteeStatus::KEY_RETRIEVED,
-    ));
-
-    assert!(fixture
-        .matches(Some(TRUSTEE), &private_key_of(TRUSTEE))
-        .await
-        .unwrap());
-    assert!(!fixture
-        .matches(Some(TRUSTEE), &private_key_of(OTHER_TRUSTEE))
-        .await
-        .unwrap());
-    assert!(fixture.nothing_written());
-}
-
-#[tokio::test]
-async fn a_key_share_is_not_matched_when_the_check_would_be_refused() {
-    let cases = [
-        (
-            Some(TRUSTEE),
-            keys_ceremony(
-                KeysCeremonyExecutionStatus::STARTED,
-                &[(TRUSTEE, TrusteeStatus::KEY_RETRIEVED)],
-            ),
-            "Keys ceremony not in ExecutionStatus::IN_PROCESS or  ExecutionStatus::SUCCESS",
-        ),
-        (
-            Some(TRUSTEE),
-            in_progress(TrusteeStatus::WAITING, TrusteeStatus::KEY_RETRIEVED),
-            "Trustee not part of the keys ceremony or has invalid state",
-        ),
-        (
-            None,
-            in_progress(TrusteeStatus::KEY_RETRIEVED, TrusteeStatus::KEY_RETRIEVED),
-            "trustee name not found",
-        ),
-    ];
-    for (trustee, keys_ceremony, message) in cases {
-        let fixture = Fixture::new().with_ceremony(keys_ceremony);
-
-        let error = fixture
-            .matches(trustee, &private_key_of(TRUSTEE))
-            .await
-            .unwrap_err();
-
-        assert_eq!(error.to_string(), message);
-        assert!(fixture.nothing_written());
-    }
-}
-
-#[tokio::test]
-async fn a_trustee_without_a_public_key_cannot_check_its_private_key() {
-    let fixture = Fixture::new().with_ceremony(in_progress(
-        TrusteeStatus::KEY_RETRIEVED,
-        TrusteeStatus::KEY_RETRIEVED,
-    ));
-    fixture.store.tables().trustees[0].public_key = None;
-
-    let error = fixture
-        .check(Some(TRUSTEE), &private_key_of(TRUSTEE))
-        .await
-        .unwrap_err();
-
-    assert_eq!(error.to_string(), "can't get trustee public key");
-    assert!(fixture.nothing_written());
-}
-
-#[tokio::test]
-async fn a_successful_ceremony_stays_successful_when_a_trustee_checks_again() {
-    let fixture = Fixture::new().with_ceremony(keys_ceremony(
-        KeysCeremonyExecutionStatus::SUCCESS,
-        &[
-            (TRUSTEE, TrusteeStatus::KEY_CHECKED),
-            (OTHER_TRUSTEE, TrusteeStatus::KEY_CHECKED),
-        ],
-    ));
-
-    let is_valid = fixture
-        .check(Some(TRUSTEE), &private_key_of(TRUSTEE))
-        .await
-        .unwrap();
-
-    assert!(is_valid);
-    assert_eq!(fixture.execution_status(), "SUCCESS");
-}
-
-// An automated ceremony succeeds without the trustees checking their keys,
-// so a later check moves it back in progress.
-#[tokio::test]
-async fn checking_a_private_key_of_a_successful_automated_ceremony_moves_it_back_in_progress() {
-    let fixture = Fixture::new().with_ceremony(with_policy(
-        keys_ceremony(
-            KeysCeremonyExecutionStatus::SUCCESS,
-            &[
-                (TRUSTEE, TrusteeStatus::KEY_GENERATED),
-                (OTHER_TRUSTEE, TrusteeStatus::KEY_GENERATED),
-            ],
-        ),
-        CeremoniesPolicy::AUTOMATED_CEREMONIES,
-    ));
-
-    fixture
-        .check(Some(TRUSTEE), &private_key_of(TRUSTEE))
-        .await
-        .unwrap();
-
-    assert_eq!(fixture.execution_status(), "IN_PROGRESS");
-}
-
 #[tokio::test]
 async fn creating_a_ceremony_stores_it_waiting_for_its_trustees() {
     let fixture = Fixture::new();
@@ -868,6 +275,8 @@ async fn creating_a_ceremony_stores_it_waiting_for_its_trustees() {
         Some(json!({
             "stop_date": null,
             "public_key": null,
+            "public_key_hash": null,
+            "failure": null,
             "logs": [{
                 "created_date": now().to_rfc3339(),
                 "log_text": "Created Keys Ceremony with trustees: [\"trustee2\", \"trustee1\"]",
@@ -1272,423 +681,6 @@ fn started() -> KeysCeremony {
     )
 }
 
-#[tokio::test]
-async fn a_started_ceremony_gets_its_board_configured_and_moves_in_progress() {
-    let fixture = Fixture::new().with_ceremony(started());
-
-    let update = fixture.generate_keys().await.unwrap();
-
-    assert_eq!(update, KeysCeremonyUpdate::Updated);
-    assert_eq!(
-        fixture.board.boards().configurations,
-        vec![BoardConfiguration {
-            board_name: EVENT_BOARD.to_string(),
-            tenant_id: TENANT.to_string(),
-            election_event_id: EVENT.to_string(),
-            trustee_public_keys: vec![public_key_of(TRUSTEE), public_key_of(OTHER_TRUSTEE)],
-            threshold: 2,
-        }]
-    );
-    assert_eq!(fixture.execution_status(), "IN_PROGRESS");
-    assert_eq!(fixture.ceremony(CEREMONY).status, started().status);
-}
-
-#[tokio::test]
-async fn trustees_without_a_public_key_are_left_out_of_the_board_configuration() {
-    let fixture = Fixture::new().with_ceremony(started());
-    fixture.store.tables().trustees[1].public_key = None;
-
-    fixture.generate_keys().await.unwrap();
-
-    assert_eq!(
-        fixture.board.boards().configurations[0].trustee_public_keys,
-        vec![public_key_of(TRUSTEE)]
-    );
-}
-
-#[tokio::test]
-async fn a_board_that_is_already_configured_is_not_configured_again() {
-    let fixture = Fixture::new().with_ceremony(started());
-    let existing = BoardConfiguration {
-        board_name: EVENT_BOARD.to_string(),
-        tenant_id: TENANT.to_string(),
-        election_event_id: EVENT.to_string(),
-        trustee_public_keys: vec![],
-        threshold: 3,
-    };
-    fixture.board.boards().configurations.push(existing.clone());
-
-    let update = fixture.generate_keys().await.unwrap();
-
-    assert_eq!(update, KeysCeremonyUpdate::Updated);
-    assert_eq!(fixture.board.boards().configurations, vec![existing]);
-    assert_eq!(fixture.execution_status(), "IN_PROGRESS");
-}
-
-#[tokio::test]
-async fn only_a_started_ceremony_without_a_public_key_generates_keys() {
-    let cases = [
-        in_progress(TrusteeStatus::WAITING, TrusteeStatus::WAITING),
-        with_status(started(), |status| {
-            status.public_key = Some(ELECTION_PUBLIC_KEY.to_string())
-        }),
-    ];
-    for keys_ceremony in cases {
-        let fixture = Fixture::new().with_ceremony(keys_ceremony);
-
-        let update = fixture.generate_keys().await.unwrap();
-
-        assert_eq!(update, KeysCeremonyUpdate::Skipped);
-        assert!(fixture.board.boards().configurations.is_empty());
-        assert!(fixture.nothing_written());
-    }
-}
-
-// The board is looked up before the status is checked, so a ceremony that
-// would be skipped still fails without a board.
-#[tokio::test]
-async fn a_ceremony_without_a_board_fails_to_generate_keys_even_when_not_started() {
-    let fixture = Fixture::new().with_ceremony(not_default(in_progress(
-        TrusteeStatus::KEY_GENERATED,
-        TrusteeStatus::KEY_GENERATED,
-    )));
-
-    let error = fixture.generate_keys().await.unwrap_err();
-
-    assert_eq!(
-        error.to_string(),
-        "Can't find election with keys ceremony keys-ceremony"
-    );
-}
-
-#[tokio::test]
-async fn an_unknown_ceremony_cannot_generate_keys() {
-    let fixture = Fixture::new();
-
-    let error = fixture.generate_keys().await.unwrap_err();
-
-    assert_eq!(
-        format!("{error:#}"),
-        "error finding keys ceremony: Keys ceremony keys-ceremony not found"
-    );
-}
-
-#[tokio::test]
-async fn a_ceremony_whose_board_cannot_be_configured_stays_started() {
-    let fixture = Fixture::new().with_ceremony(started());
-    fixture.board.boards().failing.insert(BoardCall::CreateKeys);
-
-    let error = fixture.generate_keys().await.unwrap_err();
-
-    assert_eq!(error.to_string(), "CreateKeys failed");
-    assert!(fixture.nothing_written());
-}
-
-fn awaiting_public_key(policy: CeremoniesPolicy) -> KeysCeremony {
-    with_policy(
-        in_progress(TrusteeStatus::WAITING, TrusteeStatus::WAITING),
-        policy,
-    )
-}
-
-fn post(
-    fixture: &Fixture,
-    statement: KeysBoardStatement,
-    sender: &str,
-    posted_at: u64,
-    log: (&str, &str),
-) {
-    fixture
-        .board
-        .boards()
-        .messages
-        .entry(EVENT_BOARD.to_string())
-        .or_default()
-        .push(PostedMessage {
-            message: KeysBoardMessage {
-                statement,
-                sender: sender.to_string(),
-            },
-            log: Log {
-                created_date: log.0.to_string(),
-                log_text: log.1.to_string(),
-            },
-            posted_at,
-        });
-}
-
-fn publish_public_key(fixture: &Fixture) {
-    fixture
-        .board
-        .boards()
-        .public_keys
-        .insert(EVENT_BOARD.to_string(), ELECTION_PUBLIC_KEY.to_string());
-}
-
-#[tokio::test]
-async fn an_automated_ceremony_succeeds_once_the_board_has_the_public_key() {
-    let fixture =
-        Fixture::new().with_ceremony(awaiting_public_key(CeremoniesPolicy::AUTOMATED_CEREMONIES));
-    publish_public_key(&fixture);
-
-    let update = fixture.record_public_key().await.unwrap();
-
-    assert_eq!(update, KeysCeremonyUpdate::Updated);
-    assert_eq!(fixture.execution_status(), "SUCCESS");
-    assert_eq!(
-        fixture.status().public_key.as_deref(),
-        Some(ELECTION_PUBLIC_KEY)
-    );
-}
-
-#[tokio::test]
-async fn a_manual_ceremony_stays_in_progress_with_the_public_key() {
-    let fixture =
-        Fixture::new().with_ceremony(awaiting_public_key(CeremoniesPolicy::MANUAL_CEREMONIES));
-    publish_public_key(&fixture);
-
-    fixture.record_public_key().await.unwrap();
-
-    assert_eq!(fixture.execution_status(), "IN_PROGRESS");
-    assert_eq!(
-        fixture.status().public_key.as_deref(),
-        Some(ELECTION_PUBLIC_KEY)
-    );
-}
-
-#[tokio::test]
-async fn a_ceremony_stays_in_progress_until_the_board_has_the_public_key() {
-    let fixture =
-        Fixture::new().with_ceremony(awaiting_public_key(CeremoniesPolicy::AUTOMATED_CEREMONIES));
-    post(
-        &fixture,
-        KeysBoardStatement::PublicKey,
-        &public_key_of(TRUSTEE),
-        1_699_990_001,
-        (
-            "2023-11-14T19:46:41+00:00",
-            "trustee1: Added message PublicKey",
-        ),
-    );
-
-    let update = fixture.record_public_key().await.unwrap();
-
-    assert_eq!(update, KeysCeremonyUpdate::Updated);
-    assert_eq!(fixture.execution_status(), "IN_PROGRESS");
-    let status = fixture.status();
-    assert_eq!(status.public_key, None);
-    assert_eq!(
-        statuses(&status),
-        vec![
-            (TRUSTEE.to_string(), TrusteeStatus::KEY_GENERATED),
-            (OTHER_TRUSTEE.to_string(), TrusteeStatus::WAITING),
-        ]
-    );
-}
-
-#[tokio::test]
-async fn recording_the_public_key_sets_the_stop_date_to_the_current_time() {
-    let fixture =
-        Fixture::new().with_ceremony(awaiting_public_key(CeremoniesPolicy::MANUAL_CEREMONIES));
-
-    fixture.record_public_key().await.unwrap();
-
-    assert_eq!(fixture.status().stop_date.as_deref(), Some("1700000000000"));
-}
-
-#[tokio::test]
-async fn a_trustee_generated_its_key_only_once_the_board_has_its_public_key_share() {
-    let fixture = Fixture::new().with_ceremony(keys_ceremony(
-        KeysCeremonyExecutionStatus::IN_PROGRESS,
-        &[
-            (TRUSTEE, TrusteeStatus::WAITING),
-            (OTHER_TRUSTEE, TrusteeStatus::WAITING),
-            (THIRD_TRUSTEE, TrusteeStatus::WAITING),
-            ("trustee4", TrusteeStatus::WAITING),
-        ],
-    ));
-    {
-        let mut tables = fixture.store.tables();
-        tables.trustees.push(trustee(THIRD_TRUSTEE));
-        let mut without_public_key = trustee("trustee4");
-        without_public_key.public_key = None;
-        tables.trustees.push(without_public_key);
-    }
-    let log = ("2023-11-14T19:46:41+00:00", "message");
-    post(
-        &fixture,
-        KeysBoardStatement::PublicKey,
-        &public_key_of(TRUSTEE),
-        0,
-        log,
-    );
-    post(
-        &fixture,
-        KeysBoardStatement::PublicKeySigned,
-        &public_key_of(OTHER_TRUSTEE),
-        0,
-        log,
-    );
-    post(
-        &fixture,
-        KeysBoardStatement::Other,
-        &public_key_of(THIRD_TRUSTEE),
-        0,
-        log,
-    );
-    post(
-        &fixture,
-        KeysBoardStatement::PublicKey,
-        "unknown-public-key",
-        0,
-        log,
-    );
-
-    fixture.record_public_key().await.unwrap();
-
-    assert_eq!(
-        statuses(&fixture.status()),
-        vec![
-            (TRUSTEE.to_string(), TrusteeStatus::KEY_GENERATED),
-            (OTHER_TRUSTEE.to_string(), TrusteeStatus::KEY_GENERATED),
-            (THIRD_TRUSTEE.to_string(), TrusteeStatus::WAITING),
-            ("trustee4".to_string(), TrusteeStatus::WAITING),
-        ]
-    );
-}
-
-// The statuses come from the board alone, so downloads and checks recorded
-// before the public key is set are lost.
-#[tokio::test]
-async fn recording_the_public_key_recomputes_every_trustee_status_from_the_board() {
-    let fixture = Fixture::new().with_ceremony(in_progress(
-        TrusteeStatus::KEY_RETRIEVED,
-        TrusteeStatus::KEY_CHECKED,
-    ));
-    post(
-        &fixture,
-        KeysBoardStatement::PublicKey,
-        &public_key_of(TRUSTEE),
-        0,
-        ("2023-11-14T19:46:41+00:00", "message"),
-    );
-
-    fixture.record_public_key().await.unwrap();
-
-    assert_eq!(
-        statuses(&fixture.status()),
-        vec![
-            (TRUSTEE.to_string(), TrusteeStatus::KEY_GENERATED),
-            (OTHER_TRUSTEE.to_string(), TrusteeStatus::WAITING),
-        ]
-    );
-}
-
-#[tokio::test]
-async fn only_messages_posted_since_the_last_update_are_logged_in_date_order() {
-    let fixture =
-        Fixture::new().with_ceremony(awaiting_public_key(CeremoniesPolicy::MANUAL_CEREMONIES));
-    let since = last_updated().timestamp() as u64;
-    post(
-        &fixture,
-        KeysBoardStatement::Other,
-        "sender",
-        since - 1,
-        ("2023-11-14T18:00:00+00:00", "before the update"),
-    );
-    post(
-        &fixture,
-        KeysBoardStatement::Other,
-        "sender",
-        since,
-        ("2023-11-14T18:30:00+00:00", "at the update"),
-    );
-
-    fixture.record_public_key().await.unwrap();
-
-    assert_eq!(
-        logs(&fixture.status()),
-        vec![
-            (
-                "2023-11-14T18:30:00+00:00".to_string(),
-                "at the update".to_string()
-            ),
-            (
-                "2023-11-14T19:00:00+00:00".to_string(),
-                "Created Keys Ceremony".to_string()
-            ),
-        ]
-    );
-}
-
-#[tokio::test]
-async fn a_ceremony_with_a_public_key_or_not_in_progress_is_left_alone() {
-    let cases = [
-        with_status(
-            awaiting_public_key(CeremoniesPolicy::MANUAL_CEREMONIES),
-            |status| status.public_key = Some(ELECTION_PUBLIC_KEY.to_string()),
-        ),
-        started(),
-        keys_ceremony(
-            KeysCeremonyExecutionStatus::SUCCESS,
-            &[(TRUSTEE, TrusteeStatus::KEY_CHECKED)],
-        ),
-    ];
-    for keys_ceremony in cases {
-        let fixture = Fixture::new().with_ceremony(keys_ceremony);
-        publish_public_key(&fixture);
-
-        let update = fixture.record_public_key().await.unwrap();
-
-        assert_eq!(update, KeysCeremonyUpdate::Skipped);
-        assert!(fixture.nothing_written());
-    }
-}
-
-#[tokio::test]
-async fn trustees_that_do_not_match_the_stored_trustees_fail_the_public_key_update() {
-    let fixture =
-        Fixture::new().with_ceremony(awaiting_public_key(CeremoniesPolicy::MANUAL_CEREMONIES));
-    fixture.store.tables().trustees.remove(1);
-
-    let error = fixture.record_public_key().await.unwrap_err();
-
-    assert_eq!(
-        error.to_string(),
-        "trustee_names don't correspond to trustees_by_name"
-    );
-    assert!(fixture.nothing_written());
-}
-
-#[tokio::test]
-async fn an_unreadable_trustee_public_key_fails_the_public_key_update() {
-    let fixture =
-        Fixture::new().with_ceremony(awaiting_public_key(CeremoniesPolicy::MANUAL_CEREMONIES));
-    fixture
-        .board
-        .boards()
-        .invalid_keys
-        .insert(public_key_of(OTHER_TRUSTEE));
-
-    let error = fixture.record_public_key().await.unwrap_err();
-
-    assert_eq!(error.to_string(), "invalid public key trustee2-public-key");
-    assert!(fixture.nothing_written());
-}
-
-#[tokio::test]
-async fn a_ceremony_without_an_update_time_fails_the_public_key_update() {
-    let fixture = Fixture::new().with_ceremony(KeysCeremony {
-        last_updated_at: None,
-        ..awaiting_public_key(CeremoniesPolicy::MANUAL_CEREMONIES)
-    });
-
-    let error = fixture.record_public_key().await.unwrap_err();
-
-    assert_eq!(error.to_string(), "empty last_updated_at");
-    assert!(fixture.nothing_written());
-}
-
 fn with_id(id: &str, keys_ceremony: KeysCeremony) -> KeysCeremony {
     KeysCeremony {
         id: id.to_string(),
@@ -1784,4 +776,73 @@ async fn a_task_that_cannot_be_queued_stops_the_dispatch() {
 
     assert_eq!(error.to_string(), "CreateKeys task failed");
     assert!(fixture.tasks.queued().is_empty());
+}
+
+fn not_default(keys_ceremony: KeysCeremony) -> KeysCeremony {
+    KeysCeremony {
+        is_default: Some(false),
+        ..keys_ceremony
+    }
+}
+
+fn assign(fixture: &Fixture, election_id: &str, keys_ceremony_id: &str) {
+    for election in fixture.store.tables().elections.iter_mut() {
+        if election.id == election_id {
+            election.keys_ceremony_id = Some(keys_ceremony_id.to_string());
+        }
+    }
+}
+
+#[test]
+fn reported_public_key_must_match_the_verified_board() {
+    let mut ceremony = keys_ceremony(KeysCeremonyExecutionStatus::SUCCESS, &[]);
+    ceremony.status = Some(json!({"public_key": ELECTION_PUBLIC_KEY}));
+    assert_eq!(
+        ceremony_public_key_state(&ceremony, Some(ELECTION_PUBLIC_KEY)),
+        CeremonyPublicKeyState::OnBoard(ELECTION_PUBLIC_KEY.into())
+    );
+    for board_key in [None, Some("another-key")] {
+        assert_eq!(
+            ceremony_public_key_state(&ceremony, board_key),
+            CeremonyPublicKeyState::NotOnBoard
+        );
+    }
+}
+
+#[test]
+fn missing_reported_public_key_requires_no_board_comparison() {
+    let mut ceremony = keys_ceremony(KeysCeremonyExecutionStatus::IN_PROGRESS, &[]);
+    for status in [
+        None,
+        Some(json!({"public_key": null})),
+        Some(json!({"trustees": 7})),
+    ] {
+        ceremony.status = status;
+        for board_key in [None, Some(ELECTION_PUBLIC_KEY)] {
+            assert_eq!(
+                ceremony_public_key_state(&ceremony, board_key),
+                CeremonyPublicKeyState::NoPublicKey
+            );
+        }
+    }
+}
+
+#[test]
+fn malformed_ceremony_status_cannot_hide_a_reported_public_key() {
+    let mut ceremony = keys_ceremony(KeysCeremonyExecutionStatus::SUCCESS, &[]);
+    ceremony.status = Some(json!({"public_key": ELECTION_PUBLIC_KEY, "trustees": "invalid"}));
+    assert!(ceremony.status().is_err());
+    assert_eq!(
+        ceremony_public_key_state(&ceremony, Some(ELECTION_PUBLIC_KEY)),
+        CeremonyPublicKeyState::OnBoard(ELECTION_PUBLIC_KEY.into())
+    );
+    assert_eq!(
+        ceremony_public_key_state(&ceremony, None),
+        CeremonyPublicKeyState::NotOnBoard
+    );
+    ceremony.status = Some(json!({"public_key": 7}));
+    assert_eq!(
+        ceremony_public_key_state(&ceremony, Some(ELECTION_PUBLIC_KEY)),
+        CeremonyPublicKeyState::NotOnBoard
+    );
 }

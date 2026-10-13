@@ -3,6 +3,7 @@ use crate::postgres::tally_session_execution::insert_tally_session_execution;
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::postgres::tally_session::lock_tally_session_for_update;
 use crate::services::database::get_hasura_pool;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
@@ -29,6 +30,14 @@ pub async fn handle_tally_session_error(
         .transaction()
         .await
         .with_context(|| "Error acquiring hasura transaction")?;
+
+    lock_tally_session_for_update(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+    )
+    .await?;
 
     let executions = get_tally_session_executions(
         &hasura_transaction,

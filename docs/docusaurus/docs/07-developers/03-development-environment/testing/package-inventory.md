@@ -12,7 +12,7 @@ Cargo workspaces and Maven reactors before interpreting a package test run.
 
 | Area | Test entry point | Separate boundary |
 | --- | --- | --- |
-| Bulletin board and trustee protocol | [B4](./b4.md), [Braid](./braid.md) | Browser storage and remote transport |
+| Bulletin board and trustee protocol | [Wbraid board storage](./wbraid-board.md), [native protocol](./wbraid-protocol.md) | Trustee transport, custody and persistent storage |
 | Electoral log and ballot box | [Electoral Log](./electoral-log.md) | PostgreSQL server contracts, run separately |
 | Task queues | [PostgreSQL task queues](../task-queues-pgmq.md#operations-and-verification) | PostgreSQL server contracts, run separately |
 | Frontends | [Results Portal](./results-portal.md), [Ballot Verifier](./ballot-verifier.md), [Admin Portal](./admin-portal.md) | Browser flows and live services |
@@ -22,26 +22,18 @@ Cargo workspaces and Maven reactors before interpreting a package test run.
 | Plugin component | [Miru](./miru.md) | Host JWT and transaction implementations |
 | Backend database and Hasura | [Backend database contracts](#backend-database-contracts) | Populated deployments and live services |
 
-The `wbraid` directory, when present, is a separate Cargo workspace with existing
+The supplied `wbraid` directory is a separate Cargo workspace with existing
 protocol, model/property, persistence and cross-implementation tests. Run from
 `packages/wbraid`:
 
 ```sh
-cargo test --locked --release --features sqlite,postgres
+CARGO_TARGET_DIR="$PWD/../rust-local-target" cargo test --locked --release --features sqlite,postgres
 ```
 
 Read that workspace's feature and integration-test prerequisites before enabling
-additional backends. Ignored external-service/JVM cases and the live B4/LocalStack
+additional backends. Ignored external-service/JVM cases and the live b4v6/LocalStack
 fixtures remain separate obligations; enabling a feature alone does not prove
 its external boundary was exercised.
-
-`board-messages/src/electoral_log/mod.rs` is a dormant source fragment: the
-directory has no Cargo manifest or workspace member, and its declared artifact,
-message, newtypes and statement submodules are absent. Its ignored historical
-ImmuDB tests therefore are not executable tests. Do not claim consumer coverage
-or count this fragment as compiled source. Restoring a manifest, those modules,
-or a consumer invalidates this inventory exception and requires a fresh test
-and source-scope review.
 
 Use the coverage profiles only for their named configurations. A passing package
 suite without an instrumented source inventory has no implied percentage.

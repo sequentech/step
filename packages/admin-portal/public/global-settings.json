@@ -7,7 +7,9 @@
     "IVR_EMULATOR_BASE_URL": "http://localhost:9002/public/ivr_emulator_wasm",
     "APP_VERSION": "dev",
     "APP_HASH": "dev",
-    "DEFAULT_EMAIL_SUBJECT": {"en": "Participate in {{election_event.name}}"},
+    "DEFAULT_EMAIL_SUBJECT": {
+        "en": "Participate in {{election_event.name}}"
+    },
     "DEFAULT_EMAIL_HTML_BODY": {
         "en": "<p>Hello {{user.first_name}},<br><br>Enter in {{vote_url}} to vote</p>"
     },
@@ -22,5 +24,6 @@
     "KIOSK_VOTING_PORTAL_URL": "",
     "RESULTS_PORTAL_URL": "http://localhost:3004",
     "ACTIVATE_MIRU_EXPORT": true,
-    "CUSTOM_URLS_DOMAIN_NAME": "google.com"
+    "CUSTOM_URLS_DOMAIN_NAME": "google.com",
+    "WBRAID_BOARD_URL": "http://localhost:3005"
 }

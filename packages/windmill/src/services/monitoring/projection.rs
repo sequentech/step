@@ -20,7 +20,7 @@
 //!   ballots whose status changed.
 
 use crate::postgres::monitoring_config::EventRef;
-use crate::services::protocol_manager::get_event_databases;
+use crate::services::electoral_log_board::get_event_databases;
 use crate::services::time_zones::event_time_zone;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;

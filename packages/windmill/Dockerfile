@@ -5,14 +5,7 @@
 FROM rust:1.96.0-slim-bookworm AS builder
 
 WORKDIR /app
-COPY ./strand ./strand
-COPY ./board-messages ./board-messages
-COPY ./sequent-core ./sequent-core
-COPY ./windmill ./windmill
-COPY ./pgmq-broker ./pgmq-broker
-COPY ./wrap-map-err ./wrap-map-err
-COPY ./messaging ./messaging
-COPY ./velvet ./velvet
+COPY . .
 
 RUN cp /app/windmill/external-bin/ecies-tool.jar /usr/local/bin/
 

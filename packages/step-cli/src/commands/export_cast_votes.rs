@@ -25,11 +25,11 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::env;
 use std::path::PathBuf;
-use strand::serialization::StrandDeserialize;
 use tokio_postgres::Transaction;
 use uuid::Uuid;
+use voting_crypto::RecordDeserialize;
+use windmill::services::electoral_log_board::get_board_client;
 use windmill::services::partial_file::PartialFile;
-use windmill::services::protocol_manager::get_board_client;
 use windmill::services::providers::transactions_provider::provide_hasura_transaction;
 #[derive(Serialize)]
 struct Record {
@@ -131,7 +131,7 @@ impl ExportCastVotes {
             println!("Parsing {} messages", electoral_log_messages.len());
             for electoral_log_message in electoral_log_messages {
                 let message: &Message =
-                    &Message::strand_deserialize(&electoral_log_message.message)
+                    &Message::record_deserialize(&electoral_log_message.message)
                         .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
 
                 let Some(fields) = cast_vote_export_fields(&message.statement.body) else {

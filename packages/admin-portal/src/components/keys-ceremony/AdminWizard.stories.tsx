@@ -42,7 +42,7 @@ const statusCeremony = (execution: EStatus, automated: boolean) =>
     ceremony(
         execution,
         trusteeRecords.map(() =>
-            execution === EStatus.SUCCESS ? TStatus.KEY_CHECKED : TStatus.KEY_GENERATED
+            execution === EStatus.SUCCESS ? TStatus.CUSTODY_CONFIRMED : TStatus.KEY_GENERATED
         ),
         {settings: {policy: policyOf(automated)}}
     )

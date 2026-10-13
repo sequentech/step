@@ -10,6 +10,7 @@ import {
     CONTEST_ID,
     EVENT_ID,
     FIXED_TIME,
+    KEYS_ID,
     RESULTS_ID,
     TALLY_ID,
     TALLY_ROLES,
@@ -33,7 +34,7 @@ async function openTallyList(page: Page, portal: AdminPortal) {
     return row
 }
 
-test("a manual tally ceremony starts once trustees restore their keys and resolves a tie", async ({
+test("a manual tally ceremony starts once trustees confirm custody and resolves a tie", async ({
     page,
     portal,
 }) => {
@@ -47,20 +48,25 @@ test("a manual tally ceremony starts once trustees restore their keys and resolv
     await rowAction(row, "View Tally Ceremony").click()
     const start = page.getByRole("button", {name: "Start Tally", exact: true})
     await expect(page.getByRole("gridcell", {name: TRUSTEES[0], exact: true})).toBeVisible()
-    await expect(page.getByText("0/2 trustees imported the key", {exact: true})).toBeVisible()
+    await expect(page.getByText("0/2 trustees confirmed custody", {exact: true})).toBeVisible()
     await expect(page.getByRole("alert")).toContainText(
         "You cannot continue the ceremony because the tally session is not connected"
     )
     await expect(start).toBeDisabled()
 
-    world.execution.status.trustees = TRUSTEES.map((name) => ({name, status: "KEY_RESTORED"}))
+    world.execution.status.trustees = [{name: TRUSTEES[0], status: "HALTED"}]
+    await page.clock.runFor(101)
+    await expect(page.getByText("0/2 trustees confirmed custody", {exact: true})).toBeVisible()
+    await expect(start).toBeDisabled()
+
+    world.execution.status.trustees = TRUSTEES.map((name) => ({name, status: "CUSTODY_CONFIRMED"}))
     world.session.execution_status = "CONNECTED"
     await page.clock.runFor(101)
-    await expect(page.getByText("2/2 trustees imported the key", {exact: true})).toBeVisible()
+    await expect(page.getByText("2/2 trustees confirmed custody", {exact: true})).toBeVisible()
     await expect(start).toBeEnabled()
     await start.click()
     const dialog = page.getByRole("dialog")
-    await expect(dialog).toContainText("All required trustees have verified their key fragments.")
+    await expect(dialog).toContainText("The required trustees have confirmed custody.")
     expect(portal.graphql.callsTo("UpdateTallyCeremony")).toEqual([])
     await dialog.getByRole("button", {name: "Start Tally", exact: true}).click()
     await expect(page.getByText("Tally started", {exact: true})).toBeVisible()
@@ -164,7 +170,7 @@ async function completedTally(portal: AdminPortal) {
     await serveResults(portal, world)
     world.session.execution_status = "SUCCESS"
     world.session.is_execution_completed = true
-    world.execution.status.trustees = TRUSTEES.map((name) => ({name, status: "KEY_RESTORED"}))
+    world.execution.status.trustees = TRUSTEES.map((name) => ({name, status: "CUSTODY_CONFIRMED"}))
     world.execution.status.elections_status = [
         {election_id: world.election.id as string, status: "SUCCESS", progress: 100},
     ]
@@ -317,7 +323,7 @@ test("reports the backend reason when the tally cannot start and when a tie cann
 }) => {
     const world = tallyWorld(portal)
     world.session.execution_status = "CONNECTED"
-    world.execution.status.trustees = TRUSTEES.map((name) => ({name, status: "KEY_RESTORED"}))
+    world.execution.status.trustees = TRUSTEES.map((name) => ({name, status: "CUSTODY_CONFIRMED"}))
     portal.graphql.on("UpdateTallyCeremony", () => actionError("Trustee Bob Trustee is offline"))
 
     const row = await openTallyList(page, portal)
@@ -417,7 +423,7 @@ test.describe("as a trustee", () => {
         trustee: "synthetic-admin",
     })
 
-    test("restores a key fragment for a started tally after a rejected upload", async ({
+    test("confirms native trustee custody for a started tally after a rejected proof", async ({
         page,
         portal,
     }) => {
@@ -425,31 +431,13 @@ test.describe("as a trustee", () => {
         // The OIDC user is the trustee the ceremony waits for.
         world.execution.status.trustees = [
             {name: "synthetic-admin", status: "WAITING"},
-            {name: TRUSTEES[1], status: "KEY_RESTORED"},
+            {name: TRUSTEES[1], status: "CUSTODY_CONFIRMED"},
         ]
-        // The list invites a trustee whose latest execution still waits for their key.
-        portal.graphql.on("ListTallyKeyRestoreState", ({variables, headers}) => {
-            expect(variables).toEqual({tenantId: TENANT_ID, electionEventId: EVENT_ID})
-            expect(headers["x-hasura-role"]).toBe("trustee-ceremony")
-            return {
-                data: {
-                    sequent_backend_tally_session: [
-                        {id: world.session.id, execution_status: world.session.execution_status},
-                    ],
-                    sequent_backend_tally_session_execution: [
-                        {
-                            tally_session_id: world.execution.tally_session_id,
-                            status: world.execution.status,
-                        },
-                    ],
-                },
-            }
-        })
-        portal.graphql.once("RestorePrivateKey", () => ({
-            data: {restore_private_key: {is_valid: false, outcome: "INVALID"}},
+        portal.graphql.once("AuthorizeTallyCustody", () => ({
+            data: {authorize_tally_custody: {is_valid: false}},
         }))
-        portal.graphql.on("RestorePrivateKey", () => ({
-            data: {restore_private_key: {is_valid: true, outcome: "RESTORED"}},
+        portal.graphql.on("AuthorizeTallyCustody", () => ({
+            data: {authorize_tally_custody: {is_valid: true}},
         }))
 
         const row = await openTallyList(page, portal)
@@ -459,33 +447,56 @@ test.describe("as a trustee", () => {
                 .map(({headers}) => headers["x-hasura-role"])
         ).toContain("trustee-ceremony")
         await rowAction(row, "Add Tally Key").click()
-        await expect(page.getByText("Please upload you key fragment", {exact: true})).toBeVisible()
+        await expect(
+            page.getByText(/Create a custody proof locally using your saved request/)
+        ).toBeVisible()
         const next = page.getByRole("button", {name: "Next", exact: true})
         await expect(next).toBeDisabled()
         const upload = (content: string) =>
             page.locator('input[type="file"]').setInputFiles({
-                name: "fragment.txt",
-                mimeType: "text/plain",
+                name: "custody-proof.json",
+                mimeType: "application/json",
                 buffer: Buffer.from(content),
             })
-        await upload("stale-fragment")
+        const proof = (signature: string) =>
+            JSON.stringify({
+                request: {
+                    tenant_id: TENANT_ID,
+                    election_event_id: EVENT_ID,
+                    keys_ceremony_id: KEYS_ID,
+                    tally_session_id: TALLY_ID,
+                    trustee_name: "synthetic-admin",
+                    signing_public_key: "synthetic-signing-public-key",
+                    share_encryption_public_key: "synthetic-share-encryption-public-key",
+                },
+                signature,
+            })
+        const invalidProof = proof("rejected-public-signature")
+        const validProof = proof("accepted-public-signature")
+        await upload(invalidProof)
         await expect(
-            page.getByText("Invalid Encrypted Private Key Backup, please try again", {exact: true})
+            page.getByText("Invalid custody proof, please try again", {exact: true})
         ).toBeVisible()
         await expect(next).toBeDisabled()
-        await upload("valid-fragment")
-        await expect(page.getByText("Backup verified successfully.", {exact: true})).toBeVisible()
-        expect(portal.graphql.callsTo("RestorePrivateKey").map(({variables}) => variables)).toEqual(
-            ["stale-fragment", "valid-fragment"].map((privateKeyBase64) => ({
+        await upload(validProof)
+        await expect(
+            page.getByText("Trustee custody confirmed successfully.", {exact: true})
+        ).toBeVisible()
+        expect(
+            portal.graphql.callsTo("AuthorizeTallyCustody").map(({variables}) => variables)
+        ).toEqual(
+            [invalidProof, validProof].map((custodyProofJson) => ({
                 electionEventId: EVENT_ID,
                 tallySessionId: TALLY_ID,
-                privateKeyBase64,
+                custodyProofJson,
                 // Its hash, which a request names when the trustee must sign the step.
-                keyShareSha256: createHash("sha256").update(privateKeyBase64).digest("hex"),
+                custodyProofSha256: createHash("sha256").update(custodyProofJson).digest("hex"),
             }))
         )
         await next.click()
-        await expect(page.getByText("Key fragment import status", {exact: false})).toBeVisible()
+        await expect(
+            page.getByRole("columnheader", {name: "Custody confirmation status", exact: true})
+        ).toBeVisible()
         await expect(page.getByRole("gridcell", {name: TRUSTEES[1], exact: true})).toBeVisible()
         await page.getByRole("button", {name: "Back", exact: true}).click()
         await expect(row).toBeVisible()

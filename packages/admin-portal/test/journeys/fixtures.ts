@@ -17,6 +17,7 @@ export const TENANT_ID = IDS.tenant
 export const SECOND_TENANT_ID = "10000000-0000-4000-8000-000000000002"
 export interface AdminPortal extends PortalServices {
     now: number
+    trustee?: string
     /** Whom the identity provider signs in; changing it before a sign-in hands the laptop over. */
     user: Omit<OidcUser, "attributes">
 }
@@ -68,6 +69,7 @@ export const test = base.extend<
                     return {...portal.user, attributes: {"tenant-id": [tenantId]}}
                 },
                 claims: ({user}) => ({
+                    "trustee": portal.trustee ?? "",
                     "https://hasura.io/jwt/claims": {
                         "x-hasura-default-role": "admin-user",
                         "x-hasura-allowed-roles": roles,
@@ -101,6 +103,7 @@ export const test = base.extend<
             },
         }
         graphql.on("IntrospectionQuery", () => ({data: {}}))
+        graphql.on("ListTrusteeBoards", () => ({data: {list_trustee_boards: {boards: []}}}))
         // Synthetic events are unpublished unless a journey supplies a signed snapshot.
         graphql.on("GetLifecycleSnapshots", () => ({
             data: {get_lifecycle_snapshots: {snapshots: []}},

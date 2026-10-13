@@ -383,3 +383,5 @@ pub async fn list_keys_ceremony(
 
     Ok(keys_ceremonies)
 }
+
+pub use lock_keys_ceremony_by_id as get_keys_ceremony_by_id_for_update;

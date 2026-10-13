@@ -94,15 +94,15 @@ $DOCKER run --rm \
         build -p harvest --bin harvest
         build -p messaging-webhooks --bin messaging-webhooks
         build -p step-cli --bin step-cli
-        build --release -p b4 --bin b4 --features native
-        build --release -p braid --bin main
+        build --release -p trustee --bin trustee
+        build --manifest-path wbraid/Cargo.toml --release -p b4 --features postgres --bin b4v6
         install -m 0755 "$CARGO_TARGET_DIR/debug/main" /out/windmill
         install -m 0755 "$CARGO_TARGET_DIR/debug/beat" /out/beat
         install -m 0755 "$CARGO_TARGET_DIR/debug/harvest" /out/harvest
         install -m 0755 "$CARGO_TARGET_DIR/debug/messaging-webhooks" /out/messaging-webhooks
         install -m 0755 "$CARGO_TARGET_DIR/debug/step-cli" /out/step-cli
-        install -m 0755 "$CARGO_TARGET_DIR/release/b4" /out/b4
-        install -m 0755 "$CARGO_TARGET_DIR/release/main" /out/trustee
+        install -m 0755 "$CARGO_TARGET_DIR/release/b4v6" /out/b4v6
+        install -m 0755 "$CARGO_TARGET_DIR/release/trustee" /out/trustee
         chown "$OUT_UID:$OUT_GID" /out/*
     '
 # Same-directory renames: a service starting now executes a complete old or new

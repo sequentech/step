@@ -4,6 +4,7 @@ import type {Page} from "@playwright/test"
 import {test, expect, eventPath, realm, IDS, type VerifierServices} from "./fixtures"
 import {signedBallot} from "./ballots"
 import {scanPage} from "@sequentech/ui-test-kit/adapters/axe"
+import {loadCore} from "@sequentech/ui-test-kit/wasm/node"
 
 async function upload(page: Page, ballot: unknown, hash: string) {
     await page.getByTestId("drop-input-file").setInputFiles({
@@ -107,6 +108,82 @@ for (const invalid of ["signature", "multi-signature", "json"] as const) {
         await page.getByRole("button", {name: "Next", exact: true}).click()
         await expect(page.getByText("Alice Example", {exact: true})).toBeVisible()
     })
+}
+
+for (const multiple of [false, true]) {
+    for (const corruption of [
+        "configuration",
+        "missing-configuration",
+        "ciphertext",
+        "plaintext",
+        "randomness",
+    ] as const) {
+        test(`native ${multiple ? "combined" : "single"} audit rejects ${corruption} substitution and recovers`, async ({
+            page,
+            portal,
+        }) => {
+            const {ballot, hash} = await signedBallot(multiple)
+            expect(ballot.config.public_key?.configuration_id).toBe(
+                BigInt(`0x${IDS.keysCeremony.replaceAll("-", "")}`).toString()
+            )
+            await verify(page, portal, ballot, hash)
+            await page.getByRole("link", {name: "Back", exact: true}).click()
+            const broken = structuredClone(ballot)
+            if (corruption === "configuration") {
+                broken.config.public_key!.configuration_id = (
+                    BigInt(broken.config.public_key!.configuration_id!) + 1n
+                ).toString()
+            } else if (corruption === "missing-configuration") {
+                delete broken.config.public_key!.configuration_id
+            } else if (corruption === "plaintext" || corruption === "randomness") {
+                const encoded = Array.isArray(broken.contests)
+                    ? broken.contests[0]
+                    : broken.contests
+                const opening = Buffer.from(encoded, "base64")
+                // Canonical audit records end with the 30-byte plaintext and
+                // 32-byte scalar. Keep the ciphertext, proof, tracker and
+                // voter signature unchanged, with a valid but wrong opening.
+                if (corruption === "plaintext") {
+                    opening.fill(0, opening.length - 62, opening.length - 32)
+                } else {
+                    const other = (await signedBallot(multiple)).ballot
+                    const nonce = Buffer.from(
+                        Array.isArray(other.contests) ? other.contests[0] : other.contests,
+                        "base64"
+                    ).subarray(-32)
+                    nonce.copy(opening, opening.length - 32)
+                }
+                if (Array.isArray(broken.contests)) broken.contests[0] = opening.toString("base64")
+                else broken.contests = opening.toString("base64")
+                const core = await loadCore()
+                expect(
+                    multiple
+                        ? core.hash_auditable_multi_ballot_js(broken)
+                        : core.hash_auditable_ballot_js(broken)
+                ).toBe(hash)
+            } else if (Array.isArray(broken.contests)) {
+                broken.contests[0] = Buffer.from(broken.contests[0], "base64")
+                    .subarray(0, -1)
+                    .toString("base64")
+            } else {
+                broken.contests = Buffer.from(broken.contests, "base64")
+                    .subarray(0, -1)
+                    .toString("base64")
+            }
+            await page.getByTestId("drop-input-file").setInputFiles({
+                name: "substituted-native-audit.json",
+                mimeType: "application/json",
+                buffer: Buffer.from(JSON.stringify(broken)),
+            })
+            await expect(page.getByRole("alert")).toBeVisible()
+            await expect(page.getByRole("button", {name: "Next", exact: true})).toBeDisabled()
+            await expect(page.getByText("Alice Example", {exact: true})).toHaveCount(0)
+            await upload(page, ballot, hash)
+            await expect(page.getByRole("alert")).toBeHidden()
+            await page.getByRole("button", {name: "Next", exact: true}).click()
+            await expect(page.getByText("Alice Example", {exact: true})).toBeVisible()
+        })
+    }
 }
 
 test("mobile import and verification preserve the ballot ID and selected candidate", async ({

@@ -17,10 +17,10 @@ use std::{
     process::{Command, Output},
     thread,
 };
-use strand::backend::ristretto::RistrettoCtx;
 use uuid::Uuid;
+use voting_crypto::RistrettoCtx;
 use windmill::services::ballot_box::BallotFormat;
-use windmill::services::protocol_manager::get_event_databases;
+use windmill::services::electoral_log_board::get_event_databases;
 
 const STAGE: &str = "id: demo\ntitle: Demo\nchecks:\n  - id: seen\n    title: Seen\n    method: witnessed\n  - id: optional\n    title: Optional\n    severity: advisory\n    method: witnessed\n";
 

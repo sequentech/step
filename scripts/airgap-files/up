@@ -103,8 +103,10 @@ update_trustee_public_keys() {
 
             # Check if the TOML file exists
             if [ -f "$toml_file" ]; then
-                # Extract signing_key_pk from the TOML file
-                PUBLIC_KEY=$(sed -n 's/^[[:space:]]*signing_key_pk[[:space:]]*=[[:space:]]*"\(.*\)"/\1/p' "$toml_file")
+                # Derive public keys with the same native tool as the runner.
+                PUBLIC_KEYS=$(docker compose --profile full run --rm --no-deps --entrypoint /usr/bin/trustee "$TRUSTEE_NAME" public-keys --trustee-config /opt/trustee/trustee.toml) || return 1
+                PUBLIC_KEY=$(printf '%s' "$PUBLIC_KEYS" | jq -er '.signing_public_key') || return 1
+                SHARE_PUBLIC_KEY=$(printf '%s' "$PUBLIC_KEYS" | jq -er '.share_encryption_public_key') || return 1
 
                 # Check if PUBLIC_KEY is not empty
                 if [ -n "$PUBLIC_KEY" ]; then
@@ -112,12 +114,13 @@ update_trustee_public_keys() {
                     JSON_DATA=$(jq -n \
                         --arg trustee_name "$TRUSTEE_NAME" \
                         --arg public_key "$PUBLIC_KEY" \
+                        --arg share_public_key "$SHARE_PUBLIC_KEY" \
                         '{
                             "type": "update",
                             "args": {
                                 "source": "backend-db",
                                 "table": {"schema": "sequent_backend", "name": "trustee"},
-                                "$set": {"public_key": $public_key},
+                                "$set": {"public_key": $public_key, "share_encryption_public_key": $share_public_key},
                                 "$default": [],
                                 "where": {"name": $trustee_name}
                             }

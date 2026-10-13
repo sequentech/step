@@ -376,7 +376,7 @@ export const TrusteeWithRestoredKeyIsNotInvited: Story = {
     globals: {workflow: EStoryWorkflow.TALLY, permissions: EStoryPermissions.TRUSTEE},
     args: {
         tallyStatus: ITallyExecutionStatus.STARTED,
-        trusteeStatus: ITallyTrusteeStatus.KEY_RESTORED,
+        trusteeStatus: ITallyTrusteeStatus.CUSTODY_CONFIRMED,
     },
     parameters: {widgets: ["LatestTallySessionExecutionsProvider", "TallyActionsColumn"]},
     play: async ({canvasElement}) => {

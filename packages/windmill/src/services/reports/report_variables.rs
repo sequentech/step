@@ -34,8 +34,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::collections::{HashMap, HashSet};
 use std::env;
-use strand::hash::hash_b64;
 use tracing::instrument;
+use voting_crypto::hash::hash_b64;
 // re-export for easy refactor:
 pub use crate::services::users::{VALIDATE_ID_ATTR_NAME, VALIDATE_ID_REGISTERED_VOTER};
 pub use sequent_core::util::date_time::get_date_and_time;

@@ -15,8 +15,8 @@ use electoral_log::messages::message::SigningData;
 use electoral_log::messages::newtypes::SigningStatementKind;
 use serde_json::json;
 use std::time::Duration;
-use strand::signature::StrandSignatureSk;
 use uuid::Uuid;
+use voting_crypto::signing::SigningKey;
 use windmill::postgres::signing::{SigningLogOutboxRow, SigningLogOutboxUser};
 use windmill::services::signing::log::{
     outbox_snapshot, post_outbox_snapshot, stage, Actor, LogScope, LogStep, OutboxBatch,
@@ -123,7 +123,7 @@ async fn an_unreadable_row_fails_and_stops_its_event() {
     else {
         panic!("no snapshot");
     };
-    let sk = StrandSignatureSk::generate().unwrap();
+    let sk = SigningKey::generate().unwrap();
     let keys = TestKeys(SigningData::new(sk.clone(), "", sk));
     let batch = OutboxBatch {
         up_to_id,

@@ -4,7 +4,7 @@
 use super::*;
 use crate::messages::message::SigningData;
 use base64::Engine as _;
-use strand::signature::StrandSignatureSk;
+use voting_crypto::signing::SigningKey;
 
 fn entry(content: &str, id: &str, disposition: SealDisposition, weight: u64) -> SealEntry {
     SealEntry {
@@ -53,15 +53,15 @@ fn sample_entries() -> Vec<SealEntry> {
 
 struct Sealed {
     record: SealRecord,
-    system_pk: StrandSignaturePk,
+    system_pk: VerificationKey,
 }
 
-fn sealed_with(sk: StrandSignatureSk) -> Sealed {
+fn sealed_with(sk: SigningKey) -> Sealed {
     sealed_by(sk.clone(), sk)
 }
 
 /// A seal whose message has `sender_sk` as sender and `sk` as system key.
-fn sealed_by(sender_sk: StrandSignatureSk, sk: StrandSignatureSk) -> Sealed {
+fn sealed_by(sender_sk: SigningKey, sk: SigningKey) -> Sealed {
     let built = build(manifest(sample_entries())).unwrap();
     let signing = SigningData::new(sender_sk, "", sk.clone());
     let message = Message::ballot_box_sealed_message(
@@ -72,8 +72,8 @@ fn sealed_by(sender_sk: StrandSignatureSk, sk: StrandSignatureSk) -> Sealed {
         &signing,
     )
     .unwrap();
-    let message_bytes = message.strand_serialize().unwrap();
-    let system_pk = StrandSignaturePk::from_sk(&sk).unwrap();
+    let message_bytes = message.record_serialize().unwrap();
+    let system_pk = VerificationKey::from_sk(&sk).unwrap();
     let record = SealRecord::from_parts(
         &built.bytes,
         &message_bytes,
@@ -98,7 +98,7 @@ fn sealed_by(sender_sk: StrandSignatureSk, sk: StrandSignatureSk) -> Sealed {
 }
 
 fn sealed() -> Sealed {
-    sealed_with(StrandSignatureSk::generate().unwrap())
+    sealed_with(SigningKey::generate().unwrap())
 }
 
 fn step_of(result: Result<SealCheck, SealCheckError>) -> SealCheckStep {
@@ -247,7 +247,7 @@ fn a_rebuilt_manifest_with_a_changed_time_fails_the_signed_hash() {
 #[test]
 fn a_record_signed_by_another_key_fails_the_expected_key() {
     let sealed = sealed();
-    let other = StrandSignaturePk::from_sk(&StrandSignatureSk::generate().unwrap()).unwrap();
+    let other = VerificationKey::from_sk(&SigningKey::generate().unwrap()).unwrap();
     let expected = ExpectedKey::PublicKey(other.clone());
     assert_eq!(
         step_of(verify_record(&sealed.record, Some(&expected))),
@@ -258,7 +258,7 @@ fn a_record_signed_by_another_key_fails_the_expected_key() {
         step_of(verify_record(&sealed.record, Some(&by_fingerprint))),
         SealCheckStep::Key
     );
-    let own = ExpectedKey::parse(&sealed.system_pk.to_der_b64_string().unwrap()).unwrap();
+    let own = ExpectedKey::parse(&sealed.system_pk.to_b64_string().unwrap()).unwrap();
     assert!(verify_record(&sealed.record, Some(&own)).is_ok());
     let own_fingerprint = fingerprint(&sealed.system_pk)
         .unwrap()
@@ -271,8 +271,8 @@ fn a_record_signed_by_another_key_fails_the_expected_key() {
 #[test]
 fn a_swapped_system_key_fails_the_system_signature() {
     let mut record = sealed().record;
-    let other = StrandSignaturePk::from_sk(&StrandSignatureSk::generate().unwrap()).unwrap();
-    record.system_public_key = other.to_der_b64_string().unwrap();
+    let other = VerificationKey::from_sk(&SigningKey::generate().unwrap()).unwrap();
+    record.system_public_key = other.to_b64_string().unwrap();
     assert_eq!(
         step_of(verify_record(&record, None)),
         SealCheckStep::SystemSignature
@@ -324,9 +324,9 @@ fn compare_stored_reports_missing_and_extra_as_multisets() {
 
 #[test]
 fn a_fingerprint_is_128_bits_in_eight_uppercase_hex_groups() {
-    let pk = StrandSignaturePk::from_sk(&StrandSignatureSk::generate().unwrap()).unwrap();
+    let pk = VerificationKey::from_sk(&SigningKey::generate().unwrap()).unwrap();
     let text = fingerprint(&pk).unwrap();
-    let digest = strand::hash::hash_sha256(&pk.to_der().unwrap()).unwrap();
+    let digest = voting_crypto::hash::hash_sha256(&pk.to_der().unwrap()).unwrap();
     let groups: Vec<&str> = text.split(' ').collect();
     assert_eq!(groups.len(), 8);
     assert!(groups.iter().all(|group| group.len() == 4));
@@ -335,7 +335,7 @@ fn a_fingerprint_is_128_bits_in_eight_uppercase_hex_groups() {
 
 #[test]
 fn a_64_bit_fingerprint_is_not_accepted_as_an_expected_key() {
-    let pk = StrandSignaturePk::from_sk(&StrandSignatureSk::generate().unwrap()).unwrap();
+    let pk = VerificationKey::from_sk(&SigningKey::generate().unwrap()).unwrap();
     let short: String = fingerprint(&pk).unwrap().split(' ').take(4).collect();
     assert!(ExpectedKey::parse(&short).is_err());
 }
@@ -369,7 +369,7 @@ fn times_round_trip_to_the_second() {
 
 #[test]
 fn the_other_seal_messages_name_the_box() {
-    let sk = StrandSignatureSk::generate().unwrap();
+    let sk = SigningKey::generate().unwrap();
     let signing = SigningData::new(sk.clone(), "", sk);
     let event = || crate::messages::newtypes::EventIdString("event".to_string());
     let failed = Message::ballot_box_seal_failed_message(
@@ -457,7 +457,7 @@ fn a_swapped_area_or_election_with_a_re_encoded_manifest_fails_the_signed_hash()
         // The row metadata is unsigned: an attacker rewrites it as well.
         record.message["election_id"] = serde_json::json!(built.manifest.election_id);
         record.message["area_id"] = serde_json::json!(built.manifest.area_id);
-        let mut message = Message::strand_deserialize(
+        let mut message = Message::record_deserialize(
             &general_purpose::STANDARD
                 .decode(&record.message_b64)
                 .unwrap(),
@@ -465,7 +465,7 @@ fn a_swapped_area_or_election_with_a_re_encoded_manifest_fails_the_signed_hash()
         .unwrap();
         message.election_id = Some(built.manifest.election_id.clone());
         message.area_id = Some(built.manifest.area_id.clone());
-        record.message_b64 = general_purpose::STANDARD.encode(message.strand_serialize().unwrap());
+        record.message_b64 = general_purpose::STANDARD.encode(message.record_serialize().unwrap());
         assert_eq!(
             step_of(verify_record(&record, None)),
             SealCheckStep::SealHash
@@ -475,7 +475,7 @@ fn a_swapped_area_or_election_with_a_re_encoded_manifest_fails_the_signed_hash()
 
 #[test]
 fn a_statement_naming_another_area_or_election_fails_the_statement() {
-    let sk = StrandSignatureSk::generate().unwrap();
+    let sk = SigningKey::generate().unwrap();
     let signing = SigningData::new(sk.clone(), "", sk);
     let built = build(manifest(sample_entries())).unwrap();
     for other in [
@@ -504,7 +504,7 @@ fn a_statement_naming_another_area_or_election_fails_the_statement() {
 #[test]
 fn a_record_re_signed_under_another_key_fails_only_the_expected_key() {
     let genuine = sealed();
-    let forged = sealed_with(StrandSignatureSk::generate().unwrap());
+    let forged = sealed_with(SigningKey::generate().unwrap());
     let expected = ExpectedKey::PublicKey(genuine.system_pk.clone());
     assert_eq!(
         step_of(verify_record(&forged.record, Some(&expected))),
@@ -530,8 +530,8 @@ fn a_record_re_signed_under_another_key_fails_only_the_expected_key() {
 
 #[test]
 fn a_sender_that_is_not_the_system_key_is_refused() {
-    let sender = StrandSignatureSk::generate().unwrap();
-    let sealed = sealed_by(sender, StrandSignatureSk::generate().unwrap());
+    let sender = SigningKey::generate().unwrap();
+    let sealed = sealed_by(sender, SigningKey::generate().unwrap());
     let expected = ExpectedKey::PublicKey(sealed.system_pk.clone());
     assert_eq!(
         step_of(verify_record(&sealed.record, Some(&expected))),
@@ -563,7 +563,7 @@ fn assert_rule(change: impl Fn(&mut BallotBoxSealManifest), step: SealCheckStep)
     let mut changed = manifest(sample_entries());
     change(&mut changed);
     let built = build(changed).unwrap();
-    let sk = StrandSignatureSk::generate().unwrap();
+    let sk = SigningKey::generate().unwrap();
     let signing = SigningData::new(sk.clone(), "", sk.clone());
     let message =
         Message::ballot_box_sealed_message(&built.manifest, built.hash, "Post", "Area", &signing)
@@ -576,8 +576,8 @@ fn assert_rule(change: impl Fn(&mut BallotBoxSealManifest), step: SealCheckStep)
     );
     let record = SealRecord::from_parts(
         &built.bytes,
-        &message.strand_serialize().unwrap(),
-        &StrandSignaturePk::from_sk(&sk).unwrap(),
+        &message.record_serialize().unwrap(),
+        &VerificationKey::from_sk(&sk).unwrap(),
         SealRecordNames {
             election_event: "Event".to_string(),
             election: "Post".to_string(),
@@ -656,7 +656,7 @@ fn a_valid_manifest_passes_the_rules() {
 
 /// Replaces the record's signed message, keeping its readable copy equal.
 fn with_message(record: &mut SealRecord, message: &Message) {
-    let bytes = message.strand_serialize().unwrap();
+    let bytes = message.record_serialize().unwrap();
     record.message_b64 = general_purpose::STANDARD.encode(bytes);
     record.message = serde_json::to_value(message).unwrap();
 }
@@ -703,8 +703,8 @@ fn a_sender_signature_over_other_bytes_is_refused() {
     let bytes = general_purpose::STANDARD
         .decode(&record.message_b64)
         .unwrap();
-    let mut message = Message::strand_deserialize(&bytes).unwrap();
-    let forger = StrandSignatureSk::generate().unwrap();
+    let mut message = Message::record_deserialize(&bytes).unwrap();
+    let forger = SigningKey::generate().unwrap();
     message.sender_signature = forger.sign(b"other bytes").unwrap();
     with_message(&mut record, &message);
     assert_eq!(
@@ -732,7 +732,7 @@ fn a_time_beyond_the_calendar_is_refused() {
 #[test]
 fn a_record_is_not_built_from_a_stored_message_that_does_not_decode() {
     let built = build(manifest(sample_entries())).unwrap();
-    let system_pk = StrandSignaturePk::from_sk(&StrandSignatureSk::generate().unwrap()).unwrap();
+    let system_pk = VerificationKey::from_sk(&SigningKey::generate().unwrap()).unwrap();
     let names = SealRecordNames {
         election_event: "Overseas Voting".to_string(),
         election: "Madrid PE".to_string(),

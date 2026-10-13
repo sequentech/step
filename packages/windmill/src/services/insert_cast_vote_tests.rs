@@ -560,6 +560,9 @@ fn grace_cannot_override_pause_disabled_policy_or_other_channels() {
 
 mod ballot_style_binding {
     use super::*;
+    use base64::Engine;
+    use cryptography::context::Context;
+    use cryptography::utils::serialization::Serializable;
     use sequent_core::ballot::{AuditableBallot, PublicKeyConfig};
     use sequent_core::encrypt::{encrypt_decoded_contest, encrypt_decoded_multi_contest};
     use sequent_core::fixtures::ballot_codec::{
@@ -567,7 +570,6 @@ mod ballot_style_binding {
     };
     use sequent_core::multi_ballot::AuditableMultiBallot;
     use sequent_core::serialization::base64::Base64Serialize;
-    use strand::elgamal::PrivateKey;
 
     const VOTER_ID: &str = "voter";
 
@@ -579,11 +581,14 @@ mod ballot_style_binding {
     }
 
     fn style_with_other_public_key() -> BallotStyle {
-        let private_key = PrivateKey::<RistrettoCtx>::gen(&RistrettoCtx);
+        let public_key = RistrettoCtx::random_element();
         BallotStyle {
             public_key: Some(PublicKeyConfig {
-                public_key: private_key.pk_element().serialize().unwrap(),
+                public_key: base64::engine::general_purpose::STANDARD_NO_PAD
+                    .encode(public_key.ser()),
                 is_demo: false,
+                keys_ceremony_id: Some("10000000-0000-4000-8000-000000000001".into()),
+                configuration_id: None,
             }),
             ..ballot_style()
         }
@@ -605,7 +610,7 @@ mod ballot_style_binding {
     }
 
     fn single_ballot(ballot_style: &BallotStyle) -> AuditableBallot {
-        encrypt_decoded_contest::<RistrettoCtx>(
+        encrypt_decoded_contest(
             &RistrettoCtx,
             &vec![get_test_decoded_vote_contest()],
             ballot_style,
@@ -614,7 +619,7 @@ mod ballot_style_binding {
     }
 
     fn multi_ballot(ballot_style: &BallotStyle) -> AuditableMultiBallot {
-        encrypt_decoded_multi_contest::<RistrettoCtx>(
+        encrypt_decoded_multi_contest(
             &RistrettoCtx,
             &vec![get_test_decoded_vote_contest()],
             ballot_style,

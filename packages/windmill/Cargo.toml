@@ -21,6 +21,9 @@ fips_core = ["dep:postgres-openssl", "dep:ecies"]
 fips_full = ["dep:postgres-openssl", "dep:ecies"]
 
 [dependencies]
+wbraid-b4 = { workspace = true }
+sqlx = { version = "0.8", features = ["runtime-tokio", "postgres"] }
+voting-crypto = { path = "../voting-crypto" }
 rocket = { version = "0.5", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 # Tally CSV records follow serialized struct field order.
@@ -81,13 +84,14 @@ aws-smithy-types = { version = "1.3" }
 aws-sdk-secretsmanager = "1.66"
 
 wrap-map-err = { path = "../wrap-map-err" }
-b4 = { path = "../b4", features = ["client"] }
 electoral-log = { path = "../electoral-log" }
-strand = { path = "../strand" }
 messaging = { path = "../messaging" }
 sequent-core = { path = "../sequent-core", features = ["reports", "s3", "keycloak", "log", "probe", "areas", "default_features", "plugins_wit", "sqlite", "monitoring", "election_config_signing"] }
 velvet = { path = "../velvet" }
-
+protocol-board = { path = "../protocol-board" }
+# Only the vault's symmetric encryption; the protocol itself is reached through
+# `protocol-board`, which is the single place windmill depends on braid.
+vsc = { workspace = true }
 
 # To connect to the Database
 deadpool = { version = "0.12", features = ["rt_tokio_1", "serde"] }

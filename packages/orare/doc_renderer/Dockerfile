@@ -22,11 +22,7 @@ ENV CC=musl-gcc
 ENV RUSTFLAGS="-C target-feature=+crt-static"
 
 WORKDIR /app
-COPY ./sequent-core ./sequent-core
-COPY ./orare ./orare
-COPY ./strand ./strand
-COPY ./Cargo.lock ./Cargo.lock
-COPY ./.cargo ./.cargo
+COPY . .
 RUN rustup target add x86_64-unknown-linux-musl
 RUN cd orare/doc_renderer && \
     cargo fetch --target x86_64-unknown-linux-musl && \

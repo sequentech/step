@@ -11,7 +11,12 @@ const mockSetKey = jest.fn()
 const mockNotify = jest.fn()
 const mockSave = jest.fn()
 const mockRefetch = jest.fn()
-const mockController = jest.fn()
+const mockController = jest.fn(() => ({
+    record: undefined as {settings: Record<string, unknown>} | undefined,
+    save: mockSave,
+    isLoading: false,
+    refetch: mockRefetch,
+}))
 const mockIsAuthorized = jest.fn()
 
 jest.mock("@apollo/client", () => ({gql: jest.fn(() => ({})), useMutation: () => [mockSetKey]}))
@@ -71,7 +76,12 @@ describe("SettingsIntegrations", () => {
     })
 
     it("renders nothing while the tenant loads", () => {
-        mockController.mockReturnValue({isLoading: true})
+        mockController.mockReturnValue({
+            record: undefined,
+            save: mockSave,
+            isLoading: true,
+            refetch: mockRefetch,
+        })
         const {container} = render(<SettingsIntegrations />)
         expect(container).toBeEmptyDOMElement()
     })

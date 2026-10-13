@@ -23,8 +23,8 @@ use sequent_core::ballot_receipt::{
     sign_cast_statement, sign_received_ballot, verify_cast_receipt, ReceivedBallot,
     ReceivedStatement,
 };
-use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use uuid::Uuid;
+use voting_crypto::signing::{SigningKey, VerificationKey};
 use windmill::postgres::ballot_style::get_published_ballot_eml;
 use windmill::services::ballot_box::BallotFormat;
 use windmill::services::ballot_box_key::published_key;
@@ -239,23 +239,23 @@ async fn only_the_style_published_for_the_voters_area_and_election_is_found() {
 /// A voter's device and the ballot box, with their own keys: the ballot is
 /// received with a signed receipt, as `receive_ballot` stores it.
 struct SignedBallot {
-    ballot_box_sk: StrandSignatureSk,
-    voter_sk: StrandSignatureSk,
+    ballot_box_sk: SigningKey,
+    voter_sk: SigningKey,
     received: ReceivedBallot,
 }
 
 impl SignedBallot {
     async fn receive(store: &PostgresStore, f: &Election, voter_id: &str, hash: &str) -> Self {
-        let ballot_box_sk = StrandSignatureSk::generate().unwrap();
-        let voter_sk = StrandSignatureSk::generate().unwrap();
+        let ballot_box_sk = SigningKey::generate().unwrap();
+        let voter_sk = SigningKey::generate().unwrap();
         let statement = ReceivedStatement {
             tenant_id: f.tenant.to_string(),
             election_event_id: f.event.to_string(),
             election_id: f.election.to_string(),
             ballot_hash: hash.into(),
-            voter_signing_pk: StrandSignaturePk::from_sk(&voter_sk)
+            voter_signing_pk: VerificationKey::from_sk(&voter_sk)
                 .unwrap()
-                .to_der_b64_string()
+                .to_b64_string()
                 .unwrap(),
             voter_ballot_signature: voter_sk.sign(b"ballot").unwrap().to_b64_string().unwrap(),
             received_at: format_signed_time(&received_at()),
@@ -476,7 +476,7 @@ async fn a_cast_is_refused_for_another_voter_an_unknown_id_and_a_bad_signature()
         ballot_id: ballot_id.into(),
         cast_signature: cast_signature.into(),
     };
-    let another_key = StrandSignatureSk::generate().unwrap();
+    let another_key = SigningKey::generate().unwrap();
     let forged = sign_cast_statement(
         &another_key,
         &f.election.to_string(),
@@ -579,7 +579,7 @@ async fn a_receipt_is_not_signed_with_a_key_other_than_the_one_that_received_the
         received_cast(
             received_ballot,
             cast_signature,
-            StrandSignatureSk::generate().unwrap()
+            SigningKey::generate().unwrap()
         ),
         Err(CastVoteError::BallotSignFailed(_))
     ));

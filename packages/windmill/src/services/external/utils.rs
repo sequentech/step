@@ -8,7 +8,7 @@ use crate::postgres::election_event::update_election_event_annotations;
 use crate::postgres::election_event::{get_all_tenant_election_events, ElectionEventDatafix};
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::electoral_log::ElectoralLog;
-use crate::services::protocol_manager::get_event_board;
+use crate::services::electoral_log_board::get_event_board;
 use crate::services::users::get_users_by_username;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;

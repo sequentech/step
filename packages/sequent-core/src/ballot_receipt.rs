@@ -16,10 +16,8 @@ use crate::ballot::BallotBoxKey;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::HashMap;
-use strand::hash::{hash_sha256, hash_to_array};
-use strand::signature::{
-    StrandSignature, StrandSignaturePk, StrandSignatureSk,
-};
+use voting_crypto::hash::{hash_sha256, hash_to_array};
+use voting_crypto::signing::{Signature, SigningKey, VerificationKey};
 
 const RECEIVED_STATEMENT_DOMAIN: &str = "step/ballot-received/v1";
 const BALLOT_ID_DOMAIN: &str = "step/ballot-id/v1";
@@ -98,7 +96,7 @@ fn extend_with_field(bytes: &mut Vec<u8>, field: &[u8]) {
 fn voter_key_bytes(
     statement: &ReceivedStatement,
 ) -> Result<Vec<u8>, BallotReceiptError> {
-    StrandSignaturePk::from_der_b64_string(&statement.voter_signing_pk)
+    VerificationKey::from_b64_string(&statement.voter_signing_pk)
         .and_then(|key| key.to_der())
         .map_err(malformed("voter_signing_pk"))
 }
@@ -106,7 +104,7 @@ fn voter_key_bytes(
 fn voter_signature_bytes(
     statement: &ReceivedStatement,
 ) -> Result<[u8; 64], BallotReceiptError> {
-    StrandSignature::from_b64_string(&statement.voter_ballot_signature)
+    Signature::from_b64_string(&statement.voter_ballot_signature)
         .map(|signature| signature.to_bytes())
         .map_err(malformed("voter_ballot_signature"))
 }
@@ -128,9 +126,9 @@ impl ReceivedStatement {
 }
 
 /// The published form of a ballot box key: the first 8 bytes of SHA-256 of
-/// its DER encoding name it.
+/// its standard SubjectPublicKeyInfo encoding name it.
 pub fn ballot_box_key(
-    public_key: &StrandSignaturePk,
+    public_key: &VerificationKey,
 ) -> Result<BallotBoxKey, BallotReceiptError> {
     public_key
         .to_der()
@@ -138,12 +136,10 @@ pub fn ballot_box_key(
         .and_then(|digest| {
             let key_id: Vec<u8> =
                 digest.into_iter().take(KEY_ID_BYTES).collect();
-            public_key
-                .to_der_b64_string()
-                .map(|public_key| BallotBoxKey {
-                    key_id: hex::encode(key_id),
-                    public_key,
-                })
+            public_key.to_b64_string().map(|public_key| BallotBoxKey {
+                key_id: hex::encode(key_id),
+                public_key,
+            })
         })
         .map_err(malformed("public_key"))
 }
@@ -205,9 +201,8 @@ pub fn ballot_id(
     statement: &ReceivedStatement,
     received_signature: &str,
 ) -> Result<String, BallotReceiptError> {
-    let received_signature =
-        StrandSignature::from_b64_string(received_signature)
-            .map_err(malformed("received_signature"))?;
+    let received_signature = Signature::from_b64_string(received_signature)
+        .map_err(malformed("received_signature"))?;
 
     let mut bytes = vec![];
     extend_with_field(&mut bytes, BALLOT_ID_DOMAIN.as_bytes());
@@ -227,7 +222,7 @@ pub fn ballot_id(
 /// Signs the statement with the ballot box key. Callers sign only what they
 /// have stored.
 pub fn sign_received_ballot(
-    ballot_box_sk: &StrandSignatureSk,
+    ballot_box_sk: &SigningKey,
     statement: ReceivedStatement,
 ) -> Result<ReceivedBallot, BallotReceiptError> {
     let received_signature = ballot_box_sk
@@ -250,9 +245,8 @@ pub fn verify_received_ballot(
     received: &ReceivedBallot,
 ) -> Result<String, BallotReceiptError> {
     let public_key = signing_public_key(key, &received.statement.key_id)?;
-    let signature =
-        StrandSignature::from_b64_string(&received.received_signature)
-            .map_err(malformed("received_signature"))?;
+    let signature = Signature::from_b64_string(&received.received_signature)
+        .map_err(malformed("received_signature"))?;
     public_key
         .verify(&signature, &received.statement.bytes_for_signing()?)
         .map_err(|_| BallotReceiptError::InvalidSignature)?;
@@ -269,8 +263,8 @@ pub fn verify_received_ballot(
 fn signing_public_key(
     key: &BallotBoxKey,
     key_id: &str,
-) -> Result<StrandSignaturePk, BallotReceiptError> {
-    let public_key = StrandSignaturePk::from_der_b64_string(&key.public_key)
+) -> Result<VerificationKey, BallotReceiptError> {
+    let public_key = VerificationKey::from_b64_string(&key.public_key)
         .map_err(malformed("public_key"))?;
     if ballot_box_key(&public_key)?.key_id != key.key_id || key_id != key.key_id
     {
@@ -290,7 +284,7 @@ fn cast_statement_bytes(election_id: &str, ballot_id: &str) -> Vec<u8> {
 
 /// Signs "cast this Ballot ID" with the key that signed the ballot.
 pub fn sign_cast_statement(
-    voter_sk: &StrandSignatureSk,
+    voter_sk: &SigningKey,
     election_id: &str,
     ballot_id: &str,
 ) -> Result<String, BallotReceiptError> {
@@ -307,9 +301,9 @@ pub fn verify_cast_signature(
     ballot_id: &str,
     cast_signature: &str,
 ) -> Result<(), BallotReceiptError> {
-    let public_key = StrandSignaturePk::from_der_b64_string(voter_signing_pk)
+    let public_key = VerificationKey::from_b64_string(voter_signing_pk)
         .map_err(malformed("voter_signing_pk"))?;
-    let signature = StrandSignature::from_b64_string(cast_signature)
+    let signature = Signature::from_b64_string(cast_signature)
         .map_err(malformed("cast_signature"))?;
     public_key
         .verify(&signature, &cast_statement_bytes(election_id, ballot_id))
@@ -341,9 +335,8 @@ pub struct CastReceipt {
 
 impl CastReceiptStatement {
     pub fn bytes_for_signing(&self) -> Result<Vec<u8>, BallotReceiptError> {
-        let cast_signature =
-            StrandSignature::from_b64_string(&self.cast_signature)
-                .map_err(malformed("cast_signature"))?;
+        let cast_signature = Signature::from_b64_string(&self.cast_signature)
+            .map_err(malformed("cast_signature"))?;
         let cast_signature_digest = hash_sha256(&cast_signature.to_bytes())
             .map_err(malformed("cast_signature"))?;
 
@@ -363,7 +356,7 @@ impl CastReceiptStatement {
 /// Signs the statement with the ballot box key. Callers sign only a cast they
 /// store in the same transaction.
 pub fn sign_cast_receipt(
-    ballot_box_sk: &StrandSignatureSk,
+    ballot_box_sk: &SigningKey,
     statement: CastReceiptStatement,
 ) -> Result<CastReceipt, BallotReceiptError> {
     let cast_receipt_signature = ballot_box_sk
@@ -383,9 +376,8 @@ pub fn verify_cast_receipt(
     receipt: &CastReceipt,
 ) -> Result<(), BallotReceiptError> {
     let public_key = signing_public_key(key, &receipt.statement.key_id)?;
-    let signature =
-        StrandSignature::from_b64_string(&receipt.cast_receipt_signature)
-            .map_err(malformed("cast_receipt_signature"))?;
+    let signature = Signature::from_b64_string(&receipt.cast_receipt_signature)
+        .map_err(malformed("cast_receipt_signature"))?;
     public_key
         .verify(&signature, &receipt.statement.bytes_for_signing()?)
         .map_err(|_| BallotReceiptError::InvalidSignature)
@@ -395,13 +387,13 @@ thread_local! {
     /// The single-use keys that signed the ballots under review, by election.
     /// They live only in this memory: a reload loses them, and the ballot is
     /// then signed and sent again.
-    static VOTER_SIGNING_KEYS: RefCell<HashMap<String, StrandSignatureSk>> =
+    static VOTER_SIGNING_KEYS: RefCell<HashMap<String, SigningKey>> =
         RefCell::new(HashMap::new());
 }
 
 /// Keeps the key that signed an election's ballot until that ballot is cast.
 /// A new ballot for the election replaces the key of the one before.
-pub fn keep_voter_signing_key(election_id: &str, voter_sk: StrandSignatureSk) {
+pub fn keep_voter_signing_key(election_id: &str, voter_sk: SigningKey) {
     VOTER_SIGNING_KEYS.with(|keys| {
         keys.borrow_mut().insert(election_id.to_string(), voter_sk);
     });
@@ -425,8 +417,8 @@ pub fn sign_cast_statement_with_kept_key(
         let voter_sk = keys
             .get(election_id)
             .ok_or(BallotReceiptError::VoterKeyNotKept)?;
-        let kept_pk = StrandSignaturePk::from_sk(voter_sk)
-            .and_then(|key| key.to_der_b64_string())
+        let kept_pk = VerificationKey::from_sk(voter_sk)
+            .and_then(|key| key.to_b64_string())
             .map_err(malformed("voter_signing_pk"))?;
         if kept_pk != voter_signing_pk {
             return Err(BallotReceiptError::VoterKeyNotKept);

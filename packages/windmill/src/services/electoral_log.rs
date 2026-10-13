@@ -7,20 +7,19 @@ use crate::postgres::messaging::{latest_attempt_ids, ChannelFilter};
 use crate::services::celery_app::try_get_celery_app;
 use crate::services::database::{get_hasura_pool, PgConfig};
 use crate::services::election_event_board::get_election_event_board;
+use crate::services::electoral_log_board::get_board_client;
+use crate::services::electoral_log_board::get_board_signing_key;
+use crate::services::electoral_log_board::get_event_board;
 use crate::services::electoral_log_checkpoint_copies::{
     store_checkpoint_copy, CheckpointCopyConfig,
 };
 use crate::services::insert_cast_vote::hash_voter_id;
-use crate::services::protocol_manager::get_board_client;
-use crate::services::protocol_manager::get_event_board;
-use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::vault;
 use crate::tasks::electoral_log::{
     enqueue_electoral_log_event, LogEventBody, LogEventInput, LogMessageType,
 };
 use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregate};
 use anyhow::{anyhow, ensure, Context, Result};
-use b4::messages::message::Signer;
 use base64::engine::general_purpose;
 use base64::Engine;
 use deadpool_postgres::Transaction;
@@ -45,22 +44,22 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::time::Duration;
-use strand::backend::ristretto::RistrettoCtx;
-use strand::hash::HashWrapper;
-use strand::hash::STRAND_HASH_LENGTH_BYTES;
-use strand::serialization::StrandDeserialize;
-use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strum_macros::{Display, EnumString};
 use tempfile::NamedTempFile;
 use tracing::{event, info, instrument, warn, Level};
 use uuid::Uuid;
 use velvet::pipes::report_manifest::csv_report_reader;
+use voting_crypto::hash::HashWrapper;
+use voting_crypto::hash::HASH_LENGTH_BYTES;
+use voting_crypto::signing::{SigningKey, VerificationKey};
+use voting_crypto::RecordDeserialize;
+use voting_crypto::RistrettoCtx;
 
 pub const ELECTORAL_LOG_ROWS_LIMIT: usize = 2500;
 pub const MAX_ROWS_PER_PAGE: usize = 50;
 
 /// Ballot_id input is the first half of the original hash which is stored in the electoral log.
-pub const BALLOT_ID_LENGTH_BYTES: usize = STRAND_HASH_LENGTH_BYTES / 2;
+pub const BALLOT_ID_LENGTH_BYTES: usize = HASH_LENGTH_BYTES / 2;
 /// Ballot_id input is in HEX, each byte is represented in 2 chars.
 pub const BALLOT_ID_LENGTH_CHARS: usize = BALLOT_ID_LENGTH_BYTES * 2;
 
@@ -542,7 +541,7 @@ pub fn sign_checkpoint(
             tree_size: i64::try_from(checkpoint.tree_size)?,
             root: hex::encode(&checkpoint.root),
             reason: reason.to_string(),
-            signer_pk: sd.system_pk()?.to_der_b64_string()?,
+            signer_pk: sd.system_public_key()?.to_b64_string()?,
             signature: sd.system_sign(&bytes)?.to_b64_string()?,
         },
     )
@@ -565,7 +564,7 @@ pub fn exported_log_reader<R: std::io::Read>(
 /// read as other statements, so it is refused.
 fn csv_log_entry(row: ElectoralLogRow) -> Result<LogEntry> {
     let bytes = general_purpose::STANDARD_NO_PAD.decode(&row.data)?;
-    let message = Message::strand_deserialize(&bytes).map_err(|err| {
+    let message = Message::record_deserialize(&bytes).map_err(|err| {
         anyhow!(
             "Row {} ({}) of the electoral-log CSV can't be read, which happens with a file \
              written by a release that numbers the statements differently: {err:?}",
@@ -618,7 +617,7 @@ impl ElectoralLog {
         let election_event_id =
             election_event_id_opt.ok_or(anyhow!("Election event id is required"))?;
 
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
+        let protocol_manager = get_board_signing_key(
             hasura_transaction,
             tenant_id,
             Some(election_event_id),
@@ -627,11 +626,7 @@ impl ElectoralLog {
         .await?;
 
         Ok(ElectoralLog {
-            sd: SigningData::new(
-                protocol_manager.get_signing_key().clone(),
-                "",
-                protocol_manager.get_signing_key().clone(),
-            ),
+            sd: SigningData::new(protocol_manager.clone(), "", protocol_manager.clone()),
             elog_database: elog_database.to_string(),
         })
     }
@@ -642,16 +637,16 @@ impl ElectoralLog {
         tenant_id: &str,
         election_event_id: &str,
         elog_database: &str,
-        sender_sk: &StrandSignatureSk,
+        sender_sk: &SigningKey,
     ) -> Result<Self> {
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
+        let protocol_manager = get_board_signing_key(
             hasura_transaction,
             tenant_id,
             Some(election_event_id),
             elog_database,
         )
         .await?;
-        let system_sk = protocol_manager.get_signing_key().clone();
+        let system_sk = protocol_manager.clone();
 
         Ok(ElectoralLog {
             sd: SigningData::new(sender_sk.clone(), "", system_sk),
@@ -662,7 +657,7 @@ impl ElectoralLog {
     /// Construct a system-authored audit message using an already loaded key.
     /// The empty sender name preserves the system identity used by `new` and
     /// `new_from_sk`; voter attribution belongs in the message's actor fields.
-    pub fn for_system_with_signing_key(elog_database: &str, system_sk: &StrandSignatureSk) -> Self {
+    pub fn for_system_with_signing_key(elog_database: &str, system_sk: &SigningKey) -> Self {
         Self {
             sd: SigningData::new(system_sk.clone(), "", system_sk.clone()),
             elog_database: elog_database.to_string(),
@@ -674,7 +669,7 @@ impl ElectoralLog {
     pub fn for_voter_with_signing_key(
         elog_database: &str,
         user_id: &str,
-        system_sk: &StrandSignatureSk,
+        system_sk: &SigningKey,
     ) -> Self {
         Self {
             sd: SigningData::new(system_sk.clone(), user_id, system_sk.clone()),
@@ -697,16 +692,12 @@ impl ElectoralLog {
         tenant_id: &str,
         event_id: &str,
         user_id: &str,
-        voter_signing_key: &Option<StrandSignaturePk>,
+        voter_signing_key: &Option<VerificationKey>,
     ) -> Result<Self> {
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
-            hasura_transaction,
-            tenant_id,
-            Some(event_id),
-            elog_database,
-        )
-        .await?;
-        let system_sk = protocol_manager.get_signing_key().clone();
+        let protocol_manager =
+            get_board_signing_key(hasura_transaction, tenant_id, Some(event_id), elog_database)
+                .await?;
+        let system_sk = protocol_manager.clone();
 
         Ok(ElectoralLog {
             sd: SigningData::new(system_sk.clone(), user_id, system_sk),
@@ -734,14 +725,14 @@ impl ElectoralLog {
         user_area_id: Option<String>,
     ) -> Result<Self> {
         let election_ids = flatten_election_ids(election_ids_vec);
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
+        let protocol_manager = get_board_signing_key(
             hasura_transaction,
             tenant_id,
             Some(election_event_id),
             elog_database,
         )
         .await?;
-        let system_sk = protocol_manager.get_signing_key().clone();
+        let system_sk = protocol_manager.clone();
 
         let sk = vault::get_admin_user_signing_key(
             hasura_transaction,
@@ -771,14 +762,10 @@ impl ElectoralLog {
         pk_der_b64: &str,
         area_id: &str,
     ) -> Result<()> {
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
-            hasura_transaction,
-            tenant_id,
-            Some(event_id),
-            elog_database,
-        )
-        .await?;
-        let system_sk = protocol_manager.get_signing_key().clone();
+        let protocol_manager =
+            get_board_signing_key(hasura_transaction, tenant_id, Some(event_id), elog_database)
+                .await?;
+        let system_sk = protocol_manager.clone();
         let sd = SigningData::new(system_sk.clone(), "", system_sk.clone());
 
         let pseudonym = hash_voter_id(&user_id)?;
@@ -837,14 +824,9 @@ impl ElectoralLog {
         elections_ids: Option<String>,
         user_area_id: Option<String>,
     ) -> Result<()> {
-        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
-            hasura_transaction,
-            tenant_id,
-            None,
-            elog_database,
-        )
-        .await?;
-        let system_sk = protocol_manager.get_signing_key().clone();
+        let protocol_manager =
+            get_board_signing_key(hasura_transaction, tenant_id, None, elog_database).await?;
+        let system_sk = protocol_manager.clone();
         let sd = SigningData::new(system_sk.clone(), "", system_sk.clone());
 
         let message = Message::admin_public_key_message(
@@ -1546,7 +1528,7 @@ impl ElectoralLog {
         election_event_id: &str,
         reason: ElectoralLogCheckpointReason,
     ) -> Result<electoral_log::proofs::Checkpoint> {
-        let checkpoint = crate::services::protocol_manager::get_event_store(election_event_id)
+        let checkpoint = crate::services::electoral_log_board::get_event_store(election_event_id)
             .await?
             .journal()
             .checkpoint(&self.elog_database)
@@ -2092,7 +2074,7 @@ impl TryFrom<ElectoralLogMessage> for ElectoralLogRow {
 
     fn try_from(elog_msg: ElectoralLogMessage) -> Result<Self, Self::Error> {
         let serialized = general_purpose::STANDARD_NO_PAD.encode(elog_msg.message.clone());
-        let deserialized_message = Message::strand_deserialize(&elog_msg.message)
+        let deserialized_message = Message::record_deserialize(&elog_msg.message)
             .map_err(|e| anyhow!("Error deserializing message: {e:?}"))?;
 
         Ok(ElectoralLogRow {
@@ -2559,11 +2541,11 @@ mod postgres_wiring_tests {
         let event = Uuid::new_v4().to_string();
         let slug = std::env::var("ENV_SLUG")?;
         let board = get_event_board(&tenant, &event, &slug);
-        let databases = crate::services::protocol_manager::get_event_databases().await?;
+        let databases = crate::services::electoral_log_board::get_event_databases().await?;
         databases.create_event(&tenant, &event).await?;
         let client = get_board_client().await?;
         client.create_board(&board).await?;
-        let key = StrandSignatureSk::generate()?;
+        let key = SigningKey::generate()?;
         let log = ElectoralLog::for_system_with_signing_key(&board, &key);
         let message = log.build_keycloak_event_message(
             event.clone(),
@@ -2674,7 +2656,7 @@ mod election_published_tests {
     use super::*;
 
     fn log() -> ElectoralLog {
-        let key = StrandSignatureSk::generate().unwrap();
+        let key = SigningKey::generate().unwrap();
         ElectoralLog::for_system_with_signing_key("board", &key)
     }
 
@@ -2722,7 +2704,7 @@ mod election_published_tests {
 
         let stored = ElectoralLogMessage::try_from(&message).unwrap();
         assert_eq!(stored.statement_kind, "ElectionPublish");
-        let read = Message::strand_deserialize(&stored.message).unwrap();
+        let read = Message::record_deserialize(&stored.message).unwrap();
         assert!(matches!(
             read.statement.body,
             StatementBody::ElectionPublishWithConfiguration(_, _, logged) if logged == configuration
@@ -2928,7 +2910,7 @@ mod range_filter_tests {
 #[cfg(test)]
 mod csv_import_tests {
     use super::*;
-    use strand::serialization::StrandSerialize;
+    use voting_crypto::RecordSerialize;
 
     fn row(message: &Message, statement_kind: &str) -> ElectoralLogRow {
         ElectoralLogRow {
@@ -2937,14 +2919,14 @@ mod csv_import_tests {
             statement_timestamp: message.statement.head.timestamp as i64,
             statement_kind: statement_kind.to_string(),
             message: String::new(),
-            data: general_purpose::STANDARD_NO_PAD.encode(message.strand_serialize().unwrap()),
+            data: general_purpose::STANDARD_NO_PAD.encode(message.record_serialize().unwrap()),
             user_id: None,
             username: None,
         }
     }
 
     fn checkpoint_message() -> Message {
-        let key = StrandSignatureSk::generate().unwrap();
+        let key = SigningKey::generate().unwrap();
         let log = ElectoralLog::for_system_with_signing_key("board", &key);
         Message::electoral_log_checkpoint_message(
             EventIdString("event".to_string()),
@@ -2965,7 +2947,7 @@ mod csv_import_tests {
         let entry = csv_log_entry(row(&message, "ElectoralLogCheckpoint")).unwrap();
         assert_eq!(entry.message.statement_kind, "ElectoralLogCheckpoint");
         assert_eq!(entry.message.created, 1_841_000_123);
-        assert_eq!(entry.message.message, message.strand_serialize().unwrap());
+        assert_eq!(entry.message.message, message.record_serialize().unwrap());
         assert!(!entry.delivery_id.is_empty());
     }
 

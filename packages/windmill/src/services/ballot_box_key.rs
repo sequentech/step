@@ -12,8 +12,8 @@ use deadpool_postgres::Transaction;
 use sequent_core::ballot::{BallotBoxKey, ReceiptsPolicy};
 use sequent_core::ballot_receipt::ballot_box_key;
 use sequent_core::types::hasura::core::ElectionEvent;
-use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use tracing::instrument;
+use voting_crypto::signing::{SigningKey, VerificationKey};
 
 pub fn get_ballot_box_secret_path(board_name: &str) -> String {
     format!("boards/{board_name}/ballot-box")
@@ -36,7 +36,7 @@ pub fn receipts_policy(election_event: &ElectionEvent) -> Result<ReceiptsPolicy>
 pub async fn get_ballot_box_signing_key(
     hasura_transaction: &Transaction<'_>,
     election_event: &ElectionEvent,
-) -> Result<Option<StrandSignatureSk>> {
+) -> Result<Option<SigningKey>> {
     let secret_path = get_ballot_box_secret_path(&event_board_name(election_event)?);
     vault::read_secret(
         hasura_transaction,
@@ -46,7 +46,7 @@ pub async fn get_ballot_box_signing_key(
     )
     .await?
     .map(|der| {
-        StrandSignatureSk::from_der_b64_string(&der)
+        SigningKey::from_b64_string(&der)
             .map_err(|err| anyhow!("Error reading the ballot box key: {err}"))
     })
     .transpose()
@@ -59,17 +59,17 @@ pub async fn get_ballot_box_signing_key(
 pub async fn get_or_create_ballot_box_signing_key(
     hasura_transaction: &Transaction<'_>,
     election_event: &ElectionEvent,
-) -> Result<StrandSignatureSk> {
+) -> Result<SigningKey> {
     if let Some(signing_key) =
         get_ballot_box_signing_key(hasura_transaction, election_event).await?
     {
         return Ok(signing_key);
     }
 
-    let signing_key = StrandSignatureSk::generate()
+    let signing_key = SigningKey::generate()
         .map_err(|err| anyhow!("Error generating the ballot box key: {err}"))?;
     let der = signing_key
-        .to_der_b64_string()
+        .to_b64_string()
         .map_err(|err| anyhow!("Error serializing the ballot box key: {err}"))?;
     vault::save_secret(
         hasura_transaction,
@@ -82,8 +82,8 @@ pub async fn get_or_create_ballot_box_signing_key(
     Ok(signing_key)
 }
 
-pub fn published_key(signing_key: &StrandSignatureSk) -> Result<BallotBoxKey> {
-    let public_key = StrandSignaturePk::from_sk(signing_key)
+pub fn published_key(signing_key: &SigningKey) -> Result<BallotBoxKey> {
+    let public_key = VerificationKey::from_sk(signing_key)
         .map_err(|err| anyhow!("Error deriving the ballot box public key: {err}"))?;
     ballot_box_key(&public_key).map_err(|err| anyhow!("{err}"))
 }
@@ -174,15 +174,15 @@ mod tests {
 
     #[test]
     fn the_published_key_names_the_signing_key() {
-        let signing_key = StrandSignatureSk::generate().unwrap();
+        let signing_key = SigningKey::generate().unwrap();
         let key = published_key(&signing_key).unwrap();
 
         assert_eq!(key.key_id.len(), 16);
         assert_eq!(
             key.public_key,
-            StrandSignaturePk::from_sk(&signing_key)
+            VerificationKey::from_sk(&signing_key)
                 .unwrap()
-                .to_der_b64_string()
+                .to_b64_string()
                 .unwrap()
         );
     }

@@ -22,7 +22,6 @@ mod schema;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use b4::messages::message::Signer;
 use deadpool_postgres::Transaction;
 use electoral_log::adapters::ballot_box::{AcceptOutcome, BallotStatus};
 use electoral_log::adapters::postgres::PostgresStore;
@@ -40,21 +39,21 @@ use sequent_core::types::hasura::core::{ElectionEvent, TallySessionContestAnnota
 use sequent_core::types::participation::ParticipationChannel;
 use serde_json::json;
 use std::sync::{Mutex, Once};
-use strand::backend::ristretto::RistrettoCtx;
-use strand::signature::StrandSignatureSk;
 use uuid::Uuid;
+use voting_crypto::signing::SigningKey;
+use voting_crypto::RistrettoCtx;
 use windmill::postgres::ballot_box_seal::{list_for_elections, BallotBoxSealStatus};
 use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::postgres::trusted_write;
 use windmill::services::ballot_box_seal::publish::{publish_box, PublishOutcome};
 use windmill::services::ballot_box_seal::seal::{computed_ballot_id, seal_box, SealOutcome};
 use windmill::services::ballot_box_seal::{Census, ProductionSealEnvironment, SealEnvironment};
-use windmill::services::ceremonies::insert_ballots::contest_annotations;
 use windmill::services::ceremonies::sealed_box_ballots::{
     sealed_box_ballots, SealedBox, SealedBoxLog,
 };
-use windmill::services::protocol_manager::{
-    create_protocol_manager_keys, get_event_store, get_protocol_manager,
+use windmill::services::ceremonies::tally_boards::contest_annotations;
+use windmill::services::electoral_log_board::{
+    create_protocol_manager_keys, get_board_signing_key, get_event_store,
 };
 use windmill::services::voting_status::update_election_status;
 
@@ -94,7 +93,7 @@ impl SealEnvironment for TestEnvironment {
         tenant_id: &str,
         election_event_id: &str,
         board: &str,
-    ) -> Result<StrandSignatureSk> {
+    ) -> Result<SigningKey> {
         ProductionSealEnvironment
             .signing_key(hasura_transaction, tenant_id, election_event_id, board)
             .await
@@ -216,16 +215,10 @@ fn a_closed_box_is_sealed_published_verified_and_counted_from_its_seal() {
         let key = {
             let mut client = pool.get().await.unwrap();
             let tx = client.transaction().await.unwrap();
-            get_protocol_manager::<RistrettoCtx>(
-                &tx,
-                &tenant.to_string(),
-                Some(&event.to_string()),
-                &board,
-            )
-            .await
-            .unwrap()
-            .get_signing_key()
-            .clone()
+            get_board_signing_key(&tx, &tenant.to_string(), Some(&event.to_string()), &board)
+                .await
+                .unwrap()
+                .clone()
         };
 
         // Alice votes twice, Bob once, Carol isn't in the census, Dave's

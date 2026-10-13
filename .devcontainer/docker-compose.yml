@@ -5,7 +5,10 @@
 # Step-specific docker-compose that includes base services and step's keycloak
 
 include:
-  - docker-compose-base.yml
+  # Supply newly introduced settings when the checkout's .env predates them.
+  # Compose keeps local .env values (including empty ones) as overrides.
+  - path: docker-compose-base.yml
+    env_file: .env.development
 
 # A theme type directory from the checkout. Keycloak prefers folder themes over
 # the same theme in sequent-theme.jar, and start-dev turns theme and template

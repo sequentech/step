@@ -2,29 +2,21 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::domain::keys_ceremony::{
-    KeygenAuditEntry, KeysBoardMessage, KeysBoardMessages, KeysBoardStatement, NewKeysCeremony,
-};
+use crate::domain::keys_ceremony::{KeygenAuditEntry, NewKeysCeremony};
 use crate::ports::keys_ceremony::{
-    KeysBoard, KeysCeremonies, KeysCeremonyAudit, KeysCeremonyElectionEvents,
-    KeysCeremonyElections, KeysCeremonyTasks, KeysCeremonyTrustees,
+    KeysCeremonies, KeysCeremonyAudit, KeysCeremonyElectionEvents, KeysCeremonyElections,
+    KeysCeremonyTasks, KeysCeremonyTrustees,
 };
 use crate::postgres::{election, election_event, keys_ceremony, trustee};
-use crate::services::ceremonies::serialize_logs::generate_logs;
 use crate::services::electoral_log::ElectoralLog;
-use crate::services::{private_keys, protocol_manager, public_keys};
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::set_public_key::set_public_key;
 use crate::types::error::Error;
-use anyhow::{anyhow, Context, Result};
-use b4::messages::statement::StatementType;
-use b4::messages::trusted_board::BoardConfigurationState;
+use anyhow::{Context, Result};
 use celery::Celery;
 use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::{Election, ElectionEvent, KeysCeremony, Trustee};
 use serde_json::Value;
-use strand::backend::ristretto::RistrettoCtx;
-use strand::signature::StrandSignaturePk;
 
 /// Keys ceremonies, trustees, elections and election events in the Hasura
 /// database.
@@ -88,6 +80,40 @@ impl KeysCeremonies for PgKeysCeremonyStore<'_> {
         )
         .await
         .map(|_| ())
+    }
+
+    async fn persist_dkg(
+        &self,
+        tenant_id: &str,
+        event_id: &str,
+        ceremony_id: &str,
+        dkg: &protocol_board::DkgBoard,
+        manager: &protocol_board::BoardManager,
+    ) -> Result<()> {
+        crate::services::protocol_board::save_manager_key(
+            self.transaction,
+            tenant_id,
+            event_id,
+            &dkg.name,
+            manager,
+        )
+        .await?;
+        crate::postgres::protocol_board::insert_protocol_board(
+            self.transaction,
+            &crate::postgres::protocol_board::NewProtocolBoard {
+                id: None,
+                tenant_id: tenant_id.to_owned(),
+                election_event_id: event_id.to_owned(),
+                parent_id: None,
+                keys_ceremony_id: ceremony_id.to_owned(),
+                tally_session_id: None,
+                batch: None,
+                name: dkg.name.to_string(),
+                manager_message: dkg.configuration.to_bytes(),
+            },
+        )
+        .await?;
+        Ok(())
     }
 
     async fn update_keys_ceremony_status(
@@ -192,115 +218,6 @@ impl KeysCeremonyElectionEvents for PgKeysCeremonyStore<'_> {
         election_event_id: &str,
     ) -> Result<ElectionEvent> {
         election_event::get_election_event_by_id(self.transaction, tenant_id, election_event_id)
-            .await
-    }
-}
-
-/// The B4 bulletin boards. Every read is anchored to the protocol manager key
-/// of the election event, which is read through the transaction.
-pub struct B4KeysBoard<'a> {
-    pub transaction: &'a Transaction<'a>,
-    pub tenant_id: &'a str,
-    pub election_event_id: &'a str,
-}
-
-impl B4KeysBoard<'_> {
-    async fn manager(&self, board_name: &str) -> Result<StrandSignaturePk> {
-        let manager = protocol_manager::get_protocol_manager::<RistrettoCtx>(
-            self.transaction,
-            self.tenant_id,
-            Some(self.election_event_id),
-            board_name,
-        )
-        .await?;
-        Ok(StrandSignaturePk::from_sk(&manager.signing_key)?)
-    }
-}
-
-impl KeysBoard for B4KeysBoard<'_> {
-    type Sender = StrandSignaturePk;
-
-    fn election_board(&self, tenant_id: &str, election_id: &str) -> Result<String> {
-        let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-        Ok(protocol_manager::get_election_board(
-            tenant_id,
-            election_id,
-            &slug,
-        ))
-    }
-
-    async fn configuration_exists(&self, board_name: &str) -> Result<bool> {
-        let manager = self.manager(board_name).await?;
-        match protocol_manager::check_configuration_exists(board_name, &manager).await? {
-            BoardConfigurationState::Missing => Ok(false),
-            BoardConfigurationState::Trusted(_) => Ok(true),
-            BoardConfigurationState::Foreign => Err(anyhow!(
-                "Board configuration does not match the trusted manager"
-            )),
-        }
-    }
-
-    async fn create_keys(
-        &self,
-        tenant_id: &str,
-        election_event_id: &str,
-        board_name: &str,
-        trustee_public_keys: Vec<String>,
-        threshold: usize,
-    ) -> Result<()> {
-        public_keys::create_keys(
-            self.transaction,
-            tenant_id,
-            election_event_id,
-            board_name,
-            trustee_public_keys,
-            threshold,
-        )
-        .await
-    }
-
-    async fn public_key(&self, board_name: &str) -> Result<String> {
-        let manager = self.manager(board_name).await?;
-        public_keys::get_public_key(board_name.to_string(), &manager).await
-    }
-
-    async fn public_key_messages(
-        &self,
-        board_name: &str,
-        logs_since: u64,
-    ) -> Result<KeysBoardMessages<StrandSignaturePk>> {
-        let manager = self.manager(board_name).await?;
-        let messages =
-            protocol_manager::get_board_public_key_messages(board_name, &manager).await?;
-        let logs = generate_logs(&messages, logs_since, &vec![0])?;
-        Ok(KeysBoardMessages {
-            logs,
-            messages: messages
-                .into_iter()
-                .map(|message| KeysBoardMessage {
-                    statement: match message.statement.get_kind() {
-                        StatementType::PublicKey => KeysBoardStatement::PublicKey,
-                        StatementType::PublicKeySigned => KeysBoardStatement::PublicKeySigned,
-                        _ => KeysBoardStatement::Other,
-                    },
-                    sender: message.sender.pk,
-                })
-                .collect(),
-        })
-    }
-
-    fn trustee_sender(&self, trustee_public_key: &str) -> Result<StrandSignaturePk> {
-        StrandSignaturePk::from_der_b64_string(trustee_public_key)
-            .map_err(|err| Error::from(err).into())
-    }
-
-    async fn trustee_encrypted_private_key(
-        &self,
-        board_name: &str,
-        trustee_public_key: &str,
-    ) -> Result<String> {
-        let manager = self.manager(board_name).await?;
-        private_keys::get_trustee_encrypted_private_key(board_name, trustee_public_key, &manager)
             .await
     }
 }

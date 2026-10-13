@@ -15,7 +15,7 @@ use electoral_log::{
 use rocket::{http::Status, serde::json::Json, State};
 use sequent_core::{services::jwt::JwtClaims, types::permissions::Permissions};
 use serde::{Deserialize, Serialize};
-use windmill::services::protocol_manager::get_event_board;
+use windmill::services::electoral_log_board::get_event_board;
 
 type ApiResult<T> = Result<Json<T>, (Status, String)>;
 

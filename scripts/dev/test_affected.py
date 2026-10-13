@@ -948,11 +948,11 @@ class RepositoryModelTest(unittest.TestCase):
 
     def test_rust_dependency_patch_selects_native_consumers(self):
         selection, chosen = self.select(
-            "packages/patches/crepe-fixed-hash-seed.patch"
+            "packages/patches/dependency.patch"
         )
         self.assertFalse(selection.fallback)
         self.assertTrue(
-            {"cargo-test:braid", "cargo-test:sequent-core", "cargo-test:windmill"}
+            {"cargo-test:protocol-board", "cargo-test:sequent-core", "cargo-test:windmill"}
             <= chosen
         )
         self.assertNotIn("jest:voting-portal", chosen)

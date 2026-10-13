@@ -458,7 +458,7 @@ fn a_stored_election_publish_entry_continues_after_its_body() {
     // the artifact and the search fields follow. A field added to
     // `ElectionPublish` would be read from their bytes in an entry written
     // before it existed, so the configuration is a body of its own.
-    let key = strand::signature::StrandSignatureSk::generate().unwrap();
+    let key = voting_crypto::signing::SigningKey::generate().unwrap();
     let data = crate::messages::message::SigningData::new(key.clone(), "sender", key);
     let message = crate::messages::message::Message::election_published_message(
         EventIdString("event".to_string()),

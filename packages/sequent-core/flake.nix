@@ -64,28 +64,32 @@
             doCheck = false;
           };
 
-          # see https://github.com/NixOS/nixpkgs/blob/master/doc/languages-frameworks/rust.section.md#importing-a-cargolock-file-importing-a-cargolock-file
-          cargoPatches = {
-              cargoLock = let
-                  fixupLockFile = path: (builtins.readFile path);
-              in {
-                lockFileContents = fixupLockFile ./Cargo.lock.copy;
-                  outputHashes = {
-                  "strand-0.2.0" = "sha256-MBld1vxcFQ8IffKa4o0p6s++KQavYB7tcrQ4XpUxRoY=";
-                };
-              };
-              postPatch = ''
-                  cp ${./Cargo.lock.copy} Cargo.lock
-              '';
+          # The crate now consumes local wbraid and voting-crypto workspace
+          # packages, so build from the application workspace and its lockfile.
+          workspaceSource = pkgs.lib.cleanSourceWith {
+            src = ../.;
+            filter = path: type:
+              !(builtins.elem (builtins.baseNameOf path)
+                [ "target" "rust-local-target" "node_modules" ".env" ".cache" ]);
           };
-          buildRustPackageWithCargo = cargoArgs: pkgs.rustPlatform.buildRustPackage (cargoPatches // cargoArgs);
+          nativeRustPlatform = pkgs.makeRustPlatform {
+            cargo = rust-wasm;
+            rustc = rust-wasm;
+          };
+          buildRustPackageWithCargo = cargoArgs:
+            nativeRustPlatform.buildRustPackage ({
+              src = workspaceSource;
+              cargoLock = {
+                lockFile = ../Cargo.lock;
+                allowBuiltinFetchGit = true;
+              };
+            } // cargoArgs);
 
         # resulting packages of the flake
         in rec {
           packages.sequent-core-wasm = buildRustPackageWithCargo {
             pname = "sequent-core-wasm";
             version = "0.0.1";
-            src = ./.;
             nativeBuildInputs = [
               rust-wasm
               pkgs.nodePackages.npm
@@ -101,8 +105,9 @@
               pkgs.llvmPackages_19.libclang
             ];
             buildPhase = ''
+              cd sequent-core
               echo 'Build: wasm-pack build'
-              wasm-pack build --out-name index --release --target web --features=wasmtest,default_features,monitoring
+              wasm-pack build --out-name index --release --target web --features=wasmtest,default_features,monitoring -- --locked
             '';
             installPhase = "
               # set HOME temporarily to fix npm pack
@@ -118,7 +123,8 @@
           packages.sequent-core-lib = buildRustPackageWithCargo {
             pname = "sequent-core-lib";
             version = "0.0.1";
-            src = ./.;
+            cargoBuildFlags = [ "-p" "sequent-core" ];
+            cargoTestFlags = [ "-p" "sequent-core" ];
             nativeBuildInputs = [
               rust-system
             ];

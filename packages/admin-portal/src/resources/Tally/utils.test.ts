@@ -56,7 +56,7 @@ describe("getTallyKeyRestoreEligibility", () => {
     it("denies a trustee whose key is already restored", () => {
         expect(
             getTallyKeyRestoreEligibility(
-                ITallyTrusteeStatus.KEY_RESTORED,
+                ITallyTrusteeStatus.CUSTODY_CONFIRMED,
                 ITallyExecutionStatus.STARTED
             )
         ).toBe(ETallyKeyRestoreEligibility.DENIED)

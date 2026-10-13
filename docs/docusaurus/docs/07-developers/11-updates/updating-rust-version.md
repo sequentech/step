@@ -79,21 +79,15 @@ Update the `FROM rust:X.Y.Z` line in **all** Dockerfiles:
   FROM rust:1.90.0-slim-bookworm  # ← Update this
   ```
 
-- **`packages/braid/Dockerfile`** (line 5)
-  ```dockerfile
-  FROM rust:1.90.0-slim-bookworm  # ← Update this
-  ```
-
-- **`packages/braid/Dockerfile.prod`**
-- **`packages/braid/Dockerfile.prod-vstl-dependencies`**
+- **`packages/trustee/Dockerfile.prod`**
+- **`packages/trustee/Dockerfile.prod-vstl-dependencies`**
 - **`packages/windmill/Dockerfile`**
 - **`packages/windmill/Dockerfile.prod`**
 - **`packages/windmill/Dockerfile.prod-vstl-dependencies`**
 - **`packages/harvest/Dockerfile`**
 - **`packages/harvest/Dockerfile.prod`**
 - **`packages/harvest/Dockerfile.prod-vstl-dependencies`**
-- **`packages/b4/Dockerfile.prod`**
-- **`packages/b4/Dockerfile.prod-vstl-dependencies`**
+- **`packages/wbraid/crates/b4/Dockerfile`**
 - **`packages/e2e/src/mock_server/Dockerfile.prod`**
 - **`packages/loadtesting/Dockerfile`**
 - **`packages/step-cli/Dockerfile`**
@@ -286,7 +280,7 @@ Build a few key Docker images to verify:
 ```bash
 # Test building services
 cd packages/
-docker build -f braid/Dockerfile -t test-braid .
+docker build -f wbraid/crates/b4/Dockerfile -t test-wbraid-board wbraid/
 docker build -f windmill/Dockerfile -t test-windmill .
 docker build -f Dockerfile.cargo-packages -t test-cargo .
 ```
@@ -317,19 +311,17 @@ Here's the complete list of files that need updating:
 - `devenv.nix`
 - `packages/sequent-core/flake.nix` (plus `packages/sequent-core/flake.lock` if `rust-overlay` needs updating)
 
-### Dockerfiles (19 files)
+### Dockerfiles
 - `packages/Dockerfile.cargo-packages`
-- `packages/braid/Dockerfile`
-- `packages/braid/Dockerfile.prod`
-- `packages/braid/Dockerfile.prod-vstl-dependencies`
+- `packages/trustee/Dockerfile.prod`
+- `packages/trustee/Dockerfile.prod-vstl-dependencies`
 - `packages/windmill/Dockerfile`
 - `packages/windmill/Dockerfile.prod`
 - `packages/windmill/Dockerfile.prod-vstl-dependencies`
 - `packages/harvest/Dockerfile`
 - `packages/harvest/Dockerfile.prod`
 - `packages/harvest/Dockerfile.prod-vstl-dependencies`
-- `packages/b4/Dockerfile.prod`
-- `packages/b4/Dockerfile.prod-vstl-dependencies`
+- `packages/wbraid/crates/b4/Dockerfile`
 - `packages/e2e/src/mock_server/Dockerfile.prod`
 - `packages/loadtesting/Dockerfile`
 - `packages/step-cli/Dockerfile`

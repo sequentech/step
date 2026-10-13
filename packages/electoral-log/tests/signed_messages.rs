@@ -12,9 +12,9 @@ use electoral_log::messages::statement::{
     StatementBody, StatementEventType, StatementHead, StatementLogType,
 };
 use electoral_log::ElectoralLogMessage;
-use strand::hash::STRAND_HASH_LENGTH_BYTES;
-use strand::serialization::{StrandDeserialize, StrandSerialize};
-use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+use voting_crypto::hash::HASH_LENGTH_BYTES;
+use voting_crypto::signing::{SigningKey, VerificationKey};
+use voting_crypto::{RecordDeserialize, RecordSerialize};
 
 /// Simulate a file or transport that fills up after a chosen payload prefix.
 struct FailingWriter {
@@ -54,17 +54,17 @@ fn channel() -> VotingChannelString {
     VotingChannelString("online".into())
 }
 fn pseudonym() -> PseudonymHash {
-    PseudonymHash::new([7; STRAND_HASH_LENGTH_BYTES])
+    PseudonymHash::new([7; HASH_LENGTH_BYTES])
 }
 fn vote_hash() -> CastVoteHash {
-    CastVoteHash::new([9; STRAND_HASH_LENGTH_BYTES])
+    CastVoteHash::new([9; HASH_LENGTH_BYTES])
 }
 
-fn signer() -> Result<(SigningData, StrandSignaturePk)> {
-    let system = StrandSignatureSk::generate()?;
-    let public = StrandSignaturePk::from_sk(&system)?;
+fn signer() -> Result<(SigningData, VerificationKey)> {
+    let system = SigningKey::generate()?;
+    let public = VerificationKey::from_sk(&system)?;
     Ok((
-        SigningData::new(StrandSignatureSk::generate()?, "test-signer", system),
+        SigningData::new(SigningKey::generate()?, "test-signer", system),
         public,
     ))
 }
@@ -73,7 +73,7 @@ fn signer() -> Result<(SigningData, StrandSignaturePk)> {
 /// returns Ok. Expected event kind and election scope come from the test case.
 fn assert_record(
     message: &Message,
-    public: &StrandSignaturePk,
+    public: &VerificationKey,
     kind: &str,
     scope: Option<&str>,
 ) -> Result<()> {
@@ -94,9 +94,9 @@ fn assert_record(
     // serde and verify that it reconstructs exactly the signed Borsh bytes.
     let from_json: Message = serde_json::from_str(&message.to_string())?;
     from_json.verify(public)?;
-    assert_eq!(from_json.strand_serialize()?, stored.message);
+    assert_eq!(from_json.record_serialize()?, stored.message);
     // A reader using Borsh directly must understand the stored payload;
-    // compatibility must not depend on both sides sharing our Strand adapter.
+    // compatibility must not depend on both sides sharing our signing adapter.
     let restored: Message = borsh::from_slice(&stored.message)?;
     // Every truncated prefix must fail on both sides of the persistence
     // boundary. A round-trip alone could miss matching encoder/decoder bugs,
@@ -134,30 +134,30 @@ fn assert_record(
 fn sender_and_system_signatures_both_reject_changed_statement_bytes() -> Result<()> {
     let (data, public) = signer()?;
     let original = Message::keygen_message(event(), &data, actor(), actor(), None)?;
-    let encoded = original.strand_serialize()?;
+    let encoded = original.record_serialize()?;
     original.verify(&public)?;
 
-    let wrong_key = StrandSignatureSk::generate()?;
+    let wrong_key = SigningKey::generate()?;
     assert!(original
-        .verify(&StrandSignaturePk::from_sk(&wrong_key)?)
+        .verify(&VerificationKey::from_sk(&wrong_key)?)
         .is_err());
 
     // Change each part of the signed statement independently. Re-signing only
     // one side must not hide the other signature's failure.
-    let mut changed = Message::strand_deserialize(&encoded)?;
+    let mut changed = Message::record_deserialize(&encoded)?;
     changed.statement.head.event = EventIdString("other-event".into());
     assert!(changed.verify(&public).is_err());
-    changed.sender_signature = wrong_key.sign(&changed.statement.strand_serialize()?)?;
-    changed.sender.pk = StrandSignaturePk::from_sk(&wrong_key)?;
+    changed.sender_signature = wrong_key.sign(&changed.statement.record_serialize()?)?;
+    changed.sender.pk = VerificationKey::from_sk(&wrong_key)?;
     assert!(changed.verify(&public).is_err());
 
-    let mut changed = Message::strand_deserialize(&encoded)?;
+    let mut changed = Message::record_deserialize(&encoded)?;
     changed.statement.body = StatementBody::KeyInsertionStart;
     assert!(changed.verify(&public).is_err());
-    let mut changed = Message::strand_deserialize(&encoded)?;
+    let mut changed = Message::record_deserialize(&encoded)?;
     changed.statement.head.timestamp += 1;
     assert!(changed.verify(&public).is_err());
-    let mut changed = Message::strand_deserialize(&encoded)?;
+    let mut changed = Message::record_deserialize(&encoded)?;
     changed.system_signature = wrong_key.sign(b"unrelated statement")?;
     assert!(changed.verify(&public).is_err());
     Ok(())
@@ -267,7 +267,7 @@ fn voting_events_preserve_receipt_and_scope_and_keep_failures_separate() -> Resu
         assert_record(message, &public, "CastVote", Some(ELECTION))?;
         assert_eq!(
             message.ballot_id.as_deref(),
-            Some(hex::encode([9; STRAND_HASH_LENGTH_BYTES / 2]).as_str())
+            Some(hex::encode([9; HASH_LENGTH_BYTES / 2]).as_str())
         );
         assert_eq!(message.area_id.as_deref(), Some("area"));
         assert_eq!(ElectoralLogMessage::try_from(message)?.version, version);
@@ -781,7 +781,7 @@ fn the_publication_of_a_signed_configuration_is_one_election_publish_entry() -> 
     }
 
     // The digests are signed: an entry naming another design does not verify.
-    let mut changed = Message::strand_deserialize(&message.strand_serialize()?)?;
+    let mut changed = Message::record_deserialize(&message.record_serialize()?)?;
     if let StatementBody::ElectionPublishWithConfiguration(_, _, signed) =
         &mut changed.statement.body
     {

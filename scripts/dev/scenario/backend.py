@@ -52,19 +52,18 @@ BACKEND_MODE = "backend"
 REQUIRED_SERVICES = (
     "postgres",
     "postgres-keycloak",
-    "postgres-b4",
+    "postgres-b4v6",
     "minio",
     "keycloak",
     "graphql-engine",
     "harvest",
     "windmill",
     "beat",
-    "b4",
+    "b4v6",
 )
-# The braid services signing as the trustees bootstrap registers; no mode
-# starts them.
+# Native trustee runners use the identities registered by bootstrap.
 TRUSTEE_SERVICES = bootstrap.TRUSTEES
-TRUSTEE_PROFILE = "full"
+TRUSTEE_PROFILE = "wbraid"
 RUNNING = "running"
 # Container states a service does not leave without a command; created,
 # restarting and removing containers are on their way.
@@ -315,7 +314,7 @@ class StackBackend:
             return
         self.say(
             f"starting {', '.join(stopped)}: keys ceremonies and tallies need the "
-            "trustees (their first start builds the braid image)"
+            "trustees (their first start builds the native runner)"
         )
         compose = Compose(self.checkout, self.manifest.mode(BACKEND_MODE).compose_files)
         code = compose.run(

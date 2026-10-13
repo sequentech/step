@@ -21,11 +21,11 @@ use electoral_log::ports::ElectoralLogStore;
 use electoral_log::seal::ballot_hash;
 use std::future::Future;
 use std::sync::OnceLock;
-use strand::signature::StrandSignatureSk;
 use tokio::runtime::Runtime;
 use uuid::Uuid;
+use voting_crypto::signing::SigningKey;
 use windmill::services::ballot_box::ballot_record;
-use windmill::services::protocol_manager::{get_event_board, get_event_databases};
+use windmill::services::electoral_log_board::{get_event_board, get_event_databases};
 
 /// The slug of the boards the tests create.
 const BOARD_SLUG: &str = "sealtest";
@@ -150,7 +150,7 @@ impl EventDatabase {
 
     /// Appends the records of every accepted ballot to the board, signed
     /// with `key`, as the sequencer does; returns how many.
-    pub async fn sequence(&self, key: &StrandSignatureSk) -> usize {
+    pub async fn sequence(&self, key: &SigningKey) -> usize {
         let event = self.event.to_string();
         let mut appended = 0;
         loop {

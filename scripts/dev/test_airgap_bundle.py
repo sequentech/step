@@ -60,6 +60,20 @@ class AirgapBundleTest(unittest.TestCase):
                     needed.add(name)
         self.assertEqual(sorted(needed - names), [])
 
+    def test_airgap_trustees_keep_native_identity_and_session_state(self):
+        for relative in (
+            ".devcontainer/docker-compose-airgap-preparation.yml",
+            "scripts/airgap-files/docker-compose.yml",
+        ):
+            compose = (ROOT / relative).read_text()
+            for name in ("trustee1", "trustee2"):
+                with self.subTest(deployment=relative, trustee=name):
+                    trustee = service_block(compose, name)
+                    self.assertIn("TRUSTEE_CONFIG_PATH:", trustee)
+                    self.assertRegex(
+                        trustee, r"(?m)^\s+- .+:/opt/trustee(?:/message_store)?$"
+                    )
+
     def test_callback_limits_are_configurable_in_every_deployment(self):
         for relative in (
             ".devcontainer/docker-compose-base.yml",

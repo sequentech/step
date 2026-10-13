@@ -1,16 +1,15 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::postgres::election::get_elections_ids;
 use crate::postgres::election_event::delete_election_event as delete_election_event_postgres;
 use crate::services::ballot_box_seal::refuse_sealed_event_delete;
-use crate::services::delete_election_event::delete_election_event_b3;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::{
     services::{
         delete_election_event::{
-            delete_election_event_electoral_log, delete_election_event_related_documents,
-            delete_keycloak_realm, find_election_event_deletion_refusal,
+            archive_protocol_boards, delete_election_event_electoral_log,
+            delete_election_event_related_documents, delete_keycloak_realm,
+            find_election_event_deletion_refusal,
         },
         providers::transactions_provider::provide_hasura_transaction,
     },
@@ -27,12 +26,11 @@ async fn delete_election_event_related_data(
     tenant_id: &str,
     election_event_id: &str,
     realm: &str,
-    election_ids: &Vec<String>,
 ) -> AnyhowResult<()> {
-    let b3_future = delete_election_event_b3(tenant_id, election_event_id, election_ids);
+    let audit_future = delete_election_event_electoral_log(tenant_id, election_event_id);
     let documents_future = delete_election_event_related_documents(tenant_id, election_event_id);
     let keycloak_future = delete_keycloak_realm(realm);
-    try_join!(b3_future, documents_future, keycloak_future)?;
+    try_join!(audit_future, documents_future, keycloak_future)?;
 
     Ok(())
 }
@@ -88,15 +86,20 @@ pub async fn delete_election_event_in(
     election_event_id: &str,
     realm: &str,
 ) -> AnyhowResult<()> {
+    // Hold the parent row so a concurrent ceremony cannot add metadata between
+    // archival and the explicit child cleanup (foreign keys take KEY SHARE).
+    hasura_transaction.query_one("SELECT id FROM sequent_backend.election_event WHERE tenant_id=$1::text::uuid AND id=$2::text::uuid FOR UPDATE", &[&tenant_id,&election_event_id]).await?;
     refuse_sealed_event_delete(hasura_transaction, tenant_id, election_event_id).await?;
 
-    let election_ids = get_elections_ids(hasura_transaction, tenant_id, election_event_id).await?;
+    archive_protocol_boards(hasura_transaction, tenant_id, election_event_id)
+        .await
+        .map_err(|err| anyhow!("Error deleting election event from hasura db: {err}"))?;
 
     delete_election_event_postgres(hasura_transaction, tenant_id, election_event_id)
         .await
         .map_err(|err| anyhow!("Error deleting election event from postgres db: {err}"))?; // FIX APPLIED
 
-    delete_election_event_related_data(tenant_id, election_event_id, realm, &election_ids)
+    delete_election_event_related_data(tenant_id, election_event_id, realm)
         .await
         .map_err(|e| anyhow!("Error deleting related non-transactional data: {e}"))?;
 

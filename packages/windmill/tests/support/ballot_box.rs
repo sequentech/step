@@ -9,7 +9,7 @@ use electoral_log::adapters::ballot_box::{AcceptBallot, AcceptOutcome, BallotSta
 use electoral_log::adapters::postgres::PostgresStore;
 use uuid::Uuid;
 use windmill::services::ballot_box::BallotFormat;
-use windmill::services::protocol_manager::get_event_databases;
+use windmill::services::electoral_log_board::get_event_databases;
 
 /// The board an event's `bulletin_board_reference` names.
 pub fn board_reference(board: &str) -> serde_json::Value {

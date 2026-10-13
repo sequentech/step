@@ -9,7 +9,7 @@
 /apply-reconciliation-changes
 /cast-ballot
 /change-application-status
-/check-private-key
+/confirm-key-custody
 /configure-results-website-policy
 /count-users
 /create-ballot-receipt
@@ -75,7 +75,7 @@
 /get-document-password
 /get-manual-verification-pdf
 /get-permissions
-/get-private-key
+/get-custody-request
 /get-realm-attributes
 /get-realm-password-policy
 /get-roles
@@ -98,7 +98,7 @@
 /insert-cast-vote
 /insert-election-event
 /insert-tenant
-/key-share-signature-status
+/custody-proof-signature-status
 /limit-access-by-countries
 /list-cast-vote-messages
 /list-keys-ceremonies
@@ -148,7 +148,7 @@
 /refresh-results-publication-index
 /render-document-pdf
 /resolve-results-publication
-/restore-private-key
+/authorize-tally-custody
 /reveal-voter-secret-attribute
 /review-tally-sheet
 /review-tally-sheet-import
@@ -165,6 +165,7 @@
 /staff-certificates
 /staff-certificates/<id>/revoke
 /submit-tally-resolution
+/trustee/boards/report
 /task-queues/dead-letters
 /task-queues/messages
 /task-queues/overview

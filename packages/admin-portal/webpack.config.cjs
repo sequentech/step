@@ -115,13 +115,6 @@ module.exports = function (env, argv) {
             new CopyWebpackPlugin({
                 patterns: [
                     {
-                        // The rayon helper self-fetches import.meta.url. Preserve
-                        // this no-bundler package as browser-served ES modules.
-                        from: path.dirname(require.resolve("braid-wasm/package.json")),
-                        to: "braid-wasm",
-                        globOptions: {ignore: ["**/*.d.ts", "**/package.json"]},
-                    },
-                    {
                         from: path.resolve(__dirname, "public"), // Source folder
                         to: path.resolve(__dirname, "dist"), // Destination folder
                         globOptions: {
@@ -169,7 +162,7 @@ module.exports = function (env, argv) {
             historyApiFallback: true,
             headers: {
                 // Required together for SharedArrayBuffer/Atomics support,
-                // needed by braid-wasm's multi-threaded build.
+                // used by browser worker builds.
                 "Cross-Origin-Opener-Policy": "same-origin",
                 "Cross-Origin-Embedder-Policy": "require-corp",
                 "Cross-Origin-Resource-Policy": "cross-origin",

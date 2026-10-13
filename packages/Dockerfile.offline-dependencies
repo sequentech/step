@@ -18,18 +18,12 @@
 #   Dockerfile.prod            apk add jq                      (nginx:alpine)
 #   harvest, windmill          apt-get install ...; a JDK from download.java.net;
 #                              cargo-binstall from raw.githubusercontent.com
-#   b4, braid                  apt-get install ...; the AWS CLI; Vault
+#   trustee                    apt-get install ...; the AWS CLI; Vault
 #
 # Closing that needs OS package archives and pinned tool downloads vendored as
 # well, which is a larger change and a separate piece of work. Until then this
 # image removes the dependency-resolution network traffic, which is the bulk of
 # it and the part that varies per commit.
-#
-# Note also that b4 and braid resolve VAULT_VERSION by scraping
-# releases.hashicorp.com at build time when it is "latest". That is a floating
-# version decided during the build, so two builds of the same commit can ship
-# different Vault binaries -- a reproducibility problem independent of offline
-# builds, and one that has to be pinned before any byte-comparison gate can pass.
 #
 # Build (online):
 #   docker build -t sequentech.local/offline-dependencies:latest \
@@ -90,19 +84,9 @@ COPY . .
 # only reliably start at its root.
 # The redirect target cannot live inside /vendor-cache: the shell creates it
 # before cargo has made that directory. Write it outside, then move it in.
-RUN cargo vendor /vendor-cache > /config.toml \
+# Include the separately locked workspace used to build the supplied b4v6 server.
+RUN cargo vendor --locked --sync wbraid/Cargo.toml /vendor-cache > /config.toml \
     && mv /config.toml /vendor-cache/config.toml
-# crepe's code generator is not deterministic; see the patch. The checksums
-# cargo verifies vendored sources against are updated for the two patched
-# files, so every other file of the crate is still checked. A new crepe version
-# makes the patch fail to apply, which is the signal to look at it again.
-RUN cd /vendor-cache/crepe \
-    && git apply /workspace/patches/crepe-fixed-hash-seed.patch \
-    && for f in src/lib.rs src/strata.rs; do \
-        sum="$(sha256sum "$f" | cut -d' ' -f1)"; \
-        sed -i "s|\"$f\":\"[0-9a-f]*\"|\"$f\":\"$sum\"|" .cargo-checksum.json; \
-    done
-
 # Yarn dependencies as an offline mirror: a directory of tarballs that
 # `yarn install --offline` resolves against without contacting a registry.
 FROM node:20-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0 AS node-deps
@@ -120,6 +104,10 @@ RUN printf 'yarn-offline-mirror "/npm-packages-offline-cache"\nyarn-offline-mirr
 # build then fails on something that was never downloaded.
 FROM maven:3-amazoncorretto-17@sha256:046784a9c83821fc3e9ded94c2f18155e0daf1981c8a0813d0ff693a9dc4a51b AS keycloak-m2
 COPY ./keycloak-extensions/ /build/packages/keycloak-extensions/
+# OTP contract tests compare Java values with the shared Rust definitions, as
+# in Dockerfile.keycloak.
+COPY ./sequent-core/src/types/messaging.rs /build/packages/sequent-core/src/types/
+COPY ./sequent-core/src/types/dial_codes.rs /build/packages/sequent-core/src/types/
 WORKDIR /build
 RUN mvn -B -Dmaven.repo.local=/m2-repo \
         -f packages/keycloak-extensions/pom.xml clean package \

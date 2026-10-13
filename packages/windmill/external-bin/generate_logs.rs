@@ -10,11 +10,11 @@ use serde::Deserialize;
 use std::collections::HashMap; // Added for HashMap
 use std::fs;
 use std::path::PathBuf;
-use strand::serialization::StrandDeserialize;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
+use voting_crypto::RecordDeserialize;
+use windmill::services::electoral_log_board::{get_board_client, get_event_board};
 use windmill::services::partial_file::PartialFile;
-use windmill::services::protocol_manager::{get_board_client, get_event_board};
 use windmill::services::reports::activity_log::{ActivityLogRow, LogZones};
 
 /// Generates a CSV report of activity logs from PostgreSQL.
@@ -126,7 +126,7 @@ async fn main() -> Result<()> {
         }
         cursor = rows.last().unwrap().id;
         for row in rows {
-            let message = Message::strand_deserialize(&row.message)?;
+            let message = Message::record_deserialize(&row.message)?;
             let filename_stem_key = match message.election_id.as_ref() {
                 Some(id) => config.elections.get(id).unwrap_or(id).clone(),
                 None => "general_logs".to_owned(),

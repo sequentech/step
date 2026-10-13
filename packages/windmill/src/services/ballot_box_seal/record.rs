@@ -18,7 +18,7 @@ use electoral_log::seal::{
 };
 use sequent_core::services::translations::Name;
 use sequent_core::types::hasura::core::{Election, ElectionEvent};
-use strand::signature::StrandSignaturePk;
+use voting_crypto::signing::VerificationKey;
 
 /// A name the translations leave out.
 const MISSING_NAME: &str = "-";
@@ -54,7 +54,7 @@ pub async fn build_record(
     hasura_transaction: &Transaction<'_>,
     seal: &BallotBoxSeal,
     election_event: &ElectionEvent,
-    system_pk: &StrandSignaturePk,
+    system_pk: &VerificationKey,
     log_entry: SealRecordLogEntry,
 ) -> Result<SealRecord> {
     let tenant_id = seal.tenant_id.to_string();

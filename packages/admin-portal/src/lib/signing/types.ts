@@ -17,8 +17,8 @@ export enum SigningAction {
     TransmitResults = "transmit-results",
     ApproveVoter = "approve-voter",
     ApproveConfiguration = "approve-configuration",
-    ConfirmKeyShare = "key-ceremony",
-    ContributeKeyShare = "tally-key",
+    ConfirmCustodyProof = "key-ceremony",
+    ContributeCustodyProof = "tally-key",
 }
 
 /** What a request is bound to. Post = election, country = area. */
@@ -215,14 +215,14 @@ export const SIGNING_ACTIONS: Record<SigningAction, ISigningActionInfo> = {
         document: DocumentKind.NoDocument,
         signPermission: IPermissions.SIGN_APPROVE_CONFIGURATION,
     },
-    [SigningAction.ConfirmKeyShare]: {
+    [SigningAction.ConfirmCustodyProof]: {
         group: SigningActionGroup.ConfigurationAndKeys,
         scope: SigningScope.Trustee,
         mode: ExecutionMode.Gate,
         document: DocumentKind.NoDocument,
         signPermission: IPermissions.SIGN_KEY_CEREMONY,
     },
-    [SigningAction.ContributeKeyShare]: {
+    [SigningAction.ContributeCustodyProof]: {
         group: SigningActionGroup.ConfigurationAndKeys,
         scope: SigningScope.Trustee,
         mode: ExecutionMode.Gate,

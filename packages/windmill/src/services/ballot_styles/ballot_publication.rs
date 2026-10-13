@@ -23,6 +23,7 @@ use crate::types::tasks::ETasksExecution;
 use anyhow::{anyhow, Context, Result};
 use chrono::{Local, Utc};
 use deadpool_postgres::Transaction;
+use sequent_core::ballot::PublicKeyConfig;
 use sequent_core::ballot::{
     BallotStyle, Contest, ContestEncryptionPolicy, EBlankVotePolicy, EDuplicatedRankPolicy,
     EOverVotePolicy, EPreferenceGapsPolicy, EUnderVotePolicy, ElectionEventPresentation,
@@ -32,7 +33,8 @@ use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::connection;
 use sequent_core::services::date::ISO8601;
 use sequent_core::types::ceremonies::CountingAlgType;
-use sequent_core::types::hasura::core::{BallotPublication, TasksExecution};
+use sequent_core::types::ceremonies::KeysCeremonyExecutionStatus;
+use sequent_core::types::hasura::core::{BallotPublication, KeysCeremony, TasksExecution};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
@@ -492,6 +494,40 @@ fn validate_started_elections_publication(
     validate_ballot_style_decoding(&previous_styles, &parse_ballot_styles(current_publication)?)
 }
 
+/// Publishing a native key requires completed custody, even through the API.
+fn validate_publication_ceremonies(
+    keys: &[PublicKeyConfig],
+    ceremonies: &[KeysCeremony],
+) -> Result<()> {
+    for key in keys.iter().filter(|key| !key.is_demo) {
+        let ceremony = key
+            .keys_ceremony_id
+            .as_deref()
+            .and_then(|id| ceremonies.iter().find(|ceremony| ceremony.id == id));
+        let complete = ceremony
+            .map(|ceremony| -> Result<bool> {
+                let status = ceremony.status()?;
+                Ok(
+                    ceremony.execution_status()? == KeysCeremonyExecutionStatus::SUCCESS
+                        && status.public_key.as_deref() == Some(key.public_key.as_str())
+                        && status
+                            .public_key_hash
+                            .as_deref()
+                            .is_some_and(|hash| !hash.is_empty()),
+                )
+            })
+            .transpose()?
+            .unwrap_or(false);
+        if !complete {
+            return Err(BallotPublicationValidationError::new(vec![format!(
+                "Keys ceremony {} must complete before ballot publication with its verified joint public key.",
+                key.keys_ceremony_id.as_deref().unwrap_or("(missing)")
+            )]).into());
+        }
+    }
+    Ok(())
+}
+
 async fn validate_published_ballot_styles(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -507,6 +543,17 @@ async fn validate_published_ballot_styles(
         None,
     )
     .await?;
+    let ceremonies = crate::postgres::keys_ceremony::get_keys_ceremonies(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+    )
+    .await?;
+    let keys = parse_ballot_styles(&current)?
+        .into_iter()
+        .filter_map(|style| style.public_key)
+        .collect::<Vec<_>>();
+    validate_publication_ceremonies(&keys, &ceremonies)?;
     let previous_publications = started_elections_published_styles(
         hasura_transaction,
         tenant_id,
@@ -657,14 +704,6 @@ pub async fn update_publish_ballot(
     if ballot_publication.published_at.is_some() {
         return Ok(());
     }
-
-    validate_published_ballot_styles(
-        hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &ballot_publication,
-    )
-    .await?;
 
     validate_published_slates(
         hasura_transaction,
@@ -983,6 +1022,66 @@ mod tests {
 
     fn publication(contests: Value) -> Value {
         json!([{ "contests": contests }])
+    }
+
+    #[test]
+    fn native_publication_waits_for_completed_custody_and_a_matching_joint_key() {
+        let key = PublicKeyConfig {
+            public_key: "joint-key".into(),
+            is_demo: false,
+            keys_ceremony_id: Some("ceremony".into()),
+            configuration_id: Some("123".into()),
+        };
+        let ceremony = |execution_status: KeysCeremonyExecutionStatus| -> KeysCeremony {
+            serde_json::from_value(serde_json::json!({
+                "id": "ceremony", "tenant_id": "tenant", "election_event_id": "event",
+                "trustee_ids": [], "threshold": 2, "execution_status": execution_status.to_string(),
+                "status": {"public_key": "joint-key", "public_key_hash": "verified-hash", "logs": [], "trustees": []}
+            })).unwrap()
+        };
+        assert!(validate_publication_ceremonies(
+            &[key.clone()],
+            &[ceremony(KeysCeremonyExecutionStatus::SUCCESS)]
+        )
+        .is_ok());
+        for status in [
+            KeysCeremonyExecutionStatus::STARTED,
+            KeysCeremonyExecutionStatus::IN_PROGRESS,
+            KeysCeremonyExecutionStatus::FAILED,
+            KeysCeremonyExecutionStatus::CANCELLED,
+        ] {
+            let error =
+                validate_publication_ceremonies(&[key.clone()], &[ceremony(status)]).unwrap_err();
+            assert!(error.is::<BallotPublicationValidationError>());
+            assert!(error
+                .to_string()
+                .contains("must complete before ballot publication"));
+        }
+        for field in ["public_key", "public_key_hash"] {
+            let mut incomplete = ceremony(KeysCeremonyExecutionStatus::SUCCESS);
+            incomplete.status.as_mut().unwrap()[field] = Value::Null;
+            assert!(
+                validate_publication_ceremonies(&[key.clone()], &[incomplete]).is_err(),
+                "{field}"
+            );
+        }
+        let mut changed = ceremony(KeysCeremonyExecutionStatus::SUCCESS);
+        changed.status.as_mut().unwrap()["public_key"] = Value::String("other-key".into());
+        assert!(validate_publication_ceremonies(&[key.clone()], &[changed]).is_err());
+        assert!(validate_publication_ceremonies(&[key.clone()], &[]).is_err());
+        let mut unbound = key.clone();
+        unbound.keys_ceremony_id = None;
+        assert!(validate_publication_ceremonies(
+            &[unbound],
+            &[ceremony(KeysCeremonyExecutionStatus::SUCCESS)]
+        )
+        .is_err());
+        let demo = PublicKeyConfig {
+            is_demo: true,
+            ..key
+        };
+        assert!(validate_publication_ceremonies(&[demo], &[]).is_ok());
+        assert!(validate_publication_ceremonies(&[], &[]).is_ok());
     }
 
     #[test]

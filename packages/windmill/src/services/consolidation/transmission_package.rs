@@ -31,11 +31,11 @@ use serde_json::{Map, Value};
 use std::fs::File;
 use std::io::{self, Read, Seek, Write};
 use std::{env, path::Path};
-use strand::hash::hash_sha256;
 use tempfile::tempdir;
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 use velvet::pipes::generate_reports::ReportData;
+use voting_crypto::hash::hash_sha256;
 
 pub const PUBLIC_ASSETS_EML_BASE_TEMPLATE: &'static str = "eml_base.hbs";
 

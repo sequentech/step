@@ -69,7 +69,7 @@ DEVELOPMENT = {key: f"value-of-{key}" for key in REQUIRED} | {
     "HASURA_ENDPOINT": "http://graphql-engine:8080/v1/graphql",
     "KEYCLOAK_URL": "http://keycloak:8090",
     "AWS_S3_PRIVATE_URI": "http://minio:9000",
-    "B4_URL": "http://b4:50051",
+    "B4_URL": "http://b4v6:3005",
     "VOTING_PORTAL_URL": "http://localhost:3000",
     "BALLOT_VERIFIER_URL": "http://localhost:3001",
     "RESULTS_PORTAL_URL": "http://localhost:3004",
@@ -1597,12 +1597,12 @@ class StackTest(StoreTestCase):
 
     def test_a_missing_service_points_to_the_backend_mode(self):
         states = self.states()
-        del states["b4"]
+        del states["b4v6"]
         with (
             mock.patch.object(backend_module, "project_states", return_value=states),
             mock.patch.object(backend_module, "probe", return_value=True),
         ):
-            with self.assertRaisesRegex(ScenarioError, "b4: not created"):
+            with self.assertRaisesRegex(ScenarioError, "b4v6: not created"):
                 self.backend.check_services()
 
     def test_services_still_starting_are_awaited(self):
@@ -1658,7 +1658,7 @@ class StackTest(StoreTestCase):
             self.backend.start_trustees()
         compose.return_value.run.assert_called_once_with(
             "--profile",
-            "full",
+            "wbraid",
             "up",
             "--detach",
             "--no-deps",
@@ -2050,9 +2050,7 @@ class StackTest(StoreTestCase):
         manifest = load_manifest(REPOSITORY_ROOT)
         backend_services = set(manifest.mode(backend_module.BACKEND_MODE).services)
         self.assertLessEqual(set(backend_module.REQUIRED_SERVICES), backend_services)
-        self.assertTrue(
-            set(backend_module.TRUSTEE_SERVICES).isdisjoint(backend_services)
-        )
+        self.assertLessEqual(set(backend_module.TRUSTEE_SERVICES), backend_services)
 
 
 if __name__ == "__main__":

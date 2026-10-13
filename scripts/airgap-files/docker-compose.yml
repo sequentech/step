@@ -38,7 +38,6 @@ services:
       - ./electoral-log-catalog.sql:/electoral-log-catalog.sql:ro
       - db_data:/var/lib/postgresql/data
       - db_logs:/logs
-      - ./initdb:/docker-entrypoint-initdb.d
     environment:
       POSTGRES_PASSWORD: ${HASURA_PG_PASSWORD}
       ELECTORAL_LOG_PG_USER: ${ELECTORAL_LOG_PG_USER}
@@ -434,11 +433,9 @@ services:
       CLOUDFLARE_ZONE: ${CLOUDFLARE_ZONE}
       CLOUDFLARE_API_KEY: ${CLOUDFLARE_API_KEY}
       CUSTOM_URLS_IP_DNS_CONTENT: ${CUSTOM_URLS_IP_DNS_CONTENT}
-      B4_PG_HOST: ${B4_PG_HOST}
-      B4_PG_PORT: ${B4_PG_PORT}
-      B4_PG_USER: ${B4_PG_USER}
-      B4_PG_PASSWORD: ${B4_PG_PASSWORD}
-      B4_PG_DATABASE: ${B4_PG_DATABASE}
+      WBRAID_B4_URL: http://b4v6:3005
+      WBRAID_BOARD_DATABASE_URL: postgres://postgres@postgres-b4v6:5432/wbraid_board
+      WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       # The monitoring renderer, reached on the internal monitoring-renderer
       # network only.
@@ -502,84 +499,137 @@ services:
       retries: 10
       start_period: 30s
 
-  b4:
+  postgres-b4v6:
     profiles: ["full", "base"]
-    stdin_open: true
-    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/b4:STEP_VERSION
+    image: postgres:16-bookworm
     pull_policy: never
-    container_name: b4
-    restart: always
-    ports:
-      - "${BIND_ADDRESS:-127.0.0.1}:50051:50051"
+    restart: unless-stopped
     environment:
-      RUSTFLAGS: ${RUSTFLAGS}
-      RUST_BACKTRACE: ${RUST_BACKTRACE}
-      LOG_LEVEL: ${LOG_LEVEL}
-      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
-      B4_PG_HOST: ${B4_PG_HOST}
-      B4_PG_PORT: ${B4_PG_PORT}
-      B4_PG_USER: ${B4_PG_USER}
-      B4_PG_PASSWORD: ${B4_PG_PASSWORD}
-      B4_PG_DATABASE: ${B4_PG_DATABASE}
-      B4_BIND: ${B4_BIND}
-      AWS_REGION: ${AWS_REGION}
+      POSTGRES_USER: postgres
+      POSTGRES_DB: wbraid_board
+      POSTGRES_PASSWORD: ${WBRAID_B4_PG_PASSWORD:?set the native board database password}
+    volumes:
+      - wbraid_board_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d wbraid_board"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  b4v6:
+    profiles: ["full", "base"]
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/b4v6:STEP_VERSION
+    pull_policy: never
+    restart: unless-stopped
+    ports: ["3005:3005"]
+    depends_on:
+      postgres-b4v6:
+        condition: service_healthy
+    environment:
+      WBRAID_B4_BIND: 0.0.0.0:3005
+      DATABASE_URL: postgres://postgres@postgres-b4v6:5432/wbraid_board
+      WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
+      AWS_ENDPOINT_URL: ${AWS_S3_PRIVATE_URI}
       AWS_ACCESS_KEY_ID: ${AWS_S3_ACCESS_KEY}
       AWS_SECRET_ACCESS_KEY: ${AWS_S3_ACCESS_SECRET}
-      AWS_ENDPOINT_URL: ${AWS_S3_PRIVATE_URI}
+      AWS_REGION: ${AWS_REGION}
       S3_BUCKET_NAME: ${AWS_S3_BUCKET}
-      AWS_S3_UPLOAD_EXPIRATION_SECS: ${AWS_S3_UPLOAD_EXPIRATION_SECS}
-      AWS_S3_FETCH_EXPIRATION_SECS: ${AWS_S3_FETCH_EXPIRATION_SECS}
 
   trustee1:
     profiles: ["full"]
     stdin_open: true
     container_name: trustee1
-    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/braid:STEP_VERSION
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/trustee:STEP_VERSION
     pull_policy: never
-    volumes:
-      - ./trustees-data/trustee1/trustee1.toml:/opt/braid/trustee1.toml
     environment:
+        LOG_LEVEL: ${LOG_LEVEL}
         TRUSTEE_NAME: trustee1
-        TRUSTEE_CONFIG: ${TRUSTEE1_CONFIG}
-        IGNORE_BOARDS: ${IGNORE_BOARDS}
+        TRUSTEE_CONFIG_PATH: /opt/trustee/trustee.toml
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
-        B4_URL: ${B4_URL}
+        B4_URL: http://b4v6:3005
+        TRUSTEE_PASSWORD: ${TRUSTEE1_PASSWORD}
+        TRUSTEE_PLATFORM_URL: ${TRUSTEE_PLATFORM_URL:-${HASURA_ENDPOINT}}
+        TRUSTEE_KEYCLOAK_URL: ${KEYCLOAK_URL}
+        TRUSTEE_KEYCLOAK_REALM: tenant-${TENANT_ID}
+        TRUSTEE_KEYCLOAK_CLIENT_ID: ${TRUSTEE_KEYCLOAK_CLIENT_ID}
+        TRUSTEE_KEYCLOAK_CLIENT_SECRET: ${TRUSTEE_KEYCLOAK_CLIENT_SECRET}
+    depends_on:
+      harvest:
+        condition: service_started
+    volumes:
+      - type: bind
+        source: ./trustees-data/trustee1/trustee1.toml
+        target: /opt/trustee/trustee.toml
+        read_only: true
+        bind:
+          create_host_path: false
+      - trustee1_sessions:/opt/trustee/message_store
 
   trustee2:
     profiles: ["full"]
     stdin_open: true
-    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/braid:STEP_VERSION
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/trustee:STEP_VERSION
     pull_policy: never
     container_name: trustee2
-    volumes:
-      - ./trustees-data/trustee2/trustee2.toml:/opt/braid/trustee2.toml
+    depends_on:
+      harvest:
+        condition: service_started
     environment:
+        LOG_LEVEL: ${LOG_LEVEL}
         TRUSTEE_NAME: trustee2
-        TRUSTEE_CONFIG: ${TRUSTEE2_CONFIG}
-        IGNORE_BOARDS: ${IGNORE_BOARDS}
+        TRUSTEE_CONFIG_PATH: /opt/trustee/trustee.toml
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
-        B4_URL: ${B4_URL}
+        B4_URL: http://b4v6:3005
+        TRUSTEE_PASSWORD: ${TRUSTEE2_PASSWORD}
+        TRUSTEE_PLATFORM_URL: ${TRUSTEE_PLATFORM_URL:-${HASURA_ENDPOINT}}
+        TRUSTEE_KEYCLOAK_URL: ${KEYCLOAK_URL}
+        TRUSTEE_KEYCLOAK_REALM: tenant-${TENANT_ID}
+        TRUSTEE_KEYCLOAK_CLIENT_ID: ${TRUSTEE_KEYCLOAK_CLIENT_ID}
+        TRUSTEE_KEYCLOAK_CLIENT_SECRET: ${TRUSTEE_KEYCLOAK_CLIENT_SECRET}
+    volumes:
+      - type: bind
+        source: ./trustees-data/trustee2/trustee2.toml
+        target: /opt/trustee/trustee.toml
+        read_only: true
+        bind:
+          create_host_path: false
+      - trustee2_sessions:/opt/trustee/message_store
 
   trustee3:
     profiles: ["full"]
     stdin_open: true
-    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/braid:STEP_VERSION
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/trustee:STEP_VERSION
     pull_policy: never
     container_name: trustee3
-    volumes:
-      - ./trustees-data/trustee3/trustee3.toml:/opt/braid/trustee3.toml
+    depends_on:
+      harvest:
+        condition: service_started
     environment:
+        LOG_LEVEL: ${LOG_LEVEL}
         TRUSTEE_NAME: trustee3
-        TRUSTEE_CONFIG: ${TRUSTEE3_CONFIG}
-        IGNORE_BOARDS: ${IGNORE_BOARDS}
+        TRUSTEE_CONFIG_PATH: /opt/trustee/trustee.toml
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
-        B4_URL: ${B4_URL}
+        B4_URL: http://b4v6:3005
+        TRUSTEE_PASSWORD: ${TRUSTEE3_PASSWORD}
+        TRUSTEE_PLATFORM_URL: ${TRUSTEE_PLATFORM_URL:-${HASURA_ENDPOINT}}
+        TRUSTEE_KEYCLOAK_URL: ${KEYCLOAK_URL}
+        TRUSTEE_KEYCLOAK_REALM: tenant-${TENANT_ID}
+        TRUSTEE_KEYCLOAK_CLIENT_ID: ${TRUSTEE_KEYCLOAK_CLIENT_ID}
+        TRUSTEE_KEYCLOAK_CLIENT_SECRET: ${TRUSTEE_KEYCLOAK_CLIENT_SECRET}
+    volumes:
+      - type: bind
+        source: ./trustees-data/trustee3/trustee3.toml
+        target: /opt/trustee/trustee.toml
+        read_only: true
+        bind:
+          create_host_path: false
+      - trustee3_sessions:/opt/trustee/message_store
 
 
   # Installs PGMQ and the queues in the task-queue database, as the database owner,
@@ -728,11 +778,9 @@ services:
       VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE: ${VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE}
        #Demo key
       DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
-      B4_PG_HOST: ${B4_PG_HOST}
-      B4_PG_PORT: ${B4_PG_PORT}
-      B4_PG_USER: ${B4_PG_USER}
-      B4_PG_PASSWORD: ${B4_PG_PASSWORD}
-      B4_PG_DATABASE: ${B4_PG_DATABASE}
+      WBRAID_B4_URL: http://b4v6:3005
+      WBRAID_BOARD_DATABASE_URL: postgres://postgres@postgres-b4v6:5432/wbraid_board
+      WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
 
   beat:
@@ -776,6 +824,10 @@ networks:
     internal: true
 
 volumes:
+  wbraid_board_data:
+  trustee1_sessions:
+  trustee2_sessions:
+  trustee3_sessions:
   db_data:
   db_logs:
   keycloak_db_logs:

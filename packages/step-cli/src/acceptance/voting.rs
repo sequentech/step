@@ -413,7 +413,7 @@ pub(crate) mod tests {
         fixtures::ballot_codec::{get_writein_ballot_style, get_writein_plaintext},
     };
     use std::collections::BTreeMap;
-    use strand::backend::ristretto::RistrettoCtx;
+    use voting_crypto::RistrettoCtx;
 
     pub fn since() -> DateTime<Utc> {
         Utc.with_ymd_and_hms(2028, 1, 10, 9, 0, 0).unwrap()

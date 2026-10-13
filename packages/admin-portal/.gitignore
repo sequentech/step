@@ -47,3 +47,5 @@ result
 
 /public/tinymce/
 /public/sql-wasm.js
+
+/public/wbraid-trustee/

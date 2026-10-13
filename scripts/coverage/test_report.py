@@ -224,7 +224,7 @@ class CoverageReportTests(unittest.TestCase):
     def test_dependencies_and_integration_test_files_do_not_pad_package_totals(
         self,
     ) -> None:
-        other = self.package.parent / "strand" / "src" / "lib.rs"
+        other = self.package.parent / "voting-crypto" / "src" / "lib.rs"
         test_file = self.package / "tests" / "smoke.rs"
         result = self.summarize(
             export(

@@ -189,6 +189,10 @@ export interface IBallotStyle {
 export interface IPublicKeyConfig {
     public_key: string
     is_demo: boolean
+    /** Registered ceremony UUID; used as the native domain when configuration_id is absent. */
+    keys_ceremony_id?: string | null
+    /** Immutable wbraid Configuration.id, kept as decimal text to preserve all 128 bits. */
+    configuration_id?: string | null
 }
 
 export interface IBallotBoxKey {

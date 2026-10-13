@@ -122,9 +122,6 @@ summary = "Nightwatch load-test image"
 [units.monitoring-renderer]
 summary = "Monitoring chart renderer service, tested by monitoring-renderer.yml"
 
-[units.board-messages]
-summary = "Dormant source fragment without a manifest"
-
 [units.beyond]
 summary = "The beyond submodule, validated in its own repository"
 
@@ -230,7 +227,6 @@ globs = [
     "packages/.ackrc",
     "packages/.gitignore",
     "packages/.ignore",
-    "packages/Cargo.lock.copy",
 ]
 units = ["repo-config"]
 
@@ -325,10 +321,6 @@ units = ["loadtesting"]
 [[paths]]
 globs = ["packages/monitoring-renderer/**"]
 units = ["monitoring-renderer"]
-
-[[paths]]
-globs = ["packages/board-messages/**"]
-units = ["board-messages"]
 
 [[paths]]
 globs = ["beyond"]
@@ -576,13 +568,26 @@ workflows = ["wbraid.yml"]
 
 [[checks]]
 id = "cargo-test:{unit}"
-for_each = ["strand", "electoral-log", "pgmq-broker", "wrap-map-err", "step-cli", "messaging", "messaging-webhooks"]
+for_each = ["electoral-log", "pgmq-broker", "wrap-map-err", "step-cli", "messaging", "messaging-webhooks"]
 kind = "test"
 runner = "cargo"
 cost = "fast"
 cwd = "packages"
 command = "cargo test --locked -p {unit}"
 focus = ["cargo", "test", "--locked", "-p", "{unit}"]
+workflows = ["tests.yml"]
+actions = ["setup-rust-tests", "setup-rust-cache"]
+paths = ["scripts/dev/rust_cache.py"]
+
+[[checks]]
+id = "cargo-test:{unit}"
+for_each = ["voting-crypto", "protocol-board", "trustee"]
+kind = "test"
+runner = "cargo"
+cost = "fast"
+cwd = "packages"
+command = "cargo test --release --locked -p {unit}"
+focus = ["cargo", "test", "--release", "--locked", "-p", "{unit}"]
 workflows = ["tests.yml"]
 actions = ["setup-rust-tests", "setup-rust-cache"]
 paths = ["scripts/dev/rust_cache.py"]
@@ -708,17 +713,6 @@ paths = [".devcontainer/scripts/rebuild-election-config-wasm.sh", ".devcontainer
 workflows = ["build_wasm.yml"]
 
 [[checks]]
-id = "cargo-test:b4"
-units = ["b4"]
-kind = "test"
-runner = "cargo"
-cost = "fast"
-cwd = "packages"
-command = "cargo test --locked -p b4 --features native,client --tests"
-focus = ["cargo", "test", "--locked", "-p", "b4", "--features", "native,client"]
-workflows = ["rust-coverage.yml"]
-
-[[checks]]
 id = "cargo-test:windmill"
 units = ["windmill"]
 kind = "test"
@@ -808,20 +802,6 @@ ELECTORAL_LOG_PG_USER = "test"
 ELECTORAL_LOG_PG_PASSWORD = "test"
 ELECTORAL_LOG_PG_DATABASE = "test"
 ELECTORAL_LOG_PG_SSLMODE = "disable"
-
-[[checks]]
-id = "cargo-test:braid"
-units = ["braid"]
-kind = "test"
-runner = "cargo"
-cost = "slow"
-cwd = "packages"
-command = "cargo test --release --locked -p braid --tests"
-focus = ["cargo", "test", "--release", "--locked", "-p", "braid"]
-workflows = ["rust-coverage.yml"]
-[checks.env]
-RUST_TEST_THREADS = "2"
-RAYON_NUM_THREADS = "2"
 
 [[checks]]
 id = "cargo-test:orare"
@@ -931,7 +911,7 @@ cwd = "."
 command = "python3 -m unittest discover -s scripts/coverage -p 'test_*.py' && node scripts/coverage/test_frontend.cjs"
 focus = ["python3", "-m", "unittest"]
 tests = ["scripts/coverage/test_*.py"]
-workflows = ["rust-coverage.yml", "frontend-coverage.yml", "core-native-features.yml", "strand-native-backends.yml"]
+workflows = ["rust-coverage.yml", "frontend-coverage.yml", "core-native-features.yml"]
 
 [[checks]]
 id = "python:scripts-e2e"
@@ -1061,7 +1041,7 @@ workflows = ["backend-database-contracts.yml"]
 
 [[checks]]
 id = "backend-e2e"
-units = ["scripts-e2e", "windmill", "harvest", "step-cli", "b4", "braid", "keycloak-extensions", "hasura", "devcontainer", "docker-images"]
+units = ["scripts-e2e", "windmill", "harvest", "step-cli", "protocol-board", "trustee", "voting-crypto", "keycloak-extensions", "hasura", "devcontainer", "docker-images"]
 kind = "test"
 runner = "shell"
 cost = "integration"
@@ -1072,7 +1052,7 @@ workflows = ["backend-e2e.yml"]
 
 [[checks]]
 id = "frontend-stack-e2e"
-units = ["ui-e2e", "scripts-e2e", "windmill", "harvest", "step-cli", "b4", "braid", "keycloak-extensions", "hasura", "devcontainer", "docker-images", "voting-portal", "admin-portal", "results-portal", "ballot-verifier"]
+units = ["ui-e2e", "scripts-e2e", "windmill", "harvest", "step-cli", "protocol-board", "trustee", "voting-crypto", "keycloak-extensions", "hasura", "devcontainer", "docker-images", "voting-portal", "admin-portal", "results-portal", "ballot-verifier"]
 kind = "test"
 runner = "shell"
 cost = "integration"
@@ -1080,3 +1060,7 @@ cwd = "."
 command = "scripts/e2e/ui/run.sh"
 requires = ["docker"]
 workflows = ["frontend-stack-e2e.yml"]
+
+[[paths]]
+globs = ["packages/patches/**"]
+units = ["cargo:packages/Cargo.toml", "cargo:packages/wbraid/Cargo.toml"]

@@ -5,6 +5,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Provenance of `packages/wbraid`
 
+## Current platform integration
+
+The application now uses this workspace through `voting-crypto`, `protocol-board`
+and native board storage. The former top-level `strand`, `braid`, `b4`,
+`board-messages` package has been retired. Application electoral logs retain
+the independent `immu-board` and `immudb-rs` storage stack.
+Descriptions below record the import and development history; references to the
+former application packages describe that earlier state. Current setup and
+verification commands are in the
+[trustee guide](../../docs/docusaurus/docs/07-developers/09-braid/braid_trustees_configuration.md)
+and [public verification guide](../../docs/docusaurus/docs/07-developers/09-braid/public-verification.md).
+
 ## Import
 
 `packages/wbraid` was imported from the `sequentech/step` branch

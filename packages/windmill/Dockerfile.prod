@@ -55,27 +55,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-COPY ./braid ./braid
-COPY ./b4 ./b4
-COPY ./electoral-log ./electoral-log
-COPY ./trellis ./trellis
-COPY ./harvest ./harvest
-COPY ./strand ./strand
-COPY ./sequent-core ./sequent-core
-COPY ./velvet ./velvet
-COPY ./windmill ./windmill
-COPY ./pgmq-broker ./pgmq-broker
-COPY ./e2e ./e2e
-COPY ./step-cli ./step-cli
-COPY ./orare ./orare
-COPY ./wrap-map-err ./wrap-map-err
-COPY ./messaging ./messaging
-COPY ./messaging-webhooks ./messaging-webhooks
-COPY ./braid/scripts ./braid/scripts
-COPY ./plugins ./plugins
-COPY ./Cargo.toml ./Cargo.toml
-COPY ./Cargo.lock ./Cargo.lock
-COPY ./.cargo ./.cargo
+COPY . .
 
 # Use the vendored crates when a vendor image was supplied, otherwise fetch as
 # before. cargo vendor writes an absolute directory into its config, so the path
@@ -118,6 +98,11 @@ RUN set -eux; \
 # ID that installing Chromium's dependencies generates, which a container
 # should not share anyway; and the font cache, which records directory times
 # and is rebuilt on first use.
+#
+# The same dependencies create system users, and useradd stamps /etc/shadow
+# with the day it runs: two builds on either side of midnight differ. With
+# SOURCE_DATE_EPOCH (a BuildKit built-in argument) it records that day instead.
+ARG SOURCE_DATE_EPOCH
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libssl3 chromium ca-certificates wget software-properties-common \
     && rm -rf /var/lib/apt/lists/* /var/log/apt /var/log/dpkg.log /var/log/alternatives.log \

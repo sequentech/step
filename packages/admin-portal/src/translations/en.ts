@@ -1609,8 +1609,8 @@ const englishTranslation = {
                 "sign-transmit-results": "Sign: transmit results",
                 "sign-approve-voter": "Sign: approve a voter manually",
                 "sign-approve-configuration": "Sign: approve a configuration version",
-                "sign-key-ceremony": "Sign: confirm a key share",
-                "sign-tally-key": "Sign: contribute a key share",
+                "sign-key-ceremony": "Sign: confirm custody",
+                "sign-tally-key": "Sign: authorize tally custody",
                 "application-export": "Application Export",
                 "application-import": "Application Import",
                 "tenant-create": "Create Tenant",
@@ -2319,7 +2319,7 @@ const englishTranslation = {
                 allElections: "All Elections",
                 title: "Create Election Event Key Ceremony",
                 subtitle:
-                    "In the Key Ceremony each trustee will generate and download their fragment of the private key for the Election Event. To proceed, please choose the trustees that will participate in the ceremony and the threshold, which is the minimum number of trustees required to tally.",
+                    "Each trustee generates and keeps their keys locally, then confirms custody for the Election Event. Choose the trustees and the minimum number required to tally.",
                 threshold: "Threshold",
                 trusteeList: "Trustees",
                 errorMinTrustees_one:
@@ -2344,7 +2344,7 @@ const englishTranslation = {
                     description:
                         "You are about to Create Key Ceremony. This action will notify the Trustees to participate in the creation and distribution of the Election Event Keys.",
                     automaticCeremonyDescription:
-                        "You are about to Create an Automatic Key Ceremony. This will not notify the Trustees to participate.",
+                        "Automatic ceremonies skip manual custody confirmations. The trustee runners must still generate and verify the election keys.",
                 },
                 filterTrustees: "Filter Trustees",
                 errorPermisionLabels:
@@ -2354,8 +2354,11 @@ const englishTranslation = {
             ceremonyStep: {
                 cancel: "Cancel Key Ceremony",
                 progressHeader: "Key Ceremony Progress",
+                waiting: "Waiting",
+                complete: "Complete",
+                halted: "Halted",
                 description:
-                    "This screen shows the progress and logs of the Election Event's Key Ceremony. In the Key Ceremony each trustee will generate and download their fragment of the private key for the Election Event.",
+                    "This screen shows the progress and logs of the Election Event's Key Ceremony. Each trustee generates and keeps their key share on their trustee machine, then confirms custody using a signed proof.",
                 executionStatus: "Status: {{status}}",
                 confirmdDialog: {
                     ok: "Yes, Cancel Create Key Ceremony",
@@ -2367,8 +2370,8 @@ const englishTranslation = {
                 header: {
                     trusteeName: "Trustee Name",
                     fragment: "Key Fragment Generated",
-                    downloaded: "Private Key Fragment Downloaded",
-                    checked: "Private Key Fragment Checked",
+                    downloaded: "Custody Request Downloaded",
+                    checked: "Custody Confirmed",
                 },
                 logsHeader: {
                     title: "Logs",
@@ -2381,27 +2384,27 @@ const englishTranslation = {
                 title: "Trustee Key Ceremony",
                 subtitle:
                     "You are about to participate in the Key Ceremony as a Trustee (<strong>{{name}}</strong>). This involves the following steps:",
-                one: "<strong>Download</strong> your Encrypted Private Key.",
-                two: "Create multiple <strong>Backups</strong> of the Encrypted Private Key.",
-                three: "<strong>Check</strong> that the backups works well.",
+                one: "<strong>Download</strong> the public custody request.",
+                two: "Keep secure <strong>Backups</strong> of your local trustee.toml keys file.",
+                three: "Create and upload a signed <strong>custody proof</strong> using your local keys.",
             },
             downloadStep: {
-                title: "Download Encrypted Private Key",
+                title: "Download Custody Request",
                 subtitle:
-                    "To continue, please download and store your Encrypted Private Key at least into two different devices:",
-                downloadButton: "Download your Encrypted Private Key",
-                downloaded: "Encrypted Private Key downloaded successfully.",
+                    "Download this public request. Keep your private trustee keys file on your trustee machine:",
+                downloadButton: "Download Custody Request",
+                downloaded: "Public custody request downloaded successfully.",
                 errorEmptyKey: "Download error, empty file",
-                unexpectedError: "The private key could not be downloaded. Please try again.",
-                alreadyVerified: "Your private key was already downloaded and verified.",
+                unexpectedError: "The custody request could not be downloaded. Please try again.",
+                alreadyVerified: "Your trustee custody was already confirmed.",
                 unavailable:
-                    "Private key download is no longer available because the ceremony has moved on.",
+                    "The custody request is no longer available because the ceremony has moved on.",
                 confirmdDialog: {
                     ok: "Confirm Backups and Continue",
                     cancel: "Go Back",
-                    title: "Backup your Encrypted Private Key",
+                    title: "Back Up Your Local Trustee Keys",
                     description:
-                        "Please backup your Encrypted Private Key in at least two different secure locations and then confirm it below:",
+                        "Back up trustee.toml from your trustee machine in at least two secure locations, then confirm below:",
                     firstCopy: "First backup secured",
                     secondCopy: "Second backup secured",
                     confirmError:
@@ -2409,14 +2412,13 @@ const englishTranslation = {
                 },
             },
             checkStep: {
-                title: "Check your Encrypted Private Key Backups",
-                verifyButton: "Verify key",
+                title: "Confirm Trustee Custody",
+                verifyButton: "Verify Custody Proof",
                 subtitle:
-                    "Upload a Encrypted Private Key Backup to check that it's correct. You can try as many times as needed, from your different backups:",
-                errorUploading: "Invalid Encrypted Private Key Backup, please try again",
+                    "Upload custody-proof.json produced by the native trustee tool. Keep your private trustee.toml file on your machine:",
+                errorUploading: "Invalid custody proof, please try again",
                 errorEmptyFile: "File empty or not found",
-                verified: "Backup verified successfully.",
-                alreadyRestored: "Your key was already restored.",
+                verified: "Trustee custody confirmed successfully.",
             },
         },
         miruExport: {
@@ -2577,7 +2579,7 @@ const englishTranslation = {
             resultsTitle: "Results & Participation",
             generalInfoTitle: "General Information",
             trusteeTallyTitle: "Trustees",
-            trusteeTallySubTitle: "Key fragment import status",
+            trusteeTallySubTitle: "Custody confirmation status",
             ballotBoxes: {
                 unavailable: "Seals unavailable",
                 sealed: "{{sealed}} of {{total}} sealed",
@@ -2626,7 +2628,7 @@ const englishTranslation = {
             recountTallyCeremonyError: "Could not start recount",
             recountTallyCeremonyOk: "Recount",
             trusteeTitle: "Trustees process",
-            trusteeSubTitle: "Please upload you key fragment",
+            trusteeSubTitle: "Upload your public custody-proof.json file",
             invited: "You have been invited to participate in a Tally ceremony. Please ",
             click: "click on the tally Action",
             participate: "to participate.",
@@ -2645,7 +2647,7 @@ const englishTranslation = {
                 date: "Tally Date",
                 global: "Global",
                 noTrustees: "No trustees yet",
-                imported: " trustees imported the key",
+                imported: " trustees confirmed custody",
                 needed: " trustees needed",
                 start: "Start Tally",
                 ceremony: "Start Tally Ceremony",
@@ -2660,11 +2662,11 @@ const englishTranslation = {
                     tallyTitle: "Are you sure you want to  start the tally?",
                     cancelTitle: "Are you sure you want to  cancel the tally?",
                     message:
-                        "You are about to start a tally ceremony . This action will notify the trustees to import their key fragments.",
+                        "This tally ceremony asks trustees to submit public custody proofs. Keep their runners active with their local protocol state.",
                     cancelMessage:
                         "You are about to cancel the tally ceremony. This action is not undoable.",
                     ceremony:
-                        "All required trustees have verified their key fragments. Everything is ready to begin receiving results. Do you want to start the Tally?",
+                        "The required trustees have confirmed custody. Start the tally with their runners active?",
                     startAutomatedTallyMessage:
                         "Select Start Tally to run tally process and display results, or Close to cancel.",
                 },
@@ -4371,19 +4373,19 @@ const englishTranslation = {
                     description: "Started in Publish. Publishes the configuration version.",
                 },
                 "key-ceremony": {
-                    label: "Confirm a key share (key ceremony)",
-                    short: "Key share",
-                    permissionName: "confirm a key share",
-                    object: "key share",
+                    label: "Confirm custody (key ceremony)",
+                    short: "Custody proof",
+                    permissionName: "confirm custody",
+                    object: "custody proof",
                     appliesTo: "Each trustee",
                     description:
                         "Started in Keys by each trustee. Records the trustee's signature with the ceremony and the bulletin board.",
                 },
                 "tally-key": {
-                    label: "Contribute a key share (tally)",
-                    short: "Key share contribution",
-                    permissionName: "contribute a key share",
-                    object: "key share contribution",
+                    label: "Authorize tally custody (tally)",
+                    short: "Tally custody proof",
+                    permissionName: "authorize tally custody",
+                    object: "tally custody proof",
                     appliesTo: "Each trustee",
                     description:
                         "Started in Tally by each trustee. Records the trustee's contribution.",
@@ -4782,7 +4784,7 @@ const englishTranslation = {
                 keys_ceremony_id: "Ceremony",
                 tally_session_id: "Tally session",
                 trustee_id: "Trustee",
-                key_share_sha256: "Key share SHA-256",
+                custody_proof_sha256: "Custody proof SHA-256",
                 channel: "Channel",
                 channels: "Channels",
                 publication_id: "Ballot publication",
@@ -4866,8 +4868,8 @@ const englishTranslation = {
             notes: {
                 afterApproval: "After approval",
                 afterApprovalValue: "The voter's credentials are issued and sent to them",
-                keyShare: "Your key share",
-                keyShareChecked: "Checked: it is your key share for this ceremony",
+                custodyProof: "Your custody proof",
+                custodyProofChecked: "Checked: it is your custody proof for this ceremony",
                 recordedIn: "Recorded in",
                 recordedInCeremony: "The keys ceremony and the bulletin board",
                 recordedInTally: "The tally session",
@@ -4892,15 +4894,16 @@ const englishTranslation = {
                     ended: "This package's signing request ended. Create the package again to sign it.",
                 },
             },
-            keyShare: {
+            custodyProof: {
                 signing:
-                    "Sign your key share in the signing panel. It is recorded once you have signed.",
-                record: "Record my key share",
-                failed: "Your signed key share could not be recorded: {{error}}",
-                dropAgain: "Drop your key share file again to record your signed key share.",
-                redo: "Your key share was contributed without your signature, which this election now needs. Contribute it again and sign it.",
+                    "Sign your custody proof in the signing panel. It is recorded once you have signed.",
+                record: "Record my custody proof",
+                failed: "Your signed custody proof could not be recorded: {{error}}",
+                dropAgain:
+                    "Drop your custody proof file again to record your signed custody proof. (custody-proof.json)",
+                redo: "Your custody proof was contributed without your signature, which this election now needs. Contribute it again and sign it.",
                 notTaken:
-                    "The ceremony no longer takes this key share. Drop your key share file again.",
+                    "The ceremony no longer takes this custody proof. Drop your custody proof file again. (custody-proof.json)",
             },
         },
         lifecycle: {

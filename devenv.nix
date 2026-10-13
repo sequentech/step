@@ -105,14 +105,14 @@ in
     firefox
     k6 # HTTP cast load generator, pinned by devenv.lock.
 
-    # to build the rug backend in strand/braid
+    # to build native cryptographic arithmetic
     gcc
     m4
 
     # count line numbers
     scc
 
-    # local SQLite development
+    # SQLite utilities
     sqlite
 
     # rust dependencies

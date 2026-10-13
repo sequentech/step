@@ -86,6 +86,12 @@ parent at `/workspaces` and again at its host path, where git worktree links
 resolve. Service containers build into the checkout's own `packages/target`;
 local Cargo builds use `rust-local-target`.
 
+From `.devcontainer`, `docker compose up harvest windmill beat` loads base-service
+defaults from the tracked `.env.development`. The checkout's local `.env`
+overrides those defaults, including explicitly empty values. Settings introduced
+after that local file was created therefore work without shell exports or
+rewriting local configuration.
+
 Harvest runs `cargo run`; Windmill and beat each build their own binary and run
 it in a restart loop (`.devcontainer/restart-worker.sh`), so a worker that exits
 starts again after five seconds and a compile error waits for the next change.
@@ -308,7 +314,7 @@ task, ceremony and publication status, and prints the portal links and the synth
 voter credentials. The event is recorded in `.cache/scenarios/<Compose project>/` and
 carries owner annotations; the next `up` checks both and continues from the furthest
 stage that still holds. `reset` deletes only that event. Ceremonies start `trustee1`
-and `trustee2`, which no mode starts; their first start builds the braid image. On a
+and `trustee2`, which no mode starts; their first start builds the native trustee image. On a
 new stack the first `up` gives the tenant administrator the password in
 `ADMIN_PORTAL_TEST_PASSWORD`, which the realm template does not carry, and enrolls its
 email code, as the journeys do; the admin portal then asks for it, and the Keycloak

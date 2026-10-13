@@ -24,7 +24,6 @@ mod schema;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use b4::messages::message::Signer;
 use chrono::{Duration, Utc};
 use deadpool_postgres::{Client, Pool, Transaction};
 use electoral_log::adapters::ballot_box::{AcceptOutcome, BallotStatus};
@@ -44,9 +43,9 @@ use serde_json::{json, Value};
 use std::collections::{BTreeSet, HashSet};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Mutex, Once};
-use strand::backend::ristretto::RistrettoCtx;
-use strand::signature::StrandSignatureSk;
 use uuid::Uuid;
+use voting_crypto::signing::SigningKey;
+use voting_crypto::RistrettoCtx;
 use windmill::postgres::ballot_box_seal::{
     list_for_elections, BallotBoxSeal, BallotBoxSealStatus, ClosedBy, ClosedBySigner,
 };
@@ -67,10 +66,10 @@ use windmill::services::election_event_status::{
     scheduled_change_applies, update_event_voting_status, update_scheduled_event_voting_status,
     update_scheduled_event_voting_status_for, SkippedElection, TransitionRefusal,
 };
-use windmill::services::insert_cast_vote::{check_seal_deadline, CastVoteError};
-use windmill::services::protocol_manager::{
-    create_protocol_manager_keys, get_event_databases, get_event_store, get_protocol_manager,
+use windmill::services::electoral_log_board::{
+    create_protocol_manager_keys, get_board_signing_key, get_event_databases, get_event_store,
 };
+use windmill::services::insert_cast_vote::{check_seal_deadline, CastVoteError};
 use windmill::services::signing::actions::voting::{
     ClosingSignature, PostCloser, SealRecord as CloseRecord, StatusCloser,
 };
@@ -135,7 +134,7 @@ impl SealEnvironment for TestEnvironment {
         tenant_id: &str,
         election_event_id: &str,
         board: &str,
-    ) -> Result<StrandSignatureSk> {
+    ) -> Result<SigningKey> {
         ProductionSealEnvironment
             .signing_key(hasura_transaction, tenant_id, election_event_id, board)
             .await
@@ -183,7 +182,7 @@ impl SealEnvironment for TestEnvironment {
 struct World {
     pool: Pool,
     database: EventDatabase,
-    key: StrandSignatureSk,
+    key: SigningKey,
     tenant: Uuid,
     event: Uuid,
     elections: Vec<Uuid>,
@@ -345,16 +344,9 @@ async fn world(options: Options) -> World {
     create_protocol_manager_keys(&tx, &tenant.to_string(), &event.to_string(), &board)
         .await
         .unwrap();
-    let key = get_protocol_manager::<RistrettoCtx>(
-        &tx,
-        &tenant.to_string(),
-        Some(&event.to_string()),
-        &board,
-    )
-    .await
-    .unwrap()
-    .get_signing_key()
-    .clone();
+    let key = get_board_signing_key(&tx, &tenant.to_string(), Some(&event.to_string()), &board)
+        .await
+        .unwrap();
     tx.commit().await.unwrap();
     World {
         pool,
@@ -1298,7 +1290,7 @@ fn a_box_is_sealed_and_published_once() {
         assert_eq!(record.log_entry.leaf_index, Some(stored.leaf_index));
         // Signed by the event's key as both sender and system.
         assert_eq!(
-            check.message.sender.pk.to_der_b64_string().unwrap(),
+            check.message.sender.pk.to_b64_string().unwrap(),
             record.system_public_key
         );
         assert_eq!(check.manifest.eligible_voters, 3);
@@ -3070,7 +3062,7 @@ fn the_failure_entry_is_recorded_and_the_record_keeps_the_signed_names() {
         assert_eq!(
             windmill::services::ballot_box_seal::publish::signing_key_of(&check.message)
                 .unwrap()
-                .to_der_b64_string()
+                .to_b64_string()
                 .unwrap(),
             record.system_public_key
         );
@@ -3134,7 +3126,7 @@ fn junk_seal_entries_neither_block_nor_hide_the_genuine_one() {
         let (election, area) = (w.election(), w.areas[0]);
         cast(&w, election, area, "voter-a", BallotStatus::Valid, "a").await;
         close_election(&w, election, Some(&w.user)).await;
-        let intruder = StrandSignatureSk::generate().unwrap();
+        let intruder = SigningKey::generate().unwrap();
         let junk = SigningData::new(intruder.clone(), "", intruder);
         // More than one page of board reads (100).
         for index in 0..105u64 {

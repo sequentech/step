@@ -178,26 +178,6 @@ RAYON_NUM_THREADS = "2"
 DOC_RENDERER_BACKEND = "inplace"
 LOG_LEVEL = "info"
 
-[profiles.strand]
-package = "strand"
-features = []
-limitations = [
-    "Ristretto default backend; strand-native exercises NumBigInt/Rayon and strand-backends also exercises Rug/Malachite. WASM is separate.",
-    "Stable LLVM includes inline unit-test code and does not measure branches or doctests.",
-]
-issue = "https://github.com/sequentech/meta/issues/13302"
-
-[profiles.strand.scope_exceptions]
-"src/context.rs" = "Trait declarations without executable default methods; implementations are measured in the selected backend."
-"src/hashing/mod.rs" = "Module declaration only; the RustCrypto implementation is measured."
-"src/random/mod.rs" = "Module declaration only; the rand implementation is measured."
-"src/signatures/mod.rs" = "Module declaration only; the Dalek implementation is measured."
-"src/symmetric/mod.rs" = "Module declaration only; the RustCrypto implementation is measured."
-"src/wasm/test.rs" = "Browser-only test module compiled for browser testing; no native application implementation."
-"src/wasm/test/bench.rs" = "Browser benchmark harness compiled for browser testing; no native application implementation."
-"src/wasm/test/demo.rs" = "Browser demonstration compiled for browser testing; no native application implementation."
-"src/wasm/test/test.rs" = "Browser test harness compiled for browser testing; no native application implementation."
-
 [profiles.velvet]
 package = "velvet"
 features = []
@@ -340,6 +320,7 @@ ELECTORAL_LOG_PG_PASSWORD = "test"
 ELECTORAL_LOG_PG_DATABASE = "test"
 ELECTORAL_LOG_PG_SSLMODE = "disable"
 ENV_SLUG = "electoral-log-tests"
+WBRAID_BOARD_DATABASE_URL = "postgres://test:test@127.0.0.1:3322/test"
 
 [profiles.windmill.excluded_files]
 "src/services/messaging/insights_tests.rs" = "Standalone unit-test module under cfg(test); the messaging audience preview and stats remain measured."
@@ -526,93 +507,21 @@ ELECTORAL_LOG_PG_PASSWORD = "test"
 ELECTORAL_LOG_PG_DATABASE = "test"
 ELECTORAL_LOG_PG_SSLMODE = "disable"
 ENV_SLUG = "electoral-log-tests"
-[profiles.strand-native]
-package = "strand"
-features = ["num_bigint", "rayon"]
-issue = "https://github.com/sequentech/meta/issues/13302"
-limitations = [
-    "Enabled native backends; inline test code remains counted. WASM and actual branch coverage are separate.",
-    "Do not substitute zero for a base revision that cannot build this feature configuration.",
-]
-[profiles.strand-native.test_environment]
-RUST_TEST_THREADS = "2"
-RAYON_NUM_THREADS = "2"
-[profiles.strand-native.scope_exceptions]
-"src/context.rs" = "Trait declarations without executable default methods; implementations are measured in the selected backend."
-"src/hashing/mod.rs" = "Module declarations only."
-"src/random/mod.rs" = "Module declarations only."
-"src/signatures/mod.rs" = "Module declarations only."
-"src/symmetric/mod.rs" = "Module declarations only."
-"src/wasm/test.rs" = "Browser-only test module compiled for browser testing; no native application implementation."
-"src/wasm/test/bench.rs" = "Browser benchmark harness compiled for browser testing; no native application implementation."
-"src/wasm/test/demo.rs" = "Browser demonstration compiled for browser testing; no native application implementation."
-"src/wasm/test/test.rs" = "Browser test harness compiled for browser testing; no native application implementation."
+WBRAID_BOARD_DATABASE_URL = "postgres://test:test@127.0.0.1:3322/test"
+[profiles.voting-crypto]
+package = "voting-crypto"
+features = []
+limitations = ["Application signing and ballot boundary contracts against wbraid's crypto implementation."]
+issue = "https://github.com/sequentech/meta/issues/12886"
 
-[profiles.strand-backends]
-package = "strand"
-features = ["num_bigint", "rayon", "rug", "malachite"]
-issue = "https://github.com/sequentech/meta/issues/13302"
-limitations = [
-    "Enabled native backends; inline test code remains counted. WASM and actual branch coverage are separate.",
-    "Do not substitute zero for a base revision that cannot build this feature configuration.",
-]
-[profiles.strand-backends.test_environment]
-RUST_TEST_THREADS = "2"
-RAYON_NUM_THREADS = "2"
-[profiles.strand-backends.scope_exceptions]
-"src/context.rs" = "Trait declarations without executable default methods; implementations are measured in the selected backend."
-"src/hashing/mod.rs" = "Module declarations only."
-"src/random/mod.rs" = "Module declarations only."
-"src/signatures/mod.rs" = "Module declarations only."
-"src/symmetric/mod.rs" = "Module declarations only."
-"src/wasm/test.rs" = "Browser-only test module compiled for browser testing; no native application implementation."
-"src/wasm/test/bench.rs" = "Browser benchmark harness compiled for browser testing; no native application implementation."
-"src/wasm/test/demo.rs" = "Browser demonstration compiled for browser testing; no native application implementation."
-"src/wasm/test/test.rs" = "Browser test harness compiled for browser testing; no native application implementation."
+[profiles.protocol-board]
+package = "protocol-board"
+features = []
+limitations = ["Native in-memory DKG, mixing, decryption and custody protocols."]
+issue = "https://github.com/sequentech/meta/issues/12886"
 
-[profiles.b4]
-package = "b4"
-features = ["native"]
-issue = "https://github.com/sequentech/meta/issues/13302"
-limitations = [
-    "Native HTTP server, protocol messages and owned Unix-socket PostgreSQL fixtures; no production database or cloud credentials.",
-    "Client-feature tests run separately: the original client test target lacks its serial_test dependency, so it has no buildable comparable baseline.",
-    "The monitor feature currently fails to build: monitor.rs imports undeclared sqlx and still queries the retired SQLite schema. It needs a separate compatibility decision, not a coverage exclusion from an enabled target.",
-    "WASM and actual Rust branches are separate scopes. Inline tests and generated serialization remain counted.",
-]
-[profiles.b4.test_environment]
-RUST_TEST_THREADS = "2"
-RAYON_NUM_THREADS = "2"
-[profiles.b4.excluded_files]
-"src/messages/trusted_board/tests.rs" = "Standalone unit-test module under cfg(test); the trusted board checks remain measured."
-[profiles.b4.scope_exceptions]
-"src/messages/mod.rs" = "Module declarations only."
-"src/client/mod.rs" = "Module declarations for the separately tested client feature."
-"src/client/pgsql.rs" = "Client feature is separately tested, including owned database fixtures; the original feature test target cannot build without its missing serial_test dependency."
-"src/monitor.rs" = "Separate monitor binary is currently unbuildable: undeclared sqlx dependency and legacy SQLite queries. The native server profile does not compile this binary."
-
-[profiles.braid]
-package = "braid"
-features = ["native"]
-issue = "https://github.com/sequentech/meta/issues/13302"
-limitations = [
-    "Native protocol, SQLite persistence and transient storage. The existing in-memory protocol test remains included.",
-    "HTTP/cloud protocol tests require their own synthetic service environment. Browser IndexedDB/OPFS and actual Rust branches are separate scopes.",
-    "Inline tests and generated protocol logic remain counted; no source exclusions."
-]
-[profiles.braid.test_environment]
-CARGO_PROFILE_TEST_OPT_LEVEL = "2"
-RUST_TEST_THREADS = "2"
-RAYON_NUM_THREADS = "2"
-[profiles.braid.scope_exceptions]
-"src/native/board/mod.rs" = "Module declarations only."
-"src/native/mod.rs" = "Module declarations only."
-"src/native/session/mod.rs" = "Module declarations only."
-"src/native/test/mod.rs" = "Module declarations only."
-"src/native/verify/mod.rs" = "Module declarations only."
-"src/wasm/board/http.rs" = "Browser-only implementation; requires separate WASM execution and measurement."
-"src/wasm/board/mod.rs" = "Browser-only implementation; requires separate WASM execution and measurement."
-"src/wasm/board/storage_indexeddb.rs" = "Browser-only implementation; requires separate WASM execution and measurement."
-"src/wasm/mod.rs" = "Browser-only implementation; requires separate WASM execution and measurement."
-"src/wasm/session.rs" = "Browser-only implementation; requires separate WASM execution and measurement."
-"src/wasm/verify.rs" = "Browser-only implementation; requires separate WASM execution and measurement."
+[profiles.trustee]
+package = "trustee"
+features = []
+limitations = ["Native trustee sessions, persistence and custody tooling."]
+issue = "https://github.com/sequentech/meta/issues/12886"

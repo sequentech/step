@@ -71,11 +71,11 @@ use sequent_core::types::hasura::core::{Election, ElectionEvent, VotingChannels}
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use std::time::Duration;
-use strand::serialization::StrandSerialize;
-use strand::signature::StrandSignatureSk;
 use tokio_postgres::IsolationLevel;
 use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
+use voting_crypto::signing::SigningKey;
+use voting_crypto::RecordSerialize;
 
 /// Why a seal fails when the event's log already has a seal record for the
 /// box but its database has no seal.
@@ -172,7 +172,7 @@ struct Prepared {
     store: PostgresStore,
     board: String,
     status: ElectionStatus,
-    signing_key: StrandSignatureSk,
+    signing_key: SigningKey,
     census: Census,
     names: SealedNames,
 }
@@ -518,7 +518,7 @@ async fn seal_prepared(client: &mut DbClient, prepared: Prepared) -> Result<Seal
         &names.area_name,
         &signing_data,
     )?;
-    let signed_message = message.strand_serialize()?;
+    let signed_message = message.record_serialize()?;
     let entry = LogEntry {
         delivery_id: seal_delivery_id(ballot_box),
         message: (&message).try_into()?,
@@ -771,7 +771,7 @@ async fn fail(
         reason.clone(),
         signing_data,
     )?;
-    let signed_message = message.strand_serialize()?;
+    let signed_message = message.record_serialize()?;
     let entry = LogEntry {
         delivery_id: failure_delivery_id(ballot_box),
         message: (&message).try_into()?,
