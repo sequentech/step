@@ -250,6 +250,7 @@ async fn postgres_client_creates_reads_and_deletes_only_its_named_board() {
         &params.username,
         &params.password,
     )
+    .with_tls(params.tls.clone())
     .with_database(&params.database);
     let mut client = PgsqlB3Client::new(&connection).await.unwrap();
     client.create_index_ine().await.unwrap();

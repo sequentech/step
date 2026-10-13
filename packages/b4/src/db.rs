@@ -5,15 +5,15 @@
 use crate::api_types::{ContentType, Message};
 use crate::messages::message::Message as BoardMessage;
 use crate::messages::statement::StatementType;
+use crate::postgres::{self, PgTlsConfig};
 use anyhow::{anyhow, Context, Result};
-use bb8_postgres::{bb8::Pool, PostgresConnectionManager};
 use std::env;
 use strand::serialization::StrandSerialize;
-use tokio_postgres::NoTls;
+use tokio_postgres::Config;
 use uuid::Uuid;
 
 /// PostgreSQL connection pool type alias
-pub type DbPool = Pool<PostgresConnectionManager<NoTls>>;
+pub type DbPool = postgres::DbPool;
 
 #[derive(Debug, Clone)]
 pub struct Board {
@@ -30,6 +30,7 @@ pub struct PgConnectionParams {
     pub username: String,
     pub password: String,
     pub database: String,
+    pub tls: PgTlsConfig,
 }
 
 impl PgConnectionParams {
@@ -40,6 +41,7 @@ impl PgConnectionParams {
             username: username.to_string(),
             password: password.to_string(),
             database: database.to_string(),
+            tls: PgTlsConfig::default(),
         }
     }
 
@@ -59,14 +61,24 @@ impl PgConnectionParams {
             username,
             password,
             database,
+            tls: PgTlsConfig::from_env()?,
         })
     }
 
-    pub fn connection_string(&self) -> String {
-        format!(
-            "host={} port={} user={} password={} dbname={}",
-            self.host, self.port, self.username, self.password, self.database
-        )
+    pub fn with_tls(mut self, tls: PgTlsConfig) -> Self {
+        self.tls = tls;
+        self
+    }
+
+    pub fn config(&self) -> Config {
+        let mut config = Config::new();
+        config
+            .host(&self.host)
+            .port(self.port)
+            .user(&self.username)
+            .password(&self.password)
+            .dbname(&self.database);
+        config
     }
 }
 
@@ -82,10 +94,7 @@ pub async fn init_db_with_params(params: &PgConnectionParams) -> Result<DbPool> 
         params.port
     );
 
-    let manager =
-        PostgresConnectionManager::new_from_stringlike(params.connection_string(), NoTls)?;
-
-    let pool = Pool::builder().max_size(5).build(manager).await?;
+    let pool = postgres::pool(params.config(), &params.tls).await?;
 
     // Create tables in a scoped block so connection is dropped before returning pool
     {

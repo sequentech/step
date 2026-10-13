@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
 use aws_sdk_s3::Client as S3Client;
-use bb8_postgres::{bb8::Pool, PostgresConnectionManager};
 use clap::Parser;
 use std::env;
 use std::fs;
@@ -12,7 +11,6 @@ use std::io::Write;
 use std::marker::PhantomData;
 use std::path::Path;
 use std::path::PathBuf;
-use tokio_postgres::NoTls;
 use tracing::{info, instrument};
 
 use b4::messages::artifact::Configuration;
@@ -33,7 +31,7 @@ use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strand::symm;
 
 /// PostgreSQL connection pool type alias
-type DbPool = Pool<PostgresConnectionManager<NoTls>>;
+type DbPool = b4::postgres::DbPool;
 
 /// The default board if none specified.
 const TEST_BOARD: &'static str = "test";
@@ -721,16 +719,15 @@ async fn init_clients(args: &Cli) -> Result<(DbPool, S3Client, String)> {
         .or_else(|| env::var("B4_PG_DATABASE").ok())
         .context("B4_PG_DATABASE must be set (via env var or --pg-database)")?;
 
-    let conn_string = format!(
-        "host={} port={} user={} password={} dbname={}",
-        host, port, user, password, database
-    );
-
     info!("Connecting to PostgreSQL at {}:{}", host, port);
-
-    let manager = PostgresConnectionManager::new_from_stringlike(&conn_string, NoTls)?;
-
-    let pool = Pool::builder().max_size(5).build(manager).await?;
+    let mut config = tokio_postgres::Config::new();
+    config
+        .host(&host)
+        .port(port)
+        .user(&user)
+        .password(&password)
+        .dbname(&database);
+    let pool = b4::postgres::pool(config, &b4::postgres::PgTlsConfig::from_env()?).await?;
 
     // Initialize tables in a scoped block so connection is dropped before returning pool
     {

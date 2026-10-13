@@ -1312,6 +1312,8 @@ dependencies = [
  "hex",
  "js-sys",
  "log",
+ "openssl",
+ "postgres-openssl",
  "sequent-core",
  "serde",
  "serde_json",
