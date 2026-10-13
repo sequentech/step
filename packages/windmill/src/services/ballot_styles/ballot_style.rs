@@ -15,7 +15,7 @@ use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::ballot_box_key::ballot_box_key_for_publication;
 use crate::services::ceremonies::keys_ceremony::{
-    verify_keys_ceremony_public_key, CeremonyPublicKeyState,
+    validate_publication_public_key, verify_keys_ceremony_public_key,
 };
 use crate::services::database::get_hasura_pool;
 use crate::services::election_dates::get_election_dates;
@@ -376,20 +376,15 @@ async fn generate_election_event_ballot_styles(
         else {
             continue;
         };
-        if verified_keys_ceremonies.insert(keys_ceremony.id.clone())
-            && verify_keys_ceremony_public_key(
+        if verified_keys_ceremonies.insert(keys_ceremony.id.clone()) {
+            let state = verify_keys_ceremony_public_key(
                 &transaction,
                 tenant_id,
                 election_event_id,
                 keys_ceremony,
             )
-            .await?
-                == CeremonyPublicKeyState::NotOnBoard
-        {
-            return Err(anyhow!(
-                "Keys ceremony {} reports a public key that is not on its board",
-                keys_ceremony.id
-            ));
+            .await?;
+            validate_publication_public_key(keys_ceremony, &state)?;
         }
     }
 

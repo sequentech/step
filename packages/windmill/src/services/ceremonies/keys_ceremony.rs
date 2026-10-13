@@ -138,6 +138,32 @@ pub enum CeremonyPublicKeyState {
 
 const STATUS_PUBLIC_KEY_FIELD: &str = "public_key";
 
+/// Whether a publication may use the elections of this keys ceremony. A
+/// ceremony still in progress publishes with the demo key, as before; one
+/// that succeeded without a public key would do the same silently, so it is
+/// refused, as is a reported key that is not on the board.
+pub fn validate_publication_public_key(
+    keys_ceremony: &KeysCeremony,
+    state: &CeremonyPublicKeyState,
+) -> Result<()> {
+    match state {
+        CeremonyPublicKeyState::NotOnBoard => Err(anyhow!(
+            "Keys ceremony {} reports a public key that is not on its board",
+            keys_ceremony.id
+        )),
+        CeremonyPublicKeyState::NoPublicKey
+            if keys_ceremony.execution_status().ok()
+                == Some(KeysCeremonyExecutionStatus::SUCCESS) =>
+        {
+            Err(anyhow!(
+                "Keys ceremony {} succeeded without a public key",
+                keys_ceremony.id
+            ))
+        }
+        _ => Ok(()),
+    }
+}
+
 /// Reads only the status's public key field, so that other malformed status
 /// fields do not hide a reported key.
 pub fn ceremony_public_key_state(
@@ -446,6 +472,15 @@ where
 
     if encrypted_private_key != private_key_base64 {
         return Ok(false);
+    }
+
+    // The ceremony records its public key on a board review; a trustee who
+    // checks first takes it from the board, so the ceremony can complete.
+    let mut current_status = current_status;
+    if current_status.public_key.is_none() {
+        let (board_name, _) =
+            keys_ceremony_board(store, board, tenant_id, election_event_id, &keys_ceremony).await?;
+        current_status.public_key = board.public_key(&board_name).await.ok();
     }
 
     let logs = append_keys_trustee_check_log_at(&current_status.logs, &trustee_name, clock.now());
@@ -1055,6 +1090,42 @@ mod tests {
             ceremony_public_key_state(&ceremony, Some("public-key")),
             CeremonyPublicKeyState::OnBoard("public-key".to_string())
         );
+    }
+
+    #[test]
+    fn publication_refuses_a_succeeded_ceremony_without_a_public_key() {
+        let succeeded = keys_ceremony(
+            KeysCeremonyExecutionStatus::SUCCESS,
+            TrusteeStatus::KEY_CHECKED,
+        );
+
+        let error =
+            validate_publication_public_key(&succeeded, &CeremonyPublicKeyState::NoPublicKey)
+                .unwrap_err();
+        assert!(error.to_string().contains("succeeded without a public key"));
+        assert!(
+            validate_publication_public_key(&succeeded, &CeremonyPublicKeyState::NotOnBoard)
+                .is_err()
+        );
+        assert!(validate_publication_public_key(
+            &succeeded,
+            &CeremonyPublicKeyState::OnBoard("public-key".to_string())
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn publication_still_allows_a_ceremony_in_progress() {
+        let in_progress = keys_ceremony(
+            KeysCeremonyExecutionStatus::IN_PROGRESS,
+            TrusteeStatus::KEY_GENERATED,
+        );
+
+        assert!(validate_publication_public_key(
+            &in_progress,
+            &CeremonyPublicKeyState::NoPublicKey
+        )
+        .is_ok());
     }
 
     #[test]

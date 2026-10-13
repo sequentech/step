@@ -638,9 +638,9 @@ async fn checking_the_right_private_key_marks_the_trustee_checked() {
 
 #[tokio::test]
 async fn the_ceremony_succeeds_when_the_last_trustee_checks_its_private_key() {
-    let fixture = Fixture::new().with_ceremony(in_progress(
-        TrusteeStatus::KEY_RETRIEVED,
-        TrusteeStatus::KEY_CHECKED,
+    let fixture = Fixture::new().with_ceremony(with_status(
+        in_progress(TrusteeStatus::KEY_RETRIEVED, TrusteeStatus::KEY_CHECKED),
+        |status| status.public_key = Some(ELECTION_PUBLIC_KEY.to_string()),
     ));
 
     fixture
@@ -649,6 +649,51 @@ async fn the_ceremony_succeeds_when_the_last_trustee_checks_its_private_key() {
         .unwrap();
 
     assert_eq!(fixture.execution_status(), "SUCCESS");
+}
+
+#[tokio::test]
+async fn the_last_check_records_the_public_key_on_the_board_and_succeeds() {
+    let fixture = Fixture::new().with_ceremony(in_progress(
+        TrusteeStatus::KEY_RETRIEVED,
+        TrusteeStatus::KEY_CHECKED,
+    ));
+    publish_public_key(&fixture);
+
+    fixture
+        .check(Some(TRUSTEE), &private_key_of(TRUSTEE))
+        .await
+        .unwrap();
+
+    assert_eq!(fixture.execution_status(), "SUCCESS");
+    assert_eq!(
+        fixture.status().public_key.as_deref(),
+        Some(ELECTION_PUBLIC_KEY)
+    );
+}
+
+#[tokio::test]
+async fn a_ceremony_does_not_succeed_before_its_board_has_the_public_key() {
+    // Publication would otherwise give the election the demo key.
+    let fixture = Fixture::new().with_ceremony(in_progress(
+        TrusteeStatus::KEY_RETRIEVED,
+        TrusteeStatus::KEY_CHECKED,
+    ));
+
+    let is_valid = fixture
+        .check(Some(TRUSTEE), &private_key_of(TRUSTEE))
+        .await
+        .unwrap();
+
+    assert!(is_valid);
+    assert_eq!(fixture.execution_status(), "IN_PROGRESS");
+    assert_eq!(fixture.status().public_key, None);
+    assert_eq!(
+        statuses(&fixture.status()),
+        vec![
+            (TRUSTEE.to_string(), TrusteeStatus::KEY_CHECKED),
+            (OTHER_TRUSTEE.to_string(), TrusteeStatus::KEY_CHECKED),
+        ]
+    );
 }
 
 #[tokio::test]
@@ -800,12 +845,15 @@ async fn a_trustee_without_a_public_key_cannot_check_its_private_key() {
 
 #[tokio::test]
 async fn a_successful_ceremony_stays_successful_when_a_trustee_checks_again() {
-    let fixture = Fixture::new().with_ceremony(keys_ceremony(
-        KeysCeremonyExecutionStatus::SUCCESS,
-        &[
-            (TRUSTEE, TrusteeStatus::KEY_CHECKED),
-            (OTHER_TRUSTEE, TrusteeStatus::KEY_CHECKED),
-        ],
+    let fixture = Fixture::new().with_ceremony(with_status(
+        keys_ceremony(
+            KeysCeremonyExecutionStatus::SUCCESS,
+            &[
+                (TRUSTEE, TrusteeStatus::KEY_CHECKED),
+                (OTHER_TRUSTEE, TrusteeStatus::KEY_CHECKED),
+            ],
+        ),
+        |status| status.public_key = Some(ELECTION_PUBLIC_KEY.to_string()),
     ));
 
     let is_valid = fixture
