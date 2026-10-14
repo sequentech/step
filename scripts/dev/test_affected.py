@@ -947,15 +947,31 @@ class RepositoryModelTest(unittest.TestCase):
                 self.assertTrue((ROOT / ".github/actions" / action).is_dir(), check.id)
 
     def test_rust_dependency_patch_selects_native_consumers(self):
-        selection, chosen = self.select(
-            "packages/patches/dependency.patch"
-        )
+        selection, chosen = self.select("packages/patches/dependency.patch")
         self.assertFalse(selection.fallback)
         self.assertTrue(
-            {"cargo-test:protocol-board", "cargo-test:sequent-core", "cargo-test:windmill"}
+            {
+                "cargo-test:protocol-board",
+                "cargo-test:sequent-core",
+                "cargo-test:windmill",
+            }
             <= chosen
         )
         self.assertNotIn("jest:voting-portal", chosen)
+
+    def test_wbraid_benchmark_tools_select_workspace_checks_without_fallback(self):
+        for path in (
+            "packages/wbraid/bench-ec2/breakdown.patch",
+            "packages/wbraid/bench-ec2/forkpoint/tally.rs",
+            "packages/wbraid/bench-ec2/forkpoint/targets.rs",
+            "packages/wbraid/bench-ec2/remote-bench.sh",
+            "packages/wbraid/bench-ec2/summarize.sh",
+        ):
+            with self.subTest(path=path):
+                selection, chosen = self.select(path)
+                self.assertFalse(selection.fallback)
+                self.assertTrue({"cargo-test:wbraid", "lint:wbraid"} <= chosen)
+                self.assertNotIn("jest:voting-portal", chosen)
 
     def test_documentation_only_change(self):
         selection, chosen = self.select(

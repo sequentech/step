@@ -212,7 +212,10 @@ class ComposeEnvironmentTest(unittest.TestCase):
         target = "/workspaces/step/packages/rust-local-target/docker-dev"
         for name in ("harvest", "windmill", "beat", "task-queues-setup"):
             with self.subTest(service=name):
-                self.assertEqual(model["services"][name]["environment"].get("CARGO_TARGET_DIR"), target)
+                self.assertEqual(
+                    model["services"][name]["environment"].get("CARGO_TARGET_DIR"),
+                    target,
+                )
         for name, binary in (("windmill", "main"), ("beat", "beat")):
             command = " ".join(model["services"][name]["command"])
             self.assertIn(f"../rust-local-target/docker-dev/debug/{binary}", command)

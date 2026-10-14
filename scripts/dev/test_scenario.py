@@ -1756,7 +1756,9 @@ class StackTest(StoreTestCase):
             for name in names
         ]
         self.backend.keycloak = FakeKeycloak({"tenant-": users})
-        voted = [f"id-{catalog.voter_username(RESULTS, vote)}" for vote in RESULTS.votes]
+        voted = [
+            f"id-{catalog.voter_username(RESULTS, vote)}" for vote in RESULTS.votes
+        ]
         bodies = []
 
         def administrator(voters):

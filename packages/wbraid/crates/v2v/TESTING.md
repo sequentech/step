@@ -8,16 +8,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 For the tool itself rather than its tests, see [README.md](README.md).
 
 ```text
-cargo test --release -p v2v -- --include-ignored
+cargo test --release -p v2v --no-fail-fast -- --include-ignored
 ```
 
-69 tests, about five minutes. `--release` matters: the DKG, shuffle and
+70 tests, about five minutes. `--no-fail-fast` matters: cargo otherwise stops
+at the first test binary that fails, and the other interop binaries never
+report. `--release` matters: the DKG, shuffle and
 decryption are compute-intensive and a debug build turns seconds into minutes.
 
 On Windows this runs from PowerShell as written; only the environment
 variables below differ, since PowerShell has no `VAR=value cmd` prefix.
 
-Without `--include-ignored` you get the 47 tests that need no external tooling
+Without `--include-ignored` you get the 48 tests that need no external tooling
 (under a second). The other 22 run Verificatum, are `#[ignore]`d, and need the
 prerequisites below — without them they skip.
 
@@ -27,6 +29,16 @@ A JDK on `PATH`, WSL if you are on Windows, and a directory holding
 Verificatum. The tests look for that last one at `crates/verificatum`,
 which is **not in this repository** — you assemble it, or point `VMN_HOME`
 somewhere else.
+
+On Windows, also set `VMN_JAVA` to the JDK's `java.exe` explicitly, even when
+`java -version` on your PATH reports the right version. The tests spawn `java`
+through `Command::new`, which resolves it the way `CreateProcess` does —
+searching `C:\WINDOWS\system32` *before* `PATH` — and Oracle's installer leaves
+a Java 8 shim there. The symptom is `vog`/`vmnv` dying with
+`UnsupportedClassVersionError … class file version 55.0, this version of the
+Java Runtime only recognizes class file versions up to 52.0` while your shell's
+`java` is 17. Only the native (`vmnv`) side is affected; the `vmn` demo runs
+inside WSL on WSL's own Java.
 
 WSL is invoked by the tests themselves: they spawn `wsl.exe` to run `vmn`'s
 demo scripts (see [How `vmn` and `vmnv` are actually run](#how-vmn-and-vmnv-are-actually-run)).
@@ -174,11 +186,11 @@ checking interop.
 
 ```powershell
 $env:V2V_REQUIRE_VMN = "1"
-cargo test --release -p v2v -- --include-ignored
+cargo test --release -p v2v --no-fail-fast -- --include-ignored
 ```
 
 ```sh
-V2V_REQUIRE_VMN=1 cargo test --release -p v2v -- --include-ignored
+V2V_REQUIRE_VMN=1 cargo test --release -p v2v --no-fail-fast -- --include-ignored
 ```
 
 turns every skip into a failure naming what was missing. **Use it before

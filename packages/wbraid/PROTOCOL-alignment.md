@@ -17,6 +17,16 @@ proposes scheduling; it changes no code.
 > classification *at the time it was made*, kept so the record stays legible —
 > none of it describes pending work. The single item left open, by choice, is D4
 > (an optional documentation note).
+>
+> **Re-verified 2026-09-21** after the performance campaign (final section):
+> alignment preserved throughout; one new description-precision item, D7
+> (batched verification of V2), found and applied. **D8** (batched verification
+> of the ballot well-formedness proofs) followed on 2026-09-23, same class. Both
+> live in PROTOCOL.md's **Appendix C** since 2026-09-24, so the main text stays
+> the unoptimized description.
+>
+> **Re-verified again 2026-09-24** at the parking milestone of the performance
+> work (last section): alignment preserved; no new item.
 
 Scope: the sections of `PROTOCOL.md` that bind this repository — §2
 (preliminaries), §3 (primitives), §4 (DKG), §5.5 (tally input), §6 (mixing), §7
@@ -236,3 +246,99 @@ transcript component lists: `vsc::zkp::{schnorr, dlogeq, pleq, shuffle}`,
 and `braid::trustee::{mod, dkg, mix, decrypt}`, `braid::datalog::{dkg, mix,
 decrypt}`, `braid::messages::wire`. Board-client behavior (A14, A17) is
 additionally covered by the model-checking harnesses (`STATERIGHT.md`).
+
+## Re-verification after the performance campaign (2026-09-21)
+
+The MSM, serialization and variable-time work recorded in `PERFORMANCE.md`
+changed how several protocol values are *computed*; it must not change *what*
+is computed, hashed or encoded. Re-verified by re-reading §6.3–6.4, §7.1–7.2
+and §9.2 against the current source, and by the campaign's own pins: the
+differential tests fix `multi_exp`/`vartime_multi_exp` = the naive product,
+the closed-form bridging chain = the recurrence, and `par_ser` = the sequential
+`Vec` encoding; the shuffle and dkgd round-trips and all 17 model-check
+configurations pass on bit-identical proofs and plaintexts.
+
+| Item | Change | Alignment |
+|---|---|---|
+| A1, A3 | `FixedWidth` / `par_ser`: the transcript's element and ciphertext lists are encoded in parallel | **Preserved.** Byte-identical to the sequential encoding (pinned); every transcript hashes the same bytes in the same value‖tag order |
+| A18 prover | Bridging commitments in closed form — `B_i = g^{d_i} h_1^{p_i}` with `d_i = b_i + e′_i d_{i-1}`, `p_i = ∏ e′_k`, hence `B_0 = h_1`; `A′`, `B′`, `F′` via multi-exp and fixed-base batches | **Preserved.** Same values as §6.3's recurrence and products (`test_bridging_closed_form_*`); proofs bit-identical |
+| A18 verifier | `A`, `F`, V1, V3–V5 via variable-time multi-exp; **V2 checked as one random linear combination** | Values preserved. The *form* of the V2 check changed → **D7** |
+| A19 | `A`/`B` and the combination `F_j = ∏ f_{i,j}^{λ_i}` via variable-time multi-exp; all `t` contributions verified before combining | **Preserved.** Same seed component order (`vk`, u-list, factor-list, `ctx`), same `e_j`, `A`, `B`, `λ_i`, `F_j`, `m_j`; the verify-then-combine order now follows §7.2 steps 1→3 exactly |
+| — | Constant-time vs variable-time exponentiation | Not a protocol property (no normative text). Implementation posture: constant-time wherever a secret enters (the prover's blinders, the trustee's `u^{x_i}`), variable-time on public data only |
+
+### D7 — Batched verification of V2 (description precision fix)
+
+§6.4 states "accept iff all five equations hold" with V2 as `N` per-index
+equations, and §9.2 step 4 inherits it. The braid verifier checks the `N`
+instances of V2 as a single random linear combination with verifier-local
+uniform `t_1..t_N` (Bellare–Garay–Rabin small-exponent batching [BGR98], the
+technique §7.2 already cites for the decryption proof): identical acceptance
+for valid proofs, and a proof with any failing instance accepted with
+probability exactly `1/q`. Sound and standard — but not literally the equations
+as written, and it makes the verifier randomized rather than a pure function of
+the public data. Per the D-class convention the *document* was made precise:
+the batched form is stated as a permitted check with its error bound,
+keeping the per-index equations of §6.4 normative (and deterministic) — first in
+§6.4 itself with a §9.2 step-4 pointer (2026-09-21), since 2026-09-24 in
+**Appendix C.2**, with §9.2's preamble pointing at the appendix.
+**Applied 2026-09-21.** Negative coverage:
+`test_shuffle_batched_v2_rejects_{ristretto,p256}` tamper `k_B` — which
+appears only in V2 and does not feed the challenge `v` — and confirm rejection.
+
+### D8 — Batched verification of the ballot well-formedness proofs (description precision fix)
+
+§3.6 defines `NYVerify` per ciphertext, and §5.5 / §9.2 step 3 apply it to
+every `C_i` of the ballot list. braid's first mix now verifies the `N` PlEq
+proofs of the list as a single random linear combination with verifier-local
+uniform weights (`PlEqProof::verify_batch`, reached through
+`naoryung::PublicKey::strip_all` — the same [BGR98] technique as D7): identical
+acceptance for valid lists; a list with any invalid proof is accepted with
+probability exactly `1/q`. What is hashed is unchanged — each challenge `v_i`
+is recomputed by the same function, over the same inputs and tags, as the
+per-item check; the weights are never hashed. On rejection the failing ballots
+are attributed by individual verification, and a batch that rejects while every
+proof verifies individually is treated as an internal error and fails closed
+(`Error::BatchVerificationInconsistent`). Per the D-class convention the
+*document* was made precise: the batched form is stated as a permitted check
+with its error bound, keeping `PlEqVerify` normative — first in §3.5 with §5.5 and
+§9.2 step-3 pointers (2026-09-23), since 2026-09-24 in **Appendix C.1**, with
+§9.2's preamble pointing at the appendix. **Applied 2026-09-23.** Negative coverage:
+`test_pleq_verify_batch_attributes_failures_{ristretto,p256}` (a tampered
+response, a pair of proofs swapped between ballots, a foreign context — the
+batch names exactly the per-item failures) and
+`test_strip_all_rejects_invalid_ballot_{ristretto,p256}`; braid's tampered-ballot
+protocol test still halts the tally.
+
+## Re-verification at the parking milestone (2026-09-24)
+
+Between the 2026-09-21 re-verification and the freeze of the performance work
+the implementation changed in five ways. Each was checked against the section
+it implements, and each has a pin that the value, transcript or byte in
+question is unchanged.
+
+| change | sections | alignment |
+|---|---|---|
+| Batched Naor-Yung verification (`009b443add`; `verify_batch`, `strip_all`) | §3.5, §3.6, §5.5, §9.2 step 3 | **D8** — Appendix C.1 states the permitted form; challenges `v_i` recomputed exactly as §3.5 |
+| Second shuffle challenge's commitment lists encoded in parallel (`6f4c995c22`) | §6.3 (`v = H2S(seed, B, A′, B′, …)`), §2.3 (list encoding) | **Preserved.** `par_ser` is pinned byte-identical to the sequential list encoding; the challenge input is the same bytes |
+| Parallel list encoding and decoding behind the unchanged format (`0ae4a48ea3`; `FIXED_WIDTH` hint) | §2.3 (canonical encodings, count-prefixed lists), every posted message | **Preserved.** Bytes produced and accepted are the sequential loops' exactly, pinned against a sequential reference on valid, corrupted, truncated, extended and mis-counted lists (`serialization/tests.rs`), plus the property suite; each element still passes the same strict `read` |
+| Prover's permutation commitments and re-encryption legs as fixed-base batches (`cae05fe816`) | §6.2 (`u_i = g^{r_π(i)} h_π(i)`, `w′_i = ReEnc_y(w_{π⁻¹(i)}; s_{π⁻¹(i)})`) | **Preserved.** Same values by the per-element definition (`test_apply_permutation_matches_definition_*`); the permutation is applied as §6.2 writes it — `r` and `h` permuted by `π`, `w` and `s` by `π⁻¹` — re-read against `apply_permutation` |
+| Stage-breakdown instrumentation added and removed (`233f484655`, `2ad569ecae`) | — | No protocol effect; the crypto code is back to its uninstrumented text (three files byte-identical, `shuffle.rs` differing only by the two changes above) |
+
+Re-read this pass, against the current source: §6.2–6.3 (`apply_permutation`,
+`shuffle_with`), §6.4 (`verify_with`), §7.1–7.2 (`partial_decrypt`, `combine`),
+§3.5–3.6 (`pleq`, `naoryung`), §2.3's list encoding (`serialization`). The
+shuffle code carries step markers (`Step 1`–`Step 4` in the prover, `Step 5` and
+`Verification 1`–`5` in the verifier) and uses the description's variable names
+(`big_a_prime`, `k_e_n`, `e_prime_n`, …); walking them formula by formula
+against §6.3–6.4 — batching challenges, `e′ = e ∘ π⁻¹`, bridging chain, the
+five proof commitments, the challenge, the six responses, `C`, `D`, `B_0 = h_1`,
+V1–V5 — every formula is the description's, with `A` and `F` computed by the
+verifier (they do not enter the transcript) and V2 in the Appendix C.2 form. The description itself
+changed only by the Appendix C move (D7, D8 above), which restored the main
+text to the unoptimized form; the comparison of that text against the
+reference it was originally verified against was repeated the same day and
+found it unchanged (the notes are kept outside the repository, as before).
+
+Constant-time versus variable-time exponentiation remains an implementation
+posture with no normative text; the decision and the per-site audit are in
+PERFORMANCE.md (Constraints).

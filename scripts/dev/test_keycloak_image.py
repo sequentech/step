@@ -53,7 +53,9 @@ class KeycloakImageTests(unittest.TestCase):
             with self.subTest(directory=directory):
                 self.assertIn(f"!{directory}", ignore.splitlines())
 
-    def test_the_offline_dependency_build_provides_the_shared_rust_contract_sources(self):
+    def test_the_offline_dependency_build_provides_the_shared_rust_contract_sources(
+        self,
+    ):
         # Its Maven stage runs the same extension tests while vendoring, so
         # airgap/prepare.sh fails when they cannot read these files.
         dockerfile = OFFLINE_DEPENDENCIES.read_text()

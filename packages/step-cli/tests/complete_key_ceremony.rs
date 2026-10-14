@@ -8,7 +8,7 @@ use std::{
     fs,
     io::{BufRead, BufReader, Read, Write},
     net::TcpListener,
-    path::PathBuf,
+    path::{Path, PathBuf},
     process::Command,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -55,11 +55,13 @@ struct Cli {
 
 impl Cli {
     fn new() -> Self {
-        let directory = tempfile::tempdir().unwrap();
+        let source = Path::new(env!("CARGO_BIN_EXE_step-cli"));
+        // A same-filesystem hard link avoids writable executable descriptors,
+        // which concurrent child processes can retain until exec (ETXTBSY).
+        let directory = tempfile::tempdir_in(source.parent().unwrap()).unwrap();
         let binary = directory.path().join("step-cli");
-        let source = env!("CARGO_BIN_EXE_step-cli");
-        // Independent executable inodes keep concurrent installations isolated.
-        fs::copy(source, &binary).unwrap();
+        // Each installation still has its own executable path, config and keys.
+        fs::hard_link(source, &binary).unwrap();
         fs::create_dir(directory.path().join("config")).unwrap();
         let secrets = TrusteeSecrets::generate();
         let keys_file = directory.path().join("trustee.toml");
@@ -280,6 +282,39 @@ fn keeps_the_public_requests_of_each_ceremony_apart() {
         Some(second.as_str())
     );
     assert_eq!(cli.stored(None).as_deref(), Some(second.as_str()));
+}
+
+#[test]
+fn separate_installations_keep_their_configuration_and_custody_requests_apart() {
+    let first = Cli::new();
+    let second = Cli::new();
+    let first_request = serde_json::to_string(&first.request(KEY_CEREMONY_ID)).unwrap();
+    let second_request = serde_json::to_string(&second.request(KEY_CEREMONY_ID)).unwrap();
+
+    for (cli, request) in [(&first, &first_request), (&second, &second_request)] {
+        let run = cli.complete(KEY_CEREMONY_ID, vec![downloaded(request), checked(true)]);
+        assert!(run.output.contains("Success!"), "{}", run.output);
+        assert_eq!(run.operations(), ["GetCustodyRequest", "ConfirmKeyCustody"]);
+        assert!(cli
+            .request(KEY_CEREMONY_ID)
+            .verifies(
+                run.requests[1].variables["custodyProofJson"]
+                    .as_str()
+                    .unwrap()
+            )
+            .unwrap());
+    }
+
+    assert_eq!(
+        first.stored(Some(KEY_CEREMONY_ID)),
+        Some(first_request.clone())
+    );
+    assert_eq!(first.stored(None), Some(first_request));
+    assert_eq!(
+        second.stored(Some(KEY_CEREMONY_ID)),
+        Some(second_request.clone())
+    );
+    assert_eq!(second.stored(None), Some(second_request));
 }
 
 #[test]

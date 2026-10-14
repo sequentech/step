@@ -1,6 +1,6 @@
 [package]
 name = "vsc"
-version = "0.6.4"
+version = "0.6.5"
 license = "Apache-2.0"
 edition = "2024"
 
@@ -51,15 +51,10 @@ name = "cryptography"
 
 [features]
 default = []
-# Fold strategy for the shuffle's wide parallel products (see
-# `zkp::shuffle::fold_values`). Off: rayon's recursive `reduce`, the historical
-# behaviour. On: `bounded_combine`, chunked plain loops whose stack use is
-# bounded by a small constant independent of input size and scheduling. The
-# folded values -- and therefore the proofs -- are byte-identical either way;
-# the switch exists so the two implementations can be benchmarked against each
-# other.
-bounded-combine = []
 custom-warnings = ["custom_warning_macro/on"]
+# Wall-clock accumulators per cost category at the stages' outer call sites
+# (utils::profile); examples/targets.rs prints the breakdown. Off: no timers.
+profile = []
 # The benches use the nightly-only libtest harness (#![feature(test)]); this
 # feature keeps them out of stable builds of --all-targets.
 nightly-benches = []
@@ -69,9 +64,21 @@ name = "shuffle"
 harness = true
 required-features = ["nightly-benches"]
 
+# Serial-vs-parallel micro-benchmark for the per-element loops. Criterion
+# (stable), so no nightly-benches gate.
+[[bench]]
+name = "parallel_tradeoff"
+harness = false
+
+# MSM strategy micro-benchmark (naive-parallel vs single/chunked dalek MSM).
+[[bench]]
+name = "msm_strategy"
+harness = false
+
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
 proptest = "1"
+criterion = "0.5"
 
 [lints.rustdoc]
 missing_crate_level_docs = "deny"
@@ -88,7 +95,7 @@ private_interfaces = "warn"
 private_bounds = "warn"
 unnameable_types = "warn"
 # https://github.com/taiki-e/cargo-llvm-cov?tab=readme-ov-file#exclude-code-from-coverage
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)', 'cfg(fuzzing)'] }
 
 [lints.clippy]
 missing_docs_in_private_items = "deny"

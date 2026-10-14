@@ -11,7 +11,7 @@ mod tests {
     use crate::context::P256Ctx as PCtx;
     use crate::context::RistrettoCtx as RCtx;
     use crate::cryptosystem::elgamal::{Ciphertext, KeyPair};
-    use crate::utils::serialization::{Deserializable, Serializable};
+    use crate::utils::serialization::{Deserializable, PAR_MIN_ELEMENTS, Serializable};
     use canonical_derive::Canonical;
 
     #[test]
@@ -398,5 +398,245 @@ mod tests {
         assert_eq!(v, EndsInPhantom::<u32>::deser(&bytes).unwrap());
         bytes.push(0);
         assert!(EndsInPhantom::<u32>::deser(&bytes).is_err());
+    }
+
+    // -----------------------------------------------------------------------
+    // Lists: parallel encoding and decoding behind the unchanged encoding
+    // -----------------------------------------------------------------------
+
+    /// The list encoding by definition: a big-endian u64 count, then each
+    /// element's encoding in order. The oracle for `Vec<T>::ser`.
+    fn reference_list_ser<T: Serializable>(items: &[T]) -> Vec<u8> {
+        let mut out = u64::try_from(items.len()).unwrap().to_be_bytes().to_vec();
+        for item in items {
+            out.extend(item.ser());
+        }
+        out
+    }
+
+    /// The list decoding by definition: the count, then that many sequential
+    /// element reads from the cursor, then `deser`'s exhaustion check. The
+    /// oracle for `Vec<T>::deser`, including which error it reports.
+    fn reference_list_deser<T: Deserializable>(
+        bytes: &[u8],
+    ) -> Result<Vec<T>, crate::utils::error::Error> {
+        let mut input = bytes;
+        let count = u64::read(&mut input)?;
+        let mut items = Vec::new();
+        for _ in 0..count {
+            items.push(T::read(&mut input)?);
+        }
+        if !input.is_empty() {
+            return Err(crate::utils::error::Error::DeserializationError(
+                "Trailing bytes after value".to_string(),
+            ));
+        }
+        Ok(items)
+    }
+
+    #[test]
+    fn test_fixed_width_hints() {
+        assert_eq!(<u8 as Deserializable>::FIXED_WIDTH, Some(1));
+        assert_eq!(<u64 as Deserializable>::FIXED_WIDTH, Some(8));
+        assert_eq!(<u128 as Deserializable>::FIXED_WIDTH, Some(16));
+        assert_eq!(<usize as Deserializable>::FIXED_WIDTH, Some(8));
+        assert_eq!(<bool as Deserializable>::FIXED_WIDTH, Some(1));
+        assert_eq!(
+            <<RCtx as Context>::Element as Deserializable>::FIXED_WIDTH,
+            Some(32)
+        );
+        assert_eq!(
+            <<RCtx as Context>::Scalar as Deserializable>::FIXED_WIDTH,
+            Some(32)
+        );
+        assert_eq!(
+            <<PCtx as Context>::Element as Deserializable>::FIXED_WIDTH,
+            Some(33)
+        );
+        assert_eq!(
+            <<PCtx as Context>::Scalar as Deserializable>::FIXED_WIDTH,
+            Some(32)
+        );
+        assert_eq!(
+            <[<RCtx as Context>::Element; 2] as Deserializable>::FIXED_WIDTH,
+            Some(64)
+        );
+        assert_eq!(
+            <Ciphertext<RCtx, 2> as Deserializable>::FIXED_WIDTH,
+            Some(128)
+        );
+        assert_eq!(
+            <Ciphertext<PCtx, 3> as Deserializable>::FIXED_WIDTH,
+            Some(198)
+        );
+        assert_eq!(<Vec<u8> as Deserializable>::FIXED_WIDTH, None);
+        assert_eq!(<String as Deserializable>::FIXED_WIDTH, None);
+        assert_eq!(<Option<u64> as Deserializable>::FIXED_WIDTH, None);
+        assert_eq!(
+            <std::marker::PhantomData<u8> as Deserializable>::FIXED_WIDTH,
+            Some(0)
+        );
+
+        #[derive(Canonical)]
+        struct Mixed {
+            a: u64,
+            s: String,
+        }
+        assert_eq!(<Mixed as Deserializable>::FIXED_WIDTH, None);
+
+        #[derive(Canonical)]
+        struct Fixed {
+            a: u64,
+            b: [u32; 3],
+            c: bool,
+        }
+        assert_eq!(<Fixed as Deserializable>::FIXED_WIDTH, Some(8 + 12 + 1));
+
+        #[derive(Canonical)]
+        struct Unit;
+        assert_eq!(<Unit as Deserializable>::FIXED_WIDTH, Some(0));
+    }
+
+    #[test]
+    fn test_vec_ser_matches_reference_ristretto() {
+        test_vec_ser_matches_reference::<RCtx>();
+    }
+
+    #[test]
+    fn test_vec_ser_matches_reference_p256() {
+        test_vec_ser_matches_reference::<PCtx>();
+    }
+
+    /// `Vec<T>::ser` is byte-identical to the definition on both sides of the
+    /// parallel threshold, for fixed- and variable-width elements.
+    fn test_vec_ser_matches_reference<Ctx: Context>() {
+        let big = PAR_MIN_ELEMENTS + 777;
+        for n in [0usize, 1, PAR_MIN_ELEMENTS - 1, PAR_MIN_ELEMENTS, big] {
+            let elems: Vec<Ctx::Element> = (0..n).map(|_| Ctx::random_element()).collect();
+            assert_eq!(elems.ser(), reference_list_ser(&elems), "elements, n = {n}");
+
+            let arrays: Vec<[Ctx::Scalar; 3]> = (0..n)
+                .map(|_| std::array::from_fn(|_| Ctx::random_scalar()))
+                .collect();
+            assert_eq!(
+                arrays.ser(),
+                reference_list_ser(&arrays),
+                "scalar arrays, n = {n}"
+            );
+
+            let strings: Vec<String> = (0..n).map(|i| "x".repeat(i % 7)).collect();
+            assert_eq!(
+                strings.ser(),
+                reference_list_ser(&strings),
+                "strings, n = {n}"
+            );
+        }
+        let keypair = KeyPair::<Ctx>::generate();
+        let cts: Vec<Ciphertext<Ctx, 2>> = (0..big)
+            .map(|_| {
+                keypair
+                    .pkey
+                    .encrypt(&[Ctx::random_element(), Ctx::random_element()])
+            })
+            .collect();
+        assert_eq!(cts.ser(), reference_list_ser(&cts), "ciphertexts");
+    }
+
+    #[test]
+    fn test_vec_deser_matches_reference_ristretto() {
+        test_vec_deser_matches_reference::<RCtx>();
+    }
+
+    #[test]
+    fn test_vec_deser_matches_reference_p256() {
+        test_vec_deser_matches_reference::<PCtx>();
+    }
+
+    /// `Vec<T>::deser` accepts exactly what the definition accepts and reports
+    /// the same error otherwise, on both sides of the parallel threshold.
+    fn test_vec_deser_matches_reference<Ctx: Context>() {
+        for n in [17usize, PAR_MIN_ELEMENTS + 5] {
+            let elems: Vec<Ctx::Element> = (0..n).map(|_| Ctx::random_element()).collect();
+            check_list_deser_agreement(&elems);
+
+            let arrays: Vec<[Ctx::Scalar; 3]> = (0..n)
+                .map(|_| std::array::from_fn(|_| Ctx::random_scalar()))
+                .collect();
+            check_list_deser_agreement(&arrays);
+
+            let keypair = KeyPair::<Ctx>::generate();
+            let cts: Vec<Ciphertext<Ctx, 2>> = (0..n)
+                .map(|_| {
+                    keypair
+                        .pkey
+                        .encrypt(&[Ctx::random_element(), Ctx::random_element()])
+                })
+                .collect();
+            check_list_deser_agreement(&cts);
+        }
+    }
+
+    /// Valid, corrupted (first, middle, last element), truncated, extended
+    /// and mis-counted encodings of `items` decode identically — same
+    /// acceptance, same value, same error text — through `Vec<T>::deser` and
+    /// the sequential definition.
+    fn check_list_deser_agreement<T>(items: &[T])
+    where
+        T: Serializable + Deserializable + PartialEq + std::fmt::Debug + Send + Sync,
+    {
+        let width = T::FIXED_WIDTH.expect("fixed-width element");
+        let n = items.len();
+        let valid = reference_list_ser(items);
+        let mut cases: Vec<(String, Vec<u8>)> = vec![("valid".to_string(), valid.clone())];
+        for index in [0, n / 2, n - 1] {
+            let mut bytes = valid.clone();
+            let start = 8 + index * width;
+            for byte in &mut bytes[start..start + width] {
+                *byte = 0xFF;
+            }
+            cases.push((format!("element {index} corrupted"), bytes));
+        }
+        cases.push((
+            "truncated by one byte".to_string(),
+            valid[..valid.len() - 1].to_vec(),
+        ));
+        cases.push((
+            "truncated by one element".to_string(),
+            valid[..valid.len() - width].to_vec(),
+        ));
+        let mut extended = valid.clone();
+        extended.push(0);
+        cases.push(("one trailing byte".to_string(), extended));
+        for (label, count) in [("count one too many", n + 1), ("count one too few", n - 1)] {
+            let mut bytes = valid.clone();
+            bytes[..8].copy_from_slice(&u64::try_from(count).unwrap().to_be_bytes());
+            cases.push((label.to_string(), bytes));
+        }
+        let mut huge = valid.clone();
+        huge[..8].copy_from_slice(&u64::MAX.to_be_bytes());
+        cases.push(("count u64::MAX".to_string(), huge));
+
+        for (name, bytes) in cases {
+            let reference = reference_list_deser::<T>(&bytes);
+            let actual = Vec::<T>::deser(&bytes);
+            match (reference, actual) {
+                (Ok(r), Ok(a)) => {
+                    assert_eq!(r, a, "{name} (n = {n}): values differ");
+                    assert_eq!(
+                        a.as_slice(),
+                        items,
+                        "{name} (n = {n}): not the encoded items"
+                    );
+                }
+                (Err(r), Err(a)) => {
+                    assert_eq!(
+                        r.to_string(),
+                        a.to_string(),
+                        "{name} (n = {n}): errors differ"
+                    );
+                }
+                (r, a) => panic!("{name} (n = {n}): reference {r:?} vs actual {a:?}"),
+            }
+        }
     }
 }

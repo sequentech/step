@@ -156,7 +156,11 @@ def metadata(root: Path) -> dict:
             package(
                 "voting-crypto",
                 "0.4.0",
-                [target("voting-crypto", ["cdylib", "rlib"], "voting-crypto/src/lib.rs")],
+                [
+                    target(
+                        "voting-crypto", ["cdylib", "rlib"], "voting-crypto/src/lib.rs"
+                    )
+                ],
             ),
         ]
     }
@@ -321,7 +325,11 @@ class ClosureTests(WasmTestCase):
         )
         self.assertEqual(
             wasm.package_sources(package, self.checkout.layout),
-            ("packages/voting-crypto", "packages/voting-crypto/build.rs", "voting-crypto"),
+            (
+                "packages/voting-crypto",
+                "packages/voting-crypto/build.rs",
+                "voting-crypto",
+            ),
         )
 
     def test_closure_is_reused_until_a_resolution_input_changes(self):
@@ -329,7 +337,8 @@ class ClosureTests(WasmTestCase):
         self.checkout.source_fingerprint()
         self.assertEqual(len(self.checkout.calls("cargo", "tree")), 1)
         self.checkout.write(
-            "packages/voting-crypto/Cargo.toml", '[package]\nname = "voting-crypto"\n#\n'
+            "packages/voting-crypto/Cargo.toml",
+            '[package]\nname = "voting-crypto"\n#\n',
         )
         self.checkout.source_fingerprint()
         self.assertEqual(len(self.checkout.calls("cargo", "tree")), 2)
@@ -350,12 +359,16 @@ class FingerprintTests(WasmTestCase):
         )
         self.checkout.write("packages/sequent-core/src/.util.rs.swp", "swap")
         self.checkout.write("packages/sequent-core/src/util.rs~", "backup")
-        self.checkout.write("packages/voting-crypto/README.md", "# voting-crypto, edited\n")
+        self.checkout.write(
+            "packages/voting-crypto/README.md", "# voting-crypto, edited\n"
+        )
         self.assertEqual(self.checkout.source_fingerprint(), before)
 
     def test_files_named_by_path_attributes_are_inputs(self):
         before = self.checkout.source_fingerprint()
-        self.checkout.write("packages/voting-crypto/tests/support/shape.rs", "fn other() {}\n")
+        self.checkout.write(
+            "packages/voting-crypto/tests/support/shape.rs", "fn other() {}\n"
+        )
         self.assertNotEqual(self.checkout.source_fingerprint(), before)
 
     def test_packaged_readme_is_an_input(self):
