@@ -2361,6 +2361,8 @@ const tagalogTranslation: TranslationType = {
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
             serverCustody: {
+                recoveryInstructions:
+                    "Kung na-import mo ang kaganapang ito sa halalan o nawala ang na-save na file, i-download dito ang kasalukuyang file ng seremonya. I-save ito, pagkatapos ay i-upload sa ibaba.",
                 fileFormat: "Sinusuportahang format: JSON",
                 waiting: "Hinihintay ang trustee server na gumawa ng patunay ng pag-iingat…",
                 unavailable:

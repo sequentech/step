@@ -2347,6 +2347,8 @@ const galegoTranslation: TranslationType = {
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
             serverCustody: {
+                recoveryInstructions:
+                    "Se importou este evento electoral ou perdeu o ficheiro gardado, descargue aquí o ficheiro actual da cerimonia. Gárdeo e logo cárgueo a continuación.",
                 fileFormat: "Formato admitido: JSON",
                 waiting: "Agardando a que o servidor custodio cree unha proba de custodia…",
                 unavailable:

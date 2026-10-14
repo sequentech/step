@@ -27,6 +27,8 @@ use voting_crypto::RecordDeserialize;
 
 /// Format tag of exported electoral logs.
 pub const EXPORT_FORMAT_V1: &str = "sequent-electoral-log-export-v1";
+/// Multiple audit boards, with an explicit main board and verified continuation links.
+pub const EXPORT_FORMAT_V2: &str = "sequent-electoral-log-export-v2";
 /// Records read per query while exporting.
 const EXPORT_PAGE: i64 = 1000;
 
@@ -140,18 +142,28 @@ pub struct ExportedLog {
 /// What an export of an election event's electoral logs holds besides the records.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ExportManifest {
-    /// `EXPORT_FORMAT_V1`.
+    /// `EXPORT_FORMAT_V1` for a linear history, or `EXPORT_FORMAT_V2` for multiple boards.
     pub format: String,
     pub election_event_id: String,
+    /// V2 identifies the main event board independently of record ordering.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub board_log_uid: Option<Uuid>,
     /// Logs in the order their records appear in the records file: every log that the
-    /// event's board continues, then the board.
+    /// event's board continues, then the board in V1; independent boards may also
+    /// appear in V2. Continuations follow the logs they name.
     pub logs: Vec<ExportedLog>,
 }
 
 impl ExportManifest {
-    /// The event's board when exported: its last log.
+    /// The event's board: explicit in V2, the last log in legacy V1.
     pub fn board(&self) -> Option<&ExportedLog> {
-        self.logs.last()
+        if self.format == EXPORT_FORMAT_V2 {
+            self.logs
+                .iter()
+                .find(|log| Some(log.checkpoint.log_uid) == self.board_log_uid)
+        } else {
+            self.logs.last()
+        }
     }
 }
 
@@ -301,8 +313,9 @@ impl PostgresStore {
     /// in the database is refused.
     ///
     /// The export cannot leave out checkpoints its records name: every checkpoint a log
-    /// records of itself must be among its published checkpoints, and every log after
-    /// the first must record that it continues the log before it. `anchors` are
+    /// records of itself must be among its published checkpoints. V1 logs must form
+    /// one continuation chain. V2 accepts independent boards, and each recorded
+    /// continuation must name an earlier exported log and its exact checkpoint. `anchors` are
     /// checkpoints of the exported logs that the importing environment published
     /// itself; the log's roots at their sizes, up to its exported size, must equal
     /// theirs.
@@ -313,15 +326,23 @@ impl PostgresStore {
         anchors: &[Checkpoint],
     ) -> Result<Vec<ImportedLog>> {
         ensure!(
-            manifest.format == EXPORT_FORMAT_V1,
+            manifest.format == EXPORT_FORMAT_V1 || manifest.format == EXPORT_FORMAT_V2,
             "Unknown electoral-log export format {:?}",
             manifest.format
         );
+        if manifest.format == EXPORT_FORMAT_V2 {
+            ensure!(
+                manifest.board_log_uid.is_some() && manifest.board().is_some(),
+                "The electoral-log export has no valid main board"
+            );
+        }
         let mut client = self.client().await?;
         let tx = client.transaction().await?;
         let mut records = records.peekable();
         let mut imported = Vec::with_capacity(manifest.logs.len());
         let mut previous: Option<&Checkpoint> = None;
+        let mut seen: std::collections::HashMap<Uuid, &Checkpoint> =
+            std::collections::HashMap::new();
         for exported in &manifest.logs {
             let log = LogIdentity::of(&exported.checkpoint);
             let anchors: Vec<&Checkpoint> = anchors
@@ -398,7 +419,22 @@ impl PostgresStore {
                     log.name
                 );
             }
-            if let Some(previous) = previous {
+            if manifest.format == EXPORT_FORMAT_V2 {
+                for continuation in &recorded.continuations {
+                    let prior = Uuid::parse_str(&continuation.previous_log_uid)
+                        .ok()
+                        .and_then(|uid| seen.get(&uid));
+                    ensure!(
+                        prior.is_some_and(|prior| {
+                            continuation.previous_log_name == prior.log_name
+                                && continuation.tree_size == prior.tree_size
+                                && continuation.root == hex::encode(&prior.root)
+                        }),
+                        "Missing or changed electoral-log continuation in log {}",
+                        log.name
+                    );
+                }
+            } else if let Some(previous) = previous {
                 ensure!(
                     recorded.continues(previous),
                     "Log {} does not record that it continues log {} at size {}",
@@ -459,6 +495,7 @@ impl PostgresStore {
                 anchored_checkpoints: anchors.len(),
             });
             previous = Some(&exported.checkpoint);
+            seen.insert(exported.checkpoint.log_uid, &exported.checkpoint);
         }
         if let Some(record) = records.next() {
             let record = record?;
@@ -528,6 +565,7 @@ mod tests {
         let manifest = ExportManifest {
             format: EXPORT_FORMAT_V1.into(),
             election_event_id: "event".into(),
+            board_log_uid: None,
             logs: vec![log(1, LogState::Sealed), log(2, LogState::Open)],
         };
         assert_eq!(manifest.board().unwrap().checkpoint.log_name, "log2");

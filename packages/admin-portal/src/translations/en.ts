@@ -2314,6 +2314,8 @@ const englishTranslation = {
         },
         keysGeneration: {
             serverCustody: {
+                recoveryInstructions:
+                    "If you imported this election event or lost the saved file, download its current ceremony file here. Save it, then upload it below.",
                 fileFormat: "Supported format: JSON",
                 waiting: "Waiting for your trustee server to create a custody proof…",
                 unavailable:

@@ -24,6 +24,13 @@ export async function verifyPublicTranscript(browser, origin, input) {
       const verifier = module.WasmVerifier;
       const anchors = {
         ...input.anchors,
+        // The trusted original statement retains its ID after an event copy.
+        tally_id: input.ballotsMessage
+          ? verifier.tallyIdentifier(
+              input.configurationMessage,
+              input.ballotsMessage,
+            )
+          : null,
         configuration_hash: verifier.configurationHash(
           input.configurationMessage,
         ),
@@ -48,6 +55,17 @@ export async function verifyPublicTranscript(browser, origin, input) {
           }),
         ),
       );
+      const wrongTally = input.ballotsMessage
+        ? JSON.parse(
+            verifier.verifyTranscript(
+              transcript,
+              JSON.stringify({
+                ...anchors,
+                tally_id: (BigInt(anchors.tally_id) + 1n).toString(),
+              }),
+            ),
+          )
+        : null;
       const incomplete = JSON.parse(transcript);
       if (incomplete.tally_messages) incomplete.tally_messages = [];
       else incomplete.dkg_messages = [];
@@ -62,6 +80,7 @@ export async function verifyPublicTranscript(browser, origin, input) {
         anchors,
         report,
         wrongAnchor,
+        wrongTally,
         truncated,
       };
     }, input);

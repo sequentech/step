@@ -2370,6 +2370,8 @@ const frenchTranslation: TranslationType = {
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
             serverCustody: {
+                recoveryInstructions:
+                    "Si vous avez importé cet événement électoral ou perdu le fichier enregistré, téléchargez ici son fichier de cérémonie actuel. Enregistrez-le, puis téléversez-le ci-dessous.",
                 fileFormat: "Format accepté : JSON",
                 waiting: "En attente de la preuve de garde créée par votre serveur dépositaire…",
                 unavailable:

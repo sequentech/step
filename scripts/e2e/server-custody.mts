@@ -207,7 +207,7 @@ async function keyCustody(input: Input) {
   return { file: file.toString(), proof, filename };
 }
 
-async function tallyCustody(input: Input) {
+async function tallyCustody(input: Input, recover = false) {
   const client = clients.get(input.name);
   if (!client) throw new Error("The saved key-ceremony file is missing");
   const { page } = client;
@@ -228,6 +228,27 @@ async function tallyCustody(input: Input) {
   await expect(
     page.getByText("Supported format: JSON", { exact: true }),
   ).toBeVisible();
+  if (recover) {
+    const downloadEvent = page.waitForEvent("download");
+    await page
+      .getByRole("button", { name: "Download Ceremony File", exact: true })
+      .click();
+    const download = await downloadEvent;
+    const filePath = await download.path();
+    if (!filePath) throw new Error("Recovery download did not create a file");
+    client.file = await readFile(filePath);
+    client.filename = download.suggestedFilename();
+    const scope = JSON.parse(client.file.toString());
+    expect(scope.election_event_id).toBe(input.eventId);
+    expect(scope.keys_ceremony_id).toBe(input.ceremonyId);
+    expect(scope.tally_session_id).toBeNull();
+    await download.saveAs(
+      resolve(output, `${input.name}-recovered-ceremony.json`),
+    );
+    await expect(
+      page.getByRole("button", { name: "Next", exact: true }),
+    ).toBeDisabled();
+  }
   const proof = await submitFile(page, client, "AuthorizeTallyCustody");
   expect(JSON.parse(proof).request.tally_session_id).toBe(input.tallyId);
   await page.screenshot({
@@ -260,9 +281,11 @@ const server = createServer(async (request, response) => {
         ? await verifyPublicTranscript(browser, observer.origin, input)
         : request.url === "/key-custody"
           ? await keyCustody(input)
-          : request.url === "/tally-custody"
-            ? await tallyCustody(input)
-            : null;
+          : request.url === "/recover-tally-custody"
+            ? await tallyCustody(input, true)
+            : request.url === "/tally-custody"
+              ? await tallyCustody(input)
+              : null;
     if (!result) throw new Error("Unknown controller action");
     response
       .writeHead(200, { "Content-Type": "application/json" })

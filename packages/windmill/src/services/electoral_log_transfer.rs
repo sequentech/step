@@ -22,8 +22,9 @@ use deadpool_postgres::Transaction;
 use electoral_log::adapters::events::event_of_board;
 use electoral_log::adapters::transfer::{
     ExportManifest, ExportedLog, ExportedRecord, ImportedLog, SignedCheckpoint, EXPORT_FORMAT_V1,
+    EXPORT_FORMAT_V2,
 };
-use electoral_log::proofs::Checkpoint;
+use electoral_log::proofs::{Checkpoint, LogState};
 use std::io::{BufRead, BufWriter, Write};
 use tempfile::NamedTempFile;
 use tracing::instrument;
@@ -143,14 +144,36 @@ pub async fn export_electoral_log(
     for log in &mut logs {
         log.published = published_of(log, &published)?;
     }
-    Ok((
-        records,
-        ExportManifest {
-            format: EXPORT_FORMAT_V1.to_string(),
-            election_event_id: election_event_id.to_string(),
-            logs,
-        },
-    ))
+    let mut manifest = ExportManifest {
+        format: EXPORT_FORMAT_V2.to_string(),
+        election_event_id: election_event_id.to_string(),
+        board_log_uid: None,
+        logs,
+    };
+    manifest.board_log_uid = Some(main_board_uid(&manifest)?);
+    Ok((records, manifest))
+}
+
+/// The active event board, rather than a sibling election's audit board.
+fn main_board_uid(manifest: &ExportManifest) -> Result<uuid::Uuid> {
+    let event = uuid::Uuid::parse_str(&manifest.election_event_id)?;
+    let mut boards = manifest.logs.iter().filter(|log| {
+        log.state == LogState::Open
+            && event_of_board(&log.checkpoint.log_name)
+                .ok()
+                .and_then(|id| uuid::Uuid::parse_str(&id).ok())
+                == Some(event)
+    });
+    let uid = boards
+        .next()
+        .context("The electoral-log archive has no main event board")?
+        .checkpoint
+        .log_uid;
+    ensure!(
+        boards.next().is_none(),
+        "The electoral-log archive has multiple main event boards"
+    );
+    Ok(uid)
 }
 
 /// What an import stored.
@@ -173,8 +196,47 @@ pub async fn import_electoral_log(
     manifest: &[u8],
     records: impl BufRead + Send,
 ) -> Result<ImportedElectoralLog> {
-    let manifest: ExportManifest =
+    let mut manifest: ExportManifest =
         serde_json::from_slice(manifest).context("The electoral-log manifest is malformed")?;
+    // Older exports enumerated every board but described them as a linear
+    // history. Recognize that multi-board layout by its independent open logs.
+    if manifest.format == EXPORT_FORMAT_V1
+        && manifest
+            .logs
+            .iter()
+            .filter(|log| log.state == LogState::Open)
+            .count()
+            > 1
+    {
+        // Independent election audit boards identify the old broken layout.
+        // An unsealed historical event board must not bypass V1's chain check.
+        ensure!(
+            manifest
+                .logs
+                .iter()
+                .filter(|log| log.state == LogState::Open)
+                .all(|log| {
+                    event_of_board(&log.checkpoint.log_name).ok().as_deref()
+                        == Some(manifest.election_event_id.as_str())
+                        || log
+                            .checkpoint
+                            .log_name
+                            .rsplit_once("election")
+                            .is_some_and(|(_, id)| {
+                                id.len() == 32 && uuid::Uuid::parse_str(id).is_ok()
+                            })
+                }),
+            "Legacy electoral-log archive has unrelated open event boards"
+        );
+        manifest.board_log_uid = Some(main_board_uid(&manifest)?);
+        manifest.format = EXPORT_FORMAT_V2.to_string();
+    }
+    if manifest.format == EXPORT_FORMAT_V2 {
+        ensure!(
+            manifest.board_log_uid == Some(main_board_uid(&manifest)?),
+            "The electoral-log archive names a different main event board"
+        );
+    }
     let previous = manifest
         .board()
         .context("The electoral-log manifest lists no log")?

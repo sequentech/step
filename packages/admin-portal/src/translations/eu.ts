@@ -2339,6 +2339,8 @@ const basqueTranslation: TranslationType = {
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
             serverCustody: {
+                recoveryInstructions:
+                    "Hauteskunde-ekitaldi hau inportatu baduzu edo gordetako fitxategia galdu baduzu, deskargatu hemen egungo zeremoniaren fitxategia. Gorde eta gero igo behean.",
                 fileFormat: "Onartutako formatua: JSON",
                 waiting: "Zure zaindariaren zerbitzariak zaintza-froga sortu arte zain…",
                 unavailable:

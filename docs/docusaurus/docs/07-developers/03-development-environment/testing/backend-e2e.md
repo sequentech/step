@@ -75,8 +75,10 @@ last accepted ballot. A combined-contest voting journey casts one native
 ciphertext covering two contests, checks malformed ciphertext and foreign-domain
 proof rejection before storage, then verifies voter weight batches through the
 native trustees and independently calculated Velvet totals. Native archive
-journeys export a completed election with
-its protocol boards, publications, voters and tally, then recover it through the
+journeys cover configuration-only, publication-only and activity-log-only exports,
+including older selective bundles with unused native keys. They reject missing
+manager keys and tally exports without protocol boards. They also export a
+completed election with its protocol boards, publications, voters and tally, then recover it through the
 CLI and the authenticated encrypted-import API. They check preserved canonical
 protocol messages, remapped board relationships, immutable signed configuration
 domains and the same independently calculated vote totals. Archives also
@@ -86,6 +88,10 @@ without publication metadata recover their styles as generated, unpublished
 publications. Encrypted archives contain manager identities; decrypted server
 files belong to the import request
 and are removed when it finishes, including on decryption failure.
+The manual ceremony journey imports a completed event, rejects the original
+public ceremony file, downloads a file scoped to the copy, and completes a new
+tally over a fresh accepted vote. The server custody browser runner exercises
+that recovery download and upload through the production administration portal.
 Fixtures live in `fixtures.py`; clients use Python's
 standard library. Add assertions against observable responses and persisted
 results, with valid controls for rejection cases.

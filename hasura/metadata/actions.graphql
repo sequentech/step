@@ -1151,6 +1151,7 @@ input ElectionStatsInput {
 input GetCustodyRequestInput {
     election_event_id: String!
     keys_ceremony_id: String!
+    tally_session_id: String
 }
 
 input ConfirmKeyCustodyInput {

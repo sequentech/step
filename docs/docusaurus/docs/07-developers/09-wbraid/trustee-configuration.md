@@ -220,7 +220,53 @@ boards; a validated current file can replace it with fresh work.
 
 The ballot context is the signed configuration's immutable decimal identifier.
 Export/import can remap platform UUIDs and board names while preserving signed
-canonical messages and that cryptographic identifier.
+canonical messages and that cryptographic identifier. The same rule applies to
+archived tally identifiers: `WasmVerifier.tallyIdentifier` verifies the trusted
+signed Ballots statement against its configuration and returns its original
+identifier. A copied platform row's UUID is not a cryptographic trust anchor.
+
+## Election event archives
+
+Configuration-only exports can be imported as new events. Publication-only and
+activity-log-only archives also work without including native manager secrets
+or ceremony state. Older selective archives that inadvertently contain unused
+native manager keys remain importable; those keys are ignored. Activity logs
+use `sequent-electoral-log-export-v2` to name the main event board explicitly
+and preserve independent election audit boards as well as continuation history.
+Import verifies every recorded continuation against the earlier archived log's
+identity and checkpoint. Legacy linear V1 archives retain their existing checks;
+older V1 exports containing several open boards are recognized and recovered.
+
+Select **Bulletin Board** to preserve native DKG configurations, canonical signed
+messages, board relationships and the required manager keys. Select **Tally** as
+well to preserve tally sessions and results; tally data requires the bulletin
+boards. These archives are password encrypted. Import rejects native archives
+that omit the manager-key file or any declared DKG board's manager key.
+
+Import creates a copied election event with new platform IDs. Signed protocol
+messages and their original cryptographic configuration identifier remain
+unchanged. Ballot publications are unpublished and must be published explicitly.
+The copy starts with a fresh ballot box: the archive preserves tally transcripts
+and results, rather than restoring accepted ballots, revote history or voter
+receipts into a running election.
+
+For a copied manual event, start a tally and use **Download Ceremony File** on
+the trustee's tally screen. Save and upload this newly scoped public file. The
+original event's file is rejected because its platform IDs differ. Downloading
+never queues a proof or changes custody approval; uploading creates a fresh
+server proof, followed by the existing human authorization and signing gate.
+The same file can be reused for subsequent tallies in the copy. The existing
+`get_custody_request` action takes an optional `tally_session_id` for this read-only
+download and validates the supplied ceremony against that active tally. Without
+it, the initial key ceremony download retains its existing lifecycle checks.
+
+An event archive does not include native trustee private identities or their
+local runner state. An imported parent board reuses the trustee's original local
+DKG observations by the signed configuration's immutable ID. The runner still
+checks the copied transcript against those observations and rejects rewrites or
+missing local records. Back up each trustee's private configuration and runner data
+separately. Browser trustees retain their existing private-key import/export and
+session backup controls; restoring a browser identity requires its original keys.
 
 ## Browser trustees
 

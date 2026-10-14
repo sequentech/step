@@ -447,3 +447,99 @@ async fn publishing_a_generated_ballot_still_requires_completed_human_custody() 
     }
     tx.rollback().await.unwrap();
 }
+
+#[tokio::test]
+async fn active_tally_download_recovers_current_scope_without_advancing_custody() {
+    let mut db = schema::pool().await.get().await.unwrap();
+    let tx = db.transaction().await.unwrap();
+    let f = Fixture::new(&tx).await;
+    let confirmed = json!([
+        {"name": "alice", "status": "CUSTODY_CONFIRMED"},
+        {"name": "bob", "status": "CUSTODY_CONFIRMED"}
+    ]);
+    tx.execute(
+        "UPDATE sequent_backend.keys_ceremony SET execution_status='SUCCESS', status=jsonb_set(status,'{trustees}',$2) WHERE id=$1",
+        &[&f.keys, &confirmed],
+    )
+    .await
+    .unwrap();
+    let tally = f.tally(&tx).await;
+    let file = trustee_updates::tally_custody_file(
+        &tx,
+        &f.claims,
+        &f.event.to_string(),
+        &f.keys.to_string(),
+        &tally.to_string(),
+    )
+    .await
+    .unwrap();
+    let request: CustodyRequest = serde_json::from_str(&file).unwrap();
+    assert_eq!(request, f.request);
+    assert!(trustee_updates::event_updates(&tx, &f.claims)
+        .await
+        .unwrap()
+        .actions
+        .is_empty());
+    let row = tx
+        .query_one(
+            "SELECT execution_status,status,annotations FROM sequent_backend.keys_ceremony WHERE id=$1",
+            &[&f.keys],
+        )
+        .await
+        .unwrap();
+    assert_eq!(row.get::<_, String>("execution_status"), "SUCCESS");
+    assert_eq!(row.get::<_, Value>("status")["trustees"], confirmed);
+    assert!(row.get::<_, Option<Value>>("annotations").is_none());
+    let row = tx
+        .query_one(
+            "SELECT status FROM sequent_backend.tally_session_execution WHERE tally_session_id=$1",
+            &[&tally],
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        row.get::<_, Value>("status")["trustees"][0]["status"],
+        "WAITING"
+    );
+    assert!(trustee_updates::tally_custody_file(
+        &tx,
+        &f.claims,
+        &f.event.to_string(),
+        &Uuid::new_v4().to_string(),
+        &tally.to_string()
+    )
+    .await
+    .unwrap_err()
+    .to_string()
+    .contains("keys ceremony"));
+    let mut foreign = f.claims.clone();
+    foreign.trustee = Some("unknown".into());
+    assert!(trustee_updates::tally_custody_file(
+        &tx,
+        &foreign,
+        &f.event.to_string(),
+        &f.keys.to_string(),
+        &tally.to_string()
+    )
+    .await
+    .unwrap_err()
+    .to_string()
+    .contains("Trustee not part of the keys ceremony"));
+    tx.execute(
+        "UPDATE sequent_backend.tally_session SET execution_status='CANCELLED' WHERE id=$1",
+        &[&tally],
+    )
+    .await
+    .unwrap();
+    assert!(trustee_updates::tally_custody_file(
+        &tx,
+        &f.claims,
+        &f.event.to_string(),
+        &f.keys.to_string(),
+        &tally.to_string()
+    )
+    .await
+    .unwrap_err()
+    .to_string()
+    .contains("Unexpected status CANCELLED"));
+}

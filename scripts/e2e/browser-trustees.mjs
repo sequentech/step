@@ -27,6 +27,49 @@ const service = ts.transpileModule(
 const browser = await chromium.launch({ headless: true });
 const clients = new Map();
 const failures = [];
+const authentication = new Map();
+const expiresAt = (token) =>
+  JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString()).exp *
+  1000;
+async function renewAuthentication(name) {
+  const auth = authentication.get(name);
+  if (!auth || auth.expiresAt > Date.now() + 60000) return;
+  if (auth.pending) return auth.pending;
+  auth.pending = (async () => {
+    const response = await fetch(auth.endpoint, {
+      method: "POST",
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        client_id: "api-key-client",
+        client_secret: auth.clientSecret,
+        refresh_token: auth.refreshToken,
+      }),
+    });
+    if (!response.ok)
+      throw new Error(`Fixture token renewal failed: HTTP ${response.status}`);
+    const tokens = await response.json();
+    if (!tokens.access_token)
+      throw new Error("Fixture token renewal returned no access token");
+    auth.refreshToken = tokens.refresh_token || auth.refreshToken;
+    auth.expiresAt = expiresAt(tokens.access_token);
+    const client = clients.get(name);
+    if (client && !client.page.isClosed()) {
+      await client.page.evaluate((token) => {
+        window.token = token;
+      }, tokens.access_token);
+    }
+  })();
+  try {
+    await auth.pending;
+  } finally {
+    auth.pending = null;
+  }
+}
+const authenticationTimer = setInterval(() => {
+  for (const name of authentication.keys()) {
+    renewAuthentication(name).catch((error) => failures.push(error.message));
+  }
+}, 15000);
 async function initialize(page, input) {
   await page.waitForFunction(() => Boolean(window.module));
   await page.evaluate(async (input) => {
@@ -52,7 +95,7 @@ async function initialize(page, input) {
         await window.runBrowserCycle(
           window.engine,
           platform,
-          token,
+          window.token,
           (boards) => {
             window.boards = Array.from(
               new Set([
@@ -124,8 +167,16 @@ const server = createServer(async (request, response) => {
       page.on("pageerror", (error) => failures.push(error.message));
       await page.goto("http://localhost:9229/");
       await page.waitForFunction(() => Boolean(window.module));
-      await initialize(page, input);
+      // Confidential synthetic fixture credentials remain in the Node relay.
+      const { auth, ...browserInput } = input;
+      await initialize(page, browserInput);
       clients.set(input.name, { page, context });
+      if (auth)
+        authentication.set(input.name, {
+          ...auth,
+          expiresAt: expiresAt(input.token),
+          pending: null,
+        });
     } else if (path === "/verify") {
       result = await verifyPublicTranscript(
         browser,
@@ -219,6 +270,7 @@ const server = createServer(async (request, response) => {
 });
 server.listen(9229, "0.0.0.0");
 const stop = async () => {
+  clearInterval(authenticationTimer);
   server.close();
   await browser.close();
   process.exit(0);

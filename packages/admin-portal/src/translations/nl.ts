@@ -2348,6 +2348,8 @@ const dutchTranslation: TranslationType = {
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
             serverCustody: {
+                recoveryInstructions:
+                    "Als u deze verkiezing hebt geïmporteerd of het opgeslagen bestand kwijt bent, download dan hier het huidige ceremoniebestand. Sla het op en upload het hieronder.",
                 fileFormat: "Ondersteund formaat: JSON",
                 waiting: "Wachten tot uw trusteeserver een bewijs van sleutelbezit maakt…",
                 unavailable:

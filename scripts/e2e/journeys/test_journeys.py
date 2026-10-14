@@ -10,6 +10,8 @@ not pass. Skipped journeys fail the run; every scenario must pass.
 import base64
 import collections
 import copy
+import csv
+import io
 import hashlib
 import json
 import re
@@ -80,7 +82,9 @@ class BackendJourneys(unittest.TestCase):
     def passed(self, journey):
         self.state.passed.add(journey)
 
-    def verify_public_transcripts(self, event_id, ballot_ciphertexts=None):
+    def verify_public_transcripts(
+        self, event_id, ballot_ciphertexts=None, tally_session_id=None
+    ):
         """An anonymous Chromium observer verifies all real public proofs."""
         controller = ENV.get("STEP_E2E_BROWSER_TRUSTEES_URL") or ENV.get(
             "STEP_E2E_SERVER_CUSTODY_BROWSER_URL"
@@ -90,7 +94,7 @@ class BackendJourneys(unittest.TestCase):
         boards = self.admin.query(
             """query ($event: uuid!) {
               sequent_backend_protocol_board(where: {election_event_id: {_eq: $event}}) {
-                id name parent_id manager_message
+                id name parent_id manager_message tally_session_id
               }
             }""",
             {"event": event_id},
@@ -108,7 +112,6 @@ class BackendJourneys(unittest.TestCase):
         for child in children:
             parent = parents[child["parent_id"]]
             anchors = {
-                "tally_id": str(uuid.UUID(child["id"]).int),
                 "ballot_ciphertexts": [],
             }
             result = Http().request(
@@ -130,8 +133,16 @@ class BackendJourneys(unittest.TestCase):
                 result["report"]["ballot_count"], len(result["report"]["plaintexts"])
             )
             self.assertEqual(result["wrongAnchor"]["status"], "invalid")
+            self.assertEqual(result["wrongTally"]["status"], "invalid")
             self.assertEqual(result["truncated"]["status"], "incomplete")
-            if ballot_ciphertexts and result["report"]["ballot_count"]:
+            if (
+                ballot_ciphertexts
+                and result["report"]["ballot_count"]
+                and (
+                    tally_session_id is None
+                    or child["tally_session_id"] == tally_session_id
+                )
+            ):
                 anchors["ballot_ciphertexts"] = ballot_ciphertexts
                 response = Http().request(
                     "POST",
@@ -663,6 +674,254 @@ class BackendJourneys(unittest.TestCase):
         )["sequent_backend_ballot_style_aggregate"]["aggregate"]["count"]
         self.assertEqual(styles, len(fixtures.AREAS))
 
+    def decrypt_archive(self, encrypted, archive, password):
+        """Read the platform's encrypted ZIP through the independent CLI codec."""
+        decrypted = subprocess.run(
+            [
+                "openssl",
+                "enc",
+                "-aes-256-cbc",
+                "-d",
+                "-in",
+                str(encrypted),
+                "-out",
+                str(archive),
+                "-pass",
+                "stdin",
+                "-md",
+                "md5",
+            ],
+            input=password + "\n",
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        self.assertEqual(decrypted.returncode, 0, decrypted.stderr)
+        self.assertTrue(zipfile.is_zipfile(archive))
+
+    def test_5c_selective_native_exports_import_without_missing_board_keys(self):
+        """Selective archives omit native secrets and reset unbacked key bindings."""
+        self.requires("journey 5")
+        for label, options in [
+            ("configuration", []),
+            ("publications", ["--publications"]),
+            ("activity", ["--activity-logs"]),
+        ]:
+            with self.subTest(export=label):
+                directory = self.cli.directory / ("selective-" + label)
+                directory.mkdir()
+                self.step(
+                    "export-election-event",
+                    "--election-event-id",
+                    self.state.event_id,
+                    *options,
+                    "--output-dir",
+                    str(directory),
+                )
+                archive = directory / "election_event_export.zip"
+                self.assertTrue(archive.is_file())
+                with zipfile.ZipFile(archive) as exported:
+                    for name in exported.namelist():
+                        if name.startswith("export_protocol_manager_keys"):
+                            rows = list(
+                                csv.reader(io.StringIO(exported.read(name).decode()))
+                            )
+                            self.assertFalse(
+                                any(row[0].startswith("protocol:") for row in rows[1:]),
+                                "An archive without protocol boards must not export their private manager keys",
+                            )
+                recovered_id = StepCli.last_id(
+                    self.step(
+                        "import-election", "--file-path", str(archive), "--is-local"
+                    )
+                )
+                if label == "publications":
+                    legacy = directory / "old-selective.zip"
+                    with zipfile.ZipFile(archive) as source, zipfile.ZipFile(
+                        legacy, "w"
+                    ) as target:
+                        for name in source.namelist():
+                            content = source.read(name)
+                            if name.startswith("export_protocol_manager_keys"):
+                                content += (
+                                    b"protocol:dkg_unused,unused-old-native-key\n"
+                                )
+                            target.writestr(name, content)
+                    legacy_id = StepCli.last_id(
+                        self.step(
+                            "import-election", "--file-path", str(legacy), "--is-local"
+                        )
+                    )
+                    self.assertNotEqual(legacy_id, recovered_id)
+
+                if label == "activity":
+                    legacy = directory / "old-multi-board.zip"
+                    with zipfile.ZipFile(archive) as source, zipfile.ZipFile(
+                        legacy, "w"
+                    ) as target:
+                        for name in source.namelist():
+                            content = source.read(name)
+                            if name.startswith("electoral_log_manifest"):
+                                manifest = json.loads(content)
+                                self.assertEqual(
+                                    manifest["format"],
+                                    "sequent-electoral-log-export-v2",
+                                )
+                                self.assertIn(
+                                    manifest["board_log_uid"],
+                                    [
+                                        log["checkpoint"]["log_uid"]
+                                        for log in manifest["logs"]
+                                    ],
+                                )
+                                manifest["format"] = "sequent-electoral-log-export-v1"
+                                manifest.pop("board_log_uid")
+                                content = json.dumps(manifest).encode()
+                            target.writestr(name, content)
+                    self.assertNotEqual(
+                        StepCli.last_id(
+                            self.step(
+                                "import-election",
+                                "--file-path",
+                                str(legacy),
+                                "--is-local",
+                            )
+                        ),
+                        recovered_id,
+                    )
+
+                recovered = self.admin.query(
+                    """query ($event: uuid!) {
+                  sequent_backend_election(where: {election_event_id: {_eq: $event}}) { keys_ceremony_id }
+                  sequent_backend_keys_ceremony(where: {election_event_id: {_eq: $event}}) { id }
+                  sequent_backend_protocol_board(where: {election_event_id: {_eq: $event}}) { id }
+                  sequent_backend_ballot_publication(where: {election_event_id: {_eq: $event}}) { is_generated published_at }
+                }""",
+                    {"event": recovered_id},
+                )
+                self.assertEqual(recovered["sequent_backend_keys_ceremony"], [])
+                self.assertEqual(recovered["sequent_backend_protocol_board"], [])
+                self.assertTrue(
+                    all(
+                        row["keys_ceremony_id"] is None
+                        for row in recovered["sequent_backend_election"]
+                    )
+                )
+                self.assertTrue(
+                    all(
+                        row["published_at"] is None
+                        for row in recovered["sequent_backend_ballot_publication"]
+                    )
+                )
+                if label == "publications":
+                    self.assertTrue(recovered["sequent_backend_ballot_publication"])
+                    self.assertTrue(
+                        all(
+                            not row["is_generated"]
+                            for row in recovered["sequent_backend_ballot_publication"]
+                        )
+                    )
+
+    def test_5d_native_dkg_archive_restores_keys_and_rejects_incomplete_recovery(self):
+        """DKG-only recovery preserves its domain and needs every manager key."""
+        self.requires("journey 5")
+        api = Hasura(token=self.admin_token(), role="election-event-read")
+        with self.assertRaisesRegex(
+            GraphQLError, "Tally export requires bulletin_board"
+        ):
+            api.query(
+                """mutation ($event: String!, $options: ExportOptions!) {
+              export_election_event(election_event_id: $event, export_configurations: $options) { document_id }
+            }""",
+                {"event": self.state.event_id, "options": {"tally": True}},
+            )
+        directory = self.cli.directory / "dkg-recovery"
+        directory.mkdir()
+        output = self.step(
+            "export-election-event",
+            "--election-event-id",
+            self.state.event_id,
+            "--bulletin-board",
+            "--publications",
+            "--output-dir",
+            str(directory),
+        )
+        password = re.search(r"Export password: (\S+)", output)
+        self.assertIsNotNone(password)
+        archive = directory / "recovered.zip"
+        self.decrypt_archive(
+            directory / "election_event_export.ezip", archive, password.group(1)
+        )
+        with zipfile.ZipFile(archive) as exported:
+            members = {name: exported.read(name) for name in exported.namelist()}
+        (keys_name,) = [
+            name for name in members if name.startswith("export_protocol_manager_keys")
+        ]
+        rows = list(csv.reader(io.StringIO(members[keys_name].decode())))
+        self.assertEqual(sum(row[0].startswith("protocol:") for row in rows[1:]), 1)
+        no_native_keys = io.StringIO()
+        csv.writer(no_native_keys).writerows(
+            [row for row in rows if not row[0].startswith("protocol:")]
+        )
+        for label, reason in [
+            ("missing-native-key", "Missing native protocol manager key"),
+            (
+                "missing-key-file",
+                "Native protocol board import requires protocol manager keys",
+            ),
+        ]:
+            damaged = directory / (label + ".zip")
+            with zipfile.ZipFile(damaged, "w") as target:
+                for name, content in members.items():
+                    if name == keys_name:
+                        if label == "missing-key-file":
+                            continue
+                        content = no_native_keys.getvalue().encode()
+                    target.writestr(name, content)
+            since = datetime.now(timezone.utc)
+            with self.assertRaises(StepCliError):
+                self.step("import-election", "--file-path", str(damaged), "--is-local")
+            tasks = self.import_tasks(since)
+            self.assertTrue(
+                any(
+                    task["execution_status"] == "FAILED" and reason in str(task["logs"])
+                    for task in tasks
+                ),
+                tasks,
+            )
+        recovered_id = StepCli.last_id(
+            self.step("import-election", "--file-path", str(archive), "--is-local")
+        )
+        recovered = self.admin.query(
+            """query ($event: uuid!) {
+          sequent_backend_keys_ceremony(where: {election_event_id: {_eq: $event}}) { id execution_status status }
+          sequent_backend_protocol_board(where: {election_event_id: {_eq: $event}}) { parent_id keys_ceremony_id }
+          sequent_backend_ballot_style(where: {election_event_id: {_eq: $event}}) { ballot_eml }
+          sequent_backend_ballot_publication(where: {election_event_id: {_eq: $event}}) { is_generated published_at }
+        }""",
+            {"event": recovered_id},
+        )
+        (ceremony,) = recovered["sequent_backend_keys_ceremony"]
+        self.assertNotEqual(ceremony["id"], self.state.keys_ceremony_id)
+        self.assertEqual(ceremony["execution_status"], "SUCCESS")
+        self.assertEqual(ceremony["status"]["public_key"], self.state.public_key)
+        self.assertEqual(
+            recovered["sequent_backend_protocol_board"],
+            [{"parent_id": None, "keys_ceremony_id": ceremony["id"]}],
+        )
+        self.assertTrue(
+            all(
+                row["is_generated"] and row["published_at"] is None
+                for row in recovered["sequent_backend_ballot_publication"]
+            )
+        )
+        for style in recovered["sequent_backend_ballot_style"]:
+            key = json.loads(style["ballot_eml"])["public_key"]
+            self.assertEqual(key["keys_ceremony_id"], ceremony["id"])
+            self.assertEqual(
+                key["configuration_id"], str(uuid.UUID(self.state.keys_ceremony_id).int)
+            )
+
     def test_6_online_voting_rules(self):
         """Voters vote and revote while voting is open; the revote limit, an area change and closing are refused."""
         self.requires("journey 5")
@@ -952,6 +1211,7 @@ class BackendJourneys(unittest.TestCase):
             "--election-event-id",
             self.state.event_id,
             "--bulletin-board",
+            "--activity-logs",
             "--publications",
             "--tally",
             "--include-voters",
@@ -969,28 +1229,7 @@ class BackendJourneys(unittest.TestCase):
             zipfile.is_zipfile(encrypted), "native manager keys must be encrypted"
         )
         archive = archive_dir / "recovered.zip"
-        decrypted = subprocess.run(
-            [
-                "openssl",
-                "enc",
-                "-aes-256-cbc",
-                "-d",
-                "-in",
-                str(encrypted),
-                "-out",
-                str(archive),
-                "-pass",
-                "stdin",
-                "-md",
-                "md5",
-            ],
-            input=password.group(1) + "\n",
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-        self.assertEqual(decrypted.returncode, 0, decrypted.stderr)
-        self.assertTrue(zipfile.is_zipfile(archive))
+        self.decrypt_archive(encrypted, archive, password.group(1))
         recovered_id = StepCli.last_id(
             self.step("import-election", "--file-path", str(archive), "--is-local")
         )
@@ -1410,20 +1649,25 @@ class BackendJourneys(unittest.TestCase):
 
         if browser_url:
             for name in bootstrap.TRUSTEES:
-                token = self.keycloak.password_grant(
+                tokens = self.keycloak.password_grant(
                     TENANT_REALM,
                     "api-key-client",
                     name,
                     ENV[f"{name.upper()}_PASSWORD"],
                     ENV["API_KEY_CLIENT_SECRET"],
-                )["access_token"]
+                )
                 browser_call(
                     "/start",
                     name=name,
                     keys=(ROOT / f"packages/trustee/dev/{name}.toml").read_text(),
                     boardUrl=B4_URL,
                     platform=ENV["HASURA_ENDPOINT"],
-                    token=token,
+                    token=tokens["access_token"],
+                    auth={
+                        "endpoint": f"{ENV['KEYCLOAK_URL'].rstrip('/')}/realms/{TENANT_REALM}/protocol/openid-connect/token",
+                        "clientSecret": ENV["API_KEY_CLIENT_SECRET"],
+                        "refreshToken": tokens["refresh_token"],
+                    },
                 )
 
         ready = wait_until(
@@ -1776,6 +2020,11 @@ class BackendJourneys(unittest.TestCase):
                 "query ($id: uuid!) { sequent_backend_tally_session(where: {id: {_eq: $id}}) { execution_status } }",
                 {"id": tally_id},
             )["sequent_backend_tally_session"]
+            if row["execution_status"] in ("FAILED", "CANCELLED"):
+                row["executions"] = self.admin.query(
+                    "query($tally: uuid!) { sequent_backend_tally_session_execution(where: {tally_session_id: {_eq: $tally}}, order_by: {created_at: desc}, limit: 1) { status } }",
+                    {"tally": tally_id},
+                )["sequent_backend_tally_session_execution"]
             self.assertNotIn(row["execution_status"], ("FAILED", "CANCELLED"), row)
             return row["execution_status"] == "SUCCESS"
 
@@ -1819,6 +2068,163 @@ class BackendJourneys(unittest.TestCase):
             self.assertEqual(sorted(health["clients"]), sorted(bootstrap.TRUSTEES))
         cast_content = json.loads(ballot["content"])
         self.verify_public_transcripts(event_id, cast_content["contests"])
+        # Import creates a fresh event scope while preserving the signed DKG domain.
+        # The original public file cannot authorize custody in that copied event.
+        archive_dir = self.cli.directory / "manual-recovery"
+        archive_dir.mkdir()
+        output = self.step(
+            "export-election-event",
+            "--election-event-id",
+            event_id,
+            "--bulletin-board",
+            "--publications",
+            "--tally",
+            "--output-dir",
+            str(archive_dir),
+        )
+        password = re.search(r"Export password: (\S+)", output)
+        self.assertIsNotNone(password)
+        archive = archive_dir / "recovered.zip"
+        self.decrypt_archive(
+            archive_dir / "election_event_export.ezip", archive, password.group(1)
+        )
+        original_event, original_ceremony = event_id, ceremony_id
+        event_id = StepCli.last_id(
+            self.step("import-election", "--file-path", str(archive), "--is-local")
+        )
+        (restored,) = self.admin.query(
+            "query($event: uuid!) { sequent_backend_keys_ceremony(where: {election_event_id: {_eq: $event}}) { id execution_status status } }",
+            {"event": event_id},
+        )["sequent_backend_keys_ceremony"]
+        ceremony_id = restored["id"]
+        self.assertNotEqual(event_id, original_event)
+        self.assertNotEqual(ceremony_id, original_ceremony)
+        self.assertEqual(restored["execution_status"], "SUCCESS")
+        self.assertEqual(restored["status"]["public_key"], joint_key)
+        # The copy has a fresh ballot box. Import a fresh census rather than
+        # implicitly opting into export of private voter login attributes.
+        self.step(
+            "import-voters",
+            "--election-event-id",
+            event_id,
+            "--file-path",
+            str(path),
+            "--is-local",
+        )
+        self.step("publish", "--election-event-id", event_id)
+        self.step(
+            "update-event-voting-status",
+            "--election-event-id",
+            event_id,
+            "--voting-status",
+            "OPEN",
+            "--voting-channel",
+            "ONLINE",
+        )
+        portal = Portal(event_id, self.cli)
+        token = portal.login(voters[0].username)
+        (file,) = portal.status(token)["get_ballot_files_urls"]["files"]
+        style, _ = portal.ballot_style(file)
+        self.assertEqual(
+            style["public_key"]["configuration_id"],
+            str(uuid.UUID(original_ceremony).int),
+        )
+        ballot = portal.encrypt(style, "Alice")
+        self.assertIsNone(portal.cast(token, ballot)[1])
+        self.step(
+            "update-event-voting-status",
+            "--election-event-id",
+            event_id,
+            "--voting-status",
+            "CLOSED",
+            "--voting-channel",
+            "ONLINE",
+        )
+        tally_id = StepCli.last_id(
+            self.step(
+                "start-tally",
+                "--election-event-id",
+                event_id,
+                "--tally-type",
+                "ELECTORAL_RESULTS",
+            )
+        )
+        download_query = """mutation($event: String!, $keys: String!, $tally: String!) {
+          get_custody_request(object: {election_event_id: $event, keys_ceremony_id: $keys,
+                                      tally_session_id: $tally}) { custody_request_json }
+        }"""
+        for name in bootstrap.TRUSTEES:
+            with self.assertRaisesRegex(GraphQLError, "does not match this trustee"):
+                apis[name].query(
+                    request_query,
+                    {
+                        "input": {
+                            "election_event_id": event_id,
+                            "tally_session_id": tally_id,
+                            "custody_request_json": requests[name],
+                        }
+                    },
+                )
+            fresh = apis[name].query(
+                download_query,
+                {"event": event_id, "keys": ceremony_id, "tally": tally_id},
+            )["get_custody_request"]["custody_request_json"]
+            scope = json.loads(fresh)
+            self.assertEqual(scope["election_event_id"], event_id)
+            self.assertEqual(scope["keys_ceremony_id"], ceremony_id)
+            self.assertIsNone(scope["tally_session_id"])
+            if server_browser_url:
+                result = server_browser_call("/recover-tally-custody", name, tally_id)
+                self.assertEqual(result["file"], fresh)
+            else:
+                requests[name] = fresh
+                scope["tally_session_id"] = tally_id
+                proof = attest(name, json.dumps(scope))
+                self.assertTrue(
+                    apis[name].query(
+                        """mutation($event: String!, $tally: String!, $proof: String!) {
+                      authorize_tally_custody(object: {election_event_id: $event,
+                        tally_session_id: $tally, custody_proof_json: $proof}) { is_valid }
+                    }""",
+                        {"event": event_id, "tally": tally_id, "proof": proof},
+                    )["authorize_tally_custody"]["is_valid"]
+                )
+        self.step(
+            "update-tally",
+            "--election-event-id",
+            event_id,
+            "--tally-id",
+            tally_id,
+            "--status",
+            "IN_PROGRESS",
+        )
+        wait_until("imported manual event tally", tallied, timeout=900)
+        (execution,) = self.admin.query(
+            "query($tally: uuid!) { sequent_backend_tally_session_execution(where: {tally_session_id: {_eq: $tally}, results_event_id: {_is_null: false}}, order_by: {created_at: desc}, limit: 1) { results_event_id } }",
+            {"tally": tally_id},
+        )["sequent_backend_tally_session_execution"]
+        totals = self.admin.query(
+            "query($results: uuid!) { sequent_backend_results_contest(where: {results_event_id: {_eq: $results}}) { total_votes total_valid_votes } }",
+            {"results": execution["results_event_id"]},
+        )["sequent_backend_results_contest"]
+        self.assertIn({"total_votes": 1, "total_valid_votes": 1}, totals)
+        alice = next(
+            c["id"]
+            for c in style["contests"][0]["candidates"]
+            if candidate_name(c) == "Alice"
+        )
+        counts = self.admin.query(
+            "query($results: uuid!, $candidate: uuid!) { sequent_backend_results_contest_candidate(where: {results_event_id: {_eq: $results}, candidate_id: {_eq: $candidate}}) { cast_votes } }",
+            {"results": execution["results_event_id"], "candidate": alice},
+        )
+        self.assertEqual(
+            counts["sequent_backend_results_contest_candidate"], [{"cast_votes": 1}]
+        )
+        self.verify_public_transcripts(
+            event_id,
+            json.loads(ballot["content"])["contests"],
+            tally_session_id=tally_id,
+        )
         self.passed("manual ceremony")
 
     def test_c_trustee_graphql_board_api(self):

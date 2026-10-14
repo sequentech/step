@@ -218,6 +218,31 @@ pub struct WasmVerifier;
 #[cfg(feature = "browser")]
 #[wasm_bindgen::prelude::wasm_bindgen]
 impl WasmVerifier {
+    /// Read the immutable tally identifier from independently obtained, signed
+    /// platform input. Imported platform rows may have different UUIDs.
+    #[wasm_bindgen::prelude::wasm_bindgen(js_name = tallyIdentifier)]
+    pub fn tally_identifier(
+        configuration: &str,
+        ballots: &str,
+    ) -> std::result::Result<String, wasm_bindgen::JsValue> {
+        let run = || -> Result<String> {
+            let configuration = crate::SignedConfiguration::parse(
+                &STANDARD.decode(configuration)?,
+            )?;
+            let ballots = crate::SignedBallots::parse(
+                &STANDARD.decode(ballots)?,
+                &configuration,
+            )?;
+            let wbraid::messages::predicate::Predicate::Ballots(input) =
+                ballots.predicate()
+            else {
+                anyhow::bail!("expected a Ballots statement");
+            };
+            Ok(input.tally_id.to_string())
+        };
+        run().map_err(|e| wasm_bindgen::JsValue::from_str(&e.to_string()))
+    }
+
     /// Derive a pin from a configuration message obtained independently from
     /// a trusted election record, rather than from the board being audited.
     #[wasm_bindgen::prelude::wasm_bindgen(js_name = configurationHash)]

@@ -26,11 +26,13 @@ use crate::{
     BoardName, Ctx, ProtocolBoardKind, TrusteeBoard, TrusteeReport,
     TrusteeReportKind, TrusteeSecrets,
 };
-use anyhow::{anyhow, bail, Context as _, Result};
+use anyhow::{anyhow, bail, ensure, Context as _, Result};
 use tracing::{error, info, warn};
+use uuid::Uuid;
 use wbraid::board::persistence::Persistence;
 use wbraid::board::transport::Transport;
 use wbraid::board::BoardClient;
+use wbraid::messages::newtypes::ConfigurationHash;
 use wbraid::messages::predicate::Predicate;
 #[cfg(feature = "native")]
 use wbraid::native::http_transport::HttpTransport;
@@ -362,9 +364,41 @@ impl<A: BoardAccess> SessionSet<A> {
     /// trustee has no record of that key generation, and the board is then
     /// never taken on trust.
     async fn seed(&self, parent: &BoardName) -> Result<Vec<Predicate>> {
-        let seed = self.access.store(parent).await?.load().await.with_context(
-            || format!("reading the session store of board {parent}"),
-        )?;
+        let mut seed =
+            self.access.store(parent).await?.load().await.with_context(
+                || format!("reading the session store of board {parent}"),
+            )?;
+        if seed.is_empty() {
+            // Import remaps the platform board name while retaining the signed
+            // configuration's immutable ID. Reuse only this trustee's own
+            // observations of that original DKG; connect_union still checks
+            // every parent commitment against them before the tally runs.
+            let message = OutageTagged::new(self.access.transport(parent))
+                .fetch_configuration()
+                .await
+                .with_context(|| {
+                    format!(
+                        "reading the configuration of parent board {parent}"
+                    )
+                })?;
+            let configuration = message
+                .verify_configuration()
+                .context("verifying the parent board's configuration")?;
+            let original =
+                BoardName::for_dkg(&Uuid::from_u128(configuration.id));
+            if original != *parent {
+                seed = self.access.store(&original).await?.load().await
+                    .with_context(|| format!("reading the original session store of board {original}"))?;
+                let expected =
+                    ConfigurationHash::from_configuration(&configuration)?;
+                ensure!(
+                    seed.iter()
+                        .all(|predicate| predicate.get_configuration()
+                            == expected),
+                    "the original DKG record names a different configuration"
+                );
+            }
+        }
         if seed.is_empty() {
             bail!(
                 "the session store of parent board {parent} is empty: this \

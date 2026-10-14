@@ -138,6 +138,9 @@ const meta = {
         )
         graphql = graphqlBoundary(
             {
+                GetCustodyRequest: () => ({
+                    data: {get_custody_request: {custody_request_json: CUSTODY_REQUEST}},
+                }),
                 RequestServerCustody: () => ({
                     data: {request_server_custody: {status: "READY", custody_proof_json: KEY}},
                 }),
@@ -201,6 +204,30 @@ export const Populated: Story = {
         await expect(nextButton(canvasElement)).toBeDisabled()
         expect(data.writes).toEqual([])
         expect(graphql.calls).toEqual([])
+    },
+}
+
+export const DownloadRecoveryFileLeavesCustodyPending: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const download = await canvas.findByRole("button", {
+            name: i18n.t("keysGeneration.downloadStep.downloadButton"),
+        })
+        await waitFor(() => expect(download).toBeEnabled())
+        await userEvent.click(download)
+        await waitFor(() => expect(graphql.calls).toHaveLength(1))
+        expect(graphql.calls.map(({name, variables}) => ({name, variables}))).toEqual([
+            {
+                name: "GetCustodyRequest",
+                variables: {
+                    electionEventId: EVENT_ID,
+                    keysCeremonyId: STORY_IDS.keysCeremony,
+                    tallySessionId: STORY_IDS.tallySession,
+                },
+            },
+        ])
+        await expect(nextButton(canvasElement)).toBeDisabled()
+        expect(data.writes).toEqual([])
     },
 }
 

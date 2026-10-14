@@ -1992,6 +1992,18 @@ pub async fn process_document(
         ))
     });
 
+    if !is_importing_keys {
+        let schema: ImportElectionEventSchema = deserialize_str(&file_election_event_schema)?;
+        ensure!(
+            schema
+                .protocol_boards
+                .as_deref()
+                .unwrap_or_default()
+                .is_empty(),
+            "Native protocol board import requires protocol manager keys"
+        );
+    }
+
     let election_event_id_clone = election_event_id.clone();
 
     let file_election_event_schema =
@@ -2253,9 +2265,15 @@ pub async fn process_document(
                     &election_event_schema.election_event.id,
                     temp_file,
                     replacement_map.clone(),
+                    election_event_schema
+                        .protocol_boards
+                        .as_deref()
+                        .unwrap_or_default(),
                 )
                 .await
-                .context("Failed to import protocol manager keys")?;
+                // Keep the actionable cause when the import task records a
+                // string error instead of the original anyhow chain.
+                .map_err(|error| anyhow!("Failed to import protocol manager keys: {error:#}"))?;
             }
 
             if file_name.contains(&format!("{}/", EDocuments::TALLY.to_file_name())) {

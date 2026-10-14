@@ -2361,6 +2361,8 @@ const catalanTranslation: TranslationType = {
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
             serverCustody: {
+                recoveryInstructions:
+                    "Si heu importat aquest esdeveniment electoral o heu perdut el fitxer desat, descarregueu aquí el fitxer actual de la cerimònia. Deseu-lo i després carregueu-lo a continuació.",
                 fileFormat: "Format admès: JSON",
                 waiting: "Esperant que el teu servidor custodi creï una prova de custòdia…",
                 unavailable:

@@ -216,6 +216,25 @@ async fn scope(
     ))
 }
 
+/// Download public ceremony scope for a trustee recovering an imported event.
+pub async fn tally_custody_file(
+    tx: &Transaction<'_>,
+    claims: &JwtClaims,
+    event: &str,
+    keys: &str,
+    tally: &str,
+) -> Result<String> {
+    let (mut request, _) = scope(tx, claims, event, Target::Tally(tally)).await?;
+    ensure!(
+        request.keys_ceremony_id == keys,
+        "The tally uses a different keys ceremony"
+    );
+    // The saved public file can be reused at later tallies in this event.
+    // Proof requests still bind a fresh tally ID and require human approval.
+    request.tally_session_id = None;
+    Ok(serde_json::to_string_pretty(&request)?)
+}
+
 async fn lock(tx: &Transaction<'_>, tenant: &str, event: &str, target: Target<'_>) -> Result<()> {
     let row = tx.query_opt(&format!("SELECT id FROM sequent_backend.{} WHERE tenant_id=$1 AND election_event_id=$2 AND id=$3 FOR UPDATE", target.table()),
         &[&Uuid::parse_str(tenant)?, &Uuid::parse_str(event)?, &Uuid::parse_str(target.id())?]).await?;
