@@ -2,26 +2,26 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Phone blacklist entries on the migrated test database: each change is
-//! committed only with its electoral-log entry.
+//! committed with its entry for the election event's log, queued in the
+//! same transaction.
 
-use crate::adapters::memory::electoral_log::{
-    LoggedEntry, MemoryElectoralLogs,
-};
-use crate::ports::electoral_log::PhoneBlacklistChange;
 use crate::route_services::rows::{self, Event};
 use crate::route_services::{json, post, text, Services};
 use crate::test_claims::Claims;
 use rocket::http::Status;
 use rocket::local::asynchronous::{Client, LocalResponse};
 use sequent_core::types::permissions::Permissions;
-use serde_json::json;
+use serde_json::{json, Value};
 
 // Entries record their creator as a version 4 UUID.
 const USER_ID: &str = "3f2b8c1e-6d4a-4c1b-9e7f-2a5d8b0c9e1a";
+const USERNAME: &str = "ada.admin";
 const PHONE: &str = "+34600000001";
 
 fn admin(event: &Event, permission: Permissions) -> Claims {
-    Claims::new(&event.tenant_id, USER_ID).roles([permission])
+    Claims::new(&event.tenant_id, USER_ID)
+        .username(USERNAME)
+        .roles([permission])
 }
 
 async fn create<'c>(client: &'c Client, event: &Event) -> LocalResponse<'c> {
@@ -65,13 +65,59 @@ async fn stored_numbers(services: &Services, event: &Event) -> Vec<String> {
     .collect()
 }
 
-fn logged(event: &Event, change: PhoneBlacklistChange) -> LoggedEntry {
-    LoggedEntry::PhoneBlacklistEntry {
-        change,
-        election_event_id: event.election_event_id.clone(),
-        admin_id: USER_ID.into(),
-        phone_e164: PHONE.into(),
-    }
+/// The entries queued for the event's log: (description, details).
+async fn logged(services: &Services, event: &Event) -> Vec<(String, Value)> {
+    rows::query(
+        &services.hasura,
+        "SELECT description, details FROM sequent_backend.audit_log_outbox
+         WHERE tenant_id = $1::text::uuid AND election_event_id = $2::text::uuid
+             AND statement_kind = 'AdminChange' AND user_id = $3
+         ORDER BY seq",
+        &[&event.tenant_id, &event.election_event_id, &USER_ID],
+    )
+    .await
+    .iter()
+    .map(|row| (row.get(0), row.get(1)))
+    .collect()
+}
+
+/// An entry's details for the blacklist entry `id`.
+fn details(id: &str, action: &str, changes: Value) -> Value {
+    json!({
+        "object": {"type": "phone_blacklist", "id": id, "name": PHONE},
+        "action": action,
+        "actor": {"user_id": USER_ID, "username": USERNAME, "role": "user"},
+        "origin": "harvest",
+        "changes": changes,
+    })
+}
+
+fn created(id: &str) -> (String, Value) {
+    (
+        format!("Created phone blacklist \"{PHONE}\""),
+        details(
+            id,
+            "create",
+            json!([
+                {"path": "phone_e164", "new": PHONE},
+                {"path": "reason", "new": "reported abuse"},
+            ]),
+        ),
+    )
+}
+
+fn deleted(id: &str) -> (String, Value) {
+    (
+        format!("Deleted phone blacklist \"{PHONE}\""),
+        details(
+            id,
+            "delete",
+            json!([
+                {"path": "phone_e164", "old": PHONE},
+                {"path": "reason", "old": "reported abuse"},
+            ]),
+        ),
+    )
 }
 
 #[rocket::async_test]
@@ -87,8 +133,8 @@ async fn a_blacklisted_number_is_stored_with_its_electoral_log_entry() {
     assert_eq!(entry["created_by"], USER_ID);
     assert_eq!(stored_numbers(&services, &event).await, vec![PHONE]);
     assert_eq!(
-        services.electoral_log.entries(),
-        vec![logged(&event, PhoneBlacklistChange::Created)]
+        logged(&services, &event).await,
+        vec![created(entry["id"].as_str().unwrap())]
     );
 }
 
@@ -105,7 +151,7 @@ async fn a_number_already_blacklisted_is_refused() {
         message.starts_with("Failed to insert the entry: "),
         "{message}"
     );
-    assert_eq!(services.electoral_log.entries().len(), 1);
+    assert_eq!(logged(&services, &event).await.len(), 1);
 }
 
 #[rocket::async_test]
@@ -122,11 +168,8 @@ async fn deleting_an_entry_logs_the_number_it_removes() {
     );
     assert!(stored_numbers(&services, &event).await.is_empty());
     assert_eq!(
-        services.electoral_log.entries(),
-        vec![
-            logged(&event, PhoneBlacklistChange::Created),
-            logged(&event, PhoneBlacklistChange::Deleted)
-        ]
+        logged(&services, &event).await,
+        vec![created(id), deleted(id)]
     );
 }
 
@@ -144,50 +187,29 @@ async fn deleting_an_unknown_entry_fails() {
         message.starts_with("Failed to delete the entry: "),
         "{message}"
     );
-    assert!(services.electoral_log.entries().is_empty());
+    assert!(logged(&services, &event).await.is_empty());
 }
 
+/// The entry is queued by the change's own transaction: nothing reaches the
+/// bulletin board before the commit, so an unreachable board refuses no
+/// change.
 #[rocket::async_test]
-async fn changes_whose_electoral_log_entry_fails_are_rolled_back() {
-    let services = Services::on_test_database()
-        .await
-        .with_electoral_log(MemoryElectoralLogs::refusing());
+async fn changes_do_not_wait_for_the_bulletin_board() {
+    let services = Services::on_test_database().await;
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
 
-    let (status, message) = text(create(&client, &event).await).await;
-    assert_eq!(status, Status::InternalServerError);
-    assert!(
-        message.starts_with("Failed to post the electoral log message"),
-        "{message}"
-    );
-    assert!(stored_numbers(&services, &event).await.is_empty());
-
-    // An entry committed before the log failed stays when its deletion
-    // cannot be logged.
-    let id = uuid::Uuid::new_v4();
-    rows::execute(
+    let (status, entry) = json(create(&client, &event).await).await;
+    assert_eq!(status, Status::Ok, "{entry}");
+    let unposted = rows::query(
         &services.hasura,
-        "INSERT INTO sequent_backend.phone_blacklist
-            (id, tenant_id, election_event_id, phone_e164, created_by)
-         VALUES ($1, $2, $3, $4, $5)",
-        &[
-            &id,
-            &uuid::Uuid::parse_str(&event.tenant_id).unwrap(),
-            &uuid::Uuid::parse_str(&event.election_event_id).unwrap(),
-            &PHONE,
-            &uuid::Uuid::parse_str(USER_ID).unwrap(),
-        ],
+        "SELECT count(*) FROM sequent_backend.audit_log_outbox
+         WHERE election_event_id = $1::text::uuid AND posted_at IS NULL",
+        &[&event.election_event_id],
     )
     .await;
-    let (status, message) =
-        text(delete(&client, &event, &id.to_string()).await).await;
-    assert_eq!(status, Status::InternalServerError);
-    assert!(
-        message.starts_with("Failed to post the electoral log message"),
-        "{message}"
-    );
-    assert_eq!(stored_numbers(&services, &event).await, vec![PHONE]);
+    assert_eq!(unposted[0].get::<_, i64>(0), 1);
+    assert!(services.electoral_log.entries().is_empty());
 }
 
 #[rocket::async_test]

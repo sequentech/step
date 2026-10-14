@@ -165,7 +165,7 @@ pub struct RealmMigration {
     pub granted: Vec<GroupGrant>,
 }
 
-async fn admin_get<T: serde::de::DeserializeOwned>(
+pub(crate) async fn admin_get<T: serde::de::DeserializeOwned>(
     client: &PubKeycloakAdmin,
     path: &str,
     query: &[(&str, &str)],
@@ -185,7 +185,7 @@ async fn admin_get<T: serde::de::DeserializeOwned>(
 }
 
 /// The top-level group named `name`, if the realm has one.
-async fn top_level_group(
+pub(crate) async fn top_level_group(
     client: &PubKeycloakAdmin,
     realm: &str,
     name: &str,

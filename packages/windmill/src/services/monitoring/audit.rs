@@ -127,7 +127,6 @@ async fn prepare_signing_key(client: &mut Client, event: EventRef, author: &Auth
     let board = board(&transaction, event).await?;
     vault::get_admin_user_signing_key(
         &transaction,
-        &board,
         &event.tenant_id.to_string(),
         &author.id,
         author.name.clone(),

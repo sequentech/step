@@ -2,14 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::election_event::delete_election_event as delete_election_event_postgres;
+use crate::services::audit_log::AuditActor;
 use crate::services::ballot_box_seal::refuse_sealed_event_delete;
 use crate::services::tasks_execution::{update_complete, update_fail};
+use crate::tasks::audit_log_outbox::kick_audit_log_outbox;
 use crate::{
     services::{
         delete_election_event::{
-            archive_protocol_boards, delete_election_event_electoral_log,
-            delete_election_event_related_documents, delete_keycloak_realm,
-            find_election_event_deletion_refusal,
+            archive_protocol_boards, delete_election_event_related_documents,
+            delete_keycloak_realm, find_election_event_deletion_refusal,
+            retire_election_event_electoral_log, stage_election_event_deletion,
         },
         providers::transactions_provider::provide_hasura_transaction,
     },
@@ -27,10 +29,9 @@ async fn delete_election_event_related_data(
     election_event_id: &str,
     realm: &str,
 ) -> AnyhowResult<()> {
-    let audit_future = delete_election_event_electoral_log(tenant_id, election_event_id);
     let documents_future = delete_election_event_related_documents(tenant_id, election_event_id);
     let keycloak_future = delete_keycloak_realm(realm);
-    try_join!(audit_future, documents_future, keycloak_future)?;
+    try_join!(documents_future, keycloak_future)?;
 
     Ok(())
 }
@@ -41,9 +42,13 @@ async fn delete_election_event(
     election_event_id: String,
     realm: String,
     permission_labels: Vec<String>,
+    deleted_by: Option<AuditActor>,
+    task_id: String,
 ) -> AnyhowResult<()> {
     let tenant_id_cloned = tenant_id.clone();
     let election_event_id_cloned = election_event_id.clone();
+    // Names the retired log database, in the tenant log's entry and on the server.
+    let retired_at = electoral_log::timestamp();
     provide_hasura_transaction(|hasura_transaction| {
         Box::pin(async move {
             if let Some(refusal) = find_election_event_deletion_refusal(
@@ -57,6 +62,17 @@ async fn delete_election_event(
                 return Err(refusal.into());
             }
 
+            // The tenant log's entry is queued before anything is removed.
+            stage_election_event_deletion(
+                hasura_transaction,
+                &tenant_id_cloned,
+                &election_event_id_cloned,
+                deleted_by.as_ref(),
+                Some(&task_id),
+                retired_at,
+            )
+            .await?;
+
             delete_election_event_in(
                 hasura_transaction,
                 &tenant_id_cloned,
@@ -68,12 +84,13 @@ async fn delete_election_event(
     })
     .await?;
 
-    // Dropping a database can't be rolled back, so it runs once the event's deletion
-    // is committed. Dropping is idempotent: a failed drop can be run again with
-    // `electoral-log-admin drop-event-database`.
-    delete_election_event_electoral_log(&tenant_id, &election_event_id)
+    kick_audit_log_outbox();
+    // Retiring a database can't be rolled back, so it runs once the event's deletion
+    // is committed. The database is kept, closed to connections, until it is erased
+    // under the retention policy.
+    retire_election_event_electoral_log(&tenant_id, &election_event_id, retired_at)
         .await
-        .map_err(|err| anyhow!("Error dropping the election event's electoral-log database: {err}"))
+        .map_err(|err| anyhow!("Error retiring the election event's electoral-log database: {err}"))
 }
 
 /// Deletes the election event in `hasura_transaction`, with its boards and
@@ -115,8 +132,17 @@ pub async fn delete_election_event_t(
     realm: String,
     task_execution: TasksExecution,
     permission_labels: Vec<String>,
+    deleted_by: Option<AuditActor>,
 ) -> Result<()> {
-    let res = delete_election_event(tenant_id, election_event_id, realm, permission_labels).await;
+    let res = delete_election_event(
+        tenant_id,
+        election_event_id,
+        realm,
+        permission_labels,
+        deleted_by,
+        task_execution.id.clone(),
+    )
+    .await;
 
     let _ = match res {
         Ok(_) => {

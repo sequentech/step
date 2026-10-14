@@ -725,32 +725,42 @@ fn every_realm_template_only_holds_ordinary_roles() {
     }
 }
 
-/// The tenant's log has its own permission, apart from an election event's
-/// logs. Administrators hold it, and both realms send their events to the
-/// log: without the listener, sign-ins to the Admin Portal are not recorded.
+/// The tenant's log has its own permissions, apart from an election event's
+/// logs: only administrators read and export it. Every realm sends its
+/// events, admin events included, to the listener that feeds that log;
+/// without it, sign-ins to the Admin Portal are not recorded.
 #[test]
-fn every_realm_lets_its_administrators_read_the_tenant_log() {
-    assert_eq!(
-        Permissions::from_str("tenant-logs-read"),
-        Ok(Permissions::TENANT_LOGS_READ)
+fn every_realm_grants_the_tenant_log_to_its_administrators_and_feeds_it() {
+    assert_ne!(
+        Permissions::TENANT_LOGS_READ.to_string(),
+        Permissions::LOGS_READ.to_string()
     );
-    let permission = Permissions::TENANT_LOGS_READ.to_string();
-    assert_ne!(permission, Permissions::LOGS_READ.to_string());
+    for (permission, role) in [
+        (Permissions::TENANT_LOGS_READ, "tenant-logs-read"),
+        (Permissions::TENANT_LOGS_EXPORT, "tenant-logs-export"),
+    ] {
+        assert_eq!(permission.to_string(), role);
+        assert_eq!(Permissions::from_str(role), Ok(permission));
+        for (name, text) in REALMS {
+            let realm: Value = serde_json::from_str(text)
+                .unwrap_or_else(|why| panic!("{name}: {why}"));
+            let defined = realm["roles"]["realm"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter(|defined| defined["name"] == role)
+                .count();
+            assert_eq!(defined, 1, "{name}: {role} role");
+            assert_eq!(
+                groups_granting(&realm, role),
+                BTreeSet::from(["admin".to_string()]),
+                "{name}: {role}"
+            );
+        }
+    }
     for (name, text) in REALMS {
         let realm: Value = serde_json::from_str(text)
             .unwrap_or_else(|why| panic!("{name}: {why}"));
-        let defined = realm["roles"]["realm"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .filter(|role| role["name"] == permission.as_str())
-            .count();
-        assert_eq!(defined, 1, "{name}: {permission} role");
-        assert_eq!(
-            groups_granting(&realm, &permission),
-            BTreeSet::from(["admin".to_string()]),
-            "{name}: {permission}"
-        );
         let listeners: Vec<&str> = realm["eventsListeners"]
             .as_array()
             .into_iter()
@@ -761,5 +771,7 @@ fn every_realm_lets_its_administrators_read_the_tenant_log() {
             listeners.contains(&"custom-event-listener"),
             "{name}: {listeners:?}"
         );
+        assert_eq!(realm["adminEventsEnabled"], true, "{name}");
+        assert_eq!(realm["adminEventsDetailsEnabled"], true, "{name}");
     }
 }

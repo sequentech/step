@@ -7,6 +7,7 @@ use crate::adapters::memory::user_tasks::{InMemoryUserTasks, UserTaskCall};
 use crate::test_claims::Claims;
 use sequent_core::types::permissions::Permissions::*;
 use serde_json::json;
+use windmill::services::audit_log::AuditActor;
 use windmill::services::import::import_users::{
     GroupAssignmentPolicy, ImportUsersPrivileges, PermissionLabelPolicy,
 };
@@ -28,6 +29,7 @@ fn import_input(event_id: Option<&str>) -> ImportUsersBody {
         secret_write_initiator: None,
         privileges: ImportUsersPrivileges::default(),
         sha256: Some("source-sha256".into()),
+        audit_actor: None,
     }
 }
 
@@ -127,7 +129,8 @@ async fn tenant_imports_store_an_empty_event_and_force_the_admin_flag() {
             "tenant_id":"tenant-a", "document_id":"source-document", "election_event_id":null,
             "is_admin":true, "may_write_secret_attributes":false, "secret_write_initiator":null,
             "privileges":{"group_assignment":"DefaultGroupOnly","permission_labels":"Forbidden"},
-            "sha256":"source-sha256"
+            "sha256":"source-sha256",
+            "audit_actor":{"user_id":"user-a", "username":"operator-a", "role":"user"}
         })
     );
     assert_eq!(state.import_attempts[0].1.id, "task-1");
@@ -167,10 +170,23 @@ async fn voter_imports_replace_untrusted_admin_and_secret_write_flags() {
         group_assignment: GroupAssignmentPolicy::AnyGroup,
         permission_labels: PermissionLabelPolicy::Allowed,
     };
+    input.audit_actor = Some(AuditActor {
+        user_id: Some("forged-user".into()),
+        username: Some("forged-name".into()),
+        role: None,
+    });
     import(&tasks, claims(&[VOTER_CREATE]), input)
         .await
         .unwrap();
     let state = tasks.snapshot();
+    assert_eq!(
+        state.import_attempts[0].0.audit_actor,
+        Some(AuditActor {
+            user_id: Some("user-a".into()),
+            username: Some("operator-a".into()),
+            role: Some("user".into()),
+        })
+    );
     assert!(!state.import_attempts[0].0.is_admin);
     assert!(!state.import_attempts[0].0.may_write_secret_attributes);
     assert!(state.import_attempts[0].0.secret_write_initiator.is_none());
@@ -390,6 +406,14 @@ async fn decrypted_exports_bind_the_audit_grant_and_message_to_the_same_document
     );
     assert_eq!(sent.1, "document-1");
     assert_eq!(sent.2.as_ref().unwrap().id, "task-1");
+    assert_eq!(
+        state.export_actors,
+        vec![AuditActor {
+            user_id: Some("user-a".into()),
+            username: Some("operator-a".into()),
+            role: Some("user".into()),
+        }]
+    );
 }
 
 #[tokio::test]

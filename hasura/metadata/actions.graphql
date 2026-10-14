@@ -425,6 +425,21 @@ type Mutation {
         created_from: String
         created_to: String
         time_zone: String
+        scope: String
+        election_id: String
+        area_id: String
+        username: String
+    ): ExportLogsOutput
+}
+
+type Mutation {
+    export_tenant_logs(
+        format: String!
+        scope: String!
+        username: String
+        created_from: String
+        created_to: String
+        time_zone: String
     ): ExportLogsOutput
 }
 
@@ -769,16 +784,9 @@ type Query {
         election_event_id: String
         filter: ElectoralLogFilter
         order_by: ElectoralLogOrderBy
+        election_id: String
+        area_ids: [String!]
     ): DataListElectoralLog
-}
-
-type Query {
-    listTenantLog(
-        limit: Int
-        offset: Int
-        filter: ElectoralLogFilter
-        order_by: ElectoralLogOrderBy
-    ): DataListTenantLog
 }
 
 type Query {
@@ -1051,6 +1059,12 @@ enum VotingStatusChannel {
     TELEPHONE
 }
 
+enum RestorePrivateKeyOutcome {
+    ALREADY_RESTORED
+    INVALID
+    RESTORED
+}
+
 input TemplateInput {
     template: String!
     format: String!
@@ -1069,6 +1083,8 @@ input ElectoralLogFilter {
     statement_timestamp_to: String
     channel: String
     outcome: String
+    event_type: String
+    log_type: String
 }
 
 input ElectoralLogOrderBy {
@@ -1486,21 +1502,6 @@ type LocateBallotOutput {
 
 type DataListElectoralLog {
     items: [ElectoralLogRow]!
-    total: TotalAggregate!
-}
-
-type TenantLogRow {
-    id: Int!
-    created: Int!
-    statement_timestamp: Int!
-    statement_kind: String!
-    message: String!
-    user_id: String
-    username: String
-}
-
-type DataListTenantLog {
-    items: [TenantLogRow]!
     total: TotalAggregate!
 }
 

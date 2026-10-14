@@ -140,6 +140,17 @@ select_permissions:
               id:
                   _eq: X-Hasura-Tenant-Id
       role: election-event-read
+    - comment: An auditor who only reads the tenant log sees its tenant and the log's timezone
+      permission:
+          columns:
+              - id
+              - is_active
+              - settings
+              - slug
+          filter:
+              id:
+                  _eq: X-Hasura-Tenant-Id
+      role: tenant-logs-read
 update_permissions:
     - comment: ""
       permission:

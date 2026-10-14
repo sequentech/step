@@ -15,8 +15,15 @@ import {
     ELECTORAL_LOG_RANGE_FILTERS,
     ELECTORAL_LOG_ZONE_FILTER,
     ELECTORAL_LOG_DEFAULT_ZONE_FILTER,
+    LIST_TENANT_LOG,
+    TENANT_LOG_CONTEXT,
 } from "./ListElectoralLog"
-import {LIST_TENANT_LOG, TENANT_LOG_RESOURCE} from "./ListTenantLog"
+import {
+    ELogScope,
+    LOG_FILTER_EVENT_TYPE,
+    LOG_FILTER_LOG_TYPE,
+    LOG_SCOPE_META,
+} from "@/components/logs/logScope"
 import {LIST_USERS, customBuildGetUsersVariables} from "./GetUsers"
 import {getPermissions} from "./GetPermissions"
 import {getRoles} from "./GetRoles"
@@ -103,51 +110,18 @@ export const customBuildQuery =
             }
         }
 
-        if (resourceName === TENANT_LOG_RESOURCE && raFetchType === "GET_LIST") {
-            // The tenant's log has no election event, election or message to select by.
-            const validFilters: string[] = [
-                "user_id",
-                "username",
-                "statement_kind",
-                ...ELECTORAL_LOG_RANGE_FILTERS,
-                ELECTORAL_LOG_ZONE_FILTER,
-                ELECTORAL_LOG_DEFAULT_ZONE_FILTER,
-            ]
-            Object.keys(params.filter).forEach((f) => {
-                if (!validFilters.includes(f)) {
-                    delete params.filter[f]
-                }
-            })
-            params = {...params, filter: electoralLogInstantFilters(params.filter)}
-            const resource: any = {
-                type: {
-                    fields: [],
-                    name: resourceName,
-                },
-            }
-            return {
-                query: LIST_TENANT_LOG,
-                variables: getElectoralLogVariables(
-                    buildVariables(introspectionResults)(resource, raFetchType, params, null)
-                ),
-                parseResponse: (res: any) => {
-                    const response = res.data.listTenantLog
-                    return {
-                        data: response.items,
-                        total: response.total.aggregate.count,
-                    }
-                },
-            }
-        }
-
         if (resourceName === "electoral_log" && raFetchType === "GET_LIST") {
+            const tenantLog = params.meta?.[LOG_SCOPE_META] === ELogScope.TENANT
             let validFilters = [
-                "election_event_id",
+                // The tenant log has no election event.
+                ...(tenantLog ? [] : ["election_event_id"]),
                 "user_id",
                 "username",
                 "created",
                 "statement_timestamp",
                 "statement_kind",
+                LOG_FILTER_EVENT_TYPE,
+                LOG_FILTER_LOG_TYPE,
                 // Messages a SendCommunications entry records (the Messaging tab's Failed links).
                 LOG_FILTER_CHANNEL,
                 LOG_FILTER_OUTCOME,
@@ -168,7 +142,8 @@ export const customBuildQuery =
                 },
             }
             return {
-                query: getElectoralLog(params),
+                query: tenantLog ? LIST_TENANT_LOG : getElectoralLog(params),
+                ...(tenantLog ? {context: TENANT_LOG_CONTEXT} : {}),
                 variables: getElectoralLogVariables(
                     buildVariables(introspectionResults)(resource, raFetchType, params, null)
                 ),

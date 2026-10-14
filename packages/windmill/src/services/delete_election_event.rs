@@ -2,16 +2,24 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::jwks::remove_realm_jwks;
+use crate::postgres::audit_log_outbox::AuditLogTarget;
 use crate::postgres::election::get_elections;
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::election_event::{
     election_event_id_exists, get_election_event_by_id_if_exist,
 };
+use crate::services::audit_log::{
+    self, AdminAction, AdminChange, AuditActor, AuditObject, AuditOrigin,
+};
 use crate::services::database::get_hasura_pool;
+use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log_board::get_event_board;
 use crate::services::electoral_log_board::get_event_databases;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
+use electoral_log::ports::ElectoralLogStore;
+use electoral_log::{LogQuery, OrderColumn, SortDirection};
 use futures::future::try_join_all;
 use keycloak::KeycloakError;
 use sequent_core::ballot::{
@@ -175,17 +183,135 @@ pub async fn archive_protocol_boards(
     Ok(())
 }
 
-/// Drop the election event's electoral-log database: its board, the logs the board
-/// continues and its ballot box.
+/// The name an election event is shown with: its name in English, else in
+/// the first language that has one.
+pub fn event_display_name(presentation: Option<&serde_json::Value>) -> Option<String> {
+    let names = presentation?.get("i18n")?.as_object()?;
+    let name_in = |language: &serde_json::Value| {
+        language
+            .get("name")
+            .and_then(|name| name.as_str())
+            .filter(|name| !name.is_empty())
+            .map(str::to_string)
+    };
+    names
+        .get("en")
+        .and_then(name_in)
+        .or_else(|| names.values().find_map(name_in))
+}
+
+/// How a deleted election event's log database is kept.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, strum_macros::Display)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum DeletedLogStatus {
+    /// Renamed and closed to connections until it is erased.
+    Retired,
+    /// The event had no log database.
+    Absent,
+}
+
+/// What the tenant's log keeps of a deleted election event's log: where its
+/// database goes, its last entry and the root of its Merkle log.
 #[instrument(err)]
-pub async fn delete_election_event_electoral_log(
+pub async fn deleted_event_log_state(
     tenant_id: &str,
     election_event_id: &str,
+    board: Option<&str>,
+    retired_at: u64,
+) -> Result<serde_json::Value> {
+    let databases = get_event_databases().await?;
+    let board = match board {
+        Some(board) if databases.has_event(election_event_id).await? => board,
+        _ => return Ok(serde_json::json!({ "status": DeletedLogStatus::Absent })),
+    };
+    let store = databases.store(election_event_id).await?;
+    let last = store
+        .query(
+            board,
+            &LogQuery {
+                order: vec![(OrderColumn::Id, SortDirection::Desc)],
+                limit: 1,
+                ..LogQuery::default()
+            },
+        )
+        .await?;
+    let checkpoint = store
+        .journal()
+        .checkpoint(board)
+        .await
+        .map_err(|error| anyhow!("Error reading the state of log {board}: {error:?}"))?;
+    Ok(serde_json::json!({
+        "status": DeletedLogStatus::Retired,
+        "log": board,
+        "log_database": databases.retired_database_name(election_event_id, retired_at)?,
+        "last_entry_id": last.first().map(|entry| entry.id),
+        "entries": checkpoint.tree_size,
+        "state_hash": hex::encode(&checkpoint.root),
+        "log_uid": checkpoint.log_uid,
+    }))
+}
+
+/// Queues the tenant log's entry of an election event's deletion, with the
+/// state of the event's log, in the transaction that deletes the event: it is
+/// written before anything is removed and posted once the deletion commits.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn stage_election_event_deletion(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    deleted_by: Option<&AuditActor>,
+    task_id: Option<&str>,
+    retired_at: u64,
+) -> Result<()> {
+    let event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
+    let board = get_election_event_board(event.bulletin_board_reference.clone());
+    let mut extra =
+        deleted_event_log_state(tenant_id, election_event_id, board.as_deref(), retired_at).await?;
+    extra["task_id"] = serde_json::json!(task_id);
+    // The name the event shows, else the one it was created with.
+    let name = match event_display_name(event.presentation.as_ref()) {
+        Some(name) => Some(name),
+        None => hasura_transaction
+            .query_opt(
+                "SELECT to_jsonb(e) ->> 'name' FROM sequent_backend.election_event e
+                 WHERE e.tenant_id = $1::text::uuid AND e.id = $2::text::uuid",
+                &[&tenant_id, &election_event_id],
+            )
+            .await
+            .context("Error reading the election event's name")?
+            .and_then(|row| row.get::<_, Option<String>>(0))
+            .filter(|name| !name.is_empty()),
+    };
+    let change = AdminChange::new(
+        AuditLogTarget {
+            tenant_id: uuid::Uuid::parse_str(tenant_id)?,
+            election_event_id: None,
+        },
+        AuditObject::new("election_event", election_event_id, name.as_deref()),
+        AdminAction::Delete,
+        deleted_by.cloned().unwrap_or_default(),
+        AuditOrigin::Windmill,
+    )
+    .with_extra(extra);
+    audit_log::stage(hasura_transaction, &change).await?;
+    Ok(())
+}
+
+/// Retire the election event's electoral-log database: its board, the logs the
+/// board continues and its ballot box are kept, closed to connections, until
+/// they are erased under the retention policy.
+#[instrument(err)]
+pub async fn retire_election_event_electoral_log(
+    tenant_id: &str,
+    election_event_id: &str,
+    retired_at: u64,
 ) -> Result<()> {
     get_event_databases()
         .await?
-        .drop_event(tenant_id, election_event_id)
-        .await
+        .retire_event(tenant_id, election_event_id, retired_at)
+        .await?;
+    Ok(())
 }
 
 /// After creating or importing an election event failed, drop the electoral-log

@@ -907,6 +907,141 @@ fn ballot_box_seal_entries_are_signed_records_of_one_box() -> Result<()> {
     Ok(())
 }
 
+/// Every kind of audit entry is signed with the time of the action, by its
+/// sender and by the log, and keeps the entry inside the signed statement.
+#[test]
+fn an_audit_entry_is_signed_with_the_time_of_its_action() -> Result<()> {
+    let (data, public) = signer()?;
+    let occurred_at = electoral_log::timestamp() - 3600;
+    for (kind, name, event_type, log_type) in [
+        (
+            AuditStatementKind::AdminChange,
+            "AdminChange",
+            StatementEventType::USER,
+            StatementLogType::INFO,
+        ),
+        (
+            AuditStatementKind::KeycloakAdminEvent,
+            "KeycloakAdminEvent",
+            StatementEventType::SYSTEM,
+            StatementLogType::ERROR,
+        ),
+        (
+            AuditStatementKind::LogsExported,
+            "LogsExported",
+            StatementEventType::USER,
+            StatementLogType::INFO,
+        ),
+        (
+            AuditStatementKind::LogWriterStarted,
+            "LogWriterStarted",
+            StatementEventType::SYSTEM,
+            StatementLogType::INFO,
+        ),
+        (
+            AuditStatementKind::LogWriterStopped,
+            "LogWriterStopped",
+            StatementEventType::SYSTEM,
+            StatementLogType::INFO,
+        ),
+    ] {
+        assert_eq!(kind.to_string(), name);
+        assert_eq!(name.parse::<AuditStatementKind>()?, kind);
+        let entry = AuditLogEntry {
+            kind,
+            event_type: event_type.clone(),
+            log_type: log_type.clone(),
+            description: "Updated tenant \"synthetic\": settings.logs_timezone".into(),
+            details_json: r#"{"action":"update","changes":[{"path":"settings.logs_timezone"}]}"#
+                .into(),
+            entry_id: "0d1b2c3d-4e5f-4071-8293-a4b5c6d7e8f9".into(),
+        };
+        let message = Message::audit_message(
+            event(),
+            entry.clone(),
+            occurred_at,
+            &data,
+            actor(),
+            actor(),
+            None,
+            None,
+        )?;
+        assert_record(&message, &public, name, None)?;
+        assert_eq!(message.statement.head.timestamp, occurred_at);
+        assert_eq!(message.statement.head.event_type, event_type);
+        assert_eq!(message.statement.head.log_type, log_type);
+        assert_eq!(message.statement.head.description, entry.description);
+        match &message.statement.body {
+            StatementBody::Audit(signed) => assert_eq!(signed, &entry),
+            other => panic!("unexpected body {other:?}"),
+        }
+    }
+    assert!("CastVote".parse::<AuditStatementKind>().is_err());
+    Ok(())
+}
+
+/// A tenant realm's Keycloak event carries its details as JSON: an error in
+/// them, or a lockout, makes it an ERROR entry named after the error.
+#[test]
+fn a_keycloak_event_with_json_details_is_typed_by_them() -> Result<()> {
+    let (data, public) = signer()?;
+    for (event_type, text, log_type, description) in [
+        (
+            "LOGIN",
+            r#"{"error":null,"client_id":"admin-portal"}"#,
+            StatementLogType::INFO,
+            "LOGIN",
+        ),
+        (
+            "LOGIN_ERROR",
+            r#"{"error":"invalid_user_credentials"}"#,
+            StatementLogType::ERROR,
+            "LOGIN_ERROR invalid_user_credentials",
+        ),
+        (
+            "LOGIN",
+            r#"{"error":"event_not_placed"}"#,
+            StatementLogType::ERROR,
+            "LOGIN event_not_placed",
+        ),
+        (
+            "USER_DISABLED_BY_TEMPORARY_LOCKOUT",
+            r#"{"error":null}"#,
+            StatementLogType::ERROR,
+            "USER_DISABLED_BY_TEMPORARY_LOCKOUT",
+        ),
+        (
+            "USER_DISABLED_BY_TEMPORARY_LOCKOUT",
+            "null",
+            StatementLogType::ERROR,
+            "USER_DISABLED_BY_TEMPORARY_LOCKOUT",
+        ),
+        (
+            "LOGIN_ERROR",
+            "user_not_found and more",
+            StatementLogType::ERROR,
+            "LOGIN_ERROR user_not_found",
+        ),
+    ] {
+        let message = Message::keycloak_user_event(
+            event(),
+            KeycloakEventTypeString(event_type.into()),
+            ErrorMessageString(text.into()),
+            actor(),
+            actor(),
+            &data,
+            None,
+        )?;
+        assert_record(&message, &public, "KeycloakUserEvent", None)?;
+        assert_eq!(
+            message.statement.head.log_type, log_type,
+            "{event_type} {text}"
+        );
+        assert_eq!(message.statement.head.description, description);
+    }
+    Ok(())
+}
+
 #[test]
 fn a_tenant_activity_entry_belongs_to_no_election_event() -> Result<()> {
     let (data, public) = signer()?;

@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
 use crate::services::dependencies::HarvestServices;
 use anyhow::Result;
@@ -13,9 +14,15 @@ use sequent_core::ballot::{Enrollment, Otp};
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::str::FromStr;
 use tracing::{error, info, instrument};
 use windmill::postgres::election_event::get_election_event_by_id;
+use windmill::services::audit_log::{stage, AdminAction, FieldChange};
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
+
+const ENROLLMENT_PATH: &str = "voter_authentication.enrollment";
+const OTP_PATH: &str = "voter_authentication.otp";
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SetVoterAuthentication {
@@ -139,6 +146,8 @@ pub async fn set_voter_authentication(
             },
         );
 
+    let mut changes: Vec<FieldChange> = vec![];
+
     // Update enrollment if it has changed
     if let Some(enrollment) =
         enrollment.filter(|value| differs_from_current(&prev_enrollment, value))
@@ -161,6 +170,11 @@ pub async fn set_voter_authentication(
                     format!("Error updating enrollment: {error:?}"),
                 )
             })?;
+        changes.push(FieldChange::new(
+            ENROLLMENT_PATH,
+            Some(&json!(prev_enrollment)),
+            Some(&json!(enrollment.to_string())),
+        ));
     }
 
     if let Some(otp) =
@@ -188,6 +202,32 @@ pub async fn set_voter_authentication(
                     format!("Error updating OTP: {error:?}"),
                 )
             })?;
+        changes.push(FieldChange::new(
+            OTP_PATH,
+            Some(&json!(prev_otp)),
+            Some(&json!(otp.to_string())),
+        ));
+    }
+
+    // What Keycloak changed is an entry of the event's log, committed with
+    // the event's lock.
+    let audited = !changes.is_empty();
+    if audited {
+        let target = audit::target(
+            &claims.hasura_claims.tenant_id,
+            Some(&body.election_event_id),
+        )?;
+        let entry = audit::change(
+            &claims,
+            target,
+            audit::election_event(&body.election_event_id),
+            AdminAction::Update,
+        )
+        .with_changes(changes);
+        stage(&hasura_transaction, &entry).await.map_err(|error| {
+            error!("Failed to queue the audit entry: {:?}", error);
+            (Status::InternalServerError, format!("{error:?}"))
+        })?;
     }
 
     // Commit transaction
@@ -195,6 +235,9 @@ pub async fn set_voter_authentication(
         error!("Transaction commit failed: {:?}", e);
         (Status::InternalServerError, format!("{:?}", e))
     })?;
+    if audited {
+        kick_audit_log_outbox();
+    }
 
     Ok(Json(SetVoterAuthenticationOutput {
         success: true,

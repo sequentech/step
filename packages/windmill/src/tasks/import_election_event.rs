@@ -2,21 +2,29 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::postgres::election_event::get_election_event_by_id_if_exist;
 use crate::postgres::maintenance::vacuum_analyze_direct;
+use crate::services::audit_log::{stage, AdminAction, AdminChange, AuditActor, AuditObject};
 use crate::services::delete_election_event::drop_uncommitted_event_database;
 use crate::services::electoral_log::ElectoralLogAdminContext;
 use crate::services::import::import_users::ImportUsersPrivileges;
 use crate::services::import::rejection::problems_of;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
+use crate::services::task_audit;
 use crate::services::tasks_execution::{update_complete, update_fail, update_fail_with_problems};
+use crate::tasks::audit_log_outbox::kick_audit_log_outbox;
+use crate::tasks::insert_election_event::ELECTION_EVENT;
 use crate::{
     services::import::import_election_event::{self as import_election_event_service},
     types::error::Result,
 };
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
-use sequent_core::types::hasura::core::TasksExecution;
+use deadpool_postgres::Transaction;
+use sequent_core::services::translations::Name;
+use sequent_core::types::hasura::core::{ElectionEvent, TasksExecution};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use tracing::{event, info, instrument, Level};
 
 #[derive(Deserialize, Debug, Clone, Serialize)]
@@ -44,6 +52,51 @@ pub struct ImportElectionEventBody {
     pub privileges: ImportUsersPrivileges,
 }
 
+/// The tenant log's entry of an imported election event. The checksum is
+/// the one the importer declared, when they did.
+fn imported_entry(
+    object: &ImportElectionEventBody,
+    tenant_id: &str,
+    election_event_id: &str,
+    name: Option<&str>,
+) -> anyhow::Result<AdminChange> {
+    let actor = object.importer.as_ref().map(|importer| AuditActor {
+        user_id: Some(importer.user_id.clone()),
+        username: importer.username.clone(),
+        role: None,
+    });
+    let mut extra = json!({"document_id": object.document_id});
+    if let Some(sha256) = object.sha256.as_deref().filter(|sha256| !sha256.is_empty()) {
+        extra["declared_sha256"] = json!(sha256.to_lowercase());
+    }
+    Ok(task_audit::change(
+        actor,
+        task_audit::target(tenant_id, None)?,
+        AuditObject::new(ELECTION_EVENT, election_event_id, name),
+        AdminAction::Import,
+    )
+    .with_extra(extra))
+}
+
+/// The name the import gave the event, in its default language. The name is
+/// in the event's presentation, not in a column of its own.
+async fn imported_name(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> anyhow::Result<Option<String>> {
+    let event = get_election_event_by_id_if_exist(hasura_transaction, tenant_id, election_event_id)
+        .await
+        .context("Error reading the imported election event")?;
+    Ok(event.and_then(|event| imported_event_name(&event)))
+}
+
+/// An event's name for its audit entry, if its translations give one.
+fn imported_event_name(event: &ElectionEvent) -> Option<String> {
+    Some(event.get_name(&event.get_default_language()))
+        .filter(|name| !name.is_empty() && name != "-")
+}
+
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
@@ -64,9 +117,15 @@ pub async fn import_election_event(
         Box::pin(async move {
             let imported = import_election_event_service::process_document(
                 hasura_transaction,
-                object,
-                election_event_id,
-                tenant_id,
+                object.clone(),
+                election_event_id.clone(),
+                tenant_id.clone(),
+            )
+            .await?;
+            let name = imported_name(hasura_transaction, &tenant_id, &election_event_id).await?;
+            stage(
+                hasura_transaction,
+                &imported_entry(&object, &tenant_id, &election_event_id, name.as_deref())?,
             )
             .await?;
             *notes.lock().unwrap_or_else(|e| e.into_inner()) = imported;
@@ -77,6 +136,7 @@ pub async fn import_election_event(
 
     match &result {
         Ok(_) => {
+            kick_audit_log_outbox();
             // Execute database maintenance
             info!("Performing mainteinance after election event import.");
             vacuum_analyze_direct().await?;
@@ -104,5 +164,91 @@ pub async fn import_election_event(
             };
             Err(err_str.into())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const TENANT_ID: &str = "4f1c6b38-9f5e-4a59-8d3b-2a7f0c1e5d61";
+    const EVENT_ID: &str = "b7e2d915-3c4a-4e8f-9a61-5d0f2c8b7e43";
+
+    fn body(json: serde_json::Value) -> ImportElectionEventBody {
+        serde_json::from_value(json).unwrap()
+    }
+
+    fn imported_event(presentation: serde_json::Value) -> ElectionEvent {
+        serde_json::from_value(json!({
+            "id": EVENT_ID,
+            "tenant_id": TENANT_ID,
+            "presentation": presentation,
+            "is_archived": false,
+            "encryption_protocol": "RSA256",
+        }))
+        .unwrap()
+    }
+
+    /// The name is read from the presentation, in the default language: the
+    /// table has had no name column since the names moved there.
+    #[test]
+    fn an_imported_events_name_is_its_default_languages_name() {
+        let named = imported_event(json!({
+            "language_conf": {"default_language_code": "es"},
+            "i18n": {"en": {"name": "Barangay 2026"}, "es": {"name": "Barangay 2026 (es)"}},
+        }));
+        assert_eq!(
+            imported_event_name(&named).as_deref(),
+            Some("Barangay 2026 (es)")
+        );
+        assert_eq!(imported_event_name(&imported_event(json!({}))), None);
+        assert_eq!(
+            imported_event_name(&imported_event(serde_json::Value::Null)),
+            None
+        );
+    }
+
+    #[test]
+    fn an_imported_event_is_an_entry_of_the_tenant_log_with_its_source() {
+        let object = body(json!({
+            "tenant_id": TENANT_ID, "document_id": "document-1", "password": null,
+            "check_only": false, "sha256": "ABCDEF",
+            "importer": {"user_id": "admin-id", "username": "ada",
+                "authorized_election_ids": null, "area_id": null},
+        }));
+        let entry = imported_entry(&object, TENANT_ID, EVENT_ID, Some("Barangay 2026")).unwrap();
+
+        assert_eq!(entry.target.election_event_id, None);
+        assert_eq!(
+            entry.object,
+            AuditObject::new(ELECTION_EVENT, EVENT_ID, Some("Barangay 2026"))
+        );
+        assert_eq!(entry.action, AdminAction::Import);
+        assert_eq!(
+            entry.actor,
+            AuditActor {
+                user_id: Some("admin-id".into()),
+                username: Some("ada".into()),
+                role: None,
+            }
+        );
+        assert_eq!(
+            entry.extra,
+            json!({"document_id": "document-1", "declared_sha256": "abcdef"})
+        );
+    }
+
+    #[test]
+    fn an_import_without_importer_or_checksum_logs_neither() {
+        let object = body(json!({
+            "tenant_id": TENANT_ID, "document_id": "document-1", "password": null,
+            "check_only": null, "sha256": "",
+        }));
+        let entry = imported_entry(&object, TENANT_ID, EVENT_ID, None).unwrap();
+
+        assert_eq!(entry.actor, AuditActor::default());
+        assert_eq!(entry.object.name, None);
+        assert_eq!(entry.extra, json!({"document_id": "document-1"}));
+        assert!(imported_entry(&object, "tenant", EVENT_ID, None).is_err());
     }
 }

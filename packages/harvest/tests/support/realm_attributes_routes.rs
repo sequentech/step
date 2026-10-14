@@ -129,6 +129,34 @@ async fn public_edits_preserve_server_owned_enrollment_authority() {
             .await,
         (Status::Ok, json!({"updated": true}))
     );
+    // Each edit that changed an attribute is an entry of the event's log;
+    // the refused ones left none.
+    let audited: Vec<Value> = rows::query(
+        &services.hasura,
+        "SELECT details FROM sequent_backend.audit_log_outbox
+         WHERE election_event_id = $1::text::uuid AND user_id = 'operator'
+         ORDER BY seq",
+        &[&event.election_event_id],
+    )
+    .await
+    .iter()
+    .map(|row| {
+        let details: Value = row.get(0);
+        assert_eq!(
+            details["object"],
+            json!({"type": "election_event", "id": event.election_event_id, "name": null})
+        );
+        assert_eq!(details["action"], "update");
+        details["changes"].clone()
+    })
+    .collect();
+    assert_eq!(
+        audited,
+        vec![
+            json!([{"path": "realm_attributes.operator_note", "old": "old", "new": "new"}]),
+            json!([{"path": "realm_attributes.operator_note", "old": "old", "new": "other"}]),
+        ]
+    );
     let requests = peer.finish();
     let writes: Vec<_> =
         requests.iter().filter(|r| r.method == "PUT").collect();
@@ -220,6 +248,25 @@ async fn password_policy_snapshot_waits_for_the_event_scheduling_writer() {
         )
         .await,
         (Status::Ok, json!({"updated": true}))
+    );
+    let audited = rows::query(
+        &services.hasura,
+        "SELECT details -> 'changes' FROM sequent_backend.audit_log_outbox
+         WHERE election_event_id = $1::text::uuid AND user_id = 'operator'",
+        &[&event.election_event_id],
+    )
+    .await;
+    assert_eq!(audited.len(), 1);
+    assert_eq!(
+        audited[0].get::<_, Value>(0),
+        json!([
+            {"path": "password_policy.include_digits", "new": true},
+            {"path": "password_policy.include_lowercase", "new": true},
+            {"path": "password_policy.include_special_characters", "new": false},
+            {"path": "password_policy.include_uppercase", "new": true},
+            {"path": "password_policy.maximum_length", "new": 64},
+            {"path": "password_policy.minimum_length", "new": 8},
+        ])
     );
     let requests = peer.finish();
     let write = requests.iter().find(|r| r.method == "PUT").unwrap().json();

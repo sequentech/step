@@ -4,29 +4,33 @@
 import React from "react"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, waitFor, within} from "storybook/test"
-import {i18n} from "@sequentech/ui-core"
-import {AdminStoryProvider, TENANT_ID, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
-import {resourceBoundary, type ReadState} from "@/__stories__/resourceBoundary"
+import {Box} from "@mui/material"
+import {AdminStoryProvider, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
+import {resourceBoundary} from "@/__stories__/resourceBoundary"
+import {STORY_IDS} from "@/__stories__/fixtures"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
-import {TENANT_LOG_RESOURCE} from "@/queries/ListTenantLog"
+import {MyTimeZoneProvider} from "@/providers/EventTimeZoneProvider"
 import {IPermissions} from "@/types/keycloak"
-import {SettingsLogs} from "./SettingsLogs"
 import {
-    ADMIN,
-    DELETED_EVENT_ID,
-    LOG_BOARD,
-    LOG_PUBLIC_KEY,
-    tenantLogRecords,
-} from "./__stories__/TenantLogFixture"
+    TENANT_LOG_PAGE,
+    TENANT_LOG_ZONE,
+    tenantLogRows,
+} from "@/components/logs/__stories__/tenantLogFixture"
+import {SettingsLogs} from "./SettingsLogs"
+import {TENANT_RESOURCE, settingsTenant} from "./__stories__/SettingsFixture"
 
 interface Scenario {
-    /** What reading the log does. */
-    reads: ReadState
-    /** Whether the log has entries. */
-    populated: boolean
     /** The signed-in user's roles. */
     roles: string[]
+    /** The tenant setting; UTC when the tenant has none. */
+    logsTimezone?: string
+    /** The viewer's zone. */
+    myZone: string
+    /** The room the tab has, in pixels. */
+    width: number
 }
+
+const AUDITOR_ROLES = [IPermissions.TENANT_LOGS_READ, IPermissions.TENANT_LOGS_EXPORT]
 
 let graphql: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof resourceBoundary>
@@ -34,153 +38,313 @@ let data: ReturnType<typeof resourceBoundary>
 const meta = {
     title: "Admin/Settings/SettingsLogs",
     component: SettingsLogs,
-    args: {reads: "records", populated: true, roles: [IPermissions.TENANT_LOGS_READ]},
-    argTypes: {reads: {control: "inline-radio", options: ["records", "loading", "error"]}},
+    args: {
+        roles: AUDITOR_ROLES,
+        logsTimezone: TENANT_LOG_ZONE,
+        myZone: TENANT_LOG_ZONE,
+        width: 1600,
+    },
     beforeEach: async ({args}) => {
-        data = resourceBoundary(
-            {[TENANT_LOG_RESOURCE]: args.populated ? tenantLogRecords() : []},
-            {reads: args.reads}
+        data = resourceBoundary({
+            electoral_log: tenantLogRows(),
+            [TENANT_RESOURCE]: [
+                settingsTenant(args.logsTimezone ? {logs_timezone: args.logsTimezone} : {}),
+            ],
+        })
+        graphql = graphqlBoundary(
+            {
+                ExportTenantLogs: () => ({
+                    data: {
+                        export_tenant_logs: {
+                            document_id: STORY_IDS.tallySession,
+                            task_execution: {
+                                id: STORY_IDS.keysCeremony,
+                                name: "Export tenant logs",
+                                execution_status: "IN_PROGRESS",
+                                created_at: "2028-02-03T10:00:00.000Z",
+                                start_at: "2028-02-03T10:00:00.000Z",
+                                end_at: null,
+                                logs: [],
+                                annotations: {},
+                                labels: {},
+                                executed_by_user: "ana.vega",
+                                tenant_id: STORY_IDS.tenant,
+                                election_event_id: STORY_IDS.event,
+                                type: "EXPORT_TENANT_LOGS",
+                            },
+                        },
+                    },
+                }),
+            },
+            {schema: true}
         )
-        graphql = graphqlBoundary({}, {schema: true})
         await graphql.ready
     },
-    render: ({roles}) => (
-        <AdminStoryProvider
-            boundary={graphql}
-            dataProvider={data.provider}
-            roles={roles}
-            auth={{tenantId: TENANT_ID}}
-        >
-            <SettingsLogs />
+    render: ({roles, myZone, width}) => (
+        <AdminStoryProvider boundary={graphql} dataProvider={data.provider} roles={roles}>
+            <MyTimeZoneProvider zone={myZone}>
+                <Box sx={{width}}>
+                    <SettingsLogs />
+                </Box>
+            </MyTimeZoneProvider>
         </AdminStoryProvider>
     ),
 } satisfies WidgetMeta<Scenario>
 export default meta
 type Story = StoryObj<Scenario>
 
-const listed = () => data.calls.find(({method}) => method === "getList")?.args
-const DENIED = "Request to delete an election event denied."
+const listed = () =>
+    data.calls.filter(({method, args}) => method === "getList" && args[0] === "electoral_log")
+const lastListed = () =>
+    listed().at(-1)?.args[1] as {filter: Record<string, unknown>; meta: unknown}
 
+const headers = (canvasElement: HTMLElement) =>
+    Array.from(canvasElement.querySelectorAll("thead th")).map(({textContent}) => textContent)
+
+const addFilter = async (canvasElement: HTMLElement, filter: string) => {
+    await userEvent.click(within(canvasElement).getByRole("button", {name: "Add filter"}))
+    await userEvent.click(
+        await within(document.body).findByRole("menuitemcheckbox", {name: filter})
+    )
+}
+
+/**
+ * The tenant log: failed sign-ins and a lockout, a settings change, a change
+ * made in Keycloak's console, a deleted election event and an export, in the
+ * tenant's log zone.
+ */
 export const Populated: Story = {
-    parameters: {widgets: ["TenantLogRowTime"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await expect(await canvas.findByText(DENIED)).toBeVisible()
-        await expect(canvas.getByText(i18n.t("tenantLogs.subtitle"))).toBeVisible()
-        // Newest first: the refused request, the sign-ins and the log's first entry.
-        const kinds = canvas
-            .getAllByRole("row")
-            .slice(1)
-            .map((row) => within(row).getAllByRole("cell")[3].textContent)
-        expect(kinds).toEqual([
-            "TenantAdminAction",
-            "KeycloakUserEvent",
-            "KeycloakUserEvent",
-            "TenantLogOpened",
-        ])
-        expect(canvas.getAllByText(ADMIN.name)).toHaveLength(2)
-        expect(canvas.getByText("LOGIN_ERROR invalid_user_credentials")).toBeVisible()
-        expect(canvas.getByText("Opened the tenant log.")).toBeVisible()
-        const headers = canvas.getAllByRole("columnheader").map(({textContent}) => textContent)
-        expect(headers).toEqual([
+        await expect(canvas.getByRole("heading", {name: "Logs"})).toBeVisible()
+        await expect(
+            canvas.getByText(
+                "Sign-ins, staff accounts and roles, settings and election events of this organization. Each election event keeps its own log in its Logs tab."
+            )
+        ).toBeVisible()
+        await expect(
+            await canvas.findByText("Settings changed: Languages, Integrations and Voting Channels")
+        ).toBeVisible()
+        // The tenant has no messages: no Channel or Status column.
+        expect(headers(canvasElement)).toEqual([
             "Id",
-            "Statement Timestamp",
             "Username",
+            "Created",
+            "Statement Timestamp",
             "Statement kind",
             "Event Type",
             "Log Type",
             "Description",
         ])
-        expect(listed()).toEqual([
-            TENANT_LOG_RESOURCE,
-            expect.objectContaining({
-                // The range filter is read in the viewer's zone (UTC in stories).
-                filter: {default_time_zone: "UTC"},
-                sort: {field: "id", order: "DESC"},
-            }),
-        ])
-        // The tenant's log has no export and no audit yet.
-        expect(canvas.queryByRole("button", {name: "Export"})).toBeNull()
+        const rows = canvas.getAllByRole("row").slice(1)
+        expect(rows).toHaveLength(TENANT_LOG_PAGE)
+        expect(canvas.getByText(`1-${TENANT_LOG_PAGE} of ${tenantLogRows().length}`)).toBeVisible()
+        const lockout = within(
+            canvas
+                .getByText("Account locked for 1 minute after 30 failed sign-ins in a row")
+                .closest("tr") as HTMLElement
+        )
+        expect(lockout.getByText("lena.ortiz")).toBeVisible()
+        expect(lockout.getByText("ERROR")).toBeVisible()
+        // 05:43:57 UTC on 2 February is 06:43:57 in Madrid.
+        expect(lockout.getAllByText(/Feb 2, 2028, 6:43:5\d AM GMT\+1/)).toHaveLength(2)
+        expect(canvas.queryByRole("button", {name: "Audit"})).toBeNull()
+        await expect(canvas.getByRole("button", {name: "Export"})).toBeVisible()
+        // The range is read in the tenant's log zone unless another is chosen.
+        expect(canvas.getByRole<HTMLInputElement>("combobox", {name: "Timezone"}).value).toMatch(
+            /Madrid · primary$/
+        )
+
+        // The tenant log is read without an election event.
+        await waitFor(() => expect(listed().length).toBeGreaterThan(0))
+        expect(lastListed()).toMatchObject({
+            filter: {default_time_zone: TENANT_LOG_ZONE},
+            meta: {logScope: "tenant"},
+            sort: {field: "id", order: "DESC"},
+        })
+        expect(Object.keys(lastListed().filter)).not.toContain("election_event_id")
         expect(graphql.calls).toEqual([])
     },
 }
 
-/** A request's entry says what was asked for, how it ended, who asked and on what. */
-export const ARequestUnderShowMore: Story = {
+/** Without the setting the tenant log shows in UTC, with my time beside it. */
+export const InUtcByDefault: Story = {
+    args: {logsTimezone: undefined, myZone: "America/New_York"},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        const cell = within((await canvas.findByText(DENIED)).closest("td")!)
-        expect(canvas.queryByText("Action: delete-election-event")).toBeNull()
-        await userEvent.click(cell.getByRole("button", {name: "Show More"}))
-        await expect(cell.getByText("Action: delete-election-event")).toBeVisible()
-        await expect(cell.getByText("Denied (HTTP 401)")).toBeVisible()
-        await expect(cell.getByText(`Requested by ${ADMIN.name} (${ADMIN.id})`)).toBeVisible()
-        await expect(cell.getByText(`election_event_id: ${DELETED_EVENT_ID}`)).toBeVisible()
-        await userEvent.click(cell.getByRole("button", {name: "Show Less"}))
-        expect(canvas.queryByText("Action: delete-election-event")).toBeNull()
-    },
-}
-
-/** The first entry names the log and the key its entries are signed with. */
-export const TheFirstEntryUnderShowMore: Story = {
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        const cell = within((await canvas.findByText("Opened the tenant log.")).closest("td")!)
-        await userEvent.click(cell.getByRole("button", {name: "Show More"}))
-        await expect(cell.getByText(`Log: ${LOG_BOARD}`)).toBeVisible()
-        await expect(cell.getByText(`Public key of the log: ${LOG_PUBLIC_KEY}`)).toBeVisible()
-        // A sign-in has nothing more to say than its description.
-        const signIn = within(canvas.getByText("LOGIN").closest("td")!)
-        expect(signIn.queryByRole("button")).toBeNull()
-    },
-}
-
-export const FilterByStatementKind: Story = {
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await canvas.findByText(DENIED)
-        await userEvent.click(canvas.getByRole("button", {name: "Add filter"}))
-        await userEvent.click(
-            await within(document.body).findByRole("menuitemcheckbox", {name: "Statement kind"})
+        const lockout = within(
+            (
+                await canvas.findByText(
+                    "Account locked for 1 minute after 30 failed sign-ins in a row"
+                )
+            ).closest("tr") as HTMLElement
         )
+        expect(lockout.getAllByText(/Feb 2, 2028, 5:43:5\d AM UTC/)).toHaveLength(2)
+        expect(lockout.getAllByText(/Feb 2, 2028, 12:43:5\d AM EST · my time/)).toHaveLength(2)
+        await waitFor(() =>
+            expect(lastListed()).toMatchObject({filter: {default_time_zone: "UTC"}})
+        )
+    },
+}
+
+/** The filters: statement kinds of the tenant log, event type and log type. */
+export const FailedSignIns: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByText("Signed in: password and authenticator code")
+        await addFilter(canvasElement, "Log Type")
+        await userEvent.click(await canvas.findByRole("combobox", {name: "Log Type"}))
+        await userEvent.click(await within(document.body).findByRole("option", {name: "ERROR"}))
+        await waitFor(() =>
+            expect(canvas.queryByText("Signed in: password and authenticator code")).toBeNull()
+        )
+        await expect(canvas.getByText("Sign-in failed: unknown account")).toBeVisible()
+        expect(canvas.getAllByRole("row").slice(1)).toHaveLength(4)
+
+        await addFilter(canvasElement, "Statement kind")
         await userEvent.click(await canvas.findByRole("combobox", {name: "Statement kind"}))
-        await userEvent.click(
-            await within(document.body).findByRole("option", {
-                name: i18n.t("tenantLogs.kind.TenantAdminAction"),
+        const kinds = within(await within(document.body).findByRole("listbox"))
+        // The first option clears the filter.
+        expect(
+            kinds
+                .getAllByRole("option")
+                .slice(1)
+                .map(({textContent}) => textContent)
+        ).toEqual([
+            "KeycloakUserEvent",
+            "AdminChange",
+            "TenantAdminAction",
+            "KeycloakAdminEvent",
+            "LogsExported",
+            "LogWriterStarted",
+            "LogWriterStopped",
+            "AdminPublicKey",
+        ])
+        await userEvent.click(kinds.getByRole("option", {name: "KeycloakUserEvent"}))
+        await waitFor(() =>
+            expect(lastListed().filter).toMatchObject({
+                log_type: "ERROR",
+                statement_kind: "KeycloakUserEvent",
             })
         )
-        await waitFor(() => expect(canvas.getAllByRole("row")).toHaveLength(2))
-        await expect(canvas.getByText(DENIED)).toBeVisible()
-        expect(canvas.queryByText("Opened the tenant log.")).toBeNull()
+        // Messaging filters belong to an election event's log.
+        await userEvent.click(canvas.getByRole("button", {name: "Add filter"}))
+        const menu = within(await within(document.body).findByRole("menu"))
+        await waitFor(() =>
+            expect(menu.getByRole("menuitemcheckbox", {name: "Event Type"})).toBeVisible()
+        )
+        expect(menu.getByRole("menuitemcheckbox", {name: "Username"})).toBeVisible()
+        expect(menu.queryByRole("menuitemcheckbox", {name: "Channel"})).toBeNull()
+        expect(menu.queryByRole("menuitemcheckbox", {name: "Status"})).toBeNull()
+        await userEvent.keyboard("{Escape}")
+        await waitFor(() => expect(within(document.body).queryByRole("menu")).toBeNull())
     },
 }
 
-export const NoEntries: Story = {
-    args: {populated: false},
+/** Clicking an entry opens its popup: here a settings change with a redacted secret. */
+export const OpenAnEntry: Story = {
+    args: {myZone: "America/New_York"},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await expect(await canvas.findByText(i18n.t("tenantLogs.title"))).toBeVisible()
-        await waitFor(() => expect(listed()?.[0]).toBe(TENANT_LOG_RESOURCE))
-        expect(canvas.queryByText(DENIED)).toBeNull()
+        await userEvent.click(
+            await canvas.findByText("Settings changed: Languages, Integrations and Voting Channels")
+        )
+        const dialog = within(
+            await within(document.body).findByRole("dialog", {name: "Log entry 5,259"})
+        )
+        await waitFor(() => expect(dialog.getByText("Old and new values")).toBeVisible())
+        expect(dialog.getByText("Changed. Secret values are never logged.")).toBeVisible()
+        expect(dialog.getByText("Tenant log")).toBeVisible()
+        expect(dialog.getByText(/10:21:37 AM GMT\+1/)).toBeVisible()
+        expect(dialog.getByText(/4:21:37 AM EST · my time/)).toBeVisible()
+        await userEvent.keyboard("{Escape}")
+        await waitFor(() => expect(within(document.body).queryByRole("dialog")).toBeNull())
     },
 }
 
-export const LogsUnavailable: Story = {
-    args: {reads: "error"},
+/** The export offers the tenant's scopes and runs with tenant-logs-export. */
+export const ExportOneAccount: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await expect(await canvas.findByText(i18n.t("tenantLogs.title"))).toBeVisible()
-        await waitFor(() => expect(listed()?.[0]).toBe(TENANT_LOG_RESOURCE))
-        expect(canvas.queryByText(DENIED)).toBeNull()
+        await canvas.findByText("Signed in: password and authenticator code")
+        await userEvent.click(canvas.getByRole("button", {name: "Export"}))
+        const dialog = within(
+            await within(document.body).findByRole("dialog", {name: "Export logs"})
+        )
+        await userEvent.click(dialog.getByRole("combobox", {name: "Scope"}))
+        const scopes = within(await within(document.body).findByRole("listbox"))
+        expect(scopes.getAllByRole("option").map(({textContent}) => textContent)).toEqual([
+            "The whole tenant log",
+            "One account",
+        ])
+        await userEvent.click(scopes.getByRole("option", {name: "One account"}))
+        await userEvent.type(dialog.getByRole("textbox", {name: /Username/}), "rosa.marin")
+        await userEvent.click(dialog.getByRole("radio", {name: "SQL"}))
+        await userEvent.click(dialog.getByRole("button", {name: "Export"}))
+        await waitFor(() =>
+            expect(graphql.calls).toEqual([
+                {
+                    name: "ExportTenantLogs",
+                    variables: {
+                        format: "SQL",
+                        scope: "ACCOUNT",
+                        username: "rosa.marin",
+                        createdFrom: null,
+                        createdTo: null,
+                        timeZone: TENANT_LOG_ZONE,
+                    },
+                    headers: {"x-hasura-role": "tenant-logs-export"},
+                },
+            ])
+        )
     },
 }
 
-export const WithoutLogPermission: Story = {
-    args: {roles: [IPermissions.TENANT_WRITE, IPermissions.LOGS_READ]},
+/** Reading the log doesn't give its exports. */
+export const WithoutExportPermission: Story = {
+    args: {roles: [IPermissions.TENANT_LOGS_READ]},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByText("Signed in: password and authenticator code")
+        expect(canvas.queryByRole("button", {name: "Export"})).toBeNull()
+        await expect(canvas.getByRole("button", {name: "Columns"})).toBeVisible()
+    },
+}
+
+/** An event's logs-read doesn't open the tenant log. */
+export const WithoutPermission: Story = {
+    args: {roles: [IPermissions.LOGS_READ, IPermissions.LOGS_EXPORT]},
     play: async ({canvasElement}) => {
         await expect(
-            within(canvasElement).getByText(i18n.t("tenantLogs.noPermissions"))
+            within(canvasElement).getByText("You don't have permission to see this log.")
         ).toBeVisible()
         expect(data.calls).toEqual([])
+    },
+}
+
+/** On a narrow screen each entry is two lines and opens the same popup. */
+export const OnANarrowScreen: Story = {
+    args: {width: 420},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await waitFor(() =>
+            expect(canvasElement.querySelectorAll(".log-compact-entry")).toHaveLength(
+                TENANT_LOG_PAGE
+            )
+        )
+        expect(canvas.queryByRole("table")).toBeNull()
+        const lockout = canvas
+            .getByText("Account locked for 1 minute after 30 failed sign-ins in a row")
+            .closest("li") as HTMLElement
+        await expect(
+            within(lockout).getByText(/^5236 · .* · lena\.ortiz · KeycloakUserEvent · ERROR$/)
+        ).toBeVisible()
+        await userEvent.click(within(lockout).getByRole("button"))
+        const dialog = within(
+            await within(document.body).findByRole("dialog", {name: "Log entry 5,236"})
+        )
+        await waitFor(() =>
+            expect(dialog.getByText("USER_DISABLED_BY_TEMPORARY_LOCKOUT")).toBeVisible()
+        )
     },
 }

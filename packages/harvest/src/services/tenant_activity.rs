@@ -188,6 +188,8 @@ fn log_event(
         tenant_id: recorded.tenant_id,
         body: LogEventBody::Plain(serde_json::to_string(&activity)?),
         event_time_ms: Some(chrono::Utc::now().timestamp_millis()),
+        details: None,
+        admin_event: None,
     })
 }
 

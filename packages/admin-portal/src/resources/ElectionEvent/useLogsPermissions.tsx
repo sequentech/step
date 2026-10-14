@@ -17,6 +17,16 @@ export function useLogsPermissions() {
     const canReadLogs = authContext.isAuthorized(true, tenantId, IPermissions.LOGS_READ)
     const canExportLogs = authContext.isAuthorized(true, tenantId, IPermissions.LOGS_EXPORT)
     const canAuditLogs = authContext.isAuthorized(true, tenantId, IPermissions.ELECTORAL_LOG_AUDIT)
+    const canReadTenantLogs = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.TENANT_LOGS_READ
+    )
+    const canExportTenantLogs = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.TENANT_LOGS_EXPORT
+    )
 
     const showLogsColumns = authContext.isAuthorized(true, tenantId, IPermissions.EE_LOGS_COLUMNS)
     const showLogsFilters = authContext.isAuthorized(true, tenantId, IPermissions.EE_LOGS_FILTERS)
@@ -28,6 +38,8 @@ export function useLogsPermissions() {
         canReadLogs,
         canExportLogs,
         canAuditLogs,
+        canReadTenantLogs,
+        canExportTenantLogs,
         showLogsColumns,
         showLogsFilters,
     }

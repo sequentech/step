@@ -1010,3 +1010,116 @@ async fn appends_report_the_records_they_store() -> Result<()> {
     client.delete_board(&board).await?;
     Ok(())
 }
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn records_filter_by_the_event_type_and_log_type_of_their_statement() -> Result<()> {
+    use electoral_log::messages::message::{Message, SigningData};
+    use electoral_log::messages::newtypes::{AuditLogEntry, AuditStatementKind, EventIdString};
+    use electoral_log::messages::statement::{StatementEventType, StatementLogType};
+    use voting_crypto::signing::SigningKey;
+
+    let url = std::env::var("ELECTORAL_LOG_TEST_DATABASE_URL")?;
+    let store = PostgresStore::new(url.parse()?)?;
+    initialized(&store).await?;
+    let client = BoardClient::new(Arc::new(store.clone()));
+    let board = format!("test-{}", Uuid::new_v4());
+    client.create_board(&board).await?;
+    let data = SigningData::new(SigningKey::generate()?, "admin", SigningKey::generate()?);
+    let audit = |delivery: &str, event_type, log_type| -> Result<LogEntry> {
+        let message = Message::audit_message(
+            EventIdString("tenant".into()),
+            AuditLogEntry {
+                kind: AuditStatementKind::AdminChange,
+                event_type,
+                log_type,
+                description: "Updated tenant".into(),
+                details_json: "{}".into(),
+                entry_id: delivery.into(),
+            },
+            7,
+            &data,
+            Some("user".into()),
+            Some("admin".into()),
+            None,
+            None,
+        )?;
+        Ok(LogEntry {
+            delivery_id: delivery.into(),
+            message: ElectoralLogMessage::try_from(&message)?,
+        })
+    };
+    client
+        .append(
+            &board,
+            &[
+                audit(
+                    "user-info",
+                    StatementEventType::USER,
+                    StatementLogType::INFO,
+                )?,
+                audit(
+                    "system-error",
+                    StatementEventType::SYSTEM,
+                    StatementLogType::ERROR,
+                )?,
+                audit(
+                    "user-error",
+                    StatementEventType::USER,
+                    StatementLogType::ERROR,
+                )?,
+                // Bytes that are no message have neither type.
+                entry("unreadable", 8, None),
+            ],
+        )
+        .await?;
+    let matching = |column, value: &str| LogQuery {
+        filters: vec![Filter::Text(column, SqlCompOperators::Equal, value.into())],
+        ..LogQuery::default()
+    };
+    assert_eq!(
+        client
+            .count(&board, &matching(TextColumn::EventType, "USER"))
+            .await?,
+        2
+    );
+    assert_eq!(
+        client
+            .count(&board, &matching(TextColumn::LogType, "ERROR"))
+            .await?,
+        2
+    );
+    let both = LogQuery {
+        filters: vec![
+            Filter::Text(
+                TextColumn::EventType,
+                SqlCompOperators::Equal,
+                "USER".into(),
+            ),
+            Filter::Text(TextColumn::LogType, SqlCompOperators::Equal, "ERROR".into()),
+        ],
+        ..LogQuery::default()
+    };
+    assert_eq!(client.count(&board, &both).await?, 1);
+
+    // Records stored before the columns existed are filled from their messages.
+    let db = store.client().await?;
+    db.execute(
+        "UPDATE electoral_log_messages SET event_type = NULL, log_type = NULL \
+         WHERE board_name = $1",
+        &[&board],
+    )
+    .await?;
+    assert_eq!(client.count(&board, &both).await?, 0);
+    assert!(store.backfill_statement_heads().await? >= 3);
+    assert_eq!(client.count(&board, &both).await?, 1);
+    assert_eq!(
+        client
+            .count(&board, &matching(TextColumn::EventType, "SYSTEM"))
+            .await?,
+        1
+    );
+    assert!(store.audit(&board, &[]).await?.is_clean());
+    client.delete_board(&board).await?;
+    Ok(())
+}

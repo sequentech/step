@@ -38,6 +38,8 @@ fn keycloak(event_type: &str, user_id: Option<&str>, event_time_ms: Option<i64>)
         tenant_id: TENANT.to_string(),
         body: LogEventBody::Plain("null".to_string()),
         event_time_ms,
+        details: None,
+        admin_event: None,
     }
 }
 

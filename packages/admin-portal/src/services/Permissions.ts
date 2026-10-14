@@ -299,7 +299,13 @@ export const getOperationRole = (
     const operationName = operation?.operationName
     const defaultRole = DEFAULT_OPERATION_ROLES.find(hasRole)
     if (!defaultRole) {
-        return mappedRoleOf(NonAdminOperationMap, operationName) ?? IPermissions.ELECTION_EVENT_READ
+        const role =
+            mappedRoleOf(NonAdminOperationMap, operationName) ?? IPermissions.ELECTION_EVENT_READ
+        // An auditor may hold only the tenant log's permissions: the schema is then
+        // read, and everything else refused, as the role that reads that log.
+        return hasRole(role) || !hasRole(IPermissions.TENANT_LOGS_READ)
+            ? role
+            : IPermissions.TENANT_LOGS_READ
     }
     const operationMap = hasRole(IPermissions.TRUSTEE_CEREMONY)
         ? TrusteeOperationMap

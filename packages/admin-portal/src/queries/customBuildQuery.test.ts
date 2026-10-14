@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {readFileSync} from "node:fs"
 import {resolve} from "node:path"
-import {type DocumentNode, type OperationDefinitionNode} from "graphql"
+import {print, type DocumentNode, type OperationDefinitionNode} from "graphql"
 import {introspectSchema} from "ra-data-graphql/dist/cjs/introspection"
 import {customBuildQuery} from "./customBuildQuery"
 import {electionSearchFilter} from "../services/ElectionSearch"
 import {ACTIVE_SCHEDULED_EVENTS} from "../services/ScheduledEvent"
 import {Order_By} from "@/gql/graphql"
+import {ELogScope} from "@/components/logs/logScope"
 
 // The log range filter reads its wall times with the timezone service.
 jest.mock("@sequentech/ui-core", () => ({
@@ -404,7 +405,6 @@ describe("action-backed lists", () => {
         ["permission", "getPermissions", "get_permissions"],
         ["ip_address", "GetCastVotesByIp", "get_top_votes_by_ip"],
         ["electoral_log", "listElectoralLog", "listElectoralLog"],
-        ["tenant_log", "listTenantLog", "listTenantLog"],
     ])("%s reads its page from the %s action", (resource, operation, field) => {
         const built = list(resource, {filter: {election_event_id: EVENT, tenant_id: EVENT}})
         expect(operationName(built.query)).toBe(operation)
@@ -437,44 +437,36 @@ describe("action-backed lists", () => {
         expect(new Date(filter.created_to).getTime()).toBe(Date.parse("2028-04-09T15:59:00Z"))
         expect(JSON.stringify(built.variables)).not.toContain("time_zone")
     })
-})
 
-describe("the tenant's log", () => {
-    it("asks for a page with the searchable filters and no election event", () => {
-        const built = list("tenant_log", {
-            pagination: {page: 3, perPage: 25},
-            sort: {field: "id", order: "DESC"},
-            filter: {
-                election_event_id: EVENT,
-                username: "maria",
-                statement_kind: "TenantAdminAction",
-                channel: "SMS",
-            },
+    it("filters either log by event type and log type", () => {
+        const built = list("electoral_log", {
+            filter: {election_event_id: EVENT, event_type: "SYSTEM", log_type: "ERROR"},
         })
-        expect(operationName(built.query)).toBe("listTenantLog")
-        expect(built.variables).toMatchObject({
-            limit: 25,
-            offset: 50,
-            filter: {username: "maria", statement_kind: "TenantAdminAction"},
-            order_by: {id: "desc"},
-        })
-        const sent = JSON.stringify(built.variables)
-        expect(sent).not.toContain(EVENT)
-        expect(sent).not.toContain("SMS")
+        expect(built.variables.filter).toEqual({event_type: "SYSTEM", log_type: "ERROR"})
     })
 
-    it("sends the Created range as instants of the wall times in the chosen zone", () => {
-        const built = list("tenant_log", {
-            filter: {
-                created_from: "2028-04-08T00:00",
-                created_to: "2028-04-09T23:59",
-                time_zone: "Asia/Manila",
-            },
+    it("reads an event's log as the default role, naming the event", () => {
+        const built = list("electoral_log", {filter: {election_event_id: EVENT}}) as Built & {
+            context?: unknown
+        }
+        expect(built.context).toBeUndefined()
+        expect(print(built.query)).toContain(`$election_event_id: String = "${EVENT}"`)
+    })
+
+    it("reads the tenant log without an election event, as tenant-logs-read", () => {
+        const built = list("electoral_log", {
+            filter: {election_event_id: EVENT, username: "rosa.marin", event_type: "USER"},
+            meta: {logScope: ELogScope.TENANT},
+        }) as Built & {context?: unknown}
+        expect(operationName(built.query)).toBe("listTenantLog")
+        expect(print(built.query)).not.toContain("election_event_id")
+        expect(JSON.stringify(built.variables)).not.toContain(EVENT)
+        expect(built.variables.filter).toEqual({username: "rosa.marin", event_type: "USER"})
+        expect(built.context).toEqual({headers: {"x-hasura-role": "tenant-logs-read"}})
+        expect(built.parseResponse({data: {listElectoralLog: page}})).toEqual({
+            data: page.items,
+            total: 7,
         })
-        const filter = built.variables.filter as Record<string, string>
-        expect(new Date(filter.created_from).getTime()).toBe(Date.parse("2028-04-07T16:00:00Z"))
-        expect(new Date(filter.created_to).getTime()).toBe(Date.parse("2028-04-09T15:59:00Z"))
-        expect(JSON.stringify(built.variables)).not.toContain("time_zone")
     })
 })
 

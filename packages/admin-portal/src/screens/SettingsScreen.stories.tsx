@@ -14,8 +14,7 @@ import {
     electionTypeRecords,
     settingsTenant,
 } from "@/resources/Settings/__stories__/SettingsFixture"
-import {tenantLogRecords} from "@/resources/Settings/__stories__/TenantLogFixture"
-import {TENANT_LOG_RESOURCE} from "@/queries/ListTenantLog"
+import {TENANT_LOG_ZONE, tenantLogRows} from "@/components/logs/__stories__/tenantLogFixture"
 import {IPermissions} from "@/types/keycloak"
 import {SettingsScreen} from "./SettingsScreen"
 
@@ -40,8 +39,8 @@ const meta = {
     beforeEach: async ({args}) => {
         data = resourceBoundary({
             [ELECTION_TYPE_RESOURCE]: electionTypeRecords(),
-            [TENANT_RESOURCE]: [settingsTenant()],
-            [TENANT_LOG_RESOURCE]: tenantLogRecords(),
+            [TENANT_RESOURCE]: [settingsTenant({logs_timezone: TENANT_LOG_ZONE})],
+            electoral_log: tenantLogRows(),
         })
         // The messaging operations are not in the generated schema yet.
         const messaging = args.roles.includes(IPermissions.MESSAGING_ACCOUNT_READ)
@@ -76,6 +75,7 @@ type Story = StoryObj<Scenario>
 const tab = (canvasElement: HTMLElement, key: string) =>
     within(canvasElement).getByRole("tab", {name: i18n.t(`electionTypeScreen.tabs.${key}`)})
 
+/** With tenant-write alone (a configuration manager): every tab but Logs. */
 export const Populated: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
@@ -85,9 +85,63 @@ export const Populated: Story = {
         await expect(tab(canvasElement, "electionTypes")).toHaveAttribute("aria-selected", "true")
         await expect(await canvas.findByRole("row", {name: /Referendum/})).toBeVisible()
         expect(canvas.getAllByRole("tab")).toHaveLength(10)
+        expect(canvas.queryByRole("tab", {name: "Logs"})).toBeNull()
         expect(data.calls.map(({method, args}) => [method, args[0]])).toEqual([
             ["getList", ELECTION_TYPE_RESOURCE],
         ])
+    },
+}
+
+const TENANT_LOGS = [IPermissions.TENANT_LOGS_READ, IPermissions.TENANT_LOGS_EXPORT]
+
+/** With tenant-write and tenant-logs-read (a security officer): every tab, Logs last. */
+export const EveryTabAndLogs: Story = {
+    args: {roles: [IPermissions.SETTINGS_MENU, IPermissions.TENANT_WRITE, ...TENANT_LOGS]},
+    parameters: {expectedFailure: null},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("row", {name: /Referendum/})
+        const tabs = canvas.getAllByRole("tab")
+        expect(tabs).toHaveLength(11)
+        expect(tabs.at(-1)).toHaveTextContent("Logs")
+        expect(tabs.at(-2)).toHaveTextContent(i18n.t("settings.previewScreen.label"))
+        await userEvent.click(tabs[10])
+        await expect(
+            await canvas.findByText("Settings changed: Languages, Integrations and Voting Channels")
+        ).toBeVisible()
+        await expect(canvas.getByRole("button", {name: "Export"})).toBeVisible()
+        expect(canvas.queryByRole("row", {name: /Referendum/})).toBeNull()
+    },
+}
+
+/** With tenant-logs-read alone (an auditor): Settings holds only Logs. */
+export const OnlyLogsForAnAuditor: Story = {
+    args: {roles: [IPermissions.SETTINGS_MENU, ...TENANT_LOGS]},
+    parameters: {expectedFailure: null},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(
+            await canvas.findByText("Settings changed: Languages, Integrations and Voting Channels")
+        ).toBeVisible()
+        const tabs = canvas.getAllByRole("tab")
+        expect(tabs).toHaveLength(1)
+        expect(tabs[0]).toHaveTextContent("Logs")
+        expect(tabs[0]).toHaveAttribute("aria-selected", "true")
+        await expect(canvas.getByRole("heading", {name: "Logs"})).toBeVisible()
+        // Nothing of the configuration tabs is read.
+        expect(data.calls.map(({args}) => args[0])).not.toContain(ELECTION_TYPE_RESOURCE)
+    },
+}
+
+export const LogsWithoutTheSettingsMenu: Story = {
+    args: {roles: [...TENANT_LOGS, IPermissions.TENANT_WRITE]},
+    parameters: {expectedFailure: null},
+    play: async ({canvasElement}) => {
+        await expect(
+            within(canvasElement).getByText(i18n.t("electionTypeScreen.noPermissions"))
+        ).toBeVisible()
+        expect(within(canvasElement).queryByRole("tab")).toBeNull()
+        expect(data.calls).toEqual([])
     },
 }
 
@@ -132,48 +186,6 @@ export const OpenTheMessagingAccounts: Story = {
             "GetMessagingAccounts",
             "GetMessagingCallbackStatus",
             "GetMessagingMonthlyVolumes",
-        ])
-    },
-}
-
-/** With both permissions the log is the last tab, after the settings. */
-export const OpenTheLogs: Story = {
-    args: {
-        roles: [
-            IPermissions.SETTINGS_MENU,
-            IPermissions.TENANT_WRITE,
-            IPermissions.TENANT_LOGS_READ,
-        ],
-    },
-    parameters: {expectedFailure: null},
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await canvas.findByRole("row", {name: /Referendum/})
-        const tabs = canvas.getAllByRole("tab")
-        expect(tabs).toHaveLength(11)
-        expect(tabs[10]).toHaveTextContent(i18n.t("tenantLogs.tab"))
-        await userEvent.click(tabs[10])
-        await expect(
-            await canvas.findByText("Request to delete an election event denied.")
-        ).toBeVisible()
-        expect(canvas.queryByRole("row", {name: /Referendum/})).toBeNull()
-    },
-}
-
-/** An auditor reads the tenant's log and changes no setting: Logs is the only tab. */
-export const AnAuditorSeesOnlyTheLogs: Story = {
-    args: {roles: [IPermissions.SETTINGS_MENU, IPermissions.TENANT_LOGS_READ]},
-    parameters: {expectedFailure: null},
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await expect(
-            await canvas.findByText("Request to delete an election event denied.")
-        ).toBeVisible()
-        const tabs = canvas.getAllByRole("tab")
-        expect(tabs).toHaveLength(1)
-        expect(tabs[0]).toHaveTextContent(i18n.t("tenantLogs.tab"))
-        expect(data.calls.map(({method, args}) => [method, args[0]])).toEqual([
-            ["getList", TENANT_LOG_RESOURCE],
         ])
     },
 }

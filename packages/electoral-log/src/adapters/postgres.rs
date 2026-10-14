@@ -3,6 +3,7 @@
 
 use crate::{
     domain::*,
+    messages::message::Message,
     ports::ElectoralLogStore,
     proofs::{leaf_hash, Checkpoint, Journal, JournalError, LogIdentity, RecordProof, Uuid},
 };
@@ -19,6 +20,7 @@ use std::{
 };
 use tokio_postgres::{types::ToSql, Config, Row};
 use trellis::journal::{audit_tree, create_log, TreeAudit, INSERT_CHUNK};
+use voting_crypto::RecordDeserialize;
 
 /// Prefix of the advisory lock key that serializes audits of a board.
 pub const AUDIT_LOCK_NAMESPACE: &str = "electoral-log-audit:";
@@ -346,24 +348,53 @@ impl PostgresStore {
         Ok(())
     }
 
-    /// Create the tables of the logs without the ballot box, for a database whose
-    /// logs belong to no election event. Idempotent.
-    pub async fn initialize_logs(&self) -> Result<()> {
-        self.pool.get().await?.batch_execute(&log_schema()?).await?;
-        Ok(())
+    /// Fill the event type and log type of records stored before those columns
+    /// existed, as applying the schema to an existing database does. Returns how many
+    /// records it filled; a record whose message cannot be read keeps them empty.
+    pub async fn backfill_statement_heads(&self) -> Result<u64> {
+        let mut client = self.pool.get().await?;
+        let (mut filled, mut after) = (0, 0i64);
+        loop {
+            let rows = client
+                .query(
+                    "SELECT id, message FROM electoral_log_messages \
+                     WHERE id > $1 AND event_type IS NULL ORDER BY id LIMIT $2",
+                    &[&after, &HEAD_BACKFILL_PAGE],
+                )
+                .await?;
+            let Some(last) = rows.last() else {
+                return Ok(filled);
+            };
+            after = last.try_get(0)?;
+            let mut ids = Vec::with_capacity(rows.len());
+            let mut event_types = Vec::with_capacity(rows.len());
+            let mut log_types = Vec::with_capacity(rows.len());
+            for row in &rows {
+                let message: &[u8] = row.try_get(1)?;
+                if let Some((event_type, log_type)) = statement_head_types(message) {
+                    ids.push(row.try_get::<_, i64>(0)?);
+                    event_types.push(event_type);
+                    log_types.push(log_type);
+                }
+            }
+            let tx = client.transaction().await?;
+            filled += tx
+                .execute(
+                    "UPDATE electoral_log_messages m \
+                     SET event_type = r.event_type, log_type = r.log_type \
+                     FROM UNNEST($1::BIGINT[], $2::TEXT[], $3::TEXT[]) \
+                         AS r(id, event_type, log_type) \
+                     WHERE m.id = r.id AND m.event_type IS NULL",
+                    &[&ids, &event_types, &log_types],
+                )
+                .await?;
+            tx.commit().await?;
+        }
     }
 }
 
-/// Where the ballot box starts in `schema.sql`: the tables before it are the logs'.
-const BALLOT_BOX_SCHEMA_START: &str = "-- Ballot box:";
-
-/// The part of `schema.sql` that creates the tables of the logs, as one transaction.
-fn log_schema() -> Result<String> {
-    let (logs, _) = include_str!("../../schema.sql")
-        .split_once(BALLOT_BOX_SCHEMA_START)
-        .context("schema.sql does not mark where the ballot box starts")?;
-    Ok(format!("{logs}COMMIT;\n"))
-}
+/// Records `backfill_statement_heads` reads at a time.
+const HEAD_BACKFILL_PAGE: i64 = 2000;
 
 /// Audit a board in one snapshot taken once its audit lock is held, or return `None`
 /// without reading it when another audit holds the lock.
@@ -583,18 +614,31 @@ pub(crate) async fn insert_records(
         .iter()
         .map(|e| e.message.message.as_slice())
         .collect();
+    let heads: Vec<Option<(String, String)>> = messages
+        .iter()
+        .map(|message| statement_head_types(message))
+        .collect();
+    let event_types: Vec<Option<&str>> = heads
+        .iter()
+        .map(|head| head.as_ref().map(|(event_type, _)| event_type.as_str()))
+        .collect();
+    let log_types: Vec<Option<&str>> = heads
+        .iter()
+        .map(|head| head.as_ref().map(|(_, log_type)| log_type.as_str()))
+        .collect();
     let rows = tx
         .query(
             "INSERT INTO electoral_log_messages (board_name, delivery_id, created, sender_pk, \
              statement_timestamp, statement_kind, message, version, user_id, username, \
-             election_id, area_id, ballot_id) \
+             election_id, area_id, ballot_id, event_type, log_type) \
              SELECT $1, delivery_id, created, sender_pk, statement_timestamp, statement_kind, \
-             message, version, user_id, username, election_id, area_id, ballot_id \
+             message, version, user_id, username, election_id, area_id, ballot_id, \
+             event_type, log_type \
              FROM UNNEST($2::TEXT[], $3::BIGINT[], $4::TEXT[], $5::BIGINT[], $6::TEXT[], \
              $7::BYTEA[], $8::TEXT[], $9::TEXT[], $10::TEXT[], $11::TEXT[], $12::TEXT[], \
-             $13::TEXT[]) WITH ORDINALITY AS r(delivery_id, created, sender_pk, \
-             statement_timestamp, statement_kind, message, version, user_id, username, \
-             election_id, area_id, ballot_id, position) \
+             $13::TEXT[], $14::TEXT[], $15::TEXT[]) WITH ORDINALITY AS r(delivery_id, created, \
+             sender_pk, statement_timestamp, statement_kind, message, version, user_id, \
+             username, election_id, area_id, ballot_id, event_type, log_type, position) \
              ORDER BY position \
              ON CONFLICT (board_name, delivery_id) DO NOTHING RETURNING id, delivery_id",
             &[
@@ -611,6 +655,8 @@ pub(crate) async fn insert_records(
                 &optional(|m| &m.election_id),
                 &optional(|m| &m.area_id),
                 &optional(|m| &m.ballot_id),
+                &event_types,
+                &log_types,
             ],
         )
         .await?;
@@ -653,6 +699,13 @@ pub(crate) async fn insert_records(
     }
     pending.clear();
     Ok(records)
+}
+
+/// The event type and log type of a record's signed statement, or `None` for bytes
+/// that are not a message this version reads.
+fn statement_head_types(message: &[u8]) -> Option<(String, String)> {
+    let head = Message::record_deserialize(message).ok()?.statement.head;
+    Some((head.event_type.to_string(), head.log_type.to_string()))
 }
 
 /// Records of a board after the cursor `$3`, with their leaves, in ID order.
@@ -1100,18 +1153,6 @@ pub(crate) fn qualified_columns(alias: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn the_log_schema_is_the_schema_without_the_ballot_box() {
-        let schema = log_schema().unwrap();
-        assert!(schema.starts_with(include_str!("../../schema.sql").split_at(40).0));
-        assert!(schema.contains(trellis::journal::SCHEMA));
-        assert!(schema.contains("CREATE TABLE IF NOT EXISTS electoral_log_boards"));
-        assert!(schema.contains("CREATE INDEX IF NOT EXISTS electoral_log_created"));
-        assert!(!schema.contains("ballot_box"), "{schema}");
-        assert_eq!(schema.matches("BEGIN;").count(), 1);
-        assert!(schema.ends_with("COMMIT;\n"));
-    }
 
     #[test]
     fn audit_outcomes_use_the_same_names_in_json_and_text() {

@@ -2,10 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::ports::electoral_log::{
-    ApprovalMatrixLog, ElectoralLogs, PhoneBlacklistChange,
-    PhoneBlacklistEntryLog,
-};
+use crate::ports::electoral_log::{ApprovalMatrixLog, ElectoralLogs};
 use anyhow::anyhow;
 use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::BallotPublicationStage;
@@ -32,12 +29,6 @@ pub enum LoggedEntry {
         admin_id: String,
         version: u32,
         sha256: String,
-    },
-    PhoneBlacklistEntry {
-        change: PhoneBlacklistChange,
-        election_event_id: String,
-        admin_id: String,
-        phone_e164: String,
     },
     BallotPublicationFailure {
         task_id: String,
@@ -93,19 +84,6 @@ impl ElectoralLogs for MemoryElectoralLogs {
             voter_id: audit.voter_id.map(str::to_string),
             attribute_names: audit.attribute_names.to_vec(),
             document_id: audit.document_id.map(str::to_string),
-        })
-    }
-
-    async fn phone_blacklist_entry(
-        &self,
-        _transaction: &Transaction<'_>,
-        entry: PhoneBlacklistEntryLog<'_>,
-    ) -> anyhow::Result<()> {
-        self.record(LoggedEntry::PhoneBlacklistEntry {
-            change: entry.change,
-            election_event_id: entry.election_event_id.to_string(),
-            admin_id: entry.user_id.to_string(),
-            phone_e164: entry.phone_e164,
         })
     }
 
