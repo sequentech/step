@@ -2623,6 +2623,7 @@ const frenchTranslation: TranslationType = {
             logsTitle: "Journaux",
             resultsTitle: "Résultats & Participation",
             generalInfoTitle: "Informations Générales",
+            sessionId: "Identifiant de la session de dépouillement",
             selectedQuorum: "Quorum sélectionné",
             trusteeTallyTitle: "Trustee",
             trusteeTallySubTitle: "État de confirmation de garde",

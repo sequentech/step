@@ -24,8 +24,14 @@ file again. No command on the trustee server is needed. Uploading a file from
 another trustee or key ceremony is rejected, and a signed proof from a previous
 tally cannot authorize the current one.
 
-Offline and browser trustees can still create and upload a signed custody proof
-with the current tally session UUID. See [trustee configuration](../../07-developers/09-wbraid/trustee-configuration.md#manual-custody-proofs).
+Running browser trustees also generate the proof automatically when the saved
+ceremony file is uploaded in the tally wizard. Keep `/trustee` open in another tab.
+The tally session ID is created when the administrator creates the tally ceremony,
+before custody requests. It appears on both steps of the trustee wizard and can
+be selected and copied. For a manual proof file, stop the browser runner and use
+**Advanced → Generate proof file manually** on `/trustee`, entering that ID.
+Offline trustees can also create and upload a proof with this ID.
+See [trustee configuration](../../07-developers/09-wbraid/trustee-configuration.md#manual-custody-proofs).
 
 The saved public ceremony file supports this manual approval procedure. Recovering
 a trustee after losing its server requires separate backups of its private keys

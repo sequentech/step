@@ -2596,6 +2596,7 @@ const galegoTranslation: TranslationType = {
             logsTitle: "Rexistros",
             resultsTitle: "Resultados e Participación",
             generalInfoTitle: "Información Xeral",
+            sessionId: "ID da sesión de reconto",
             selectedQuorum: "Quórum seleccionado",
             trusteeTallyTitle: "Fiduciarios",
             trusteeTallySubTitle: "Estado de confirmación da custodia",

@@ -2612,6 +2612,7 @@ const catalanTranslation: TranslationType = {
             logsTitle: "Registres",
             resultsTitle: "Resultats & Participació",
             generalInfoTitle: "Informació General",
+            sessionId: "ID de la sessió de recompte",
             selectedQuorum: "Quòrum seleccionat",
             trusteeTallyTitle: "Trustee",
             trusteeTallySubTitle: "Estat de confirmació de custòdia",

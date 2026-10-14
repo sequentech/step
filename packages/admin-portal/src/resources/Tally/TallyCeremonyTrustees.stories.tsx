@@ -172,9 +172,13 @@ const meta = {
             {schema: true}
         )
         await graphql.ready
-        return args.rule === CustodyProofRule.Required
-            ? applyCustodyProofOverrides(organization)
-            : undefined
+        const restoreTranslations =
+            args.rule === CustodyProofRule.Required
+                ? applyCustodyProofOverrides(organization)
+                : undefined
+        return () => {
+            restoreTranslations?.()
+        }
     },
     render: (args, {globals}) => <Fixture key={JSON.stringify(globals)} {...args} />,
 } satisfies WidgetMeta<Scenario>
@@ -271,6 +275,24 @@ export const CustodyAlreadyAuthorized: Story = {
         await expect(await canvas.findByRole("row", {name: /trustee2/})).toBeVisible()
         expect(canvas.queryByText(i18n.t("tally.trusteeTitle"))).toBeNull()
         expect(canvas.queryByRole("button", {name: i18n.t("tally.common.next")})).toBeNull()
+        await expect(canvas.getByText(STORY_IDS.tallySession)).toBeVisible()
+    },
+}
+
+export const TallyIdIsSelectableAndCompact: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const id = await canvas.findByText(STORY_IDS.tallySession)
+        await expect(id).toBeVisible()
+        expect(canvas.queryByRole("button", {name: "Copy tally ID"})).toBeNull()
+        expect(getComputedStyle(id).userSelect).toBe("all")
+        const label = document.createRange()
+        label.selectNodeContents(canvas.getByText("Tally session ID"))
+        const gap = id.getBoundingClientRect().top - label.getBoundingClientRect().bottom
+        expect(gap).toBeGreaterThanOrEqual(0)
+        expect(gap).toBeLessThanOrEqual(4)
+        expect(graphql.calls).toEqual([])
+        await expect(nextButton(canvasElement)).toBeDisabled()
     },
 }
 

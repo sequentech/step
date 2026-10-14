@@ -2587,6 +2587,7 @@ const basqueTranslation: TranslationType = {
             logsTitle: "Egunkariak",
             resultsTitle: "Emaitzak eta Parte-hartzea",
             generalInfoTitle: "Informazio Orokorra",
+            sessionId: "Zenbaketa-saioaren IDa",
             selectedQuorum: "Hautatutako quoruma",
             trusteeTallyTitle: "Fideikomisarioak",
             trusteeTallySubTitle: "Zaintzaren berrespenaren egoera",

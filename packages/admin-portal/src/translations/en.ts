@@ -2602,6 +2602,7 @@ const englishTranslation = {
             logsTitle: "Logs",
             resultsTitle: "Results & Participation",
             generalInfoTitle: "General Information",
+            sessionId: "Tally session ID",
             selectedQuorum: "Selected quorum",
             trusteeTallyTitle: "Trustees",
             trusteeTallySubTitle: "Custody confirmation status",

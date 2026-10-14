@@ -78,7 +78,6 @@ export const TallyCeremonyTrustees: React.FC = () => {
     const [errors, setErrors] = useState<String | null>(null)
     const {globalSettings} = useContext(SettingsContext)
     const [isTallyCompleted, setIsTallyCompleted] = useState<boolean>(false)
-
     const {data} = useGetOne<Sequent_Backend_Tally_Session>(
         "sequent_backend_tally_session",
         {
@@ -291,6 +290,25 @@ export const TallyCeremonyTrustees: React.FC = () => {
                             colorPreviousSteps={true}
                         />
                     </TallyStyles.StyledHeader>
+
+                    {tally?.id && (
+                        <Box sx={{my: 2}}>
+                            <Typography variant="body2" sx={{m: 0}}>
+                                {t("tally.sessionId")}
+                            </Typography>
+                            <Typography
+                                component="code"
+                                sx={{
+                                    display: "block",
+                                    overflowWrap: "anywhere",
+                                    userSelect: "all",
+                                    m: 0,
+                                }}
+                            >
+                                {tally.id}
+                            </Typography>
+                        </Box>
+                    )}
 
                     {page === WizardSteps.Start && (
                         <>

@@ -328,8 +328,9 @@ and any required certificate signing. Private keys never leave the browser.
 
 Alternatively, stop the runner, select **Advanced → Generate proof file manually**
 and choose the public ceremony file. For a tally restore, enter the active tally session's UUID
-in **Tally session ID** before creating the proof. The saved
-ceremony file omits that UUID so it can be reused: leaving the field blank creates
+in **Tally session ID** before creating the proof. The trustee's tally wizard
+displays the selectable ID before custody confirmation and on its status step.
+The saved ceremony file omits that UUID so it can be reused: leaving the field blank creates
 a key-ceremony proof, which the tally rejects. Upload the downloaded
 `custody-proof.json` to the wizard. The proof contains only
 public metadata and a signature, and the platform checks its ceremony and tally
