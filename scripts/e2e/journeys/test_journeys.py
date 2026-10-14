@@ -863,20 +863,52 @@ class BackendJourneys(unittest.TestCase):
         csv.writer(no_native_keys).writerows(
             [row for row in rows if not row[0].startswith("protocol:")]
         )
+        wrong_native_key = io.StringIO()
+        csv.writer(wrong_native_key).writerows(
+            [
+                (
+                    [row[0], base64.b64encode(bytes(32)).decode()]
+                    if row[0].startswith("protocol:")
+                    else row
+                )
+                for row in rows
+            ]
+        )
         for label, reason in [
             ("missing-native-key", "Missing native protocol manager key"),
             (
                 "missing-key-file",
                 "Native protocol board import requires protocol manager keys",
             ),
+            (
+                "wrong-native-key",
+                "protocol manager key does not match the archived configuration",
+            ),
+            (
+                "missing-board-file",
+                "has no Configuration message",
+            ),
         ]:
             damaged = directory / (label + ".zip")
             with zipfile.ZipFile(damaged, "w") as target:
                 for name, content in members.items():
+                    if label == "missing-board-file" and name.startswith(
+                        "export_bulletin_boards"
+                    ):
+                        continue
                     if name == keys_name:
                         if label == "missing-key-file":
                             continue
-                        content = no_native_keys.getvalue().encode()
+                        if label != "missing-board-file":
+                            content = (
+                                (
+                                    wrong_native_key
+                                    if label == "wrong-native-key"
+                                    else no_native_keys
+                                )
+                                .getvalue()
+                                .encode()
+                            )
                     target.writestr(name, content)
             since = datetime.now(timezone.utc)
             with self.assertRaises(StepCliError):

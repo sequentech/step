@@ -916,6 +916,124 @@ async fn a_board_whose_configuration_does_not_name_the_trustee_is_skipped() {
 }
 
 #[tokio::test]
+async fn an_imported_dkg_resumes_without_reposting_its_completed_messages() {
+    let harness = Harness::new(3);
+    let source = harness.board(1, &[0, 1, 2]);
+    let mut sets = harness.start_all();
+    generate_key(&harness, &mut sets, &source).await;
+    let imported = harness.imported_parent(&source, 2);
+    let messages = harness.memory(&imported).snapshot().len();
+    let mut restarted = harness.start_all();
+    round(&mut restarted, &[dkg(&imported)]).await;
+    assert_nothing_halted(&restarted);
+    assert_eq!(harness.memory(&imported).snapshot().len(), messages);
+}
+
+#[tokio::test]
+async fn an_imported_dkg_still_skips_a_trustee_outside_its_configuration() {
+    let harness = Harness::new(4);
+    let source = harness.board(1, &[0, 1, 2]);
+    let mut sets = harness.start_all();
+    rounds_until_quiet(&harness, &mut sets, &[dkg(&source)]).await;
+    let imported = harness.imported_parent(&source, 2);
+    let mut outsider = harness.start(3);
+    outsider.reconcile(&[dkg(&imported)]).await;
+    outsider.advance().await;
+    assert!(outsider.pending_reports().is_empty());
+    assert!(matches!(
+        outsider.entries[&imported],
+        super::BoardEntry::Skipped
+    ));
+}
+
+#[tokio::test]
+async fn an_imported_dkg_checks_original_local_records_before_resuming() {
+    let harness = Harness::new(3);
+    let source = harness.board(1, &[0, 1, 2]);
+    let mut sets = harness.start_all();
+    generate_key(&harness, &mut sets, &source).await;
+    let imported = harness.imported_parent(&source, 2);
+    harness.replace_dealing(&imported, 0).await;
+    let mut restarted = harness.start_all();
+    round(&mut restarted, &[dkg(&imported)]).await;
+    for set in &restarted {
+        assert_halted_on_a_rewrite(set, &imported);
+    }
+}
+
+#[tokio::test]
+async fn an_imported_dkg_continues_when_all_prior_handoffs_are_archived() {
+    let harness = Harness::new(3);
+    let source = harness.board(1, &[0, 1, 2]);
+    let mut sets = harness.start_all();
+    round(&mut sets, &[dkg(&source)]).await;
+    let imported = harness.imported_parent(&source, 2);
+    let mut restarted = harness.start_all();
+    generate_key(&harness, &mut restarted, &imported).await;
+    assert_nothing_halted(&restarted);
+}
+
+#[tokio::test]
+async fn an_imported_dkg_cannot_regenerate_a_staged_but_unarchived_dealing() {
+    let harness = Harness::new(3);
+    let source = harness.board(1, &[0, 1, 2]);
+    let mut sets = harness.start_all();
+    harness.members[0].faults.commit.set(true);
+    round(&mut sets, &[dkg(&source)]).await;
+    assert!(harness.sent(&source, 0, MessageType::Shares).is_empty());
+    let staged = harness.members[0].staged.borrow().len();
+    let imported = harness.imported_parent(&source, 2);
+    harness.members[0].faults.commit.set(false);
+    let mut restarted = harness.start(0);
+    restarted.reconcile(&[dkg(&imported)]).await;
+    restarted.advance().await;
+    assert_halted_on_a_rewrite(&restarted, &imported);
+    assert_eq!(harness.members[0].staged.borrow().len(), staged);
+    assert!(harness.sent(&imported, 0, MessageType::Shares).is_empty());
+}
+
+#[tokio::test]
+async fn an_imported_dkg_cannot_bootstrap_without_original_local_records() {
+    let harness = Harness::new(3);
+    let source = harness.board(1, &[0, 1, 2]);
+    let mut sets = harness.start_all();
+    generate_key(&harness, &mut sets, &source).await;
+    let imported = harness.imported_parent(&source, 2);
+    drop(sets);
+    fs::remove_file(harness.members[0].store_file(&source)).unwrap();
+    let mut restarted = harness.start(0);
+    restarted.reconcile(&[dkg(&imported)]).await;
+    let reports = restarted.pending_reports();
+    assert_eq!(reports.len(), 1);
+    assert!(reports[0]
+        .detail
+        .contains("no record of its key generation"));
+}
+
+#[tokio::test]
+async fn an_imported_dkg_rejects_original_records_from_another_configuration() {
+    let harness = Harness::new(3);
+    let source = harness.board(1, &[0, 1, 2]);
+    let mut sets = harness.start_all();
+    generate_key(&harness, &mut sets, &source).await;
+    let imported = harness.imported_parent(&source, 2);
+    let records: Vec<_> = harness.members.iter().map(Member::record).collect();
+    let impostor = DkgBoard::new(
+        &Uuid::from_u128(1),
+        &generate_manager(),
+        &Committee::new(&records).unwrap(),
+        THRESHOLD,
+    )
+    .unwrap();
+    harness.register(&imported, &impostor.configuration.to_bytes());
+    let mut restarted = harness.start(0);
+    restarted.reconcile(&[dkg(&imported)]).await;
+    let reports = restarted.pending_reports();
+    assert_eq!(reports.len(), 1);
+    assert!(reports[0].detail.contains("different configuration"));
+}
+
+#[tokio::test]
 async fn an_imported_parent_reuses_only_local_knowledge_of_its_immutable_configuration(
 ) {
     let harness = Harness::new(3);

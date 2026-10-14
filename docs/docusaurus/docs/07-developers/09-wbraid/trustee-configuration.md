@@ -227,6 +227,11 @@ identifier. A copied platform row's UUID is not a cryptographic trust anchor.
 
 ## Election event archives
 
+The protocol recovery described here applies to wbraid archives. Pre-wbraid
+bulletin-board CSVs contain artifacts from the earlier protocol and cannot be
+converted into or resumed as wbraid ceremonies. Keep those original archives
+and their matching verifier when recovering or auditing historical ceremonies.
+
 Configuration-only exports can be imported as new events. Publication-only and
 activity-log-only archives also work without including native manager secrets
 or ceremony state. Older selective archives that inadvertently contain unused
@@ -241,7 +246,8 @@ Select **Bulletin Board** to preserve native DKG configurations, canonical signe
 messages, board relationships and the required manager keys. Select **Tally** as
 well to preserve tally sessions and results; tally data requires the bulletin
 boards. These archives are password encrypted. Import rejects native archives
-that omit the manager-key file or any declared DKG board's manager key.
+that omit the manager-key file or any declared DKG board's manager key, or supply
+a private manager key that does not match that board's signed configuration.
 
 Import creates a copied election event with new platform IDs. Signed protocol
 messages and their original cryptographic configuration identifier remain
@@ -267,6 +273,13 @@ checks the copied transcript against those observations and rejects rewrites or
 missing local records. Back up each trustee's private configuration and runner data
 separately. Browser trustees retain their existing private-key import/export and
 session backup controls; restoring a browser identity requires its original keys.
+
+Reopening a copied DKG ceremony also checks the original local observations and
+the predicates of messages already staged by that trustee. An unfinished DKG can
+continue when the archive contains those messages. If an original handoff is
+missing from the archive, the runner halts before generating another artifact
+for that slot; a staged publish handle from the original board cannot be reused
+on the copied board. Finish that handoff on the original board and export again.
 
 ## Browser trustees
 

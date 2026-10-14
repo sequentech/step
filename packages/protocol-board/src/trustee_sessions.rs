@@ -329,6 +329,51 @@ impl<A: BoardAccess> SessionSet<A> {
         let client = BoardClient::<Ctx, _, _>::connect(transport, store)
             .await
             .context("connecting to the board")?;
+        let configuration = client.configuration();
+        if !self.secrets.is_listed_in(configuration) {
+            return Ok(None);
+        }
+        let original = BoardName::for_dkg(&Uuid::from_u128(configuration.id));
+        let client = if original != *name {
+            // A remapped DKG is the same cryptographic execution. Preserve the
+            // trustee's observations AND its handed-off slots before inference
+            // can run. Original staged handles belong to another board; pin
+            // their predicates instead, so missing archived bodies halt before
+            // the trustee can regenerate an already handed-off artifact.
+            let original_store = self.access.store(&original).await?;
+            let mut records = original_store.load().await?;
+            records.extend(
+                original_store
+                    .load_own_posts()
+                    .await?
+                    .into_iter()
+                    .map(|(predicate, _)| predicate),
+            );
+            ensure!(
+                !records.is_empty(),
+                "the original DKG session store is empty: this trustee has no record of its key generation"
+            );
+            let expected =
+                ConfigurationHash::from_configuration(configuration)?;
+            ensure!(
+                records
+                    .iter()
+                    .all(|predicate| predicate.get_configuration() == expected),
+                "the original DKG record names a different configuration"
+            );
+            let mut store = self.access.store(name).await?;
+            for predicate in records {
+                store.persist(&predicate).await?;
+            }
+            BoardClient::<Ctx, _, _>::connect(
+                OutageTagged::new(self.access.transport(name)),
+                store,
+            )
+            .await
+            .context("connecting to the imported board")?
+        } else {
+            client
+        };
         self.join(client)
     }
 

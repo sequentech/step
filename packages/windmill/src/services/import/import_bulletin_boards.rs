@@ -87,6 +87,12 @@ pub async fn import_protocol_manager_keys(
             if let Some(remapped) = native_manager_board(source_name, &replacement_map, boards)? {
                 let name = protocol_board::BoardName::parse(remapped)?;
                 let manager = protocol_board::parse_manager_key(&fields[1])?;
+                let board = boards
+                    .iter()
+                    .find(|board| board.name == remapped && board.parent_id.is_none())
+                    .context("native manager key has no archived DKG board")?;
+                protocol_board::SignedConfiguration::parse(&board.manager_message)?
+                    .verify_manager_key(&manager)?;
                 crate::services::protocol_board::save_manager_key(
                     hasura_transaction,
                     tenant_id,
