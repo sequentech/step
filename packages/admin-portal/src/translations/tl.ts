@@ -202,6 +202,20 @@ const tagalogTranslation: TranslationType = {
                 },
             },
         },
+        tenantLogs: {
+            explanation: {
+                action: "Aksyon: {{action}}",
+                outcome: {
+                    succeeded: "Tinanggap (HTTP {{status}})",
+                    denied: "Tinanggihan (HTTP {{status}})",
+                    failed: "Nabigo (HTTP {{status}})",
+                },
+                by: "Hiniling ni {{username}} ({{userId}})",
+                detail: "{{name}}: {{value}}",
+                board: "Log: {{board}}",
+                publicKey: "Pampublikong susi ng log: {{key}}",
+            },
+        },
         logsScreen: {
             noPermissions: "Wala kang permiso upang ma-access ang mga log.",
             title: "Mga Log",

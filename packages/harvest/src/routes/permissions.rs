@@ -7,6 +7,7 @@ use crate::services::authorization::{authorize, require_ordinary_permission};
 use crate::services::dependencies::HarvestServices;
 use crate::services::role_permissions::change_role_permission;
 
+use crate::services::tenant_activity::{TenantAction, TenantActivityRecorder};
 use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use anyhow::Result;
@@ -20,6 +21,7 @@ use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::keycloak::Permission;
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
+use serde_json::json;
 use tracing::instrument;
 use windmill::services::audit_log::AdminAction;
 use windmill::services::signing::permissions::RolePermissionChange;
@@ -79,8 +81,17 @@ pub async fn create_permission(
     claims: jwt::JwtClaims,
     body: Json<CreatePermissionsBody>,
     services: &State<HarvestServices>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<Permission>, (Status, String)> {
     let input = body.into_inner();
+    activity.record(
+        &claims,
+        TenantAction::CreatePermission,
+        json!({
+            "tenant_id": input.tenant_id,
+            "permission": input.permission.name,
+        }),
+    );
     validate_keycloak_scope(&input.tenant_id, None)
         .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
@@ -124,14 +135,16 @@ pub async fn set_role_permission(
     claims: jwt::JwtClaims,
     body: Json<SetOrDeleteRolePermissionsBody>,
     services: &State<HarvestServices>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
-    edit_role_permission(
-        services,
+    let input = body.into_inner();
+    activity.record(
         &claims,
-        body.into_inner(),
-        RolePermissionChange::Added,
-    )
-    .await
+        TenantAction::SetRolePermission,
+        role_permission_details(&input),
+    );
+    edit_role_permission(services, &claims, input, RolePermissionChange::Added)
+        .await
 }
 
 #[instrument(skip(claims, services))]
@@ -140,14 +153,32 @@ pub async fn delete_role_permission(
     claims: jwt::JwtClaims,
     body: Json<SetOrDeleteRolePermissionsBody>,
     services: &State<HarvestServices>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
+    let input = body.into_inner();
+    activity.record(
+        &claims,
+        TenantAction::DeleteRolePermission,
+        role_permission_details(&input),
+    );
     edit_role_permission(
         services,
         &claims,
-        body.into_inner(),
+        input,
         RolePermissionChange::Removed,
     )
     .await
+}
+
+/// What a change to a role's permissions was made on, for the tenant's log.
+fn role_permission_details(
+    input: &SetOrDeleteRolePermissionsBody,
+) -> serde_json::Value {
+    json!({
+        "tenant_id": input.tenant_id,
+        "role_id": input.role_id,
+        "permission": input.permission_name,
+    })
 }
 
 /// Any permission needs `user-permission-write` and `role-write`; a
@@ -203,8 +234,17 @@ pub async fn delete_permission(
     claims: jwt::JwtClaims,
     body: Json<DeletePermissionBody>,
     services: &State<HarvestServices>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
+    activity.record(
+        &claims,
+        TenantAction::DeletePermission,
+        json!({
+            "tenant_id": input.tenant_id,
+            "permission": input.permission_name,
+        }),
+    );
     validate_keycloak_scope(&input.tenant_id, None)
         .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(

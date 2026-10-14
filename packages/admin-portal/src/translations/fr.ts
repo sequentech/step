@@ -202,6 +202,20 @@ const frenchTranslation: TranslationType = {
                 },
             },
         },
+        tenantLogs: {
+            explanation: {
+                action: "Action : {{action}}",
+                outcome: {
+                    succeeded: "Acceptée (HTTP {{status}})",
+                    denied: "Refusée (HTTP {{status}})",
+                    failed: "Échouée (HTTP {{status}})",
+                },
+                by: "Demandée par {{username}} ({{userId}})",
+                detail: "{{name}} : {{value}}",
+                board: "Journal : {{board}}",
+                publicKey: "Clé publique du journal : {{key}}",
+            },
+        },
         logsScreen: {
             noPermissions: "Vous n'avez pas la permission d'accéder aux journaux.",
             title: "Journaux",

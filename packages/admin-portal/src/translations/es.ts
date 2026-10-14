@@ -201,6 +201,20 @@ const spanishTranslation: TranslationType = {
                 },
             },
         },
+        tenantLogs: {
+            explanation: {
+                action: "Acción: {{action}}",
+                outcome: {
+                    succeeded: "Aceptada (HTTP {{status}})",
+                    denied: "Denegada (HTTP {{status}})",
+                    failed: "Fallida (HTTP {{status}})",
+                },
+                by: "Pedida por {{username}} ({{userId}})",
+                detail: "{{name}}: {{value}}",
+                board: "Bitácora: {{board}}",
+                publicKey: "Clave pública de la bitácora: {{key}}",
+            },
+        },
         logsScreen: {
             noPermissions: "No tienes permiso para acceder a las bitácoras.",
             title: "Bitácoras",

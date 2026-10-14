@@ -655,6 +655,58 @@ pub struct SigningLogEntry {
     pub step_id: String,
 }
 
+/// What an entry of a tenant's log records. Each kind has its own statement
+/// type.
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Deserialize,
+    Serialize,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    Display,
+)]
+pub enum TenantActivityKind {
+    /// First entry of a tenant's log.
+    TenantLogOpened,
+    /// A request to the platform's API that belongs to no election event, such
+    /// as creating an election event or changing a staff account.
+    TenantAdminAction,
+    // New kinds go last: signed entries store the variant's index.
+}
+
+impl TenantActivityKind {
+    pub fn statement_type(&self) -> StatementType {
+        match self {
+            Self::TenantLogOpened => StatementType::TenantLogOpened,
+            Self::TenantAdminAction => StatementType::TenantAdminAction,
+        }
+    }
+}
+
+/// One entry of a tenant's log: activity that belongs to no election event.
+/// As for `SigningLogEntry`, the caller sets the head's event type, log type
+/// and description. The actor is in `details_json`, so it is signed.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct TenantActivityEntry {
+    pub tenant_id: TenantIdString,
+    pub kind: TenantActivityKind,
+    pub event_type: StatementEventType,
+    pub log_type: StatementLogType,
+    /// A short English sentence for the Logs tab's Description column, such
+    /// as "Deleted an election event".
+    pub description: String,
+    /// What happened as JSON: the action, who made it, its outcome and what
+    /// it was made on.
+    pub details_json: String,
+}
+
 /// What an audit entry records. Each kind is also a [`StatementType`] of the
 /// same name.
 #[derive(

@@ -20,6 +20,7 @@ export const LOG_SCOPE_META = "logScope"
 export const TENANT_LOG_STATEMENT_KINDS = [
     "KeycloakUserEvent",
     "AdminChange",
+    "TenantAdminAction",
     "KeycloakAdminEvent",
     "LogsExported",
     "LogWriterStarted",

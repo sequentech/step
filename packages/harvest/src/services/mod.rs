@@ -16,5 +16,6 @@ pub mod role_permissions;
 pub mod service_auth;
 pub mod signing_gate;
 pub mod signing_http;
+pub mod tenant_activity;
 pub mod user_tasks;
 pub mod worker;

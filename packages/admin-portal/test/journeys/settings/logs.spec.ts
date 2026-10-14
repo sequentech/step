@@ -2,10 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import type {Page} from "@playwright/test"
+import {IDS} from "@sequentech/ui-test-kit/fixtures"
 import {test, expect, TENANT_ID, type AdminPortal} from "../fixtures"
 import {
     AUDITOR_ROLES,
     KEYCLOAK_CHANGE,
+    REQUEST_DENIED,
     SETTINGS_CHANGED,
     SIGN_IN_FAILED,
     TENANT_LOG_SUBTITLE,
@@ -131,6 +133,7 @@ test.describe("the tenant log of an auditor", () => {
         await expect(page.getByRole("option").filter({hasText: /\w/})).toHaveText([
             "KeycloakUserEvent",
             "AdminChange",
+            "TenantAdminAction",
             "KeycloakAdminEvent",
             "LogsExported",
             "LogWriterStarted",
@@ -179,6 +182,24 @@ test.describe("the tenant log of an auditor", () => {
         expect(portal.graphql.calls.some((call) => call.query.trim().startsWith("mutation"))).toBe(
             false
         )
+    })
+
+    test("opens a request Harvest recorded, with its outcome", async ({page, portal}) => {
+        await openLogs(page, portal)
+        await page.getByText(REQUEST_DENIED, {exact: true}).click()
+        const dialog = page.getByRole("dialog", {name: "Log entry 5,256", exact: true})
+        await expect(dialog.getByText("TenantAdminAction", {exact: true})).toBeVisible()
+        await expect(
+            dialog.getByText("Admin Portal (through Harvest)", {exact: true})
+        ).toBeVisible()
+        await expect(dialog.getByText("Action: delete-election-event", {exact: true})).toBeVisible()
+        await expect(dialog.getByText("Denied (HTTP 403)", {exact: true})).toBeVisible()
+        await expect(
+            dialog.getByText(`Requested by rosa.marin (${IDS.voter})`, {exact: true})
+        ).toBeVisible()
+        await expect(
+            dialog.getByText("election_event_id: synthetic-event", {exact: true})
+        ).toBeVisible()
     })
 
     test("exports one account with its election event entries as SQL", async ({page, portal}) => {

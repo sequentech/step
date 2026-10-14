@@ -280,6 +280,55 @@ class CustomEventListenerProviderEventsTest {
     verifyNoInteractions(sender);
   }
 
+  /** The details the authenticator gives an event when it sends a message to the account. */
+  private static Map<String, String> sentMessage() {
+    Map<String, String> details = new HashMap<>();
+    details.put("type", "communications");
+    details.put("msgBody", "Your code is ******");
+    details.put("auth_method", "openid-connect");
+    return details;
+  }
+
+  @Test
+  void aMessageSentToATenantAccountIsPublishedWithoutItsText() throws Exception {
+    account(realm(TENANT_REALM), USER_ID, "admin");
+    // Whatever step sent it: a successful event of a type the tenant log otherwise leaves out.
+    Event event = event(TENANT_REALM, EventType.CODE_TO_TOKEN, USER_ID, null);
+    event.setDetails(sentMessage());
+
+    provider.onEvent(event);
+
+    JsonNode input = publishedInput();
+    assertEquals("", input.get("election_event_id").asText());
+    assertEquals("communications ", input.get("body").asText());
+    assertEquals(
+        om.readTree(
+            """
+            {"client_id": "admin-portal",
+             "ip_address": "10.0.0.7",
+             "error": null,
+             "auth_method": "openid-connect",
+             "auth_type": null,
+             "credential_type": null,
+             "details": {"type": "communications"}}
+            """),
+        input.get("details"));
+    assertFalse(input.toString().contains("Your code"), input.toString());
+  }
+
+  @Test
+  void aMessageSentToAnElectionEventAccountKeepsItsTextInTheBodyOnly() throws Exception {
+    account(realm(EVENT_REALM), USER_ID, "voter");
+    Event event = event(EVENT_REALM, EventType.LOGIN, USER_ID, null);
+    event.setDetails(sentMessage());
+
+    provider.onEvent(event);
+
+    JsonNode input = publishedInput();
+    assertEquals("communications Your code is ******", input.get("body").asText());
+    assertEquals(om.readTree("{\"type\": \"communications\"}"), input.at("/details/details"));
+  }
+
   @Test
   void theTenantRealmKeepsEveryError() throws Exception {
     account(realm(TENANT_REALM), USER_ID, "admin");

@@ -725,10 +725,16 @@ fn every_realm_template_only_holds_ordinary_roles() {
     }
 }
 
-/// Only administrators read and export the tenant log; the realm sends its
-/// events, admin events included, to the listener that feeds that log.
+/// The tenant's log has its own permissions, apart from an election event's
+/// logs: only administrators read and export it. Every realm sends its
+/// events, admin events included, to the listener that feeds that log;
+/// without it, sign-ins to the Admin Portal are not recorded.
 #[test]
 fn every_realm_grants_the_tenant_log_to_its_administrators_and_feeds_it() {
+    assert_ne!(
+        Permissions::TENANT_LOGS_READ.to_string(),
+        Permissions::LOGS_READ.to_string()
+    );
     for (permission, role) in [
         (Permissions::TENANT_LOGS_READ, "tenant-logs-read"),
         (Permissions::TENANT_LOGS_EXPORT, "tenant-logs-export"),
@@ -738,10 +744,13 @@ fn every_realm_grants_the_tenant_log_to_its_administrators_and_feeds_it() {
         for (name, text) in REALMS {
             let realm: Value = serde_json::from_str(text)
                 .unwrap_or_else(|why| panic!("{name}: {why}"));
-            assert!(
-                realm_role_names(&realm).contains(&role),
-                "{name}: no {role} role"
-            );
+            let defined = realm["roles"]["realm"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter(|defined| defined["name"] == role)
+                .count();
+            assert_eq!(defined, 1, "{name}: {role} role");
             assert_eq!(
                 groups_granting(&realm, role),
                 BTreeSet::from(["admin".to_string()]),
@@ -752,13 +761,15 @@ fn every_realm_grants_the_tenant_log_to_its_administrators_and_feeds_it() {
     for (name, text) in REALMS {
         let realm: Value = serde_json::from_str(text)
             .unwrap_or_else(|why| panic!("{name}: {why}"));
+        let listeners: Vec<&str> = realm["eventsListeners"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .collect();
         assert!(
-            realm["eventsListeners"]
-                .as_array()
-                .is_some_and(|listeners| listeners
-                    .iter()
-                    .any(|listener| listener == "custom-event-listener")),
-            "{name}: the listener is off"
+            listeners.contains(&"custom-event-listener"),
+            "{name}: {listeners:?}"
         );
         assert_eq!(realm["adminEventsEnabled"], true, "{name}");
         assert_eq!(realm["adminEventsDetailsEnabled"], true, "{name}");

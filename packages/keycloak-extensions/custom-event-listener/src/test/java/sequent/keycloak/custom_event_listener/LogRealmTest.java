@@ -33,7 +33,15 @@ class LogRealmTest {
   @Test
   void anyOtherRealmHasNoLog() {
     for (String name :
-        new String[] {"master", "tenant-", "tenant-acme", "tenant-" + TENANT + "-copy", "", null}) {
+        new String[] {
+          "master",
+          "tenant-",
+          "tenant-acme",
+          "tenant-" + TENANT + "-copy",
+          "event-" + EVENT,
+          "",
+          null
+        }) {
       assertEquals(LogRealm.Kind.OTHER, LogRealm.fromName(name).kind(), String.valueOf(name));
     }
   }

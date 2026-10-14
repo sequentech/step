@@ -151,6 +151,7 @@ export const STATEMENT_KIND_LOGS_EXPORTED = "LogsExported"
 export const STATEMENT_KIND_LOG_WRITER_STARTED = "LogWriterStarted"
 export const STATEMENT_KIND_LOG_WRITER_STOPPED = "LogWriterStopped"
 export const STATEMENT_KIND_ADMIN_PUBLIC_KEY = "AdminPublicKey"
+export const STATEMENT_KIND_TENANT_ADMIN_ACTION = "TenantAdminAction"
 
 const MADE_BY_SERVICE_ACCOUNT = "SERVICE_ACCOUNT"
 const FAILURE_DETAILS = ["num_failures", "numFailures"]
@@ -355,6 +356,15 @@ const auditDetails = (body: unknown): Json | null => {
     return parseObject(body.Audit.details_json)
 }
 
+/**
+ * The details of a TenantActivity body: a request Harvest recorded outside an
+ * election event, or the opening of a tenant log.
+ */
+const tenantActivityDetails = (body: unknown): Json | null => {
+    if (!isObject(body) || !isObject(body.TenantActivity)) return null
+    return parseObject(body.TenantActivity.details_json)
+}
+
 const keyText = (value: unknown): string | null =>
     value === null || value === undefined || value === "" ? null : compact(value)
 
@@ -415,6 +425,17 @@ export const logEntryView = (
             senderSignature: keyText(message.sender_signature),
             systemSignature: keyText(message.system_signature),
         },
+    }
+
+    const activity = tenantActivityDetails(body)
+    if (activity && kind === STATEMENT_KIND_TENANT_ADMIN_ACTION) {
+        // The action, its outcome and what it named are StatementExplanation's lines.
+        view.origin = ELogOrigin.HARVEST
+        view.who = {
+            ...view.who,
+            username: view.who.username ?? text(activity.username),
+            userId: view.who.userId ?? text(activity.user_id),
+        }
     }
 
     if (isObject(body) && Array.isArray(body[STATEMENT_KIND_ADMIN_PUBLIC_KEY])) {

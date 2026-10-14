@@ -428,6 +428,54 @@ fn empty_lists_and_absent_lists_remain_distinct() {
     );
 }
 
+/// Field order is signed: every field of a tenant activity entry, in order,
+/// as independently assembled bytes.
+#[test]
+fn a_tenant_activity_entry_is_encoded_field_by_field() {
+    let text = |value: &str| {
+        let mut bytes = (value.len() as u32).to_le_bytes().to_vec();
+        bytes.extend_from_slice(value.as_bytes());
+        bytes
+    };
+    let entry = TenantActivityEntry {
+        tenant_id: TenantIdString("synthetic-tenant".into()),
+        kind: TenantActivityKind::TenantAdminAction,
+        event_type: StatementEventType::USER,
+        log_type: StatementLogType::ERROR,
+        description: "Refused to delete an election event".into(),
+        details_json: r#"{"status":403}"#.into(),
+    };
+    let mut expected = text("synthetic-tenant");
+    expected.extend([1, 0, 1]);
+    expected.extend(text("Refused to delete an election event"));
+    expected.extend(text(r#"{"status":403}"#));
+    assert_eq!(borsh::to_vec(&entry).unwrap(), expected);
+    assert_eq!(
+        borsh::from_slice::<TenantActivityEntry>(&expected).unwrap(),
+        entry
+    );
+    let mut trailing = expected.clone();
+    trailing.push(0);
+    assert!(borsh::from_slice::<TenantActivityEntry>(&trailing).is_err());
+    assert!(borsh::from_slice::<TenantActivityEntry>(&expected[..expected.len() - 1]).is_err());
+    assert_eq!(
+        borsh::to_vec(&TenantActivityKind::TenantLogOpened).unwrap(),
+        vec![0]
+    );
+    assert_eq!(
+        TenantActivityKind::TenantLogOpened
+            .statement_type()
+            .to_string(),
+        "TenantLogOpened"
+    );
+    assert_eq!(
+        TenantActivityKind::TenantAdminAction
+            .statement_type()
+            .to_string(),
+        "TenantAdminAction"
+    );
+}
+
 /// Field order is signed: every field of an audit entry, in order, as
 /// independently assembled bytes.
 #[test]

@@ -511,6 +511,66 @@ describe("the log's own entries", () => {
     })
 })
 
+const tenantActivity = (kind: string, details: unknown, options: IOptions = {}) =>
+    row(
+        kind,
+        {
+            TenantActivity: {
+                kind,
+                event_type: "USER",
+                log_type: "ERROR",
+                description: "Request to delete an election event denied.",
+                details_json: JSON.stringify(details),
+            },
+        },
+        options
+    )
+
+describe("a request recorded as TenantAdminAction", () => {
+    const details = {
+        action: "delete-election-event",
+        outcome: "denied",
+        status: 403,
+        user_id: USER_ID,
+        username: "rosa.marin",
+        details: {election_event_id: EVENT_ID},
+    }
+
+    it("was made in Harvest, by the account that asked", () => {
+        const view = logEntryView(
+            tenantActivity("TenantAdminAction", details, {username: null, userId: null})
+        )
+        expect(view).toMatchObject({
+            unreadable: false,
+            statementKind: "TenantAdminAction",
+            origin: ELogOrigin.HARVEST,
+            who: {username: "rosa.marin", userId: USER_ID},
+            // The action, the outcome and what was named are the explanation's lines.
+            action: null,
+            changes: [],
+            extra: [],
+        })
+    })
+
+    it("keeps the account the message names", () => {
+        const view = logEntryView(
+            tenantActivity("TenantAdminAction", details, {username: "ada", userId: "ada-id"})
+        )
+        expect(view.who).toMatchObject({username: "ada", userId: "ada-id"})
+    })
+
+    it("reads a TenantLogOpened entry without a requester", () => {
+        const view = logEntryView(
+            tenantActivity(
+                "TenantLogOpened",
+                {board: "devtenant1", public_key: "key"},
+                {username: null, userId: null}
+            )
+        )
+        expect(view).toMatchObject({origin: null, who: {username: null, userId: null}})
+    })
+})
+
 describe("values as shown", () => {
     it.each([
         [undefined, null],

@@ -199,6 +199,20 @@ const englishTranslation = {
                 },
             },
         },
+        tenantLogs: {
+            explanation: {
+                action: "Action: {{action}}",
+                outcome: {
+                    succeeded: "Accepted (HTTP {{status}})",
+                    denied: "Denied (HTTP {{status}})",
+                    failed: "Failed (HTTP {{status}})",
+                },
+                by: "Requested by {{username}} ({{userId}})",
+                detail: "{{name}}: {{value}}",
+                board: "Log: {{board}}",
+                publicKey: "Public key of the log: {{key}}",
+            },
+        },
         logsScreen: {
             noPermissions: "You don't have permission to access logs.",
             title: "Logs",

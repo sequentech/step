@@ -107,8 +107,13 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     boolean isLoginWithCertificate =
         details.containsKey(VOTER_CERT_SUBJECT_DN) && details.containsKey(CA_CERT_ISSUER_CN);
     String body;
-    if (Utils.EVENT_TYPE_COMMUNICATIONS.equals(details.isEmpty() ? null : details.get("type"))) {
-      String msgBody = Optional.ofNullable(details.get("msgBody")).orElse("");
+    if (Utils.isCommunication(details)) {
+      // The tenant log records that a message was sent to the account, never its text, so the
+      // text does not leave Keycloak. An election event's log keeps the (masked) text.
+      String msgBody =
+          realm.kind() == LogRealm.Kind.TENANT
+              ? ""
+              : Optional.ofNullable(details.get(Utils.EVENT_DETAIL_MSG_BODY)).orElse("");
       body = String.format("%s %s", Utils.EVENT_TYPE_COMMUNICATIONS, msgBody);
     } else if (event.getType() == EventType.LOGIN && isLoginWithCertificate) {
       String certInfo =

@@ -201,6 +201,20 @@ const galegoTranslation: TranslationType = {
                 },
             },
         },
+        tenantLogs: {
+            explanation: {
+                action: "Acción: {{action}}",
+                outcome: {
+                    succeeded: "Aceptada (HTTP {{status}})",
+                    denied: "Denegada (HTTP {{status}})",
+                    failed: "Fallida (HTTP {{status}})",
+                },
+                by: "Pedida por {{username}} ({{userId}})",
+                detail: "{{name}}: {{value}}",
+                board: "Rexistro: {{board}}",
+                publicKey: "Clave pública do rexistro: {{key}}",
+            },
+        },
         logsScreen: {
             noPermissions: "Non tes permiso para acceder aos rexistros.",
             title: "Rexistros",

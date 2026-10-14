@@ -1041,3 +1041,74 @@ fn a_keycloak_event_with_json_details_is_typed_by_them() -> Result<()> {
     }
     Ok(())
 }
+
+#[test]
+fn a_tenant_activity_entry_belongs_to_no_election_event() -> Result<()> {
+    let (data, public) = signer()?;
+    let entry = TenantActivityEntry {
+        tenant_id: TenantIdString("synthetic-tenant".into()),
+        kind: TenantActivityKind::TenantAdminAction,
+        event_type: StatementEventType::USER,
+        log_type: StatementLogType::ERROR,
+        description: "Refused to delete an election event".into(),
+        details_json: r#"{"action":"delete-election-event","status":403}"#.into(),
+    };
+    // A minute before the entry is posted.
+    let occurred_at = electoral_log::timestamp() - 60;
+    let message =
+        Message::tenant_activity_message(entry.clone(), occurred_at, &data, actor(), actor())?;
+    assert_record(&message, &public, "TenantAdminAction", None)?;
+    assert_eq!(message.statement.head.event.0, GENERIC_EVENT);
+    assert_eq!(message.statement.head.timestamp, occurred_at);
+    assert_eq!(message.statement.head.description, entry.description);
+    assert_eq!(message.statement.head.event_type, StatementEventType::USER);
+    assert_eq!(message.statement.head.log_type, StatementLogType::ERROR);
+    assert_eq!(message.user_id, actor());
+    assert_eq!(message.area_id, None);
+    match &message.statement.body {
+        StatementBody::TenantActivity(signed) => assert_eq!(signed, &entry),
+        other => panic!("unexpected body {other:?}"),
+    }
+
+    let opened = Message::tenant_activity_message(
+        TenantActivityEntry {
+            kind: TenantActivityKind::TenantLogOpened,
+            event_type: StatementEventType::SYSTEM,
+            log_type: StatementLogType::INFO,
+            description: "Opened the tenant log".into(),
+            details_json: "{}".into(),
+            ..entry
+        },
+        occurred_at,
+        &data,
+        None,
+        None,
+    )?;
+    assert_record(&opened, &public, "TenantLogOpened", None)?;
+    assert_eq!(opened.user_id, None);
+    Ok(())
+}
+
+#[test]
+fn a_keycloak_event_keeps_the_time_keycloak_saw_it() -> Result<()> {
+    let (data, public) = signer()?;
+    let seen_at = electoral_log::timestamp() - 90;
+    let message = Message::keycloak_user_event_at(
+        EventIdString(GENERIC_EVENT.into()),
+        KeycloakEventTypeString("LOGIN_ERROR".into()),
+        ErrorMessageString("invalid_user_credentials".into()),
+        seen_at,
+        actor(),
+        actor(),
+        &data,
+        None,
+    )?;
+    assert_record(&message, &public, "KeycloakUserEvent", None)?;
+    assert_eq!(message.statement.head.timestamp, seen_at);
+    assert_eq!(message.statement.head.log_type, StatementLogType::ERROR);
+    assert_eq!(
+        message.statement.head.description,
+        "LOGIN_ERROR invalid_user_credentials"
+    );
+    Ok(())
+}

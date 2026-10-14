@@ -279,6 +279,20 @@ const catalanTranslation: TranslationType = {
                 error: "Error en exportar l'Execució de Tasques",
             },
         },
+        tenantLogs: {
+            explanation: {
+                action: "Acció: {{action}}",
+                outcome: {
+                    succeeded: "Acceptada (HTTP {{status}})",
+                    denied: "Denegada (HTTP {{status}})",
+                    failed: "Fallida (HTTP {{status}})",
+                },
+                by: "Demanada per {{username}} ({{userId}})",
+                detail: "{{name}}: {{value}}",
+                board: "Registre: {{board}}",
+                publicKey: "Clau pública del registre: {{key}}",
+            },
+        },
         logsScreen: {
             noPermissions: "No tens permís per accedir a les bitàcoles.",
             title: "Bitàcoles",

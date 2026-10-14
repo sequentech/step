@@ -203,6 +203,20 @@ const dutchTranslation: TranslationType = {
                 },
             },
         },
+        tenantLogs: {
+            explanation: {
+                action: "Actie: {{action}}",
+                outcome: {
+                    succeeded: "Geaccepteerd (HTTP {{status}})",
+                    denied: "Geweigerd (HTTP {{status}})",
+                    failed: "Mislukt (HTTP {{status}})",
+                },
+                by: "Gevraagd door {{username}} ({{userId}})",
+                detail: "{{name}}: {{value}}",
+                board: "Log: {{board}}",
+                publicKey: "Publieke sleutel van het log: {{key}}",
+            },
+        },
         logsScreen: {
             noPermissions: "U hebt geen toestemming om toegang te krijgen tot de logs.",
             title: "Logs",

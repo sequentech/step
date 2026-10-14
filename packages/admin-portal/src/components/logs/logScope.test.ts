@@ -23,4 +23,6 @@ it("names the statement kinds of the tenant log once each", () => {
     expect(new Set(TENANT_LOG_STATEMENT_KINDS).size).toBe(TENANT_LOG_STATEMENT_KINDS.length)
     expect(TENANT_LOG_STATEMENT_KINDS).toContain("AdminChange")
     expect(TENANT_LOG_STATEMENT_KINDS).toContain("KeycloakUserEvent")
+    // The requests Harvest records outside an election event.
+    expect(TENANT_LOG_STATEMENT_KINDS).toContain("TenantAdminAction")
 })

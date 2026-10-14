@@ -118,6 +118,8 @@ pub enum Permissions {
     PUBLISH_RESULTS_WRITE,
     #[strum(serialize = "logs-read")]
     LOGS_READ,
+    #[strum(serialize = "tenant-logs-read")]
+    TENANT_LOGS_READ,
     #[strum(serialize = "electoral-log-audit")]
     ELECTORAL_LOG_AUDIT,
     #[strum(serialize = "electoral-log-console-read")]
@@ -337,8 +339,6 @@ pub enum Permissions {
     EE_TASKS_FILTERS,
     #[strum(serialize = "task-export")]
     TASKS_EXPORT,
-    #[strum(serialize = "tenant-logs-read")]
-    TENANT_LOGS_READ,
     #[strum(serialize = "tenant-logs-export")]
     TENANT_LOGS_EXPORT,
     #[strum(serialize = "logs-export")]

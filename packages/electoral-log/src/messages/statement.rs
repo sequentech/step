@@ -346,6 +346,13 @@ impl StatementHead {
                 ),
                 ..default_head
             },
+            StatementBody::TenantActivity(entry) => StatementHead {
+                kind: entry.kind.statement_type(),
+                event_type: entry.event_type.clone(),
+                log_type: entry.log_type.clone(),
+                description: entry.description.clone(),
+                ..default_head
+            },
             StatementBody::Signing(entry) => StatementHead {
                 kind: entry.kind.statement_type(),
                 event_type: entry.event_type.clone(),
@@ -799,6 +806,10 @@ pub enum StatementBody {
     /// The tally found a ballot box that does not match its seal: what
     /// differs and the tally session id (VOTE-FREEZE).
     TallyBallotBoxRejected(ElectionIdString, AreaIdString, String, String),
+    /// One entry of a tenant's log: activity that belongs to no election
+    /// event. The entry sets the head's kind, event type, log type and
+    /// description.
+    TenantActivity(TenantActivityEntry),
     /// One audit entry of an administrative action, in a tenant's log or an
     /// election event's. The entry sets the head's kind, event type, log
     /// type and description.
@@ -873,6 +884,8 @@ pub enum StatementType {
     BallotBoxSealFailed,
     TallyBallotBoxVerified,
     TallyBallotBoxRejected,
+    TenantLogOpened,
+    TenantAdminAction,
     AdminChange,
     KeycloakAdminEvent,
     LogsExported,
@@ -942,6 +955,8 @@ mod election_initialized_tests;
 #[path = "../../tests/support/statement_lockdown_tests.rs"]
 mod lockdown_tests;
 
-#[cfg(test)]
 #[path = "../../tests/support/statement_audit_tests.rs"]
 mod audit_tests;
+#[cfg(test)]
+#[path = "../../tests/support/statement_tenant_activity_tests.rs"]
+mod tenant_activity_tests;

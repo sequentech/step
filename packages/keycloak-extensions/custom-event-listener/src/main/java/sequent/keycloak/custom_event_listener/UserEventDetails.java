@@ -55,7 +55,9 @@ final class UserEventDetails {
         (name, value) -> {
           boolean sentElsewhere = NAMED.contains(name) || IDENTITY_PROVIDER.equals(name);
           boolean typed = account == Account.UNKNOWN && TYPED_IDENTITY.contains(name);
-          if (!sentElsewhere && !typed && !maySayASecret(name)) {
+          // A sent message's text goes in the body of an election event's log only.
+          boolean messageText = Utils.EVENT_DETAIL_MSG_BODY.equals(name);
+          if (!sentElsewhere && !typed && !messageText && !maySayASecret(name)) {
             remaining.put(name, value);
           }
         });

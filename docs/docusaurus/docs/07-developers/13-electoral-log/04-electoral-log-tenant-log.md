@@ -259,6 +259,49 @@ tenant log, and `ALL`, `ELECTION`, `AREA` or `ACCOUNT` for an event's log.
 `last_entry_id` is the outbox ID of the last entry the outbox posted to that tenant's log. Both are
 `SYSTEM` entries of every tenant's log (section 4.4).
 
+### 3.7 TenantAdminAction
+
+A request to Harvest that belongs to no election event, whatever its outcome. Its body is not
+`Audit` but `StatementBody::TenantActivity(TenantActivityEntry)`, which has the same fields but
+`entry_id`; the statement type `TenantAdminAction` (and `TenantLogOpened`, the other
+`TenantActivityKind`) comes before the five audit kinds. `TenantActivity` is Borsh variant 43 of
+`StatementBody` and `Audit` is 44. As for `Audit`, the entry sets the head's kind, event type, log
+type and description; the head's event is `Generic Event` (`GENERIC_EVENT`).
+
+```json
+{
+  "action": "delete-election-event",
+  "outcome": "denied",
+  "status": 403,
+  "user_id": "<uuid>",
+  "username": "maria",
+  "details": {"election_event_id": "<uuid>"}
+}
+```
+
+- `outcome` is `succeeded`, `denied` or `failed`, and `status` the HTTP status of the answer. A
+  denied or failed request is an `ERROR` entry, a succeeded one `INFO`. "Succeeded" means Harvest
+  took the request: an import or a deletion continues as a task, which writes its own `AdminChange`.
+- `details` is what the request named, such as the election event's ID or the role.
+- The entries are signed by the tenant log's system key.
+
+The requests recorded are those of election events (create, import, delete), staff accounts
+(create, edit, delete, import, export), roles and permissions, tenants (create, delete), the tenant's
+configuration (import, export), templates (import) and country limits. The routes shared with voters
+(`/create-user`, `/edit-user`, `/delete-user`, `/delete-users`, `/import-users`, `/export-users`)
+record only when the request names no election event.
+
+**How an entry is written.** A route's handler takes a `TenantActivityRecorder`
+(`packages/harvest/src/services/tenant_activity.rs`) and calls `record(&claims, TenantAction::…,
+details)` before it authorizes the caller. Once the request is answered, the `tenant_activity` fairing
+adds the status and the outcome and enqueues the event on `electoral_log_event_queue` with an empty
+`election_event_id` and the `message_type` `tenant_activity`. A handler that records nothing queues
+nothing. The batch task (section 7.2) appends it to the tenant log. To record a new action, add a
+variant to `TenantAction` with its sentence and call `record` in the route.
+
+The Admin Portal shows a `TenantAdminAction` entry's details as lines under the facts of the entry
+popup (`StatementExplanation`): the action, the outcome with its status, who asked and each detail.
+
 ## 4. The outbox and its worker
 
 ### 4.1 The table
@@ -501,6 +544,8 @@ own:
 
 | Event | Result |
 | --- | --- |
+| A `tenant_activity` message from Harvest (section 3.7) | A `TenantAdminAction` record in the tenant log, signed by its system key. One that names an election event is dead-lettered |
+| A message Keycloak sends to an account, such as a sign-in code | A `KeycloakUserEvent` record with the event type `MESSAGE_SENT`. The message's text is left out |
 | A user event without an election event | A `KeycloakUserEvent` record in the tenant log, signed by its system key. An authenticator reports the steps of a sign-in (a code sent, a code checked) as `LOGIN` events of their own: those are recorded as `LOGIN_STEP`, so one sign-in reads as one `LOGIN` |
 | An admin event without an election event | A `KeycloakAdminEvent` record in the tenant log, `SERVICE_ACCOUNT` or `OPERATOR` |
 | An admin event of an event realm made by an operator | A `KeycloakAdminEvent` record in the event's log |
@@ -716,6 +761,9 @@ a growing wait, as when Keycloak is still starting with beat.
 - **No checkpoints, audits or proofs for the tenant log.** The tenant log has a Merkle log, but no
   code publishes its checkpoints, audits it or serves proofs of it; the Admin Portal offers **Audit**
   only in an election event's Logs tab.
+- **A request's `TenantAdminAction` is not transactional.** It is queued after the request is
+  answered. If the task-queue database cannot be reached then, the entry is lost and Harvest logs
+  `tenant activity: <action> could not be queued`.
 - **`AdminPublicKey` is appended directly**, not through the outbox, and has no monitoring line.
 - **The SQL manifest has no SHA-256 of the file.** The file's hash is in the export's `LogsExported`
   entry.
@@ -743,5 +791,6 @@ a growing wait, as when Keycloak is still starting with beat.
 | `packages/windmill/src/tasks/electoral_log.rs` | Keycloak events: tenant log, admin events, unplaced events |
 | `packages/windmill/src/tasks/migrate_tenant_logs.rs`, `tasks/migrate_realm_permissions.rs` | The one-off migrations |
 | `packages/harvest/src/services/audit.rs` | Entries of Harvest routes |
+| `packages/harvest/src/services/tenant_activity.rs` | `TenantActivityRecorder`, its fairing and `TenantAction`: the `TenantAdminAction` entries of requests |
 | `packages/harvest/src/routes/electoral_log.rs`, `export_tenant_logs.rs`, `export_election_event_logs.rs` | Listing and exports |
 | `packages/keycloak-extensions/custom-event-listener` | `LogRealm`, `TenantRealmEvents`, `UserEventDetails`, `AdminRepresentation` |

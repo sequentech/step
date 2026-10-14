@@ -30,7 +30,18 @@ key and with the log's own system key; the other entries are signed with the sys
 | Templates | Created, edited, deleted, imported and exported. |
 | Election events | Created, imported, archived, unarchived and deleted. The entry of a deleted event keeps the last entry and the state hash of that event's log. |
 | Changes made in Keycloak | Any change to the tenant's realm made in Keycloak's admin console or through its API. Changes the Admin Portal makes in Keycloak through its service account also appear, as SYSTEM entries next to the administrator's own entry. |
+| Administrator requests | Every request an administrator makes to the platform's API outside an election event: creating, importing and deleting an election event; creating, editing, deleting, importing and exporting staff accounts; creating and deleting roles and permissions, giving or removing a role and adding or removing a permission; creating and deleting a tenant, importing and exporting its configuration, importing templates and limiting access by countries. A request is recorded whether or not it was allowed. |
 | The log itself | Every export of the log, the log writer starting and stopping, and each administrator's signing key the first time it is used. |
+
+An administrator request is one `TenantAdminAction` entry with the action, who asked, how the
+request ended (accepted, denied or failed, with its HTTP status) and what it named, such as the
+election event's ID or the role. Its **Log Type** is `INFO` when the platform accepted it and `ERROR`
+when it was denied or could not be completed, so a refused attempt to delete an election event is as
+visible as a successful one. "Accepted" means the platform took the request: long operations such as
+an import continue as a task, which the **Tasks** list follows.
+
+A sign-in code Keycloak sends to an account is recorded as a `KeycloakUserEvent` entry with the event
+`MESSAGE_SENT`, without the code.
 
 Everything else about one election event (its elections, contests, candidates, areas, voters,
 publications, voting periods, tallies) goes to that event's log.
@@ -79,6 +90,7 @@ Times show in the tenant log's timezone, with your own time below when it differ
 |---|---|
 | `KeycloakUserEvent` | Sign-ins and account security |
 | `AdminChange` | A change made in the Admin Portal, with its old and new values |
+| `TenantAdminAction` | An administrator's request outside an election event, with its outcome |
 | `KeycloakAdminEvent` | A change made in Keycloak |
 | `LogsExported` | An export of this log |
 | `LogWriterStarted`, `LogWriterStopped` | The log writer starting and stopping |
@@ -113,6 +125,7 @@ the log type), and then shows the sections that apply to the entry:
 | Section | Content |
 |---|---|
 | Facts | **When**: the time in the log's timezone, your own time when it differs, and UTC. **Who**: the person and account, the user ID and the role. **Made in**: where the change was made (the Admin Portal, through Hasura, Harvest or a Windmill task). **Changed**: the kind of object, its name and ID. **Action**: Created, Updated, Deleted, Imported, Exported, Archived, Unarchived, Enabled, Disabled, Password reset, Granted or Revoked. |
+| Request | For a `TenantAdminAction` entry, one line each for the action, how the request ended with its HTTP status, the account that asked, and each thing the request named. |
 | **Old and new values** | One row per changed field, with **Field**, **Old value** and **New value**. Known fields carry a readable name above their path; other fields show the path alone. |
 | **Sign-in and account security** | The **Keycloak event**, the **Error**, the **Authentication** and **Credential** used, the **Failures in a row**, the **Client** and the **IP address**, followed by the other details Keycloak gave. |
 | **Change in Keycloak** | **Made in** (Keycloak's admin console, or Step's service account for a change made in the Admin Portal), the **Account** that made it with its client and IP address, the **Operation**, what it **Applies to**, the **Resource**, an **Error** if it failed, and the **New value** Keycloak stored. |

@@ -36,24 +36,24 @@ fn an_audit_entry_sets_its_own_head() {
 #[test]
 fn the_audit_kinds_are_appended() {
     let expected = [
-        (AuditStatementKind::AdminChange, 0u8, 62u8, "AdminChange"),
+        (AuditStatementKind::AdminChange, 0u8, 64u8, "AdminChange"),
         (
             AuditStatementKind::KeycloakAdminEvent,
             1,
-            63,
+            65,
             "KeycloakAdminEvent",
         ),
-        (AuditStatementKind::LogsExported, 2, 64, "LogsExported"),
+        (AuditStatementKind::LogsExported, 2, 66, "LogsExported"),
         (
             AuditStatementKind::LogWriterStarted,
             3,
-            65,
+            67,
             "LogWriterStarted",
         ),
         (
             AuditStatementKind::LogWriterStopped,
             4,
-            66,
+            68,
             "LogWriterStopped",
         ),
     ];
@@ -68,14 +68,14 @@ fn the_audit_kinds_are_appended() {
         assert_eq!(name.parse::<AuditStatementKind>().unwrap(), kind);
     }
     assert!("CastVote".parse::<AuditStatementKind>().is_err());
-    assert!(borsh::from_slice::<StatementType>(&[67]).is_err());
+    assert!(borsh::from_slice::<StatementType>(&[69]).is_err());
 }
 
 #[test]
 fn the_audit_body_is_appended_and_round_trips() {
     let body = StatementBody::Audit(entry(AuditStatementKind::AdminChange));
     let bytes = borsh::to_vec(&body).unwrap();
-    assert_eq!(bytes[0], 43);
+    assert_eq!(bytes[0], 44);
     let StatementBody::Audit(decoded) = borsh::from_slice::<StatementBody>(&bytes).unwrap() else {
         panic!("not an audit entry");
     };

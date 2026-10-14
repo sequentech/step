@@ -202,6 +202,20 @@ const basqueTranslation: TranslationType = {
                 },
             },
         },
+        tenantLogs: {
+            explanation: {
+                action: "Ekintza: {{action}}",
+                outcome: {
+                    succeeded: "Onartuta (HTTP {{status}})",
+                    denied: "Ukatuta (HTTP {{status}})",
+                    failed: "Huts eginda (HTTP {{status}})",
+                },
+                by: "Eskatzailea: {{username}} ({{userId}})",
+                detail: "{{name}}: {{value}}",
+                board: "Egunkaria: {{board}}",
+                publicKey: "Egunkariaren gako publikoa: {{key}}",
+            },
+        },
         logsScreen: {
             noPermissions: "Ez duzu egunkariak atzitzeko baimenik.",
             title: "Egunkariak",

@@ -5,6 +5,7 @@
 use crate::services::access::import_users_privileges;
 use crate::services::audit;
 use crate::services::authorization::authorize;
+use crate::services::tenant_activity::{TenantAction, TenantActivityRecorder};
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -17,6 +18,7 @@ use sequent_core::util::integrity_check::{
     integrity_check, HashFileVerifyError,
 };
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use tracing::{info, instrument};
 use uuid::Uuid;
 use windmill::services;
@@ -63,8 +65,20 @@ fn authorize_insert_election_event(
 pub async fn insert_election_event_f(
     body: Json<CreateElectionEventInput>,
     claims: JwtClaims,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<CreateElectionEventOutput>, (Status, String)> {
     let object = body.into_inner();
+    // always set an id;
+    let id = object.id.clone().unwrap_or(Uuid::new_v4().to_string());
+    activity.record(
+        &claims,
+        TenantAction::CreateElectionEvent,
+        json!({
+            "tenant_id": object.tenant_id,
+            "election_event_id": id,
+            "name": object.name,
+        }),
+    );
     authorize_insert_election_event(&claims, &object)?;
 
     let tenant_id = object.tenant_id.clone();
@@ -74,8 +88,6 @@ pub async fn insert_election_event_f(
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
 
     let celery_app = get_celery_app().await;
-    // always set an id;
-    let id = object.id.clone().unwrap_or(Uuid::new_v4().to_string());
 
     // Insert the task execution record
     let task_execution: TasksExecution = match post(
@@ -274,8 +286,19 @@ fn stamp_initiators(
 pub async fn import_election_event_f(
     body: Json<import_election_event::ImportElectionEventBody>,
     claims: JwtClaims,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<ImportElectionEventOutput>, (Status, String)> {
     let mut input = body.into_inner();
+    activity.record(
+        &claims,
+        TenantAction::ImportElectionEvent,
+        json!({
+            "tenant_id": input.tenant_id,
+            "document_id": input.document_id,
+            "check_only": input.check_only.unwrap_or(false),
+            "sha256": input.sha256,
+        }),
+    );
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let executer_name = claims
         .name

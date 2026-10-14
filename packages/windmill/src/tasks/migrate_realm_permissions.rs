@@ -102,8 +102,8 @@ pub const MIGRATED_PERMISSIONS: [(Permissions, &str); 25] = [
         Permissions::SIGN_APPROVE_CONFIGURATION,
         "Sign: approve a configuration version",
     ),
-    (Permissions::SIGN_KEY_CEREMONY, "Sign: confirm a key share"),
-    (Permissions::SIGN_TALLY_KEY, "Sign: contribute a key share"),
+    (Permissions::SIGN_KEY_CEREMONY, "Sign: confirm custody"),
+    (Permissions::SIGN_TALLY_KEY, "Sign: authorize tally custody"),
     (
         Permissions::MESSAGING_ACCOUNT_READ,
         "Read messaging accounts",

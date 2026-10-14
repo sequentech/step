@@ -213,6 +213,7 @@ export const FailedSignIns: Story = {
         ).toEqual([
             "KeycloakUserEvent",
             "AdminChange",
+            "TenantAdminAction",
             "KeycloakAdminEvent",
             "LogsExported",
             "LogWriterStarted",

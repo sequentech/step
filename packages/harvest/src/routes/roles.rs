@@ -7,6 +7,7 @@ use crate::services::authorization::{authorize, require_ordinary_permission};
 use crate::services::dependencies::HarvestServices;
 use crate::services::role_permissions;
 
+use crate::services::tenant_activity::{TenantAction, TenantActivityRecorder};
 use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use anyhow::Result;
@@ -21,6 +22,7 @@ use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::keycloak::Role;
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
+use serde_json::json;
 use tracing::{event, instrument, Level};
 use windmill::services::audit_log::AdminAction;
 
@@ -38,8 +40,18 @@ pub async fn create_role(
     claims: jwt::JwtClaims,
     body: Json<CreateRoleBody>,
     services: &State<HarvestServices>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<Role>, (Status, String)> {
     let input = body.into_inner();
+    activity.record(
+        &claims,
+        TenantAction::CreateRole,
+        json!({
+            "tenant_id": input.tenant_id,
+            "role": input.role.name,
+            "permissions": input.role.permissions,
+        }),
+    );
     validate_keycloak_scope(&input.tenant_id, None)
         .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
@@ -163,9 +175,19 @@ pub async fn set_user_role(
     claims: jwt::JwtClaims,
     body: Json<SetOrDeleteUserRoleBody>,
     services: &State<HarvestServices>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
-    change_user_role(services, &claims, body.into_inner(), AdminAction::Grant)
-        .await
+    let input = body.into_inner();
+    activity.record(
+        &claims,
+        TenantAction::SetUserRole,
+        json!({
+            "tenant_id": input.tenant_id,
+            "user_id": input.user_id,
+            "role_id": input.role_id,
+        }),
+    );
+    change_user_role(services, &claims, input, AdminAction::Grant).await
 }
 
 #[instrument(skip(claims, services))]
@@ -174,9 +196,19 @@ pub async fn delete_user_role(
     claims: jwt::JwtClaims,
     body: Json<SetOrDeleteUserRoleBody>,
     services: &State<HarvestServices>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
-    change_user_role(services, &claims, body.into_inner(), AdminAction::Revoke)
-        .await
+    let input = body.into_inner();
+    activity.record(
+        &claims,
+        TenantAction::DeleteUserRole,
+        json!({
+            "tenant_id": input.tenant_id,
+            "user_id": input.user_id,
+            "role_id": input.role_id,
+        }),
+    );
+    change_user_role(services, &claims, input, AdminAction::Revoke).await
 }
 
 /// Gives a tenant user a role or takes it away, and logs it in the tenant's
@@ -258,8 +290,14 @@ pub async fn delete_role(
     claims: jwt::JwtClaims,
     body: Json<DeleteRoleBody>,
     services: &State<HarvestServices>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
+    activity.record(
+        &claims,
+        TenantAction::DeleteRole,
+        json!({"tenant_id": input.tenant_id, "role_id": input.role_id}),
+    );
     validate_keycloak_scope(&input.tenant_id, None)
         .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(

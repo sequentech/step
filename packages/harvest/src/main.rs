@@ -77,6 +77,7 @@ fn build_application_with(
     let fake_provider_routes = services.messaging_fake_provider_routes;
     let rocket = rocket::build()
         .attach(routes::electoral_log_proofs::fairing())
+        .attach(services::tenant_activity::fairing())
         .register(
             "/",
             catchers![

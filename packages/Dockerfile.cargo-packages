@@ -41,7 +41,7 @@ RUN case "${TARGETARCH}" in \
     echo "JAVA_FILENAME=${JAVA_FILENAME}" >> /etc/profile.d/java.sh; \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-    m4 make chromium libssl-dev protobuf-compiler libprotobuf-dev curl pkg-config wget software-properties-common && \
+    m4 make chromium libssl-dev protobuf-compiler libprotobuf-dev curl pkg-config wget software-properties-common unzip && \
     wget https://download.java.net/java/GA/jdk${JAVA_VERSION}/${JAVA_BUILD}/GPL/${JAVA_FILENAME} \
     && tar xvf ${JAVA_FILENAME} \
     && mv jdk-${JAVA_VERSION} /usr/local/ \
@@ -52,3 +52,19 @@ RUN case "${TARGETARCH}" in \
     # cleanups
     apt-get clean && \
     apt-get autoremove
+
+# The PDF renderer starts Chrome with --single-process, which Debian's current
+# Chromium no longer starts with. Where Chrome for Testing is built, it gets the
+# headless shell pinned in .github/actions/setup-test-browser, found before
+# chromium on the PATH; chromium stays for its libraries and for arm64.
+ENV PDF_BROWSER_VERSION=153.0.8010.36
+ENV PDF_BROWSER_SHA256=a0079df5617da34bcd1debad18196568b072ec3d8ec57944008972a4fc970580
+RUN if [ "${TARGETARCH}" = "amd64" ]; then \
+        curl --fail --location --silent --show-error --output /tmp/browser.zip \
+            https://storage.googleapis.com/chrome-for-testing-public/${PDF_BROWSER_VERSION}/linux64/chrome-headless-shell-linux64.zip && \
+        echo "${PDF_BROWSER_SHA256}  /tmp/browser.zip" | sha256sum --check && \
+        unzip -q /tmp/browser.zip -d /opt && \
+        rm /tmp/browser.zip && \
+        ln -s /opt/chrome-headless-shell-linux64/chrome-headless-shell /usr/local/bin/google-chrome-stable && \
+        google-chrome-stable --version; \
+    fi

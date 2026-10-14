@@ -9,8 +9,8 @@ import org.keycloak.events.Event;
 
 /**
  * Which user events of a tenant realm go to the tenant log: sign-ins, sign-outs, credential
- * changes, lockouts, impersonation and every error. Successful token refreshes, code exchanges,
- * client logins and the like are left out.
+ * changes, lockouts, impersonation, messages sent to the account and every error. Successful token
+ * refreshes, code exchanges, client logins and the like are left out.
  */
 final class TenantRealmEvents {
   private static final String ERROR_SUFFIX = "_ERROR";
@@ -48,6 +48,7 @@ final class TenantRealmEvents {
     String type = event.getType().name();
     return event.getError() != null
         || type.endsWith(ERROR_SUFFIX)
-        || KEPT_WHEN_SUCCESSFUL.contains(type);
+        || KEPT_WHEN_SUCCESSFUL.contains(type)
+        || Utils.isCommunication(event.getDetails());
   }
 }

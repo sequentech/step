@@ -228,6 +228,7 @@ export const TENANT_LOG_SUBTITLE =
 export const SETTINGS_CHANGED = "Settings changed: Languages and Integrations"
 export const SIGN_IN_FAILED = "Sign-in failed: wrong password"
 export const KEYCLOAK_CHANGE = "Keycloak: user lena.ortiz created by Step's service account"
+export const REQUEST_DENIED = "Request to delete an election event denied."
 /** 3 February 2028, 09:21:37 UTC. */
 const TENANT_LOG_TIME = Date.parse("2028-02-03T09:21:37Z") / 1000
 
@@ -302,10 +303,34 @@ const TENANT_LOG: ITenantLogEntry[] = [
             ],
         },
     },
+    {
+        id: 5256,
+        kind: "TenantAdminAction",
+        username: "rosa.marin",
+        eventType: "USER",
+        logType: "ERROR",
+        description: REQUEST_DENIED,
+        body: {
+            TenantActivity: {
+                kind: "TenantAdminAction",
+                event_type: "USER",
+                log_type: "ERROR",
+                description: REQUEST_DENIED,
+                details_json: JSON.stringify({
+                    action: "delete-election-event",
+                    outcome: "denied",
+                    status: 403,
+                    user_id: IDS.voter,
+                    username: "rosa.marin",
+                    details: {election_event_id: "synthetic-event"},
+                }),
+            },
+        },
+    },
 ]
 
 /**
- * Answers the tenant log's list (`listTenantLog`) with three entries, newest
+ * Answers the tenant log's list (`listTenantLog`) with four entries, newest
  * first, keeping only those the request's filter asks for.
  */
 export function mockTenantLog(portal: AdminPortal) {
