@@ -14,6 +14,7 @@ use crate::services::electoral_log_checkpoint_copies::{
     store_checkpoint_copy, CheckpointCopyConfig,
 };
 use crate::services::insert_cast_vote::hash_voter_id;
+use crate::services::tenant_log::{get_tenant_board, get_tenant_log_client};
 use crate::services::vault;
 use crate::tasks::electoral_log::{
     enqueue_electoral_log_event, LogEventBody, LogEventInput, LogMessageType,
@@ -1828,6 +1829,8 @@ impl MinuteRange {
 #[derive(Deserialize, Debug, Default, Clone)]
 pub struct GetElectoralLogBody {
     pub tenant_id: String,
+    /// Not given when listing the tenant's log.
+    #[serde(default)]
     pub election_event_id: String,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
@@ -2288,6 +2291,29 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     })
 }
 
+/// The entries of a tenant's log: the activity that belongs to none of its
+/// election events. A tenant with no activity yet has no entries.
+#[instrument(err)]
+pub async fn list_tenant_log(input: GetElectoralLogBody) -> Result<DataList<ElectoralLogRow>> {
+    let client = get_tenant_log_client().await?;
+    let slug = std::env::var("ENV_SLUG").context("missing env var ENV_SLUG")?;
+    let board = get_tenant_board(&input.tenant_id, &slug);
+    let query = input.as_query()?;
+    let items = client
+        .query(&board, &query)
+        .await?
+        .into_iter()
+        .map(ElectoralLogRow::try_from)
+        .collect::<Result<Vec<_>>>()?;
+    let count = client.count(&board, &query).await?;
+    Ok(DataList {
+        items,
+        total: TotalAggregate {
+            aggregate: Aggregate { count },
+        },
+    })
+}
+
 #[instrument]
 pub fn get_cols_match_count_and_select(
     election_id: &str,
@@ -2587,6 +2613,91 @@ mod postgres_wiring_tests {
         assert_eq!(count_electoral_log(input).await?, 0);
         databases.drop_event(&tenant, &event).await?;
         assert!(!databases.has_event(&event).await?);
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore = "requires a disposable ELECTORAL_LOG_PG_* database and ENV_SLUG"]
+    async fn a_tenants_log_lists_its_own_entries_and_no_other_tenants() -> Result<()> {
+        use crate::services::tenant_log::{TenantActivity, TenantActivityOutcome, TenantLog};
+
+        let tenant = Uuid::new_v4().to_string();
+        let slug = std::env::var("ENV_SLUG")?;
+        let board = get_tenant_board(&tenant, &slug);
+        let input = GetElectoralLogBody {
+            tenant_id: tenant.clone(),
+            ..Default::default()
+        };
+        // A tenant with no activity yet has an empty log, not an error.
+        let empty = list_tenant_log(input.clone()).await?;
+        assert_eq!(empty.total.aggregate.count, 0);
+        assert!(empty.items.is_empty());
+
+        let client = get_tenant_log_client().await?;
+        client.create_board(&board).await?;
+        let log = TenantLog::with_signing_key(&tenant, &board, &SigningKey::generate()?);
+        let activity = TenantActivity {
+            action: "create-election-event".into(),
+            description: "Created an election event".into(),
+            outcome: TenantActivityOutcome::Succeeded,
+            status: 200,
+            details: serde_json::Value::Null,
+        };
+        let sign_in = log.keycloak_event_message(
+            "LOGIN",
+            "null".into(),
+            1_799_999_000,
+            Some("admin-id".into()),
+            Some("admin".into()),
+        )?;
+        client
+            .append(
+                &board,
+                &[
+                    log.opened_entry()?,
+                    LogEntry {
+                        delivery_id: "sign-in".into(),
+                        message: sign_in,
+                    },
+                    LogEntry {
+                        delivery_id: "activity".into(),
+                        message: log.activity_message(
+                            &activity,
+                            1_800_000_000,
+                            Some("admin-id".into()),
+                            Some("admin".into()),
+                        )?,
+                    },
+                ],
+            )
+            .await?;
+
+        let page = list_tenant_log(input.clone()).await?;
+        assert_eq!(page.total.aggregate.count, 3);
+        let kinds: Vec<&str> = page
+            .items
+            .iter()
+            .map(|row| row.statement_kind.as_str())
+            .collect();
+        assert_eq!(
+            kinds,
+            ["TenantAdminAction", "KeycloakUserEvent", "TenantLogOpened"]
+        );
+        assert_eq!(page.items[0].username.as_deref(), Some("admin"));
+        assert!(page.items[0].message.contains("create-election-event"));
+
+        let mut by_kind = input.clone();
+        by_kind.statement_kind = Some(StatementType::TenantAdminAction);
+        let filtered = list_tenant_log(by_kind).await?;
+        assert_eq!(filtered.total.aggregate.count, 1);
+        assert_eq!(filtered.items[0].statement_kind, "TenantAdminAction");
+
+        let mut other = input.clone();
+        other.tenant_id = Uuid::new_v4().to_string();
+        assert_eq!(list_tenant_log(other).await?.total.aggregate.count, 0);
+
+        client.delete_board(&board).await?;
+        assert_eq!(list_tenant_log(input).await?.total.aggregate.count, 0);
         Ok(())
     }
 }

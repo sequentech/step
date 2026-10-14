@@ -83,6 +83,7 @@ pub mod task_queues;
 pub mod tasks_execution;
 pub mod tasks_semaphore;
 pub mod temp_path;
+pub mod tenant_log;
 pub mod time_zone_links;
 pub mod time_zones;
 pub mod to_result;

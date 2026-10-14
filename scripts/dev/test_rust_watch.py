@@ -5,6 +5,7 @@
 import enum
 import json
 import os
+import posixpath
 import shlex
 import shutil
 import subprocess
@@ -87,7 +88,11 @@ class ServiceConfigurationTests(unittest.TestCase):
                     self.assertEqual(command.count("-s"), 1)
                     shell = shlex.split(command[command.index("-s") + 1])
                     self.assertEqual(shell[:2], ["sh", RESTART_WORKER])
-                    self.assertEqual(shell[2], f"../target/debug/{worker[0]}")
+                    built = posixpath.relpath(
+                        f"{configuration['environment']['CARGO_TARGET_DIR']}/debug/{worker[0]}",
+                        configuration["working_dir"],
+                    )
+                    self.assertEqual(shell[2], built)
                     self.assertEqual(shell[3 : 2 + len(worker)], worker[1:])
                     self.assertNotIn("cargo", shell)
                 # Keep cargo-watch's metadata-derived local dependency scope.

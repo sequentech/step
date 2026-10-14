@@ -764,6 +764,15 @@ type Query {
 }
 
 type Query {
+    listTenantLog(
+        limit: Int
+        offset: Int
+        filter: ElectoralLogFilter
+        order_by: ElectoralLogOrderBy
+    ): DataListTenantLog
+}
+
+type Query {
     list_cast_vote_messages(
         tenant_id: String!
         election_event_id: uuid!
@@ -1470,6 +1479,21 @@ type DataListElectoralLog {
     total: TotalAggregate!
 }
 
+type TenantLogRow {
+    id: Int!
+    created: Int!
+    statement_timestamp: Int!
+    statement_kind: String!
+    message: String!
+    user_id: String
+    username: String
+}
+
+type DataListTenantLog {
+    items: [TenantLogRow]!
+    total: TotalAggregate!
+}
+
 type ScheduledEventOutput2 {
     tenant_id: String
 }
@@ -1648,7 +1672,6 @@ type CustodyProofSignatureStatusOutput {
 type AuthorizeTallyCustodyOutput {
     is_valid: Boolean!
     signing_request: SigningRequestSummary
-    outcome: RestorePrivateKeyOutcome!
 }
 
 type InsertCastVoteOutput {

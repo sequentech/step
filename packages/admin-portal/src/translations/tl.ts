@@ -202,6 +202,30 @@ const tagalogTranslation: TranslationType = {
                 },
             },
         },
+        tenantLogs: {
+            tab: "Logs",
+            title: "Logs",
+            subtitle:
+                "Mga pag-sign in sa Admin Portal at mga kahilingang ginawa sa labas ng anumang kaganapan sa halalan, nilagdaan at iniingatan sa log ng organisasyon.",
+            noPermissions: "Wala kang pahintulot na basahin ang logs ng organisasyon.",
+            kind: {
+                TenantLogOpened: "Binuksan ang log",
+                TenantAdminAction: "Kahilingan ng administrator",
+                KeycloakUserEvent: "Pag-sign in at kaganapan sa account",
+            },
+            explanation: {
+                action: "Aksyon: {{action}}",
+                outcome: {
+                    succeeded: "Tinanggap (HTTP {{status}})",
+                    denied: "Tinanggihan (HTTP {{status}})",
+                    failed: "Nabigo (HTTP {{status}})",
+                },
+                by: "Hiniling ni {{username}} ({{userId}})",
+                detail: "{{name}}: {{value}}",
+                board: "Log: {{board}}",
+                publicKey: "Pampublikong susi ng log: {{key}}",
+            },
+        },
         logsScreen: {
             noPermissions: "Wala kang permiso upang ma-access ang mga log.",
             title: "Mga Log",
@@ -1695,6 +1719,7 @@ const tagalogTranslation: TranslationType = {
                 "publish-results-read": "Basahin ang Results Publication",
                 "publish-results-write": "I-edit ang Results Publication",
                 "logs-read": "Basahin ang Logs",
+                "tenant-logs-read": "Basahin ang Logs ng Organisasyon",
                 "electoral-log-audit": "I-audit ang Log ng Halalan",
                 "electoral-log-console-read": "I-browse ang Log ng Halalan",
                 "electoral-log-console-query": "I-query ang Log ng Halalan",

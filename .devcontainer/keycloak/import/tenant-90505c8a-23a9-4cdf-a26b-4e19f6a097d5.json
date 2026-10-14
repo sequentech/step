@@ -1014,6 +1014,15 @@
         "attributes": {}
       },
       {
+        "id": "5d0c7e0b-6a57-4f3e-9a1e-2c4b8f6d3a91",
+        "name": "tenant-logs-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "8b6b57c5-8bc2-426b-94c4-52d00d41bb7c",
         "name": "electoral-log-audit",
         "description": "",
@@ -2294,7 +2303,7 @@
       {
         "id": "6d44ec97-33ea-4a03-b155-76cb191fc610",
         "name": "sign-key-ceremony",
-        "description": "Sign: confirm a key share",
+        "description": "Sign: confirm custody",
         "composite": false,
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
@@ -2303,7 +2312,7 @@
       {
         "id": "e004425b-71da-4e36-9b24-6ff783c24716",
         "name": "sign-tally-key",
-        "description": "Sign: contribute a key share",
+        "description": "Sign: authorize tally custody",
         "composite": false,
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
@@ -2800,6 +2809,7 @@
         "election-event-publish-tab",
         "voter-write",
         "settings-menu",
+        "tenant-logs-read",
         "role-assign",
         "voting-channel-read",
         "tally-sheet-review",
@@ -5013,6 +5023,7 @@
   "eventsEnabled": true,
   "eventsExpiration": 15552000,
   "eventsListeners": [
+    "custom-event-listener",
     "jboss-logging"
   ],
   "enabledEventTypes": [

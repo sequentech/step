@@ -1035,10 +1035,9 @@ class BackendJourneys(unittest.TestCase):
         (publication,) = recovered["sequent_backend_ballot_publication"]
         self.assertNotEqual(publication["id"], original_publication["id"])
         self.assertTrue(publication["is_generated"])
-        self.assertEqual(
-            publication["published_at"], original_publication["published_at"]
-        )
-        self.assertTrue(publication["published_at"])
+        self.assertTrue(original_publication["published_at"])
+        # An import never publishes ballots: the publication comes back as a draft.
+        self.assertIsNone(publication["published_at"])
         self.assertTrue(
             publication["annotations"]["ballot_files_v1"].startswith(
                 f"tenant-{TENANT_ID}/event-{recovered_id}/publication-{publication['id']}/"
@@ -1124,7 +1123,7 @@ class BackendJourneys(unittest.TestCase):
         )
         (publication,) = recovered["sequent_backend_ballot_publication"]
         self.assertTrue(publication["is_generated"])
-        self.assertTrue(publication["published_at"])
+        self.assertIsNone(publication["published_at"])
         expected = sorted(sum(self.expected(key).values()) for key in ("A", "B", "C"))
         results = recovered["sequent_backend_results_contest"]
         self.assertEqual(sorted(r["total_votes"] for r in results), expected)
@@ -1253,11 +1252,7 @@ class BackendJourneys(unittest.TestCase):
                 self.assertEqual(
                     [e["extensions"]["code"] for e in errors], ["PokValidationFailed"]
                 )
-                stored = self.admin.query(
-                    "query ($event: uuid!) { sequent_backend_cast_vote(where: {election_event_id: {_eq: $event}}) { id } }",
-                    {"event": event_id},
-                )["sequent_backend_cast_vote"]
-                self.assertEqual(stored, [])
+                self.assertEqual(portal.status(token)["cast_votes"], [])
             receipt, errors = portal.cast(token, ballot)
             self.assertIsNone(errors)
             self.assertEqual(receipt["ballot_id"], ballot["ballotId"])

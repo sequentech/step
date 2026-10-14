@@ -705,6 +705,14 @@ pub async fn update_publish_ballot(
         return Ok(());
     }
 
+    validate_published_ballot_styles(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication,
+    )
+    .await?;
+
     validate_published_slates(
         hasura_transaction,
         &tenant_id,

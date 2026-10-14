@@ -202,6 +202,30 @@ const frenchTranslation: TranslationType = {
                 },
             },
         },
+        tenantLogs: {
+            tab: "Journaux",
+            title: "Journaux",
+            subtitle:
+                "Connexions au Portail d'Administration et demandes faites hors de tout événement électoral, signées et conservées dans le journal de l'organisation.",
+            noPermissions: "Vous n'avez pas la permission de lire les journaux de l'organisation.",
+            kind: {
+                TenantLogOpened: "Journal ouvert",
+                TenantAdminAction: "Demande d'administrateur",
+                KeycloakUserEvent: "Connexion et événement de compte",
+            },
+            explanation: {
+                action: "Action : {{action}}",
+                outcome: {
+                    succeeded: "Acceptée (HTTP {{status}})",
+                    denied: "Refusée (HTTP {{status}})",
+                    failed: "Échouée (HTTP {{status}})",
+                },
+                by: "Demandée par {{username}} ({{userId}})",
+                detail: "{{name}} : {{value}}",
+                board: "Journal : {{board}}",
+                publicKey: "Clé publique du journal : {{key}}",
+            },
+        },
         logsScreen: {
             noPermissions: "Vous n'avez pas la permission d'accéder aux journaux.",
             title: "Journaux",
@@ -1699,6 +1723,7 @@ const frenchTranslation: TranslationType = {
                 "publish-results-read": "Lire Publication des Résultats",
                 "publish-results-write": "Éditer Publication des Résultats",
                 "logs-read": "Lire Journaux",
+                "tenant-logs-read": "Lire Journaux de l'Organisation",
                 "electoral-log-audit": "Auditer le Journal Électoral",
                 "electoral-log-console-read": "Parcourir le Journal Électoral",
                 "electoral-log-console-query": "Interroger le Journal Électoral",

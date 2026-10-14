@@ -16,6 +16,7 @@ use crate::services::access::{
 };
 use crate::services::authorization::{authorize, permitted_event_election_ids};
 use crate::services::dependencies::HarvestServices;
+use crate::services::tenant_activity::{TenantAction, TenantActivityRecorder};
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
@@ -44,6 +45,7 @@ use sequent_core::types::keycloak::{
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
 use serde::Serialize;
+use serde_json::json;
 use std::collections::{HashMap, HashSet};
 use std::env;
 use tracing::{info, instrument};
@@ -341,8 +343,16 @@ pub async fn delete_user(
     claims: jwt::JwtClaims,
     body: Json<DeleteUserBody>,
     services: &State<HarvestServices>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
+    if input.election_event_id.is_none() {
+        activity.record(
+            &claims,
+            TenantAction::DeleteUser,
+            json!({"tenant_id": input.tenant_id, "user_id": input.user_id}),
+        );
+    }
     validate_keycloak_scope(
         &input.tenant_id,
         input.election_event_id.as_deref(),
@@ -421,8 +431,20 @@ pub struct DeleteUsersBody {
 pub async fn delete_users(
     claims: jwt::JwtClaims,
     body: Json<DeleteUsersBody>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<DeleteUsersOutput>, (Status, String)> {
     let input = body.into_inner();
+    if input.election_event_id.is_none() {
+        activity.record(
+            &claims,
+            TenantAction::DeleteUsers,
+            json!({
+                "tenant_id": input.tenant_id,
+                "user_ids": input.users_id,
+                "select_all": input.select_all.unwrap_or(false),
+            }),
+        );
+    }
     validate_keycloak_scope(
         &input.tenant_id,
         input.election_event_id.as_deref(),
@@ -982,8 +1004,20 @@ fn reject_tenant_id_attribute(user: &User) -> Result<(), String> {
 pub async fn create_user(
     claims: jwt::JwtClaims,
     body: Json<CreateUserBody>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<User>, JsonError> {
     let input = body.into_inner();
+    if input.election_event_id.is_none() {
+        activity.record(
+            &claims,
+            TenantAction::CreateUser,
+            json!({
+                "tenant_id": input.tenant_id,
+                "username": input.user.username,
+                "role_ids": input.user_roles_ids,
+            }),
+        );
+    }
     let has_secret_attributes =
         writes_secret_attributes(input.secret_attributes.as_ref());
     let required_perms = create_user_permissions(
@@ -1436,8 +1470,21 @@ pub async fn edit_user(
     claims: jwt::JwtClaims,
     body: Json<EditUserBody>,
     services: &State<HarvestServices>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<EditUserOutput>, EditUserError> {
     let mut input = body.into_inner();
+    if input.election_event_id.is_none() {
+        activity.record(
+            &claims,
+            TenantAction::EditUser,
+            json!({
+                "tenant_id": input.tenant_id,
+                "user_id": input.user_id,
+                "enabled": input.enabled,
+                "password_changed": input.password.is_some(),
+            }),
+        );
+    }
     validate_keycloak_scope(
         &input.tenant_id,
         input.election_event_id.as_deref(),
@@ -2035,7 +2082,18 @@ pub async fn reveal_voter_secret_attribute(
 pub async fn import_users_f(
     claims: jwt::JwtClaims,
     body: Json<import_users::ImportUsersBody>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<ImportUsersOutput>, (Status, String)> {
+    if body.election_event_id.is_none() {
+        activity.record(
+            &claims,
+            TenantAction::ImportUsers,
+            json!({
+                "tenant_id": body.tenant_id,
+                "document_id": body.document_id,
+            }),
+        );
+    }
     crate::services::user_tasks::import_users_with(
         &WindmillUserTaskLedger,
         &ClaimsUserTaskAuthorization,
@@ -2052,7 +2110,18 @@ pub async fn import_users_f(
 pub async fn export_users_f(
     claims: jwt::JwtClaims,
     input: Json<ExportUsersBody>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<ExportUsersOutput>, (Status, String)> {
+    if input.election_event_id.is_none() {
+        activity.record(
+            &claims,
+            TenantAction::ExportUsers,
+            json!({
+                "tenant_id": input.tenant_id,
+                "include_secret_attributes": input.include_secret_attributes,
+            }),
+        );
+    }
     crate::services::user_tasks::export_users_with(
         &WindmillUserTaskLedger,
         &ClaimsUserTaskAuthorization,

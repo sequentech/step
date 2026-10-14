@@ -345,6 +345,24 @@ impl PostgresStore {
             .await?;
         Ok(())
     }
+
+    /// Create the tables of the logs without the ballot box, for a database whose
+    /// logs belong to no election event. Idempotent.
+    pub async fn initialize_logs(&self) -> Result<()> {
+        self.pool.get().await?.batch_execute(&log_schema()?).await?;
+        Ok(())
+    }
+}
+
+/// Where the ballot box starts in `schema.sql`: the tables before it are the logs'.
+const BALLOT_BOX_SCHEMA_START: &str = "-- Ballot box:";
+
+/// The part of `schema.sql` that creates the tables of the logs, as one transaction.
+fn log_schema() -> Result<String> {
+    let (logs, _) = include_str!("../../schema.sql")
+        .split_once(BALLOT_BOX_SCHEMA_START)
+        .context("schema.sql does not mark where the ballot box starts")?;
+    Ok(format!("{logs}COMMIT;\n"))
 }
 
 /// Audit a board in one snapshot taken once its audit lock is held, or return `None`
@@ -1082,6 +1100,18 @@ pub(crate) fn qualified_columns(alias: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_log_schema_is_the_schema_without_the_ballot_box() {
+        let schema = log_schema().unwrap();
+        assert!(schema.starts_with(include_str!("../../schema.sql").split_at(40).0));
+        assert!(schema.contains(trellis::journal::SCHEMA));
+        assert!(schema.contains("CREATE TABLE IF NOT EXISTS electoral_log_boards"));
+        assert!(schema.contains("CREATE INDEX IF NOT EXISTS electoral_log_created"));
+        assert!(!schema.contains("ballot_box"), "{schema}");
+        assert_eq!(schema.matches("BEGIN;").count(), 1);
+        assert!(schema.ends_with("COMMIT;\n"));
+    }
 
     #[test]
     fn audit_outcomes_use_the_same_names_in_json_and_text() {

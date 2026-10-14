@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::authorization::authorize;
+use crate::services::tenant_activity::{TenantAction, TenantActivityRecorder};
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::Result;
 use rocket::http::Status;
@@ -9,6 +10,7 @@ use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use tracing::instrument;
 use windmill::services::limit_access_by_countries::{
     handle_limit_ip_access_by_countries, CountryCode,
@@ -30,8 +32,17 @@ pub struct LimitAccessByCountriesOutput {
 pub async fn limit_access_by_countries(
     claims: JwtClaims,
     body: Json<LimitAccessByCountriesInput>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<LimitAccessByCountriesOutput>, JsonError> {
     let input = body.into_inner();
+    activity.record(
+        &claims,
+        TenantAction::LimitAccessByCountries,
+        json!({
+            "voting_countries": input.voting_countries,
+            "enroll_countries": input.enroll_countries,
+        }),
+    );
     authorize(
         &claims,
         true,

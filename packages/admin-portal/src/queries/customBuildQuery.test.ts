@@ -404,6 +404,7 @@ describe("action-backed lists", () => {
         ["permission", "getPermissions", "get_permissions"],
         ["ip_address", "GetCastVotesByIp", "get_top_votes_by_ip"],
         ["electoral_log", "listElectoralLog", "listElectoralLog"],
+        ["tenant_log", "listTenantLog", "listTenantLog"],
     ])("%s reads its page from the %s action", (resource, operation, field) => {
         const built = list(resource, {filter: {election_event_id: EVENT, tenant_id: EVENT}})
         expect(operationName(built.query)).toBe(operation)
@@ -426,6 +427,45 @@ describe("action-backed lists", () => {
         const built = list("electoral_log", {
             filter: {
                 election_event_id: EVENT,
+                created_from: "2028-04-08T00:00",
+                created_to: "2028-04-09T23:59",
+                time_zone: "Asia/Manila",
+            },
+        })
+        const filter = built.variables.filter as Record<string, string>
+        expect(new Date(filter.created_from).getTime()).toBe(Date.parse("2028-04-07T16:00:00Z"))
+        expect(new Date(filter.created_to).getTime()).toBe(Date.parse("2028-04-09T15:59:00Z"))
+        expect(JSON.stringify(built.variables)).not.toContain("time_zone")
+    })
+})
+
+describe("the tenant's log", () => {
+    it("asks for a page with the searchable filters and no election event", () => {
+        const built = list("tenant_log", {
+            pagination: {page: 3, perPage: 25},
+            sort: {field: "id", order: "DESC"},
+            filter: {
+                election_event_id: EVENT,
+                username: "maria",
+                statement_kind: "TenantAdminAction",
+                channel: "SMS",
+            },
+        })
+        expect(operationName(built.query)).toBe("listTenantLog")
+        expect(built.variables).toMatchObject({
+            limit: 25,
+            offset: 50,
+            filter: {username: "maria", statement_kind: "TenantAdminAction"},
+            order_by: {id: "desc"},
+        })
+        const sent = JSON.stringify(built.variables)
+        expect(sent).not.toContain(EVENT)
+        expect(sent).not.toContain("SMS")
+    })
+
+    it("sends the Created range as instants of the wall times in the chosen zone", () => {
+        const built = list("tenant_log", {
+            filter: {
                 created_from: "2028-04-08T00:00",
                 created_to: "2028-04-09T23:59",
                 time_zone: "Asia/Manila",

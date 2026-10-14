@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 use base64::{engine::general_purpose::STANDARD, Engine};
-use ed25519_dalek::{Signer, SigningKey};
 use sequent_core::ballot::{
     AuditableBallot, HashableBallot, SignedHashableBallot,
 };
 use sequent_core::wasm::wasm::verify_ballot_signature_js;
 use serde_json::{json, Value};
+use voting_crypto::signing::{SigningKey, VerificationKey};
 use wasm_bindgen::JsValue;
 use wasm_bindgen_test::*;
 use web_sys::js_sys::JSON;
@@ -36,13 +36,13 @@ fn signed_fixture() -> Value {
         message.extend_from_slice(&(bytes.len() as u64).to_le_bytes());
         message.extend_from_slice(bytes);
     }
-    let key = SigningKey::from_bytes(&[7; 32]);
-    let signature = key.sign(&message);
+    let key = SigningKey::from_bytes([7; 32]).unwrap();
+    let signature = key.sign(&message).unwrap();
     // RFC 8410 SubjectPublicKeyInfo prefix for an Ed25519 public key.
     let mut der = vec![
         0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
     ];
-    der.extend_from_slice(key.verifying_key().as_bytes());
+    der.extend_from_slice(&VerificationKey::from_sk(&key).unwrap().to_bytes());
     value["voter_signing_pk"] = json!(STANDARD.encode(der));
     value["voter_ballot_signature"] =
         json!(STANDARD.encode(signature.to_bytes()));
