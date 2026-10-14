@@ -210,7 +210,7 @@ async fn send(request: reqwest::RequestBuilder) -> Result<reqwest::Response> {
 
 #[cfg(test)]
 #[path = "platform_tests.rs"]
-mod tests;
+pub(crate) mod tests;
 
 fn missing_event_updates_field(error: &anyhow::Error) -> bool {
     let message = error.to_string();

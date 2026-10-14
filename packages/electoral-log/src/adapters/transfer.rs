@@ -570,4 +570,158 @@ mod tests {
         };
         assert_eq!(manifest.board().unwrap().checkpoint.log_name, "log2");
     }
+
+    fn exported_log(id: u128) -> ExportedLog {
+        ExportedLog {
+            checkpoint: Checkpoint {
+                log_name: format!("log{id}"),
+                log_uid: Uuid::from_u128(id),
+                tree_size: 7,
+                root: vec![0xab; 32],
+            },
+            state: LogState::Open,
+            published: vec![],
+        }
+    }
+
+    #[test]
+    fn v2_selects_the_main_board_by_identity_and_never_falls_back_to_the_last_log() {
+        let mut manifest = ExportManifest {
+            format: EXPORT_FORMAT_V2.into(),
+            election_event_id: "event".into(),
+            board_log_uid: Some(Uuid::from_u128(1)),
+            logs: vec![exported_log(1), exported_log(2)],
+        };
+        assert_eq!(manifest.board().unwrap().checkpoint.log_name, "log1");
+        manifest.logs.reverse();
+        assert_eq!(manifest.board().unwrap().checkpoint.log_name, "log1");
+        manifest.board_log_uid = Some(Uuid::from_u128(3));
+        assert!(manifest.board().is_none());
+        manifest.board_log_uid = None;
+        assert!(manifest.board().is_none());
+        manifest.logs.clear();
+        assert!(manifest.board().is_none());
+    }
+
+    #[test]
+    fn legacy_manifests_omit_the_optional_board_identity_and_keep_last_log_selection() {
+        let wire = serde_json::json!({
+            "format": "sequent-electoral-log-export-v1",
+            "election_event_id": "event",
+            "logs": [exported_log(1), exported_log(2)]
+        });
+        let mut manifest: ExportManifest = serde_json::from_value(wire.clone()).unwrap();
+        assert_eq!(manifest.board_log_uid, None);
+        assert_eq!(manifest.board().unwrap().checkpoint.log_name, "log2");
+        assert_eq!(serde_json::to_value(&manifest).unwrap(), wire);
+        // V1 selection is unchanged even if a newer writer supplied this field.
+        manifest.board_log_uid = Some(Uuid::from_u128(1));
+        assert_eq!(manifest.board().unwrap().checkpoint.log_name, "log2");
+        manifest.logs.clear();
+        assert!(manifest.board().is_none());
+    }
+
+    #[test]
+    fn recorded_continuations_bind_the_exact_prior_identity_size_and_root() {
+        use crate::messages::{message::SigningData, newtypes::EventIdString};
+        use voting_crypto::signing::SigningKey;
+
+        let previous = exported_log(1).checkpoint;
+        let identity = LogIdentity {
+            name: "copy".into(),
+            uid: Uuid::from_u128(2),
+        };
+        let key = SigningKey::generate().unwrap();
+        let signer = SigningData::new(key.clone(), "trustee", key);
+        let message = Message::electoral_log_continuation_message(
+            EventIdString("event".into()),
+            ElectoralLogContinuation {
+                previous_log_name: "log1".into(),
+                previous_log_uid: "00000000-0000-0000-0000-000000000001".into(),
+                tree_size: 7,
+                root: "ab".repeat(32),
+            },
+            &signer,
+        )
+        .unwrap();
+        let entry = LogEntry {
+            delivery_id: "continuation".into(),
+            message: ElectoralLogMessage::try_from(&message).unwrap(),
+        };
+        let mut recorded = RecordedCommitments::default();
+        assert!(!recorded.continues(&previous));
+        recorded.read(&identity, &entry).unwrap();
+        assert!(recorded.continues(&previous));
+        for changed in [
+            Checkpoint {
+                log_name: "another-log".into(),
+                ..previous.clone()
+            },
+            Checkpoint {
+                log_uid: Uuid::from_u128(3),
+                ..previous.clone()
+            },
+            Checkpoint {
+                tree_size: 8,
+                ..previous.clone()
+            },
+            Checkpoint {
+                root: vec![0xac; 32],
+                ..previous.clone()
+            },
+        ] {
+            assert!(!recorded.continues(&changed));
+        }
+        recorded.continuations[0].previous_log_uid = "not-a-uuid".into();
+        assert!(!recorded.continues(&previous));
+        let mut malformed = entry;
+        malformed.message.message = vec![255];
+        assert!(recorded
+            .read(&identity, &malformed)
+            .unwrap_err()
+            .to_string()
+            .contains("cannot be decoded"));
+    }
+
+    #[tokio::test]
+    async fn invalid_export_formats_and_missing_v2_boards_are_rejected_before_database_access() {
+        // No database fixture or ambient credentials: these errors are manifest errors.
+        let store = PostgresStore::new(tokio_postgres::Config::new()).unwrap();
+        let valid = ExportManifest {
+            format: EXPORT_FORMAT_V2.into(),
+            election_event_id: "event".into(),
+            board_log_uid: Some(Uuid::from_u128(1)),
+            logs: vec![exported_log(1)],
+        };
+        for (format, board_log_uid, expected) in [
+            (
+                "unsupported-format",
+                valid.board_log_uid,
+                "Unknown electoral-log export format",
+            ),
+            (EXPORT_FORMAT_V2, None, "no valid main board"),
+            (
+                EXPORT_FORMAT_V2,
+                Some(Uuid::from_u128(2)),
+                "no valid main board",
+            ),
+        ] {
+            let manifest = ExportManifest {
+                format: format.into(),
+                board_log_uid,
+                ..valid.clone()
+            };
+            let error = store
+                .import_logs(&manifest, &mut std::iter::empty(), &[])
+                .await
+                .unwrap_err();
+            assert!(error.to_string().contains(expected), "{error:#}");
+        }
+        // A complete V2 manifest passes validation and reaches the unavailable database.
+        let error = store
+            .import_logs(&valid, &mut std::iter::empty(), &[])
+            .await
+            .unwrap_err();
+        assert!(!error.to_string().contains("main board"), "{error:#}");
+    }
 }

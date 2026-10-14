@@ -3,6 +3,9 @@
 
 //! The durable queue against the migrated schema, with real signed requests.
 //! Proof production must never advance the human ceremony approval.
+
+#![recursion_limit = "256"]
+
 #[path = "support/schema.rs"]
 mod schema;
 

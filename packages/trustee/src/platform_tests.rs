@@ -10,25 +10,30 @@ use std::net::TcpListener;
 use std::thread::{self, JoinHandle};
 use std::time::Instant;
 
-const TOKEN: &str = r#"{"access_token":"issued-token","expires_in":300}"#;
+pub(crate) const TOKEN: &str =
+    r#"{"access_token":"issued-token","expires_in":300}"#;
 const DKG: &str = "dkg_d9792af071b849528aac94bc0fead5f7";
 const TALLY: &str = "tally_0f6a3b2c9d8e4f10a1b2c3d4e5f60718_3";
 const BOARDS: &str = r#"{"data":{"list_trustee_boards":{"boards":[{"name":"dkg_d9792af071b849528aac94bc0fead5f7","kind":"DKG","parent":null},{"name":"tally_0f6a3b2c9d8e4f10a1b2c3d4e5f60718_3","kind":"TALLY","parent":"dkg_d9792af071b849528aac94bc0fead5f7"}]}}}"#;
 const ACCEPTED: &str = r#"{"data":{"report_trustee_board":{"accepted":true}}}"#;
 
-struct Request {
+pub(crate) struct Request {
     line: String,
     headers: HashMap<String, String>,
     body: Vec<u8>,
 }
 
 /// Own the bound port and use bounded I/O; no backend services are required.
-fn platform(
-    answers: Vec<(u16, &'static str)>,
+pub(crate) fn platform(
+    answers: Vec<(u16, &str)>,
 ) -> (PlatformClient, JoinHandle<Vec<Request>>) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     listener.set_nonblocking(true).unwrap();
     let url = format!("http://{}", listener.local_addr().unwrap());
+    let answers: Vec<_> = answers
+        .into_iter()
+        .map(|(status, body)| (status, body.to_owned()))
+        .collect();
     let server = thread::spawn(move || {
         let mut requests = Vec::new();
         for (status, body) in answers {
@@ -106,7 +111,7 @@ fn report() -> TrusteeReport {
     }
 }
 
-fn graphql_body(request: &Request) -> Value {
+pub(crate) fn graphql_body(request: &Request) -> Value {
     assert_eq!(request.line, "POST /v1/graphql HTTP/1.1");
     assert_eq!(request.headers["authorization"], "Bearer issued-token");
     assert_eq!(request.headers["x-hasura-role"], "trustee-ceremony");
