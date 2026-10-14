@@ -2360,6 +2360,13 @@ const catalanTranslation: TranslationType = {
         },
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
+            checkStep: {
+                ...englishTranslation.translations.keysGeneration.checkStep,
+                required: "Cal confirmar la custòdia",
+                reconfirmButton: "Tornar a confirmar la custòdia (opcional)",
+                reconfirmDescription:
+                    "La teva custòdia ja està confirmada. Aquesta confirmació addicional és opcional.",
+            },
             serverCustody: {
                 recoveryInstructions:
                     "Si heu importat aquest esdeveniment electoral o heu perdut el fitxer desat, descarregueu aquí el fitxer actual de la cerimònia. Deseu-lo i després carregueu-lo a continuació.",
@@ -2417,6 +2424,11 @@ const catalanTranslation: TranslationType = {
             // Native custody instructions use the English fallback until translated.
             ceremonyStep: {
                 ...englishTranslation.translations.keysGeneration.ceremonyStep,
+                custodyConfirmed: "Custòdia confirmada",
+                custodyComplete: "La teva part ha finalitzat. No cal que facis cap altra acció.",
+                waitingForTrustees:
+                    "S’està esperant que les autoritats restants completin la confirmació de custòdia i qualsevol aprovació requerida.",
+                moreActions: "Més accions",
                 cancel: "Cancel·lar Cerimònia de Claus",
                 progressHeader: "Progrés de Cerimònia de Claus",
                 executionStatus: "Estat: {{status}}",

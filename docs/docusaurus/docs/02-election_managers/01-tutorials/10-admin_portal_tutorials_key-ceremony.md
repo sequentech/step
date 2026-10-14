@@ -84,8 +84,14 @@ trustee to **CUSTODY_CONFIRMED**. Once every trustee has confirmed custody and a
 required approval signatures are complete, the ceremony becomes **SUCCESS**.
 The administrator can then publish ballot styles and open voting.
 
-A trustee may verify its proof again using **Verify Custody Proof**. Completed
-custody cannot be downgraded by downloading another request. Retain the public
+A trustee whose custody is confirmed sees **Custody confirmed** and a message
+that no further action is required from them. If other trustees are still pending,
+the ceremony also explains that it is waiting for their custody confirmation and
+any required approval. **More actions → Reconfirm custody (optional)** opens the
+confirmation step again; using it is not required to complete the ceremony.
+Until custody and any required approval are recorded, the wizard continues to
+show **Custody confirmation required** and blocks advancing past that step.
+Completed custody cannot be downgraded by downloading another request. Retain the public
 file for future tally ceremonies. Upload that same file to authorize a manual
 tally; the server creates a new proof bound to that tally session. Offline
 trustees instead create a new proof with `--tally-session-id <tally UUID>`. A key

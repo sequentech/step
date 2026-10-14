@@ -191,6 +191,7 @@ export const Populated: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(canvas.getByRole("heading", {name: "Confirm Trustee Custody"})).toBeVisible()
+        await expect(canvas.getByText("Custody confirmation required")).toBeVisible()
         await expect(canvas.getByText(/Upload the ceremony file you downloaded/)).toBeVisible()
         expect(canvas.getByRole("button", {name: "Next"})).toBeDisabled()
         expect(graphql.calls).toEqual([])
@@ -253,6 +254,11 @@ export const SignedCheckIsRecorded: Story = {
         const organization = CUSTODY_PROOF_ORGANIZATIONS[args.organization]
         await uploadKey(canvasElement, CUSTODY_PROOF)
         await expect(await canvas.findByText(signingNote(organization))).toBeVisible()
+        expect(canvas.getByText("Custody confirmation required")).toBeInTheDocument()
+        expect(
+            canvas.queryByText("Your part is complete. No further action is required from you.")
+        ).toBeNull()
+        expect(canvas.queryByRole("button", {name: "More actions"})).toBeNull()
         // Behind the open signing panel, the step can't go on yet.
         expect(canvas.getByRole("button", {name: "Next", hidden: true})).toBeDisabled()
         await expect(api.getRequest).toHaveBeenCalledWith(SIGNING_REQUEST.id)

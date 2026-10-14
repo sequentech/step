@@ -2338,6 +2338,13 @@ const basqueTranslation: TranslationType = {
         },
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
+            checkStep: {
+                ...englishTranslation.translations.keysGeneration.checkStep,
+                required: "Zaintza berretsi behar da",
+                reconfirmButton: "Zaintza berriro berretsi (aukerakoa)",
+                reconfirmDescription:
+                    "Zure zaintza dagoeneko berretsita dago. Berrespen gehigarri hau aukerakoa da.",
+            },
             serverCustody: {
                 recoveryInstructions:
                     "Hauteskunde-ekitaldi hau inportatu baduzu edo gordetako fitxategia galdu baduzu, deskargatu hemen egungo zeremoniaren fitxategia. Gorde eta gero igo behean.",
@@ -2394,6 +2401,11 @@ const basqueTranslation: TranslationType = {
             // Native custody instructions use the English fallback until translated.
             ceremonyStep: {
                 ...englishTranslation.translations.keysGeneration.ceremonyStep,
+                custodyConfirmed: "Zaintza berretsita",
+                custodyComplete: "Zure zatia amaitu da. Ez duzu beste ekintzarik egin behar.",
+                waitingForTrustees:
+                    "Gainerako arduradunek zaintzaren berrespena eta beharrezko onarpenak amaitu zain.",
+                moreActions: "Ekintza gehiago",
                 cancel: "Ezeztatu Giltzen Zeremonia",
                 progressHeader: "Giltzen Zeremonia Aurrerapena",
                 executionStatus: "Egoera: {{status}}",

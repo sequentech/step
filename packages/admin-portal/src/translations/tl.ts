@@ -2360,6 +2360,13 @@ const tagalogTranslation: TranslationType = {
         },
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
+            checkStep: {
+                ...englishTranslation.translations.keysGeneration.checkStep,
+                required: "Kailangang kumpirmahin ang kustodiya",
+                reconfirmButton: "Kumpirmahin muli ang kustodiya (opsyonal)",
+                reconfirmDescription:
+                    "Nakumpirma na ang iyong kustodiya. Opsyonal ang karagdagang pagkumpirmang ito.",
+            },
             serverCustody: {
                 recoveryInstructions:
                     "Kung na-import mo ang kaganapang ito sa halalan o nawala ang na-save na file, i-download dito ang kasalukuyang file ng seremonya. I-save ito, pagkatapos ay i-upload sa ibaba.",
@@ -2415,6 +2422,11 @@ const tagalogTranslation: TranslationType = {
             // Native custody instructions use the English fallback until translated.
             ceremonyStep: {
                 ...englishTranslation.translations.keysGeneration.ceremonyStep,
+                custodyConfirmed: "Nakumpirma na ang kustodiya",
+                custodyComplete: "Tapos na ang iyong bahagi. Wala ka nang kailangang gawin.",
+                waitingForTrustees:
+                    "Hinihintay ang ibang katiwala na makumpleto ang pagkumpirma ng kustodiya at anumang kinakailangang pag-apruba.",
+                moreActions: "Iba pang mga aksyon",
                 cancel: "Kanselahin ang Seremonya ng Mga Susi",
                 progressHeader: "Pag-andar ng Seremonya ng Mga Susi",
                 executionStatus: "Katayuan: {{status}}",

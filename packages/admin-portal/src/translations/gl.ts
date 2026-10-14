@@ -2346,6 +2346,13 @@ const galegoTranslation: TranslationType = {
         },
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
+            checkStep: {
+                ...englishTranslation.translations.keysGeneration.checkStep,
+                required: "É necesario confirmar a custodia",
+                reconfirmButton: "Confirmar de novo a custodia (opcional)",
+                reconfirmDescription:
+                    "A túa custodia xa está confirmada. Esta confirmación adicional é opcional.",
+            },
             serverCustody: {
                 recoveryInstructions:
                     "Se importou este evento electoral ou perdeu o ficheiro gardado, descargue aquí o ficheiro actual da cerimonia. Gárdeo e logo cárgueo a continuación.",
@@ -2402,6 +2409,11 @@ const galegoTranslation: TranslationType = {
             // Native custody instructions use the English fallback until translated.
             ceremonyStep: {
                 ...englishTranslation.translations.keysGeneration.ceremonyStep,
+                custodyConfirmed: "Custodia confirmada",
+                custodyComplete: "A túa parte rematou. Non tes que realizar ningunha outra acción.",
+                waitingForTrustees:
+                    "Agardando a que as autoridades restantes completen a confirmación de custodia e calquera aprobación requirida.",
+                moreActions: "Máis accións",
                 cancel: "Cancelar Cerimonia de Chaves",
                 progressHeader: "Progreso da Cerimonia de Chaves",
                 executionStatus: "Estado: {{status}}",

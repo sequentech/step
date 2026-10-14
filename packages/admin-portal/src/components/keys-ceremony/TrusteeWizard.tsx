@@ -207,7 +207,7 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
                     setCurrentCeremony={setCurrentCeremony}
                     electionEvent={electionEvent}
                     goBack={goBack}
-                    confirmCustody={canReconfirmCustody ? startCustodyReconfirmation : undefined}
+                    reconfirmCustody={canReconfirmCustody ? startCustodyReconfirmation : undefined}
                 />
             )}
             {(currentStep === WizardStep.Status || currentStep === WizardStep.Not_Generated) && (
@@ -222,7 +222,7 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
                             : undefined
                     }
                     isNextDisabled={!canProceedToDownload || isAutomaticCeremony}
-                    confirmCustody={canReconfirmCustody ? startCustodyReconfirmation : undefined}
+                    reconfirmCustody={canReconfirmCustody ? startCustodyReconfirmation : undefined}
                     message={
                         checkKeysGenerated() ? (
                             <>

@@ -2370,6 +2370,11 @@ const englishTranslation = {
                 automaticCeremonyToggle: "Automatic Ceremony",
             },
             ceremonyStep: {
+                custodyConfirmed: "Custody confirmed",
+                custodyComplete: "Your part is complete. No further action is required from you.",
+                waitingForTrustees:
+                    "Waiting for the remaining trustees to complete their custody confirmation and any required approval.",
+                moreActions: "More actions",
                 cancel: "Cancel Key Ceremony",
                 progressHeader: "Key Ceremony Progress",
                 waiting: "Waiting",
@@ -2430,7 +2435,10 @@ const englishTranslation = {
             },
             checkStep: {
                 title: "Confirm Trustee Custody",
-                verifyButton: "Verify Custody Proof",
+                required: "Custody confirmation required",
+                reconfirmButton: "Reconfirm custody (optional)",
+                reconfirmDescription:
+                    "Your custody is already confirmed. This additional confirmation is optional.",
                 subtitle: "Upload your saved ceremony file or a signed custody proof:",
                 errorUploading: "Invalid custody proof, please try again",
                 errorEmptyFile: "File empty or not found",

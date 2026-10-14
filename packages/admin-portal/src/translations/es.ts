@@ -2349,6 +2349,13 @@ const spanishTranslation: TranslationType = {
         },
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
+            checkStep: {
+                ...englishTranslation.translations.keysGeneration.checkStep,
+                required: "Se requiere confirmar la custodia",
+                reconfirmButton: "Volver a confirmar la custodia (opcional)",
+                reconfirmDescription:
+                    "Tu custodia ya está confirmada. Esta confirmación adicional es opcional.",
+            },
             serverCustody: {
                 recoveryInstructions:
                     "Si ha importado este evento electoral o ha perdido el archivo guardado, descargue aquí el archivo actual de la ceremonia. Guárdelo y luego cárguelo a continuación.",
@@ -2405,6 +2412,12 @@ const spanishTranslation: TranslationType = {
             // Native custody instructions use the English fallback until translated.
             ceremonyStep: {
                 ...englishTranslation.translations.keysGeneration.ceremonyStep,
+                custodyConfirmed: "Custodia confirmada",
+                custodyComplete:
+                    "Tu parte ha finalizado. No necesitas realizar ninguna otra acción.",
+                waitingForTrustees:
+                    "Esperando a que las autoridades restantes completen la confirmación de custodia y cualquier aprobación requerida.",
+                moreActions: "Más acciones",
                 cancel: "Cancelar Ceremonia de Claves",
                 progressHeader: "Progreso de Ceremonia de Claves",
                 executionStatus: "Estado: {{status}}",

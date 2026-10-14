@@ -2369,6 +2369,13 @@ const frenchTranslation: TranslationType = {
         },
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
+            checkStep: {
+                ...englishTranslation.translations.keysGeneration.checkStep,
+                required: "Confirmation de garde requise",
+                reconfirmButton: "Confirmer à nouveau la garde (facultatif)",
+                reconfirmDescription:
+                    "Votre garde est déjà confirmée. Cette confirmation supplémentaire est facultative.",
+            },
             serverCustody: {
                 recoveryInstructions:
                     "Si vous avez importé cet événement électoral ou perdu le fichier enregistré, téléchargez ici son fichier de cérémonie actuel. Enregistrez-le, puis téléversez-le ci-dessous.",
@@ -2426,6 +2433,12 @@ const frenchTranslation: TranslationType = {
             // Native custody instructions use the English fallback until translated.
             ceremonyStep: {
                 ...englishTranslation.translations.keysGeneration.ceremonyStep,
+                custodyConfirmed: "Garde confirmée",
+                custodyComplete:
+                    "Votre participation est terminée. Aucune autre action n’est requise de votre part.",
+                waitingForTrustees:
+                    "En attente de la confirmation de garde et de toute approbation requise des autres autorités.",
+                moreActions: "Autres actions",
                 cancel: "Annuler la Cérémonie de Clés",
                 progressHeader: "Progrès de la Cérémonie de Clés",
                 executionStatus: "État : {{status}}",

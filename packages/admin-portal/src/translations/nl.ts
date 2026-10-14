@@ -2347,6 +2347,13 @@ const dutchTranslation: TranslationType = {
         },
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
+            checkStep: {
+                ...englishTranslation.translations.keysGeneration.checkStep,
+                required: "Bevestiging van bewaring vereist",
+                reconfirmButton: "Bewaring opnieuw bevestigen (optioneel)",
+                reconfirmDescription:
+                    "Uw bewaring is al bevestigd. Deze aanvullende bevestiging is optioneel.",
+            },
             serverCustody: {
                 recoveryInstructions:
                     "Als u deze verkiezing hebt geïmporteerd of het opgeslagen bestand kwijt bent, download dan hier het huidige ceremoniebestand. Sla het op en upload het hieronder.",
@@ -2403,6 +2410,11 @@ const dutchTranslation: TranslationType = {
             // Native custody instructions use the English fallback until translated.
             ceremonyStep: {
                 ...englishTranslation.translations.keysGeneration.ceremonyStep,
+                custodyConfirmed: "Bewaring bevestigd",
+                custodyComplete: "Uw deel is voltooid. U hoeft niets meer te doen.",
+                waitingForTrustees:
+                    "Wachten totdat de overige beheerders hun bewaring en eventuele vereiste goedkeuring hebben afgerond.",
+                moreActions: "Meer acties",
                 cancel: "Sleutelceremonie Annuleren",
                 progressHeader: "Voortgang Sleutelceremonie",
                 executionStatus: "Status: {{status}}",

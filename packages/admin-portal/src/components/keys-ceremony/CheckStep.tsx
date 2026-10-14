@@ -7,7 +7,7 @@ import {ServerCustodyError} from "@/services/serverCustody"
 import {useServerCustodyProof} from "./useServerCustodyProof"
 import {useMutation} from "@apollo/client"
 import React, {useCallback, useContext, useState} from "react"
-import {Alert, Typography} from "@mui/material"
+import {Alert, AlertTitle, Typography} from "@mui/material"
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 import {Trans, useTranslation} from "react-i18next"
@@ -27,6 +27,8 @@ import {
     type ICustodyProofAnswer,
     type ICustodyProofSubmission,
 } from "./useCustodyProofSigning"
+import {canTrusteeReconfirmCustody, IKeysCeremonyExecutionStatus} from "@/services/KeyCeremony"
+import {EElectionEventCeremoniesPolicy} from "@sequentech/ui-core"
 
 export interface DownloadStepProps {
     electionEvent: Sequent_Backend_Election_Event
@@ -43,6 +45,17 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
 }) => {
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
+    const isReconfirmation = canTrusteeReconfirmCustody({
+        executionStatus: currentCeremony.execution_status as IKeysCeremonyExecutionStatus,
+        trusteeStatus: currentCeremony.status.trustees.find(
+            (trustee: {name: string}) => trustee.name === authContext.trustee
+        )?.status,
+        isAutomaticCeremony:
+            electionEvent.presentation?.ceremonies_policy ===
+                EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES &&
+            currentCeremony.settings?.policy ===
+                EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES,
+    })
     const serverCustody = useServerCustodyProof({
         election_event_id: electionEvent.id,
         keys_ceremony_id: currentCeremony.id,
@@ -125,12 +138,30 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
         <>
             <WizardStyles.ContentBox>
                 <WizardStyles.StepHeader variant="h4">
-                    {t("keysGeneration.checkStep.title")}
+                    {t(
+                        isReconfirmation
+                            ? "keysGeneration.checkStep.reconfirmButton"
+                            : "keysGeneration.checkStep.title"
+                    )}
                 </WizardStyles.StepHeader>
                 <WizardStyles.MainContent>
-                    <Alert severity="info">
-                        {t("keysGeneration.serverCustody.uploadInstructions")}
-                    </Alert>
+                    {!verified && (
+                        <Alert severity="info">
+                            <AlertTitle>
+                                {t(
+                                    isReconfirmation
+                                        ? "keysGeneration.checkStep.reconfirmButton"
+                                        : "keysGeneration.checkStep.required"
+                                )}
+                            </AlertTitle>
+                            {isReconfirmation && (
+                                <Typography variant="body2" sx={{mb: 1}}>
+                                    {t("keysGeneration.checkStep.reconfirmDescription")}
+                                </Typography>
+                            )}
+                            {t("keysGeneration.serverCustody.uploadInstructions")}
+                        </Alert>
+                    )}
                     <Typography variant="body1">
                         <Trans
                             i18nKey="keysGeneration.checkStep.subtitle"
