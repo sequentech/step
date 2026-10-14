@@ -546,86 +546,155 @@ async fn active_tally_download_recovers_current_scope_without_advancing_custody(
 
 #[tokio::test]
 async fn imported_ceremony_accepts_the_original_saved_file_and_signs_only_current_scope() {
-    let mut db = schema::pool().await.get().await.unwrap();
-    let tx = db.transaction().await.unwrap();
-    let f = Fixture::new(&tx).await;
-    let tally = f.tally(&tx).await;
-    let mut original = f.request.clone();
-    original.tenant_id = Uuid::new_v4().to_string();
-    original.election_event_id = Uuid::new_v4().to_string();
-    original.keys_ceremony_id = Uuid::new_v4().to_string();
-    let row = tx
+    for annotation_name in [
+        "protocol:imported-ceremony-origins",
+        "trustee:imported-custody-files",
+    ] {
+        let mut db = schema::pool().await.get().await.unwrap();
+        let tx = db.transaction().await.unwrap();
+        let f = Fixture::new(&tx).await;
+        let tally = f.tally(&tx).await;
+        let mut original = f.request.clone();
+        original.tenant_id = Uuid::new_v4().to_string();
+        original.election_event_id = Uuid::new_v4().to_string();
+        original.keys_ceremony_id = Uuid::new_v4().to_string();
+        let row = tx
         .query_one(
             "SELECT manager_message FROM sequent_backend.protocol_board WHERE keys_ceremony_id=$1",
             &[&f.keys],
         )
         .await
         .unwrap();
-    let configuration =
-        protocol_board::SignedConfiguration::parse(&row.get::<_, Vec<u8>>(0)).unwrap();
-    let provenance = json!({"configuration_hash": configuration.hash().to_string(), "scopes": [{
-        "tenant_id": original.tenant_id,
-        "election_event_id": original.election_event_id,
-        "keys_ceremony_id": original.keys_ceremony_id
-    }]});
-    tx.execute(
-        "UPDATE sequent_backend.keys_ceremony SET annotations=$2 WHERE id=$1",
-        &[
-            &f.keys,
-            &json!({"trustee:imported-custody-files": provenance}),
-        ],
+        let configuration =
+            protocol_board::SignedConfiguration::parse(&row.get::<_, Vec<u8>>(0)).unwrap();
+        let provenance = json!({"configuration_hash": configuration.hash().to_string(), "scopes": [{
+            "tenant_id": original.tenant_id,
+            "election_event_id": original.election_event_id,
+            "keys_ceremony_id": original.keys_ceremony_id
+        }]});
+        tx.execute(
+            "UPDATE sequent_backend.keys_ceremony SET annotations=$2 WHERE id=$1",
+            &[&f.keys, &json!({annotation_name: provenance})],
+        )
+        .await
+        .unwrap();
+        let mut input = f.input(Some(tally));
+        input.custody_request_json = serde_json::to_string(&original).unwrap();
+        assert!(matches!(
+            trustee_updates::request_server_custody(&tx, &f.claims, &input)
+                .await
+                .unwrap(),
+            ServerCustodyReply::Pending
+        ));
+        let result = f.pending(&tx, Some(tally)).await;
+        let mut current = f.request.clone();
+        current.tally_session_id = Some(tally.to_string());
+        assert_eq!(result.request, current);
+        let mut replay = result.clone();
+        replay.outcome = TrusteeActionOutcome::Ready {
+            custody_proof_json: original.attest(&f.secrets).unwrap(),
+        };
+        assert!(
+            trustee_updates::submit_action_result(&tx, &f.claims, &replay)
+                .await
+                .is_err()
+        );
+        trustee_updates::submit_action_result(&tx, &f.claims, &result)
+            .await
+            .unwrap();
+        for field in [
+            "tenant_id",
+            "election_event_id",
+            "keys_ceremony_id",
+            "trustee_name",
+            "signing_public_key",
+            "share_encryption_public_key",
+            "tally_session_id",
+        ] {
+            let mut wrong = serde_json::to_value(&original).unwrap();
+            wrong[field] = json!("wrong");
+            input.custody_request_json = wrong.to_string();
+            let error = trustee_updates::request_server_custody(&tx, &f.claims, &input)
+                .await
+                .unwrap_err();
+            assert!(
+                error.to_string().contains("does not match this trustee"),
+                "{field}: {error}"
+            );
+        }
+        tx.execute("UPDATE sequent_backend.keys_ceremony SET annotations=$2 WHERE id=$1", &[&f.keys, &json!({annotation_name: {"configuration_hash": "wrong", "scopes": provenance["scopes"]}})]).await.unwrap();
+        input.custody_request_json = serde_json::to_string(&original).unwrap();
+        assert!(
+            trustee_updates::request_server_custody(&tx, &f.claims, &input)
+                .await
+                .is_err()
+        );
+    }
+}
+
+#[tokio::test]
+async fn imports_migrate_legacy_ceremony_origins_and_preserve_their_history() {
+    let mut db = schema::pool().await.get().await.unwrap();
+    let tx = db.transaction().await.unwrap();
+    let f = Fixture::new(&tx).await;
+    let mut original = windmill::postgres::keys_ceremony::get_keys_ceremony_by_id(
+        &tx,
+        &f.tenant.to_string(),
+        &f.event.to_string(),
+        &f.keys.to_string(),
     )
     .await
     .unwrap();
-    let mut input = f.input(Some(tally));
-    input.custody_request_json = serde_json::to_string(&original).unwrap();
-    assert!(matches!(
-        trustee_updates::request_server_custody(&tx, &f.claims, &input)
-            .await
-            .unwrap(),
-        ServerCustodyReply::Pending
-    ));
-    let result = f.pending(&tx, Some(tally)).await;
-    let mut current = f.request.clone();
-    current.tally_session_id = Some(tally.to_string());
-    assert_eq!(result.request, current);
-    let mut replay = result.clone();
-    replay.outcome = TrusteeActionOutcome::Ready {
-        custody_proof_json: original.attest(&f.secrets).unwrap(),
-    };
-    assert!(
-        trustee_updates::submit_action_result(&tx, &f.claims, &replay)
-            .await
-            .is_err()
+    let board = windmill::services::protocol_board::load_dkg_board(
+        &tx,
+        &original.tenant_id,
+        &original.election_event_id,
+        &original.id,
+    )
+    .await
+    .unwrap();
+    let earlier = json!({"tenant_id": Uuid::new_v4().to_string(), "election_event_id": Uuid::new_v4().to_string(), "keys_ceremony_id": Uuid::new_v4().to_string()});
+    original.annotations = Some(json!({
+        "unrelated": "preserved",
+        "trustee:imported-custody-files": {
+            "configuration_hash": board.configuration.hash().as_str(),
+            "scopes": [earlier]
+        }
+    }));
+    let mut imported = original.clone();
+    imported.id = Uuid::new_v4().to_string();
+    imported.election_event_id = Uuid::new_v4().to_string();
+    trustee_updates::preserve_imported_ceremony_origins(
+        &original,
+        &mut imported,
+        &board.configuration,
+    )
+    .unwrap();
+    let annotations = imported.annotations.unwrap();
+    let origins = &annotations["protocol:imported-ceremony-origins"];
+    assert_eq!(
+        origins["configuration_hash"],
+        board.configuration.hash().as_str()
     );
-    trustee_updates::submit_action_result(&tx, &f.claims, &result)
-        .await
-        .unwrap();
-    for field in [
-        "tenant_id",
-        "election_event_id",
-        "keys_ceremony_id",
-        "trustee_name",
-        "signing_public_key",
-        "share_encryption_public_key",
-        "tally_session_id",
-    ] {
-        let mut wrong = serde_json::to_value(&original).unwrap();
-        wrong[field] = json!("wrong");
-        input.custody_request_json = wrong.to_string();
-        let error = trustee_updates::request_server_custody(&tx, &f.claims, &input)
-            .await
-            .unwrap_err();
-        assert!(
-            error.to_string().contains("does not match this trustee"),
-            "{field}: {error}"
-        );
-    }
-    tx.execute("UPDATE sequent_backend.keys_ceremony SET annotations=$2 WHERE id=$1", &[&f.keys, &json!({"trustee:imported-custody-files": {"configuration_hash": "wrong", "scopes": provenance["scopes"]}})]).await.unwrap();
-    input.custody_request_json = serde_json::to_string(&original).unwrap();
-    assert!(
-        trustee_updates::request_server_custody(&tx, &f.claims, &input)
-            .await
-            .is_err()
+    assert_eq!(
+        origins["scopes"],
+        json!([
+            earlier,
+            {"tenant_id": original.tenant_id, "election_event_id": original.election_event_id, "keys_ceremony_id": original.id}
+        ])
     );
+    assert!(annotations.get("trustee:imported-custody-files").is_none());
+    assert_eq!(annotations["unrelated"], "preserved");
+    // A malformed preferred entry must not silently fall back to legacy metadata.
+    original.annotations.as_mut().unwrap()["protocol:imported-ceremony-origins"] =
+        json!({"configuration_hash": board.configuration.hash().as_str()});
+    let mut next = original.clone();
+    assert!(trustee_updates::preserve_imported_ceremony_origins(
+        &original,
+        &mut next,
+        &board.configuration
+    )
+    .unwrap_err()
+    .to_string()
+    .contains("Invalid imported ceremony origins"));
 }

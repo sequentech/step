@@ -1016,7 +1016,7 @@ pub fn replace_ids(
                 .iter_mut()
                 .find(|ceremony| &ceremony.id == imported_id)
                 .context("missing imported keys ceremony")?;
-            crate::services::trustee_updates::preserve_custody_file_scopes(
+            crate::services::trustee_updates::preserve_imported_ceremony_origins(
                 original,
                 imported,
                 &protocol_board::SignedConfiguration::parse(&board.manager_message)?,
@@ -3204,7 +3204,7 @@ mod import_scope_tests {
     }
 
     #[test]
-    fn repeated_imports_preserve_original_custody_file_scopes() {
+    fn repeated_imports_preserve_ceremony_origins() {
         use protocol_board::{
             generate_manager, Committee, DkgBoard, RawTrusteeRecord, TrusteeSecrets,
         };
@@ -3241,7 +3241,7 @@ mod import_scope_tests {
         let history = annotation
             .as_ref()
             .unwrap()
-            .get("trustee:imported-custody-files")
+            .get("protocol:imported-ceremony-origins")
             .unwrap();
         assert_eq!(
             history["configuration_hash"],
@@ -3255,7 +3255,7 @@ mod import_scope_tests {
         let second_history = &second.keys_ceremonies.as_ref().unwrap()[0]
             .annotations
             .as_ref()
-            .unwrap()["trustee:imported-custody-files"];
+            .unwrap()["protocol:imported-ceremony-origins"];
         assert_eq!(
             second_history["configuration_hash"],
             history["configuration_hash"]
@@ -3266,7 +3266,7 @@ mod import_scope_tests {
             json!({"tenant_id": first.tenant_id, "election_event_id": first.election_event.id, "keys_ceremony_id": first.keys_ceremonies.as_ref().unwrap()[0].id})
         );
         let mut altered = serde_json::to_value(&first).unwrap();
-        altered["keys_ceremonies"][0]["annotations"]["trustee:imported-custody-files"]
+        altered["keys_ceremonies"][0]["annotations"]["protocol:imported-ceremony-origins"]
             ["configuration_hash"] = json!("another-configuration");
         assert!(import(&altered, None, &new_id()).is_err());
     }

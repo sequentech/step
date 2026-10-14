@@ -259,7 +259,12 @@ receipts into a running election.
 For a copied manual event, start a tally and upload the original ceremony file
 saved during the key ceremony. Import preserves that file's source scope, bound
 to the unchanged signed DKG configuration. Repeated imports preserve earlier
-source scopes too. The trustee's name and both public keys must still match the
+source scopes too. The key ceremony's `annotations` field stores this history under
+`protocol:imported-ceremony-origins`: a `configuration_hash` and a `scopes` array
+of source `tenant_id`, `election_event_id` and `keys_ceremony_id` values.
+Existing `trustee:imported-custody-files` annotations remain readable; importing
+an archive with that legacy key preserves its history under the new name.
+The trustee's name and both public keys must still match the
 current ceremony. Uploading queues a fresh proof scoped to the imported event
 and active tally, followed by the existing human authorization and signing gate.
 Proofs from the original event or another tally are rejected. The tally screen

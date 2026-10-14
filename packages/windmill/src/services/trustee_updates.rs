@@ -27,11 +27,12 @@ use crate::services::ceremonies::{
 use crate::services::signing::custody_proofs::tally_trustee_signatures;
 
 const ACTION_PREFIX: &str = "trustee:server-custody:";
-const IMPORTED_FILES: &str = "trustee:imported-custody-files";
+const IMPORTED_CEREMONY_ORIGINS: &str = "protocol:imported-ceremony-origins";
+const LEGACY_IMPORTED_CUSTODY_FILES: &str = "trustee:imported-custody-files";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct CeremonyFileScope {
+struct CeremonyOriginScope {
     tenant_id: String,
     election_event_id: String,
     keys_ceremony_id: String,
@@ -39,37 +40,45 @@ struct CeremonyFileScope {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct ImportedFiles {
+struct ImportedCeremonyOrigins {
     configuration_hash: String,
-    scopes: Vec<CeremonyFileScope>,
+    scopes: Vec<CeremonyOriginScope>,
 }
 
-fn imported_files(annotations: &Option<Value>) -> Result<Option<ImportedFiles>> {
+fn imported_ceremony_origins(
+    annotations: &Option<Value>,
+) -> Result<Option<ImportedCeremonyOrigins>> {
     annotations
         .as_ref()
-        .and_then(|value| value.get(IMPORTED_FILES))
+        .and_then(|value| {
+            value
+                .get(IMPORTED_CEREMONY_ORIGINS)
+                .or_else(|| value.get(LEGACY_IMPORTED_CUSTODY_FILES))
+        })
         .map(|value| {
-            serde_json::from_value(value.clone()).context("Invalid imported ceremony file scopes")
+            serde_json::from_value(value.clone()).context("Invalid imported ceremony origins")
         })
         .transpose()
 }
 
 /// Preserve source IDs before import remaps application metadata. The signed
 /// configuration stays immutable, including across repeated imports.
-pub fn preserve_custody_file_scopes(
+pub fn preserve_imported_ceremony_origins(
     original: &KeysCeremony,
     imported: &mut KeysCeremony,
     configuration: &protocol_board::SignedConfiguration,
 ) -> Result<()> {
-    let mut history = imported_files(&original.annotations)?.unwrap_or_else(|| ImportedFiles {
-        configuration_hash: configuration.hash().to_string(),
-        scopes: Vec::new(),
+    let mut history = imported_ceremony_origins(&original.annotations)?.unwrap_or_else(|| {
+        ImportedCeremonyOrigins {
+            configuration_hash: configuration.hash().to_string(),
+            scopes: Vec::new(),
+        }
     });
     ensure!(
         history.configuration_hash == configuration.hash().as_str(),
-        "Imported ceremony file scopes belong to a different DKG configuration"
+        "Imported ceremony origins belong to a different DKG configuration"
     );
-    let source = CeremonyFileScope {
+    let source = CeremonyOriginScope {
         tenant_id: original.tenant_id.clone(),
         election_event_id: original.election_event_id.clone(),
         keys_ceremony_id: original.id.clone(),
@@ -78,10 +87,14 @@ pub fn preserve_custody_file_scopes(
         history.scopes.push(source);
     }
     let annotations = imported.annotations.get_or_insert_with(|| json!({}));
-    annotations
+    let annotations = annotations
         .as_object_mut()
-        .context("Invalid keys ceremony annotations")?
-        .insert(IMPORTED_FILES.into(), serde_json::to_value(history)?);
+        .context("Invalid keys ceremony annotations")?;
+    annotations.remove(LEGACY_IMPORTED_CUSTODY_FILES);
+    annotations.insert(
+        IMPORTED_CEREMONY_ORIGINS.into(),
+        serde_json::to_value(history)?,
+    );
     Ok(())
 }
 
@@ -159,7 +172,7 @@ async fn validate_saved_file(
         &trusted.keys_ceremony_id,
     )
     .await?;
-    if let Some(history) = imported_files(&ceremony.annotations)? {
+    if let Some(history) = imported_ceremony_origins(&ceremony.annotations)? {
         let dkg = crate::services::protocol_board::load_dkg_board(
             tx,
             &trusted.tenant_id,
@@ -169,7 +182,7 @@ async fn validate_saved_file(
         .await?;
         ensure!(
             history.configuration_hash == dkg.configuration.hash().as_str(),
-            "Imported ceremony file scopes belong to a different DKG configuration"
+            "Imported ceremony origins belong to a different DKG configuration"
         );
         for source in history.scopes {
             let mut expected = trusted.clone();
