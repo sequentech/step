@@ -768,6 +768,9 @@ services:
       args:
         - BASE_IMAGE=alpine:3.17@sha256:8fc3dacfb6d69da8d44e42390de777e48577085db99aa4e4af35f483eb08b989
         - FEATURES=openwhisk
+        - AWS_S3_PRIVATE_URI=${AWS_S3_PRIVATE_URI}
+        - AWS_S3_PUBLIC_URI=${AWS_S3_PUBLIC_URI}
+        - AWS_S3_PUBLIC_BUCKET=${AWS_S3_PUBLIC_BUCKET}
     # This is not meant to be a running container, but rather a
     # trigger to build the lambda to a container image that will later
     # on be pulled by OpenWhisk
