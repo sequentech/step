@@ -328,7 +328,7 @@ units = ["beyond"]
 
 # Workspace configuration and helper scripts beside the wbraid crates.
 [[paths]]
-globs = ["packages/wbraid/.cargo/**", "packages/wbraid/*"]
+globs = ["packages/wbraid/.cargo/**", "packages/wbraid/*", "packages/wbraid/bench-ec2/**"]
 units = ["cargo:packages/wbraid/Cargo.toml"]
 
 # The theme is both a Maven module and a Yarn workspace; the reactor depends on it.

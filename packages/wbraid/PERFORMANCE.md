@@ -773,4 +773,3 @@ estimates that preceded the measurement (MSM ~20%, serialization ~20% of a
 mix) were right for what they could see; what they could not see was the
 unbatched exponentiation, and that message encoding/decoding dwarfed all of
 it until `0ae4a48ea3`.
-
