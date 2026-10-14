@@ -634,3 +634,42 @@ async fn independent_boards_import_with_explicit_main_board_and_verified_links()
     }
     result
 }
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_PG_* with a role that may create databases"]
+async fn tenant_logs_are_boards_of_the_base_database() -> Result<()> {
+    let databases = databases()?;
+    let (tenant, other_tenant) = (Uuid::new_v4(), Uuid::new_v4());
+    let board = format!("testtenant{}", tenant.simple());
+    let other_board = format!("testtenant{}", other_tenant.simple());
+    // An event's board is routed to its event's database; a tenant's is not one.
+    let events = BoardClient::new(Arc::new(databases.clone()));
+    assert!(events.create_board(&board).await.is_err());
+
+    let logs = BoardClient::new(Arc::new(databases.tenant_logs().await?));
+    // Asking again does not create the tables again.
+    databases.tenant_logs().await?;
+    assert!(!logs.has_board(&board).await?);
+    logs.create_board(&board).await?;
+    logs.create_board(&board).await?;
+    logs.create_board(&other_board).await?;
+    logs.append(&board, &entries(0..3)).await?;
+    logs.append(&other_board, &entries(0..2)).await?;
+    // A delivery stored twice is one record.
+    logs.append(&board, &entries(2..3)).await?;
+
+    assert_eq!(logs.count(&board, &LogQuery::default()).await?, 3);
+    assert_eq!(logs.count(&other_board, &LogQuery::default()).await?, 2);
+    let listed = logs.query(&board, &LogQuery::default()).await?;
+    assert_eq!(listed.len(), 3);
+    assert_eq!(listed[0].user_id.as_deref(), Some("user-2"));
+    // The catalog still lists no event for either tenant.
+    assert!(databases.events().await?.iter().all(|event| {
+        event.tenant_id != tenant.to_string() && event.tenant_id != other_tenant.to_string()
+    }));
+
+    logs.delete_board(&board).await?;
+    logs.delete_board(&other_board).await?;
+    assert!(!logs.has_board(&board).await?);
+    Ok(())
+}

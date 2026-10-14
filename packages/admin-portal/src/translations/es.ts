@@ -201,6 +201,30 @@ const spanishTranslation: TranslationType = {
                 },
             },
         },
+        tenantLogs: {
+            tab: "Bitácoras",
+            title: "Bitácoras",
+            subtitle:
+                "Inicios de sesión en el Portal de Administración y peticiones hechas fuera de cualquier evento electoral, firmados y guardados en la bitácora de la organización.",
+            noPermissions: "No tienes permiso para leer las bitácoras de la organización.",
+            kind: {
+                TenantLogOpened: "Bitácora abierta",
+                TenantAdminAction: "Petición de administrador",
+                KeycloakUserEvent: "Inicio de sesión y evento de cuenta",
+            },
+            explanation: {
+                action: "Acción: {{action}}",
+                outcome: {
+                    succeeded: "Aceptada (HTTP {{status}})",
+                    denied: "Denegada (HTTP {{status}})",
+                    failed: "Fallida (HTTP {{status}})",
+                },
+                by: "Pedida por {{username}} ({{userId}})",
+                detail: "{{name}}: {{value}}",
+                board: "Bitácora: {{board}}",
+                publicKey: "Clave pública de la bitácora: {{key}}",
+            },
+        },
         logsScreen: {
             noPermissions: "No tienes permiso para acceder a las bitácoras.",
             title: "Bitácoras",
@@ -1688,6 +1712,7 @@ const spanishTranslation: TranslationType = {
                 "publish-results-read": "Leer Publicación de Resultados",
                 "publish-results-write": "Editar Publicación de Resultados",
                 "logs-read": "Leer Registros",
+                "tenant-logs-read": "Leer Bitácoras de la Organización",
                 "electoral-log-audit": "Auditar Registro Electoral",
                 "electoral-log-console-read": "Explorar Registro Electoral",
                 "electoral-log-console-query": "Consultar Registro Electoral",

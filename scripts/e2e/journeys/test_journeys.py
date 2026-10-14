@@ -1528,11 +1528,7 @@ class BackendJourneys(unittest.TestCase):
                 self.assertEqual(
                     [e["extensions"]["code"] for e in errors], ["PokValidationFailed"]
                 )
-                stored = Hasura(token=token).query(
-                    "query ($event: String!) { get_voter_cast_votes(election_event_id: $event) { area_id election_id status } }",
-                    {"event": event_id},
-                )["get_voter_cast_votes"]
-                self.assertEqual(stored, [])
+                self.assertEqual(portal.status(token)["cast_votes"], [])
             receipt, errors = portal.cast(token, ballot)
             self.assertIsNone(errors)
             self.assertEqual(receipt["ballot_id"], ballot["ballotId"])

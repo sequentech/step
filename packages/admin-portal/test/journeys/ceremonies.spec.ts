@@ -662,7 +662,7 @@ test.describe("manual native trustee ceremony", () => {
                 page.waitForEvent("download"),
                 page.getByRole("button", {name: "Download Custody Request", exact: true}).click(),
             ])
-            expect(download.suggestedFilename()).toBe("custody-request.json")
+            expect(download.suggestedFilename()).toBe("Alice-custody-request.json")
             const downloadPath = await download.path()
             if (!downloadPath) throw new Error("Custody request download is missing")
             expect(await readFile(downloadPath, "utf8")).toBe(request)

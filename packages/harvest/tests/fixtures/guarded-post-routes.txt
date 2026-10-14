@@ -165,7 +165,10 @@
 /staff-certificates
 /staff-certificates/<id>/revoke
 /submit-tally-resolution
+/tenant-log
+/trustee/action-result
 /trustee/boards/report
+/trustee/request-server-custody
 /task-queues/dead-letters
 /task-queues/messages
 /task-queues/overview

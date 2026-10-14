@@ -78,6 +78,7 @@ fn build_application_with(
     let rocket = rocket::build()
         .attach(services::request_logging::fairing())
         .attach(routes::electoral_log_proofs::fairing())
+        .attach(services::tenant_activity::fairing())
         .register(
             "/",
             catchers![
@@ -131,6 +132,7 @@ fn build_application_with(
                 routes::import_areas::import_areas_route,
                 routes::import_areas::upsert_areas_route,
                 routes::electoral_log::list_electoral_log,
+                routes::electoral_log::list_tenant_log,
                 routes::electoral_log_proofs::checkpoint,
                 routes::electoral_log_proofs::inclusion,
                 routes::electoral_log_proofs::consistency,

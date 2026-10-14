@@ -72,6 +72,14 @@ Users always belong to the tenant they are created or imported into. Creating a 
 `tenant-id` attribute is rejected. A `tenant-id` column in an import CSV is not used: it must be
 empty or hold the id of that tenant, and the import is rejected for any other value.
 
+## Tenant Log Permissions
+
+| Permission | Allows |
+|---|---|
+| `tenant-logs-read` | Read the tenant's log in **Settings > Logs**: sign-ins to the Admin Portal and the requests made outside any election event. Opening Settings also needs `settings-menu`; it doesn't need `tenant-write`, so a read-only role can hold it. See [Logs](../settings/settings_logs.md). |
+
+The log of an election event keeps its own permission, `logs-read`.
+
 ## Monitoring Dashboard Permissions
 
 Once an election event is set up for monitoring, its **Dashboard** tab shows the event's monitoring

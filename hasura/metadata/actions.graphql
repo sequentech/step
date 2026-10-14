@@ -773,6 +773,15 @@ type Query {
 }
 
 type Query {
+    listTenantLog(
+        limit: Int
+        offset: Int
+        filter: ElectoralLogFilter
+        order_by: ElectoralLogOrderBy
+    ): DataListTenantLog
+}
+
+type Query {
     list_cast_vote_messages(
         tenant_id: String!
         election_event_id: uuid!
@@ -1477,6 +1486,21 @@ type LocateBallotOutput {
 
 type DataListElectoralLog {
     items: [ElectoralLogRow]!
+    total: TotalAggregate!
+}
+
+type TenantLogRow {
+    id: Int!
+    created: Int!
+    statement_timestamp: Int!
+    statement_kind: String!
+    message: String!
+    user_id: String
+    username: String
+}
+
+type DataListTenantLog {
+    items: [TenantLogRow]!
     total: TotalAggregate!
 }
 

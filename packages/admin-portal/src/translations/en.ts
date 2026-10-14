@@ -199,6 +199,30 @@ const englishTranslation = {
                 },
             },
         },
+        tenantLogs: {
+            tab: "Logs",
+            title: "Logs",
+            subtitle:
+                "Sign-ins to the Admin Portal and the requests made outside any election event, signed and kept in the tenant's log.",
+            noPermissions: "You don't have permission to read the tenant's logs.",
+            kind: {
+                TenantLogOpened: "Log opened",
+                TenantAdminAction: "Administrator request",
+                KeycloakUserEvent: "Sign-in and account event",
+            },
+            explanation: {
+                action: "Action: {{action}}",
+                outcome: {
+                    succeeded: "Accepted (HTTP {{status}})",
+                    denied: "Denied (HTTP {{status}})",
+                    failed: "Failed (HTTP {{status}})",
+                },
+                by: "Requested by {{username}} ({{userId}})",
+                detail: "{{name}}: {{value}}",
+                board: "Log: {{board}}",
+                publicKey: "Public key of the log: {{key}}",
+            },
+        },
         logsScreen: {
             noPermissions: "You don't have permission to access logs.",
             title: "Logs",
@@ -1664,6 +1688,7 @@ const englishTranslation = {
                 "publish-results-read": "Read Results Publication",
                 "publish-results-write": "Edit Results Publication",
                 "logs-read": "Read Logs",
+                "tenant-logs-read": "Read Tenant Logs",
                 "electoral-log-audit": "Audit Electoral Log",
                 "electoral-log-console-read": "Browse Electoral Log",
                 "electoral-log-console-query": "Query Electoral Log",
