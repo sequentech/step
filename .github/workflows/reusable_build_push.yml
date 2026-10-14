@@ -16,9 +16,15 @@ on:
         required: true
         type: boolean
 
+env:
+  GAR_REGISTRY: europe-west4-docker.pkg.dev/sequentech-dev/sequent
+
 jobs:
   build-and-push:
     runs-on: aws-selfhosted-ubuntu24
+    permissions:
+      contents: read
+      id-token: write
     strategy:
       matrix:
         include:
@@ -105,7 +111,26 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Build & Push to ECR
+    # GCP clusters pull from Artifact Registry. Keyless: Workload Identity
+    # Federation, only sequentech/step can use this service account.
+    - name: Authenticate to Google Cloud
+      id: gcp-auth
+      if: inputs.push
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: projects/406896270605/locations/global/workloadIdentityPools/github-actions/providers/github
+        service_account: step-image-publisher@sequent-platform.iam.gserviceaccount.com
+        token_format: access_token
+
+    - name: Login to Artifact Registry
+      if: inputs.push
+      uses: docker/login-action@v3
+      with:
+        registry: europe-west4-docker.pkg.dev
+        username: oauth2accesstoken
+        password: ${{ steps.gcp-auth.outputs.access_token }}
+
+    - name: Build & Push to ECR and Artifact Registry
       uses: docker/build-push-action@v5
       with:
         context: ${{ matrix.context }}
@@ -114,6 +139,8 @@ jobs:
         tags: |
           ${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:${{ env.SHORT_SHA }}
           ${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:${{ inputs.tag || github.run_number }}
+          ${{ env.GAR_REGISTRY }}/${{ matrix.service }}:${{ env.SHORT_SHA }}
+          ${{ env.GAR_REGISTRY }}/${{ matrix.service }}:${{ inputs.tag || github.run_number }}
         cache-from: type=gha,scope=${{ matrix.service }}
         cache-to: type=gha,mode=max,scope=${{ matrix.service }}
         build-args: |

@@ -22,6 +22,9 @@ on:
 jobs:
   build-and-push:
     uses: ./.github/workflows/reusable_build_push.yml
+    permissions:
+      contents: read
+      id-token: write
     secrets: inherit
     with:
       push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
