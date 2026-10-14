@@ -134,8 +134,11 @@ export const TallyCeremonyTrustees: React.FC = () => {
         [authContext?.trustee, tally?.execution_status, tallySessionExecutions]
     )
 
+    // Restoring the key makes the trustee ineligible on the next poll, so a
+    // verified upload keeps the upload step until the trustee chooses Next.
     const page =
-        keyRestoreEligibility === ETallyKeyRestoreEligibility.ALLOWED && !hasContinuedToStatus
+        (keyRestoreEligibility === ETallyKeyRestoreEligibility.ALLOWED || verified) &&
+        !hasContinuedToStatus
             ? WizardSteps.Start
             : WizardSteps.Status
 
