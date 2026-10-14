@@ -156,11 +156,11 @@ async function keyCustody(input: Input) {
   await page.getByRole("button", { name: "Next", exact: true }).click();
   const pending = page.waitForEvent("download");
   await page
-    .getByRole("button", { name: "Download Ceremony File", exact: true })
+    .getByRole("button", { name: "Download Custody File", exact: true })
     .click();
   const downloaded = await pending;
   const filename = downloaded.suggestedFilename();
-  expect(filename).toBe(`${input.name}-custody-request.json`);
+  expect(filename).toBe(`${input.name}-custody.json`);
   const path = resolve(output, filename);
   await downloaded.saveAs(path);
   const file = await readFile(path);
@@ -218,18 +218,18 @@ async function tallyCustody(input: Input, recover = false) {
   await page.getByLabel("Add Tally Key", { exact: true }).click();
   await expect(
     page.getByText(
-      "Upload your saved ceremony file or a signed custody proof:",
+      "Upload your saved custody file or a signed custody proof:",
       { exact: true },
     ),
   ).toBeVisible();
   await expect(
-    page.getByText(/Upload the ceremony file saved during the key ceremony/),
+    page.getByText(/Upload the custody file saved during the key ceremony/),
   ).toBeVisible();
   await expect(
     page.getByText("Supported format: JSON", { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Download Ceremony File", exact: true }),
+    page.getByRole("button", { name: "Download Custody File", exact: true }),
   ).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Next", exact: true }),

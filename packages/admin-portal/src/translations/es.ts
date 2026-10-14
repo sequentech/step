@@ -2349,8 +2349,18 @@ const spanishTranslation: TranslationType = {
         },
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
+            downloadStep: {
+                ...englishTranslation.translations.keysGeneration.downloadStep,
+                title: "Descargar archivo de custodia",
+                downloadButton: "Descargar archivo de custodia",
+                confirmdDialog: {
+                    ...englishTranslation.translations.keysGeneration.downloadStep.confirmdDialog,
+                    title: "Guardar archivo de custodia",
+                },
+            },
             checkStep: {
                 ...englishTranslation.translations.keysGeneration.checkStep,
+                subtitle: "Carga tu archivo de custodia guardado o una prueba de custodia firmada:",
                 required: "Se requiere confirmar la custodia",
                 reconfirmButton: "Volver a confirmar la custodia (opcional)",
                 reconfirmDescription:
@@ -2358,19 +2368,19 @@ const spanishTranslation: TranslationType = {
             },
             serverCustody: {
                 recoveryInstructions:
-                    "Si ha importado este evento electoral o ha perdido el archivo guardado, descargue aquí el archivo actual de la ceremonia. Guárdelo y luego cárguelo a continuación.",
+                    "Si ha importado este evento electoral o ha perdido el archivo guardado, descargue aquí el archivo de custodia actual. Guárdelo y luego cárguelo a continuación.",
                 fileFormat: "Formato admitido: JSON",
                 waiting: "Esperando a que tu servidor custodio cree una prueba de custodia…",
                 unavailable:
-                    "El servidor custodio no ha respondido. Comprueba que está activo y vuelve a cargar el archivo de ceremonia.",
+                    "El servidor custodio no ha respondido. Comprueba que está activo y vuelve a cargar el archivo de custodia.",
                 failed: "El servidor custodio no pudo crear la prueba: {{error}}",
                 invalidReply:
                     "El servidor custodio devolvió una respuesta incompleta. Inténtalo de nuevo.",
                 cancelled: "La solicitud se canceló. Vuelve a cargar el archivo para continuar.",
                 downloadInstructions:
-                    "Descarga y guarda este archivo público de ceremonia. Carga el mismo archivo en el siguiente paso y en futuros recuentos. No es una copia de seguridad de tus claves privadas.",
+                    "Descarga y guarda este archivo de custodia. Carga el mismo archivo en el siguiente paso y en futuros recuentos. No es una copia de seguridad de tus claves privadas.",
                 uploadInstructions:
-                    "Carga el archivo de ceremonia descargado. Tu servidor custodio creará la prueba. También puedes cargar una prueba creada por un custodio sin conexión o de navegador.",
+                    "Carga el archivo de custodia descargado. Tu servidor custodio creará la prueba. También puedes cargar una prueba creada por un custodio sin conexión o de navegador.",
                 tallyInstructions:
                     "Carga el archivo guardado durante la ceremonia de claves. Tu servidor custodio creará una nueva prueba para este recuento. También se aceptan pruebas de custodios sin conexión o de navegador.",
             },
@@ -2655,7 +2665,8 @@ const spanishTranslation: TranslationType = {
             recountTallyCeremonyError: "No se ha podido iniciar el recuento",
             recountTallyCeremonyOk: "Repetir el recuento",
             trusteeTitle: "Proceso del trustee",
-            trusteeSubTitle: "Cargue su archivo público custody-proof.json",
+            trusteeSubTitle:
+                "Carga tu archivo de custodia guardado o una prueba de custodia firmada:",
             invited: "Has sido invitado a participar en una ceremonia de recuento. Por favor, ",
             click: "haz clic en la acción de recuento",
             participate: "para participar.",
@@ -4954,10 +4965,10 @@ const spanishTranslation: TranslationType = {
                 record: "Registrar mi prueba de custodia",
                 failed: "No se pudo registrar su prueba de custodia firmado: {{error}}",
                 dropAgain:
-                    "Vuelva a soltar su archivo de prueba de custodia para registrar su prueba de custodia firmado. (custody-proof.json)",
+                    "Vuelva a soltar su archivo de prueba de custodia para registrar su prueba de custodia firmado. (signed-custody-proof.json)",
                 redo: "Su prueba de custodia se aportó sin su firma, que esta elección ahora requiere. Apórtelo de nuevo y fírmelo.",
                 notTaken:
-                    "La ceremonia ya no acepta este prueba de custodia. Vuelva a soltar su archivo de prueba de custodia. (custody-proof.json)",
+                    "La ceremonia ya no acepta este prueba de custodia. Vuelva a soltar su archivo de prueba de custodia. (signed-custody-proof.json)",
             },
         },
         lifecycle: {

@@ -173,7 +173,7 @@ async function uploadKey(canvasElement: HTMLElement, key: string) {
     await userEvent.upload(input, new File([key], "custody-proof.json", {type: "text/plain"}))
 }
 
-const INVALID = "Invalid custody proof, please try again"
+const INVALID = "Invalid signed custody proof, please try again"
 const VERIFIED = "Trustee custody confirmed successfully."
 
 const checkCall = async (key: string, signingRequestId?: string) => ({
@@ -192,7 +192,11 @@ export const Populated: Story = {
         const canvas = within(canvasElement)
         await expect(canvas.getByRole("heading", {name: "Confirm Trustee Custody"})).toBeVisible()
         await expect(canvas.getByText("Custody confirmation required")).toBeVisible()
-        await expect(canvas.getByText(/Upload the ceremony file you downloaded/)).toBeVisible()
+        await expect(
+            canvas.getByText(
+                /Your running server or browser trustee will create a signed custody proof automatically/
+            )
+        ).toBeVisible()
         expect(canvas.getByRole("button", {name: "Next"})).toBeDisabled()
         expect(graphql.calls).toEqual([])
     },
@@ -316,7 +320,7 @@ export const SignedButNoLongerTaken: Story = {
         )
         await expect(
             await canvas.findByText(
-                "Your signed custody proof could not be recorded: The ceremony no longer takes this custody proof. Drop your custody proof file again. (custody-proof.json)"
+                "Your signed custody proof could not be recorded: The ceremony no longer takes this custody proof. Drop your custody proof file again. (signed-custody-proof.json)"
             )
         ).toBeVisible()
         expect(canvas.queryByText(VERIFIED)).not.toBeInTheDocument()
@@ -326,7 +330,7 @@ export const SignedButNoLongerTaken: Story = {
         )
         await expect(
             await canvas.findByText(
-                "Your signed custody proof could not be recorded: Drop your custody proof file again to record your signed custody proof. (custody-proof.json)"
+                "Your signed custody proof could not be recorded: Drop your custody proof file again to record your signed custody proof. (signed-custody-proof.json)"
             )
         ).toBeVisible()
         expect(graphql.calls).toHaveLength(2)

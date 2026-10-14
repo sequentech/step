@@ -26,7 +26,7 @@ export class ServerCustodyError extends Error {
         public readonly reason: "unavailable" | "failed" | "invalidReply" | "cancelled",
         public readonly detail?: string
     ) {
-        super(detail || `The trustee server ${reason}; upload the ceremony file again to retry.`)
+        super(detail || `The trustee server ${reason}; upload the custody file again to retry.`)
         Object.setPrototypeOf(this, ServerCustodyError.prototype)
     }
 }
@@ -60,7 +60,7 @@ function abortable<T>(operation: Promise<T>, signal?: AbortSignal): Promise<T> {
     })
 }
 
-/** An offline proof is submitted as before. A saved public ceremony file
+/** An offline proof is submitted as before. A saved custody file
  * requests a fresh proof from the server without supplying its tally scope. */
 export async function resolveCustodyFile(
     text: string,

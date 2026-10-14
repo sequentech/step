@@ -87,8 +87,8 @@ confirmations required to complete key generation.
    - Wait until the runners have verified the joint public key, then proceed through
      the custody confirmation steps.
 
-4. **Download Custody Request**
-   - Download `custody-request.json`. This public request identifies the ceremony
+4. **Download Custody File**
+   - Download `custody.json`. This public request identifies the ceremony
      and trustee and contains the registered public keys.
 
 5. **Create Secure Backups**
@@ -103,16 +103,18 @@ confirmations required to complete key generation.
    - Generate a proof on the trustee machine:
 
      ```sh
-     trustee attest --request custody-request.json --trustee-config trustee.toml --output custody-proof.json
+     trustee attest --request custody.json --trustee-config trustee.toml --output signed-custody-proof.json
      ```
 
-   - Browser trustees use **Advanced → Generate proof file manually** on the `/trustee` screen.
-   - Upload `custody-proof.json` in the ceremony wizard. Complete any required
+   - Browser trustees use **Advanced → Generate signed custody proof manually** on the `/trustee` screen.
+   - Upload `signed-custody-proof.json` in the ceremony wizard. Complete any required
      approval signature. Private keys and protocol state remain on the trustee machine.
 
 8. **Completion**
    - Once all trustees confirm custody and any required approval signatures are
      complete, the key ceremony becomes **SUCCESS**.
-   - Retain the public custody request for tally authorization.
-   - A participating trustee can reopen the ceremony and select **Verify Custody
-     Proof** to check the proof again. This does not generate or download private keys.
+   - Retain the custody file for tally authorization.
+   - A participating trustee can reopen the ceremony and select
+     **More actions → Reconfirm custody (optional)** to submit another signed
+     custody proof. This is optional after custody and any required approval are
+     complete.

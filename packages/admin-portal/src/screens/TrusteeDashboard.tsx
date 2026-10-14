@@ -63,8 +63,8 @@ export const TrusteeDashboard = () => {
     const platform = globalSettings.HASURA_URL
     const trustee = auth.trustee || auth.username
     const keysFilename = trusteeFilename(trustee, "private-keys.toml")
-    const requestFilename = trusteeFilename(trustee, "custody-request.json")
-    const proofFilename = trusteeFilename(trustee, "custody-proof.json")
+    const requestFilename = trusteeFilename(trustee, "custody.json")
+    const proofFilename = trusteeFilename(trustee, "signed-custody-proof.json")
     const [boards, setBoards] = useState<TrusteeBoard[]>([])
     const [error, setError] = useState("")
     const [loading, setLoading] = useState(false)
@@ -281,12 +281,12 @@ export const TrusteeDashboard = () => {
                 if (!engine.current) throw new Error("Import your trustee keys first.")
                 const request: Record<string, unknown> = JSON.parse(await file.text())
                 if (!auth.trustee || request.trustee_name !== auth.trustee)
-                    throw new Error("The custody request belongs to another trustee.")
+                    throw new Error("The custody file belongs to another trustee.")
                 if (tallyId.trim()) request.tally_session_id = tallyId.trim()
                 const proof = engine.current.attest(JSON.stringify(request))
-                download("custody-proof.json", proof, "application/json")
+                download("signed-custody-proof.json", proof, "application/json")
                 setBrowserStatus(
-                    "Custody proof ready to upload to the ceremony or tally restore step."
+                    "Signed custody proof ready to upload to the key or tally ceremony."
                 )
             })
     }
@@ -312,9 +312,9 @@ export const TrusteeDashboard = () => {
                     </Typography>
                     <Typography sx={{my: 2}}>
                         For manual custody, start this browser trustee and keep this tab open.
-                        Upload the downloaded ceremony file in the key ceremony or tally tab; this
-                        browser creates the scoped proof automatically. Complete the custody
-                        confirmation and any required signing in that tab.
+                        Upload the saved custody file in the key ceremony or tally tab; this browser
+                        creates the scoped proof automatically. Complete the custody confirmation
+                        and any required signing in that tab.
                     </Typography>
                     <TextField
                         label="Board service URL"
@@ -462,11 +462,11 @@ export const TrusteeDashboard = () => {
                         </AccordionSummary>
                         <AccordionDetails>
                             <Typography sx={{mb: 2}}>
-                                A running browser trustee generates custody proofs automatically
-                                when you upload the saved ceremony file in the ceremony or tally
-                                wizard. Use this option only when you need to create and upload a
-                                proof file yourself. Stop the browser trustee before generating a
-                                file.
+                                A running browser trustee generates signed custody proofs
+                                automatically when you upload the saved custody file in the ceremony
+                                or tally wizard. Use this option only when you need to create and
+                                upload a proof file yourself. Stop the browser trustee before
+                                generating a file.
                             </Typography>
                             <TextField
                                 label="Tally session ID"
@@ -483,12 +483,12 @@ export const TrusteeDashboard = () => {
                                     disabled={!keys || busy || running}
                                     onClick={() => custodyInput.current?.click()}
                                 >
-                                    Generate proof file manually
+                                    Generate signed custody proof manually
                                 </Button>
                             </Box>
                             <input
                                 ref={custodyInput}
-                                aria-label="Custody request"
+                                aria-label="Custody file"
                                 type="file"
                                 hidden
                                 accept=".json"
@@ -515,8 +515,8 @@ trustee start --trustee-config ${keysFilename}`}</code>
                         {keysFilename} and the message_store directory.
                     </Typography>
                     <Typography sx={{mt: 2}}>
-                        For a manual ceremony, download its custody request and create a proof to
-                        upload to the portal:
+                        For a manual ceremony, download its custody file and create a signed custody
+                        proof to upload to the portal:
                     </Typography>
                     <Box component="pre" sx={codeExample}>
                         <code>{`trustee attest --request ${requestFilename} --trustee-config ${keysFilename} --output ${proofFilename}`}</code>

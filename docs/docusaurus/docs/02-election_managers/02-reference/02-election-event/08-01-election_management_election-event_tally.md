@@ -65,11 +65,11 @@ Before initiating the tally process:
 5. Use the public custody request saved from the key ceremony to create a new proof:
 
    ```sh
-   trustee attest --request custody-request.json --trustee-config trustee.toml --tally-session-id <TALLY_SESSION_ID> --output custody-proof.json
+   trustee attest --request custody.json --trustee-config trustee.toml --tally-session-id <TALLY_SESSION_ID> --output signed-custody-proof.json
    ```
 
-   Browser trustees use **Advanced → Generate proof file manually** with the tally session identifier
-   on `/trustee`. Upload `custody-proof.json`, then complete any required approval
+   Browser trustees use **Advanced → Generate signed custody proof manually** with the tally session identifier
+   on `/trustee`. Upload `signed-custody-proof.json`, then complete any required approval
    signature. Keep private keys and protocol state on the trustee machine.
 6. Repeat for enough trustees to reach the ceremony threshold. A proof for another
    tally, or an earlier key ceremony proof, cannot authorize this tally.

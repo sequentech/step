@@ -2369,8 +2369,19 @@ const frenchTranslation: TranslationType = {
         },
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
+            downloadStep: {
+                ...englishTranslation.translations.keysGeneration.downloadStep,
+                title: "Télécharger le fichier de garde",
+                downloadButton: "Télécharger le fichier de garde",
+                confirmdDialog: {
+                    ...englishTranslation.translations.keysGeneration.downloadStep.confirmdDialog,
+                    title: "Enregistrer votre fichier de garde",
+                },
+            },
             checkStep: {
                 ...englishTranslation.translations.keysGeneration.checkStep,
+                subtitle:
+                    "Importez votre fichier de garde enregistré ou une preuve de garde signée :",
                 required: "Confirmation de garde requise",
                 reconfirmButton: "Confirmer à nouveau la garde (facultatif)",
                 reconfirmDescription:
@@ -2378,19 +2389,19 @@ const frenchTranslation: TranslationType = {
             },
             serverCustody: {
                 recoveryInstructions:
-                    "Si vous avez importé cet événement électoral ou perdu le fichier enregistré, téléchargez ici son fichier de cérémonie actuel. Enregistrez-le, puis téléversez-le ci-dessous.",
+                    "Si vous avez importé cet événement électoral ou perdu le fichier enregistré, téléchargez ici son fichier de garde actuel. Enregistrez-le, puis téléversez-le ci-dessous.",
                 fileFormat: "Format accepté : JSON",
                 waiting: "En attente de la preuve de garde créée par votre serveur dépositaire…",
                 unavailable:
-                    "Le serveur dépositaire n’a pas répondu. Vérifiez qu’il fonctionne, puis importez à nouveau le fichier de cérémonie.",
+                    "Le serveur dépositaire n’a pas répondu. Vérifiez qu’il fonctionne, puis importez à nouveau le fichier de garde.",
                 failed: "Le serveur dépositaire n’a pas pu créer la preuve : {{error}}",
                 invalidReply: "Le serveur dépositaire a renvoyé une réponse incomplète. Réessayez.",
                 cancelled:
                     "La demande a été annulée. Importez à nouveau le fichier pour continuer.",
                 downloadInstructions:
-                    "Téléchargez et conservez ce fichier public de cérémonie. Importez le même fichier à l’étape suivante et lors des dépouillements futurs. Il ne constitue pas une sauvegarde de vos clés privées.",
+                    "Téléchargez et conservez ce fichier de garde. Importez le même fichier à l’étape suivante et lors des dépouillements futurs. Il ne constitue pas une sauvegarde de vos clés privées.",
                 uploadInstructions:
-                    "Importez le fichier de cérémonie téléchargé. Votre serveur dépositaire créera la preuve. Vous pouvez aussi importer une preuve créée par un dépositaire hors ligne ou dans le navigateur.",
+                    "Importez le fichier de garde téléchargé. Votre serveur dépositaire créera la preuve. Vous pouvez aussi importer une preuve créée par un dépositaire hors ligne ou dans le navigateur.",
                 tallyInstructions:
                     "Importez le fichier conservé lors de la cérémonie des clés. Votre serveur dépositaire créera une nouvelle preuve pour ce dépouillement. Les preuves hors ligne ou du navigateur sont aussi acceptées.",
             },
@@ -2679,7 +2690,8 @@ const frenchTranslation: TranslationType = {
             recountTallyCeremonyError: "Impossible de démarrer le recomptage",
             recountTallyCeremonyOk: "Recompter",
             trusteeTitle: "Processus du trustee",
-            trusteeSubTitle: "Importez votre fichier public custody-proof.json",
+            trusteeSubTitle:
+                "Importez votre fichier de garde enregistré ou une preuve de garde signée :",
             invited: "Vous avez été invité à participer à une cérémonie de comptage. Veuillez, ",
             click: "cliquez sur l'action de comptage",
             participate: "pour participer.",
@@ -4994,10 +5006,10 @@ const frenchTranslation: TranslationType = {
                 record: "Consigner mon preuve de garde",
                 failed: "Votre preuve de garde signé n'a pas pu être consigné : {{error}}",
                 dropAgain:
-                    "Déposez à nouveau votre fichier de preuve de garde pour consigner votre preuve de garde signé. (custody-proof.json)",
+                    "Déposez à nouveau votre fichier de preuve de garde pour consigner votre preuve de garde signé. (signed-custody-proof.json)",
                 redo: "Votre preuve de garde a été apporté sans votre signature, que cette élection exige désormais. Apportez-le à nouveau et signez-le.",
                 notTaken:
-                    "La cérémonie n'accepte plus ce preuve de garde. Déposez à nouveau votre fichier de preuve de garde. (custody-proof.json)",
+                    "La cérémonie n'accepte plus ce preuve de garde. Déposez à nouveau votre fichier de preuve de garde. (signed-custody-proof.json)",
             },
         },
         lifecycle: {

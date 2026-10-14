@@ -202,7 +202,7 @@ export const Populated: Story = {
         await expect(await canvas.findByRole("checkbox", {name: "Council"})).toBeDisabled()
         await expect(canvas.getByText(i18n.t("tally.trusteeTitle"))).toBeVisible()
         await expect(
-            canvas.getByText(/Upload the ceremony file saved during the key ceremony/)
+            canvas.getByText(/Upload the custody file saved during the key ceremony/)
         ).toBeVisible()
         // The next step needs a verified key.
         await expect(nextButton(canvasElement)).toBeDisabled()

@@ -2315,21 +2315,21 @@ const englishTranslation = {
         keysGeneration: {
             serverCustody: {
                 recoveryInstructions:
-                    "If you imported this election event or lost the saved file, download its current ceremony file here. Save it, then upload it below.",
+                    "If you imported this election event or lost the saved file, download its current custody file here. Save it, then upload it below.",
                 fileFormat: "Supported format: JSON",
                 waiting: "Waiting for your trustee server to create a custody proof…",
                 unavailable:
-                    "The trustee server has not responded. Check that it is running, then upload the ceremony file again.",
+                    "The trustee server has not responded. Check that it is running, then upload the custody file again.",
                 failed: "The trustee server could not create the proof: {{error}}",
                 invalidReply:
                     "The trustee server returned an incomplete response. Please try again.",
                 cancelled: "The request was cancelled. Upload the file again to continue.",
                 downloadInstructions:
-                    "Download and save this public ceremony file. Upload the same file in the next step and for future tallies. It is not a backup of your private keys.",
+                    "Download and save this custody file. Upload the same file in the next step and for future tallies. It is not a backup of your private keys.",
                 uploadInstructions:
-                    "Upload the ceremony file you downloaded. Your server trustee will create the proof. You can also upload a proof created by an offline or browser trustee.",
+                    "Upload your saved custody file. Your running server or browser trustee will create a signed custody proof automatically. You can also upload a signed custody proof generated manually.",
                 tallyInstructions:
-                    "Upload the ceremony file saved during the key ceremony. Your server trustee will create a fresh proof for this tally. Offline and browser custody proofs are also accepted.",
+                    "Upload the custody file saved during the key ceremony. Your running server or browser trustee will create a fresh signed custody proof for this tally. You can also upload a signed custody proof generated manually.",
             },
             configureStep: {
                 create: "Create Key Ceremony",
@@ -2407,27 +2407,26 @@ const englishTranslation = {
                 title: "Trustee Key Ceremony",
                 subtitle:
                     "You are about to participate in the Key Ceremony as a Trustee (<strong>{{name}}</strong>). This involves the following steps:",
-                one: "<strong>Download</strong> the public ceremony file.",
-                two: "Keep copies of your public <strong>ceremony file</strong>. Trustee recovery backups are managed separately.",
-                three: "<strong>Upload</strong> the saved ceremony file. Your server trustee creates a custody proof; complete any required approval signature.",
+                one: "<strong>Download</strong> the custody file.",
+                two: "Keep copies of your <strong>custody file</strong>. Trustee recovery backups are managed separately.",
+                three: "<strong>Upload</strong> the saved custody file. Your server or browser trustee creates a signed custody proof; complete any required approval signature.",
             },
             downloadStep: {
-                title: "Download Ceremony File",
-                subtitle:
-                    "Save this public ceremony file for custody confirmation and future tallies:",
-                downloadButton: "Download Ceremony File",
-                downloaded: "Public custody request downloaded successfully.",
+                title: "Download Custody File",
+                subtitle: "Save this custody file for custody confirmation and future tallies:",
+                downloadButton: "Download Custody File",
+                downloaded: "Custody file downloaded successfully.",
                 errorEmptyKey: "Download error, empty file",
-                unexpectedError: "The custody request could not be downloaded. Please try again.",
+                unexpectedError: "The custody file could not be downloaded. Please try again.",
                 alreadyVerified: "Your trustee custody was already confirmed.",
                 unavailable:
-                    "The custody request is no longer available because the ceremony has moved on.",
+                    "The custody file is no longer available because the ceremony has moved on.",
                 confirmdDialog: {
                     ok: "Confirm Saved Copies and Continue",
                     cancel: "Go Back",
-                    title: "Save Your Ceremony File",
+                    title: "Save Your Custody File",
                     description:
-                        "Keep two copies of the public ceremony file. Trustee keys and election state must be backed up separately by the trustee server operator.",
+                        "Keep two copies of the custody file. Trustee keys and election state must be backed up separately by the trustee server operator.",
                     firstCopy: "First copy saved",
                     secondCopy: "Second copy saved",
                     confirmError: "Save both copies and check the confirmation boxes to continue",
@@ -2439,8 +2438,8 @@ const englishTranslation = {
                 reconfirmButton: "Reconfirm custody (optional)",
                 reconfirmDescription:
                     "Your custody is already confirmed. This additional confirmation is optional.",
-                subtitle: "Upload your saved ceremony file or a signed custody proof:",
-                errorUploading: "Invalid custody proof, please try again",
+                subtitle: "Upload your saved custody file or a signed custody proof:",
+                errorUploading: "Invalid signed custody proof, please try again",
                 errorEmptyFile: "File empty or not found",
                 verified: "Trustee custody confirmed successfully.",
             },
@@ -2654,7 +2653,7 @@ const englishTranslation = {
             recountTallyCeremonyError: "Could not start recount",
             recountTallyCeremonyOk: "Recount",
             trusteeTitle: "Trustees process",
-            trusteeSubTitle: "Upload your public custody-proof.json file",
+            trusteeSubTitle: "Upload your custody file or signed custody proof",
             invited: "You have been invited to participate in a Tally ceremony. Please ",
             click: "click on the tally Action",
             participate: "to participate.",
@@ -4926,10 +4925,10 @@ const englishTranslation = {
                 record: "Record my custody proof",
                 failed: "Your signed custody proof could not be recorded: {{error}}",
                 dropAgain:
-                    "Drop your custody proof file again to record your signed custody proof. (custody-proof.json)",
+                    "Drop your custody proof file again to record your signed custody proof. (signed-custody-proof.json)",
                 redo: "Your custody proof was contributed without your signature, which this election now needs. Contribute it again and sign it.",
                 notTaken:
-                    "The ceremony no longer takes this custody proof. Drop your custody proof file again. (custody-proof.json)",
+                    "The ceremony no longer takes this custody proof. Drop your custody proof file again. (signed-custody-proof.json)",
             },
         },
         lifecycle: {

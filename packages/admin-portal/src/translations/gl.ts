@@ -2346,8 +2346,18 @@ const galegoTranslation: TranslationType = {
         },
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
+            downloadStep: {
+                ...englishTranslation.translations.keysGeneration.downloadStep,
+                title: "Descargar ficheiro de custodia",
+                downloadButton: "Descargar ficheiro de custodia",
+                confirmdDialog: {
+                    ...englishTranslation.translations.keysGeneration.downloadStep.confirmdDialog,
+                    title: "Gardar o ficheiro de custodia",
+                },
+            },
             checkStep: {
                 ...englishTranslation.translations.keysGeneration.checkStep,
+                subtitle: "Carga o ficheiro de custodia gardado ou unha proba de custodia asinada:",
                 required: "É necesario confirmar a custodia",
                 reconfirmButton: "Confirmar de novo a custodia (opcional)",
                 reconfirmDescription:
@@ -2355,19 +2365,19 @@ const galegoTranslation: TranslationType = {
             },
             serverCustody: {
                 recoveryInstructions:
-                    "Se importou este evento electoral ou perdeu o ficheiro gardado, descargue aquí o ficheiro actual da cerimonia. Gárdeo e logo cárgueo a continuación.",
+                    "Se importou este evento electoral ou perdeu o ficheiro gardado, descargue aquí o ficheiro de custodia actual. Gárdeo e logo cárgueo a continuación.",
                 fileFormat: "Formato admitido: JSON",
                 waiting: "Agardando a que o servidor custodio cree unha proba de custodia…",
                 unavailable:
-                    "O servidor custodio non respondeu. Comproba que está activo e volve cargar o ficheiro da cerimonia.",
+                    "O servidor custodio non respondeu. Comproba que está activo e volve cargar o ficheiro de custodia.",
                 failed: "O servidor custodio non puido crear a proba: {{error}}",
                 invalidReply:
                     "O servidor custodio devolveu unha resposta incompleta. Téntao de novo.",
                 cancelled: "A solicitude cancelouse. Volve cargar o ficheiro para continuar.",
                 downloadInstructions:
-                    "Descarga e garda este ficheiro público da cerimonia. Carga o mesmo ficheiro no seguinte paso e nos recontos futuros. Non é unha copia de seguridade das túas claves privadas.",
+                    "Descarga e garda este ficheiro de custodia. Carga o mesmo ficheiro no seguinte paso e nos recontos futuros. Non é unha copia de seguridade das túas claves privadas.",
                 uploadInstructions:
-                    "Carga o ficheiro da cerimonia descargado. O servidor custodio creará a proba. Tamén podes cargar unha proba creada por un custodio sen conexión ou no navegador.",
+                    "Carga o ficheiro de custodia descargado. O servidor custodio creará a proba. Tamén podes cargar unha proba creada por un custodio sen conexión ou no navegador.",
                 tallyInstructions:
                     "Carga o ficheiro gardado durante a cerimonia de claves. O servidor custodio creará unha nova proba para este reconto. Tamén se aceptan probas de custodios sen conexión ou no navegador.",
             },
@@ -2651,7 +2661,8 @@ const galegoTranslation: TranslationType = {
             recountTallyCeremonyError: "Non se puido iniciar o reconto",
             recountTallyCeremonyOk: "Repetir o reconto",
             trusteeTitle: "Proceso dos Fiduciarios",
-            trusteeSubTitle: "Carga o teu ficheiro público custody-proof.json",
+            trusteeSubTitle:
+                "Carga o ficheiro de custodia gardado ou unha proba de custodia asinada:",
             invited: "Fostes invitado a participar nunha Cerimonia de Escrutinio. Por favor ",
             click: "fai clic na Acción de Escrutinio",
             participate: "para participar.",
@@ -4940,10 +4951,10 @@ const galegoTranslation: TranslationType = {
                 record: "Anotar o meu proba de custodia",
                 failed: "Non se puido anotar o seu proba de custodia asinado: {{error}}",
                 dropAgain:
-                    "Volva soltar o seu ficheiro de proba de custodia para anotar o seu proba de custodia asinado. (custody-proof.json)",
+                    "Volva soltar o seu ficheiro de proba de custodia para anotar o seu proba de custodia asinado. (signed-custody-proof.json)",
                 redo: "O seu proba de custodia achegouse sen a súa sinatura, que esta elección agora require. Achégueo de novo e asíneo.",
                 notTaken:
-                    "A cerimonia xa non acepta este proba de custodia. Volva soltar o seu ficheiro de proba de custodia. (custody-proof.json)",
+                    "A cerimonia xa non acepta este proba de custodia. Volva soltar o seu ficheiro de proba de custodia. (signed-custody-proof.json)",
             },
         },
         lifecycle: {

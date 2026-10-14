@@ -2347,8 +2347,19 @@ const dutchTranslation: TranslationType = {
         },
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
+            downloadStep: {
+                ...englishTranslation.translations.keysGeneration.downloadStep,
+                title: "Bewaringsbestand downloaden",
+                downloadButton: "Bewaringsbestand downloaden",
+                confirmdDialog: {
+                    ...englishTranslation.translations.keysGeneration.downloadStep.confirmdDialog,
+                    title: "Bewaringsbestand opslaan",
+                },
+            },
             checkStep: {
                 ...englishTranslation.translations.keysGeneration.checkStep,
+                subtitle:
+                    "Upload uw opgeslagen bewaringsbestand of een ondertekend bewijs van bewaring:",
                 required: "Bevestiging van bewaring vereist",
                 reconfirmButton: "Bewaring opnieuw bevestigen (optioneel)",
                 reconfirmDescription:
@@ -2356,19 +2367,19 @@ const dutchTranslation: TranslationType = {
             },
             serverCustody: {
                 recoveryInstructions:
-                    "Als u deze verkiezing hebt geïmporteerd of het opgeslagen bestand kwijt bent, download dan hier het huidige ceremoniebestand. Sla het op en upload het hieronder.",
+                    "Als u deze verkiezing hebt geïmporteerd of het opgeslagen bestand kwijt bent, download dan hier het huidige bewaringsbestand. Sla het op en upload het hieronder.",
                 fileFormat: "Ondersteund formaat: JSON",
                 waiting: "Wachten tot uw trusteeserver een bewijs van sleutelbezit maakt…",
                 unavailable:
-                    "De trusteeserver heeft niet gereageerd. Controleer of deze actief is en upload het ceremoniebestand opnieuw.",
+                    "De trusteeserver heeft niet gereageerd. Controleer of deze actief is en upload het bewaringsbestand opnieuw.",
                 failed: "De trusteeserver kon het bewijs niet maken: {{error}}",
                 invalidReply: "De trusteeserver gaf een onvolledig antwoord. Probeer het opnieuw.",
                 cancelled:
                     "Het verzoek is geannuleerd. Upload het bestand opnieuw om verder te gaan.",
                 downloadInstructions:
-                    "Download en bewaar dit openbare ceremoniebestand. Upload hetzelfde bestand bij de volgende stap en bij toekomstige tellingen. Het is geen back-up van uw privésleutels.",
+                    "Download en bewaar dit bewaringsbestand. Upload hetzelfde bestand bij de volgende stap en bij toekomstige tellingen. Het is geen back-up van uw privésleutels.",
                 uploadInstructions:
-                    "Upload het gedownloade ceremoniebestand. Uw trusteeserver maakt het bewijs. U kunt ook een bewijs uploaden dat door een offline trustee of browsertrustee is gemaakt.",
+                    "Upload het gedownloade bewaringsbestand. Uw trusteeserver maakt het bewijs. U kunt ook een bewijs uploaden dat door een offline trustee of browsertrustee is gemaakt.",
                 tallyInstructions:
                     "Upload het bestand dat u tijdens de sleutelceremonie hebt bewaard. Uw trusteeserver maakt een nieuw bewijs voor deze telling. Bewijzen van offline trustees en browsertrustees worden ook geaccepteerd.",
             },
@@ -2650,7 +2661,8 @@ const dutchTranslation: TranslationType = {
             recountTallyCeremonyError: "Kon hertelling niet starten",
             recountTallyCeremonyOk: "Hertellen",
             trusteeTitle: "Proces Trustees",
-            trusteeSubTitle: "Upload uw openbare bestand custody-proof.json",
+            trusteeSubTitle:
+                "Upload uw opgeslagen bewaringsbestand of een ondertekend bewijs van bewaring:",
             invited: "U bent uitgenodigd om deel te nemen aan een Telceremonie. Gelieve ",
             click: "op de Telactie te klikken",
             participate: "om deel te nemen.",
@@ -4971,10 +4983,10 @@ const dutchTranslation: TranslationType = {
                 record: "Mijn bewijs van bewaring vastleggen",
                 failed: "Uw ondertekende bewijs van bewaring kon niet worden vastgelegd: {{error}}",
                 dropAgain:
-                    "Sleep uw bewijs van bewaringbestand opnieuw hierheen om uw ondertekende bewijs van bewaring vast te leggen. (custody-proof.json)",
+                    "Sleep uw bewijs van bewaringbestand opnieuw hierheen om uw ondertekende bewijs van bewaring vast te leggen. (signed-custody-proof.json)",
                 redo: "Uw bewijs van bewaring is bijgedragen zonder uw handtekening, die deze verkiezing nu vereist. Draag het opnieuw bij en onderteken het.",
                 notTaken:
-                    "De ceremonie accepteert dit bewijs van bewaring niet meer. Sleep uw bewijs van bewaringbestand opnieuw hierheen. (custody-proof.json)",
+                    "De ceremonie accepteert dit bewijs van bewaring niet meer. Sleep uw bewijs van bewaringbestand opnieuw hierheen. (signed-custody-proof.json)",
             },
         },
         lifecycle: {

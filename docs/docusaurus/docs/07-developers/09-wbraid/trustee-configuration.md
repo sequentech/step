@@ -149,8 +149,14 @@ Each launcher owns and cleans up its own Compose project and volumes.
 
 ## Manual custody proofs
 
-For a server trustee, **Download Ceremony File** in the key-ceremony wizard saves
-`<trustee>-custody-request.json`. The operator saves it and uploads that same file
+The portal calls the reusable request a **Custody file** and downloads it as
+`<trustee>-custody.json`. A manually generated **Signed custody proof** downloads
+as `<trustee>-signed-custody-proof.json`. Files saved under the previous
+`*-custody-request.json` and `*-custody-proof.json` names remain accepted; uploads
+are checked by their contents. Keep the custody file for future manual tallies.
+
+For a server trustee, **Download Custody File** in the key-ceremony wizard saves
+`<trustee>-custody.json`. The operator saves it and uploads that same file
 to confirm custody. Upload it again when authorizing a manual tally. The running
 trustee fetches the requested work and creates the signed proof automatically;
 no shell access or command is needed.
@@ -170,7 +176,7 @@ still back up both the runner's keys and its private protocol store.
 For an offline trustee, produce and upload a signed proof as before:
 
 ```sh
-trustee attest --request trustee1-custody-request.json --trustee-config trustee.toml --output custody-proof.json
+trustee attest --request trustee1-custody.json --trustee-config trustee.toml --output signed-custody-proof.json
 ```
 
 For tally authorization add `--tally-session-id <tally UUID>`. Offline and browser
@@ -256,7 +262,7 @@ The copy starts with a fresh ballot box: the archive preserves tally transcripts
 and results, rather than restoring accepted ballots, revote history or voter
 receipts into a running election.
 
-For a copied manual event, start a tally and upload the original ceremony file
+For a copied manual event, start a tally and upload the original custody file
 saved during the key ceremony. Import preserves that file's source scope, bound
 to the unchanged signed DKG configuration. Repeated imports preserve earlier
 source scopes too. The key ceremony's `annotations` field stores this history under
@@ -266,9 +272,9 @@ The trustee's name and both public keys must still match the
 current ceremony. Uploading queues a fresh proof scoped to the imported event
 and active tally, followed by the existing human authorization and signing gate.
 Proofs from the original event or another tally are rejected. The tally screen
-has no ceremony-file download; trustees must bring their saved file. For copies
+has no custody-file download; trustees must bring their saved file. For copies
 imported before source scopes were preserved, reimport the original event archive
-to use the original ceremony files.
+to use the original custody files.
 
 An event archive does not include native trustee private identities or their
 local runner state. An imported parent board reuses the trustee's original local
@@ -293,8 +299,8 @@ keys**, or **Import private keys** to use an existing native `trustee.toml`.
 Legacy browser configurations and protocol stores use incompatible crypto; generate
 a new native identity and run a new key ceremony for those elections.
 Downloads include the trustee name: for example, `trustee1-private-keys.toml`,
-`trustee1-browser-sessions.json` and `trustee1-custody-proof.json`. The ceremony
-wizard also prefixes ceremony filenames with the trustee name.
+`trustee1-browser-sessions.json` and `trustee1-signed-custody-proof.json`. The ceremony
+wizard also prefixes custody filenames with the trustee name.
 Download and privately back up the keys. Register both displayed public keys for
 this trustee before starting its key ceremony. The account's `trustee` attribute
 must match the registered trustee name.
@@ -320,19 +326,21 @@ native participant to a browser requires its protocol state as well.
 
 For manual key or tally custody, load the original keys, click **Start browser trustee**
 and keep `/trustee` open. In another tab, download and upload the
-public ceremony file in the ceremony wizard. The browser polls
+custody file in the ceremony wizard. The browser polls
 `trustee_event_updates`, signs the queued request locally with its exact ceremony
 and tally scope, and acknowledges it through `submit_trustee_action_result`.
 The wizard then verifies the proof and retains the explicit human confirmation
 and any required certificate signing. Private keys never leave the browser.
 
-Alternatively, stop the runner, select **Advanced → Generate proof file manually**
-and choose the public ceremony file. For a tally restore, enter the active tally session's UUID
+Alternatively, stop the runner and select
+**Advanced → Generate signed custody proof manually**. Choose the custody file.
+For a tally restore, enter the active tally session's UUID
 in **Tally session ID** before creating the proof. The trustee's tally wizard
 displays the selectable ID before custody confirmation and on its status step.
-The saved ceremony file omits that UUID so it can be reused: leaving the field blank creates
+The saved custody file omits that UUID so it can be reused: leaving the field
+blank creates
 a key-ceremony proof, which the tally rejects. Upload the downloaded
-`custody-proof.json` to the wizard. The proof contains only
+`signed-custody-proof.json` to the wizard. The proof contains only
 public metadata and a signature, and the platform checks its ceremony and tally
 scope. The browser rejects requests for another trustee or either wrong public key.
 
@@ -394,7 +402,7 @@ scripts/e2e/run-server-custody.sh
 
 This separate disposable journey keeps the native trustee daemons running and
 opens the production administration portal in Chromium. Each trustee logs in,
-downloads its public ceremony file, saves two copies, rejects an incorrect file,
+downloads its custody file, saves two copies, rejects an incorrect file,
 and uploads the original to confirm key custody. The same saved file authorizes
 a subsequent manual tally without a server command. The journey also checks
 that pending custody blocks ballot publication, proofs cannot be replayed across

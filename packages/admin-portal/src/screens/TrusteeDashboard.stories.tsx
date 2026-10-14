@@ -26,7 +26,9 @@ export const NativeTrustee: Story = {
         await expect(canvas.getByRole("heading", {name: "Trustee dashboard"})).toBeVisible()
         await expect(canvas.getByText(/trustee generate --trustee-config/)).toBeVisible()
         await expect(canvas.getByText(/trustee attest --request/)).toBeVisible()
-        expect(canvas.queryByRole("button", {name: "Generate proof file manually"})).toBeNull()
+        expect(
+            canvas.queryByRole("button", {name: "Generate signed custody proof manually"})
+        ).toBeNull()
         expect(canvas.queryByRole("textbox", {name: "Tally session ID"})).toBeNull()
     },
 }
@@ -135,7 +137,7 @@ export const AutomaticTallyCustody: Story = {
         await expect(proof.signature).not.toBe("")
         await userEvent.click(canvas.getByRole("button", {name: "Advanced"}))
         await expect(
-            await canvas.findByRole("button", {name: "Generate proof file manually"})
+            await canvas.findByRole("button", {name: "Generate signed custody proof manually"})
         ).toBeDisabled()
         expect(canvas.getByRole("textbox", {name: "Tally session ID"})).toBeDisabled()
         await userEvent.click(canvas.getByRole("button", {name: "Stop browser trustee"}))
@@ -149,12 +151,18 @@ export const ManualProofFileIsAnAdvancedOption: Story = {
     render: AutomaticTallyCustody.render,
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        expect(canvas.queryByRole("button", {name: "Generate proof file manually"})).toBeNull()
+        expect(
+            canvas.queryByRole("button", {name: "Generate signed custody proof manually"})
+        ).toBeNull()
         await userEvent.click(canvas.getByRole("button", {name: "Advanced"}))
-        const manual = await canvas.findByRole("button", {name: "Generate proof file manually"})
+        const manual = await canvas.findByRole("button", {
+            name: "Generate signed custody proof manually",
+        })
         await expect(manual).toBeDisabled()
         await expect(
-            canvas.getByText(/A running browser trustee generates custody proofs automatically/)
+            canvas.getByText(
+                /A running browser trustee generates signed custody proofs automatically/
+            )
         ).toBeVisible()
         await userEvent.click(canvas.getByRole("button", {name: "Generate browser keys"}))
         await waitFor(() => expect(manual).toBeEnabled())
@@ -188,8 +196,9 @@ export const ManualProofFileIsAnAdvancedOption: Story = {
             filename = this.download
         })
         try {
+            // Custody files saved with the old filename remain usable.
             await userEvent.upload(
-                canvas.getByLabelText("Custody request"),
+                canvas.getByLabelText("Custody file"),
                 new File([JSON.stringify(request)], "custody-request.json", {
                     type: "application/json",
                 })
@@ -199,7 +208,7 @@ export const ManualProofFileIsAnAdvancedOption: Story = {
                 request: unknown
                 signature: string
             }
-            expect(filename).toBe("trustee1-custody-proof.json")
+            expect(filename).toBe("trustee1-signed-custody-proof.json")
             expect(proof.request).toEqual({...request, tally_session_id: tallyId})
             expect(proof.signature).not.toBe("")
         } finally {

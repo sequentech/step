@@ -187,7 +187,7 @@ async function downloadStep(canvasElement: HTMLElement) {
     await expect(await canvas.findByRole("heading", {name: "Trustee Key Ceremony"})).toBeVisible()
     await userEvent.click(canvas.getByRole("button", {name: "Next"}))
     const download = await canvas.findByRole("button", {
-        name: "Download Ceremony File",
+        name: "Download Custody File",
     })
     expect(canvas.getByRole("button", {name: "Next"})).toBeDisabled()
     return {canvas, download}
@@ -198,7 +198,7 @@ async function downloadKey(canvasElement: HTMLElement) {
     await waitFor(() => expect(canvas.getByRole("button", {name: "Next"})).toBeEnabled())
     expect(downloads).toEqual([
         {
-            name: "Alice-custody-request.json",
+            name: "Alice-custody.json",
             href: "blob:synthetic-key-download",
         },
     ])
@@ -360,7 +360,7 @@ export const WrongBackupCanBeReplaced: Story = {
         await uploadKey(canvasElement, "wrong trustee backup")
         const canvas = within(canvasElement)
         await waitFor(() =>
-            expect(canvas.getByText("Invalid custody proof, please try again")).toBeVisible()
+            expect(canvas.getByText("Invalid signed custody proof, please try again")).toBeVisible()
         )
         expect(canvas.getByRole("button", {name: "Next"})).toBeDisabled()
         expect(boundary.calls[1].variables.custodyProofJson).toBe("wrong trustee backup")
@@ -376,7 +376,7 @@ export const DownloadErrorCanBeRetried: Story = {
         await userEvent.click(download)
         await waitFor(() =>
             expect(
-                canvas.getByText("The custody request could not be downloaded. Please try again.")
+                canvas.getByText("The custody file could not be downloaded. Please try again.")
             ).toBeVisible()
         )
         expect(canvas.getByRole("button", {name: "Next"})).toBeDisabled()
