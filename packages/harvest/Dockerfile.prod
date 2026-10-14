@@ -134,15 +134,22 @@ ENV JAVA_BUILD=c9ecb94cd31b495da20a27d4581645e8/9
 ENV JAVA_OS_ARCH=linux-x64
 ENV JAVA_FILENAME=openjdk-${JAVA_VERSION}_linux-x64_bin.tar.gz
 
-# Conditional logic to set the correct download URL and filename based on architecture
+# Conditional logic to set the correct download URL and filename based on architecture.
+#
+# The JDK is checked against the SHA-256 Oracle publishes beside each archive
+# (<url>.sha256), so a replaced file fails the build instead of silently
+# changing the image; the archive is deleted once unpacked. Bumping JAVA_VERSION
+# or JAVA_BUILD means updating both checksums (sequentech/meta#13625).
 RUN case "${TARGETARCH}" in \
     "amd64") \
         export JAVA_OS_ARCH=linux-x64; \
         export JAVA_FILENAME=openjdk-${JAVA_VERSION}_linux-x64_bin.tar.gz; \
+        export JAVA_SHA256=41536f115668308ecf4eba92aaf6acaeb0936225828b741efd83b6173ba82963; \
         ;; \
     "arm64") \
         export JAVA_OS_ARCH=linux-aarch64; \
         export JAVA_FILENAME=openjdk-${JAVA_VERSION}_linux-aarch64_bin.tar.gz; \
+        export JAVA_SHA256=25fba2bd5585e1e9923134dc827f2bd5a2beaca3d242ae00b7e68c152faf7ba6; \
         ;; \
     *) \
         echo "Unsupported architecture: ${TARGETARCH}"; \
@@ -153,11 +160,12 @@ RUN case "${TARGETARCH}" in \
     echo "Download url https://download.java.net/java/GA/jdk${JAVA_VERSION}/${JAVA_BUILD}/GPL/${JAVA_FILENAME}"; \
     echo "JAVA_FILENAME=${JAVA_FILENAME}" >> /etc/profile.d/java.sh; \
     wget https://download.java.net/java/GA/jdk${JAVA_VERSION}/${JAVA_BUILD}/GPL/${JAVA_FILENAME} \
+    && echo "${JAVA_SHA256}  ${JAVA_FILENAME}" | sha256sum -c - \
     && tar xvf ${JAVA_FILENAME} \
+    && rm -f ${JAVA_FILENAME} \
     && mv jdk-${JAVA_VERSION} /usr/local/ \
     && update-alternatives --install /usr/bin/java java /usr/local/jdk-${JAVA_VERSION}/bin/java 1 \
     && update-alternatives --install /usr/bin/javac javac /usr/local/jdk-${JAVA_VERSION}/bin/javac 1 \
-    && curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash \
     && rm -f /var/log/alternatives.log
 # Copy the compiled binary from the builder stage
 COPY --from=builder /app/target/release/harvest /usr/local/bin/harvest
