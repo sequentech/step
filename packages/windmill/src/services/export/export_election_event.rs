@@ -297,9 +297,9 @@ pub async fn generate_encrypted_zip(
     Ok(())
 }
 
-pub async fn write_export_document(data: ImportElectionEventSchema) -> Result<NamedTempFile> {
+pub async fn write_export_document(data: &ImportElectionEventSchema) -> Result<NamedTempFile> {
     // Serialize the data into JSON string
-    let data_str = serde_json::to_string_pretty(&data)?;
+    let data_str = serde_json::to_string_pretty(data)?;
     let data_bytes = data_str.into_bytes();
 
     // Create and write the data into a temporary file
@@ -467,6 +467,7 @@ pub async fn process_export_zip(
     document_id: &str,
     export_config: ExportOptions,
 ) -> Result<()> {
+    export_config.validate_protocol_archive()?;
     let contains_voter_secrets = export_config.contains_voter_secrets;
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -503,7 +504,7 @@ pub async fn process_export_zip(
         &export_config,
     )
     .await?;
-    let temp_election_event_file = write_export_document(export_data).await?;
+    let temp_election_event_file = write_export_document(&export_data).await?;
     let election_event_filename = format!(
         "{}-{}.json",
         EDocuments::ELECTION_EVENT.to_file_name(),
@@ -840,6 +841,7 @@ pub async fn process_export_zip(
             &hasura_transaction,
             tenant_id,
             election_event_id,
+            export_data.protocol_boards.as_deref().unwrap_or_default(),
         )
         .await
         .map_err(|e| anyhow!("Error reading protocol manager keys data: {e:?}"))?;

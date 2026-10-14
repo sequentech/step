@@ -102,6 +102,16 @@ pub struct SignedConfiguration {
 }
 
 impl SignedConfiguration {
+    /// Check a restored private identity before using it to manage this board.
+    pub fn verify_manager_key(&self, manager: &BoardManager) -> Result<()> {
+        ensure!(
+            manager_verifying_key(manager)
+                == self.message.verify_configuration()?.protocol_manager,
+            "protocol manager key does not match the archived configuration"
+        );
+        Ok(())
+    }
+
     /// Validate an archived message against this immutable configuration.
     pub fn verify_message(&self, bytes: &[u8]) -> Result<()> {
         let message = ProtocolMessage::<Ctx>::deser(bytes)?;
@@ -244,6 +254,31 @@ mod tests {
             );
             assert_eq!(stored.threshold(), threshold);
         }
+    }
+
+    #[test]
+    fn restored_manager_keys_must_match_the_signed_configuration() {
+        let manager = generate_manager();
+        let board = DkgBoard::new(
+            &Uuid::new_v4(),
+            &manager,
+            &committee_of(&trustees(2)),
+            2,
+        )
+        .unwrap();
+        let stored =
+            SignedConfiguration::parse(&board.configuration.to_bytes())
+                .unwrap();
+        let restored = crate::parse_manager_key(
+            &crate::encode_manager_key(&manager).unwrap(),
+        )
+        .unwrap();
+        stored.verify_manager_key(&restored).unwrap();
+        let error = stored.verify_manager_key(&generate_manager()).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "protocol manager key does not match the archived configuration"
+        );
     }
 
     #[test]

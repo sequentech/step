@@ -2559,6 +2559,42 @@ const catalanTranslation: TranslationType = {
         },
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
+            downloadStep: {
+                ...englishTranslation.translations.keysGeneration.downloadStep,
+                title: "Descarregar fitxer de custòdia",
+                downloadButton: "Descarregar fitxer de custòdia",
+                confirmdDialog: {
+                    ...englishTranslation.translations.keysGeneration.downloadStep.confirmdDialog,
+                    title: "Desar el fitxer de custòdia",
+                },
+            },
+            checkStep: {
+                ...englishTranslation.translations.keysGeneration.checkStep,
+                subtitle: "Carrega el fitxer de custòdia desat o una prova de custòdia signada:",
+                required: "Cal confirmar la custòdia",
+                reconfirmButton: "Tornar a confirmar la custòdia (opcional)",
+                reconfirmDescription:
+                    "La teva custòdia ja està confirmada. Aquesta confirmació addicional és opcional.",
+            },
+            serverCustody: {
+                recoveryInstructions:
+                    "Si heu importat aquest esdeveniment electoral o heu perdut el fitxer desat, descarregueu aquí el fitxer de custòdia actual. Deseu-lo i després carregueu-lo a continuació.",
+                fileFormat: "Format admès: JSON",
+                waiting: "Esperant que el teu servidor custodi creï una prova de custòdia…",
+                unavailable:
+                    "El servidor custodi no ha respost. Comprova que està actiu i torna a carregar el fitxer de custòdia.",
+                failed: "El servidor custodi no ha pogut crear la prova: {{error}}",
+                invalidReply:
+                    "El servidor custodi ha retornat una resposta incompleta. Torna-ho a provar.",
+                cancelled:
+                    "La sol·licitud s’ha cancel·lat. Torna a carregar el fitxer per continuar.",
+                downloadInstructions:
+                    "Descarrega i desa aquest fitxer de custòdia. Carrega el mateix fitxer al pas següent i als recomptes futurs. No és una còpia de seguretat de les teves claus privades.",
+                uploadInstructions:
+                    "Carrega el fitxer de custòdia descarregat. El teu servidor custodi crearà la prova. També pots carregar una prova creada per un custodi fora de línia o de navegador.",
+                tallyInstructions:
+                    "Carrega el fitxer desat durant la cerimònia de claus. El teu servidor custodi crearà una prova nova per a aquest recompte. També s’accepten proves de custodis fora de línia o de navegador.",
+            },
             configureStep: {
                 create: "Crear Cerimònia de Claus",
                 name: "Nom de la Cerimònia de Claus",
@@ -2597,6 +2633,11 @@ const catalanTranslation: TranslationType = {
             // Native custody instructions use the English fallback until translated.
             ceremonyStep: {
                 ...englishTranslation.translations.keysGeneration.ceremonyStep,
+                custodyConfirmed: "Custòdia confirmada",
+                custodyComplete: "La teva part ha finalitzat. No cal que facis cap altra acció.",
+                waitingForTrustees:
+                    "S’està esperant que les autoritats restants completin la confirmació de custòdia i qualsevol aprovació requerida.",
+                moreActions: "Més accions",
                 cancel: "Cancel·lar Cerimònia de Claus",
                 progressHeader: "Progrés de Cerimònia de Claus",
                 executionStatus: "Estat: {{status}}",
@@ -2780,6 +2821,8 @@ const catalanTranslation: TranslationType = {
             logsTitle: "Registres",
             resultsTitle: "Resultats & Participació",
             generalInfoTitle: "Informació General",
+            sessionId: "ID de la sessió de recompte",
+            selectedQuorum: "Quòrum seleccionat",
             trusteeTallyTitle: "Trustee",
             trusteeTallySubTitle: "Estat de confirmació de custòdia",
             ballotBoxes: {
@@ -2832,7 +2875,7 @@ const catalanTranslation: TranslationType = {
             recountTallyCeremonyError: "No s'ha pogut iniciar el recompte",
             recountTallyCeremonyOk: "Repetir el recompte",
             trusteeTitle: "Proces del trustee",
-            trusteeSubTitle: "Carregueu el vostre fitxer públic custody-proof.json",
+            trusteeSubTitle: "Carrega el fitxer de custòdia desat o una prova de custòdia signada:",
             invited: "Has estat convidat a participar en una cerimònia de recompte. Si us plau, ",
             click: "feu clic en l'acció de recompte",
             participate: "per participar.",
@@ -5134,10 +5177,10 @@ const catalanTranslation: TranslationType = {
                 record: "Anotar el meu prova de custòdia",
                 failed: "No s'ha pogut anotar el vostre prova de custòdia signat: {{error}}",
                 dropAgain:
-                    "Torneu a deixar anar el vostre fitxer de prova de custòdia per anotar el prova de custòdia signat. (custody-proof.json)",
+                    "Torneu a deixar anar el vostre fitxer de prova de custòdia per anotar el prova de custòdia signat. (signed-custody-proof.json)",
                 redo: "El vostre prova de custòdia es va aportar sense la vostra signatura, que ara aquesta elecció requereix. Torneu-lo a aportar i signeu-lo.",
                 notTaken:
-                    "La cerimònia ja no accepta aquest prova de custòdia. Torneu a deixar anar el vostre fitxer de prova de custòdia. (custody-proof.json)",
+                    "La cerimònia ja no accepta aquest prova de custòdia. Torneu a deixar anar el vostre fitxer de prova de custòdia. (signed-custody-proof.json)",
             },
         },
         lifecycle: {

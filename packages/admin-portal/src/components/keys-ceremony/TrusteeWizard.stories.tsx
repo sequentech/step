@@ -56,7 +56,11 @@ const ceremony = {
 interface Scenario {
     download: "success" | "empty" | "fail-once"
     checkFailure: boolean
+    custody: "required" | "confirmed"
+    execution: "IN_PROGRESS" | "SUCCESS" | "CANCELLED" | "FAILED"
+    automated: boolean
 }
+let currentCeremony: Sequent_Backend_Keys_Ceremony
 let boundary: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof dataBoundary>
 let blobs: Blob[]
@@ -80,8 +84,14 @@ function Fixture() {
                     }}
                 >
                     <TrusteeWizard
-                        electionEvent={event}
-                        currentCeremony={ceremony}
+                        electionEvent={{
+                            ...event,
+                            presentation: {
+                                ...event.presentation,
+                                ceremonies_policy: currentCeremony.settings.policy,
+                            },
+                        }}
+                        currentCeremony={currentCeremony}
                         goBack={goBack}
                     />
                 </SettingsContext.Provider>
@@ -92,8 +102,27 @@ function Fixture() {
 const meta = {
     title: "Admin/Keys ceremony/TrusteeWizard",
     component: TrusteeWizard,
-    args: {download: "success", checkFailure: false},
+    args: {
+        download: "success",
+        checkFailure: false,
+        custody: "required",
+        execution: "IN_PROGRESS",
+        automated: false,
+    },
     beforeEach: ({args}) => {
+        currentCeremony = structuredClone(ceremony)
+        currentCeremony.execution_status = args.execution
+        if (args.custody === "confirmed") {
+            currentCeremony.status.trustees[0].status = "CUSTODY_CONFIRMED"
+        }
+        if (args.execution === "SUCCESS") {
+            currentCeremony.status.trustees.forEach((trustee: {status: string}) => {
+                trustee.status = "CUSTODY_CONFIRMED"
+            })
+        }
+        if (args.automated) {
+            currentCeremony.settings.policy = "automated-ceremonies"
+        }
         blobs = []
         downloads = []
         goBack.mockClear()
@@ -124,7 +153,7 @@ const meta = {
                     data.unexpected.push(`${resource}/${id}`)
                     throw new Error("Unexpected ceremony read")
                 }
-                return {data: ceremony as unknown as RecordType}
+                return {data: currentCeremony as unknown as RecordType}
             },
         })
         const objectUrl = spyOn(URL, "createObjectURL").mockImplementation((value) => {
@@ -158,7 +187,7 @@ async function downloadStep(canvasElement: HTMLElement) {
     await expect(await canvas.findByRole("heading", {name: "Trustee Key Ceremony"})).toBeVisible()
     await userEvent.click(canvas.getByRole("button", {name: "Next"}))
     const download = await canvas.findByRole("button", {
-        name: "Download Custody Request",
+        name: "Download Custody File",
     })
     expect(canvas.getByRole("button", {name: "Next"})).toBeDisabled()
     return {canvas, download}
@@ -169,7 +198,7 @@ async function downloadKey(canvasElement: HTMLElement) {
     await waitFor(() => expect(canvas.getByRole("button", {name: "Next"})).toBeEnabled())
     expect(downloads).toEqual([
         {
-            name: "Alice-custody-request.json",
+            name: "Alice-custody.json",
             href: "blob:synthetic-key-download",
         },
     ])
@@ -189,9 +218,9 @@ async function downloadKey(canvasElement: HTMLElement) {
 }
 async function checkStep(canvasElement: HTMLElement) {
     const dialog = await downloadKey(canvasElement)
-    await userEvent.click(dialog.getByRole("checkbox", {name: "First backup secured"}))
-    await userEvent.click(dialog.getByRole("checkbox", {name: "Second backup secured"}))
-    await userEvent.click(dialog.getByRole("button", {name: "Confirm Backups and Continue"}))
+    await userEvent.click(dialog.getByRole("checkbox", {name: "First copy saved"}))
+    await userEvent.click(dialog.getByRole("checkbox", {name: "Second copy saved"}))
+    await userEvent.click(dialog.getByRole("button", {name: "Confirm Saved Copies and Continue"}))
     await waitFor(() => expect(within(document.body).queryByRole("dialog")).not.toBeInTheDocument())
     await within(canvasElement).findByRole("heading", {
         name: "Confirm Trustee Custody",
@@ -205,11 +234,11 @@ async function uploadKey(canvasElement: HTMLElement, key: string) {
 export const DownloadRequiresTwoBackups: Story = {
     play: async ({canvasElement}) => {
         const dialog = await downloadKey(canvasElement)
-        const confirm = dialog.getByRole("button", {name: "Confirm Backups and Continue"})
+        const confirm = dialog.getByRole("button", {name: "Confirm Saved Copies and Continue"})
         expect(confirm).toBeDisabled()
-        await userEvent.click(dialog.getByRole("checkbox", {name: "First backup secured"}))
+        await userEvent.click(dialog.getByRole("checkbox", {name: "First copy saved"}))
         expect(confirm).toBeDisabled()
-        await userEvent.click(dialog.getByRole("checkbox", {name: "Second backup secured"}))
+        await userEvent.click(dialog.getByRole("checkbox", {name: "Second copy saved"}))
         expect(confirm).toBeEnabled()
         await userEvent.click(confirm)
         await waitFor(() =>
@@ -221,6 +250,87 @@ export const DownloadRequiresTwoBackups: Story = {
             })
         ).toBeVisible()
         expect(within(canvasElement).getByRole("button", {name: "Next"})).toBeDisabled()
+        await expect(within(canvasElement).getByText("Custody confirmation required")).toBeVisible()
+        expect(within(canvasElement).queryByRole("button", {name: "More actions"})).toBeNull()
+    },
+}
+
+export const ConfirmedCustodyIsOptionalWhileOtherTrusteesFinish: Story = {
+    args: {custody: "confirmed"},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByText("Custody confirmed")).toBeVisible()
+        await expect(
+            canvas.getByText("Your part is complete. No further action is required from you.")
+        ).toBeVisible()
+        await expect(
+            canvas.getByText(
+                "Waiting for the remaining trustees to complete their custody confirmation and any required approval."
+            )
+        ).toBeVisible()
+        expect(canvas.queryByRole("button", {name: "Next"})).toBeNull()
+        expect(canvas.queryByText("Reconfirm custody (optional)")).toBeNull()
+        const moreActions = canvas.getByRole("button", {name: "More actions"})
+        await userEvent.click(moreActions)
+        const menu = within(await within(document.body).findByRole("menu"))
+        const reconfirm = menu.getByRole("menuitem", {name: "Reconfirm custody (optional)"})
+        await waitFor(() => expect(reconfirm).toBeVisible())
+        await userEvent.click(reconfirm)
+        await expect(
+            await canvas.findByRole("heading", {name: "Reconfirm custody (optional)"})
+        ).toBeVisible()
+        expect(canvas.queryByText("Custody confirmation required")).toBeNull()
+        await userEvent.click(canvas.getByRole("button", {name: "Back"}))
+        await expect(await canvas.findByText("Custody confirmed")).toBeVisible()
+        expect(boundary.calls).toEqual([])
+    },
+}
+
+export const CompletedCeremonyNeedsNoFurtherCustody: Story = {
+    args: {custody: "confirmed", execution: "SUCCESS"},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByText("Custody confirmed")).toBeVisible()
+        expect(canvas.queryByText(/Waiting for the remaining trustees/)).toBeNull()
+        expect(canvas.queryByRole("button", {name: "Next"})).toBeNull()
+        await userEvent.click(canvas.getByRole("button", {name: "More actions"}))
+        const reconfirm = await within(document.body).findByRole("menuitem", {
+            name: "Reconfirm custody (optional)",
+        })
+        await waitFor(() => expect(reconfirm).toBeVisible())
+    },
+}
+
+export const AutomatedCeremonyDoesNotOfferManualReconfirmation: Story = {
+    args: {custody: "confirmed", execution: "SUCCESS", automated: true},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByText("Status: SUCCESS")
+        expect(canvas.queryByText("Custody confirmed")).toBeNull()
+        expect(canvas.queryByRole("button", {name: "More actions"})).toBeNull()
+    },
+}
+
+export const CancelledCeremonyHasNoCustodyAction: Story = {
+    args: {custody: "confirmed", execution: "CANCELLED"},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByText("Status: CANCELLED")
+        expect(canvas.queryByText("Custody confirmed")).toBeNull()
+        expect(canvas.queryByRole("button", {name: "More actions"})).toBeNull()
+        expect(canvas.queryByRole("button", {name: "Next"})).toBeNull()
+    },
+}
+
+export const FailedCeremonyHasNoCustodyAction: Story = {
+    ...CancelledCeremonyHasNoCustodyAction,
+    args: {custody: "confirmed", execution: "FAILED"},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByText("Status: FAILED")
+        expect(canvas.queryByText("Custody confirmed")).toBeNull()
+        expect(canvas.queryByRole("button", {name: "More actions"})).toBeNull()
+        expect(canvas.queryByRole("button", {name: "Next"})).toBeNull()
     },
 }
 export const ValidBackupIsVerified: Story = {
@@ -250,7 +360,7 @@ export const WrongBackupCanBeReplaced: Story = {
         await uploadKey(canvasElement, "wrong trustee backup")
         const canvas = within(canvasElement)
         await waitFor(() =>
-            expect(canvas.getByText("Invalid custody proof, please try again")).toBeVisible()
+            expect(canvas.getByText("Invalid signed custody proof, please try again")).toBeVisible()
         )
         expect(canvas.getByRole("button", {name: "Next"})).toBeDisabled()
         expect(boundary.calls[1].variables.custodyProofJson).toBe("wrong trustee backup")
@@ -266,7 +376,7 @@ export const DownloadErrorCanBeRetried: Story = {
         await userEvent.click(download)
         await waitFor(() =>
             expect(
-                canvas.getByText("The custody request could not be downloaded. Please try again.")
+                canvas.getByText("The custody file could not be downloaded. Please try again.")
             ).toBeVisible()
         )
         expect(canvas.getByRole("button", {name: "Next"})).toBeDisabled()
@@ -290,14 +400,16 @@ export const EmptyKeyCannotContinue: Story = {
 export const CancelBackupConfirmationClearsAcknowledgements: Story = {
     play: async ({canvasElement}) => {
         const dialog = await downloadKey(canvasElement)
-        await userEvent.click(dialog.getByRole("checkbox", {name: "First backup secured"}))
+        await userEvent.click(dialog.getByRole("checkbox", {name: "First copy saved"}))
         await userEvent.click(dialog.getByRole("button", {name: "Go Back"}))
         await waitFor(() =>
             expect(within(document.body).queryByRole("dialog")).not.toBeInTheDocument()
         )
         await userEvent.click(within(canvasElement).getByRole("button", {name: "Next"}))
         const reopened = within(await within(document.body).findByRole("dialog"))
-        expect(reopened.getByRole("checkbox", {name: "First backup secured"})).not.toBeChecked()
-        expect(reopened.getByRole("button", {name: "Confirm Backups and Continue"})).toBeDisabled()
+        expect(reopened.getByRole("checkbox", {name: "First copy saved"})).not.toBeChecked()
+        expect(
+            reopened.getByRole("button", {name: "Confirm Saved Copies and Continue"})
+        ).toBeDisabled()
     },
 }

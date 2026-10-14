@@ -27,7 +27,6 @@ interface Scenario {
     isNextDisabled: boolean
     goBack: () => void
     goNext: () => void
-    confirmCustody: () => void
     setCurrentCeremony: () => void
 }
 
@@ -60,7 +59,6 @@ const meta = {
         isNextDisabled: false,
         goBack: fn(),
         goNext: fn(),
-        confirmCustody: fn(),
         setCurrentCeremony: fn(),
     },
     argTypes: {
@@ -84,7 +82,6 @@ const meta = {
                 setCurrentCeremony={args.setCurrentCeremony}
                 isNextDisabled={args.isNextDisabled}
                 goNext={withNext ? args.goNext : undefined}
-                confirmCustody={withNext ? args.confirmCustody : undefined}
             />
         </AdminStoryProvider>
     ),
@@ -168,7 +165,7 @@ export const AutomatedCeremony: Story = {
         // Trustees neither download nor check a key, and the ceremony advances by itself.
         expect(canvas.queryByText("Private Key Fragment Downloaded")).not.toBeInTheDocument()
         expect(canvas.queryByRole("button", {name: "Next"})).not.toBeInTheDocument()
-        await expect(canvas.getByRole("button", {name: "Verify Custody Proof"})).toBeVisible()
+        expect(canvas.queryByRole("button", {name: "More actions"})).not.toBeInTheDocument()
     },
 }
 
@@ -205,8 +202,6 @@ export const WithoutNextStep: Story = {
 export const Navigation: Story = {
     play: async ({canvasElement, args}) => {
         const canvas = within(canvasElement)
-        await userEvent.click(await canvas.findByRole("button", {name: "Verify Custody Proof"}))
-        expect(args.confirmCustody).toHaveBeenCalledTimes(1)
         await userEvent.click(canvas.getByRole("button", {name: "Next"}))
         expect(args.goNext).toHaveBeenCalledTimes(1)
         await userEvent.click(canvas.getByRole("button", {name: "Back"}))

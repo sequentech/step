@@ -1,4 +1,46 @@
 actions:
+    - name: request_server_custody
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/trustee/request-server-custody
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input.object}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: trustee-ceremony
+      comment: Authenticated trustee ceremony work
+    - name: submit_trustee_action_result
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/trustee/action-result
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input.result}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: trustee-ceremony
+      comment: Authenticated trustee ceremony work
+    - name: trustee_event_updates
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/trustee/event-updates
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: remove
+              method: GET
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: trustee-ceremony
+      comment: Authenticated trustee ceremony work
     - name: list_trustee_boards
       definition:
           type: query

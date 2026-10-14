@@ -65,6 +65,7 @@ pub async fn read_protocol_manager_keys(
     transaction: &Transaction<'_>,
     tenant_id: &str,
     event_id: &str,
+    boards: &[sequent_core::types::protocol_board::ProtocolBoard],
 ) -> Result<TempPath> {
     let mut writer = csv::Writer::from_writer(generate_temp_file("export-protocol-keys-", ".csv")?);
     writer.write_record(["election_id", "key"])?;
@@ -87,11 +88,13 @@ pub async fn read_protocol_manager_keys(
         .ok_or_else(|| anyhow!("audit signing identity is missing"))?;
         writer.write_record([id, key])?;
     }
-    for row in get_event_protocol_boards(transaction, tenant_id, event_id)
-        .await?
-        .into_iter()
-        .filter(|row| row.parent_id.is_none())
-    {
+    // Native secrets travel only with their exported board metadata. Selective
+    // publication/log exports still carry the audit identities above.
+    for row in boards.iter().filter(|row| row.parent_id.is_none()) {
+        ensure!(
+            row.tenant_id == tenant_id && row.election_event_id == event_id,
+            "protocol manager export scope mismatch"
+        );
         let name = BoardName::parse(&row.name)?;
         let key = vault::read_secret(
             transaction,

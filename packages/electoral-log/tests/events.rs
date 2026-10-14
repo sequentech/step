@@ -8,7 +8,9 @@ use electoral_log::{
     adapters::{
         events::{ActivityMark, EventDatabases},
         postgres::{LogScope, PostgresStore},
-        transfer::{ExportManifest, ExportedRecord, SignedCheckpoint, EXPORT_FORMAT_V1},
+        transfer::{
+            ExportManifest, ExportedRecord, SignedCheckpoint, EXPORT_FORMAT_V1, EXPORT_FORMAT_V2,
+        },
     },
     messages::{
         message::{Message, SigningData},
@@ -344,6 +346,7 @@ async fn export(store: &PostgresStore) -> Result<(Vec<ExportedRecord>, ExportMan
         ExportManifest {
             format: EXPORT_FORMAT_V1.into(),
             election_event_id: "source".into(),
+            board_log_uid: None,
             logs,
         },
     ))
@@ -685,4 +688,81 @@ async fn upgrading_an_event_database_completes_its_ballot_box() -> Result<()> {
     assert!(matches!(received, ReceiveOutcome::Received(_)));
     databases.drop_event(&tenant.to_string(), &event_id).await?;
     Ok(())
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_PG_* with a role that may create databases"]
+async fn independent_boards_import_with_explicit_main_board_and_verified_links() -> Result<()> {
+    let databases = databases()?;
+    let tenant = Uuid::new_v4();
+    let events = [(); 3].map(|_| Uuid::new_v4());
+    let result = async {
+        let source = databases
+            .create_event(&tenant.to_string(), &events[0].to_string())
+            .await?;
+        let main = board(&tenant, &events[0]);
+        let election = format!("test-election-{}", Uuid::new_v4().simple());
+        let continuation = format!("test-copy-{}", Uuid::new_v4().simple());
+        source.create_board(&main).await?;
+        source.create_board(&election).await?;
+        source
+            .append(&main, &mut entries(0..2).into_iter().map(anyhow::Ok))
+            .await?;
+        source
+            .append(&election, &mut entries(2..4).into_iter().map(anyhow::Ok))
+            .await?;
+        let checkpoint = source.journal().checkpoint(&election).await?;
+        let key = SigningKey::generate()?;
+        let sd = SigningData::new(key.clone(), "", key);
+        source.create_board(&continuation).await?;
+        source
+            .append(
+                &continuation,
+                &mut std::iter::once(continuation_entry(&sd, &checkpoint)),
+            )
+            .await?;
+        let (records, mut manifest) = export(&source).await?;
+        manifest.format = EXPORT_FORMAT_V2.into();
+        manifest.board_log_uid = Some(source.journal().checkpoint(&main).await?.log_uid);
+        let target = databases
+            .create_event(&tenant.to_string(), &events[1].to_string())
+            .await?;
+        let imported = import(&target, &manifest, &records, &[]).await?;
+        assert_eq!(imported.len(), 3);
+        assert_eq!(manifest.board().unwrap().checkpoint.log_name, main);
+        for (actual, expected) in imported.iter().zip(&manifest.logs) {
+            assert_eq!(actual.checkpoint, expected.checkpoint);
+        }
+        let tampered = databases
+            .create_event(&tenant.to_string(), &events[2].to_string())
+            .await?;
+        manifest
+            .logs
+            .retain(|log| log.checkpoint.log_name != election);
+        let records: Vec<_> = records
+            .into_iter()
+            .filter(|record| record.log_name != election)
+            .collect();
+        assert!(import(&tampered, &manifest, &records, &[])
+            .await
+            .unwrap_err()
+            .to_string()
+            .contains("continuation"));
+        assert!(tampered.logs().await?.is_empty());
+        manifest.board_log_uid = Some(Uuid::new_v4());
+        assert!(import(&tampered, &manifest, &records, &[])
+            .await
+            .unwrap_err()
+            .to_string()
+            .contains("main board"));
+        assert!(tampered.logs().await?.is_empty());
+        Ok(())
+    }
+    .await;
+    for event in events {
+        databases
+            .drop_event(&tenant.to_string(), &event.to_string())
+            .await?;
+    }
+    result
 }

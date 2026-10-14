@@ -4625,6 +4625,8 @@ dependencies = [
  "tokio",
  "tokio-postgres",
  "tracing",
+ "tracing-log",
+ "tracing-subscriber",
  "uuid",
  "voting-crypto",
  "windmill",

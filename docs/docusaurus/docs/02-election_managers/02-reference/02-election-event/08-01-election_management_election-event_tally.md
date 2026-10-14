@@ -13,6 +13,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 The Tally section starts a tally ceremony, collects trustee authorizations, runs
 mixing and threshold decryption, and displays the counted results.
 
+Open the tally ceremony's progress panel to see **Selected quorum** above the
+election progress table. These are the trustees selected to mix and decrypt this
+tally, in mixing order. The list comes from the stored signed Ballots messages
+and remains the same when the tally resumes. It is separate from the full trustee
+list and custody confirmations. The list appears once the quorum has been selected;
+older in-progress tallies acquire it when the backend next reads their boards.
+
 ## Closing Key Ceremony
 During a tally, the selected quorum of wbraid trustees uses its locally retained
 election shares to decrypt the shuffled ballots:
@@ -58,11 +65,11 @@ Before initiating the tally process:
 5. Use the public custody request saved from the key ceremony to create a new proof:
 
    ```sh
-   trustee attest --request custody-request.json --trustee-config trustee.toml --tally-session-id <TALLY_SESSION_ID> --output custody-proof.json
+   trustee attest --request custody.json --trustee-config trustee.toml --tally-session-id <TALLY_SESSION_ID> --output signed-custody-proof.json
    ```
 
-   Browser trustees use **Create custody proof** with the tally session identifier
-   on `/trustee`. Upload `custody-proof.json`, then complete any required approval
+   Browser trustees use **Advanced → Generate signed custody proof manually** with the tally session identifier
+   on `/trustee`. Upload `signed-custody-proof.json`, then complete any required approval
    signature. Keep private keys and protocol state on the trustee machine.
 6. Repeat for enough trustees to reach the ceremony threshold. A proof for another
    tally, or an earlier key ceremony proof, cannot authorize this tally.

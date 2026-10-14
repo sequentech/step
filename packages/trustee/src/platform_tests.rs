@@ -10,25 +10,30 @@ use std::net::TcpListener;
 use std::thread::{self, JoinHandle};
 use std::time::Instant;
 
-const TOKEN: &str = r#"{"access_token":"issued-token","expires_in":300}"#;
+pub(crate) const TOKEN: &str =
+    r#"{"access_token":"issued-token","expires_in":300}"#;
 const DKG: &str = "dkg_d9792af071b849528aac94bc0fead5f7";
 const TALLY: &str = "tally_0f6a3b2c9d8e4f10a1b2c3d4e5f60718_3";
 const BOARDS: &str = r#"{"data":{"list_trustee_boards":{"boards":[{"name":"dkg_d9792af071b849528aac94bc0fead5f7","kind":"DKG","parent":null},{"name":"tally_0f6a3b2c9d8e4f10a1b2c3d4e5f60718_3","kind":"TALLY","parent":"dkg_d9792af071b849528aac94bc0fead5f7"}]}}}"#;
 const ACCEPTED: &str = r#"{"data":{"report_trustee_board":{"accepted":true}}}"#;
 
-struct Request {
+pub(crate) struct Request {
     line: String,
     headers: HashMap<String, String>,
     body: Vec<u8>,
 }
 
 /// Own the bound port and use bounded I/O; no backend services are required.
-fn platform(
-    answers: Vec<(u16, &'static str)>,
+pub(crate) fn platform(
+    answers: Vec<(u16, &str)>,
 ) -> (PlatformClient, JoinHandle<Vec<Request>>) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     listener.set_nonblocking(true).unwrap();
     let url = format!("http://{}", listener.local_addr().unwrap());
+    let answers: Vec<_> = answers
+        .into_iter()
+        .map(|(status, body)| (status, body.to_owned()))
+        .collect();
     let server = thread::spawn(move || {
         let mut requests = Vec::new();
         for (status, body) in answers {
@@ -106,7 +111,7 @@ fn report() -> TrusteeReport {
     }
 }
 
-fn graphql_body(request: &Request) -> Value {
+pub(crate) fn graphql_body(request: &Request) -> Value {
     assert_eq!(request.line, "POST /v1/graphql HTTP/1.1");
     assert_eq!(request.headers["authorization"], "Bearer issued-token");
     assert_eq!(request.headers["x-hasura-role"], "trustee-ceremony");
@@ -229,4 +234,111 @@ async fn unsuccessful_http_responses_remain_errors_for_discovery_and_reporting()
     assert!(format!("{:#}", client.report(&report()).await.unwrap_err())
         .contains("HTTP 503"));
     server.join().unwrap();
+}
+
+#[tokio::test]
+async fn updates_fetch_boards_and_actions_together_and_results_need_acknowledgement(
+) {
+    let (mut client, server) = platform(vec![
+        (200, TOKEN),
+        (
+            200,
+            r#"{"data":{"trustee_event_updates":{"boards":[],"actions":[]}}}"#,
+        ),
+        (
+            200,
+            r#"{"data":{"submit_trustee_action_result":{"accepted":true}}}"#,
+        ),
+    ]);
+    let updates = client.updates().await.unwrap();
+    assert!(updates.boards.is_empty());
+    assert!(updates.actions.is_empty());
+    let result = protocol_board::TrusteeActionResult {
+        id: "action".into(),
+        request: protocol_board::CustodyRequest {
+            tenant_id: "tenant".into(),
+            election_event_id: "event".into(),
+            keys_ceremony_id: "ceremony".into(),
+            tally_session_id: None,
+            trustee_name: "trustee1".into(),
+            signing_public_key: "signing".into(),
+            share_encryption_public_key: "encryption".into(),
+        },
+        outcome: protocol_board::TrusteeActionOutcome::Failed {
+            detail: "keys unavailable".into(),
+        },
+    };
+    client.action_result(&result).await.unwrap();
+    let requests = server.join().unwrap();
+    assert_eq!(
+        graphql_body(&requests[1])["query"],
+        "query TrusteeEventUpdates { trustee_event_updates }"
+    );
+    assert_eq!(
+        graphql_body(&requests[2])["variables"]["result"],
+        serde_json::to_value(result).unwrap()
+    );
+}
+
+#[tokio::test]
+async fn updates_fall_back_only_when_the_new_field_is_absent() {
+    for absent in [
+        r#"{"errors":[{"message":"Cannot query field \"trustee_event_updates\" on type \"query_root\"."}]}"#,
+        r#"{"errors":[{"message":"field 'trustee_event_updates' not found in type: 'query_root'","extensions":{"code":"validation-failed"}}]}"#,
+    ] {
+        let (mut client, server) = platform(vec![
+            (200, TOKEN),
+            (200, absent),
+            (200, r#"{"data":{"list_trustee_boards":{"boards":[]}}}"#),
+        ]);
+        assert!(client.updates().await.unwrap().actions.is_empty());
+        let requests = server.join().unwrap();
+        assert!(graphql_body(&requests[2])["query"]
+            .as_str()
+            .unwrap()
+            .contains("ListTrusteeBoards"));
+    }
+    let (mut client, server) = platform(vec![
+        (200, TOKEN),
+        (200, r#"{"errors":[{"message":"permission denied"}]}"#),
+    ]);
+    assert!(client.updates().await.is_err());
+    assert_eq!(server.join().unwrap().len(), 2);
+}
+
+#[tokio::test]
+async fn action_results_require_explicit_acknowledgement_and_are_retried() {
+    let result = protocol_board::TrusteeActionResult {
+        id: "action".into(),
+        request: protocol_board::CustodyRequest {
+            tenant_id: "tenant".into(),
+            election_event_id: "event".into(),
+            keys_ceremony_id: "ceremony".into(),
+            tally_session_id: None,
+            trustee_name: "trustee1".into(),
+            signing_public_key: "signing".into(),
+            share_encryption_public_key: "encryption".into(),
+        },
+        outcome: protocol_board::TrusteeActionOutcome::Failed {
+            detail: "keys unavailable".into(),
+        },
+    };
+    for rejected in [
+        r#"{"data":{"submit_trustee_action_result":{"accepted":false}}}"#,
+        r#"{"data":{"submit_trustee_action_result":null}}"#,
+        r#"{"data":{"submit_trustee_action_result":{"accepted":true}},"errors":[{"message":"try again"}]}"#,
+    ] {
+        let (mut client, server) = platform(vec![
+            (200, TOKEN),
+            (200, rejected),
+            (
+                200,
+                r#"{"data":{"submit_trustee_action_result":{"accepted":true}}}"#,
+            ),
+        ]);
+        assert!(client.action_result(&result).await.is_err());
+        client.action_result(&result).await.unwrap();
+        let requests = server.join().unwrap();
+        assert_eq!(graphql_body(&requests[1]), graphql_body(&requests[2]));
+    }
 }

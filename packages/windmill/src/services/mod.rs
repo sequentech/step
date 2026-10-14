@@ -93,6 +93,7 @@ pub mod time_zones;
 pub mod to_result;
 pub mod transmission;
 pub mod trustee_boards;
+pub mod trustee_updates;
 pub mod users;
 pub mod vault;
 pub mod voter_secret_attributes;

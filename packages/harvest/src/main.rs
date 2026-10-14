@@ -7,7 +7,7 @@ extern crate rocket;
 
 use dotenv::dotenv;
 use sequent_core::services::connection::LastDatafixAccessToken;
-use sequent_core::util::init_log::init_log;
+use sequent_core::util::init_log::init_log_with_filter;
 use services::dependencies::HarvestServices;
 use windmill::services::{
     celery_app::{init_celery_app, set_is_app_active},
@@ -48,7 +48,7 @@ mod hasura_signing_permissions;
 #[launch]
 async fn rocket() -> _ {
     dotenv().ok();
-    init_log(true);
+    init_log_with_filter(true, services::request_logging::enabled);
 
     setup_probe(AppName::HARVEST).await;
     set_is_app_active(true);
@@ -76,6 +76,7 @@ fn build_application_with(
 ) -> rocket::Rocket<rocket::Build> {
     let fake_provider_routes = services.messaging_fake_provider_routes;
     let rocket = rocket::build()
+        .attach(services::request_logging::fairing())
         .attach(routes::electoral_log_proofs::fairing())
         .attach(services::tenant_activity::fairing())
         .register(
@@ -212,6 +213,9 @@ fn build_application_with(
                 routes::keys_ceremony::confirm_key_custody,
                 routes::keys_ceremony::list_keys_ceremonies,
                 routes::trustee_boards::list_trustee_boards,
+                routes::trustee_updates::trustee_event_updates,
+                routes::trustee_updates::request_server_custody,
+                routes::trustee_updates::submit_trustee_action_result,
                 routes::trustee_boards::report_trustee_board,
                 routes::tally_ceremony::create_tally_ceremony,
                 routes::tally_ceremony::authorize_tally_custody,

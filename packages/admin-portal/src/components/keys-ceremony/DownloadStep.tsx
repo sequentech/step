@@ -45,9 +45,7 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
     const trustee = authContext.trustee || authContext.username
-    const requestFilename = trusteeFilename(trustee, "custody-request.json")
-    const keysFilename = trusteeFilename(trustee, "private-keys.toml")
-    const proofFilename = trusteeFilename(trustee, "custody-proof.json")
+    const requestFilename = trusteeFilename(trustee, "custody.json")
     const {globalSettings} = useContext(SettingsContext)
     const [downloaded, setDownloaded] = useState<boolean>(false)
     const [downloading, setDownloading] = useState<boolean>(false)
@@ -148,12 +146,7 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                 </WizardStyles.StepHeader>
                 <WizardStyles.MainContent>
                     <Alert severity="info">
-                        Download the public custody request, then run{" "}
-                        <code>
-                            {`trustee attest --request ${requestFilename} --trustee-config ${keysFilename} --output ${proofFilename}`}
-                        </code>{" "}
-                        locally. Upload the proof in the next step. Keep your trustee keys file
-                        private.
+                        {t("keysGeneration.serverCustody.downloadInstructions")}
                     </Alert>
                     <Typography variant="body1">
                         <Trans

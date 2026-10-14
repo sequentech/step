@@ -54,21 +54,29 @@ lower than the number of trustees.
 Each participating trustee signs in to the administration portal, selects the
 ceremony's key action, and completes these steps:
 
-1. Choose **Download Custody Request**. The downloaded `custody-request.json`
+1. Choose **Download Custody File**. The downloaded `<trustee>-custody.json`
    contains public identifiers and the trustee's registered public keys.
-2. Confirm two secure backups of the local trustee keys file. Preserve the
-   runner's protocol state as described above.
-3. On the trustee machine, produce a signed proof:
+2. Save two copies of this public file and confirm that you have saved them.
+3. Upload the same file at **Confirm Trustee Custody**. A running server trustee
+   creates the signed custody proof automatically. Wait for it to respond.
+4. If the tenant requires an additional approval signature, complete the signing
+   dialog. The proof alone does not complete that approval.
 
-   ```sh
-   trustee attest --request custody-request.json --trustee-config trustee.toml --output custody-proof.json
-   ```
+Keep the custody file for future manual tallies. No command or access to the
+trustee machine is needed for these portal steps. If the trustee server has not
+responded, check that it is running with the correct identity and upload the file
+again. Failed proof requests can also be retried by uploading the file again.
 
-4. Upload `custody-proof.json` at **Confirm Trustee Custody**. If the tenant
-   requires an additional approval signature, complete the signing dialog.
+The custody file contains no private key or recoverable protocol state. The
+server operator must separately back up `trustee.toml` and the runner's private
+protocol state as described above. Saving the public file does not prove that
+these private backups exist.
 
-The request and proof may be uploaded to the platform. Keep `trustee.toml`
-and the runner's private protocol state on the trustee machine.
+Offline trustees can still create a proof locally and upload it in the same step:
+
+```sh
+trustee attest --request trustee1-custody.json --trustee-config trustee.toml --output signed-custody-proof.json
+```
 
 A proof is scoped to its tenant, election event, ceremony, and trustee. A proof
 from another trustee or ceremony is rejected. Confirming custody changes that
@@ -76,19 +84,29 @@ trustee to **CUSTODY_CONFIRMED**. Once every trustee has confirmed custody and a
 required approval signatures are complete, the ceremony becomes **SUCCESS**.
 The administrator can then publish ballot styles and open voting.
 
-A trustee may verify its proof again using **Verify Custody Proof**. Completed
-custody cannot be downgraded by downloading another request. Retain the public
-request for future tally ceremonies. For manual tally authorization, produce
-a new proof with `--tally-session-id <tally UUID>`; a key ceremony proof cannot
-be replayed as a tally proof.
+A trustee whose custody is confirmed sees **Custody confirmed** and a message
+that no further action is required from them. If other trustees are still pending,
+the ceremony also explains that it is waiting for their custody confirmation and
+any required approval. **More actions → Reconfirm custody (optional)** opens the
+confirmation step again; using it is not required to complete the ceremony.
+Until custody and any required approval are recorded, the wizard continues to
+show **Custody confirmation required** and blocks advancing past that step.
+Completed custody cannot be downgraded by downloading another request. Retain the public
+file for future tally ceremonies. Upload that same file to authorize a manual
+tally; the server creates a new proof bound to that tally session. Offline
+trustees instead create a new proof with `--tally-session-id <tally UUID>`. A key
+ceremony proof cannot be replayed as a tally proof.
 
 If generation fails, the ceremony displays **FAILED** and its failure reason.
 Resolve the runner or protocol failure before arranging a replacement ceremony.
 
 
 Browser trustees can generate or import their identity and participate from the
-portal's `/trustee` screen. Keep the page open while its runner is active. Use
-**Create custody proof** with the downloaded public request, then upload the
-result to the ceremony wizard. Keep private backups of both the keys and browser
+portal's `/trustee` screen. Start the browser trustee and keep its page open.
+In another tab, upload the saved custody file to the ceremony wizard;
+the browser generates the proof automatically. For a manual proof file, stop the
+runner and choose **Advanced → Generate signed custody proof manually** with the saved
+public request, then upload the result to the ceremony wizard.
+Keep private backups of both the keys and browser
 sessions. See [browser trustee setup](../../07-developers/09-wbraid/trustee-configuration.md#browser-trustees)
 for key registration, browser storage recovery, and tally restore instructions.

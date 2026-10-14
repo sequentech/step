@@ -41,9 +41,9 @@ export const Populated: Story = {
         // The signed-in trustee is named in bold.
         await expect(canvas.getByText(STORY_TRUSTEE, {selector: "strong"})).toBeVisible()
         expect(canvas.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
-            "Download the public custody request.",
-            "Keep secure Backups of your local trustee.toml keys file.",
-            "Create and upload a signed custody proof using your local keys.",
+            "Download the custody file.",
+            "Keep copies of your custody file. Trustee recovery backups are managed separately.",
+            "Upload the saved custody file. Your server or browser trustee creates a signed custody proof; complete any required approval signature.",
         ])
         expect(args.goNext).not.toHaveBeenCalled()
         expect(graphql.calls).toEqual([])

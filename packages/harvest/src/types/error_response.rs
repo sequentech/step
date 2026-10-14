@@ -64,6 +64,7 @@ pub enum ErrorCode {
     InvalidElectoralLogConsoleRequest,
     ElectoralLogRecordNotFound,
     InvalidTaskQueuesRequest,
+    InvalidTrusteeAction,
     TaskQueuesUnavailable,
     // Add any other needed error codes
 }

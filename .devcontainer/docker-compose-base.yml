@@ -214,6 +214,12 @@ services:
     image: "localstack/localstack:4@sha256:3ebc37595918b8accb852f8048fef2aff047d465167edd655528065b07bc364a"
     ports:
       - "4566:4566"
+    networks:
+      default:
+        aliases:
+          # The same signed hostname reaches the forwarded port in a browser
+          # and this service inside Compose, without host-file changes.
+          - localhost.localstack.cloud
     environment:
       - HOSTNAME_EXTERNAL=localhost
       - S3_HOSTNAME=localhost:4566
@@ -271,8 +277,8 @@ services:
 
   # The supplied wbraid board server stores protocol rows in PostgreSQL.
   # AWS_ENDPOINT_URL is embedded in presigned URLs fetched by workers and
-  # trustees, so it must be reachable from those clients. Host browser tools
-  # resolve localstack through the hosts-file entry described in TESTING.md.
+  # trustees, so it must be reachable from those clients. LocalStack's loopback
+  # DNS hostname has a Compose alias above for container clients.
   b4v6:
     profiles: ["full", "base", "wbraid"]
     image: sequentech.local/cargo-packages

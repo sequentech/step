@@ -8,7 +8,10 @@
 use std::time::Duration;
 
 use anyhow::{bail, Context as _, Result};
-use protocol_board::{TrusteeBoard, TrusteeBoardsResponse, TrusteeReport};
+use protocol_board::{
+    TrusteeActionResult, TrusteeBoard, TrusteeBoardsResponse,
+    TrusteeEventUpdates, TrusteeReport,
+};
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -19,6 +22,10 @@ use crate::login::{Credentials, TokenSource};
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
 const TRUSTEE_ROLE: &str = "trustee-ceremony";
+const EVENT_UPDATES: &str =
+    "query TrusteeEventUpdates { trustee_event_updates }";
+const ACTION_RESULT: &str = "mutation SubmitTrusteeActionResult($result: jsonb!) { submit_trustee_action_result(result: $result) { accepted } }";
+
 const LIST_BOARDS: &str =
     "query ListTrusteeBoards { list_trustee_boards { boards { name kind parent } } }";
 const REPORT_BOARD: &str =
@@ -51,6 +58,16 @@ struct ReportAcknowledgement {
     accepted: bool,
 }
 
+#[derive(Deserialize)]
+struct EventUpdatesResult {
+    trustee_event_updates: TrusteeEventUpdates,
+}
+
+#[derive(Deserialize)]
+struct ActionResultAcknowledgement {
+    submit_trustee_action_result: Option<ReportAcknowledgement>,
+}
+
 /// The same public Hasura actions browser trustees call, using HTTP and JSON.
 pub(crate) struct PlatformClient {
     http: reqwest::Client,
@@ -78,6 +95,40 @@ impl PlatformClient {
     pub(crate) async fn list(&mut self) -> Result<Vec<TrusteeBoard>> {
         let answer: BoardListing = self.query(LIST_BOARDS, json!({})).await?;
         Ok(answer.list_trustee_boards.boards)
+    }
+
+    /// One discovery request carries board assignments and pending actions.
+    /// During a rolling upgrade only an absent new field falls back to the
+    /// previous discovery endpoint; authentication and data errors still fail.
+    pub(crate) async fn updates(&mut self) -> Result<TrusteeEventUpdates> {
+        match self
+            .query::<EventUpdatesResult>(EVENT_UPDATES, json!({}))
+            .await
+        {
+            Ok(answer) => Ok(answer.trustee_event_updates),
+            Err(error) if missing_event_updates_field(&error) => {
+                Ok(TrusteeEventUpdates {
+                    boards: self.list().await?,
+                    actions: Vec::new(),
+                })
+            }
+            Err(error) => Err(error),
+        }
+    }
+
+    pub(crate) async fn action_result(
+        &mut self,
+        result: &TrusteeActionResult,
+    ) -> Result<()> {
+        let answer: ActionResultAcknowledgement =
+            self.query(ACTION_RESULT, json!({"result": result})).await?;
+        if !answer
+            .submit_trustee_action_result
+            .is_some_and(|ack| ack.accepted)
+        {
+            bail!("The platform did not acknowledge the trustee action result");
+        }
+        Ok(())
     }
 
     /// Report a halt; only an explicit acknowledgement settles it.
@@ -159,4 +210,12 @@ async fn send(request: reqwest::RequestBuilder) -> Result<reqwest::Response> {
 
 #[cfg(test)]
 #[path = "platform_tests.rs"]
-mod tests;
+pub(crate) mod tests;
+
+fn missing_event_updates_field(error: &anyhow::Error) -> bool {
+    let message = error.to_string();
+    message.contains("Cannot query field \"trustee_event_updates\"")
+        || message.contains(
+            "field 'trustee_event_updates' not found in type: 'query_root'",
+        )
+}

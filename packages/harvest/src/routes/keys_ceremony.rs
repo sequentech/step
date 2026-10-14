@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::access::authorize_any;
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_tally_session_permission_labels,
+};
 use crate::services::dependencies::HarvestServices;
 use crate::services::signing_gate::Guarded;
 use crate::services::signing_http::authorize_403;
@@ -245,6 +247,8 @@ pub async fn custody_proof_signature_status(
 pub struct GetCustodyRequestInput {
     election_event_id: String,
     keys_ceremony_id: String,
+    #[serde(default)]
+    tally_session_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -330,21 +334,46 @@ pub async fn get_custody_request(
             custody_request_download_internal_error()
         })?;
 
-    let custody_request_json = keys_ceremony::get_custody_request(
-        &hasura_transaction,
-        claims,
-        tenant_id,
-        input.election_event_id.clone(),
-        input.keys_ceremony_id.clone(),
-    )
-    .await
-    .map_err(|error| {
-        custody_request_download_error(
-            error,
+    if let Some(tally_id) = &input.tally_session_id {
+        authorize_tally_session_permission_labels(
+            &hasura_transaction,
+            &claims,
             &input.election_event_id,
-            &input.keys_ceremony_id,
+            tally_id,
         )
-    })?;
+        .await
+        .map_err(|(status, message)| {
+            ErrorResponse::new(status, &message, ErrorCode::Unauthorized)
+        })?;
+    }
+
+    let custody_request_json =
+        if let Some(tally_id) = &input.tally_session_id {
+            windmill::services::trustee_updates::tally_custody_file(
+                &hasura_transaction,
+                &claims,
+                &input.election_event_id,
+                &input.keys_ceremony_id,
+                tally_id,
+            )
+            .await
+        } else {
+            keys_ceremony::get_custody_request(
+                &hasura_transaction,
+                claims,
+                tenant_id,
+                input.election_event_id.clone(),
+                input.keys_ceremony_id.clone(),
+            )
+            .await
+        }
+        .map_err(|error| {
+            custody_request_download_error(
+                error,
+                &input.election_event_id,
+                &input.keys_ceremony_id,
+            )
+        })?;
 
     event!(
         Level::INFO,

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
+use crate::types::error_response::ErrorCode;
 use anyhow::{anyhow, Context, Result};
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -57,6 +58,16 @@ pub async fn export_election_event_route(
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
     let mut export_config = body.export_configurations.clone();
+    export_config.validate_protocol_archive().map_err(|error| {
+        (
+            Status::BadRequest,
+            serde_json::json!({
+                "message": error.to_string(),
+                "extensions": {"code": ErrorCode::TallyValidation}
+            })
+            .to_string(),
+        )
+    })?;
     export_config.password = None;
     export_config.contains_voter_secrets = false;
     export_config.is_encrypted = export_config.is_encrypted

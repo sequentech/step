@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
+import {GraphQLError} from "graphql"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, fn, userEvent, waitFor, within} from "storybook/test"
 import {AdminStoryProvider, EVENT_ID, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
@@ -12,7 +13,12 @@ import {SigningAction} from "@/lib/signing/types"
 import {IKeysCeremonyExecutionStatus, IKeysCeremonyTrusteeStatus} from "@/services/KeyCeremony"
 import {EStoryPermissions} from "../../../../ui-essentials/.storybook/globals"
 import {CheckStep} from "./CheckStep"
-import {CUSTODY_PROOF, ceremony, ceremonyEvent} from "./__stories__/KeysCeremonyFixture"
+import {
+    CUSTODY_PROOF,
+    CUSTODY_REQUEST,
+    ceremony,
+    ceremonyEvent,
+} from "./__stories__/KeysCeremonyFixture"
 import {
     CUSTODY_PROOF_ORGANIZATIONS,
     CustodyProofOrganization,
@@ -30,6 +36,7 @@ import {
 interface Scenario {
     /** What checking a key does. */
     check: "service" | "failure"
+    server: "ready" | "pending" | "failed" | "invalid-file"
     /** Whether the event's rule makes the trustee sign the check. */
     rule: CustodyProofRule
     organization: CustodyProofOrganization
@@ -49,6 +56,7 @@ const meta = {
     component: CheckStep,
     args: {
         check: "service",
+        server: "ready",
         rule: CustodyProofRule.NotRequired,
         organization: CustodyProofOrganization.Overseas,
         signedEarlier: false,
@@ -70,8 +78,39 @@ const meta = {
             CUSTODY_PROOF,
             args.signedEarlier
         )
+        let serverPolls = 0
         graphql = graphqlBoundary(
             {
+                RequestServerCustody: ({variables}) => {
+                    const input = variables.object as {custody_request_json: string}
+                    if (args.server === "invalid-file")
+                        return {
+                            errors: [
+                                new GraphQLError(
+                                    "The ceremony file does not match this trustee and key ceremony"
+                                ),
+                            ],
+                        }
+                    if (args.server === "failed")
+                        return {
+                            data: {
+                                request_server_custody: {
+                                    status: "FAILED",
+                                    detail: "Keys do not match",
+                                },
+                            },
+                        }
+                    if (args.server === "pending" && serverPolls++ === 0)
+                        return {data: {request_server_custody: {status: "PENDING"}}}
+                    return {
+                        data: {
+                            request_server_custody:
+                                input.custody_request_json === CUSTODY_REQUEST
+                                    ? {status: "READY", custody_proof_json: CUSTODY_PROOF}
+                                    : {status: "FAILED", detail: "Wrong ceremony file"},
+                        },
+                    }
+                },
                 ConfirmKeyCustody: ({variables}) => {
                     if (args.check === "failure") throw new Error("Synthetic check unavailable")
                     const isValid =
@@ -99,6 +138,7 @@ const meta = {
     },
     render: ({
         check: _check,
+        server: _server,
         rule: _rule,
         organization,
         signedEarlier: _signed,
@@ -133,7 +173,7 @@ async function uploadKey(canvasElement: HTMLElement, key: string) {
     await userEvent.upload(input, new File([key], "custody-proof.json", {type: "text/plain"}))
 }
 
-const INVALID = "Invalid custody proof, please try again"
+const INVALID = "Invalid signed custody proof, please try again"
 const VERIFIED = "Trustee custody confirmed successfully."
 
 const checkCall = async (key: string, signingRequestId?: string) => ({
@@ -151,7 +191,12 @@ export const Populated: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(canvas.getByRole("heading", {name: "Confirm Trustee Custody"})).toBeVisible()
-        await expect(canvas.getByText(/Select trustee1-custody-proof.json/)).toBeVisible()
+        await expect(canvas.getByText("Custody confirmation required")).toBeVisible()
+        await expect(
+            canvas.getByText(
+                /Your running server or browser trustee will create a signed custody proof automatically/
+            )
+        ).toBeVisible()
         expect(canvas.getByRole("button", {name: "Next"})).toBeDisabled()
         expect(graphql.calls).toEqual([])
     },
@@ -213,6 +258,11 @@ export const SignedCheckIsRecorded: Story = {
         const organization = CUSTODY_PROOF_ORGANIZATIONS[args.organization]
         await uploadKey(canvasElement, CUSTODY_PROOF)
         await expect(await canvas.findByText(signingNote(organization))).toBeVisible()
+        expect(canvas.getByText("Custody confirmation required")).toBeInTheDocument()
+        expect(
+            canvas.queryByText("Your part is complete. No further action is required from you.")
+        ).toBeNull()
+        expect(canvas.queryByRole("button", {name: "More actions"})).toBeNull()
         // Behind the open signing panel, the step can't go on yet.
         expect(canvas.getByRole("button", {name: "Next", hidden: true})).toBeDisabled()
         await expect(api.getRequest).toHaveBeenCalledWith(SIGNING_REQUEST.id)
@@ -270,7 +320,7 @@ export const SignedButNoLongerTaken: Story = {
         )
         await expect(
             await canvas.findByText(
-                "Your signed custody proof could not be recorded: The ceremony no longer takes this custody proof. Drop your custody proof file again. (custody-proof.json)"
+                "Your signed custody proof could not be recorded: The ceremony no longer takes this custody proof. Drop your custody proof file again. (signed-custody-proof.json)"
             )
         ).toBeVisible()
         expect(canvas.queryByText(VERIFIED)).not.toBeInTheDocument()
@@ -280,9 +330,103 @@ export const SignedButNoLongerTaken: Story = {
         )
         await expect(
             await canvas.findByText(
-                "Your signed custody proof could not be recorded: Drop your custody proof file again to record your signed custody proof. (custody-proof.json)"
+                "Your signed custody proof could not be recorded: Drop your custody proof file again to record your signed custody proof. (signed-custody-proof.json)"
             )
         ).toBeVisible()
         expect(graphql.calls).toHaveLength(2)
+    },
+}
+
+/** The same downloaded public file is uploaded; the server supplies the signed proof. */
+export const ServerTrusteeCeremonyFile: Story = {
+    play: async ({canvasElement}) => {
+        await uploadKey(canvasElement, CUSTODY_REQUEST)
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByText(VERIFIED)).toBeVisible()
+        expect(graphql.calls.map((call) => call.name)).toEqual([
+            "RequestServerCustody",
+            "ConfirmKeyCustody",
+        ])
+        expect(graphql.calls[0].variables.object).toEqual({
+            election_event_id: EVENT_ID,
+            keys_ceremony_id: STORY_IDS.keysCeremony,
+            custody_request_json: CUSTODY_REQUEST,
+            retry_policy: "RETRY_FAILED",
+        })
+        expect(graphql.calls[1]).toEqual(await checkCall(CUSTODY_PROOF))
+    },
+}
+
+export const ServerTrusteeWaitsBeforeConfirming: Story = {
+    args: {server: "pending"},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await uploadKey(canvasElement, CUSTODY_REQUEST)
+        await expect(await canvas.findByText(/Waiting for your trustee server/)).toHaveAttribute(
+            "role",
+            "status"
+        )
+        expect(canvas.getByRole("button", {name: "Next"})).toBeDisabled()
+        expect(graphql.calls.map(({name}) => name)).toEqual(["RequestServerCustody"])
+        await waitFor(() => expect(canvas.getByText(VERIFIED)).toBeVisible(), {timeout: 5000})
+        expect(graphql.calls.map(({name}) => name)).toEqual([
+            "RequestServerCustody",
+            "RequestServerCustody",
+            "ConfirmKeyCustody",
+        ])
+        expect((graphql.calls[1].variables.object as {retry_policy: string}).retry_policy).toBe(
+            "KEEP"
+        )
+    },
+}
+
+export const ServerTrusteeFailureIsExplained: Story = {
+    args: {server: "failed"},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await uploadKey(canvasElement, CUSTODY_REQUEST)
+        await expect(
+            await canvas.findByText(
+                "The trustee server could not create the proof: Keys do not match"
+            )
+        ).toBeVisible()
+        expect(canvas.getByRole("button", {name: "Next"})).toBeDisabled()
+        expect(graphql.calls.map(({name}) => name)).toEqual(["RequestServerCustody"])
+    },
+}
+
+export const ServerProofStillRequiresStaffSignature: Story = {
+    args: {rule: CustodyProofRule.Required},
+    play: async ({canvasElement, args}) => {
+        const canvas = within(canvasElement)
+        await uploadKey(canvasElement, CUSTODY_REQUEST)
+        await expect(
+            await canvas.findByText(signingNote(CUSTODY_PROOF_ORGANIZATIONS[args.organization]))
+        ).toBeVisible()
+        expect(canvas.getByRole("button", {name: "Next", hidden: true})).toBeDisabled()
+        expect(graphql.calls.map(({name}) => name)).toEqual([
+            "RequestServerCustody",
+            "ConfirmKeyCustody",
+        ])
+        await signCustodyProof(CUSTODY_PROOF_ORGANIZATIONS[args.organization], CUSTODY_PROOF, {
+            keys_ceremony_id: STORY_IDS.keysCeremony,
+        })
+        await expect(await canvas.findByText(VERIFIED, {}, {timeout: 10000})).toBeVisible()
+        expect(graphql.calls[2]).toEqual(await checkCall(CUSTODY_PROOF, SIGNING_REQUEST.id))
+    },
+}
+
+export const MismatchedCeremonyFileIsExplained: Story = {
+    args: {server: "invalid-file"},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await uploadKey(canvasElement, CUSTODY_REQUEST)
+        await expect(
+            await canvas.findByText(
+                /The ceremony file does not match this trustee and key ceremony/
+            )
+        ).toBeVisible()
+        expect(canvas.getByRole("button", {name: "Next"})).toBeDisabled()
+        expect(graphql.calls.map(({name}) => name)).toEqual(["RequestServerCustody"])
     },
 }

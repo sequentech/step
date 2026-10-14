@@ -320,6 +320,10 @@ pub struct TallyCeremonyStatus {
     pub stop_date: Option<String>,
     pub logs: Vec<Log>,
     pub trustees: Vec<TallyTrustee>,
+    /// The trustees selected in the stored Ballots messages, in mixing order.
+    /// Older sessions acquire this display metadata when their boards are read.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quorum: Option<Vec<String>>,
     pub elections_status: Vec<TallyElection>,
     /// The session's tally boards. `None` until the ballots have been
     /// extracted, `Some` and empty for a session with nothing to decrypt.

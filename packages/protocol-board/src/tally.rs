@@ -12,9 +12,10 @@
 //! The properties are the keys ceremony's:
 //!
 //! - **Terminal states absorb.** `FAILED` and `CANCELLED` ignore every event,
-//!   and `SUCCESS` every event but a trustee's halt. A failure is never worked
-//!   around: the administrator creates a new tally session, which gets new
-//!   boards.
+//!   and `SUCCESS` ignores protocol progress. Only a trustee's halt can fail
+//!   a successful session; its quorum display metadata may still be recovered
+//!   from stored boards. A failure is never worked around: the administrator
+//!   creates a new tally session, which gets new boards.
 //! - **Applying the same event twice changes nothing the second time.** Tasks
 //!   are retried, boards are polled repeatedly and trustees repeat their
 //!   reports.
@@ -90,6 +91,8 @@ pub enum TallyBoardReading {
 /// Something the platform did or learnt about a tally session's boards.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TallyEvent {
+    /// The quorum read from the stored signed Ballots messages.
+    QuorumObserved(Vec<String>),
     /// The session's boards were created, once, when its ballots were
     /// extracted.
     BoardsCreated(Vec<TallyBoardRef>),
@@ -120,10 +123,13 @@ pub fn transition(
         | TallyExecutionStatus::FAILED
         | TallyExecutionStatus::CANCELLED => {}
 
-        // The boards are done; a re-run reads them without changing the
-        // status.
+        // The boards are done; a re-run can recover display metadata, but
+        // cannot change their progress.
         TallyExecutionStatus::AWAITING_INPUT
         | TallyExecutionStatus::SUCCESS => match event {
+            TallyEvent::QuorumObserved(quorum) => {
+                record_quorum(&mut next, quorum)
+            }
             TallyEvent::TrusteeHalted { trustee, detail } => {
                 halt(&mut next, &trustee, detail, now)
             }
@@ -131,6 +137,9 @@ pub fn transition(
         },
 
         TallyExecutionStatus::IN_PROGRESS => match event {
+            TallyEvent::QuorumObserved(quorum) => {
+                record_quorum(&mut next, quorum)
+            }
             TallyEvent::BoardsCreated(boards) => {
                 record_boards(&mut next, boards, now)
             }
@@ -144,6 +153,12 @@ pub fn transition(
     }
 
     next
+}
+
+fn record_quorum(next: &mut TallySessionState, quorum: Vec<String>) {
+    if next.status.quorum.is_none() {
+        next.status.quorum = Some(quorum);
+    }
 }
 
 /// The session's boards, every one waiting for its `Ballots`. Recorded once.
@@ -423,6 +438,7 @@ mod tests {
         TallySessionState::new(
             execution,
             TallyCeremonyStatus {
+                quorum: None,
                 stop_date: None,
                 logs: vec![],
                 trustees: ["trustee1", "trustee2"]
@@ -444,6 +460,51 @@ mod tests {
 
     fn in_progress() -> TallySessionState {
         state(TallyExecutionStatus::IN_PROGRESS)
+    }
+
+    #[test]
+    fn the_observed_quorum_is_recorded_once_without_changing_trustee_custody() {
+        let before = in_progress();
+        let quorum = vec!["trustee2".to_string(), "trustee1".to_string()];
+        let next = apply(&before, TallyEvent::QuorumObserved(quorum.clone()));
+        assert_eq!(next.status.quorum, Some(quorum.clone()));
+        assert_eq!(next.status.trustees, before.status.trustees);
+        assert_eq!(apply(&next, TallyEvent::QuorumObserved(quorum)), next);
+        assert_eq!(
+            apply(&next, TallyEvent::QuorumObserved(vec!["other".into()])),
+            next
+        );
+    }
+
+    #[test]
+    fn older_tally_status_has_no_inferred_quorum() {
+        let status: TallyCeremonyStatus = serde_json::from_value(serde_json::json!({
+            "stop_date": null, "logs": [], "trustees": [], "elections_status": []
+        })).unwrap();
+        assert_eq!(status.quorum, None);
+    }
+
+    #[test]
+    fn recovering_quorum_metadata_preserves_completion_and_stopped_sessions() {
+        let before = state(TallyExecutionStatus::SUCCESS);
+        let event = TallyEvent::QuorumObserved(vec![
+            "trustee1".into(),
+            "trustee2".into(),
+        ]);
+        let recovered = apply(&before, event.clone());
+        assert_eq!(recovered.execution, before.execution);
+        assert_eq!(
+            recovered.status.elections_status,
+            before.status.elections_status
+        );
+        assert_eq!(recovered.status.logs, before.status.logs);
+        for execution in [
+            TallyExecutionStatus::FAILED,
+            TallyExecutionStatus::CANCELLED,
+        ] {
+            let stopped = state(execution);
+            assert_eq!(apply(&stopped, event.clone()), stopped);
+        }
     }
 
     fn apply(

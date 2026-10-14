@@ -2559,6 +2559,41 @@ const tagalogTranslation: TranslationType = {
         },
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
+            downloadStep: {
+                ...englishTranslation.translations.keysGeneration.downloadStep,
+                title: "I-download ang file ng kustodiya",
+                downloadButton: "I-download ang file ng kustodiya",
+                confirmdDialog: {
+                    ...englishTranslation.translations.keysGeneration.downloadStep.confirmdDialog,
+                    title: "I-save ang file ng kustodiya",
+                },
+            },
+            checkStep: {
+                ...englishTranslation.translations.keysGeneration.checkStep,
+                subtitle:
+                    "I-upload ang na-save na file ng kustodiya o isang nilagdaang patunay ng kustodiya:",
+                required: "Kailangang kumpirmahin ang kustodiya",
+                reconfirmButton: "Kumpirmahin muli ang kustodiya (opsyonal)",
+                reconfirmDescription:
+                    "Nakumpirma na ang iyong kustodiya. Opsyonal ang karagdagang pagkumpirmang ito.",
+            },
+            serverCustody: {
+                recoveryInstructions:
+                    "Kung na-import mo ang kaganapang ito sa halalan o nawala ang na-save na file, i-download dito ang kasalukuyang file ng kustodiya. I-save ito, pagkatapos ay i-upload sa ibaba.",
+                fileFormat: "Sinusuportahang format: JSON",
+                waiting: "Hinihintay ang trustee server na gumawa ng patunay ng pag-iingat…",
+                unavailable:
+                    "Hindi tumugon ang trustee server. Tiyaking tumatakbo ito, pagkatapos ay i-upload muli ang file ng kustodiya.",
+                failed: "Hindi nagawa ng trustee server ang patunay: {{error}}",
+                invalidReply: "Hindi kumpleto ang tugon ng trustee server. Subukan muli.",
+                cancelled: "Nakansela ang kahilingan. I-upload muli ang file upang magpatuloy.",
+                downloadInstructions:
+                    "I-download at itago ang file ng kustodiya na ito. I-upload ang parehong file sa susunod na hakbang at sa mga susunod na pagbibilang. Hindi ito backup ng iyong mga pribadong susi.",
+                uploadInstructions:
+                    "I-upload ang na-download na file ng kustodiya. Gagawa ng patunay ang iyong trustee server. Maaari ka ring mag-upload ng patunay mula sa offline o browser trustee.",
+                tallyInstructions:
+                    "I-upload ang file na itinago noong key ceremony. Gagawa ang trustee server ng bagong patunay para sa pagbibilang na ito. Tinatanggap din ang mga patunay mula sa offline at browser trustees.",
+            },
             configureStep: {
                 create: "Lumikha ng Seremonya ng Mga Susi",
                 name: "Pangalan ng Seremonya ng mga Susi",
@@ -2597,6 +2632,11 @@ const tagalogTranslation: TranslationType = {
             // Native custody instructions use the English fallback until translated.
             ceremonyStep: {
                 ...englishTranslation.translations.keysGeneration.ceremonyStep,
+                custodyConfirmed: "Nakumpirma na ang kustodiya",
+                custodyComplete: "Tapos na ang iyong bahagi. Wala ka nang kailangang gawin.",
+                waitingForTrustees:
+                    "Hinihintay ang ibang katiwala na makumpleto ang pagkumpirma ng kustodiya at anumang kinakailangang pag-apruba.",
+                moreActions: "Iba pang mga aksyon",
                 cancel: "Kanselahin ang Seremonya ng Mga Susi",
                 progressHeader: "Pag-andar ng Seremonya ng Mga Susi",
                 executionStatus: "Katayuan: {{status}}",
@@ -2780,6 +2820,8 @@ const tagalogTranslation: TranslationType = {
             logsTitle: "Mga Logs",
             resultsTitle: "Mga Resulta at Pakikilahok",
             generalInfoTitle: "Pangkalahatang Impormasyon",
+            sessionId: "ID ng sesyon ng pagbilang",
+            selectedQuorum: "Napiling quorum",
             trusteeTallyTitle: "Tagapagtiwala",
             trusteeTallySubTitle: "Katayuan ng pagkumpirma ng pag-iingat",
             ballotBoxes: {
@@ -2833,7 +2875,8 @@ const tagalogTranslation: TranslationType = {
             recountTallyCeremonyError: "Hindi nasimulan ang muling pagbibilang",
             recountTallyCeremonyOk: "Muling bilangin",
             trusteeTitle: "Proseso ng tagapagtiwala",
-            trusteeSubTitle: "I-upload ang iyong pampublikong file na custody-proof.json",
+            trusteeSubTitle:
+                "I-upload ang na-save na file ng kustodiya o isang nilagdaang patunay ng kustodiya:",
             invited: "Naanyayahan kang lumahok sa isang seremonya ng pagbibilang. Pakisuyo, ",
             click: "i-click ang aksyon ng pagbibilang",
             participate: "para lumahok.",
@@ -5152,10 +5195,10 @@ const tagalogTranslation: TranslationType = {
                 record: "Itala ang aking patunay ng pag-iingat",
                 failed: "Hindi maitala ang iyong pinirmahang patunay ng pag-iingat: {{error}}",
                 dropAgain:
-                    "I-drop muli ang file ng iyong patunay ng pag-iingat para maitala ang iyong pinirmahang patunay ng pag-iingat. (custody-proof.json)",
+                    "I-drop muli ang file ng iyong patunay ng pag-iingat para maitala ang iyong pinirmahang patunay ng pag-iingat. (signed-custody-proof.json)",
                 redo: "Naiambag ang iyong patunay ng pag-iingat nang walang pirma mo, na kailangan na ngayon ng halalang ito. Iambag itong muli at pirmahan.",
                 notTaken:
-                    "Hindi na tinatanggap ng seremonya ang patunay ng pag-iingat na ito. I-drop muli ang file ng iyong patunay ng pag-iingat. (custody-proof.json)",
+                    "Hindi na tinatanggap ng seremonya ang patunay ng pag-iingat na ito. I-drop muli ang file ng iyong patunay ng pag-iingat. (signed-custody-proof.json)",
             },
         },
         lifecycle: {

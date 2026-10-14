@@ -2535,6 +2535,41 @@ const basqueTranslation: TranslationType = {
         },
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
+            downloadStep: {
+                ...englishTranslation.translations.keysGeneration.downloadStep,
+                title: "Deskargatu zaintza-fitxategia",
+                downloadButton: "Deskargatu zaintza-fitxategia",
+                confirmdDialog: {
+                    ...englishTranslation.translations.keysGeneration.downloadStep.confirmdDialog,
+                    title: "Gorde zaintza-fitxategia",
+                },
+            },
+            checkStep: {
+                ...englishTranslation.translations.keysGeneration.checkStep,
+                subtitle: "Igo gordetako zaintza-fitxategia edo sinatutako zaintza-froga:",
+                required: "Zaintza berretsi behar da",
+                reconfirmButton: "Zaintza berriro berretsi (aukerakoa)",
+                reconfirmDescription:
+                    "Zure zaintza dagoeneko berretsita dago. Berrespen gehigarri hau aukerakoa da.",
+            },
+            serverCustody: {
+                recoveryInstructions:
+                    "Hauteskunde-ekitaldi hau inportatu baduzu edo gordetako fitxategia galdu baduzu, deskargatu hemen egungo zaintza-fitxategia. Gorde eta gero igo behean.",
+                fileFormat: "Onartutako formatua: JSON",
+                waiting: "Zure zaindariaren zerbitzariak zaintza-froga sortu arte zain…",
+                unavailable:
+                    "Zaindariaren zerbitzariak ez du erantzun. Egiaztatu martxan dagoela eta kargatu berriro zaintza-fitxategia.",
+                failed: "Zaindariaren zerbitzariak ezin izan du froga sortu: {{error}}",
+                invalidReply:
+                    "Zaindariaren zerbitzariak erantzun osatugabea bidali du. Saiatu berriro.",
+                cancelled: "Eskaera bertan behera utzi da. Kargatu berriro fitxategia jarraitzeko.",
+                downloadInstructions:
+                    "Deskargatu eta gorde zaintza-fitxategi hau. Kargatu fitxategi bera hurrengo urratsean eta etorkizuneko zenbaketetan. Ez da zure gako pribatuen babeskopia.",
+                uploadInstructions:
+                    "Kargatu deskargatutako zaintza-fitxategia. Zure zaindariaren zerbitzariak froga sortuko du. Lineaz kanpoko edo nabigatzaileko zaindari batek sortutako froga ere karga dezakezu.",
+                tallyInstructions:
+                    "Kargatu gakoen zeremonian gordetako fitxategia. Zure zaindariaren zerbitzariak froga berria sortuko du zenbaketa honetarako. Lineaz kanpoko eta nabigatzaileko frogak ere onartzen dira.",
+            },
             configureStep: {
                 create: "Sortu Giltzen Zeremonia",
                 name: "Giltzen Zeremonia Izena",
@@ -2573,6 +2608,11 @@ const basqueTranslation: TranslationType = {
             // Native custody instructions use the English fallback until translated.
             ceremonyStep: {
                 ...englishTranslation.translations.keysGeneration.ceremonyStep,
+                custodyConfirmed: "Zaintza berretsita",
+                custodyComplete: "Zure zatia amaitu da. Ez duzu beste ekintzarik egin behar.",
+                waitingForTrustees:
+                    "Gainerako arduradunek zaintzaren berrespena eta beharrezko onarpenak amaitu zain.",
+                moreActions: "Ekintza gehiago",
                 cancel: "Ezeztatu Giltzen Zeremonia",
                 progressHeader: "Giltzen Zeremonia Aurrerapena",
                 executionStatus: "Egoera: {{status}}",
@@ -2754,6 +2794,8 @@ const basqueTranslation: TranslationType = {
             logsTitle: "Egunkariak",
             resultsTitle: "Emaitzak eta Parte-hartzea",
             generalInfoTitle: "Informazio Orokorra",
+            sessionId: "Zenbaketa-saioaren IDa",
+            selectedQuorum: "Hautatutako quoruma",
             trusteeTallyTitle: "Fideikomisarioak",
             trusteeTallySubTitle: "Zaintzaren berrespenaren egoera",
             ballotBoxes: {
@@ -2807,7 +2849,7 @@ const basqueTranslation: TranslationType = {
             recountTallyCeremonyError: "Ezin izan da birzenbaketa hasi",
             recountTallyCeremonyOk: "Berriro zenbatu",
             trusteeTitle: "Fideikomisarioen prozesua",
-            trusteeSubTitle: "Igo zure custody-proof.json fitxategi publikoa",
+            trusteeSubTitle: "Igo gordetako zaintza-fitxategia edo sinatutako zaintza-froga:",
             invited: "Zenbaketa zeremonoia batean parte hartzeko gonbidatu zaituzte. Mesedez ",
             click: "sakatu zenbaketa Ekintzan",
             participate: "parte hartzeko.",
@@ -5108,10 +5150,10 @@ const basqueTranslation: TranslationType = {
                 record: "Erregistratu nire zaintza-frogaa",
                 failed: "Ezin izan da zure zaintza-froga sinatua erregistratu: {{error}}",
                 dropAgain:
-                    "Jaregin berriro zure zaintza-frogaaren fitxategia zure zaintza-froga sinatua erregistratzeko. (custody-proof.json)",
+                    "Jaregin berriro zure zaintza-frogaaren fitxategia zure zaintza-froga sinatua erregistratzeko. (signed-custody-proof.json)",
                 redo: "Zure zaintza-frogaa zure sinadurarik gabe eman zen, eta hauteskunde honek orain sinadura behar du. Eman berriro eta sinatu.",
                 notTaken:
-                    "Zeremoniak ez du zaintza-froga hau onartzen jada. Jaregin berriro zure zaintza-frogaaren fitxategia. (custody-proof.json)",
+                    "Zeremoniak ez du zaintza-froga hau onartzen jada. Jaregin berriro zure zaintza-frogaaren fitxategia. (signed-custody-proof.json)",
             },
         },
         lifecycle: {

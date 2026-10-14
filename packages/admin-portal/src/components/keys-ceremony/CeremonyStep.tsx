@@ -8,6 +8,7 @@ import {useTranslation} from "react-i18next"
 
 import {theme, Dialog} from "@sequentech/ui-essentials"
 import {
+    canTrusteeReconfirmCustody,
     hasGeneratedCeremonyKeys,
     IKeysCeremonyExecutionStatus as EStatus,
     IKeysCeremonyTrusteeStatus as TStatus,
@@ -18,9 +19,17 @@ import {WizardStyles} from "@/components/styles/WizardStyles"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline"
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty"
-import {Accordion, AccordionSummary, Alert, Typography} from "@mui/material"
+import {
+    Accordion,
+    AccordionSummary,
+    Alert,
+    AlertTitle,
+    Button,
+    Menu,
+    MenuItem,
+    Typography,
+} from "@mui/material"
 import {getContrastRatio} from "@mui/material/styles"
 import Table from "@mui/material/Table"
 import TableBody from "@mui/material/TableBody"
@@ -34,6 +43,7 @@ import {Logs} from "../Logs"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {CancelButton} from "@/resources/Tally/styles"
 import {EElectionEventCeremoniesPolicy} from "@sequentech/ui-core"
+import {AuthContext} from "@/providers/AuthContextProvider"
 
 export const statusColor: (status: EStatus) => string = (status) => {
     if (status === EStatus.USER_CONFIGURATION) {
@@ -70,7 +80,7 @@ export interface CeremonyStepProps {
     goNext?: () => void
     isNextDisabled?: boolean
     goBack: () => void
-    confirmCustody?: () => void
+    reconfirmCustody?: () => void
 }
 
 export const CeremonyStep: React.FC<CeremonyStepProps> = ({
@@ -81,12 +91,14 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     goBack,
     goNext,
     isNextDisabled = false,
-    confirmCustody,
+    reconfirmCustody,
 }) => {
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
+    const {trustee} = useContext(AuthContext)
     const [openConfirmationModal, setOpenConfirmationModal] = useState(false)
     const [progressExpanded, setProgressExpanded] = useState(true)
+    const [custodyMenuAnchor, setCustodyMenuAnchor] = useState<HTMLElement | null>(null)
 
     const {data: ceremony} = useGetOne<Sequent_Backend_Keys_Ceremony>(
         "sequent_backend_keys_ceremony",
@@ -128,10 +140,31 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
         electionEvent.presentation?.ceremonies_policy ===
             EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES &&
         ceremony?.settings?.policy === EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
+    const showCustodyCompletion =
+        !!reconfirmCustody &&
+        canTrusteeReconfirmCustody({
+            executionStatus: ceremony?.execution_status as EStatus,
+            trusteeStatus: status?.trustees.find((entry) => entry.name === trustee)?.status,
+            isAutomaticCeremony,
+        })
+    const custodyMenuId = `${currentCeremonyId}-custody-actions`
 
     return (
         <WizardStyles.WizardContainer>
             <WizardStyles.ContentWrapper>
+                {showCustodyCompletion && (
+                    <Alert severity="success">
+                        <AlertTitle>{t("keysGeneration.ceremonyStep.custodyConfirmed")}</AlertTitle>
+                        <Typography variant="body2">
+                            {t("keysGeneration.ceremonyStep.custodyComplete")}
+                        </Typography>
+                        {ceremony?.execution_status === EStatus.IN_PROGRESS && (
+                            <Typography variant="body2" sx={{mt: 1}}>
+                                {t("keysGeneration.ceremonyStep.waitingForTrustees")}
+                            </Typography>
+                        )}
+                    </Alert>
+                )}
                 {(!status || !hasGeneratedCeremonyKeys(status)) && message}
                 {status?.failure && <Alert severity="error">{status.failure}</Alert>}
                 <Accordion
@@ -257,11 +290,36 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                         <ArrowBackIosIcon />
                         {t("common.label.back")}
                     </CancelButton>
-                    {!!confirmCustody && (
-                        <CancelButton onClick={confirmCustody} className="list-actions">
-                            <CheckCircleOutlineIcon />
-                            {t("keysGeneration.checkStep.verifyButton")}
-                        </CancelButton>
+                    {showCustodyCompletion && (
+                        <>
+                            <Button
+                                id={`${custodyMenuId}-button`}
+                                variant="secondary"
+                                aria-haspopup="menu"
+                                aria-controls={custodyMenuAnchor ? custodyMenuId : undefined}
+                                aria-expanded={!!custodyMenuAnchor}
+                                endIcon={<ExpandMoreIcon />}
+                                onClick={(event) => setCustodyMenuAnchor(event.currentTarget)}
+                            >
+                                {t("keysGeneration.ceremonyStep.moreActions")}
+                            </Button>
+                            <Menu
+                                id={custodyMenuId}
+                                anchorEl={custodyMenuAnchor}
+                                open={!!custodyMenuAnchor}
+                                onClose={() => setCustodyMenuAnchor(null)}
+                                slotProps={{list: {"aria-labelledby": `${custodyMenuId}-button`}}}
+                            >
+                                <MenuItem
+                                    onClick={() => {
+                                        setCustodyMenuAnchor(null)
+                                        reconfirmCustody?.()
+                                    }}
+                                >
+                                    {t("keysGeneration.checkStep.reconfirmButton")}
+                                </MenuItem>
+                            </Menu>
+                        </>
                     )}
                     {!!goNext && !isAutomaticCeremony && (
                         <WizardStyles.NextButton

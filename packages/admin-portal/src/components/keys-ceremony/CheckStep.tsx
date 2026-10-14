@@ -2,10 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {IPermissions} from "@/types/keycloak"
-import {trusteeFilename} from "@/services/trusteeFilename"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {ServerCustodyError} from "@/services/serverCustody"
+import {useServerCustodyProof} from "./useServerCustodyProof"
 import {useMutation} from "@apollo/client"
 import React, {useCallback, useContext, useState} from "react"
-import {Alert, Typography} from "@mui/material"
+import {Alert, AlertTitle, Typography} from "@mui/material"
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 import {Trans, useTranslation} from "react-i18next"
@@ -16,7 +18,6 @@ import {
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,
 } from "@/gql/graphql"
-import {AuthContext} from "@/providers/AuthContextProvider"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {CONFIRM_KEY_CUSTODY} from "@/queries/ConfirmKeyCustody"
 import {DropFile} from "@sequentech/ui-essentials"
@@ -26,6 +27,8 @@ import {
     type ICustodyProofAnswer,
     type ICustodyProofSubmission,
 } from "./useCustodyProofSigning"
+import {canTrusteeReconfirmCustody, IKeysCeremonyExecutionStatus} from "@/services/KeyCeremony"
+import {EElectionEventCeremoniesPolicy} from "@sequentech/ui-core"
 
 export interface DownloadStepProps {
     electionEvent: Sequent_Backend_Election_Event
@@ -42,9 +45,21 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
 }) => {
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
-    const trustee = authContext.trustee || authContext.username
-    const proofFilename = trusteeFilename(trustee, "custody-proof.json")
-    const keysFilename = trusteeFilename(trustee, "private-keys.toml")
+    const isReconfirmation = canTrusteeReconfirmCustody({
+        executionStatus: currentCeremony.execution_status as IKeysCeremonyExecutionStatus,
+        trusteeStatus: currentCeremony.status.trustees.find(
+            (trustee: {name: string}) => trustee.name === authContext.trustee
+        )?.status,
+        isAutomaticCeremony:
+            electionEvent.presentation?.ceremonies_policy ===
+                EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES &&
+            currentCeremony.settings?.policy ===
+                EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES,
+    })
+    const serverCustody = useServerCustodyProof({
+        election_event_id: electionEvent.id,
+        keys_ceremony_id: currentCeremony.id,
+    })
     const [verified, setVerified] = useState<boolean>(false)
     const [uploading, setUploading] = useState<boolean>(false)
     const [errors, setErrors] = useState<String | null>(null)
@@ -90,7 +105,6 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
                 const fileReader = new FileReader()
                 fileReader.onload = () => resolve(fileReader.result as string)
                 fileReader.onerror = (error) => reject(error)
-                // Read the file as a data URL (base64 encoded string)
                 fileReader.readAsText(file)
             })
         }
@@ -101,7 +115,9 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
                 return
             }
             setUploading(true)
-            const checked = await custodyProofSigning.check(fileContent)
+            const checked = await custodyProofSigning.check(
+                await serverCustody.resolve(fileContent)
+            )
             setUploading(false)
             if (checked === CustodyProofCheck.Invalid) {
                 setErrors(t("keysGeneration.checkStep.errorUploading", {error: "empty"}))
@@ -109,21 +125,43 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
                 setVerified(true)
             }
         } catch (exception) {
+            if (exception instanceof ServerCustodyError && exception.reason === "cancelled") return
             setUploading(false)
-            setErrors(t("keysGeneration.checkStep.errorUploading", {error: String(exception)}))
+            setErrors(
+                exception instanceof ServerCustodyError
+                    ? exception.message
+                    : t("keysGeneration.checkStep.errorUploading", {error: String(exception)})
+            )
         }
     }
     return (
         <>
             <WizardStyles.ContentBox>
                 <WizardStyles.StepHeader variant="h4">
-                    {t("keysGeneration.checkStep.title")}
+                    {t(
+                        isReconfirmation
+                            ? "keysGeneration.checkStep.reconfirmButton"
+                            : "keysGeneration.checkStep.title"
+                    )}
                 </WizardStyles.StepHeader>
                 <WizardStyles.MainContent>
-                    <Alert severity="info">
-                        Select {proofFilename} produced by the trustee tool. Keep {keysFilename} on
-                        your machine.
-                    </Alert>
+                    {!verified && (
+                        <Alert severity="info">
+                            <AlertTitle>
+                                {t(
+                                    isReconfirmation
+                                        ? "keysGeneration.checkStep.reconfirmButton"
+                                        : "keysGeneration.checkStep.required"
+                                )}
+                            </AlertTitle>
+                            {isReconfirmation && (
+                                <Typography variant="body2" sx={{mb: 1}}>
+                                    {t("keysGeneration.checkStep.reconfirmDescription")}
+                                </Typography>
+                            )}
+                            {t("keysGeneration.serverCustody.uploadInstructions")}
+                        </Alert>
+                    )}
                     <Typography variant="body1">
                         <Trans
                             i18nKey="keysGeneration.checkStep.subtitle"
@@ -131,13 +169,21 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
                         ></Trans>
                     </Typography>
 
-                    <DropFile handleFiles={uploadCustodyProof} />
+                    <DropFile
+                        handleFiles={uploadCustodyProof}
+                        formatLabel={t("keysGeneration.serverCustody.fileFormat")}
+                    />
                     <WizardStyles.StatusBox>
                         {uploading ? <WizardStyles.DownloadProgress /> : null}
                         {errors ? (
                             <WizardStyles.ErrorMessage variant="body2">
                                 {errors}
                             </WizardStyles.ErrorMessage>
+                        ) : null}
+                        {serverCustody.waiting && !errors ? (
+                            <Typography role="status">
+                                {t("keysGeneration.serverCustody.waiting")}
+                            </Typography>
                         ) : null}
                         {custodyProofSigning.waiting && !errors ? (
                             <Typography variant="body1">

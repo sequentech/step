@@ -8,6 +8,7 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { resolve, extname } from "node:path";
 import { chromium } from "../../packages/node_modules/playwright/index.mjs";
+import { verifyPublicTranscript } from "./public-transcripts.mjs";
 import ts from "../../packages/node_modules/typescript/lib/typescript.js";
 
 const root = resolve("packages/admin-portal/public");
@@ -26,6 +27,49 @@ const service = ts.transpileModule(
 const browser = await chromium.launch({ headless: true });
 const clients = new Map();
 const failures = [];
+const authentication = new Map();
+const expiresAt = (token) =>
+  JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString()).exp *
+  1000;
+async function renewAuthentication(name) {
+  const auth = authentication.get(name);
+  if (!auth || auth.expiresAt > Date.now() + 60000) return;
+  if (auth.pending) return auth.pending;
+  auth.pending = (async () => {
+    const response = await fetch(auth.endpoint, {
+      method: "POST",
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        client_id: "api-key-client",
+        client_secret: auth.clientSecret,
+        refresh_token: auth.refreshToken,
+      }),
+    });
+    if (!response.ok)
+      throw new Error(`Fixture token renewal failed: HTTP ${response.status}`);
+    const tokens = await response.json();
+    if (!tokens.access_token)
+      throw new Error("Fixture token renewal returned no access token");
+    auth.refreshToken = tokens.refresh_token || auth.refreshToken;
+    auth.expiresAt = expiresAt(tokens.access_token);
+    const client = clients.get(name);
+    if (client && !client.page.isClosed()) {
+      await client.page.evaluate((token) => {
+        window.token = token;
+      }, tokens.access_token);
+    }
+  })();
+  try {
+    await auth.pending;
+  } finally {
+    auth.pending = null;
+  }
+}
+const authenticationTimer = setInterval(() => {
+  for (const name of authentication.keys()) {
+    renewAuthentication(name).catch((error) => failures.push(error.message));
+  }
+}, 15000);
 async function initialize(page, input) {
   await page.waitForFunction(() => Boolean(window.module));
   await page.evaluate(async (input) => {
@@ -51,7 +95,7 @@ async function initialize(page, input) {
         await window.runBrowserCycle(
           window.engine,
           platform,
-          token,
+          window.token,
           (boards) => {
             window.boards = Array.from(
               new Set([
@@ -123,63 +167,22 @@ const server = createServer(async (request, response) => {
       page.on("pageerror", (error) => failures.push(error.message));
       await page.goto("http://localhost:9229/");
       await page.waitForFunction(() => Boolean(window.module));
-      await initialize(page, input);
+      // Confidential synthetic fixture credentials remain in the Node relay.
+      const { auth, ...browserInput } = input;
+      await initialize(page, browserInput);
       clients.set(input.name, { page, context });
+      if (auth)
+        authentication.set(input.name, {
+          ...auth,
+          expiresAt: expiresAt(input.token),
+          pending: null,
+        });
     } else if (path === "/verify") {
-      // A separate public observer page has no trustee identity or keys.
-      const context = await browser.newContext();
-      const page = await context.newPage();
-      try {
-        await page.goto("http://localhost:9229/");
-        await page.waitForFunction(() => Boolean(window.module));
-        result = await page.evaluate(async (input) => {
-          const verifier = window.module.WasmVerifier;
-          const anchors = {
-            ...input.anchors,
-            configuration_hash: verifier.configurationHash(
-              input.configurationMessage,
-            ),
-            ballots_hash: input.ballotsMessage
-              ? verifier.ballotsHash(input.ballotsMessage)
-              : null,
-          };
-          const transcript = await verifier.fetchTranscript(
-            input.boardUrl,
-            input.dkgBoard,
-            input.tallyBoard,
-          );
-          const report = JSON.parse(
-            verifier.verifyTranscript(transcript, JSON.stringify(anchors)),
-          );
-          const wrongAnchor = JSON.parse(
-            verifier.verifyTranscript(
-              transcript,
-              JSON.stringify({
-                ...anchors,
-                configuration_hash: "00".repeat(64),
-              }),
-            ),
-          );
-          const incomplete = JSON.parse(transcript);
-          if (incomplete.tally_messages) incomplete.tally_messages = [];
-          else incomplete.dkg_messages = [];
-          const truncated = JSON.parse(
-            verifier.verifyTranscript(
-              JSON.stringify(incomplete),
-              JSON.stringify(anchors),
-            ),
-          );
-          return {
-            transcript: JSON.parse(transcript),
-            anchors,
-            report,
-            wrongAnchor,
-            truncated,
-          };
-        }, input);
-      } finally {
-        await context.close();
-      }
+      result = await verifyPublicTranscript(
+        browser,
+        "http://localhost:9229",
+        input,
+      );
     } else {
       const client = clients.get(input.name);
       if (!client) throw new Error("trustee not started");
@@ -267,6 +270,7 @@ const server = createServer(async (request, response) => {
 });
 server.listen(9229, "0.0.0.0");
 const stop = async () => {
+  clearInterval(authenticationTimer);
   server.close();
   await browser.close();
   process.exit(0);

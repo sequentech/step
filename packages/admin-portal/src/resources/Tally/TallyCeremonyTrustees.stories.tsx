@@ -20,6 +20,7 @@ import {
     tallyExecution,
     tallySession,
 } from "./__stories__/TallyFixture"
+import {CUSTODY_REQUEST} from "@/components/keys-ceremony/__stories__/KeysCeremonyFixture"
 import {TallyCeremonyTrustees} from "./TallyCeremonyTrustees"
 import type {ISigningApi} from "@/lib/signing/api"
 import {SigningAction} from "@/lib/signing/types"
@@ -137,6 +138,12 @@ const meta = {
         )
         graphql = graphqlBoundary(
             {
+                GetCustodyRequest: () => ({
+                    data: {get_custody_request: {custody_request_json: CUSTODY_REQUEST}},
+                }),
+                RequestServerCustody: () => ({
+                    data: {request_server_custody: {status: "READY", custody_proof_json: KEY}},
+                }),
                 // A restored trustee learns whether they must contribute again, signed.
                 CustodyProofSignatureStatus: () => ({
                     data: {
@@ -165,9 +172,13 @@ const meta = {
             {schema: true}
         )
         await graphql.ready
-        return args.rule === CustodyProofRule.Required
-            ? applyCustodyProofOverrides(organization)
-            : undefined
+        const restoreTranslations =
+            args.rule === CustodyProofRule.Required
+                ? applyCustodyProofOverrides(organization)
+                : undefined
+        return () => {
+            restoreTranslations?.()
+        }
     },
     render: (args, {globals}) => <Fixture key={JSON.stringify(globals)} {...args} />,
 } satisfies WidgetMeta<Scenario>
@@ -176,10 +187,10 @@ type Story = StoryObj<Scenario>
 
 const KEY = "c3ludGhldGljLXByaXZhdGUta2V5"
 
-async function uploadKey(canvasElement: HTMLElement) {
+async function uploadKey(canvasElement: HTMLElement, content = KEY) {
     const input = canvasElement.querySelector<HTMLInputElement>('input[type="file"]')
     if (!input) throw new Error("The key drop zone has no file input")
-    await userEvent.upload(input, new File([KEY], "trustee1.key", {type: "text/plain"}))
+    await userEvent.upload(input, new File([content], "trustee1.key", {type: "text/plain"}))
 }
 
 const nextButton = (canvasElement: HTMLElement) =>
@@ -191,9 +202,24 @@ export const Populated: Story = {
         await expect(await canvas.findByRole("checkbox", {name: "Council"})).toBeDisabled()
         await expect(canvas.getByText(i18n.t("tally.trusteeTitle"))).toBeVisible()
         await expect(
-            canvas.getByText(/trustee attest --request trustee1-custody-request.json/)
+            canvas.getByText(/Upload the custody file saved during the key ceremony/)
         ).toBeVisible()
         // The next step needs a verified key.
+        await expect(nextButton(canvasElement)).toBeDisabled()
+        expect(data.writes).toEqual([])
+        expect(graphql.calls).toEqual([])
+    },
+}
+
+export const RequiresTheSavedCeremonyFile: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("checkbox", {name: "Council"})
+        expect(
+            canvas.queryByRole("button", {
+                name: i18n.t("keysGeneration.downloadStep.downloadButton"),
+            })
+        ).toBeNull()
         await expect(nextButton(canvasElement)).toBeDisabled()
         expect(data.writes).toEqual([])
         expect(graphql.calls).toEqual([])
@@ -249,6 +275,24 @@ export const CustodyAlreadyAuthorized: Story = {
         await expect(await canvas.findByRole("row", {name: /trustee2/})).toBeVisible()
         expect(canvas.queryByText(i18n.t("tally.trusteeTitle"))).toBeNull()
         expect(canvas.queryByRole("button", {name: i18n.t("tally.common.next")})).toBeNull()
+        await expect(canvas.getByText(STORY_IDS.tallySession)).toBeVisible()
+    },
+}
+
+export const TallyIdIsSelectableAndCompact: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const id = await canvas.findByText(STORY_IDS.tallySession)
+        await expect(id).toBeVisible()
+        expect(canvas.queryByRole("button", {name: "Copy tally ID"})).toBeNull()
+        expect(getComputedStyle(id).userSelect).toBe("all")
+        const label = document.createRange()
+        label.selectNodeContents(canvas.getByText("Tally session ID"))
+        const gap = id.getBoundingClientRect().top - label.getBoundingClientRect().bottom
+        expect(gap).toBeGreaterThanOrEqual(0)
+        expect(gap).toBeLessThanOrEqual(4)
+        expect(graphql.calls).toEqual([])
+        await expect(nextButton(canvasElement)).toBeDisabled()
     },
 }
 
@@ -346,5 +390,30 @@ export const CustodyWithoutTheRuleIsUnchanged: Story = {
         await expect(await canvas.findByRole("row", {name: /trustee2/})).toBeVisible()
         expect(canvas.queryByText(i18n.t("tally.trusteeTitle"))).toBeNull()
         expect(canvas.queryByText(i18n.t("signing.custodyProof.redo"))).toBeNull()
+    },
+}
+
+export const SavedCeremonyFileAuthorizesCurrentTally: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("checkbox", {name: "Council"})
+        await expect(canvas.getByText(i18n.t("keysGeneration.checkStep.subtitle"))).toBeVisible()
+        await uploadKey(canvasElement, CUSTODY_REQUEST)
+        await waitFor(() => expect(nextButton(canvasElement)).toBeEnabled())
+        const request = graphql.calls.find(({name}) => name === "RequestServerCustody")
+        expect(request?.variables.object).toEqual({
+            election_event_id: EVENT_ID,
+            tally_session_id: STORY_IDS.tallySession,
+            custody_request_json: CUSTODY_REQUEST,
+            retry_policy: "RETRY_FAILED",
+        })
+        const authorization = graphql.calls.find(({name}) => name === "AuthorizeTallyCustody")
+        expect(authorization?.variables).toEqual({
+            electionEventId: EVENT_ID,
+            tallySessionId: STORY_IDS.tallySession,
+            custodyProofJson: KEY,
+            custodyProofSha256: await sha256(KEY),
+        })
+        expect(data.writes).toEqual([])
     },
 }

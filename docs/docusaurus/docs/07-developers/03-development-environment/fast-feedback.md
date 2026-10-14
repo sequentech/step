@@ -51,6 +51,11 @@ Reopening the folder with another configuration attaches to the running
 devcontainer without starting that mode's services: run `step-dev mode switch`,
 or **Dev Containers: Rebuild Container** and pick the configuration.
 
+For browser key ceremonies, use the dedicated development accounts and local
+forwarded ports in [browser trustee setup](../09-wbraid/trustee-configuration.md#browser-trustee-accounts).
+`scripts/dev/step-dev browser_trustees` provisions the accounts on an existing
+realm without resetting their passwords or MFA or changing native trustee accounts.
+
 ### Opt-in Scanovate services
 
 The identity verification of enrollment (Liveness Plus with its PAD server, Face
