@@ -7,7 +7,7 @@ actions:
           request_transform:
               body:
                   action: transform
-                  template: '{{$body.input.object}}'
+                  template: "{{$body.input.object}}"
               template_engine: Kriti
               version: 2
       permissions:
@@ -21,7 +21,7 @@ actions:
           request_transform:
               body:
                   action: transform
-                  template: '{{$body.input.result}}'
+                  template: "{{$body.input.result}}"
               template_engine: Kriti
               version: 2
       permissions:
