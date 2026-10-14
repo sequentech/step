@@ -6,7 +6,19 @@ use anyhow::{anyhow, Context, Result};
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::{env, thread, time::Duration};
+use std::{env, error::Error, thread, time::Duration};
+
+// Terminal run statuses without participant results. Loadero's own client stops
+// polling on these and on "done"; any other status is still in progress.
+const FAILED_RUN_STATUSES: [&str; 7] = [
+    "aborted",
+    "aws-error",
+    "db-error",
+    "insufficient-resources",
+    "no-users",
+    "server-error",
+    "timeout-exceeded",
+];
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct TestConfig {
@@ -47,7 +59,7 @@ pub fn init_loadero_test(
     participants_count: u64,
 ) -> Result<String> {
     let test_id =
-        create_test(loadero_url, test_config).context("Failed to create test in Loadero")?;
+        create_test(&loadero_url, test_config).context("Failed to create test in Loadero")?;
 
     create_test_participants(loadero_url, &test_id, participants_count)
         .with_context(|| format!("Failed to create participants for test ID {}", test_id))?;
@@ -63,7 +75,7 @@ pub fn run_test(loadero_url: &str, test_id: &str) -> Result<()> {
         .parse()
         .context("LOADERO_INTERVAL_POLLING_TIME must be an string")?;
 
-    let run_id = launch_test(loadero_url, test_id)
+    let run_id = launch_test(&loadero_url, &test_id)
         .with_context(|| format!("Failed to launch test ID {}", test_id))?;
 
     println!("Test {} (run ID {})", test_id, run_id);
@@ -72,22 +84,15 @@ pub fn run_test(loadero_url: &str, test_id: &str) -> Result<()> {
     let polling_interval = Duration::from_secs(loadero_interval_polling_sec);
     loop {
         println!("check status:");
-        match check_test_status(loadero_url, test_id, &run_id) {
-            Ok((pass, fail)) => {
+        match check_test_status(&loadero_url, &test_id, &run_id)? {
+            Some((pass, fail)) => {
                 println!(
                     "Test {} (run ID {}): Passed {} times, Failed {} times",
                     test_id, run_id, pass, fail
                 );
                 break;
             }
-            Err(e) => {
-                if e.to_string().contains("HTTP Status") {
-                    eprintln!("HTTP Error checking status for test {}: {}", test_id, e);
-                    break;
-                } else {
-                    thread::sleep(polling_interval);
-                }
-            }
+            None => thread::sleep(polling_interval),
         }
     }
 
@@ -197,7 +202,7 @@ pub fn get_test_id_by_name(test_name: String) -> Result<Option<String>> {
         if let Some(results) = response_json["results"].as_array() {
             for result in results {
                 if let (Some(id), Some(name)) = (result["id"].as_i64(), result["name"].as_str()) {
-                    if test_name == name {
+                    if test_name == name.to_string() {
                         return Ok(Some(id.to_string()));
                     }
                 }
@@ -210,11 +215,11 @@ pub fn get_test_id_by_name(test_name: String) -> Result<Option<String>> {
         let error_message = response
             .text()
             .unwrap_or_else(|_| "Could not read response body".to_string());
-        Err(anyhow!(
+        return Err(anyhow!(
             "HTTP Status: {}\nError Message: {}",
             status,
             error_message
-        ))
+        ));
     }
 }
 
@@ -250,7 +255,11 @@ pub fn launch_test(loadero_url: &str, test_id: &str) -> Result<String> {
     Ok(run_id.to_string())
 }
 
-fn check_test_status(loadero_url: &str, test_id: &str, run_id: &str) -> Result<(usize, usize)> {
+fn check_test_status(
+    loadero_url: &str,
+    test_id: &str,
+    run_id: &str,
+) -> Result<Option<(usize, usize)>> {
     let client = reqwest::blocking::Client::new();
     let headers = create_header().context("Failed to create headers in check_test_status")?;
 
@@ -284,10 +293,17 @@ fn check_test_status(loadero_url: &str, test_id: &str, run_id: &str) -> Result<(
                         .get("fail")
                         .and_then(Value::as_u64)
                         .unwrap_or(0) as usize;
-                    return Ok((pass, fail));
+                    return Ok(Some((pass, fail)));
                 }
+            } else if FAILED_RUN_STATUSES.contains(&status) {
+                return Err(anyhow!(
+                    "Test {} (run ID {}) ended with status {}",
+                    test_id,
+                    run_id,
+                    status
+                ));
             } else {
-                return Err(anyhow!("Test is not yet done"));
+                return Ok(None);
             }
         }
     }
@@ -327,10 +343,14 @@ pub fn update_script(test_id: &str, test_config: TestConfig) -> Result<()> {
         let error_message = response
             .text()
             .unwrap_or_else(|_| "Could not read response body".to_string());
-        Err(anyhow!(
+        return Err(anyhow!(
             "Update Test error: HTTP Status: {}\nError Message: {}",
             status,
             error_message
-        ))
+        ));
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/loadero_contracts.rs"]
+mod tests;

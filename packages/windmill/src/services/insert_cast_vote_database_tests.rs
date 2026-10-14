@@ -14,6 +14,7 @@ struct ElectionFixture {
     tenant: Uuid,
     event: Uuid,
     election: Uuid,
+    area: Uuid,
 }
 
 impl ElectionFixture {
@@ -22,6 +23,7 @@ impl ElectionFixture {
             tenant: Uuid::new_v4(),
             event: Uuid::new_v4(),
             election: Uuid::new_v4(),
+            area: Uuid::new_v4(),
         };
         transaction
             .execute(
@@ -148,6 +150,67 @@ async fn materialized_dates_match_schedule_contract_and_remain_tenant_scoped() {
 
 #[tokio::test]
 #[ignore = "requires the disposable devenv database fixture"]
+async fn materialized_dates_follow_the_online_voting_channel() {
+    let mut client = test_client().await;
+    let transaction = client.transaction().await.unwrap();
+    let fixture = ElectionFixture::create(&transaction).await;
+    let (tenant, event, election) = (
+        fixture.tenant.to_string(),
+        fixture.event.to_string(),
+        fixture.election.to_string(),
+    );
+    for (processor, channels, date) in [
+        (
+            EventProcessors::START_VOTING_PERIOD,
+            json!(["KIOSK", "ONLINE"]),
+            "2026-10-01T09:00:00Z",
+        ),
+        (
+            EventProcessors::END_VOTING_PERIOD,
+            json!(["KIOSK"]),
+            "2026-10-01T12:00:00Z",
+        ),
+    ] {
+        let task = generate_manage_date_task_name(&tenant, &event, Some(&election), &processor);
+        transaction
+            .execute(
+                r#"
+            INSERT INTO sequent_backend.scheduled_event
+                (tenant_id, election_event_id, task_id, event_payload, cron_config)
+            VALUES ($1, $2, $3, $4, $5)
+            "#,
+                &[
+                    &fixture.tenant,
+                    &fixture.event,
+                    &task,
+                    &json!({"election_id": election, "voting_channels": channels}),
+                    &json!({ "scheduled_date": date }),
+                ],
+            )
+            .await
+            .unwrap();
+    }
+
+    // A kiosk-only closing schedule does not end online voting.
+    let schedules = crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id(
+        &transaction,
+        &tenant,
+        &event,
+    )
+    .await
+    .unwrap();
+    let expected =
+        generate_voting_period_dates(schedules, &tenant, &event, Some(&election)).unwrap();
+    let loaded = fixture.load(&transaction).await;
+    assert_eq!(loaded.dates.start_date, expected.start_date);
+    assert_eq!(loaded.dates.end_date, expected.end_date);
+    assert!(loaded.dates.start_date.is_some());
+    assert!(loaded.dates.end_date.is_none());
+    transaction.rollback().await.unwrap();
+}
+
+#[tokio::test]
+#[ignore = "requires the disposable devenv database fixture"]
 async fn channel_enablement_and_pause_are_rechecked_from_the_writer() {
     let mut client = test_client().await;
     let transaction = client.transaction().await.unwrap();
@@ -181,6 +244,7 @@ async fn channel_enablement_and_pause_are_rechecked_from_the_writer() {
                 &fixture.tenant.to_string(),
                 &fixture.event.to_string(),
                 &fixture.election.to_string(),
+                &fixture.area,
                 &transaction,
                 &event,
                 &auth_time,

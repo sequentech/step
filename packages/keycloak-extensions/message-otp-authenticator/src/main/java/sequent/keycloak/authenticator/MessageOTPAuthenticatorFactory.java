@@ -99,15 +99,46 @@ public class MessageOTPAuthenticatorFactory
         new ProviderConfigProperty(
             Utils.MESSAGE_COURIER_ATTRIBUTE,
             "Message Courier",
-            "Choose if the message is going to be sent via email, sms or both.",
+            "CHOSEN: the code goes to the voter's one channel. EMAIL, SMS or BOTH apply only to"
+                + " voters without a messaging channel; a voter with one always gets the code on"
+                + " that channel, or none (logged with the reason). The contact change is offered"
+                + " only while every code step that can run is CHOSEN or NONE (NONE sends nothing).",
             ProviderConfigProperty.LIST_TYPE,
             Utils.MessageCourier.BOTH.name());
     messageCourier.setOptions(
         asList(
             Utils.MessageCourier.BOTH.name(),
             Utils.MessageCourier.SMS.name(),
-            Utils.MessageCourier.EMAIL.name()));
+            Utils.MessageCourier.EMAIL.name(),
+            Utils.MessageCourier.CHOSEN.name()));
+    ProviderConfigProperty codeProgress =
+        new ProviderConfigProperty(
+            CodeProgress.POLICY,
+            "Code progress",
+            "SHOW tells the user which of the flow's codes the page asks for (\"Code 1 of 2\")"
+                + " when the flow asks for more than one; NONE doesn't.",
+            ProviderConfigProperty.LIST_TYPE,
+            CodeProgressPolicy.NONE.name());
+    codeProgress.setOptions(
+        java.util.Arrays.stream(CodeProgressPolicy.values()).map(Enum::name).toList());
+    ProviderConfigProperty codePageDisclosure =
+        new ProviderConfigProperty(
+            Utils.CODE_PAGE_DISCLOSURE,
+            "Code page disclosure",
+            "NEUTRAL (default): the code page says only \"If an account exists, we sent a code to"
+                + " its contact\"; an unknown account gets the same page and no code, and when the"
+                + " event offers Messenger for codes every page shows the Messenger box (a live link"
+                + " for a Messenger account, one that binds to nothing otherwise). For flows anyone"
+                + " can start with an identifier (reset). NAMED: the page names the channel and the"
+                + " masked destination; for sign-in steps after the password. Enrollment always"
+                + " names the channel the voter entered.",
+            ProviderConfigProperty.LIST_TYPE,
+            Utils.CodePageDisclosure.NEUTRAL.name());
+    codePageDisclosure.setOptions(
+        java.util.Arrays.stream(Utils.CodePageDisclosure.values()).map(Enum::name).toList());
     return List.of(
+        codeProgress,
+        NeutralPace.configProperty(),
         new ProviderConfigProperty(
             Utils.ONE_TIME_LINK,
             "Use OTL instead of OTP",
@@ -164,6 +195,15 @@ public class MessageOTPAuthenticatorFactory
             "Time in seconds the resend code gets re activated",
             ProviderConfigProperty.STRING_TYPE,
             Utils.RESEND_ACTIVATION_TIMER_DEFAULT),
+        new ProviderConfigProperty(
+            Utils.MAX_CODE_ATTEMPTS,
+            "Maximum wrong codes",
+            "Wrong codes this step takes before it stops: the voter must start the login again."
+                + " Asking for a new code never resets the count; each code step (and the contact"
+                + " change) counts its own.",
+            ProviderConfigProperty.STRING_TYPE,
+            Utils.MAX_CODE_ATTEMPTS_DEFAULT),
+        codePageDisclosure,
         new ProviderConfigProperty(
             Utils.TEST_MODE_ATTRIBUTE,
             "Test Mode",

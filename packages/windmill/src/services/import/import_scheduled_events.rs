@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::scheduled_event::insert_new_scheduled_event;
+use crate::services::schedule_csv::checked_import_cron_config;
 use anyhow::{anyhow, Context, Result};
 use csv::StringRecord;
 use deadpool_postgres::Transaction;
@@ -40,7 +41,7 @@ pub async fn import_scheduled_events(
 
     let headers = rdr
         .headers()
-        .cloned()
+        .map(|headers| headers.clone())
         .map_err(|err| anyhow!("Error reading CSV headers: {err:?}"))?;
 
     for header in headers.iter() {
@@ -97,26 +98,49 @@ pub async fn process_record(
     };
 
     let id = Uuid::new_v4().to_string();
-    let created_at = record.get(3).and_then(|s| {
-        let s = s.trim_matches('"');
-        ISO8601::to_date_utc(s).ok()
-    });
+    let created_at = record
+        .get(3)
+        .map(|s| {
+            let s = s.trim_matches('"');
+            ISO8601::to_date_utc(s).ok()
+        })
+        .flatten();
     let labels = record
         .get(6)
-        .and_then(|s| deserialize_str::<JsonValue>(s).ok());
-    let annotations = record
+        .map(|s| deserialize_str::<JsonValue>(s).ok())
+        .flatten();
+    let mut annotations = record
         .get(7)
-        .and_then(|s| deserialize_str::<JsonValue>(s).ok());
+        .map(|s| deserialize_str::<JsonValue>(s).ok())
+        .flatten();
+    // Imported schedules start a fresh lifecycle; prior execution evidence
+    // must not be copied to unrelated event/Post identities.
+    if let Some(annotations) = annotations.as_mut().and_then(JsonValue::as_object_mut) {
+        for key in [
+            crate::services::scheduled_outcome::FIRED_OUTCOME,
+            crate::services::scheduled_outcome::PREDICTED_OUTCOME,
+            crate::services::initialization_schedule::PENDING_ANNOTATION,
+            crate::services::initialization_schedule::WAIT_ANNOTATION,
+            crate::services::schedule_recompute::ANNOTATION,
+        ] {
+            annotations.remove(key);
+        }
+    }
     let event_processor: Option<EventProcessors> = record
         .get(8)
-        .map(deserialize_str::<EventProcessors>)
+        .map(|val| deserialize_str::<EventProcessors>(val))
         .transpose()
         .context("Error deserializing event_processor")?;
     let cron_config: Option<CronConfig> = record
         .get(9)
-        .map(deserialize_str)
+        .map(|val| deserialize_str(val))
         .transpose()
-        .context("Error deserializing cron_config")?;
+        .context("Error deserializing cron_config")?
+        // A date without an offset is recomputed from its wall time and
+        // zone, or refused: its instant can't be known.
+        .map(checked_import_cron_config)
+        .transpose()
+        .with_context(|| format!("Scheduled event {:?}", record.get(0).unwrap_or_default()))?;
     if event_payload.is_null() {
         event_payload = serde_json::json!({});
     }
@@ -127,14 +151,15 @@ pub async fn process_record(
         );
     }
     let event_payload = Some(event_payload);
-    let task_id = event_processor.as_ref().map(|event_processor| {
-        generate_manage_date_task_name(
+    let task_id = match &event_processor {
+        Some(event_processor) => Some(generate_manage_date_task_name(
             tenant_id,
             election_event_id,
             election_id.as_deref(),
             event_processor,
-        )
-    });
+        )),
+        None => None,
+    };
 
     let scheduled_event = ScheduledEvent {
         id,

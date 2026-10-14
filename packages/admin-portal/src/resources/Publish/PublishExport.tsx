@@ -66,6 +66,7 @@ const PublishExport: FC<PublishExportProps> = ({ballotPublicationId}) => {
             setExporting(true)
             if (errors) {
                 setExporting(false)
+                setOpenExport(false)
                 updateWidgetFail(currWidget.identifier)
 
                 return
@@ -79,6 +80,7 @@ const PublishExport: FC<PublishExportProps> = ({ballotPublicationId}) => {
         } catch (error) {
             console.log(error)
             setExporting(false)
+            setOpenExport(false)
             currWidget && updateWidgetFail(currWidget.identifier)
         }
     }

@@ -5,7 +5,7 @@
 import {gql} from "@apollo/client"
 
 export const RESOLVE_RESULTS_PUBLICATION = gql`
-    query ResolveResultsPublication($eeId: String!, $electionId: String) {
+    query ResolveResultsPublication($eeId: String!, $electionId: uuid) {
         resolveResultsPublication(ee_id: $eeId, election_id: $electionId) {
             tenant_id
             election_event_id
@@ -27,8 +27,8 @@ export interface ResolveResultsPublicationVariables {
 
 export const FETCH_RESULTS_ARTIFACT = gql`
     query FetchResultsArtifact(
-        $electionEventId: String!
-        $electionId: String
+        $electionEventId: uuid!
+        $electionId: uuid
         $publicationId: String!
     ) {
         fetchResultsArtifact(

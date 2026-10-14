@@ -86,10 +86,10 @@ export const ApolloContextProvider = ({children}: ApolloContextProviderProps) =>
     }, [tenantId, eventId, electionEventConfigUrl, location.pathname, login])
 
     useEffect(() => {
-        if (!isAuthenticated && tenantId && eventId) {
+        if (!globalSettings.DISABLE_AUTH && !isAuthenticated && tenantId && eventId) {
             void setupLogin()
         }
-    }, [isAuthenticated, tenantId, eventId])
+    }, [isAuthenticated, tenantId, eventId, globalSettings.DISABLE_AUTH])
 
     const createApolloClient = (): ApolloClient<NormalizedCacheObject> => {
         const httpLink = createHttpLink({
@@ -116,16 +116,16 @@ export const ApolloContextProvider = ({children}: ApolloContextProviderProps) =>
     }
 
     useEffect(() => {
-        if (apolloClient || !isAuthenticated) {
+        if (apolloClient || (!globalSettings.DISABLE_AUTH && !isAuthenticated)) {
             return
         }
         let token = getAccessToken()
-        if (!token) {
+        if (!globalSettings.DISABLE_AUTH && !token) {
             return
         }
         let newClient = createApolloClient()
         setApolloClient(newClient)
-    }, [isAuthenticated, apolloClient])
+    }, [isAuthenticated, apolloClient, globalSettings.DISABLE_AUTH])
 
     // Setup the context provider
     return (

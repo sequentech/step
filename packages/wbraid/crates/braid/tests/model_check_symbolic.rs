@@ -7,7 +7,7 @@
 //!
 //! The companion harness (`model_check.rs`) drives the full stack, crypto
 //! included; its module docs explain why that exploration is a tree:
-//! `ThreadRng` makes every artifact fresh, so logically-equal states never
+//! the system RNG makes every artifact fresh, so logically-equal states never
 //! dedupe. This harness removes exactly that obstacle and no more.
 //!
 //! # What is real, what is symbolic
@@ -790,7 +790,8 @@ impl SymbolicModel {
             2,
             share_enc_keys,
             PhantomData,
-        );
+        )
+        .expect("invalid configuration");
         let configuration_hash =
             ConfigurationHash::from_configuration(&configuration).expect("configuration hash");
 

@@ -2,10 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::encrypter::{
-    encrypt_directory_contents_sql, get_file_report_type, traversal_encrypt_files,
-    traversal_find_secrets_for_files,
+    encrypt_directory_contents, encrypt_directory_contents_sql, get_file_report_type,
+    traversal_encrypt_files, traversal_find_secrets_for_files,
 };
 use super::renamer::rename_folders;
+use crate::postgres::document::get_document;
 use crate::postgres::reports::Report;
 use crate::postgres::reports::{get_reports_by_election_event_id, ReportType};
 use crate::postgres::results_election_area::insert_results_election_area_documents;
@@ -18,8 +19,12 @@ use crate::{
         results_event::update_results_event_documents,
     },
     services::{
-        compress::create_archive_from_folder, documents::upload_and_return_document,
+        compress::create_archive_from_folder,
+        documents::{upload_and_return_document, upload_and_return_document_with_annotations},
         folders::copy_to_temp_dir,
+        reports::generation::{
+            folder_annotations, log_sealed_manifests, seal_tally_outputs, ReportRequester,
+        },
     },
 };
 use anyhow::{anyhow, Context, Result};
@@ -41,13 +46,28 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
-use strand::hash::hash_b64;
+use tokio::task;
 use tracing::instrument;
 use velvet::pipes::generate_reports::{
     BasicArea, ElectionReportDataComputed, ReportDataComputed, OUTPUT_ALL_AREAS_HTML,
     OUTPUT_ALL_AREAS_JSON, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
 };
 use velvet::pipes::pipe_inputs::{PREFIX_ALL_AREAS, PREFIX_CONTEST, PREFIX_ELECTION};
+use velvet::pipes::report_manifest::read_folder_manifest;
+use voting_crypto::hash::hash_b64;
+
+use crate::domain::tally_ceremony::{EXECUTER_USERNAME_ANNOTATION, EXECUTER_USER_ID_ANNOTATION};
+use crate::postgres::tally_session::get_tally_session_by_id;
+use crate::services::signing::actions::reports::{
+    hold_tally_report, ChromiumReportRenderer, ReportRenderer, TallyReport, TallyRequester,
+};
+use crate::services::signing::guard::effective_rule;
+use crate::services::signing::pdf::RevisionStore;
+use crate::services::signing::pdf::{tally_signing_action, S3RevisionStore};
+use crate::tasks::render_document_pdf::tally_pdf_options;
+use sequent_core::signing::SigningAction;
+use sequent_core::types::templates::PrintToPdfOptionsLocal;
+use uuid::Uuid;
 
 pub const MIME_PDF: &str = "application/pdf";
 pub const MIME_JSON: &str = "application/json";
@@ -110,7 +130,7 @@ async fn generic_save_documents(
     )
     .await?;
 
-    if document_paths.all_areas_html.is_some() {
+    if (document_paths.all_areas_html.is_some()) {
         documents.all_areas_html = process_and_upload_document(
             hasura_transaction,
             document_paths.all_areas_html.clone(),
@@ -123,7 +143,7 @@ async fn generic_save_documents(
         )
         .await?;
     }
-    if document_paths.all_areas_json.is_some() {
+    if (document_paths.all_areas_json.is_some()) {
         documents.all_areas_json = process_and_upload_document(
             hasura_transaction,
             document_paths.all_areas_json.clone(),
@@ -141,22 +161,21 @@ async fn generic_save_documents(
 }
 
 // Helper function for processing and uploading a document
-#[expect(
-    clippy::too_many_arguments,
-    reason = "Keep the existing tally and ceremony context, policies and data inputs explicit across current callers."
-)]
 #[instrument(err, skip(hasura_transaction, all_reports))]
 async fn process_and_upload_document(
     hasura_transaction: &Transaction<'_>,
     path_option: Option<String>,
     mime_type: &str,
     output_type: &str,
-    all_reports: &[Report],
+    all_reports: &Vec<Report>,
     report_type: Option<ReportType>,
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Option<String>> {
     if let Some(mut path) = path_option {
+        // A file stored as the tally wrote it says which hash manifest
+        // lists it: a PDF rendered from it later is stamped with the same.
+        let written = path.clone();
         // Encrypt the file if necessary before uploading
         if let Some(report_type) = report_type {
             path = encrypt_directory_contents_sql(
@@ -173,8 +192,13 @@ async fn process_and_upload_document(
         }
 
         let file_size = get_file_size(&path)?;
+        let annotations = if path == written {
+            folder_annotations(Path::new(&written))?
+        } else {
+            Default::default()
+        };
 
-        let document = upload_and_return_document(
+        let document = upload_and_return_document_with_annotations(
             hasura_transaction,
             &path,
             file_size,
@@ -184,6 +208,7 @@ async fn process_and_upload_document(
             output_type,
             None,
             false,
+            &annotations,
         )
         .await?;
 
@@ -193,12 +218,12 @@ async fn process_and_upload_document(
 }
 
 pub trait GenerateResultDocuments {
-    fn get_document_paths(&self, area_id: Option<String>, base_path: &Path) -> ResultDocumentPaths;
-    #[expect(
-        clippy::too_many_arguments,
-        reason = "Keep the existing tally and ceremony context, policies and data inputs explicit across current callers."
-    )]
-    fn save_documents(
+    fn get_document_paths(
+        &self,
+        area_id: Option<String>,
+        base_path: &PathBuf,
+    ) -> ResultDocumentPaths;
+    async fn save_documents(
         &self,
         hasura_transaction: &Transaction<'_>,
         tenant_id: &str,
@@ -208,15 +233,15 @@ pub trait GenerateResultDocuments {
         rename_map: Option<HashMap<String, String>>,
         tally_type_enum: TallyType,
         sqlite_transaction_opt: Option<&SqliteTransaction<'_>>,
-    ) -> impl std::future::Future<Output = Result<ResultDocuments>>;
+    ) -> Result<ResultDocuments>;
 }
 
 impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
     #[instrument(skip_all, name = "Vec<ElectionReportDataComputed>::get_document_paths")]
     fn get_document_paths(
         &self,
-        _area_id: Option<String>,
-        base_path: &Path,
+        area_id: Option<String>,
+        base_path: &PathBuf,
     ) -> ResultDocumentPaths {
         ResultDocumentPaths {
             json: None,
@@ -263,11 +288,22 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             let tar_gz_path_clone = tar_gz_path.clone();
             let original_handle = tokio::task::spawn_blocking(move || {
                 let path = Path::new(&tar_gz_path_clone);
-                create_archive_from_folder(path, false)
+                // The hash manifests list what is archived: a report held
+                // for its signatures is not.
+                let sealed = seal_tally_outputs(path)?;
+                create_archive_from_folder(&path, false).map(|archive| (archive, sealed))
             });
 
             // Await the result
-            let original_result = original_handle.await??;
+            let (original_result, sealed) = original_handle.await??;
+            log_sealed_manifests(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                &sealed,
+                &ReportRequester::default(),
+            )
+            .await?;
 
             let (_original_tarfile_temp_path, original_tarfile_path, original_tarfile_size) =
                 original_result;
@@ -281,10 +317,11 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             let all_reports_clone = all_reports.clone();
 
             // Encrypt the tar.gz folder if necessary before uploading
-            let upload_path = encrypt_directory_contents_sql(
+            let mut upload_path = original_tarfile_path.clone();
+            upload_path = encrypt_directory_contents_sql(
                 hasura_transaction,
-                tenant_id,
-                election_event_id,
+                &tenant_id,
+                &election_event_id,
                 Some(elections_ids_clone.clone()),
                 dir_report_type.clone(),
                 &original_tarfile_path,
@@ -299,7 +336,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 &upload_path,
                 original_tarfile_size,
                 "application/gzip",
-                report_tenant_id,
+                &report_tenant_id,
                 Some(report_election_event_id.to_string()),
                 "tally.tar.gz",
                 None,
@@ -323,32 +360,45 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             let handle = tokio::task::spawn_blocking(move || {
                 let path = Path::new(&tar_gz_path);
                 let temp_dir = copy_to_temp_dir(&path.to_path_buf())?;
-                let temp_dir_path = temp_dir.path().to_path_buf();
-                let renames = rename_map.unwrap_or_default();
+                let mut temp_dir_path = temp_dir.path().to_path_buf();
+                let renames = rename_map.unwrap_or(HashMap::new());
                 let report_secrets_map = report_secrets_map.clone();
                 rename_folders(&renames, &temp_dir_path)?;
                 // Execute asynchronous encryption
                 tokio::runtime::Handle::current().block_on(async {
                     traversal_encrypt_files(report_secrets_map, &temp_dir_path, &all_reports_clone)
                         .await
-                        .map_err(|_err| anyhow!("Error encrypting file"))?;
+                        .map_err(|err| anyhow!("Error encrypting file"))?;
 
                     Ok::<_, anyhow::Error>(())
                 })?;
 
-                create_archive_from_folder(&temp_dir_path, false)
+                // The renamed folders and the encrypted files are another
+                // delivery, with hash manifests of its own.
+                let sealed = seal_tally_outputs(&temp_dir_path)?;
+                create_archive_from_folder(&temp_dir_path, false).map(|archive| (archive, sealed))
             });
 
             // Await the result
-            let result = handle.await??;
-
-            let (_tarfile_temp_path, tarfile_path, tarfile_size) = result;
-
-            // Encrypt the tar.gz folder if necessary before uploading
-            let upload_path = encrypt_directory_contents_sql(
+            let (result, sealed) = handle.await??;
+            log_sealed_manifests(
                 hasura_transaction,
                 tenant_id,
                 election_event_id,
+                &sealed,
+                &ReportRequester::default(),
+            )
+            .await?;
+
+            let (_tarfile_temp_path, tarfile_path, tarfile_size) = result;
+
+            let mut upload_path = tarfile_path.clone();
+
+            // Encrypt the tar.gz folder if necessary before uploading
+            upload_path = encrypt_directory_contents_sql(
+                hasura_transaction,
+                &tenant_id,
+                &election_event_id,
                 Some(elections_ids_clone),
                 dir_report_type,
                 &tarfile_path,
@@ -363,7 +413,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 &upload_path,
                 tarfile_size,
                 "application/gzip",
-                report_tenant_id,
+                &report_tenant_id,
                 Some(report_election_event_id.to_string()),
                 "tally.tar.gz",
                 None,
@@ -384,9 +434,9 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
 
             update_results_event_documents(
                 hasura_transaction,
-                report_tenant_id,
+                &report_tenant_id,
                 results_event_id,
-                report_election_event_id,
+                &report_election_event_id,
                 &documents,
             )
             .await?;
@@ -394,9 +444,9 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             if let Some(sqlite_transaction) = sqlite_transaction_opt {
                 update_results_event_documents_sqlite(
                     sqlite_transaction,
-                    report_tenant_id,
+                    &report_tenant_id,
                     results_event_id,
-                    report_election_event_id,
+                    &report_election_event_id,
                     &documents,
                 )?;
             }
@@ -421,7 +471,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
     fn get_document_paths(
         &self,
         _area_id: Option<String>,
-        base_path: &Path,
+        base_path: &PathBuf,
     ) -> ResultDocumentPaths {
         let folder_path = base_path.join(format!(
             "output/velvet-generate-reports/election__{}",
@@ -454,12 +504,12 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             tar_gz: None,
             tar_gz_original: None,
             tar_gz_pdfs: None,
-            all_areas_html: if all_areas_html_path.is_file() {
+            all_areas_html: if (all_areas_html_path.is_file()) {
                 Some(all_areas_html_path.display().to_string())
             } else {
                 None
             },
-            all_areas_json: if all_areas_json_path.is_file() {
+            all_areas_json: if (all_areas_json_path.is_file()) {
                 Some(all_areas_json_path.display().to_string())
             } else {
                 None
@@ -517,7 +567,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             document_paths,
             &tenant_id.to_string(),
             &election_event_id.to_string(),
-            hasura_transaction,
+            &hasura_transaction,
             tally_type_enum,
         )
         .await?;
@@ -551,7 +601,11 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
 }
 
 impl GenerateResultDocuments for ReportDataComputed {
-    fn get_document_paths(&self, area_id: Option<String>, base_path: &Path) -> ResultDocumentPaths {
+    fn get_document_paths(
+        &self,
+        area_id: Option<String>,
+        base_path: &PathBuf,
+    ) -> ResultDocumentPaths {
         let contest = self.contest.as_ref().expect("report is missing contest");
 
         let folder_path = match area_id.clone() {
@@ -609,7 +663,7 @@ impl GenerateResultDocuments for ReportDataComputed {
             document_paths,
             &self.tenant_id.to_string(),
             &self.election_event_id.to_string(),
-            hasura_transaction,
+            &hasura_transaction,
             tally_type_enum,
         )
         .await?;
@@ -628,7 +682,7 @@ impl GenerateResultDocuments for ReportDataComputed {
                 )
                 .await?;
 
-                if let Some(sqlite_transaction) = sqlite_transaction_opt {
+                if let Some(sqlite_transaction) = sqlite_transaction_opt.clone() {
                     update_results_area_contest_documents_sqlite(
                         sqlite_transaction,
                         &self.tenant_id,
@@ -674,14 +728,15 @@ impl GenerateResultDocuments for ReportDataComputed {
 
 #[instrument(skip(results, areas), err)]
 pub fn generate_ids_map(
-    results: &[ElectionReportDataComputed],
+    results: &Vec<ElectionReportDataComputed>,
     areas: &Vec<Area>,
     default_language: &str,
 ) -> Result<HashMap<String, String>> {
     let mut rename_map: HashMap<String, String> = HashMap::new();
     let election_reports = results
-        .iter()
-        .flat_map(|result| result.reports.clone())
+        .into_iter()
+        .map(|result| result.reports.clone())
+        .flat_map(|inner_vec| inner_vec)
         .collect::<Vec<ReportDataComputed>>();
 
     const UUID_LEN: usize = 36;
@@ -726,16 +781,13 @@ pub fn generate_ids_map(
     Ok(rename_map)
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "Keep the existing tally and ceremony context, policies and data inputs explicit across current callers."
-)]
 #[instrument(skip(hasura_transaction, results, areas), err)]
 pub async fn save_result_documents(
     hasura_transaction: &Transaction<'_>,
     results: Vec<ElectionReportDataComputed>,
     tenant_id: &str,
     election_event_id: &str,
+    tally_session_id: &str,
     results_event_id: &str,
     base_tally_path: &PathBuf,
     areas: &Vec<Area>,
@@ -743,6 +795,44 @@ pub async fn save_result_documents(
     tally_type_enum: TallyType,
     sqlite_transaction_opt: Option<&SqliteTransaction<'_>>,
 ) -> Result<()> {
+    // Reports that need signatures are held before anything is stored or
+    // archived.
+    if let Some(action) = get_file_report_type(&tally_type_enum.to_string())?
+        .as_ref()
+        .and_then(tally_signing_action)
+    {
+        let tenant_uuid = Uuid::parse_str(tenant_id).context("Invalid tenant id")?;
+        let event_uuid = Uuid::parse_str(election_event_id).context("Invalid event id")?;
+        if effective_rule(hasura_transaction, tenant_uuid, event_uuid, action)
+            .await?
+            .is_required()
+        {
+            let renderer = ChromiumReportRenderer {
+                options: tally_pdf_options(base_tally_path)?
+                    .map(PrintToPdfOptionsLocal::from_pdf_options),
+            };
+            let requester = tally_requester(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                tally_session_id,
+            )
+            .await?;
+            hold_tally_reports(
+                hasura_transaction,
+                &TallyPost::of(&results),
+                tenant_id,
+                election_event_id,
+                results_event_id,
+                base_tally_path,
+                &tally_type_enum,
+                &S3RevisionStore,
+                &renderer,
+                &requester,
+            )
+            .await?;
+        }
+    }
     let rename_map = generate_ids_map(&results, areas, default_language)?;
     let event_document_paths = results.get_document_paths(None, base_tally_path);
     results
@@ -859,10 +949,187 @@ pub async fn save_result_documents(
     Ok(())
 }
 
+/// The folder of the tally's rendered reports.
+fn reports_folder(base_path: &PathBuf) -> PathBuf {
+    base_path.join("output/velvet-generate-reports")
+}
+
+/// When the tally's report (the election returns, the initialization
+/// report) needs signatures: each Post's report, and for the election
+/// returns each country's, is rendered from its HTML (the tally renders no
+/// PDFs) and held, and no rendering of the tally's reports (HTML or PDF) is
+/// stored, archived or rendered later unsigned: the event's and the
+/// contests' ones are withheld, and the results' JSON stays. A held report
+/// without a rendering, or whose hold fails, is logged as an error and
+/// stays held; the others go on. Their signing requests start after the
+/// tally commits (`hold_tally_report` explains the lock order); the signed
+/// reports become their results rows' PDFs once those requests run. How
+/// many were held.
+#[instrument(err, skip_all)]
+pub async fn hold_tally_reports(
+    hasura_transaction: &Transaction<'_>,
+    posts: &[TallyPost],
+    tenant_id: &str,
+    election_event_id: &str,
+    results_event_id: &str,
+    base_tally_path: &PathBuf,
+    tally_type_enum: &TallyType,
+    store: &dyn RevisionStore,
+    renderer: &dyn ReportRenderer,
+    requester: &TallyRequester,
+) -> Result<usize> {
+    let Some(report_type) = get_file_report_type(&tally_type_enum.to_string())? else {
+        return Ok(0);
+    };
+    let Some(action) = tally_signing_action(&report_type) else {
+        return Ok(0);
+    };
+    let tenant_uuid = Uuid::parse_str(tenant_id).context("Invalid tenant id")?;
+    let event_uuid = Uuid::parse_str(election_event_id).context("Invalid event id")?;
+    if !effective_rule(hasura_transaction, tenant_uuid, event_uuid, action)
+        .await?
+        .is_required()
+    {
+        return Ok(0);
+    }
+    let results_event_uuid = Uuid::parse_str(results_event_id).context("Invalid results id")?;
+    let report_type_name = report_type.to_string();
+    let folder = reports_folder(base_tally_path);
+    let mut held = 0;
+    for post in posts {
+        let election_id = Uuid::parse_str(&post.election_id).context("Invalid election id")?;
+        let post_folder = folder.join(format!("election__{}", post.election_id));
+        let mut targets = vec![(None, post_folder.clone())];
+        if action == SigningAction::GenerateElectionReturns {
+            for area_id in &post.area_ids {
+                targets.push((
+                    Some(Uuid::parse_str(&area_id).context("Invalid area id")?),
+                    post_folder.join(format!("area__{area_id}")),
+                ));
+            }
+        }
+        for (area_id, target_folder) in targets {
+            let html = target_folder.join(OUTPUT_HTML);
+            let outcome = async {
+                let configuration =
+                    read_folder_manifest(&target_folder).map_err(|error| anyhow!("{error}"))?;
+                let rendering = fs::read_to_string(&html).with_context(|| {
+                    format!("The held report {} has no rendering", html.display())
+                })?;
+                let pdf = renderer.render(rendering)?;
+                hold_tally_report(
+                    hasura_transaction,
+                    store,
+                    &TallyReport {
+                        tenant_id: tenant_uuid,
+                        election_event_id: event_uuid,
+                        results_event_id: results_event_uuid,
+                        action,
+                        report_type: &report_type_name,
+                        election_id,
+                        area_id,
+                        file_name: OUTPUT_PDF,
+                        pdf: &pdf,
+                        requester,
+                        configuration: configuration.as_ref(),
+                    },
+                )
+                .await
+            }
+            .await;
+            match outcome {
+                Ok(_) => held += 1,
+                Err(error) => tracing::error!(
+                    %election_id,
+                    ?area_id,
+                    "a report that needs signatures stays held without its request: {error:#}"
+                ),
+            }
+        }
+    }
+    // Nothing unsigned leaves the tally: no rendering of its reports is
+    // stored, archived or rendered later.
+    for entry in walkdir::WalkDir::new(&folder) {
+        let entry = entry.context("Error reading the tally's reports")?;
+        let rendering = entry
+            .path()
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .is_some_and(|extension| extension == "html" || extension == "pdf");
+        if entry.file_type().is_file() && rendering {
+            fs::remove_file(entry.path()).with_context(|| {
+                format!(
+                    "Error holding the tally's report {}",
+                    entry.path().display()
+                )
+            })?;
+        }
+    }
+    Ok(held)
+}
+
+/// A Post of a tally's results and the countries it was counted in.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TallyPost {
+    pub election_id: String,
+    pub area_ids: Vec<String>,
+}
+
+impl TallyPost {
+    fn of(results: &[ElectionReportDataComputed]) -> Vec<TallyPost> {
+        results
+            .iter()
+            .map(|election_report| {
+                let mut area_ids: Vec<String> = election_report
+                    .reports
+                    .iter()
+                    .filter_map(|report| report.area.as_ref().map(|area| area.id.clone()))
+                    .collect();
+                area_ids.sort();
+                area_ids.dedup();
+                TallyPost {
+                    election_id: election_report.election_id.clone(),
+                    area_ids,
+                }
+            })
+            .collect()
+    }
+}
+
+/// Who started the tally: its executer, from the tally session.
+async fn tally_requester(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+) -> Result<TallyRequester> {
+    let tally_session = get_tally_session_by_id(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+    )
+    .await?;
+    let annotation = |key: &str| {
+        tally_session
+            .annotations
+            .as_ref()
+            .and_then(|annotations| annotations.get(key))
+            .and_then(|value| value.as_str())
+            .map(str::to_owned)
+    };
+    let username = annotation(EXECUTER_USERNAME_ANNOTATION)
+        .ok_or_else(|| anyhow!("The tally session names no executer"))?;
+    Ok(TallyRequester {
+        user_id: annotation(EXECUTER_USER_ID_ANNOTATION).unwrap_or_else(|| username.clone()),
+        username,
+    })
+}
+
 fn get_area_document_paths(
     area_id: String,
     election_id: String,
-    base_path: &Path,
+    base_path: &PathBuf,
 ) -> ResultDocumentPaths {
     let folder_path = base_path.join(format!(
         "output/velvet-generate-reports/election__{}/area__{}",
@@ -897,10 +1164,6 @@ fn get_area_document_paths(
     }
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "Keep the existing tally and ceremony context, policies and data inputs explicit across current callers."
-)]
 #[instrument(err, skip(hasura_transaction))]
 async fn save_area_documents(
     hasura_transaction: &Transaction<'_>,
@@ -918,19 +1181,19 @@ async fn save_area_documents(
 ) -> Result<ResultDocuments> {
     let documents = generic_save_documents(
         document_paths,
-        tenant_id,
-        election_event_id,
-        hasura_transaction,
+        &tenant_id.to_string(),
+        &election_event_id.to_string(),
+        &hasura_transaction,
         tally_type_enum.clone(),
     )
     .await?;
 
     insert_results_election_area_documents(
-        hasura_transaction,
-        tenant_id,
-        results_event_id,
-        election_event_id,
-        election_id,
+        &hasura_transaction,
+        &tenant_id,
+        &results_event_id,
+        &election_event_id,
+        &election_id,
         &area.id,
         &area.name,
         &documents,
@@ -942,10 +1205,10 @@ async fn save_area_documents(
     if let Some(sqlite_transaction) = sqlite_transaction_opt {
         create_results_election_area_sqlite(
             sqlite_transaction,
-            tenant_id,
-            results_event_id,
-            election_event_id,
-            election_id,
+            &tenant_id,
+            &results_event_id,
+            &election_event_id,
+            &election_id,
             &area.id,
             &area.name,
             &documents,

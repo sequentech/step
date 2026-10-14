@@ -17,7 +17,11 @@
 #
 # Pin matches gitops hasura engine version.
 ARG HASURA_VERSION=v2.33.1
-FROM hasura/graphql-engine:${HASURA_VERSION}.cli-migrations-v3
+# Digest of hasura/graphql-engine:v2.33.1.cli-migrations-v3, so the base cannot
+# change under a tag that upstream rebuilds. This is the multi-arch index digest,
+# so amd64 and arm64 both still resolve. Update it together with HASURA_VERSION.
+ARG HASURA_DIGEST=sha256:02577c5e456726cbe1888e377d21c464979ed888636047adf3aae678d9ab70e6
+FROM hasura/graphql-engine:${HASURA_VERSION}.cli-migrations-v3@${HASURA_DIGEST}
 
 # Upstream image includes user/group hasura (UID/GID 1001). Prefer non-root
 # for the long-running server (Hasura container security guidance).

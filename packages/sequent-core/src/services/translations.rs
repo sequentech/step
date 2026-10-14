@@ -4,7 +4,8 @@
 
 use crate::{
     ballot::{
-        Contest, ContestEncryptionPolicy, DecodedBallotsInclusionPolicy,
+        BatchAnonymityPolicy, Contest, ContestEncryptionPolicy,
+        ContestPresentation, DecodedBallotsInclusionPolicy,
         DelegatedVotingPolicy, ElectionEventPresentation, ElectionPresentation,
         I18nContent, LanguageDetectionPolicy, VotingPortalDateTimeFormat,
         WeightedVotingPolicy,
@@ -89,6 +90,12 @@ impl ElectionEvent {
             .unwrap_or_default()
     }
 
+    pub fn get_batch_anonymity_policy(&self) -> BatchAnonymityPolicy {
+        parse_presentation::<ElectionEventPresentation>(&self.presentation)
+            .and_then(|p| p.batch_anonymity_policy)
+            .unwrap_or_default()
+    }
+
     pub fn get_language_detection_policy(&self) -> LanguageDetectionPolicy {
         parse_presentation::<ElectionEventPresentation>(&self.presentation)
             .and_then(|p| p.language_conf)
@@ -146,22 +153,28 @@ impl Alias for Election {
 
 impl Name for Contest {
     fn get_name(&self, language: &str) -> String {
-        let alias = self.alias_i18n.clone().and_then(|alias_i18n| {
-            alias_i18n
-                .get(language)
-                .cloned()
-                .or(alias_i18n.get(DEFAULT_LANG).cloned())
-                .or(Some(self.alias.clone()))
+        // A present JSON null is still a missing translation. Flatten each
+        // locale before falling back, then use the base field even without a map.
+        let alias =
+            self.alias_i18n
+                .clone()
+                .map(|alias_i18n| {
+                    alias_i18n.get(language).cloned().flatten().or_else(|| {
+                        alias_i18n.get(DEFAULT_LANG).cloned().flatten()
+                    })
+                })
                 .flatten()
-        });
-        let name = self.name_i18n.clone().and_then(|name_i18n| {
-            name_i18n
-                .get(language)
-                .cloned()
-                .or(name_i18n.get(DEFAULT_LANG).cloned())
-                .or(Some(self.name.clone()))
+                .or_else(|| self.alias.clone());
+        let name =
+            self.name_i18n
+                .clone()
+                .map(|name_i18n| {
+                    name_i18n.get(language).cloned().flatten().or_else(|| {
+                        name_i18n.get(DEFAULT_LANG).cloned().flatten()
+                    })
+                })
                 .flatten()
-        });
+                .or_else(|| self.name.clone());
 
         alias.or(name).unwrap_or("-".into())
     }
@@ -169,7 +182,7 @@ impl Name for Contest {
 
 #[cfg(test)]
 mod tests {
-    use crate::ballot::VotingPortalDateTimeFormat;
+    use crate::ballot::{BatchAnonymityPolicy, VotingPortalDateTimeFormat};
     use crate::types::hasura::core::ElectionEvent;
 
     fn election_event_with_presentation(
@@ -231,5 +244,36 @@ mod tests {
             event.get_voting_portal_datetime_format(),
             VotingPortalDateTimeFormat::Custom("dd/MM/yyyy HH:mm".to_string())
         );
+    }
+
+    #[test]
+    fn batch_anonymity_policy_defaults_to_warn_when_absent() {
+        let event = election_event_with_presentation(None);
+        assert_eq!(
+            event.get_batch_anonymity_policy(),
+            BatchAnonymityPolicy::WARN
+        );
+
+        let event =
+            election_event_with_presentation(Some(serde_json::json!({})));
+        assert_eq!(
+            event.get_batch_anonymity_policy(),
+            BatchAnonymityPolicy::WARN
+        );
+    }
+
+    #[test]
+    fn batch_anonymity_policy_reads_each_value() {
+        let cases = [
+            ("warn", BatchAnonymityPolicy::WARN),
+            ("refuse", BatchAnonymityPolicy::REFUSE),
+        ];
+        for (wire, expected) in cases {
+            let event =
+                election_event_with_presentation(Some(serde_json::json!({
+                    "batch_anonymity_policy": wire,
+                })));
+            assert_eq!(event.get_batch_anonymity_policy(), expected);
+        }
     }
 }

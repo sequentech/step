@@ -67,11 +67,21 @@ jest.mock("@/providers/SettingsContextProvider", () => ({
     }),
 }))
 jest.mock("@/providers/AuthContextProvider", () => ({
-    AuthContext: require("react").createContext({trustee: "trustee-1"}),
+    AuthContext: require("react").createContext({trustee: "trustee-1", username: "trustee-1"}),
 }))
 jest.mock("react-i18next", () => ({useTranslation: () => ({t: (key: string) => key})}))
-jest.mock("@apollo/client", () => ({useMutation: () => [jest.fn()]}))
-jest.mock("@/queries/RestorePrivateKey", () => ({RESTORE_PRIVATE_KEY: "mutation"}))
+jest.mock("@apollo/client", () => ({
+    useMutation: () => [jest.fn()],
+    useQuery: () => ({data: undefined, refetch: jest.fn()}),
+}))
+jest.mock("@/queries/AuthorizeTallyCustody", () => ({AUTHORIZE_TALLY_CUSTODY: "mutation"}))
+jest.mock("@/queries/CustodyProofSignatureStatus", () => ({
+    CUSTODY_PROOF_SIGNATURE_STATUS: "query",
+}))
+jest.mock("@/components/keys-ceremony/useCustodyProofSigning", () => ({
+    CustodyProofCheck: {},
+    useCustodyProofSigning: () => ({check: jest.fn(), waiting: false}),
+}))
 jest.mock(
     "@sequentech/ui-essentials",
     () => ({

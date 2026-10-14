@@ -12,10 +12,20 @@
 # which cargo reads through the [source] configuration the production job appends to
 # .cargo/config.toml; `yarn-offline-mirror` the npm packages of yarn.lock; `apks-nginx` the
 # Alpine packages of the runtime stage, whose signatures apk verifies when it installs them.
+# With the vendored crates and the npm mirror supplied, cargo and yarn run with --offline.
+#
+# The WebAssembly module of sequent-core is built here from source, with the features of the
+# committed development package (scripts/dev/wasm.py), and replaces that package before
+# yarn installs it.
 ARG WASM_PACK_VERSION=0.15.0
 ARG WASM_BINDGEN_VERSION=0.2.128
 ARG BINARYEN_VERSION=123
 ARG RUST_VERSION=1.96.0
+# Debian archive snapshot every apt call resolves against (sequentech/meta#13625).
+# http, not https: the base image ships no CA certificates; apt verifies the signed
+# InRelease and the per-file checksums regardless of transport. Bumping it is a
+# deliberate release action, like bumping a base image digest.
+ARG DEBIAN_SNAPSHOT=20260929T000000Z
 
 FROM rust:1.96.0-slim-bookworm@sha256:4732ca96fd086cb9be682050c3f0176288eebaac2b80aa2bcefccfaf198e1950 AS wasm-toolchain-download
 ARG WASM_PACK_VERSION
@@ -23,6 +33,14 @@ ARG WASM_BINDGEN_VERSION
 ARG BINARYEN_VERSION
 ARG RUST_VERSION
 ARG TARGETARCH
+ARG DEBIAN_SNAPSHOT
+RUN set -eux; \
+    rm -f /etc/apt/sources.list.d/debian.sources; \
+    { \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm-updates main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/${DEBIAN_SNAPSHOT} bookworm-security main"; \
+    } > /etc/apt/sources.list
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
@@ -47,6 +65,14 @@ FROM scratch AS wasm-toolchain
 COPY --from=wasm-toolchain-download /archives/ /
 
 FROM rust:1.96.0-slim-bookworm@sha256:4732ca96fd086cb9be682050c3f0176288eebaac2b80aa2bcefccfaf198e1950 AS debs-wasm-build-download
+ARG DEBIAN_SNAPSHOT
+RUN set -eux; \
+    rm -f /etc/apt/sources.list.d/debian.sources; \
+    { \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm-updates main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/${DEBIAN_SNAPSHOT} bookworm-security main"; \
+    } > /etc/apt/sources.list
 RUN mkdir -p /debs && apt-get update && apt-get install -y --no-install-recommends --download-only \
     -o Dir::Cache::archives=/debs \
     clang \
@@ -60,8 +86,10 @@ FROM scratch AS cargo-vendor
 
 FROM scratch AS yarn-offline-mirror
 
-FROM nginx:alpine@sha256:db35bfc6b2951e7f8a72db5db120288c127ffaeeb4a6d4b95a26fead017d5913 AS apks-nginx-download
-RUN mkdir -p /apks && apk fetch --no-cache --recursive --output /apks jq
+# jq is the version the runtime pins; the build fails if the repository serves another.
+FROM nginx:alpine@sha256:df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2 AS apks-nginx-download
+RUN mkdir -p /apks && apk fetch --no-cache --recursive --output /apks jq \
+    && test -f /apks/jq-1.8.2-r0.apk
 
 FROM scratch AS apks-nginx
 COPY --from=apks-nginx-download /apks/*.apk /
@@ -84,30 +112,36 @@ RUN set -eux; \
     wasm-pack --version; wasm-bindgen --version; wasm-opt --version
 
 WORKDIR /app
-COPY ./braid ./braid
-COPY ./b4 ./b4
+# The members of the workspace, packages/Cargo.toml, and the wbraid crates they depend on
 COPY ./electoral-log ./electoral-log
-COPY ./harvest ./harvest
-COPY ./strand ./strand
 COPY ./trellis ./trellis
-COPY ./pgmq-broker ./pgmq-broker
+COPY ./harvest ./harvest
+COPY ./protocol-board ./protocol-board
+COPY ./voting-crypto ./voting-crypto
+COPY ./trustee ./trustee
 COPY ./sequent-core ./sequent-core
 COPY ./velvet ./velvet
 COPY ./windmill ./windmill
-COPY ./e2e ./e2e
-COPY ./step-cli ./step-cli
-COPY ./orare ./orare
+COPY ./pgmq-broker ./pgmq-broker
 COPY ./wrap-map-err ./wrap-map-err
+COPY ./messaging ./messaging
+COPY ./messaging-webhooks ./messaging-webhooks
+COPY ./step-cli ./step-cli
+COPY ./e2e ./e2e
+COPY ./orare ./orare
 COPY ./plugins ./plugins
-COPY ./third_party ./third_party
+COPY ./wbraid ./wbraid
 COPY ./Cargo.toml ./Cargo.toml
 COPY ./Cargo.lock ./Cargo.lock
 COPY ./.cargo ./.cargo
 COPY --from=cargo-vendor / ./vendor/
 
 WORKDIR /app/sequent-core
-RUN CARGO_NET_OFFLINE=true wasm-pack build --mode no-install --release --target web --out-name index \
-    --features=wasm,default_features --locked --offline
+RUN set -eu; \
+    offline=; \
+    if [ -n "$(ls -A /app/vendor)" ]; then export CARGO_NET_OFFLINE=true; offline=--offline; fi; \
+    wasm-pack build --mode no-install --release --target web --out-name index \
+        --features=wasmtest,default_features,monitoring --locked $offline
 
 FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 as builder
 WORKDIR /usr/src/app/
@@ -120,19 +154,36 @@ COPY ./voting-portal ./voting-portal
 COPY ./admin-portal ./admin-portal
 COPY ./ballot-verifier ./ballot-verifier
 COPY ./results-portal ./results-portal
+# The portals list it as a dev dependency, so the workspace has to be present
+# for yarn to resolve it, even though the image does not build it.
+COPY ./ui-test-kit ./ui-test-kit
 COPY ./package.json ./package.json
 COPY ./yarn.lock ./yarn.lock
 
-# The WebAssembly module each of them depends on, built above rather than committed
-COPY --from=wasm-build /app/sequent-core/pkg ./ui-core/rust/pkg
-COPY --from=wasm-build /app/sequent-core/pkg ./voting-portal/rust/pkg
-COPY --from=wasm-build /app/sequent-core/pkg ./admin-portal/rust/pkg
-COPY --from=wasm-build /app/sequent-core/pkg ./ballot-verifier/rust/pkg
+# The WebAssembly module each of them depends on, built above rather than committed: packed
+# as the npm archive their package.json files name, in place of the committed development
+# package, with its sha1 in the yarn.lock entries that pin the committed one.
+COPY --from=wasm-build /app/sequent-core/pkg /tmp/sequent-core/package
+RUN set -eux; \
+    cd /tmp/sequent-core; \
+    tar -czf sequent-core-0.1.0.tgz package; \
+    sha1=$(sha1sum sequent-core-0.1.0.tgz | cut -d' ' -f1); \
+    for c in ui-core voting-portal admin-portal ballot-verifier; do \
+        cp sequent-core-0.1.0.tgz /usr/src/app/$c/rust/sequent-core-0.1.0.tgz; \
+    done; \
+    sed -i -E "s|(resolved \"file:[^\"#]*/sequent-core-0\.1\.0\.tgz#)[0-9a-f]{40}\"|\1${sha1}\"|" /usr/src/app/yarn.lock; \
+    test "$(grep -c "sequent-core-0\.1\.0\.tgz#${sha1}\"" /usr/src/app/yarn.lock)" -eq 4; \
+    rm -rf /tmp/sequent-core
 
-# Install dependencies
+# Install dependencies, from the npm mirror when it is supplied
 COPY --from=yarn-offline-mirror / /usr/src/yarn-offline-mirror/
-RUN printf 'yarn-offline-mirror "/usr/src/yarn-offline-mirror"\n' > .yarnrc
-RUN yarn install --offline --frozen-lockfile --non-interactive
+RUN set -eu; \
+    if [ -n "$(ls -A /usr/src/yarn-offline-mirror)" ]; then \
+        printf 'yarn-offline-mirror "/usr/src/yarn-offline-mirror"\n' > .yarnrc; \
+        yarn install --offline --frozen-lockfile --non-interactive; \
+    else \
+        yarn install --frozen-lockfile --non-interactive; \
+    fi
 
 ARG SPA_NAME
 
@@ -143,15 +194,20 @@ RUN yarn build:${SPA_NAME}
 
 
 
-FROM nginx:alpine@sha256:db35bfc6b2951e7f8a72db5db120288c127ffaeeb4a6d4b95a26fead017d5913
+FROM nginx:alpine@sha256:df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2
 # Install dependencies
+# apk logs the time of the install; removed so the layer is the same every build.
 COPY --from=apks-nginx / /tmp/apks/
-RUN apk add --no-network /tmp/apks/*.apk && rm -rf /tmp/apks
+RUN apk add --no-network /tmp/apks/*.apk && rm -rf /tmp/apks && rm -f /var/log/apk.log
 # Remove default nginx static assets
 RUN rm -rf /usr/share/nginx/html/*
 # Copy custom NGINX config
 COPY default.conf /etc/nginx/conf.d/
 ARG SPA_NAME
+# Browser trustee workers require isolation on both documents and module assets.
+RUN if [ "$SPA_NAME" = "admin-portal" ]; then \
+        sed -i '/index  index.html;/a\    add_header Cross-Origin-Opener-Policy same-origin always;\n    add_header Cross-Origin-Embedder-Policy require-corp always;' /etc/nginx/conf.d/default.conf; \
+    fi
 # Copy the built SPA from the 'dist' directory of the build stage to the Nginx server
 COPY --from=builder /usr/src/app/${SPA_NAME}/dist /usr/share/nginx/html
 COPY nginx-entrypoint.sh entrypoint.sh

@@ -2,19 +2,36 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context as ContextAnyhow, Result};
-use chrono::{DateTime, Local, Utc};
+use chrono::{DateTime, Utc};
 use handlebars::{
-    BlockParamHolder, Context, Handlebars, Helper, HelperDef, HelperResult,
-    JsonValue, Output, RenderContext, RenderError, RenderErrorReason,
-    Renderable, ScopedJson,
+    handlebars_helper, BlockParamHolder, Context, Handlebars, Helper,
+    HelperDef, HelperResult, JsonValue, Output, RenderContext, RenderError,
+    RenderErrorReason, Renderable, ScopedJson,
 };
 use handlebars_chrono::HandlebarsChronoDateTime;
 use num_format::{Locale, ToFormattedString};
 use serde_json::{json, to_string, Map, Value};
 use std::collections::{HashMap, HashSet};
-use tracing::{instrument, warn};
+use std::str::FromStr;
+use std::sync::Arc;
+use tracing::{info, instrument, warn};
 
-fn get_registry<'reg>() -> Handlebars<'reg> {
+#[path = "reports_time_zones.rs"]
+mod time_zones;
+pub use time_zones::{
+    copy_template_time_variables, format_in_zone, is_invalid_timezone_text,
+    normalize_placeholders, template_time_variables, DateTimeZoneStyle,
+    TimeZoneTexts, DATE_TIME_ZONE_KEY, DEFAULT_TEMPLATE_DATE_TIME_FORMAT,
+    ELECTION_EVENT_TIMEZONE_VAR, ELECTION_TIMEZONE_VAR,
+    TIMEZONE_COMBINED_TEXTS, TIMEZONE_TEXTS_VAR, VOTER_DATE_TIME_ZONE_KEY,
+};
+use time_zones::{
+    DateTimeZoneHelper, TemplateTimeContext, TimeZoneTextHelper, ZoneText,
+};
+
+fn get_registry<'reg>(variables_map: &Map<String, Value>) -> Handlebars<'reg> {
+    let time_context =
+        Arc::new(TemplateTimeContext::from_variables(variables_map));
     let mut reg = Handlebars::new();
     reg.set_strict_mode(false);
     reg.register_helper(
@@ -89,6 +106,27 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
     reg.register_helper("next", Box::new(next));
     reg.register_helper("eq", Box::new(eq));
     reg.register_helper("is_some", Box::new(is_some));
+    reg.register_helper(
+        "datetime_zone",
+        helper_wrapper_or(
+            Box::new(DateTimeZoneHelper(time_context.clone())),
+            String::from("-"),
+        ),
+    );
+    reg.register_helper(
+        "timezone_label",
+        helper_wrapper_or(
+            Box::new(TimeZoneTextHelper(time_context.clone(), ZoneText::Label)),
+            String::from("-"),
+        ),
+    );
+    reg.register_helper(
+        "timezone_name",
+        helper_wrapper_or(
+            Box::new(TimeZoneTextHelper(time_context, ZoneText::Name)),
+            String::from("-"),
+        ),
+    );
     reg
 }
 
@@ -97,7 +135,7 @@ pub fn render_template_text(
     template: &str,
     variables_map: Map<String, Value>,
 ) -> Result<String, RenderError> {
-    let reg = get_registry();
+    let reg = get_registry(&variables_map);
 
     // render handlebars template
     reg.render_template(template, &json!(variables_map))
@@ -109,7 +147,7 @@ pub fn render_template(
     template_map: HashMap<String, String>,
     variables_map: Map<String, Value>,
 ) -> Result<String, RenderError> {
-    let mut reg = get_registry();
+    let mut reg = get_registry(&variables_map);
 
     for (name, file) in template_map {
         reg.register_template_string(&name, &file)?;
@@ -207,7 +245,7 @@ pub fn expr_helper<'reg, 'rc>(
     h: &Helper<'rc>,
     _r: &'reg Handlebars<'reg>,
     _ctx: &'rc Context,
-    _rc: &mut RenderContext<'reg, 'rc>,
+    rc: &mut RenderContext<'reg, 'rc>,
     out: &mut dyn Output,
 ) -> Result<(), RenderError> {
     let value = h
@@ -312,19 +350,19 @@ pub fn url_encode(
     Ok(())
 }
 
-fn report_error(message: impl Into<String>) -> RenderError {
-    RenderErrorReason::Other(message.into()).into()
-}
-
 fn parse_u64_value(value: &JsonValue) -> Result<u64, RenderError> {
     match value {
         JsonValue::Number(n) => n.as_u64().ok_or_else(|| {
-            report_error(format!("Expected u64 but got invalid number: {n}"))
+            RenderError::new(format!(
+                "Expected u64 but got invalid number: {n}"
+            ))
         }),
         JsonValue::String(s) => s.parse::<u64>().map_err(|_| {
-            report_error(format!("Failed to parse '{}' as u64", s))
+            RenderError::new(format!("Failed to parse '{}' as u64", s))
         }),
-        _ => Err(report_error("Expected u64 or a string representing an u64")),
+        _ => Err(RenderError::new(
+            "Expected u64 or a string representing an u64",
+        )),
     }
 }
 
@@ -350,12 +388,16 @@ pub fn format_u64(
 fn parse_f64_value(value: &JsonValue) -> Result<f64, RenderError> {
     match value {
         JsonValue::Number(n) => n.as_f64().ok_or_else(|| {
-            report_error(format!("Expected f64 but got invalid number: {n}"))
+            RenderError::new(format!(
+                "Expected f64 but got invalid number: {n}"
+            ))
         }),
         JsonValue::String(s) => s.parse::<f64>().map_err(|_| {
-            report_error(format!("Failed to parse '{}' as f64", s))
+            RenderError::new(format!("Failed to parse '{}' as f64", s))
         }),
-        _ => Err(report_error("Expected f64 or a string representing an f64")),
+        _ => Err(RenderError::new(
+            "Expected f64 or a string representing an f64",
+        )),
     }
 }
 
@@ -385,7 +427,7 @@ impl HelperDef for divide {
         let divisor = parse_f64_value(divisor_value)?;
 
         if divisor == 0.0 {
-            return Err(report_error("Division by zero"));
+            return Err(RenderError::new("Division by zero"));
         }
 
         let result = dividend / divisor;
@@ -480,7 +522,7 @@ impl HelperDef for modulo {
         let divisor = parse_u64_value(divisor_value)?;
 
         if divisor == 0 {
-            return Err(report_error("Modulo by zero"));
+            return Err(RenderError::new("Modulo by zero"));
         }
 
         let result = dividend % divisor;
@@ -513,11 +555,12 @@ impl HelperDef for next {
         let index = parse_u64_value(index_value)?;
 
         // Check if the first parameter is an array
-        let array = array_value
-            .as_array()
-            .ok_or_else(|| report_error("First parameter must be an array"))?;
+        let array = array_value.as_array().ok_or_else(|| {
+            RenderError::new("First parameter must be an array")
+        })?;
 
-        // Return the next element or null if it doesn't exist
+        // Return the next element or null if it doesn't exist (or its index
+        // can't be represented)
         let result = index
             .checked_add(1)
             .and_then(|next_index| usize::try_from(next_index).ok())
@@ -663,11 +706,11 @@ pub fn format_date(
         // If the date string contains a time, assume "YYYY-MM-DD HH:MM:SS"
         DateTime::parse_from_str(date_str, "%Y-%m-%d %H:%M:%S")
             .map_err(|err| {
-                report_error(format!(
+                RenderError::new(format!(
                     "Date parsing error: {err:?}, date_json={date_json:?}"
                 ))
             })?
-            .with_timezone(&Local) // Convert to local timezone
+            .with_timezone(&Utc) // Never the server's clock zone
     } else {
         // Otherwise, assume it's just a date "YYYY-MM-DD" and add a time
         // placeholder
@@ -676,11 +719,11 @@ pub fn format_date(
             "%Y-%m-%d %H:%M:%S",
         )
         .map_err(|err| {
-            report_error(format!(
+            RenderError::new(format!(
                 "Date parsing error: {err:?}, date_json={date_json:?}"
             ))
         })?
-        .with_timezone(&Local) // Convert to local timezone
+        .with_timezone(&Utc) // Never the server's clock zone
     };
 
     // Format the date using the provided format string

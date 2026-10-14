@@ -136,12 +136,28 @@ impl DatafixResponse {
     }
 }
 
+/// URL schemes accepted for the VoterView endpoint.
+#[derive(
+    Default, Display, Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, EnumString,
+)]
+pub enum VoterviewTransportPolicy {
+    #[default]
+    #[strum(serialize = "https-only")]
+    #[serde(rename = "https-only")]
+    HttpsOnly,
+    #[strum(serialize = "allow-plaintext")]
+    #[serde(rename = "allow-plaintext")]
+    AllowPlaintext,
+}
+
 #[derive(Deserialize, Serialize, Debug)]
 pub struct VoterviewRequest {
     pub url: String,
     pub usr: String,
     pub psw: String,
     pub county_mun: String,
+    #[serde(default)]
+    pub transport_policy: VoterviewTransportPolicy,
 }
 
 #[derive(Deserialize, Serialize, Debug)]

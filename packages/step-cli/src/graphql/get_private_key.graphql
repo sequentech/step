@@ -1,7 +1,0 @@
-mutation GetPrivateKey($object: GetPrivateKeyInput!) {
-        get_private_key(
-            object: $object
-        ) {
-            private_key_base64
-        }
-    }

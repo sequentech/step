@@ -103,7 +103,6 @@ Create a `config.json` file in your working directory (the directory you pass to
       "firstName": "",
       "dateOfBirth": "",
       "termsOfService": "termsOfServiceText",
-      "emailAndOrMobile": "sequent.read-only.mobile-number;email",
       "sequent.read-only.id-card-type": "driversLicense",
       "sequent.read-only.mobile-number": "",
       "sequent.read-only.id-card-number": "",
@@ -159,7 +158,7 @@ Create a `config.json` file in your working directory (the directory you pass to
       "unset-attributes": "email,sequent.read-only.mobile-number,sequent.read-only.id-card-number-validated",
       "rejection_message": null,
       "search-attributes": "firstName,middleName,lastName,embassy,dateOfBirth",
-      "update-attributes": "sequent.read-only.id-card-number-validated,email,sequent.read-only.mobile-number,emailAndOrMobile,sequent.read-only.id-card-number,sequent.read-only.id-card-type",
+      "update-attributes": "sequent.read-only.id-card-number-validated,email,sequent.read-only.mobile-number,sequent.read-only.id-card-number,sequent.read-only.id-card-type",
       "manual_verify_reason": null
     }
   }

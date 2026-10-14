@@ -28,11 +28,11 @@ use std::io::{self, Read, Seek, Write};
 #[cfg(feature = "miru")]
 use std::path::PathBuf;
 #[cfg(feature = "miru")]
-use strand::hash::hash_sha256;
-#[cfg(feature = "miru")]
 use tempfile::tempdir;
 #[cfg(feature = "miru")]
 use tracing::{info, instrument};
+#[cfg(feature = "miru")]
+use voting_crypto::hash::hash_sha256;
 
 #[cfg(feature = "miru")]
 pub const ECIES_TOOL_PATH: &str = "/usr/local/bin/ecies-tool.jar";

@@ -1111,7 +1111,7 @@
       {
         "alias": "choose-user",
         "config": {
-          "siteSecret": "6LfJ_RspAAAAAOAA1TlNmGRgzUANakib7MSQe1ae",
+          "siteSecret": "",
           "recaptchaActionName": "forgotpassword",
           "recaptchaSiteKey": "6LfJ_RspAAAAAAX_gikmCVVs1MP8DPWV71WYUKUK",
           "recaptchaEnabled": "false",
@@ -1497,7 +1497,7 @@
         "alias": "username-password-exp",
         "config": {
           "recaptchaActionName": "login",
-          "siteSecret": "6LfJ_RspAAAAAOAA1TlNmGRgzUANakib7MSQe1ae",
+          "siteSecret": "",
           "recaptchaMinScore": "0.5",
           "passwordExpirationUserAttribute": "sequent.read-only.expirationDate",
           "recaptchaSiteKey": "6LfJ_RspAAAAAAX_gikmCVVs1MP8DPWV71WYUKUK",

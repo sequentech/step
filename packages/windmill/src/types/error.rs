@@ -8,7 +8,6 @@ use handlebars;
 use keycloak;
 use sequent_core::util::integrity_check::HashFileVerifyError;
 use serde_json;
-use strand::util::StrandError;
 quick_error! {
     #[derive(Debug)]
     pub enum Error {
@@ -76,12 +75,6 @@ impl From<celery::error::CeleryError> for Error {
 
 impl From<handlebars::RenderError> for Error {
     fn from(err: handlebars::RenderError) -> Self {
-        Error::String(format!("{:?}", err))
-    }
-}
-
-impl From<StrandError> for Error {
-    fn from(err: StrandError) -> Self {
         Error::String(format!("{:?}", err))
     }
 }

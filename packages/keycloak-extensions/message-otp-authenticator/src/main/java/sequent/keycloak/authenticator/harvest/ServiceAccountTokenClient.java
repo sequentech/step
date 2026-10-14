@@ -1,0 +1,146 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+package sequent.keycloak.authenticator.harvest;
+
+import java.io.IOException;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+import lombok.extern.jbosslog.JBossLog;
+import org.keycloak.util.JsonSerialization;
+
+/**
+ * Obtains a service-account access token with the client-credentials grant, so extensions can call
+ * harvest and Hasura. Tokens are cached per realm until shortly before they expire, and the token
+ * endpoint is called with 5 s to connect and 10 s to answer, so a slow Keycloak never holds a
+ * sign-in. Neither the client secret nor the tokens are ever logged.
+ */
+@JBossLog
+public class ServiceAccountTokenClient {
+  private static final String CLIENT_ID_ENV = "KEYCLOAK_CLIENT_ID";
+  private static final String CLIENT_SECRET_ENV = "KEYCLOAK_CLIENT_SECRET";
+  private static final String KEYCLOAK_URL_ENV = "KEYCLOAK_URL";
+
+  static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
+  static final Duration READ_TIMEOUT = Duration.ofSeconds(10);
+
+  /** A cached token is replaced this long before it expires. */
+  static final Duration EXPIRY_MARGIN = Duration.ofSeconds(30);
+
+  private static volatile ServiceAccountTokenClient shared;
+
+  private final HttpClient httpClient =
+      HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
+  private final String keycloakUrl;
+  private final String clientId;
+  private final String clientSecret;
+  private final Clock clock;
+  private final Map<String, CachedToken> cache = new ConcurrentHashMap<>();
+
+  private record CachedToken(String token, Instant renewAt) {}
+
+  public ServiceAccountTokenClient(String keycloakUrl, String clientId, String clientSecret) {
+    this(keycloakUrl, clientId, clientSecret, Clock.systemUTC());
+  }
+
+  ServiceAccountTokenClient(String keycloakUrl, String clientId, String clientSecret, Clock clock) {
+    this.keycloakUrl = keycloakUrl;
+    this.clientId = clientId;
+    this.clientSecret = clientSecret;
+    this.clock = clock;
+  }
+
+  /** One client for the process, configured from the environment, so its cache is shared. */
+  public static ServiceAccountTokenClient shared() {
+    if (shared == null) {
+      synchronized (ServiceAccountTokenClient.class) {
+        if (shared == null) {
+          shared = fromEnvironment();
+        }
+      }
+    }
+    return shared;
+  }
+
+  public static ServiceAccountTokenClient fromEnvironment() {
+    return new ServiceAccountTokenClient(
+        System.getenv(KEYCLOAK_URL_ENV),
+        System.getenv(CLIENT_ID_ENV),
+        System.getenv(CLIENT_SECRET_ENV));
+  }
+
+  public static String tenantRealmName(String tenantId) {
+    return "tenant-" + tenantId;
+  }
+
+  /** Returns an access token issued by the given realm, from the cache while it is fresh. */
+  public String fetchAccessToken(String realmName) throws IOException {
+    CachedToken cached = cache.get(realmName);
+    if (cached != null && clock.instant().isBefore(cached.renewAt())) {
+      return cached.token();
+    }
+    return requestAccessToken(realmName);
+  }
+
+  private String requestAccessToken(String realmName) throws IOException {
+    Map<String, String> form = new LinkedHashMap<>();
+    form.put("client_id", clientId);
+    form.put("client_secret", clientSecret);
+    form.put("grant_type", "client_credentials");
+    form.put("scope", "openid");
+    String body =
+        form.entrySet().stream()
+            .map(entry -> encode(entry.getKey()) + "=" + encode(entry.getValue()))
+            .collect(Collectors.joining("&"));
+    HttpRequest request =
+        HttpRequest.newBuilder()
+            .uri(
+                URI.create(keycloakUrl + "/realms/" + realmName + "/protocol/openid-connect/token"))
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .timeout(READ_TIMEOUT)
+            .POST(HttpRequest.BodyPublishers.ofString(body))
+            .build();
+
+    HttpResponse<String> response;
+    try {
+      response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IOException("Interrupted while requesting a service-account token", e);
+    }
+    if (response.statusCode() != 200) {
+      log.errorv(
+          "Service-account token request to realm {0} failed with status {1}",
+          realmName, response.statusCode());
+      throw new IOException(
+          "Service-account token request failed with status " + response.statusCode());
+    }
+    Map<?, ?> json = JsonSerialization.readValue(response.body(), Map.class);
+    Object accessToken = json.get("access_token");
+    if (!(accessToken instanceof String token) || token.isEmpty()) {
+      throw new IOException("Service-account token response has no access_token");
+    }
+    if (json.get("expires_in") instanceof Number expiresIn) {
+      Instant renewAt = clock.instant().plusSeconds(expiresIn.longValue()).minus(EXPIRY_MARGIN);
+      if (renewAt.isAfter(clock.instant())) {
+        cache.put(realmName, new CachedToken(token, renewAt));
+      }
+    }
+    return token;
+  }
+
+  private static String encode(String value) {
+    return URLEncoder.encode(value == null ? "" : value, StandardCharsets.UTF_8);
+  }
+}

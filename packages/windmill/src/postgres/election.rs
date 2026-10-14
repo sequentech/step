@@ -658,6 +658,43 @@ pub async fn set_election_keys_ceremony(
 }
 
 #[instrument(err, skip(hasura_transaction))]
+pub async fn clear_election_keys_ceremony(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    keys_ceremony_id: &str,
+) -> Result<()> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                UPDATE
+                    sequent_backend.election
+                SET
+                    keys_ceremony_id = NULL
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    keys_ceremony_id = $3;
+            "#,
+        )
+        .await?;
+
+    hasura_transaction
+        .execute(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(keys_ceremony_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running the clear_election_keys_ceremony query: {err}"))?;
+
+    Ok(())
+}
+
+#[instrument(err, skip(hasura_transaction))]
 pub async fn set_election_initialization_report_generated(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -851,15 +888,76 @@ pub async fn get_election_permission_label(
     Ok(perms.into_iter().flatten().collect())
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ElectionPermissionLabel {
+    pub election_id: String,
+    pub permission_label: Option<String>,
+}
+
+/// Permission labels of the given elections of an event, or of every election
+/// of the event when `election_ids` is `None`.
+#[instrument(err, skip(hasura_transaction))]
+pub async fn get_elections_permission_labels(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_ids: Option<&[String]>,
+) -> Result<Vec<ElectionPermissionLabel>> {
+    let election_uuids = election_ids
+        .map(|ids| {
+            ids.iter()
+                .map(|id| parse_uuid_v4(id))
+                .collect::<Result<Vec<Uuid>>>()
+        })
+        .transpose()?;
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT id, permission_label
+                FROM sequent_backend.election
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    ($3::uuid[] IS NULL OR id = ANY($3::uuid[]))
+            "#,
+        )
+        .await?;
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &election_uuids,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error reading election permission labels: {err}"))?;
+
+    rows.into_iter()
+        .map(|row| -> Result<ElectionPermissionLabel> {
+            let election_id: Uuid = row.try_get("id")?;
+            Ok(ElectionPermissionLabel {
+                election_id: election_id.to_string(),
+                permission_label: row.try_get("permission_label")?,
+            })
+        })
+        .collect()
+}
+
 pub struct CastVoteConfiguration {
     pub presentation: Option<Value>,
     pub status: Option<Value>,
     pub voting_channels: Option<Value>,
     pub dates: sequent_core::ballot::VotingPeriodDates,
+    /// Immutable signed deadlines per channel, independent of scheduler availability.
+    pub signed_close_dates:
+        std::collections::HashMap<sequent_core::ballot::VotingStatusChannel, String>,
 }
 
-/// Read current policy and the two indexed voting endpoints from the writer.
-/// Missing schedules mean absent dates; scalar subqueries reject duplicates.
+/// Read current policy and its transactionally maintained schedule projection.
+/// Schedule scans and JSON date extraction happen when administrators write
+/// configuration, never for each ballot. Missing schedules mean absent dates.
 #[instrument(skip_all, err)]
 pub async fn get_cast_vote_configuration(
     transaction: &Transaction<'_>,
@@ -882,9 +980,56 @@ pub async fn get_cast_vote_configuration(
         presentation: row.try_get("presentation")?,
         status: row.try_get("status")?,
         voting_channels: row.try_get("voting_channels")?,
+        signed_close_dates: serde_json::from_value(row.try_get::<_, Value>("signed_close_dates")?)
+            .context("The maintained signed voting deadlines do not read")?,
         dates: sequent_core::ballot::VotingPeriodDates {
             start_date: row.try_get("start_date")?,
             end_date: row.try_get("end_date")?,
         },
     })
+}
+
+/// Current display cap derived from retained signing evidence and any stricter
+/// live close. Missing legacy source zones use the published primary on reads.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DisplayVotingClose {
+    /// Null explicitly means there is no authorized configured deadline.
+    pub scheduled_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timezone: Option<String>,
+}
+
+/// One batch for explicitly selected Posts; callers keep their existing voter
+/// authorization. This supplements display context without changing signed EML.
+pub async fn get_display_voting_closes(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    event_id: &str,
+    election_ids: &[String],
+) -> Result<std::collections::HashMap<String, DisplayVotingClose>> {
+    let election_ids = election_ids
+        .iter()
+        .map(|id| parse_uuid_v4(id))
+        .collect::<Result<Vec<_>>>()?;
+    let rows = transaction
+        .query(
+            include_str!("sql/display_voting_closes.sql"),
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(event_id)?,
+                &election_ids,
+            ],
+        )
+        .await?;
+    rows.into_iter()
+        .map(|row| {
+            Ok((
+                row.try_get("election_id")?,
+                DisplayVotingClose {
+                    scheduled_at: row.try_get("scheduled_at")?,
+                    timezone: row.try_get("timezone")?,
+                },
+            ))
+        })
+        .collect()
 }

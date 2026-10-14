@@ -29,7 +29,7 @@
 //!
 //! # The limit worth knowing
 //!
-//! `Context::get_rng()` is a `ThreadRng`, so real cryptography is
+//! `Context::get_rng()` draws from the operating system, so real cryptography is
 //! nondeterministic: a fresh sharing, shuffle or proof yields a fresh hash every
 //! time. Two interleavings that "should" converge therefore produce different
 //! boards and never dedupe, so this is exploration of a **tree**, not exhaustive
@@ -217,7 +217,8 @@ impl BraidModel {
             W,
             share_enc_keys,
             PhantomData,
-        );
+        )
+        .expect("invalid configuration");
         let configuration_hash =
             ConfigurationHash::from_configuration(&configuration).expect("configuration hash");
 

@@ -2,18 +2,25 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
-use anyhow::Result;
+use crate::services::authorization::{
+    authorize, authorize_tally_session_permission_labels,
+};
+use anyhow::{anyhow, Context, Result};
+use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
-use rocket::serde::json::Json;
+use rocket::serde::json::{self, Json};
 use sequent_core::services::jwt;
+use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use tracing::instrument;
+use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
+use windmill::services::database::get_hasura_pool;
 use windmill::services::tasks_execution::*;
+use windmill::tasks::export_ballot_publication::export_ballot_publication;
+use windmill::tasks::export_election_event::{self, ExportOptions};
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -43,6 +50,24 @@ pub async fn export_tally_results_route(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::TALLY_RESULTS_READ],
     )?;
+    {
+        let mut hasura_db_client: DbClient = get_hasura_pool()
+            .await
+            .get()
+            .await
+            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+        let hasura_transaction = hasura_db_client
+            .transaction()
+            .await
+            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+        authorize_tally_session_permission_labels(
+            &hasura_transaction,
+            &claims,
+            &body.election_event_id,
+            &body.tally_session_id,
+        )
+        .await?;
+    }
 
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let election_event_id = body.election_event_id.clone();

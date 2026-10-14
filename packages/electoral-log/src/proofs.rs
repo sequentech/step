@@ -7,12 +7,12 @@ use anyhow::Result;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use strand::signature::{StrandSignature, StrandSignaturePk};
 pub use trellis::journal::{
     Checkpoint, Consistency, Evidence, Inclusion, Journal, JournalError, LogState, LogSummary,
     TreeAudit,
 };
 pub use uuid::Uuid;
+use voting_crypto::signing::{Signature, VerificationKey};
 
 /// Domain tag of the record-commitment format. Changing the encoding requires a new tag.
 pub const LEAF_FORMAT_V2: &str = "sequent-electoral-log-v2";
@@ -94,8 +94,8 @@ pub fn verify_checkpoint_signature(
     signer_pk: &str,
     signature: &str,
 ) -> Result<()> {
-    let pk = StrandSignaturePk::from_der_b64_string(signer_pk)?;
-    let signature = StrandSignature::from_b64_string(signature)?;
+    let pk = VerificationKey::from_b64_string(signer_pk)?;
+    let signature = Signature::from_b64_string(signature)?;
     pk.verify(&signature, &checkpoint_signing_bytes(checkpoint, reason)?)?;
     Ok(())
 }
@@ -225,10 +225,10 @@ mod tests {
 
     #[test]
     fn checkpoint_signatures_bind_every_field() {
-        let sk = strand::signature::StrandSignatureSk::generate().unwrap();
-        let pk = StrandSignaturePk::from_sk(&sk)
+        let sk = voting_crypto::signing::SigningKey::generate().unwrap();
+        let pk = VerificationKey::from_sk(&sk)
             .unwrap()
-            .to_der_b64_string()
+            .to_b64_string()
             .unwrap();
         let checkpoint = Checkpoint {
             log_name: "board".into(),

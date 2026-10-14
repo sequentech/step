@@ -7,9 +7,12 @@ import {readFileSync, readdirSync} from "fs"
 import {join, relative} from "path"
 import ts from "typescript"
 
+// The IVR emulator is drawn by the Election Architect, never by this portal.
+const notPortalDom = new Set(["IvrCall.tsx"])
+
 const sourceFiles = (directory: string): string[] =>
     readdirSync(directory, {withFileTypes: true}).flatMap((entry) => {
-        if (entry.name === "__mocks__") return []
+        if (entry.name === "__mocks__" || notPortalDom.has(entry.name)) return []
         const path = join(directory, entry.name)
         return entry.isDirectory()
             ? sourceFiles(path)
@@ -38,7 +41,6 @@ const sharedComponents = [
     "BreadCrumbSteps",
     "Candidate",
     "CandidatesList",
-    "ConfirmationActions",
     "CountdownBar",
     "Dialog",
     "ExpandableText",
@@ -55,6 +57,10 @@ const sharedComponents = [
 ]
 const files = [
     ...sourceFiles(__dirname),
+    // The voter's screens are drawn by the shared ballot layouts, so the hooks a
+    // client's stylesheet targets live there now.
+    ...sourceFiles(join(__dirname, "../../ui-essentials/src/ballot")),
+    ...sourceFiles(join(__dirname, "../../ui-essentials/src/components/ActionsRow")),
     ...sharedComponents.flatMap((name) =>
         sourceFiles(join(__dirname, "../../ui-essentials/src/components", name))
     ),

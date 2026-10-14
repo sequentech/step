@@ -34,19 +34,19 @@ pub fn encode_vec_to_array(data: &[u8]) -> Result<[u8; 30], String> {
     Ok(plaintext_array)
 }
 
-/**
- * Decode an array of 30 bytes into a vector of bytes.
- * This is the inverse of encode_vec_to_array and in that way
- * the first byte indicates the size of the data.
- */
+/// Read a length-prefixed envelope, rejecting a length beyond its 29-byte payload.
+///
+/// Decoded ballots need not have been produced by our encoder. Validate the
+/// prefix before slicing so malformed plaintext returns an error, not a panic.
 pub fn decode_array_to_vec(code: &[u8; 30]) -> Result<Vec<u8>, String> {
     let plaintext_length = code[0] as usize;
-
-    code.get(1..plaintext_length + 1)
-        .map(|bytes| bytes.to_vec())
+    code[1..]
+        .get(..plaintext_length)
+        .map(|payload| payload.to_vec())
         .ok_or_else(|| {
             format!(
-                "Invalid plaintext length {plaintext_length}; maximum is 29"
+                "Invalid plaintext length {}, maximum is 29",
+                plaintext_length
             )
         })
 }

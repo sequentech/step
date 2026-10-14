@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use sequent_core::services::pdf::PrintToPdfOptions;
+use sequent_core::services::pdf::{PdfResourcePolicy, PrintToPdfOptions, TransferMode};
 
 /// Lambda Inputs are of two forms: raw, which receives the full HTML
 /// and returns the base64 PDF.
@@ -27,6 +27,8 @@ pub enum Input {
         html: String,
         #[serde(default)]
         pdf_options: Option<PrintToPdfOptions>,
+        #[serde(default)]
+        resource_policy: PdfResourcePolicy,
     },
     #[serde(rename = "s3")]
     S3 {
@@ -46,26 +48,31 @@ pub enum Input {
 impl Clone for Input {
     fn clone(&self) -> Self {
         match self {
-            Input::Raw { html, pdf_options } => Input::Raw {
+            Input::Raw {
+                html,
+                pdf_options,
+                resource_policy,
+            } => Input::Raw {
                 html: html.clone(),
+                resource_policy: *resource_policy,
                 pdf_options: pdf_options.as_ref().map(|pdf_options| PrintToPdfOptions {
-                    landscape: pdf_options.landscape,
-                    display_header_footer: pdf_options.display_header_footer,
-                    print_background: pdf_options.print_background,
-                    scale: pdf_options.scale,
-                    paper_width: pdf_options.paper_width,
-                    paper_height: pdf_options.paper_height,
-                    margin_top: pdf_options.margin_top,
-                    margin_bottom: pdf_options.margin_bottom,
-                    margin_left: pdf_options.margin_left,
-                    margin_right: pdf_options.margin_right,
+                    landscape: pdf_options.landscape.clone(),
+                    display_header_footer: pdf_options.display_header_footer.clone(),
+                    print_background: pdf_options.print_background.clone(),
+                    scale: pdf_options.scale.clone(),
+                    paper_width: pdf_options.paper_width.clone(),
+                    paper_height: pdf_options.paper_height.clone(),
+                    margin_top: pdf_options.margin_top.clone(),
+                    margin_bottom: pdf_options.margin_bottom.clone(),
+                    margin_left: pdf_options.margin_left.clone(),
+                    margin_right: pdf_options.margin_right.clone(),
                     page_ranges: pdf_options.page_ranges.clone(),
-                    ignore_invalid_page_ranges: pdf_options.ignore_invalid_page_ranges,
+                    ignore_invalid_page_ranges: pdf_options.ignore_invalid_page_ranges.clone(),
                     header_template: pdf_options.header_template.clone(),
                     footer_template: pdf_options.footer_template.clone(),
-                    prefer_css_page_size: pdf_options.prefer_css_page_size,
-                    generate_document_outline: pdf_options.generate_document_outline,
-                    generate_tagged_pdf: pdf_options.generate_tagged_pdf,
+                    prefer_css_page_size: pdf_options.prefer_css_page_size.clone(),
+                    generate_document_outline: pdf_options.generate_document_outline.clone(),
+                    generate_tagged_pdf: pdf_options.generate_tagged_pdf.clone(),
                     transfer_mode: None,
                 }),
             },
@@ -79,23 +86,23 @@ impl Clone for Input {
                 input_path: input_path.clone(),
                 output_path: output_path.clone(),
                 pdf_options: pdf_options.as_ref().map(|pdf_options| PrintToPdfOptions {
-                    landscape: pdf_options.landscape,
-                    display_header_footer: pdf_options.display_header_footer,
-                    print_background: pdf_options.print_background,
-                    scale: pdf_options.scale,
-                    paper_width: pdf_options.paper_width,
-                    paper_height: pdf_options.paper_height,
-                    margin_top: pdf_options.margin_top,
-                    margin_bottom: pdf_options.margin_bottom,
-                    margin_left: pdf_options.margin_left,
-                    margin_right: pdf_options.margin_right,
+                    landscape: pdf_options.landscape.clone(),
+                    display_header_footer: pdf_options.display_header_footer.clone(),
+                    print_background: pdf_options.print_background.clone(),
+                    scale: pdf_options.scale.clone(),
+                    paper_width: pdf_options.paper_width.clone(),
+                    paper_height: pdf_options.paper_height.clone(),
+                    margin_top: pdf_options.margin_top.clone(),
+                    margin_bottom: pdf_options.margin_bottom.clone(),
+                    margin_left: pdf_options.margin_left.clone(),
+                    margin_right: pdf_options.margin_right.clone(),
                     page_ranges: pdf_options.page_ranges.clone(),
-                    ignore_invalid_page_ranges: pdf_options.ignore_invalid_page_ranges,
+                    ignore_invalid_page_ranges: pdf_options.ignore_invalid_page_ranges.clone(),
                     header_template: pdf_options.header_template.clone(),
                     footer_template: pdf_options.footer_template.clone(),
-                    prefer_css_page_size: pdf_options.prefer_css_page_size,
-                    generate_document_outline: pdf_options.generate_document_outline,
-                    generate_tagged_pdf: pdf_options.generate_tagged_pdf,
+                    prefer_css_page_size: pdf_options.prefer_css_page_size.clone(),
+                    generate_document_outline: pdf_options.generate_document_outline.clone(),
+                    generate_tagged_pdf: pdf_options.generate_tagged_pdf.clone(),
                     transfer_mode: None,
                 }),
             },

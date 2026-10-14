@@ -5,20 +5,35 @@
 # Step-specific docker-compose that includes base services and step's keycloak
 
 include:
-  - docker-compose-base.yml
+  # Supply newly introduced settings when the checkout's .env predates them.
+  # Compose keeps local .env values (including empty ones) as overrides.
+  - path: docker-compose-base.yml
+    env_file: .env.development
+
+# A theme type directory from the checkout. Keycloak prefers folder themes over
+# the same theme in sequent-theme.jar, and start-dev turns theme and template
+# caching off, so an edited template, message or resource shows on the next
+# page load.
+x-keycloak-theme: &keycloak-theme
+  type: bind
+  read_only: true
+  bind:
+    create_host_path: false
+    selinux: z
 
 services:
   keycloak:
     profiles: ["full", "base"]
-    container_name: keycloak
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}keycloak
     build:
       context: ../packages
       dockerfile: Dockerfile.keycloak
       additional_contexts:
         beyond: ../beyond
+        scripts: ../scripts
     restart: always
     ports:
-      - 8090:8090
+      - 127.0.0.1:8090:8090
     environment:
       # Use the same voter-secret encryption key as Harvest and Windmill.
       MASTER_SECRET: ${MASTER_SECRET}
@@ -39,11 +54,6 @@ services:
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
-      KEYCLOAK_IVR_SERVICE_CLIENT_SECRET: ${KEYCLOAK_IVR_SERVICE_CLIENT_SECRET}
-      KEYCLOAK_IVR_VOTING_CLIENT_SECRET: ${KEYCLOAK_IVR_VOTING_CLIENT_SECRET}
-      KEYCLOAK_CERTIFICATES_CLIENT_SECRET: ${KEYCLOAK_CERTIFICATES_CLIENT_SECRET}
-      SSP_SIGNING_CERTIFICATE: ${SSP_SIGNING_CERTIFICATE}
-      KEYCLOAK_SAML_CLIENT_SIGNING_CERTIFICATE: ${KEYCLOAK_SAML_CLIENT_SIGNING_CERTIFICATE}
       APP_VERSION: ${APP_VERSION}
       APP_HASH: ${APP_HASH}
       KC_OTP_RESEND_INTERVAL: ${KC_OTP_RESEND_INTERVAL}
@@ -68,6 +78,19 @@ services:
     volumes:
       # https://www.keycloak.org/server/containers#_importing_a_realm_on_startup
       - ./keycloak/import:/opt/keycloak/data/import:ro,z
+      # The themes and types registered in sequent-theme's keycloak-themes.json.
+      - <<: *keycloak-theme
+        source: ${LOCAL_WORKSPACE_FOLDER:-..}/packages/keycloak-extensions/sequent-theme/src/main/resources/theme/sequent.admin-portal/login
+        target: /opt/keycloak/themes/sequent.admin-portal/login
+      - <<: *keycloak-theme
+        source: ${LOCAL_WORKSPACE_FOLDER:-..}/packages/keycloak-extensions/sequent-theme/src/main/resources/theme/sequent.admin-portal/account
+        target: /opt/keycloak/themes/sequent.admin-portal/account
+      - <<: *keycloak-theme
+        source: ${LOCAL_WORKSPACE_FOLDER:-..}/packages/keycloak-extensions/sequent-theme/src/main/resources/theme/sequent.voting-portal/login
+        target: /opt/keycloak/themes/sequent.voting-portal/login
+      - <<: *keycloak-theme
+        source: ${LOCAL_WORKSPACE_FOLDER:-..}/packages/keycloak-extensions/sequent-theme/src/main/resources/theme/sequent.voting-portal/account
+        target: /opt/keycloak/themes/sequent.voting-portal/account
     # Below we're using the dummy email email sender provider but that's just for
     # development, in production we should still use the default SMTP email provider
     #
@@ -108,7 +131,7 @@ services:
 
   keycloak-nginx:
     profiles: ["full", "base"]
-    container_name: keycloak-nginx
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}keycloak-nginx
     build:
       context: .
       dockerfile: keycloak-nginx/Dockerfile

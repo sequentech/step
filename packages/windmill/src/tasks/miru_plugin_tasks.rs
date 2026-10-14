@@ -4,6 +4,7 @@
 use crate::services::consolidation::create_transmission_package_service::create_transmission_package_service;
 use crate::services::consolidation::send_transmission_package_service::send_transmission_package_service;
 use crate::services::consolidation::upload_signature_service::upload_transmission_package_signature_service;
+use crate::services::signing::SigningCaller;
 use crate::services::tasks_execution::*;
 use crate::types::error::Error;
 use crate::types::error::Result;
@@ -23,6 +24,10 @@ pub async fn create_transmission_package_task(
     tally_session_id: String,
     force: bool,
     task_execution: TasksExecution,
+    // Who creates the package: its signing request's requester when the
+    // event's transmit-results rule needs signatures. Absent from tasks
+    // queued before signing existed.
+    requester: Option<SigningCaller>,
 ) -> Result<()> {
     let task_execution_clone: TasksExecution = task_execution.clone();
     // Spawn the task using an async block
@@ -35,6 +40,7 @@ pub async fn create_transmission_package_task(
                     &area_id,
                     &tally_session_id,
                     force,
+                    requester,
                 )
                 .await
                 {

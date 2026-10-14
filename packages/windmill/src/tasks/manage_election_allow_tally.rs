@@ -3,25 +3,52 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::election::{get_election_by_id, update_election_voting_status};
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::*;
+use crate::services::database::get_hasura_pool;
+use crate::services::pg_lock::PgLock;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
-use crate::types::error::Result;
+use crate::services::voting_status::{self};
+use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
+use async_trait::async_trait;
 use celery::error::TaskError;
+use chrono::Duration;
+use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{AllowTallyStatus, ElectionStatus};
-use sequent_core::serialization::deserialize_with_path::deserialize_value;
-use tracing::info;
+use sequent_core::ballot::{AllowTallyStatus, ElectionPresentation, ElectionStatus, InitReport};
+use sequent_core::serialization::deserialize_with_path::{self, deserialize_value};
+use sequent_core::services::date::ISO8601;
+use sequent_core::types::scheduled_event::*;
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
+use tracing::{error, event, info, Level};
+use uuid::Uuid;
 
 #[instrument(err)]
-async fn manage_election_allow_tally_wrapped(
+pub async fn manage_election_allow_tally_wrapped(
     hasura_transaction: &Transaction<'_>,
     tenant_id: String,
     election_event_id: String,
     scheduled_event_id: String,
     election_id: String,
 ) -> AnyhowResult<()> {
+    // Re-read only after the editor's transaction has released the schedule.
+    lock_scheduled_event(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &scheduled_event_id,
+    )
+    .await?;
+    if get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id)
+        .await?
+        .is_archived
+    {
+        info!("Skipping scheduled transition {scheduled_event_id}: the event is archived");
+        return Ok(());
+    }
+
     let scheduled_event = find_scheduled_event_by_id(
         hasura_transaction,
         Some(tenant_id.clone()),
@@ -37,6 +64,19 @@ async fn manage_election_allow_tally_wrapped(
             scheduled_event_id
         ));
     };
+    // Queued before the row moved to a later time: it runs then.
+    if crate::tasks::scheduled_events::fires_later(&scheduled_event, chrono::Utc::now()) {
+        info!("Scheduled event {scheduled_event_id} was moved to a later time; it runs then");
+        return Ok(());
+    }
+
+    lock_elections(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        Some(&election_id),
+    )
+    .await?;
 
     let Some(mut election) = get_election_by_id(
         hasura_transaction,
@@ -71,7 +111,7 @@ async fn manage_election_allow_tally_wrapped(
     )
     .await?;
 
-    stop_scheduled_event(hasura_transaction, &tenant_id, &scheduled_event.id)
+    stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_event.id)
         .await
         .with_context(|| "Error stopping scheduled event")?;
 

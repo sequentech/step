@@ -1,22 +1,31 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {IPermissions} from "@/types/keycloak"
+import {trusteeFilename} from "@/services/trusteeFilename"
 import {useMutation} from "@apollo/client"
-import React, {useContext, useState} from "react"
-import {Typography} from "@mui/material"
+import React, {useCallback, useContext, useState} from "react"
+import {Alert, Typography} from "@mui/material"
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 import {Trans, useTranslation} from "react-i18next"
 
 import {
-    CheckPrivateKeyMutation,
+    ConfirmKeyCustodyMutation,
+    ConfirmKeyCustodyMutationVariables,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,
 } from "@/gql/graphql"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {WizardStyles} from "@/components/styles/WizardStyles"
-import {CHECK_PRIVATE_KEY} from "@/queries/CheckPrivateKey"
+import {CONFIRM_KEY_CUSTODY} from "@/queries/ConfirmKeyCustody"
 import {DropFile} from "@sequentech/ui-essentials"
+import {
+    CustodyProofCheck,
+    useCustodyProofSigning,
+    type ICustodyProofAnswer,
+    type ICustodyProofSubmission,
+} from "./useCustodyProofSigning"
 
 export interface DownloadStepProps {
     electionEvent: Sequent_Backend_Election_Event
@@ -33,12 +42,41 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
 }) => {
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
+    const trustee = authContext.trustee || authContext.username
+    const proofFilename = trusteeFilename(trustee, "custody-proof.json")
+    const keysFilename = trusteeFilename(trustee, "private-keys.toml")
     const [verified, setVerified] = useState<boolean>(false)
     const [uploading, setUploading] = useState<boolean>(false)
     const [errors, setErrors] = useState<String | null>(null)
 
-    const [checkPrivateKeysMutation] = useMutation<CheckPrivateKeyMutation>(CHECK_PRIVATE_KEY)
-    const uploadPrivateKey = async (files: FileList | null) => {
+    const [confirmKeyCustodyMutation] = useMutation<
+        ConfirmKeyCustodyMutation,
+        ConfirmKeyCustodyMutationVariables
+    >(CONFIRM_KEY_CUSTODY, {context: {headers: {"x-hasura-role": IPermissions.TRUSTEE_CEREMONY}}})
+    const submit = useCallback(
+        async (submission: ICustodyProofSubmission): Promise<ICustodyProofAnswer> => {
+            const {data, errors} = await confirmKeyCustodyMutation({
+                variables: {
+                    electionEventId: electionEvent.id,
+                    keysCeremonyId: currentCeremony.id,
+                    ...submission,
+                },
+            })
+            if (errors) throw new Error(errors.toString())
+            return data?.confirm_key_custody ?? {is_valid: false}
+        },
+        [confirmKeyCustodyMutation, electionEvent.id, currentCeremony.id]
+    )
+    const custodyProofSigning = useCustodyProofSigning({
+        submit,
+        onRecorded: useCallback(() => setVerified(true), []),
+        onFailed: useCallback(
+            (error: string) => setErrors(t("signing.custodyProof.failed", {error})),
+            [t]
+        ),
+    })
+
+    const uploadCustodyProof = async (files: FileList | null) => {
         setErrors(null)
         setVerified(false)
         setUploading(false)
@@ -63,28 +101,16 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
                 return
             }
             setUploading(true)
-            const {data, errors} = await checkPrivateKeysMutation({
-                variables: {
-                    electionEventId: electionEvent.id,
-                    keysCeremonyId: currentCeremony.id,
-                    privateKeyBase64: fileContent,
-                },
-            })
+            const checked = await custodyProofSigning.check(fileContent)
             setUploading(false)
-            if (errors) {
-                setErrors(t("keysGeneration.checkStep.errorUploading", {error: errors.toString()}))
-                return
-            } else {
-                const isValid = data?.check_private_key?.is_valid
-                if (!isValid) {
-                    setErrors(t("keysGeneration.checkStep.errorUploading", {error: "empty"}))
-                    return
-                }
+            if (checked === CustodyProofCheck.Invalid) {
+                setErrors(t("keysGeneration.checkStep.errorUploading", {error: "empty"}))
+            } else if (checked === CustodyProofCheck.Verified) {
                 setVerified(true)
             }
-        } catch (exception: any) {
+        } catch (exception) {
             setUploading(false)
-            setErrors(t("keysGeneration.checkStep.errorUploading", {error: exception.toString()}))
+            setErrors(t("keysGeneration.checkStep.errorUploading", {error: String(exception)}))
         }
     }
     return (
@@ -94,6 +120,10 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
                     {t("keysGeneration.checkStep.title")}
                 </WizardStyles.StepHeader>
                 <WizardStyles.MainContent>
+                    <Alert severity="info">
+                        Select {proofFilename} produced by the trustee tool. Keep {keysFilename} on
+                        your machine.
+                    </Alert>
                     <Typography variant="body1">
                         <Trans
                             i18nKey="keysGeneration.checkStep.subtitle"
@@ -101,13 +131,18 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
                         ></Trans>
                     </Typography>
 
-                    <DropFile handleFiles={uploadPrivateKey} />
+                    <DropFile handleFiles={uploadCustodyProof} />
                     <WizardStyles.StatusBox>
                         {uploading ? <WizardStyles.DownloadProgress /> : null}
                         {errors ? (
                             <WizardStyles.ErrorMessage variant="body2">
                                 {errors}
                             </WizardStyles.ErrorMessage>
+                        ) : null}
+                        {custodyProofSigning.waiting && !errors ? (
+                            <Typography variant="body1">
+                                {t("signing.custodyProof.signing")}
+                            </Typography>
                         ) : null}
                         {verified && (
                             <WizardStyles.SucessMessage variant="body1">

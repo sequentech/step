@@ -1,0 +1,25 @@
+{
+  "name": "@sequentech/ui-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "description": "Browser journeys against the isolated backend stack",
+  "scripts": {
+    "test": "playwright test",
+    "serve": "node --experimental-strip-types server.mts",
+    "typecheck": "tsc --project tsconfig.json",
+    "lint": "eslint .",
+    "prettify": "prettier --check . --ignore-path .prettierignore"
+  },
+  "dependencies": {
+    "@sequentech/ui-test-kit": "*",
+    "@playwright/test": "1.62.1",
+    "sequent-core": "file:../voting-portal/rust/sequent-core-0.1.0.tgz"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.3",
+    "eslint": "^9.39.1",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.2"
+  }
+}

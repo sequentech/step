@@ -2,17 +2,18 @@
 # SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Report every use of `unsafe` in the Rust workspace and how each crate controls it.
+"""Report every use of `unsafe` in the Rust workspaces and how each crate controls it.
 
-Every crate of the workspace is expected to forbid unsafe code through its manifest
+Every crate of each workspace is expected to forbid unsafe code through its manifest
 (`[lints.rust] unsafe_code = "forbid"`), or to deny it and allow each remaining use where
 it stands, under a `// SAFETY:` comment that states the invariant relied upon. Generated
 bindings (files whose first lines say so) are listed but not held to the comment rule.
 
-    scripts/check-unsafe.py packages        # exit 1 on any use without the lint or the comment
+    scripts/check-unsafe.py packages packages/wbraid   # exit 1 on any use without the lint or the comment
 """
 from __future__ import annotations
 
+import os
 import re
 import sys
 import tomllib
@@ -55,10 +56,12 @@ def uses_in(crate: Path) -> list[tuple[Path, int, bool, bool]]:
 
 
 def main() -> int:
-    root = Path(sys.argv[1] if len(sys.argv) > 1 else "packages").resolve()
+    roots = [Path(arg).resolve() for arg in sys.argv[1:]] or [Path("packages").resolve()]
+    # Crates and files are named relative to the directory the workspaces share.
+    root = Path(os.path.commonpath(roots))
     problems = 0
     total = 0
-    for crate in crate_dirs(root):
+    for crate in (crate for workspace in roots for crate in crate_dirs(workspace)):
         manifest = (crate / "Cargo.toml").read_text(encoding="utf-8")
         lint = LINT.search(manifest)
         uses = uses_in(crate)

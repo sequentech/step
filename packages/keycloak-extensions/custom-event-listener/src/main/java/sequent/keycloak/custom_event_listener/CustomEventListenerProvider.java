@@ -7,7 +7,7 @@ package sequent.keycloak.custom_event_listener;
 import static sequent.keycloak.authenticator.Utils.AUTH_NOTE_DENY_TYPE;
 import static sequent.keycloak.authenticator.Utils.CA_CERT_ISSUER_CN;
 import static sequent.keycloak.authenticator.Utils.VOTER_CERT_SUBJECT_DN;
-import static sequent.keycloak.authenticator.Utils.sendErrorNotificationToUser;
+import static sequent.keycloak.authenticator.Utils.sendRegistrationErrorToSupport;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
@@ -64,10 +64,10 @@ public class CustomEventListenerProvider implements EventListenerProvider {
   @Override
   public void onEvent(Event event) {
     log.info("onEvent: start");
-    // For REGISTER_ERROR events with "userNotFound", send error notifications.
+    // For REGISTER_ERROR events with "userNotFound", tell support (never the voter: R7-18).
     if (event.getType() == EventType.REGISTER_ERROR && "userNotFound".equals(event.getError())) {
       try {
-        sendErrorNotificationToUser(session, event.getRealmId(), event);
+        sendRegistrationErrorToSupport(session, event.getRealmId(), event);
       } catch (Exception e) {
         log.error("Failed to send error notification", e);
       }
@@ -139,7 +139,13 @@ public class CustomEventListenerProvider implements EventListenerProvider {
 
     // Publish the event to PGMQ with the complete JSON structure.
     logEvent(
-        electionEventId, event.getType().toString(), body, event.getUserId(), tenantId, username);
+        electionEventId,
+        event.getType().toString(),
+        body,
+        event.getUserId(),
+        tenantId,
+        username,
+        event.getTime());
   }
 
   @Override
@@ -147,20 +153,18 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     log.info("An admin event was fired, realmId: " + event.getAuthDetails().getRealmId());
   }
 
-  /**
-   * Publishes the event message to the PGMQ queue. The JSON message includes: election_event_id,
-   * message_type, body, user_id, tenant_id, and username.
-   */
+  /** Publishes the event message to the PGMQ queue; see {@link #taskMessage}. */
   private void logEvent(
       String electionEventId,
       String messageType,
       String body,
       String userId,
       String tenantId,
-      String username) {
+      String username,
+      long eventTimeMs) {
     log.info("logEvent: start");
     List<Object> message =
-        taskMessage(electionEventId, messageType, body, userId, tenantId, username);
+        taskMessage(electionEventId, messageType, body, userId, tenantId, username, eventTimeMs);
 
     // Generate a correlation ID.
     String correlationId = UUID.randomUUID().toString();
@@ -174,37 +178,30 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     }
   }
 
-  /** The Celery arguments of the {@code enqueue_electoral_log_event} task. */
+  /**
+   * The Celery arguments of the {@code enqueue_electoral_log_event} task. Its input holds
+   * election_event_id, message_type, body, user_id, tenant_id and username as strings, a missing
+   * one as the string "null" so that the log reader can deserialize it, and event_time_ms, when
+   * Keycloak saw the event in milliseconds since the Unix epoch, as a number.
+   */
   static List<Object> taskMessage(
       String electionEventId,
       String messageType,
       String body,
       String userId,
       String tenantId,
-      String username) {
-    // We make sure variables are not null otherwise log reporting will give an
-    // error when
-    // deserializing
-    electionEventId = Optional.ofNullable(electionEventId).orElse("null");
-    messageType = Optional.ofNullable(messageType).orElse("null");
-    body = Optional.ofNullable(body).orElse("null");
-    userId = Optional.ofNullable(userId).orElse("null");
-    tenantId = Optional.ofNullable(tenantId).orElse("null");
-    username = Optional.ofNullable(username).orElse("null");
-
-    // Build message object
-    List<Object> message = new ArrayList<>();
+      String username,
+      long eventTimeMs) {
+    Map<String, Object> input = new HashMap<>();
+    input.put("election_event_id", Optional.ofNullable(electionEventId).orElse("null"));
+    input.put("message_type", Optional.ofNullable(messageType).orElse("null"));
+    input.put("body", Optional.ofNullable(body).orElse("null"));
+    input.put("user_id", Optional.ofNullable(userId).orElse("null"));
+    input.put("tenant_id", Optional.ofNullable(tenantId).orElse("null"));
+    input.put("username", Optional.ofNullable(username).orElse("null"));
+    input.put("event_time_ms", eventTimeMs);
 
     Map<String, Object> inputObject = new HashMap<>();
-
-    Map<String, String> input = new HashMap<>();
-    input.put("election_event_id", electionEventId);
-    input.put("message_type", messageType);
-    input.put("body", body);
-    input.put("user_id", userId);
-    input.put("tenant_id", tenantId);
-    input.put("username", username);
-
     inputObject.put("input", input);
 
     Map<String, String> annotations = new HashMap<>();
@@ -213,6 +210,7 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     annotations.put("chain", null);
     annotations.put("chord", null);
 
+    List<Object> message = new ArrayList<>();
     message.add(Collections.emptyList());
     message.add(inputObject);
     message.add(annotations);

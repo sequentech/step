@@ -1,0 +1,78 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The production build of b4v6, the bulletin board of the trustee protocol, from the wbraid
+# workspace (packages/wbraid/Cargo.lock). Its build context is packages/, not packages/wbraid
+# as for the development image of ./Dockerfile, so that it reads the same [source]
+# configuration, packages/.cargo/config.toml, as the other Rust parts.
+#
+# The controlled production build supplies the Debian packages and the vendored crates from
+# the accepted external inputs with `--build-context <stage>=<directory>`, which replaces the
+# stage of that name and leaves the download unbuilt: `debs-runtime` holds the .deb files of
+# the packages its download stage names, `cargo-vendor` the crate sources of both Cargo.lock
+# files, which cargo reads through the [source] configuration the production job appends to
+# packages/.cargo/config.toml, and then builds with --offline. A build outside that workflow
+# downloads the packages from the Debian archive snapshot below, authenticated by apt against
+# the keyring of the base image, and resolves the crates from crates.io.
+#
+# Debian archive snapshot every apt call resolves against (sequentech/meta#13625).
+# http, not https: the base image ships no CA certificates; apt verifies the signed
+# InRelease and the per-file checksums regardless of transport. Bumping it is a
+# deliberate release action, like bumping a base image digest.
+ARG DEBIAN_SNAPSHOT=20260929T000000Z
+
+FROM debian:bookworm@sha256:f37a335e82bca302e955fa39f9dfe28f1be618f016f8a2b56318e5a5111afc26 AS debs-runtime-download
+ARG DEBIAN_SNAPSHOT
+RUN set -eux; \
+    rm -f /etc/apt/sources.list.d/debian.sources; \
+    { \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm-updates main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/${DEBIAN_SNAPSHOT} bookworm-security main"; \
+    } > /etc/apt/sources.list
+RUN mkdir -p /debs && apt-get update && apt-get install -y --no-install-recommends --download-only \
+    -o Dir::Cache::archives=/debs \
+    ca-certificates
+
+FROM scratch AS debs-runtime
+COPY --from=debs-runtime-download /debs/*.deb /
+
+FROM scratch AS cargo-vendor
+
+FROM rust:1.96.0-slim-bookworm@sha256:4732ca96fd086cb9be682050c3f0176288eebaac2b80aa2bcefccfaf198e1950 AS builder
+
+WORKDIR /app
+COPY ./wbraid ./wbraid
+COPY ./.cargo ./.cargo
+COPY --from=cargo-vendor / ./vendor/
+
+# cargo reads wbraid/.cargo/config.toml and, from the parent directory, .cargo/config.toml,
+# whose `directory = "vendor"` resolves to /app/vendor.
+WORKDIR /app/wbraid
+# The CM helper supplies a fresh namespace per build invocation; this workspace keeps a
+# cache of its own within it. Copy the binary outside the cache mount into the immutable
+# builder layer. With vendored crates supplied the build runs offline, so that an
+# incomplete vendor directory fails instead of reaching for crates.io.
+ARG TEMENOS_CARGO_CACHE_ID=standalone
+ARG TARGETARCH
+RUN --mount=type=cache,id=${TEMENOS_CARGO_CACHE_ID}-wbraid-${TARGETARCH},target=/app/wbraid/target,sharing=locked set -eu; \
+    offline=; [ -z "$(ls -A /app/vendor)" ] || offline=--offline; \
+    cargo build --release --locked $offline -p b4 --features postgres --bin b4v6; \
+    mkdir -p /opt/temenos-build; \
+    cp /app/wbraid/target/release/b4v6 /opt/temenos-build/
+
+FROM debian:bookworm@sha256:f37a335e82bca302e955fa39f9dfe28f1be618f016f8a2b56318e5a5111afc26
+
+# The package manager's logs and the linker's auxiliary cache differ on every build and
+# are removed in the layer that writes them (sequentech/meta#13625).
+COPY --from=debs-runtime / /tmp/debs/
+RUN apt-get -o Dir::Cache::archives=/tmp/debs --no-download install -y --no-install-recommends /tmp/debs/*.deb \
+    && rm -rf /tmp/debs /var/log/apt /var/log/dpkg.log /var/log/alternatives.log \
+        /var/cache/ldconfig/aux-cache
+
+COPY --from=builder /opt/temenos-build/b4v6 /usr/local/bin/b4v6
+USER 65532:65532
+ENV WBRAID_B4_BIND=0.0.0.0:3005
+EXPOSE 3005
+ENTRYPOINT ["/usr/local/bin/b4v6"]

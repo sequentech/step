@@ -2,8 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_permission_labels,
+};
 use anyhow::Result;
+use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
@@ -14,7 +17,10 @@ use std::str::FromStr;
 use tracing::instrument;
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
-use windmill::services::reports::activity_log::ReportFormat;
+use windmill::services::database::get_hasura_pool;
+use windmill::services::reports::activity_log::{
+    ActivityLogExportOptions, ReportFormat,
+};
 use windmill::services::tasks_execution::*;
 use windmill::types::tasks::ETasksExecution;
 
@@ -22,6 +28,15 @@ use windmill::types::tasks::ETasksExecution;
 pub struct ExportElectionEventInput {
     election_event_id: String,
     format: String,
+    /// The first minute to export (RFC 3339 instant), inclusive.
+    #[serde(default)]
+    created_from: Option<String>,
+    /// The last minute to export (RFC 3339 instant), inclusive.
+    #[serde(default)]
+    created_to: Option<String>,
+    /// The IANA zone the times are shown in; the log zone when absent.
+    #[serde(default)]
+    time_zone: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -44,6 +59,24 @@ pub async fn export_election_event_logs_route(
     )?;
 
     let body = input.into_inner();
+    {
+        let mut hasura_db_client: DbClient = get_hasura_pool()
+            .await
+            .get()
+            .await
+            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+        let hasura_transaction = hasura_db_client
+            .transaction()
+            .await
+            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+        authorize_election_permission_labels(
+            &hasura_transaction,
+            &claims,
+            &body.election_event_id,
+            None,
+        )
+        .await?;
+    }
 
     info!("Format: {}", &body.format);
     let report_fmt = ReportFormat::from_str(&body.format).map_err(|error| {
@@ -53,6 +86,16 @@ pub async fn export_election_event_logs_route(
         )
     })?;
     info!("{:?}", report_fmt);
+    let options = ActivityLogExportOptions {
+        created_from: body.created_from.clone(),
+        created_to: body.created_to.clone(),
+        time_zone: body.time_zone.clone(),
+    };
+    // Refuse a bad range or zone now rather than in the task.
+    options
+        .range()
+        .and_then(|_| options.zone())
+        .map_err(|error| (Status::BadRequest, format!("{error:?}")))?;
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let election_event_id = body.election_event_id.clone();
 
@@ -88,6 +131,7 @@ pub async fn export_election_event_logs_route(
                 report_fmt,
                 None,
                 task_execution.clone(),
+                Some(options),
             ),
         )
         .await

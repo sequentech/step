@@ -2,6 +2,10 @@ use crate::postgres::area::{get_area_by_id, get_areas_by_election_id};
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::generation::annotate_template_data;
+use crate::postgres::configuration_packages::manifest_of_event;
+use crate::postgres::election::get_election_by_id;
+use crate::postgres::reports::ReportType;
 use crate::postgres::results_area_contest::get_results_area_contest;
 use crate::postgres::results_election::{
     get_election_results, get_results_election_by_results_event_id,
@@ -10,6 +14,7 @@ use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
 use crate::postgres::tally_session_execution::get_tally_session_executions;
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::election_dates::get_election_dates;
+use crate::services::election_event_status::get_election_event_status;
 use crate::services::users::{
     count_keycloak_enabled_users, count_keycloak_enabled_users_by_attrs, AttributesFilterBy,
     AttributesFilterOption,
@@ -18,16 +23,19 @@ use crate::types::miru_plugin::MiruSbeiUser;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::StringifiedPeriodDates;
+use sequent_core::election_config::manifest::{report_stamp, sha256_hex, ConfigurationStamp};
 use sequent_core::services::translations::{Alias, Name};
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent};
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
 use sequent_core::types::scheduled_event::ScheduledEvent;
+use sequent_core::util::temp_path::*;
 use sequent_core::util::version::{ENV_VAR_APP_HASH, ENV_VAR_APP_VERSION};
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 use std::collections::{HashMap, HashSet};
 use std::env;
-use strand::hash::hash_b64;
 use tracing::instrument;
+use voting_crypto::hash::hash_b64;
 // re-export for easy refactor:
 pub use crate::services::users::{VALIDATE_ID_ATTR_NAME, VALIDATE_ID_REGISTERED_VOTER};
 pub use sequent_core::util::date_time::get_date_and_time;
@@ -45,6 +53,74 @@ pub struct ExecutionAnnotations {
     pub app_hash: String,
     pub executer_username: Option<String>,
     pub results_hash: Option<String>,
+}
+
+/// Where a template's data keeps what a report says about its generation.
+pub const EXECUTION_ANNOTATIONS: &str = "execution_annotations";
+pub const CONFIGURATION_REVISION: &str = "configuration_revision";
+pub const CONFIGURATION_MANIFEST_SHA256: &str = "configuration_manifest_sha256";
+pub const CONFIGURATION_TEMPLATE_SHA256: &str = "configuration_template_sha256";
+
+/// The stamp of a `report_type` report drawn with `template`, for an event
+/// imported from a signed configuration package: `None` for any other event,
+/// and a refusal when the configuration approved another template for that
+/// report.
+#[instrument(err, skip(hasura_transaction, template))]
+pub async fn configuration_stamp(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    report_type: &ReportType,
+    template: &str,
+) -> Result<Option<ConfigurationStamp>> {
+    manifest_of_event(hasura_transaction, tenant_id, election_event_id)
+        .await?
+        .map(|(manifest, manifest_sha256)| {
+            report_stamp(
+                &manifest,
+                &manifest_sha256,
+                &report_type.to_string(),
+                template,
+            )
+            .map_err(|problem| anyhow!(problem.message))
+        })
+        .transpose()
+}
+
+/// The stamp of a report generated without a template, such as a CSV
+/// export: it names the configuration, and its template digest is the
+/// digest of no template at all.
+#[instrument(err, skip(hasura_transaction))]
+pub async fn configuration_stamp_without_template(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Option<ConfigurationStamp>> {
+    Ok(
+        manifest_of_event(hasura_transaction, tenant_id, election_event_id)
+            .await?
+            .map(|(manifest, manifest_sha256)| ConfigurationStamp {
+                external_id: manifest.configuration.external_id,
+                revision: manifest.configuration.revision,
+                manifest_sha256,
+                template_sha256: sha256_hex(&[]),
+            }),
+    )
+}
+
+/// The stamp as the execution annotations of a report name it.
+pub fn configuration_annotations(stamp: &ConfigurationStamp) -> [(&'static str, String); 3] {
+    [
+        (CONFIGURATION_REVISION, stamp.revision.to_string()),
+        (CONFIGURATION_MANIFEST_SHA256, stamp.manifest_sha256.clone()),
+        (CONFIGURATION_TEMPLATE_SHA256, stamp.template_sha256.clone()),
+    ]
+}
+
+/// Adds the stamp to a template's data under `execution_annotations`, beside
+/// what the report already says there.
+pub fn stamp_template_data(data: &mut Map<String, Value>, stamp: &ConfigurationStamp) {
+    annotate_template_data(data, configuration_annotations(stamp));
 }
 
 pub fn get_app_hash() -> String {
@@ -97,7 +173,7 @@ pub async fn generate_election_votes_data(
     .await
     .map_err(|e| anyhow!("Error fetching election results: {:?}", e))?;
 
-    if let Some(result) = election_results.first() {
+    if let Some(result) = election_results.get(0) {
         let total_ballots = result.total_voters;
         let voters_turnout = if let Some(total_ballots) = total_ballots {
             calc_voters_turnout(total_ballots, registered_voters)?
@@ -150,7 +226,7 @@ pub async fn generate_election_area_votes_data(
     if let Some(result) = area_results {
         let total_ballots = result.total_votes;
         let voters_turnout = if let (Some(registered_voters), Some(total_ballots)) =
-            (registered_voters, total_ballots)
+            (registered_voters.clone(), total_ballots)
         {
             calc_voters_turnout(total_ballots, registered_voters)?
         } else {
@@ -204,7 +280,7 @@ pub async fn get_total_number_of_registered_voters_for_area_id(
         },
     );
     let num_of_registered_voters_by_area_id =
-        count_keycloak_enabled_users_by_attrs(keycloak_transaction, realm, Some(attributes))
+        count_keycloak_enabled_users_by_attrs(&keycloak_transaction, &realm, Some(attributes))
             .await
             .map_err(|err| {
                 anyhow!("Error getting count of enabled users by area_id attribute: {err}")
@@ -217,7 +293,7 @@ pub async fn get_total_number_of_registered_voters(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
 ) -> Result<i64> {
-    let num_of_registered_voters = count_keycloak_enabled_users(keycloak_transaction, realm)
+    let num_of_registered_voters = count_keycloak_enabled_users(&keycloak_transaction, &realm)
         .await
         .map_err(|err| anyhow!("Error getting count of enabled users: {err}"))?;
     Ok(num_of_registered_voters)
@@ -334,9 +410,9 @@ pub async fn get_results_hash(
     election_id: &str,
 ) -> Result<String> {
     let tally_sessions = get_tally_sessions_by_election_event_id(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
         false,
     )
     .await
@@ -351,7 +427,8 @@ pub async fn get_results_hash(
                 .as_ref()
                 .map(|ids| ids.contains(&election_id.to_string()))
                 .unwrap_or(false)
-                && tally_session.tally_type.clone().unwrap_or_default() == "ELECTORAL_RESULTS"
+                && tally_session.tally_type.clone().unwrap_or_default()
+                    == String::from("ELECTORAL_RESULTS")
         })
         .collect::<Vec<_>>();
 
@@ -369,7 +446,7 @@ pub async fn get_results_hash(
         tally_session_id,
     )
     .await
-    .map_err(|_err| anyhow!("Error getting the tally session executions"))?;
+    .map_err(|err| anyhow!("Error getting the tally session executions"))?;
 
     // the first execution is the latest one
     let tally_session_execution = tally_session_executions
@@ -439,7 +516,7 @@ pub async fn process_elections(
 
         region_posts_map
             .entry(election_general_data.geographical_region.clone())
-            .or_default()
+            .or_insert_with(HashSet::new)
             .insert(election_general_data.post.clone());
 
         let election_dates = get_election_dates(&election, scheduled_events.clone())
@@ -452,7 +529,7 @@ pub async fn process_elections(
 
         elections_data.push(UserDataElection {
             election_dates,
-            election_name,
+            election_name: election_name,
             election_annotations: election_general_data,
         });
     }
@@ -467,4 +544,63 @@ pub async fn process_elections(
         regions,
         elections: elections_data,
     })
+}
+
+#[cfg(test)]
+mod configuration_stamp_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn stamp() -> ConfigurationStamp {
+        ConfigurationStamp {
+            external_id: "ov-2028".to_string(),
+            revision: 3,
+            manifest_sha256: "ab".repeat(32),
+            template_sha256: "cd".repeat(32),
+        }
+    }
+
+    fn data(value: Value) -> Map<String, Value> {
+        match value {
+            Value::Object(map) => map,
+            other => panic!("not an object: {other}"),
+        }
+    }
+
+    #[test]
+    fn a_report_without_execution_annotations_gets_them_for_the_stamp() {
+        let mut map = data(json!({"rendered_user_template": "<p>report</p>"}));
+        stamp_template_data(&mut map, &stamp());
+        assert_eq!(
+            Value::Object(map),
+            json!({
+                "rendered_user_template": "<p>report</p>",
+                "execution_annotations": {
+                    "configuration_revision": "3",
+                    "configuration_manifest_sha256": "ab".repeat(32),
+                    "configuration_template_sha256": "cd".repeat(32),
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn the_stamp_is_added_beside_what_the_report_already_says() {
+        let mut map = data(json!({
+            "execution_annotations": {"report_hash": "hash", "configuration_revision": "1"},
+        }));
+        stamp_template_data(&mut map, &stamp());
+        let annotations = &map[EXECUTION_ANNOTATIONS];
+        assert_eq!(annotations["report_hash"], "hash");
+        assert_eq!(annotations[CONFIGURATION_REVISION], "3");
+        assert_eq!(annotations[CONFIGURATION_MANIFEST_SHA256], "ab".repeat(32));
+        assert_eq!(annotations[CONFIGURATION_TEMPLATE_SHA256], "cd".repeat(32));
+    }
+
+    #[test]
+    fn annotations_that_are_not_an_object_are_replaced() {
+        let mut map = data(json!({"execution_annotations": null}));
+        stamp_template_data(&mut map, &stamp());
+        assert_eq!(map[EXECUTION_ANNOTATIONS][CONFIGURATION_REVISION], "3");
+    }
 }

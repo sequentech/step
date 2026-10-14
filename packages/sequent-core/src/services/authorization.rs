@@ -1,10 +1,14 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::jwt::JwtClaims;
-use crate::ballot::VotingStatusChannel;
-use crate::types::permissions::{Permissions, VoterPermissions};
+use super::jwt::{decode_permission_labels, JwtClaims};
+use crate::ballot::{VotingStatus, VotingStatusChannel};
+use crate::types::permissions::{
+    Permissions, RealmRolePolicy, VoterPermissions,
+};
+use anyhow::Context;
 use rocket::http::Status;
+use rocket::response::status::Unauthorized;
 use std::collections::HashSet;
 use std::env;
 use tracing::{error, info, instrument};
@@ -42,12 +46,33 @@ impl VoterClient {
     }
 }
 
+const SUPER_ADMIN_TENANT_ID: &str = "SUPER_ADMIN_TENANT_ID";
+
 #[instrument(skip(claims))]
 pub fn authorize(
     claims: &JwtClaims,
     allow_super_admin_auth: bool, // Allow authorizing super admin tenant
     tenant_id_opt: Option<String>,
     permissions: Vec<Permissions>,
+) -> Result<(), (Status, String)> {
+    authorize_with(
+        claims,
+        allow_super_admin_auth,
+        tenant_id_opt,
+        permissions,
+        || env::var(SUPER_ADMIN_TENANT_ID).ok(),
+    )
+}
+
+/// `authorize`, asking `super_admin_tenant_id` for the super admin tenant
+/// instead of the environment. It is only asked when super admins are allowed
+/// and the requested tenant is not the caller's own.
+pub fn authorize_with(
+    claims: &JwtClaims,
+    allow_super_admin_auth: bool,
+    tenant_id_opt: Option<String>,
+    permissions: Vec<Permissions>,
+    super_admin_tenant_id: impl FnOnce() -> Option<String>,
 ) -> Result<(), (Status, String)> {
     // Verify tenant id
     let allowed = match (tenant_id_opt.clone(), allow_super_admin_auth) {
@@ -58,11 +83,11 @@ pub fn authorize(
         }
 
         (_, true) => {
-            let super_admin_tenant_id = env::var("SUPER_ADMIN_TENANT_ID")
-                .map_err(|_| {
+            let super_admin_tenant_id =
+                super_admin_tenant_id().ok_or_else(|| {
                     (
                         Status::Unauthorized,
-                        "SUPER_ADMIN_TENANT_ID must be set".to_string(),
+                        format!("{SUPER_ADMIN_TENANT_ID} must be set"),
                     )
                 })?;
             info!("super_admin_tenant_id: {super_admin_tenant_id}");
@@ -97,6 +122,28 @@ pub fn authorize(
     } else {
         Ok(())
     }
+}
+
+/// The election permission labels of an admin, applied as Hasura applies
+/// `X-Hasura-Permission-Labels` to elections: an election without a label is
+/// open to every admin, a labelled one only to admins holding its label.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct PermissionLabels(HashSet<String>);
+
+impl PermissionLabels {
+    pub fn from_claims(claims: &JwtClaims) -> Self {
+        Self(decode_permission_labels(claims).into_iter().collect())
+    }
+
+    pub fn allows(&self, election_label: Option<&str>) -> bool {
+        election_label.map_or(true, |label| self.0.contains(label))
+    }
+}
+
+/// Rejects a permission name that is reserved for the platform.
+pub fn require_ordinary_permission(name: &str) -> Result<(), (Status, String)> {
+    RealmRolePolicy::require_ordinary(name)
+        .map_err(|error| (Status::BadRequest, error.to_string()))
 }
 
 struct VoterScope<'a> {
@@ -340,5 +387,66 @@ mod voter_authorization_tests {
             );
             assert!(election(&claims).is_ok());
         }
+    }
+}
+
+#[cfg(test)]
+mod permission_label_tests {
+    use super::*;
+
+    fn admin(permission_labels: Option<&str>) -> JwtClaims {
+        serde_json::from_value(serde_json::json!({
+            "exp": 1, "iat": 0, "jti": "test", "iss": "test",
+            "sub": "admin", "typ": "Bearer", "azp": "admin-portal",
+            "acr": "1", "allowed-origins": [], "scope": "openid",
+            "email_verified": false,
+            "https://hasura.io/jwt/claims": {
+                "x-hasura-default-role": "admin-user",
+                "x-hasura-tenant-id": "tenant",
+                "x-hasura-user-id": "admin",
+                "x-hasura-allowed-roles": ["admin-user"],
+                "x-hasura-permission-labels": permission_labels
+            }
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn labelled_admin_is_allowed_unlabelled_and_own_label_elections_only() {
+        let labels =
+            PermissionLabels::from_claims(&admin(Some(r#"{"north", "east"}"#)));
+        assert!(labels.allows(None));
+        assert!(labels.allows(Some("north")));
+        assert!(labels.allows(Some("east")));
+        assert!(!labels.allows(Some("south")));
+        assert!(!labels.allows(Some("")));
+    }
+
+    #[test]
+    fn admin_without_labels_is_allowed_unlabelled_elections_only() {
+        for claim in [None, Some("{}"), Some("")] {
+            let labels = PermissionLabels::from_claims(&admin(claim));
+            assert!(labels.allows(None), "{claim:?}");
+            assert!(!labels.allows(Some("north")), "{claim:?}");
+        }
+    }
+}
+
+#[cfg(test)]
+mod permission_name_tests {
+    use super::*;
+
+    #[test]
+    fn a_reserved_permission_name_is_a_bad_request() {
+        let (status, message) =
+            require_ordinary_permission("service-account").unwrap_err();
+
+        assert_eq!(status, Status::BadRequest);
+        assert!(message.contains("service-account"), "{message}");
+    }
+
+    #[test]
+    fn an_ordinary_permission_name_is_accepted() {
+        assert_eq!(require_ordinary_permission("election-event-read"), Ok(()));
     }
 }

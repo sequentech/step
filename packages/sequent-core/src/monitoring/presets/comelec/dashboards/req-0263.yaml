@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: req-0263
+title: Counting
+description: Posts that counted their votes.
+section: Counting and transmission
+requirements: [SW-F-0263]
+order: 13
+selectors: [region, post]
+layout:
+  - {widget: counting-transmission, width: 12}

@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::tenant::update_tenant;
-use anyhow::{anyhow, Result};
+use crate::services::google_meet::{store_service_account_key, take_service_account_key};
+use anyhow::{anyhow, Context, Result};
 use csv::StringRecord;
 use deadpool_postgres::Transaction;
 use regex::Regex;
@@ -16,6 +17,7 @@ use std::fs::File;
 use std::sync::LazyLock;
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
+use uuid::Uuid;
 
 pub static HEADER_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^[a-zA-Z0-9._-]+$").expect("Failed to compile header regex"));
@@ -35,7 +37,7 @@ pub async fn upsert_tenant(
 
     let headers = rdr
         .headers()
-        .cloned()
+        .map(|headers| headers.clone())
         .map_err(|err| anyhow!("Error reading CSV headers: {err:?}"))?;
 
     for header in headers.iter() {
@@ -82,14 +84,16 @@ pub async fn process_record(
         .and_then(|s| deserialize_str::<JsonValue>(s).ok());
     let is_active: bool = record
         .get(6)
-        .and_then(|val| deserialize_str::<bool>(val).ok())
+        .map(|val| deserialize_str::<bool>(val).ok())
+        .flatten()
         .ok_or_else(|| anyhow!("Error deserializing is_active"))?;
     let voting_channels = record
         .get(7)
         .and_then(|s| deserialize_str::<JsonValue>(s).ok());
-    let settings = record
+    let mut settings = record
         .get(8)
         .and_then(|s| deserialize_str::<JsonValue>(s).ok());
+    let service_account_key = settings.as_mut().and_then(take_service_account_key);
     let test = record
         .get(8)
         .map(|val| deserialize_str::<i32>(val).ok())
@@ -111,6 +115,12 @@ pub async fn process_record(
     update_tenant(hasura_transaction, tenant, old_tenant_id)
         .await
         .map_err(|e| anyhow!("Error upserting tenant into the database: {e:?}"))?;
+
+    if let Some(service_account_key) = service_account_key {
+        store_service_account_key(hasura_transaction, old_tenant_id, service_account_key)
+            .await
+            .map_err(|e| anyhow!("Error storing the Google service account key: {e}"))?;
+    }
 
     Ok(())
 }

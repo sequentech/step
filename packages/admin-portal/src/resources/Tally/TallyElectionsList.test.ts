@@ -5,6 +5,7 @@ import React from "react"
 import {act, fireEvent, render, screen} from "@testing-library/react"
 import {Sequent_Backend_Election} from "@/gql/graphql"
 import {TallyElectionsList} from "./TallyElectionsList"
+import {EBallotBoxesReadiness, type IBallotBoxesSummary} from "@/services/tallyEligibility"
 
 type Row = {id: string; name: string; active: boolean}
 type Column = {
@@ -42,6 +43,9 @@ jest.mock("@/hooks/useAliasRenderer", () => ({useAliasRenderer: () => mockAliasR
 jest.mock("@sequentech/ui-core", () =>
     require("../../../../ui-core/src/services/presentationOrder")
 )
+jest.mock("@/hooks/useZonedTime", () => ({
+    useZonedTime: () => (value?: string | null) => value ?? "",
+}))
 
 const election = (id: string, votingStatus = "CLOSED") =>
     ({
@@ -53,13 +57,26 @@ const election = (id: string, votingStatus = "CLOSED") =>
 
 const checkbox = (name: string) => screen.getByLabelText(name) as HTMLInputElement
 
-const renderList = (elections: Sequent_Backend_Election[], update: jest.Mock) =>
+const renderList = (
+    elections: Sequent_Backend_Election[],
+    update: jest.Mock,
+    ballotBoxes?: Record<string, IBallotBoxesSummary>
+) =>
     React.createElement(TallyElectionsList, {
         electionEventId: "event",
         elections,
         update,
         keysCeremonyId: "keys",
+        ballotBoxes,
     })
+
+const boxes = (readiness: Record<string, EBallotBoxesReadiness>) =>
+    Object.fromEntries(
+        Object.entries(readiness).map(([id, value]) => [
+            id,
+            {readiness: value, total: 1, sealed: 1, published: 1},
+        ])
+    )
 
 it("keeps the admin's selection when the polled elections change", () => {
     const update = jest.fn()
@@ -91,4 +108,71 @@ it("selects elections that appear after the first load and drops removed ones", 
     expect(checkbox("El3").checked).toBe(true)
     expect(screen.queryByLabelText("El2")).toBeNull()
     expect(update).toHaveBeenLastCalledWith(["El3"])
+})
+
+it("selects a sealed Post once its seals have loaded (VOTE-FREEZE)", () => {
+    const update = jest.fn()
+    const elections = [election("El1"), election("El2")]
+    const loading = boxes({El1: EBallotBoxesReadiness.LOADING, El2: EBallotBoxesReadiness.LOADING})
+    const view = render(renderList(elections, update, loading))
+    expect(checkbox("El1").checked).toBe(false)
+    expect(update).toHaveBeenLastCalledWith([])
+
+    view.rerender(
+        renderList(
+            elections,
+            update,
+            boxes({El1: EBallotBoxesReadiness.READY, El2: EBallotBoxesReadiness.PUBLISHING})
+        )
+    )
+    expect(checkbox("El1").checked).toBe(true)
+    expect(checkbox("El2").checked).toBe(false)
+    expect(update).toHaveBeenLastCalledWith(["El1"])
+})
+
+it("selects a Post that becomes ready, unless the admin deselected it while ready", () => {
+    const update = jest.fn()
+    const elections = [election("El1"), election("El2")]
+    const view = render(
+        renderList(
+            elections,
+            update,
+            boxes({El1: EBallotBoxesReadiness.READY, El2: EBallotBoxesReadiness.PUBLISHING})
+        )
+    )
+    act(() => {
+        fireEvent.click(checkbox("El1"))
+    })
+    expect(update).toHaveBeenLastCalledWith([])
+
+    view.rerender(
+        renderList(
+            elections,
+            update,
+            boxes({El1: EBallotBoxesReadiness.READY, El2: EBallotBoxesReadiness.READY})
+        )
+    )
+    expect(checkbox("El1").checked).toBe(false)
+    expect(checkbox("El2").checked).toBe(true)
+    expect(update).toHaveBeenLastCalledWith(["El2"])
+})
+
+it("keeps a Post unselectable while its seals can't be read", () => {
+    const update = jest.fn()
+    render(renderList([election("El1")], update, boxes({El1: EBallotBoxesReadiness.UNAVAILABLE})))
+    expect(checkbox("El1").checked).toBe(false)
+    expect(update).toHaveBeenLastCalledWith([])
+})
+
+it("says under the list why each election can't be selected (VOTE-FREEZE)", () => {
+    const update = jest.fn()
+    render(
+        renderList(
+            [election("El1"), election("El2")],
+            update,
+            boxes({El1: EBallotBoxesReadiness.READY, El2: EBallotBoxesReadiness.FAILED})
+        )
+    )
+    expect(screen.getByText("tally.ballotBoxes.blocked")).toBeTruthy()
+    expect(screen.getByText("tally.ballotBoxes.help")).toBeTruthy()
 })

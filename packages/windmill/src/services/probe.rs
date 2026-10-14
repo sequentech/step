@@ -3,11 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::celery_app::{get_celery_app, get_queues};
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, get_queue_pool};
+use crate::services::jwks::get_jwks_secret_path;
 use crate::services::providers::sms_sender::{SmsSender, SmsTransport};
 use crate::services::vault::check_master_secret;
 use core::time::Duration;
 use deadpool_postgres::Timeouts;
-use sequent_core::services::jwks::get_jwks_secret_path;
+use sequent_core::services::keycloak::get_client_credentials;
 use sequent_core::services::probe::ProbeHandler;
 use sequent_core::services::s3;
 use std::net::SocketAddr;
@@ -217,7 +218,7 @@ async fn readiness_test(app_name: &AppName) -> bool {
         celery_ok, hasura_db_ok, keycloak_db_ok, aws_secrets_ok, s3_ok, sms_sender_ok
     );
 
-    let data = [
+    let data = vec![
         celery_ok,
         hasura_db_ok,
         keycloak_db_ok,

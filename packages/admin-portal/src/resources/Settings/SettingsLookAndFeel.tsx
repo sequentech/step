@@ -10,6 +10,26 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {IHelpLink, ITenantSettings, ITenantTheme} from "@sequentech/ui-core"
 import {IPermissions} from "@/types/keycloak"
 
+/** The organization's name in messages that name it (`settings.display_name`). */
+interface ITenantDisplayName {
+    display_name?: string
+}
+
+/**
+ * The settings to save with an edited display name: trimmed, or removed when
+ * emptied (the tenant's slug is shown instead). Unedited, they stay as read.
+ */
+const withDisplayName = (
+    settings: Record<string, unknown>,
+    displayName: string | undefined
+): Record<string, unknown> => {
+    if (displayName === undefined) return settings
+    const rest = {...settings}
+    delete rest.display_name
+    const trimmed = displayName.trim()
+    return trimmed ? {...rest, display_name: trimmed} : rest
+}
+
 export const SettingsLookAndFeel: React.FC<void> = () => {
     const [tenantId] = useTenantStore()
     const {t, i18n} = useTranslation()
@@ -37,13 +57,16 @@ export const SettingsLookAndFeel: React.FC<void> = () => {
         (record?.settings as ITenantSettings | undefined)?.help_links ?? []
     )
 
+    // Undefined until edited, so saving other fields keeps the saved name.
+    const [displayName, setDisplayName] = useState<string | undefined>(undefined)
+
     const [saveDisabled, setSaveDisabled] = useState<boolean>(false)
 
     useEffect(() => {
         if (saveDisabled) {
             setSaveDisabled(false)
         }
-    }, [logoUrl, cssContent, helpLinks])
+    }, [logoUrl, cssContent, helpLinks, displayName])
 
     const handleHelpLinksChange = (
         event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -77,10 +100,13 @@ export const SettingsLookAndFeel: React.FC<void> = () => {
                 logo_url: logoUrlToSave,
                 css: cssContentToSave,
             },
-            settings: {
-                ...(record?.settings ?? {}),
-                help_links: helpLinks,
-            },
+            settings: withDisplayName(
+                {
+                    ...(record?.settings ?? {}),
+                    help_links: helpLinks,
+                },
+                displayName
+            ),
         })
         setSaveDisabled(true)
     }
@@ -117,6 +143,14 @@ export const SettingsLookAndFeel: React.FC<void> = () => {
                 defaultValue={cssContent}
                 label={String(t("lookAndFeelScreen.common.css"))}
                 onBlur={(event) => setCssContent(event.target.value)}
+            />
+            <TextInput
+                resettable={true}
+                source={"settings.display_name"}
+                defaultValue={(record?.settings as ITenantDisplayName | undefined)?.display_name}
+                label={String(t("lookAndFeelScreen.common.displayName"))}
+                helperText={String(t("lookAndFeelScreen.common.displayNameHelp"))}
+                onBlur={(event) => setDisplayName(event.target.value)}
             />
             <TextInput
                 resettable={true}

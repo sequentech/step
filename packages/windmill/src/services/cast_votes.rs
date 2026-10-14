@@ -4,6 +4,7 @@
 use super::database::PgConfig;
 use crate::services::ballot_box::{request_sequencer, wait_for_sequencer, TALLY_SEQUENCER_WAIT};
 use crate::services::ballot_box_reads::{ballot_box_time, get_event_ballot_box};
+use crate::services::electoral_log::ElectoralLog;
 use crate::services::external::utils::{
     is_datafix_election_event_by_id, voted_via_not_internet_channel,
 };
@@ -27,8 +28,9 @@ use strum_macros::{Display, EnumString};
 use tokio::fs::File;
 use tokio::io::{copy, AsyncWriteExt, BufWriter};
 use tokio_util::io::StreamReader;
-use tracing::{info, instrument};
+use tracing::{debug, info, instrument};
 use uuid::Uuid;
+use voting_crypto::signing::{SigningKey, VerificationKey};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Display, EnumString, PartialEq, Eq)]
 pub enum CastVoteStatus {
@@ -112,8 +114,9 @@ async fn write_copy_out(
         .with_context(|| format!("Error creating {output_file:?}"))?;
     let mut writer = BufWriter::new(tokio_temp_file);
 
-    let adapt_pg_error_to_io_error =
-        |pg_err: tokio_postgres::Error| std::io::Error::other(pg_err.to_string());
+    let adapt_pg_error_to_io_error = |pg_err: tokio_postgres::Error| {
+        std::io::Error::new(std::io::ErrorKind::Other, pg_err.to_string())
+    };
     let io_error_stream = reader.map_err(adapt_pg_error_to_io_error);
 
     let async_reader = StreamReader::new(io_error_stream);
@@ -185,22 +188,31 @@ pub struct VotersByChannel {
     pub count: i64,
 }
 
-/// Counts each voter once under the channel of their latest valid ballot.
+/// The canonical IDs of the elections a read covers; `None` covers them all.
+fn canonical_elections(elections: Option<&[String]>) -> Result<Option<Vec<String>>> {
+    elections
+        .map(|ids| {
+            ids.iter()
+                .map(|id| Ok(parse_uuid_v4(id)?.to_string()))
+                .collect::<Result<Vec<_>>>()
+        })
+        .transpose()
+}
+
+/// Counts each voter once under the channel of their latest valid ballot in
+/// `elections` (`None`: every election of the event).
 #[instrument(skip(transaction), err)]
 pub async fn get_count_distinct_voters_by_channel(
     transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    election_id: Option<&str>,
+    elections: Option<&[String]>,
 ) -> Result<Vec<VotersByChannel>> {
-    let election_id = election_id.map(parse_uuid_v4).transpose()?;
+    let elections = canonical_elections(elections)?;
     get_event_ballot_box(transaction, tenant_id, election_event_id)
         .await?
         .store
-        .voters_by_channel(
-            election_event_id,
-            election_id.map(|id| id.to_string()).as_deref(),
-        )
+        .voters_by_channel(election_event_id, elections.as_deref())
         .await?
         .into_iter()
         .map(|(channel, count)| {
@@ -265,10 +277,6 @@ fn validate_votes_time_range(
     Ok(())
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "Keep the existing scoped vote-count query arguments and time resolution explicit."
-)]
 #[instrument(skip(transaction), err)]
 pub async fn get_count_votes_per_day(
     transaction: &Transaction<'_>,
@@ -276,7 +284,7 @@ pub async fn get_count_votes_per_day(
     election_event_id: &str,
     start_date: &str,
     end_date: &str,
-    election_id: Option<String>,
+    elections: Option<&[String]>,
     user_timezone: &str,
     resolution: VotesTimeResolution,
     bucket_count: Option<i32>,
@@ -286,11 +294,7 @@ pub async fn get_count_votes_per_day(
     let end =
         parse_votes_time_boundary(end_date, true).with_context(|| "Error parsing end_date")?;
     validate_votes_time_range(start, end, resolution, bucket_count)?;
-    let election_id = election_id
-        .as_deref()
-        .map(parse_uuid_v4)
-        .transpose()?
-        .map(|id| id.to_string());
+    let elections = canonical_elections(elections)?;
     let start = start.format(BALLOT_BOX_TIME_FORMAT).to_string();
     let end = end.format(BALLOT_BOX_TIME_FORMAT).to_string();
     let range = BucketRange {
@@ -305,9 +309,9 @@ pub async fn get_count_votes_per_day(
         .store
         .ballots_per_bucket(
             election_event_id,
-            election_id.as_deref(),
+            elections.as_deref(),
             &range,
-            VotingStatusChannel::ONLINE.as_ref(),
+            &VotingStatusChannel::ONLINE.to_string(),
         )
         .await?
         .into_iter()
@@ -399,7 +403,7 @@ pub async fn get_users_with_vote_info(
         // If this is a "datafix" event, adjust the votes_info by checking the user's attributes
         if is_datafix_event {
             if let Some(attributes) = &user.attributes {
-                if voted_via_not_internet_channel(attributes) {
+                if voted_via_not_internet_channel(&attributes) {
                     votes_info = vec![VotesInfo {
                         election_id: "".to_string(), // Not used for datafix
                         num_votes: 1,
@@ -431,7 +435,8 @@ pub struct ListCastVotesByIpFilter {
     pub offset: Option<i32>,
     pub ip: Option<String>,
     pub country: Option<String>,
-    pub election_id: Option<String>,
+    /// Only these elections' ballots; `None`, every election's.
+    pub elections: Option<Vec<String>>,
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -451,21 +456,23 @@ pub async fn get_top_count_votes_by_ip(
         0
     };
 
-    let ip_pattern: Option<String> = filter.ip.map(|ip_val| format!("%{ip_val}%"));
-
-    let country_pattern: Option<String> =
-        filter.country.map(|country_val| format!("%{country_val}%"));
-    let election_id_pattern: Option<Uuid> = if let Some(election_id_val) = filter.election_id {
-        parse_uuid_v4(&election_id_val).ok()
+    let ip_pattern: Option<String> = if let Some(ip_val) = filter.ip {
+        Some(format!("%{ip_val}%"))
     } else {
         None
     };
+
+    let country_pattern: Option<String> = if let Some(country_val) = filter.country {
+        Some(format!("%{country_val}%"))
+    } else {
+        None
+    };
+    let elections = canonical_elections(filter.elections.as_deref())?;
     let ballot_box = get_event_ballot_box(hasura_transaction, tenant_id, election_event_id).await?;
-    let election_id = election_id_pattern.map(|id| id.to_string());
     let filter = IpBallotsFilter {
         ip_pattern: ip_pattern.as_deref(),
         country_pattern: country_pattern.as_deref(),
-        election_id: election_id.as_deref(),
+        elections: elections.as_deref(),
         limit: query_limit,
         offset: query_offset,
     };
@@ -537,6 +544,18 @@ mod tests {
             validate_votes_time_range(start, end, VotesTimeResolution::Minute, Some(60),).is_ok()
         );
         assert!(validate_votes_time_range(start, end, VotesTimeResolution::Hour, None,).is_ok());
+    }
+
+    #[test]
+    fn election_scopes_are_canonical_ids_or_every_election() {
+        let id = "8F1D4C9A-2B7E-4A31-9C5D-6E0F1A2B3C4D";
+        assert_eq!(
+            canonical_elections(Some(&[id.to_string()])).unwrap(),
+            Some(vec![id.to_lowercase()])
+        );
+        assert_eq!(canonical_elections(Some(&[])).unwrap(), Some(vec![]));
+        assert_eq!(canonical_elections(None).unwrap(), None);
+        assert!(canonical_elections(Some(&["not-a-uuid".to_string()])).is_err());
     }
 
     #[test]

@@ -3,7 +3,7 @@ use crate::postgres::election_event::update_election_event_status;
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::celery_app::get_celery_app;
+use crate::services::celery_app::try_get_celery_app;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status;
 use crate::services::electoral_log::*;
@@ -11,11 +11,13 @@ use crate::tasks::publish_electoral_log_checkpoint::publish_electoral_log_checkp
 use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::{ElectoralLogCheckpointReason, VotingChannelString};
+use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionStatus;
 use sequent_core::ballot::VotingStatus;
 use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::hasura::core::Election;
+use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::hasura::core::VotingChannels;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -37,10 +39,6 @@ pub struct UpdateElectionVotingStatusOutput {
     pub election_id: String,
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "Preserve the voting-status and audit API with explicit actor, election, channel and transaction context."
-)]
 #[instrument(err)]
 pub async fn update_election_status(
     tenant_id: String,
@@ -52,14 +50,112 @@ pub async fn update_election_status(
     voting_status: &VotingStatus,
     voting_channels: &Option<Vec<VotingStatusChannel>>,
 ) -> Result<()> {
+    // Read-modify-write of the event's and the Post's status: lock them (the
+    // event row and the election row) before reading.
+    election_event_status::lock_status_rows(
+        hasura_transaction,
+        &tenant_id,
+        election_event_id,
+        Some(election_id),
+    )
+    .await?;
     let election_event =
-        get_election_event_by_id(hasura_transaction, &tenant_id, election_event_id)
+        get_election_event_by_id(&hasura_transaction, &tenant_id, election_event_id)
             .await
             .with_context(|| "error getting election event")?;
     let mut event_status =
-        get_election_event_status(election_event.status.clone()).unwrap_or_default();
+        get_election_event_status(election_event.status.clone()).unwrap_or(Default::default());
 
-    let voting_channels: Vec<VotingStatusChannel> = if let Some(channel) = voting_channels {
+    let voting_channels = resolve_voting_channels(&election_event, voting_channels)?;
+    // The board entries go once every channel changed and the close made
+    // its seals, so a refusal or a failed seal hook can't leave an entry on
+    // the log that the database rolled back (VOTE-FREEZE).
+    let mut changed_channels = vec![];
+    let mut event_opened = vec![];
+    for voting_channel in voting_channels {
+        if election_event_status::change_election_voting_status(
+            &tenant_id,
+            user_id,
+            username,
+            election_event_id,
+            election_id,
+            voting_status,
+            voting_channel,
+            &hasura_transaction,
+        )
+        .await?
+        {
+            changed_channels.push(voting_channel);
+        }
+        let current_event_status = event_status.status_by_channel(voting_channel);
+
+        info!("current_voting_status={current_event_status:?} next_voting_status={voting_status:?}, voting_channel={voting_channel:?}");
+
+        if voting_status.clone() == VotingStatus::OPEN
+            && current_event_status == VotingStatus::NOT_STARTED
+        {
+            info!("Updating election event status to OPEN");
+            event_status
+                .close_early_voting_if_online_status_change(voting_channel, VotingStatus::OPEN);
+            event_status.set_status_by_channel(voting_channel, VotingStatus::OPEN);
+            event_opened.push(voting_channel);
+        }
+    }
+    let channels_changed = !changed_channels.is_empty();
+    for voting_channel in event_opened {
+        update_board_on_status_change(
+            &hasura_transaction,
+            &tenant_id,
+            user_id,
+            username,
+            election_event.id.to_string(),
+            election_event.bulletin_board_reference.clone(),
+            voting_status.clone(),
+            voting_channel,
+            None,
+            Some(vec![election_id.to_string()]),
+        )
+        .await?;
+    }
+    for voting_channel in changed_channels {
+        election_event_status::post_election_status_change(
+            hasura_transaction,
+            &tenant_id,
+            user_id,
+            username,
+            election_event_id,
+            election_id,
+            election_event.bulletin_board_reference.clone(),
+            voting_status,
+            voting_channel,
+        )
+        .await?;
+    }
+    // The event's voting status follows the Post's, past the checks above.
+    crate::postgres::trusted_write(hasura_transaction).await?;
+    update_election_event_status(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        serde_json::to_value(&event_status).with_context(|| "Error parsing status")?,
+    )
+    .await
+    .with_context(|| "Error updating election event status")?;
+
+    if let Some(reason) = voting_checkpoint_reason(voting_status).filter(|_| channels_changed) {
+        queue_voting_checkpoint(&tenant_id, election_event_id, reason).await;
+    }
+
+    Ok(())
+}
+
+/// The channels a status change applies to: the ones asked for, else the
+/// event's enabled channels, else all of them.
+pub fn resolve_voting_channels(
+    election_event: &ElectionEvent,
+    voting_channels: &Option<Vec<VotingStatusChannel>>,
+) -> Result<Vec<VotingStatusChannel>> {
+    Ok(if let Some(channel) = voting_channels {
         info!("Reading input voting channels {channel:?}");
         channel.clone()
     } else if let Some(channels) = election_event.voting_channels.clone() {
@@ -107,71 +203,9 @@ pub async fn update_election_status(
             VotingStatusChannel::EARLY_VOTING,
             VotingStatusChannel::TELEPHONE,
         ]
-    };
-
-    let mut changed_channels = 0_usize;
-    for voting_channel in voting_channels {
-        let change = election_event_status::update_election_voting_status_impl(
-            tenant_id.clone(),
-            user_id,
-            username,
-            election_event_id.to_string(),
-            election_id.to_string(),
-            *voting_status,
-            voting_channel,
-            election_event.bulletin_board_reference.clone(),
-            hasura_transaction,
-        )
-        .await?;
-        if change == election_event_status::StatusChange::Changed {
-            changed_channels += 1;
-        }
-        let current_event_status = event_status.status_by_channel(voting_channel);
-
-        info!("current_voting_status={current_event_status:?} next_voting_status={voting_status:?}, voting_channel={voting_channel:?}");
-
-        if *voting_status == VotingStatus::OPEN && current_event_status == VotingStatus::NOT_STARTED
-        {
-            info!("Updating election event status to OPEN");
-            event_status
-                .close_early_voting_if_online_status_change(voting_channel, VotingStatus::OPEN);
-            event_status.set_status_by_channel(voting_channel, VotingStatus::OPEN);
-
-            update_board_on_status_change(
-                hasura_transaction,
-                &tenant_id,
-                user_id,
-                username,
-                election_event.id.to_string(),
-                election_event.bulletin_board_reference.clone(),
-                *voting_status,
-                voting_channel,
-                None,
-                Some(vec![election_id.to_string()]),
-            )
-            .await?;
-        }
-    }
-    update_election_event_status(
-        hasura_transaction,
-        &tenant_id,
-        election_event_id,
-        serde_json::to_value(&event_status).with_context(|| "Error parsing status")?,
-    )
-    .await
-    .with_context(|| "Error updating election event status")?;
-
-    if let Some(reason) = voting_checkpoint_reason(voting_status).filter(|_| changed_channels > 0) {
-        queue_voting_checkpoint(&tenant_id, election_event_id, reason).await;
-    }
-
-    Ok(())
+    })
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "Preserve the voting-status and audit API with explicit actor, election, channel and transaction context."
-)]
 #[instrument(err)]
 pub async fn update_board_on_status_change(
     hasura_transaction: &Transaction<'_>,
@@ -214,7 +248,10 @@ pub async fn update_board_on_status_change(
         .await?
     };
 
-    let maybe_election_id = election_id;
+    let maybe_election_id = match election_id {
+        Some(election_id) => Some(election_id),
+        None => None,
+    };
     match voting_status {
         VotingStatus::NOT_STARTED => {
             // Nothing to do?
@@ -285,19 +322,21 @@ pub async fn queue_voting_checkpoint(
     election_event_id: &str,
     reason: ElectoralLogCheckpointReason,
 ) {
-    let queued = tokio::time::timeout(CHECKPOINT_QUEUE_TIMEOUT, async {
-        get_celery_app()
-            .await
+    // An unreachable task-queue database fails the send: the change goes on
+    // without its checkpoint.
+    let send = async {
+        try_get_celery_app()
+            .await?
             .send_task(publish_electoral_log_checkpoint::new(
                 tenant_id.to_string(),
                 election_event_id.to_string(),
                 reason,
             ))
-            .await
-    })
-    .await;
-    match queued {
-        Ok(Ok(_)) => {}
+            .await?;
+        anyhow::Ok(())
+    };
+    match tokio::time::timeout(CHECKPOINT_QUEUE_TIMEOUT, send).await {
+        Ok(Ok(())) => {}
         Ok(Err(error)) => tracing::error!(
             "Could not queue the {reason} electoral-log checkpoint for event {election_event_id}: {error:?}"
         ),
@@ -330,44 +369,48 @@ pub fn get_election_status_info(election: &Election) -> ElectionStatusInfo {
     let voting_channels: Option<VotingChannels> = election_voting_channels
         .and_then(|voting_channels_json| deserialize_value(voting_channels_json).ok());
 
-    if let Some(status) = status.clone() {
-        match status.voting_status {
-            // If voting hasn't started yet, increment the count for not
-            // opened votes
-            VotingStatus::NOT_STARTED => total_not_started_votes += 1,
-            // If voting is open, increment the count for
-            //open votes and started votes
-            VotingStatus::OPEN => {
-                total_open_votes += 1;
-                total_started_votes += 1;
-            }
-            // If voting is paused, increment the count for started votes
-            // Consider the vote as having been open before paused
-            VotingStatus::PAUSED => total_started_votes += 1,
-            // If voting is closed:
-            VotingStatus::CLOSED => {
-                // Consider the vote as having been open before closing
-                total_started_votes += 1;
-                // Check the voting channels to determine if any additional
-                // conditions apply
-                match voting_channels {
-                    // If there is a kiosk channel active then check if the
-                    // kiosk-specific voting status is closed.
-                    Some(VotingChannels {
-                        kiosk: Some(true), ..
-                    }) => {
-                        if status.kiosk_voting_status == VotingStatus::CLOSED {
+    match status.clone() {
+        Some(status) => {
+            match status.voting_status {
+                // If voting hasn't started yet, increment the count for not
+                // opened votes
+                VotingStatus::NOT_STARTED => total_not_started_votes += 1,
+                // If voting is open, increment the count for
+                //open votes and started votes
+                VotingStatus::OPEN => {
+                    total_open_votes += 1;
+                    total_started_votes += 1;
+                }
+                // If voting is paused, increment the count for started votes
+                // Consider the vote as having been open before paused
+                VotingStatus::PAUSED => total_started_votes += 1,
+                // If voting is closed:
+                VotingStatus::CLOSED => {
+                    // Consider the vote as having been open before closing
+                    total_started_votes += 1;
+                    // Check the voting channels to determine if any additional
+                    // conditions apply
+                    match voting_channels {
+                        // If there is a kiosk channel active then check if the
+                        // kiosk-specific voting status is closed.
+                        Some(VotingChannels {
+                            kiosk: Some(true), ..
+                        }) => {
+                            if status.kiosk_voting_status == VotingStatus::CLOSED {
+                                total_closed_votes += 1;
+                            }
+                        }
+                        // For all other cases, if online voting channel is
+                        // closed, then the election is considered closed
+                        _ => {
                             total_closed_votes += 1;
                         }
-                    }
-                    // For all other cases, if online voting channel is
-                    // closed, then the election is considered closed
-                    _ => {
-                        total_closed_votes += 1;
                     }
                 }
             }
         }
+        // If deserialization of the election status failed, do nothing.
+        None => {}
     };
 
     ElectionStatusInfo {

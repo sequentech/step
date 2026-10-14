@@ -1,8 +1,10 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::validate_keycloak_path_segment;
+use crate::serialization::deserialize_with_path::deserialize_str;
 use crate::services::connection;
-use crate::services::connection::PRE_EXPIRATION_SECS;
+use crate::services::connection::{PRE_EXPIRATION_SECS, REDACTED};
 use crate::services::keycloak::realm::get_tenant_realm;
 use anyhow::{anyhow, Result};
 use keycloak::{
@@ -15,7 +17,6 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json;
 use std::convert::TryFrom;
 use std::env;
-use std::fmt;
 use std::sync::RwLock;
 use std::time::{Duration, Instant};
 use tracing::{event, info, instrument, warn, Level};
@@ -33,16 +34,31 @@ pub struct PubKeycloakAdminToken {
     pub token_type: String,
 }
 
-// This type is included in cached-token Debug output. Its serialized form still
-// carries credentials; diagnostic output must not.
-impl fmt::Debug for PubKeycloakAdminToken {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("PubKeycloakAdminToken")
+impl std::fmt::Debug for PubKeycloakAdminToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PubKeycloakAdminToken")
+            .field("access_token", &REDACTED)
             .field("expires_in", &self.expires_in)
-            .field("has_refresh_token", &self.refresh_token.is_some())
-            .finish_non_exhaustive()
+            .field("not_before_policy", &self.not_before_policy)
+            .field("refresh_expires_in", &self.refresh_expires_in)
+            .field(
+                "refresh_token",
+                &self.refresh_token.as_ref().map(|_| REDACTED),
+            )
+            .field("scope", &self.scope)
+            .field("session_state", &self.session_state)
+            .field("token_type", &self.token_type)
+            .finish()
     }
+}
+
+/// Error for a failed token conversion. It names the failed step but never
+/// includes the token, as the token is a secret.
+fn token_conversion_error(
+    step: &str,
+    err: impl std::fmt::Debug,
+) -> anyhow::Error {
+    anyhow!("Error {step} token: {err:?}")
 }
 
 fn decode_token_response<T: DeserializeOwned>(text: &str) -> Result<T> {
@@ -83,7 +99,7 @@ impl TryFrom<KeycloakAdminToken> for PubKeycloakAdminToken {
 
     fn try_from(token: KeycloakAdminToken) -> Result<Self, Self::Error> {
         let json = serde_json::to_string(&token)
-            .map_err(|_| anyhow!("Unable to serialize Keycloak token"))?;
+            .map_err(|err| token_conversion_error("serializing", err))?;
         decode_token_response(&json)
     }
 }
@@ -93,7 +109,8 @@ impl TryFrom<PubKeycloakAdminToken> for KeycloakAdminToken {
 
     fn try_from(token: PubKeycloakAdminToken) -> Result<Self, Self::Error> {
         let json = serde_json::to_string(&token)
-            .map_err(|_| anyhow!("Unable to serialize Keycloak token"))?;
+            .map_err(|err| token_conversion_error("serializing", err))?;
+
         decode_token_response(&json)
     }
 }
@@ -105,13 +122,25 @@ struct KeycloakLoginConfig {
     realm: String,
 }
 
+impl std::fmt::Debug for KeycloakLoginConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("KeycloakLoginConfig")
+            .field("url", &self.url)
+            .field("client_id", &self.client_id)
+            .field("client_secret", &REDACTED)
+            .field("realm", &self.realm)
+            .finish()
+    }
+}
+
 impl KeycloakLoginConfig {
     pub fn new(
         client_id: String,
         client_secret: String,
         tenant_id: String,
     ) -> KeycloakLoginConfig {
-        let url = env::var("KEYCLOAK_URL").expect("KEYCLOAK_URL must be set");
+        let url = env::var("KEYCLOAK_URL")
+            .expect(&format!("KEYCLOAK_URL must be set"));
         let realm = get_tenant_realm(&tenant_id);
         Self {
             url,
@@ -123,36 +152,36 @@ impl KeycloakLoginConfig {
 }
 
 fn get_keycloak_login_config() -> KeycloakLoginConfig {
-    let client_id =
-        env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set");
+    let client_id = env::var("KEYCLOAK_CLIENT_ID")
+        .expect(&format!("KEYCLOAK_CLIENT_ID must be set"));
     let client_secret = env::var("KEYCLOAK_CLIENT_SECRET")
-        .expect("KEYCLOAK_CLIENT_SECRET must be set");
+        .expect(&format!("KEYCLOAK_CLIENT_SECRET must be set"));
     let tenant_id = env::var("SUPER_ADMIN_TENANT_ID")
-        .expect("SUPER_ADMIN_TENANT_ID must be set");
+        .expect(&format!("SUPER_ADMIN_TENANT_ID must be set"));
     KeycloakLoginConfig::new(client_id, client_secret, tenant_id)
 }
 
 fn get_keycloak_login_admin_config() -> KeycloakLoginConfig {
     let client_id = env::var("KEYCLOAK_ADMIN_CLIENT_ID")
-        .expect("KEYCLOAK_ADMIN_CLIENT_ID must be set");
+        .expect(&format!("KEYCLOAK_ADMIN_CLIENT_ID must be set"));
     let client_secret = env::var("KEYCLOAK_ADMIN_CLIENT_SECRET")
-        .expect("KEYCLOAK_ADMIN_CLIENT_SECRET must be set");
+        .expect(&format!("KEYCLOAK_ADMIN_CLIENT_SECRET must be set"));
     let tenant_id = env::var("SUPER_ADMIN_TENANT_ID")
-        .expect("SUPER_ADMIN_TENANT_ID must be set");
+        .expect(&format!("SUPER_ADMIN_TENANT_ID must be set"));
     KeycloakLoginConfig::new(client_id, client_secret, tenant_id)
 }
 
-#[instrument(skip_all, err)]
-async fn get_credentials_inner(
+#[instrument(err, skip_all)]
+pub async fn get_credentials_inner(
     login_config: KeycloakLoginConfig,
 ) -> Result<String> {
+    validate_keycloak_path_segment(&login_config.realm)?;
     let body_string = serde_urlencoded::to_string::<[(String, String); 4]>([
-        ("client_id".into(), login_config.client_id),
+        ("client_id".into(), login_config.client_id.clone()),
         ("scope".into(), "openid".into()),
-        ("client_secret".into(), login_config.client_secret),
+        ("client_secret".into(), login_config.client_secret.clone()),
         ("grant_type".into(), "client_credentials".into()),
-    ])
-    .map_err(|_| anyhow!("Unable to encode Keycloak credential request"))?;
+    ])?;
 
     let keycloak_endpoint = format!(
         "{}/realms/{}/protocol/openid-connect/token",
@@ -164,16 +193,25 @@ async fn get_credentials_inner(
     let client = ClientBuilder::new(reqwest::Client::new())
         .with(RetryTransientMiddleware::new_with_policy(retry_policy))
         .build();
-    info!("Acquiring Keycloak client credentials");
-    let response = client
-        .post(keycloak_endpoint)
-        .header("Content-Type", "application/x-www-form-urlencoded")
-        .body(body_string)
-        .send()
-        .await?
-        .error_for_status()?;
-    info!("Keycloak credential request completed");
-    response.text().await.map_err(Into::into)
+    event!(
+        Level::INFO,
+        "Acquiring credentials from {}",
+        keycloak_endpoint
+    );
+
+    let res = async {
+        let res_future = client
+            .post(keycloak_endpoint)
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .body(body_string)
+            .send();
+        event!(Level::INFO, "Awaiting future from endpoint");
+        let res = res_future.await;
+        res
+    }
+    .await?;
+
+    res.error_for_status()?.text().await.map_err(|e| anyhow!(e))
 }
 
 // Client Credentials OpenID Authentication flow.
@@ -182,7 +220,9 @@ async fn get_credentials_inner(
 pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
     let login_config = get_keycloak_login_config();
     let text = get_credentials_inner(login_config).await?;
-    let credentials: KeycloakAdminToken = decode_token_response(&text)?;
+    // Token responses contain secrets, including malformed responses.
+    let credentials: KeycloakAdminToken = deserialize_str(&text)
+        .map_err(|_| anyhow!("Invalid Keycloak token response"))?;
 
     event!(Level::INFO, "Successfully acquired credentials");
     Ok(connection::AuthHeaders {
@@ -198,14 +238,16 @@ pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
 pub async fn get_auth_credentials() -> Result<KeycloakAdminToken> {
     let login_config = get_keycloak_login_config();
     let text = get_credentials_inner(login_config).await?;
-    let credentials: KeycloakAdminToken = decode_token_response(&text)?;
+    // Token responses contain secrets, including malformed responses.
+    let credentials: KeycloakAdminToken = deserialize_str(&text)
+        .map_err(|_| anyhow!("Invalid Keycloak token response"))?;
     event!(Level::INFO, "Successfully acquired credentials");
     Ok(credentials)
 }
 
 /// Authenticate a party client in keycloak with specific client credentials and
 /// tenant_id
-#[instrument(skip_all, err)]
+#[instrument(err, skip(client_secret))]
 pub async fn get_third_party_client_access_token(
     client_id: String,
     client_secret: String,
@@ -215,7 +257,9 @@ pub async fn get_third_party_client_access_token(
         KeycloakLoginConfig::new(client_id, client_secret, tenant_id);
 
     let text = get_credentials_inner(login_config).await?;
-    let keycloak_adm_tkn: KeycloakAdminToken = decode_token_response(&text)?;
+    // Token responses contain secrets, including malformed responses.
+    let keycloak_adm_tkn: KeycloakAdminToken = deserialize_str(&text)
+        .map_err(|_| anyhow!("Invalid Keycloak token response"))?;
 
     event!(Level::INFO, "Successfully acquired credentials");
     Ok(keycloak_adm_tkn)
@@ -377,9 +421,80 @@ impl KeycloakAdminClient {
         event!(Level::INFO, "Successfully acquired credentials");
         Ok(PubKeycloakAdmin {
             url: login_config.url,
-            client,
+            client: client,
             token_supplier: admin_token,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn token(refresh_token: Option<&str>) -> PubKeycloakAdminToken {
+        PubKeycloakAdminToken {
+            access_token: "AccessTokenValue8c4d".to_string(),
+            expires_in: 60,
+            not_before_policy: Some(0),
+            refresh_expires_in: Some(120),
+            refresh_token: refresh_token.map(str::to_string),
+            scope: "profile".to_string(),
+            session_state: Some("session".to_string()),
+            token_type: "Bearer".to_string(),
+        }
+    }
+
+    #[test]
+    fn token_debug_omits_access_and_refresh_tokens() {
+        let debug = format!("{:?}", token(Some("RefreshTokenValue5e2f")));
+
+        assert!(debug.contains("expires_in: 60"), "{debug}");
+        assert!(debug.contains(REDACTED), "{debug}");
+        assert!(!debug.contains("AccessTokenValue8c4d"), "{debug}");
+        assert!(!debug.contains("RefreshTokenValue5e2f"), "{debug}");
+    }
+
+    #[test]
+    fn token_debug_without_refresh_token_shows_none() {
+        let debug = format!("{:?}", token(None));
+
+        assert!(debug.contains("refresh_token: None"), "{debug}");
+        assert!(!debug.contains("AccessTokenValue8c4d"), "{debug}");
+    }
+
+    #[test]
+    fn token_round_trips_through_keycloak_admin_token() {
+        let original = token(Some("RefreshTokenValue5e2f"));
+
+        let keycloak_token = KeycloakAdminToken::try_from(original.clone())
+            .expect("conversion to keycloak token");
+        let converted = PubKeycloakAdminToken::try_from(keycloak_token)
+            .expect("conversion back");
+
+        assert_eq!(converted, original);
+    }
+
+    #[test]
+    fn token_conversion_error_names_the_step_only() {
+        let error = token_conversion_error("serializing", "bad shape");
+
+        assert_eq!(error.to_string(), "Error serializing token: \"bad shape\"");
+    }
+
+    #[test]
+    fn keycloak_login_config_debug_omits_client_secret() {
+        const CLIENT_SECRET: &str = "ClientSecretValue2a9c";
+        let login_config = KeycloakLoginConfig {
+            url: "http://keycloak".to_string(),
+            client_id: "client".to_string(),
+            client_secret: CLIENT_SECRET.to_string(),
+            realm: "realm".to_string(),
+        };
+
+        let debug = format!("{login_config:?}");
+
+        assert!(debug.contains("client_id"), "{debug}");
+        assert!(!debug.contains(CLIENT_SECRET), "{debug}");
     }
 }
 

@@ -9,4 +9,4 @@ COPY --from=windmill-compile /app/target/release/main /usr/local/bin/main
 COPY --from=windmill-compile /app/target/release/beat /usr/local/bin/beat
 WORKDIR /usr/local/bin
 # Run the windmill binary, it's possible to run 'beat' as well
-CMD ["main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue", "communication_queue", "import_export_queue"]
+CMD ["main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue", "communication_queue", "import_export_queue", "electoral_log_batch_queue", "electoral_log_beat_queue", "monitoring_queue"]

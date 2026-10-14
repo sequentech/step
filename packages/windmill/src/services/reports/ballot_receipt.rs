@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::ballot_tracker_url::{build_ballot_tracker_url, BallotTrackerPath};
 use super::template_renderer::*;
 use crate::postgres::reports::ReportType;
 use crate::services::ballot_box_reads::get_event_ballot_box;
@@ -9,15 +10,17 @@ use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
+use electoral_log::adapters::ballot_box_reads::{BallotIdMatch, StoredBallot};
+use sequent_core::ballot_receipt::normalize_ballot_id;
 use sequent_core::util::temp_path::*;
 
 use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
-use sequent_core::types::date_time::{DateFormat, TimeZone};
 use sequent_core::util::date_time::get_date_and_time;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
+use uuid::Uuid;
 
 /// Wrapper struct for data specific to the ballot and the voter
 /// which won't be needed in the preview mode.
@@ -27,8 +30,6 @@ pub struct BallotData {
     pub voter_id: String,
     pub ballot_id: String,
     pub ballot_tracker_url: String,
-    pub time_zone: Option<TimeZone>,
-    pub date_format: Option<DateFormat>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -107,22 +108,19 @@ impl TemplateRenderer for BallotTemplate {
             return Err(anyhow!("Empty election_id"));
         };
 
-        let (area_id, voter_id, ballot_id, ballot_tracker_url, _time_zone, _date_format) =
-            match &self.ballot_data {
-                Some(ballot_data) => (
-                    ballot_data.area_id.as_str(),
-                    ballot_data.voter_id.as_str(),
-                    ballot_data.ballot_id.as_str(),
-                    ballot_data.ballot_tracker_url.as_str(),
-                    ballot_data.time_zone.clone(),
-                    ballot_data.date_format.clone(),
-                ),
-                None => {
-                    return Err(anyhow!(
-                        "Cannot verify ballot id becasue Ballot data is missing"
-                    ));
-                }
-            };
+        let (area_id, voter_id, ballot_id, ballot_tracker_url) = match &self.ballot_data {
+            Some(ballot_data) => (
+                ballot_data.area_id.as_str(),
+                ballot_data.voter_id.as_str(),
+                ballot_data.ballot_id.as_str(),
+                ballot_data.ballot_tracker_url.as_str(),
+            ),
+            None => {
+                return Err(anyhow!(
+                    "Cannot verify ballot id becasue Ballot data is missing"
+                ));
+            }
+        };
 
         let tennant_uuid = parse_uuid_v4(self.get_tenant_id().as_str())
             .map_err(|err| anyhow!("Error parsing tenant id: {:?}", err))?;
@@ -132,32 +130,61 @@ impl TemplateRenderer for BallotTemplate {
         let ballot_uui = parse_uuid_v4(election_id.as_str())
             .map_err(|err| anyhow!("Error parsing election id: {:?}", err))?;
 
-        let cast = get_event_ballot_box(
+        let store = get_event_ballot_box(
             hasura_transaction,
             &tennant_uuid.to_string(),
             &election_event_uuid.to_string(),
         )
         .await?
-        .store
-        .voter_ballots(&election_event_uuid.to_string(), voter_id)
-        .await?
-        .iter()
-        .any(|ballot| {
-            ballot.ballot_id == ballot_id
-                && ballot.area_id == area_id
-                && ballot.election_id == ballot_uui.to_string()
-        });
+        .store;
+        let (event, election) = (election_event_uuid.to_string(), ballot_uui.to_string());
+        let in_box =
+            |ballot: &StoredBallot| ballot.area_id == area_id && ballot.election_id == election;
+        // A ballot cast with a signed receipt goes by the receipt's Ballot ID.
+        let cast = match normalize_ballot_id(ballot_id) {
+            Some(receipt_ballot_id) => store
+                .received_cast_ballots(
+                    &event,
+                    voter_id,
+                    &election,
+                    BallotIdMatch::Exact(&receipt_ballot_id),
+                )
+                .await?
+                .iter()
+                .any(|cast| in_box(&cast.ballot.ballot)),
+            None => store
+                .voter_ballots(&event, voter_id)
+                .await?
+                .iter()
+                .any(|ballot| ballot.ballot_id == ballot_id && in_box(ballot)),
+        };
 
         // Verify that the vote has been casted
         if !cast {
             return Err(anyhow!("BallotID not found in cast votes for {voter_id}"));
         }
 
+        let kiosk_base = match std::env::var("KIOSK_VOTING_PORTAL_URL") {
+            Err(std::env::VarError::NotPresent) => None,
+            kiosk_base => Some(kiosk_base.context("Invalid KIOSK_VOTING_PORTAL_URL env var")?),
+        };
+
         Ok(UserData {
             ballot_id: ballot_id.to_string(),
-            ballot_tracker_url: ballot_tracker_url.to_string(),
+            ballot_tracker_url: build_ballot_tracker_url(
+                &std::env::var("VOTING_PORTAL_URL").context("VOTING_PORTAL_URL env var missing")?,
+                kiosk_base.as_deref(),
+                ballot_tracker_url,
+                BallotTrackerPath {
+                    tenant_id: &self.ids.tenant_id,
+                    election_event_id: &self.ids.election_event_id,
+                    election_id,
+                    ballot_id,
+                },
+            )?,
             qrcode: QR_CODE_TEMPLATE.to_string(),
             logo: LOGO_TEMPLATE.to_string(),
+            // A UTC instant: the template prints it in the election's zone.
             timestamp: get_date_and_time(),
         })
     }

@@ -29,7 +29,7 @@ pub struct StartKeyCeremony {
     /// Automatic - if set, trustees complete this ceremony without a
     /// separate per-trustee login (each trustee's braid service still does
     /// the DKG round on its own; this only skips the manual
-    /// get-private-key/check-private-key confirmation step)
+    /// get-custody-request/confirm-key-custody confirmation step)
     #[arg(long, default_value_t = false)]
     automatic: bool,
 }

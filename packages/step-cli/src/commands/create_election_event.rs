@@ -21,8 +21,8 @@ pub struct CreateElectionEventCLI {
     #[arg(long, default_value = "")]
     description: String,
 
-    /// Encryption protocol (currently hardcoded to RSA256)
-    #[arg(long, default_value = "RSA256")]
+    /// Encryption protocol (wbraid backend)
+    #[arg(long, default_value = "WBRAID")]
     encryption_protocol: String,
 
     /// Whether the event is archived

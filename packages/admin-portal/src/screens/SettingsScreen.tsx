@@ -9,7 +9,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {Tabs} from "@/components/Tabs"
 import {HeaderTitle} from "@/components/HeaderTitle"
 import {SettingsLanguages} from "@/resources/Settings/SettingsLanguages"
-import {SettingsTemplates} from "@/resources/Settings/SettingsTemplates"
+import {SettingsMessaging} from "@/resources/Settings/SettingsMessaging"
 import {SettingsVotingChannels} from "@/resources/Settings/SettingsVotingChannel"
 import {SettingsElectionsTypes} from "@/resources/Settings/SettingsElectionsTypes"
 import {SettingsElectionsTypesCreate} from "@/resources/Settings/SettingsElectionsTypesCreate"
@@ -33,6 +33,11 @@ export const SettingsScreen: React.FC = () => {
     const [open] = useSidebarState()
 
     const showSettingsMenu = authContext.isAuthorized(true, tenantId, IPermissions.SETTINGS_MENU)
+    const showMessaging = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.MESSAGING_ACCOUNT_READ
+    )
 
     if (!hasPermissions || !showSettingsMenu) {
         return (
@@ -74,12 +79,14 @@ export const SettingsScreen: React.FC = () => {
                             <Resource name="sequent_backend_tenant" list={SettingsVotingChannels} />
                         ),
                     },
-                    {
-                        label: t("electionTypeScreen.tabs.templates"),
-                        component: () => (
-                            <Resource name="sequent_backend_tenant" list={SettingsTemplates} />
-                        ),
-                    },
+                    ...(showMessaging
+                        ? [
+                              {
+                                  label: t("messagingAccounts.tab"),
+                                  component: () => <SettingsMessaging />,
+                              },
+                          ]
+                        : []),
                     {
                         label: t("electionTypeScreen.tabs.languages"),
                         component: () => (

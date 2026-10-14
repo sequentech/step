@@ -7,11 +7,70 @@ SPDX-License-Identifier: AGPL-3.0-only
 <@layout.registrationLayout displayInfo=true; section>
     <#if section = "header">
         <h2 style="text-align:center;">${msg(i18nPrefix + ".auth.enterOtpTitle")}</h2>
+    <#elseif section = "form" && (attemptsExhausted!false)>
+        <#-- Five wrong codes finish the session: only a restart. -->
+        <div id="kc-otp-restart" class="${properties.kcFormGroupClass!}">
+            <a id="kc-otp-restart-link" href="${url.loginRestartFlowUrl}"
+                class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonBlockClass!}">${msg("messageOtp.auth.restart")}</a>
+        </div>
     <#elseif section = "form">
+        <#assign viaMessenger = (channel!'') == 'MESSENGER'>
+        <#if viaMessenger>
+            <div id="kc-messenger-connect" class="${properties.kcFormGroupClass!}">
+                <#if messengerPage?? && messagingOrganization??>
+                    <p>${msg("messageOtp.messenger.introPage", messagingOrganization, messengerPage)}</p>
+                <#elseif messengerPage??>
+                    <p>${msg("messageOtp.messenger.intro", messengerPage)}</p>
+                </#if>
+                <#if (messengerReconnect!false)>
+                    <p class="kc-messenger-reconnect">${msg("messageOtp.messenger.reconnect")}</p>
+                </#if>
+                <ol class="kc-messenger-steps-phone">
+                    <li>${msg("messageOtp.messenger.step1")}</li>
+                    <li>${msg("messageOtp.messenger.step2")}</li>
+                    <li>${msg("messageOtp.messenger.step3")}</li>
+                </ol>
+                <#if messengerQr??>
+                    <div class="kc-messenger-desktop">
+                        <img id="kc-messenger-qr" src="${messengerQr}" width="200" height="200" alt="${msg("messageOtp.messenger.scan")}"/>
+                        <ol>
+                            <li>${msg("messageOtp.messenger.scanStep1")}</li>
+                            <li>${msg("messageOtp.messenger.scanStep2")}</li>
+                            <li>${msg("messageOtp.messenger.scanStep3")}</li>
+                        </ol>
+                    </div>
+                </#if>
+                <#if messengerLink??>
+                    <a id="kc-messenger-link" href="${messengerLink}" target="_blank" rel="noopener noreferrer"
+                        class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonBlockClass!}">${msg("messageOtp.messenger.open")}</a>
+                </#if>
+                <p class="kc-messenger-get-started">${msg("messageOtp.messenger.getStarted")}</p>
+                <#if (messengerState!'') == 'CODE_SENT'>
+                    <p role="status">${msg("messageOtp.messenger.codeSent")}</p>
+                <#elseif (messengerState!'') == 'EXPIRED' || (messengerState!'') == 'REPLACED'>
+                    <p role="alert">${msg("messageOtp.messenger.expired")}</p>
+                <#elseif messengerState??>
+                    <p role="status">${msg("messageOtp.messenger.pending")}</p>
+                </#if>
+            </div>
+            <style>
+                .kc-messenger-desktop { display: none; }
+                @media (min-width: 768px) and (hover: hover) {
+                    .kc-messenger-desktop { display: block; text-align: center; }
+                    .kc-messenger-steps-phone { display: none; }
+                }
+            </style>
+        </#if>
         <form id="kc-message-otp-form" class="${properties.kcFormClass!}" action="${url.loginAction}" method="post">
             <div class="${properties.kcFormGroupClass!} otp-sent-row">
                 <span class="otp-sent-label">
-                    ${msg(i18nPrefix + ".auth.sentToContact", contact)?no_esc}
+                    <#if viaMessenger>
+                        ${msg("messageOtp.messenger.title")}
+                    <#elseif channel??>
+                        ${msg("messageOtp.auth.sentTo", msg("messageChannel." + channel), contact)}
+                    <#else>
+                        ${msg(i18nPrefix + ".auth.sentToContact", contact?esc?markup_string)?no_esc}
+                    </#if>
                 </span>
                 <b class="otp-sent-value">${email!}${mobile!}</b>
                 <button type="submit" name="changeValue" value="true" class="change-link">
@@ -48,6 +107,13 @@ SPDX-License-Identifier: AGPL-3.0-only
                 </div>
             </div>
         </form>
+        <#if viaMessenger>
+            <form id="kc-messenger-check-form" class="${properties.kcFormClass!}" action="${url.loginAction}" method="post" style="text-align:center;">
+                <button type="submit" name="messengerStatus" value="true"
+                    class="${properties.kcButtonClass!} ${properties.kcButtonSecondaryClass!}">${msg("messageOtp.messenger.check")}</button>
+            </form>
+            <#include "messenger-status-poll.ftl">
+        </#if>
         <div class="${properties.kcFormGroupClass!} ${properties.kcFormSettingClass!} resend-row">
             <span class="resend-prefix">
                 ${msg(i18nPrefix + ".auth.resendTextPrefix.question")}
@@ -66,7 +132,8 @@ SPDX-License-Identifier: AGPL-3.0-only
             let resendTimerI18n = "${msg(i18nPrefix + ".auth.resend.timer")}";
             let resendButtonI18n = "${msg(i18nPrefix + ".auth.resend.button.link")}";
             let resendTimerTimeout = ${(resendTimer)};
-            let codeJustSent = "${(codeJustSent?string('true', 'false'))}";
+            // Every send starts the countdown, including one that failed.
+            let codeJustSent = "${((resendTimerStarted!codeJustSent)?string('true', 'false'))}";
             <#noparse>
             function resendOtp(resendTimerTimeout) {
                 let form = document.getElementById('kc-message-otp-form');

@@ -7,7 +7,8 @@ import Chart, {Props} from "react-apexcharts"
 import CardChart from "./Charts"
 import {CastVotesPerDay} from "@/gql/graphql"
 import {useTranslation} from "react-i18next"
-import {CircularProgress, MenuItem, Select, Stack, Tooltip} from "@mui/material"
+import {CircularProgress, MenuItem, Select, Stack, Tooltip, Typography} from "@mui/material"
+import {withEscapedChartText} from "@sequentech/ui-essentials"
 import {toVotesPerDayChartData} from "./votesPerDayData"
 import {getVotesPerDayChartOptions} from "./votesPerDayOptions"
 import {
@@ -21,6 +22,8 @@ import {
 
 export interface VotersPerDayProps {
     data: CastVotesPerDay[] | null
+    /** Whether the votes failed to load, so that no data means no chart rather than loading. */
+    unavailable?: boolean
     width: number
     height: number
     selection: VotesTimeSelection
@@ -52,6 +55,7 @@ const compactMenuProps = {
 
 export const VotesPerDay: React.FC<VotersPerDayProps> = ({
     data,
+    unavailable = false,
     width,
     height,
     selection,
@@ -117,18 +121,20 @@ export const VotesPerDay: React.FC<VotersPerDayProps> = ({
     if (!data) {
         return (
             <CardChart title={String(t("dashboard.votesOverTime"))} actions={controls}>
-                <CircularProgress size={24} />
+                {unavailable ? <Typography>-</Typography> : <CircularProgress size={24} />}
             </CardChart>
         )
     }
 
     const chartData = toVotesPerDayChartData(data)
     const state: Props = {
-        options: getVotesPerDayChartOptions({
-            buckets: chartData.buckets,
-            resolution: selection.resolution,
-            locale: i18n.resolvedLanguage ?? i18n.language,
-        }),
+        options: withEscapedChartText(
+            getVotesPerDayChartOptions({
+                buckets: chartData.buckets,
+                resolution: selection.resolution,
+                locale: i18n.resolvedLanguage ?? i18n.language,
+            })
+        ),
         series: chartData.series.map(({channel, data: channelData}) => ({
             name: String(t(`common.channel.${channel.toLowerCase()}`)),
             data: channelData,

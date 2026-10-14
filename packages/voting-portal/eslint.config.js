@@ -12,9 +12,11 @@ import globals from "globals"
 export default [
     {
         ignores: [
-            "rust/pkg/**",
             "dist/**",
+            "storybook-static/**",
+            "test-results/**",
             "build/**",
+            "coverage/**",
             "node_modules/**",
             "public/**",
             "*.config.js",
@@ -24,7 +26,7 @@ export default [
         ],
     },
     {
-        files: ["**/*.{js,jsx,ts,tsx}"],
+        files: ["**/*.{js,jsx,ts,tsx,mts}"],
         languageOptions: {
             ecmaVersion: "latest",
             sourceType: "module",
@@ -59,6 +61,13 @@ export default [
             "@typescript-eslint/no-unused-vars": "off",
             // Allow redeclare for function overloads
             "no-redeclare": "off",
+            // TypeScript already refuses an undefined name, and this rule does
+            // not know its globals: a file using `React.ReactNode` as a *type*
+            // without importing React is reported as using an undefined
+            // variable. typescript-eslint's own guidance is not to run it on
+            // TypeScript, for the same reason `no-unused-vars` and `no-redeclare`
+            // are off above — a core rule reading TypeScript as JavaScript.
+            "no-undef": "off",
         },
         settings: {
             react: {

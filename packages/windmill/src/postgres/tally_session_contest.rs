@@ -1,17 +1,16 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::{anyhow, Result};
-use b4::messages::newtypes::BatchNumber;
+use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local};
-use deadpool_postgres::Transaction;
+use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::TallySessionContest;
 use sequent_core::types::keycloak::VOTE_WEIGHT_BATCHES;
 use serde::Serialize;
 use serde_json::value::Value;
 use tokio_postgres::row::Row;
-use tracing::{instrument, warn};
+use tracing::{event, instrument, warn, Level};
 use uuid::Uuid;
 
 pub struct TallySessionContestWrapper(pub TallySessionContest);
@@ -82,10 +81,6 @@ pub async fn update_tally_session_contests_annotations(
     Ok(())
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "Preserve the existing database API argument order for transaction, record scope and column values."
-)]
 #[instrument(skip(hasura_transaction), err)]
 pub async fn insert_tally_session_contest(
     hasura_transaction: &Transaction<'_>,
@@ -93,11 +88,15 @@ pub async fn insert_tally_session_contest(
     election_event_id: &str,
     area_id: &str,
     contest_id: Option<String>,
-    session_id: BatchNumber,
+    session_id: i64,
     tally_session_id: &str,
     election_id: &str,
 ) -> Result<TallySessionContest> {
+    let session_id = i32::try_from(session_id)
+        .map_err(|_| anyhow!("Tally session batch number exceeds the database integer range"))?;
     let contest_uuid = contest_id.map(|val| parse_uuid_v4(&val)).transpose()?;
+    let session_id = i32::try_from(session_id)
+        .with_context(|| format!("batch number {session_id} is out of range"))?;
 
     let statement = hasura_transaction
         .prepare(
@@ -127,7 +126,7 @@ pub async fn insert_tally_session_contest(
                 &parse_uuid_v4(election_event_id)?,
                 &parse_uuid_v4(area_id)?,
                 &contest_uuid,
-                &(session_id as i32),
+                &session_id,
                 &parse_uuid_v4(tally_session_id)?,
                 &parse_uuid_v4(election_id)?,
             ],
@@ -154,7 +153,7 @@ pub async fn get_tally_session_highest_batch(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-) -> Result<BatchNumber> {
+) -> Result<i64> {
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -181,13 +180,13 @@ pub async fn get_tally_session_highest_batch(
         .await
         .map_err(|err| anyhow!("Error inserting row: {}", err))?;
 
-    let values: Vec<BatchNumber> = rows
+    let values: Vec<i64> = rows
         .into_iter()
-        .map(|row| -> Result<BatchNumber> {
+        .map(|row| -> Result<i64> {
             let session_id: i32 = row.try_get("session_id")?;
-            Ok(session_id as BatchNumber)
+            Ok(i64::from(session_id))
         })
-        .collect::<Result<Vec<BatchNumber>>>()?;
+        .collect::<Result<Vec<i64>>>()?;
 
     let Some(value) = values.first() else {
         return Ok(0);
@@ -200,7 +199,7 @@ pub async fn get_tally_session_highest_batch(
     // earlier run whatever policy either was created under; the gaps this
     // leaves in unweighted elections are harmless, as batch numbers are only
     // ever looked up exactly.
-    Ok(value + VOTE_WEIGHT_BATCHES as BatchNumber)
+    Ok(value + i64::from(VOTE_WEIGHT_BATCHES))
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -256,6 +255,74 @@ pub async fn get_tally_session_contests(
         .collect::<Result<Vec<TallySessionContest>>>()?;
 
     Ok(values)
+}
+
+/// The rows every other tally session holds for the same election, area and
+/// contest as `tally_session_contest`, whatever state those sessions are in.
+#[instrument(skip_all, err)]
+pub async fn get_other_sessions_tally_session_contests(
+    hasura_transaction: &Transaction<'_>,
+    tally_session_contest: &TallySessionContest,
+) -> Result<Vec<TallySessionContest>> {
+    let contest_uuid = tally_session_contest
+        .contest_id
+        .as_deref()
+        .map(parse_uuid_v4)
+        .transpose()?;
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    id,
+                    tenant_id,
+                    election_event_id,
+                    election_id,
+                    area_id,
+                    contest_id,
+                    session_id,
+                    created_at,
+                    last_updated_at,
+                    labels,
+                    annotations,
+                    tally_session_id
+                FROM
+                    sequent_backend.tally_session_contest
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    election_id = $3 AND
+                    area_id = $4 AND
+                    contest_id IS NOT DISTINCT FROM $5 AND
+                    tally_session_id <> $6;
+            "#,
+        )
+        .await?;
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &parse_uuid_v4(&tally_session_contest.tenant_id)?,
+                &parse_uuid_v4(&tally_session_contest.election_event_id)?,
+                &parse_uuid_v4(&tally_session_contest.election_id)?,
+                &parse_uuid_v4(&tally_session_contest.area_id)?,
+                &contest_uuid,
+                &parse_uuid_v4(&tally_session_contest.tally_session_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| {
+            anyhow!(
+                "Error getting other sessions' tally session contests: {}",
+                err
+            )
+        })?;
+
+    rows.into_iter()
+        .map(|row| -> Result<TallySessionContest> {
+            row.try_into()
+                .map(|res: TallySessionContestWrapper| -> TallySessionContest { res.0 })
+        })
+        .collect()
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -331,7 +398,7 @@ pub async fn insert_many_tally_session_contests(
                 election_event_id: parse_uuid_v4(&c.election_event_id)?,
                 area_id: parse_uuid_v4(&c.area_id)?,
                 contest_id: c.contest_id.map(|s| parse_uuid_v4(&s)).transpose()?,
-                session_id: c.session_id,
+                session_id: c.session_id.clone(),
                 created_at: c.created_at,
                 last_updated_at: c.last_updated_at,
                 labels: c.labels.clone(),

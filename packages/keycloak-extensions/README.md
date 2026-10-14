@@ -12,3 +12,6 @@ in this folder:
 ```bash
 mvn clean package
 ```
+## Tests
+
+See the [extension testing guide](../../docs/docusaurus/docs/07-developers/03-development-environment/testing/keycloak-extensions.md).

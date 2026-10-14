@@ -7,10 +7,36 @@
 # `--build-context <stage>=<directory>`, which replaces the stage of that name and leaves the
 # download unbuilt: `debs-builder` and `debs-runtime` hold the .deb files of the packages
 # their download stages name, `cargo-vendor` the crate sources of Cargo.lock, which cargo
-# reads through the [source] configuration the production job appends to .cargo/config.toml.
-# A build outside that workflow downloads the packages from the Debian archive, authenticated
-# by apt against the keyring of the base image, and resolves the crates from crates.io.
+# reads through the [source] configuration the production job appends to .cargo/config.toml,
+# and then builds with --offline. A build outside that workflow downloads the packages from
+# the Debian archive snapshot below, authenticated by apt against the keyring of the base
+# image, and resolves the crates from crates.io.
+#
+# Debian archive snapshot every apt call resolves against. Pinning the archive
+# state, rather than individual package versions, is what makes the dependency
+# closure identical on a client's machine and on ours: pinning only the packages
+# we name leaves their dependencies to whatever the live mirror serves that day
+# (installing wget with its version pinned still resolves libpsl5 from the
+# mirror). See sequentech/meta#13625.
+#
+# http, not https: these base images ship no CA certificates, so an https source
+# fails before anything is installed. apt verifies the signed InRelease and the
+# per-file checksums regardless of transport.
+#
+# Bumping this is a deliberate release action, like bumping a base image digest:
+# it changes what the build contains, so it produces a new release identity. A
+# pinned snapshot also stops picking up security updates until it is bumped.
+ARG DEBIAN_SNAPSHOT=20260929T000000Z
+
 FROM rust:1.96.0-slim-bookworm@sha256:4732ca96fd086cb9be682050c3f0176288eebaac2b80aa2bcefccfaf198e1950 AS debs-builder-download
+ARG DEBIAN_SNAPSHOT
+RUN set -eux; \
+    rm -f /etc/apt/sources.list.d/debian.sources; \
+    { \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm-updates main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/${DEBIAN_SNAPSHOT} bookworm-security main"; \
+    } > /etc/apt/sources.list
 RUN mkdir -p /debs && apt-get update && apt-get install -y --no-install-recommends --download-only \
     -o Dir::Cache::archives=/debs \
     chromium \
@@ -24,9 +50,19 @@ RUN mkdir -p /debs && apt-get update && apt-get install -y --no-install-recommen
 FROM scratch AS debs-builder
 COPY --from=debs-builder-download /debs/*.deb /
 
-FROM debian:bookworm@sha256:6ebd97fa83deb272194a2cf015b3d26a4d538e9ad3a7a79d544c8af5b0a01443 AS debs-runtime-download
-RUN echo "deb http://deb.debian.org/debian/ bookworm-proposed-updates main" >> /etc/apt/sources.list \
-    && mkdir -p /debs && apt-get update && apt-get install -y --no-install-recommends --download-only \
+# This stage also wants bookworm-proposed-updates, which the snapshot carries, so the suite
+# is kept -- pinned -- rather than dropped.
+FROM debian:bookworm@sha256:f37a335e82bca302e955fa39f9dfe28f1be618f016f8a2b56318e5a5111afc26 AS debs-runtime-download
+ARG DEBIAN_SNAPSHOT
+RUN set -eux; \
+    rm -f /etc/apt/sources.list.d/debian.sources; \
+    { \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm-updates main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm-proposed-updates main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/${DEBIAN_SNAPSHOT} bookworm-security main"; \
+    } > /etc/apt/sources.list
+RUN mkdir -p /debs && apt-get update && apt-get install -y --no-install-recommends --download-only \
     -o Dir::Cache::archives=/debs \
     libssl3 \
     chromium \
@@ -47,23 +83,25 @@ COPY --from=debs-builder / /tmp/debs/
 RUN apt-get -o Dir::Cache::archives=/tmp/debs --no-download install -y --no-install-recommends /tmp/debs/*.deb \
     && rm -rf /tmp/debs
 
-COPY ./braid ./braid
-COPY ./b4 ./b4
+# The members of the workspace, packages/Cargo.toml, and the wbraid crates they depend on
 COPY ./electoral-log ./electoral-log
 COPY ./trellis ./trellis
 COPY ./harvest ./harvest
-COPY ./strand ./strand
+COPY ./protocol-board ./protocol-board
+COPY ./voting-crypto ./voting-crypto
+COPY ./trustee ./trustee
 COPY ./sequent-core ./sequent-core
 COPY ./velvet ./velvet
 COPY ./windmill ./windmill
 COPY ./pgmq-broker ./pgmq-broker
-COPY ./e2e ./e2e
-COPY ./step-cli ./step-cli
-COPY ./orare ./orare
 COPY ./wrap-map-err ./wrap-map-err
-COPY ./braid/scripts ./braid/scripts
+COPY ./messaging ./messaging
+COPY ./messaging-webhooks ./messaging-webhooks
+COPY ./step-cli ./step-cli
+COPY ./e2e ./e2e
+COPY ./orare ./orare
 COPY ./plugins ./plugins
-COPY ./third_party ./third_party
+COPY ./wbraid ./wbraid
 COPY ./Cargo.toml ./Cargo.toml
 COPY ./Cargo.lock ./Cargo.lock
 COPY ./.cargo ./.cargo
@@ -73,20 +111,37 @@ WORKDIR /app/harvest
 # The CM helper supplies a fresh namespace per build invocation. Component builds
 # share Cargo's dependency artifacts only inside that invocation and architecture.
 # Copy selected binaries outside the cache mount into the immutable builder layer.
+# With vendored crates supplied the build runs offline, so that an incomplete vendor
+# directory fails instead of reaching for crates.io.
 ARG TEMENOS_CARGO_CACHE_ID=standalone
 ARG TARGETARCH
-RUN --mount=type=cache,id=${TEMENOS_CARGO_CACHE_ID}-${TARGETARCH},target=/app/target,sharing=locked cargo build --release --locked --offline \
-    && mkdir -p /opt/temenos-build \
-    && cp /app/target/release/harvest /opt/temenos-build/
+RUN --mount=type=cache,id=${TEMENOS_CARGO_CACHE_ID}-${TARGETARCH},target=/app/target,sharing=locked set -eu; \
+    offline=; [ -z "$(ls -A /app/vendor)" ] || offline=--offline; \
+    cargo build --release --locked $offline; \
+    mkdir -p /opt/temenos-build; \
+    cp /app/target/release/harvest /opt/temenos-build/
 
-FROM debian:bookworm@sha256:6ebd97fa83deb272194a2cf015b3d26a4d538e9ad3a7a79d544c8af5b0a01443
+FROM debian:bookworm@sha256:f37a335e82bca302e955fa39f9dfe28f1be618f016f8a2b56318e5a5111afc26
 ENV ROCKET_ADDRESS=0.0.0.0
 ENV ROCKET_PORT=8400
 EXPOSE 8400
 
+# What the package manager leaves behind that differs on every build is removed
+# in the layer that writes it, so that two builds of the same commit give the
+# same layer (sequentech/meta#13625): its logs, which carry the time; the
+# linker's auxiliary cache, which only speeds up the next ldconfig; the machine
+# ID that installing Chromium's dependencies generates, which a container
+# should not share anyway; and the font cache, which records directory times
+# and is rebuilt on first use.
+#
+# The same dependencies create system users, and useradd stamps /etc/shadow
+# with the day it runs: two builds on either side of midnight differ. With
+# SOURCE_DATE_EPOCH (a BuildKit built-in argument) it records that day instead.
 COPY --from=debs-runtime / /tmp/debs/
+ARG SOURCE_DATE_EPOCH
 RUN apt-get -o Dir::Cache::archives=/tmp/debs --no-download install -y --no-install-recommends /tmp/debs/*.deb \
-    && rm -rf /tmp/debs
+    && rm -rf /tmp/debs /var/log/apt /var/log/dpkg.log /var/log/alternatives.log \
+        /var/cache/ldconfig/aux-cache /var/cache/fontconfig /etc/machine-id /var/lib/dbus/machine-id
 RUN update-ca-certificates
 
 # Copy the compiled binary from the builder stage

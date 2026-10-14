@@ -6,6 +6,7 @@ pub mod domain;
 pub mod messages;
 pub mod ports;
 pub mod proofs;
+pub mod seal;
 pub mod service;
 pub mod util;
 

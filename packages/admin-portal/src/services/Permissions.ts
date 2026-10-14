@@ -3,9 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {IPermissions} from "@/types/keycloak"
 import {GraphQLRequest} from "@apollo/client"
-import {isUndefined} from "@sequentech/ui-core"
 
 const AdminOperationMap: Record<string, IPermissions> = {
+    ListTrusteeBoards: IPermissions.TRUSTEE_CEREMONY,
+    ReportTrusteeBoard: IPermissions.TRUSTEE_CEREMONY,
+    ConfirmKeyCustody: IPermissions.TRUSTEE_CEREMONY,
+    AuthorizeTallyCustody: IPermissions.TRUSTEE_CEREMONY,
+    GetCustodyRequest: IPermissions.TRUSTEE_CEREMONY,
     // area
     sequent_backend_area: IPermissions.AREA_READ,
     sequent_backend_areas: IPermissions.AREA_READ,
@@ -39,12 +43,6 @@ const AdminOperationMap: Record<string, IPermissions> = {
     // ballot_style
     sequent_backend_ballot_style: IPermissions.PUBLISH_READ,
     sequent_backend_ballot_styles: IPermissions.PUBLISH_READ,
-    insert_sequent_backend_ballot_style: IPermissions.PUBLISH_WRITE,
-    insert_sequent_backend_ballot_styles: IPermissions.PUBLISH_WRITE,
-    update_sequent_backend_ballot_style: IPermissions.PUBLISH_WRITE,
-    update_sequent_backend_ballot_styles: IPermissions.PUBLISH_WRITE,
-    delete_sequent_backend_ballot_style: IPermissions.PUBLISH_WRITE,
-    delete_sequent_backend_ballot_styles: IPermissions.PUBLISH_WRITE,
     // candidate
     sequent_backend_candidate: IPermissions.CANDIDATE_READ,
     sequent_backend_candidates: IPermissions.CANDIDATE_READ,
@@ -181,6 +179,59 @@ const AdminOperationMap: Record<string, IPermissions> = {
     sequent_backend_previews: IPermissions.PREVIEW_READ,
     // voter secret attributes
     RevealVoterSecretAttribute: IPermissions.VOTER_READ,
+    // ballot box seals (VOTE-FREEZE), with their area's name: the election's
+    // Dashboard; the tally list asks with tally-read itself.
+    GetBallotBoxSeals: IPermissions.ELECTION_DASHBOARD_TAB,
+    GetEventBallotBoxSeals: IPermissions.ELECTION_DASHBOARD_TAB,
+    GetFailedBallotBoxSeals: IPermissions.ELECTION_DASHBOARD_TAB,
+    // the areas the card lists as Open before the close: their ballot styles and names
+    GetBallotBoxAreas: IPermissions.ELECTION_DASHBOARD_TAB,
+    GetBallotBoxAreaNames: IPermissions.ELECTION_DASHBOARD_TAB,
+    // monitoring actions: Harvest checks the permission and labels again
+    MonitoringListDashboards: IPermissions.MONITORING_VIEW,
+    MonitoringGetDashboard: IPermissions.MONITORING_VIEW,
+    MonitoringRenderWidget: IPermissions.MONITORING_VIEW,
+    MonitoringExport: IPermissions.MONITORING_VIEW,
+    MonitoringValidateConfig: IPermissions.MONITORING_CONFIGURE,
+    MonitoringSaveConfig: IPermissions.MONITORING_CONFIGURE,
+    MonitoringResetToPreset: IPermissions.MONITORING_CONFIGURE,
+    MonitoringListPresets: IPermissions.MONITORING_CONFIGURE,
+    MonitoringSetMode: IPermissions.MONITORING_CONFIGURE,
+    MonitoringListConfig: IPermissions.MONITORING_CONFIGURE,
+    MonitoringGetConfig: IPermissions.MONITORING_CONFIGURE,
+    // approval matrix actions: Harvest checks the permission again
+    GetApprovalMatrix: IPermissions.APPLICATION_READ,
+    EvaluateApprovalMatrix: IPermissions.APPLICATION_READ,
+    SaveApprovalMatrix: IPermissions.APPROVAL_MATRIX_WRITE,
+    // messaging: the default role reads none of it; every call site also
+    // names its role, and Harvest checks the permission again for actions
+    GetEventMessagingConfig: IPermissions.MESSAGING_CONFIG_READ,
+    GetEventMessagingConfigAuthor: IPermissions.MESSAGING_CONFIG_READ,
+    GetMessagingAccountSummaries: IPermissions.MESSAGING_CONFIG_READ,
+    GetVoterUnsettledMessages: IPermissions.MESSAGING_CONFIG_READ,
+    GetVoterMessageAttempts: IPermissions.MESSAGING_CONFIG_READ,
+    GetLedgerMessageStates: IPermissions.MESSAGING_CONFIG_READ,
+    GetMessagingEventStats: IPermissions.MESSAGING_CONFIG_READ,
+    GetMessagingCallbackStatus: IPermissions.MESSAGING_CONFIG_READ,
+    UpdateEventMessagingConfig: IPermissions.MESSAGING_CONFIG_WRITE,
+    GetMessagingAccounts: IPermissions.MESSAGING_ACCOUNT_READ,
+    MessagingAccountCallbackUrl: IPermissions.MESSAGING_ACCOUNT_WRITE,
+    UpsertMessagingAccount: IPermissions.MESSAGING_ACCOUNT_WRITE,
+    CheckMessagingAccount: IPermissions.MESSAGING_ACCOUNT_WRITE,
+    ReplaceMessagingAccountCredentials: IPermissions.MESSAGING_ACCOUNT_WRITE,
+    DeleteMessagingAccount: IPermissions.MESSAGING_ACCOUNT_WRITE,
+    TestMessagingAccount: IPermissions.MESSAGING_ACCOUNT_WRITE,
+    GetMessagingAudiencePreview: IPermissions.MESSAGING_CONFIG_READ,
+    GetMessagingVoterCounts: IPermissions.MESSAGING_CONFIG_READ,
+    RecountMessagingVoters: IPermissions.MESSAGING_CONFIG_READ,
+    // also granted to messaging-config-read; the call site picks the role
+    GetMessagingMonthlyVolumes: IPermissions.MESSAGING_ACCOUNT_READ,
+    MessagingAccountChangeImpact: IPermissions.MESSAGING_ACCOUNT_WRITE,
+    MessagingFakeProviderMessages: IPermissions.MESSAGING_ACCOUNT_WRITE,
+    MessagingFakeProviderMessage: IPermissions.MESSAGING_ACCOUNT_WRITE,
+    MessagingFakeProviderGetStarted: IPermissions.MESSAGING_ACCOUNT_WRITE,
+    // Approvals: look an application up by its support reference
+    FindApplicationsBySupportReference: IPermissions.APPLICATION_READ,
 }
 
 const TrusteeOperationMap: Record<string, IPermissions> = {
@@ -198,13 +249,64 @@ const TrusteeOperationMap: Record<string, IPermissions> = {
     sequent_backend_tally_session_execution: IPermissions.TRUSTEE_CEREMONY,
     sequent_backend_tally_session_executions: IPermissions.TRUSTEE_CEREMONY,
     getUsers: IPermissions.VOTER_READ,
+    // Whether the trustee's key step needs their signature
+    CustodyProofSignatureStatus: IPermissions.TRUSTEE_CEREMONY,
 }
 
-export const getOperationRole = (operation: GraphQLRequest, isTrustee = false): IPermissions => {
-    let operationName = operation?.operationName
-    if (isUndefined(operationName)) {
-        return IPermissions.ADMIN_USER
+/**
+ * Staff without the `admin-user` Hasura role (the Signatures tab's own groups) query with
+ * the fine-grained role of each operation, and with read-only `election-event-read` for
+ * the rest: navigating to an event, the sidebar tree and the tenant. Hasura grants that
+ * role no writes, so an operation it can't serve fails instead of borrowing `admin-user`.
+ */
+const NonAdminOperationMap: Record<string, IPermissions> = {
+    ...AdminOperationMap,
+    sequent_backend_tenant: IPermissions.ELECTION_EVENT_READ,
+    election_events_tree: IPermissions.ELECTION_EVENT_READ,
+    election_tree: IPermissions.ELECTION_EVENT_READ,
+    contest_tree: IPermissions.ELECTION_EVENT_READ,
+    candidate_tree: IPermissions.ELECTION_EVENT_READ,
+    // Users and Roles: Harvest checks the permission again
+    getRoles: IPermissions.ROLE_READ,
+    getPermissions: IPermissions.USER_PERMISSION_READ,
+    SetRolePermission: IPermissions.ROLE_WRITE,
+    DeleteRolePermission: IPermissions.ROLE_WRITE,
+    getUsers: IPermissions.USER_READ,
+    // Post > Publish: Start and Stop voting, and Initialize voting (its report)
+    UpdateElectionVotingStatus: IPermissions.ELECTION_STATE_WRITE,
+    CreateTallyCeremony: IPermissions.ADMIN_CEREMONY,
+}
+
+// Roles that operations without a mapped role run as, in order of preference
+const DEFAULT_OPERATION_ROLES: Array<IPermissions> = [
+    IPermissions.ADMIN_USER,
+    IPermissions.TRUSTEE_CEREMONY,
+    IPermissions.PUBLISH_READ,
+]
+
+const mappedRoleOf = (
+    operationMap: Record<string, IPermissions>,
+    operationName: string | undefined
+): IPermissions | undefined =>
+    operationName && Object.prototype.hasOwnProperty.call(operationMap, operationName)
+        ? operationMap[operationName]
+        : undefined
+
+export const getOperationRole = (
+    operation: GraphQLRequest,
+    hasRole: (role: IPermissions) => boolean
+): IPermissions => {
+    const operationName = operation?.operationName
+    const defaultRole = DEFAULT_OPERATION_ROLES.find(hasRole)
+    if (!defaultRole) {
+        return mappedRoleOf(NonAdminOperationMap, operationName) ?? IPermissions.ELECTION_EVENT_READ
     }
-    let OperationMap = isTrustee ? TrusteeOperationMap : AdminOperationMap
-    return OperationMap[operationName] ?? IPermissions.ADMIN_USER
+    const operationMap = hasRole(IPermissions.TRUSTEE_CEREMONY)
+        ? TrusteeOperationMap
+        : AdminOperationMap
+    const mappedRole = mappedRoleOf(operationMap, operationName)
+    if (!mappedRole) {
+        return defaultRole
+    }
+    return defaultRole === IPermissions.ADMIN_USER || hasRole(mappedRole) ? mappedRole : defaultRole
 }

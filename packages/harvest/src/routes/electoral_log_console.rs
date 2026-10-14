@@ -6,14 +6,17 @@
 //! browse any tenant's events and run read-only SQL queries on an event's
 //! electoral-log database.
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_permission_labels,
+};
+use crate::services::dependencies::HarvestServices;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use electoral_log::adapters::console::{
     run_read_only_query, ConsoleFilters, ConsoleTable, Page, PageOrder,
     PageRequest, PersonalData, QueryResult,
 };
 use electoral_log::adapters::postgres::PostgresStore;
-use rocket::{http::Status, serde::json::Json};
+use rocket::{http::Status, serde::json::Json, State};
 use sequent_core::{
     services::{jwt::JwtClaims, uuid_validation::parse_uuid_v4},
     types::permissions::Permissions,
@@ -27,7 +30,7 @@ use uuid::Uuid;
 use windmill::postgres::election_event::get_election_event_by_id_if_exist;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::election_event_board::get_election_event_board;
-use windmill::services::protocol_manager::get_event_databases;
+use windmill::services::electoral_log_board::get_event_databases;
 
 /// Rows of a page unless the request asks for another number.
 const DEFAULT_PAGE_ROWS: i64 = 25;
@@ -184,8 +187,14 @@ fn check_query(sql: &str) -> Result<(), JsonError> {
     Ok(())
 }
 
-/// The board of an election event of the tenant.
+/// The board of an election event of the tenant. The console reads the event's
+/// whole electoral-log database, so the user's permission labels must allow
+/// every election of the event. Labels name elections of the user's own
+/// tenant: they restrict nothing on another tenant's event, which only users of
+/// the super-admin tenant read.
 async fn event_board(
+    services: &HarvestServices,
+    claims: &JwtClaims,
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<String, JsonError> {
@@ -199,7 +208,9 @@ async fn event_board(
     if parse_uuid_v4(tenant_id).is_err() {
         return Err(bad_request("Invalid tenant ID"));
     }
-    let mut client = get_hasura_pool()
+    let mut client = services
+        .databases
+        .hasura()
         .await
         .get()
         .await
@@ -218,6 +229,20 @@ async fn event_board(
             "Election event not found",
             ErrorCode::ElectionEventNotFound,
         )
+    })?;
+    authorize_election_permission_labels(
+        &transaction,
+        claims,
+        election_event_id,
+        None,
+    )
+    .await
+    .map_err(|(status, message)| {
+        if status == Status::Forbidden {
+            ErrorResponse::new(status, &message, ErrorCode::Unauthorized)
+        } else {
+            internal_error(message)
+        }
     })?;
     transaction.commit().await.map_err(internal_error)?;
     get_election_event_board(event.bulletin_board_reference).ok_or_else(|| {
@@ -404,11 +429,12 @@ pub struct ConsolePageOutput {
 
 /// A page of the records of an election event's electoral log, or of its ballot
 /// box. Without the personal-data permission, personal columns read `hidden`.
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/electoral-log-console/page", format = "json", data = "<body>")]
 pub async fn electoral_log_console_page(
     body: Json<ConsolePageInput>,
     claims: JwtClaims,
+    services: &State<HarvestServices>,
 ) -> Result<Json<ConsolePageOutput>, JsonError> {
     let input = body.into_inner();
     let tenant_id = requested_tenant(&claims, input.tenant_id.as_deref())?;
@@ -420,7 +446,9 @@ pub async fn electoral_log_console_page(
     let (table, order) = table_and_order(&input.table, input.order.as_deref())?;
     let filters = input.filters.unwrap_or_default();
     check_filters(table, &filters)?;
-    let board = event_board(&tenant_id, &input.election_event_id).await?;
+    let board =
+        event_board(services, &claims, &tenant_id, &input.election_event_id)
+            .await?;
     let store = event_store(&input.election_event_id).await?;
     let mut page = store
         .console_page(&PageRequest {
@@ -453,11 +481,12 @@ pub struct ConsoleRecordInput {
 }
 
 /// A record of an election event's electoral log with its message decoded.
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/electoral-log-console/record", format = "json", data = "<body>")]
 pub async fn electoral_log_console_record(
     body: Json<ConsoleRecordInput>,
     claims: JwtClaims,
+    services: &State<HarvestServices>,
 ) -> Result<Json<Value>, JsonError> {
     let input = body.into_inner();
     let tenant_id = requested_tenant(&claims, input.tenant_id.as_deref())?;
@@ -466,7 +495,9 @@ pub async fn electoral_log_console_record(
         &tenant_id,
         vec![Permissions::ELECTORAL_LOG_CONSOLE_READ],
     )?;
-    let board = event_board(&tenant_id, &input.election_event_id).await?;
+    let board =
+        event_board(services, &claims, &tenant_id, &input.election_event_id)
+            .await?;
     let store = event_store(&input.election_event_id).await?;
     let record = store
         .console_record(&board, input.position)
@@ -507,11 +538,12 @@ pub enum ConsoleQueryOutput {
 /// role that can only read, with a time limit. Only users of the super-admin tenant
 /// query, any tenant's events. Queries read personal data as it is stored, so they
 /// need the personal-data permission too.
-#[instrument(skip(claims, body))]
+#[instrument(skip(claims, body, services))]
 #[post("/electoral-log-console/query", format = "json", data = "<body>")]
 pub async fn electoral_log_console_query(
     body: Json<ConsoleQueryInput>,
     claims: JwtClaims,
+    services: &State<HarvestServices>,
 ) -> Result<Json<ConsoleQueryOutput>, JsonError> {
     authorize_super_admin(
         &claims,
@@ -524,7 +556,13 @@ pub async fn electoral_log_console_query(
     let sql = input.sql;
     check_query(&sql)?;
     // Only an event of the named tenant: the request names what it reads.
-    event_board(&input.tenant_id, &input.election_event_id).await?;
+    event_board(
+        services,
+        &claims,
+        &input.tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
     tracing::info!(
         tenant_id = %claims.hasura_claims.tenant_id,
         user_id = %claims.hasura_claims.user_id,
@@ -574,6 +612,10 @@ pub async fn electoral_log_console_query(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::route_services::{
+        configure_super_admin_tenant,
+        SUPER_ADMIN_TENANT_ID as SUPER_ADMIN_TENANT,
+    };
 
     #[test]
     fn queries_must_have_text_within_the_limit() {
@@ -628,7 +670,6 @@ mod tests {
     }
 
     const OWN_TENANT: &str = "6f1c3a6e-2a61-4d6b-9a52-3f0f8a3c2b10";
-    const SUPER_ADMIN_TENANT: &str = "90505c8a-23a9-4cdf-a2b1-0123456789ab";
 
     fn admin(roles: &[&str]) -> JwtClaims {
         admin_of(OWN_TENANT, roles)
@@ -681,7 +722,7 @@ mod tests {
 
     #[test]
     fn only_users_of_the_super_admin_tenant_read_and_query_other_tenants() {
-        std::env::set_var("SUPER_ADMIN_TENANT_ID", SUPER_ADMIN_TENANT);
+        configure_super_admin_tenant();
         let other = Uuid::new_v4().to_string();
         let read = Permissions::ELECTORAL_LOG_CONSOLE_READ;
         let reader = read.to_string();
@@ -764,3 +805,7 @@ mod tests {
         assert_eq!(error, serde_json::json!({"error": "syntax error"}));
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/electoral_log_console_routes.rs"]
+mod route_tests;

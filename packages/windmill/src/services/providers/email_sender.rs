@@ -15,9 +15,116 @@ use tracing::{event, instrument, Level};
 // Import required for SMTP transport
 use config::{Config, File, FileFormat};
 use lettre::transport::smtp::SmtpTransport;
+use lettre::transport::smtp::SmtpTransportBuilder;
 use lettre::Transport;
 use sequent_core::util::aws::get_from_env_aws_config;
 use serde::Deserialize;
+
+/// Why the environment transport didn't hand a message over, typed so the
+/// message ledger can tell a definite refusal (FAILED, retried when
+/// transient) from a lost answer (UNKNOWN, never sent again). Reasons are
+/// fixed strings: never a provider body, an address or the content.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TransportFailure {
+    /// Not delivered: refused before the message left Step, or refused by
+    /// the provider. `transient`: sending it again later may pass.
+    Refused { transient: bool, reason: String },
+    /// The provider may have taken it: its answer was lost (a timeout, a
+    /// dropped connection, an unreadable answer).
+    Unknown { reason: String },
+}
+
+impl std::fmt::Display for TransportFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TransportFailure::Refused { reason, .. } | TransportFailure::Unknown { reason } => {
+                f.write_str(reason)
+            }
+        }
+    }
+}
+
+impl TransportFailure {
+    fn permanent(reason: &str) -> Self {
+        TransportFailure::Refused {
+            transient: false,
+            reason: reason.to_string(),
+        }
+    }
+
+    fn lost() -> Self {
+        TransportFailure::Unknown {
+            reason: "the provider's answer was lost".to_string(),
+        }
+    }
+
+    /// A provider's error answer: throttling (429 or a throttling code) and
+    /// 5xx may pass later; other 4xx are final.
+    pub fn from_http_status(status: u16, code: Option<&str>) -> Self {
+        let throttled = status == 429
+            || code.is_some_and(|code| {
+                let code = code.to_ascii_lowercase();
+                code.contains("throttl") || code.contains("toomanyrequests")
+            });
+        if throttled {
+            return TransportFailure::Refused {
+                transient: true,
+                reason: "rate limited by the provider".to_string(),
+            };
+        }
+        TransportFailure::Refused {
+            transient: status >= 500,
+            reason: format!("refused by the provider (HTTP {status})"),
+        }
+    }
+
+    /// An AWS SDK error: a request that couldn't be built never left Step;
+    /// an error answer is a refusal; anything else (dispatch, timeout, an
+    /// unreadable answer) may have reached AWS, so its outcome is unknown.
+    pub fn from_aws<E: aws_sdk_sesv2::error::ProvideErrorMetadata>(
+        error: &aws_sdk_sesv2::error::SdkError<E, aws_sdk_sesv2::config::http::HttpResponse>,
+    ) -> Self {
+        use aws_sdk_sesv2::error::SdkError;
+        match error {
+            SdkError::ConstructionFailure(_) => {
+                Self::permanent("the request to the provider couldn't be built")
+            }
+            SdkError::ServiceError(service) => {
+                Self::from_http_status(service.raw().status().as_u16(), service.err().code())
+            }
+            _ => Self::lost(),
+        }
+    }
+
+    /// An SMTP error: a 4xx or 5xx reply is a refusal (4xx may pass later);
+    /// a TLS handshake failure happens before the mail transaction; any
+    /// other error (connection, timeout, an unreadable reply) may have
+    /// come after the server took the message.
+    pub fn from_smtp(error: &lettre::transport::smtp::Error) -> Self {
+        let code = error
+            .status()
+            .map(|code| code.to_string())
+            .unwrap_or_default();
+        if error.is_permanent() {
+            TransportFailure::Refused {
+                transient: false,
+                reason: format!("refused by the mail server ({code})"),
+            }
+        } else if error.is_transient() {
+            TransportFailure::Refused {
+                transient: true,
+                reason: format!("deferred by the mail server ({code})"),
+            }
+        } else if error.is_tls() {
+            TransportFailure::Refused {
+                transient: true,
+                reason: "the mail server's TLS handshake failed".to_string(),
+            }
+        } else {
+            Self::lost()
+        }
+    }
+}
 
 pub struct Attachment {
     pub filename: String,
@@ -40,6 +147,146 @@ pub enum EmailTransport {
 pub struct EmailSender {
     transport: EmailTransport,
     email_from: String,
+}
+
+#[cfg(test)]
+mod failure_tests {
+    use super::*;
+    use std::io::{BufRead, BufReader, Write};
+    use std::net::TcpListener;
+
+    #[test]
+    fn provider_answers_are_refusals_and_only_throttling_and_5xx_may_pass() {
+        let refused = |transient| move |failure| matches!(failure, TransportFailure::Refused { transient: t, .. } if t == transient);
+        assert!(refused(true)(TransportFailure::from_http_status(429, None)));
+        assert!(refused(true)(TransportFailure::from_http_status(
+            400,
+            Some("Throttling")
+        )));
+        assert!(refused(true)(TransportFailure::from_http_status(503, None)));
+        assert!(refused(false)(TransportFailure::from_http_status(
+            400,
+            Some("InvalidParameter")
+        )));
+        assert!(refused(false)(TransportFailure::from_http_status(
+            403, None
+        )));
+    }
+
+    #[tokio::test]
+    async fn an_invalid_address_is_refused_before_anything_is_sent() {
+        let sender = EmailSender::from_transport_name("Console", "test@example.invalid".into())
+            .await
+            .unwrap();
+        let failure = sender
+            .send_message(
+                vec!["not an address".into()],
+                "s".into(),
+                "b".into(),
+                None,
+                vec![],
+            )
+            .await
+            .unwrap_err();
+        assert_eq!(
+            failure,
+            TransportFailure::Refused {
+                transient: false,
+                reason: "the email address isn't valid".to_string()
+            }
+        );
+    }
+
+    /// A one-connection SMTP server that answers `MAIL FROM` with `reply`,
+    /// or, with `None`, accepts the message and drops the connection before
+    /// answering its end.
+    fn smtp_server(reply: Option<&'static str>) -> u16 {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        std::thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            let mut writer = stream.try_clone().unwrap();
+            let mut reader = BufReader::new(stream);
+            writer.write_all(b"220 test ESMTP\r\n").unwrap();
+            let mut in_data = false;
+            let mut line = String::new();
+            loop {
+                line.clear();
+                if reader.read_line(&mut line).unwrap_or(0) == 0 {
+                    return;
+                }
+                let command = line.trim_end().to_ascii_uppercase();
+                if in_data {
+                    if command == "." {
+                        return; // the answer to the message is lost
+                    }
+                    continue;
+                }
+                let answer = if command.starts_with("EHLO") {
+                    "250 test\r\n".to_string()
+                } else if command.starts_with("MAIL FROM") {
+                    match reply {
+                        Some(reply) => format!("{reply}\r\n"),
+                        None => "250 ok\r\n".to_string(),
+                    }
+                } else if command.starts_with("RCPT TO") {
+                    "250 ok\r\n".to_string()
+                } else if command == "DATA" {
+                    in_data = true;
+                    "354 go on\r\n".to_string()
+                } else {
+                    "221 bye\r\n".to_string()
+                };
+                if writer.write_all(answer.as_bytes()).is_err() {
+                    return;
+                }
+            }
+        });
+        port
+    }
+
+    async fn send_through(port: u16) -> std::result::Result<(), TransportFailure> {
+        let sender = EmailSender {
+            transport: EmailTransport::Smtp(
+                SmtpTransport::builder_dangerous("127.0.0.1")
+                    .port(port)
+                    .timeout(Some(std::time::Duration::from_secs(5)))
+                    .build(),
+            ),
+            email_from: "from@example.org".to_string(),
+        };
+        sender
+            .send_message(
+                vec!["to@example.org".into()],
+                "s".into(),
+                "b".into(),
+                None,
+                vec![],
+            )
+            .await
+    }
+
+    #[tokio::test]
+    async fn smtp_refusals_are_failures_and_a_lost_answer_is_unknown() {
+        assert_eq!(
+            send_through(smtp_server(Some("550 5.7.1 rejected"))).await,
+            Err(TransportFailure::Refused {
+                transient: false,
+                reason: "refused by the mail server (550)".to_string()
+            })
+        );
+        assert_eq!(
+            send_through(smtp_server(Some("451 4.3.0 try later"))).await,
+            Err(TransportFailure::Refused {
+                transient: true,
+                reason: "deferred by the mail server (451)".to_string()
+            })
+        );
+        assert!(matches!(
+            send_through(smtp_server(None)).await,
+            Err(TransportFailure::Unknown { .. })
+        ));
+    }
 }
 
 #[cfg(test)]
@@ -145,19 +392,31 @@ impl EmailSender {
         html_body: Option<String>,
         attachments: Vec<Attachment>,
     ) -> Result<()> {
+        self.send_message(receivers, subject, plaintext_body, html_body, attachments)
+            .await
+            .map_err(|failure| anyhow!("error sending email: {failure}").into())
+    }
+
+    /// [`EmailSender::send`] with a typed failure, for the message ledger.
+    pub async fn send_message(
+        &self,
+        receivers: Vec<String>,
+        subject: String,
+        plaintext_body: String,
+        html_body: Option<String>,
+        attachments: Vec<Attachment>,
+    ) -> std::result::Result<(), TransportFailure> {
         // Build the email message using lettre
         let mut email_builder = Message::builder()
-            .from(
-                self.email_from
-                    .parse()
-                    .map_err(|err| anyhow!("invalid email_from: {:?}", err))?,
-            )
+            .from(self.email_from.parse().map_err(|_| {
+                TransportFailure::permanent("the configured sender address isn't valid")
+            })?)
             .subject(subject.clone());
 
         for receiver in &receivers {
             email_builder = email_builder.to(receiver
                 .parse()
-                .map_err(|err| anyhow!("invalid receiver: {:?}", err))?);
+                .map_err(|_| TransportFailure::permanent("the email address isn't valid"))?);
         }
 
         // Build the plaintext and HTML body parts
@@ -183,10 +442,10 @@ impl EmailSender {
             let mut mixed = MultiPart::mixed().multipart(alternative);
 
             for attachment in &attachments {
-                let content_type: ContentType = attachment
-                    .mimetype
-                    .parse()
-                    .map_err(|err| anyhow!("invalid mimetype: {:?}", err))?;
+                let content_type =
+                    ContentType::from(attachment.mimetype.parse().map_err(|_| {
+                        TransportFailure::permanent("an attachment's type isn't valid")
+                    })?);
                 let attachment_part = SinglePart::builder()
                     .header(content_type)
                     .header(ContentDisposition::attachment(&attachment.filename))
@@ -195,11 +454,11 @@ impl EmailSender {
             }
             email_builder
                 .multipart(mixed)
-                .map_err(|err| anyhow!("{:?}", err))?
+                .map_err(|_| TransportFailure::permanent("the email couldn't be built"))?
         } else {
             email_builder
                 .multipart(alternative)
-                .map_err(|err| anyhow!("{:?}", err))?
+                .map_err(|_| TransportFailure::permanent("the email couldn't be built"))?
         };
 
         match self.transport {
@@ -228,15 +487,18 @@ impl EmailSender {
                                 RawMessage::builder()
                                     .data(Blob::new(email_bytes))
                                     .build()
-                                    .map_err(|err| {
-                                        anyhow!("error building raw message: {err:?}")
+                                    .map_err(|_| {
+                                        TransportFailure::permanent("the email couldn't be built")
                                     })?,
                             )
                             .build(),
                     )
                     .send()
                     .await
-                    .map_err(|err| anyhow!("error sending email: {err:?}"))?;
+                    .map_err(|err| {
+                        event!(Level::WARN, "EmailTransport::AwsSes: send failed: {err:?}");
+                        TransportFailure::from_aws(&err)
+                    })?;
             }
             EmailTransport::Smtp(ref smtp_transport) => {
                 event!(Level::INFO, "EmailTransport::Smtp: Sending email");
@@ -251,9 +513,10 @@ impl EmailSender {
                     }
                 }
                 // Send the email via SMTP
-                smtp_transport
-                    .send(&email_message)
-                    .map_err(|err| anyhow!("Error sending email via SMTP: {err:?}"))?;
+                smtp_transport.send(&email_message).map_err(|err| {
+                    event!(Level::WARN, "EmailTransport::Smtp: send failed: {err:?}");
+                    TransportFailure::from_smtp(&err)
+                })?;
                 event!(Level::INFO, "Email sent successfully via SMTP");
             }
             EmailTransport::Console => {

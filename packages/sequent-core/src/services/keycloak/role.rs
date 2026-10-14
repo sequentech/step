@@ -1,8 +1,10 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::validate_keycloak_path_segment;
 use crate::services::keycloak::KeycloakAdminClient;
 use crate::types::keycloak::*;
+use crate::types::permissions::RealmRolePolicy;
 use anyhow::{anyhow, Result};
 use keycloak::types::GroupRepresentation;
 use std::convert::From;
@@ -47,27 +49,34 @@ impl KeycloakAdminClient {
         limit: Option<usize>,
         offset: Option<usize>,
     ) -> Result<(Vec<Role>, usize)> {
+        validate_keycloak_path_segment(realm)?;
         let group_representations: Vec<GroupRepresentation> = self
             .client
             .realm_groups_get(
-                realm,
+                realm.clone(),
                 Some(false),
                 None,
                 None,
                 None,
                 None,
-                search.clone(),
                 None,
+                search.clone(),
             )
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
 
         let count = group_representations.len();
-        let roles =
-            super::pagination::page(&group_representations, offset, limit)
-                .iter()
-                .map(|role| role.clone().into())
-                .collect();
+        // A page beyond the current result set is empty, even after deletions.
+        let start = offset.unwrap_or(0).min(count);
+        let end = match limit {
+            Some(num) => usize::min(count, start.saturating_add(num)),
+            None => count,
+        };
+        let slized_group_representations = &group_representations[start..end];
+        let roles = slized_group_representations
+            .into_iter()
+            .map(|role| role.clone().into())
+            .collect();
         Ok((roles, count))
     }
 
@@ -77,6 +86,8 @@ impl KeycloakAdminClient {
         realm: &str,
         user_id: &str,
     ) -> Result<Vec<Role>> {
+        validate_keycloak_path_segment(realm)?;
+        validate_keycloak_path_segment(user_id)?;
         let groups: Vec<GroupRepresentation> = self
             .client
             .realm_users_with_user_id_groups_get(
@@ -100,6 +111,9 @@ impl KeycloakAdminClient {
         user_id: &str,
         role_id: &str,
     ) -> Result<()> {
+        validate_keycloak_path_segment(realm)?;
+        validate_keycloak_path_segment(user_id)?;
+        validate_keycloak_path_segment(role_id)?;
         self.client
             .realm_users_with_user_id_groups_with_group_id_put(
                 realm, user_id, role_id,
@@ -116,6 +130,9 @@ impl KeycloakAdminClient {
         user_id: &str,
         role_id: &str,
     ) -> Result<()> {
+        validate_keycloak_path_segment(realm)?;
+        validate_keycloak_path_segment(user_id)?;
+        validate_keycloak_path_segment(role_id)?;
         self.client
             .realm_users_with_user_id_groups_with_group_id_delete(
                 realm, user_id, role_id,
@@ -127,6 +144,8 @@ impl KeycloakAdminClient {
 
     #[instrument(skip(self), err)]
     pub async fn delete_role(self, realm: &str, role_id: &str) -> Result<()> {
+        validate_keycloak_path_segment(realm)?;
+        validate_keycloak_path_segment(role_id)?;
         self.client
             .realm_groups_with_group_id_delete(realm, role_id)
             .await
@@ -136,6 +155,10 @@ impl KeycloakAdminClient {
 
     #[instrument(skip(self), err)]
     pub async fn create_role(self, realm: &str, role: &Role) -> Result<Role> {
+        validate_keycloak_path_segment(realm)?;
+        for permission in role.permissions.iter().flatten() {
+            RealmRolePolicy::require_ordinary(permission)?;
+        }
         self.client
             .realm_groups_post(realm, role.clone().into())
             .await
@@ -149,7 +172,8 @@ impl KeycloakAdminClient {
         realm: &str,
         role: &Role,
     ) -> Result<Role> {
-        let (roles, _count) = self.list_roles(realm, None, None, None).await?;
+        validate_keycloak_path_segment(realm)?;
+        let (roles, count) = self.list_roles(realm, None, None, None).await?;
         let role_by_named = roles.iter().find(|r| role.name == r.name);
         let new_role = match role_by_named {
             Some(new_rolee) => new_rolee,

@@ -91,7 +91,6 @@ add-database-init-to-tarball() {
     cp "$PROJECT_ROOT/.devcontainer/postgresql/init-task-queues.sh" "$tmpdir/initdb/30-task-queues.sh"
     cp "$PROJECT_ROOT/packages/electoral-log/catalog.sql" "$tmpdir/electoral-log-catalog.sql"
     tar --append -C "$tmpdir" --file="$DELIVERABLE_TARBALL" electoral-log-catalog.sql
-    cat $PROJECT_ROOT/scripts/airgap-files/b3.sql > $tmpdir/initdb/b3.sql
 
     tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL initdb
 }
@@ -117,16 +116,6 @@ add-keycloak-data-to-tarball() {
     cp -r $PROJECT_ROOT/.devcontainer/keycloak/import $tmpdir/keycloak
     $PROJECT_ROOT/scripts/replacements.sh $PROJECT_ROOT/packages/windmill/external-bin/janitor/config/baseConfig.json $tmpdir/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json
     tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL keycloak
-}
-
-add-trustees-data-to-tarball() {
-    for trustee in trustee1 trustee2 trustee3; do
-        test -s "$PROJECT_ROOT/.devcontainer/trustees-data/$trustee/$trustee.toml" \
-            || fatal "Provision the persistent $trustee configuration before packaging; see .devcontainer/trustees-data/README.md"
-    done
-    tmpdir=$(mktemp -d)
-    cp -r $PROJECT_ROOT/.devcontainer/trustees-data $tmpdir/trustees-data
-    tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL trustees-data
 }
 
 add-hasura-data-to-tarball() {
@@ -176,10 +165,8 @@ add-dotenv-to-tarball
 add-minio-config-to-tarball
 add-keycloak-data-to-tarball
 add-docker-compose-to-tarball
-add-trustees-data-to-tarball
 add-hasura-data-to-tarball
 add-up-script-to-tarball
-add-database-init-to-tarball
 add-readme-to-tarball
 add-janitor-to-tarball
 

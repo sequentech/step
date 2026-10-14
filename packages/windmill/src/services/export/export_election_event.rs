@@ -4,6 +4,7 @@
 use crate::postgres::application::get_applications_by_election;
 use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
+use crate::postgres::ballot_publication::get_ballot_publication;
 use crate::postgres::candidate::export_candidates;
 use crate::postgres::certificate_authority::get_certificate_authorities_pem;
 use crate::postgres::contest::export_contests;
@@ -13,6 +14,7 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::reports::get_reports_by_election_event_id;
 use crate::postgres::trustee::get_all_trustees;
+use crate::services::approval_matrix::store::get_latest_approval_matrix;
 use crate::services::database::get_hasura_pool;
 use crate::services::electoral_log_transfer::{
     export_electoral_log, manifest_file_name, records_file_name,
@@ -20,31 +22,37 @@ use crate::services::electoral_log_transfer::{
 use crate::services::export::export_ballot_publication::export_election_event_config_file;
 use crate::services::import::import_election_event::ImportElectionEventSchema;
 use crate::services::reports::activity_log::{ActivityLogsTemplate, ReportFormat};
-use crate::services::reports::template_renderer::{ReportOriginatedFrom, ReportOrigins};
+use crate::services::reports::template_renderer::{
+    ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
+};
 use crate::services::reports_vault::get_password;
+use crate::services::signing::configuration::export_bundle_signing;
+use crate::services::signing::issuers::staff_issuers_pem_bundle;
 use crate::tasks::export_election_event::ExportOptions;
 use crate::types::documents::EDocuments;
 
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
+use sequent_core::election_config::emit::{plain_csv, MULTI_VALUE_SEPARATOR, REPORT_COLUMNS};
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::s3;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::temp_path::generate_temp_file;
 use sequent_core::types::hasura::core::{
-    Candidate, Contest, DocumentAnnotations, Election, KeysCeremony,
+    Candidate, Contest, DocumentAnnotations, Election, KeysCeremony, SupportMaterial,
 };
 use sequent_core::util::version::{DEV_APP_VERSION, ENV_VAR_APP_VERSION};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
-use strand::hash::hash_sha256_file;
 use tempfile::{NamedTempFile, TempPath};
-use tokio::io::AsyncWriteExt;
-use tracing::{info, instrument};
+use tokio::io::{self, AsyncWriteExt};
+use tracing::{event, info, instrument, Level};
+use uuid::Uuid;
+use voting_crypto::hash::hash_sha256_file;
 use zip::write::FileOptions;
 
 use super::export_bulletin_boards;
@@ -56,6 +64,7 @@ use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cb
 use crate::services::documents::{
     upload_and_return_document, upload_and_return_document_with_annotations,
 };
+use crate::services::password;
 
 #[instrument(err, skip(transaction, export_config))]
 pub async fn read_export_data(
@@ -80,16 +89,16 @@ pub async fn read_export_data(
         trustees,
         applications,
     ) = try_join!(
-        get_election_event_by_id(transaction, tenant_id, election_event_id),
-        export_elections(transaction, tenant_id, election_event_id),
-        export_contests(transaction, tenant_id, election_event_id),
-        export_candidates(transaction, tenant_id, election_event_id),
-        get_event_areas(transaction, tenant_id, election_event_id),
-        export_area_contests(transaction, tenant_id, election_event_id),
-        get_reports_by_election_event_id(transaction, tenant_id, election_event_id),
-        get_keys_ceremonies(transaction, tenant_id, election_event_id),
-        get_all_trustees(transaction, tenant_id),
-        get_applications_by_election(transaction, tenant_id, election_event_id, None),
+        get_election_event_by_id(&transaction, tenant_id, election_event_id),
+        export_elections(&transaction, tenant_id, election_event_id),
+        export_contests(&transaction, tenant_id, election_event_id),
+        export_candidates(&transaction, tenant_id, election_event_id),
+        get_event_areas(&transaction, tenant_id, election_event_id),
+        export_area_contests(&transaction, tenant_id, election_event_id),
+        get_reports_by_election_event_id(&transaction, tenant_id, election_event_id),
+        get_keys_ceremonies(&transaction, tenant_id, election_event_id),
+        get_all_trustees(&transaction, tenant_id),
+        get_applications_by_election(&transaction, tenant_id, election_event_id, None),
     )?;
 
     // map keys ceremonies to names
@@ -142,31 +151,138 @@ pub async fn read_export_data(
         vec![]
     };
 
+    // The rows for the documents that travel. Without these an export was
+    // one-way: import it back and the tab is empty because nothing points at the
+    // uploads. A row goes exactly when its file does; see
+    // `export_support_materials`.
+    let export_support_materials = export_support_materials(
+        &transaction,
+        &tenant_id,
+        &election_event_id,
+        export_config.s3_files,
+        export_config.contains_voter_secrets,
+    )
+    .await?;
+
     let version =
         std::env::var(ENV_VAR_APP_VERSION).unwrap_or_else(|_| DEV_APP_VERSION.to_string());
 
-    let import_election_event_schema = ImportElectionEventSchema {
+    // The matrix in force travels; an event that never saved one exports
+    // none and keeps the built-in matrix where it is imported.
+    let approval_matrix = get_latest_approval_matrix(&transaction, tenant_id, election_event_id)
+        .await?
+        .map(|saved| serde_json::to_value(saved.matrix))
+        .transpose()?;
+
+    // The messaging configuration travels with the event, as stored.
+    let messaging_config = crate::postgres::messaging::get_messaging_event_config(
+        &transaction,
+        &Uuid::parse_str(tenant_id)?,
+        &Uuid::parse_str(election_event_id)?,
+    )
+    .await?
+    .map(|stored| stored.config);
+
+    let mut import_election_event_schema = ImportElectionEventSchema {
         // parse_uuid_v4 still runs: the schema now carries a String, but an
         // export must not emit a tenant id that is not a UUID.
-        tenant_id: parse_uuid_v4(tenant_id)?.to_string(),
+        tenant_id: parse_uuid_v4(&tenant_id)?.to_string(),
         keycloak_event_realm: Some(serde_json::to_value(realm)?),
-        election_event,
+        election_event: election_event,
         elections: export_elections,
         contests: contests.clone(),
         candidates: candidates.clone(),
-        areas,
-        area_contests,
+        areas: areas,
+        area_contests: area_contests,
         scheduled_events: None,
         reports: export_reports,
         keys_ceremonies: Some(export_keys_ceremonies),
+        protocol_boards: if export_config.bulletin_board {
+            Some(
+                crate::postgres::protocol_board::get_event_protocol_boards(
+                    transaction,
+                    tenant_id,
+                    election_event_id,
+                )
+                .await?
+                .into_iter()
+                .filter(|row| export_config.tally || row.parent_id.is_none())
+                .collect(),
+            )
+        } else {
+            None
+        },
         applications: Some(export_applications),
+        support_materials: Some(export_support_materials),
+        signing_rules: None,
+        signing_checks: None,
+        approval_matrix,
+        messaging_config,
         version,
     };
 
+    export_bundle_signing(
+        &transaction,
+        Uuid::parse_str(tenant_id)?,
+        Uuid::parse_str(election_event_id)?,
+        &mut import_election_event_schema,
+    )
+    .await?;
+
     let images_files_path =
-        process_event_images(transaction, tenant_id, elections, contests, candidates).await?;
+        process_event_images(&transaction, tenant_id, elections, contests, candidates).await?;
 
     Ok((import_election_event_schema, images_files_path))
+}
+
+/// The support material rows of the event, for the archive's JSON.
+///
+/// A row travels exactly when its document's file does, because import pairs
+/// the two through the replacement map:
+///
+/// * A file without its row fails the import in `process_s3_file`, since the
+///   file's document id is then missing from the map. So hidden materials'
+///   rows are included: their files are exported like any other.
+/// * A row without its file imports as a material pointing at a document that
+///   was never created, and nothing reports it. So a row whose document the
+///   archive leaves out is left out with it: every row with a document when the
+///   archive carries no `export_S3_files/` (`s3_files` off), and a row whose
+///   document is a voter-secret one in an export without voter secrets.
+///
+/// Both sides use `get_exportable_document_ids`, the set `process_export_zip`
+/// hands to `get_files_from_s3`.
+#[instrument(err, skip(transaction))]
+pub async fn export_support_materials(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    s3_files: bool,
+    include_voter_secrets: bool,
+) -> Result<Vec<SupportMaterial>> {
+    let exportable = if s3_files {
+        get_exportable_document_ids(
+            transaction,
+            tenant_id,
+            election_event_id,
+            include_voter_secrets,
+        )
+        .await
+        .context("Error retrieving the exportable documents for support materials")?
+    } else {
+        Default::default()
+    };
+    let materials =
+        crate::postgres::document::get_support_materials(transaction, tenant_id, election_event_id)
+            .await
+            .context("Error retrieving support materials for export")?;
+    // A material with no document has no file to lose, so it always travels.
+    Ok(materials
+        .into_iter()
+        .filter(|material| match material.document_id.as_deref() {
+            None => true,
+            Some(id) => exportable.contains(&id.to_ascii_lowercase()),
+        })
+        .collect())
 }
 
 #[instrument(err, skip(password))]
@@ -176,7 +292,7 @@ pub async fn generate_encrypted_zip(
     password: String,
 ) -> Result<()> {
     encrypt_file_aes_256_cbc(&temp_path_string, &encrypted_temp_file_string, &password)
-        .map_err(|_e| anyhow!("Failed encrypting the ZIP file"))?;
+        .map_err(|e| anyhow!("Failed encrypting the ZIP file"))?;
 
     Ok(())
 }
@@ -403,7 +519,7 @@ pub async fn process_export_zip(
     std::io::copy(&mut election_event_file, &mut zip_writer)
         .map_err(|e| anyhow!("Error copying election event file to ZIP: {e:?}"))?;
 
-    let images_folder_name = EDocuments::IMAGES.to_file_name().to_string();
+    let images_folder_name = format!("{}", EDocuments::IMAGES.to_file_name());
 
     for file_path in event_images_files_path {
         let file_name = file_path
@@ -472,18 +588,12 @@ pub async fn process_export_zip(
         let temp_reports_file = NamedTempFile::new()
             .map_err(|e| anyhow!("Error creating temporary reports file: {e:?}"))?;
         {
-            let mut wtr = csv::Writer::from_writer(&temp_reports_file);
-            wtr.write_record([
-                "ID",
-                "Election ID",
-                "Report Type",
-                "Template Alias",
-                "Cron Config",
-                "Encryption Policy",
-                "Password",
-                "Permission Labels",
-            ])
-            .map_err(|e| anyhow!("Error writing CSV header: {e:?}"))?;
+            // Written through the shared emitter. The header used to read "ID",
+            // "Election ID", … — harmless, because `process_reports_file` skips it
+            // and reads by index, but it meant an export and a generated bundle
+            // differed on sight for no reason. REPORT_COLUMNS is the one name for
+            // this file's shape.
+            let mut rows: Vec<Vec<String>> = Vec::new();
             for report in reports_data {
                 let password = get_password(
                     &hasura_transaction,
@@ -494,7 +604,7 @@ pub async fn process_export_zip(
                 .await?
                 .unwrap_or("".to_string());
 
-                wtr.write_record(&[
+                rows.push(vec![
                     report.id.to_string(),
                     report.election_id.unwrap_or_default().to_string(),
                     report.report_type.to_string(),
@@ -503,12 +613,26 @@ pub async fn process_export_zip(
                         .map_err(|e| anyhow!("Error serializing cron config: {e:?}"))?,
                     report.encryption_policy.to_string(),
                     password,
-                    report.permission_label.unwrap_or_default().join("|"),
-                ])
-                .map_err(|e| anyhow!("Error writing CSV record: {e:?}"))?;
+                    report
+                        .permission_label
+                        .unwrap_or_default()
+                        .join(MULTI_VALUE_SEPARATOR),
+                    report
+                        .copies
+                        .map(|copies| copies.to_string())
+                        .unwrap_or_default(),
+                    report
+                        .output_formats
+                        .unwrap_or_default()
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>()
+                        .join(MULTI_VALUE_SEPARATOR),
+                ]);
             }
-            wtr.flush()
-                .map_err(|e| anyhow!("Error flushing CSV writer: {e:?}"))?;
+
+            std::fs::write(temp_reports_file.path(), plain_csv(REPORT_COLUMNS, &rows))
+                .map_err(|e| anyhow!("Error writing reports CSV: {e:?}"))?;
         }
         let mut reports_file = File::open(temp_reports_file.path())
             .map_err(|e| anyhow!("Error opening temporary reports file: {e:?}"))?;
@@ -579,7 +703,7 @@ pub async fn process_export_zip(
 
     // Add the S3 files to the ZIP archive
     if export_config.s3_files {
-        let s3_folder_name = EDocuments::S3_FILES.to_file_name().to_string();
+        let s3_folder_name = format!("{}", EDocuments::S3_FILES.to_file_name());
         let documents_prefix = format!("tenant-{}/event-{}/", tenant_id, election_event_id);
         let bucket = s3::get_private_bucket()?;
         let exportable_document_ids = get_exportable_document_ids(
@@ -732,7 +856,7 @@ pub async fn process_export_zip(
     // Add boards info
     let keys_ceremonies =
         get_keys_ceremonies(&hasura_transaction, tenant_id, election_event_id).await?;
-    if export_config.bulletin_board && !keys_ceremonies.is_empty() {
+    if export_config.bulletin_board && keys_ceremonies.len() > 0 {
         // read boards
         let bulletin_boards_filename = format!(
             "{}-{}.csv",
@@ -744,6 +868,7 @@ pub async fn process_export_zip(
             &hasura_transaction,
             tenant_id,
             election_event_id,
+            export_config.tally,
         )
         .await
         .map_err(|e| anyhow!("Error reading bulletin boards data: {e:?}"))?;
@@ -758,7 +883,7 @@ pub async fn process_export_zip(
     }
 
     if export_config.tally {
-        let tally_folder_name = EDocuments::TALLY.to_file_name().to_string();
+        let tally_folder_name = format!("{}", EDocuments::TALLY.to_file_name());
 
         let tally_data =
             export_tally::read_tally_data(&hasura_transaction, tenant_id, election_event_id)
@@ -780,7 +905,9 @@ pub async fn process_export_zip(
     }
 
     if export_config.include_certificates {
-        let election_event_uuid = parse_uuid_v4(election_event_id)?;
+        // Any UUID: imported events keep the ids they had.
+        let election_event_uuid = Uuid::parse_str(election_event_id)
+            .map_err(|e| anyhow!("Invalid election event id: {e}"))?;
         let pems = get_certificate_authorities_pem(&hasura_transaction, election_event_uuid)
             .await
             .map_err(|e| anyhow!("Error fetching certificate authorities: {e:?}"))?;
@@ -798,6 +925,25 @@ pub async fn process_export_zip(
                 .write_all(pem_bundle.as_bytes())
                 .map_err(|e| anyhow!("Error writing certificates to ZIP: {e:?}"))?;
         }
+        // Staff issuers go in a file of their own, so an import keeps them
+        // apart from the voters' authorities.
+        if let Some(pem_bundle) =
+            staff_issuers_pem_bundle(&hasura_transaction, tenant_id, election_event_id)
+                .await
+                .map_err(|e| anyhow!("Error fetching staff issuers: {e:?}"))?
+        {
+            let issuers_filename = format!(
+                "{}-{}.pem",
+                EDocuments::STAFF_ISSUERS.to_file_name(),
+                election_event_id
+            );
+            zip_writer
+                .start_file(&issuers_filename, options)
+                .map_err(|e| anyhow!("Error starting staff issuers file in ZIP: {e:?}"))?;
+            zip_writer
+                .write_all(pem_bundle.as_bytes())
+                .map_err(|e| anyhow!("Error writing staff issuers to ZIP: {e:?}"))?;
+        }
     }
 
     // Finalize the ZIP file
@@ -807,11 +953,11 @@ pub async fn process_export_zip(
 
     // Encrypt ZIP file if required
     let encryption_password = export_config.password.unwrap_or("".to_string());
-    if encryption_password.is_empty() && (export_config.bulletin_board || export_config.reports) {
+    if 0 == encryption_password.len() && (export_config.bulletin_board || export_config.reports) {
         return Err(anyhow!("Bulletin Board requires password"));
     }
     let encrypted_zip_path = zip_path.with_extension("ezip");
-    if !encryption_password.is_empty() {
+    if encryption_password.len() > 0 {
         generate_encrypted_zip(
             zip_path.to_string_lossy().to_string(),
             encrypted_zip_path.to_string_lossy().to_string(),
@@ -824,14 +970,14 @@ pub async fn process_export_zip(
     let upload_path =
         select_export_upload_path(&encryption_password, &zip_path, &encrypted_zip_path)?;
 
-    let zip_size = std::fs::metadata(upload_path)
+    let zip_size = std::fs::metadata(&upload_path)
         .map_err(|e| anyhow!("Error getting ZIP file metadata: {e:?}"))?
         .len();
 
     let export_event_filename = get_export_election_event_filename(
         election_event_id,
         upload_path,
-        !encryption_password.is_empty(),
+        encryption_password.len() > 0,
     )
     .map_err(|e| anyhow!("Error generating the exported election event filename: {e:?}"))?;
 

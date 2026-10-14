@@ -37,9 +37,13 @@ impl warp::reject::Reject for CustomError {}
 
 async fn handle_render_impl(input: Input) -> Result<impl Reply, Rejection> {
     match input {
-        Input::Raw { html, pdf_options } => {
+        Input::Raw {
+            html,
+            pdf_options,
+            resource_policy,
+        } => {
             info!("OpenWhisk: Starting PDF generation");
-            let payload = match crate::pdf::render_pdf(html, pdf_options) {
+            let payload = match crate::pdf::render_pdf(html, pdf_options, resource_policy) {
                 Ok(pdf) => {
                     Output {
                         pdf_base64: Some(BASE64_STANDARD.encode(pdf))
@@ -85,3 +89,7 @@ pub async fn start_server() {
     // Start the server
     warp::serve(routes).run(([0, 0, 0, 0], 8080)).await;
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/render_contracts.rs"]
+mod tests;

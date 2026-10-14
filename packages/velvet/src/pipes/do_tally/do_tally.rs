@@ -43,6 +43,10 @@ use std::{
 use tracing::{debug, info, instrument};
 use uuid::Uuid;
 
+#[cfg(test)]
+#[path = "../../../tests/support/participation_boundaries.rs"]
+mod boundary_tests;
+
 pub const OUTPUT_CONTEST_RESULT_FILE: &str = "contest_result.json";
 pub const OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER: &str = "aggregate";
 pub const INPUT_TALLY_SHEET_FILE: &str = "tally-sheet.json";
@@ -118,12 +122,13 @@ impl DoTally {
         for (contest_result, tally_sheet) in tally_sheet_results {
             let channel: VotingChannel = tally_sheet.channel.clone().into();
 
-            breakdown_map
-                .entry(channel)
-                .and_modify(|current_result| {
-                    *current_result = current_result.aggregate(contest_result, true);
-                })
-                .or_insert_with(|| contest_result.clone());
+            if let Some(current_result) = breakdown_map.get_mut(&channel) {
+                *current_result = current_result
+                    .aggregate_checked_channels(contest_result, true)
+                    .map_err(|error| Error::UnexpectedError(error.to_string()))?;
+            } else {
+                breakdown_map.insert(channel, contest_result.clone());
+            }
         }
 
         for (channel, contest_result) in breakdown_map {
@@ -478,12 +483,18 @@ impl Pipe for DoTally {
                                     )?);
                                 }
 
-                                aggregate_result = aggregate_tally_sheet_results.iter().fold(
-                                    aggregate_result,
-                                    |result, (tally_sheet_result, _)| {
-                                        result.aggregate(tally_sheet_result, false)
-                                    },
-                                );
+                                aggregate_result = aggregate_tally_sheet_results
+                                    .iter()
+                                    .try_fold(
+                                        aggregate_result,
+                                        |result, (tally_sheet_result, _)| {
+                                            result.aggregate_checked_channels(
+                                                tally_sheet_result,
+                                                false,
+                                            )
+                                        },
+                                    )
+                                    .map_err(|error| Error::UnexpectedError(error.to_string()))?;
                                 if !has_complete_electronic_channels {
                                     set_votes_by_channel(
                                         &mut aggregate_result,
@@ -566,12 +577,18 @@ impl Pipe for DoTally {
                             }
 
                             let mut area_result_with_tally_sheets =
-                                area_specific_tally_sheet_results.iter().fold(
-                                    area_tally_results.clone(),
-                                    |result, (tally_sheet_result, _)| {
-                                        result.aggregate(tally_sheet_result, false)
-                                    },
-                                );
+                                area_specific_tally_sheet_results
+                                    .iter()
+                                    .try_fold(
+                                        area_tally_results.clone(),
+                                        |result, (tally_sheet_result, _)| {
+                                            result.aggregate_checked_channels(
+                                                tally_sheet_result,
+                                                false,
+                                            )
+                                        },
+                                    )
+                                    .map_err(|error| Error::UnexpectedError(error.to_string()))?;
                             if !has_complete_electronic_channels {
                                 set_votes_by_channel(
                                     &mut area_result_with_tally_sheets,
@@ -932,6 +949,23 @@ impl ContestResult {
             percentage_invalid_votes_implicit.clamp(0.0, 100.0);
         contest_result.candidate_result = candidate_result;
         contest_result
+    }
+
+    // Pipeline aggregation must reject an overflowing channel before the
+    // infallible accumulator can wrap it (or panic in debug builds). Keep the
+    // existing public accumulator API; pipeline callers already return Result.
+    pub(crate) fn aggregate_checked_channels(
+        &self,
+        other: &ContestResult,
+        add_census: bool,
+    ) -> super::counting_algorithm::Result<ContestResult> {
+        let mut channels = VotesByChannel::new();
+        for result in [self, other] {
+            merge_result_votes_by_channel(&mut channels, result).map_err(|error| {
+                super::counting_algorithm::Error::UnexpectedError(error.to_string())
+            })?;
+        }
+        Ok(self.aggregate(other, add_census))
     }
 
     #[instrument(skip_all)]

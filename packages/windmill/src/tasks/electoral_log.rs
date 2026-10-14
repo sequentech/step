@@ -8,17 +8,17 @@ use crate::services::database::get_keycloak_pool;
 use crate::services::database::get_queue_pool;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
+use crate::services::electoral_log_board::{get_board_client, get_protocol_manager_secret_path};
 use crate::services::electoral_log_dead_letter::{
     dead_letter_events, dead_letter_message, DeadLetterStage,
 };
-use crate::services::protocol_manager::{
-    deserialize_protocol_manager, get_board_client, get_protocol_manager_secret_path,
+use crate::services::monitoring::login_counter::{
+    count_login_attempts_apart, login_attempt, LoginAttempt,
 };
 use crate::services::users::get_user_area_id;
 use crate::services::vault;
-use crate::types::error::Result;
+use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
-use b4::messages::message::Signer;
 use celery::error::TaskError;
 use celery::task::Task;
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -26,10 +26,11 @@ use electoral_log::{ElectoralLogMessage, LogEntry};
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_event_realm;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
-use strand::backend::ristretto::RistrettoCtx;
-use tracing::{info, instrument};
+use tracing::{event, info, instrument};
 use uuid::Uuid;
+use voting_crypto::RistrettoCtx;
 
 /// Classifies the type of an incoming log event.
 ///
@@ -123,6 +124,10 @@ pub struct LogEventInput {
     pub username: Option<String>,
     pub tenant_id: String,
     pub body: LogEventBody,
+    /// When Keycloak saw the event, in milliseconds since the Unix epoch.
+    /// Absent from messages sent before the listener said.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub event_time_ms: Option<i64>,
 }
 
 /// Enqueue the electoral log event.
@@ -132,9 +137,6 @@ pub struct LogEventInput {
 #[celery::task(max_retries = 0)]
 pub async fn enqueue_electoral_log_event(input: LogEventInput) -> Result<()> {
     // By calling this task, the event is enqueued into the electoral_log_event_queue.
-    // The argument name is the serialized `input` kwarg that the dispatcher and the
-    // Keycloak producer rely on, so it is consumed here rather than renamed.
-    drop(input);
     Ok(())
 }
 
@@ -190,7 +192,7 @@ async fn store_batch(events: &[LogEventInput]) -> anyhow::Result<()> {
         .get()
         .await
         .context("Error getting DB pool for batch processing")?;
-    let hasura_tx = hasura_db_client
+    let mut hasura_tx = hasura_db_client
         .transaction()
         .await
         .context("Error starting Hasura transaction")?;
@@ -212,6 +214,7 @@ async fn store_batch(events: &[LogEventInput]) -> anyhow::Result<()> {
         events,
     )
     .await?;
+    count_login_attempts_apart(&mut hasura_tx, &built.login_attempts).await;
     hasura_tx
         .commit()
         .await
@@ -257,11 +260,25 @@ enum EventFailure {
     Transient(anyhow::Error),
 }
 
-/// The records of a batch, grouped by board, and the events that cannot be stored.
+/// The records of a batch, grouped by board, the events that cannot be stored,
+/// and the sign-in attempts of the events stored, each under the SHA-256 of its
+/// delivery ID (the monitoring counters' receipts take a 64-digit hex ID).
 #[derive(Default)]
 struct BuiltBatch {
     by_board: HashMap<String, Vec<LogEntry>>,
     dead_letters: Vec<(LogEventInput, String)>,
+    login_attempts: Vec<(String, LoginAttempt)>,
+}
+
+/// The records of one event, and the sign-in attempt it is, if any.
+struct BuiltEvent {
+    entries: Vec<(String, LogEntry)>,
+    login_attempt: Option<LoginAttempt>,
+}
+
+/// The ID a sign-in attempt is counted under: the SHA-256 of its delivery ID.
+fn login_counter_delivery_id(delivery_id: &str) -> String {
+    hex::encode(Sha256::digest(delivery_id.as_bytes()))
 }
 
 /// What building a batch needs from the databases. Lookups are made once per
@@ -342,11 +359,12 @@ impl BatchLookups for DbLookups<'_, '_> {
         else {
             return Ok(None);
         };
-        let protocol_manager = deserialize_protocol_manager::<RistrettoCtx>(contents)
-            .context("Error decoding the protocol-manager key")?;
+        let protocol_manager =
+            crate::services::electoral_log_board::parse_signing_identity(&contents)
+                .context("Error decoding the protocol-manager key")?;
         Ok(Some(ElectoralLog::for_system_with_signing_key(
             board,
-            protocol_manager.get_signing_key(),
+            &protocol_manager,
         )))
     }
 }
@@ -366,9 +384,16 @@ async fn build_batch<L: BatchLookups + Send>(
     let mut built = BuiltBatch::default();
     for input in events {
         match build_event(lookups, &mut cache, input).await {
-            Ok(entries) => {
-                for (board, entry) in entries {
+            Ok(event) => {
+                for (board, entry) in event.entries {
                     built.by_board.entry(board).or_default().push(entry);
+                }
+                if let (Some(attempt), Some(delivery_id)) =
+                    (event.login_attempt, input.delivery_id.as_deref())
+                {
+                    built
+                        .login_attempts
+                        .push((login_counter_delivery_id(delivery_id), attempt));
                 }
             }
             Err(EventFailure::Permanent(error)) => {
@@ -391,7 +416,7 @@ async fn build_event<L: BatchLookups + Send>(
     lookups: &mut L,
     cache: &mut BatchCache,
     input: &LogEventInput,
-) -> std::result::Result<Vec<(String, LogEntry)>, EventFailure> {
+) -> std::result::Result<BuiltEvent, EventFailure> {
     use EventFailure::{Permanent, Transient};
 
     let delivery_id = input
@@ -422,6 +447,7 @@ async fn build_event<L: BatchLookups + Send>(
     })?;
 
     let mut entries = Vec::new();
+    let mut attempt = None;
     let message = match &input.message_type {
         LogMessageType::Internal => deserialize_str::<ElectoralLogMessage>(&input.body.as_raw())
             .context("Error parsing the body as an ElectoralLogMessage")
@@ -435,6 +461,7 @@ async fn build_event<L: BatchLookups + Send>(
                 .user_area(&input.tenant_id, &input.election_event_id, &user_id)
                 .await
                 .map_err(Transient)?;
+            attempt = login_attempt(input, user_area_id.as_deref(), chrono::Utc::now());
             if !cache.signers.contains_key(&key) {
                 let signer = lookups
                     .signer(&input.tenant_id, &input.election_event_id, &board)
@@ -494,7 +521,10 @@ async fn build_event<L: BatchLookups + Send>(
             message,
         },
     ));
-    Ok(entries)
+    Ok(BuiltEvent {
+        entries,
+        login_attempt: attempt,
+    })
 }
 
 /// Environment variable with the maximum number of events in one dispatcher batch.
@@ -843,6 +873,7 @@ mod delivery_tests {
             user_id: None,
             username: None,
             body: LogEventBody::Plain("null".into()),
+            event_time_ms: None,
         };
         assert!(retain_delivery_id(&mut input, None).is_err());
         retain_delivery_id(&mut input, Some("original-id")).unwrap();
@@ -875,7 +906,7 @@ mod delivery_tests {
 mod batch_build_tests {
     use super::*;
     use crate::services::electoral_log_dead_letter::event_message;
-    use strand::signature::StrandSignatureSk;
+    use voting_crypto::signing::SigningKey;
 
     const TENANT: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
     const EVENT: &str = "fdd21db2-dd68-4974-90eb-7f2750b2b5df";
@@ -883,7 +914,7 @@ mod batch_build_tests {
     const KEYLESS_EVENT: &str = "2b8e4a1d-7c6f-4e93-b0a2-5d9c8f1e3a47";
 
     struct FakeLookups {
-        signing_key: StrandSignatureSk,
+        signing_key: SigningKey,
         unreachable_event: Option<&'static str>,
         board_calls: usize,
         signer_calls: usize,
@@ -892,7 +923,7 @@ mod batch_build_tests {
     impl FakeLookups {
         fn new() -> Self {
             Self {
-                signing_key: StrandSignatureSk::generate().unwrap(),
+                signing_key: SigningKey::generate().unwrap(),
                 unreachable_event: None,
                 board_calls: 0,
                 signer_calls: 0,
@@ -944,6 +975,7 @@ mod batch_build_tests {
             username: Some("voter".into()),
             tenant_id: TENANT.into(),
             body: LogEventBody::Plain("{}".into()),
+            event_time_ms: None,
         }
     }
 
@@ -1071,6 +1103,40 @@ mod batch_build_tests {
     }
 
     #[tokio::test]
+    async fn the_sign_in_attempts_of_stored_events_count_under_hashed_delivery_ids() {
+        let mut timed = keycloak_event(Some("d1"), EVENT);
+        timed.event_time_ms = Some(1_778_511_600_123);
+        let events = vec![
+            timed,
+            internal_event("d2", internal_message()),
+            keycloak_event(Some("d3"), KEYLESS_EVENT),
+            keycloak_event(Some("d4"), DELETED_EVENT),
+        ];
+
+        let mut lookups = FakeLookups::new();
+        let built = build_batch(&mut lookups, &events).await.unwrap();
+
+        assert_eq!(built.login_attempts.len(), 1);
+        let (delivery_id, attempt) = &built.login_attempts[0];
+        assert_eq!(delivery_id, &login_counter_delivery_id("d1"));
+        assert!(
+            delivery_id.len() == 64
+                && delivery_id
+                    .chars()
+                    .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c)),
+            "{delivery_id}"
+        );
+        assert_ne!(delivery_id, &login_counter_delivery_id("d3"));
+        assert_eq!(attempt.event_type, "LOGIN");
+        assert_eq!(
+            attempt.bucket_start,
+            crate::services::monitoring::login_counter::bucket_start(
+                chrono::DateTime::from_timestamp_millis(1_778_511_600_123).unwrap()
+            )
+        );
+    }
+
+    #[tokio::test]
     async fn a_lookup_failure_fails_the_whole_batch() {
         let events = vec![
             keycloak_event(Some("d1"), EVENT),
@@ -1128,6 +1194,7 @@ mod batch_build_tests {
                 username: Some("voter@example.com".into()),
                 tenant_id: TENANT.into(),
                 body: LogEventBody::Plain("null".into()),
+                event_time_ms: Some(1_778_511_600_123),
             }
         );
     }
@@ -1222,6 +1289,7 @@ mod pgmq_tests {
             username: None,
             tenant_id: "test-tenant".into(),
             body: LogEventBody::Plain("test".into()),
+            event_time_ms: None,
         }
     }
 

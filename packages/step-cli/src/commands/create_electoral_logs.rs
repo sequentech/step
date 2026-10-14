@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::utils::keycloak::get_keyckloak_pool;
 use crate::utils::read_config::load_external_config;
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
 use clap::Args;
 use colored::Colorize;
@@ -16,10 +16,11 @@ use electoral_log::{ElectoralLogMessage, LogEntry};
 use fake::faker::internet::raw::Username;
 use fake::locales::EN;
 use fake::Fake;
-use strand::signature::{StrandSignature, StrandSignaturePk};
+use std::env;
 use uuid::Uuid;
-use windmill::services::protocol_manager::get_event_board;
-use windmill::services::protocol_manager::{get_board_client, get_event_databases};
+use voting_crypto::signing::{Signature, VerificationKey};
+use windmill::services::electoral_log_board::get_event_board;
+use windmill::services::electoral_log_board::{get_board_client, get_event_databases};
 
 #[derive(Args)]
 #[command(about)]
@@ -63,21 +64,21 @@ impl CreateElectoralLogs {
 
         let dummy_bytes = [0u8; 64];
         let sender_signature =
-            StrandSignature::from_bytes(dummy_bytes).expect("Dummy signature conversion failed");
+            Signature::from_bytes(dummy_bytes.clone()).expect("Dummy signature conversion failed");
         let system_signature =
-            StrandSignature::from_bytes(dummy_bytes).expect("Dummy signature conversion failed");
+            Signature::from_bytes(dummy_bytes).expect("Dummy signature conversion failed");
 
         let dummy_bytes = [0u8; 32];
-        let sender_pk = StrandSignaturePk::from_bytes(dummy_bytes)
-            .with_context(|| "Error in create Dummy StrandSignaturePk")?;
+        let sender_pk = VerificationKey::from_bytes(dummy_bytes)
+            .with_context(|| "Error in create Dummy VerificationKey")?;
 
         let message = &Message {
             sender: Sender {
                 name: username.clone().unwrap_or_default(),
                 pk: sender_pk,
             },
-            sender_signature,
-            system_signature,
+            sender_signature: sender_signature,
+            system_signature: system_signature,
             statement: Statement {
                 head: StatementHead {
                     event: EventIdString(election_event_id.to_string()),
@@ -90,7 +91,7 @@ impl CreateElectoralLogs {
                 body: StatementBody::SendCommunications(None),
             },
             artifact: None,
-            user_id,
+            user_id: user_id,
             username: username.clone(),
             election_id: Some(election_id.to_string()),
             area_id: Some(area_id.to_string()),
@@ -121,7 +122,7 @@ impl CreateElectoralLogs {
             .await?
             .get()
             .await
-            .map_err(|e| anyhow::anyhow!("Error getting hasura client: {}", e))?;
+            .map_err(|e| anyhow::anyhow!("Error getting hasura client: {}", e.to_string()))?;
 
         let keycloak_query = "\
             SELECT ue.id, ue.username \
@@ -143,10 +144,10 @@ impl CreateElectoralLogs {
 
         let existing_users: Vec<Voter> = users
             .iter()
-            .map(|row| {
+            .filter_map(|row| {
                 let id = row.get::<_, Option<String>>(0);
                 let username = row.get::<_, Option<String>>(1);
-                Voter { id, username }
+                Some(Voter { id, username })
             })
             .collect();
 

@@ -25,9 +25,11 @@ export const splitList = <T>(
 }
 
 export const keyBy = <T>(list: Array<T>, id: string): Record<string, T> => {
-    let record: Record<string, T> = {}
-    for (let element of list) {
-        record[element[id]] = element
+    // Identifiers come from election data, so names such as __proto__ must
+    // behave like ordinary keys rather than invoking Object's inherited setter.
+    const record: Record<string, T> = Object.create(null)
+    for (const element of list) {
+        record[String(element[id as keyof T])] = element
     }
     return record
 }

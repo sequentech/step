@@ -5,6 +5,7 @@ use anyhow::{ensure, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use strum_macros::{Display, EnumString};
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ElectoralLogMessage {
@@ -28,6 +29,19 @@ pub struct ElectoralLogMessage {
 pub struct LogEntry {
     pub delivery_id: String,
     pub message: ElectoralLogMessage,
+}
+
+/// A record an append stored: its delivery was not on the board before.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct StoredRecord {
+    pub delivery_id: String,
+    /// Key of the record in the database that stores it. Copying the log to another
+    /// database, as an import does, changes it.
+    pub id: i64,
+    /// Identity of the board's log and the record's leaf in it, which a copy of the
+    /// log keeps.
+    pub log_uid: Uuid,
+    pub leaf_index: i64,
 }
 
 #[derive(Debug, Clone, Copy, Display, EnumString, PartialEq, Eq, Ord, PartialOrd)]
@@ -91,6 +105,8 @@ pub enum NumberComparison {
 pub enum Filter {
     Text(TextColumn, SqlCompOperators, String),
     Number(NumberColumn, NumberComparison, i64),
+    /// Entries of no election or of one of these elections.
+    ElectionScope(Vec<String>),
 }
 
 #[derive(Debug, Clone, Copy, Display, EnumString, PartialEq, Eq)]

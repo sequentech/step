@@ -39,7 +39,9 @@ import BlankAnswer from "../BlankAnswer/BlankAnswer"
 import WarnBox, {EWarnBoxAnnouncement} from "../WarnBox/WarnBox"
 import CandidatesList from "../CandidatesList/CandidatesList"
 
-const CandidatesWrapper = styled(Box)`
+const CandidatesWrapper = styled("ul")`
+    list-style: none;
+    padding: 0;
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -62,12 +64,10 @@ interface VoteChoiceProps {
 
 const VoteChoice: React.FC<VoteChoiceProps> = ({text, points, ordered, pointsLabel}) => {
     const content = (
-        <Typography variant="body2">
-            <li>
-                <span>
-                    {text} {points ? <>{pointsLabel(points)}</> : null}
-                </span>
-            </li>
+        <Typography variant="body2" component="li">
+            <span>
+                {text} {points ? <>{pointsLabel(points)}</> : null}
+            </span>
         </Typography>
     )
     return ordered ? <ol>{content}</ol> : <ul>{content}</ul>
@@ -104,7 +104,7 @@ const CandidateChoice: React.FC<CandidateChoiceProps> = ({
             isSelectable={false}
             hasCategory={hasCategory}
             isPreferentialVote={isPreferentialVote}
-            selectedPosition={choice?.selected ? choice.selected + 1 : null}
+            selectedPosition={choice && choice.selected >= 0 ? choice.selected + 1 : null}
         >
             {imageUrl ? <Image src={`${publicBucketUrl}${imageUrl}`} duration={100} /> : null}
         </Candidate>
@@ -203,10 +203,12 @@ const CategoryVoteList: React.FC<CategoryVoteListProps> = ({
                 }
 
                 return (
-                    <React.Fragment key={subtypePresentation.name}>
+                    <li key={subtypePresentation.name}>
                         <b>{translate(subtypePresentation, "name", language)}</b>
-                        {subtypeCandidates.map((candidate) => renderCandidate(candidate))}
-                    </React.Fragment>
+                        <CandidatesWrapper>
+                            {subtypeCandidates.map((candidate) => renderCandidate(candidate))}
+                        </CandidatesWrapper>
+                    </li>
                 )
             })}
             {sortedCandidates
@@ -315,9 +317,13 @@ export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
                 </Alert>
             ) : null}
             {isWholeBallotBlank ? (
-                <BlankAnswer title={blankBallotLabel} />
+                <CandidatesWrapper>
+                    <BlankAnswer title={blankBallotLabel} />
+                </CandidatesWrapper>
             ) : isBlank || isBallotDeclineToVote ? (
-                <BlankAnswer title={isBallotDeclineToVote ? declineToVoteLabel : undefined} />
+                <CandidatesWrapper>
+                    <BlankAnswer title={isBallotDeclineToVote ? declineToVoteLabel : undefined} />
+                </CandidatesWrapper>
             ) : null}
             {!isBallotDeclineToVote && !isWholeBallotBlank && (
                 <>

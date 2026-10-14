@@ -199,3 +199,44 @@ describe("translateFromPresentation", () => {
         ).toBe("Verifier election")
     })
 })
+
+it("falls back from an inherited presentation language to an own default language", () => {
+    const i18n = Object.assign(Object.create({fr: {name: "Inherited"}}), {
+        en: {name: "Own default"},
+    })
+    expect(translateFromPresentation({i18n}, "name", "fr", {defaultLanguageCode: "en"})).toBe(
+        "Own default"
+    )
+})
+
+it("ignores inherited scoped and unscoped presentation values", () => {
+    const en = Object.assign(Object.create({"global:name": "Inherited override"}), {name: "Own"})
+    expect(translateFromPresentation({i18n: {en}}, "name", "en")).toBe("Own")
+    expect(
+        translateFromPresentation({i18n: {en: Object.create({name: "Inherited"})}}, "name", "en")
+    ).toBeUndefined()
+})
+
+it("accepts own presentation keys in null-prototype dictionaries", () => {
+    const i18n = Object.assign(Object.create(null), {
+        en: Object.assign(Object.create(null), {name: "Own"}),
+    })
+    expect(translateFromPresentation({i18n}, "name", "en")).toBe("Own")
+})
+
+it.each([
+    ["null", null],
+    ["array", []],
+    ["number", 0],
+    ["string", "unexpected"],
+])("falls back from a malformed %s language record", (_name, translations) => {
+    const value = {i18n: {fr: translations, en: {name: "Own default"}}}
+    expect(
+        translateFromPresentation(
+            value as unknown as Parameters<typeof translateFromPresentation>[0],
+            "name",
+            "fr",
+            {defaultLanguageCode: "en"}
+        )
+    ).toBe("Own default")
+})

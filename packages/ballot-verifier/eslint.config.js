@@ -12,9 +12,12 @@ import globals from "globals"
 export default [
     {
         ignores: [
-            "rust/pkg/**",
             "node_modules/**",
             "dist/**",
+            "dist-vite/**",
+            "coverage/**",
+            "storybook-static/**",
+            "test-results/**",
             "target/**",
             "pkg/**",
             "build/**",

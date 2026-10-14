@@ -2,24 +2,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useCallback, useMemo} from "react"
+import React from "react"
 import demoBanner from "./assets/demo-banner.png"
 import {useAppSelector} from "../../store/hooks"
-import {
-    selectAllBallotStyles,
-    selectFirstBallotStyle,
-    showDemo,
-} from "../../store/ballotStyles/ballotStylesSlice"
+import {showDemo} from "../../store/ballotStyles/ballotStylesSlice"
 import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
-import {SystemProps} from "@mui/system"
 import {useParams} from "react-router-dom"
 
-interface BackgroundProps extends SystemProps {
+// `imageUrl` styles the box and is not an attribute of the element.
+const Background = styled(Box, {shouldForwardProp: (prop) => prop !== "imageUrl"})<{
     imageUrl: string | undefined
-}
-
-const Background = styled(Box)<{imageUrl: string | undefined}>`
+}>`
     position: absolute;
     width: 100%;
     height: 100%;
@@ -40,13 +34,13 @@ const Background = styled(Box)<{imageUrl: string | undefined}>`
     }
 `
 
-const DEMO_URL_PATH = "/demo-banner.png"
-
 const WatermarkBackground: React.FC = () => {
     const {electionId} = useParams<{electionId?: string}>()
     const isDemo = useAppSelector(showDemo(electionId))
 
-    return isDemo ? <Background imageUrl={DEMO_URL_PATH} className="watermark-background" /> : null
+    // Bundled rather than served from `/demo-banner.png`: the portal also runs below another
+    // path, as the voter preview another tool frames, where the host's root has no banner.
+    return isDemo ? <Background imageUrl={demoBanner} className="watermark-background" /> : null
 }
 
 export default WatermarkBackground

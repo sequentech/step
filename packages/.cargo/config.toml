@@ -1,3 +1,10 @@
+# Cargo configuration shared by every workspace under packages/.
+#
+# The [patch.crates-io] pin of auto_generate_cdp to its 0.4.4 git revision was
+# removed: Cargo.lock already resolved auto_generate_cdp 0.4.5 from crates.io and
+# listed the patch as unused, and an unused git patch still makes cargo reach
+# for the git source, which breaks the offline (vendored) image builds.
+
 # Offline production build: the crate sources of Cargo.lock are vendored into
 # packages/vendor by the controlled import of the external inputs, and the build
 # resolves nothing over a network. The source replacement that activates the

@@ -1,0 +1,143 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The Debian packages the two stages below install, and the vendored crates the build reads.
+# The controlled production build supplies each from the accepted external inputs with
+# `--build-context <stage>=<directory>`, which replaces the stage of that name and leaves the
+# download unbuilt: `debs-builder` and `debs-runtime` hold the .deb files of the packages
+# their download stages name, `cargo-vendor` the crate sources of Cargo.lock, which cargo
+# reads through the [source] configuration the production job appends to .cargo/config.toml,
+# and then builds with --offline. A build outside that workflow downloads the packages from
+# the Debian archive snapshot below, authenticated by apt against the keyring of the base
+# image, and resolves the crates from crates.io.
+#
+# Debian archive snapshot every apt call resolves against. Pinning the archive
+# state, rather than individual package versions, is what makes the dependency
+# closure identical on a client's machine and on ours. See sequentech/meta#13625.
+#
+# http, not https: these base images ship no CA certificates, so an https source
+# fails before anything is installed. apt verifies the signed InRelease and the
+# per-file checksums regardless of transport.
+#
+# Bumping this is a deliberate release action, like bumping a base image digest:
+# it changes what the build contains, so it produces a new release identity. A
+# pinned snapshot also stops picking up security updates until it is bumped.
+ARG DEBIAN_SNAPSHOT=20260929T000000Z
+
+FROM rust:1.96.0-slim-bookworm@sha256:4732ca96fd086cb9be682050c3f0176288eebaac2b80aa2bcefccfaf198e1950 AS debs-builder-download
+ARG DEBIAN_SNAPSHOT
+RUN set -eux; \
+    rm -f /etc/apt/sources.list.d/debian.sources; \
+    { \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm-updates main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/${DEBIAN_SNAPSHOT} bookworm-security main"; \
+    } > /etc/apt/sources.list
+RUN mkdir -p /debs && apt-get update && apt-get install -y --no-install-recommends --download-only \
+    -o Dir::Cache::archives=/debs \
+    protobuf-compiler \
+    libprotobuf-dev \
+    m4 \
+    make
+
+FROM scratch AS debs-builder
+COPY --from=debs-builder-download /debs/*.deb /
+
+FROM debian:bookworm@sha256:f37a335e82bca302e955fa39f9dfe28f1be618f016f8a2b56318e5a5111afc26 AS debs-runtime-download
+ARG DEBIAN_SNAPSHOT
+RUN set -eux; \
+    rm -f /etc/apt/sources.list.d/debian.sources; \
+    { \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm-updates main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/${DEBIAN_SNAPSHOT} bookworm-security main"; \
+    } > /etc/apt/sources.list
+RUN mkdir -p /debs && apt-get update && apt-get install -y --no-install-recommends --download-only \
+    -o Dir::Cache::archives=/debs \
+    libssl3 \
+    ca-certificates
+
+FROM scratch AS debs-runtime
+COPY --from=debs-runtime-download /debs/*.deb /
+
+# Optional external build context for installations using AWS Secrets Manager or
+# a Vault-compatible service, which scripts/trustee.sh calls through their CLIs.
+# Supply reviewed binaries under bin/ with --build-context cloud-secret-tools=<directory>;
+# the uniWAHL context is empty.
+FROM scratch AS cloud-secret-tools
+
+FROM scratch AS cargo-vendor
+
+FROM rust:1.96.0-slim-bookworm@sha256:4732ca96fd086cb9be682050c3f0176288eebaac2b80aa2bcefccfaf198e1950 AS builder
+
+WORKDIR /app
+
+COPY --from=debs-builder / /tmp/debs/
+RUN apt-get -o Dir::Cache::archives=/tmp/debs --no-download install -y --no-install-recommends /tmp/debs/*.deb \
+    && rm -rf /tmp/debs
+
+# The members of the workspace, packages/Cargo.toml, and the wbraid crates they depend on
+COPY ./electoral-log ./electoral-log
+COPY ./trellis ./trellis
+COPY ./harvest ./harvest
+COPY ./protocol-board ./protocol-board
+COPY ./voting-crypto ./voting-crypto
+COPY ./trustee ./trustee
+COPY ./sequent-core ./sequent-core
+COPY ./velvet ./velvet
+COPY ./windmill ./windmill
+COPY ./pgmq-broker ./pgmq-broker
+COPY ./wrap-map-err ./wrap-map-err
+COPY ./messaging ./messaging
+COPY ./messaging-webhooks ./messaging-webhooks
+COPY ./step-cli ./step-cli
+COPY ./e2e ./e2e
+COPY ./orare ./orare
+COPY ./plugins ./plugins
+COPY ./wbraid ./wbraid
+COPY ./Cargo.toml ./Cargo.toml
+COPY ./Cargo.lock ./Cargo.lock
+COPY ./.cargo ./.cargo
+COPY --from=cargo-vendor / ./vendor/
+
+WORKDIR /app/trustee
+# The CM helper supplies a fresh namespace per build invocation. Component builds
+# share Cargo's dependency artifacts only inside that invocation and architecture.
+# Copy selected binaries outside the cache mount into the immutable builder layer.
+# With vendored crates supplied the build runs offline, so that an incomplete vendor
+# directory fails instead of reaching for crates.io.
+ARG TEMENOS_CARGO_CACHE_ID=standalone
+ARG TARGETARCH
+RUN --mount=type=cache,id=${TEMENOS_CARGO_CACHE_ID}-${TARGETARCH},target=/app/target,sharing=locked set -eu; \
+    offline=; [ -z "$(ls -A /app/vendor)" ] || offline=--offline; \
+    cargo build --release --locked $offline; \
+    mkdir -p /opt/temenos-build; \
+    cp /app/target/release/trustee /opt/temenos-build/
+
+FROM debian:bookworm@sha256:f37a335e82bca302e955fa39f9dfe28f1be618f016f8a2b56318e5a5111afc26
+
+# What the package manager leaves behind that differs on every build is removed
+# in the layer that writes it, so that two builds of the same commit give the
+# same layer (sequentech/meta#13625): its logs, which carry the time, and the
+# linker's auxiliary cache, which only speeds up the next ldconfig.
+COPY --from=debs-runtime / /tmp/debs/
+RUN apt-get -o Dir::Cache::archives=/tmp/debs --no-download install -y --no-install-recommends /tmp/debs/*.deb \
+    && rm -rf /tmp/debs /var/log/apt /var/log/dpkg.log /var/log/alternatives.log \
+        /var/cache/ldconfig/aux-cache
+
+# Cloud secret CLIs are optional deployment inputs, not downloaded by the build.
+# uniWAHL uses a mounted trustee configuration / EnvVarMasterSecret and S3-compatible storage.
+COPY --from=cloud-secret-tools / /usr/local/
+ARG CLOUD_SECRET_BACKENDS=disabled
+ENV CLOUD_SECRET_BACKENDS=${CLOUD_SECRET_BACKENDS}
+ENV SECRETS_BACKEND=EnvVarMasterSecret
+
+COPY --from=builder /opt/temenos-build/trustee /usr/bin/trustee
+COPY --from=builder /app/trustee/scripts/trustee.sh /usr/bin/trustee.sh
+RUN mkdir -p /opt/trustee/
+
+# init index db
+RUN mkdir /tmp/cache
+
+CMD ["/usr/bin/trustee.sh"]

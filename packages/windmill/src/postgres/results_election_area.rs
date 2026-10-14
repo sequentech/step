@@ -118,7 +118,7 @@ pub async fn insert_results_election_area_documents(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error at inser into results_election_area {} ", err))?;
+        .map_err(|err| anyhow!("Error inserting into results_election_area: {err:?}"))?;
     Ok(())
 }
 

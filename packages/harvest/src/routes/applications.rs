@@ -3,15 +3,25 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use std::collections::HashMap;
+use std::iter::Map;
+use std::str::FromStr;
 
 use crate::services::authorization::authorize;
+use crate::services::dependencies::HarvestServices;
+use crate::services::signing_gate::{caller, waiting, Guarded};
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
+use crate::types::optional::OptionalId;
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
+use reqwest::StatusCode;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use rocket::State;
 use sequent_core::services::jwt;
-use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
+use sequent_core::services::keycloak::{
+    get_event_realm, get_tenant_realm, GroupInfo, KeycloakAdminClient,
+};
+use sequent_core::types::keycloak::User;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -21,8 +31,16 @@ use windmill::services::application::{
     verify_application, ApplicationAnnotations, ApplicationVerificationResult,
 };
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
+use windmill::services::signing::actions::voter::{
+    cancel_for_rejection, gate_voter_approval,
+};
+use windmill::services::signing::guard::SigningRequestSummary;
 use windmill::services::users::check_is_user_verified;
-use windmill::types::application::ApplicationsError;
+use windmill::tasks::send_template::send_template;
+use windmill::tasks::signing_log_outbox::kick_signing_log_outbox;
+use windmill::types::application::{
+    ApplicationStatus, ApplicationType, ApplicationsError,
+};
 
 #[derive(Deserialize, Debug)]
 pub struct ApplicationVerifyBody {
@@ -30,8 +48,7 @@ pub struct ApplicationVerifyBody {
     applicant_data: HashMap<String, String>,
     tenant_id: String,
     election_event_id: String,
-    #[serde(rename = "area_id")]
-    _area_id: Option<String>,
+    area_id: Option<String>,
     labels: Option<Value>,
     annotations: ApplicationAnnotations,
 }
@@ -116,7 +133,7 @@ pub async fn verify_user_application(
         )
     })?;
 
-    hasura_transaction.commit().await.map_err(|e| {
+    let _commit = hasura_transaction.commit().await.map_err(|e| {
         ErrorResponse::new(
             Status::InternalServerError,
             &format!("commit failed: {e:?}"),
@@ -131,30 +148,49 @@ pub async fn verify_user_application(
 pub struct ApplicationChangeStatusBody {
     tenant_id: String,
     election_event_id: String,
-    #[serde(rename = "area_id")]
-    _area_id: Option<String>,
+    area_id: Option<String>,
     id: String,
     user_id: String,
     rejection_reason: Option<String>, // Optional for rejection
     rejection_message: Option<String>, // Optional for rejection
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Debug)]
 pub struct ApplicationChangeStatusOutput {
     message: Option<String>,
     error: Option<String>,
+    /// While approving the voter waits for signatures.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    signing_request: Option<SigningRequestSummary>,
 }
 
-#[instrument(skip(claims))]
+fn internal(message: String) -> JsonError {
+    JsonError::from(ErrorResponse::new(
+        Status::InternalServerError,
+        &message,
+        ErrorCode::InternalServerError,
+    ))
+}
+
+async fn group_names_of(
+    tenant_id: &str,
+    user_id: &str,
+) -> Result<Vec<String>, JsonError> {
+    get_group_names(&get_tenant_realm(tenant_id), user_id)
+        .await
+        .map_err(|e| internal(format!("Error getting group names: {:#?}", e)))
+}
+
+#[instrument(skip(claims, services))]
 #[post("/change-application-status", format = "json", data = "<body>")]
 pub async fn change_application_status(
     claims: jwt::JwtClaims,
     body: Json<ApplicationChangeStatusBody>,
-) -> Result<Json<ApplicationChangeStatusOutput>, JsonError> {
+    services: &State<HarvestServices>,
+) -> Result<Json<ApplicationChangeStatusOutput>, Guarded<JsonError>> {
     let input = body.into_inner();
 
     info!("Changing application status: {input:?}");
-    info!("claims::: {:?}", &claims);
 
     let required_perm: Permissions = Permissions::APPLICATION_WRITE;
     authorize(
@@ -172,7 +208,7 @@ pub async fn change_application_status(
     })?;
 
     let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.map_err(|e| {
+        services.databases.hasura().await.get().await.map_err(|e| {
             ErrorResponse::new(
                 Status::InternalServerError,
                 &format!("Error obtaining hasura pool: {:?}", e),
@@ -190,18 +226,23 @@ pub async fn change_application_status(
         })?;
 
     let user_id = &claims.hasura_claims.user_id;
-    let tenant_realm = get_tenant_realm(&input.tenant_id);
-    let group_names =
-        get_group_names(&tenant_realm, user_id).await.map_err(|e| {
-            ErrorResponse::new(
-                Status::InternalServerError,
-                &format!("Error getting group names: {:#?}", e),
-                ErrorCode::InternalServerError,
-            )
-        })?;
+    let admin_name = claims
+        .name
+        .clone()
+        .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
 
     // Determine the action: Confirm or Reject
     if input.rejection_reason.is_some() {
+        // A rejected application's approval no longer waits for signatures.
+        cancel_for_rejection(
+            &hasura_transaction,
+            &caller(&claims),
+            &input.tenant_id,
+            &input.election_event_id,
+            &input.id,
+        )
+        .await?;
+        let group_names = group_names_of(&input.tenant_id, user_id).await?;
         // Rejection logic
         reject_application(
             &hasura_transaction,
@@ -212,10 +253,7 @@ pub async fn change_application_status(
             &claims.hasura_claims.user_id,
             input.rejection_reason,
             input.rejection_message,
-            &claims
-                .name
-                .clone()
-                .unwrap_or_else(|| claims.hasura_claims.user_id.clone()),
+            &admin_name,
             &group_names,
         )
         .await
@@ -226,9 +264,14 @@ pub async fn change_application_status(
                 ErrorCode::InternalServerError,
             )
         })?;
-    } else if input.rejection_reason.is_none() {
-        let mut keycloak_db_client: DbClient =
-            get_keycloak_pool().await.get().await.map_err(|e| {
+    } else {
+        let mut keycloak_db_client: DbClient = services
+            .databases
+            .keycloak()
+            .await
+            .get()
+            .await
+            .map_err(|e| {
                 ErrorResponse::new(
                     Status::InternalServerError,
                     &format!("{:?}", e),
@@ -264,8 +307,35 @@ pub async fn change_application_status(
             return Ok(Json(ApplicationChangeStatusOutput {
                 message: None,
                 error: Some(ApplicationsError::APPROVED_VOTER.to_string()),
+                signing_request: None,
             }));
         }
+
+        // Approving a voter manually may need signatures first.
+        let outcome = gate_voter_approval(
+            &hasura_transaction,
+            &keycloak_transaction,
+            &caller(&claims),
+            &input.tenant_id,
+            &input.election_event_id,
+            &input.id,
+            &input.user_id,
+        )
+        .await?;
+        if let Some(signing_request) = waiting(outcome) {
+            hasura_transaction
+                .commit()
+                .await
+                .map_err(|e| internal(format!("Commit failed: {e:?}")))?;
+            kick_signing_log_outbox();
+            return Ok(Json(ApplicationChangeStatusOutput {
+                message: None,
+                error: None,
+                signing_request: Some(signing_request),
+            }));
+        }
+
+        let group_names = group_names_of(&input.tenant_id, user_id).await?;
         //Confirmation logic
         confirm_application(
             &hasura_transaction,
@@ -274,10 +344,7 @@ pub async fn change_application_status(
             &input.election_event_id,
             &input.user_id,
             &claims.hasura_claims.user_id,
-            &claims
-                .name
-                .clone()
-                .unwrap_or_else(|| claims.hasura_claims.user_id.clone()),
+            &admin_name,
             &group_names,
         )
         .await
@@ -288,12 +355,6 @@ pub async fn change_application_status(
                 ErrorCode::InternalServerError,
             )
         })?;
-    } else {
-        return Err(JsonError::from(ErrorResponse::new(
-            Status::BadRequest,
-            "Invalid request: rejection_reason and rejection_message must either both be present or both absent",
-            ErrorCode::InternalServerError,
-        )));
     };
 
     hasura_transaction.commit().await.map_err(|e| {
@@ -307,5 +368,6 @@ pub async fn change_application_status(
     Ok(Json(ApplicationChangeStatusOutput {
         message: Some("Success".to_string()),
         error: None,
+        signing_request: None,
     }))
 }

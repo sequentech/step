@@ -4,8 +4,20 @@
 import {gql} from "@apollo/client"
 
 export const EXPORT_ELECTION_EVENT_LOGS = gql`
-    mutation ExportElectionEventLogs($electionEventId: String!, $format: String!) {
-        export_election_event_logs(election_event_id: $electionEventId, format: $format) {
+    mutation ExportElectionEventLogs(
+        $electionEventId: uuid!
+        $format: String!
+        $createdFrom: String
+        $createdTo: String
+        $timeZone: String
+    ) {
+        export_election_event_logs(
+            election_event_id: $electionEventId
+            format: $format
+            created_from: $createdFrom
+            created_to: $createdTo
+            time_zone: $timeZone
+        ) {
             document_id
             task_execution {
                 id

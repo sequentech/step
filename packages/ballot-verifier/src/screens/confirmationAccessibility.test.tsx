@@ -11,6 +11,7 @@ import {join} from "path"
 import ts from "typescript"
 import {ConfirmationScreen} from "./ConfirmationScreen"
 import {IConfirmationBallot} from "../services/BallotService"
+import {TenantEventContext} from "../providers/TenantEventContext"
 
 jest.mock("react-i18next", () => ({useTranslation: () => ({t: (key: string) => key})}))
 jest.mock("react-router-dom", () => {
@@ -60,7 +61,11 @@ const renderConfirmation = (description = "") => {
         election_config: {description, contests: []},
         decoded_questions: [],
     } as unknown as IConfirmationBallot
-    return render(<ConfirmationScreen confirmationBallot={ballot} ballotId={ballot.ballot_hash} />)
+    return render(
+        <TenantEventContext.Provider value={{tenantId: "tenant-1", eventId: "event-1"}}>
+            <ConfirmationScreen confirmationBallot={ballot} ballotId={ballot.ballot_hash} />
+        </TenantEventContext.Provider>
+    )
 }
 
 it("puts every verifier route inside one main landmark", () => {
@@ -112,7 +117,7 @@ it("renders a supplied election description once", () => {
 it("renders Back as a single link without a nested button", () => {
     renderConfirmation()
     const back = screen.getByRole("link", {name: "confirmationScreen.backButton"})
-    expect(back).toHaveAttribute("href", "/")
+    expect(back).toHaveAttribute("href", "/tenant/tenant-1/event/event-1/start")
     expect(back.querySelector("button")).toBeNull()
 })
 

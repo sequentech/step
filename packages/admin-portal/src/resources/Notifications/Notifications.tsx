@@ -7,6 +7,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {Button, Typography} from "@mui/material"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {FunctionField, List, TextInput, useRecordContext, WrapperField} from "react-admin"
+import {AdminDateTime} from "@/components/AdminDateTime"
 import {useTranslation} from "react-i18next"
 import {ListActions} from "@/components/ListActions"
 import {Action, ActionsColumn} from "@/components/ActionButons"
@@ -107,9 +108,15 @@ const Notifications: FC<notificationsProps> = ({electionEventId}) => {
                         }
                     /> */}
                     <FunctionField
-                        label={"Schedule"}
-                        source="schedule"
-                        render={(record: any) => new Date(record.schedule).toLocaleString()}
+                        label={"Created at"}
+                        source="created_at"
+                        render={(record: any) => (
+                            <AdminDateTime
+                                value={record.created_at}
+                                event={record.election_event_id}
+                                seconds
+                            />
+                        )}
                     />
                     <WrapperField label="Actions">
                         <ActionsColumn actions={actions} />

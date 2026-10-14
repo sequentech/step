@@ -2,6 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+// Test vectors and fixture builders.
+// Coverage exclusion: scripts/coverage/profiles.toml.
+
 use crate::ballot::BallotStyle;
 use crate::ballot::*;
 use crate::ballot_codec::{vec_to_30_array, RawBallotContest};
@@ -375,6 +378,10 @@ pub fn get_writein_ballot_style() -> BallotStyle {
         public_key: Some(PublicKeyConfig {
             public_key: "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4".into(),
             is_demo: false,
+            keys_ceremony_id: Some(
+                "12345678-1234-4234-9234-123456789abc".into(),
+            ),
+            configuration_id: None,
         }),
         area_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
         area_presentation: None,
@@ -384,6 +391,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
         election_annotations: Default::default(),
         election_dates: None,
         multi_contest_encoding_mode: None,
+        ballot_box_key: None,
         contests: vec![Contest {
             external_id: None,
             created_at: None,

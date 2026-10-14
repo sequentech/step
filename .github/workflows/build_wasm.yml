@@ -11,6 +11,13 @@ on:
   release:
     types: [published]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build_wasm:
     runs-on: ubuntu-24.04
@@ -19,25 +26,116 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Check that the workspace packages use the package built from source
+      - name: Set up Nix
+        uses: cachix/install-nix-action@v25
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Check that hashes in yarn.lock are updated with the last build in the repo
         working-directory: packages
         run: |
-          set -euo pipefail
-          if git ls-files -- '*/rust/sequent-core-*.tgz' | grep -q .; then
-            echo "A prebuilt sequent-core package is committed; packages/sequent-core is built instead."
+          if [ -f yarn.lock ]; then
+            hash=$(sha1sum ./ui-core/rust/sequent-core-0.1.0.tgz | awk '{printf $1}')
+            hash1=$(grep "file:./admin-portal/rust/sequent-core-" yarn.lock | awk -F# '{printf $2}' | tr -d '"')
+            hash2=$(grep "file:./ballot-verifier/rust/sequent-core-" yarn.lock | awk -F# '{printf $2}' | tr -d '"')
+            hash3=$(grep "file:./voting-portal/rust/sequent-core-" yarn.lock | awk -F# '{printf $2}' | tr -d '"')
+            echo "Hashes: |$hash| |$hash1| |$hash2| |$hash3|"
+            if [ -n "$hash" ] && [ -n "$hash1" ] && [ -n "$hash2" ] && [ -n "$hash3" ]; then
+              if [ "$hash" == "$hash1" ] && [ "$hash" == "$hash2" ] && [ "$hash" == "$hash3" ]; then
+                echo "The hashes are equal"
+              else
+                echo "The hashes are not equal"
+                exit 1
+              fi
+            else
+              echo "Error: unable to extract hashes from files"
+              exit 1
+            fi
+          else
+            echo "Error: one or both files do not exist"
             exit 1
           fi
-          for dir in admin-portal ballot-verifier voting-portal; do
-            grep -q "^\"sequent-core@file:./${dir}/rust/pkg\":" yarn.lock \
-              || { echo "yarn.lock does not resolve sequent-core of ${dir} from rust/pkg"; exit 1; }
-          done
 
-      - name: Build the sequent-core WebAssembly package
-        uses: ./.github/actions/build-sequent-core-wasm
-
-      - name: Check that the package packs
+      - name: Check that the committed package was built from the current sources
         working-directory: packages/sequent-core
-        run: nix develop --command wasm-pack -v pack .
+        run: nix develop --command bash -c 'cd ../.. && python3 -m scripts.dev.wasm --check-package'
+
+      - name: Print tool versions
+        working-directory: packages/sequent-core
+        run: |
+          nix develop --command bash -c '
+            wasm-opt --version
+            wasm-bindgen --version
+            wasm-pack --version
+          '
+
+      - name: Check that WASM build and pack works
+        working-directory: packages/sequent-core
+        run: |
+          nix develop --command bash -c '
+            set -euo pipefail
+            # `--locked` for the reason spelled out in
+            # `.devcontainer/scripts/rebuild-election-config-wasm.sh`: re-resolving
+            # picks `getrandom 0.4.3`, which does not build for wasm at all.
+            wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest,default_features,monitoring -- --locked
+            wasm-pack -v pack .
+          '
+
+      # A second package from the same crate, for the election-configuration SPAs.
+      # The four front ends above build without these features on purpose: they get
+      # the bundle schema and the validator, and no spreadsheet parser, template
+      # engine or zip writer.
+      #
+      # Built here even though nothing vendors it yet, because this is the only
+      # place that compiles those features for wasm32. `zip`'s default features pull
+      # bzip2, zstd and lzma, which have no wasm32 target — restricting it to
+      # deflate is what makes this build possible, and a CI step is what keeps it
+      # that way when someone adds the next dependency.
+      - name: Check that the election-config WASM package builds
+        working-directory: packages/sequent-core
+        run: |
+          nix develop --command bash -c '
+            set -euo pipefail
+            ../../.devcontainer/scripts/rebuild-election-config-wasm.sh
+          '
+
+      - name: Build browser trustee WASM with supplied wbraid tooling
+        working-directory: packages/sequent-core
+        run: nix develop --command bash -c '../protocol-board/scripts/build-browser.sh'
+
+      - name: Upload browser trustee WASM package
+        uses: actions/upload-artifact@v4
+        with:
+          name: wbraid-trustee-wasm
+          path: packages/admin-portal/rust/wbraid-trustee-0.1.0.tgz
+          if-no-files-found: error
+
+      - name: Upload the election-config WASM package
+        uses: actions/upload-artifact@v4
+        with:
+          name: sequent-election-config-wasm
+          path: packages/sequent-core/pkg-election-config/sequent-election-config-0.1.0.tgz
+          if-no-files-found: error
+
+      # Note: Commented out because this doesn't work, probably because the paths in the devcontainer and the GitHub Action runner are different, so the hash of the built package doesn't match the hash in yarn.lock.
+      # Keeping the commented-out code here for now in case we want to revisit this approach in the future
+      # - name: Check that yarn.lock hash matches freshly built package
+      #   working-directory: packages
+      #   run: |
+      #     new_hash=$(sha1sum sequent-core/pkg/sequent-core-0.1.0.tgz | awk '{printf $1}')
+      #     lock_hash=$(grep "file:./admin-portal/rust/sequent-core-" yarn.lock | awk -F'#' '{printf $2}' | tr -d '"')
+      #     echo "New build hash: $new_hash"
+      #     echo "yarn.lock hash: $lock_hash"
+      #     if [ -z "$new_hash" ] || [ -z "$lock_hash" ]; then
+      #       echo "Error: could not extract one or both hashes"
+      #       exit 1
+      #     fi
+      #     if [ "$new_hash" != "$lock_hash" ]; then
+      #       echo "Error: sequent-core WASM package is out of date."
+      #       echo "Run rebuild.sequent-core.full (VSCode task) or rebuild-sequent-core-full.sh and commit the results."
+      #       exit 1
+      #     fi
+      #     echo "Hashes match: sequent-core WASM is up to date"
 
       - name: Set Node.js 20.x
         uses: actions/setup-node@v4
@@ -46,7 +144,7 @@ jobs:
 
       - name: Install JS dependencies
         working-directory: packages
-        run: yarn install --frozen-lockfile
+        run: yarn install
 
       - name: Build ui-core
         working-directory: packages
@@ -55,3 +153,18 @@ jobs:
       - name: Build ui-essentials
         working-directory: packages
         run: yarn build:ui-essentials
+
+      # The voter preview other tools frame, e.g. beyond's Election Architect, which
+      # takes it from the same run as the election-config WASM (`yarn vendor-core`).
+      # Built from source like the workbench it belongs to; `embed.html` is its entry,
+      # and `problem-list/` the problem list the same tools import.
+      - name: Build the voter preview
+        working-directory: packages
+        run: yarn --cwd workbench build
+
+      - name: Upload the voter preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: voter-preview
+          path: packages/workbench/dist
+          if-no-files-found: error

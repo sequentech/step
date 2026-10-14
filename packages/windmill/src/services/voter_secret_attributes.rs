@@ -5,6 +5,7 @@
 use crate::services::vault::vault::get_master_secret;
 use anyhow::{anyhow, Context, Result};
 use base64::prelude::{Engine as _, BASE64_URL_SAFE_NO_PAD};
+use cryptography::utils::symm::{decrypt, encrypt, sk_from_bytes, EncryptionData, SymmetricKey};
 use once_cell::sync::Lazy;
 use ring::hkdf;
 use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient};
@@ -12,9 +13,10 @@ use sequent_core::types::keycloak::{User, UserProfileAttribute};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
-use strand::serialization::{StrandDeserialize, StrandSerialize};
-use strand::symm::{decrypt, encrypt, EncryptionData, SymmetricKey};
 use tokio::sync::RwLock;
+use voting_crypto::{RecordDeserialize, RecordSerialize};
+
+use voting_crypto::envelope::StoredEnvelope as StoredAttributeEnvelope;
 
 pub const SECRET_ATTRIBUTE_ANNOTATION: &str = "sequent.secret";
 pub const ENCRYPTED_VALUE_PREFIX: &str = "seqenc:v1:";
@@ -221,7 +223,7 @@ fn derive_key(
     output_key_material
         .fill(&mut key_bytes)
         .map_err(|_| anyhow!("Failed to materialize voter secret-attribute key"))?;
-    Ok(SymmetricKey::from(key_bytes))
+    sk_from_bytes(&key_bytes).context("Invalid derived voter attribute key")
 }
 
 fn encrypt_with_master_secret(
@@ -238,8 +240,8 @@ fn encrypt_with_master_secret(
     let key = derive_key(master_secret, scope)?;
     let encrypted =
         encrypt(key, value.as_bytes()).context("Failed to encrypt voter secret attribute")?;
-    let serialized = encrypted
-        .strand_serialize()
+    let serialized = StoredAttributeEnvelope::from(encrypted)
+        .record_serialize()
         .context("Failed to serialize voter secret attribute")?;
     let envelope = format!(
         "{ENCRYPTED_VALUE_PREFIX}{}",
@@ -268,8 +270,9 @@ fn decrypt_with_master_secret(
     let serialized = BASE64_URL_SAFE_NO_PAD
         .decode(encoded)
         .context("Failed to decode voter secret attribute")?;
-    let encrypted = EncryptionData::strand_deserialize(&serialized)
-        .context("Failed to deserialize voter secret attribute")?;
+    let encrypted: EncryptionData = StoredAttributeEnvelope::record_deserialize(&serialized)
+        .context("Failed to deserialize voter secret attribute")?
+        .into();
     let key = derive_key(master_secret, scope)?;
     let plaintext =
         decrypt(&key, &encrypted).context("Failed to decrypt voter secret attribute")?;
@@ -495,11 +498,11 @@ fn encrypt_secret_attribute_map_with_key(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use strand::symm::gen_key;
+    use cryptography::utils::symm::gen_key;
 
     #[test]
     fn creation_ciphertext_preserves_missing_values_and_is_bound_to_user_id() {
-        let key = gen_key();
+        let key = gen_key().unwrap();
         let names = HashSet::from(["mobile-number".to_string()]);
         for values in [None, Some(vec![]), Some(vec!["".into(), "  ".into()])] {
             let encrypted = encrypt_secret_attribute_map_with_key(
@@ -560,7 +563,7 @@ mod tests {
             "../../../keycloak-extensions/message-otp-authenticator/src/test/resources/voter-secret-v1.json"
         )).unwrap();
         let key_bytes = hex::decode(v["master"].as_str().unwrap()).unwrap();
-        let key = SymmetricKey::clone_from_slice(&key_bytes);
+        let key = sk_from_bytes(&key_bytes).unwrap();
         let scope = VoterSecretAttributeScope {
             tenant_id: v["tenant"].as_str().unwrap(),
             election_event_id: v["event"].as_str().unwrap(),
@@ -575,7 +578,7 @@ mod tests {
 
     #[test]
     fn exported_multi_values_can_be_reencrypted_for_an_import_destination() {
-        let master = gen_key();
+        let master = gen_key().unwrap();
         let values = vec!["first-secret".to_string(), "second-secret".to_string()];
         let encrypted = values
             .iter()
@@ -629,7 +632,7 @@ mod tests {
 
     #[test]
     fn encrypted_values_round_trip_and_are_randomized() {
-        let master = gen_key();
+        let master = gen_key().unwrap();
         let first = encrypt_with_master_secret(&master, &scope("user-1"), "+15555550100")
             .expect("first encryption succeeds");
         let second = encrypt_with_master_secret(&master, &scope("user-1"), "+15555550100")
@@ -644,7 +647,7 @@ mod tests {
 
     #[test]
     fn ciphertext_is_bound_to_its_scope() {
-        let master = gen_key();
+        let master = gen_key().unwrap();
         let encrypted = encrypt_with_master_secret(&master, &scope("user-1"), "secret")
             .expect("encryption succeeds");
         assert!(decrypt_with_master_secret(&master, &scope("user-2"), &encrypted).is_err());
@@ -693,7 +696,7 @@ mod tests {
 
     #[test]
     fn envelope_of_the_largest_allowed_plaintext_fits_the_keycloak_value_column() {
-        let master = gen_key();
+        let master = gen_key().unwrap();
         let plaintext = "x".repeat(MAX_SECRET_VALUE_BYTES);
         let envelope = encrypt_with_master_secret(&master, &scope("user-1"), &plaintext)
             .expect("encryption succeeds");
@@ -706,7 +709,7 @@ mod tests {
 
     #[test]
     fn plaintext_over_the_limit_is_rejected() {
-        let master = gen_key();
+        let master = gen_key().unwrap();
         let plaintext = "x".repeat(MAX_SECRET_VALUE_BYTES + 1);
         assert!(encrypt_with_master_secret(&master, &scope("user-1"), &plaintext).is_err());
     }

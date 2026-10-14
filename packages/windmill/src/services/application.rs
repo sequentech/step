@@ -1,17 +1,33 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-pub type ApplicationMismatchSummary = (usize, usize, HashMap<String, bool>, HashMap<String, bool>);
-
+use super::approval_matrix::evaluate::{
+    evaluate, Candidate, DecisionRecord, MatrixVersion, RuleInputs,
+};
+use super::approval_matrix::store::get_current_approval_matrix;
+use super::approval_matrix::{FieldMatch, IdentityMethod};
 use super::users::{lookup_users, FilterOption, ListUsersFilter};
 use crate::postgres::application::get_permission_label_from_post;
+use crate::postgres::area::get_elections_by_area;
+use crate::postgres::area::get_event_areas;
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::messaging::MessageRecord;
 use crate::services::celery_app::get_celery_app;
+use crate::services::database::get_hasura_pool;
+use crate::services::messaging::audit::post_attempt_outcomes_or_warn;
+use crate::services::messaging::dispatch::{
+    deliver, record_without_channel, Delivery, Dispatcher, Recipient,
+};
+use crate::services::messaging::reconcile::RetryContent;
 use crate::services::providers::{email_sender::EmailSender, sms_sender::SmsSender};
+use crate::services::reports::template_time::insert_template_time_variables;
+use crate::services::reports::template_time::NotificationTimeContext;
 use crate::services::reports::utils::get_public_asset_template;
 use crate::services::temp_path::PUBLIC_ASSETS_I18N_DEFAULTS;
-use crate::tasks::send_template::{send_template, send_template_email_or_sms};
+use crate::tasks::send_template::RetryDirectory;
+use crate::tasks::send_template::{first_attribute, get_variables, render_contents};
 use crate::types::application::ApplicationRejectReason;
+use crate::types::application::NoMatchingVoterPolicy;
 use crate::{
     postgres::application::{insert_application, update_application_status},
     types::application::ApplicationStatus,
@@ -22,16 +38,26 @@ use deadpool_postgres::Transaction;
 use keycloak::types::CredentialRepresentation;
 use sequent_core::ballot::{ElectionEventPresentation, I18nContent};
 use sequent_core::serialization::deserialize_with_path::*;
+use sequent_core::services::generate_urls::AuthAction;
+use sequent_core::types::messaging::MessageReason;
+use sequent_core::types::messaging::{MessageChannel, MessageContent, MessagePurpose};
+use sequent_core::types::voter_channel::{voter_channel, VoterChannel};
 
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
+use sequent_core::services::translation_scopes::template_translations;
 use sequent_core::services::translations::DEFAULT_LANG;
 use sequent_core::types::hasura::core::Application;
-use sequent_core::types::keycloak::{User, MOBILE_PHONE_ATTR_NAME};
+use sequent_core::types::keycloak::{
+    User, AREA_ID_ATTR_NAME, LOCALE_ATTR_NAME, MESSAGE_CHANNEL_ATTR_NAME,
+    MESSAGE_CONSENT_ATTR_NAME, MESSAGE_NUMBER_ATTR_NAME, MESSENGER_ID_ATTR_NAME,
+    MESSENGER_PAGE_ATTR_NAME, MOBILE_PHONE_ATTR_NAME, VERIFIED_CHANNELS_ATTR_NAME,
+    VIBER_NUMBER_ATTR_NAME, WHATSAPP_NUMBER_ATTR_NAME,
+};
 use sequent_core::types::templates::{EmailConfig, SendTemplateBody, SmsConfig, TemplateMethod};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use strum_macros::Display;
 use tracing::{debug, event, info, instrument, warn, Level};
 use uuid::Uuid;
@@ -39,6 +65,11 @@ use uuid::Uuid;
 use sequent_core::types::templates::AudienceSelection::SELECTED;
 use sequent_core::types::templates::TemplateMethod::{EMAIL, SMS};
 use unicode_normalization::char::decompose_canonical;
+
+const ID_CARD_TYPE_FIELD: &str = "sequent.read-only.id-card-type";
+const FIRST_NAME_FIELD: &str = "firstName";
+const FIRST_AND_MIDDLE_NAME_FIELD: &str = "firstName.middleName";
+const SEVERAL_VOTERS_MATCH_REASON: &str = "Several registry voters match";
 
 #[allow(non_camel_case_types)]
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
@@ -60,6 +91,21 @@ pub enum ECardType {
     IBP,
 }
 
+/// The identity document types enrollment knows, as the applicant data
+/// names them.
+pub fn id_card_types() -> Vec<String> {
+    [
+        ECardType::PHILIPPINE_PASSPORT,
+        ECardType::PHILSYS_ID,
+        ECardType::SEAMANS_BOOK,
+        ECardType::DRIVER_LICENSE,
+        ECardType::IBP,
+    ]
+    .iter()
+    .map(ECardType::to_string)
+    .collect()
+}
+
 /// Struct for email/sms Accepted/Rejected Communication object.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct ApplicationCommunication {
@@ -68,15 +114,11 @@ struct ApplicationCommunication {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ApplicationCommunicationChannels {
+struct ApplicationCommunicationChannels {
     email: EmailConfig,
     sms: SmsConfig,
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "Keep the existing application identity, actor and verification inputs explicit at the established service boundary."
-)]
 #[instrument(skip_all, err)]
 pub async fn verify_application(
     hasura_transaction: &Transaction<'_>,
@@ -93,6 +135,16 @@ pub async fn verify_application(
     // Check Election Event exists
     let _event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
 
+    // The saved matrix names the compared fields; without one, the built-in
+    // matrix compares the search attributes the enrollment flow sends.
+    let matrix = get_current_approval_matrix(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        search_attributes_list(annotations)?,
+    )
+    .await?;
+
     // Generate a filter with applicant data
     let filter = get_filter_from_applicant_data(
         tenant_id.to_string(),
@@ -101,7 +153,7 @@ pub async fn verify_application(
         None,
         realm,
         None,
-        annotations,
+        &matrix.matrix.compared_fields,
         applicant_data,
     )?;
 
@@ -109,8 +161,9 @@ pub async fn verify_application(
     let users = lookup_users(hasura_transaction, keycloak_transaction, filter).await?;
     debug!("Found {} users before verification", users.len());
 
-    // Finds an user from the list of found possible users
-    let result = automatic_verification(users.clone(), annotations, applicant_data)?;
+    // Decides the enrollment from the list of found possible users
+    let (result, decision) =
+        automatic_verification(users.clone(), &matrix, &annotations, applicant_data)?;
     info!("Verification result: {:?}", result);
 
     // Set the annotations
@@ -123,9 +176,12 @@ pub async fn verify_application(
         unset_attributes: annotations.unset_attributes.clone(),
         search_attributes: annotations.search_attributes.clone(),
         update_attributes: annotations.update_attributes.clone(),
+        identity_method: annotations.identity_method,
         mismatches: result.mismatches,
         fields_match: result.fields_match.clone(),
         manual_verify_reason: result.manual_verify_reason.clone(),
+        decision: Some(decision),
+        no_matching_voter_policy: annotations.no_matching_voter_policy.clone(),
     };
 
     let (mut permission_label, area_id) = get_permission_label_and_area_from_applicant_data(
@@ -163,8 +219,29 @@ pub async fn verify_application(
         &permission_label,
     )
     .await?;
+    // The application just stored in this transaction.
+    let application_id: Uuid = hasura_transaction
+        .query_one(
+            r#"
+            SELECT id FROM sequent_backend.applications
+            WHERE tenant_id = $1 AND election_event_id = $2 AND applicant_id = $3
+            ORDER BY created_at DESC, id
+            LIMIT 1
+            "#,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &applicant_id,
+            ],
+        )
+        .await
+        .with_context(|| "Error reading the stored application")?
+        .try_get("id")?;
 
-    Ok(result)
+    Ok(ApplicationVerificationResult {
+        application_id: Some(application_id.to_string()),
+        ..result
+    })
 }
 
 #[instrument(err, skip_all)]
@@ -174,32 +251,29 @@ async fn get_permission_label_and_area_from_applicant_data(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<(Option<String>, Option<Uuid>)> {
-    let post_name = applicant_data
-        .get("country")
-        .and_then(|country| country.split('/').next())
-        .ok_or(anyhow!("Error with applicant country"))?;
-
-    let post_description = applicant_data
-        .get("embassy")
-        .ok_or(anyhow!("Error with applicant embassy"))?;
+    // Enrollments that don't ask for a Post have no area or permission label.
+    let (Some(post_name), Some(post_description)) = (
+        applicant_data
+            .get("country")
+            .and_then(|country| country.split('/').next()),
+        applicant_data.get("embassy"),
+    ) else {
+        return Ok((None, None));
+    };
 
     info!("Found post: {:?}", &post_name);
     info!("Found embassy: {:?}", &post_description);
 
     return get_permission_label_from_post(
         hasura_transaction,
-        post_name,
-        post_description,
+        &post_name,
+        &post_description,
         tenant_id,
         election_event_id,
     )
     .await;
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "Keep the existing application identity, actor and verification inputs explicit at the established service boundary."
-)]
 #[instrument(err, skip_all)]
 fn get_filter_from_applicant_data(
     tenant_id: String,
@@ -208,47 +282,43 @@ fn get_filter_from_applicant_data(
     area_id: Option<String>,
     realm: String,
     search: Option<String>,
-    annotations: &ApplicationAnnotations,
+    compared_fields: &[String],
     applicant_data: &HashMap<String, String>,
 ) -> Result<ListUsersFilter> {
-    let search_attributes: String = annotations.search_attributes.clone().ok_or(anyhow!(
-        "Error obtaining search_attributes from annotations"
-    ))?;
-
     let mut first_name = None;
     let mut last_name = None;
     let mut username = None;
     let mut email = None;
     let mut attributes_map = HashMap::new();
 
-    for attribute in search_attributes.split(",") {
-        match attribute {
+    for attribute in compared_fields {
+        match attribute.as_str() {
             "firstName" => {
                 first_name = applicant_data
                     .get("firstName")
-                    .map(|value| FilterOption::IsEqualNormalized(value.to_string()));
+                    .and_then(|value| Some(FilterOption::IsEqualNormalized(value.to_string())));
             }
             "lastName" => {
                 last_name = applicant_data
                     .get("lastName")
-                    .map(|value| FilterOption::IsEqualNormalized(value.to_string()));
+                    .and_then(|value| Some(FilterOption::IsEqualNormalized(value.to_string())));
             }
             "username" => {
                 username = applicant_data
                     .get("username")
-                    .map(|value| FilterOption::IsEqualNormalized(value.to_string()));
+                    .and_then(|value| Some(FilterOption::IsEqualNormalized(value.to_string())));
             }
             "email" => {
                 email = applicant_data
                     .get("email")
-                    .map(|value| FilterOption::IsEqualNormalized(value.to_string()));
+                    .and_then(|value| Some(FilterOption::IsEqualNormalized(value.to_string())));
             }
             "embassy" => {
                 // Ignore embassy to speed up user lookup
             }
             _ => {
                 let value = applicant_data
-                    .get(attribute)
+                    .get(attribute.as_str())
                     .cloned()
                     // Return an empty string if a value is missing from the applicant data.
                     .unwrap_or("".to_string());
@@ -320,13 +390,47 @@ pub struct ApplicationAnnotations {
     search_attributes: Option<String>,
     #[serde(rename = "update-attributes")]
     update_attributes: Option<String>,
+    /// How the enrollment flow established the applicant's identity, when
+    /// it reports it.
+    #[serde(
+        rename = "identity-method",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    identity_method: Option<IdentityMethod>,
     mismatches: Option<usize>,
     fields_match: Option<HashMap<String, bool>>,
     manual_verify_reason: Option<String>,
+    /// The approval matrix version, rule and inputs that decided the
+    /// application.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    decision: Option<DecisionRecord>,
+    #[serde(
+        rename = "no-matching-voter-policy",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    no_matching_voter_policy: Option<NoMatchingVoterPolicy>,
+}
+
+/// The fields the enrollment flow asks to compare with the registry.
+fn search_attributes_list(annotations: &ApplicationAnnotations) -> Result<Vec<String>> {
+    let search_attributes = annotations.search_attributes.as_ref().ok_or(anyhow!(
+        "Error obtaining search_attributes from annotations"
+    ))?;
+    Ok(search_attributes
+        .split(',')
+        .map(|field| field.trim().to_string())
+        .filter(|field| !field.is_empty())
+        .collect())
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ApplicationVerificationResult {
+    /// The stored application's ID, for the applicant's support
+    /// reference. Set once the application is stored.
+    #[serde(default)]
+    pub application_id: Option<String>,
     pub user_id: Option<String>,
     pub username: String,
     pub application_status: ApplicationStatus,
@@ -339,163 +443,148 @@ pub struct ApplicationVerificationResult {
     pub manual_verify_reason: Option<String>,
 }
 
+/// The compared fields the matrix's rules see for one registry voter. First
+/// and middle name compared together count as the first name; the middle
+/// name then has no result of its own.
+fn rule_fields(
+    compared_fields: &[String],
+    fields_match: &HashMap<String, bool>,
+) -> BTreeMap<String, FieldMatch> {
+    let result = |is_match: &bool| match is_match {
+        true => FieldMatch::MATCHES,
+        false => FieldMatch::DIFFERS,
+    };
+    compared_fields
+        .iter()
+        .filter_map(|field| {
+            let is_match = fields_match.get(field).or_else(|| {
+                (field == FIRST_NAME_FIELD)
+                    .then(|| fields_match.get(FIRST_AND_MIDDLE_NAME_FIELD))
+                    .flatten()
+            })?;
+            Some((field.clone(), result(is_match)))
+        })
+        .collect()
+}
+
+/// Decides the enrollment with the approval matrix from the registry voters
+/// the lookup returned.
 #[instrument(err, skip_all)]
 fn automatic_verification(
     users: Vec<User>,
+    matrix: &MatrixVersion,
     annotations: &ApplicationAnnotations,
     applicant_data: &HashMap<String, String>,
-) -> Result<ApplicationVerificationResult> {
-    let search_attributes: String = annotations.search_attributes.clone().ok_or(anyhow!(
-        "Error obtaining search_attributes from annotations"
-    ))?;
-
+) -> Result<(ApplicationVerificationResult, DecisionRecord)> {
     let unset_attributes: String = annotations
         .unset_attributes
         .clone()
         .ok_or(anyhow!("Error obtaining unset_attributes from annotations"))?;
+    let compared_fields = &matrix.matrix.compared_fields;
+    let identity = annotations.identity_method;
+    let valid_id = applicant_data.get(ID_CARD_TYPE_FIELD).cloned();
 
-    // Set fields match all to false for default response
-    let fields_match: HashMap<String, bool> = search_attributes
-        .split(",")
-        .map(|field| (field.trim().to_string(), false))
-        .collect();
-
-    let mut matched_user: Option<User> = None;
-    let mut matched_status = ApplicationStatus::REJECTED;
-    let mut matched_type = ApplicationType::AUTOMATIC;
-    let mut verification_mismatches = Some(fields_match.len());
-    let mut verification_fields_match = Some(fields_match);
-    let mut verification_attributes_unset = None;
-    let mut rejection_reason: Option<ApplicationRejectReason> =
-        Some(ApplicationRejectReason::NO_VOTER);
-    let mut rejection_message: Option<String> = None;
-    let mut mismatch_reason = None;
-
+    let mut comparisons = vec![];
     for user in users {
         let (mismatches, mismatches_unset, fields_match, attributes_unset) = check_mismatches(
             &user,
             applicant_data,
-            search_attributes.clone(),
+            compared_fields.join(","),
             unset_attributes.clone(),
         )?;
-        let username = user.username.clone().unwrap_or_default();
-
-        if mismatches > 0 {
-            mismatch_reason = Some(build_manual_verify_reason(fields_match.clone()));
-        }
-
-        // If there are no mismatches..
-        if mismatches == 0 {
-            // if the fields that need to be unset but were set is more than 0,
-            // this means we need to automatically reject. This is a user that
-            // already exists and is verified.
-            if mismatches_unset > 0 {
-                matched_user = Some(user);
-                matched_status = ApplicationStatus::REJECTED;
-                matched_type = ApplicationType::AUTOMATIC;
-                verification_mismatches = Some(mismatches);
-                verification_fields_match = Some(fields_match);
-                verification_attributes_unset = Some(attributes_unset);
-                rejection_reason = Some(ApplicationRejectReason::ALREADY_APPROVED);
-                rejection_message = None;
-            } else {
-                return Ok(ApplicationVerificationResult {
-                    user_id: user.id,
-                    username,
-                    application_status: ApplicationStatus::ACCEPTED,
-                    application_type: ApplicationType::AUTOMATIC,
-                    mismatches: Some(mismatches),
-                    fields_match: Some(fields_match),
-                    attributes_unset: Some(attributes_unset),
-                    rejection_reason: None,
-                    rejection_message: None,
-                    manual_verify_reason: None,
-                });
-            }
-        // If there was only 1 mismatch
-        } else if mismatches == 1 {
-            // if the fields that need to be unset but were set is more than 0,
-            // this means we need to automatically reject. This is a user that
-            // already exists and is verified.
-            if mismatches_unset > 0 {
-                matched_user = Some(user);
-                matched_status = ApplicationStatus::REJECTED;
-                matched_type = ApplicationType::AUTOMATIC;
-                verification_mismatches = Some(mismatches);
-                verification_fields_match = Some(fields_match);
-                verification_attributes_unset = Some(attributes_unset);
-                rejection_reason = Some(ApplicationRejectReason::ALREADY_APPROVED);
-                rejection_message = None;
-            } else {
-                if !fields_match.get("embassy").unwrap_or(&false) {
-                    return Ok(ApplicationVerificationResult {
-                        user_id: user.id,
-                        username,
-                        application_status: ApplicationStatus::ACCEPTED,
-                        application_type: ApplicationType::AUTOMATIC,
-                        mismatches: Some(mismatches),
-                        fields_match: Some(fields_match),
-                        attributes_unset: Some(attributes_unset),
-                        rejection_reason: None,
-                        rejection_message: None,
-                        manual_verify_reason: None,
-                    });
-                }
-                matched_user = None;
-                matched_status = ApplicationStatus::PENDING;
-                matched_type = ApplicationType::MANUAL;
-                verification_mismatches = Some(mismatches);
-                verification_fields_match = Some(fields_match);
-                verification_attributes_unset = Some(attributes_unset);
-                rejection_reason = Some(ApplicationRejectReason::NO_VOTER);
-                rejection_message = None;
-            }
-        } else if mismatches == 2
-            && (!fields_match.get("embassy").unwrap_or(&false)
-                || (!fields_match.get("middleName").unwrap_or(&false)
-                    && !fields_match.get("lastName").unwrap_or(&false)))
-        {
-            matched_user = None;
-            matched_status = ApplicationStatus::PENDING;
-            matched_type = ApplicationType::MANUAL;
-            verification_mismatches = Some(mismatches);
-            verification_fields_match = Some(fields_match);
-            verification_attributes_unset = Some(attributes_unset);
-            rejection_reason = Some(ApplicationRejectReason::NO_VOTER);
-            rejection_message = None;
-        } else if matched_status != ApplicationStatus::PENDING {
-            matched_user = None;
-            matched_status = ApplicationStatus::REJECTED;
-            matched_type = ApplicationType::AUTOMATIC;
-            verification_mismatches = Some(mismatches);
-            verification_fields_match = Some(fields_match);
-            verification_attributes_unset = Some(attributes_unset);
-            rejection_reason = Some(ApplicationRejectReason::NO_VOTER);
-            rejection_message = None;
-        }
+        let candidate = Candidate {
+            user_id: user.id.clone(),
+            username: user.username.clone(),
+            inputs: RuleInputs {
+                identity,
+                voter_found: true,
+                already_enrolled: mismatches_unset > 0,
+                valid_id: valid_id.clone(),
+                fields: rule_fields(compared_fields, &fields_match),
+                differing: mismatches,
+            },
+        };
+        comparisons.push((candidate, fields_match, attributes_unset));
     }
 
-    info!("matched_status: {}", matched_status.to_string());
+    let candidates = comparisons
+        .iter()
+        .map(|(candidate, _, _)| candidate.clone())
+        .collect();
+    let evaluation = evaluate(matrix, identity, valid_id, candidates);
+    let record = evaluation.record;
+
+    // An identity that matches no voter of the census goes to review, if the
+    // realm asks for it, instead of being rejected. The record keeps what the
+    // approval matrix decided.
+    let no_voter_to_review = record.decision == ApplicationStatus::REJECTED
+        && record.reason == Some(ApplicationRejectReason::NO_VOTER)
+        && annotations.no_matching_voter_policy == Some(NoMatchingVoterPolicy::PENDING_APPROVAL);
+    let status = if no_voter_to_review {
+        ApplicationStatus::PENDING
+    } else {
+        record.decision.clone()
+    };
     info!(
-        "rejection_reason: {}",
-        rejection_reason.clone().unwrap_or_default().to_string()
+        "Approval matrix version {} decided {} with rule {:?}",
+        record.matrix_version, record.decision, record.rule
     );
 
-    Ok(ApplicationVerificationResult {
-        user_id: matched_user.clone().and_then(|user| user.id),
-        username: matched_user
-            .clone()
-            .and_then(|user| user.username)
+    let compared = evaluation.compared.and_then(|compared| {
+        comparisons
+            .into_iter()
+            .find(|(candidate, _, _)| *candidate == compared)
+    });
+    let (mismatches, fields_match, attributes_unset) = match compared {
+        Some((candidate, fields_match, attributes_unset)) => (
+            candidate.inputs.differing,
+            fields_match,
+            Some(attributes_unset),
+        ),
+        None => (
+            compared_fields.len(),
+            compared_fields
+                .iter()
+                .map(|field| (field.clone(), false))
+                .collect(),
+            None,
+        ),
+    };
+
+    let manual_verify_reason = if record.decision == ApplicationStatus::ACCEPTED {
+        None
+    } else if record.accepted_candidates > 1 {
+        Some(SEVERAL_VOTERS_MATCH_REASON.to_string())
+    } else if record.inputs.voter_found && mismatches > 0 {
+        Some(build_manual_verify_reason(fields_match.clone()))
+    } else {
+        None
+    };
+
+    let result = ApplicationVerificationResult {
+        application_id: None,
+        user_id: evaluation
+            .voter
+            .as_ref()
+            .and_then(|voter| voter.user_id.clone()),
+        username: evaluation
+            .voter
+            .and_then(|voter| voter.username)
             .unwrap_or_default(),
-        application_status: matched_status,
-        application_type: matched_type,
-        mismatches: verification_mismatches,
-        fields_match: verification_fields_match,
-        attributes_unset: verification_attributes_unset,
-        rejection_reason,
-        rejection_message,
-        manual_verify_reason: mismatch_reason,
-    })
+        application_type: match status {
+            ApplicationStatus::PENDING => ApplicationType::MANUAL,
+            ApplicationStatus::ACCEPTED | ApplicationStatus::REJECTED => ApplicationType::AUTOMATIC,
+        },
+        application_status: status,
+        mismatches: Some(mismatches),
+        fields_match: Some(fields_match),
+        attributes_unset,
+        rejection_reason: record.reason.clone(),
+        rejection_message: None,
+        manual_verify_reason,
+    };
+
+    Ok((result, record))
 }
 
 #[instrument(err)]
@@ -504,7 +593,7 @@ fn check_mismatches(
     applicant_data: &HashMap<String, String>,
     fields_to_check: String,
     fields_to_check_unset: String,
-) -> Result<ApplicationMismatchSummary> {
+) -> Result<(usize, usize, HashMap<String, bool>, HashMap<String, bool>)> {
     let mut match_result = HashMap::new();
     let mut unset_result = HashMap::new();
     let mut mismatches = 0;
@@ -514,14 +603,13 @@ fn check_mismatches(
         user.id, fields_to_check, fields_to_check_unset
     );
 
-    let card_type = applicant_data
-        .get("sequent.read-only.id-card-type")
-        .cloned()
-        .ok_or(anyhow!("Error converting applicant_data to map"))?;
-
     // Check if the card type is seamans_book or driver_license
-    let card_type_flag = card_type == ECardType::SEAMANS_BOOK.to_string()
-        || card_type == ECardType::DRIVER_LICENSE.to_string();
+    let card_type_flag = applicant_data
+        .get(ID_CARD_TYPE_FIELD)
+        .is_some_and(|card_type| {
+            *card_type == ECardType::SEAMANS_BOOK.to_string()
+                || *card_type == ECardType::DRIVER_LICENSE.to_string()
+        });
 
     for field_to_check in fields_to_check.split(",") {
         let field_to_check = field_to_check.trim();
@@ -627,7 +715,7 @@ fn check_mismatches(
         };
 
         let user_field_value = user_field_value.clone().map(|value| value.to_lowercase());
-        let is_set = !user_field_value.unwrap_or_default().trim().is_empty();
+        let is_set = user_field_value.unwrap_or_default().trim().len() > 0;
 
         // match is true only if the field is NOT set
         unset_result.insert(field_to_check.to_string(), !is_set);
@@ -695,19 +783,40 @@ pub async fn get_i18n_application_communication(
     presentation: ElectionEventPresentation,
     lang: &str,
     app_status: ApplicationStatus,
-    _communication_method: TemplateMethod,
+    communication_method: TemplateMethod,
 ) -> Result<ApplicationCommunicationChannels> {
-    let mut application_channels =
-        get_i18n_default_application_communication(lang, app_status.clone()).await?;
-    let Some(localization_map) = presentation.i18n.and_then(|val| val.get(lang).cloned()) else {
-        return Ok(application_channels);
+    let application_channels =
+        get_i18n_default_application_communication(&lang, app_status.clone()).await?;
+    Ok(apply_application_overrides(
+        application_channels,
+        &presentation,
+        lang,
+        &app_status,
+    ))
+}
+
+/// The event's overrides of an application message, over the defaults. The
+/// Localization tab stores `scope:key`; templates read the `templates:` >
+/// unprefixed > `global:` overrides.
+fn apply_application_overrides(
+    mut application_channels: ApplicationCommunicationChannels,
+    presentation: &ElectionEventPresentation,
+    lang: &str,
+    app_status: &ApplicationStatus,
+) -> ApplicationCommunicationChannels {
+    let Some(localization_map) = presentation
+        .i18n
+        .as_ref()
+        .and_then(|val| val.get(lang))
+        .map(template_translations)
+    else {
+        return application_channels;
     };
     let key_prefix = format!("application.{}", app_status.to_string().to_lowercase());
 
     if let Some(sms_message) = localization_map
         .get(&format!("{key_prefix}.sms.message"))
         .cloned()
-        .flatten()
     {
         application_channels.sms.message = sms_message;
     };
@@ -715,7 +824,6 @@ pub async fn get_i18n_application_communication(
     if let Some(email_subject) = localization_map
         .get(&format!("{key_prefix}.email.subject"))
         .cloned()
-        .flatten()
     {
         application_channels.email.subject = email_subject;
     };
@@ -723,7 +831,6 @@ pub async fn get_i18n_application_communication(
     if let Some(plaintext_body) = localization_map
         .get(&format!("{key_prefix}.email.plaintext_body"))
         .cloned()
-        .flatten()
     {
         application_channels.email.plaintext_body = plaintext_body;
     };
@@ -731,12 +838,11 @@ pub async fn get_i18n_application_communication(
     if let Some(html_body) = localization_map
         .get(&format!("{key_prefix}.email.html_body"))
         .cloned()
-        .flatten()
     {
         application_channels.email.html_body = Some(html_body);
     };
 
-    Ok(application_channels)
+    application_channels
 }
 
 /// Get the accepted/rejected message if configured, otherwise the default.
@@ -773,10 +879,6 @@ pub async fn get_application_response_communication(
     }
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "Keep the existing application identity, actor and verification inputs explicit at the established service boundary."
-)]
 #[instrument(skip_all, err)]
 pub async fn confirm_application(
     hasura_transaction: &Transaction<'_>,
@@ -852,6 +954,7 @@ pub async fn confirm_application(
     let mut attributes: HashMap<String, Vec<String>> = applicant_data
         .iter()
         .filter(|(key, _value)| attributes_to_store.contains(key))
+        .filter(|(key, _value)| !VERIFIED_CHANNEL_ATTRIBUTES.contains(&key.as_str()))
         .map(|(key, value)| {
             (
                 key.to_owned(),
@@ -863,6 +966,8 @@ pub async fn confirm_application(
             )
         })
         .collect();
+    // The verified channel, whatever the form's update list says.
+    attributes.extend(verified_channel_attributes(&applicant_data));
 
     let client = KeycloakAdminClient::new()
         .await
@@ -921,6 +1026,7 @@ pub async fn confirm_application(
         hasura_transaction,
         tenant_id,
         election_event_id,
+        id,
         user_id,
         admin_id,
         &user,
@@ -932,10 +1038,6 @@ pub async fn confirm_application(
     Ok((application, user))
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "Keep the existing application identity, actor and verification inputs explicit at the established service boundary."
-)]
 #[instrument(skip(hasura_transaction), err)]
 pub async fn reject_application(
     hasura_transaction: &Transaction<'_>,
@@ -961,7 +1063,7 @@ pub async fn reject_application(
         rejection_reason,
         rejection_message,
         admin_name,
-        group_names,
+        &group_names,
     )
     .await
     .map_err(|err| anyhow!("Error updating application: {}", err))?;
@@ -970,42 +1072,15 @@ pub async fn reject_application(
         deserialize_value(application.applicant_data.clone())
             .map_err(|err| anyhow!("Error parsing application applicant data: {}", err))?;
 
-    let first_name = applicant_data.get("firstName").map(String::from);
-    let last_name = applicant_data.get("lastName").map(String::from);
-    let username = applicant_data.get("username").map(String::from);
-    let email = applicant_data.get("email").map(String::from);
-
-    let phone_number: Option<String> = applicant_data.get(MOBILE_PHONE_ATTR_NAME).map(String::from);
-
-    let attributes = match phone_number {
-        Some(phone_number) => {
-            let mut attr: HashMap<String, Vec<String>> = HashMap::new();
-            attr.insert(
-                MOBILE_PHONE_ATTR_NAME.to_string(),
-                vec![phone_number.clone()],
-            );
-            Some(attr)
-        }
-        None => None,
-    };
-
-    let user = User {
-        id: None,
-        attributes, // The phone is needed for the sms and should go in the attributes.
-        email,
-        email_verified: None,
-        enabled: None,
-        first_name,
-        last_name,
-        username,
-        area: None,
-        votes_info: None,
-    };
+    // The phone number and the verified channel, so the result goes to
+    // the applicant's one channel.
+    let user = applicant_user(&applicant_data);
 
     send_application_communication_response(
         hasura_transaction,
         tenant_id,
         election_event_id,
+        id,
         user_id,
         admin_id,
         &user,
@@ -1017,102 +1092,363 @@ pub async fn reject_application(
     Ok(application)
 }
 
+/// The applicant data keys that carry the verified channel, written by
+/// Keycloak from its own notes (never from form fields). On acceptance they
+/// replace the voter's channel attributes.
+const VERIFIED_CHANNEL_ATTRIBUTES: [&str; 5] = [
+    MESSAGE_CHANNEL_ATTR_NAME,
+    MESSAGE_NUMBER_ATTR_NAME,
+    MESSENGER_ID_ATTR_NAME,
+    MESSENGER_PAGE_ATTR_NAME,
+    MESSAGE_CONSENT_ATTR_NAME,
+];
+
+/// First-release channel attributes, removed when the voter's channel is
+/// written: Keycloak merges attributes, so leaving one out doesn't remove
+/// it.
+const REPLACED_CHANNEL_ATTRIBUTES: [&str; 3] = [
+    VERIFIED_CHANNELS_ATTR_NAME,
+    WHATSAPP_NUMBER_ATTR_NAME,
+    VIBER_NUMBER_ATTR_NAME,
+];
+
+/// The verified channel carried by an application, as the attributes to
+/// write on the voter: the five channel attributes it has, and the
+/// first-release ones emptied. Nothing when the application carries no
+/// channel.
+fn verified_channel_attributes(
+    applicant_data: &serde_json::Map<String, Value>,
+) -> HashMap<String, Vec<String>> {
+    let mut attributes: HashMap<String, Vec<String>> = VERIFIED_CHANNEL_ATTRIBUTES
+        .iter()
+        .filter_map(|name| {
+            let value = applicant_data.get(*name)?;
+            let value = value
+                .as_str()
+                .map(str::to_string)
+                .unwrap_or_else(|| value.to_string());
+            (!value.is_empty()).then(|| (name.to_string(), vec![value]))
+        })
+        .collect();
+    if attributes.contains_key(MESSAGE_CHANNEL_ATTR_NAME) {
+        for name in REPLACED_CHANNEL_ATTRIBUTES {
+            attributes.insert(name.to_string(), vec![]);
+        }
+    }
+    attributes
+}
+
+/// The application result's content on `channel`: the email for email, the
+/// SMS text for the other channels (an approved template, where the channel
+/// needs one, comes from the event's bindings).
+async fn application_result_content(
+    channel: MessageChannel,
+    verdict: ApplicationStatus,
+    presentation: ElectionEventPresentation,
+    variables: &serde_json::Map<String, Value>,
+) -> Result<Option<MessageContent>> {
+    let method = match channel {
+        MessageChannel::EMAIL => TemplateMethod::EMAIL,
+        _ => TemplateMethod::SMS,
+    };
+    let (email, sms) =
+        get_application_response_communication(Some(method), verdict, presentation).await?;
+    let body = SendTemplateBody {
+        audience_selection: None,
+        audience_voter_ids: None,
+        communication_method: None,
+        schedule_now: None,
+        schedule_date: None,
+        email,
+        sms,
+        whatsapp: None,
+        viber: None,
+        messenger: None,
+        channel_selection: Default::default(),
+        send_id: None,
+        document: None,
+        name: None,
+        alias: None,
+        pdf_options: None,
+        report_options: None,
+        secret_attribute_names: Vec::new(),
+        schedule_local: None,
+        schedule_timezone: None,
+    };
+    let contents = render_contents(&body, variables).map_err(|err| anyhow!("{err:?}"))?;
+    let source = match channel {
+        MessageChannel::EMAIL => MessageChannel::EMAIL,
+        _ => MessageChannel::SMS,
+    };
+    Ok(contents.get(&source).cloned())
+}
+
+/// The template reference of an application result: what lets the sweep
+/// render it again for a retry. Also its key among the event's approved
+/// template bindings.
+pub fn application_template_alias(verdict: &ApplicationStatus) -> String {
+    format!("application-{}", verdict.to_string().to_lowercase())
+}
+
+/// The applicant as the result is sent to them when there is no voter
+/// account (a rejection): the names, the email, the phone number and the
+/// verified channel the application carries.
+fn applicant_user(applicant_data: &HashMap<String, String>) -> User {
+    let attributes: HashMap<String, Vec<String>> = std::iter::once(MOBILE_PHONE_ATTR_NAME)
+        .chain(VERIFIED_CHANNEL_ATTRIBUTES)
+        .filter_map(|name| {
+            applicant_data
+                .get(name)
+                .filter(|value| !value.is_empty())
+                .map(|value| (name.to_string(), vec![value.clone()]))
+        })
+        .collect();
+    User {
+        id: None,
+        attributes: (!attributes.is_empty()).then_some(attributes),
+        email: applicant_data.get("email").cloned(),
+        email_verified: None,
+        enabled: None,
+        first_name: applicant_data.get("firstName").cloned(),
+        last_name: applicant_data.get("lastName").cloned(),
+        username: applicant_data.get("username").cloned(),
+        area: None,
+        votes_info: None,
+    }
+}
+
+/// The user's elections, for per-election (Post) channel restrictions:
+/// from the user's area, or the area attribute.
+fn user_elections(user: &User, elections_by_area: &HashMap<String, Vec<String>>) -> Vec<String> {
+    user.area
+        .as_ref()
+        .and_then(|area| area.id.clone())
+        .or_else(|| first_attribute(user, AREA_ID_ATTR_NAME).cloned())
+        .and_then(|area_id| elections_by_area.get(&area_id).cloned())
+        .unwrap_or_default()
+}
+
+/// Who an application result goes to: the user's one channel, with their
+/// Messenger Page, and their elections.
+fn application_recipient(
+    user: &User,
+    found: VoterChannel,
+    voter_id: Option<String>,
+    elections_by_area: &HashMap<String, Vec<String>>,
+) -> Recipient {
+    Recipient::of_voter(voter_id, found, user_elections(user, elections_by_area))
+}
+
+/// The result of a reviewed application for `user`, rendered on their one
+/// channel with its template reference, so a transient failure is retried.
+/// `None` when the user has no channel.
+#[allow(clippy::too_many_arguments)]
+pub async fn application_result_delivery(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    application_id: &str,
+    user: &User,
+    voter_id: Option<String>,
+    verdict: ApplicationStatus,
+) -> Result<Option<Delivery>> {
+    let Some(found) = voter_channel(user.email.as_deref(), user.attributes.as_ref()) else {
+        return Ok(None);
+    };
+    let channel = found.channel;
+    let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
+        .await
+        .with_context(|| "Error obtaining election event")?;
+    let presentation: ElectionEventPresentation = election_event
+        .presentation
+        .clone()
+        .map(deserialize_value)
+        .unwrap_or(Ok(ElectionEventPresentation::default()))?;
+    let elections_by_area = get_elections_by_area(hasura_transaction, tenant_id, election_event_id)
+        .await
+        .with_context(|| "Error listing elections by area")?;
+    let time_context =
+        NotificationTimeContext::load(hasura_transaction, tenant_id, &election_event)
+            .await
+            .with_context(|| "Error loading the notification times")?;
+    let mut variables = get_variables(
+        user,
+        Some(election_event.clone()),
+        tenant_id.to_string(),
+        AuthAction::Login,
+    )
+    .map_err(|err| anyhow!("{err:?}"))?;
+    insert_template_time_variables(
+        &mut variables,
+        time_context.variables_for(first_attribute(user, AREA_ID_ATTR_NAME).map(String::as_str)),
+    );
+    let content =
+        application_result_content(channel, verdict.clone(), presentation, &variables).await?;
+    let alias = application_template_alias(&verdict);
+    Ok(Some(Delivery {
+        tenant_id: Uuid::parse_str(tenant_id)?,
+        election_event_id: Some(Uuid::parse_str(election_event_id)?),
+        purpose: MessagePurpose::NOTICE,
+        recipient: application_recipient(user, found, voter_id, &elections_by_area),
+        content,
+        language: first_attribute(user, LOCALE_ATTR_NAME).cloned(),
+        template_alias: Some(alias.clone()),
+        logical_key: format!("application:{application_id}:{verdict}"),
+        expires_at: None,
+        account_id: None,
+        template_key: Some(alias),
+        provider_template: None,
+    }))
+}
+
+/// Renders an application result again for a due retry, from the
+/// application and the user's current record: the voter's for an accepted
+/// application, the applicant data for a rejected one.
+pub async fn application_retry(
+    hasura_transaction: &Transaction<'_>,
+    record: &MessageRecord,
+    directory: &dyn RetryDirectory,
+) -> Result<RetryContent> {
+    let refused = |reason| Ok(RetryContent::Refused(reason));
+    let parts: Option<(&str, &str)> = record
+        .logical_key
+        .as_deref()
+        .and_then(|key| key.strip_prefix("application:"))
+        .and_then(|rest| rest.split_once(':'));
+    let (Some((application_id, verdict)), Some(event_id)) = (parts, record.election_event_id)
+    else {
+        return refused(MessageReason::NO_STORED_TEMPLATE);
+    };
+    let Ok(verdict) = verdict.parse::<ApplicationStatus>() else {
+        return refused(MessageReason::NO_STORED_TEMPLATE);
+    };
+    let tenant_id = record.tenant_id.to_string();
+    let event_id = event_id.to_string();
+    let Some(row) = hasura_transaction
+        .query_opt(
+            "SELECT applicant_data FROM sequent_backend.applications
+             WHERE id::text = $1 AND tenant_id = $2",
+            &[&application_id, &record.tenant_id],
+        )
+        .await?
+    else {
+        return refused(MessageReason::NO_STORED_TEMPLATE);
+    };
+    let user = match verdict {
+        ApplicationStatus::ACCEPTED => {
+            let Some(voter_id) = record.voter_id.as_deref() else {
+                return refused(MessageReason::NO_CONTACT_CHANNEL);
+            };
+            match directory
+                .voter(hasura_transaction, &tenant_id, Some(&event_id), voter_id)
+                .await?
+            {
+                Some(user) => user,
+                None => return refused(MessageReason::NO_CONTACT_CHANNEL),
+            }
+        }
+        _ => {
+            let applicant_data: HashMap<String, String> =
+                deserialize_value(row.try_get::<_, Value>("applicant_data")?)
+                    .map_err(|err| anyhow!("unreadable applicant data: {err}"))?;
+            applicant_user(&applicant_data)
+        }
+    };
+    match application_result_delivery(
+        hasura_transaction,
+        &tenant_id,
+        &event_id,
+        application_id,
+        &user,
+        record.voter_id.clone(),
+        verdict,
+    )
+    .await?
+    {
+        Some(delivery) => Ok(RetryContent::Message(Box::new(delivery))),
+        None => refused(MessageReason::NO_CONTACT_CHANNEL),
+    }
+}
+
+/// Sends the result of a reviewed application, accepted or rejected, on the
+/// voter's one channel through the message ledger, and logs the attempt.
+/// No other channel is tried; a voter without a channel gets one FAILED
+/// record. Called after Keycloak was already changed, so it never fails the
+/// review: a problem is logged, and the ledger row (or its absence) is the
+/// record.
 #[instrument(err, skip_all)]
 pub async fn send_application_communication_response(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
+    application_id: &str,
     user_id: &str,
     admin_id: &str,
     user: &User,
     response_verdict: ApplicationStatus,
 ) -> Result<()> {
-    // Check if voter provided email otherwise use SMS
-    let communication_method = if user.email.is_some() {
-        Some(EMAIL)
-    } else if user
-        .attributes
-        .as_ref()
-        .and_then(|attributes| attributes.get(MOBILE_PHONE_ATTR_NAME))
-        .and_then(|values| values.first())
-        .map(|value| value.to_string())
-        .is_some()
-    {
-        Some(SMS)
-    } else {
-        None
-    };
-
-    // Get the presentation to obtain the default language and presentation.i18n
-    let presentation: ElectionEventPresentation =
-        get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
-            .await
-            .with_context(|| "Error obtaining election event")?
-            .presentation
-            .map(deserialize_value)
-            .unwrap_or(Ok(ElectionEventPresentation::default()))?;
-
-    let (email_config, sms_config) = get_application_response_communication(
-        communication_method.clone(),
-        response_verdict.clone(),
-        presentation,
-    )
-    .await?;
-
-    match response_verdict {
-        ApplicationStatus::ACCEPTED => {
-            let user_ids = vec![user_id.to_string()];
-            // Send confirmation email or SMS
-            let payload: SendTemplateBody = SendTemplateBody {
-                audience_selection: Some(SELECTED),
-                audience_voter_ids: Some(user_ids),
-                communication_method,
-                schedule_now: Some(true),
-                schedule_date: None,
-                email: email_config,
-                sms: sms_config,
-                document: None,
-                name: None,
-                alias: None,
-                pdf_options: None,
-                report_options: None,
-                secret_attribute_names: Vec::new(),
-            };
-
-            let celery_app = get_celery_app().await;
-
-            let task = celery_app
-                .send_task(send_template::new(
-                    payload,
-                    tenant_id.to_string(),
-                    admin_id.to_string(),
-                    Some(election_event_id.to_string()),
-                ))
-                .await?;
-            event!(Level::INFO, "Sent SEND_TEMPLATE task {}", task.task_id);
-        }
-
-        ApplicationStatus::REJECTED => {
-            let email_sender = EmailSender::new().await?;
-            let sms_sender = SmsSender::new().await?;
-            send_template_email_or_sms(
-                hasura_transaction,
-                user,
-                &None,
-                tenant_id,
-                None,
-                &email_config, // EmailConfig
-                &sms_config,   // SmsConfig
-                &email_sender,
-                &sms_sender,
-                communication_method.clone(),
-            )
-            .await
-            .map_err(|err| anyhow!("Error sending email or sms: {err}"))?;
-        }
-        _ => {}
+    let _ = admin_id;
+    if !matches!(
+        response_verdict,
+        ApplicationStatus::ACCEPTED | ApplicationStatus::REJECTED
+    ) {
+        return Ok(());
     }
-
+    // A rejected applicant has no voter account yet.
+    let voter_id = user
+        .id
+        .clone()
+        .or_else(|| (response_verdict == ApplicationStatus::ACCEPTED).then(|| user_id.to_string()));
+    let sent = async {
+        let dispatcher = Dispatcher::global().await?;
+        let mut client = get_hasura_pool()
+            .await
+            .get()
+            .await
+            .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
+        let delivery = application_result_delivery(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            application_id,
+            user,
+            voter_id.clone(),
+            response_verdict.clone(),
+        )
+        .await?;
+        match delivery {
+            Some(delivery) => deliver(&mut client, dispatcher, &delivery).await,
+            None => {
+                record_without_channel(
+                    &mut client,
+                    Uuid::parse_str(tenant_id)?,
+                    Some(Uuid::parse_str(election_event_id)?),
+                    voter_id.clone(),
+                    MessagePurpose::NOTICE,
+                    Some(application_template_alias(&response_verdict)),
+                    first_attribute(user, LOCALE_ATTR_NAME).cloned(),
+                    &format!("application:{application_id}:{response_verdict}"),
+                )
+                .await
+            }
+        }
+    }
+    .await;
+    let result = match sent {
+        Ok(result) => result,
+        Err(error) => {
+            warn!("the application result was not sent: {error:#}");
+            return Ok(());
+        }
+    };
+    info!(state = %result.state, reason = ?result.reason, "application result message");
+    post_attempt_outcomes_or_warn(
+        hasura_transaction,
+        &result.recorded,
+        user.username.clone(),
+        first_attribute(user, AREA_ID_ATTR_NAME).cloned(),
+    )
+    .await;
     Ok(())
 }
 
@@ -1124,7 +1460,7 @@ pub async fn get_group_names(realm: &str, user_id: &str) -> Result<Vec<String>> 
 
     // Fetch user groups from Keycloak
     let _groups = client
-        .get_user_groups(realm, user_id)
+        .get_user_groups(&realm, user_id)
         .await
         .map_err(|err| anyhow!("Error fetch group names: {err}"))?;
 
@@ -1186,6 +1522,267 @@ fn is_fuzzy_match(applicant_value: Option<String>, user_value: Option<String>) -
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// R7-02: an application result (and its retry, rendered again from the
+    /// record) to a Messenger voter carries their Page, so a send through
+    /// an account of another Page is refused.
+    #[test]
+    fn an_application_result_to_a_messenger_voter_carries_their_page() {
+        let user = User {
+            id: Some("voter-1".to_string()),
+            attributes: Some(HashMap::from([
+                (
+                    "sequent.read-only.message-channel".to_string(),
+                    vec!["MESSENGER".to_string()],
+                ),
+                (
+                    "sequent.read-only.messenger-id".to_string(),
+                    vec!["6543210".to_string()],
+                ),
+                (
+                    "sequent.read-only.messenger-page".to_string(),
+                    vec!["page-old".to_string()],
+                ),
+            ])),
+            ..User::default()
+        };
+        let found = voter_channel(user.email.as_deref(), user.attributes.as_ref()).unwrap();
+        let recipient = application_recipient(&user, found, user.id.clone(), &HashMap::new());
+        assert_eq!(recipient.channel, MessageChannel::MESSENGER);
+        assert_eq!(recipient.destination, "6543210");
+        assert_eq!(recipient.messenger_page.as_deref(), Some("page-old"));
+    }
+
+    fn census_annotations(policy: Option<NoMatchingVoterPolicy>) -> ApplicationAnnotations {
+        ApplicationAnnotations {
+            session_id: None,
+            credentials: None,
+            verified_by: None,
+            rejection_reason: None,
+            rejection_message: None,
+            unset_attributes: Some("email".to_string()),
+            search_attributes: Some("firstName,lastName,dateOfBirth".to_string()),
+            update_attributes: None,
+            identity_method: None,
+            mismatches: None,
+            fields_match: None,
+            manual_verify_reason: None,
+            decision: None,
+            no_matching_voter_policy: policy,
+        }
+    }
+
+    fn census_matrix() -> MatrixVersion {
+        MatrixVersion::built_in(
+            ["firstName", "lastName", "dateOfBirth"]
+                .map(str::to_string)
+                .to_vec(),
+        )
+    }
+
+    fn census_voter() -> User {
+        User {
+            id: Some("voter-id".to_string()),
+            username: Some("voter".to_string()),
+            first_name: Some("Maria".to_string()),
+            last_name: Some("Santos".to_string()),
+            attributes: Some(HashMap::from([(
+                "dateOfBirth".to_string(),
+                vec!["1980-01-01".to_string()],
+            )])),
+            ..Default::default()
+        }
+    }
+
+    fn census_applicant(date_of_birth: &str) -> HashMap<String, String> {
+        HashMap::from([
+            ("firstName".to_string(), "Maria".to_string()),
+            ("lastName".to_string(), "Santos".to_string()),
+            ("dateOfBirth".to_string(), date_of_birth.to_string()),
+            ("country".to_string(), "Spain/Madrid".to_string()),
+            ("embassy".to_string(), "Madrid PE".to_string()),
+        ])
+    }
+
+    #[test]
+    fn single_mismatch_without_embassy_comparison_requires_manual_review() {
+        let (result, _) = automatic_verification(
+            vec![census_voter()],
+            &census_matrix(),
+            &census_annotations(None),
+            &census_applicant("1990-02-02"),
+        )
+        .unwrap();
+
+        assert_eq!(result.application_status, ApplicationStatus::PENDING);
+        assert_eq!(result.application_type, ApplicationType::MANUAL);
+        assert_eq!(result.user_id, None);
+    }
+
+    #[test]
+    fn exact_match_without_embassy_comparison_is_accepted() {
+        let (result, _) = automatic_verification(
+            vec![census_voter()],
+            &census_matrix(),
+            &census_annotations(None),
+            &census_applicant("1980-01-01"),
+        )
+        .unwrap();
+
+        assert_eq!(result.application_status, ApplicationStatus::ACCEPTED);
+        assert_eq!(result.user_id, Some("voter-id".to_string()));
+    }
+
+    #[test]
+    fn test_no_matching_voter_is_rejected_by_default() {
+        let (result, decision) = automatic_verification(
+            vec![],
+            &census_matrix(),
+            &census_annotations(None),
+            &HashMap::new(),
+        )
+        .unwrap();
+        assert_eq!(decision.decision, ApplicationStatus::REJECTED);
+        assert_eq!(result.application_status, ApplicationStatus::REJECTED);
+        assert_eq!(result.application_type, ApplicationType::AUTOMATIC);
+        assert_eq!(
+            result.rejection_reason,
+            Some(ApplicationRejectReason::NO_VOTER)
+        );
+    }
+
+    #[test]
+    fn test_no_matching_voter_goes_to_approval_with_its_policy() {
+        let (result, decision) = automatic_verification(
+            vec![],
+            &census_matrix(),
+            &census_annotations(Some(NoMatchingVoterPolicy::PENDING_APPROVAL)),
+            &HashMap::new(),
+        )
+        .unwrap();
+        // The record keeps what the approval matrix decided.
+        assert_eq!(decision.decision, ApplicationStatus::REJECTED);
+        assert_eq!(decision.reason, Some(ApplicationRejectReason::NO_VOTER));
+        assert_eq!(result.application_status, ApplicationStatus::PENDING);
+        assert_eq!(result.application_type, ApplicationType::MANUAL);
+        assert_eq!(
+            result.rejection_reason,
+            Some(ApplicationRejectReason::NO_VOTER)
+        );
+        assert_eq!(result.user_id, None);
+    }
+
+    #[test]
+    fn test_no_matching_voter_policy_annotation_is_optional() {
+        let absent: ApplicationAnnotations =
+            serde_json::from_str(r#"{"search-attributes": "firstName"}"#).unwrap();
+        assert_eq!(absent.no_matching_voter_policy, None);
+        let pending: ApplicationAnnotations = serde_json::from_str(
+            r#"{"search-attributes": "firstName", "no-matching-voter-policy": "PENDING_APPROVAL"}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            pending.no_matching_voter_policy,
+            Some(NoMatchingVoterPolicy::PENDING_APPROVAL)
+        );
+    }
+
+    fn default_channels() -> ApplicationCommunicationChannels {
+        ApplicationCommunicationChannels {
+            email: EmailConfig {
+                subject: "default subject".to_string(),
+                plaintext_body: "default body".to_string(),
+                html_body: None,
+            },
+            sms: SmsConfig {
+                message: "default sms".to_string(),
+            },
+        }
+    }
+
+    fn presentation_with(lang: &str, entries: &[(&str, &str)]) -> ElectionEventPresentation {
+        let mut presentation = ElectionEventPresentation::default();
+        presentation.i18n = Some(HashMap::from([(
+            lang.to_string(),
+            entries
+                .iter()
+                .map(|(key, value)| (key.to_string(), Some(value.to_string())))
+                .collect(),
+        )]));
+        presentation
+    }
+
+    #[test]
+    fn application_messages_read_scoped_overrides_from_the_localization_tab() {
+        let presentation = presentation_with(
+            "en",
+            &[
+                (
+                    "global:application.accepted.email.subject",
+                    "global subject",
+                ),
+                ("application.accepted.email.subject", "legacy subject"),
+                (
+                    "templates:application.accepted.email.subject",
+                    "templates subject",
+                ),
+                ("global:application.accepted.sms.message", "global sms"),
+                ("application.accepted.email.plaintext_body", "legacy body"),
+                (
+                    "votingPortal:application.accepted.email.html_body",
+                    "portal only",
+                ),
+            ],
+        );
+
+        let channels = apply_application_overrides(
+            default_channels(),
+            &presentation,
+            "en",
+            &ApplicationStatus::ACCEPTED,
+        );
+
+        assert_eq!(channels.email.subject, "templates subject");
+        assert_eq!(channels.email.plaintext_body, "legacy body");
+        assert_eq!(channels.sms.message, "global sms");
+        assert_eq!(channels.email.html_body, None);
+    }
+
+    #[test]
+    fn application_messages_keep_the_defaults_without_overrides() {
+        let channels = apply_application_overrides(
+            default_channels(),
+            &presentation_with(
+                "es",
+                &[("templates:application.accepted.sms.message", "es")],
+            ),
+            "en",
+            &ApplicationStatus::ACCEPTED,
+        );
+
+        assert_eq!(channels.sms.message, "default sms");
+    }
+
+    #[test]
+    fn application_results_keep_the_voters_post_restrictions() {
+        let elections = HashMap::from([("area-1".to_string(), vec!["post-1".to_string()])]);
+        let by_attribute = User {
+            attributes: Some(HashMap::from([(
+                AREA_ID_ATTR_NAME.to_string(),
+                vec!["area-1".to_string()],
+            )])),
+            ..User::default()
+        };
+        assert_eq!(
+            user_elections(&by_attribute, &elections),
+            vec!["post-1".to_string()]
+        );
+        assert!(user_elections(&User::default(), &elections).is_empty());
+        assert_eq!(
+            application_template_alias(&ApplicationStatus::REJECTED),
+            "application-rejected"
+        );
+    }
 
     #[test]
     fn test_accent_mark() {
@@ -1299,3 +1896,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "application_matrix_tests.rs"]
+mod matrix_tests;
