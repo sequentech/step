@@ -1791,8 +1791,6 @@ class BackendJourneys(unittest.TestCase):
                 )
 
         def attest(name, request):
-            if browser_url:
-                return browser_call("/attest", name=name, request=request)["proof"]
             scoped = json.loads(request)
             tally_id = scoped["tally_session_id"]
             target = (
@@ -1822,7 +1820,7 @@ class BackendJourneys(unittest.TestCase):
                 )
 
             proof = wait_until(
-                f"{name}'s server custody proof", ready_proof, timeout=120
+                f"{name}'s queued custody proof", ready_proof, timeout=120
             )
             self.assertEqual(saved_path.read_text(), saved_file)
             self.assertEqual(json.loads(proof)["request"], scoped)
@@ -1896,7 +1894,9 @@ class BackendJourneys(unittest.TestCase):
                     {
                         "event": event_id,
                         "ceremony": ceremony_id,
-                        "proof": attest(name, requests[name]),
+                        "proof": browser_call(
+                            "/attest", name=name, request=requests[name]
+                        )["proof"],
                     },
                 )["confirm_key_custody"]
                 self.assertTrue(result["is_valid"])

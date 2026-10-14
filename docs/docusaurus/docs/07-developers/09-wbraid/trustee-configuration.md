@@ -314,10 +314,20 @@ runner during a ceremony. Native SQLite stores and browser IndexedDB stores are 
 native keys file can enroll a browser participant before DKG, but moving an active
 native participant to a browser requires its protocol state as well.
 
-For a manual ceremony, download the public custody request from its wizard. On
-the trustee screen, select **Create custody proof** and choose that request.
-Upload the downloaded `custody-proof.json` to the wizard. For a tally restore,
-enter the tally session UUID before creating the proof. The proof contains only
+For manual key or tally custody, load the original keys, click **Start browser trustee**
+and keep `/trustee` open. In another tab, download and upload the
+public ceremony file in the ceremony wizard. The browser polls
+`trustee_event_updates`, signs the queued request locally with its exact ceremony
+and tally scope, and acknowledges it through `submit_trustee_action_result`.
+The wizard then verifies the proof and retains the explicit human confirmation
+and any required certificate signing. Private keys never leave the browser.
+
+Alternatively, stop the runner, select **Create custody proof** and choose the
+public ceremony file. For a tally restore, enter the active tally session's UUID
+in **Tally session ID (for tally restore)** before creating the proof. The saved
+ceremony file omits that UUID so it can be reused: leaving the field blank creates
+a key-ceremony proof, which the tally rejects. Upload the downloaded
+`custody-proof.json` to the wizard. The proof contains only
 public metadata and a signature, and the platform checks its ceremony and tally
 scope. The browser rejects requests for another trustee or either wrong public key.
 
@@ -333,7 +343,8 @@ HTTPS in production, and permit the portal origin through CORS. Configure:
 | Admin `HASURA_URL`       | Public GraphQL endpoint used for assigned-board discovery and halt reports; locally `http://localhost:8080/v1/graphql` |
 
 The displayed **Platform URL** is `HASURA_URL`. Browser trustees use the
-`list_trustee_boards` query and `report_trustee_board` mutation with their bearer
+`trustee_event_updates` query, `submit_trustee_action_result` mutation and
+`report_trustee_board` mutation with their bearer
 token and the `trustee-ceremony` role. Hasura forwards those calls internally to
 Harvest, which independently verifies the JWT, tenant, trustee identity and
 assigned board. Harvest remains private and needs no browser-facing URL or CORS

@@ -298,6 +298,12 @@ export const TrusteeDashboard = () => {
                         browser's memory. Back up the keys file and browser sessions, and keep this
                         page open while participating.
                     </Typography>
+                    <Typography sx={{my: 2}}>
+                        For manual custody, start this browser trustee and keep this tab open.
+                        Upload the downloaded ceremony file in the key ceremony or tally tab; this
+                        browser creates the scoped proof automatically. Complete the custody
+                        confirmation and any required signing in that tab.
+                    </Typography>
                     <TextField
                         label="Board service URL"
                         value={boardUrl}
@@ -432,6 +438,7 @@ export const TrusteeDashboard = () => {
                     </Typography>
                     <TextField
                         label="Tally session ID (for tally restore)"
+                        helperText="For a manual tally proof file, copy the active tally's ID from the tally list. Leave blank only for key-ceremony custody."
                         value={tallyId}
                         disabled={busy || running}
                         onChange={(event) => setTallyId(event.target.value)}
