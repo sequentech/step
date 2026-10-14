@@ -29,7 +29,6 @@ SPDX-License-Identifier: AGPL-3.0-only
         <module>custom-event-listener</module>
         <module>url-truststore-provider</module>
         <module>idp-linking-authenticator</module>
-        <module>scanovate-authenticator</module>
     </modules>
 
 	<profiles>
@@ -42,6 +41,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</activation>
 			<modules>
 				<module>../../beyond/packages/keycloak-extensions</module>
+			</modules>
+		</profile>
+		<!-- Not in the evaluated configuration: the temenos tree does not contain this module. -->
+		<profile>
+			<id>scanovate-authenticator</id>
+			<activation>
+				<file>
+					<exists>scanovate-authenticator/pom.xml</exists>
+				</file>
+			</activation>
+			<modules>
+				<module>scanovate-authenticator</module>
 			</modules>
 		</profile>
 	</profiles>
