@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Wbraid trustee configuration | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3903/docs/developers/wbraid/trustee-configuration"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Wbraid trustee configuration | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3903/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3903/docs/developers/wbraid/trustee-configuration"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3903/docs/developers/wbraid/trustee-configuration" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3903/docs/developers/wbraid/trustee-configuration" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Wbraid trustees","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3903/docs/developers/wbraid/trustee-configuration"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3903/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3903/assets/js/runtime~main.19bf9da4.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3903/assets/js/runtime~main.1d539c87.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3903/assets/js/main.71cc587f.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -169,6 +169,10 @@ archived tally identifiers: <code>WasmVerifier.tallyIdentifier</code> verifies t
 signed Ballots statement against its configuration and returns its original
 identifier. A copied platform row&#x27;s UUID is not a cryptographic trust anchor.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="election-event-archives">Election event archives<a href="#election-event-archives" class="hash-link" aria-label="Direct link to Election event archives" title="Direct link to Election event archives" translate="no">​</a></h2>
+<p>The protocol recovery described here applies to wbraid archives. Pre-wbraid
+bulletin-board CSVs contain artifacts from the earlier protocol and cannot be
+converted into or resumed as wbraid ceremonies. Keep those original archives
+and their matching verifier when recovering or auditing historical ceremonies.</p>
 <p>Configuration-only exports can be imported as new events. Publication-only and
 activity-log-only archives also work without including native manager secrets
 or ceremony state. Older selective archives that inadvertently contain unused
@@ -182,7 +186,8 @@ older V1 exports containing several open boards are recognized and recovered.</p
 messages, board relationships and the required manager keys. Select <strong>Tally</strong> as
 well to preserve tally sessions and results; tally data requires the bulletin
 boards. These archives are password encrypted. Import rejects native archives
-that omit the manager-key file or any declared DKG board&#x27;s manager key.</p>
+that omit the manager-key file or any declared DKG board&#x27;s manager key, or supply
+a private manager key that does not match that board&#x27;s signed configuration.</p>
 <p>Import creates a copied election event with new platform IDs. Signed protocol
 messages and their original cryptographic configuration identifier remain
 unchanged. Ballot publications are unpublished and must be published explicitly.
@@ -205,6 +210,12 @@ checks the copied transcript against those observations and rejects rewrites or
 missing local records. Back up each trustee&#x27;s private configuration and runner data
 separately. Browser trustees retain their existing private-key import/export and
 session backup controls; restoring a browser identity requires its original keys.</p>
+<p>Reopening a copied DKG ceremony also checks the original local observations and
+the predicates of messages already staged by that trustee. An unfinished DKG can
+continue when the archive contains those messages. If an original handoff is
+missing from the archive, the runner halts before generating another artifact
+for that slot; a staged publish handle from the original board cannot be reused
+on the copied board. Finish that handoff on the original board and export again.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="browser-trustees">Browser trustees<a href="#browser-trustees" class="hash-link" aria-label="Direct link to Browser trustees" title="Direct link to Browser trustees" translate="no">​</a></h2>
 <p>The administration portal&#x27;s <code>/trustee</code> screen runs the supplied wbraid protocol
 in WebAssembly. Sign in with the trustee account, then choose <strong>Generate browser
