@@ -16,8 +16,8 @@
 # install operating-system packages and download tools:
 #
 #   Dockerfile.prod            apk add jq                      (nginx:alpine)
-#   harvest, windmill          apt-get install ...; a JDK from download.java.net;
-#                              cargo-binstall from raw.githubusercontent.com
+#   harvest, windmill          apt-get install ...; a JDK from download.java.net
+#                              (checked against a pinned SHA-256)
 #   trustee                    apt-get install ...; the AWS CLI; Vault
 #
 # Closing that needs OS package archives and pinned tool downloads vendored as
