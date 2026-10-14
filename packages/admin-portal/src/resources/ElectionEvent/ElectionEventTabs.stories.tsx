@@ -520,7 +520,7 @@ export const Tasks: Story = {
 export const Logs: Story = {
     parameters: {widgets: ["LogsTab"]},
     play: tabPlay("Logs", {
-        text: "General logs of the main and IAM databases",
+        text: "Everything done in this election event. Sign-ins and changes outside it are in Settings > Logs.",
         reads: ["getList electoral_log"],
     }),
 }

@@ -18,7 +18,13 @@
 //!
 //! Every Keycloak call is bounded, and so is the wait for the locks, so a
 //! hung Keycloak doesn't hold the events' signing for long.
+//!
+//! A created or deleted role and a permission a role gains or loses are
+//! also AdminChange entries of the tenant's log (see [`audit`]): committed
+//! with the signing entries when there are any, queued once Keycloak made
+//! the change otherwise.
 
+use crate::services::audit;
 use crate::services::dependencies::HarvestServices;
 use deadpool_postgres::{Object, Transaction};
 use rocket::http::Status;
@@ -35,12 +41,15 @@ use std::time::Duration;
 use strum::IntoEnumIterator;
 use tracing::error;
 use uuid::Uuid;
+use windmill::postgres::audit_log_outbox::AuditLogTarget;
+use windmill::services::audit_log::{stage, AdminAction, AdminChange};
 use windmill::services::signing::log::Actor;
 use windmill::services::signing::permissions::{
     lock_permission_change_events, signing_action_of, signing_actions_in,
     stage_permission_changes, LockedEvents, RolePermissionChange,
     SigningPermissionChange,
 };
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 
 /// How long one Keycloak call may take.
 pub const KEYCLOAK_TIMEOUT: Duration = Duration::from_secs(10);
@@ -187,7 +196,56 @@ fn opposite(change: RolePermissionChange) -> RolePermissionChange {
     }
 }
 
-/// Turns `permission` on or off for a role.
+fn admin_action(change: RolePermissionChange) -> AdminAction {
+    match change {
+        RolePermissionChange::Added => AdminAction::Grant,
+        RolePermissionChange::Removed => AdminAction::Revoke,
+    }
+}
+
+/// Whether `change` changes what the role holds: adding a permission it
+/// holds or removing one it lacks changes nothing. Keycloak is still asked;
+/// nothing is logged.
+async fn changes_role(
+    services: &HarvestServices,
+    realm: &str,
+    role_id: &str,
+    permission: &str,
+    change: RolePermissionChange,
+) -> Result<bool, (Status, String)> {
+    let holds = held_permissions(services, realm, role_id)
+        .await?
+        .iter()
+        .any(|held| held == permission);
+    Ok(match change {
+        RolePermissionChange::Added => !holds,
+        RolePermissionChange::Removed => holds,
+    })
+}
+
+/// The tenant log's entry of a permission given to a role or taken from it.
+async fn audit_entry(
+    services: &HarvestServices,
+    claims: &JwtClaims,
+    target: AuditLogTarget,
+    realm: &str,
+    role_id: &str,
+    permission: &str,
+    change: RolePermissionChange,
+) -> Result<AdminChange, (Status, String)> {
+    let role_name = role_name(services, realm, role_id).await?;
+    Ok(audit::role_permission(
+        claims,
+        target,
+        audit::role(role_id, Some(&role_name)),
+        admin_action(change),
+        permission,
+    ))
+}
+
+/// Turns `permission` on or off for a role. A change is logged in the
+/// tenant's log once Keycloak made it; a sign permission's entry is
+/// committed with its signing entries.
 pub async fn change_role_permission(
     services: &HarvestServices,
     claims: &JwtClaims,
@@ -199,26 +257,33 @@ pub async fn change_role_permission(
 ) -> Result<(), (Status, String)> {
     let realm = get_tenant_realm(tenant_id);
     validate_role_path(&realm, role_id)?;
+    let target = audit::target(tenant_id, None)?;
     let Some(action) = signing_action_of(permission) else {
-        return apply_role_permission(
-            services, &realm, role_id, permission, change,
-        )
-        .await;
+        let entry =
+            match changes_role(services, &realm, role_id, permission, change)
+                .await?
+            {
+                true => Some(
+                    audit_entry(
+                        services, claims, target, &realm, role_id, permission,
+                        change,
+                    )
+                    .await?,
+                ),
+                false => None,
+            };
+        apply_role_permission(services, &realm, role_id, permission, change)
+            .await?;
+        return match entry {
+            Some(entry) => audit::record(services, &entry).await,
+            None => Ok(()),
+        };
     };
     let tenant_id = tenant_uuid(tenant_id)?;
     let mut client = database(services).await?;
     let (transaction, locked) = lock(&mut client, tenant_id, &[action]).await?;
-    let holds = held_permissions(services, &realm, role_id)
-        .await?
-        .iter()
-        .any(|held| held == permission);
-    let changes = match (change, holds) {
-        (RolePermissionChange::Added, false)
-        | (RolePermissionChange::Removed, true) => true,
-        // Already so: Keycloak is still asked, nothing is logged.
-        (RolePermissionChange::Added, true)
-        | (RolePermissionChange::Removed, false) => false,
-    };
+    let changes =
+        changes_role(services, &realm, role_id, permission, change).await?;
     if changes {
         let role_name = role_name(services, &realm, role_id).await?;
         stage_permission_changes(
@@ -228,11 +293,23 @@ pub async fn change_role_permission(
                 tenant_id,
                 action,
                 role_id: role_id.to_string(),
-                role_name,
+                role_name: role_name.clone(),
                 change,
                 editor: editor(claims),
                 allowed_by: allowed_by.to_vec(),
             }],
+        )
+        .await
+        .map_err(server_error)?;
+        stage(
+            &transaction,
+            &audit::role_permission(
+                claims,
+                target,
+                audit::role(role_id, Some(&role_name)),
+                admin_action(change),
+                permission,
+            ),
         )
         .await
         .map_err(server_error)?;
@@ -258,6 +335,9 @@ pub async fn change_role_permission(
             }
         }
         return Err(server_error(commit_error));
+    }
+    if changes {
+        kick_audit_log_outbox();
     }
     Ok(())
 }
@@ -293,11 +373,23 @@ pub async fn create_role(
     let created = keycloak(client.create_role(&realm, role)).await?;
     let client = keycloak(services.identity.client()).await?;
     let with_id = keycloak(client.get_role_by_name(&realm, &created)).await?;
+    let target = audit::target(tenant_id, None)?;
     let (Some(permissions), Some(id)) =
-        (created.permissions.clone(), with_id.id)
+        (created.permissions.clone(), with_id.id.clone())
     else {
+        audit::record(
+            services,
+            &audit::role_created(
+                claims,
+                target,
+                &created,
+                with_id.id.as_deref(),
+            ),
+        )
+        .await?;
         return Ok(created);
     };
+    let entry = audit::role_created(claims, target, &created, Some(&id));
     if let (Some((transaction, locked)), Some(tenant_id)) =
         (locked.as_ref(), logged_tenant)
     {
@@ -316,9 +408,13 @@ pub async fn create_role(
         stage_permission_changes(transaction, locked, &changes)
             .await
             .map_err(server_error)?;
+        stage(transaction, &entry).await.map_err(server_error)?;
     }
     let client = keycloak(services.identity.client()).await?;
     keycloak(client.set_role_permissions(&realm, &id, &permissions)).await?;
+    if locked.is_none() {
+        audit::record(services, &entry).await?;
+    }
     if let Some((transaction, _)) = locked {
         if let Err(commit_error) = transaction.commit().await {
             // Without its entries the role mustn't keep its sign permissions.
@@ -334,6 +430,7 @@ pub async fn create_role(
             }
             return Err(server_error(commit_error));
         }
+        kick_audit_log_outbox();
     }
     Ok(created)
 }
@@ -349,10 +446,17 @@ pub async fn delete_role(
 ) -> Result<(), (Status, String)> {
     let realm = get_tenant_realm(tenant_id);
     validate_role_path(&realm, role_id)?;
+    let target = audit::target(tenant_id, None)?;
     let held = held_permissions(services, &realm, role_id).await?;
     if signing_actions_in(held.iter().map(String::as_str)).is_empty() {
+        let name = role_name(services, &realm, role_id).await?;
         let client = keycloak(services.identity.client()).await?;
-        return keycloak(client.delete_role(&realm, role_id)).await;
+        keycloak(client.delete_role(&realm, role_id)).await?;
+        return audit::record(
+            services,
+            &audit::role_deleted(claims, target, role_id, Some(&name), &held),
+        )
+        .await;
     }
     // A sign permission may be added meanwhile, so every action's events
     // are locked before the role is read again.
@@ -362,8 +466,14 @@ pub async fn delete_role(
     let (transaction, locked) = lock(&mut client, tenant_id, &actions).await?;
     let held = held_permissions(services, &realm, role_id).await?;
     let held_actions = signing_actions_in(held.iter().map(String::as_str));
+    let role_name = role_name(services, &realm, role_id).await?;
+    stage(
+        &transaction,
+        &audit::role_deleted(claims, target, role_id, Some(&role_name), &held),
+    )
+    .await
+    .map_err(server_error)?;
     if !held_actions.is_empty() {
-        let role_name = role_name(services, &realm, role_id).await?;
         let changes: Vec<SigningPermissionChange> = held_actions
             .iter()
             .map(|action| SigningPermissionChange {
@@ -388,5 +498,7 @@ pub async fn delete_role(
             "The role was deleted but its sign permissions are not logged: {commit_error:?}"
         );
         server_error(commit_error)
-    })
+    })?;
+    kick_audit_log_outbox();
+    Ok(())
 }

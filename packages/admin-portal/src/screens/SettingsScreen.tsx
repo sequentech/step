@@ -25,24 +25,29 @@ import SettingsLocalization from "@/resources/Settings/SettingsLocalization"
 import {SettingsBackupRestore} from "@/resources/Settings/SettingsBackupRestore"
 import {SettingsPreviews} from "@/resources/Settings/SettingsPreviews"
 import {SettingsLogs} from "@/resources/Settings/SettingsLogs"
+import {
+    ESettingsAccess,
+    settingsAccess,
+    showsConfiguration,
+    showsLogs,
+} from "@/services/settingsAccess"
 
 export const SettingsScreen: React.FC = () => {
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
     const [tenantId] = useTenantStore()
-    const canWriteTenant = authContext.isAuthorized(true, tenantId, IPermissions.TENANT_WRITE)
-    // The tenant's log is read without changing any setting, as an auditor does.
-    const canReadLogs = authContext.isAuthorized(true, tenantId, IPermissions.TENANT_LOGS_READ)
+    const access = settingsAccess((permission) =>
+        authContext.isAuthorized(true, tenantId, permission)
+    )
     const [open] = useSidebarState()
 
-    const showSettingsMenu = authContext.isAuthorized(true, tenantId, IPermissions.SETTINGS_MENU)
     const showMessaging = authContext.isAuthorized(
         true,
         tenantId,
         IPermissions.MESSAGING_ACCOUNT_READ
     )
 
-    if (!(canWriteTenant || canReadLogs) || !showSettingsMenu) {
+    if (access === ESettingsAccess.NONE) {
         return (
             <ResourceListStyles.EmptyBox>
                 <Typography variant="h4" paragraph>
@@ -52,7 +57,7 @@ export const SettingsScreen: React.FC = () => {
         )
     }
 
-    const settingsTabs = [
+    const configurationTabs = [
         {
             label: t("electionTypeScreen.tabs.electionTypes"),
             component: () => (
@@ -127,9 +132,14 @@ export const SettingsScreen: React.FC = () => {
 
             <Tabs
                 elements={[
-                    ...(canWriteTenant ? settingsTabs : []),
-                    ...(canReadLogs
-                        ? [{label: t("tenantLogs.tab"), component: () => <SettingsLogs />}]
+                    ...(showsConfiguration(access) ? configurationTabs : []),
+                    ...(showsLogs(access)
+                        ? [
+                              {
+                                  label: t("electionTypeScreen.tabs.logs"),
+                                  component: () => <SettingsLogs />,
+                              },
+                          ]
                         : []),
                 ]}
             />

@@ -14,6 +14,7 @@ use crate::services::access::{
     read_permission, writes_secret_attributes, UserEdit, UserEditAccess,
     UserScope,
 };
+use crate::services::audit::{self, PasswordEdit};
 use crate::services::authorization::{authorize, permitted_event_election_ids};
 use crate::services::dependencies::HarvestServices;
 use crate::services::tenant_activity::{TenantAction, TenantActivityRecorder};
@@ -51,6 +52,7 @@ use std::env;
 use tracing::{info, instrument};
 use uuid::Uuid;
 use windmill::postgres::election_event::get_election_event_by_id;
+use windmill::services::audit_log::AdminAction;
 use windmill::services::ballot_box::get_voter_ballot_state;
 use windmill::services::cast_votes::get_users_with_vote_info;
 use windmill::services::celery_app::get_celery_app;
@@ -383,12 +385,15 @@ pub async fn delete_user(
         }
         None => get_tenant_realm(&input.tenant_id),
     };
-    let client = KeycloakAdminClient::new().await.map_err(|e| {
+    let target =
+        audit::target(&input.tenant_id, input.election_event_id.as_deref())?;
+    let client = services.identity.client().await.map_err(|e| {
         (
             Status::InternalServerError,
             format!("Error obtaining the client: {:?}", e),
         )
     })?;
+    let deleted = client.get_user(&realm, &input.user_id).await.ok();
     client
         .delete_user(&realm, &input.user_id)
         .await
@@ -398,6 +403,17 @@ pub async fn delete_user(
                 format!("Error deleting the user: {:?}", e),
             )
         })?;
+    let username = deleted.as_ref().and_then(|user| user.username.as_deref());
+    audit::record(
+        services,
+        &audit::change(
+            &claims,
+            target,
+            audit::account(&target, &input.user_id, username),
+            AdminAction::Delete,
+        ),
+    )
+    .await?;
     Ok(Json(Default::default()))
 }
 
@@ -426,11 +442,12 @@ pub struct DeleteUsersBody {
     authorized_to_election_alias: Option<String>,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/delete-users", format = "json", data = "<body>")]
 pub async fn delete_users(
     claims: jwt::JwtClaims,
     body: Json<DeleteUsersBody>,
+    services: &State<HarvestServices>,
     activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<DeleteUsersOutput>, (Status, String)> {
     let input = body.into_inner();
@@ -493,20 +510,41 @@ pub async fn delete_users(
     // Keep this path synchronous so Keycloak failures are returned to the
     // caller instead of disappearing in an untracked worker task.
     if input.election_event_id.is_none() {
-        let client = KeycloakAdminClient::new()
+        let target = audit::target(&input.tenant_id, None)?;
+        let client = services
+            .identity
+            .client()
             .await
             .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
         let user_ids = input
             .users_id
             .as_ref()
             .ok_or((Status::BadRequest, "No users selected".to_string()))?;
+        // The accounts deleted before a failure are gone: they are logged
+        // before the failure is answered.
+        let mut deleted: Vec<String> = vec![];
+        let mut failure = None;
         for id in user_ids {
-            client.delete_user(&realm, id).await.map_err(|e| {
-                (
-                    Status::InternalServerError,
-                    format!("Error deleting the user: {e:?}"),
-                )
-            })?;
+            match client.delete_user(&realm, id).await {
+                Ok(()) => deleted.push(id.clone()),
+                Err(e) => {
+                    failure = Some((
+                        Status::InternalServerError,
+                        format!("Error deleting the user: {e:?}"),
+                    ));
+                    break;
+                }
+            }
+        }
+        if !deleted.is_empty() {
+            audit::record(
+                services,
+                &audit::accounts_deleted(&claims, target, &deleted),
+            )
+            .await?;
+        }
+        if let Some(failure) = failure {
+            return Err(failure);
         }
         return Ok(Json(DeleteUsersOutput {
             ids: None,
@@ -573,6 +611,7 @@ pub async fn delete_users(
             if select_all { None } else { input.users_id },
             filter,
             task_execution.clone(),
+            Some(audit::actor(&claims)),
         ))
         .await
     {
@@ -999,11 +1038,12 @@ fn reject_tenant_id_attribute(user: &User) -> Result<(), String> {
     Ok(())
 }
 
-#[instrument(skip(claims, body))]
+#[instrument(skip(claims, body, services))]
 #[post("/create-user", format = "json", data = "<body>")]
 pub async fn create_user(
     claims: jwt::JwtClaims,
     body: Json<CreateUserBody>,
+    services: &State<HarvestServices>,
     activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<User>, JsonError> {
     let input = body.into_inner();
@@ -1297,6 +1337,24 @@ pub async fn create_user(
 
     redact_user(&mut user, &secret_names);
 
+    let audit_error = |(status, message): (Status, String)| {
+        ErrorResponse::new(status, &message, ErrorCode::InternalServerError)
+    };
+    let target =
+        audit::target(&input.tenant_id, input.election_event_id.as_deref())
+            .map_err(audit_error)?;
+    audit::record(
+        services,
+        &audit::account_created(
+            &claims,
+            target,
+            &user,
+            input.user_roles_ids.as_deref().unwrap_or_default(),
+        ),
+    )
+    .await
+    .map_err(audit_error)?;
+
     Ok(Json(user))
 }
 
@@ -1580,7 +1638,7 @@ pub async fn edit_user(
     }
 
     let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.map_err(|e| {
+        services.databases.hasura().await.get().await.map_err(|e| {
             (
                 Status::InternalServerError,
                 format!("Error acquiring hasura db client from pool {:?}", e),
@@ -1855,9 +1913,21 @@ pub async fn edit_user(
         }
     }
 
-    let client = KeycloakAdminClient::new()
+    let client = services
+        .identity
+        .client()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let mut before =
+        client
+            .get_user(&realm, &input.user_id)
+            .await
+            .map_err(|error| {
+                EditUserError::from_keycloak(
+                    error,
+                    "Error reading user in Keycloak",
+                )
+            })?;
 
     let mut user = client
         .edit_user(
@@ -1915,6 +1985,19 @@ pub async fn edit_user(
     }
 
     redact_user(&mut user, &secret_names);
+    redact_user(&mut before, &secret_names);
+    let target =
+        audit::target(&input.tenant_id, input.election_event_id.as_deref())?;
+    // A voter's password change has its own electoral-log entry above.
+    let password = match (&input.password, target.election_event_id) {
+        (Some(_), None) => PasswordEdit::Set,
+        _ => PasswordEdit::Kept,
+    };
+    let change =
+        audit::account_edited(&claims, target, &before, &user, password);
+    if input.password.is_none() || !change.changes.is_empty() {
+        audit::record(services, &change).await?;
+    }
     Ok(Json(EditUserOutput {
         user: Some(user),
         task_execution: None,
@@ -2158,6 +2241,7 @@ pub async fn export_tenant_users_f(
             },
             document_id.clone(),
             None,
+            Some(audit::actor(&claims)),
         ))
         .await
     {
@@ -2683,3 +2767,7 @@ mod user_service_errors;
 #[cfg(test)]
 #[path = "../../tests/support/user_ballot_guards.rs"]
 mod user_ballot_guards;
+
+#[cfg(test)]
+#[path = "../../tests/support/account_audit_routes.rs"]
+mod account_audit_routes;

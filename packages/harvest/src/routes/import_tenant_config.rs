@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
 use crate::services::tenant_activity::{TenantAction, TenantActivityRecorder};
 use anyhow::{anyhow, Context, Result};
@@ -94,6 +95,7 @@ pub async fn import_tenant_config_route(
             body.document_id.clone(),
             body.sha256.clone(),
             task_execution.clone(),
+            Some(audit::actor(&claims)),
         ))
         .await
         .map_err(|error| {

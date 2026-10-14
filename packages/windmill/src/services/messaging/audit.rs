@@ -172,6 +172,8 @@ async fn post_attempt_outcome(
                 .with_context(|| "Error serializing the electoral log message")?,
         ),
         event_time_ms: None,
+        details: None,
+        admin_event: None,
     };
     try_get_celery_app()
         .await?

@@ -34,7 +34,7 @@ every environment:
 | `reports_queue` | Reports, rendering and post-tally work |
 | `import_export_queue` | Imports, exports and voter bulk operations |
 | `monitoring_queue` | Monitoring snapshot refreshes, one task per election event |
-| `electoral_log_beat_queue` | Electoral-log batch dispatcher |
+| `electoral_log_beat_queue` | Electoral-log batch dispatcher, and the signing and audit log outboxes (`post_signing_log_outbox`, `post_audit_log_outbox`) |
 | `electoral_log_batch_queue` | Electoral-log batch processing |
 | `electoral_log_event_queue` | Raw events; **batch dispatcher only** |
 | `electoral_log_dead_letter_queue` | None; electoral-log events set aside for inspection and replay |

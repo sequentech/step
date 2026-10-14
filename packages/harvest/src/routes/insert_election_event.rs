@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::access::import_users_privileges;
+use crate::services::audit;
 use crate::services::authorization::authorize;
 use crate::services::tenant_activity::{TenantAction, TenantActivityRecorder};
 use anyhow::Result;
@@ -115,6 +116,7 @@ pub async fn insert_election_event_f(
             object,
             id.clone(),
             task_execution.clone(),
+            Some(audit::actor(&claims)),
         ))
         .await
     {

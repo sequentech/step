@@ -1,16 +1,19 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import type {Page} from "@playwright/test"
 import {FIXED_TIME} from "@sequentech/ui-test-kit/fixtures"
 import {test, expect, TENANT_ID} from "../fixtures"
 import {
+    AUDITOR_ROLES,
     ELECTION_TYPE_ID,
+    SETTINGS_CHANGED,
     SETTINGS_ROLES,
+    TENANT_LOG_SUBTITLE,
     electionType,
     listOf,
     mockElectionTypes,
     mockTenant,
+    mockTenantLog,
     openSettings,
     rowWith,
     serveDocument,
@@ -32,8 +35,8 @@ const TABS = [
 ]
 
 for (const [missing, roles] of [
-    ["tenant-write", ["admin-user", "settings-menu"]],
-    ["settings-menu", ["admin-user", "tenant-write"]],
+    ["tenant-write and tenant-logs-read", ["admin-user", "settings-menu", "logs-read"]],
+    ["settings-menu", ["admin-user", "tenant-write", "tenant-logs-read", "tenant-logs-export"]],
 ] as const)
     test.describe(`without ${missing}`, () => {
         test.use({roles: [...roles]})
@@ -45,16 +48,53 @@ for (const [missing, roles] of [
             ).toBeVisible()
             await expect(page.getByRole("tab")).toHaveCount(0)
             expect(portal.graphql.callsTo("sequent_backend_election_type")).toEqual([])
+            expect(portal.graphql.callsTo("listTenantLog")).toEqual([])
         })
     })
 
-test.describe("with settings access", () => {
+test.describe("an auditor, with tenant-logs-read and without tenant-write", () => {
+    test.use({roles: AUDITOR_ROLES})
+
+    test("sees only the Logs tab, with the tenant log", async ({page, portal}) => {
+        mockTenant(portal)
+        mockTenantLog(portal)
+        await page.goto(`${portal.origin}/settings?lang=en`)
+        await expect(page.getByText("General Configuration", {exact: true})).toBeVisible()
+        await expect(page.getByRole("tab")).toHaveText(["Logs"])
+        await expect(page.getByRole("tab", {name: "Logs"})).toHaveAttribute("aria-selected", "true")
+        await expect(page.getByText(TENANT_LOG_SUBTITLE, {exact: true})).toBeVisible()
+        await expect(page.getByText(SETTINGS_CHANGED, {exact: true})).toBeVisible()
+        expect(portal.graphql.callsTo("sequent_backend_election_type")).toEqual([])
+    })
+})
+
+test.describe("a security officer, with tenant-write and tenant-logs-read", () => {
+    test.use({roles: [...SETTINGS_ROLES, "tenant-logs-read", "tenant-logs-export"]})
+
+    test("sees every settings tab, with Logs after Previews", async ({page, portal}) => {
+        mockTenant(portal)
+        mockTenantLog(portal)
+        mockElectionTypes(portal, [electionType()])
+        await openSettings(page, portal)
+        await expect(page.getByRole("tab")).toHaveText([...TABS, "Logs"])
+        await expect(rowWith(page, "General election")).toBeVisible()
+        // The tenant log is read only once its tab opens.
+        expect(portal.graphql.callsTo("listTenantLog")).toEqual([])
+        await page.getByRole("tab", {name: "Logs", exact: true}).click()
+        await expect(page.getByText(SETTINGS_CHANGED, {exact: true})).toBeVisible()
+    })
+})
+
+test.describe("a configuration manager, with tenant-write and without tenant-logs-read", () => {
     test.use({roles: SETTINGS_ROLES})
     test.beforeEach(({portal}) => {
         mockTenant(portal)
     })
 
-    test("shows every settings tab, starting on election types", async ({page, portal}) => {
+    test("shows every settings tab but Logs, starting on election types", async ({
+        page,
+        portal,
+    }) => {
         mockElectionTypes(portal, [electionType()])
         await openSettings(page, portal)
         await expect(page.getByText("General Configuration", {exact: true})).toBeVisible()
@@ -178,124 +218,5 @@ test.describe("with messaging account access", () => {
         expect(portal.graphql.callsTo("GetMessagingAccounts")[0].variables).toEqual({
             tenantId: TENANT_ID,
         })
-    })
-})
-
-/** The tenant's log as `listTenantLog` answers it: newest first. */
-const tenantLogEntry = (
-    id: number,
-    kind: string,
-    username: string | null,
-    head: {event_type: string; log_type: string; description: string},
-    details?: Record<string, unknown>
-) => ({
-    id,
-    created: 1_841_396_400 + id * 60,
-    statement_timestamp: 1_841_396_400 + id * 60,
-    statement_kind: kind,
-    user_id: username ? `${username}-id` : null,
-    username,
-    message: JSON.stringify({
-        user_id: username ? `${username}-id` : null,
-        username,
-        statement: {
-            head: {event: "Generic Event", kind, ...head},
-            body: details
-                ? {TenantActivity: {kind, ...head, details_json: JSON.stringify(details)}}
-                : {KeycloakUserEvent: ["null", "LOGIN"]},
-        },
-    }),
-})
-
-const TENANT_LOG = [
-    tenantLogEntry(
-        3,
-        "TenantAdminAction",
-        "ada.admin",
-        {
-            event_type: "USER",
-            log_type: "INFO",
-            description: "Request to create an election event accepted.",
-        },
-        {
-            action: "create-election-event",
-            outcome: "succeeded",
-            status: 200,
-            user_id: "ada.admin-id",
-            username: "ada.admin",
-            details: {name: "Synthetic election"},
-        }
-    ),
-    tenantLogEntry(2, "KeycloakUserEvent", "ada.admin", {
-        event_type: "USER",
-        log_type: "INFO",
-        description: "LOGIN",
-    }),
-    tenantLogEntry(
-        1,
-        "TenantLogOpened",
-        null,
-        {event_type: "SYSTEM", log_type: "INFO", description: "Opened the tenant log."},
-        {board: "synthetictenant", public_key: "synthetic-key"}
-    ),
-]
-
-/** The log's row whose description starts with `text` (a long one ends in Show More). */
-const logEntry = (page: Page, text: string) => page.getByRole("row").filter({hasText: text})
-
-function mockTenantLog(portal: Parameters<typeof mockTenant>[0]) {
-    portal.graphql.on("listTenantLog", () => ({
-        data: {
-            listTenantLog: {
-                items: TENANT_LOG,
-                total: {aggregate: {count: TENANT_LOG.length}},
-            },
-        },
-    }))
-}
-
-test.describe("with the tenant's log and no settings access", () => {
-    test.use({roles: ["admin-user", "settings-menu", "tenant-logs-read"]})
-
-    test("shows the Logs tab alone, with the tenant's entries", async ({page, portal}) => {
-        mockTenantLog(portal)
-        await page.goto(`${portal.origin}/settings?lang=en`)
-        await expect(page.getByRole("tab")).toHaveText(["Logs"])
-        await expect(logEntry(page, "Request to create an election event accepted.")).toBeVisible()
-        await expect(logEntry(page, "Opened the tenant log.")).toBeVisible()
-        await expect(page.getByRole("cell", {name: "ada.admin", exact: true})).toHaveCount(2)
-        // The list asks for the tenant's log, never for an election event's.
-        expect(portal.graphql.callsTo("listTenantLog")[0].variables).toMatchObject({
-            limit: 10,
-            offset: 0,
-            filter: {},
-            order_by: {id: "desc"},
-        })
-        expect(portal.graphql.callsTo("listElectoralLog")).toEqual([])
-        expect(portal.graphql.callsTo("sequent_backend_election_type")).toEqual([])
-
-        // A request's entry opens to what was asked, how it ended and by whom.
-        const request = logEntry(page, "Request to create an election event accepted.")
-        await request.getByRole("button", {name: "Show More"}).click()
-        await expect(request.getByText("Action: create-election-event")).toBeVisible()
-        await expect(request.getByText("Accepted (HTTP 200)")).toBeVisible()
-        await expect(request.getByText("Requested by ada.admin (ada.admin-id)")).toBeVisible()
-        await expect(request.getByText("name: Synthetic election")).toBeVisible()
-    })
-})
-
-test.describe("with settings access and the tenant's log", () => {
-    test.use({roles: [...SETTINGS_ROLES, "tenant-logs-read"]})
-    test.beforeEach(({portal}) => {
-        mockTenant(portal)
-    })
-
-    test("shows the Logs tab after the settings tabs", async ({page, portal}) => {
-        mockElectionTypes(portal, [electionType()])
-        mockTenantLog(portal)
-        await openSettings(page, portal, "Logs")
-        await expect(page.getByRole("tab")).toHaveText([...TABS, "Logs"])
-        await expect(logEntry(page, "Opened the tenant log.")).toBeVisible()
-        expect(portal.graphql.callsTo("listTenantLog")).toHaveLength(1)
     })
 })

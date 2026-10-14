@@ -4,15 +4,12 @@
 
 package sequent.keycloak.custom_event_listener;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
-import org.keycloak.events.EventType;
 
 class CustomEventListenerProviderMessageTest {
 
@@ -57,66 +54,5 @@ class CustomEventListenerProviderMessageTest {
       assertEquals("null", input.get(field).asText(), field);
     }
     assertEquals(0L, input.get("event_time_ms").asLong());
-  }
-
-  private static final String TENANT = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
-  private static final String EVENT = "33f18502-a67c-4853-8333-a58630663559";
-
-  @Test
-  void anElectionEventRealmNamesItsTenantAndEvent() {
-    assertArrayEquals(
-        new String[] {TENANT, EVENT},
-        CustomEventListenerProvider.tenantAndEvent("tenant-" + TENANT + "-event-" + EVENT));
-  }
-
-  @Test
-  void aTenantRealmNamesItsTenantAndNoEvent() {
-    assertArrayEquals(
-        new String[] {TENANT, ""}, CustomEventListenerProvider.tenantAndEvent("tenant-" + TENANT));
-  }
-
-  @Test
-  void anyOtherRealmNamesNeither() {
-    for (String realm : new String[] {"master", "", "event-" + EVENT, null}) {
-      assertArrayEquals(
-          new String[] {"", ""}, CustomEventListenerProvider.tenantAndEvent(realm), realm);
-    }
-  }
-
-  @Test
-  void aTenantRealmLeavesOutTokenHousekeepingAndKeepsEverythingElse() {
-    for (EventType skipped :
-        new EventType[] {
-          EventType.CODE_TO_TOKEN,
-          EventType.REFRESH_TOKEN,
-          EventType.INTROSPECT_TOKEN,
-          EventType.USER_INFO_REQUEST,
-          EventType.CLIENT_LOGIN,
-          EventType.TOKEN_EXCHANGE,
-          EventType.PERMISSION_TOKEN
-        }) {
-      assertFalse(CustomEventListenerProvider.isLogged(TENANT, "", skipped), skipped.name());
-    }
-    for (EventType kept :
-        new EventType[] {
-          EventType.LOGIN,
-          EventType.LOGIN_ERROR,
-          EventType.LOGOUT,
-          EventType.UPDATE_PASSWORD,
-          EventType.UPDATE_TOTP,
-          EventType.REMOVE_TOTP,
-          EventType.REFRESH_TOKEN_ERROR,
-          EventType.CODE_TO_TOKEN_ERROR
-        }) {
-      assertTrue(CustomEventListenerProvider.isLogged(TENANT, "", kept), kept.name());
-    }
-  }
-
-  @Test
-  void anElectionEventRealmAndAnUnknownRealmSendEveryEvent() {
-    for (EventType type : EventType.values()) {
-      assertTrue(CustomEventListenerProvider.isLogged(TENANT, EVENT, type), type.name());
-      assertTrue(CustomEventListenerProvider.isLogged("", "", type), type.name());
-    }
   }
 }

@@ -1068,6 +1068,20 @@ actions:
           - role: logs-export
           - role: election-event-read
           - role: logs-read
+    - name: export_tenant_logs
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/export-tenant-logs
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: tenant-logs-export
+      comment: Export the tenant log
     - name: export_election_event_tasks
       definition:
           kind: synchronous
@@ -1830,36 +1844,17 @@ actions:
                         "limit": {{$body.input?.limit}},
                         "offset": {{$body.input?.offset}},
                         "filter": {{$body.input?.filter}},
-                        "order_by": {{$body.input?.order_by}}
+                        "order_by": {{$body.input?.order_by}},
+                        "election_id": {{$body.input?.election_id}},
+                        "area_ids": {{$body.input?.area_ids}}
                       }
               template_engine: Kriti
               version: 2
       permissions:
           - role: logs-read
           - role: admin-user
-      comment: List Electoral Log
-    - name: listTenantLog
-      definition:
-          kind: ""
-          handler: http://{{HARVEST_DOMAIN}}/tenant-log
-          forward_client_headers: true
-          request_transform:
-              body:
-                  action: transform
-                  template: |-
-                      {
-                        "tenant_id": {{ head(removeNulls([$session_variables?['x-hasura-tenant-id'],""])) }},
-                        "limit": {{$body.input?.limit}},
-                        "offset": {{$body.input?.offset}},
-                        "filter": {{$body.input?.filter}},
-                        "order_by": {{$body.input?.order_by}}
-                      }
-              template_engine: Kriti
-              version: 2
-      permissions:
           - role: tenant-logs-read
-          - role: admin-user
-      comment: List the tenant's log
+      comment: List Electoral Log
     - name: list_cast_vote_messages
       definition:
           kind: ""
@@ -3013,6 +3008,17 @@ custom_types:
               - description: null
                 is_deprecated: null
                 value: TELEPHONE
+        - name: RestorePrivateKeyOutcome
+          values:
+              - description: null
+                is_deprecated: null
+                value: ALREADY_RESTORED
+              - description: null
+                is_deprecated: null
+                value: INVALID
+              - description: null
+                is_deprecated: null
+                value: RESTORED
     input_objects:
         - name: TemplateInput
         - name: ElectoralLogFilter
@@ -3097,8 +3103,6 @@ custom_types:
         - name: ListCastVoteMessagesOutput
         - name: LocateBallotOutput
         - name: DataListElectoralLog
-        - name: TenantLogRow
-        - name: DataListTenantLog
         - name: ScheduledEventOutput2
         - name: ScheduledEventOutput3
         - name: SampleOutput

@@ -707,6 +707,73 @@ pub struct TenantActivityEntry {
     pub details_json: String,
 }
 
+/// What an audit entry records. Each kind is also a [`StatementType`] of the
+/// same name.
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Deserialize,
+    Serialize,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    Display,
+    strum_macros::EnumString,
+)]
+pub enum AuditStatementKind {
+    /// A change made through Hasura, Harvest or Windmill: the object, the
+    /// action, the actor and each changed field with its old and new value.
+    AdminChange,
+    /// A Keycloak admin event on a realm, made by Step's service account or
+    /// by anyone else in Keycloak's console or API.
+    KeycloakAdminEvent,
+    /// An export of the log the entry is in.
+    LogsExported,
+    /// The writer of audit entries started.
+    LogWriterStarted,
+    /// The writer of audit entries stopped.
+    LogWriterStopped,
+}
+
+impl AuditStatementKind {
+    pub fn statement_type(&self) -> StatementType {
+        match self {
+            Self::AdminChange => StatementType::AdminChange,
+            Self::KeycloakAdminEvent => StatementType::KeycloakAdminEvent,
+            Self::LogsExported => StatementType::LogsExported,
+            Self::LogWriterStarted => StatementType::LogWriterStarted,
+            Self::LogWriterStopped => StatementType::LogWriterStopped,
+        }
+    }
+}
+
+/// One audit entry, in a tenant's log or an election event's. As for a
+/// signing entry, the caller sets the head's event type, log type and
+/// description, so who acted and what changed are inside the signed
+/// statement.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct AuditLogEntry {
+    pub kind: AuditStatementKind,
+    pub event_type: StatementEventType,
+    pub log_type: StatementLogType,
+    /// A short English sentence for the Logs tab's Description column, such
+    /// as `Updated tenant "acme": settings.logs_timezone`.
+    pub description: String,
+    /// The entry's details as JSON: for a change, the object, the action, the
+    /// actor, where it was made and each changed field's old and new value.
+    /// Secret values are never in it.
+    pub details_json: String,
+    /// The entry's id (`audit_log_outbox.id`, a lowercase hyphenated UUID).
+    /// The writer dedupes on it before posting, so a retry never posts an
+    /// entry twice.
+    pub entry_id: String,
+}
+
 #[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
 pub enum BallotPublicationStage {
     Generate,

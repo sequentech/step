@@ -239,7 +239,6 @@ pub async fn read_secret_by_id(
 #[instrument(err)]
 pub async fn get_admin_user_signing_key(
     hasura_transaction: &Transaction<'_>,
-    elog_database: &str,
     tenant_id: &str,
     user_id: &str,
     username: Option<String>,
@@ -268,7 +267,6 @@ pub async fn get_admin_user_signing_key(
         save_secret(hasura_transaction, tenant_id, None, &lookup_key, &sk_string).await?;
         ElectoralLog::post_admin_pk(
             hasura_transaction,
-            elog_database,
             tenant_id,
             user_id,
             username,

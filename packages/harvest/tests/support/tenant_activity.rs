@@ -303,7 +303,8 @@ async fn a_voters_deletion_is_not_tenant_activity() {
     );
 }
 
-/// Reading the tenant's log needs its own permission, on the caller's tenant.
+/// Reading the tenant's log (the electoral log of no election event) needs its
+/// own permission, on the caller's tenant.
 #[rocket::async_test]
 async fn the_tenant_log_needs_its_own_permission() {
     let services = Services::without_database();
@@ -317,13 +318,13 @@ async fn the_tenant_log_needs_its_own_permission() {
             .roles([Permissions::TENANT_LOGS_READ]),
     ] {
         let response = client
-            .post("/tenant-log")
+            .post("/electoral-log")
             .header(ContentType::JSON)
             .header(bearer(&claims))
             .body(body.to_string())
             .dispatch()
             .await;
-        assert_eq!(response.status(), Status::Unauthorized);
+        assert_eq!(response.status(), Status::Forbidden);
     }
     // Reading the log is not itself recorded.
     assert!(services.tasks.sent().is_empty());

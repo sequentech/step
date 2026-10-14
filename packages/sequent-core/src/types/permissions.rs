@@ -339,6 +339,8 @@ pub enum Permissions {
     EE_TASKS_FILTERS,
     #[strum(serialize = "task-export")]
     TASKS_EXPORT,
+    #[strum(serialize = "tenant-logs-export")]
+    TENANT_LOGS_EXPORT,
     #[strum(serialize = "logs-export")]
     LOGS_EXPORT,
     #[strum(serialize = "election-event-logs-columns")]

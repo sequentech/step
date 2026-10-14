@@ -4,6 +4,9 @@
 
 pub mod application;
 pub mod approval_matrix;
+pub mod audit_log;
+pub mod audit_log_export;
+pub mod audit_log_writer;
 pub mod ballot_box;
 pub mod ballot_box_key;
 pub mod ballot_box_reads;
@@ -79,6 +82,7 @@ pub mod sql_utils;
 pub mod support_materials;
 pub mod tally_sheet_import;
 pub mod tally_sheets;
+pub mod task_audit;
 pub mod task_queues;
 pub mod tasks_execution;
 pub mod tasks_semaphore;
