@@ -107,7 +107,10 @@ RUN set -eux; \
 # linker's auxiliary cache, which only speeds up the next ldconfig; the machine
 # ID that installing Chromium's dependencies generates, which a container
 # should not share anyway; and the font cache, which records directory times
-# and is rebuilt on first use.
+# and is rebuilt on first use. fc-cache also logs the stale cache files it
+# removes in the order the filesystem lists them, which follows the directory
+# hash seed of the disk Docker keeps its layers on: the same build on another
+# machine writes the same lines in another order, so that log goes as well.
 #
 # The same dependencies create system users, and useradd stamps /etc/shadow
 # with the day it runs: two builds on either side of midnight differ. With
@@ -116,7 +119,7 @@ ARG SOURCE_DATE_EPOCH
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libssl3 chromium ca-certificates wget software-properties-common \
     && rm -rf /var/lib/apt/lists/* /var/log/apt /var/log/dpkg.log /var/log/alternatives.log \
-        /var/cache/ldconfig/aux-cache /var/cache/fontconfig /etc/machine-id /var/lib/dbus/machine-id
+        /var/cache/ldconfig/aux-cache /var/cache/fontconfig /var/log/fontconfig.log /etc/machine-id /var/lib/dbus/machine-id
 RUN update-ca-certificates
 
 # Use Docker build arguments to determine the architecture
