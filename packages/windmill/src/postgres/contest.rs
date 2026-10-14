@@ -3,14 +3,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::import::import_election_event::ImportElectionEventSchema;
 use anyhow::{anyhow, Context, Result};
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Transaction;
 use futures::pin_mut;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::Contest;
 use tokio_postgres::binary_copy::BinaryCopyInWriter;
 use tokio_postgres::row::Row;
 use tokio_postgres::types::{ToSql, Type};
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 use uuid::Uuid;
 
 /// Contest column for insert operation

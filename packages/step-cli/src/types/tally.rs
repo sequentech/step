@@ -5,6 +5,10 @@
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 
+#[expect(
+    clippy::upper_case_acronyms,
+    reason = "Preserve the tally status names and their existing serde and strum representations consumed by the API."
+)]
 #[allow(non_camel_case_types)]
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
 pub enum TallyExecutionStatus {

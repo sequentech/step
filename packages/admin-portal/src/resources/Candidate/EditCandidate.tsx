@@ -13,11 +13,17 @@ import {
     TextField,
     FormDataConsumer,
     ReferenceInput,
+    FunctionField,
+    useRecordContext,
 } from "react-admin"
 import {ListCandidate} from "./ListCandidate"
 import {JsonInput} from "react-admin-json-view"
+import {presentationNameSource, usePresentationName} from "@/hooks/usePresentationName"
+import {Sequent_Backend_Candidate} from "@/gql/graphql"
 
 const CandidateForm: React.FC = () => {
+    const record = useRecordContext<Sequent_Backend_Candidate>()
+    const presentationName = usePresentationName()
     return (
         <Box sx={{flexGrow: 2, flexShrink: 0}}>
             <SimpleForm>
@@ -25,7 +31,7 @@ const CandidateForm: React.FC = () => {
                 <Typography variant="body2">Candidate configuration</Typography>
                 <Typography variant="h5">ID</Typography>
                 <TextField source="id" />
-                <TextInput source="name" />
+                <TextInput source={presentationNameSource(record)} label="Name" />
                 <TextInput source="description" />
                 <TextInput source="type" />
                 <BooleanInput source="is_public" />
@@ -35,7 +41,7 @@ const CandidateForm: React.FC = () => {
                     reference="sequent_backend_election_event"
                     source="election_event_id"
                 >
-                    <TextField source="name" />
+                    <FunctionField render={presentationName} />
                 </ReferenceField>
                 <FormDataConsumer>
                     {({formData}) => (
@@ -47,7 +53,7 @@ const CandidateForm: React.FC = () => {
                                 election_event_id: formData.election_event_id,
                             }}
                         >
-                            <SelectInput optionText="name" />
+                            <SelectInput optionText={presentationName} />
                         </ReferenceInput>
                     )}
                 </FormDataConsumer>

@@ -59,7 +59,11 @@ export default function DashboardElection() {
     // Ensure required parameters are set before running the query.
     const canQueryStats = Boolean(tenantId && record?.election_event_id && record?.id)
 
-    const {loading, data: dataStats} = useQuery<GetElectionStatsQuery>(GET_ELECTION_STATS, {
+    const {
+        loading,
+        error,
+        data: dataStats,
+    } = useQuery<GetElectionStatsQuery>(GET_ELECTION_STATS, {
         variables: {
             tenantId,
             electionEventId: record?.election_event_id,
@@ -87,6 +91,11 @@ export default function DashboardElection() {
         areasCount: dataStats?.stats?.total_areas ?? "-",
         emailsSentCount: stats?.num_emails_sent ?? "-",
         smsSentCount: stats?.num_sms_sent ?? "-",
+        messagesSentCount: {
+            WHATSAPP: stats?.num_whatsapp_sent ?? "-",
+            VIBER: stats?.num_viber_sent ?? "-",
+            MESSENGER: stats?.num_messenger_sent ?? "-",
+        },
     }
 
     const cardWidth = 470
@@ -100,6 +109,7 @@ export default function DashboardElection() {
                 <Container>
                     <VotesPerDay
                         data={(dataStats?.stats?.votes_per_day as CastVotesPerDay[]) ?? null}
+                        unavailable={!!error}
                         width={cardWidth}
                         height={cardHeight}
                         selection={votesTimeSelection}

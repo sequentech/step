@@ -49,3 +49,11 @@ public/tinymce/
 public/intl-tel-input/
 public/sql-wasm.js
 src/services/generated/ivr_emulator_wasm.d.ts
+
+storybook-static/
+test-results/
+coverage/
+# Synthetic signing certificates (scripts/signing/make-test-p12.sh)
+src/lib/signing/__fixtures__/
+
+public/wbraid-trustee/

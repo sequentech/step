@@ -67,12 +67,13 @@ fn create_election(
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
-    let mut presentation = ElectionPresentation::default();
-
-    presentation.i18n = Some(HashMap::from([(
-        "en".to_string(),
-        HashMap::from([("name".to_string(), Some(name.to_string()))]),
-    )]));
+    let presentation = ElectionPresentation {
+        i18n: Some(HashMap::from([(
+            "en".to_string(),
+            HashMap::from([("name".to_string(), Some(name.to_string()))]),
+        )])),
+        ..Default::default()
+    };
 
     let variables = insert_election::Variables {
         external_id: external_id.to_string(),

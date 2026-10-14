@@ -7,8 +7,11 @@
 //! ballot and queues it for the sequencer, which later appends the ballot's record
 //! to the event's board. The tables are partitioned by election event.
 
+use super::ballot_box_received::ReceivedStatus;
+use super::ballot_box_seal::is_ballot_box_sealed;
 use super::postgres::PostgresStore;
 use anyhow::{ensure, Context, Result};
+use chrono::{DateTime, Utc};
 use std::time::{Duration, Instant};
 use strum_macros::{Display, EnumString};
 use tokio_postgres::error::SqlState;
@@ -50,6 +53,19 @@ pub struct AcceptBallot<'a> {
     pub allowed_votes: i32,
 }
 
+/// The received ballot a vote casts, with the cast the voter signed and the receipt
+/// the ballot box signed for it.
+#[derive(Debug, Clone)]
+pub struct AcceptReceived<'a> {
+    /// The receipt's short Ballot ID.
+    pub ballot_id: &'a str,
+    /// When the ballot was cast, as the receipt says: the stored ballot's
+    /// `accepted_at`.
+    pub cast_at: DateTime<Utc>,
+    pub cast_signature: &'a str,
+    pub cast_receipt_signature: &'a str,
+}
+
 /// What happened to a vote.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AcceptOutcome {
@@ -60,8 +76,14 @@ pub enum AcceptOutcome {
     VotedInOtherArea,
     /// The voter has cast all the votes the election allows.
     TooManyVotes,
-    /// The ballot ID was already used in this election event.
+    /// The ballot ID was already used in this election event. For a received
+    /// ballot: it was already cast.
     DuplicateBallotId,
+    /// The ballot box of the election's area is sealed and takes no more ballots.
+    BallotBoxSealed,
+    /// No ballot received for the voter under this Ballot ID and ballot hash waits
+    /// to be cast: there is none, or it was audited.
+    NotReceivable,
 }
 
 /// A stored ballot waiting to be appended to the event's board.
@@ -94,6 +116,9 @@ pub struct VoterState {
 /// The partitioned tables that hold a partition per election event.
 const BALLOTS: &str = "ballot_box_ballot";
 const VOTERS: &str = "ballot_box_voter";
+const RECEIVED: &str = "ballot_box_received";
+/// The TRUNCATE guard of an event's ballots partition.
+const TRUNCATE_GUARD: &str = "ballot_box_seal_guard_truncate";
 /// How long dropping a ballot box waits for another event's partition of the same
 /// table to finish detaching: PostgreSQL detaches one at a time per table.
 const DETACH_WAIT: Duration = Duration::from_secs(120);
@@ -128,8 +153,122 @@ WITH voter AS (
 SELECT seq, id::text FROM ballot
 "#;
 
+/// `ACCEPT` for a received ballot: the voter's received ballot, locked while it waits
+/// to be cast, gates the vote, and is marked cast with the ballot's insert.
+const ACCEPT_RECEIVED: &str = r#"
+WITH gate AS (
+    SELECT election_event_id, id FROM ballot_box_received
+    WHERE election_event_id = $1::text::uuid AND election_id = $2::text::uuid
+      AND voter_id = $3 AND ballot_id = $17 AND ballot_hash = $5 AND status = 'received'
+    FOR UPDATE
+), voter AS (
+    INSERT INTO ballot_box_voter AS v
+        (election_event_id, election_id, voter_id, area_id, votes, last_ballot_id, updated_at)
+    SELECT election_event_id, $2::text::uuid, $3, $4::text::uuid, 1, $5, now() FROM gate
+    ON CONFLICT (election_event_id, election_id, voter_id) DO UPDATE
+        SET votes = v.votes + 1,
+            area_id = EXCLUDED.area_id,
+            last_ballot_id = EXCLUDED.last_ballot_id,
+            updated_at = EXCLUDED.updated_at
+        WHERE (v.votes = 0 OR v.area_id = EXCLUDED.area_id)
+          AND ($6::integer = 0 OR v.votes < $6::integer)
+    RETURNING election_event_id
+), ballot AS (
+    INSERT INTO ballot_box_ballot
+        (election_event_id, ballot_id, election_id, area_id, voter_id, format, content,
+         voter_signature, pseudonym_hash, ballot_hash, voting_channel, status, voter_ip,
+         voter_country, username, accepted_at)
+    SELECT election_event_id, $5, $2::text::uuid, $4::text::uuid, $3, $7, $8, $9, $10, $11,
+           $12, $13, $14, $15, $16, $18::timestamptz
+    FROM voter
+    RETURNING election_event_id, seq, id
+), queued AS (
+    INSERT INTO ballot_box_pending (election_event_id, seq)
+    SELECT election_event_id, seq FROM ballot
+), marked AS (
+    UPDATE ballot_box_received r
+    SET status = 'cast', cast_at = $18::timestamptz, cast_signature = $19,
+        cast_receipt_signature = $20
+    FROM gate, ballot
+    WHERE r.election_event_id = gate.election_event_id AND r.id = gate.id
+)
+SELECT seq, id::text FROM ballot
+"#;
+
+const RECEIVED_STATUS: &str = "SELECT status FROM ballot_box_received \
+     WHERE election_event_id = $1::text::uuid AND election_id = $2::text::uuid \
+       AND voter_id = $3 AND ballot_id = $4 AND ballot_hash = $5";
+
 const VOTER_STATE: &str = "SELECT area_id::text, votes, last_ballot_id FROM ballot_box_voter \
      WHERE election_event_id = $1::text::uuid AND election_id = $2::text::uuid AND voter_id = $3";
+
+/// Parameters `$1` to `$16` of `ACCEPT` and `ACCEPT_RECEIVED`.
+fn accept_parameters<'a>(
+    ballot: &'a AcceptBallot<'_>,
+    status: &'a (dyn tokio_postgres::types::ToSql + Sync),
+) -> Vec<&'a (dyn tokio_postgres::types::ToSql + Sync)> {
+    vec![
+        &ballot.election_event_id,
+        &ballot.election_id,
+        &ballot.voter_id,
+        &ballot.area_id,
+        &ballot.ballot_id,
+        &ballot.allowed_votes,
+        &ballot.format,
+        &ballot.content,
+        &ballot.voter_signature,
+        &ballot.pseudonym_hash,
+        &ballot.ballot_hash,
+        &ballot.voting_channel,
+        status,
+        &ballot.voter_ip,
+        &ballot.voter_country,
+        &ballot.username,
+    ]
+}
+
+fn accepted_outcome(row: &tokio_postgres::Row) -> AcceptOutcome {
+    AcceptOutcome::Accepted {
+        seq: row.get(0),
+        id: row.get(1),
+    }
+}
+
+/// Why the voter's rules refused a vote that stored nothing.
+async fn refused_outcome(
+    client: &deadpool_postgres::Object,
+    ballot: &AcceptBallot<'_>,
+) -> Result<AcceptOutcome> {
+    // On the same connection: taking a second one while holding this one could
+    // exhaust the pool under load.
+    let state = client
+        .query_opt(
+            VOTER_STATE,
+            &[
+                &ballot.election_event_id,
+                &ballot.election_id,
+                &ballot.voter_id,
+            ],
+        )
+        .await?
+        .map(voter_state_from_row)
+        .context("A refused vote left no voter state")?;
+    Ok(if state.area_id != ballot.area_id.to_ascii_lowercase() {
+        AcceptOutcome::VotedInOtherArea
+    } else {
+        AcceptOutcome::TooManyVotes
+    })
+}
+
+fn error_outcome(error: tokio_postgres::Error) -> Result<AcceptOutcome> {
+    if error.code() == Some(&SqlState::UNIQUE_VIOLATION) {
+        Ok(AcceptOutcome::DuplicateBallotId)
+    } else if is_ballot_box_sealed(&error) {
+        Ok(AcceptOutcome::BallotBoxSealed)
+    } else {
+        Err(error).context("Error accepting the ballot")
+    }
+}
 
 fn voter_state_from_row(row: tokio_postgres::Row) -> VoterState {
     VoterState {
@@ -178,12 +317,12 @@ impl PostgresStore {
         let suffix = partition_suffix(election_event_id)?;
         let event = canonical_uuid(election_event_id)?;
         let mut client = self.client().await?;
-        for parent in [BALLOTS, VOTERS] {
+        for parent in [BALLOTS, VOTERS, RECEIVED] {
             let partition = format!("{parent}_{suffix}");
-            let storage = if parent == BALLOTS {
-                format!("ALTER TABLE {partition} ALTER COLUMN content SET STORAGE EXTERNAL;")
-            } else {
+            let storage = if parent == VOTERS {
                 String::new()
+            } else {
+                format!("ALTER TABLE {partition} ALTER COLUMN content SET STORAGE EXTERNAL;")
             };
             let transaction = client.transaction().await?;
             // Concurrent creations of one event's ballot box take turns.
@@ -214,6 +353,24 @@ impl PostgresStore {
                     ))
                     .await?;
             }
+            // Statement triggers of the partitioned table are not cloned to partitions.
+            if parent == BALLOTS {
+                let guarded = transaction
+                    .query_opt(
+                        "SELECT 1 FROM pg_trigger WHERE tgrelid = $1::text::regclass AND tgname = $2",
+                        &[&partition, &TRUNCATE_GUARD],
+                    )
+                    .await?
+                    .is_some();
+                if !guarded {
+                    transaction
+                        .batch_execute(&format!(
+                            "CREATE TRIGGER {TRUNCATE_GUARD} BEFORE TRUNCATE ON {partition} \
+                             FOR EACH STATEMENT EXECUTE FUNCTION {TRUNCATE_GUARD}('{event}')"
+                        ))
+                        .await?;
+                }
+            }
             transaction
                 .commit()
                 .await
@@ -222,8 +379,33 @@ impl PostgresStore {
         Ok(())
     }
 
-    /// Drop an election event's ballot box: its partitions, with every ballot and
-    /// voter count, its queue and its lease. Idempotent.
+    /// Create what later versions of the schema add to each ballot box of the
+    /// database, as applying the schema to an existing database does.
+    pub async fn upgrade_ballot_boxes(&self) -> Result<()> {
+        let rows = self
+            .client()
+            .await?
+            .query(
+                "SELECT c.relname::text FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid \
+                 WHERE i.inhparent = $1::text::regclass AND NOT i.inhdetachpending",
+                &[&BALLOTS],
+            )
+            .await
+            .context("Error listing the ballot boxes")?;
+        let prefix = format!("{BALLOTS}_");
+        for row in rows {
+            let partition: String = row.try_get(0)?;
+            let event = partition
+                .strip_prefix(&prefix)
+                .with_context(|| format!("Unexpected ballot box partition {partition}"))?;
+            self.create_ballot_box(event).await?;
+        }
+        Ok(())
+    }
+
+    /// Drop an election event's ballot box: its partitions, with every ballot, voter
+    /// count and received ballot, its queue and its lease. Idempotent. Refuses a
+    /// sealed ballot box: seals are kept until the event's database is dropped.
     ///
     /// Each partition is detached with `DETACH PARTITION … CONCURRENTLY`, which waits
     /// for the transactions that may see it but holds back no vote of the tenant's
@@ -233,6 +415,10 @@ impl PostgresStore {
     pub async fn drop_ballot_box(&self, election_event_id: &str) -> Result<()> {
         let suffix = partition_suffix(election_event_id)?;
         let event = canonical_uuid(election_event_id)?;
+        ensure!(
+            !self.has_ballot_box_seals(&event).await?,
+            "The ballot box of election event {event} is sealed"
+        );
         let client = self.client().await?;
         client
             .execute(
@@ -240,7 +426,7 @@ impl PostgresStore {
                 &[&event],
             )
             .await?;
-        for parent in [BALLOTS, VOTERS] {
+        for parent in [BALLOTS, VOTERS, RECEIVED] {
             let partition = format!("{parent}_{suffix}");
             let detach_pending: Option<bool> = client
                 .query_opt(
@@ -307,7 +493,8 @@ impl PostgresStore {
     }
 
     /// Accept a vote: in one statement, count it for the voter, store the ballot and
-    /// queue it for the sequencer, unless the election's rules refuse it.
+    /// queue it for the sequencer, unless the election's rules or the box's seal
+    /// refuse it.
     pub async fn accept_ballot(&self, ballot: &AcceptBallot<'_>) -> Result<AcceptOutcome> {
         let client = self.client().await?;
         // Prepared once per connection, so that each vote does not parse and plan it.
@@ -317,58 +504,66 @@ impl PostgresStore {
             .context("Error preparing the statement that accepts ballots")?;
         let status = ballot.status.to_string();
         let accepted = client
-            .query_opt(
-                &statement,
-                &[
-                    &ballot.election_event_id,
-                    &ballot.election_id,
-                    &ballot.voter_id,
-                    &ballot.area_id,
-                    &ballot.ballot_id,
-                    &ballot.allowed_votes,
-                    &ballot.format,
-                    &ballot.content,
-                    &ballot.voter_signature,
-                    &ballot.pseudonym_hash,
-                    &ballot.ballot_hash,
-                    &ballot.voting_channel,
-                    &status,
-                    &ballot.voter_ip,
-                    &ballot.voter_country,
-                    &ballot.username,
-                ],
-            )
+            .query_opt(&statement, &accept_parameters(ballot, &status))
             .await;
         match accepted {
-            Ok(Some(row)) => Ok(AcceptOutcome::Accepted {
-                seq: row.get(0),
-                id: row.get(1),
-            }),
+            Ok(Some(row)) => Ok(accepted_outcome(&row)),
+            Ok(None) => refused_outcome(&client, ballot).await,
+            Err(error) => error_outcome(error),
+        }
+    }
+
+    /// Accept a vote that casts a received ballot, as `accept_ballot` does, and mark
+    /// the received ballot cast in the same statement. Refused, leaving it received,
+    /// unless the voter's received ballot with this Ballot ID and `ballot.ballot_id`
+    /// as its ballot hash waits to be cast. A second cast of it, also a concurrent
+    /// one, is `DuplicateBallotId`.
+    pub async fn accept_received_ballot(
+        &self,
+        ballot: &AcceptBallot<'_>,
+        received: &AcceptReceived<'_>,
+    ) -> Result<AcceptOutcome> {
+        let client = self.client().await?;
+        let statement = client
+            .prepare_cached(ACCEPT_RECEIVED)
+            .await
+            .context("Error preparing the statement that casts received ballots")?;
+        let status = ballot.status.to_string();
+        let mut parameters = accept_parameters(ballot, &status);
+        parameters.extend_from_slice(&[
+            &received.ballot_id,
+            &received.cast_at,
+            &received.cast_signature,
+            &received.cast_receipt_signature,
+        ]);
+        let accepted = client.query_opt(&statement, &parameters).await;
+        match accepted {
+            Ok(Some(row)) => Ok(accepted_outcome(&row)),
             Ok(None) => {
-                // On the same connection: taking a second one while holding this one
-                // could exhaust the pool under load.
-                let state = client
+                let status = client
                     .query_opt(
-                        VOTER_STATE,
+                        RECEIVED_STATUS,
                         &[
                             &ballot.election_event_id,
                             &ballot.election_id,
                             &ballot.voter_id,
+                            &received.ballot_id,
+                            &ballot.ballot_id,
                         ],
                     )
                     .await?
-                    .map(voter_state_from_row)
-                    .context("A refused vote left no voter state")?;
-                Ok(if state.area_id != ballot.area_id.to_ascii_lowercase() {
-                    AcceptOutcome::VotedInOtherArea
-                } else {
-                    AcceptOutcome::TooManyVotes
-                })
+                    .map(|row| row.try_get::<_, String>(0))
+                    .transpose()?;
+                match status.as_deref().map(str::parse::<ReceivedStatus>) {
+                    Some(Ok(ReceivedStatus::Received)) => refused_outcome(&client, ballot).await,
+                    Some(Ok(ReceivedStatus::Cast)) => Ok(AcceptOutcome::DuplicateBallotId),
+                    Some(Ok(ReceivedStatus::Audited)) | None => Ok(AcceptOutcome::NotReceivable),
+                    Some(Err(_)) => {
+                        Err(anyhow::anyhow!("Unknown received ballot status {status:?}"))
+                    }
+                }
             }
-            Err(error) if error.code() == Some(&SqlState::UNIQUE_VIOLATION) => {
-                Ok(AcceptOutcome::DuplicateBallotId)
-            }
-            Err(error) => Err(error).context("Error accepting the ballot"),
+            Err(error) => error_outcome(error),
         }
     }
 

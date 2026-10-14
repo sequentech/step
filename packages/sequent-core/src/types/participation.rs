@@ -195,7 +195,7 @@ mod tests {
 
     #[test]
     fn provides_canonical_report_order_and_labels() {
-        let mut channels = vec![
+        let mut channels = [
             ParticipationChannel::Unknown("FUTURE_CHANNEL".to_string()),
             TallySheetVotingChannel::IN_PERSON.into(),
             VotingStatusChannel::TELEPHONE.into(),

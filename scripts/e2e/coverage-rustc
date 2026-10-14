@@ -1,0 +1,12 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# RUSTC_WORKSPACE_WRAPPER for STEP_E2E_COVERAGE=1 builds (scripts/e2e/build.sh):
+# Cargo applies it to workspace crates only, so dependencies stay uninstrumented.
+# Build scripts and proc macros only run while compiling. Counter relocation lets
+# a service without a signal handler use LLVM's continuous mode (%c).
+case " $* " in
+*" --crate-name build_script_"* | *" --crate-type proc-macro "*) exec "$@" ;;
+esac
+exec "$@" -C instrument-coverage -C llvm-args=-runtime-counter-relocation

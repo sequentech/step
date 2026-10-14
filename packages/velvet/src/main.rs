@@ -2,16 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-mod cli;
-mod config;
-mod fixtures;
-mod pipes;
-mod utils;
-
 use clap::Parser;
-use cli::{state::State, Cli, Commands};
 use sequent_core::util::init_log::init_log;
 use tracing::{event, Level};
+use velvet::cli::{state::State, Cli, Commands};
 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error + 'static>> {
     let cli = Cli::parse();

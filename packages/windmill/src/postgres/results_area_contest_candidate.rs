@@ -10,7 +10,7 @@ use rust_decimal::Decimal;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::results::*;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::Value;
 use tokio_postgres::row::Row;
 use tracing::{info, instrument};
@@ -23,9 +23,8 @@ impl TryFrom<Row> for ResultsAreaContestCandidateWrapper {
 
     fn try_from(item: Row) -> Result<Self> {
         let documents_value: Option<Value> = item.try_get("documents")?;
-        let documents: Option<ResultDocuments> = documents_value
-            .map(|value| deserialize_value(value))
-            .transpose()?;
+        let documents: Option<ResultDocuments> =
+            documents_value.map(deserialize_value).transpose()?;
 
         Ok(ResultsAreaContestCandidateWrapper(
             ResultsAreaContestCandidate {
@@ -69,16 +68,16 @@ pub async fn get_results_area_contest_candidates(
     election_id: &str,
     contest_id: &str,
     candidate_id: &str,
-) -> Result<(Option<ResultsAreaContestCandidate>)> {
-    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
+) -> Result<Option<ResultsAreaContestCandidate>> {
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
-    let election_uuid: uuid::Uuid = parse_uuid_v4(&election_id)
+    let election_uuid: uuid::Uuid = parse_uuid_v4(election_id)
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
-    let contest_uuid: uuid::Uuid = parse_uuid_v4(&contest_id)
+    let contest_uuid: uuid::Uuid = parse_uuid_v4(contest_id)
         .map_err(|err| anyhow!("Error parsing contest_id as UUID: {}", err))?;
-    let candidate_uuid: uuid::Uuid = parse_uuid_v4(&candidate_id)
+    let candidate_uuid: uuid::Uuid = parse_uuid_v4(candidate_id)
         .map_err(|err| anyhow!("Error parsing candidate_id as UUID: {}", err))?;
 
     let statement = hasura_transaction
@@ -121,7 +120,7 @@ pub async fn get_results_area_contest_candidates(
         })
         .collect::<Result<Vec<ResultsAreaContestCandidate>>>()?;
 
-    Ok(results_area_contest_candidate.get(0).cloned())
+    Ok(results_area_contest_candidate.first().cloned())
 }
 
 #[instrument(err, skip(hasura_transaction, contest_candidates))]
@@ -168,10 +167,7 @@ pub async fn insert_results_area_contest_candidates(
                 cast_votes: contest_candidate.cast_votes,
                 winning_position: contest_candidate.winning_position,
                 points: contest_candidate.points,
-                cast_votes_percent: contest_candidate
-                    .cast_votes_percent
-                    .clone()
-                    .map(|n| n.into()),
+                cast_votes_percent: contest_candidate.cast_votes_percent.map(|n| n.into()),
             })
         })
         .collect::<Result<Vec<InsertResultsAreaContestCandidate>>>()?;
@@ -248,9 +244,9 @@ pub async fn get_event_results_area_contest_candidates(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Vec<ResultsAreaContestCandidate>> {
-    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
 
     let statement = hasura_transaction

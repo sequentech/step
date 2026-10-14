@@ -14,7 +14,7 @@ impl BasesCodec for Contest {
         let context = ContestCodecContext::new(self)
             .map_err(|message| anyhow::anyhow!("{}", message))?;
 
-        Ok(context.single_contest_bases())
+        context.single_contest_bases().map_err(anyhow::Error::msg)
     }
 }
 
@@ -23,6 +23,30 @@ mod tests {
     use crate::ballot_codec::*;
     use crate::fixtures::ballot_codec::bases_fixture;
     use crate::fixtures::ballot_codec::get_fixtures;
+
+    #[test]
+    fn candidate_bases_reject_invalid_values_without_wrapping_or_panicking() {
+        use crate::types::ceremonies::CountingAlgType;
+        let mut contest = get_fixtures().remove(0).contest;
+        contest.counting_algorithm = Some(CountingAlgType::Borda);
+        contest.max_votes = -1;
+        assert!(contest.get_bases().is_err());
+        contest.max_votes = i64::MAX;
+        assert!(contest.get_bases().unwrap().contains(&(1u64 << 63)));
+        contest.counting_algorithm = Some(CountingAlgType::Cumulative);
+        contest
+            .presentation
+            .as_mut()
+            .unwrap()
+            .cumulative_number_of_checkboxes = Some(u64::MAX);
+        assert!(contest.get_bases().is_err());
+        contest
+            .presentation
+            .as_mut()
+            .unwrap()
+            .cumulative_number_of_checkboxes = Some(u64::MAX - 1);
+        assert!(contest.get_bases().unwrap().contains(&u64::MAX));
+    }
 
     #[test]
     fn test_contest_bases() {

@@ -23,8 +23,8 @@ use electoral_log::{
     ElectoralLogMessage, LogEntry, LogQuery,
 };
 use std::sync::Arc;
-use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use uuid::Uuid;
+use voting_crypto::signing::{SigningKey, VerificationKey};
 
 fn databases() -> Result<EventDatabases> {
     EventDatabases::from_env()
@@ -218,14 +218,14 @@ async fn export(store: &PostgresStore) -> Result<(Vec<ExportedRecord>, ExportMan
 }
 
 fn sign(
-    key: &StrandSignatureSk,
+    key: &SigningKey,
     checkpoint: &electoral_log::proofs::Checkpoint,
 ) -> Result<SignedCheckpoint> {
     let reason = ElectoralLogCheckpointReason::Periodic;
     Ok(SignedCheckpoint {
         checkpoint: checkpoint.clone(),
         reason,
-        signer_pk: StrandSignaturePk::from_sk(key)?.to_der_b64_string()?,
+        signer_pk: VerificationKey::from_sk(key)?.to_b64_string()?,
         signature: key
             .sign(&checkpoint_signing_bytes(checkpoint, reason)?)?
             .to_b64_string()?,
@@ -298,7 +298,7 @@ async fn exported_logs_import_with_their_roots_and_tampering_is_refused() -> Res
     let tenant = Uuid::new_v4();
     let [source_event, target_event, tampered_event, chained_event, unlinked_event] =
         [(); 5].map(|_| Uuid::new_v4());
-    let key = StrandSignatureSk::generate()?;
+    let key = SigningKey::generate()?;
     let sd = SigningData::new(key.clone(), "", key.clone());
     let source_board = board(&tenant, &source_event);
     let source = databases
@@ -474,5 +474,83 @@ async fn exported_logs_import_with_their_roots_and_tampering_is_refused() -> Res
             .drop_event(&tenant.to_string(), &event.to_string())
             .await?;
     }
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_PG_* with a role that may create databases"]
+async fn upgrading_an_event_database_completes_its_ballot_box() -> Result<()> {
+    use electoral_log::adapters::ballot_box_received::{
+        ReceiveBallot, ReceiveOutcome, ReceivedSignature,
+    };
+    let databases = databases()?;
+    let (tenant, event, election, area) = (
+        Uuid::new_v4(),
+        Uuid::new_v4(),
+        Uuid::new_v4().to_string(),
+        Uuid::new_v4().to_string(),
+    );
+    let event_id = event.to_string();
+    let store = databases
+        .create_event(&tenant.to_string(), &event_id)
+        .await?;
+    store.create_ballot_box(&event_id).await?;
+    // The ballot box as it was before received ballots and seals.
+    let suffix = event.simple();
+    store
+        .client()
+        .await?
+        .batch_execute(&format!(
+            "ALTER TABLE ballot_box_received DETACH PARTITION ballot_box_received_{suffix};
+             DROP TABLE ballot_box_received_{suffix};
+             DROP TRIGGER ballot_box_seal_guard_truncate ON ballot_box_ballot_{suffix};
+             DROP TRIGGER ballot_box_seal_guard_truncate ON ballot_box_ballot;
+             DROP TRIGGER ballot_box_seal_guard ON ballot_box_ballot;
+             DROP TABLE ballot_box_seal;"
+        ))
+        .await?;
+
+    databases.apply_schema(&event_id).await?;
+    databases.apply_schema(&event_id).await?;
+    let triggers: Vec<String> = store
+        .client()
+        .await?
+        .query(
+            "SELECT tgname::text FROM pg_trigger WHERE tgrelid = $1::text::regclass ORDER BY 1",
+            &[&format!("ballot_box_ballot_{suffix}")],
+        )
+        .await?
+        .iter()
+        .map(|row| row.get(0))
+        .collect();
+    assert_eq!(
+        triggers,
+        ["ballot_box_seal_guard", "ballot_box_seal_guard_truncate"]
+    );
+    assert!(!store.has_ballot_box_seals(&event_id).await?);
+    let received = store
+        .receive_ballot(
+            &ReceiveBallot {
+                election_event_id: &event_id,
+                election_id: &election,
+                area_id: &area,
+                voter_id: "voter",
+                ballot_hash: "hash",
+                content: "content",
+                voter_signing_pk: "key",
+                voter_ballot_signature: "signature",
+            },
+            chrono::DateTime::from_timestamp_millis(1_841_396_472_000).unwrap(),
+            |_| {
+                Ok(ReceivedSignature {
+                    ballot_id: "ABCD-EF01".into(),
+                    key_id: "key".into(),
+                    received_signature: "signed".into(),
+                })
+            },
+        )
+        .await?;
+    assert!(matches!(received, ReceiveOutcome::Received(_)));
+    databases.drop_event(&tenant.to_string(), &event_id).await?;
     Ok(())
 }

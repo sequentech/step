@@ -2,12 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::KeysCeremony;
 use serde_json::Value;
 use tokio_postgres::row::Row;
-use tracing::{event, info, instrument, Level};
+use tracing::{info, instrument};
 use uuid::Uuid;
 
 pub struct KeysCeremonyWrapper(pub KeysCeremony);
@@ -158,11 +158,15 @@ async fn query_keys_ceremony_by_id(
         .collect::<Result<Vec<KeysCeremony>>>()?;
 
     keys_ceremonies
-        .get(0)
-        .map(|keys_ceremony| keys_ceremony.clone())
+        .first()
+        .cloned()
         .ok_or(anyhow!("Keys ceremony {keys_ceremony_id} not found"))
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the existing database API argument order for transaction, record scope and column values."
+)]
 #[instrument(skip(hasura_transaction), err)]
 pub async fn insert_keys_ceremony(
     hasura_transaction: &Transaction<'_>,
@@ -242,10 +246,7 @@ pub async fn insert_keys_ceremony(
         })
         .collect::<Result<Vec<KeysCeremony>>>()?;
 
-    elements
-        .get(0)
-        .map(|val| val.clone())
-        .ok_or(anyhow!("Row not inserted"))
+    elements.first().cloned().ok_or(anyhow!("Row not inserted"))
 }
 
 #[instrument(skip(hasura_transaction, status), err)]
@@ -289,9 +290,44 @@ pub async fn update_keys_ceremony_status(
         .await
         .map_err(|err| anyhow!("Error running the update_keys_ceremony_status query: {err}"))?;
 
-    if 0 == rows.len() {
+    if rows.is_empty() {
         return Err(anyhow!("No keys ceremony found"));
     }
+
+    Ok(())
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn delete_keys_ceremony(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    keys_ceremony_id: &str,
+) -> Result<()> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                DELETE FROM
+                    sequent_backend.keys_ceremony
+                WHERE
+                    id = $1 AND
+                    tenant_id = $2 AND
+                    election_event_id = $3;
+            "#,
+        )
+        .await?;
+
+    hasura_transaction
+        .execute(
+            &statement,
+            &[
+                &parse_uuid_v4(keys_ceremony_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running the delete_keys_ceremony query: {err}"))?;
 
     Ok(())
 }
@@ -348,3 +384,5 @@ pub async fn list_keys_ceremony(
 
     Ok(keys_ceremonies)
 }
+
+pub use lock_keys_ceremony_by_id as get_keys_ceremony_by_id_for_update;

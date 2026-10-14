@@ -20,6 +20,10 @@ impl TryFrom<Row> for PgLock {
     }
 }
 
+/// What [`upsert_lock`] fails with when another holder has the lock and it
+/// has not expired.
+pub const LOCK_HELD: &str = "Couldn't upsert lock";
+
 #[instrument(skip(hasura_transaction), err)]
 pub async fn upsert_lock(
     hasura_transaction: &Transaction<'_>,
@@ -68,7 +72,7 @@ pub async fn upsert_lock(
             .collect::<Result<Vec<PgLock>>>()?;
         Ok(locks.remove(0))
     } else {
-        Err(anyhow!("Couldn't upsert lock"))
+        Err(anyhow!(LOCK_HELD))
     }
 }
 

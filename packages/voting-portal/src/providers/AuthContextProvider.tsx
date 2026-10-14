@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {StartupError} from "../components/StartupError"
 import React, {useContext} from "react"
 
 import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
@@ -17,6 +18,86 @@ import {getKioskAwareUrl, getKioskPortalRedirectUrl} from "../utils/kioskUrls"
 /**
  * AuthContextValues defines the structure for the default values of the {@link AuthContext}.
  */
+// The Keycloak required action that verifies a new channel and replaces the voter's old one.
+export const CONTACT_CHANGE_ACTION = "message-channel-ra"
+// It asks for a recent sign-in: older than this, Keycloak signs the voter in again first.
+export const CONTACT_CHANGE_MAX_AGE_SECONDS = 300
+
+// What Keycloak reports when the voter comes back from the contact change.
+export enum ContactChangeOutcome {
+    Success = "success",
+    Cancelled = "cancelled",
+    Error = "error",
+}
+
+/** The outcome of the contact change, or none for another required action. */
+export const contactChangeOutcomeOf = (
+    status: "success" | "cancelled" | "error",
+    action: string | undefined
+): ContactChangeOutcome | undefined => {
+    if (action !== CONTACT_CHANGE_ACTION) {
+        return undefined
+    }
+    switch (status) {
+        case "success":
+            return ContactChangeOutcome.Success
+        case "cancelled":
+            return ContactChangeOutcome.Cancelled
+        case "error":
+            return ContactChangeOutcome.Error
+    }
+}
+
+/** Keycloak's public list of the channels the event offers for codes. */
+export const messagingChannelsUrl = (authServerUrl: string, realm: string): string =>
+    `${authServerUrl.replace(/\/+$/, "")}/realms/${encodeURIComponent(realm)}/messaging-channels`
+
+/**
+ * Whether the voter can change how they are contacted: only when the event offers at least one
+ * channel for codes. Anything else (no channel, an older Keycloak without the endpoint, an error)
+ * hides the entry, and the reason is logged once.
+ *
+ * With the voter's access token Keycloak decides for that voter (their Posts and whether every
+ * sign-in code step sends on the voter's channel), as the contact change itself decides (R7-14);
+ * without one it answers for the event only.
+ */
+export async function fetchContactChangeAvailable(
+    authServerUrl: string | undefined,
+    realm: string | undefined,
+    token: string | undefined,
+    fetchImpl: typeof fetch = fetch
+): Promise<boolean> {
+    const hidden = (reason: string) => {
+        console.info(`"Change how we contact you" is not offered: ${reason}`)
+        return false
+    }
+    if (!authServerUrl || !realm) {
+        return hidden("Keycloak's URL or realm is unknown")
+    }
+    const url = messagingChannelsUrl(authServerUrl, realm)
+    try {
+        const headers: Record<string, string> = {Accept: "application/json"}
+        if (token) {
+            headers.Authorization = `Bearer ${token}`
+        }
+        const response = await fetchImpl(url, {headers})
+        if (response.status !== 200) {
+            return hidden(`${url} answered ${response.status}`)
+        }
+        const body: unknown = await response.json()
+        const channels = (body as {code_channels?: unknown} | null)?.code_channels
+        if (!Array.isArray(channels)) {
+            return hidden(`${url} answered without a code_channels list`)
+        }
+        if (!channels.some((channel) => typeof channel === "string" && channel !== "")) {
+            return hidden("the event offers no channel for codes")
+        }
+        return true
+    } catch (error) {
+        return hidden(`${url} could not be read (${String(error)})`)
+    }
+}
+
 export interface AuthContextValues {
     /**
      * Is Auth Context has been fully initialized
@@ -82,6 +163,21 @@ export interface AuthContextValues {
     isGoldUser: () => boolean
 
     reauthWithGold: (redirectUri: string) => Promise<void>
+
+    /** Starts Keycloak's contact change ({@link CONTACT_CHANGE_ACTION}) after a recent sign-in. */
+    changeContactChannel?: () => Promise<void>
+
+    /**
+     * Whether the event offers a channel for codes, so the voter can change theirs. Absent
+     * (an offline context) means no.
+     */
+    contactChangeAvailable?: boolean
+
+    /** How the last contact change ended, until the voter dismisses it. */
+    contactChangeOutcome?: ContactChangeOutcome
+
+    /** Dismisses {@link contactChangeOutcome}. */
+    clearContactChangeOutcome?: () => void
 }
 
 interface UserProfile {
@@ -116,6 +212,7 @@ const defaultAuthContextValues: AuthContextValues = {
     openProfileLink: () => new Promise(() => undefined),
     isGoldUser: () => false,
     reauthWithGold: async () => {},
+    contactChangeAvailable: false,
 }
 
 /**
@@ -145,6 +242,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const [keycloakAccessToken, setKeycloakAccessToken] = useState<string | undefined>()
 
     // Create the local state in which we will keep track if a user is authenticated
+    const [initializationFailed, setInitializationFailed] = useState(false)
     const [isAuthenticated, setAuthenticated] = useState<boolean>(false)
 
     // Local state that will contain the users name once it is loaded
@@ -155,6 +253,10 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const [authType, setAuthType] = useState<"register" | "login" | null>(null)
     const [defaultLocale, setDefaultLocale] = useState<string | undefined>(undefined)
     const [loginHints, setLoginHints] = useState<LoginHints>({})
+    const [contactChangeAvailable, setContactChangeAvailable] = useState<boolean>(false)
+    const [contactChangeOutcome, setContactChangeOutcome] = useState<
+        ContactChangeOutcome | undefined
+    >(undefined)
 
     const {i18n} = useTranslation()
 
@@ -231,6 +333,15 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                         hasKioskQuery: new URLSearchParams(window.location.search).has("kiosk"),
                     }),
                 })
+            }
+
+            // Keycloak reports a required action's outcome when it redirects back, during init.
+            newKeycloak.onActionUpdate = (status, action) => {
+                const outcome = contactChangeOutcomeOf(status, action)
+                if (outcome !== undefined) {
+                    console.info(`The contact change ended: ${outcome}`)
+                    setContactChangeOutcome(outcome)
+                }
             }
 
             setKeycloak(newKeycloak)
@@ -337,6 +448,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 setKeycloakAccessToken(keycloak.token)
                 updateTokenPeriodically()
             } catch (error) {
+                setInitializationFailed(true)
                 console.log("error initializing Keycloak")
                 console.log(error)
                 setAuthenticated(false)
@@ -375,6 +487,37 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             console.error("Re-authentication failed:", error)
         }
     }
+
+    const changeContactChannel = async (): Promise<void> => {
+        try {
+            await keycloak?.login({
+                action: CONTACT_CHANGE_ACTION,
+                maxAge: CONTACT_CHANGE_MAX_AGE_SECONDS,
+                redirectUri: window.location.href,
+                locale: toBCP47(i18n.language),
+            })
+        } catch (error) {
+            console.error("The contact change could not start:", error)
+        }
+    }
+
+    // The contact change is offered only when the event has a channel for codes.
+    useEffect(() => {
+        if (!keycloak || !isAuthenticated || !isKeycloakInitialized) {
+            return
+        }
+        let current = true
+        fetchContactChangeAvailable(keycloak.authServerUrl, keycloak.realm, keycloak.token).then(
+            (available) => {
+                if (current) {
+                    setContactChangeAvailable(available)
+                }
+            }
+        )
+        return () => {
+            current = false
+        }
+    }, [keycloak, isAuthenticated, isKeycloakInitialized])
 
     useEffect(() => {
         async function loadProfile() {
@@ -514,9 +657,13 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 keycloakAccessToken,
                 isGoldUser,
                 reauthWithGold,
+                changeContactChannel,
+                contactChangeAvailable,
+                contactChangeOutcome,
+                clearContactChangeOutcome: () => setContactChangeOutcome(undefined),
             }}
         >
-            {props.children}
+            {initializationFailed ? <StartupError /> : props.children}
         </AuthContext.Provider>
     )
 }

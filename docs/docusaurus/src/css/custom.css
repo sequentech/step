@@ -165,6 +165,12 @@ body.home .navbar__brand .navbar__title {
   height: 190px;
 }
 
+
+@media print {
+  .theme-edit-this-page {
+    display: none;
+  }
+}
 /* Code variants share the theme's accessible tabs and light/dark palette. */
 .code-mode-tabs {
   border-bottom: 1px solid var(--ifm-color-emphasis-300);

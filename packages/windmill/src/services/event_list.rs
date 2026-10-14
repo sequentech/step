@@ -1,22 +1,13 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::postgres::election_event::get_election_event_by_id;
-use crate::{
-    postgres::scheduled_event::{insert_new_scheduled_event, insert_scheduled_event},
-    types::resources::OrderDirection,
-};
+use crate::types::resources::OrderDirection;
 use anyhow::Result;
-use deadpool_postgres::Transaction;
-use rocket::http::Status;
-use sequent_core::services::keycloak;
 use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
-use serde_json::Value as Jsonb;
 use std::{collections::HashMap, convert::TryFrom};
 use strum_macros::EnumString;
-use tracing::{info, instrument};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct GetEventListOutput {
@@ -60,7 +51,7 @@ impl TryFrom<(ScheduledEvent, ElectionEvent)> for GetEventListOutput {
     type Error = String;
 
     fn try_from(event: (ScheduledEvent, ElectionEvent)) -> Result<Self, Self::Error> {
-        let (event_data, election) = event;
+        let (event_data, _election) = event;
         Ok(GetEventListOutput {
             election: event_data
                 .event_payload
@@ -71,13 +62,11 @@ impl TryFrom<(ScheduledEvent, ElectionEvent)> for GetEventListOutput {
                 .to_string(),
             schedule: event_data
                 .cron_config
-                .map_or(None, |cc| Some(cc.scheduled_date?.to_string())),
+                .and_then(|cc| cc.scheduled_date.map(|date| date.to_string())),
             task_id: event_data.task_id.clone(),
             tenant_id: event_data.tenant_id,
             election_event_id: event_data.election_event_id,
-            event_type: event_data
-                .event_processor
-                .map_or(None, |ep| Some(ep.to_string())),
+            event_type: event_data.event_processor.map(|ep| ep.to_string()),
             id: Some(event_data.id),
         })
     }

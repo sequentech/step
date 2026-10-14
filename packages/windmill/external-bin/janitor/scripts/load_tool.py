@@ -62,8 +62,11 @@ def run_generate_voters(args):
     sequence_email_number = voters_config.get("sequence_email_number", True)
     sequence_start_number = voters_config.get("sequence_start_number", 0)
     voter_password = voters_config.get("voter_password", "Qwerty1234!")
-    password_salt = voters_config.get("password_salt", "sppXH6/iePtmIgcXfTHmjPS2QpLfILVMfmmVOLPKlic=")
-    hashed_password = voters_config.get("hashed_password", "V0rb8+HmTneV64qto5f0G2+OY09x2RwPeqtK605EUz0=")
+    password_salt = voters_config.get("password_salt", "")
+    hashed_password = voters_config.get("hashed_password", "")
+    if any(field in fields and field not in excluded_columns
+           for field in ("password_salt", "hashed_password")) and not (password_salt and hashed_password):
+        raise ValueError("Supply a matching password salt/verifier, or generate a password CSV and run step-cli step hash-passwords")
     min_age = voters_config.get("min_age", 18)
     max_age = voters_config.get("max_age", 90)
     overseas_reference = voters_config.get("overseas_reference", "B")
@@ -82,12 +85,14 @@ def run_generate_voters(args):
     elections = data.get('elections', [])
 
     election_map = {}
+    authorization_keys = {}
     for el in elections:
         e_id = el.get('id')
         alias = el.get('alias', 'Unknown')
         ann = el.get('annotations', {})
         cluster_prec = ann.get('clustered_precint_id', 'Unknown')
         election_map[e_id] = (alias, cluster_prec)
+        authorization_keys[e_id] = el.get("external_id") or e_id
 
     area_contest_map = {}
     for ac in area_contests:
@@ -144,11 +149,13 @@ def run_generate_voters(args):
         area_name = area.get('name', 'Unknown')
         assigned_cids = area_contest_map.get(area_id, [])
         election_aliases = []
+        election_keys = []
         precincts = []
         for cid in assigned_cids:
             e_id = contest_election_map.get(cid, 'Unknown')
             alias, cluster_prec = election_map.get(e_id, ('Unknown', 'Unknown'))
             election_aliases.append(alias)
+            election_keys.append(authorization_keys.get(e_id, e_id))
             precincts.append(cluster_prec)
         election_aliases = deduplicate_preserve_order(election_aliases)
         precincts = deduplicate_preserve_order(precincts)
@@ -164,7 +171,8 @@ def run_generate_voters(args):
         else:
             official_country = election_country_candidate
             official_embassy = 'Unknown'
-        joined_aliases = '|'.join(election_aliases) if election_aliases else 'Unknown'
+        # The configured Keycloak mapper resolves external IDs (or IDs when absent).
+        joined_keys = '|'.join(deduplicate_preserve_order(election_keys)) if election_keys else 'Unknown'
         joined_precincts = '|'.join(precincts) if precincts else 'Unknown'
         dob = fake.date_of_birth(minimum_age=min_age, maximum_age=max_age).strftime('%Y-%m-%d')
 
@@ -186,7 +194,7 @@ def run_generate_voters(args):
             'clusteredPrecinct': joined_precincts,
             'overseasReferences': overseas_reference,
             'area_name': area_name,
-            'authorized-election-ids': joined_aliases,
+            'authorized-election-ids': joined_keys,
             'password': voter_password,
             'email': email,
             'password_salt': password_salt,

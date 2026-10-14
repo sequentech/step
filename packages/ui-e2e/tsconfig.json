@@ -1,0 +1,6 @@
+{
+  "extends": "../ui-test-kit/tsconfig.json",
+  "compilerOptions": {"allowImportingTsExtensions": true},
+  "include": ["**/*.ts", "**/*.mts"],
+  "exclude": ["node_modules", "test-results"]
+}

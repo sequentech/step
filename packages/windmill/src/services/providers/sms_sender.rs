@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::email_sender::TransportFailure;
 use crate::types::error::Result;
 
 use anyhow::anyhow;
@@ -58,7 +59,7 @@ impl SmsSender {
 
                     let base_message_attributes: HashMap<String, String> = deserialize_str(
                         &std::env::var("AWS_SNS_ATTRIBUTES")
-                            .map_err(|err| anyhow!("AWS_SNS_ATTRIBUTES env var missing"))?,
+                            .map_err(|_err| anyhow!("AWS_SNS_ATTRIBUTES env var missing"))?,
                     )
                     .map_err(|err| anyhow!("AWS_SNS_ATTRIBUTES env var parse error: {err:?}"))?;
                     let messsage_attributes = Some(
@@ -93,6 +94,17 @@ impl SmsSender {
 
     #[instrument(skip_all, err)]
     pub async fn send(&self, receiver: String, message: String) -> Result<()> {
+        self.send_message(receiver, message)
+            .await
+            .map_err(|failure| anyhow!("error sending SMS: {failure}").into())
+    }
+
+    /// [`SmsSender::send`] with a typed failure, for the message ledger.
+    pub async fn send_message(
+        &self,
+        receiver: String,
+        message: String,
+    ) -> std::result::Result<(), TransportFailure> {
         match self.transport {
             SmsTransport::AwsSns((ref aws_client, ref messsage_attributes)) => {
                 event!(Level::INFO, "SmsTransport::AwsSns: Sending SMS");
@@ -103,7 +115,10 @@ impl SmsSender {
                     .set_message(Some(message))
                     .send()
                     .await
-                    .map_err(|err| anyhow!("SmsTransport::AwsSes send error: {err:?}"))?;
+                    .map_err(|err| {
+                        event!(Level::WARN, "SmsTransport::AwsSns: send failed: {err:?}");
+                        TransportFailure::from_aws(&err)
+                    })?;
             }
             SmsTransport::Console => {
                 // The console transport does not deliver anything, so printing the rendered

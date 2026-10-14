@@ -15,11 +15,13 @@ crate-type = ["cdylib", "rlib"]
 
 [[example]]
 name = "render_pdf"
-required-features = ["reports"]
+required-features = ["reports", "default_features"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+voting-crypto = { path = "../voting-crypto" }
+vsc = { workspace = true }
 # serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -34,8 +36,6 @@ serde-wasm-bindgen = { version = "0.6", optional = true }
 web-sys = { version = "0.3", features = ['Performance', 'console'], optional = true}
 cfg-if = "1.0"
 # signatures
-ed25519-dalek = {version = "=3.0.0-pre.1", features = ["serde"]}
-curve25519-dalek = { version = "=5.0.0-pre.1", features = [] }
 # aws
 aws-config = { version = "1.6", features = ["behavior-version-latest"], optional = true }
 aws-sdk-sesv2 = { version = "1.70", optional = true }
@@ -58,9 +58,7 @@ base64 = "0.22"
 
 # rust to json schema
 schemars = { version = "0.8", features = ["chrono"]}
-# strand
-strand = { path="../strand", features = [], optional = true}
-
+# Ballot encoding arithmetic
 num-bigint = { version = "0.4", features = ["rand"], optional = true }
 num-traits = "0.2"
 quick-error = "2.0"
@@ -80,6 +78,8 @@ phf = { version = "0.11", features = ["macros"], default-features = false }
 # template system
 handlebars = { version = "6.1", optional = true }
 handlebars-chrono = { version = "0.2", features = [ "locale", "timezone" ], optional = true }
+# zone math for the report helpers (never in the WASM build)
+chrono-tz = { version = "0.10", optional = true }
 num-format = { version = "0.4", optional = true }
 urlencoding = { version = "2.1", optional = true }
 headless_chrome = { version = "1.0", optional = true }
@@ -99,10 +99,11 @@ keycloak = { version = "24.0", optional = true }
 openid = { version = "0.17", optional = true }
 serde_urlencoded = { version = "0.7", optional = true }
 rocket = { version = "0.5", features = ["json"], optional = true }
-uuid = { version = "1.5", features = ["v4", "fast-rng"], optional = true }
+# Plain here so default_features (and the WASM build) can parse and format ids
+# without getrandom; keycloak adds v4 generation.
+uuid = { version = "1.5", optional = true }
 regex = { version = "1.10", optional = true }
 jsonwebtoken = { version = "10.3", features = ["aws_lc_rs"], optional = true }
-x509-cert = { version = "0.2", default-features = false, optional = true }
 
 # For converting rows into users
 tokio-postgres = { version = "0.7", features = ["with-uuid-1", "with-chrono-0_4", "with-serde_json-1"], optional = true }
@@ -125,25 +126,74 @@ kuchiki = { version = "0.8", optional = true }
 rusqlite = { version = "0.32", features = ["bundled"], optional = true }
 csv = "1.3.0"
 
+# reading authoring spreadsheets; optional so front ends with no workbook to read
+# do not carry it into their WASM bundle
+calamine = { version = "0.36", features = ["dates"], optional = true }
+
+# uuid5 for the deterministic ids a generated bundle uses. The `uuid` crate is not
+# used for this: its v4 feature pulls getrandom, whose WASM support is version
+# specific and already pinned elsewhere in this workspace, and nothing here needs
+# randomness.
+sha1 = { version = "0.10", optional = true }
+# Deriving a voter's password from the plan's seed. RustCrypto siblings of `sha1`
+# above, already in the lockfile, pure Rust and safe in the WebAssembly build —
+# which is the reason this is a hash rather than a random number generator.
+sha2 = { version = "0.10", optional = true }
+hmac = { version = "0.12", optional = true }
+
+# Writing the importable archive; optional so a front end that only validates a
+# bundle carries no zip writer.
+#
+# default-features = false is load-bearing: the default set pulls bzip2, zstd and
+# lzma, all of which are C libraries with no wasm32 target, and this module has to
+# compile for a browser. Deflate is the only method an import archive uses.
+zip = { version = "2.1", default-features = false, features = ["deflate"], optional = true }
+
+# Monitoring dashboard configuration is authored as YAML and edited in the
+# Admin Portal, so the same parser runs on the server and in the browser.
+# unsafe-libyaml, its backend, is pure Rust and builds for wasm32. indexmap
+# keeps selector options in the order their author wrote them, which is the
+# order a dropdown shows them in.
+serde_yaml = { version = "0.9", optional = true }
+indexmap = { version = "2", features = ["serde"], optional = true }
+
+# Verifying a signed configuration package: certificate paths, revocation lists
+# and signatures. Pure Rust over ring, so the Election Architect can check a
+# package in the browser with the same function windmill runs at import.
+rustls-webpki = { version = "0.103", default-features = false, features = ["ring", "alloc", "std"], optional = true }
+rustls-pki-types = { version = "1", features = ["alloc", "std"], optional = true }
+x509-parser = { version = "0.18.1", default-features = false, optional = true }
+
 
 # WASM plugin management
 wasmtime = {version = "44.0.3", optional = true}
 wasmtime-wasi = {version = "44.0.3", optional = true}
 
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+# A test PKI for the package checks: roots, issuers, signers and revocation lists.
+rcgen = { version = "0.14", default-features = false, features = ["crypto", "ring", "pem", "x509-parser"] }
+ring = "0.17"
+
 [dev-dependencies]
+# Capture application logs in credential-confidentiality regressions.
+tracing-subscriber = "0.3"
 ptree = "0.5"
 wasm-bindgen-test = "0.3.42"
+tokio = { workspace = true }
 
 [features]
-wasmtest = ["wasm", "dep:web-sys", "strand/wasmtest"]
+wasmtest = ["wasm", "dep:web-sys"]
 wasm = ["dep:wasm-bindgen", "areas", "dep:serde-wasm-bindgen"]
 signatures=["dep:tracing"]
+# The Miru results-transmission integration: the wrapper around the external
+# ECIES tool (java -jar ecies-tool.jar). Not part of the evaluated TOE.
+miru = []
 default = []
 areas = []
-reports = ["dep:handlebars", "dep:handlebars-chrono", "dep:headless_chrome", "dep:reqwest", "dep:tracing", "dep:tokio", "dep:num-format", "dep:urlencoding", "dep:aws-config", "dep:aws-sdk-sesv2", "dep:aws-sdk-sns", "dep:aws-sdk-s3", "dep:aws-smithy-types", "dep:sha256", "dep:ammonia"]
+reports = ["dep:handlebars", "dep:handlebars-chrono", "dep:chrono-tz", "dep:headless_chrome", "dep:reqwest", "dep:tracing", "dep:tokio", "dep:num-format", "dep:urlencoding", "dep:aws-config", "dep:aws-sdk-sesv2", "dep:aws-sdk-sns", "dep:aws-sdk-s3", "dep:aws-smithy-types", "dep:sha256", "dep:ammonia"]
 reports_sync = []
-s3 = ["dep:reqwest", "dep:aws-config", "dep:aws-sdk-sesv2", "dep:aws-sdk-sns", "dep:aws-sdk-s3", "dep:aws-smithy-types"]
-keycloak = ["jwt", "dep:openid", "dep:reqwest", "dep:reqwest-retry", "dep:reqwest-middleware", "dep:serde_urlencoded", "dep:rocket", "dep:keycloak", "dep:tracing", "dep:uuid", "dep:regex", "dep:jsonwebtoken", "dep:tokio", "dep:tokio-postgres", "dep:time", "dep:x509-cert"]
+s3 = ["dep:tokio", "dep:reqwest", "dep:aws-config", "dep:aws-sdk-sesv2", "dep:aws-sdk-sns", "dep:aws-sdk-s3", "dep:aws-smithy-types"]
+keycloak = ["jwt", "dep:openid", "dep:reqwest", "dep:reqwest-retry", "dep:reqwest-middleware", "dep:serde_urlencoded", "dep:rocket", "dep:keycloak", "dep:tracing", "dep:uuid", "uuid/v4", "uuid/fast-rng", "dep:regex", "dep:jsonwebtoken", "dep:tokio-postgres", "dep:time", "dep:tokio"]
 log = ["dep:tracing", "dep:tracing-subscriber", "dep:tracing-tree", "dep:tracing-log"]
 probe = ["dep:tokio", "dep:warp"]
 # Lambda examples
@@ -151,15 +201,31 @@ lambda_inplace = []
 lambda_openwhisk = []
 lambda_aws_lambda = []
 plugins_wit = ["dep:wasmtime", "dep:wasmtime-wasi"]
-default_features = ["dep:strand", "dep:num-bigint", "dep:tempfile", "dep:ammonia"]
+default_features = ["dep:num-bigint", "dep:tempfile", "dep:ammonia", "dep:sha1", "dep:sha2", "dep:hmac", "dep:uuid"]
+# Reading .xlsx into an election_config::sheet::Workbook. Separate from
+# default_features because admin-portal and voting-portal have no workbook to
+# read and should not pay for a spreadsheet parser in their bundle.
+election_config_xlsx = ["default_features", "dep:calamine", "dep:zip"]
+# Rendering the base entity templates. Separate from `reports`, which also brings
+# a headless browser and three AWS SDKs; this needs only the template engine.
+election_config_templates = ["default_features", "areas", "dep:handlebars"]
+# Writing the importable zip. Separate again: a front end that only validates an
+# existing bundle has nothing to write.
+election_config_archive = ["election_config_templates", "dep:zip"]
+# Checking a signed configuration package: its signer, its approvals and
+# every file. Separate from the archive, which only writes and reads zips.
+election_config_signing = ["election_config_archive", "dep:rustls-webpki", "dep:rustls-pki-types", "dep:x509-parser"]
+# Monitoring dashboards: their configuration, its policy and its presets. Pure,
+# like election_config, so the Admin Portal can check an edit before saving it.
+monitoring = ["dep:serde_yaml", "dep:indexmap", "dep:sha2"]
 
 sqlite = ["dep:tokio", "dep:rusqlite"]
 time = ["dep:time"]
 tracing = ["dep:tracing"]
 jwt = ["time", "tracing"]
 
-[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-aws-lc-rs = "1.18"
-
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 ring = { version = "0.17", features = ["wasm32_unknown_unknown_js"] }
+
+[lints.rust]
+unsafe_code = "forbid"

@@ -5,10 +5,8 @@
 use anyhow::{Context, Result};
 use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
-use sequent_core::services::date::ISO8601;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::BallotPublication;
-use tokio::try_join;
 use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
@@ -107,9 +105,7 @@ pub async fn get_ballot_publication_by_id(
         })
         .collect::<Result<Vec<BallotPublication>>>()?;
 
-    Ok(results
-        .get(0)
-        .map(|element: &BallotPublication| element.clone()))
+    Ok(results.first().cloned())
 }
 
 pub async fn update_ballot_publication_status(
@@ -120,6 +116,7 @@ pub async fn update_ballot_publication_status(
     is_generated: bool,
     published_at: Option<DateTime<Local>>,
 ) -> Result<Option<BallotPublication>> {
+    super::trusted_write::trusted_write(hasura_transaction).await?;
     let query = hasura_transaction
         .prepare(
             r#"
@@ -160,9 +157,7 @@ pub async fn update_ballot_publication_status(
         })
         .collect::<Result<Vec<BallotPublication>>>()?;
 
-    Ok(results
-        .get(0)
-        .map(|element: &BallotPublication| element.clone()))
+    Ok(results.first().cloned())
 }
 
 pub async fn update_ballot_publication(
@@ -173,6 +168,7 @@ pub async fn update_ballot_publication(
     is_generated: bool,
     published_at: Option<DateTime<Local>>,
 ) -> Result<Option<BallotPublication>> {
+    super::trusted_write::trusted_write(hasura_transaction).await?;
     let query = hasura_transaction
         .prepare(
             r#"
@@ -212,9 +208,7 @@ pub async fn update_ballot_publication(
         })
         .collect::<Result<Vec<BallotPublication>>>()?;
 
-    Ok(results
-        .get(0)
-        .map(|element: &BallotPublication| element.clone()))
+    Ok(results.first().cloned())
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -357,9 +351,53 @@ pub async fn insert_ballot_publication(
         })
         .collect::<Result<Vec<BallotPublication>>>()?;
 
-    Ok(results
-        .get(0)
-        .map(|element: &BallotPublication| element.clone()))
+    Ok(results.first().cloned())
+}
+
+#[instrument(skip(transaction, publication), err)]
+pub async fn restore_ballot_publication(
+    transaction: &Transaction<'_>,
+    publication: &BallotPublication,
+) -> Result<()> {
+    super::trusted_write::trusted_write(transaction).await?;
+    let election_ids = publication
+        .election_ids
+        .as_ref()
+        .map(|ids| {
+            ids.iter()
+                .map(|id| parse_uuid_v4(id))
+                .collect::<Result<Vec<_>>>()
+        })
+        .transpose()?;
+    let election_id = publication
+        .election_id
+        .as_deref()
+        .map(parse_uuid_v4)
+        .transpose()?;
+    transaction
+        .execute(
+            r#"INSERT INTO sequent_backend.ballot_publication
+            (id, tenant_id, election_event_id, labels, annotations, created_at, deleted_at,
+             created_by_user_id, is_generated, election_ids, published_at, election_id)
+           VALUES ($1, $2, $3, $4, $5, COALESCE($6, NOW()), $7, $8, $9, $10, $11, $12)"#,
+            &[
+                &parse_uuid_v4(&publication.id)?,
+                &parse_uuid_v4(&publication.tenant_id)?,
+                &parse_uuid_v4(&publication.election_event_id)?,
+                &publication.labels,
+                &publication.annotations,
+                &publication.created_at,
+                &publication.deleted_at,
+                &publication.created_by_user_id,
+                &publication.is_generated,
+                &election_ids,
+                &publication.published_at,
+                &election_id,
+            ],
+        )
+        .await
+        .context("restoring archived ballot publication")?;
+    Ok(())
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -418,7 +456,7 @@ pub async fn get_previous_publication_election(
         })
         .collect::<Result<Vec<BallotPublication>>>()?;
 
-    Ok(results.get(0).cloned())
+    Ok(results.first().cloned())
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -475,7 +513,7 @@ pub async fn get_previous_publication(
         })
         .collect::<Result<Vec<BallotPublication>>>()?;
 
-    Ok(results.get(0).cloned())
+    Ok(results.first().cloned())
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -498,6 +536,11 @@ pub async fn soft_delete_other_ballot_publications(
         Some(_) => "AND election_id = $4".to_string(),
         None => "".to_string(),
     };
+
+    // Retiring old generated styles changes protected publication topology.
+    // This server publication workflow owns the update; raw style tombstones
+    // remain subject to the publication material guard.
+    super::trusted_write::trusted_write(hasura_transaction).await?;
 
     // Publication update query
     let pub_query_str = format!(

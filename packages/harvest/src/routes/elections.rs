@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
-use crate::types::error_response::ErrorCode;
-use anyhow::anyhow;
 use anyhow::{Context, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -13,10 +11,10 @@ use sequent_core::ballot::ElectionPresentation;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 use windmill::postgres::election;
 use windmill::services::database::get_hasura_pool;
-use windmill::services::import::import_election_event::upsert_b3_and_elog;
+use windmill::services::import::import_election_event::ensure_election_audit_boards;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateElectionInput {
@@ -66,7 +64,7 @@ pub async fn create_election(
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    upsert_b3_and_elog(
+    ensure_election_audit_boards(
         &hasura_transaction,
         &claims.hasura_claims.tenant_id,
         &body.election_event_id,

@@ -2,13 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Context, Result};
-use deadpool_postgres::{Client as DbClient, Transaction};
+use anyhow::{anyhow, Result};
+use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::Trustee;
-use serde_json::value::Value;
 use tokio_postgres::row::Row;
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 use uuid::Uuid;
 
 pub struct TrusteeWrapper(pub Trustee);
@@ -20,6 +19,8 @@ impl TryFrom<Row> for TrusteeWrapper {
         Ok(TrusteeWrapper(Trustee {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
             public_key: item.try_get::<_, Option<String>>("public_key")?,
+            share_encryption_public_key: item
+                .try_get::<_, Option<String>>("share_encryption_public_key")?,
             name: item.try_get::<_, Option<String>>("name")?,
             tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
             created_at: item.get("created_at"),
@@ -109,8 +110,8 @@ pub async fn get_trustee_by_name(
         get_trustees_by_name(hasura_transaction, tenant_id, &vec![name.to_string()]).await?;
 
     trustees
-        .get(0)
-        .map(|tally_session: &Trustee| tally_session.clone())
+        .first()
+        .cloned()
         .ok_or(anyhow!("Trustee {name} not found"))
 }
 

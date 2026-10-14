@@ -122,13 +122,15 @@ Windmill finds an event's ballot box through the board in its `bulletin_board_re
 
 | Reader | Reads | From the ballot box |
 | --- | --- | --- |
-| Voting portal: the voter's status, the polling of unresolved votes, the ballot locator; IVR's `cast-votes` endpoint | The Hasura action `get_voter_cast_votes`, served by Harvest | The voter's ballots |
+| Voting portal: the voter's status, the polling of unresolved votes; IVR's `cast-votes` endpoint | The Hasura action `get_voter_cast_votes`, served by Harvest | The voter's ballots |
+| Voting portal: the ballot locator | The Hasura action `locate_ballot`, served by Harvest | The voter's ballot with a Ballot ID, and its content |
 | Statistics of the admin portal's dashboards: voters by channel, ballots per time bucket, ballots by IP address | Harvest's statistics actions | Counted in the ballot box |
 | Voter list: each voter's votes, the "has voted" filter, the edit form's check that a voter has voted | `get_users` | Counted in the ballot box |
 | Participation report, ballot receipt | Windmill's report tasks | Counted and checked in the ballot box |
 | Tally | Windmill's tally tasks | Each area's input from the ballot box (section 6.1) |
 
-- **What a voter can read:** `get_voter_cast_votes` returns the voter's own votes, in the area and elections of their token. Without arguments it returns all of them without their content. With an election and a ballot ID, or the first characters of one, as telephone voters give it, it returns the matching ones with their content. Any other combination is refused.
+- **What a voter can read:** `get_voter_cast_votes` returns the voter's own votes, in the area and elections of their token. Without arguments it returns all of them without their content; with receipts signed by the ballot box, also without their ballot IDs. With an election and a ballot ID, or the first characters of one, as telephone voters give it, it returns the matching ones with their content, until the event's checks period ends. Any other combination is refused.
+- **The ballot locator:** `locate_ballot` finds one of the voter's cast ballots by the Ballot ID of its receipt, by its hexadecimal ballot ID or, in elections with telephone voting, by the first four characters of it, until the event's checks period ends. The Ballot ID of a receipt leads to the cast ballot through the ballot hash of its received ballot, in `ballot_box_received`.
 - **Statuses:** a ballot's status reads as the cast-vote status the portals know: `valid` as `valid`, `pending` as `in-progress` and `rejected` as `discarded`. Statistics count valid ballots.
 - **Indexes:** `ballot_box_ballot (election_event_id, voter_id)` serves the voter's lookups, and `(election_event_id, election_id, area_id, voter_id, seq DESC)` the tally input of each area (section 6.1). Each adds an entry for every accepted vote; section 9.1 measures what they cost. The partial index `ballot_box_ballot_pending (election_event_id, id)` holds only pending ballots, for the Datafix review (section 3.2).
 - **Statistics scan the event's partition.** They read every valid ballot of the event. On events with millions of ballots, dashboards that refresh often put that load on the event's database: at 1.3 million ballots each statistic took 1 to 5 seconds (section 9.3).

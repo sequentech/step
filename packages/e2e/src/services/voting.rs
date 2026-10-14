@@ -7,15 +7,14 @@ use crate::services::loadero_service::replace_placeholder;
 use crate::Args;
 use anyhow::Context;
 use anyhow::Result;
-use core::num;
-use serde_json::{from_str, json, Value};
 use std::fs::File;
 use std::{env, fs};
 
 #[derive(serde::Deserialize, Debug)]
 pub struct VotingScenarioData {
     pub election_event_id: String,
-    pub otp_code: Option<String>,
+    #[serde(rename = "otp_code")]
+    pub _otp_code: Option<String>,
     pub password: String,
 }
 
@@ -43,9 +42,9 @@ fn get_test_config(election_event_id: &str, script: String, test_duration: &u64)
     TestConfig {
         increment_strategy: "linear".to_string(),
         mode: "load".to_string(),
-        name: get_voting_test_name_str(&election_event_id),
+        name: get_voting_test_name_str(election_event_id),
         participant_timeout: 600,
-        script: script,
+        script,
         start_interval: *test_duration,
     }
 }

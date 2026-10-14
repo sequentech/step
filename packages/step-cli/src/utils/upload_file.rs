@@ -2,10 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::types::config::ConfigData;
 use graphql_client::{GraphQLQuery, Response};
 use sequent_core::util::mime::get_mime_types;
-use std::collections::HashMap;
 use std::fs::{metadata, File};
 use std::io::Read;
 use std::path::Path;
@@ -18,7 +16,6 @@ use super::read_config::read_config;
     query_path = "src/graphql/get_upload_url.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
-
 pub struct GetUploadUrl;
 
 impl GetUploadUrl {
@@ -40,7 +37,7 @@ impl GetUploadUrl {
             .ok_or("Invalid file path")?
             .to_str()
             .ok_or("Invalid file name")?;
-        let file_size = metadata(&path)?.len() as i64;
+        let file_size = metadata(path)?.len() as i64;
 
         let extension = path
             .extension()
@@ -67,6 +64,12 @@ impl GetUploadUrl {
 
         if response.status().is_success() {
             let response_body: Response<get_upload_url::ResponseData> = response.json()?;
+            // A GraphQL response can contain usable-looking data and errors.
+            // Reject the partial operation before acting on any returned ID/URL.
+            if let Some(errors) = response_body.errors.filter(|errors| !errors.is_empty()) {
+                let messages: Vec<_> = errors.into_iter().map(|error| error.message).collect();
+                return Err(Box::from(messages.join(", ")));
+            }
             if let Some(data) = response_body.data {
                 if let Some(e) = data.get_upload_url {
                     let upload_url = e.url.clone();
@@ -101,9 +104,6 @@ impl GetUploadUrl {
                 } else {
                     Err(Box::from("failed uploading document"))
                 }
-            } else if let Some(errors) = response_body.errors {
-                let error_messages: Vec<String> = errors.into_iter().map(|e| e.message).collect();
-                Err(Box::from(error_messages.join(", ")))
             } else {
                 Err(Box::from("Unknown error occurred"))
             }

@@ -29,8 +29,8 @@
     "sequence_email_number": true,
     "sequence_start_number": 0,
     "voter_password": "Qwerty1234!",
-    "password_salt": "sppXH6/iePtmIgcXfTHmjPS2QpLfILVMfmmVOLPKlic=",
-    "hashed_password": "V0rb8+HmTneV64qto5f0G2+OY09x2RwPeqtK605EUz0=",
+    "password_salt": "",
+    "hashed_password": "",
     "overseas_reference": "B",
     "min_age": 18,
     "max_age": 90
@@ -45,7 +45,6 @@
       "firstName":"",
       "dateOfBirth":"",
       "termsOfService":"termsOfServiceText",
-      "emailAndOrMobile":"sequent.read-only.mobile-number;email",
       "sequent.read-only.id-card-type":"driversLicense",
       "sequent.read-only.mobile-number":"",
       "sequent.read-only.id-card-number":"",
@@ -62,7 +61,7 @@
       "unset-attributes":"email,sequent.read-only.mobile-number,sequent.read-only.id-card-number-validated",
       "rejection_message":null,
       "search-attributes":"firstName,middleName,lastName,embassy,dateOfBirth",
-      "update-attributes":"sequent.read-only.id-card-number-validated,email,sequent.read-only.mobile-number,emailAndOrMobile,sequent.read-only.id-card-number,sequent.read-only.id-card-type",
+      "update-attributes":"sequent.read-only.id-card-number-validated,email,sequent.read-only.mobile-number,sequent.read-only.id-card-number,sequent.read-only.id-card-type",
       "manual_verify_reason":null
     }
   }

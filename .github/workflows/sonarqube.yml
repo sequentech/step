@@ -134,9 +134,9 @@ jobs:
             -Dsonar.projectKey=step-frontend
             -Dsonar.sources=.
             -Dsonar.inclusions=**/*.js,**/*.ts,**/*.jsx,**/*.tsx
-            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/rust/**,**/.storybook/**,**/nightwatch/**
+            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/rust/**,**/.storybook/**,**/nightwatch/**,**/storybook-static/**,**/test-results/**,**/coverage/**
             -Dsonar.tests=.
-            -Dsonar.test.inclusions=**/*.test.ts,**/*.test.tsx,**/*.spec.ts,**/*.spec.tsx,**/test/**
+            -Dsonar.test.inclusions=**/*.test.ts,**/*.test.tsx,**/*.spec.ts,**/*.spec.tsx,**/*.stories.tsx,**/__stories__/**,**/test/**,**/tests/**,**/test-support/**
             -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
             -Dsonar.pullrequest.branch=${{ github.event.pull_request.head.ref }}
             -Dsonar.pullrequest.base=${{ github.event.pull_request.base.ref }}
@@ -154,9 +154,9 @@ jobs:
             -Dsonar.projectKey=step-frontend
             -Dsonar.sources=.
             -Dsonar.inclusions=**/*.js,**/*.ts,**/*.jsx,**/*.tsx
-            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/rust/**,**/.storybook/**,**/nightwatch/**
+            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/rust/**,**/.storybook/**,**/nightwatch/**,**/storybook-static/**,**/test-results/**,**/coverage/**
             -Dsonar.tests=.
-            -Dsonar.test.inclusions=**/*.test.ts,**/*.test.tsx,**/*.spec.ts,**/*.spec.tsx,**/test/**
+            -Dsonar.test.inclusions=**/*.test.ts,**/*.test.tsx,**/*.spec.ts,**/*.spec.tsx,**/*.stories.tsx,**/__stories__/**,**/test/**,**/tests/**,**/test-support/**
             -Dsonar.branch.name=${{ github.ref_name }}
             -Dsonar.scm.revision=${{ github.sha }}
 

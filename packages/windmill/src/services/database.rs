@@ -4,9 +4,9 @@
 
 use anyhow::{anyhow, Result};
 use celery::export::Arc;
-use config::{Config, ConfigError, Environment};
-use deadpool_postgres::{Client, Pool, PoolConfig, PoolError, Runtime, SslMode};
-use serde::{Deserialize, Serialize};
+use config::{Config, Environment};
+use deadpool_postgres::{Pool, PoolConfig, Runtime, SslMode};
+use serde::Deserialize;
 use std::env;
 use std::time::Duration;
 use tracing::instrument;

@@ -11,7 +11,6 @@ use graphql_client::{GraphQLQuery, Response};
     query_path = "src/graphql/get_trustees.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
-
 pub struct GetTrustees;
 
 impl GetTrustees {

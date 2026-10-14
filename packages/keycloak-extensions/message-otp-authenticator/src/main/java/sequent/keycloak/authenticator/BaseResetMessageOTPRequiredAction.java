@@ -8,6 +8,7 @@ import jakarta.ws.rs.core.Response;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.RequiredActionContext;
@@ -20,6 +21,7 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 import sequent.keycloak.authenticator.Utils.MessageCourier;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
+import sequent.keycloak.authenticator.messaging.MessageAttemptState;
 
 /**
  * Abstract base for Keycloak required actions that reset and verify a user's contact information
@@ -48,6 +50,16 @@ import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
  */
 @JBossLog
 public abstract class BaseResetMessageOTPRequiredAction implements RequiredActionProvider {
+  static final String TOO_MANY_ATTEMPTS_KEY = MessageOTPAuthenticator.TOO_MANY_ATTEMPTS_KEY;
+
+  /**
+   * The code settings (lifetime, length, resend timer, attempts, allowed countries): by default the
+   * realm's first message OTP step. An action may read its own configuration instead.
+   */
+  protected AuthenticatorConfigModel codeConfig(RequiredActionContext context) {
+    return Utils.getConfig(context.getRealm()).orElse(null);
+  }
+
   /**
    * Returns the FTL template for the contact entry form (email or mobile). Subclasses may override
    * to use a different template.
@@ -101,7 +113,11 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
   @Override
   public void requiredActionChallenge(RequiredActionContext context) {
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
-    AuthenticatorConfigModel config = Utils.getConfig(context.getRealm()).orElse(null);
+    AuthenticatorConfigModel config = codeConfig(context);
+    if (attemptsExhausted(authSession, config)) {
+      context.challenge(exhaustedForm(context, config));
+      return;
+    }
     String noteKey = getNoteKey(authSession);
     String value = authSession.getAuthNote(noteKey);
     if (value == null) {
@@ -122,7 +138,12 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
   @Override
   public void processAction(RequiredActionContext context) {
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
-    AuthenticatorConfigModel config = Utils.getConfig(context.getRealm()).orElse(null);
+    AuthenticatorConfigModel config = codeConfig(context);
+    // Five wrong codes finish the session: no new code, no other contact, only a restart.
+    if (attemptsExhausted(authSession, config)) {
+      context.challenge(exhaustedForm(context, config));
+      return;
+    }
     String noteKey = getNoteKey(authSession);
     String value = authSession.getAuthNote(noteKey);
     if (value == null) {
@@ -132,8 +153,30 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
     }
   }
 
-  private boolean isValidMobileNumber(String phoneNumber, AuthenticatorConfigModel config) {
-    log.info("isValidMobileNumber phoneNumber = " + phoneNumber);
+  /**
+   * The challenge this action's codes belong to: the action itself. It has its own attempt count,
+   * apart from any sign-in step of the same authentication session.
+   */
+  protected String challenge() {
+    return "required-action." + getProviderId();
+  }
+
+  /** Whether this action used up its attempts; resends never reset them. */
+  protected boolean attemptsExhausted(
+      AuthenticationSessionModel authSession, AuthenticatorConfigModel config) {
+    return Utils.attemptsExhausted(
+        authSession, MessageOTPAuthenticatorFactory.getConfigMap(config), challenge());
+  }
+
+  /** The code page saying the session's attempts are used up, with a link to start again. */
+  protected Response exhaustedForm(RequiredActionContext context, AuthenticatorConfigModel config) {
+    return createOTPForm(
+        context,
+        form -> form.setError(TOO_MANY_ATTEMPTS_KEY).setAttribute("attemptsExhausted", true),
+        config);
+  }
+
+  protected boolean isValidMobileNumber(String phoneNumber, AuthenticatorConfigModel config) {
     List<String> validCountryCodes =
         Utils.getMultivalueString(
             config, Utils.VALID_COUNTRY_CODES, Utils.VALID_COUNTRY_CODES_DEFAULT);
@@ -155,7 +198,7 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
    * Handles the contact entry step: validates, stores, and sends OTP to the contact value. Shows
    * error if invalid or sending fails.
    */
-  private void handleEntry(
+  protected void handleEntry(
       RequiredActionContext context, AuthenticatorConfigModel config, String noteKey) {
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     KeycloakSession session = context.getSession();
@@ -210,7 +253,8 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
       return;
     }
     // Show OTP entry form
-    context.challenge(createOTPForm(context, null, config));
+    context.challenge(
+        createOTPForm(context, form -> form.setAttribute("resendTimerStarted", true), config));
   }
 
   private void handleOtpEntry(
@@ -223,8 +267,18 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
     String change = context.getHttpRequest().getDecodedFormParameters().getFirst("changeValue");
     if ("true".equals(change)) {
       // User requested to change contact value
-      authSession.removeAuthNote(noteKey);
+      clearEntry(authSession, noteKey);
       context.challenge(createEntryForm(context, null, config));
+      return;
+    }
+    if ("true"
+        .equals(
+            context
+                .getHttpRequest()
+                .getDecodedFormParameters()
+                .getFirst(MessageOTPAuthenticator.MESSENGER_STATUS_PARAM))) {
+      Utils.refreshMessengerState(session, authSession);
+      context.challenge(createOTPForm(context, null, config));
       return;
     }
     String resend = context.getHttpRequest().getDecodedFormParameters().getFirst("resend");
@@ -235,18 +289,7 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
     String enteredCode = context.getHttpRequest().getDecodedFormParameters().getFirst("code");
     if (resend != null && resend.equals("true")) {
       // Handle resend logic: only allow if enough time has passed
-      String resendTimerStr =
-          getConfigValue(
-              config, Utils.RESEND_ACTIVATION_TIMER, Utils.RESEND_ACTIVATION_TIMER_DEFAULT);
-      long resendTimer = Long.parseLong(resendTimerStr);
-      long lastSent =
-          ttl != null
-              ? Long.parseLong(ttl)
-                  - Long.parseLong(getConfigValue(config, Utils.CODE_TTL, Utils.CODE_TTL_DEFAULT))
-                      * 1000L
-              : 0;
-      long now = System.currentTimeMillis();
-      if (now - lastSent < resendTimer) {
+      if (!isSendAllowed(authSession, config)) {
         context.challenge(
             createOTPForm(
                 context,
@@ -254,48 +297,72 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
                 config));
         return;
       }
+      MessageAttemptState state;
       try {
         UserModel user = context.getUser();
         boolean deferredUser = true;
         MessageCourier courier = getCourier();
-        String mobileNumber = Utils.getMobileNumber(config, user, authSession, deferredUser);
-        if (!isValidMobileNumber(mobileNumber, config)) {
-          authSession.removeAuthNote(noteKey);
-          context.challenge(
-              createEntryForm(
-                  context,
-                  form -> form.setError(ErrorType.INVALID_COUNTRY.toString(getI18nPrefix())),
-                  config));
-          return;
+        if (MessageCourier.SMS == courier || MessageCourier.BOTH == courier) {
+          String mobileNumber = Utils.getMobileNumber(config, user, authSession, deferredUser);
+          if (!isValidMobileNumber(mobileNumber, config)) {
+            authSession.removeAuthNote(noteKey);
+            context.challenge(
+                createEntryForm(
+                    context,
+                    form -> form.setError(ErrorType.INVALID_COUNTRY.toString(getI18nPrefix())),
+                    config));
+            return;
+          }
         }
         // Resend OTP code
-        Utils.sendCode(
-            config,
-            session,
-            user,
-            authSession,
-            courier,
-            deferredUser,
-            /*isOtl*/ false,
-            new String[0],
-            context);
+        state =
+            Utils.sendCode(
+                config,
+                session,
+                user,
+                authSession,
+                courier,
+                deferredUser,
+                /*isOtl*/ false,
+                new String[0],
+                context);
       } catch (Exception e) {
+        state = MessageAttemptState.FAILED;
+      }
+      if (state == MessageAttemptState.FAILED) {
         context.challenge(
             createOTPForm(
                 context,
-                form -> form.setError(ErrorType.SEND_ERROR.toString(getI18nPrefix())),
+                form ->
+                    form.setError(ErrorType.SEND_ERROR.toString(getI18nPrefix()))
+                        .setAttribute("resendTimerStarted", true),
                 config));
         return;
       }
-      context.challenge(createOTPForm(context, null, config));
+      context.challenge(
+          createOTPForm(context, form -> form.setAttribute("resendTimerStarted", true), config));
       return;
     }
-    // Validate OTP code
-    if (enteredCode == null || code == null || ttl == null || enteredCode.length() != codeLength) {
-      context.failure();
+    // A code that was never sent is only replaced by asking for a new one.
+    if (code == null && Utils.sendFailed(authSession)) {
+      context.challenge(
+          createOTPForm(
+              context,
+              form -> form.setError(ErrorType.SEND_ERROR.toString(getI18nPrefix())),
+              config));
       return;
     }
-    boolean isValid = Utils.constantTimeIsEqual(enteredCode.getBytes(), code.getBytes());
+    // No live code (it expired, was used up or refused): the voter asks for a new one.
+    if (code == null || ttl == null) {
+      context.challenge(
+          createOTPForm(
+              context, form -> form.setError(MessageOTPAuthenticator.NO_CODE_KEY), config));
+      return;
+    }
+    boolean isValid =
+        enteredCode != null
+            && enteredCode.length() == codeLength
+            && Utils.constantTimeIsEqual(enteredCode.getBytes(), code.getBytes());
     if (isValid) {
       // Check if code is expired
       if (Long.parseLong(ttl) < System.currentTimeMillis()) {
@@ -307,6 +374,13 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
         return;
       }
 
+      Optional<String> refused = confirmVerified(context, value);
+      if (refused.isPresent()) {
+        authSession.removeAuthNote(Utils.CODE);
+        context.challenge(createOTPForm(context, form -> form.setError(refused.get()), config));
+        return;
+      }
+
       // Check MAX_RECEIVER_REUSE limit
       String maxReuseStr = config != null ? config.getConfig().get(Utils.MAX_RECEIVER_REUSE) : null;
       if (maxReuseStr == null || maxReuseStr.trim().isEmpty()) {
@@ -314,7 +388,7 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
       }
       int maxReuse = Integer.parseInt(maxReuseStr);
       if (maxReuse > 0) {
-        int currentUsersWithSameValue = countUsersWithSameValue(context, value, getCourier());
+        int currentUsersWithSameValue = usersWithSameValue(context, value);
         if (currentUsersWithSameValue >= maxReuse) {
           context.challenge(
               createOTPForm(
@@ -326,17 +400,21 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
       }
 
       // Save credential and update user
-      MessageOTPCredentialProvider credentialProvider = new MessageOTPCredentialProvider(session);
-      credentialProvider.createCredential(
-          context.getRealm(),
-          context.getUser(),
-          MessageOTPCredentialModel.create(/* isSetup= */ true));
+      authSession.removeAuthNote(Utils.CODE);
+      createCredential(context);
       saveVerifiedValue(context, value);
       context.getUser().removeRequiredAction(getProviderId());
       context.getAuthenticationSession().removeRequiredAction(getProviderId());
       context.success();
     } else {
-      // Invalid code: show error
+      // Invalid code: show error. Wrong codes count against the session, like at sign-in.
+      boolean exhausted =
+          Utils.registerFailedAttempt(
+              authSession, MessageOTPAuthenticatorFactory.getConfigMap(config), challenge());
+      if (exhausted) {
+        context.challenge(exhaustedForm(context, config));
+        return;
+      }
       context.challenge(
           createOTPForm(
               context,
@@ -344,6 +422,54 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
               config));
     }
   }
+
+  /**
+   * Whether a code may be sent now: no code was sent yet, or the resend timer of the last send
+   * elapsed. A send that failed starts the timer too.
+   */
+  protected boolean isSendAllowed(
+      AuthenticationSessionModel authSession, AuthenticatorConfigModel config) {
+    String ttl = authSession.getAuthNote(Utils.CODE_TTL);
+    return ttl == null
+        || Utils.isResendAllowed(
+            ttl,
+            getConfigValue(config, Utils.CODE_TTL, Utils.CODE_TTL_DEFAULT),
+            getConfigValue(
+                config, Utils.RESEND_ACTIVATION_TIMER, Utils.RESEND_ACTIVATION_TIMER_DEFAULT),
+            System.currentTimeMillis());
+  }
+
+  /** Forgets the entered contact so the voter can enter another one. */
+  protected void clearEntry(AuthenticationSessionModel authSession, String noteKey) {
+    authSession.removeAuthNote(noteKey);
+  }
+
+  /**
+   * A last check once the code was verified, before anything is saved.
+   *
+   * @return the message key of the reason the contact is refused, or empty to save it
+   */
+  protected Optional<String> confirmVerified(RequiredActionContext context, String value) {
+    return Optional.empty();
+  }
+
+  /** How many voters already use the verified contact. */
+  protected int usersWithSameValue(RequiredActionContext context, String value) {
+    return countUsersWithSameValue(context, value, getCourier());
+  }
+
+  /** Creates the message OTP credential the first time a contact is verified. */
+  protected void createCredential(RequiredActionContext context) {
+    MessageOTPCredentialProvider credentialProvider =
+        new MessageOTPCredentialProvider(context.getSession());
+    credentialProvider.createCredential(
+        context.getRealm(),
+        context.getUser(),
+        MessageOTPCredentialModel.create(/* isSetup= */ true));
+  }
+
+  /** Attributes a subclass adds to the OTP entry form. */
+  protected void decorateOtpForm(RequiredActionContext context, LoginFormsProvider form) {}
 
   /**
    * Validates the contact value. Default: non-null, non-empty. Subclasses can override for stricter
@@ -413,7 +539,8 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
    * admin console only, so a realm configured before a key existed simply doesn't have it, and the
    * OTP template crashes with InvalidReferenceException on a missing attribute.
    */
-  private String getConfigValue(AuthenticatorConfigModel config, String key, String defaultValue) {
+  protected String getConfigValue(
+      AuthenticatorConfigModel config, String key, String defaultValue) {
     Map<String, String> configMap = config == null ? null : config.getConfig();
     String value = configMap == null ? null : configMap.get(key);
     return value == null ? defaultValue : value;
@@ -435,8 +562,10 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
     form.setAttribute("codeLength", codeLength);
     form.setAttribute("resendTimer", resendTimer);
     form.setAttribute("ttl", getConfigValue(config, Utils.CODE_TTL, Utils.CODE_TTL_DEFAULT));
-    form.setAttribute("codeJustSent", true);
+    form.setAttribute("codeJustSent", !Utils.sendFailed(authSession));
+    form.setAttribute("resendTimerStarted", false);
     form.setAttribute("i18nPrefix", getI18nPrefix());
+    decorateOtpForm(context, form);
     if (formConsumer != null) {
       formConsumer.accept(form);
     }

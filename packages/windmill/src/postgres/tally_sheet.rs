@@ -23,8 +23,7 @@ impl TryFrom<Row> for TallySheetWrapper {
     type Error = anyhow::Error;
     fn try_from(item: Row) -> Result<Self> {
         let content_val: Option<Value> = item.try_get("content")?;
-        let content: Option<AreaContestResults> =
-            content_val.map(|val| deserialize_value(val)).transpose()?;
+        let content: Option<AreaContestResults> = content_val.map(deserialize_value).transpose()?;
         Ok(TallySheetWrapper(TallySheet {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
             tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
@@ -41,7 +40,7 @@ impl TryFrom<Row> for TallySheetWrapper {
             status: TallySheetStatus::from_str(&item.try_get::<_, String>("status")?)
                 .map_err(|err| anyhow!("Invalid tally sheet status: {err}"))?,
             version: item.try_get("version")?,
-            content: content,
+            content,
             channel: item.try_get("channel")?,
             deleted_at: item.get("deleted_at"),
             created_by_user_id: item.try_get("created_by_user_id")?,
@@ -167,6 +166,11 @@ pub async fn lock_ballot_box_version_assignment(
     contest_id: &str,
     channel: &VotingChannel,
 ) -> Result<()> {
+    let tenant_id = parse_uuid_v4(tenant_id)?;
+    let election_event_id = parse_uuid_v4(election_event_id)?;
+    let election_id = parse_uuid_v4(election_id)?;
+    let area_id = parse_uuid_v4(area_id)?;
+    let contest_id = parse_uuid_v4(contest_id)?;
     let lock_key =
         format!("{tenant_id}:{election_event_id}:{election_id}:{area_id}:{contest_id}:{channel}");
     hasura_transaction
@@ -348,7 +352,7 @@ pub async fn soft_delete_tally_sheet_leftover_versions(
         &tally_sheet_uuid,
     ];
     hasura_transaction
-        .execute(&statement, &params.as_slice())
+        .execute(&statement, params.as_slice())
         .await
         .map_err(|err| anyhow!("{}", err))?;
 
@@ -409,7 +413,7 @@ pub async fn review_tally_sheet_status(
         &user_id,
     ];
     let rows: Vec<Row> = hasura_transaction
-        .query(&statement, &params.as_slice())
+        .query(&statement, params.as_slice())
         .await
         .map_err(|err| anyhow!("{}", err))?;
 
@@ -444,7 +448,7 @@ pub async fn review_tally_sheet_status(
     let existing_params: Vec<&(dyn ToSql + Sync)> =
         vec![&tenant_uuid, &election_event_uuid, &tally_sheet_uuid];
     let existing_rows: Vec<Row> = hasura_transaction
-        .query(&existing_statement, &existing_params.as_slice())
+        .query(&existing_statement, existing_params.as_slice())
         .await
         .map_err(|err| anyhow!("{}", err))?;
 
@@ -457,6 +461,10 @@ pub async fn review_tally_sheet_status(
     }
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the existing database API argument order for transaction, record scope and column values."
+)]
 #[instrument(skip(hasura_transaction, content), err)]
 pub async fn insert_tally_sheet(
     hasura_transaction: &Transaction<'_>,

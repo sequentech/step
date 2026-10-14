@@ -14,7 +14,6 @@ use crate::types::config::ConfigData;
 use crate::utils::keycloak::refresh_keycloak_token;
 
 pub use sequent_core::util::external_config::load_external_config;
-pub use sequent_core::util::external_config::EXTERNAL_CONFIG_FILE_NAME;
 
 pub const CREATE_CONFIG_FILE_NAME: &str = "configuration.json";
 
@@ -78,7 +77,11 @@ pub fn refresh_and_save_token() -> Result<ConfigData, Box<dyn Error>> {
     )?;
     let config_data = ConfigData {
         auth_token: auth_details.access_token,
-        refresh_token: auth_details.refresh_token,
+        refresh_token: if auth_details.refresh_token.is_empty() {
+            config_data.refresh_token
+        } else {
+            auth_details.refresh_token
+        },
         ..config_data
     };
     write_config(&config_data)?;

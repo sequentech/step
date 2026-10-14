@@ -2,24 +2,19 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+#[cfg(feature = "openwhisk")]
 use ::tracing::{error, info};
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use sequent_core::serialization::base64::Base64Deserialize;
-use sequent_core::services::pdf::PrintToPdfOptions;
-use sequent_core::util::aws::{
-    get_fetch_expiration_secs, get_region, get_s3_aws_config, get_upload_expiration_secs,
-};
-use serde::{Deserialize, Serialize};
-use tokio::task;
 
 mod io;
+#[cfg(feature = "openwhisk")]
 mod openwhisk;
 mod pdf;
 
 #[cfg(feature = "aws_lambda")]
 use sequent_core::services::s3;
 
-use crate::io::{Input, Output};
+#[cfg(feature = "aws_lambda")]
+use crate::io::Input;
 
 cfg_if::cfg_if! {
     if #[cfg(all(feature = "aws_lambda", feature = "openwhisk"))] {
@@ -39,7 +34,11 @@ cfg_if::cfg_if! {
                             .await
                             .map_err(|err| format!("could not retrieve file {} (bucket: {}) from S3: {:?}", input_path.clone(), bucket.clone(), err))?
                     ).map_err(|_| format!("provided document is not valid UTF-8"))?;
-                    let pdf = pdf::render_pdf(html, pdf_options)
+                    let pdf = pdf::render_pdf(
+                        html,
+                        pdf_options,
+                        sequent_core::services::pdf::PdfResourcePolicy::default(),
+                    )
                         .map_err(|err| format!("could not render PDF due to error: {:?}", err))?;
                     s3::upload_data_to_s3(
                         pdf.into(),
@@ -47,6 +46,7 @@ cfg_if::cfg_if! {
                         false,
                         bucket.clone(),
                         "application/pdf".to_string(),
+                        None,
                         None,
                     ).await
                         .map_err(|err| format!("could not upload PDF to S3: {:?}", err))?;
@@ -79,5 +79,21 @@ cfg_if::cfg_if! {
         fn main() {
             compile_error!("Either feature \"openwhisk\" or \"aws_lambda\" has to be provided");
         }
+    }
+}
+
+#[cfg(all(test, feature = "aws_lambda", not(feature = "openwhisk")))]
+mod aws_contracts {
+    use super::*;
+    #[tokio::test]
+    async fn aws_rejects_raw_mode_before_contacting_storage() {
+        let error = render_pdf(Input::Raw {
+            html: "<p>synthetic</p>".into(),
+            pdf_options: None,
+            resource_policy: Default::default(),
+        })
+        .await
+        .unwrap_err();
+        assert!(error.contains("unsupported mode for an AWS Lambda build"));
     }
 }

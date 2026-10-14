@@ -10,15 +10,14 @@ use sequent_core::{
     serialization::deserialize_with_path::{deserialize_str, deserialize_value},
     types::{
         date_time::*,
-        hasura::core::{self, ElectionEvent, Trustee},
+        hasura::core::{self, ElectionEvent},
     },
     util::date_time::generate_timestamp,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
-use strum_macros::{Display, EnumString, ToString};
-use tracing::{info, instrument};
+use strum_macros::{Display, EnumString};
+use tracing::instrument;
 use velvet::pipes::{do_tally::ContestResult, generate_reports::ReportData};
 
 pub const MIRU_PLUGIN_PREPEND: &str = "miru";
@@ -497,15 +496,14 @@ impl ValidateAnnotations for core::Area {
                 )
             })?;
 
-        let threshold = find_miru_annotation(MIRU_AREA_THRESHOLD, &annotations)
-            .with_context(|| {
+        let threshold = parse_area_threshold(
+            &find_miru_annotation(MIRU_AREA_THRESHOLD, &annotations).with_context(|| {
                 format!(
                     "Missing area annotation: '{}:{}'",
                     MIRU_PLUGIN_PREPEND, MIRU_AREA_THRESHOLD
                 )
-            })?
-            .parse::<i64>()
-            .with_context(|| anyhow!("Can't parse threshold"))?;
+            })?,
+        )?;
 
         let ccs_servers_js = find_miru_annotation(MIRU_AREA_CCS_SERVERS, &annotations)
             .with_context(|| {
@@ -573,10 +571,10 @@ impl ValidateAnnotations for core::Area {
         let station_name = find_miru_annotation_opt(MIRU_AREA_STATION_NAME, &annotations)?
             .unwrap_or("-".to_string());
 
-        let threshold = find_miru_annotation_opt(MIRU_AREA_THRESHOLD, &annotations)?
-            .unwrap_or("0".to_string())
-            .parse::<i64>()
-            .with_context(|| anyhow!("Can't parse threshold"))?;
+        let threshold = parse_area_threshold(
+            &find_miru_annotation_opt(MIRU_AREA_THRESHOLD, &annotations)?
+                .unwrap_or("0".to_string()),
+        )?;
 
         let ccs_servers_js =
             find_miru_annotation_opt(MIRU_AREA_CCS_SERVERS, &annotations)?.unwrap_or_default();
@@ -796,6 +794,14 @@ impl ValidateAnnotations for Candidate {
 }
 
 #[instrument]
+/// A Post's `miru:area-threshold`: the signatures its transmission package
+/// needs (-1: no minimum). The one reading of it, shared by the package and
+/// the import's mapping to the transmit-results rule.
+pub fn parse_area_threshold(text: &str) -> Result<i64> {
+    text.parse::<i64>()
+        .with_context(|| anyhow!("Can't parse threshold"))
+}
+
 pub fn prepend_miru_annotation(data: &str) -> String {
     format!("{}:{}", MIRU_PLUGIN_PREPEND, data)
 }
@@ -884,6 +890,10 @@ pub fn render_eml_contest(
     Ok(contests)
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the existing EML renderer inputs and output contract used by report generation."
+)]
 #[instrument(err, skip(election_event_annotations, election_annotations, reports))]
 pub fn render_eml_file(
     tally_id: &str,
@@ -893,24 +903,24 @@ pub fn render_eml_file(
     election_event_annotations: &MiruElectionEventAnnotations,
     election_annotations: &MiruElectionAnnotations,
     area_annotations: &MiruAreaAnnotations,
-    reports: &Vec<ReportData>,
+    reports: &[ReportData],
 ) -> Result<EMLFile> {
     let issue_date = generate_timestamp(
         Some(time_zone.clone()),
         Some(DateFormat::Custom(ISSUE_DATE_FORMAT.to_string())),
-        Some(date_time.clone()),
+        Some(date_time),
     );
     let official_status_date = generate_timestamp(
         Some(time_zone.clone()),
         Some(DateFormat::Custom(OFFICIAL_STATUS_DATE_FORMAT.to_string())),
-        Some(date_time.clone()),
+        Some(date_time),
     );
 
     let eml_file = EMLFile {
         id: tally_id.to_string(),
         header: EMLHeader {
             transaction_id: transaction_id.to_string(),
-            issue_date: issue_date,
+            issue_date,
             official_status_detail: EMLOfficialStatusDetail {
                 official_status: OfficialStatus::OFFICIAL.to_string(),
                 status_date: official_status_date,
@@ -927,8 +937,8 @@ pub fn render_eml_file(
                     name: election_annotations.election_name.clone(),
                 },
                 contests: reports
-                    .into_iter()
-                    .map(|report| Ok(render_eml_contest(report, area_annotations)?))
+                    .iter()
+                    .map(|report| render_eml_contest(report, area_annotations))
                     .collect::<Result<Vec<_>>>()
                     .with_context(|| "Error rendering EML Contest")?,
             }],

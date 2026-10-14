@@ -1,0 +1,229 @@
+{
+  "charts": {
+    "failures": {
+      "query": "failures",
+      "title": "Failed attempts by kind",
+      "type": "spark_bar",
+      "x": "value",
+      "y": "label"
+    },
+    "outcomes": {
+      "query": "outcomes",
+      "type": "spark_bar",
+      "x": "value",
+      "y": "label"
+    },
+    "passwords": {
+      "query": "passwords",
+      "title": "Password requests",
+      "type": "spark_bar",
+      "x": "value",
+      "y": "label"
+    }
+  },
+  "queries": {
+    "failures": {
+      "columns": [
+        "measure",
+        "label",
+        "position",
+        "value"
+      ],
+      "values": [
+        [
+          "login_failures",
+          "Failed sign-ins",
+          1,
+          180
+        ],
+        [
+          "login_failures_valid_user",
+          "Valid user authentication failed",
+          2,
+          110
+        ],
+        [
+          "login_failures_unregistered",
+          "Unregistered user",
+          3,
+          70
+        ]
+      ]
+    },
+    "outcomes": {
+      "columns": [
+        "measure",
+        "label",
+        "position",
+        "value"
+      ],
+      "values": [
+        [
+          "logins",
+          "Successful sign-ins",
+          1,
+          2400
+        ],
+        [
+          "login_failures",
+          "Failed sign-ins",
+          2,
+          180
+        ]
+      ]
+    },
+    "passwords": {
+      "columns": [
+        "measure",
+        "label",
+        "position",
+        "value"
+      ],
+      "values": [
+        [
+          "password_reset_requests",
+          "Forgot-password requests",
+          1,
+          55
+        ],
+        [
+          "password_resets",
+          "Passwords reset",
+          2,
+          40
+        ]
+      ]
+    }
+  },
+  "rows": [
+    "outcomes",
+    "failures",
+    "passwords"
+  ],
+  "style": {
+    "accent": "#0F054C",
+    "charts": {
+      "axis": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "axis_quantitative": {
+        "labels": {
+          "font": {
+            "family": "'Inter Variable', Inter, system-ui, sans-serif"
+          }
+        }
+      },
+      "callout": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "category_colors": {
+        "group": {
+          "values": {
+            "Unknown": "dbt-grays.muted"
+          }
+        }
+      },
+      "color": {
+        "categorical": {
+          "palette": [
+            "#0F054C",
+            "#43E3A1",
+            "#7C6FE0",
+            "#F59E0B",
+            "#0EA5E9",
+            "#DC2626"
+          ],
+          "single_series_palette": [
+            "#0F054C"
+          ]
+        }
+      },
+      "kpi": {
+        "font": {
+          "family": "'Inter Variable', Inter, system-ui, sans-serif"
+        },
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        },
+        "value": {
+          "font": {
+            "family": "'Inter Variable', Inter, system-ui, sans-serif"
+          }
+        }
+      },
+      "legend": {
+        "title": {
+          "visible": false
+        }
+      },
+      "pie": {
+        "total": {
+          "value": {
+            "font": {
+              "family": "'Inter Variable', Inter, system-ui, sans-serif"
+            }
+          }
+        }
+      },
+      "spark_bar": {
+        "bar": {
+          "height": 20
+        },
+        "count": {
+          "width": 64
+        },
+        "label": {
+          "width": 220
+        }
+      },
+      "support_table": {
+        "font": {
+          "family": "'Inter Variable', Inter, system-ui, sans-serif"
+        },
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "table": {
+        "header": {
+          "font": {
+            "case": "none"
+          }
+        }
+      }
+    },
+    "font": {
+      "family": "'Inter Variable', Inter, system-ui, sans-serif"
+    },
+    "footer": {
+      "visible": false
+    },
+    "text": {
+      "font": {
+        "family": "'Inter Variable', Inter, system-ui, sans-serif"
+      }
+    },
+    "timestamp": {
+      "visible": false
+    },
+    "title": {
+      "font": {
+        "case": "none",
+        "family": "'Inter Variable', Inter, system-ui, sans-serif"
+      }
+    }
+  },
+  "theme": "clarity"
+}

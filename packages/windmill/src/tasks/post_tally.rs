@@ -19,6 +19,9 @@ use crate::postgres::tally_session_execution::insert_tally_session_execution;
 use crate::services::compress::create_archive_from_folder;
 use crate::services::compress::extract_archive_to_temp_dir;
 use crate::services::database::get_hasura_pool;
+use crate::services::reports::generation::{
+    log_sealed_manifests, seal_tally_outputs, ReportRequester,
+};
 use crate::tasks::render_document_pdf::get_tally_pdf_config;
 
 use rusqlite::Connection as SqliteConnection;
@@ -68,8 +71,7 @@ pub async fn download_sqlite_database(
         } else {
             return Err(anyhow!(
             "Could not recover documents from tally session execution with id {tally_session_id}"
-        )
-            .into());
+        ));
         };
 
     let sqlite_database_document_id = if let Some(id) = documents.sqlite {
@@ -77,20 +79,19 @@ pub async fn download_sqlite_database(
     } else {
         return Err(anyhow!(
             "Could not recover sqlite database from tally session execution with id {tally_session_id}"
-        )
-        .into());
+        ));
     };
 
     let document = get_document(
-        &hasura_transaction,
-        &tenant_id,
+        hasura_transaction,
+        tenant_id,
         Some(election_event_id.to_string()),
         &sqlite_database_document_id,
     )
     .await?
     .ok_or_else(|| anyhow!("Can't find document {}", sqlite_database_document_id))?;
 
-    let sqlite_database = get_document_as_temp_file(&tenant_id, &document).await?;
+    let sqlite_database = get_document_as_temp_file(tenant_id, &document).await?;
 
     Ok(sqlite_database)
 }
@@ -270,6 +271,18 @@ pub async fn post_tally_task_impl(
 
     // Search for all html reports that do not have pdf and generate it
     find_and_process_html_reports_parallel(tally_path.path(), pdf_options)?;
+
+    // The archive with the PDFs is a delivery of its own: its hash
+    // manifests list them.
+    let sealed = seal_tally_outputs(tally_path.path())?;
+    log_sealed_manifests(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &sealed,
+        &ReportRequester::default(),
+    )
+    .await?;
 
     // Create the archive again
     let (_tar_file_temp_path, tar_file_str, file_size) =

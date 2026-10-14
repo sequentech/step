@@ -143,8 +143,31 @@ select_permissions:
               - election_event_id
               - id
               - tenant_id
-          filter: {}
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
+      role: trustee-ceremony
+    - comment: ""
+      permission:
+          columns:
+              - is_public
+              - media_type
+              - name
+              - size
+              - annotations
+              - labels
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+              is_public:
+                  _eq: true
+          allow_aggregations: false
       role: user
 update_permissions:
     - permission:

@@ -8,6 +8,7 @@ import {GlobalSettings} from "@/providers/SettingsContextProvider"
 import {ResultsUserProfile} from "@/providers/ResultsAuthContextProvider"
 
 interface AuthState {
+    sessionKey?: string
     loading: boolean
     token?: string
     userProfile?: ResultsUserProfile
@@ -92,16 +93,21 @@ const logoutSession = (keycloak: Keycloak) => {
     })
 }
 
-const authStateFromSession = async (session: AuthSession): Promise<AuthState> => {
+const authStateFromSession = async (
+    session: AuthSession,
+    sessionKey: string
+): Promise<AuthState> => {
     const token = session.keycloak.token
     if (!token) {
         return {
             loading: false,
+            sessionKey,
         }
     }
 
     return {
         loading: false,
+        sessionKey,
         token,
         userProfile:
             session.userProfile ?? (session.userProfile = await loadUserProfile(session.keycloak)),
@@ -133,13 +139,14 @@ const authenticateSession = async (
         await session.initPromise
         await session.keycloak.updateToken(30)
 
-        return authStateFromSession(session)
+        return authStateFromSession(session, sessionKey)
     } catch (error) {
         if (authSessions.get(sessionKey) === session) {
             authSessions.delete(sessionKey)
         }
         return {
             loading: false,
+            sessionKey,
             error: error instanceof Error ? error.message : "Authentication failed",
         }
     }
@@ -151,6 +158,7 @@ const sessionTokenState = (sessionKey?: string): AuthState => {
 
     return {
         loading: false,
+        sessionKey,
         token,
         logout: session ? () => logoutSession(session.keycloak) : undefined,
     }
@@ -169,11 +177,11 @@ export const useAuthenticatedResults = (
         [tenantId, eventId]
     )
 
-    useEffect(() => {
-        const sessionKey = realm
-            ? [settings.KEYCLOAK_URL, realm, settings.RESULTS_PORTAL_CLIENT_ID].join("|")
-            : undefined
+    const sessionKey = realm
+        ? [settings.KEYCLOAK_URL, realm, settings.RESULTS_PORTAL_CLIENT_ID].join("|")
+        : undefined
 
+    useEffect(() => {
         if (!required) {
             setState(sessionTokenState(sessionKey))
             return
@@ -191,7 +199,7 @@ export const useAuthenticatedResults = (
         const updateStateFromSession = async () => {
             try {
                 await session.keycloak.updateToken(60)
-                const nextState = await authStateFromSession(session)
+                const nextState = await authStateFromSession(session, sessionKey)
                 if (mounted) {
                     setState(nextState)
                 }
@@ -202,6 +210,7 @@ export const useAuthenticatedResults = (
                 if (mounted) {
                     setState({
                         loading: false,
+                        sessionKey,
                         error: error instanceof Error ? error.message : "Authentication failed",
                     })
                 }
@@ -233,7 +242,8 @@ export const useAuthenticatedResults = (
             }
             session.keycloak.onTokenExpired = undefined
         }
-    }, [required, realm, settings.KEYCLOAK_URL, settings.RESULTS_PORTAL_CLIENT_ID])
+    }, [required, realm, sessionKey, settings.KEYCLOAK_URL, settings.RESULTS_PORTAL_CLIENT_ID])
 
-    return state
+    // Effects reset state after a render; never expose the previous session during that render.
+    return state.sessionKey === sessionKey ? state : {loading: required}
 }

@@ -11,14 +11,15 @@
 //! per the "Patch Files Format" spec.
 
 use crate::services::external::datafix_types::{
-    DatafixReconciliationField, ParsedDatafixReconciliationRow, DATAFIX_POLL, FILE_CHANNEL_INTERNET,
+    DatafixReconciliationField, ParsedDatafixReconciliationRow, DATAFIX_POLL,
 };
 use crate::services::external::reconciliation::diff::DiffItem;
-use crate::services::external::types::ReconciliationPatchTarget;
 use sequent_core::types::keycloak::ATTR_RESET_VALUE;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
+use std::fs::File;
 use std::io::Write;
+use std::path::Path;
 use tracing::instrument;
 
 /// Incrementally builds the Datafix patch CSV described in "Patch Files
@@ -214,9 +215,20 @@ pub fn sha256_hex(content: &[u8]) -> String {
     hex::encode(hasher.finalize())
 }
 
+/// Same digest as `sha256_hex`, streamed from a file so a large round
+/// document is never held in memory whole.
+#[instrument(err)]
+pub fn sha256_file_hex(path: &Path) -> std::io::Result<String> {
+    let mut hasher = Sha256::new();
+    std::io::copy(&mut File::open(path)?, &mut hasher)?;
+    Ok(hex::encode(hasher.finalize()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::external::datafix_types::FILE_CHANNEL_INTERNET;
+    use crate::services::external::types::ReconciliationPatchTarget;
     use crate::services::external::types::{
         ReconciliationChangeCategory, SequentReconciliationField,
     };

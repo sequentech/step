@@ -7,13 +7,15 @@ use crate::postgres::maintenance::vacuum_analyze_direct;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::get_document_as_temp_file;
 use crate::services::electoral_log::ElectoralLogAdminContext;
-use crate::services::import::import_users::import_users_file;
+use crate::services::import::import_users::{import_users_file, ImportUsersPrivileges};
+use crate::services::import::rejection::problems_in;
 use crate::services::tasks_execution::*;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction as _};
 use deadpool_postgres::{GenericClient, Transaction};
+use sequent_core::election_config::import_problems;
 use sequent_core::services::keycloak::get_client_credentials;
 use sequent_core::services::s3;
 use sequent_core::services::{keycloak, reports};
@@ -36,6 +38,10 @@ pub struct ImportUsersBody {
     /// log when the CSV actually contains a secret column.
     #[serde(default)]
     pub secret_write_initiator: Option<ElectoralLogAdminContext>,
+    /// What the importing user may grant through the file, derived by the
+    /// server from that user's permissions.
+    #[serde(default)]
+    pub privileges: ImportUsersPrivileges,
     pub sha256: Option<String>,
 }
 
@@ -129,7 +135,12 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
             }
             Err(HashFileVerifyError::HashMismatch(input_hash, gen_hash)) => {
                 let err_str = format!("Failed to verify the integrity: Hash of voters file: {gen_hash} does not match with the input hash: {input_hash}");
-                update_fail(&task_execution, &err_str).await?;
+                update_fail_with_problems(
+                    &task_execution,
+                    &err_str,
+                    &[import_problems::checksum_mismatch(&input_hash, &gen_hash)],
+                )
+                .await?;
                 return Err(Error::String(err_str));
             }
             Err(err) => {
@@ -152,6 +163,7 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
         body.is_admin,
         body.may_write_secret_attributes,
         body.secret_write_initiator.as_ref(),
+        body.privileges,
     )
     .await
     {
@@ -162,7 +174,12 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
             ()
         }
         Err(err) => {
-            update_fail(&task_execution, &err.to_string()).await?;
+            match problems_in(&err) {
+                Some(problems) => {
+                    update_fail_with_problems(&task_execution, &err.to_string(), &problems).await?
+                }
+                None => update_fail(&task_execution, &err.to_string()).await?,
+            }
             return Err(Error::String(format!("Error importing users file: {err}")));
         }
     }

@@ -6,7 +6,6 @@
 
 use anyhow::Context;
 use anyhow::{anyhow, Result};
-use celery::Celery;
 use clap::Parser;
 use dotenv::dotenv;
 use sequent_core::util::init_log::init_log;
@@ -15,6 +14,7 @@ use std::str::FromStr;
 use tokio::runtime::Builder;
 use tracing::{event, Level};
 use windmill::services::celery_app::{self as celery_cfg, Queue};
+use windmill::services::monitoring::cadence;
 use windmill::services::probe::{setup_probe, AppName};
 use windmill::services::task_queues::set_up_task_queue_database;
 use windmill::services::tasks_semaphore::init_semaphore;
@@ -204,6 +204,9 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
                 return Err(anyhow!("Found duplicate queues: {:?}", duplicates));
             }
             celery_cfg::set_queues(queues.clone());
+            // Read now rather than at the first pass, so the cadence and any
+            // value it had to replace are logged when the worker starts.
+            cadence::configured();
             celery_cfg::set_is_app_active(true);
             celery_app.consume_from(&vec_str[..]).await?;
             celery_cfg::set_is_app_active(false);

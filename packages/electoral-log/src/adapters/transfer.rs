@@ -21,9 +21,9 @@ use crate::{
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::{Deserialize, Serialize};
-use strand::serialization::StrandDeserialize;
 use tokio_postgres::IsolationLevel;
 use trellis::journal::{audit_tree, create_log, seal, INSERT_CHUNK};
+use voting_crypto::RecordDeserialize;
 
 /// Format tag of exported electoral logs.
 pub const EXPORT_FORMAT_V1: &str = "sequent-electoral-log-export-v1";
@@ -174,7 +174,7 @@ impl RecordedCommitments {
         {
             return Ok(());
         }
-        let message = Message::strand_deserialize(&entry.message.message).map_err(|error| {
+        let message = Message::record_deserialize(&entry.message.message).map_err(|error| {
             anyhow!(
                 "A {kind} record of log {} cannot be decoded: {error:?}",
                 log.name

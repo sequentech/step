@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {createContext, useContext, useEffect, useState} from "react"
+import {StartupError} from "../components/StartupError"
 import {Loader} from "@sequentech/ui-essentials"
 
 export interface GlobalSettings {
@@ -24,6 +25,7 @@ export interface GlobalSettings {
 }
 
 interface SettingsContextValues {
+    failed?: boolean
     loaded: boolean
     globalSettings: GlobalSettings
     defaultLanguageTouched: boolean
@@ -64,6 +66,7 @@ interface SettingsContextProviderProps {
 }
 
 const SettingsContextProvider = (props: SettingsContextProviderProps) => {
+    const [failed, setFailed] = useState(false)
     const [loaded, setLoaded] = useState<boolean>(false)
     const [defaultLanguageTouched, setDefaultLanguageTouched] = useState<boolean>(false)
     const [globalSettings, setSettings] = useState<GlobalSettings>(
@@ -82,6 +85,7 @@ const SettingsContextProvider = (props: SettingsContextProviderProps) => {
     const loadSettings = async () => {
         try {
             let value = await fetch("/global-settings.json")
+            if (!value.ok) throw new Error("Settings request failed")
             let json = (await value.json()) as GlobalSettings
             if (isPreviewMatch) {
                 json.DISABLE_AUTH = true
@@ -89,7 +93,7 @@ const SettingsContextProvider = (props: SettingsContextProviderProps) => {
             setSettings(json)
             setLoaded(true)
         } catch (e) {
-            console.log(`Error loading settings: ${e}`)
+            setFailed(true)
         }
     }
 
@@ -105,6 +109,7 @@ const SettingsContextProvider = (props: SettingsContextProviderProps) => {
         <SettingsContext.Provider
             value={{
                 loaded,
+                failed,
                 globalSettings,
                 setDisableAuth,
                 defaultLanguageTouched,
@@ -117,7 +122,8 @@ const SettingsContextProvider = (props: SettingsContextProviderProps) => {
 }
 
 export const SettingsGate: React.FC<React.PropsWithChildren> = ({children}) => {
-    const {loaded} = useContext(SettingsContext)
+    const {loaded, failed} = useContext(SettingsContext)
+    if (failed) return <StartupError />
 
     return loaded ? <>{children}</> : <Loader />
 }

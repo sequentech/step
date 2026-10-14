@@ -5,7 +5,6 @@ use crate::ballot::{Candidate, Contest};
 use crate::ballot_codec::check_contest_configuration;
 use crate::types::ceremonies::CountingAlgType;
 use std::collections::HashMap;
-use std::convert::TryInto;
 
 /// Precomputed per-contest constants used by the ballot codecs.
 ///
@@ -112,7 +111,7 @@ impl<'a> ContestCodecContext<'a> {
     }
 
     /// Returns the bases of the single-contest (dense) encoding.
-    pub fn single_contest_bases(&self) -> Vec<u64> {
+    pub fn single_contest_bases(&self) -> Result<Vec<u64>, String> {
         // Calculate the base for candidates. It depends on the
         // `contest.counting_algorithm`:
         // - plurality-at-large: base 2 (value can be either 0 o 1)
@@ -123,10 +122,18 @@ impl<'a> ContestCodecContext<'a> {
         let contest = self.contest;
         let candidate_base: u64 = match contest.get_counting_algorithm() {
             CountingAlgType::PluralityAtLarge => 2,
-            CountingAlgType::Cumulative => {
-                contest.cumulative_number_of_checkboxes() + 1u64
-            }
-            _ => (contest.max_votes + 1i64).try_into().unwrap(),
+            CountingAlgType::Cumulative => contest
+                .cumulative_number_of_checkboxes()
+                .checked_add(1)
+                .ok_or_else(|| {
+                    "cumulative candidate base exceeds u64".to_string()
+                })?,
+            _ => u64::try_from(contest.max_votes)
+                .map_err(|_| {
+                    "candidate base requires non-negative max_votes".to_string()
+                })?
+                .checked_add(1)
+                .ok_or_else(|| "candidate base exceeds u64".to_string())?,
         };
 
         // Set the initial bases and raw ballot, populate bases using the valid
@@ -150,6 +157,6 @@ impl<'a> ContestCodecContext<'a> {
             }
         }
 
-        bases
+        Ok(bases)
     }
 }

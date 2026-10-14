@@ -1,14 +1,14 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::jwks::verify_jwt;
 use crate::services::jwt::*;
+use crate::services::jwt_verification::{
+    verify_bearer, verify_bearer_with_config,
+};
 use crate::services::keycloak::{
-    get_third_party_client_access_token, KeycloakAdminClient,
-    PubKeycloakAdminToken,
+    get_third_party_client_access_token, PubKeycloakAdminToken,
 };
 use anyhow::{anyhow, Result as AnyhowResult};
-use keycloak::{KeycloakAdmin, KeycloakAdminToken};
 use rocket::http::HeaderMap;
 use rocket::http::Status;
 use rocket::outcome::try_outcome;
@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use std::sync::RwLock;
 use std::time::{Duration, Instant};
-use tracing::{error, info, instrument, warn};
+use tracing::{error, instrument, warn};
 
 const TENANT_ID_HEADER: &str = "tenant-id";
 const EVENT_ID_HEADER: &str = "event-id";
@@ -52,10 +52,33 @@ impl<'r> FromRequest<'r> for AuthHeaders {
                 value: headers.get_one("authorization").unwrap().to_string(),
             })
         } else {
-            warn!("AuthHeaders guard: headers: {headers:?}");
+            warn!("AuthHeaders guard: missing authentication");
             Outcome::Error((Status::Unauthorized, ()))
         }
     }
+}
+
+/// Issuers the bearer guards trust, and the server their signing keys come
+/// from. Applications that manage none use the Keycloak environment settings.
+pub struct BearerIssuers {
+    pub internal_base: String,
+    pub trusted_bases: Vec<String>,
+}
+
+async fn verified_claims(
+    request: &Request<'_>,
+    token: &str,
+) -> AnyhowResult<JwtClaims> {
+    let verified = match request.rocket().state::<BearerIssuers>() {
+        Some(issuers) => {
+            let trusted: Vec<&str> =
+                issuers.trusted_bases.iter().map(String::as_str).collect();
+            verify_bearer_with_config(token, &trusted, &issuers.internal_base)
+                .await?
+        }
+        None => verify_bearer(token).await?,
+    };
+    Ok(serde_json::from_value(verified)?)
 }
 
 #[rocket::async_trait]
@@ -69,21 +92,25 @@ impl<'r> FromRequest<'r> for JwtClaims {
         match headers.get_one("authorization") {
             Some(authorization) => {
                 match authorization.strip_prefix("Bearer ") {
-                    Some(token) => match verify_jwt(token).await {
-                        Ok(jwt) => Outcome::Success(jwt),
-                        Err(err) => {
-                            warn!("JwtClaims guard: verify_jwt error {err:?}");
-                            Outcome::Error((Status::Unauthorized, ()))
+                    Some(token) => {
+                        match verified_claims(request, token).await {
+                            Ok(jwt) => Outcome::Success(jwt),
+                            Err(_) => {
+                                warn!("JwtClaims guard: invalid bearer token");
+                                Outcome::Error((Status::Unauthorized, ()))
+                            }
                         }
-                    },
+                    }
                     None => {
-                        warn!("JwtClaims guard: not a bearer token: {authorization:?}");
+                        warn!(
+                            "JwtClaims guard: unsupported authorization scheme"
+                        );
                         Outcome::Error((Status::Unauthorized, ()))
                     }
                 }
             }
             None => {
-                warn!("JwtClaims guard: headers: {headers:?}");
+                warn!("JwtClaims guard: missing authentication");
                 Outcome::Error((Status::Unauthorized, ()))
             }
         }
@@ -118,6 +145,9 @@ impl<'r> FromRequest<'r> for UserLocation {
     }
 }
 
+/// Placeholder printed in place of secret values in `Debug` output.
+pub const REDACTED: &str = "<redacted>";
+
 #[derive(Debug)]
 pub struct DatafixClaims {
     pub jwt_claims: JwtClaims,
@@ -126,10 +156,18 @@ pub struct DatafixClaims {
     pub datafix_event_id: String,
 }
 
-#[derive(Debug)]
 struct DatafixCredentials {
     client_id: String,
     client_secret: String,
+}
+
+impl std::fmt::Debug for DatafixCredentials {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DatafixCredentials")
+            .field("client_id", &self.client_id)
+            .field("client_secret", &REDACTED)
+            .finish()
+    }
 }
 
 #[derive(Debug)]
@@ -147,7 +185,7 @@ fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
     let mut missing_headers = vec![];
     for header in required_headers {
         if !headers.contains(header) {
-            warn!("DatafixClaims guard: No {header} in headers: {headers:?}");
+            warn!("DatafixClaims guard: missing required {header} header");
             missing_headers.push(header);
         }
     }
@@ -163,8 +201,8 @@ fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
     );
 
     let mut auth_collection = authorization.split(":");
-    let client_id = auth_collection.nth(0); // get the first item and consumes it
-    let client_secret = auth_collection.nth(0);
+    let client_id = auth_collection.next(); // get the first item and consumes it
+    let client_secret = auth_collection.next();
     let (client_id, client_secret) =
         if let (Some(client_id), Some(client_secret)) =
             (client_id, client_secret)
@@ -186,13 +224,25 @@ fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
 
 /// TokenResponse, timestamp before sending the request and the credentials to
 /// make sure the requester is the same.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 struct TokenResponseExtended {
     token_resp: PubKeycloakAdminToken,
     stamp: Instant,
     client_id: String,
     client_secret: String,
     tenant_id: String,
+}
+
+impl std::fmt::Debug for TokenResponseExtended {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TokenResponseExtended")
+            .field("token_resp", &self.token_resp)
+            .field("stamp", &self.stamp)
+            .field("client_id", &self.client_id)
+            .field("client_secret", &REDACTED)
+            .field("tenant_id", &self.tenant_id)
+            .finish()
+    }
 }
 
 /// Last access token can be reused if it´s not expired, this is to avoid
@@ -214,7 +264,7 @@ impl LastDatafixAccessToken {
 
 /// Reads the access token if it has been requested successfully before and it
 /// is not expired.
-#[instrument(skip(lst_acc_tkn))]
+#[instrument(skip_all)]
 async fn read_access_token(
     client_id: &str,
     client_secret: &str,
@@ -247,7 +297,7 @@ async fn read_access_token(
 }
 
 /// Request a new access token and writes it to the cache
-#[instrument(err, skip(lst_acc_tkn))]
+#[instrument(err, skip_all)]
 async fn request_access_token(
     client_id: String,
     client_secret: String,
@@ -309,7 +359,7 @@ impl<'r> FromRequest<'r> for DatafixClaims {
             &authorization.client_id,
             &authorization.client_secret,
             &tenant_id,
-            &lst_acc_tkn,
+            lst_acc_tkn,
         )
         .await
         {
@@ -319,7 +369,7 @@ impl<'r> FromRequest<'r> for DatafixClaims {
                     authorization.client_id,
                     authorization.client_secret,
                     tenant_id.clone(),
-                    &lst_acc_tkn,
+                    lst_acc_tkn,
                 )
                 .await
                 {
@@ -332,16 +382,65 @@ impl<'r> FromRequest<'r> for DatafixClaims {
             }
         };
 
-        match decode_jwt(&token_resp.access_token) {
+        match verified_claims(request, &token_resp.access_token).await {
             Ok(jwt_claims) => Outcome::Success(DatafixClaims {
                 jwt_claims,
                 tenant_id,
                 datafix_event_id,
             }),
-            Err(err) => {
-                warn!("DatafixClaims guard: decode_jwt error {err:?}");
+            Err(_) => {
+                warn!("DatafixClaims guard: invalid bearer token");
                 Outcome::Error((Status::Unauthorized, ()))
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod redaction_tests {
+    use super::*;
+
+    const CLIENT_SECRET: &str = "ClientSecretValue9f3b";
+    const ACCESS_TOKEN: &str = "AccessTokenValue1c7e";
+
+    #[test]
+    fn datafix_credentials_debug_omits_client_secret() {
+        let credentials = DatafixCredentials {
+            client_id: "datafix-client".to_string(),
+            client_secret: CLIENT_SECRET.to_string(),
+        };
+
+        let debug = format!("{credentials:?}");
+
+        assert!(debug.contains("datafix-client"), "{debug}");
+        assert!(debug.contains(REDACTED), "{debug}");
+        assert!(!debug.contains(CLIENT_SECRET), "{debug}");
+    }
+
+    #[test]
+    fn extended_token_debug_omits_client_secret_and_access_token() {
+        let extended = TokenResponseExtended {
+            token_resp: PubKeycloakAdminToken {
+                access_token: ACCESS_TOKEN.to_string(),
+                expires_in: 60,
+                not_before_policy: None,
+                refresh_expires_in: None,
+                refresh_token: None,
+                scope: "profile".to_string(),
+                session_state: None,
+                token_type: "Bearer".to_string(),
+            },
+            stamp: Instant::now(),
+            client_id: "datafix-client".to_string(),
+            client_secret: CLIENT_SECRET.to_string(),
+            tenant_id: "tenant".to_string(),
+        };
+
+        let debug = format!("{extended:?}");
+
+        assert!(debug.contains("datafix-client"), "{debug}");
+        assert!(debug.contains("tenant"), "{debug}");
+        assert!(!debug.contains(CLIENT_SECRET), "{debug}");
+        assert!(!debug.contains(ACCESS_TOKEN), "{debug}");
     }
 }

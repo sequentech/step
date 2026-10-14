@@ -109,6 +109,10 @@ pub async fn create_results_area_contests_sqlite(
 }
 
 #[instrument(err, skip_all)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep each tenant, event, election, contest and area identity explicit in the existing SQL update API"
+)]
 pub async fn update_results_area_contest_documents_sqlite(
     sqlite_transaction: &Transaction<'_>,
     tenant_id: &str,

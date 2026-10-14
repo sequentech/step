@@ -67,12 +67,13 @@ fn create_candidate(
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
-    let mut presentation = CandidatePresentation::default();
-
-    presentation.i18n = Some(HashMap::from([(
-        "en".to_string(),
-        HashMap::from([("name".to_string(), Some(name.to_string()))]),
-    )]));
+    let presentation = CandidatePresentation {
+        i18n: Some(HashMap::from([(
+            "en".to_string(),
+            HashMap::from([("name".to_string(), Some(name.to_string()))]),
+        )])),
+        ..Default::default()
+    };
 
     let variables = insert_candidate::Variables {
         description: Some(description.to_string()),

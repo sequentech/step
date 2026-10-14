@@ -36,3 +36,6 @@ num-traits = "0.2"
 # (tests/common/mod.rs), so the suite needs no external setup.
 getrandom = "0.4"
 hex = "0.4"
+
+[lints.rust]
+unsafe_code = "forbid"

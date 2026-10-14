@@ -6,9 +6,8 @@ use crate::types::hasura_types::*;
 use crate::utils::read_config::read_config;
 use clap::Args;
 use colored::Colorize;
-use graphql_client::{GraphQLQuery, Response};
+use graphql_client::GraphQLQuery;
 use sequent_core::types::permissions::Permissions;
-use serde_json::Value;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 #[derive(Args, Debug)]
@@ -88,6 +87,10 @@ impl ExportElectionEventCommand {
     }
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the command export switches and their existing argument order across callers."
+)]
 pub fn export_election_event(
     election_event_id: &str,
     output_dir: &str,

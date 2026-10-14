@@ -251,6 +251,24 @@ pub async fn get_tally_session_by_id(
     election_event_id: &str,
     tally_session_id: &str,
 ) -> Result<TallySession> {
+    get_tally_session_by_id_if_exist(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+    )
+    .await?
+    .ok_or(anyhow!("Tally Session {tally_session_id} not found"))
+}
+
+/// The tally session, or `None` when the event has no session with that id.
+#[instrument(err, skip(hasura_transaction))]
+pub async fn get_tally_session_by_id_if_exist(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+) -> Result<Option<TallySession>> {
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -285,10 +303,47 @@ pub async fn get_tally_session_by_id(
         })
         .collect::<Result<Vec<TallySession>>>()?;
 
-    elements
-        .get(0)
-        .map(|tally_session: &TallySession| tally_session.clone())
-        .ok_or(anyhow!("Tally Session {tally_session_id} not found"))
+    Ok(elements.into_iter().next())
+}
+
+/// The tally session, with its row locked until the surrounding transaction
+/// completes.
+#[instrument(err, skip(hasura_transaction))]
+pub async fn get_tally_session_by_id_for_update(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+) -> Result<TallySession> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    *
+                FROM
+                    sequent_backend.tally_session
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    id = $3
+                FOR UPDATE;
+            "#,
+        )
+        .await?;
+
+    let row = hasura_transaction
+        .query_opt(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(tally_session_id)?,
+            ],
+        )
+        .await?
+        .ok_or_else(|| anyhow!("Tally Session {tally_session_id} not found"))?;
+
+    row.try_into().map(|res: TallySessionWrapper| res.0)
 }
 
 /// Locks the tally-session row until the surrounding transaction completes.
@@ -473,7 +528,7 @@ pub async fn set_post_tally_task_completed(
             UPDATE
                 sequent_backend.tally_session
             SET
-                annotations = annotations || '{"is_post_task_completed": true}'
+                annotations = COALESCE(annotations, '{}'::jsonb) || '{"is_post_task_completed": true}'
             WHERE
                 id = $1 AND
                 tenant_id = $2 AND
@@ -513,7 +568,7 @@ pub async fn set_tally_session_completed(
             SET
                 execution_status = $1,
                 is_execution_completed = TRUE,
-                annotations = annotations || '{"is_post_task_completed": false}'
+                annotations = COALESCE(annotations, '{}'::jsonb) || '{"is_post_task_completed": false}'
             WHERE
                 id = $2 AND
                 tenant_id = $3 AND

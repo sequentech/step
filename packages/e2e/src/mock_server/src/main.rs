@@ -10,7 +10,6 @@ mod services;
 mod types;
 
 use rocket::data::Limits;
-use services::user::load_users;
 
 // Import your routes
 
@@ -20,7 +19,7 @@ fn index() -> &'static str {
 }
 
 #[rocket::main]
-async fn main() -> Result<(), rocket::Error> {
+async fn main() -> Result<(), Box<rocket::Error>> {
     let figment = rocket::Config::figment().merge((
         "limits",
         Limits::new().limit("file", rocket::data::ByteUnit::Megabyte(600)),
@@ -29,14 +28,7 @@ async fn main() -> Result<(), rocket::Error> {
     let _rocket = rocket::custom(figment)
         .mount(
             "/",
-            routes![
-                index,
-                routes::user::users_list,
-                routes::inetum::transaction_new,
-                routes::inetum::transaction_status_simple,
-                routes::inetum::transaction_results,
-                routes::user::upload_csv,
-            ],
+            routes![index, routes::user::users_list, routes::user::upload_csv,],
         )
         .launch()
         .await?;

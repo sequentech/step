@@ -8,5 +8,9 @@ pub mod instant_runoff;
 pub mod plurality_at_large;
 pub mod utils;
 
+#[expect(
+    clippy::module_inception,
+    reason = "Preserve the existing module layout, re-exports and caller paths during the construct review"
+)]
 mod counting_algorithm;
 pub use counting_algorithm::*;

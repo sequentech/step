@@ -267,6 +267,12 @@ Each release follows this general schedule:
 - **Emergency patches**: Released within 24-48 hours for critical security
   issues
 
+### Security Vulnerability Reporting
+
+If you discover a security vulnerability in the Sequent Voting Platform, please
+report it responsibly by following the guidelines outlined in our 
+[Vulnerability Disclosure Policy](../06-technology/06-vulnerability-disclosure-policy.md).
+
 ## Version Release Lifecycle
 
 Each major and minor version follows a structured release process that includes

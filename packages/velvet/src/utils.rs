@@ -4,12 +4,15 @@
 use crate::pipes::error::{Error, Result};
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use serde::Deserialize;
-use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 
+#[cfg(feature = "miru")]
 use crate::pipes::pipe_inputs::InputElectionConfig;
+#[cfg(feature = "miru")]
 use sequent_core::plaintext::DecodedVoteChoice;
+#[cfg(feature = "miru")]
+use std::collections::HashMap;
 
 pub trait HasId {
     fn id(&self) -> &str;
@@ -24,8 +27,9 @@ pub fn parse_file<T: for<'a> Deserialize<'a>>(mut file: File) -> Result<T> {
     })
 }
 
-// unmarked choices
+// Unmarked choices for the Miru ballot-image conversion.
 // contest_id -> (candidate_id -> dcv)
+#[cfg(feature = "miru")]
 pub(crate) fn get_contest_dvc_map(
     election_input: &InputElectionConfig,
 ) -> HashMap<String, HashMap<String, DecodedVoteChoice>> {

@@ -6,7 +6,7 @@ use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::Template;
 use tokio_postgres::row::Row;
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 use uuid::Uuid;
 
 pub struct TemplateWrapper(pub Template);
@@ -72,7 +72,7 @@ pub async fn get_template_by_alias(
         })
         .collect::<Result<Vec<Template>>>()?;
 
-    Ok(elections.get(0).map(|election| election.clone()))
+    Ok(elections.first().cloned())
 }
 
 #[instrument(skip(hasura_transaction), err)]

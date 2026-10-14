@@ -8,12 +8,8 @@ use sequent_core::ballot::{ElectionEventPresentation, LockedDown};
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::translations::{Alias, Name};
 use sequent_core::types::hasura::core::Election;
-use sequent_core::types::keycloak::{User, VotesInfo};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use tokio_postgres::row::Row;
-use tracing::{info, instrument};
-use uuid::Uuid;
+use tracing::instrument;
 
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
@@ -78,10 +74,19 @@ pub async fn is_election_event_locked_down(
         .transaction()
         .await
         .context("Error starting Hasura transaction")?;
-    let election_event =
-        get_election_event_by_id(&hasura_transaction, tenant_id, election_event_id)
-            .await
-            .context("Error getting election event")?;
+    is_election_event_locked_down_in(&hasura_transaction, tenant_id, election_event_id).await
+}
+
+/// [`is_election_event_locked_down`] in the caller's transaction.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn is_election_event_locked_down_in(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<bool> {
+    let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
+        .await
+        .context("Error getting election event")?;
 
     let Some(presentation) = election_event.presentation else {
         return Ok(false);

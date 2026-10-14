@@ -6,7 +6,7 @@ use anyhow::Context;
 use std::env;
 use std::fs;
 use std::fs::File;
-use std::io::{self, BufWriter, Read, Seek, Write};
+use std::io::{BufWriter, Read, Seek, Write};
 use tempfile::Builder;
 use tempfile::{NamedTempFile, TempPath};
 
@@ -36,7 +36,7 @@ pub fn get_file_size(filepath: &str) -> Result<u64> {
  * caller to control the lifetime of the created temp file.
  */
 pub fn write_into_named_temp_file(
-    data: &Vec<u8>,
+    data: &[u8],
     prefix: &str,
     suffix: &str,
 ) -> Result<(TempPath, String, u64)> {
@@ -48,7 +48,7 @@ pub fn write_into_named_temp_file(
             .with_context(|| "Couldn't reopen file for writing")?;
         let mut buf_writer = BufWriter::new(file2);
         buf_writer
-            .write(&data)
+            .write_all(data)
             .with_context(|| "Error writing into named temp file")?;
         buf_writer
             .flush()

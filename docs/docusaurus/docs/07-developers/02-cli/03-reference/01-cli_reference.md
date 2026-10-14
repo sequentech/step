@@ -27,7 +27,7 @@ cli step <command> --help
 ## Configuration
 
 Configure CLI with your environment credentials:
-This is a mandatory first command to setup the credentials in order to use the CLI 
+This is a mandatory first command to setup the credentials in order to use the CLI
 
 ```bash
 cli step step config \
@@ -189,7 +189,7 @@ cli step export-election-event \
 * `--tally` – Include election event tally *(optional)*
 * `--encrypted `– Encrypt the exported package *(optional)*
 * `--output-dir` – Directory where the export will be saved *(optional, default: ./data)*
-  
+
 > Note: The export is forced to be encrypted if you include any sensitive data flags, specifically: `--bulletin-board`, `--reports`, `--applications`, or `--tally`.
 
 ---
@@ -310,6 +310,8 @@ cli step start-key-ceremony \
 * `--threshold` – Minimum trustees required *(optional, default: 2)*
 * `--election-id` – Election ID *(optional)*
 * `--name` – Ceremony name *(optional)*
+* `--automatic` – Skip manual custody confirmation; native or browser runners
+  still perform distributed key generation *(optional)*
 
 ---
 
@@ -318,13 +320,20 @@ cli step start-key-ceremony \
 ```bash
 cli step complete-key-ceremony \
   --election-event-id <ELECTION_EVENT_ID> \
-  --key-ceremony-id <KEY_CEREMONY_ID>
+  --key-ceremony-id <KEY_CEREMONY_ID> \
+  --trustee-config /secure/trustee.toml
 ```
 
 * `--election-event-id` – Election event ID **(required)**
 * `--key-ceremony-id` – Key ceremony ID **(required)**
+* `--trustee-config` – Local native trustee identity file **(required)**
 
-The command downloads the trustee's encrypted private key, stores it in the `keys` directory next to the CLI binary, in a file named after the key ceremony, and then checks it. Once the key passes the check, it is also stored as the election event's key, which `confirm-key-tally` uses. A checked key can no longer be downloaded, so running the command again checks the key ceremony's stored copy instead.
+The command downloads a public custody request and stores it in the `keys`
+directory next to the CLI binary. It signs the request with the local identity
+and submits the public custody proof. Once accepted, the request is also retained
+for `confirm-key-tally`. When request download is no longer available, a repeat
+invocation uses the ceremony's stored request. The identity file and election
+shares stay on the trustee machine.
 
 ---
 
@@ -349,11 +358,17 @@ cli step start-tally \
 ```bash
 cli step confirm-key-tally \
   --election-event-id <ELECTION_EVENT_ID> \
-  --tally-id <TALLY_ID>
+  --tally-id <TALLY_ID> \
+  --trustee-config /secure/trustee.toml
 ```
 
 * `--election-event-id` – Election event ID **(required)**
 * `--tally-id` – Tally ceremony ID **(required)**
+* `--trustee-config` – Local native trustee identity file **(required)**
+
+The command reads the retained public custody request, binds a new proof to the
+tally session, and signs it locally. It submits only that public proof. Keep the
+trustee runner active with its saved protocol state for mixing and decryption.
 
 ---
 
@@ -477,7 +492,7 @@ cli step render-template \
 ---
 
 ## Generate Voters
-This command create csv file with voters within the `working-directory` path. 
+This command create csv file with voters within the `working-directory` path.
 > Required additional confituration at `external_config.json` in the `working-directory` (election_event_json_file and generate_voters fields)
 
 ```bash

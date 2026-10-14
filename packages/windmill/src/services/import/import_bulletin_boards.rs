@@ -2,16 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::election::get_elections;
-use crate::services::export::export_bulletin_boards::*;
-use crate::services::protocol_manager::get_b3_pgsql_client;
-use crate::services::protocol_manager::get_protocol_manager_secret_path;
-use crate::services::vault;
-use crate::services::{
-    import::import_users::HEADER_RE,
-    protocol_manager::{get_election_board, get_event_board},
+use crate::services::electoral_log_board::{
+    get_election_board, get_event_board, get_protocol_manager_secret_path,
 };
+use crate::services::export::export_bulletin_boards::*;
+use crate::services::import::import_users::HEADER_RE;
+use crate::services::vault;
 use anyhow::{anyhow, Context, Result};
-use b4::client::pgsql::B3MessageRow;
 use base64::engine::general_purpose;
 use base64::Engine;
 use csv::StringRecord;
@@ -20,63 +17,6 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
-
-#[instrument]
-fn get_board_record(record: StringRecord) -> Result<(String, B3MessageRow)> {
-    let fields: Vec<String> = record.iter().map(|val| val.to_string()).collect();
-
-    if fields.len() < 10 {
-        return Err(anyhow!(
-            "Missing fields, required at least 10 but got {}",
-            fields.len()
-        ));
-    }
-
-    let election_id = fields[0].clone();
-    let id = fields[1]
-        .clone()
-        .parse::<i64>()
-        .map_err(|err| anyhow!("{:?}", err))?;
-    let created = fields[2]
-        .clone()
-        .parse::<u64>()
-        .map_err(|err| anyhow!("{:?}", err))?;
-    let sender_pk = fields[3].clone();
-    let statement_timestamp = fields[4]
-        .clone()
-        .parse::<u64>()
-        .map_err(|err| anyhow!("{:?}", err))?;
-    let statement_kind = fields[5].clone();
-    let batch = fields[6]
-        .clone()
-        .parse::<i32>()
-        .map_err(|err| anyhow!("{:?}", err))?;
-    let mix_number = fields[7]
-        .parse::<i32>()
-        .map_err(|err| anyhow!("{:?}", err))?;
-    let message = general_purpose::STANDARD_NO_PAD
-        .decode(fields[8].clone())
-        .map_err(|err| anyhow!("{:?}", err))?;
-    let version = fields[9].clone();
-
-    let row = B3MessageRow {
-        id: id,
-        created: created,
-        // Base64 encoded spki der representation.
-        sender_pk: sender_pk,
-        statement_timestamp: statement_timestamp,
-        statement_kind: statement_kind,
-        batch: batch,
-        // When signing mixes, specifies which mix in the chain is being signed.
-        // This allows creating a unique index for which otherwise there would be duplicate
-        // mix signature messages
-        mix_number: mix_number,
-        message: message,
-        version: version,
-    };
-
-    Ok((election_id, row))
-}
 
 #[instrument]
 fn get_board_name_for_event_or_election(
@@ -141,6 +81,22 @@ pub async fn import_protocol_manager_keys(
             ));
         }
 
+        if let Some(name) = fields[0].strip_prefix("protocol:") {
+            let remapped = replacement_map
+                .get(name)
+                .context("missing native board name replacement")?;
+            let name = protocol_board::BoardName::parse(remapped)?;
+            let manager = protocol_board::parse_manager_key(&fields[1])?;
+            crate::services::protocol_board::save_manager_key(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                &name,
+                &manager,
+            )
+            .await?;
+            continue;
+        }
         let election_id = fields[0].clone();
         let new_election_id = if election_id.trim().len() > 0 {
             Some(
@@ -199,92 +155,58 @@ pub async fn import_protocol_manager_keys(
     Ok(())
 }
 
-#[instrument(err)]
+/// Validate every canonical message against its archived immutable configuration
+/// before publishing any of them under the remapped application board names.
 pub async fn import_bulletin_boards(
     tenant_id: &str,
     election_event_id: &str,
     temp_file: NamedTempFile,
     replacement_map: HashMap<String, String>,
+    boards: &[sequent_core::types::protocol_board::ProtocolBoard],
 ) -> Result<()> {
-    let separator = b',';
-
-    // Read the first line of the file to get the columns
-    let mut rdr = csv::ReaderBuilder::new()
-        .delimiter(separator)
-        .from_reader(temp_file);
-
-    let headers = match rdr.headers() {
-        Ok(headers) => headers.clone(),
-        Err(err) => {
-            return Err(anyhow!("Error reading CSV headers from voters file: {err}"));
-        }
-    };
-
-    // Validate headers
-    info!("headers: {headers:?}");
-    for header in headers.iter() {
-        if !HEADER_RE.is_match(header) {
-            return Err(anyhow!(
-                "CSV Header contains characters not allowed: {header}"
-            ));
-        }
-    }
-    let mut boards_map: HashMap<String, Vec<B3MessageRow>> = HashMap::new();
-    for result in rdr.records() {
-        let record = match result {
-            Ok(record) => record,
-            Err(err) => {
-                return Err(anyhow!("Error reading CSV record: {err}"));
-            }
-        };
-        let (election_id, board_record) = get_board_record(record)?;
-
-        // Add board_record to the vector in boards_map, indexed by election_id
-        boards_map
-            .entry(election_id)
-            .or_insert_with(Vec::new)
-            .push(board_record);
-    }
-    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-
-    for (election_id, records) in boards_map {
-        let new_election_id = if election_id.trim().len() > 0 {
-            Some(
-                replacement_map
-                    .get(&election_id)
-                    .ok_or(anyhow!("Can't find election id in replacement map"))?
-                    .clone(),
-            )
-        } else {
-            None
-        };
-
-        let board_name = get_board_name_for_event_or_election(
-            tenant_id,
-            election_event_id,
-            new_election_id,
-            &slug,
+    let mut reader = csv::Reader::from_reader(temp_file);
+    anyhow::ensure!(
+        reader.headers()?.iter().eq(PROTOCOL_ARCHIVE_HEADERS),
+        "unsupported protocol archive format"
+    );
+    let mut validated = Vec::new();
+    let parents = boards
+        .iter()
+        .filter(|row| row.parent_id.is_none())
+        .map(|row| {
+            Ok((
+                row.id.as_str(),
+                protocol_board::SignedConfiguration::parse(&row.manager_message)?,
+            ))
+        })
+        .collect::<Result<HashMap<_, _>>>()?;
+    for record in reader.records() {
+        let record = record?;
+        anyhow::ensure!(record.len() == 2, "invalid protocol archive record");
+        let source = record.get(0).context("missing board name")?;
+        let name = replacement_map
+            .get(source)
+            .context("unknown archived board name")?;
+        let row = boards
+            .iter()
+            .find(|row| row.name == *name)
+            .context("missing archived board lineage")?;
+        anyhow::ensure!(
+            row.tenant_id == tenant_id && row.election_event_id == election_event_id,
+            "board archive scope mismatch"
         );
-        let mut board_client = get_b3_pgsql_client().await?;
-
-        let existing_board: Option<b4::client::pgsql::B3IndexRow> =
-            board_client.get_board(board_name.as_str()).await?;
-
-        if existing_board.is_none() {
-            return Err(anyhow!(
-                "Can't import messages for bulletin board {} because the table doesn't exist",
-                board_name
-            ));
-        }
-
-        // Sort messages by 'created' in ascending order
-        let mut new_records = records.clone();
-        new_records.sort_by_key(|msg| msg.created);
-
-        board_client
-            .insert_messages(&board_name, &new_records)
+        let cfg = parents
+            .get(row.parent_id.as_deref().unwrap_or(&row.id))
+            .context("missing DKG parent")?;
+        let bytes = general_purpose::STANDARD
+            .decode(record.get(1).context("missing canonical message")?)?;
+        cfg.verify_message(&bytes)?;
+        validated.push((protocol_board::BoardName::parse(name)?, bytes));
+    }
+    for (name, bytes) in validated {
+        crate::services::protocol_board::board_handle(&name)?
+            .import_message(&bytes)
             .await?;
     }
-
     Ok(())
 }

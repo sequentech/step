@@ -8,15 +8,42 @@ extern crate rocket;
 use dotenv::dotenv;
 use sequent_core::services::connection::LastDatafixAccessToken;
 use sequent_core::util::init_log::init_log;
+use services::dependencies::HarvestServices;
 use windmill::services::{
     celery_app::{init_celery_app, set_is_app_active},
     plugins_manager::plugin_manager::init_plugin_manager,
     probe::{setup_probe, AppName},
 };
 
+mod adapters;
+mod ports;
 mod routes;
 mod services;
 mod types;
+
+#[cfg(test)]
+#[path = "../../sequent-core/tests/support/claims.rs"]
+mod test_claims;
+
+#[cfg(test)]
+#[path = "../tests/support/request_boundaries.rs"]
+mod request_boundaries;
+
+#[cfg(test)]
+#[path = "../tests/support/error_contracts.rs"]
+mod error_contracts;
+
+#[cfg(test)]
+#[path = "../tests/support/route_services.rs"]
+mod route_services;
+
+#[cfg(test)]
+#[path = "../tests/support/signing_action_routes.rs"]
+mod signing_action_routes;
+
+#[cfg(test)]
+#[path = "../tests/support/hasura_signing_permissions.rs"]
+mod hasura_signing_permissions;
 
 #[launch]
 async fn rocket() -> _ {
@@ -35,7 +62,20 @@ async fn rocket() -> _ {
         }
     });
 
-    rocket::build()
+    build_application()
+}
+
+/// Register the same routes and managed state for production and local HTTP
+/// tests. Starting probes, plugins and worker processes remains a startup step.
+fn build_application() -> rocket::Rocket<rocket::Build> {
+    build_application_with(HarvestServices::production())
+}
+
+fn build_application_with(
+    services: HarvestServices,
+) -> rocket::Rocket<rocket::Build> {
+    let fake_provider_routes = services.messaging_fake_provider_routes;
+    let rocket = rocket::build()
         .attach(routes::electoral_log_proofs::fairing())
         .register(
             "/",
@@ -44,6 +84,10 @@ async fn rocket() -> _ {
                 routes::error_catchers::not_found,
                 routes::error_catchers::default
             ],
+        )
+        .register(
+            "/monitoring",
+            catchers![services::monitoring::monitoring_catcher],
         )
         .register(
             "/api/datafix",
@@ -72,7 +116,10 @@ async fn rocket() -> _ {
                 routes::ballot_publication::publish_ballot,
                 routes::ballot_publication_prepare_preview::prepare_ballot_publication_preview,
                 routes::voter_electoral_log::list_cast_vote_messages,
+                routes::ballot_checks::locate_ballot,
                 routes::insert_cast_vote::insert_cast_vote,
+                routes::receive_ballot::receive_ballot,
+                routes::cast_ballot::cast_ballot,
                 routes::fetch_document::fetch_document,
                 routes::document_password::get_document_password,
                 routes::elections::create_election,
@@ -132,15 +179,41 @@ async fn rocket() -> _ {
                 routes::permissions::get_permissions,
                 routes::permissions::set_role_permission,
                 routes::permissions::delete_role_permission,
+                routes::approval_matrix::get_approval_matrix,
+                routes::approval_matrix::evaluate_approval_matrix,
+                routes::approval_matrix::save_approval_matrix,
                 routes::phone_blacklist::create_phone_blacklist_entry,
                 routes::phone_blacklist::delete_phone_blacklist_entry,
+                routes::messaging::send_message,
+                routes::messaging::create_messenger_link,
+                routes::messaging::messenger_link_status,
+                routes::messaging::confirm_messenger_link,
+                routes::messaging::messaging_callbacks,
+                routes::messaging::upsert_messaging_account,
+                routes::messaging::delete_messaging_account,
+                routes::messaging::replace_messaging_account_credentials,
+                routes::messaging::check_messaging_account,
+                routes::messaging::messaging_account_callback_url,
+                routes::messaging::messaging_account_change_impact,
+                routes::messaging::messaging_callback_status,
+                routes::messaging::test_messaging_account,
+                routes::messaging::update_event_messaging_config,
+                routes::messaging_insights::messaging_event_stats,
+                routes::messaging_insights::messaging_audience_preview,
+                routes::messaging_insights::messaging_voter_counts,
+                routes::messaging_insights::messaging_recount_voters,
+                routes::messaging_insights::messaging_monthly_volumes,
+                routes::messaging_insights::find_by_support_reference,
                 routes::upload_document::get_upload_url,
                 routes::keys_ceremony::create_keys_ceremony,
-                routes::keys_ceremony::get_private_key,
-                routes::keys_ceremony::check_private_key,
+                routes::keys_ceremony::get_custody_request,
+                routes::keys_ceremony::confirm_key_custody,
                 routes::keys_ceremony::list_keys_ceremonies,
+                routes::trustee_boards::list_trustee_boards,
+                routes::trustee_boards::report_trustee_board,
                 routes::tally_ceremony::create_tally_ceremony,
-                routes::tally_ceremony::restore_private_key,
+                routes::tally_ceremony::authorize_tally_custody,
+                routes::keys_ceremony::custody_proof_signature_status,
                 routes::tally_ceremony::submit_tally_resolution,
                 routes::voting_status::update_event_status,
                 routes::voting_status::update_election_status,
@@ -167,10 +240,22 @@ async fn rocket() -> _ {
                 routes::export_template::export_template,
                 routes::import_templates::import_templates_route,
                 routes::election_event_stats::get_election_event_top_votes_by_ip,
+                routes::monitoring::list_dashboards,
+                routes::monitoring::get_dashboard,
+                routes::monitoring::render_widget,
+                routes::monitoring_config::validate_config,
+                routes::monitoring_config::save_config,
+                routes::monitoring_config::reset_config_to_preset,
+                routes::monitoring_config::list_presets,
+                routes::monitoring_config::set_dashboard_mode,
+                routes::monitoring_config::list_config,
+                routes::monitoring_config::get_config,
+                routes::monitoring_export::export_monitoring,
                 routes::export_ballot_publication::export_ballot_publication_route,
                 routes::reports::render_document_pdf,
                 routes::reports::generate_template,
                 routes::reports::generate_report,
+                routes::manual_verification_pdf::get_manual_verification_pdf,
                 routes::reports::encrypt_report_route,
                 routes::results_publication::configure_results_website_policy,
                 routes::results_publication::publish_results_website,
@@ -192,13 +277,42 @@ async fn rocket() -> _ {
                 routes::set_voter_authentication::set_voter_authentication,
                 routes::export_tally_results::export_tally_results_route,
                 routes::google_meet::generate_google_meeting,
+                routes::google_meet::set_google_service_account_key,
                 routes::generate_preview_url::generate_preview_url,
                 routes::import_certificate_authority::import_certificate_authority,
                 routes::delete_certificate_authority::delete_certificate_authority_route,
                 routes::export_certificate_authority::export_certificate_authority_route,
                 routes::get_certificate_authorities_pem::get_cas_pem,
+                routes::signing::get_signing_request,
+                routes::signing::approve_signing_request,
+                routes::signing::report_signing_open_failure,
+                routes::signing::handover_signing_request,
+                routes::signing::cancel_signing_request,
+                routes::signing::export_signing_requests,
+                routes::signing::save_signing_rule,
+                routes::signing::signing_rule_capacity,
+                routes::signing::signing_event_info,
+                routes::reports::signing_held_report_requests,
+                routes::signing_certificates::import_signing_issuers,
+                routes::signing_certificates::remove_signing_issuer,
+                routes::signing_certificates::put_signing_checks,
+                routes::signing_certificates::register_staff_certificate_route,
+                routes::signing_certificates::revoke_staff_certificate_route,
+                routes::signing_certificates::check_signing_certificate,
+                routes::signing::prepare_signing_pdf,
+                routes::election_dates::apply_schedule_recompute,
+                routes::schedule_import::preview_schedule_import,
+                routes::schedule_import::import_schedule,
+                routes::schedule_import::export_schedule,
+                routes::scheduled_outcomes::get_scheduled_outcomes,
+                routes::scheduled_outcomes::preview_scheduled_outcome_change,
+                routes::scheduled_outcomes::save_lifecycle_policies_route,
+                routes::scheduled_outcomes::get_lifecycle_snapshots,
             ],
         )
         .mount("/", routes![routes::plugins::plugin_routes])
         .manage(LastDatafixAccessToken::init())
+        .manage(services);
+    // Only with MESSAGING_FAKE_PROVIDER_ROUTES=ENABLED (development).
+    routes::fake_provider::mount(rocket, fake_provider_routes)
 }

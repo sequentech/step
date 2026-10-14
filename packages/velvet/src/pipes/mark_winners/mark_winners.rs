@@ -2,13 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use std::path::PathBuf;
+use std::path::Path;
 use std::{cmp::Ordering, fs};
 
 use sequent_core::ballot::Candidate;
 use sequent_core::util::path::list_subfolders;
 use serde::Serialize;
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 
 use crate::pipes::do_tally::{list_tally_sheet_subfolders, OUTPUT_BREAKDOWNS_FOLDER};
 use crate::pipes::error::{Error, Result};
@@ -79,10 +79,7 @@ impl MarkWinners {
     }
 
     #[instrument(err, skip_all)]
-    pub fn create_breakdown_winners(
-        base_input_path: &PathBuf,
-        base_output_path: &PathBuf,
-    ) -> Result<()> {
+    pub fn create_breakdown_winners(base_input_path: &Path, base_output_path: &Path) -> Result<()> {
         let base_input_breakdown_path = base_input_path.join(OUTPUT_BREAKDOWNS_FOLDER);
         let base_output_breakdown_path = base_output_path.join(OUTPUT_BREAKDOWNS_FOLDER);
         let subfolders = list_subfolders(&base_input_breakdown_path);

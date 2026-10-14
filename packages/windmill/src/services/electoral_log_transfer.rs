@@ -15,7 +15,7 @@ use crate::postgres::electoral_log_checkpoint::{
     PublishedCheckpoint,
 };
 use crate::services::electoral_log::ElectoralLog;
-use crate::services::protocol_manager::get_event_store;
+use crate::services::electoral_log_board::get_event_store;
 use crate::types::documents::EDocuments;
 use anyhow::{anyhow, ensure, Context, Result};
 use deadpool_postgres::Transaction;

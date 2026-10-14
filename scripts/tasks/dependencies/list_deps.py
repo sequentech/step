@@ -5,6 +5,7 @@
 import os
 import csv
 import json
+import time
 import subprocess
 import xml.etree.ElementTree as ET
 import argparse
@@ -19,7 +20,20 @@ import tomli
 # --- Configuration ---
 MAVEN_NAMESPACES = {'m': 'http://maven.apache.org/POM/4.0.0'}
 
-def fetch_rust_deps(package_path, package_name, writer, internal_pkgs):
+# crates.io refuses requests without a User-Agent that identifies the client
+HEADERS = {"User-Agent": "sequent-dependency-report (legal@sequentech.io)"}
+
+
+def workspace_dependencies(packages_path):
+    """The [workspace.dependencies] table, where a crate's `workspace = true` dependency states its version."""
+    try:
+        with open(packages_path / "Cargo.toml", "rb") as f:
+            return tomli.load(f).get("workspace", {}).get("dependencies", {})
+    except (OSError, tomli.TOMLDecodeError):
+        return {}
+
+
+def fetch_rust_deps(package_path, package_name, writer, internal_pkgs, workspace_deps):
     """Parses Cargo.toml and queries the crates.io API, skipping internal dependencies."""
     try:
         with open(package_path / "Cargo.toml", "rb") as f:
@@ -32,10 +46,14 @@ def fetch_rust_deps(package_path, package_name, writer, internal_pkgs):
             # Skip internal dependencies
             if name in internal_pkgs:
                 continue
+            if isinstance(version_info, dict) and version_info.get("workspace"):
+                version_info = workspace_deps.get(name, {})
             version = version_info if isinstance(version_info, str) else version_info.get("version", "N/A")
+            # a dependency renamed with `package = "..."` is published under that name
+            crate = version_info.get("package", name) if isinstance(version_info, dict) else name
             try:
                 # Query crates.io API for metadata
-                response = requests.get(f"https://crates.io/api/v1/crates/{quote(name)}", timeout=5)
+                response = requests.get(f"https://crates.io/api/v1/crates/{quote(crate)}", timeout=5, headers=HEADERS)
                 response.raise_for_status()
                 api_data = response.json()
                 
@@ -54,6 +72,8 @@ def fetch_rust_deps(package_path, package_name, writer, internal_pkgs):
             except requests.RequestException as e:
                 print(f"    [WARN] Could not fetch metadata for Rust crate '{name}': {e}")
                 writer.writerow([package_name, name, version, "Error", str(e)])
+            # crates.io asks for at most one request per second
+            time.sleep(1)
 
     except Exception as e:
         print(f"  [ERROR] Failed to process Cargo.toml for '{package_name}': {e}")
@@ -70,7 +90,8 @@ def fetch_npm_deps(package_path, package_name, writer, internal_pkgs):
         for name, version in dependencies.items():
             # Skip internal dependencies (by name or by @scope/name)
             base_name = name.split('/')[-1] if name.startswith('@') else name
-            if name in internal_pkgs or base_name in internal_pkgs:
+            # a `file:` dependency is an artifact of this repository, not a third party
+            if name in internal_pkgs or base_name in internal_pkgs or str(version).startswith("file:"):
                 continue
             try:
                 # `npm view --json` is fast and gets all info in one call
@@ -120,7 +141,7 @@ def fetch_maven_deps(package_path, package_name, writer, internal_pkgs):
             pom_url = f"https://repo1.maven.org/maven2/{group_path}/{artifactId}/{version}/{artifactId}-{version}.pom"
 
             try:
-                response = requests.get(pom_url, timeout=5)
+                response = requests.get(pom_url, timeout=5, headers=HEADERS)
                 if response.status_code == 200:
                     dep_root = ET.fromstring(response.content)
                     license_node = find_text(dep_root, ".//m:licenses/m:license/m:name") or "N/A"
@@ -194,6 +215,7 @@ def main():
             except Exception:
                 pass
 
+    workspace_deps = workspace_dependencies(packages_path)
     print(f"🔍 Starting dependency scan... Output will be saved to '{output_path}'")
 
     with open(output_path, "w", newline="", encoding="utf-8") as f:
@@ -208,7 +230,7 @@ def main():
             print(f"\nProcessing package: {package_name}")
 
             if (package_path / "Cargo.toml").exists():
-                fetch_rust_deps(package_path, package_name, writer, internal_pkgs)
+                fetch_rust_deps(package_path, package_name, writer, internal_pkgs, workspace_deps)
             elif (package_path / "package.json").exists():
                 fetch_npm_deps(package_path, package_name, writer, internal_pkgs)
             elif (package_path / "pom.xml").exists():

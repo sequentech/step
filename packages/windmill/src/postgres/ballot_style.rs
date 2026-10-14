@@ -3,9 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Context, Result};
-use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
-use sequent_core::services::date::ISO8601;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::BallotStyle;
 use tokio_postgres::row::Row;
@@ -40,6 +38,10 @@ impl TryFrom<Row> for BallotStyleWrapper {
     }
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the existing database API argument order for transaction, record scope and column values."
+)]
 #[instrument(err, skip(hasura_transaction, ballot_eml))]
 pub async fn insert_ballot_style(
     hasura_transaction: &Transaction<'_>,
@@ -52,6 +54,7 @@ pub async fn insert_ballot_style(
     status: Option<String>,
     ballot_publication_id: &str,
 ) -> Result<BallotStyle> {
+    super::trusted_write::trusted_write(hasura_transaction).await?;
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -102,10 +105,7 @@ pub async fn insert_ballot_style(
         .collect::<Result<Vec<BallotStyle>>>()
         .with_context(|| "Error converting rows into documents")?;
 
-    elements
-        .get(0)
-        .map(|val| val.clone())
-        .ok_or(anyhow!("Row not inserted"))
+    elements.first().cloned().ok_or(anyhow!("Row not inserted"))
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -115,6 +115,13 @@ pub async fn get_all_ballot_styles(
     area_id: &str,
     authorized_election_ids: &Vec<String>,
 ) -> Result<Vec<BallotStyle>> {
+    let tenant_uuid = parse_uuid_v4(tenant_id)?;
+    let area_uuid = parse_uuid_v4(area_id)?;
+    let authorized_election_uuids: Vec<Uuid> = authorized_election_ids
+        .iter()
+        .map(|id| parse_uuid_v4(id))
+        .collect::<Result<_>>()?;
+
     let query: tokio_postgres::Statement = hasura_transaction
         .prepare(
             r#"
@@ -133,7 +140,10 @@ pub async fn get_all_ballot_styles(
         .map_err(|err| anyhow!("Error preparing statement: {}", err))?;
 
     let rows: Vec<Row> = hasura_transaction
-        .query(&query, &[&tenant_id, &area_id, authorized_election_ids])
+        .query(
+            &query,
+            &[&tenant_uuid, &area_uuid, &authorized_election_uuids],
+        )
         .await
         .map_err(|err| anyhow!("Error executing query: {}", err))?;
 
@@ -291,4 +301,106 @@ pub async fn get_publication_ballot_styles(
         .collect::<anyhow::Result<Vec<BallotStyle>>>()?;
 
     Ok(styles)
+}
+
+/// `None` unless the ballot style is the one published for the voter's area
+/// and election. Its `ballot_eml` is read only when `with_ballot_eml` asks
+/// for it, since it is large.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_published_ballot_eml(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    election_id: &Uuid,
+    area_id: &Uuid,
+    ballot_style_id: &Uuid,
+    with_ballot_eml: bool,
+) -> Result<Option<Option<String>>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT CASE WHEN $6 THEN style.ballot_eml END AS ballot_eml
+                FROM sequent_backend.ballot_style style
+                JOIN sequent_backend.ballot_publication publication ON
+                    publication.id = style.ballot_publication_id AND
+                    publication.tenant_id = style.tenant_id AND
+                    publication.election_event_id = style.election_event_id
+                WHERE
+                    style.id = $5 AND
+                    style.tenant_id = $1 AND
+                    style.election_event_id = $2 AND
+                    style.election_id = $3 AND
+                    style.area_id = $4 AND
+                    style.deleted_at IS NULL AND
+                    publication.deleted_at IS NULL AND
+                    publication.published_at IS NOT NULL;
+            "#,
+        )
+        .await?;
+    let row = hasura_transaction
+        .query_opt(
+            &statement,
+            &[
+                &tenant_id,
+                &election_event_id,
+                &election_id,
+                &area_id,
+                &ballot_style_id,
+                &with_ballot_eml,
+            ],
+        )
+        .await?;
+
+    Ok(row
+        .map(|row| row.try_get::<_, Option<String>>("ballot_eml"))
+        .transpose()?)
+}
+
+/// The content of the ballot styles of the current, published ballot
+/// publication for `area_id` and `election_id`.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_published_ballot_emls(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &str,
+    election_id: &str,
+) -> Result<Vec<String>> {
+    let rows = hasura_transaction
+        .query(
+            r#"
+            SELECT
+                s.ballot_eml
+            FROM
+                sequent_backend.ballot_style s
+            JOIN sequent_backend.ballot_publication p ON p.id = s.ballot_publication_id
+                AND p.tenant_id = s.tenant_id
+                AND p.election_event_id = s.election_event_id
+            WHERE
+                s.tenant_id = $1 AND
+                s.election_event_id = $2 AND
+                s.area_id = $3 AND
+                s.election_id = $4 AND
+                s.deleted_at IS NULL AND
+                s.ballot_eml IS NOT NULL AND
+                p.is_generated IS TRUE AND
+                p.published_at IS NOT NULL AND
+                p.deleted_at IS NULL;
+            "#,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(area_id)?,
+                &parse_uuid_v4(election_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error executing query: {}", err))?;
+
+    rows.into_iter()
+        .map(|row| {
+            row.try_get::<_, String>("ballot_eml")
+                .map_err(|err| anyhow!("Error reading ballot style: {}", err))
+        })
+        .collect()
 }

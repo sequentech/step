@@ -221,6 +221,12 @@ After login in the SimpleSAMLphp Admin Portal, you should see something like:
 
 ### Step 2.2: Configure Keycloak to Trust SimpleSAMLphp
 
+Default election-event realms do not include a demonstration SAML identity provider.
+Configure trusted providers explicitly with your own signing certificate. Realm
+imports remove providers that trust the bundled development certificate, together
+with their mappers and automatic redirect settings. Custom SAML providers and the
+digital-certificate provider remain available.
+
 Now configure Keycloak to accept SAML assertions from your local SimpleSAMLphp instance.
 
 1. **Navigate to Authentication** in your Keycloak realm

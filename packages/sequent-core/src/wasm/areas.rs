@@ -16,7 +16,6 @@ extern crate console_error_panic_hook;
 use serde::{Deserialize, Serialize};
 use serde_wasm_bindgen;
 use serde_wasm_bindgen::Serializer;
-use std::panic;
 
 #[allow(clippy::all)]
 #[wasm_bindgen]

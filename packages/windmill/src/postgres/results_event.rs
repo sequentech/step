@@ -20,9 +20,8 @@ impl TryFrom<Row> for ResultsEventWrapper {
 
     fn try_from(item: Row) -> Result<Self> {
         let documents_value: Option<Value> = item.try_get("documents")?;
-        let documents: Option<ResultDocuments> = documents_value
-            .map(|value| deserialize_value(value))
-            .transpose()?;
+        let documents: Option<ResultDocuments> =
+            documents_value.map(deserialize_value).transpose()?;
 
         Ok(ResultsEventWrapper(ResultsEvent {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
@@ -47,11 +46,11 @@ pub async fn update_results_event_documents(
     documents: &ResultDocuments,
 ) -> Result<()> {
     let documents_value = serde_json::to_value(documents.clone())?;
-    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let results_event_uuid: uuid::Uuid = parse_uuid_v4(&results_event_id)
+    let results_event_uuid: uuid::Uuid = parse_uuid_v4(results_event_id)
         .map_err(|err| anyhow!("Error parsing results_event_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
     let statement = hasura_transaction
         .prepare(
@@ -136,8 +135,8 @@ pub async fn get_results_event_by_id(
         .collect::<Result<Vec<ResultsEvent>>>()?;
 
     results_events
-        .get(0)
-        .map(|results_event| results_event.clone())
+        .first()
+        .cloned()
         .ok_or(anyhow!("Results event {results_event_id} not found"))
 }
 

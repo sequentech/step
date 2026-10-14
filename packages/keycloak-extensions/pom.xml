@@ -43,12 +43,24 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<module>../../beyond/packages/keycloak-extensions</module>
 			</modules>
 		</profile>
+		<!-- Not in the evaluated configuration: the temenos tree does not contain this module. -->
+		<profile>
+			<id>scanovate-authenticator</id>
+			<activation>
+				<file>
+					<exists>scanovate-authenticator/pom.xml</exists>
+				</file>
+			</activation>
+			<modules>
+				<module>scanovate-authenticator</module>
+			</modules>
+		</profile>
 	</profiles>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<aws.version>2.33.9</aws.version>
-		<keycloak.version>26.6.1</keycloak.version>
+		<keycloak.version>26.7.0</keycloak.version>
 		<maven.compiler.release>17</maven.compiler.release>
 		<maven.compiler.version>3.14.0</maven.compiler.version>
 		<maven.shade.version>3.6.1</maven.shade.version>
@@ -124,6 +136,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>3.5.5</version>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>${maven.compiler.version}</version>
 
@@ -166,6 +183,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                 <include>voter-enrollment/pom.xml</include>
                 <include>action-token-login-bridge/pom.xml</include>
                 <include>message-otp-authenticator/pom.xml</include>
+                <include>scanovate-authenticator/pom.xml</include>
               </includes>
               <goals>
                 <goal>com.diffplug.spotless:spotless-maven-plugin:check</goal>
@@ -184,6 +202,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                 <include>voter-enrollment/pom.xml</include>
                 <include>action-token-login-bridge/pom.xml</include>
                 <include>message-otp-authenticator/pom.xml</include>
+                <include>scanovate-authenticator/pom.xml</include>
               </includes>
               <goals>
                 <goal>com.diffplug.spotless:spotless-maven-plugin:apply</goal>

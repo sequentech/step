@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Ballots cast each hour of the chosen day, with the running total on its
+# own axis.
+id: hourly-votes
+title: Ballots by hour
+description: Ballots cast in each hour of the chosen day.
+source: voting_enrollment_activity
+selectors:
+  day:
+    label: Day
+    options_from: event_days
+query:
+  template: timeseries
+  measures: [voted]
+  grain: hour
+  day: {selector: day}
+height: 280
+chart:
+  charts:
+    votes:
+      type: bar
+      query: data
+      x: bucket_label
+      y: voted
+      y_label: In the hour
+      # In time order, which the labels alone are not when clocks go back.
+      sort: {by: bucket_utc, order: asc}
+      style: {orientation: vertical, number_format: number}
+      layers:
+        - type: line
+          y: voted_cumulative
+          label: So far
+          axis_y: {position: right, title: So far}
+  rows: [votes]

@@ -256,7 +256,7 @@ fn check_over_votes_divisible(
     over_votes: u64,
     max_votes: u64,
 ) -> Option<TallySheetImportValidationError> {
-    if over_votes % max_votes == 0 {
+    if over_votes.is_multiple_of(max_votes) {
         return None;
     }
     Some(TallySheetImportValidationError {
@@ -327,6 +327,10 @@ fn check_blank_votes_at_least_precinct_minimum(
 /// Returns `Err(validation_error)` when the two authorities disagree, or
 /// when there is no authority at all — the caller skips the contest rather
 /// than emitting rows built on a guessed bound.
+#[expect(
+    clippy::result_large_err,
+    reason = "Keep structured validation errors consistent with the importer aggregation API; boxing would change its error contract solely for a size heuristic."
+)]
 #[instrument(skip_all, err(Debug))]
 fn resolve_contest_max_votes(
     contest: Node<'_, '_>,

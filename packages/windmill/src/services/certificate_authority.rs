@@ -130,6 +130,10 @@ pub struct CertificateImportResult {
     pub errors: Vec<String>,
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the existing certificate operation API and its transaction, scope and actor inputs."
+)]
 pub async fn import_certificate_authority(
     hasura_transaction: Transaction<'_>,
     pem_chunks: Vec<String>,
@@ -251,6 +255,10 @@ pub async fn import_certificate_authority(
     })
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the existing certificate operation API and its transaction, scope and actor inputs."
+)]
 pub async fn delete_certificate_authority(
     hasura_transaction: Transaction<'_>,
     ids: &[Uuid],

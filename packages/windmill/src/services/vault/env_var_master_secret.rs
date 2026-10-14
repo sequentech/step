@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::{Vault, VaultManagerType};
-use anyhow::{Context, Result};
+use anyhow::Result;
 use async_trait::async_trait;
 use std::env;
 use tracing::{error, info, instrument};

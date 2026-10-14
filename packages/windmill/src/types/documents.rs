@@ -2,9 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use strum_macros::{Display, EnumString, EnumVariantNames};
+use strum_macros::{Display, EnumString, VariantNames};
 
-#[derive(Display, Debug, PartialEq, Eq, Clone, EnumString, EnumVariantNames)]
+#[derive(Display, Debug, PartialEq, Eq, Clone, EnumString, VariantNames)]
+#[expect(
+    non_camel_case_types,
+    reason = "Preserve the public document identifiers and their existing derived string representations used by export/import callers."
+)]
 pub enum EDocuments {
     ELECTION_EVENT,
     VOTERS,
@@ -23,6 +27,8 @@ pub enum EDocuments {
     IMAGES,
     ELECTION_EVENT_CONFIG,
     CERTIFICATES,
+    /// The staff issuers of signatures, apart from the voters' authorities.
+    STAFF_ISSUERS,
     /// The records of an event's electoral logs, in log order.
     ELECTORAL_LOG_RECORDS,
     /// The identities, roots and published checkpoints of an event's electoral logs.
@@ -49,12 +55,17 @@ impl EDocuments {
             EDocuments::IMAGES => "images",
             EDocuments::ELECTION_EVENT_CONFIG => "election_event_config",
             EDocuments::CERTIFICATES => "export_certificates",
+            EDocuments::STAFF_ISSUERS => "export_staff_issuers",
             EDocuments::ELECTORAL_LOG_RECORDS => "electoral_log_records",
             EDocuments::ELECTORAL_LOG_MANIFEST => "electoral_log_manifest",
         }
     }
 }
 
+#[expect(
+    non_camel_case_types,
+    reason = "Preserve the public tally-document variant API used by the existing import and export routines."
+)]
 pub enum ETallyDocuments {
     TALLY_SESSION,
     TALLY_SESSION_CONTEST,

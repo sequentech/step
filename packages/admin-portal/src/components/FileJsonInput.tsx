@@ -56,11 +56,17 @@ export const FileJsonInput: React.FC<FileJsonInputProps> = (props) => {
     }
 
     return (
-        <Box sx={{padding: "1rem 0"}}>
+        <Box
+            sx={{
+                "padding": "1rem 0",
+                "& .object-size": {color: "#444 !important"},
+            }}
+        >
             <DragFileElement>
                 <Icon variant="info" icon={faCloudArrowUp as any} fontSize="50px" />
                 <FileInput
-                    label={false}
+                    label={String(t("common.label.json"))}
+                    inputProps={{"aria-label": String(t("common.label.json"))}}
                     source={fileSource}
                     accept={{
                         "application/json": [".json"],

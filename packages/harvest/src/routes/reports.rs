@@ -2,11 +2,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::routes::signing::{signing_failure, SigningReply};
+use crate::services::authorization::{
+    authorize, authorize_election_permission_labels,
+};
+use crate::services::dependencies::HarvestServices;
+use crate::services::signing_http::SigningError as SigningFailure;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use rocket::State;
 use sequent_core::{
     services::jwt::{self, JwtClaims},
     types::{hasura::core::TasksExecution, permissions::Permissions},
@@ -14,24 +20,23 @@ use sequent_core::{
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use windmill::services::electoral_log::{
-    post_voter_secret_attribute_audit, ElectoralLogAdminContext,
-    VoterSecretAttributeAction, VoterSecretAttributeAudit,
+    ElectoralLogAdminContext, VoterSecretAttributeAction,
+    VoterSecretAttributeAudit,
 };
+use windmill::services::signing::actions::reports::{
+    held_report_requests, reads_report_requests, HeldReportRequest,
+};
+use windmill::services::signing::{SigningCaller, SigningError};
 
 use strum_macros::{Display, EnumString};
 use tracing::instrument;
 use uuid::Uuid;
-use windmill::{postgres::reports::Report, services::tasks_execution::*};
-use windmill::{
-    postgres::reports::{get_report_by_type, ReportType},
-    services::reports_vault::get_report_key_pair,
-};
+use windmill::postgres::reports::Report;
+use windmill::postgres::reports::{get_report_by_type, ReportType};
 use windmill::{
     postgres::{document::get_document, reports::get_report_by_id},
-    services::{
-        celery_app::get_celery_app,
-        database::get_hasura_pool,
-        reports::template_renderer::{EReportEncryption, GenerateReportMode},
+    services::reports::template_renderer::{
+        EReportEncryption, GenerateReportMode,
     },
     tasks::generate_template::EGenerateTemplate,
     types::tasks::ETasksExecution,
@@ -50,11 +55,12 @@ pub struct RenderDocumentPdfResponse {
     pub task_execution: TasksExecution,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/render-document-pdf", format = "json", data = "<body>")]
 pub async fn render_document_pdf(
     claims: JwtClaims,
     body: Json<RenderDocumentPdfInput>,
+    services: &State<HarvestServices>,
 ) -> Result<Json<RenderDocumentPdfResponse>, (Status, String)> {
     let input = body.into_inner();
     authorize(
@@ -65,7 +71,7 @@ pub async fn render_document_pdf(
     )?;
 
     let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.map_err(|e| {
+        services.databases.hasura().await.get().await.map_err(|e| {
             (
                 Status::InternalServerError,
                 format!("Error obtaining keycloak transaction: {e:?}"),
@@ -128,22 +134,29 @@ pub async fn render_document_pdf(
 
     let output_document_id: String = Uuid::new_v4().to_string();
 
-    let celery_app = get_celery_app().await;
-
-    // Insert the task execution record
-    let task_execution = post(
-        &claims.hasura_claims.tenant_id,
-        election_event_id.as_deref(),
-        ETasksExecution::RENDER_DOCUMENT_PDF,
-        &executer_name,
-    )
-    .await
-    .map_err(|error| {
+    let celery_app = services.tasks.connect().await.map_err(|error| {
         (
             Status::InternalServerError,
-            format!("Failed to insert task execution record: {error:?}"),
+            format!("The task queues are not available: {error:#}"),
         )
     })?;
+
+    // Insert the task execution record
+    let task_execution = services
+        .ledger
+        .post(
+            &claims.hasura_claims.tenant_id,
+            election_event_id.as_deref(),
+            ETasksExecution::RENDER_DOCUMENT_PDF,
+            &executer_name,
+        )
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Failed to insert task execution record: {error:?}"),
+            )
+        })?;
 
     let _task = celery_app
         .send_task(
@@ -179,11 +192,12 @@ pub struct GenerateTemplateResponse {
     pub task_execution: TasksExecution,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/generate-template", format = "json", data = "<body>")]
 pub async fn generate_template(
     claims: JwtClaims,
     body: Json<EGenerateTemplate>,
+    services: &State<HarvestServices>,
 ) -> Result<Json<GenerateTemplateResponse>, (Status, String)> {
     let input = body.into_inner();
     info!("Generating report: {input:?}");
@@ -195,7 +209,7 @@ pub async fn generate_template(
     )?;
 
     let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.map_err(|e| {
+        services.databases.hasura().await.get().await.map_err(|e| {
             (
                 Status::InternalServerError,
                 format!("Error obtaining keycloak transaction: {e:?}"),
@@ -220,25 +234,32 @@ pub async fn generate_template(
         .unwrap_or_else(|| executer_name.clone());
 
     let document_id: String = Uuid::new_v4().to_string();
-    let celery_app = get_celery_app().await;
+    let celery_app = services.tasks.connect().await.map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("The task queues are not available: {error:#}"),
+        )
+    })?;
     let EGenerateTemplate::BallotImages {
         election_event_id, ..
     } = input.clone();
 
     // Insert the task execution record
-    let task_execution = post(
-        &claims.hasura_claims.tenant_id,
-        Some(&election_event_id),
-        ETasksExecution::GENERATE_REPORT,
-        &executer_name,
-    )
-    .await
-    .map_err(|error| {
-        (
-            Status::InternalServerError,
-            format!("Failed to insert task execution record: {error:?}"),
+    let task_execution = services
+        .ledger
+        .post(
+            &claims.hasura_claims.tenant_id,
+            Some(&election_event_id),
+            ETasksExecution::GENERATE_REPORT,
+            &executer_name,
         )
-    })?;
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Failed to insert task execution record: {error:?}"),
+            )
+        })?;
 
     let _task = celery_app
         .send_task(windmill::tasks::generate_template::generate_template::new(
@@ -276,11 +297,12 @@ pub struct GenerateReportResponse {
     pub task_execution: TasksExecution,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/generate-report", format = "json", data = "<body>")]
 pub async fn generate_report(
     claims: JwtClaims,
     body: Json<GenerateReportBody>,
+    services: &State<HarvestServices>,
 ) -> Result<Json<GenerateReportResponse>, (Status, String)> {
     let input = body.into_inner();
     info!("Generating report: {input:?}");
@@ -292,7 +314,7 @@ pub async fn generate_report(
     )?;
 
     let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.map_err(|e| {
+        services.databases.hasura().await.get().await.map_err(|e| {
             (
                 Status::InternalServerError,
                 format!("Error obtaining keycloak transaction: {e:?}"),
@@ -317,7 +339,12 @@ pub async fn generate_report(
         .unwrap_or_else(|| executer_name.clone());
 
     let document_id: String = Uuid::new_v4().to_string();
-    let celery_app = get_celery_app().await;
+    let celery_app = services.tasks.connect().await.map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("The task queues are not available: {error:#}"),
+        )
+    })?;
     let report = get_report_by_id(
         &hasura_transaction,
         &input.tenant_id,
@@ -331,10 +358,33 @@ pub async fn generate_report(
         )
     })?
     .ok_or_else(|| (Status::NotFound, "Report not found".to_string()))?;
+    authorize_election_permission_labels(
+        &hasura_transaction,
+        &claims,
+        &report.election_event_id,
+        report.election_id.as_ref().map(std::slice::from_ref),
+    )
+    .await?;
     let report_type =
         ReportType::from_str(&report.report_type).map_err(|error| {
             (Status::BadRequest, format!("Invalid report type: {error}"))
         })?;
+    if input.report_mode == GenerateReportMode::REAL {
+        if let Some(refusal) = signed_generation_refusal(
+            &hasura_transaction,
+            &report,
+            &report_type,
+        )
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Error reading the report's signing rule: {error:?}"),
+            )
+        })? {
+            return Err(refusal);
+        }
+    }
     let declared_secret_names =
         windmill::services::reports::template_renderer::get_declared_report_secret_attribute_names(
             &hasura_transaction,
@@ -360,7 +410,9 @@ pub async fn generate_report(
         )?;
         let attribute_names: Vec<String> =
             declared_secret_names.iter().cloned().collect();
-        post_voter_secret_attribute_audit(
+        services
+            .electoral_log
+            .voter_secret_attributes(
             &report.tenant_id,
             &report.election_event_id,
             &ElectoralLogAdminContext::from_claims(&claims),
@@ -382,19 +434,21 @@ pub async fn generate_report(
     }
 
     // Insert the task execution record
-    let task_execution = post(
-        &input.tenant_id,
-        input.election_event_id.as_deref(),
-        ETasksExecution::GENERATE_REPORT,
-        &executer_name,
-    )
-    .await
-    .map_err(|error| {
-        (
-            Status::InternalServerError,
-            format!("Failed to insert task execution record: {error:?}"),
+    let task_execution = services
+        .ledger
+        .post(
+            &input.tenant_id,
+            input.election_event_id.as_deref(),
+            ETasksExecution::GENERATE_REPORT,
+            &executer_name,
         )
-    })?;
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Failed to insert task execution record: {error:?}"),
+            )
+        })?;
 
     let _task = celery_app
         .send_task(windmill::tasks::generate_report::generate_report::new(
@@ -406,6 +460,7 @@ pub async fn generate_report(
             Some(executer_username),
             None,
             may_read_secret_attributes,
+            Some(SigningCaller::from_claims(&claims)),
         ))
         .await
         .map_err(|e| {
@@ -434,11 +489,12 @@ pub struct ExportTemplateOutput {
     error_msg: Option<String>,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/encrypt-report", format = "json", data = "<input>")]
 pub async fn encrypt_report_route(
     claims: jwt::JwtClaims,
     input: Json<EncryptReportBody>,
+    services: &State<HarvestServices>,
 ) -> Result<Json<ExportTemplateOutput>, (Status, String)> {
     let body = input.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
@@ -450,7 +506,9 @@ pub async fn encrypt_report_route(
         vec![Permissions::REPORT_WRITE],
     )?;
 
-    let mut hasura_db_client: DbClient = get_hasura_pool()
+    let mut hasura_db_client: DbClient = services
+        .databases
+        .hasura()
         .await
         .get()
         .await
@@ -461,15 +519,17 @@ pub async fn encrypt_report_route(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    get_report_key_pair(
-        &hasura_transaction,
-        tenant_id,
-        body.election_event_id.clone(),
-        body.report_id.clone(),
-        body.password.clone(),
-    )
-    .await
-    .map_err(|err| (Status::InternalServerError, err.to_string()))?;
+    services
+        .vault
+        .check_report_password(
+            &hasura_transaction,
+            tenant_id,
+            body.election_event_id.clone(),
+            body.report_id.clone(),
+            body.password.clone(),
+        )
+        .await
+        .map_err(|err| (Status::InternalServerError, err.to_string()))?;
 
     info!("body {:?}", body);
 
@@ -486,4 +546,119 @@ pub async fn encrypt_report_route(
         .map_err(|err| (Status::InternalServerError, err.to_string()))?;
 
     Ok(Json(output))
+}
+
+#[cfg(test)]
+#[path = "../../tests/support/report_routes.rs"]
+mod route_tests;
+
+/// Why a real report can't be generated here while its action needs
+/// signatures: the election returns and the initialization report are
+/// produced and signed by the tally, and a held report is a Post's.
+async fn signed_generation_refusal(
+    hasura_transaction: &deadpool_postgres::Transaction<'_>,
+    report: &windmill::postgres::reports::Report,
+    report_type: &ReportType,
+) -> anyhow::Result<Option<(Status, String)>> {
+    use windmill::services::signing::guard::effective_rule;
+    use windmill::services::signing::pdf::{
+        report_signing_action, tally_signing_action,
+    };
+    let required = |action| async move {
+        let tenant_id = Uuid::parse_str(&report.tenant_id)?;
+        let election_event_id = Uuid::parse_str(&report.election_event_id)?;
+        anyhow::Ok(
+            effective_rule(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                action,
+            )
+            .await?
+            .is_required(),
+        )
+    };
+    if let Some(action) = tally_signing_action(report_type) {
+        if required(action).await? {
+            return Ok(Some((
+                Status::Conflict,
+                "This report needs signatures: the tally produces it for each Post, to be signed there."
+                    .into(),
+            )));
+        }
+    }
+    if let Some(action) = report_signing_action(report_type) {
+        if report.election_id.is_none() && required(action).await? {
+            return Ok(Some((
+                Status::BadRequest,
+                "This report needs signatures: generate it for a Post.".into(),
+            )));
+        }
+    }
+    Ok(None)
+}
+
+#[derive(Debug, Deserialize)]
+pub struct HeldReportRequestsInput {
+    election_event_id: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct HeldReportRequestsOutput {
+    requests: Vec<HeldReportRequest>,
+}
+
+/// Safe request links for Reports and Tally, and the tally of a released
+/// report. The tenant, action permissions and Post labels are enforced by
+/// the same authenticated caller as the request panel.
+#[instrument(skip(claims, services, body))]
+#[post("/signing-reports/requests", format = "json", data = "<body>")]
+pub async fn signing_held_report_requests(
+    claims: JwtClaims,
+    services: &State<HarvestServices>,
+    body: Json<HeldReportRequestsInput>,
+) -> SigningReply<HeldReportRequestsOutput> {
+    crate::services::signing_http::authorize_403(
+        &claims,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![],
+    )?;
+    let caller = SigningCaller::from_claims(&claims);
+    if !reads_report_requests(&caller) {
+        return Err(signing_failure(SigningError::Forbidden(
+            "Reading it needs a report or signing request permission.".into(),
+        )));
+    }
+    let tenant_id =
+        Uuid::parse_str(&claims.hasura_claims.tenant_id).map_err(|_| {
+            SigningFailure::new(
+                Status::Unauthorized,
+                crate::services::signing_http::SigningErrorCode::Unauthorized,
+                "The token's tenant is not a UUID.",
+            )
+        })?;
+    let election_event_id =
+        Uuid::parse_str(&body.election_event_id).map_err(|_| {
+            SigningFailure::invalid("election_event_id is not a UUID")
+        })?;
+    let mut client = services
+        .databases
+        .hasura()
+        .await
+        .get()
+        .await
+        .map_err(SigningFailure::internal)?;
+    let transaction = client
+        .transaction()
+        .await
+        .map_err(SigningFailure::internal)?;
+    let requests = held_report_requests(
+        &transaction,
+        &caller,
+        tenant_id,
+        election_event_id,
+    )
+    .await
+    .map_err(signing_failure)?;
+    Ok(Json(HeldReportRequestsOutput { requests }))
 }

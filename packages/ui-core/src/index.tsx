@@ -20,6 +20,7 @@ export * from "./services/WasmContext"
 export {
     stringToHtml,
     stringToText,
+    escapeHtml,
     escapeTranslationValues,
     translateHtml,
 } from "./services/stringToHtml"
@@ -43,16 +44,26 @@ export {
 export {getBallotErrorOptions} from "./services/ballotErrorMessages"
 export type {BallotErrorOptions} from "./services/ballotErrorMessages"
 export * from "./services/votingPortalDateTime"
+export * from "./services/ballotChecks"
+export * from "./services/eventTimeZones"
 export * from "./types/ElectionEventPresentation"
 export * from "./services/percentFormatter"
 export * from "./services/cssClassNameFormatter"
 export * from "./services/wasm"
 export * from "./services/presentationOrder"
 export * from "./services/translationScopes"
+export * from "./services/timeZones"
+export * from "./types/ScheduledOutcome"
 export * from "./services/sanitizeFilename"
+export * from "./services/sanitizePresentationCss"
 export * from "./types/AreaPresentation"
 export * from "./services/candidatePresentation"
 export * from "./services/categoryService"
 export * from "./utils/cookies"
+export * from "./services/accessibilitySettings"
+export * from "./services/audioInstructions"
 export * from "./constants/keycloak"
 export * from "./types/VotingChannel"
+export * from "./types/Slates"
+export * from "./services/slates"
+export * from "./types/SlateCoverage"

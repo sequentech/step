@@ -3,7 +3,11 @@
 
 import {ApolloClient} from "@apollo/client"
 import {GetBallotStylesQuery, GetElectionEventQuery, GetElectionsQuery} from "../gql/graphql"
-import {IBallotStyle as BallotDefinition} from "@sequentech/ui-core"
+import {
+    IBallotStyle as BallotDefinition,
+    getEffectiveSupportMaterialsPolicy,
+    type IElectionEventPresentation,
+} from "@sequentech/ui-core"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import {GET_ELECTIONS} from "../queries/GetElections"
 
@@ -22,6 +26,8 @@ export interface VoterFile {
     status: Election["status"]
     num_allowed_revotes: Election["num_allowed_revotes"]
     voting_channels: Election["voting_channels"]
+    /** Current authoritative display cap, separate from signed ballot bytes. */
+    signed_close?: {scheduled_at: string | null; timezone?: string | null} | null
 }
 export interface VoterFiles {
     event_id: string
@@ -29,9 +35,29 @@ export interface VoterFiles {
     files: VoterFile[]
 }
 
+/** Attach current dates without changing downloaded objects or signed EML. */
+export const capDisplayVotingClose = (
+    summary: BallotSummary,
+    close: VoterFile["signed_close"]
+): BallotSummary => {
+    if (close === undefined) return summary
+    if (close?.scheduled_at && !Number.isFinite(Date.parse(close.scheduled_at))) {
+        throw new Error("Invalid voting close metadata")
+    }
+    return {
+        ...summary,
+        election_dates: {
+            ...summary.election_dates,
+            authoritative_close: close ?? {scheduled_at: null},
+        },
+    }
+}
+
 export class PublicationDownloadError extends Error {
     constructor(public status: number) {
         super("Unable to download published ballot data")
+        // Preserve the custom error identity when the production bundle targets ES5.
+        Object.setPrototypeOf(this, PublicationDownloadError.prototype)
     }
 }
 
@@ -111,7 +137,7 @@ export async function loadPublicationList(
                 num_allowed_revotes: file.num_allowed_revotes,
                 voting_channels: file.voting_channels,
             },
-            summary,
+            summary: capDisplayVotingClose(summary, file.signed_close),
         }
     })
     const selectedEvent =
@@ -171,7 +197,7 @@ export function cachePublicationMetadata(
     client.writeQuery({
         query: GET_ELECTION_EVENT,
         variables: {tenantId, electionEventId: eventId},
-        data,
+        data: {sequent_backend_election_event: data.sequent_backend_election_event},
     })
     for (const election of data.sequent_backend_election) {
         client.writeQuery({
@@ -183,6 +209,12 @@ export function cachePublicationMetadata(
     client.writeQuery({
         query: GET_ELECTIONS,
         variables: {electionIds: data.sequent_backend_election.map((election) => election.id)},
-        data,
+        data: {sequent_backend_election: data.sequent_backend_election},
     })
 }
+
+/** Resolve one published policy for both the chooser gate and acknowledgement screen. */
+export const getPublishedSupportMaterialsPolicy = (
+    ballotPresentation: IElectionEventPresentation | undefined,
+    eventPresentation: IElectionEventPresentation | null | undefined
+) => getEffectiveSupportMaterialsPolicy((ballotPresentation ?? eventPresentation)?.materials)

@@ -5,6 +5,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Provenance of `packages/wbraid`
 
+## Current platform integration
+
+The application now uses this workspace through `voting-crypto`, `protocol-board`
+and native board storage. The former top-level `strand`, `braid`, `b4`,
+`board-messages` package has been retired. Application electoral logs retain
+the independent `immu-board` and `immudb-rs` storage stack.
+Descriptions below record the import and development history; references to the
+former application packages describe that earlier state. Current setup and
+verification commands are in the
+[trustee guide](../../docs/docusaurus/docs/07-developers/09-braid/braid_trustees_configuration.md)
+and [public verification guide](../../docs/docusaurus/docs/07-developers/09-braid/public-verification.md).
+
 ## Import
 
 `packages/wbraid` was imported from the `sequentech/step` branch
@@ -255,3 +267,17 @@ run) and is untouched: its lib passes, with upstream's warn-level
   service container, `b4v6` built and started on the runner, then the two
   `#[ignore]`d live tests; gated on the `wbraid-live-b4` pull-request label
   (`labeled` added to the `pull_request` trigger for that).
+
+## Local modifications for the evaluated configuration
+
+- **`RistrettoCtx` draws its randomness from the operating system**
+  (`crates/vsc/src/context.rs`). Its `Rng` is now `UnwrapErr<SysRng>`, the
+  alternative upstream left commented out. It replaces `ThreadRng`, a
+  user-space ChaCha generator that the operating system only seeds. Every
+  random value of the trustee protocol now comes from `getrandom` directly:
+  secret shares, ElGamal and re-encryption randomness, shuffle permutations,
+  proof nonces and signing keys. That is the generator the cryptographic
+  mechanisms list of the platform's evaluation names. The symmetric keys and
+  nonces of `utils/symm.rs` already came from `getrandom`, and the retired
+  `strand` library drew from `OsRng` in the same way. `P256Ctx`, which the
+  platform does not use, is unchanged.

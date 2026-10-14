@@ -191,7 +191,7 @@ public class ECIESEncryptionTool {
     }
 
     private static String encryptText(String publicKeyFile, String plaintext) throws Exception {
-        PublicKey publicKey = loadPublicKeyFromPEM(readFile(publicKeyFile));
+        PublicKey publicKey = loadPublicKeyFromPEM(readFile(publicKeyFile), "EC");
 
         // Initialize the Cipher for encryption
         Cipher iesCipher = Cipher.getInstance("ECIES", "SC");
@@ -442,7 +442,7 @@ public class ECIESEncryptionTool {
 
     private static boolean verifyText(String publicKeyFile, String plaintextFilePath, String signatureBase64, Boolean isECDSA) throws Exception {
         String algorithm = isECDSA? "SHA256withECDSA" : "SHA256withRSA";
-        PublicKey publicKey = loadPublicKeyFromPEM(readFile(publicKeyFile));
+        PublicKey publicKey = loadPublicKeyFromPEM(readFile(publicKeyFile), isECDSA ? "EC" : "RSA");
     
         // Read the plaintext from the file to get the original byte array
         byte[] plaintextBytes = Files.readAllBytes(Paths.get(plaintextFilePath));
@@ -484,25 +484,25 @@ public class ECIESEncryptionTool {
         PKCS8EncodedKeySpec pkcs8EncodedKeySpec = new PKCS8EncodedKeySpec(privateKey.getEncoded());
         StringWriter stringWriter = new StringWriter();
         try (PrintWriter writer = new PrintWriter(stringWriter)) {
-            writer.println("-----BEGIN PRIVATE KEY-----");
+            writer.println("-----BEGIN PRIVATE KEY-----"); // gitleaks:allow -- delimiter; key bytes come from the runtime PrivateKey.
             writer.println(Base64.getMimeEncoder(64, new byte[]{'\n'}).encodeToString(pkcs8EncodedKeySpec.getEncoded()));
             writer.println("-----END PRIVATE KEY-----");
         }
         return stringWriter.toString();
     }
 
-    private static PublicKey loadPublicKeyFromPEM(String pem) throws Exception {
+    private static PublicKey loadPublicKeyFromPEM(String pem, String algorithm) throws Exception {
         String publicKeyPEM = pem.replace("-----BEGIN PUBLIC KEY-----", "")
                                  .replace("-----END PUBLIC KEY-----", "")
                                  .replaceAll("\\s", "");
         byte[] decoded = Base64.getDecoder().decode(publicKeyPEM);
         X509EncodedKeySpec spec = new X509EncodedKeySpec(decoded);
-        KeyFactory keyFactory = KeyFactory.getInstance("EC", "SC");
+        KeyFactory keyFactory = KeyFactory.getInstance(algorithm, "SC");
         return keyFactory.generatePublic(spec);
     }
 
     private static PrivateKey loadPrivateKeyFromPEM(String pem) throws Exception {
-        String privateKeyPEM = pem.replace("-----BEGIN PRIVATE KEY-----", "")
+        String privateKeyPEM = pem.replace("-----BEGIN PRIVATE KEY-----", "") // gitleaks:allow -- delimiter; payload is supplied by the caller.
                                   .replace("-----END PRIVATE KEY-----", "")
                                   .replaceAll("\\s", "");
         byte[] decoded = Base64.getDecoder().decode(privateKeyPEM);

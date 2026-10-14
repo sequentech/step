@@ -33,9 +33,9 @@ fn get_test_config(election_event_id: &str, script: String, test_duration: &u64)
     TestConfig {
         increment_strategy: "linear".to_string(),
         mode: "load".to_string(),
-        name: get_login_test_name_str(&election_event_id),
+        name: get_login_test_name_str(election_event_id),
         participant_timeout: 600,
-        script: script,
+        script,
         start_interval: *test_duration,
     }
 }

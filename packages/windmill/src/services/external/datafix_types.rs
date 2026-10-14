@@ -136,12 +136,28 @@ impl DatafixResponse {
     }
 }
 
+/// URL schemes accepted for the VoterView endpoint.
+#[derive(
+    Default, Display, Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, EnumString,
+)]
+pub enum VoterviewTransportPolicy {
+    #[default]
+    #[strum(serialize = "https-only")]
+    #[serde(rename = "https-only")]
+    HttpsOnly,
+    #[strum(serialize = "allow-plaintext")]
+    #[serde(rename = "allow-plaintext")]
+    AllowPlaintext,
+}
+
 #[derive(Deserialize, Serialize, Debug)]
 pub struct VoterviewRequest {
     pub url: String,
     pub usr: String,
     pub psw: String,
     pub county_mun: String,
+    #[serde(default)]
+    pub transport_policy: VoterviewTransportPolicy,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -193,13 +209,13 @@ impl PasswordPolicy {
         let pin = match self.characters {
             CharactersPolicy::Numeric => {
                 let mut pass = String::new();
-                let mut rng = rand::thread_rng();
+                let mut rng = rand::rng();
                 for _ in 0..self.size {
-                    pass.push_str(rng.gen_range(0..10).to_string().as_str());
+                    pass.push_str(rng.random_range(0..10).to_string().as_str());
                 }
                 pass
             }
-            CharactersPolicy::Alphanumeric => rand::thread_rng()
+            CharactersPolicy::Alphanumeric => rand::rng()
                 .sample_iter(distr::Alphanumeric)
                 .take(self.size)
                 .map(char::from)

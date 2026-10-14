@@ -21,14 +21,14 @@ pub struct CheckerResult {
 }
 
 impl DecodedVoteContest {
-    pub fn update(&mut self, data: CheckerResult) -> () {
+    pub fn update(&mut self, data: CheckerResult) {
         self.invalid_errors.extend(data.invalid_errors);
         self.invalid_alerts.extend(data.invalid_alerts);
     }
 }
 
 impl DecodedContestChoices {
-    pub fn update(&mut self, data: CheckerResult) -> () {
+    pub fn update(&mut self, data: CheckerResult) {
         self.invalid_errors.extend(data.invalid_errors);
         self.invalid_alerts.extend(data.invalid_alerts);
     }
@@ -157,8 +157,7 @@ pub fn check_blank_vote_policy(
 ) -> CheckerResult {
     let mut checker_result: CheckerResult = Default::default();
 
-    let blank_vote_policy =
-        presentation.blank_vote_policy.clone().unwrap_or_default();
+    let blank_vote_policy = presentation.blank_vote_policy.unwrap_or_default();
 
     if num_selected_candidates == 0
         && !is_explicit_invalid
@@ -255,8 +254,7 @@ pub fn check_under_vote_policy(
     // `num_selected_candidates < min_votes` is handle in prev step and
     // is independent of `under_vote_policy`, it's an invalid vote no
     // matter what
-    let under_vote_policy =
-        presentation.under_vote_policy.clone().unwrap_or_default();
+    let under_vote_policy = presentation.under_vote_policy.unwrap_or_default();
     let min_votes = min_votes.unwrap_or(0);
     if let Some(max_votes) = max_votes {
         if under_vote_policy != EUnderVotePolicy::ALLOWED
@@ -286,10 +284,7 @@ pub fn check_duplicated_rank_policy(
     presentation: &ContestPresentation,
 ) -> CheckerResult {
     let mut checker_result: CheckerResult = Default::default();
-    let policy = presentation
-        .duplicated_rank_policy
-        .clone()
-        .unwrap_or_default();
+    let policy = presentation.duplicated_rank_policy.unwrap_or_default();
     let error = InvalidPlaintextError {
         error_type: InvalidPlaintextErrorType::Implicit,
         candidate_id: None,
@@ -309,10 +304,7 @@ pub fn check_preference_gaps_policy(
     presentation: &ContestPresentation,
 ) -> CheckerResult {
     let mut checker_result: CheckerResult = Default::default();
-    let policy = presentation
-        .preference_gaps_policy
-        .clone()
-        .unwrap_or_default();
+    let policy = presentation.preference_gaps_policy.unwrap_or_default();
     let error = InvalidPlaintextError {
         error_type: InvalidPlaintextErrorType::Implicit,
         candidate_id: None,

@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use serde::{Deserialize, Serialize};
-use strum_macros::{Display, EnumString};
+use std::fmt;
+use strum_macros::{Display, EnumIter, EnumString};
 
 #[allow(non_camel_case_types)]
 #[derive(
@@ -145,6 +146,12 @@ pub enum Permissions {
     ADMIN_CEREMONY,
     #[strum(serialize = "admin-dashboard-view")]
     ADMIN_DASHBOARD_VIEW,
+    // see the configurable monitoring dashboards
+    #[strum(serialize = "monitoring-view")]
+    MONITORING_VIEW,
+    // edit their widgets, dashboards and themes, or reset them to a preset
+    #[strum(serialize = "monitoring-configure")]
+    MONITORING_CONFIGURE,
     #[strum(serialize = "tally-sheet-view")]
     TALLY_SHEET_VIEW,
     #[strum(serialize = "tally-sheet-create")]
@@ -277,6 +284,9 @@ pub enum Permissions {
     APPLICATION_READ,
     #[strum(serialize = "application-write")]
     APPLICATION_WRITE,
+    // save a new version of the enrollment approval matrix
+    #[strum(serialize = "approval-matrix-write")]
+    APPROVAL_MATRIX_WRITE,
     #[strum(serialize = "ee-voters-columns")]
     EE_VOTERS_COLUMNS,
     #[strum(serialize = "ee-voters-filters")]
@@ -423,8 +433,72 @@ pub enum Permissions {
     PHONE_BLACKLIST_UPDATE,
     #[strum(serialize = "phone-blacklist-delete")]
     PHONE_BLACKLIST_DELETE,
+    #[strum(serialize = "messaging-account-read")]
+    MESSAGING_ACCOUNT_READ,
+    #[strum(serialize = "messaging-account-write")]
+    MESSAGING_ACCOUNT_WRITE,
+    #[strum(serialize = "messaging-config-write")]
+    MESSAGING_CONFIG_WRITE,
+    /// Reads the event's messaging configuration, the safe account fields
+    /// and the delivery ledger: the event tab, Logs and the voter drawer.
+    #[strum(serialize = "messaging-config-read")]
+    MESSAGING_CONFIG_READ,
     #[strum(serialize = "election-event-voter-list-reconciliation")]
     ELECTION_EVENT_VOTER_LIST_SYNC,
+    // show the Election Event > Signatures tab
+    #[strum(serialize = "election-event-signatures-tab")]
+    ELECTION_EVENT_SIGNATURES_TAB,
+    // read the protected actions and their signing rules
+    #[strum(serialize = "signing-rules-read")]
+    SIGNING_RULES_READ,
+    // edit signing rules
+    #[strum(serialize = "signing-rules-write")]
+    SIGNING_RULES_WRITE,
+    // read staff issuers, certificate checks and registered certificates
+    #[strum(serialize = "signing-certificates-read")]
+    SIGNING_CERTIFICATES_READ,
+    // import and remove trusted staff issuers
+    #[strum(serialize = "signing-issuers-write")]
+    SIGNING_ISSUERS_WRITE,
+    // change the certificate checks
+    #[strum(serialize = "signing-checks-write")]
+    SIGNING_CHECKS_WRITE,
+    // register a staff certificate to a person
+    #[strum(serialize = "signing-certificates-register")]
+    SIGNING_CERTIFICATES_REGISTER,
+    // revoke a registered staff certificate
+    #[strum(serialize = "signing-certificates-revoke")]
+    SIGNING_CERTIFICATES_REVOKE,
+    // read signing requests (limited by permission labels)
+    #[strum(serialize = "signing-requests-read")]
+    SIGNING_REQUESTS_READ,
+    // cancel someone else's waiting signing request
+    #[strum(serialize = "signing-requests-cancel")]
+    SIGNING_REQUESTS_CANCEL,
+    // export signing requests as CSV
+    #[strum(serialize = "signing-requests-export")]
+    SIGNING_REQUESTS_EXPORT,
+    // sign a protected action: `sign-<action id>` (see `signing::SigningAction`)
+    #[strum(serialize = "sign-initialize-voting")]
+    SIGN_INITIALIZE_VOTING,
+    #[strum(serialize = "sign-open-voting")]
+    SIGN_OPEN_VOTING,
+    #[strum(serialize = "sign-close-voting")]
+    SIGN_CLOSE_VOTING,
+    #[strum(serialize = "sign-generate-election-returns")]
+    SIGN_GENERATE_ELECTION_RETURNS,
+    #[strum(serialize = "sign-generate-reports")]
+    SIGN_GENERATE_REPORTS,
+    #[strum(serialize = "sign-transmit-results")]
+    SIGN_TRANSMIT_RESULTS,
+    #[strum(serialize = "sign-approve-voter")]
+    SIGN_APPROVE_VOTER,
+    #[strum(serialize = "sign-approve-configuration")]
+    SIGN_APPROVE_CONFIGURATION,
+    #[strum(serialize = "sign-key-ceremony")]
+    SIGN_KEY_CEREMONY,
+    #[strum(serialize = "sign-tally-key")]
+    SIGN_TALLY_KEY,
 }
 
 #[allow(non_camel_case_types)]
@@ -437,3 +511,65 @@ pub enum VoterPermissions {
     #[strum(serialize = "ack-support-materials")]
     ACK_SUPPORT_MATERIALS,
 }
+
+/// Hasura roles the platform manages itself: Hasura's built-in `admin` and
+/// the roles held only by platform service accounts and super admins. Realm
+/// roles are never created, assigned or imported under these names.
+#[derive(Display, Debug, PartialEq, Eq, Clone, Copy, EnumString, EnumIter)]
+#[strum(ascii_case_insensitive)]
+pub enum ReservedHasuraRole {
+    #[strum(serialize = "admin")]
+    Admin,
+    #[strum(serialize = "service-account")]
+    ServiceAccount,
+    #[strum(serialize = "datafix-account")]
+    DatafixAccount,
+    #[strum(serialize = "super-admin-user")]
+    SuperAdminUser,
+    #[strum(serialize = "cli-account-admin")]
+    CliAccountAdmin,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum RealmRolePolicy {
+    Ordinary,
+    Reserved(ReservedHasuraRole),
+}
+
+impl RealmRolePolicy {
+    /// Ignores ASCII case and surrounding whitespace in `role_name`.
+    pub fn classify(role_name: &str) -> Self {
+        match role_name.trim().parse::<ReservedHasuraRole>() {
+            Ok(role) => Self::Reserved(role),
+            Err(_) => Self::Ordinary,
+        }
+    }
+
+    pub fn require_ordinary(
+        role_name: &str,
+    ) -> Result<(), ReservedRealmRoleError> {
+        match Self::classify(role_name) {
+            Self::Ordinary => Ok(()),
+            Self::Reserved(role) => Err(ReservedRealmRoleError(role)),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct ReservedRealmRoleError(pub ReservedHasuraRole);
+
+impl fmt::Display for ReservedRealmRoleError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "Permission `{}` is reserved and cannot be created or assigned",
+            self.0
+        )
+    }
+}
+
+impl std::error::Error for ReservedRealmRoleError {}
+
+#[cfg(test)]
+#[path = "permissions_tests.rs"]
+mod permissions_tests;

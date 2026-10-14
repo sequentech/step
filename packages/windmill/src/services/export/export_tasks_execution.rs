@@ -6,13 +6,10 @@ use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::services::keycloak::KeycloakAdminClient;
+use sequent_core::types::hasura::core::Document;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::util::temp_path::write_into_named_temp_file;
-use sequent_core::{services::keycloak::get_event_realm, types::hasura::core::Document};
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Map, Value};
-use tracing::{event, info, instrument, Level};
+use tracing::instrument;
 
 #[instrument(err, skip(transaction))]
 pub async fn read_export_data(
@@ -20,7 +17,7 @@ pub async fn read_export_data(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Vec<TasksExecution>> {
-    let tasks = get_tasks_by_election_event_id(&transaction, tenant_id, election_event_id).await?;
+    let tasks = get_tasks_by_election_event_id(transaction, tenant_id, election_event_id).await?;
 
     Ok(tasks)
 }
@@ -37,7 +34,7 @@ pub async fn write_export_document(
 
     let name = format!("tasks_execution-{}", election_event_id);
 
-    let (temp_path, temp_path_string, file_size) =
+    let (_temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&data_bytes, &name, ".json")?;
 
     // Using the first task to get the tenant_id and election_event_id
@@ -80,7 +77,7 @@ pub async fn process_export(
     write_export_document(
         &hasura_transaction,
         export_data,
-        &election_event_id,
+        election_event_id,
         document_id,
     )
     .await?;

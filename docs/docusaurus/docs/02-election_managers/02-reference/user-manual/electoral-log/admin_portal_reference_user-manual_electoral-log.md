@@ -12,7 +12,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 The **Electoral Log** page shows the electoral log and the ballot box of your tenant's election events. Administrators of the super-admin tenant can browse any tenant's events and run read-only SQL queries on an election event's electoral log. Nothing on this page changes any data.
 
-To open it, select **Electoral Log** in the Admin Portal's left panel. It requires the `electoral-log-console-read` permission.
+To open it, select **Electoral Log** in the Admin Portal's left panel. It requires the `electoral-log-console-read` permission. The page shows a whole election event, so an event of your own tenant opens only if your permission labels cover every labelled Election of it.
 
 ## Browsing Tables
 

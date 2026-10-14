@@ -31,7 +31,7 @@ This will automatically:
 - Scan all packages for direct dependencies
 - Generate the CSV report with current license information
 - Update the markdown documentation while preserving existing structure
-- Output results to `docs/docusaurus/docs/reference/third_party_deps/`
+- Output results to `docs/docusaurus/docs/05-reference/third_party_deps/`
 
 ### Manual Usage
 
@@ -73,15 +73,15 @@ The wrapper script:
 2. Installs required dependencies (`requests`, `tomli`)
 3. Runs dependency scanning to generate CSV
 4. Updates markdown documentation from CSV data
-5. Outputs to `docs/docusaurus/docs/reference/third_party_deps/`
+5. Outputs to `docs/docusaurus/docs/05-reference/third_party_deps/`
 
 ## Output Files
 
-- **CSV**: `docs/docusaurus/docs/reference/third_party_deps/assets/dependencies.csv`
-- **Markdown**: `docs/docusaurus/docs/reference/third_party_deps/third_party_deps.md`
+- **CSV**: `docs/docusaurus/docs/05-reference/third_party_deps/assets/dependencies.csv`
+- **Markdown**: `docs/docusaurus/docs/05-reference/third_party_deps/third_party_deps.md`
 
 The markdown file is automatically included in the Docusaurus documentation site
-and accessible at `/docs/reference/third_party_deps/third_party_deps`.
+and accessible at `/docs/05-reference/third_party_deps/third_party_deps`.
 
 ## License Information
 

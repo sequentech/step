@@ -64,7 +64,7 @@ pub fn start_ceremony(
 
     let elections = match election_ids {
         Some(el) => el,
-        None => GetElections::get_by_election_event(&election_event_id)?,
+        None => GetElections::get_by_election_event(election_event_id)?,
     };
 
     let variables = create_tally_ceremony::Variables {
@@ -86,7 +86,8 @@ pub fn start_ceremony(
         let response_body: Response<create_tally_ceremony::ResponseData> = response.json()?;
         if let Some(data) = response_body.data {
             if let Some(e) = data.create_tally_ceremony {
-                Ok(e.tally_session_id)
+                e.tally_session_id
+                    .ok_or_else(|| Box::from("Tally ceremony returned no session ID"))
             } else {
                 Err(Box::from("failed updating status"))
             }

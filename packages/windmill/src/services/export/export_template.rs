@@ -7,12 +7,10 @@ use crate::services::documents::upload_and_return_document;
 use anyhow::{anyhow, Result};
 use csv::Writer;
 use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::types::hasura::core::Document;
 use sequent_core::types::hasura::core::Template;
 use sequent_core::util::temp_path::write_into_named_temp_file;
-use sequent_core::{services::keycloak::get_event_realm, types::hasura::core::Document};
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Map, Value};
-use tracing::{event, info, instrument, Level};
+use tracing::instrument;
 
 #[instrument(err, skip(transaction))]
 pub async fn read_export_data(

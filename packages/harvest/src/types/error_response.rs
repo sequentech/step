@@ -43,12 +43,23 @@ pub enum ErrorCode {
     UserProfileValidation,
     DocumentPasswordUnavailable,
     VoterInformationLetterUnavailable,
-    PrivateKeyDownloadUnavailable,
+    CustodyRequestDownloadUnavailable,
     ConfirmPolicyShowCastVoteLogsFailed,
+    BallotChecksEnded,
     BallotIdMismatch,
     BallotPublicationValidation,
     TallyValidation,
+    VotingStatusValidation,
+    RealmAttributesValidation,
     InvalidVotingChannels,
+    InvalidApprovalMatrix,
+    /// The election event is locked down (as the signing rules answer).
+    #[strum(serialize = "locked-down")]
+    LockedDown,
+    /// A sort key that isn't a column (the log list's range filter keys).
+    InvalidOrderBy,
+    /// The document's row, or its stored file, is gone (fetchDocument).
+    DocumentNotFound,
     InvalidCastVoteOrder,
     InvalidElectoralLogConsoleRequest,
     ElectoralLogRecordNotFound,
@@ -99,7 +110,7 @@ pub struct ErrorResponse {
 impl ErrorResponse {
     #[instrument]
     pub fn new(status: Status, message: &str, code: ErrorCode) -> JsonError {
-        return Custom(
+        Custom(
             status,
             Json(ErrorResponse {
                 message: message.into(),
@@ -108,7 +119,7 @@ impl ErrorResponse {
                     ..Default::default()
                 },
             }),
-        );
+        )
     }
 
     pub fn password_policy_violation(

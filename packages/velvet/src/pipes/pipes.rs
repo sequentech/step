@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+#[cfg(feature = "miru")]
 use super::ballot_images::mcballot_images::MCBallotImages;
 use super::ballot_images::BallotImages;
 use super::decode_ballots::decode_mcballots::DecodeMCBallots;
@@ -33,8 +34,16 @@ impl PipeManager {
                 PipeName::DecodeBallots => Some(Box::new(DecodeBallots::new(pipe_inputs))),
                 PipeName::BallotImages => Some(Box::new(BallotImages::new(pipe_inputs))),
                 PipeName::DecodeMCBallots => Some(Box::new(DecodeMCBallots::new(pipe_inputs))),
+                #[cfg(feature = "miru")]
                 PipeName::MCBallotReceipts => Some(Box::new(MCBallotImages::new(pipe_inputs))),
+                #[cfg(feature = "miru")]
                 PipeName::MCBallotImages => Some(Box::new(MCBallotImages::new(pipe_inputs))),
+                #[cfg(not(feature = "miru"))]
+                PipeName::MCBallotReceipts | PipeName::MCBallotImages => {
+                    return Err(super::error::Error::UnexpectedError(
+                        "The Miru ballot-image pipes are not part of this build (feature `miru` is disabled)".to_string(),
+                    ));
+                }
                 PipeName::DoTally => Some(Box::new(DoTally::new(pipe_inputs))),
                 PipeName::MarkWinners => Some(Box::new(MarkWinners::new(pipe_inputs))),
                 PipeName::GenerateReports => Some(Box::new(GenerateReports::new(pipe_inputs))),

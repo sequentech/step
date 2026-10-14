@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+
+target-version = "py311"
+line-length = 88
+
+[lint]
+select = ["E", "F", "I", "B", "BLE", "UP", "RUF", "SIM"]
+
+# Fixtures may deliberately use patterns that production code must avoid.
+# Keep the pre-existing syntax, undefined-name and import checks on tests.
+[lint.per-file-ignores]
+"test_*.py" = ["B", "BLE", "UP", "RUF", "SIM"]

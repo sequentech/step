@@ -171,7 +171,7 @@ impl Context for P256Ctx {
  * Sets
  * - `Ristretto255` as the underlying group.
  * - `Sha3-512` as the hashing function.
- * - `StdRng` as the random number generator.
+ * - `SysRng` as the random number generator.
  * - `Ed25519` as the digital signature scheme.
  */
 #[derive(Debug, PartialEq, Clone, Hash)]
@@ -181,8 +181,10 @@ impl Context for RistrettoCtx {
     type Element = <Self::G as CryptographicGroup>::Element;
     type Scalar = <Self::G as CryptographicGroup>::Scalar;
     type Hasher = <Self::G as CryptographicGroup>::Hasher;
-    // type Rng = rand::rand_core::UnwrapErr<rand::rngs::SysRng>;
-    type Rng = rand::rngs::ThreadRng;
+    // Sequent: every random value of the trustee protocol is drawn from the operating
+    // system's generator (getrandom), as the evaluated configuration states, with no
+    // user-space generator in between; this was ThreadRng.
+    type Rng = rand::rand_core::UnwrapErr<rand::rngs::SysRng>;
     type SignatureScheme = Ed25519<Self::Rng>;
 
     type G = Ristretto255Group;

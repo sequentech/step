@@ -544,7 +544,7 @@ mod tally_resolution_tests {
         let result = validate_resolution_allowed(
             &TallyExecutionStatus::AWAITING_INPUT,
             &["contest-1"],
-            &[resolution.clone()],
+            std::slice::from_ref(&resolution),
         );
         assert!(result.is_ok());
         assert!(

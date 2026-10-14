@@ -1,0 +1,214 @@
+---
+id: trustee-configuration
+title: Wbraid trustee configuration
+sidebar_label: Wbraid trustees
+---
+
+<!-- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io> -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+
+The native `packages/trustee` runner uses the protocol and cryptography supplied
+by `packages/wbraid`. Each trustee keeps a signing key and a share encryption
+key locally. The administration portal registers both public keys.
+
+Generate a new identity once, then print its public keys when registering it:
+
+```sh
+trustee generate --trustee-config trustee.toml
+trustee public-keys --trustee-config trustee.toml
+trustee start --trustee-config trustee.toml
+```
+
+Generation refuses to replace an existing file. Back up `trustee.toml` and the
+runner's `message_store` directory. The runner does not generate replacement
+keys when its configured identity is missing.
+
+| Variable                                                       | Purpose                                                             |
+| -------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `TRUSTEE_CONFIG_PATH`                                          | Local native keys file, unless supplied with `--trustee-config`     |
+| `B4_URL`                                                       | Native board URL, unless supplied with `--b4-url`                   |
+| `TRUSTEE_PLATFORM_URL`                                         | Full Hasura GraphQL endpoint; Compose defaults to `HASURA_ENDPOINT` |
+| `TRUSTEE_NAME`, `TRUSTEE_PASSWORD`                             | Trustee's Keycloak account                                          |
+| `TRUSTEE_KEYCLOAK_URL`, `TRUSTEE_KEYCLOAK_REALM`               | Tenant's authentication server and realm                            |
+| `TRUSTEE_KEYCLOAK_CLIENT_ID`, `TRUSTEE_KEYCLOAK_CLIENT_SECRET` | Authentication client; omit the secret for a public client          |
+| `LOG_LEVEL`                                                    | Runner tracing filter                                               |
+
+Set an initial password for each trustee account and complete its required
+profile fields and MFA enrollment through the tenant portal before starting
+the unattended runner. The account must belong to the trustee group and its
+`trustee` attribute must match `TRUSTEE_NAME`.
+
+The runner discovers DKG and tally boards through the same public Hasura actions
+as browser trustees, verifies signed configuration and message lineage, and
+resumes its local protocol sessions. Set `TRUSTEE_PLATFORM_URL` to the full
+GraphQL endpoint, including `/v1/graphql`: `http://localhost:8080/v1/graphql`
+when running on the development host, or `http://graphql-engine:8080/v1/graphql`
+inside the development Compose network. A separately hosted trustee can use the
+production public endpoint. The runner sends fixed JSON requests using its
+existing HTTP client; it needs no GraphQL client library or schema generation.
+Containers use `http://b4v6:3005` for the supplied native board service.
+
+## Development workspace
+
+Both **backend** and **full** development modes start `trustee1` and `trustee2`
+alongside `b4v6`, its PostgreSQL database, and LocalStack. The board and trustee
+watchers use locked release builds and share this checkout's
+`packages/rust-local-target/docker-dev` build cache. Each trustee has a separate
+`message_store` volume and uses its identity in `packages/trustee/dev/`.
+These checked-in identities are development fixtures; generate private identities
+for deployments.
+
+Complete each trustee account's password, profile and MFA setup as described
+above. Register **both** public keys from its configured identity in the
+administration portal. The runner uses the tenant's `api-key-client` and discovers
+only boards assigned to that trustee. A runner can start before enrollment and
+retries authentication while the account is being configured.
+
+`scripts/dev/step-dev mode` reads `.env.development` first and `.env` second.
+Existing workspaces therefore inherit new settings without replacing local
+overrides or secrets. Explicit local values still win: remove an obsolete
+override or update it when migrating a workspace. In particular,
+`WBRAID_S3_ENDPOINT_URL=http://localstack:4566` must be reachable from both native
+trustees and browser trustees. Add `127.0.0.1 localstack` to the browser host's
+hosts file and forward port `4566` from the workspace.
+The browser board URL defaults to `http://localhost:3005` through
+`WBRAID_BOARD_PUBLIC_URL`.
+
+To apply only the crypto service changes to an existing workspace, after checking
+its local settings and trustee enrollment, run from the checkout root:
+
+```sh
+docker compose --project-directory .devcontainer \
+  --env-file .devcontainer/.env.development --env-file .devcontainer/.env \
+  -f .devcontainer/docker-compose.yml --profile full up -d --build --no-deps \
+  postgres-b4v6 localstack configure-localstack b4v6 trustee1 trustee2
+```
+
+This scopes recreation to the listed services and leaves the editor container
+running. Start them with existing Hasura, Harvest and Keycloak services available.
+Generate a new key ceremony using the registered wbraid identities; legacy
+ceremonies and trustee session stores use incompatible protocol data.
+
+For a disposable end-to-end check that does not alter the workspace's services:
+
+```sh
+scripts/e2e/run.sh
+scripts/e2e/run-browser-trustees.sh
+```
+
+The native journeys cover automatic and manual key ceremonies and tallies,
+voting, ballot tracking, public verification and election archive import. The
+browser journeys exercise both ceremony policies with real Chromium trustees.
+Each launcher owns and cleans up its own Compose project and volumes.
+
+## Manual custody proofs
+
+For manual ceremonies, download the public custody request from the portal and
+produce a signed proof locally:
+
+```sh
+trustee attest --request custody-request.json --trustee-config trustee.toml --output custody-proof.json
+```
+
+Upload the proof. For a tally restore, add `--tally-session-id <tally UUID>`.
+The proof is bound to the event, ceremony, trustee and, for restore, tally.
+Private keys stay in the runner's keys file.
+
+The ballot context is the signed configuration's immutable decimal identifier.
+Export/import can remap platform UUIDs and board names while preserving signed
+canonical messages and that cryptographic identifier.
+
+## Browser trustees
+
+The administration portal's `/trustee` screen runs the supplied wbraid protocol
+in WebAssembly. Sign in with the trustee account, then choose **Generate browser
+keys**, or **Import private keys** to use an existing native `trustee.toml`.
+Legacy browser configurations and protocol stores use incompatible crypto; generate
+a new native identity and run a new key ceremony for those elections.
+Downloads include the trustee name: for example, `trustee1-private-keys.toml`,
+`trustee1-browser-sessions.json` and `trustee1-custody-proof.json`. The ceremony
+wizard also prefixes custody request filenames with the trustee name, and the
+local command examples use those filenames.
+Download and privately back up the keys. Register both displayed public keys for
+this trustee before starting its key ceremony. The account's `trustee` attribute
+must match the registered trustee name.
+
+Set the browser-reachable board service URL and select **Start browser trustee**.
+The page discovers only boards assigned to the authenticated trustee. It drives
+key generation and, later, mixing and decryption over each tally's DKG parent.
+Keep the page open during participation. **Stop browser trustee** stops polling;
+**Lock keys** removes the identity from the page's memory. A page reload requires
+importing the keys again. Private keys are never sent to Harvest or the board.
+
+Session commitments and staged-message records persist in IndexedDB, scoped to
+both the board service and signing identity. Reloading the same browser resumes
+these records. **Back up browser sessions** exports the keys and all recorded
+sessions together; keep this JSON file private. **Restore browser backup** restores
+them into a fresh browser. A keys file alone is insufficient to restore a tally
+participant in a different browser: the recorded DKG commitments must survive.
+A Web Lock prevents two tabs in the same browser from running the same identity.
+Do not clear browser storage or run the same identity in another browser or native
+runner during a ceremony. Native SQLite stores and browser IndexedDB stores are distinct; a
+native keys file can enroll a browser participant before DKG, but moving an active
+native participant to a browser requires its protocol state as well.
+
+For a manual ceremony, download the public custody request from its wizard. On
+the trustee screen, select **Create custody proof** and choose that request.
+Upload the downloaded `custody-proof.json` to the wizard. For a tally restore,
+enter the tally session UUID before creating the proof. The proof contains only
+public metadata and a signature, and the platform checks its ceremony and tally
+scope. The browser rejects requests for another trustee or either wrong public key.
+
+Production browser participation requires HTTPS, WebAssembly threads, IndexedDB,
+the Web Locks API, and cross-origin isolation. The admin image serves COOP `same-origin` and COEP
+`require-corp` headers on documents and worker assets; preserve them at the ingress.
+The board service and its presigned S3 URLs must be reachable by the browser, use
+HTTPS in production, and permit the portal origin through CORS. Configure:
+
+| Setting                  | Purpose                                                                                                                |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| Admin `WBRAID_BOARD_URL` | Browser-reachable native board URL; Compose reads `WBRAID_BOARD_PUBLIC_URL`                                            |
+| Admin `HASURA_URL`       | Public GraphQL endpoint used for assigned-board discovery and halt reports; locally `http://localhost:8080/v1/graphql` |
+
+The displayed **Platform URL** is `HASURA_URL`. Browser trustees use the
+`list_trustee_boards` query and `report_trustee_board` mutation with their bearer
+token and the `trustee-ceremony` role. Hasura forwards those calls internally to
+Harvest, which independently verifies the JWT, tenant, trustee identity and
+assigned board. Harvest remains private and needs no browser-facing URL or CORS
+configuration. Server trustees use the same query and mutation, bearer token and
+role through `TRUSTEE_PLATFORM_URL`. Both require an explicit successful report
+acknowledgement before clearing a pending halt.
+
+## Building and validating browser trustees
+
+From the checkout root, use the pinned devenv toolchain:
+
+```sh
+devenv shell -- bash -c 'packages/protocol-board/scripts/build-browser.sh'
+devenv shell -- bash -c 'cd packages && yarn install'
+```
+
+The build uses wbraid's atomics configuration and this checkout's
+`packages/rust-local-target/browser-trustee` directory. It packs the bindings and
+worker modules into `admin-portal/rust/wbraid-trustee-0.1.0.tgz`; commit the rebuilt
+package and Yarn lockfile with source changes. Portal postinstall copies it to
+`public/wbraid-trustee`, preserving worker module URLs for node-only frontend
+images. Ordinary portal builds consume this vendored package.
+
+```sh
+scripts/e2e/run-browser-trustees.sh
+```
+
+This disposable journey stops its own native trustees and runs two real Chromium
+participants. It verifies manual DKG, browser custody proofs, reload from local
+session records, restoration into a fresh browser, a cast vote, and a complete
+native tally with an independently checked result. The same browser participants
+then complete automatic DKG and tally without manual custody confirmations, with
+ballot publication, voting admission, revotes and grace-period checks. Reports are in
+`.cache/backend-e2e/<project>/browser-journey.json`. `--skip-images --skip-build`
+reuses prebuilt backend fixtures; browser bindings must already match the source.
+The runner cleans up only its own stack and controller.
+
+[Public ceremony and tally verification](./public-verification.md) describes
+the independent native and browser verifier, public exports, trust anchors and
+the distinction between ballot tracking and tally-input inclusion.

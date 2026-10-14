@@ -3,6 +3,7 @@
 
 use anyhow::{ensure, Context, Result};
 use deadpool_postgres::Transaction;
+use sequent_core::ballot::PublicKeyConfig;
 use sequent_core::services::s3::{
     get_object_into_temp_file, get_private_bucket, get_shared_s3_client, S3Endpoint,
 };
@@ -11,13 +12,17 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 use tempfile::TempPath;
+use tracing::warn;
 use uuid::Uuid;
 
 use super::publication_files::{
-    publication_data, require_publication_files, share_event_presentation, upload, FILES_ANNOTATION,
+    publication_data, require_publication_files, share_event_presentation, FILES_ANNOTATION,
 };
+use crate::adapters::publication_files::{self as publication_objects, S3PublicationStorage};
+use crate::ports::publication_files::{PublicationObjects, PublicationStorage};
 use crate::postgres::{
     ballot_publication::get_ballot_publication, ballot_style::export_event_ballot_styles,
+    publication_files::get_publication_style_page,
 };
 use crate::services::import::import_election_event::replace_ids_in_filename;
 
@@ -196,6 +201,32 @@ fn validate_file_contents(
     Ok(())
 }
 
+/// Every archived ballot must carry the verified public key of its imported
+/// election or a demo key; a style without a ballot has none to verify.
+fn has_verified_public_keys(
+    item: &ArchivedPublication,
+    ids: &HashMap<String, String>,
+    election_public_keys: &HashMap<String, String>,
+) -> Result<bool> {
+    for style in &item.ballot_styles {
+        let Some(eml) = style.ballot_eml.as_deref() else {
+            return Ok(false);
+        };
+        let eml: Value = serde_json::from_str(eml).context("Invalid archived ballot")?;
+        let public_key: Option<PublicKeyConfig> = serde_json::from_value(eml["public_key"].clone())
+            .context("Invalid archived ballot public key")?;
+        let election_public_key = election_public_keys.get(&mapped_id(ids, &style.election_id)?);
+        let is_verified = match public_key {
+            None => false,
+            Some(config) => config.is_demo || Some(&config.public_key) == election_public_key,
+        };
+        if !is_verified {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
 fn remap(value: &mut Value, ids: &HashMap<String, String>) {
     match value {
         Value::String(text) => *text = replace_ids_in_filename(text, ids),
@@ -276,6 +307,9 @@ fn read_archive(bytes: &[u8]) -> Result<PublicationArchive> {
 
 /// Restore records and files in the import transaction. Readiness is written only
 /// after every required object has uploaded and passed readback verification.
+/// Publications are restored unpublished, and keep their generated content only
+/// when every ballot passes `has_verified_public_keys` against
+/// `election_public_keys`, the verified public key of each imported election.
 pub async fn import_publication_archive(
     tx: &Transaction<'_>,
     tenant: &str,
@@ -283,6 +317,7 @@ pub async fn import_publication_archive(
     bytes: &[u8],
     entries: &[(String, Vec<u8>)],
     replacement_map: &HashMap<String, String>,
+    election_public_keys: &HashMap<String, String>,
 ) -> Result<()> {
     let archive = read_archive(bytes)?;
     let mut ids = replacement_map.clone();
@@ -386,13 +421,25 @@ pub async fn import_publication_archive(
                 &[&style],
             ).await?;
         }
-        if source.is_generated.unwrap_or(false) {
+        let is_generated = source.is_generated.unwrap_or(false);
+        let keeps_generated_content =
+            is_generated && has_verified_public_keys(&item, &ids, election_public_keys)?;
+        if is_generated && !keeps_generated_content {
+            warn!(
+                publication_id,
+                "Restoring the publication without generated content: its ballots do not carry the verified public keys of their elections"
+            );
+        }
+        if keeps_generated_content {
             let root = format!(
                 "tenant-{tenant}/event-{event}/publication-{publication_id}/{}",
                 Uuid::new_v4()
             );
-            let client = get_shared_s3_client(S3Endpoint::Server).await?;
-            let bucket = get_private_bucket()?;
+            let uploads = S3PublicationStorage {
+                endpoint: publication_objects::S3Endpoint::Server,
+            }
+            .open()
+            .await?;
             if source
                 .annotations
                 .as_ref()
@@ -403,69 +450,53 @@ pub async fn import_publication_archive(
                     let path = archive_path(&source.id, &name);
                     let mut data: Value = serde_json::from_slice(objects[path.as_str()])?;
                     remap(&mut data, &ids);
-                    upload(
-                        &client,
-                        &bucket,
-                        &format!("{root}/{}", replace_ids_in_filename(&name, &ids)),
-                        &data,
-                    )
-                    .await?;
+                    uploads
+                        .put_immutable_json(
+                            &format!("{root}/{}", replace_ids_in_filename(&name, &ids)),
+                            &data,
+                        )
+                        .await?;
                 }
             } else {
                 let mut data = publication_data(tx, tenant, event, &publication_id).await?;
                 for election in &data.elections {
                     let id = election["id"].as_str().context("Missing election id")?;
-                    upload(
-                        &client,
-                        &bucket,
-                        &format!("{root}/election-{id}.json"),
-                        election,
-                    )
-                    .await?;
+                    uploads
+                        .put_immutable_json(&format!("{root}/election-{id}.json"), election)
+                        .await?;
                 }
                 let mut shared = None;
                 let mut cursor: Option<Uuid> = None;
                 loop {
-                    let rows = tx
-                        .query(
-                            include_str!("../../postgres/sql/publication_file_styles.sql"),
-                            &[
-                                &Uuid::parse_str(tenant)?,
-                                &Uuid::parse_str(event)?,
-                                &Uuid::parse_str(&publication_id)?,
-                                &cursor,
-                                &8i64,
-                            ],
-                        )
-                        .await?;
+                    let rows = get_publication_style_page(
+                        tx,
+                        Uuid::parse_str(tenant)?,
+                        Uuid::parse_str(event)?,
+                        Uuid::parse_str(&publication_id)?,
+                        cursor,
+                        8,
+                    )
+                    .await?;
                     if rows.is_empty() {
                         break;
                     }
-                    for row in rows {
-                        let id: Uuid = row.get("id");
-                        let mut style: Value = row.get("data");
+                    for (id, mut style) in rows {
                         let eml = share_event_presentation(&mut style, &mut shared)?;
-                        upload(&client, &bucket, &format!("{root}/summary-{id}.json"), &json!({"id":id,"area_presentation":eml.get("area_presentation"),"election_dates":eml.get("election_dates")})).await?;
-                        upload(&client, &bucket, &format!("{root}/style-{id}.json"), &style)
+                        uploads.put_immutable_json(&format!("{root}/summary-{id}.json"), &json!({"id":id,"area_presentation":eml.get("area_presentation"),"election_dates":eml.get("election_dates")})).await?;
+                        uploads
+                            .put_immutable_json(&format!("{root}/style-{id}.json"), &style)
                             .await?;
                         cursor = Some(id);
                     }
                 }
                 data.event["ballot_eml_presentation"] =
                     json!(shared.map(|(raw, _)| raw).unwrap_or_default());
-                upload(&client, &bucket, &format!("{root}/event.json"), &data.event).await?;
+                uploads
+                    .put_immutable_json(&format!("{root}/event.json"), &data.event)
+                    .await?;
             }
-            tx.execute("UPDATE sequent_backend.ballot_publication SET is_generated=true, published_at=$4, deleted_at=$5, annotations=COALESCE(annotations,'{}'::jsonb)||jsonb_build_object($6::text,$7::text) WHERE tenant_id=$1 AND election_event_id=$2 AND id=$3",
-                &[&Uuid::parse_str(tenant)?,&Uuid::parse_str(event)?,&Uuid::parse_str(&publication_id)?,&source.published_at,&source.deleted_at,&FILES_ANNOTATION,&root]).await?;
-            // The voting portal reads this flag rather than publication history.
-            // Restore it only after the published archive's files are ready; keep
-            // the import's reset voting state and all other status fields intact.
-            if source.published_at.is_some() && source.deleted_at.is_none() {
-                tx.execute(
-                    "UPDATE sequent_backend.election_event SET status=jsonb_set(COALESCE(status,'{}'::jsonb),'{is_published}','true'::jsonb) WHERE tenant_id=$1 AND id=$2",
-                    &[&Uuid::parse_str(tenant)?, &Uuid::parse_str(event)?],
-                ).await?;
-            }
+            tx.execute("UPDATE sequent_backend.ballot_publication SET is_generated=true, deleted_at=$4, annotations=COALESCE(annotations,'{}'::jsonb)||jsonb_build_object($5::text,$6::text) WHERE tenant_id=$1 AND election_event_id=$2 AND id=$3",
+                &[&Uuid::parse_str(tenant)?,&Uuid::parse_str(event)?,&Uuid::parse_str(&publication_id)?,&source.deleted_at,&FILES_ANNOTATION,&root]).await?;
         }
     }
     Ok(())

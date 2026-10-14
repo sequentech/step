@@ -1,0 +1,577 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+
+"""Run a reviewed Cargo profile and publish a package coverage decision.
+
+Each invocation gets a new report directory. Failed builds and partial exports
+cannot reuse an earlier successful summary. The default is a strict 95% check;
+``--baseline`` measures unfinished packages without claiming the target is met.
+"""
+
+import argparse
+import contextlib
+import fcntl
+import hashlib
+import json
+import os
+import re
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+import tomllib
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+from report import (
+    CoverageError,
+    exclusion_arguments,
+    filter_excluded_functions,
+    summarize,
+    validate_exclusions,
+)
+
+ROOT = Path(__file__).resolve().parents[2]
+WORKSPACE = ROOT / "packages"
+CONFIG = Path(__file__).with_name("profiles.toml")
+NATIVE_TIMEOUT_ENV = "NATIVE_COVERAGE_TIMEOUT_SECONDS"
+
+
+def command_timeout_seconds(environment: dict[str, str]) -> int:
+    """Bound native commands while retaining the existing twenty-minute default."""
+    value = environment.get(NATIVE_TIMEOUT_ENV, "1200")
+    if not re.fullmatch(r"[0-9]{1,4}", value) or not 1 <= int(value) <= 3600:
+        raise CoverageError(f"{NATIVE_TIMEOUT_ENV} must be an integer from 1 to 3600")
+    return int(value)
+
+
+def cancel_native_run(_signal: int, _frame: Any) -> None:
+    """Let an outer runner interrupt a native command and clean its own session."""
+    raise CoverageError("Native coverage was cancelled by its parent")
+
+
+@contextlib.contextmanager
+def native_cancellation():
+    signals = {signal.SIGTERM, signal.SIGINT}
+    previous_mask = signal.pthread_sigmask(signal.SIG_BLOCK, signals)
+    previous_handler = signal.signal(signal.SIGTERM, cancel_native_run)
+    try:
+        signal.pthread_sigmask(signal.SIG_UNBLOCK, signals)
+        yield
+    finally:
+        signal.pthread_sigmask(signal.SIG_BLOCK, signals)
+        signal.signal(signal.SIGTERM, previous_handler)
+        signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
+
+
+def signal_process_group(pid: int, value: signal.Signals) -> None:
+    # The owned group may finish between wait's timeout and cancellation.
+    with contextlib.suppress(ProcessLookupError):
+        os.killpg(pid, value)
+
+
+def stop_process_group(process: subprocess.Popen, *, cooperative: bool) -> None:
+    """Allow a reporter to kill its inner session before bounded escalation."""
+    if cooperative:
+        signal_process_group(process.pid, signal.SIGTERM)
+        with contextlib.suppress(subprocess.TimeoutExpired):
+            process.wait(timeout=5)
+            return
+    signal_process_group(process.pid, signal.SIGKILL)
+    process.wait()
+
+
+def execute(
+    command: list[str],
+    log: Path,
+    environment: dict[str, str],
+    *,
+    cwd: Path | None = None,
+    cooperative: bool = False,
+) -> str:
+    """Capture one command and stop its process group if the run times out."""
+    timeout_seconds = command_timeout_seconds(environment)
+    print(f"Running {' '.join(command)}\n  Log: {log}", flush=True)
+    with log.open("w") as output, tempfile.TemporaryFile() as original_environment:
+        # Python startup can coerce a C locale. Pass the original environment
+        # through an anonymous descriptor, never through argv or a named file.
+        original_environment.write(json.dumps(environment).encode("utf-8"))
+        original_environment.seek(0)
+        # A pending parent cancellation must not arrive between child creation
+        # and installing the cleanup path. Restore the mask inside that path.
+        previous_mask = signal.pthread_sigmask(
+            signal.SIG_BLOCK, {signal.SIGTERM, signal.SIGINT}
+        )
+        # Restore the child's inherited mask before exec without preexec_fn,
+        # which is unsafe when the caller has other threads. Exec keeps the
+        # owned PID/session, original argv, environment and output descriptors.
+        restore_mask = sorted(int(value) for value in previous_mask)
+        bootstrap = (
+            "import json,os,signal,sys; "
+            "[signal.signal(getattr(signal,n),signal.SIG_DFL) "
+            "for n in ('SIGPIPE','SIGXFZ','SIGXFSZ') if hasattr(signal,n)]; "
+            f"signal.pthread_sigmask(signal.SIG_SETMASK,{restore_mask!r}); "
+            f"f=os.fdopen({original_environment.fileno()}); "
+            "environment=json.load(f); f.close(); "
+            "os.execvpe(sys.argv[1],sys.argv[1:],environment)"
+        )
+        try:
+            process = subprocess.Popen(
+                [sys.executable, "-I", "-S", "-c", bootstrap, *command],
+                cwd=WORKSPACE if cwd is None else cwd,
+                env=environment,
+                stdin=subprocess.DEVNULL,
+                stdout=output,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+                pass_fds=(original_environment.fileno(),),
+            )
+        except BaseException:
+            signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
+            raise
+        try:
+            signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
+            returncode = process.wait(timeout=timeout_seconds)
+        except subprocess.TimeoutExpired:
+            stop_process_group(process, cooperative=cooperative)
+            raise CoverageError(
+                f"Command exceeded {timeout_seconds} seconds; see {log}"
+            ) from None
+        except BaseException:
+            stop_process_group(process, cooperative=cooperative)
+            raise
+    if returncode:
+        raise CoverageError(f"Command failed with exit {returncode}; see {log}")
+    return log.read_text(errors="replace")
+
+
+def git_output(*arguments: str) -> str:
+    """Read checkout identity without loading hooks or using the shell."""
+    output = subprocess.check_output(["git", "-C", str(ROOT), *arguments], text=True)
+    # NUL-delimited filenames may legitimately begin or end with whitespace.
+    return output if "-z" in arguments else output.strip()
+
+
+def write_json(path: Path, value: dict[str, Any]) -> None:
+    path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n")
+
+
+def validate_artifacts(output: Path) -> None:
+    """Require readable, nonempty LCOV and HTML exports before publishing success."""
+    lcov = (output / "lcov.info").read_text()
+    if (
+        not lcov.startswith("SF:")
+        or not lcov.rstrip().endswith("end_of_record")
+        or re.search(r"^DA:\d+,\d+", lcov, re.MULTILINE) is None
+    ):
+        raise CoverageError("LCOV export is empty, truncated or invalid")
+    html = (output / "html" / "index.html").read_text().lower()
+    if "<html" not in html or "</html>" not in html:
+        raise CoverageError("HTML export is empty, truncated or invalid")
+
+
+def source_digest(package: Path) -> str:
+    """Identify source contents even when a developer measures uncommitted edits."""
+    digest = hashlib.sha256()
+    for path in sorted((package / "src").rglob("*.rs")):
+        digest.update(path.relative_to(package).as_posix().encode() + b"\0")
+        digest.update(path.read_bytes() + b"\0")
+    return digest.hexdigest()
+
+
+def checkout_digest() -> str:
+    """Detect edits to any tracked input or new source file during a run.
+
+    A dependency or Cargo manifest can change the result without changing this
+    package's own files. Ignore generated output using the checkout's gitignore.
+    """
+    names = git_output("ls-files", "--cached", "--others", "--exclude-standard", "-z")
+    digest = hashlib.sha256()
+    for name in sorted(set(names.split("\0")) - {""}):
+        path = ROOT / name
+        digest.update(name.encode() + b"\0")
+        if path.is_symlink():
+            digest.update(b"link:" + os.readlink(path).encode())
+        elif path.is_file():
+            digest.update(path.read_bytes())
+        else:
+            digest.update(b"missing-or-submodule")
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def markdown_summary(profile: str, result: dict[str, Any]) -> str:
+    """Keep the target decision and unmeasured scope visible in CI artifacts."""
+    decision = "PASS" if result["passes"] else "TARGET NOT MET"
+    lines = [
+        f"# {profile}: {decision}",
+        "",
+        f"Revision: `{result['revision']}`",
+        "",
+        "| Metric | Covered / measured | Percent |",
+        "| --- | ---: | ---: |",
+    ]
+    for metric, counts in result["metrics"].items():
+        percent = "n/a" if counts["percent"] is None else f"{counts['percent']:.2f}%"
+        lines.append(
+            f"| {metric} | {counts['covered']} / {counts['count']} | {percent} |"
+        )
+    lines.extend(
+        [
+            "",
+            f"Tests passed: {result['tests_passed']}; "
+            f"ignored: {result['tests_ignored']}.",
+            "",
+        ]
+    )
+    lines.extend(f"- {failure}" for failure in result["failures"])
+    lines.extend(["", "## Measurement limits", ""])
+    lines.extend(f"- {limitation}" for limitation in result["limitations"])
+    if result.get("features_absent_from_base"):
+        lines.append(
+            "- Features this comparison base predates and was built without: "
+            + ", ".join(f"`{name}`" for name in result["features_absent_from_base"])
+        )
+    if result.get("excluded_files"):
+        lines.extend(["", "## Excluded from coverage", ""])
+        lines.extend(
+            f"- `{name}`: {reason}" for name, reason in result["excluded_files"].items()
+        )
+    if result["unaccounted_files"]:
+        lines.extend(["", "## Files requiring scope review", ""])
+        lines.extend(f"- `{name}`" for name in result["unaccounted_files"])
+    return "\n".join(lines) + "\n"
+
+
+def entries_in_checkout(
+    package: Path, entries: dict[str, str]
+) -> tuple[dict[str, str], list[str]]:
+    """Split a reviewed file policy into files this checkout has and files it lacks."""
+    present = {
+        name: reason for name, reason in entries.items() if (package / name).is_file()
+    }
+    return present, sorted(set(entries) - set(present))
+
+
+def features_in_checkout(
+    package: Path, features: list[str]
+) -> tuple[list[str], list[str]]:
+    """Split the head's features into those this checkout declares and the rest.
+
+    A comparison base predates any feature the head adds, and Cargo rejects a
+    feature its manifest does not declare. Code behind such a feature cannot
+    exist in that base, so building the base without it measures the same base
+    source; every feature the base does declare is still enabled.
+    """
+    manifest = tomllib.loads((package / "Cargo.toml").read_text())
+    declared = set(manifest.get("features", {}))
+    # An optional dependency is an implicit feature unless a `dep:` entry
+    # hides it; accepting its name here only avoids a false absence.
+    tables = [manifest.get("dependencies", {})]
+    tables.extend(
+        platform.get("dependencies", {})
+        for platform in manifest.get("target", {}).values()
+    )
+    for table in tables:
+        for name, spec in table.items():
+            if isinstance(spec, dict) and spec.get("optional"):
+                declared.add(name)
+    present = [name for name in features if "/" in name or name in declared]
+    return present, [name for name in features if name not in present]
+
+
+def measure(
+    profile_name: str,
+    baseline: bool,
+    offline: bool,
+    output_root: Path | None = None,
+    comparison_base: bool = False,
+) -> int:
+    """Measure one configured package; return 1 for a failed strict target."""
+    config = tomllib.loads(CONFIG.read_text())
+    profile = config["profiles"][profile_name]
+    package = WORKSPACE / profile["package"]
+    parent = (output_root or ROOT / "coverage") / profile_name
+    parent.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ-")
+    output = Path(tempfile.mkdtemp(prefix=timestamp, dir=parent))
+    started = time.monotonic()
+    environment = dict(os.environ)
+    # Profiles may declare public, synthetic fixture settings. These override
+    # ambient service endpoints so a test cannot inherit a production database.
+    environment.update(profile.get("test_environment", {}))
+    # LLVM's coverage mappings do not need DWARF debug information. Full
+    # symbols in every Windmill test binary can exhaust a hosted runner before
+    # measurements finish. Use the same bounded build profile for both revisions.
+    environment.update(
+        CARGO_TERM_COLOR="never",
+        CARGO_BUILD_JOBS="2",
+        CARGO_INCREMENTAL="0",
+        CARGO_PROFILE_DEV_DEBUG="0",
+        CARGO_PROFILE_TEST_DEBUG="0",
+    )
+    if offline:
+        # Report generation also invokes Cargo metadata internally.
+        environment["CARGO_NET_OFFLINE"] = "true"
+    # Profiles share dependency compilation. Clear counters explicitly below:
+    # --no-report intentionally preserves them for multi-invocation collection.
+    environment["CARGO_LLVM_COV_TARGET_DIR"] = str(
+        WORKSPACE / "rust-local-target" / "package-coverage"
+    )
+    result: dict[str, Any] = {
+        "status": "running",
+        "profile": profile_name,
+        "package": profile["package"],
+        "passes": False,
+    }
+    write_json(output / "summary.json", result)
+
+    try:
+        excluded_files = profile.get("excluded_files", {})
+        scope_exceptions = profile["scope_exceptions"]
+        cargo_features = profile["features"]
+        if comparison_base:
+            # Features the head adds cannot be requested from an older
+            # manifest; the recorded profile features stay the head's.
+            cargo_features, absent_features = features_in_checkout(
+                package, cargo_features
+            )
+            result["features_absent_from_base"] = absent_features
+            # The head's reviewed policy also names files that the head adds.
+            # A base predates them; entries for its own files stay strict.
+            excluded_files, absent_exclusions = entries_in_checkout(
+                package, excluded_files
+            )
+            scope_exceptions, absent_exceptions = entries_in_checkout(
+                package, scope_exceptions
+            )
+            result["policy_files_absent_from_base"] = sorted(
+                absent_exclusions + absent_exceptions
+            )
+        validate_exclusions(package, excluded_files, scope_exceptions)
+        export_arguments = exclusion_arguments(package, excluded_files)
+        tool = execute(
+            ["cargo", "llvm-cov", "--version"], output / "tool.log", environment
+        ).strip()
+        if tool != f"cargo-llvm-cov {config['cargo_llvm_cov_version']}":
+            raise CoverageError(
+                f"Expected cargo-llvm-cov {config['cargo_llvm_cov_version']}; "
+                f"found {tool}"
+            )
+        rust = execute(["rustc", "--version"], output / "rust.log", environment).strip()
+        pinned_rust = tomllib.loads((ROOT / "rust-toolchain.toml").read_text())[
+            "toolchain"
+        ]["channel"]
+        if not rust.startswith(f"rustc {pinned_rust} "):
+            raise CoverageError(f"Expected Rust {pinned_rust}; found {rust}")
+
+        result.update(
+            {
+                "package": profile["package"],
+                "revision": git_output("rev-parse", "HEAD"),
+                "dirty_files": git_output("status", "--porcelain"),
+                "source_sha256": source_digest(package),
+                "checkout_sha256": checkout_digest(),
+                "lockfile_sha256": hashlib.sha256(
+                    (WORKSPACE / "Cargo.lock").read_bytes()
+                ).hexdigest(),
+                "config_sha256": hashlib.sha256(CONFIG.read_bytes()).hexdigest(),
+                "features": profile["features"],
+                "consumer_packages": profile.get("consumer_packages", []),
+                "test_environment": profile.get("test_environment", {}),
+                "command_timeout_seconds": command_timeout_seconds(environment),
+                "build_environment": {
+                    key: environment[key]
+                    for key in (
+                        "CARGO_BUILD_JOBS",
+                        "CARGO_INCREMENTAL",
+                        "CARGO_PROFILE_DEV_DEBUG",
+                        "CARGO_PROFILE_TEST_DEBUG",
+                    )
+                },
+                "tools": {"rust": rust, "cargo_llvm_cov": tool},
+                "limitations": profile["limitations"],
+                "issue": profile["issue"],
+                "mode": "baseline" if baseline else "strict",
+            }
+        )
+
+        arguments = ["--package", profile["package"], "--locked"]
+        for consumer in profile.get("consumer_packages", []):
+            arguments.extend(["--package", consumer])
+        # cargo-llvm-cov also asks Cargo for workspace metadata when exporting.
+        # Validate the lockfile before those internal, unflagged metadata calls.
+        execute(
+            [
+                "cargo",
+                "metadata",
+                "--format-version=1",
+                "--no-deps",
+                "--locked",
+                "--manifest-path",
+                str(WORKSPACE / "Cargo.toml"),
+            ],
+            output / "metadata.log",
+            environment,
+        )
+        if cargo_features:
+            arguments.extend(["--features", ",".join(cargo_features)])
+        if offline:
+            arguments.append("--offline")
+        # Clear workspace binaries as well as counters: LLVM can otherwise
+        # collect regions from an earlier package/feature profile. This also
+        # reruns compiler-time macro coverage. External dependencies stay cached.
+        execute(
+            ["cargo", "llvm-cov", "clean", "--workspace"],
+            output / "clean.log",
+            environment,
+        )
+        test_command = ["cargo", "llvm-cov", "--tests", "--no-report", *arguments]
+        test_log = execute(test_command, output / "tests.log", environment)
+        counts = re.findall(
+            r"test result: ok\. (\d+) passed; \d+ failed; (\d+) ignored;", test_log
+        )
+        result["tests_passed"] = sum(int(passed) for passed, _ in counts)
+        result["tests_ignored"] = sum(int(ignored) for _, ignored in counts)
+        if result["tests_passed"] == 0:
+            raise CoverageError(
+                "No passing tests were recorded; coverage is not a valid baseline"
+            )
+
+        # Every exported format omits excluded files from its counters as well
+        # as its file list. Exclusion reasons remain in the summary for review.
+        for format_name, filename in (("json", "llvm.json"), ("lcov", "lcov.info")):
+            completed_export = False
+            try:
+                execute(
+                    [
+                        "cargo",
+                        "llvm-cov",
+                        "report",
+                        *export_arguments,
+                        f"--{format_name}",
+                        "--output-path",
+                        str(output / filename),
+                    ],
+                    output / f"{format_name}.log",
+                    environment,
+                )
+                if format_name == "json":
+                    payload = json.loads((output / filename).read_text())
+                    result.update(
+                        summarize(
+                            payload,
+                            package,
+                            config["minimum_lines"],
+                            scope_exceptions,
+                            excluded_files,
+                        )
+                    )
+                    filter_excluded_functions(payload, package, excluded_files)
+                    write_json(output / filename, payload)
+                completed_export = True
+            finally:
+                # CI uploads failed runs too. Never leave an unfiltered JSON
+                # or a partial export behind if generation/validation fails.
+                if not completed_export:
+                    (output / filename).unlink(missing_ok=True)
+        execute(
+            [
+                "cargo",
+                "llvm-cov",
+                "report",
+                *export_arguments,
+                "--html",
+                "--output-dir",
+                str(output),
+            ],
+            output / "html.log",
+            environment,
+        )
+        execute(
+            ["cargo", "llvm-cov", "report", *export_arguments, "--show-missing-lines"],
+            output / "uncovered-lines.log",
+            environment,
+        )
+
+        validate_artifacts(output)
+        if result["checkout_sha256"] != checkout_digest() or result[
+            "revision"
+        ] != git_output("rev-parse", "HEAD"):
+            raise CoverageError(
+                "Source changed during measurement; rerun against a stable checkout"
+            )
+        result["status"] = "measured"
+        summary = markdown_summary(profile_name, result)
+        (output / "summary.md").write_text(summary)
+        print(summary, flush=True)
+        if environment.get("GITHUB_STEP_SUMMARY"):
+            with Path(environment["GITHUB_STEP_SUMMARY"]).open("a") as step_summary:
+                step_summary.write(summary)
+        return 0 if baseline or result["passes"] else 1
+    except (CoverageError, OSError, ValueError, subprocess.CalledProcessError) as error:
+        result.update({"status": "error", "passes": False, "error": str(error)})
+        print(f"Coverage error: {error}", file=sys.stderr)
+        return 2
+    finally:
+        result["duration_seconds"] = round(time.monotonic() - started, 2)
+        write_json(output / "summary.json", result)
+        print(f"Reports: {output}", flush=True)
+
+
+def main() -> int:
+    global ROOT, WORKSPACE
+    config = tomllib.loads(CONFIG.read_text())
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("profile", choices=sorted(config["profiles"]))
+    parser.add_argument(
+        "--baseline",
+        action="store_true",
+        help="Measure without passing the 95%% target",
+    )
+    parser.add_argument(
+        "--offline", action="store_true", help="Use only already fetched dependencies"
+    )
+    parser.add_argument(
+        "--checkout",
+        type=Path,
+        help="Measure another checkout with this runner and its identical profile",
+    )
+    parser.add_argument(
+        "--output-dir", type=Path, help="Store reports outside the measured checkout"
+    )
+    parser.add_argument(
+        "--comparison-base",
+        action="store_true",
+        help="Measure a comparison base: skip policy entries for files it predates",
+    )
+    arguments = parser.parse_args()
+    if arguments.checkout is not None:
+        ROOT = arguments.checkout.resolve()
+        WORKSPACE = ROOT / "packages"
+    # Git metadata is not a measured input, even on bases without ignore rules.
+    lock = ROOT / git_output("rev-parse", "--git-path", "package-coverage.lock")
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    with lock.open("a") as handle:
+        try:
+            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print(
+                "Another coverage run is using this checkout; wait for it to finish.",
+                file=sys.stderr,
+            )
+            return 2
+        with native_cancellation():
+            return measure(
+                arguments.profile,
+                arguments.baseline,
+                arguments.offline,
+                arguments.output_dir.resolve() if arguments.output_dir else None,
+                arguments.comparison_base,
+            )
+
+
+if __name__ == "__main__":
+    sys.exit(main())

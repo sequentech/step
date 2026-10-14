@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Optional loopback access. Find the allocated port with `docker compose port`.
+services:
+  graphql-engine:
+    ports:
+      - "127.0.0.1::8080"
+  keycloak:
+    ports:
+      - "127.0.0.1::8090"
+  minio:
+    ports:
+      - "127.0.0.1::9000"

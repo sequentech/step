@@ -4,7 +4,7 @@
 use num_bigint::{BigUint, ToBigUint};
 use num_traits::{One, ToPrimitive, Zero};
 
-pub fn encode(values: &Vec<u64>, bases: &Vec<u64>) -> Result<BigUint, String> {
+pub fn encode(values: &[u64], bases: &[u64]) -> Result<BigUint, String> {
     if bases.len() != values.len() {
         return Err(
             format!("Invalid parameters: 'valueList' (size = {}) and 'baseList' (size = {}) must have the same length.", values.len(), bases.len())
@@ -21,10 +21,13 @@ pub fn encode(values: &Vec<u64>, bases: &Vec<u64>) -> Result<BigUint, String> {
 }
 
 pub fn decode(
-    bases: &Vec<u64>,
+    bases: &[u64],
     encoded_value: &BigUint,
     last_base: u64,
 ) -> Result<Vec<u64>, String> {
+    if bases.contains(&0) {
+        return Err("A radix must be greater than zero".into());
+    }
     let mut values: Vec<u64> = vec![];
     let mut accumulator: BigUint = encoded_value.clone();
     let mut index = 0usize;
@@ -33,6 +36,9 @@ pub fn decode(
         let base: BigUint = (if index < bases.len() {
             bases[index]
         } else {
+            if last_base < 2 {
+                return Err("The fallback radix must be at least two".into());
+            }
             last_base
         })
         .to_biguint()
@@ -214,10 +220,10 @@ mod tests {
      */
     #[test]
     fn test_encode_error() {
-        let encoded_result1 = encode(&vec![1, 2], &vec![5, 5, 5]);
+        let encoded_result1 = encode(&[1, 2], &[5, 5, 5]);
         assert!(encoded_result1.is_err());
 
-        let encoded_result2 = encode(&vec![1, 2, 3, 3], &vec![6, 6, 6]);
+        let encoded_result2 = encode(&[1, 2, 3, 3], &[6, 6, 6]);
         assert!(encoded_result2.is_err());
     }
 }

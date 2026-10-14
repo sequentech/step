@@ -4,14 +4,17 @@
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::{pdf, reports};
-use serde::{Deserialize, Serialize};
 use serde_json::json;
-use serde_json::{Map, Value};
 use tracing::instrument;
 
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::tenant::get_tenant_by_id;
 use crate::services::documents::upload_and_return_document;
+use crate::services::reports::template_time::{
+    insert_template_time_variables, load_i18n_defaults, load_template_time_variables,
+};
 use crate::tasks::render_report::{FormatType, RenderTemplateBody};
+use sequent_core::services::reports::template_time_variables;
 use sequent_core::util::temp_path::write_into_named_temp_file;
 
 #[instrument(err, skip(hasura_transaction))]
@@ -22,12 +25,21 @@ pub async fn render_report_task(
     election_event_id: String,
 ) -> Result<()> {
     let tenant = get_tenant_by_id(hasura_transaction, &tenant_id).await?;
+    get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id).await?;
 
     let username = tenant.slug.clone();
     let mut variables_map = input.variables.clone();
     if !variables_map.contains_key("username") {
         variables_map.insert("username".to_string(), json!(username));
     }
+    // The event's zones and timezone texts, as for every other report.
+    let time_variables = if election_event_id.is_empty() {
+        template_time_variables(None, None, &*load_i18n_defaults().await)
+    } else {
+        load_template_time_variables(hasura_transaction, &tenant_id, &election_event_id, None)
+            .await?
+    };
+    insert_template_time_variables(&mut variables_map, time_variables);
 
     // render handlebars template
     let render = reports::render_template_text(input.template.as_str(), variables_map)
@@ -39,7 +51,7 @@ pub async fn render_report_task(
             write_into_named_temp_file(&render.into_bytes(), "reports-", ".html")
                 .with_context(|| "Error writing to file")?;
         upload_and_return_document(
-            &hasura_transaction,
+            hasura_transaction,
             &temp_path_string,
             file_size,
             "text/plain",
@@ -59,7 +71,7 @@ pub async fn render_report_task(
                 .with_context(|| "Error writing to file")?;
 
         let _document = upload_and_return_document(
-            &hasura_transaction,
+            hasura_transaction,
             &temp_path_string,
             file_size,
             "application/pdf",

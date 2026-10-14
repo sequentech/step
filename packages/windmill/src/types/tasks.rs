@@ -2,9 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use strum_macros::{Display, EnumString, EnumVariantNames};
+use strum_macros::{Display, EnumString, VariantNames};
 
-#[derive(Display, Debug, PartialEq, Eq, Clone, EnumString, EnumVariantNames)]
+#[derive(Display, Debug, PartialEq, Eq, Clone, EnumString, VariantNames)]
+#[expect(
+    non_camel_case_types,
+    reason = "Preserve the task identifiers and derived strings stored in task-execution records and consumed by existing callers."
+)]
 pub enum ETasksExecution {
     EXPORT_ELECTION_EVENT,
     EXPORT_TENANT_CONFIG,
@@ -41,6 +45,8 @@ pub enum ETasksExecution {
     GENERATE_BALLOT_PUBLICATION,
     PUBLISH_BALLOT,
     VOTER_INFORMATION_LETTER,
+    EXPORT_MONITORING_DATA,
+    RUN_SIGNED_ACTION,
     AUDIT_ELECTORAL_LOG,
 }
 
@@ -82,6 +88,8 @@ impl ETasksExecution {
             ETasksExecution::GENERATE_BALLOT_PUBLICATION => "Generate Ballot Publication",
             ETasksExecution::PUBLISH_BALLOT => "Publish Ballot",
             ETasksExecution::VOTER_INFORMATION_LETTER => "Voter Information Letter",
+            ETasksExecution::EXPORT_MONITORING_DATA => "Export Monitoring Data",
+            ETasksExecution::RUN_SIGNED_ACTION => "Run Signed Action",
             ETasksExecution::AUDIT_ELECTORAL_LOG => "Audit Electoral Log",
         }
     }

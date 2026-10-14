@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::types::hasura::core::{Area, AreaContest, Contest};
+use crate::types::hasura::core::{Area, AreaContest};
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -57,8 +57,7 @@ where
         let sub_children: Vec<TreeNodeArea> = self
             .children
             .iter()
-            .map(|child| child.get_all_children())
-            .flatten()
+            .flat_map(|child| child.get_all_children())
             .collect();
         children.extend(sub_children);
         children
@@ -92,7 +91,7 @@ where
         }
 
         // Ensure all parent_ids are valid
-        for (parent_id, _) in &parent_map {
+        for parent_id in parent_map.keys() {
             if !nodes.contains_key(parent_id) {
                 return Err(anyhow!(
                     "Parent id {} not found in the tree structure",
@@ -119,6 +118,14 @@ where
                 &parent_map,
             )?;
             root_node.children.push(child_node);
+        }
+
+        // Every valid node is reachable from a root. A remaining component
+        // whose parents all exist must contain a cycle; do not silently omit it.
+        if root_node.iter().filter(|node| node.area.is_some()).count()
+            != nodes.len()
+        {
+            return Err(anyhow!("Loop detected in the tree structure"));
         }
 
         Ok(root_node)
@@ -159,7 +166,7 @@ where
     // find an area in the tree
     pub fn find_area(&self, area_id: &str) -> Option<TreeNode<T>> {
         if let Some(area) = self.area.clone() {
-            if &area.id == area_id {
+            if area.id == area_id {
                 return Some(self.clone());
             }
         }
@@ -196,7 +203,7 @@ where
         }
 
         // Check if the current node is the target node
-        if node.area.as_ref().map_or(false, |area| area.id == area_id) {
+        if node.area.as_ref().is_some_and(|area| area.id == area_id) {
             return true;
         }
 
@@ -218,7 +225,7 @@ where
     // note that areas spread down the tree
     pub fn get_contests_data_tree(
         &self,
-        area_contests: &Vec<AreaContest>,
+        area_contests: &[AreaContest],
     ) -> TreeNode<ContestsData> {
         // Map<area_id, Set<contest_id>>
         let mut areas_map: HashMap<String, HashSet<String>> = HashMap::new();
@@ -259,22 +266,21 @@ where
             .map(|child| {
                 child.contests_data_tree(
                     &data, // Map<area_id, Set<contest_id>>
-                    &areas_map,
+                    areas_map,
                 )
             })
             .collect();
         TreeNode::<ContestsData> {
             area: self.area.clone(),
-            children: children,
-            data: data,
+            children,
+            data,
         }
     }
 }
 
 impl TreeNode<ContestsData> {
-    // For a given TreeNode of type ContestsData, return all
-    // area-contests. Note that this will include
-    // indirect/inherited ones.
+    // Return area-contest assignments for the requested contests, including
+    // assignments inherited from ancestors. An empty selection matches none.
     pub fn get_contest_matches(
         &self,
         contest_ids: &HashSet<String>,
@@ -285,6 +291,7 @@ impl TreeNode<ContestsData> {
                 .data
                 .contest_ids
                 .iter()
+                .filter(|contest_id| contest_ids.contains(*contest_id))
                 .map(|contest_id| AreaContest {
                     id: area.id.clone(),
                     area_id: area.id.clone(),
@@ -321,7 +328,7 @@ impl<'a, T> Iterator for TreeNodeIter<'a, T> {
 }
 
 impl<T> TreeNode<T> {
-    pub fn iter(&self) -> TreeNodeIter<T> {
+    pub fn iter(&self) -> TreeNodeIter<'_, T> {
         let mut queue = VecDeque::new();
         queue.push_back(self);
         TreeNodeIter { queue }
@@ -397,5 +404,31 @@ mod tests {
         let expected_path: Vec<String> =
             vec!["grandad".into(), "father2".into(), "child3".into()];
         assert_eq!(str_path, expected_path);
+    }
+
+    fn area(id: &str, parent_id: Option<&str>) -> TreeNodeArea {
+        TreeNodeArea {
+            id: id.into(),
+            tenant_id: "tenant".into(),
+            election_event_id: "election".into(),
+            annotations: None,
+            parent_id: parent_id.map(Into::into),
+        }
+    }
+
+    #[test]
+    fn from_areas_rejects_self_parent() {
+        let mut node_areas = get_fixture1();
+        node_areas.push(area("self", Some("self")));
+        assert!(TreeNode::<()>::from_areas(node_areas).is_err());
+    }
+
+    #[test]
+    fn from_areas_rejects_parent_cycle() {
+        let mut node_areas = get_fixture1();
+        node_areas.push(area("cycle_a", Some("cycle_b")));
+        node_areas.push(area("cycle_b", Some("cycle_a")));
+        node_areas.push(area("cycle_child", Some("cycle_a")));
+        assert!(TreeNode::<()>::from_areas(node_areas).is_err());
     }
 }

@@ -2,11 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::ports::cast_votes::CastVoter;
 use crate::services::authorization::authorize_voter_election;
+use crate::services::dependencies::HarvestServices;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use rocket::State;
 use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::services::connection::UserLocation;
 use sequent_core::services::jwt::JwtClaims;
@@ -15,10 +18,9 @@ use sequent_core::util::retry::retry_with_exponential_backoff;
 use std::time::Duration;
 use std::time::Instant;
 use tracing::{error, info, instrument};
-use windmill::services::celery_app::try_get_celery_app;
 use windmill::services::insert_cast_vote::{
-    try_insert_cast_vote, CastVoteError, InsertCastVoteInput,
-    InsertCastVoteOutput, InsertCastVoteResult,
+    CastVoteError, InsertCastVoteInput, InsertCastVoteOutput,
+    InsertCastVoteResult,
 };
 use windmill::tasks::process_cast_vote;
 
@@ -37,6 +39,7 @@ pub async fn insert_cast_vote(
     body: Json<InsertCastVoteInput>,
     claims: JwtClaims,
     user_info: UserLocation,
+    services: &State<HarvestServices>,
 ) -> Result<Json<InsertCastVoteOutput>, JsonError> {
     let start = Instant::now();
     let input: InsertCastVoteInput = body.into_inner();
@@ -69,21 +72,25 @@ pub async fn insert_cast_vote(
     let insert_result_wrapped = retry_with_exponential_backoff(
         // The closure we want to call repeatedly
         || async {
-            try_insert_cast_vote(
-                input.clone(),
-                &claims.hasura_claims.tenant_id,
-                &claims.hasura_claims.user_id,
-                &area_id,
-                voting_channel,
-                auth_time,
-                &user_info.ip.map(|ip| ip.to_string()),
-                &user_info
-                    .country_code
-                    .clone()
-                    .map(|country_code| country_code.to_string()),
-                &claims.preferred_username,
-            )
-            .await
+            services
+                .cast_votes
+                .try_insert(
+                    input.clone(),
+                    CastVoter {
+                        tenant_id: &claims.hasura_claims.tenant_id,
+                        voter_id: &claims.hasura_claims.user_id,
+                        area_id: &area_id,
+                        voting_channel,
+                        auth_time,
+                        voter_ip: &user_info.ip.map(|ip| ip.to_string()),
+                        voter_country: &user_info
+                            .country_code
+                            .clone()
+                            .map(|country_code| country_code.to_string()),
+                        username: &claims.preferred_username,
+                    },
+                )
+                .await
         },
         // Maximum number of retries:
         5,
@@ -117,182 +124,7 @@ pub async fn insert_cast_vote(
             duration.as_millis()
         );
 
-        // Map CastVoteError to JsonError
-        match cast_vote_err {
-            CastVoteError::AreaNotFound => ErrorResponse::new(
-                Status::NotFound,
-                "Area not found",
-                ErrorCode::AreaNotFound,
-            ),
-            CastVoteError::ElectionEventNotFound(_) => {
-                ErrorResponse::new(
-                    Status::NotFound,
-                    "Election Event Not Found",
-                    ErrorCode::ElectionEventNotFound,
-                )
-            }
-            CastVoteError::InvalidDatafixConfiguration(_) => ErrorResponse::new(
-                Status::InternalServerError,
-                "Invalid Datafix election event configuration",
-                ErrorCode::InternalServerError,
-            ),
-            CastVoteError::ElectoralLogNotFound(_) => {
-                ErrorResponse::new(
-                    Status::NotFound,
-                    "Electoral Log Not Found",
-                    ErrorCode::ElectoralLogNotFound,
-                )
-            }
-            CastVoteError::CheckStatusFailed(msg) => ErrorResponse::new(
-                Status::Unauthorized,
-                &msg,
-                ErrorCode::CheckStatusFailed,
-            ),
-            CastVoteError::VotingChannelNotEnabled(_) => ErrorResponse::new(
-                Status::Unauthorized,
-                ErrorCode::CheckStatusFailed.to_string().as_str(),
-                ErrorCode::CheckStatusFailed,
-            ),
-            CastVoteError::CheckStatusInternalFailed(_) => ErrorResponse::new(
-                Status::InternalServerError,
-                ErrorCode::InternalServerError.to_string().as_str(),
-                ErrorCode::InternalServerError,
-            ),
-            CastVoteError::VoterStateLocked(_) => ErrorResponse::new(
-                Status::Conflict,
-                "The voter state is being updated; retry the vote",
-                ErrorCode::CheckStatusFailed,
-            ),
-            CastVoteError::CheckPreviousVotesFailed(msg) => {
-                ErrorResponse::new(
-                    Status::BadRequest,
-                    &msg,
-                    ErrorCode::CheckPreviousVotesFailed,
-                )
-            }
-            CastVoteError::CheckRevotesFailed(msg) => {
-                ErrorResponse::new(
-                    Status::BadRequest,
-                    &msg,
-                    ErrorCode::CheckRevotesFailed,
-                )
-            }
-            CastVoteError::CheckVotesInOtherAreasFailed(msg) => {
-                ErrorResponse::new(
-                    Status::BadRequest,
-                    &msg,
-                    ErrorCode::CheckVotesInOtherAreasFailed,
-                )
-            }
-            CastVoteError::InsertFailedExceedsAllowedRevotes => ErrorResponse::new(
-                Status::BadRequest,
-                ErrorCode::InsertFailedExceedsAllowedRevotes.to_string().as_str(),
-                ErrorCode::InsertFailedExceedsAllowedRevotes,
-            ),
-            CastVoteError::InsertFailed(_) => ErrorResponse::new(
-                Status::InternalServerError,
-                ErrorCode::InternalServerError.to_string().as_str(),
-                ErrorCode::InternalServerError,
-            ),
-            CastVoteError::CommitFailed(_) => ErrorResponse::new(
-                Status::InternalServerError,
-                ErrorCode::InternalServerError.to_string().as_str(),
-                ErrorCode::InternalServerError,
-            ),
-            CastVoteError::GetDbClientFailed(_) => ErrorResponse::new(
-                Status::InternalServerError,
-                ErrorCode::InternalServerError.to_string().as_str(),
-                ErrorCode::InternalServerError,
-            ),
-            CastVoteError::GetClientCredentialsFailed(_) => {
-                ErrorResponse::new(
-                    Status::Unauthorized,
-                    ErrorCode::GetClientCredentialsFailed.to_string().as_str(),
-                    ErrorCode::GetClientCredentialsFailed,
-                )
-            }
-            CastVoteError::GetAreaIdFailed(_) => ErrorResponse::new(
-                Status::BadRequest,
-                ErrorCode::GetAreaIdFailed.to_string().as_str(),
-                ErrorCode::GetAreaIdFailed,
-            ),
-            CastVoteError::GetTransactionFailed(_) => {
-                ErrorResponse::new(
-                    Status::InternalServerError,
-                    ErrorCode::InternalServerError.to_string().as_str(),
-                    ErrorCode::GetTransactionFailed,
-                )
-            }
-            CastVoteError::DeserializeBallotFailed(_) => {
-                ErrorResponse::new(
-                    Status::BadRequest,
-                    ErrorCode::DeserializeBallotFailed.to_string().as_str(),
-                    ErrorCode::DeserializeBallotFailed,
-                )
-            }
-            CastVoteError::DeserializeContestsFailed(_) => {
-                ErrorResponse::new(
-                    Status::BadRequest,
-                    ErrorCode::DeserializeContestsFailed.to_string().as_str(),
-                    ErrorCode::DeserializeContestsFailed,
-                )
-            }
-            CastVoteError::DeserializeAreaPresentationFailed(_) => {
-                ErrorResponse::new(
-                    Status::BadRequest,
-                    ErrorCode::DeserializeAreaPresentationFailed.to_string().as_str(),
-                    ErrorCode::DeserializeAreaPresentationFailed,
-                )
-            }
-            CastVoteError::SerializeVoterIdFailed(_) => {
-                ErrorResponse::new(
-                    Status::InternalServerError,
-                    ErrorCode::InternalServerError.to_string().as_str(),
-                    ErrorCode::InternalServerError,
-                )
-            }
-            CastVoteError::SerializeBallotFailed(_) => {
-                ErrorResponse::new(
-                    Status::InternalServerError,
-                    ErrorCode::InternalServerError.to_string().as_str(),
-                    ErrorCode::InternalServerError,
-                )
-            }
-            CastVoteError::PokValidationFailed(_) => {
-                ErrorResponse::new(
-                    Status::BadRequest,
-                    ErrorCode::PokValidationFailed.to_string().as_str(),
-                    ErrorCode::PokValidationFailed,
-                )
-            }
-            CastVoteError::BallotSignFailed(_) => ErrorResponse::new(
-                Status::InternalServerError,
-                ErrorCode::InternalServerError.to_string().as_str(),
-                ErrorCode::InternalServerError,
-            ),
-            CastVoteError::BallotVoterSignatureFailed(_) => ErrorResponse::new(
-                Status::InternalServerError,
-                ErrorCode::InternalServerError.to_string().as_str(),
-                ErrorCode::InternalServerError,
-            ),
-            CastVoteError::UuidParseFailed(_, _) => {
-                ErrorResponse::new(
-                    Status::BadRequest,
-                    ErrorCode::UuidParseFailed.to_string().as_str(),
-                    ErrorCode::UuidParseFailed,
-                )
-            }
-            CastVoteError::UnknownError(_) => ErrorResponse::new(
-                Status::InternalServerError,
-                ErrorCode::UnknownError.to_string().as_str(),
-                ErrorCode::UnknownError,
-            ),
-            CastVoteError::BallotIdMismatch(msg) => ErrorResponse::new(
-                Status::BadRequest,
-                &msg,
-                ErrorCode::BallotIdMismatch,
-            ),
-        }
+        cast_vote_error_response(cast_vote_err)
     })?;
 
     // If there is no error:
@@ -303,30 +135,8 @@ pub async fn insert_cast_vote(
     );
 
     let enqueue_start = Instant::now();
-    if let Some(cast_vote_id) = pending_cast_vote_id {
-        // The Datafix vote is already committed: an enqueue failure must not
-        // fail the request. The review beat recovers in-progress rows.
-        let sent = match try_get_celery_app().await {
-            Ok(celery_app) => celery_app
-                .send_task(process_cast_vote::process_cast_vote::new(
-                    inserted_cast_vote.tenant_id.clone(),
-                    inserted_cast_vote.election_event_id.clone(),
-                    cast_vote_id.clone(),
-                ))
-                .await
-                .map_err(anyhow::Error::from),
-            Err(e) => Err(e),
-        };
-        match sent {
-            Ok(celery_task) => {
-                info!("Sent process_cast_vote task {}", celery_task.task_id);
-            }
-            Err(e) => {
-                error!(
-                    "Error sending process_cast_vote task for cast vote {cast_vote_id}: {e:?}; the review_cast_votes beat will retry it"
-                );
-            }
-        }
+    if pending_cast_vote_id.is_some() {
+        enqueue_datafix_cast_vote(services, &inserted_cast_vote).await;
     }
 
     info!(
@@ -341,3 +151,206 @@ pub async fn insert_cast_vote(
     );
     Ok(Json(inserted_cast_vote))
 }
+
+/// Hands a committed Datafix vote to its pipeline. An enqueue failure must not
+/// fail the request: the review beat recovers in-progress rows.
+pub(crate) async fn enqueue_datafix_cast_vote(
+    services: &HarvestServices,
+    cast_vote: &InsertCastVoteOutput,
+) {
+    let cast_vote_id = &cast_vote.id;
+    match services
+        .tasks
+        .send_task(process_cast_vote::process_cast_vote::new(
+            cast_vote.tenant_id.clone(),
+            cast_vote.election_event_id.clone(),
+            cast_vote_id.clone(),
+        ))
+        .await
+    {
+        Ok(celery_task) => {
+            info!("Sent process_cast_vote task {}", celery_task.task_id);
+        }
+        Err(e) => {
+            error!(
+                "Error sending process_cast_vote task for cast vote {cast_vote_id}: {e:?}; the review_cast_votes beat will retry it"
+            );
+        }
+    }
+}
+
+/// The answer each refusal or failure of the ballot box maps to. A ballot the
+/// ballot box refuses is the voter's request to correct, not a server error.
+pub(crate) fn cast_vote_error_response(
+    cast_vote_err: CastVoteError,
+) -> JsonError {
+    match cast_vote_err {
+        CastVoteError::AreaNotFound => ErrorResponse::new(
+            Status::NotFound,
+            "Area not found",
+            ErrorCode::AreaNotFound,
+        ),
+        CastVoteError::ElectionEventNotFound(_) => ErrorResponse::new(
+            Status::NotFound,
+            "Election Event Not Found",
+            ErrorCode::ElectionEventNotFound,
+        ),
+        CastVoteError::InvalidDatafixConfiguration(_) => ErrorResponse::new(
+            Status::InternalServerError,
+            "Invalid Datafix election event configuration",
+            ErrorCode::InternalServerError,
+        ),
+        CastVoteError::ElectoralLogNotFound(_) => ErrorResponse::new(
+            Status::NotFound,
+            "Electoral Log Not Found",
+            ErrorCode::ElectoralLogNotFound,
+        ),
+        CastVoteError::CheckStatusFailed(msg) => ErrorResponse::new(
+            Status::Unauthorized,
+            &msg,
+            ErrorCode::CheckStatusFailed,
+        ),
+        CastVoteError::VotingChannelNotEnabled(_) => ErrorResponse::new(
+            Status::Unauthorized,
+            ErrorCode::CheckStatusFailed.to_string().as_str(),
+            ErrorCode::CheckStatusFailed,
+        ),
+        CastVoteError::CheckStatusInternalFailed(_) => ErrorResponse::new(
+            Status::InternalServerError,
+            ErrorCode::InternalServerError.to_string().as_str(),
+            ErrorCode::InternalServerError,
+        ),
+        CastVoteError::VoterStateLocked(_) => ErrorResponse::new(
+            Status::Conflict,
+            "The voter state is being updated; retry the vote",
+            ErrorCode::CheckStatusFailed,
+        ),
+        CastVoteError::CheckPreviousVotesFailed(msg) => ErrorResponse::new(
+            Status::BadRequest,
+            &msg,
+            ErrorCode::CheckPreviousVotesFailed,
+        ),
+        CastVoteError::CheckRevotesFailed(msg) => ErrorResponse::new(
+            Status::BadRequest,
+            &msg,
+            ErrorCode::CheckRevotesFailed,
+        ),
+        CastVoteError::CheckVotesInOtherAreasFailed(msg) => ErrorResponse::new(
+            Status::BadRequest,
+            &msg,
+            ErrorCode::CheckVotesInOtherAreasFailed,
+        ),
+        CastVoteError::InsertFailedExceedsAllowedRevotes => ErrorResponse::new(
+            Status::BadRequest,
+            ErrorCode::InsertFailedExceedsAllowedRevotes
+                .to_string()
+                .as_str(),
+            ErrorCode::InsertFailedExceedsAllowedRevotes,
+        ),
+        CastVoteError::InsertFailed(_) => ErrorResponse::new(
+            Status::InternalServerError,
+            ErrorCode::InternalServerError.to_string().as_str(),
+            ErrorCode::InternalServerError,
+        ),
+        CastVoteError::CommitFailed(_) => ErrorResponse::new(
+            Status::InternalServerError,
+            ErrorCode::InternalServerError.to_string().as_str(),
+            ErrorCode::InternalServerError,
+        ),
+        CastVoteError::GetDbClientFailed(_) => ErrorResponse::new(
+            Status::InternalServerError,
+            ErrorCode::InternalServerError.to_string().as_str(),
+            ErrorCode::InternalServerError,
+        ),
+        CastVoteError::GetClientCredentialsFailed(_) => ErrorResponse::new(
+            Status::Unauthorized,
+            ErrorCode::GetClientCredentialsFailed.to_string().as_str(),
+            ErrorCode::GetClientCredentialsFailed,
+        ),
+        CastVoteError::GetAreaIdFailed(_) => ErrorResponse::new(
+            Status::BadRequest,
+            ErrorCode::GetAreaIdFailed.to_string().as_str(),
+            ErrorCode::GetAreaIdFailed,
+        ),
+        CastVoteError::GetTransactionFailed(_) => ErrorResponse::new(
+            Status::InternalServerError,
+            ErrorCode::InternalServerError.to_string().as_str(),
+            ErrorCode::GetTransactionFailed,
+        ),
+        CastVoteError::DeserializeBallotFailed(_) => ErrorResponse::new(
+            Status::BadRequest,
+            ErrorCode::DeserializeBallotFailed.to_string().as_str(),
+            ErrorCode::DeserializeBallotFailed,
+        ),
+        CastVoteError::DeserializeContestsFailed(_) => ErrorResponse::new(
+            Status::BadRequest,
+            ErrorCode::DeserializeContestsFailed.to_string().as_str(),
+            ErrorCode::DeserializeContestsFailed,
+        ),
+        CastVoteError::DeserializeAreaPresentationFailed(_) => {
+            ErrorResponse::new(
+                Status::BadRequest,
+                ErrorCode::DeserializeAreaPresentationFailed
+                    .to_string()
+                    .as_str(),
+                ErrorCode::DeserializeAreaPresentationFailed,
+            )
+        }
+        CastVoteError::SerializeVoterIdFailed(_) => ErrorResponse::new(
+            Status::InternalServerError,
+            ErrorCode::InternalServerError.to_string().as_str(),
+            ErrorCode::InternalServerError,
+        ),
+        CastVoteError::SerializeBallotFailed(_) => ErrorResponse::new(
+            Status::InternalServerError,
+            ErrorCode::InternalServerError.to_string().as_str(),
+            ErrorCode::InternalServerError,
+        ),
+        CastVoteError::PokValidationFailed(_) => ErrorResponse::new(
+            Status::BadRequest,
+            ErrorCode::PokValidationFailed.to_string().as_str(),
+            ErrorCode::PokValidationFailed,
+        ),
+        CastVoteError::BallotSignFailed(_) => ErrorResponse::new(
+            Status::InternalServerError,
+            ErrorCode::InternalServerError.to_string().as_str(),
+            ErrorCode::InternalServerError,
+        ),
+        CastVoteError::BallotVoterSignatureFailed(_)
+        | CastVoteError::BallotVoterSignatureRequired
+        | CastVoteError::BallotStyleMismatch(_)
+        | CastVoteError::BallotNotReceived
+        | CastVoteError::BallotCastSignatureRequired
+        | CastVoteError::BallotCastSignatureFailed(_)
+        | CastVoteError::BallotAlreadyCast
+        | CastVoteError::BallotAudited => ErrorResponse::new(
+            Status::BadRequest,
+            ErrorCode::PokValidationFailed.to_string().as_str(),
+            ErrorCode::PokValidationFailed,
+        ),
+        CastVoteError::UuidParseFailed(_, _) => ErrorResponse::new(
+            Status::BadRequest,
+            ErrorCode::UuidParseFailed.to_string().as_str(),
+            ErrorCode::UuidParseFailed,
+        ),
+        CastVoteError::UnknownError(_) => ErrorResponse::new(
+            Status::InternalServerError,
+            ErrorCode::UnknownError.to_string().as_str(),
+            ErrorCode::UnknownError,
+        ),
+        CastVoteError::BallotIdMismatch(msg) => ErrorResponse::new(
+            Status::BadRequest,
+            &msg,
+            ErrorCode::BallotIdMismatch,
+        ),
+        CastVoteError::GetBallotStyleFailed(_) => ErrorResponse::new(
+            Status::InternalServerError,
+            ErrorCode::InternalServerError.to_string().as_str(),
+            ErrorCode::InternalServerError,
+        ),
+    }
+}
+
+#[cfg(test)]
+#[path = "../../tests/support/cast_vote_routes.rs"]
+mod route_tests;

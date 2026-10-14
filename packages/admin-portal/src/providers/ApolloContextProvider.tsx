@@ -2,14 +2,21 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState, useContext, PropsWithChildren, createContext} from "react"
-import {ApolloClient, InMemoryCache, NormalizedCacheObject, createHttpLink} from "@apollo/client"
+import {
+    ApolloClient,
+    ApolloLink,
+    InMemoryCache,
+    NormalizedCacheObject,
+    createHttpLink,
+} from "@apollo/client"
+import {GraphQLError} from "graphql"
 import {setContext} from "@apollo/client/link/context"
 import {AuthContext} from "./AuthContextProvider"
 import {Box, CircularProgress} from "@mui/material"
 import {ApolloProvider} from "@apollo/client"
 import {SettingsContext} from "./SettingsContextProvider"
 import {getOperationRole} from "@/services/Permissions"
-import {IPermissions} from "@/types/keycloak"
+import {getTimeZoneValidationMessage} from "@/services/graphqlActionError"
 
 interface ApolloContextValues {
     apolloClient: ApolloClient<NormalizedCacheObject> | null
@@ -53,10 +60,7 @@ export const ApolloContextProvider = ({children, role}: ApolloContextProviderPro
                 return {}
             }
             // return the headers to the context so httpLink can read them
-            const operationRole = getOperationRole(
-                operation,
-                hasRole(IPermissions.TRUSTEE_CEREMONY)
-            )
+            const operationRole = getOperationRole(operation, hasRole)
 
             return {
                 headers: {
@@ -67,8 +71,26 @@ export const ApolloContextProvider = ({children, role}: ApolloContextProviderPro
             }
         })
 
+        const validationLink = new ApolloLink((operation, forward) =>
+            forward(operation).map((response) => ({
+                ...response,
+                errors: response.errors?.map((error) => {
+                    const message = getTimeZoneValidationMessage(error)
+                    return message
+                        ? new GraphQLError(message, {
+                              nodes: error.nodes,
+                              source: error.source,
+                              positions: error.positions,
+                              path: error.path,
+                              originalError: error.originalError,
+                              extensions: error.extensions,
+                          })
+                        : error
+                }),
+            }))
+        )
         const apolloClient = new ApolloClient({
-            link: authLink.concat(httpLink),
+            link: authLink.concat(validationLink).concat(httpLink),
             cache: new InMemoryCache(),
         })
         return apolloClient

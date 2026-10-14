@@ -2,8 +2,12 @@
 // //
 // // SPDX-License-Identifier: AGPL-3.0-only
 
+mod acceptance;
+mod adapters;
 mod commands;
+mod domain;
 mod load;
+mod ports;
 mod tests;
 mod types;
 mod utils;
@@ -23,6 +27,9 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum MainCommand {
+    /// Check an acceptance stage against a live election event and keep its evidence.
+    #[command(subcommand)]
+    Acceptance(acceptance::Command),
     /// Prepare and measure complete synthetic voting journeys.
     #[command(subcommand)]
     Load(load::Command),
@@ -32,6 +39,8 @@ enum MainCommand {
 
 #[derive(Subcommand)]
 enum StepCommands {
+    BuildElectionEvent(commands::build_election_event::BuildElectionEvent),
+    CompilePlan(commands::compile_plan::CompilePlan),
     Config(commands::configure::Config),
     AuditElectoralLog(commands::audit_electoral_log::AuditElectoralLogCLI),
     CreateTenant(commands::create_tenant::CreateTenant),
@@ -58,7 +67,7 @@ enum StepCommands {
     UpdateTally(commands::update_tally_status::UpdateTallyStatus),
     SubmitTallyResolution(commands::submit_tally_resolution::SubmitTallyResolution),
     TallySheet(commands::tally_sheet::TallySheetCommand),
-    ConfirmKeyTally(commands::confirm_tally_ceremoney_key::ConfirmKeyForTally),
+    ConfirmKeyTally(commands::authorize_tally_custody::AuthorizeTallyCustodyCommand),
     RenderTemplate(commands::render_template::RenderTemplate),
     GenerateVoters(commands::generate_voters::GenerateVoters),
     DuplicateVotes(commands::duplicate_votes::DuplicateVotes),
@@ -80,12 +89,22 @@ enum StepCommands {
     CreateTrustee(commands::create_trustee::CreateTrustee),
     DownloadDocument(commands::download_document::DownloadDocument),
     UploadDocument(commands::upload_document::UploadDocument),
+    MigrateRealmPermissions(commands::migrate_realm_permissions::MigrateRealmPermissions),
+    MigrateRegistrationFlows(commands::migrate_registration_flows::MigrateRegistrationFlows),
+    VerifyBallotBoxSeal(commands::verify_ballot_box_seal::VerifyBallotBoxSeal),
+    VerifyPackage(commands::verify_package::VerifyPackage),
 }
 
 fn main() {
     let cli = Cli::parse();
 
     match &cli.command {
+        MainCommand::Acceptance(command) => {
+            if let Err(error) = command.run() {
+                eprintln!("{error:#}");
+                std::process::exit(1);
+            }
+        }
         MainCommand::Load(command) => {
             if let Err(error) = command.run() {
                 eprintln!("{error:#}");
@@ -93,6 +112,8 @@ fn main() {
             }
         }
         MainCommand::Step(step_cmd) => match step_cmd {
+            StepCommands::BuildElectionEvent(cmd) => cmd.run(),
+            StepCommands::CompilePlan(cmd) => cmd.run(),
             StepCommands::Config(cmd) => cmd.run(),
             StepCommands::AuditElectoralLog(audit) => exit_on_error(audit.run()),
             StepCommands::CreateTenant(create_tenant) => exit_on_error(create_tenant.run()),
@@ -127,7 +148,12 @@ fn main() {
             StepCommands::DuplicateVotes(render) => render.run(),
             StepCommands::CreateApplications(render) => render.run(),
             StepCommands::CreateElectoralLogs(render) => render.run(),
-            StepCommands::HashPassword(render) => render.run(),
+            StepCommands::HashPassword(command) => {
+                if let Err(error) = command.run() {
+                    eprintln!("Error! Failed to generate hashed passwords: {error:#}");
+                    std::process::exit(1);
+                }
+            }
             StepCommands::UpdateEventVotingStatus(update_event_voting_status) => {
                 update_event_voting_status.run()
             }
@@ -149,6 +175,16 @@ fn main() {
             StepCommands::CreateTrustee(create) => exit_on_error(create.run()),
             StepCommands::DownloadDocument(download) => exit_on_error(download.run()),
             StepCommands::UploadDocument(upload) => exit_on_error(upload.run()),
+            StepCommands::MigrateRealmPermissions(migrate) => {
+                exit_on_error(migrate.run().map_err(|error| format!("{error:#}")))
+            }
+            StepCommands::MigrateRegistrationFlows(migrate) => {
+                exit_on_error(migrate.run().map_err(|error| format!("{error:#}")))
+            }
+            StepCommands::VerifyBallotBoxSeal(verify) => {
+                exit_on_error(verify.run().map_err(|error| format!("{error:#}")))
+            }
+            StepCommands::VerifyPackage(cmd) => cmd.run(),
         },
     }
 }

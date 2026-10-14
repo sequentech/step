@@ -3,16 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local};
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::{
     ceremonies::{TallyCeremonyStatus, TallyRunReason, TallySessionDocuments},
     hasura::core::TallySessionExecution,
 };
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::Value;
 use tokio_postgres::row::Row;
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 use uuid::Uuid;
 
 pub struct TallySessionExecutionWrapper(pub TallySessionExecution);
@@ -42,6 +42,10 @@ impl TryFrom<Row> for TallySessionExecutionWrapper {
     }
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the existing database API argument order for transaction, record scope and column values."
+)]
 #[instrument(skip(hasura_transaction, status), err)]
 pub async fn insert_tally_session_execution(
     hasura_transaction: &Transaction<'_>,
@@ -146,7 +150,7 @@ pub async fn get_tally_session_executions(
                     tenant_id = $1 AND
                     election_event_id = $2 AND
                     tally_session_id = $3
-                ORDER BY created_at DESC;
+                ORDER BY created_at DESC NULLS LAST;
             "#,
         )
         .await?;
@@ -191,7 +195,7 @@ pub async fn get_last_tally_session_execution(
                     tenant_id = $1 AND
                     election_event_id = $2 AND
                     tally_session_id = $3
-                ORDER BY created_at DESC
+                ORDER BY created_at DESC NULLS LAST
                 LIMIT 1;
             "#,
         )
@@ -429,7 +433,7 @@ pub async fn update_tally_session_execution_documents(
                 &documents_value,
                 &parse_uuid_v4(tally_session_execution_id)?,
                 &parse_uuid_v4(tenant_id)?,
-                &parse_uuid_v4(&election_event_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await

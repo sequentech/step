@@ -10,7 +10,7 @@ use crate::{
     },
     types::error::Result,
 };
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 use celery::error::TaskError;
 use sequent_core::types::hasura::core::TasksExecution;
 use tracing::instrument;

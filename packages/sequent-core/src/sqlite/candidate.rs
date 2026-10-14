@@ -52,7 +52,7 @@ pub async fn import_candidate_sqlite(
 
         let mut rdr = ReaderBuilder::new()
             .has_headers(true)
-            .from_path(&contests_csv)
+            .from_path(contests_csv)
             .context("opening candidate CSV")?;
 
         for record in rdr.records() {

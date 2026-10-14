@@ -14,6 +14,11 @@ license = "AGPL-3.0-only"
 proc-macro = true
 
 [dependencies]
-syn = {version = "2.0", features = ['full'] }
+syn = {version = "2.0", features = ['full', 'visit-mut'] }
 quote = "1.0"
 proc-macro2 = "1.0"
+
+# deny rather than forbid: tests/behavior.rs allows `unsafe` to check that the macro
+# keeps the unsafe context of a wrapped function (scripts/check-unsafe.py).
+[lints.rust]
+unsafe_code = "deny"

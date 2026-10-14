@@ -16,24 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-COPY ./braid ./braid
-COPY ./b4 ./b4
-COPY ./electoral-log ./electoral-log
-COPY ./trellis ./trellis
-COPY ./harvest ./harvest
-COPY ./strand ./strand
-COPY ./sequent-core ./sequent-core
-COPY ./velvet ./velvet
-COPY ./windmill ./windmill
-COPY ./pgmq-broker ./pgmq-broker
-COPY ./e2e ./e2e
-COPY ./step-cli ./step-cli
-COPY ./orare ./orare
-COPY ./wrap-map-err ./wrap-map-err
-COPY ./braid/scripts ./braid/scripts
-COPY ./Cargo.toml ./Cargo.toml
-COPY ./Cargo.lock ./Cargo.lock
-COPY ./.cargo ./.cargo
+COPY . .
 
 WORKDIR /app/step-cli
 RUN cargo build --release --locked

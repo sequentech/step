@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use super::validate_keycloak_path_segment;
 use crate::services::keycloak::{get_event_realm, KeycloakAdminClient};
 use anyhow::{anyhow, bail, Result};
 use rand::rngs::OsRng;
@@ -515,9 +516,11 @@ impl ParsedRealmPasswordPolicy {
         if required_characters == 0 {
             return Err(PasswordPolicyGenerationError::CharacterClassMissing);
         }
-        if self.maximum_length.is_some_and(|maximum_length| {
-            minimum_length.max(required_characters as i32) > maximum_length
-        }) {
+        // Keep the sum wide: narrowing a large requirement to i32 can wrap.
+        // The supported limit also bounds generation when maxLength is absent.
+        let maximum_length =
+            self.maximum_length.unwrap_or(MAX_PASSWORD_LENGTH) as usize;
+        if required_characters > maximum_length {
             return Err(PasswordPolicyGenerationError::MaximumTooSmallForRequiredCharacters);
         }
 
@@ -690,6 +693,7 @@ impl KeycloakAdminClient {
         self,
         realm: &str,
     ) -> Result<ParsedRealmPasswordPolicy> {
+        validate_keycloak_path_segment(realm)?;
         let generation = {
             let cache = password_policy_cache()?;
             if let Some(policy) = cache.get(realm) {
@@ -717,6 +721,7 @@ impl KeycloakAdminClient {
         realm: &str,
         password_policy: RealmPasswordPolicy,
     ) -> Result<()> {
+        validate_keycloak_path_segment(realm)?;
         password_policy.validate()?;
 
         let mut current_realm = self
@@ -900,8 +905,10 @@ mod tests {
 
     #[test]
     fn rejects_invalid_length_ranges() {
-        let mut policy = RealmPasswordPolicy::default();
-        policy.minimum_length = 0;
+        let mut policy = RealmPasswordPolicy {
+            minimum_length: 0,
+            ..Default::default()
+        };
         assert!(policy.validate().is_err());
 
         policy.minimum_length = 100;

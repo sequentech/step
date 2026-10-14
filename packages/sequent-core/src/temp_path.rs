@@ -5,29 +5,29 @@ use anyhow::{Context, Result};
 use std::env;
 use std::fs;
 use std::fs::File;
-use std::io::{self, BufWriter, Read, Seek, Write};
+use std::io::{BufWriter, Read, Seek, Write};
 use tempfile::Builder;
 use tempfile::{NamedTempFile, TempPath};
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 
-pub const QR_CODE_TEMPLATE: &'static str = "<div id=\"qrcode\"></div>";
-pub const LOGO_TEMPLATE: &'static str = "<div class=\"logo\"></div>";
-pub const PUBLIC_ASSETS_LOGO_IMG: &'static str = "sequent-logo.svg";
-pub const PUBLIC_ASSETS_QRCODE_LIB: &'static str = "qrcode.min.js";
-pub const PUBLIC_ASSETS_VELVET_BALLOT_IMAGES_TEMPLATE: &'static str =
+pub const QR_CODE_TEMPLATE: &str = "<div id=\"qrcode\"></div>";
+pub const LOGO_TEMPLATE: &str = "<div class=\"logo\"></div>";
+pub const PUBLIC_ASSETS_LOGO_IMG: &str = "sequent-logo.svg";
+pub const PUBLIC_ASSETS_QRCODE_LIB: &str = "qrcode.min.js";
+pub const PUBLIC_ASSETS_VELVET_BALLOT_IMAGES_TEMPLATE: &str =
     "ballot_images_user.hbs";
-pub const PUBLIC_ASSETS_VELVET_BALLOT_IMAGES_TEMPLATE_SYSTEM: &'static str =
+pub const PUBLIC_ASSETS_VELVET_BALLOT_IMAGES_TEMPLATE_SYSTEM: &str =
     "ballot_images_system.hbs";
-pub const PUBLIC_ASSETS_VELVET_MC_BALLOT_IMAGES_TEMPLATE: &'static str =
+pub const PUBLIC_ASSETS_VELVET_MC_BALLOT_IMAGES_TEMPLATE: &str =
     "mc_ballot_images_user.hbs";
-pub const PUBLIC_ASSETS_EML_BASE_TEMPLATE: &'static str = "eml_base.hbs";
-pub const VELVET_BALLOT_IMAGES_TEMPLATE_TITLE: &'static str =
+pub const PUBLIC_ASSETS_EML_BASE_TEMPLATE: &str = "eml_base.hbs";
+pub const VELVET_BALLOT_IMAGES_TEMPLATE_TITLE: &str =
     "Ballot images - Sequentech";
-pub const PUBLIC_ASSETS_I18N_DEFAULTS: &'static str = "i18n_defaults.json";
+pub const PUBLIC_ASSETS_I18N_DEFAULTS: &str = "i18n_defaults.json";
 
-pub const PUBLIC_ASSETS_INITIALIZATION_TEMPLATE_SYSTEM: &'static str =
+pub const PUBLIC_ASSETS_INITIALIZATION_TEMPLATE_SYSTEM: &str =
     "initialization_report_system.hbs";
-pub const PUBLIC_ASSETS_ELECTORAL_RESULTS_TEMPLATE_SYSTEM: &'static str =
+pub const PUBLIC_ASSETS_ELECTORAL_RESULTS_TEMPLATE_SYSTEM: &str =
     "electoral_results_system.hbs";
 
 pub fn get_public_assets_path_env_var() -> Result<String> {
@@ -56,7 +56,7 @@ pub fn get_file_size(filepath: &str) -> Result<u64> {
  */
 #[instrument(skip(data), err)]
 pub fn write_into_named_temp_file(
-    data: &Vec<u8>,
+    data: &[u8],
     prefix: &str,
     suffix: &str,
 ) -> Result<(TempPath, String, u64)> {
@@ -68,7 +68,7 @@ pub fn write_into_named_temp_file(
             .with_context(|| "Couldn't reopen file for writing")?;
         let mut buf_writer = BufWriter::new(file2);
         buf_writer
-            .write(&data)
+            .write_all(data)
             .with_context(|| "Error writing into named temp file")?;
         buf_writer
             .flush()

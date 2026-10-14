@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{Context, Result};
-use fs_extra::dir::{self, CopyOptions};
 use std::path::PathBuf;
 use std::{fs, path::Path};
 use tempfile::{tempdir, TempDir};
@@ -29,7 +28,7 @@ pub fn copy_to_temp_dir(base_tally_path: &PathBuf) -> Result<TempDir> {
         if src_path.is_dir() {
             fs::create_dir_all(&dest_path).context("Failed to create directory")?;
         } else {
-            fs::copy(&src_path, &dest_path).context("Failed to copy file")?;
+            fs::copy(src_path, &dest_path).context("Failed to copy file")?;
         }
     }
 
@@ -55,7 +54,7 @@ pub fn list_files(dir: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::{fs, path::Path};
+    use std::fs;
     use tempfile::tempdir;
 
     #[test]

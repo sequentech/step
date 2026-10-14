@@ -2,22 +2,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::area::{get_event_areas, insert_areas, upsert_area_parents};
-use crate::postgres::area_contest::insert_area_contests;
-use crate::postgres::contest::export_contests;
+use crate::postgres::area::{get_event_areas, upsert_area_parents};
 use crate::{
     postgres::document::get_document,
     services::{database::get_hasura_pool, documents::get_document_as_temp_file},
 };
 use anyhow::{anyhow, Context, Result};
-use csv::StringRecord;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::types::hasura::core::Area;
-use sequent_core::types::hasura::core::AreaContest;
 use std::collections::HashMap;
 use std::io::Seek;
 use tracing::instrument;
-use uuid::Uuid;
 
 #[instrument(err)]
 pub async fn upsert_areas_task(
@@ -46,13 +41,7 @@ pub async fn upsert_areas_task(
     let areas_name_map: HashMap<String, Area> = areas
         .clone()
         .into_iter()
-        .filter_map(|area| {
-            if let Some(name) = area.name.clone() {
-                Some((name, area.clone()))
-            } else {
-                None
-            }
-        })
+        .filter_map(|area| area.name.clone().map(|name| (name, area.clone())))
         .collect();
 
     let mut temp_file = get_document_as_temp_file(&tenant_id, &document).await?;
@@ -69,13 +58,12 @@ pub async fn upsert_areas_task(
         let Some(area_name) = record.get(0) else {
             continue;
         };
-        let Some(mut found_area_by_name) = areas_name_map.get(area_name) else {
+        let Some(found_area_by_name) = areas_name_map.get(area_name) else {
             continue;
         };
         let parent_id: Option<String> = record
             .get(1)
-            .map(|parent_name| areas_name_map.get(parent_name).map(|val| val.id.clone()))
-            .flatten();
+            .and_then(|parent_name| areas_name_map.get(parent_name).map(|val| val.id.clone()));
         let mut new_area = found_area_by_name.clone();
         new_area.parent_id = parent_id;
         areas_to_modify.push(new_area);

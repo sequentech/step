@@ -9,30 +9,15 @@ use tokio::sync::Mutex;
 use warp::Future;
 use warp::{http::Response, Filter};
 
+type ProbeFuture = std::pin::Pin<Box<dyn Future<Output = bool> + Send>>;
+type ProbeCheck = Arc<Mutex<Box<dyn Fn() -> ProbeFuture + Send + Sync>>>;
+
 pub struct ProbeHandler {
     address: SocketAddr,
     live_path: String,
     ready_path: String,
-    is_live: Arc<
-        Mutex<
-            Box<
-                dyn Fn() -> std::pin::Pin<
-                        Box<dyn std::future::Future<Output = bool> + Send>,
-                    > + Send
-                    + Sync,
-            >,
-        >,
-    >,
-    is_ready: Arc<
-        Mutex<
-            Box<
-                dyn Fn() -> std::pin::Pin<
-                        Box<dyn std::future::Future<Output = bool> + Send>,
-                    > + Send
-                    + Sync,
-            >,
-        >,
-    >,
+    is_live: ProbeCheck,
+    is_ready: ProbeCheck,
 }
 
 impl ProbeHandler {
@@ -55,6 +40,12 @@ impl ProbeHandler {
     }
 
     pub fn future(&self) -> impl Future<Output = ()> {
+        self.bind().1
+    }
+
+    /// Bind once and return the actual address, including an OS-selected port.
+    /// The returned future owns the listener for its entire lifetime.
+    pub fn bind(&self) -> (SocketAddr, impl Future<Output = ()>) {
         let il = Arc::clone(&self.is_live);
         let ir = Arc::clone(&self.is_ready);
 
@@ -111,7 +102,7 @@ impl ProbeHandler {
                     )),
             );
 
-        warp::serve(filter).bind(self.address)
+        warp::serve(filter).bind_ephemeral(self.address)
     }
 
     pub async fn set_live(

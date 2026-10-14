@@ -7,6 +7,7 @@ use crate::postgres::ballot_publication::{
     update_ballot_publication,
 };
 use crate::postgres::ballot_style::get_publication_ballot_styles;
+use crate::postgres::contest::export_contests;
 use crate::postgres::election::{get_election_by_id, get_elections_ids, update_election_status};
 use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
 use crate::services::celery_app::get_celery_app;
@@ -16,23 +17,32 @@ use crate::services::electoral_log::*;
 use crate::services::tasks_execution::{
     post as post_task_execution, update_fail as update_task_execution_fail,
 };
+use crate::services::{enrollment_windows, realm_localization};
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 use crate::types::tasks::ETasksExecution;
 use anyhow::{anyhow, Context, Result};
 use chrono::{Local, Utc};
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{ElectionEventStatus, ElectionStatus};
+use sequent_core::ballot::PublicKeyConfig;
+use sequent_core::ballot::{
+    BallotStyle, Contest, ContestEncryptionPolicy, EBlankVotePolicy, EDuplicatedRankPolicy,
+    EOverVotePolicy, EPreferenceGapsPolicy, EUnderVotePolicy, ElectionEventPresentation,
+    ElectionEventStatus, ElectionStatus, InvalidVotePolicy, MultiContestEncodingMode,
+};
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::connection;
 use sequent_core::services::date::ISO8601;
-use sequent_core::types::hasura::core::{BallotPublication, TasksExecution};
+use sequent_core::types::ceremonies::CountingAlgType;
+use sequent_core::types::ceremonies::KeysCeremonyExecutionStatus;
+use sequent_core::types::hasura::core::{BallotPublication, KeysCeremony, TasksExecution};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use thiserror::Error;
-use tracing::{event, instrument, Level};
+use tracing::{error, event, instrument, Level};
 
 use super::ballot_style;
+use super::slates;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ContestAcclamationState {
@@ -48,7 +58,7 @@ pub struct BallotPublicationValidationError {
 }
 
 impl BallotPublicationValidationError {
-    fn new(reasons: Vec<String>) -> Self {
+    pub(super) fn new(reasons: Vec<String>) -> Self {
         let message = format!(
             "Ballot publication validation failed:\n- {}",
             reasons.join("\n- ")
@@ -165,24 +175,14 @@ fn election_has_started(status: &ElectionStatus) -> bool {
     .any(|started_at| started_at.is_some())
 }
 
-async fn validate_published_acclamation_status(
+/// The live ballot styles of each election in `ballot_publication` whose
+/// voting has started, one publication per election.
+async fn started_elections_published_styles(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     ballot_publication: &BallotPublication,
-) -> Result<()> {
-    let current = collect_acclamation_states(
-        &get_publication_json(
-            hasura_transaction,
-            tenant_id.to_owned(),
-            election_event_id.to_owned(),
-            ballot_publication.id.clone(),
-            None,
-            None,
-        )
-        .await?,
-    )?;
-    let mut previous = BTreeMap::new();
+) -> Result<Vec<Value>> {
     let election_ids = ballot_publication
         .election_ids
         .as_ref()
@@ -191,6 +191,7 @@ async fn validate_published_acclamation_status(
         return Err(anyhow!("Ballot publication has no election ids"));
     }
 
+    let mut publications = Vec::new();
     for election_id in election_ids {
         let election = get_election_by_id(
             hasura_transaction,
@@ -219,19 +220,349 @@ async fn validate_published_acclamation_status(
             continue;
         };
 
-        let publication = get_publication_json(
-            hasura_transaction,
-            tenant_id.to_owned(),
-            election_event_id.to_owned(),
-            previous_publication.id,
-            Some(election_id.clone()),
-            None,
-        )
-        .await?;
-        merge_acclamation_states(&mut previous, collect_acclamation_states(&publication)?)?;
+        publications.push(
+            get_publication_json(
+                hasura_transaction,
+                tenant_id.to_owned(),
+                election_event_id.to_owned(),
+                previous_publication.id,
+                Some(election_id.clone()),
+                None,
+            )
+            .await?,
+        );
+    }
+    Ok(publications)
+}
+
+async fn validate_published_slates(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    ballot_publication: &BallotPublication,
+) -> Result<()> {
+    let current = get_publication_json(
+        hasura_transaction,
+        tenant_id.to_owned(),
+        election_event_id.to_owned(),
+        ballot_publication.id.clone(),
+        None,
+        None,
+    )
+    .await?;
+    let contests = export_contests(hasura_transaction, tenant_id, election_event_id).await?;
+    slates::validate_publication_slates(&current, &contests)?;
+
+    let previous = started_elections_published_styles(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        ballot_publication,
+    )
+    .await?
+    .into_iter()
+    .flat_map(|publication| match publication {
+        Value::Array(ballot_styles) => ballot_styles,
+        other => vec![other],
+    })
+    .collect();
+    slates::validate_slates_unchanged(&Value::Array(previous), &current)
+}
+
+/// The parts of a ballot style that decide how its cast ballots decode.
+#[derive(Serialize)]
+struct BallotStyleDecoding {
+    contest_ids: BTreeSet<String>,
+    contest_encryption_policy: ContestEncryptionPolicy,
+    multi_contest_encoding_mode: MultiContestEncodingMode,
+    decline_to_vote_enabled: bool,
+    blank_ballots_enabled: bool,
+}
+
+impl From<&BallotStyle> for BallotStyleDecoding {
+    fn from(style: &BallotStyle) -> Self {
+        Self {
+            contest_ids: style
+                .contests
+                .iter()
+                .map(|contest| contest.id.clone())
+                .collect(),
+            contest_encryption_policy: style
+                .election_event_presentation
+                .as_ref()
+                .and_then(|presentation| presentation.contest_encryption_policy.clone())
+                .unwrap_or_default(),
+            multi_contest_encoding_mode: style.multi_contest_encoding_mode.unwrap_or_default(),
+            decline_to_vote_enabled: style.decline_to_vote_enabled(),
+            blank_ballots_enabled: style.blank_ballots_enabled(),
+        }
+    }
+}
+
+/// The parts of a contest that decide how its cast choices decode: the
+/// codec's bases and candidate positions, and the policies the decoder
+/// applies to mark a choice invalid.
+#[derive(Serialize)]
+struct ContestDecoding {
+    candidates: BTreeMap<String, CandidateDecoding>,
+    counting_algorithm: CountingAlgType,
+    min_votes: i64,
+    max_votes: i64,
+    allow_writeins: bool,
+    base32_writeins: bool,
+    cumulative_number_of_checkboxes: u64,
+    invalid_vote_policy: InvalidVotePolicy,
+    under_vote_policy: EUnderVotePolicy,
+    blank_vote_policy: EBlankVotePolicy,
+    over_vote_policy: EOverVotePolicy,
+    duplicated_rank_policy: EDuplicatedRankPolicy,
+    preference_gaps_policy: EPreferenceGapsPolicy,
+}
+
+/// The candidate flags the codec reads to place and classify a choice.
+#[derive(Serialize)]
+struct CandidateDecoding {
+    is_explicit_invalid: bool,
+    is_explicit_blank: bool,
+    is_write_in: bool,
+}
+
+impl From<&Contest> for ContestDecoding {
+    fn from(contest: &Contest) -> Self {
+        let presentation = contest.presentation.clone().unwrap_or_default();
+        Self {
+            candidates: contest
+                .candidates
+                .iter()
+                .map(|candidate| {
+                    (
+                        candidate.id.clone(),
+                        CandidateDecoding {
+                            is_explicit_invalid: candidate.is_explicit_invalid(),
+                            is_explicit_blank: candidate.is_explicit_blank(),
+                            is_write_in: candidate.is_write_in(),
+                        },
+                    )
+                })
+                .collect(),
+            counting_algorithm: contest.get_counting_algorithm(),
+            min_votes: contest.min_votes,
+            max_votes: contest.max_votes,
+            allow_writeins: contest.allow_writeins(),
+            base32_writeins: contest.base32_writeins(),
+            cumulative_number_of_checkboxes: contest.cumulative_number_of_checkboxes(),
+            invalid_vote_policy: presentation.invalid_vote_policy.unwrap_or_default(),
+            under_vote_policy: presentation.under_vote_policy.unwrap_or_default(),
+            blank_vote_policy: presentation.blank_vote_policy.unwrap_or_default(),
+            over_vote_policy: presentation.over_vote_policy.unwrap_or_default(),
+            duplicated_rank_policy: presentation.duplicated_rank_policy.unwrap_or_default(),
+            preference_gaps_policy: presentation.preference_gaps_policy.unwrap_or_default(),
+        }
+    }
+}
+
+/// Names the top-level fields whose values differ between two values of
+/// the same type.
+fn changed_fields<T: Serialize>(previous: &T, current: &T) -> Result<BTreeSet<String>> {
+    let previous = serde_json::to_value(previous)?;
+    let current = serde_json::to_value(current)?;
+    let previous = previous
+        .as_object()
+        .context("Expected an object when comparing ballot styles")?;
+    let current = current
+        .as_object()
+        .context("Expected an object when comparing ballot styles")?;
+
+    Ok(previous
+        .iter()
+        .filter(|(field, value)| current.get(*field) != Some(*value))
+        .map(|(field, _)| field.clone())
+        .collect())
+}
+
+fn parse_ballot_styles(publication: &Value) -> Result<Vec<BallotStyle>> {
+    publication
+        .as_array()
+        .context("Ballot publication must be an array of ballot styles")?
+        .iter()
+        .map(|style| {
+            deserialize_value(style.clone())
+                .map_err(|error| anyhow!("Could not read ballot style: {error:?}"))
+        })
+        .collect()
+}
+
+/// Rejects a publication that would change how ballots already cast with
+/// `previous` decode: an area left without a ballot style, or any change to
+/// a [`BallotStyleDecoding`] or [`ContestDecoding`] field.
+fn validate_ballot_style_decoding(previous: &[BallotStyle], current: &[BallotStyle]) -> Result<()> {
+    let current_by_area: HashMap<(&str, &str), &BallotStyle> = current
+        .iter()
+        .map(|style| ((style.election_id.as_str(), style.area_id.as_str()), style))
+        .collect();
+    let mut reasons = Vec::new();
+    let mut changed_contests: BTreeMap<&str, (&Contest, BTreeSet<String>)> = BTreeMap::new();
+
+    for previous_style in previous {
+        let Some(current_style) = current_by_area.get(&(
+            previous_style.election_id.as_str(),
+            previous_style.area_id.as_str(),
+        )) else {
+            reasons.push(format!(
+                "Area {} has no ballot style for election {} after voting started for that election. Restore its contests before publishing again.",
+                previous_style.area_id, previous_style.election_id
+            ));
+            continue;
+        };
+
+        let style_changes = changed_fields(
+            &BallotStyleDecoding::from(previous_style),
+            &BallotStyleDecoding::from(*current_style),
+        )?;
+        if !style_changes.is_empty() {
+            reasons.push(format!(
+                "The ballot style of area {} in election {} changed {} after voting started for that election. Restore the published values before publishing again.",
+                previous_style.area_id,
+                previous_style.election_id,
+                style_changes.into_iter().collect::<Vec<_>>().join(", ")
+            ));
+        }
+
+        for previous_contest in &previous_style.contests {
+            let Some(current_contest) = current_style
+                .contests
+                .iter()
+                .find(|contest| contest.id == previous_contest.id)
+            else {
+                continue;
+            };
+            let contest_changes = changed_fields(
+                &ContestDecoding::from(previous_contest),
+                &ContestDecoding::from(current_contest),
+            )?;
+            if !contest_changes.is_empty() {
+                changed_contests
+                    .entry(previous_contest.id.as_str())
+                    .or_insert_with(|| (current_contest, BTreeSet::new()))
+                    .1
+                    .extend(contest_changes);
+            }
+        }
     }
 
-    validate_acclamation_states(&previous, &current)
+    reasons.extend(
+        changed_contests
+            .into_iter()
+            .map(|(contest_id, (contest, fields))| {
+                let contest_name = contest.name.as_deref().unwrap_or(contest_id);
+                format!(
+                    "Contest \"{contest_name}\" ({contest_id}) changed {} after voting started for its election. Restore the published values before publishing again.",
+                    fields.into_iter().collect::<Vec<_>>().join(", ")
+                )
+            }),
+    );
+
+    if reasons.is_empty() {
+        Ok(())
+    } else {
+        Err(BallotPublicationValidationError::new(reasons).into())
+    }
+}
+
+/// Checks a publication against the latest published ballot styles of each
+/// of its elections where voting has started. `previous_publications` holds
+/// those published ballot styles, one publication per started election.
+fn validate_started_elections_publication(
+    previous_publications: &[Value],
+    current_publication: &Value,
+) -> Result<()> {
+    let current = collect_acclamation_states(current_publication)?;
+    let mut previous = BTreeMap::new();
+    for publication in previous_publications {
+        merge_acclamation_states(&mut previous, collect_acclamation_states(publication)?)?;
+    }
+
+    validate_acclamation_states(&previous, &current)?;
+
+    if previous_publications.is_empty() {
+        return Ok(());
+    }
+    let mut previous_styles = Vec::new();
+    for publication in previous_publications {
+        previous_styles.extend(parse_ballot_styles(publication)?);
+    }
+    validate_ballot_style_decoding(&previous_styles, &parse_ballot_styles(current_publication)?)
+}
+
+/// Publishing a native key requires completed custody, even through the API.
+fn validate_publication_ceremonies(
+    keys: &[PublicKeyConfig],
+    ceremonies: &[KeysCeremony],
+) -> Result<()> {
+    for key in keys.iter().filter(|key| !key.is_demo) {
+        let ceremony = key
+            .keys_ceremony_id
+            .as_deref()
+            .and_then(|id| ceremonies.iter().find(|ceremony| ceremony.id == id));
+        let complete = ceremony
+            .map(|ceremony| -> Result<bool> {
+                let status = ceremony.status()?;
+                Ok(
+                    ceremony.execution_status()? == KeysCeremonyExecutionStatus::SUCCESS
+                        && status.public_key.as_deref() == Some(key.public_key.as_str())
+                        && status
+                            .public_key_hash
+                            .as_deref()
+                            .is_some_and(|hash| !hash.is_empty()),
+                )
+            })
+            .transpose()?
+            .unwrap_or(false);
+        if !complete {
+            return Err(BallotPublicationValidationError::new(vec![format!(
+                "Keys ceremony {} must complete before ballot publication with its verified joint public key.",
+                key.keys_ceremony_id.as_deref().unwrap_or("(missing)")
+            )]).into());
+        }
+    }
+    Ok(())
+}
+
+async fn validate_published_ballot_styles(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    ballot_publication: &BallotPublication,
+) -> Result<()> {
+    let current = get_publication_json(
+        hasura_transaction,
+        tenant_id.to_owned(),
+        election_event_id.to_owned(),
+        ballot_publication.id.clone(),
+        None,
+        None,
+    )
+    .await?;
+    let ceremonies = crate::postgres::keys_ceremony::get_keys_ceremonies(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+    )
+    .await?;
+    let keys = parse_ballot_styles(&current)?
+        .into_iter()
+        .filter_map(|style| style.public_key)
+        .collect::<Vec<_>>();
+    validate_publication_ceremonies(&keys, &ceremonies)?;
+    let previous_publications = started_elections_published_styles(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        ballot_publication,
+    )
+    .await?;
+
+    validate_started_elections_publication(&previous_publications, &current)
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -251,15 +582,16 @@ async fn get_election_ids_for_publication(
 }
 
 #[instrument(err)]
-pub async fn add_ballot_publication(
+pub async fn prepare_ballot_publication(
     hasura_transaction: &Transaction<'_>,
     tenant_id: String,
     election_event_id: String,
     election_id: Option<String>,
     user_id: String,
-    executer_name: &str,
-) -> Result<(String, TasksExecution)> {
-    let celery_app = get_celery_app().await;
+) -> Result<BallotPublication> {
+    // A queued worker takes this same lock before reading the publication.
+    // Hold it until commit while allowing the task ledger's foreign-key insert.
+    lock_publication_event(hasura_transaction, &tenant_id, &election_event_id).await?;
 
     let election_ids = get_election_ids_for_publication(
         hasura_transaction,
@@ -269,7 +601,7 @@ pub async fn add_ballot_publication(
     )
     .await?;
 
-    let ballot_publication = insert_ballot_publication(
+    insert_ballot_publication(
         hasura_transaction,
         &tenant_id.clone(),
         &election_event_id.clone(),
@@ -278,7 +610,27 @@ pub async fn add_ballot_publication(
         election_id.clone(),
     )
     .await?
-    .with_context(|| "can't find inserted ballot publication")?;
+    .with_context(|| "can't find inserted ballot publication")
+}
+
+#[instrument(err)]
+pub async fn add_ballot_publication(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: String,
+    election_event_id: String,
+    election_id: Option<String>,
+    user_id: String,
+    executer_name: &str,
+) -> Result<(String, TasksExecution)> {
+    let celery_app = get_celery_app().await;
+    let ballot_publication = prepare_ballot_publication(
+        hasura_transaction,
+        tenant_id.clone(),
+        election_event_id.clone(),
+        election_id,
+        user_id,
+    )
+    .await?;
 
     let task_execution = post_task_execution(
         &tenant_id,
@@ -324,6 +676,7 @@ pub async fn update_publish_ballot(
     tenant_id: String,
     election_event_id: String,
     ballot_publication_id: String,
+    lifecycle: &crate::services::scheduled_outcome::PublicationLifecycle,
 ) -> Result<()> {
     lock_publication_event(hasura_transaction, &tenant_id, &election_event_id).await?;
 
@@ -352,13 +705,29 @@ pub async fn update_publish_ballot(
         return Ok(());
     }
 
-    validate_published_acclamation_status(
+    validate_published_slates(
         hasura_transaction,
         &tenant_id,
         &election_event_id,
         &ballot_publication,
     )
     .await?;
+
+    let design_check = super::design_check::check_publication_designs(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication_id,
+    )
+    .await?;
+    if let Some(check) = &design_check {
+        if !check.mismatches.is_empty() {
+            return Err(BallotPublicationValidationError::new(
+                check.mismatches.iter().map(ToString::to_string).collect(),
+            )
+            .into());
+        }
+    }
 
     let _result = soft_delete_other_ballot_publications(
         &hasura_transaction,
@@ -376,6 +745,18 @@ pub async fn update_publish_ballot(
         &ballot_publication_id,
         true,
         Some(ISO8601::now()),
+    )
+    .await?;
+
+    // What the publication says scheduled openings and closings may do
+    // (VOTE-LIFECYCLE §5b): the current values, or what an approval signed.
+    crate::services::scheduled_outcome::keep_publication_lifecycle(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication_id,
+        ballot_publication.election_id.as_deref(),
+        lifecycle,
     )
     .await?;
 
@@ -433,12 +814,67 @@ pub async fn update_publish_ballot(
             election_event_id.clone(),
             Some(election_ids.clone()),
             ballot_publication_id.clone(),
+            design_check.map(super::design_check::DesignCheck::published),
             Some(user_id),
             Some(username),
         )
         .await
         .map_err(|e| anyhow!("error posting to the electoral log: {e}"))?;
+
+    sync_enrollment_pages(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        election_event.presentation.clone(),
+    )
+    .await;
     Ok(())
+}
+
+/// The enrollment pages (event realm) follow the published configuration:
+/// the event's timezone and enrollment texts, and each Post's enrollment
+/// window in its zone (VOTE-LIFECYCLE §4, §8). A Keycloak failure doesn't
+/// undo the publication: it is logged, and the next publication or
+/// enrollment schedule change writes both again.
+async fn sync_enrollment_pages(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    presentation: Option<Value>,
+) {
+    match presentation
+        .map(deserialize_value::<ElectionEventPresentation>)
+        .transpose()
+    {
+        Ok(presentation) => {
+            if let Err(err) = realm_localization::sync_event_realm_localization(
+                tenant_id,
+                election_event_id,
+                presentation.as_ref(),
+            )
+            .await
+            {
+                error!(
+                    "Publication of event {election_event_id}: the event realm's timezone and \
+                     enrollment texts were not updated: {err:?}"
+                );
+            }
+        }
+        Err(err) => error!(
+            "Publication of event {election_event_id}: unreadable event presentation, the event \
+             realm's timezone and enrollment texts were not updated: {err:?}"
+        ),
+    }
+    // In a savepoint, so a failed read can't abort the publication's transaction.
+    let refreshed =
+        enrollment_windows::refresh_in_savepoint(hasura_transaction, tenant_id, election_event_id)
+            .await;
+    if let Err(err) = refreshed {
+        error!(
+            "Publication of event {election_event_id}: the enrollment windows were not \
+             updated: {err:?}"
+        );
+    }
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -589,6 +1025,66 @@ mod tests {
     }
 
     #[test]
+    fn native_publication_waits_for_completed_custody_and_a_matching_joint_key() {
+        let key = PublicKeyConfig {
+            public_key: "joint-key".into(),
+            is_demo: false,
+            keys_ceremony_id: Some("ceremony".into()),
+            configuration_id: Some("123".into()),
+        };
+        let ceremony = |execution_status: KeysCeremonyExecutionStatus| -> KeysCeremony {
+            serde_json::from_value(serde_json::json!({
+                "id": "ceremony", "tenant_id": "tenant", "election_event_id": "event",
+                "trustee_ids": [], "threshold": 2, "execution_status": execution_status.to_string(),
+                "status": {"public_key": "joint-key", "public_key_hash": "verified-hash", "logs": [], "trustees": []}
+            })).unwrap()
+        };
+        assert!(validate_publication_ceremonies(
+            &[key.clone()],
+            &[ceremony(KeysCeremonyExecutionStatus::SUCCESS)]
+        )
+        .is_ok());
+        for status in [
+            KeysCeremonyExecutionStatus::STARTED,
+            KeysCeremonyExecutionStatus::IN_PROGRESS,
+            KeysCeremonyExecutionStatus::FAILED,
+            KeysCeremonyExecutionStatus::CANCELLED,
+        ] {
+            let error =
+                validate_publication_ceremonies(&[key.clone()], &[ceremony(status)]).unwrap_err();
+            assert!(error.is::<BallotPublicationValidationError>());
+            assert!(error
+                .to_string()
+                .contains("must complete before ballot publication"));
+        }
+        for field in ["public_key", "public_key_hash"] {
+            let mut incomplete = ceremony(KeysCeremonyExecutionStatus::SUCCESS);
+            incomplete.status.as_mut().unwrap()[field] = Value::Null;
+            assert!(
+                validate_publication_ceremonies(&[key.clone()], &[incomplete]).is_err(),
+                "{field}"
+            );
+        }
+        let mut changed = ceremony(KeysCeremonyExecutionStatus::SUCCESS);
+        changed.status.as_mut().unwrap()["public_key"] = Value::String("other-key".into());
+        assert!(validate_publication_ceremonies(&[key.clone()], &[changed]).is_err());
+        assert!(validate_publication_ceremonies(&[key.clone()], &[]).is_err());
+        let mut unbound = key.clone();
+        unbound.keys_ceremony_id = None;
+        assert!(validate_publication_ceremonies(
+            &[unbound],
+            &[ceremony(KeysCeremonyExecutionStatus::SUCCESS)]
+        )
+        .is_err());
+        let demo = PublicKeyConfig {
+            is_demo: true,
+            ..key
+        };
+        assert!(validate_publication_ceremonies(&[demo], &[]).is_ok());
+        assert!(validate_publication_ceremonies(&[], &[]).is_ok());
+    }
+
+    #[test]
     fn absent_and_false_acclamation_values_are_equivalent() {
         let previous = collect_acclamation_states(&publication(json!([
             {"id": "contest-1", "name": "Mayor"}
@@ -646,6 +1142,244 @@ mod tests {
         assert!(validation_error.reasons[0].contains("false to true"));
         assert!(validation_error.reasons[1].contains("Council"));
         assert!(validation_error.reasons[1].contains("true to false"));
+    }
+
+    fn candidate(contest_id: &str, candidate_id: &str) -> Value {
+        json!({
+            "id": candidate_id,
+            "tenant_id": "tenant-1",
+            "election_event_id": "event-1",
+            "election_id": "election-1",
+            "contest_id": contest_id,
+            "name": candidate_id,
+        })
+    }
+
+    fn contest(contest_id: &str, max_votes: i64, candidate_ids: &[&str]) -> Value {
+        json!({
+            "id": contest_id,
+            "tenant_id": "tenant-1",
+            "election_event_id": "event-1",
+            "election_id": "election-1",
+            "name": "Mayor",
+            "description": "Elect the mayor",
+            "max_votes": max_votes,
+            "min_votes": 0,
+            "winning_candidates_num": 1,
+            "counting_algorithm": "plurality-at-large",
+            "is_encrypted": true,
+            "candidates": candidate_ids
+                .iter()
+                .map(|candidate_id| candidate(contest_id, candidate_id))
+                .collect::<Vec<_>>(),
+        })
+    }
+
+    fn area_style(area_id: &str, contests: Vec<Value>) -> Value {
+        json!({
+            "id": format!("style-{area_id}"),
+            "tenant_id": "tenant-1",
+            "election_event_id": "event-1",
+            "election_id": "election-1",
+            "area_id": area_id,
+            "contests": contests,
+        })
+    }
+
+    fn published_mayor_contest() -> Value {
+        contest("contest-1", 1, &["candidate-b", "candidate-c"])
+    }
+
+    fn validation_reasons(previous: Value, current: Value) -> Vec<String> {
+        let error = validate_started_elections_publication(&[previous], &current)
+            .expect_err("the publication must be rejected");
+        error
+            .downcast_ref::<BallotPublicationValidationError>()
+            .expect("a ballot publication validation error")
+            .reasons
+            .clone()
+    }
+
+    #[test]
+    fn rejects_added_candidate_after_voting_started() {
+        let previous = json!([area_style("area-1", vec![published_mayor_contest()])]);
+        let current = json!([area_style(
+            "area-1",
+            vec![contest(
+                "contest-1",
+                1,
+                &["candidate-a", "candidate-b", "candidate-c"]
+            )]
+        )]);
+
+        let reasons = validation_reasons(previous, current);
+
+        assert_eq!(reasons.len(), 1);
+        assert!(reasons[0].contains("Mayor"));
+        assert!(reasons[0].contains("candidates"));
+    }
+
+    #[test]
+    fn rejects_replaced_candidate_id_after_voting_started() {
+        let previous = json!([area_style("area-1", vec![published_mayor_contest()])]);
+        let current = json!([area_style(
+            "area-1",
+            vec![contest("contest-1", 1, &["candidate-a", "candidate-c"])]
+        )]);
+
+        let reasons = validation_reasons(previous, current);
+
+        assert_eq!(reasons.len(), 1);
+        assert!(reasons[0].contains("candidates"));
+    }
+
+    #[test]
+    fn rejects_changed_vote_limits_after_voting_started() {
+        let previous = json!([area_style("area-1", vec![published_mayor_contest()])]);
+        let mut changed = published_mayor_contest();
+        changed["max_votes"] = json!(2);
+        changed["min_votes"] = json!(1);
+        let current = json!([area_style("area-1", vec![changed])]);
+
+        let reasons = validation_reasons(previous, current);
+
+        assert_eq!(reasons.len(), 1);
+        assert!(reasons[0].contains("max_votes"));
+        assert!(reasons[0].contains("min_votes"));
+    }
+
+    #[test]
+    fn rejects_changed_counting_algorithm_after_voting_started() {
+        let previous = json!([area_style("area-1", vec![published_mayor_contest()])]);
+        let mut changed = published_mayor_contest();
+        changed["counting_algorithm"] = json!("borda");
+        let current = json!([area_style("area-1", vec![changed])]);
+
+        let reasons = validation_reasons(previous, current);
+
+        assert_eq!(reasons.len(), 1);
+        assert!(reasons[0].contains("counting_algorithm"));
+    }
+
+    #[test]
+    fn rejects_changed_vote_policy_after_voting_started() {
+        let mut published = published_mayor_contest();
+        published["presentation"] = json!({"blank_vote_policy": "allowed"});
+        let previous = json!([area_style("area-1", vec![published])]);
+        let mut changed = published_mayor_contest();
+        changed["presentation"] = json!({"blank_vote_policy": "not-allowed"});
+        let current = json!([area_style("area-1", vec![changed])]);
+
+        let reasons = validation_reasons(previous, current);
+
+        assert_eq!(reasons.len(), 1);
+        assert!(reasons[0].contains("blank_vote_policy"));
+    }
+
+    #[test]
+    fn rejects_changed_encoding_mode_after_voting_started() {
+        let previous = json!([area_style("area-1", vec![published_mayor_contest()])]);
+        let mut changed = area_style("area-1", vec![published_mayor_contest()]);
+        changed["multi_contest_encoding_mode"] = json!("expanded-capacity");
+        let current = json!([changed]);
+
+        let reasons = validation_reasons(previous, current);
+
+        assert_eq!(reasons.len(), 1);
+        assert!(reasons[0].contains("area-1"));
+        assert!(reasons[0].contains("multi_contest_encoding_mode"));
+    }
+
+    #[test]
+    fn rejects_contest_added_to_area_after_voting_started() {
+        let previous = json!([area_style("area-1", vec![published_mayor_contest()])]);
+        let current = json!([area_style(
+            "area-1",
+            vec![
+                published_mayor_contest(),
+                contest("contest-2", 1, &["candidate-d"])
+            ]
+        )]);
+
+        let reasons = validation_reasons(previous, current);
+
+        assert_eq!(reasons.len(), 1);
+        assert!(reasons[0].contains("area-1"));
+        assert!(reasons[0].contains("contest_ids"));
+    }
+
+    #[test]
+    fn rejects_missing_area_after_voting_started() {
+        let previous = json!([
+            area_style("area-1", vec![published_mayor_contest()]),
+            area_style("area-2", vec![published_mayor_contest()])
+        ]);
+        let current = json!([area_style("area-1", vec![published_mayor_contest()])]);
+
+        let reasons = validation_reasons(previous, current);
+
+        assert_eq!(reasons.len(), 1);
+        assert!(reasons[0].contains("area-2"));
+    }
+
+    #[test]
+    fn reports_a_contest_changed_in_several_areas_once() {
+        let previous = json!([
+            area_style("area-1", vec![published_mayor_contest()]),
+            area_style("area-2", vec![published_mayor_contest()])
+        ]);
+        let mut changed = published_mayor_contest();
+        changed["max_votes"] = json!(2);
+        let current = json!([
+            area_style("area-1", vec![changed.clone()]),
+            area_style("area-2", vec![changed])
+        ]);
+
+        let reasons = validation_reasons(previous, current);
+
+        assert_eq!(reasons.len(), 1);
+    }
+
+    #[test]
+    fn allows_text_changes_after_voting_started() {
+        let previous = json!([area_style("area-1", vec![published_mayor_contest()])]);
+        let mut changed = published_mayor_contest();
+        changed["description"] = json!("Elect the mayor for four years");
+        changed["candidates"][0]["description"] = json!("Former councillor");
+        let current = json!([area_style("area-1", vec![changed])]);
+
+        assert!(validate_started_elections_publication(&[previous], &current).is_ok());
+    }
+
+    #[test]
+    fn allows_unset_values_that_decode_like_their_defaults() {
+        let previous = json!([area_style("area-1", vec![published_mayor_contest()])]);
+        let mut explicit = area_style("area-1", vec![published_mayor_contest()]);
+        explicit["multi_contest_encoding_mode"] = json!("legacy");
+        let current = json!([explicit]);
+
+        assert!(validate_started_elections_publication(&[previous], &current).is_ok());
+    }
+
+    #[test]
+    fn allows_new_area_after_voting_started() {
+        let previous = json!([area_style("area-1", vec![published_mayor_contest()])]);
+        let current = json!([
+            area_style("area-1", vec![published_mayor_contest()]),
+            area_style("area-2", vec![published_mayor_contest()])
+        ]);
+
+        assert!(validate_started_elections_publication(&[previous], &current).is_ok());
+    }
+
+    #[test]
+    fn allows_any_change_when_no_election_has_started() {
+        let current = json!([area_style(
+            "area-1",
+            vec![contest("contest-1", 3, &["candidate-a"])]
+        )]);
+
+        assert!(validate_started_elections_publication(&[], &current).is_ok());
     }
 
     #[test]

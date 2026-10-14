@@ -4,32 +4,25 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub enum TimeZone {
+    #[default]
     UTC,
     Offset(i32), // Offset in hours, e.g., +1 or -4
+    /// Offset in minutes east of UTC, for zones that are not whole hours
+    /// (+5:30 is 330, +5:45 is 345).
+    OffsetMinutes(i32),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub enum DateFormat {
     DdMmYyHhMm,
+    #[default]
     DdMmYyyyHhMm,
     MmDdYyHhMm,
     MmDdYyyyHhMm,
     Custom(String),
     Default,
-}
-
-impl Default for TimeZone {
-    fn default() -> Self {
-        TimeZone::UTC
-    }
-}
-
-impl Default for DateFormat {
-    fn default() -> Self {
-        DateFormat::DdMmYyyyHhMm
-    }
 }
 
 impl DateFormat {

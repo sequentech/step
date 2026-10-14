@@ -33,6 +33,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import CloseIcon from "@mui/icons-material/Close"
 import {Visibility} from "@mui/icons-material"
 import {ETaskExecutionStatus} from "@sequentech/ui-core"
+import {ProblemList, readProblems} from "@sequentech/ui-essentials"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {StatusChip} from "./StatusChip"
 import {IKeysCeremonyLog as ITaskLog} from "@/services/KeyCeremony"
@@ -42,15 +43,20 @@ import {SettingsContext} from "../providers/SettingsContextProvider"
 import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
 import {useQuery} from "@apollo/client"
 import {DownloadDocument} from "@/resources/User/DownloadDocument"
+import {ReportManifestDownload} from "./ReportManifestDownload"
 import {GetTaskByIdQuery} from "@/gql/graphql"
+import {useEventZonedFormat} from "@/hooks/useZonedFormat"
 
 interface LogTableProps {
     logs: ITaskLog[]
     status: ETaskExecutionStatus
+    /** The task's election event: times show in its primary zone. */
+    electionEventId?: string | null
 }
 
-export const LogTable: React.FC<LogTableProps> = ({logs, status}) => {
+export const LogTable: React.FC<LogTableProps> = ({logs, status, electionEventId}) => {
     const isFailed = status === ETaskExecutionStatus.FAILED
+    const format = useEventZonedFormat(electionEventId, {seconds: true})
 
     return (
         <TransparentTable className="logs-table">
@@ -61,7 +67,7 @@ export const LogTable: React.FC<LogTableProps> = ({logs, status}) => {
                             className="date-col"
                             sx={{paddingLeft: "0", width: "40%"}}
                         >
-                            {new Date(log.created_date).toLocaleString()}
+                            {format.format(log.created_date)}
                         </TransparentTableCell>
                         <TransparentTableCell
                             className="log-text"
@@ -111,7 +117,7 @@ export const Widget: React.FC<WidgetProps> = ({
     const [touchedDownload, setTouchedDownload] = useState(false)
 
     const initialLog: ITaskLog[] = [
-        {created_date: new Date().toLocaleString(), log_text: "Task started"},
+        {created_date: new Date().toISOString(), log_text: "Task started"},
     ]
 
     const {data: taskData} = useQuery<GetTaskByIdQuery>(GET_TASK_BY_ID, {
@@ -123,6 +129,10 @@ export const Widget: React.FC<WidgetProps> = ({
             ? globalSettings.QUERY_FAST_POLL_INTERVAL_MS
             : globalSettings.QUERY_POLL_INTERVAL_MS,
     })
+
+    useEffect(() => {
+        setTaskDataStatus(status)
+    }, [status])
 
     useEffect(() => {
         if (taskData && taskData.sequent_backend_tasks_execution.length > 0) {
@@ -164,6 +174,12 @@ export const Widget: React.FC<WidgetProps> = ({
     }
 
     const lastTask = taskData?.sequent_backend_tasks_execution?.[0]
+    // A refused import says why, one named problem at a time, in the
+    // administrator's language — the log line under it is the same in English.
+    const problems =
+        taskDataStatus === ETaskExecutionStatus.FAILED
+            ? readProblems(lastTask?.annotations?.problems)
+            : undefined
 
     return (
         <>
@@ -215,12 +231,18 @@ export const Widget: React.FC<WidgetProps> = ({
                         className="accordion-details"
                         sx={{display: "flex", flexDirection: "column", padding: "8px 16px"}}
                     >
+                        {problems ? (
+                            <Box sx={{mb: 1}} data-testid="widget-problems">
+                                <ProblemList report={{problems}} />
+                            </Box>
+                        ) : null}
                         <LogsBox className="logs-box">
                             <LogTypography className="logs-title">{t("widget.logs")}</LogTypography>
                             <Divider />
                             <LogTable
                                 logs={taskDataLogs.length > 0 ? taskDataLogs : initialLog}
                                 status={taskDataStatus || status}
+                                electionEventId={lastTask?.election_event_id}
                             />
                         </LogsBox>
                         <Box sx={{display: "flex", flexDirection: "row-reverse"}}>
@@ -250,6 +272,15 @@ export const Widget: React.FC<WidgetProps> = ({
                                 >
                                     <DownloadIcon />
                                 </DownloaButton>
+                            ) : null}
+                            {expanded && taskId && lastTask?.election_event_id ? (
+                                <ReportManifestDownload
+                                    documentId={lastTask?.annotations?.document_id}
+                                    electionEventId={lastTask.election_event_id}
+                                    disabled={
+                                        lastTask?.execution_status !== ETaskExecutionStatus.SUCCESS
+                                    }
+                                />
                             ) : null}
                         </Box>
                     </AccordionDetails>

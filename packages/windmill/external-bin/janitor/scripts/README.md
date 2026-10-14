@@ -87,8 +87,8 @@ Create a `config.json` file in your working directory (the directory you pass to
     "sequence_email_number": true,
     "sequence_start_number": 0,
     "voter_password": "Qwerty1234!",
-    "password_salt": "sppXH6/iePtmIgcXfTHmjPS2QpLfILVMfmmVOLPKlic=",
-    "hashed_password": "V0rb8+HmTneV64qto5f0G2+OY09x2RwPeqtK605EUz0=",
+    "password_salt": "",
+    "hashed_password": "",
     "overseas_reference": "B",
     "min_age": 18,
     "max_age": 90
@@ -103,7 +103,6 @@ Create a `config.json` file in your working directory (the directory you pass to
       "firstName": "",
       "dateOfBirth": "",
       "termsOfService": "termsOfServiceText",
-      "emailAndOrMobile": "sequent.read-only.mobile-number;email",
       "sequent.read-only.id-card-type": "driversLicense",
       "sequent.read-only.mobile-number": "",
       "sequent.read-only.id-card-number": "",
@@ -159,7 +158,7 @@ Create a `config.json` file in your working directory (the directory you pass to
       "unset-attributes": "email,sequent.read-only.mobile-number,sequent.read-only.id-card-number-validated",
       "rejection_message": null,
       "search-attributes": "firstName,middleName,lastName,embassy,dateOfBirth",
-      "update-attributes": "sequent.read-only.id-card-number-validated,email,sequent.read-only.mobile-number,emailAndOrMobile,sequent.read-only.id-card-number,sequent.read-only.id-card-type",
+      "update-attributes": "sequent.read-only.id-card-number-validated,email,sequent.read-only.mobile-number,sequent.read-only.id-card-number,sequent.read-only.id-card-type",
       "manual_verify_reason": null
     }
   }
@@ -235,3 +234,15 @@ To generate 100,000 applications with status REJECTED and verification type MANU
 
 
 `python load_tool.py generate-applications --working-directory "/workspaces/step/packages/windmill/external-bin/janitor/scripts" --num-applications 100000 --status REJECTED --type MANUAL`
+
+Credential fields in the example are intentionally empty. Set deployment-specific
+provider credentials through the existing configuration patch before enabling an
+external authentication provider. The templates do not supply reCAPTCHA, Inetum,
+or reusable Keycloak client secrets. Windmill assigns its configured service
+client secret during realm import and clears other client secrets for Keycloak
+to generate.
+
+For voter credentials, generate plaintext test passwords in the CSV and use
+`step-cli step hash-passwords` to produce a fresh salt and verifier per voter.
+If explicitly supplying `password_salt` and `hashed_password`, provide a matching
+pair for the selected password and hashing parameters; there is no copied default.

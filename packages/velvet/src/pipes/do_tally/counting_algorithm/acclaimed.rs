@@ -2,7 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use sequent_core::ballot::{Candidate, Contest};
+#[cfg(test)]
+use sequent_core::ballot::Candidate;
+
+use sequent_core::ballot::Contest;
 
 use super::{CountingAlgorithm, Result};
 use crate::pipes::do_tally::{CandidateResult, ContestResult, ExtendedMetricsContest};

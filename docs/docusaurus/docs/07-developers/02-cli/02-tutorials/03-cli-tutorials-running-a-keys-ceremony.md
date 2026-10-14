@@ -62,17 +62,28 @@ If the command succeeds, you will see output similar to:
 
 
 ```bash 
-Success! Successfully started key ceremony. ID: d9792af0-71b8-4952-8aac-94bc0fead5f7
+Success! Successfully started key ceremony. ID: <CEREMONY_ID>
 ```
 📌 Important:
-Save the Key Ceremony ID (d9792af0-71b8-4952-8aac-94bc0fead5f7 in this example).
+Save the Key Ceremony ID returned by the command.
 You will need it in Step 2.
 
 ---
 
 ## Step 2: Complete the Key Ceremony (Trustees)
 
-After the ceremony has started, each trustee must complete it ***individually***.
+After the ceremony has started, wait for the native trustee runners to verify
+the joint public key. Each trustee must then complete it **individually** using
+the same local native keys file as its runner. See
+[Wbraid trustee configuration](../../09-wbraid/trustee-configuration.md)
+for identity generation, public key registration, and runner setup.
+
+The default ceremony is manual. Add `--automatic` to `start-key-ceremony` for
+an automated ceremony. Manual ceremonies remain `IN_PROGRESS` until every
+participating trustee confirms custody; the threshold applies to tallying.
+The completion command downloads a **public custody request**, signs it
+locally, and uploads the public proof. It keeps the request for future tally
+confirmation and never uploads the private `trustee.toml` file.
 
 ### 1. Authenticate as a Trustee
 Reconfigure the CLI and log in as the specific trustee (for example, trustee1):
@@ -92,7 +103,8 @@ Use the Key Ceremony ID returned in Step 1 to complete this trustee’s part of 
 ```bash
 cli step complete-key-ceremony \
   --election-event-id ac037831-66bd-451b-bdf7-e0a30eb2bfa0 \
-  --key-ceremony-id d9792af0-71b8-4952-8aac-94bc0fead5f7
+  --key-ceremony-id d9792af0-71b8-4952-8aac-94bc0fead5f7 \
+  --trustee-config /secure/trustee.toml
 ```
 
 ### Repeat for the Next Trustee

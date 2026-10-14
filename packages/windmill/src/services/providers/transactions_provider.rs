@@ -34,7 +34,7 @@ where
                 .rollback()
                 .await
                 .with_context(|| format!("Rollback error after transaction error {:?}", err))?;
-            return Err(anyhow!("{}", err).into());
+            return Err(anyhow!("{}", err));
         }
     }
 
@@ -76,7 +76,7 @@ pub async fn provide_hasura_transaction<F>(handler: F) -> Result<()>
 where
     for<'a> F: FnOnce(&'a Transaction<'a>) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>>,
 {
-    let mut hasura_db_client: DbClient = get_hasura_pool()
+    let hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
         .await

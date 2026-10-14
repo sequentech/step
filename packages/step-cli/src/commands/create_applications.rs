@@ -12,7 +12,6 @@ use fake::locales::EN;
 use fake::Fake;
 use rand::rng;
 use rand::seq::IndexedRandom;
-use rand::seq::SliceRandom;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::env;
@@ -76,7 +75,7 @@ impl CreateApplications {
             .await?
             .get()
             .await
-            .map_err(|e| anyhow::anyhow!("Error getting hasura client: {}", e.to_string()))?;
+            .map_err(|e| anyhow::anyhow!("Error getting hasura client: {}", e))?;
 
         // --- Query Keycloak for user details ---
         let query = "\
@@ -161,7 +160,7 @@ async fn get_permission_label(
             ],
         )
         .await?;
-    if let Some(row) = rows.get(0) {
+    if let Some(row) = rows.first() {
         let permission_label: String = row.get(0);
         Ok(permission_label)
     } else {
@@ -169,6 +168,10 @@ async fn get_permission_label(
     }
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the existing application insertion inputs and their explicit transaction, tenant, election and column context."
+)]
 async fn set_applications(
     hasura_transaction: &Transaction<'_>,
     users: Vec<Row>,
@@ -256,28 +259,25 @@ async fn set_applications(
         let permission_label = if let Some(label) = permissions_labels.get(area_id) {
             label.clone()
         } else {
-            let label = get_permission_label(
-                &hasura_transaction,
-                &tenant_id,
-                &election_event_id,
-                &area_id,
-            )
-            .await?;
+            let label =
+                get_permission_label(hasura_transaction, &tenant_id, &election_event_id, area_id)
+                    .await?;
             permissions_labels.insert(area_id_value.clone(), label.clone());
             label
         };
 
         // Build the vector of parameters.
-        let mut params: Vec<Box<dyn ToSql + Send + Sync>> = Vec::new();
-        params.push(Box::new(user_id));
-        params.push(Box::new(application_status));
-        params.push(Box::new(verification_type.clone()));
-        params.push(Box::new(applicant_data_value));
-        params.push(Box::new(Uuid::parse_str(&tenant_id)?));
-        params.push(Box::new(Uuid::parse_str(&election_event_id)?));
-        params.push(Box::new(Uuid::parse_str(area_id)?));
-        params.push(Box::new(&annotations));
-        params.push(Box::new(permission_label.clone()));
+        let params: Vec<Box<dyn ToSql + Send + Sync>> = vec![
+            Box::new(user_id),
+            Box::new(application_status),
+            Box::new(verification_type.clone()),
+            Box::new(applicant_data_value),
+            Box::new(Uuid::parse_str(&tenant_id)?),
+            Box::new(Uuid::parse_str(&election_event_id)?),
+            Box::new(Uuid::parse_str(area_id)?),
+            Box::new(&annotations),
+            Box::new(permission_label.clone()),
+        ];
 
         users_params.push(params);
     }

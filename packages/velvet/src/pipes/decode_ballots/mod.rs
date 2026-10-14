@@ -2,6 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+#[expect(
+    clippy::module_inception,
+    reason = "Preserve the existing module layout, re-exports and caller paths during the construct review"
+)]
 mod decode_ballots;
 pub(crate) mod decode_mcballots;
 pub use decode_ballots::*;

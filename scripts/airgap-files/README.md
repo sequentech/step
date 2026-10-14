@@ -125,14 +125,37 @@ command as a root user:
 
 ```bash
 sudo su -
-$ ./up <trustees_ezip> <password> <excel_path>
+$ ./up <trustees_ezip> - <excel_path>
 ```
 
 Replace `<trustees_ezip>` with the path to the encrypted zip with the trustees
-data and `<password>` with the password to the ezip. The <excel_path> should be
-the path to the excel file, for example janitor/import-data/10-11-2024-field-test-preparations.xlsx
+data. The `-` makes `up` ask for the password to the ezip without echoing it.
+The <excel_path> should be the path to the excel file, for example
+janitor/import-data/10-11-2024-field-test-preparations.xlsx
 
 Once that it has been imported and started, you can visit the different services
 at their endpoints:
 
 - Admin portal: http://localhost:3002
+
+### Network access
+
+The services publish their ports on `127.0.0.1` only, so they are reachable
+from the machine running the environment and not from other hosts. To publish
+them on a different address, set `BIND_ADDRESS` in `.env`.
+
+## Deployment credentials
+
+The environment template leaves S3, Keycloak and Vault credential values empty.
+Provision this installation's own values before starting services. Vault requires
+its matching token and unseal key; a new random value cannot unlock an existing
+Vault. Supply `TRUSTEE_KEYCLOAK_CLIENT_SECRET`, `KEYCLOAK_IVR_SERVICE_CLIENT_SECRET`,
+`KEYCLOAK_IVR_VOTING_CLIENT_SECRET` and
+`KEYCLOAK_CERTIFICATES_CLIENT_SECRET` when using the development realm imports.
+Keep the certificates client's secret identical to the certificates identity
+provider's client secret. Do not reuse credentials from an older source checkout.
+
+Restoring an existing election requires its trustees' original keys. Provider
+templates leave reCAPTCHA and Inetum credentials empty; configure these before
+enabling those providers. This legacy development package is separate from the
+evaluated CM release and delivery process.

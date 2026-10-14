@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use std::collections::HashMap;
@@ -23,6 +23,7 @@ pub async fn import_ballot_publications(
     temp_file: NamedTempFile,
     replacement_map: HashMap<String, String>,
     entries: &[(String, Vec<u8>)],
+    election_public_keys: &HashMap<String, String>,
 ) -> Result<()> {
     let bytes = std::fs::read(temp_file.path())?;
     crate::services::ballot_styles::publication_archive::import_publication_archive(
@@ -32,19 +33,20 @@ pub async fn import_ballot_publications(
         &bytes,
         entries,
         &replacement_map,
+        election_public_keys,
     )
     .await
 }
 
 /// Imports the election event config file,
 /// This file contains the election event presentation and is created during publication.
-#[instrument(err, skip(replacement_map))]
+#[instrument(err, skip(_replacement_map))]
 pub async fn import_election_event_config_file(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     temp_file: NamedTempFile,
-    replacement_map: HashMap<String, String>,
+    _replacement_map: HashMap<String, String>,
 ) -> Result<()> {
     let mut file = File::open(temp_file)?;
     let mut data_str = String::new();

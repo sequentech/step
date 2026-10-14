@@ -7,7 +7,6 @@ use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::PhoneBlacklistEntry;
 use tokio_postgres::row::Row;
-use tokio_stream::StreamExt;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -70,10 +69,9 @@ pub async fn insert_phone_blacklist_entry(
         .map(|row| PhoneBlacklistEntryRow::try_from(row).map(|entry_row| entry_row.0))
         .collect::<Result<Vec<PhoneBlacklistEntry>>>()?;
 
-    Ok(rows
-        .into_iter()
+    rows.into_iter()
         .next()
-        .ok_or(anyhow!("Row insert returned no rows"))?)
+        .ok_or(anyhow!("Row insert returned no rows"))
 }
 
 #[instrument(err, skip_all)]

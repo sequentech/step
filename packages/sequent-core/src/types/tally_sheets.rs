@@ -20,8 +20,10 @@ use strum_macros::{AsRefStr, Display, EnumString};
     Clone,
     EnumString,
     Hash,
+    Default,
 )]
 pub enum VotingChannel {
+    #[default]
     PAPER,
     POSTAL,
     IN_PERSON,
@@ -45,16 +47,10 @@ pub enum TallySheetStatus {
     DISAPPROVED,
 }
 
-impl Default for VotingChannel {
-    fn default() -> Self {
-        VotingChannel::PAPER
-    }
-}
-
 impl From<Option<String>> for VotingChannel {
     fn from(opt: Option<String>) -> Self {
         opt.and_then(|s| VotingChannel::from_str(&s).ok())
-            .unwrap_or_else(|| VotingChannel::default())
+            .unwrap_or_default()
     }
 }
 

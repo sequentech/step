@@ -2,6 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+#[cfg(test)]
+use sequent_core::util::voting_screen::{
+    check_voting_error_dialog_util, check_voting_not_allowed_next_util, get_contest_plurality,
+    get_decoded_contest_plurality,
+};
+
 use crate::config::generate_reports::PipeConfigGenerateReports;
 use crate::config::Config;
 use crate::fixtures::ballot_styles::generate_ballot_style;
@@ -15,10 +21,6 @@ use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::types::ceremonies::CountingAlgType;
 use sequent_core::types::hasura::core::TallySessionConfiguration;
-use sequent_core::util::voting_screen::{
-    check_voting_error_dialog_util, check_voting_not_allowed_next_util, get_contest_plurality,
-    get_decoded_contest_plurality,
-};
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
@@ -88,7 +90,6 @@ pub fn generate_ballots(
                 }
 
                 let mut file = fs::OpenOptions::new()
-                    .write(true)
                     .append(true)
                     .create(true)
                     .open(file.join(BALLOTS_FILE))?;
@@ -315,7 +316,6 @@ pub fn generate_mcballots_with_blank(
                 }
 
                 let mut file = fs::OpenOptions::new()
-                    .write(true)
                     .append(true)
                     .create(true)
                     .open(file.join(BALLOTS_FILE))?;
@@ -444,7 +444,7 @@ pub fn generate_mcballots_with_blank(
 
         // This step is not essential, but it makes easier to maintain the order
         // of the ballots in the file to match the generated order
-        ballots.sort_by(|a, b| a.0 .1.cmp(&b.0 .1));
+        ballots.sort_by_key(|a| a.0 .1);
 
         for (key, bigint) in ballots {
             let file = fixture
@@ -453,7 +453,6 @@ pub fn generate_mcballots_with_blank(
                 .join(format!("area__{}", key.0));
 
             let mut file = fs::OpenOptions::new()
-                .write(true)
                 .append(true)
                 .create(true)
                 .open(file.join(BALLOTS_FILE))?;
@@ -474,10 +473,12 @@ mod tests {
     use crate::cli::CliRun;
     use crate::fixtures::ballot_styles::generate_ballot_style;
     use crate::fixtures::TestFixture;
+
+    #[cfg(feature = "miru")]
     use crate::pipes::decode_ballots::decode_mcballots;
     use crate::pipes::decode_ballots::OUTPUT_DECODED_BALLOTS_FILE;
     use crate::pipes::do_tally::OUTPUT_CONTEST_RESULT_FILE;
-    use crate::pipes::generate_reports::{ReportDataComputed, TemplateData};
+    use crate::pipes::generate_reports::TemplateData;
     use crate::pipes::mark_winners::OUTPUT_WINNERS;
     use crate::pipes::pipe_inputs::{PREFIX_AREA, PREFIX_CONTEST, PREFIX_ELECTION};
     use crate::pipes::pipe_name::PipeNameOutputDir;
@@ -485,8 +486,7 @@ mod tests {
     use sequent_core::ballot_codec::BigUIntCodec;
     use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
     use sequent_core::serialization::deserialize_with_path::deserialize_str;
-    use sequent_core::types::ceremonies::CountingAlgType;
-    use sequent_core::util::init_log;
+
     use std::fs;
     use std::io::Read;
     use std::io::Write;
@@ -563,7 +563,7 @@ mod tests {
         let mut entries = fs::read_dir(&fixture.input_dir_ballots)?;
         let entry = entries.next().unwrap()?;
         let contest_path = entry.path();
-        let election_uuid = contest_path.components().last().unwrap();
+        let election_uuid = contest_path.components().next_back().unwrap();
         let entries = fs::read_dir(&contest_path)?;
         let count = entries.count();
         assert_eq!(count, 10);
@@ -595,7 +595,7 @@ mod tests {
         let mut entries = fs::read_dir(&fixture.input_dir_ballots)?;
         let entry = entries.next().unwrap()?;
         let contest_path = entry.path();
-        let election_uuid = contest_path.components().last().unwrap();
+        let _election_uuid = contest_path.components().next_back().unwrap();
         let entries = fs::read_dir(&contest_path)?;
         let count = entries.count();
         // 13 = 10 contests + 3 areas (with multi contest ballots)
@@ -604,12 +604,18 @@ mod tests {
         Ok(())
     }
 
+    // Exercises the Miru multi-contest receipts pipeline, which is not part
+    // of the evaluated TOE build (feature `miru`, off by default).
+    #[cfg(feature = "miru")]
     #[test]
     fn test_pipes_exec_mcballots() -> Result<()> {
         //sequent_core::util::init_log::init_log(true);
 
-        let election_num = 5;
-        let contest_num = 10;
+        // Keep multiple elections and contests, the deliberately missing area,
+        // and all 20 ballot cases. Larger dimensions only duplicate PDF work;
+        // these are correctness checks, not throughput benchmarks.
+        let election_num = 2;
+        let contest_num = 2;
         let area_num = 3;
         let ballot_num = 20;
 
@@ -750,7 +756,8 @@ mod tests {
         state.exec_next()?; // DecodeBallots
         state.exec_next()?; // DecodeMCBallots
         state.exec_next()?; // BallotImages
-        state.exec_next()?; // MultiBallotReceipts
+        #[cfg(feature = "miru")]
+        state.exec_next()?; // MultiBallotReceipts (miru builds only)
         state.exec_next()?; // DoTally
         state.exec_next()?; // MarkWinners
         state.exec_next()?; // GenerateReports
@@ -786,10 +793,18 @@ mod tests {
 
     #[test]
     fn test_pipes_exec() -> Result<()> {
-        sequent_core::util::init_log::init_log(true);
+        let logging = sequent_core::util::init_log::init_log(true);
+        if std::env::var_os("CI").is_some() {
+            // These fixtures are synthetic. Include Chrome's subprocess logs
+            // in failed CI output so a closed connection has a useful cause.
+            logging.modify(|level| *level = tracing::level_filters::LevelFilter::DEBUG)?;
+        }
 
-        let election_num = 5;
-        let contest_num = 10;
+        // Keep multiple elections and contests, the deliberately missing area,
+        // and all 20 ballot cases. Larger dimensions only duplicate PDF work;
+        // these are correctness checks, not throughput benchmarks.
+        let election_num = 2;
+        let contest_num = 2;
         let area_num = 3;
         let ballot_num = 20;
 
@@ -823,7 +838,7 @@ mod tests {
                 .filter(|e| {
                     e.path()
                         .file_name()
-                        .map_or(false, |f| f == OUTPUT_DECODED_BALLOTS_FILE)
+                        .is_some_and(|f| f == OUTPUT_DECODED_BALLOTS_FILE)
                 })
                 .count() as u32,
             election_num * contest_num * (area_num - 1)
@@ -842,7 +857,7 @@ mod tests {
                 .filter(|e| {
                     e.path()
                         .file_name()
-                        .map_or(false, |f| f == OUTPUT_CONTEST_RESULT_FILE)
+                        .is_some_and(|f| f == OUTPUT_CONTEST_RESULT_FILE)
                 })
                 .count() as u32,
             election_num * contest_num * area_num + election_num * contest_num
@@ -855,7 +870,7 @@ mod tests {
             WalkDir::new(cli.output_dir.as_path())
                 .into_iter()
                 .filter_map(Result::ok)
-                .filter(|e| { e.path().file_name().map_or(false, |f| f == OUTPUT_WINNERS) })
+                .filter(|e| { e.path().file_name().is_some_and(|f| f == OUTPUT_WINNERS) })
                 .count() as u32,
             election_num * contest_num * area_num + election_num * contest_num
         );
@@ -984,7 +999,6 @@ mod tests {
             .join(format!("area__{}", area_config.id));
 
         let mut file = fs::OpenOptions::new()
-            .write(true)
             .append(true)
             .create(true)
             .open(ballot_file.join("ballots.csv"))?;
@@ -1088,7 +1102,6 @@ mod tests {
             .join(format!("area__{}", &area_config.id));
 
         let mut file = fs::OpenOptions::new()
-            .write(true)
             .append(true)
             .create(true)
             .open(ballot_file.join("ballots.csv"))?;
@@ -1197,7 +1210,6 @@ mod tests {
             .join(format!("area__{}", area_config.id));
 
         let mut file = fs::OpenOptions::new()
-            .write(true)
             .append(true)
             .create(true)
             .open(ballot_file.join("ballots.csv"))?;
@@ -1432,7 +1444,6 @@ mod tests {
             .join(format!("area__{}", area_config.id));
 
         let mut file = fs::OpenOptions::new()
-            .write(true)
             .append(true)
             .create(true)
             .open(ballot_file.join("ballots.csv"))?;
@@ -1539,7 +1550,6 @@ mod tests {
             .join(format!("area__{}", area_config.id));
 
         let mut file = fs::OpenOptions::new()
-            .write(true)
             .append(true)
             .create(true)
             .open(ballot_file.join("ballots.csv"))?;
@@ -1706,7 +1716,6 @@ mod tests {
             .join(format!("area__{}", area_config.id));
 
         let mut file = fs::OpenOptions::new()
-            .write(true)
             .append(true)
             .create(true)
             .open(ballot_file.join("ballots.csv"))?;
@@ -1858,7 +1867,6 @@ mod tests {
             .join(format!("area__{}", area_config.id));
 
         let mut file = fs::OpenOptions::new()
-            .write(true)
             .append(true)
             .create(true)
             .open(ballot_file.join("ballots.csv"))?;
@@ -1984,7 +1992,7 @@ mod tests {
         let election_event_id = Uuid::new_v4();
         let parent_area_id = Uuid::new_v4();
         let child_area_id = Uuid::new_v4();
-        let area_ids: Vec<Uuid> = vec![parent_area_id.clone(), child_area_id.clone()];
+        let _area_ids: Vec<Uuid> = vec![parent_area_id, child_area_id];
 
         let mut election = fixture.create_election_config_2(
             &election_event_id,
@@ -2020,7 +2028,7 @@ mod tests {
                 &Uuid::from_str(&contest.id).unwrap(),
                 100,
                 0,
-                Some(parent_area_id.clone()),
+                Some(parent_area_id),
                 Some(child_area_id.to_string()),
             )
             .unwrap();
@@ -2043,21 +2051,20 @@ mod tests {
         ));
 
         // Step 2: Create 10 votes for each area
-        for i in 0..2 {
+        for (i, area_config) in areas_config[..2].iter().enumerate() {
             println!(
                 " ----- i {} Area {} Contest {}",
-                i, areas_config[i].id, contest.id
+                i, area_config.id, contest.id
             );
             let ballots_path = fixture
                 .input_dir_ballots
                 .join(format!("election__{}", &election.id))
                 .join(format!("contest__{}", contest.id))
-                .join(format!("area__{}", areas_config[i].id))
+                .join(format!("area__{}", area_config.id))
                 .join("ballots.csv");
             println!("ballots_path={ballots_path:?}");
 
             let mut ballots_csv_file = fs::OpenOptions::new()
-                .write(true)
                 .append(true)
                 .create(true)
                 .open(ballots_path)?;
@@ -2098,7 +2105,7 @@ mod tests {
                     is_blank_ballot: false,
                     invalid_errors: vec![],
                     invalid_alerts: vec![],
-                    choices: choices,
+                    choices,
                 };
 
                 let plaintext = contest
@@ -2132,7 +2139,7 @@ mod tests {
 
         // Verify results for the contest
         // Results would be just of voters that were directly assigned the area
-        for (index, area_config) in areas_config.into_iter().enumerate() {
+        for area_config in areas_config {
             let area_path = cli
                 .output_dir
                 .join("velvet-generate-reports")
@@ -2187,7 +2194,7 @@ mod tests {
         decoded_contests1.insert(contest1.id.clone(), decoded_contest);
 
         let result = check_voting_not_allowed_next_util(vec![contest1], decoded_contests1);
-        assert_eq!(result, false);
+        assert!(!result);
 
         // Case 2: EBlankVotePolicy::NOT_ALLOWED and there aren't any votes cast -> true
         let contest2: Contest = get_contest_plurality(
@@ -2201,7 +2208,7 @@ mod tests {
         decoded_contests2.insert(contest2.id.clone(), decoded_contest);
 
         let result = check_voting_not_allowed_next_util(vec![contest2], decoded_contests2);
-        assert_eq!(result, true);
+        assert!(result);
 
         // Case 3: EBlankVotePolicy::NOT_ALLOWED still blocks blank votes when minVotes = 0
         let contest3 = get_contest_plurality(
@@ -2215,7 +2222,7 @@ mod tests {
         decoded_contests3.insert(contest3.id.clone(), decoded_contest);
 
         let result = check_voting_not_allowed_next_util(vec![contest3], decoded_contests3);
-        assert_eq!(result, true);
+        assert!(result);
 
         // Case 4: EBlankVotePolicy::NOT_ALLOWED blocks blank votes when InvalidVotePolicy is NOT_ALLOWED
         let contest4 = get_contest_plurality(
@@ -2229,7 +2236,7 @@ mod tests {
         decoded_contests4.insert(contest4.id.clone(), decoded_contest);
 
         let result = check_voting_not_allowed_next_util(vec![contest4], decoded_contests4);
-        assert_eq!(result, true);
+        assert!(result);
 
         // Case 5: Missing decoded state means validation is not ready, so fail closed
         let contest5 = get_contest_plurality(
@@ -2240,7 +2247,7 @@ mod tests {
         );
 
         let result = check_voting_not_allowed_next_util(vec![contest5], HashMap::new());
-        assert_eq!(result, true);
+        assert!(result);
     }
 
     #[test]
@@ -2257,7 +2264,7 @@ mod tests {
         decoded_contests1.insert(contest1.id.clone(), decoded_contest);
 
         let result = check_voting_error_dialog_util(vec![contest1], decoded_contests1);
-        assert_eq!(result, true);
+        assert!(result);
 
         // Case 2: EBlankVotePolicy::WARN and choices_selected = 0 -> true
         let contest2 = get_contest_plurality(
@@ -2271,7 +2278,7 @@ mod tests {
         decoded_contests2.insert(contest2.id.clone(), decoded_contest);
 
         let result = check_voting_error_dialog_util(vec![contest2], decoded_contests2);
-        assert_eq!(result, true);
+        assert!(result);
 
         // Case 3: EBlankVotePolicy::ALLOWED and minVotes = 0 and InvalidVotePolicy::NOT_ALLOWED -> false
         let contest3 = get_contest_plurality(
@@ -2285,6 +2292,6 @@ mod tests {
         decoded_contests3.insert(contest3.id.clone(), decoded_contest);
 
         let result = check_voting_error_dialog_util(vec![contest3], decoded_contests3);
-        assert_eq!(result, false);
+        assert!(!result);
     }
 }

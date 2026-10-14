@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": [
+      "node"
+    ],
+    "target": "ES2022"
+  },
+  "include": [
+    "test/journeys",
+    "playwright.journeys.config.ts"
+  ],
+  "exclude": []
+}

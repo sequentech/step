@@ -132,7 +132,7 @@ export const SettingsLanguages: React.FC<void> = () => {
     }
 
     useEffect(() => {
-        if (record.settings) {
+        if (record?.settings) {
             setLanguageConf(
                 (record?.settings as ITenantSettings | undefined)?.language_conf ??
                     defaultLanguageConf

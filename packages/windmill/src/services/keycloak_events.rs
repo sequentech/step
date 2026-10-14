@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
 use serde::{Deserialize, Serialize};
@@ -86,7 +86,7 @@ pub async fn list_keycloak_events_by_type(
     }
 
     let rows: Vec<Row> = keycloak_transaction
-        .query(&statement, &params.as_slice())
+        .query(&statement, params.as_slice())
         .await
         .map_err(|err| anyhow!("Error running list_keycloak_events_by_type query: {err}"))?;
 
@@ -133,11 +133,10 @@ pub async fn count_keycloak_events_by_type(
             params.push(&AREA_ID_ATTR_NAME);
             params.push(&area_id);
             (
-                format!(
-                    r#"
+                r#"
                 INNER JOIN
                     user_attribute AS us ON us.user_id = e.user_id"#
-                ),
+                    .to_string(),
                 format!(
                     r#"
                 AND us.name = ${next_param_number}
@@ -174,7 +173,7 @@ pub async fn count_keycloak_events_by_type(
         })?;
 
     let row: Row = keycloak_transaction
-        .query_one(&statement, &params.as_slice())
+        .query_one(&statement, params.as_slice())
         .await
         .map_err(|err| anyhow!("Error running count_keycloak_events_by_type query: {err}"))?;
 
@@ -191,8 +190,7 @@ pub async fn count_keycloak_password_reset_event_by_area(
 ) -> Result<i64> {
     let statement = keycloak_transaction
         .prepare(
-            format!(
-                r#"
+            r#"
              SELECT COUNT(*)
             FROM (
                 SELECT *
@@ -208,7 +206,7 @@ pub async fn count_keycloak_password_reset_event_by_area(
                 AND us.name = $2
                 AND us.value = $3
                 "#
-            )
+            .to_string()
             .as_str(),
         )
         .await
@@ -221,7 +219,7 @@ pub async fn count_keycloak_password_reset_event_by_area(
     let params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &AREA_ID_ATTR_NAME, &area_id];
 
     let row: Row = keycloak_transaction
-        .query_one(&statement, &params.as_slice())
+        .query_one(&statement, params.as_slice())
         .await
         .map_err(|err| {
             anyhow!("Error running count_keycloak_password_reset_event_by_area query: {err}")

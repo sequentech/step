@@ -86,7 +86,7 @@ pub async fn get_secret_by_key(
         .collect::<Result<Vec<Secret>>>()
         .with_context(|| "Error converting rows into Secrets")?;
 
-    if 0 == secrets.len() {
+    if secrets.is_empty() {
         return Ok(None);
     } else if secrets.len() > 1 {
         return Err(anyhow!("Found too many secrets: {}", secrets.len()));
@@ -177,14 +177,14 @@ pub async fn insert_secret(
             "#,
         )
         .await
-        .map_err(|err| anyhow!("Error preparing scheduled event statement: {}", err))?;
+        .map_err(|err| anyhow!("Error preparing secret statement: {}", err))?;
     let rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
             &[&tenant_uuid, &key, &encrypted_bytes, &election_event_uuid],
         )
         .await
-        .map_err(|err| anyhow!("Error inserting scheduled event: {}", err))?;
+        .map_err(|err| anyhow!("Error inserting secret: {}", err))?;
 
     let rows: Vec<Secret> = rows
         .into_iter()
@@ -197,4 +197,50 @@ pub async fn insert_secret(
     } else {
         Err(anyhow!("Unexpected rows affected {}", rows.len()))
     }
+}
+
+/// Replaces the encrypted value of an existing secret, returning whether one
+/// was found.
+#[instrument(skip(hasura_transaction, encrypted_bytes), err)]
+pub async fn update_secret_value(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    key: &str,
+    encrypted_bytes: &Vec<u8>,
+) -> Result<bool> {
+    let tenant_uuid = parse_uuid_v4(tenant_id)
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+    let updated = hasura_transaction
+        .execute(
+            r#"
+                UPDATE "sequent_backend".secret
+                SET value = $3
+                WHERE tenant_id = $1 AND key = $2;
+            "#,
+            &[&tenant_uuid, &key, &encrypted_bytes],
+        )
+        .await
+        .map_err(|err| anyhow!("Error updating secret: {}", err))?;
+    Ok(updated == 1)
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn delete_secret_by_key(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    key: &str,
+) -> Result<bool> {
+    let tenant_uuid = parse_uuid_v4(tenant_id)
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+    let deleted = hasura_transaction
+        .execute(
+            r#"
+                DELETE FROM "sequent_backend".secret
+                WHERE tenant_id = $1 AND key = $2;
+            "#,
+            &[&tenant_uuid, &key],
+        )
+        .await
+        .map_err(|err| anyhow!("Error deleting secret: {}", err))?;
+    Ok(deleted == 1)
 }

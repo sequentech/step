@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {Meta, StoryObj} from "@storybook/react"
+import {Meta, StoryObj} from "@storybook/react-vite"
 import Tree from "../Tree"
-import {INITIAL_VIEWPORTS} from "@storybook/addon-viewport"
+import {INITIAL_VIEWPORTS} from "storybook/viewport"
 import {faBank} from "@fortawesome/free-solid-svg-icons"
 import Icon from "../../Icon/Icon"
 import {styled} from "@mui/material/styles"

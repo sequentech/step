@@ -88,8 +88,8 @@ impl TemplateRenderer for BallotImagesTemplate {
     #[instrument(err, skip_all)]
     async fn prepare_user_data(
         &self,
-        hasura_transaction: &Transaction<'_>,
-        keycloak_transaction: &Transaction<'_>,
+        _hasura_transaction: &Transaction<'_>,
+        _keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
         Err(anyhow::anyhow!("Unimplemented"))
     }

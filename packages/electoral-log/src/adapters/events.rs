@@ -17,7 +17,7 @@ use super::postgres::{
     LogScope, PostgresConnection, PostgresStore, BACKUP_USER_ENV, READER_USER_ENV,
 };
 use crate::{
-    domain::{ElectoralLogMessage, LogEntry, LogQuery},
+    domain::{ElectoralLogMessage, LogEntry, LogQuery, StoredRecord},
     ports::ElectoralLogStore,
 };
 use anyhow::{anyhow, ensure, Context, Result};
@@ -425,6 +425,7 @@ impl EventDatabases {
             .with_context(|| format!("Error letting {reader} connect to {database}"))?;
         }
         store.initialize().await?;
+        store.upgrade_ballot_boxes().await?;
         for reader in &readers {
             store.grant_read(reader).await?;
         }
@@ -763,7 +764,7 @@ impl ElectoralLogStore for EventDatabases {
         &self,
         board: &str,
         entries: &mut (dyn Iterator<Item = Result<LogEntry>> + Send),
-    ) -> Result<()> {
+    ) -> Result<Vec<StoredRecord>> {
         self.board_store(board).await?.append(board, entries).await
     }
 

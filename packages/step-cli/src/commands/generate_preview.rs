@@ -2,11 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::{
-    commands::generate_preview,
-    types::hasura_types::*,
-    utils::{read_config::read_config, upload_file::GetUploadUrl},
-};
+use crate::utils::{read_config::read_config, upload_file::GetUploadUrl};
 use clap::Args;
 use graphql_client::{GraphQLQuery, Response};
 use sequent_core::types::permissions::Permissions;

@@ -2,8 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use std::collections::HashMap;
-
 use crate::{types::hasura_types::*, utils::read_config::read_config};
 use clap::Args;
 use colored::Colorize;

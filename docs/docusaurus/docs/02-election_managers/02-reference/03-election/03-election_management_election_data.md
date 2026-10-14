@@ -123,10 +123,16 @@ Import advanced settings for this Election and define vote limits, confirmations
     1. Create or select a permission label (e.g., “Election A Manager”).  
     2. Associate one or more admin users with this label.  
     3. Only users with this permission label see or modify this Election in the Admin Portal.
+  - Actions that apply to the whole Election Event, such as changing the event voting status or dates, publishing the event ballot, exporting the event logs, browsing the event on the Electoral Log page or requesting its electoral-log checkpoints and proofs, require a user whose permission labels cover every labelled Election of the event. The electoral log shows such a user only the entries of the Elections they can access and the entries that belong to no Election.
 
 - **Upload Advanced Configuration** (Optional):  
   - Drag and drop a configuration file (e.g., JSON or system-specific format) to apply pre-defined advanced settings.  
   - This may include settings like contest encryption policies, custom validations, or integrations.
+
+- **Slates** (Optional):  
+  - **Slate configuration (JSON)** defines the named slates of this Election and the candidates each one has in each contest. Leave it empty for an Election without slates.  
+  - **Mobile candidate lists** chooses whether each slate's candidate list starts collapsed or expanded on phones.  
+  - See [Slate Configuration](../14-slates-configuration.md).
   
 - **Start Screen Title Policy**
 

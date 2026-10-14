@@ -15,10 +15,8 @@ pub fn check_max_selections_per_type(
     contest: &Contest,
     decoded_vote: &DecodedVoteContest,
 ) -> Vec<InvalidPlaintextError> {
-    let presentation =
-        contest.presentation.clone().unwrap_or(Default::default());
-    let Some(max_selections_per_type) =
-        presentation.max_selections_per_type.clone()
+    let presentation = contest.presentation.clone().unwrap_or_default();
+    let Some(max_selections_per_type) = presentation.max_selections_per_type
     else {
         return vec![];
     };
@@ -37,13 +35,11 @@ pub fn check_max_selections_per_type(
         if selection.selected < 0 {
             continue;
         }
-        let Some(candidate_type) =
-            candidates_type_map.get(&selection.id).clone()
+        let Some(candidate_type) = candidates_type_map.get(&selection.id)
         else {
             continue;
         };
-        let current_count =
-            type_count.get(candidate_type).clone().unwrap_or(&0);
+        let current_count = type_count.get(candidate_type).unwrap_or(&0);
         type_count.insert(candidate_type.clone(), current_count + 1);
     }
 

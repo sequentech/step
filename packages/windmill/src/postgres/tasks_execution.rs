@@ -4,16 +4,11 @@
 use crate::services::database::get_hasura_pool;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::services::date::ISO8601;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
-use sequent_core::types::{
-    ceremonies::Log,
-    hasura::{core::TasksExecution, extra::TasksExecutionStatus},
-};
+use sequent_core::types::hasura::{core::TasksExecution, extra::TasksExecutionStatus};
 use serde_json::value::Value;
-use std::collections::HashMap;
 use tokio_postgres::row::Row;
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 use uuid::Uuid;
 
 pub struct TasksExecutionWrapper(pub TasksExecution);
@@ -43,6 +38,10 @@ impl TryFrom<Row> for TasksExecutionWrapper {
     }
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the existing database API argument order for transaction, record scope and column values."
+)]
 #[instrument(skip(annotations, labels, logs), err)]
 pub async fn insert_tasks_execution(
     tenant_id: &str,
@@ -337,6 +336,60 @@ pub async fn get_task_by_id_with_transaction(
     row.try_into()
         .map(|wrapper: TasksExecutionWrapper| wrapper.0)
         .context("Error converting database row to TasksExecution")
+}
+
+/// The latest successful task of `task_type` in an election event whose
+/// result annotations name `document_id`.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_successful_task_by_document_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    task_type: &str,
+    document_id: &str,
+) -> Result<Option<TasksExecution>> {
+    let tenant_uuid =
+        parse_uuid_v4(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {err}"))?;
+    let election_event_uuid = parse_uuid_v4(election_event_id)
+        .map_err(|err| anyhow!("Error parsing election event UUID: {err}"))?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT *
+                FROM sequent_backend.tasks_execution
+                WHERE
+                    tenant_id = $1
+                    AND election_event_id = $2
+                    AND type = $3
+                    AND execution_status = $4
+                    AND annotations->>'document_id' = $5
+                ORDER BY created_at DESC
+                LIMIT 1
+            "#,
+        )
+        .await?;
+
+    let row = hasura_transaction
+        .query_opt(
+            &statement,
+            &[
+                &tenant_uuid,
+                &election_event_uuid,
+                &task_type,
+                &TasksExecutionStatus::SUCCESS.to_string(),
+                &document_id,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error fetching task: {err}"))?;
+
+    row.map(|row| {
+        row.try_into()
+            .map(|wrapper: TasksExecutionWrapper| wrapper.0)
+    })
+    .transpose()
+    .context("Error converting database row to TasksExecution")
 }
 
 /// Serializes all attempts for one export task. Transaction-scoped advisory
