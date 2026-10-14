@@ -28,7 +28,6 @@ use crate::services::signing::custody_proofs::tally_trustee_signatures;
 
 const ACTION_PREFIX: &str = "trustee:server-custody:";
 const IMPORTED_CEREMONY_ORIGINS: &str = "protocol:imported-ceremony-origins";
-const LEGACY_IMPORTED_CUSTODY_FILES: &str = "trustee:imported-custody-files";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -50,11 +49,7 @@ fn imported_ceremony_origins(
 ) -> Result<Option<ImportedCeremonyOrigins>> {
     annotations
         .as_ref()
-        .and_then(|value| {
-            value
-                .get(IMPORTED_CEREMONY_ORIGINS)
-                .or_else(|| value.get(LEGACY_IMPORTED_CUSTODY_FILES))
-        })
+        .and_then(|value| value.get(IMPORTED_CEREMONY_ORIGINS))
         .map(|value| {
             serde_json::from_value(value.clone()).context("Invalid imported ceremony origins")
         })
@@ -90,7 +85,6 @@ pub fn preserve_imported_ceremony_origins(
     let annotations = annotations
         .as_object_mut()
         .context("Invalid keys ceremony annotations")?;
-    annotations.remove(LEGACY_IMPORTED_CUSTODY_FILES);
     annotations.insert(
         IMPORTED_CEREMONY_ORIGINS.into(),
         serde_json::to_value(history)?,

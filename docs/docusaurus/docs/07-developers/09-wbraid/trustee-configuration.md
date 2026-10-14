@@ -262,8 +262,6 @@ to the unchanged signed DKG configuration. Repeated imports preserve earlier
 source scopes too. The key ceremony's `annotations` field stores this history under
 `protocol:imported-ceremony-origins`: a `configuration_hash` and a `scopes` array
 of source `tenant_id`, `election_event_id` and `keys_ceremony_id` values.
-Existing `trustee:imported-custody-files` annotations remain readable; importing
-an archive with that legacy key preserves its history under the new name.
 The trustee's name and both public keys must still match the
 current ceremony. Uploading queues a fresh proof scoped to the imported event
 and active tally, followed by the existing human authorization and signing gate.
