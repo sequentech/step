@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::postgres::election_event::get_election_event_by_id_if_exist;
 use crate::postgres::maintenance::vacuum_analyze_direct;
 use crate::services::audit_log::{stage, AdminAction, AdminChange, AuditActor, AuditObject};
 use crate::services::delete_election_event::drop_uncommitted_event_database;
@@ -20,11 +21,11 @@ use crate::{
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::Transaction;
-use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::services::translations::Name;
+use sequent_core::types::hasura::core::{ElectionEvent, TasksExecution};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tracing::{event, info, instrument, Level};
-use uuid::Uuid;
 
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct ImportElectionEventBody {
@@ -77,24 +78,23 @@ fn imported_entry(
     .with_extra(extra))
 }
 
-/// The name the import gave the event.
+/// The name the import gave the event, in its default language. The name is
+/// in the event's presentation, not in a column of its own.
 async fn imported_name(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
 ) -> anyhow::Result<Option<String>> {
-    let row = hasura_transaction
-        .query_opt(
-            "SELECT name FROM sequent_backend.election_event
-             WHERE tenant_id = $1 AND id = $2",
-            &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-            ],
-        )
+    let event = get_election_event_by_id_if_exist(hasura_transaction, tenant_id, election_event_id)
         .await
         .context("Error reading the imported election event")?;
-    Ok(row.and_then(|row| row.get(0)))
+    Ok(event.and_then(|event| imported_event_name(&event)))
+}
+
+/// An event's name for its audit entry, if its translations give one.
+fn imported_event_name(event: &ElectionEvent) -> Option<String> {
+    Some(event.get_name(&event.get_default_language()))
+        .filter(|name| !name.is_empty() && name != "-")
 }
 
 #[instrument(err)]
@@ -176,6 +176,36 @@ mod tests {
 
     fn body(json: serde_json::Value) -> ImportElectionEventBody {
         serde_json::from_value(json).unwrap()
+    }
+
+    fn imported_event(presentation: serde_json::Value) -> ElectionEvent {
+        serde_json::from_value(json!({
+            "id": EVENT_ID,
+            "tenant_id": TENANT_ID,
+            "presentation": presentation,
+            "is_archived": false,
+            "encryption_protocol": "RSA256",
+        }))
+        .unwrap()
+    }
+
+    /// The name is read from the presentation, in the default language: the
+    /// table has had no name column since the names moved there.
+    #[test]
+    fn an_imported_events_name_is_its_default_languages_name() {
+        let named = imported_event(json!({
+            "language_conf": {"default_language_code": "es"},
+            "i18n": {"en": {"name": "Barangay 2026"}, "es": {"name": "Barangay 2026 (es)"}},
+        }));
+        assert_eq!(
+            imported_event_name(&named).as_deref(),
+            Some("Barangay 2026 (es)")
+        );
+        assert_eq!(imported_event_name(&imported_event(json!({}))), None);
+        assert_eq!(
+            imported_event_name(&imported_event(serde_json::Value::Null)),
+            None
+        );
     }
 
     #[test]

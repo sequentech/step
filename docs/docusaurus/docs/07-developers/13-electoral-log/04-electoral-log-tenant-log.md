@@ -217,9 +217,10 @@ Written by the batch task for a Keycloak admin event (section 7).
 }
 ```
 
-- `made_by` is `SERVICE_ACCOUNT` when the actor's username is `service-account-<client>`, where
-  `<client>` is `KEYCLOAK_ADMIN_CLIENT_ID`, and `OPERATOR` for anyone else. A service account's entry
-  is `SYSTEM`; an operator's is `USER`. The log type is `ERROR` when `error` is not null.
+- `made_by` is `SERVICE_ACCOUNT` when Step made the change: the actor is `service-account-<client>`,
+  or the `master` realm's user `<client>`, where `<client>` is `KEYCLOAK_ADMIN_CLIENT_ID`
+  (`KeycloakAdminClient` signs in as that user through `admin-cli`). It is `OPERATOR` for anyone
+  else. Step's entry is `SYSTEM`; an operator's is `USER`. The log type is `ERROR` when `error` is not null.
 - `representation` is `null` when Keycloak sent none. The listener redacts it
   (`AdminRepresentation`): a text or container value under a key that contains `password`, `secret`,
   `private_key`, `privateKey`, `token` or `bindCredential`, or under a path that matches

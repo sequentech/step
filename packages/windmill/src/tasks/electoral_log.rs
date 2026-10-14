@@ -674,14 +674,20 @@ pub enum AdminEventAuthor {
 /// Prefix Keycloak gives the username of a client's service account.
 const SERVICE_ACCOUNT_PREFIX: &str = "service-account-";
 
-/// Who made an admin event: Step's service account is the service account
-/// of the client `service_client`.
+/// Realm where Step's admin account lives when it signs in with a password.
+const ADMIN_ACCOUNT_REALM: &str = "master";
+
+/// Who made an admin event. Step acts on Keycloak's admin API as
+/// `service_client` (`KEYCLOAK_ADMIN_CLIENT_ID`): the service account of that
+/// client, or the master realm's user of that name, which is how
+/// `KeycloakAdminClient` signs in (a password grant through `admin-cli`).
 pub fn admin_event_author(admin_event: &Value, service_client: &str) -> AdminEventAuthor {
     let actor = &admin_event["actor"];
+    let username = actor["username"].as_str().unwrap_or_default();
     let is_service = !service_client.is_empty()
-        && actor["username"].as_str().is_some_and(|name| {
-            name.eq_ignore_ascii_case(&format!("{SERVICE_ACCOUNT_PREFIX}{service_client}"))
-        });
+        && (username.eq_ignore_ascii_case(&format!("{SERVICE_ACCOUNT_PREFIX}{service_client}"))
+            || (username.eq_ignore_ascii_case(service_client)
+                && actor["realm"].as_str() == Some(ADMIN_ACCOUNT_REALM)));
     if is_service {
         AdminEventAuthor::ServiceAccount
     } else {
@@ -1831,6 +1837,34 @@ mod batch_build_tests {
         let (message, in_event, _) = audit_entry(&event[0]);
         assert_eq!(in_event.event_type, StatementEventType::USER);
         assert_eq!(message.statement.head.event.0, EVENT);
+    }
+
+    /// Step signs in to Keycloak's admin API as the master realm's user named
+    /// by `KEYCLOAK_ADMIN_CLIENT_ID` (through `admin-cli`), so that user's
+    /// changes are Step's own; the same name in another realm is not.
+    #[test]
+    fn an_admin_event_by_steps_master_realm_account_is_steps_own() {
+        let event = |username: &str, realm: Value| json!({"actor": {"username": username, "client_id": "admin-cli", "realm": realm}});
+        assert_eq!(
+            admin_event_author(&event("Admin", json!("master")), "admin"),
+            AdminEventAuthor::ServiceAccount
+        );
+        for (username, realm, client) in [
+            (
+                "admin",
+                json!("tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5"),
+                "admin",
+            ),
+            ("admin", Value::Null, "admin"),
+            ("ada", json!("master"), "admin"),
+            ("", json!("master"), ""),
+        ] {
+            assert_eq!(
+                admin_event_author(&event(username, realm.clone()), client),
+                AdminEventAuthor::Operator,
+                "{username} {realm} {client}"
+            );
+        }
     }
 
     #[test]
