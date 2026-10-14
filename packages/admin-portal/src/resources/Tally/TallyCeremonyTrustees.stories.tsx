@@ -207,27 +207,18 @@ export const Populated: Story = {
     },
 }
 
-export const DownloadRecoveryFileLeavesCustodyPending: Story = {
+export const RequiresTheSavedCeremonyFile: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        const download = await canvas.findByRole("button", {
-            name: i18n.t("keysGeneration.downloadStep.downloadButton"),
-        })
-        await waitFor(() => expect(download).toBeEnabled())
-        await userEvent.click(download)
-        await waitFor(() => expect(graphql.calls).toHaveLength(1))
-        expect(graphql.calls.map(({name, variables}) => ({name, variables}))).toEqual([
-            {
-                name: "GetCustodyRequest",
-                variables: {
-                    electionEventId: EVENT_ID,
-                    keysCeremonyId: STORY_IDS.keysCeremony,
-                    tallySessionId: STORY_IDS.tallySession,
-                },
-            },
-        ])
+        await canvas.findByRole("checkbox", {name: "Council"})
+        expect(
+            canvas.queryByRole("button", {
+                name: i18n.t("keysGeneration.downloadStep.downloadButton"),
+            })
+        ).toBeNull()
         await expect(nextButton(canvasElement)).toBeDisabled()
         expect(data.writes).toEqual([])
+        expect(graphql.calls).toEqual([])
     },
 }
 

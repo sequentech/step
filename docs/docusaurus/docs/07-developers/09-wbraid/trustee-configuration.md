@@ -256,15 +256,16 @@ The copy starts with a fresh ballot box: the archive preserves tally transcripts
 and results, rather than restoring accepted ballots, revote history or voter
 receipts into a running election.
 
-For a copied manual event, start a tally and use **Download Ceremony File** on
-the trustee's tally screen. Save and upload this newly scoped public file. The
-original event's file is rejected because its platform IDs differ. Downloading
-never queues a proof or changes custody approval; uploading creates a fresh
-server proof, followed by the existing human authorization and signing gate.
-The same file can be reused for subsequent tallies in the copy. The existing
-`get_custody_request` action takes an optional `tally_session_id` for this read-only
-download and validates the supplied ceremony against that active tally. Without
-it, the initial key ceremony download retains its existing lifecycle checks.
+For a copied manual event, start a tally and upload the original ceremony file
+saved during the key ceremony. Import preserves that file's source scope, bound
+to the unchanged signed DKG configuration. Repeated imports preserve earlier
+source scopes too. The trustee's name and both public keys must still match the
+current ceremony. Uploading queues a fresh proof scoped to the imported event
+and active tally, followed by the existing human authorization and signing gate.
+Proofs from the original event or another tally are rejected. The tally screen
+has no ceremony-file download; trustees must bring their saved file. For copies
+imported before source scopes were preserved, reimport the original event archive
+to use the original ceremony files.
 
 An event archive does not include native trustee private identities or their
 local runner state. An imported parent board reuses the trustee's original local

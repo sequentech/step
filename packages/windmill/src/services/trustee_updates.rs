@@ -11,6 +11,7 @@ use protocol_board::{
     TrusteeEventUpdates,
 };
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::types::hasura::core::KeysCeremony;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use uuid::Uuid;
@@ -26,6 +27,63 @@ use crate::services::ceremonies::{
 use crate::services::signing::custody_proofs::tally_trustee_signatures;
 
 const ACTION_PREFIX: &str = "trustee:server-custody:";
+const IMPORTED_FILES: &str = "trustee:imported-custody-files";
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CeremonyFileScope {
+    tenant_id: String,
+    election_event_id: String,
+    keys_ceremony_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ImportedFiles {
+    configuration_hash: String,
+    scopes: Vec<CeremonyFileScope>,
+}
+
+fn imported_files(annotations: &Option<Value>) -> Result<Option<ImportedFiles>> {
+    annotations
+        .as_ref()
+        .and_then(|value| value.get(IMPORTED_FILES))
+        .map(|value| {
+            serde_json::from_value(value.clone()).context("Invalid imported ceremony file scopes")
+        })
+        .transpose()
+}
+
+/// Preserve source IDs before import remaps application metadata. The signed
+/// configuration stays immutable, including across repeated imports.
+pub fn preserve_custody_file_scopes(
+    original: &KeysCeremony,
+    imported: &mut KeysCeremony,
+    configuration: &protocol_board::SignedConfiguration,
+) -> Result<()> {
+    let mut history = imported_files(&original.annotations)?.unwrap_or_else(|| ImportedFiles {
+        configuration_hash: configuration.hash().to_string(),
+        scopes: Vec::new(),
+    });
+    ensure!(
+        history.configuration_hash == configuration.hash().as_str(),
+        "Imported ceremony file scopes belong to a different DKG configuration"
+    );
+    let source = CeremonyFileScope {
+        tenant_id: original.tenant_id.clone(),
+        election_event_id: original.election_event_id.clone(),
+        keys_ceremony_id: original.id.clone(),
+    };
+    if !history.scopes.contains(&source) {
+        history.scopes.push(source);
+    }
+    let annotations = imported.annotations.get_or_insert_with(|| json!({}));
+    annotations
+        .as_object_mut()
+        .context("Invalid keys ceremony annotations")?
+        .insert(IMPORTED_FILES.into(), serde_json::to_value(history)?);
+    Ok(())
+}
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -84,6 +142,46 @@ fn validate_file(file: &CustodyRequest, trusted: &CustodyRequest) -> Result<()> 
         "The ceremony file does not match this trustee and key ceremony"
     );
     Ok(())
+}
+
+async fn validate_saved_file(
+    tx: &Transaction<'_>,
+    file: &CustodyRequest,
+    trusted: &CustodyRequest,
+) -> Result<()> {
+    if validate_file(file, trusted).is_ok() {
+        return Ok(());
+    }
+    let ceremony = keys_ceremony::get_keys_ceremony_by_id(
+        tx,
+        &trusted.tenant_id,
+        &trusted.election_event_id,
+        &trusted.keys_ceremony_id,
+    )
+    .await?;
+    if let Some(history) = imported_files(&ceremony.annotations)? {
+        let dkg = crate::services::protocol_board::load_dkg_board(
+            tx,
+            &trusted.tenant_id,
+            &trusted.election_event_id,
+            &trusted.keys_ceremony_id,
+        )
+        .await?;
+        ensure!(
+            history.configuration_hash == dkg.configuration.hash().as_str(),
+            "Imported ceremony file scopes belong to a different DKG configuration"
+        );
+        for source in history.scopes {
+            let mut expected = trusted.clone();
+            expected.tenant_id = source.tenant_id;
+            expected.election_event_id = source.election_event_id;
+            expected.keys_ceremony_id = source.keys_ceremony_id;
+            if validate_file(file, &expected).is_ok() {
+                return Ok(());
+            }
+        }
+    }
+    validate_file(file, trusted)
 }
 
 fn validate_result(
@@ -271,12 +369,12 @@ pub async fn request_server_custody(
     let (trusted, annotations) = scope(tx, claims, &input.election_event_id, target).await?;
     let file: CustodyRequest =
         serde_json::from_str(&input.custody_request_json).context("Invalid ceremony file")?;
-    validate_file(&file, &trusted)?;
+    validate_saved_file(tx, &file, &trusted).await?;
     let trustee = trustee::get_trustee_by_name(tx, tenant, &trusted.trustee_name).await?;
     let key = action_key(&trustee.id);
     if let Some(action) = readable_action(&annotations, &key) {
         // An imported event may retain work scoped to its original UUIDs.
-        // Only a validated current file can replace that stale request.
+        // Only a validated saved file can replace that stale request.
         if action.request == trusted
             && !(input.retry_policy == RetryPolicy::RetryFailed
                 && matches!(action.outcome, Some(TrusteeActionOutcome::Failed { .. })))

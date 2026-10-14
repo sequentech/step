@@ -2101,7 +2101,7 @@ class BackendJourneys(unittest.TestCase):
         cast_content = json.loads(ballot["content"])
         self.verify_public_transcripts(event_id, cast_content["contests"])
         # Import creates a fresh event scope while preserving the signed DKG domain.
-        # The original public file cannot authorize custody in that copied event.
+        # The original saved file requests a proof bound to the copied event.
         archive_dir = self.cli.directory / "manual-recovery"
         archive_dir.mkdir()
         output = self.step(
@@ -2186,17 +2186,6 @@ class BackendJourneys(unittest.TestCase):
                                       tally_session_id: $tally}) { custody_request_json }
         }"""
         for name in bootstrap.TRUSTEES:
-            with self.assertRaisesRegex(GraphQLError, "does not match this trustee"):
-                apis[name].query(
-                    request_query,
-                    {
-                        "input": {
-                            "election_event_id": event_id,
-                            "tally_session_id": tally_id,
-                            "custody_request_json": requests[name],
-                        }
-                    },
-                )
             fresh = apis[name].query(
                 download_query,
                 {"event": event_id, "keys": ceremony_id, "tally": tally_id},
@@ -2207,9 +2196,8 @@ class BackendJourneys(unittest.TestCase):
             self.assertIsNone(scope["tally_session_id"])
             if server_browser_url:
                 result = server_browser_call("/recover-tally-custody", name, tally_id)
-                self.assertEqual(result["file"], fresh)
+                self.assertEqual(result["file"], requests[name])
             else:
-                requests[name] = fresh
                 scope["tally_session_id"] = tally_id
                 proof = attest(name, json.dumps(scope))
                 self.assertTrue(

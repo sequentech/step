@@ -995,8 +995,34 @@ pub fn replace_ids(
     }
 
     // Parse the modified JSON string back into the structured format
-    let data: ImportElectionEventSchema = deserialize_str(&new_data)?;
+    let mut data: ImportElectionEventSchema = deserialize_str(&new_data)?;
     validate_import_scope(&data, &tenant_id, &election_event_id)?;
+    if let (Some(original_ceremonies), Some(imported_ceremonies), Some(boards)) = (
+        &original_data.keys_ceremonies,
+        &mut data.keys_ceremonies,
+        &original_data.protocol_boards,
+    ) {
+        for original in original_ceremonies {
+            let Some(board) = boards
+                .iter()
+                .find(|board| board.parent_id.is_none() && board.keys_ceremony_id == original.id)
+            else {
+                continue;
+            };
+            let imported_id = replacement_map
+                .get(&original.id)
+                .context("missing ceremony ID replacement")?;
+            let imported = imported_ceremonies
+                .iter_mut()
+                .find(|ceremony| &ceremony.id == imported_id)
+                .context("missing imported keys ceremony")?;
+            crate::services::trustee_updates::preserve_custody_file_scopes(
+                original,
+                imported,
+                &protocol_board::SignedConfiguration::parse(&board.manager_message)?,
+            )?;
+        }
+    }
 
     // Explicit realm replacements are applied to the JSON but omitted from its
     // map. Publication imports also need these scopes, including identity maps
@@ -1411,6 +1437,21 @@ pub async fn process_election_event_file(
                 .collect::<Vec<_>>(),
         )
         .await?;
+        for ceremony in data.keys_ceremonies.as_deref().unwrap_or_default() {
+            if let Some(annotations) = &ceremony.annotations {
+                hasura_transaction
+                    .execute(
+                        "UPDATE sequent_backend.keys_ceremony SET annotations=$4 WHERE id=$1 AND tenant_id=$2 AND election_event_id=$3",
+                        &[
+                            &Uuid::parse_str(&ceremony.id)?,
+                            &Uuid::parse_str(&ceremony.tenant_id)?,
+                            &Uuid::parse_str(&ceremony.election_event_id)?,
+                            annotations,
+                        ],
+                    )
+                    .await?;
+            }
+        }
     }
 
     insert_elections(hasura_transaction, &data)
@@ -3160,6 +3201,74 @@ mod import_scope_tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn repeated_imports_preserve_original_custody_file_scopes() {
+        use protocol_board::{
+            generate_manager, Committee, DkgBoard, RawTrusteeRecord, TrusteeSecrets,
+        };
+        let tenant = new_id();
+        let event = new_id();
+        let mut input = bundle(&tenant, &event);
+        let keys = input["keys_ceremonies"][0]["id"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let committee = Committee::new(&["alice", "bob"].map(|name| {
+            let public = TrusteeSecrets::generate().public_keys().unwrap();
+            RawTrusteeRecord {
+                name: name.into(),
+                signing_public_key: Some(public.signing_public_key),
+                share_encryption_public_key: Some(public.share_encryption_public_key),
+            }
+        }))
+        .unwrap();
+        let board = DkgBoard::new(
+            &Uuid::parse_str(&keys).unwrap(),
+            &generate_manager(),
+            &committee,
+            2,
+        )
+        .unwrap();
+        input["protocol_boards"] = json!([{
+            "id": new_id(), "tenant_id": tenant, "election_event_id": event,
+            "keys_ceremony_id": keys, "name": board.name.to_string(),
+            "manager_message": board.configuration.to_bytes()
+        }]);
+        let first = import(&input, None, &new_id()).unwrap();
+        let annotation = &first.keys_ceremonies.as_ref().unwrap()[0].annotations;
+        let history = annotation
+            .as_ref()
+            .unwrap()
+            .get("trustee:imported-custody-files")
+            .unwrap();
+        assert_eq!(
+            history["configuration_hash"],
+            board.configuration.hash().as_str()
+        );
+        assert_eq!(
+            history["scopes"],
+            json!([{"tenant_id": tenant, "election_event_id": event, "keys_ceremony_id": keys}])
+        );
+        let second = import(&serde_json::to_value(&first).unwrap(), None, &new_id()).unwrap();
+        let second_history = &second.keys_ceremonies.as_ref().unwrap()[0]
+            .annotations
+            .as_ref()
+            .unwrap()["trustee:imported-custody-files"];
+        assert_eq!(
+            second_history["configuration_hash"],
+            history["configuration_hash"]
+        );
+        assert_eq!(second_history["scopes"][0], history["scopes"][0]);
+        assert_eq!(
+            second_history["scopes"][1],
+            json!({"tenant_id": first.tenant_id, "election_event_id": first.election_event.id, "keys_ceremony_id": first.keys_ceremonies.as_ref().unwrap()[0].id})
+        );
+        let mut altered = serde_json::to_value(&first).unwrap();
+        altered["keys_ceremonies"][0]["annotations"]["trustee:imported-custody-files"]
+            ["configuration_hash"] = json!("another-configuration");
+        assert!(import(&altered, None, &new_id()).is_err());
     }
 
     #[test]

@@ -3,10 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {ServerCustodyError} from "@/services/serverCustody"
 import {useServerCustodyProof} from "@/components/keys-ceremony/useServerCustodyProof"
-import {GET_CUSTODY_REQUEST} from "@/queries/GetCustodyRequest"
-import {trusteeFilename} from "@/services/trusteeFilename"
 import {IPermissions} from "@/types/keycloak"
-import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react"
+import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
 import Button from "@mui/material/Button"
 import {BreadCrumbSteps, BreadCrumbStepsVariant, DropFile} from "@sequentech/ui-essentials"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
@@ -34,8 +32,6 @@ import {
 } from "@/types/ceremonies"
 import {Alert, Box, Typography} from "@mui/material"
 import {
-    GetCustodyRequestMutation,
-    GetCustodyRequestMutationVariables,
     AuthorizeTallyCustodyMutation,
     AuthorizeTallyCustodyMutationVariables,
     Sequent_Backend_Election,
@@ -77,8 +73,6 @@ export const TallyCeremonyTrustees: React.FC = () => {
         election_event_id: record?.id || "",
         tally_session_id: tally?.id || tallyId || "",
     })
-    const [downloading, setDownloading] = useState(false)
-    const downloadScope = useRef("")
     const [verified, setVerified] = useState<boolean>(false)
     const [uploading, setUploading] = useState<boolean>(false)
     const [errors, setErrors] = useState<String | null>(null)
@@ -98,59 +92,6 @@ export const TallyCeremonyTrustees: React.FC = () => {
             refetchOnReconnect: false,
             refetchOnMount: false,
         }
-    )
-
-    downloadScope.current = `${record?.id}:${data?.id}:${data?.keys_ceremony_id}`
-    const [getCustodyRequest] = useMutation<
-        GetCustodyRequestMutation,
-        GetCustodyRequestMutationVariables
-    >(GET_CUSTODY_REQUEST, {
-        context: {headers: {"x-hasura-role": IPermissions.TRUSTEE_CEREMONY}},
-    })
-    const downloadCeremonyFile = async () => {
-        if (
-            !record?.id ||
-            !data?.keys_ceremony_id ||
-            data.id !== tallyId ||
-            data.election_event_id !== record?.id
-        )
-            return
-        const scope = downloadScope.current
-        setErrors(null)
-        setDownloading(true)
-        try {
-            const response = await getCustodyRequest({
-                variables: {
-                    electionEventId: record.id,
-                    keysCeremonyId: data.keys_ceremony_id,
-                    tallySessionId: data.id,
-                },
-            })
-            if (downloadScope.current !== scope) return
-            const content = response.data?.get_custody_request?.custody_request_json
-            if (response.errors?.length || !content) throw new Error("Empty ceremony file")
-            const url = URL.createObjectURL(new Blob([content], {type: "application/json"}))
-            try {
-                const link = document.createElement("a")
-                link.href = url
-                link.download = trusteeFilename(trustee, "custody-request.json")
-                link.click()
-            } finally {
-                URL.revokeObjectURL(url)
-            }
-        } catch {
-            if (downloadScope.current === scope) {
-                setErrors(t("keysGeneration.downloadStep.unexpectedError"))
-            }
-        } finally {
-            setDownloading(false)
-        }
-    }
-    useEffect(
-        () => () => {
-            downloadScope.current = ""
-        },
-        []
     )
 
     // TODO: fix the "perPage 9999"
@@ -381,22 +322,6 @@ export const TallyCeremonyTrustees: React.FC = () => {
                                 <Alert severity="info" sx={{mb: 2}}>
                                     {t("keysGeneration.serverCustody.tallyInstructions")}
                                 </Alert>
-                                <Typography variant="body2" sx={{mb: 1}}>
-                                    {t("keysGeneration.serverCustody.recoveryInstructions")}
-                                </Typography>
-                                <Button
-                                    onClick={downloadCeremonyFile}
-                                    disabled={
-                                        downloading ||
-                                        uploading ||
-                                        custodyProofSigning.waiting ||
-                                        !data ||
-                                        data.id !== tallyId
-                                    }
-                                    sx={{mb: 2}}
-                                >
-                                    {t("keysGeneration.downloadStep.downloadButton")}
-                                </Button>
                                 <DropFile
                                     handleFiles={uploadCustodyProof}
                                     formatLabel={t("keysGeneration.serverCustody.fileFormat")}

@@ -228,29 +228,22 @@ async function tallyCustody(input: Input, recover = false) {
   await expect(
     page.getByText("Supported format: JSON", { exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Download Ceremony File", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Next", exact: true }),
+  ).toBeDisabled();
   if (recover) {
-    const downloadEvent = page.waitForEvent("download");
-    await page
-      .getByRole("button", { name: "Download Ceremony File", exact: true })
-      .click();
-    const download = await downloadEvent;
-    const filePath = await download.path();
-    if (!filePath) throw new Error("Recovery download did not create a file");
-    client.file = await readFile(filePath);
-    client.filename = download.suggestedFilename();
-    const scope = JSON.parse(client.file.toString());
-    expect(scope.election_event_id).toBe(input.eventId);
-    expect(scope.keys_ceremony_id).toBe(input.ceremonyId);
-    expect(scope.tally_session_id).toBeNull();
-    await download.saveAs(
-      resolve(output, `${input.name}-recovered-ceremony.json`),
-    );
-    await expect(
-      page.getByRole("button", { name: "Next", exact: true }),
-    ).toBeDisabled();
+    const savedScope = JSON.parse(client.file.toString());
+    expect(savedScope.election_event_id).not.toBe(input.eventId);
+    expect(savedScope.keys_ceremony_id).not.toBe(input.ceremonyId);
   }
   const proof = await submitFile(page, client, "AuthorizeTallyCustody");
-  expect(JSON.parse(proof).request.tally_session_id).toBe(input.tallyId);
+  const proofScope = JSON.parse(proof).request;
+  expect(proofScope.election_event_id).toBe(input.eventId);
+  expect(proofScope.keys_ceremony_id).toBe(input.ceremonyId);
+  expect(proofScope.tally_session_id).toBe(input.tallyId);
   await page.screenshot({
     path: resolve(output, `${input.name}-tally-custody.png`),
     fullPage: true,

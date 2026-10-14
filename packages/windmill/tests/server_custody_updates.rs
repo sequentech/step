@@ -543,3 +543,89 @@ async fn active_tally_download_recovers_current_scope_without_advancing_custody(
     .to_string()
     .contains("Unexpected status CANCELLED"));
 }
+
+#[tokio::test]
+async fn imported_ceremony_accepts_the_original_saved_file_and_signs_only_current_scope() {
+    let mut db = schema::pool().await.get().await.unwrap();
+    let tx = db.transaction().await.unwrap();
+    let f = Fixture::new(&tx).await;
+    let tally = f.tally(&tx).await;
+    let mut original = f.request.clone();
+    original.tenant_id = Uuid::new_v4().to_string();
+    original.election_event_id = Uuid::new_v4().to_string();
+    original.keys_ceremony_id = Uuid::new_v4().to_string();
+    let row = tx
+        .query_one(
+            "SELECT manager_message FROM sequent_backend.protocol_board WHERE keys_ceremony_id=$1",
+            &[&f.keys],
+        )
+        .await
+        .unwrap();
+    let configuration =
+        protocol_board::SignedConfiguration::parse(&row.get::<_, Vec<u8>>(0)).unwrap();
+    let provenance = json!({"configuration_hash": configuration.hash().to_string(), "scopes": [{
+        "tenant_id": original.tenant_id,
+        "election_event_id": original.election_event_id,
+        "keys_ceremony_id": original.keys_ceremony_id
+    }]});
+    tx.execute(
+        "UPDATE sequent_backend.keys_ceremony SET annotations=$2 WHERE id=$1",
+        &[
+            &f.keys,
+            &json!({"trustee:imported-custody-files": provenance}),
+        ],
+    )
+    .await
+    .unwrap();
+    let mut input = f.input(Some(tally));
+    input.custody_request_json = serde_json::to_string(&original).unwrap();
+    assert!(matches!(
+        trustee_updates::request_server_custody(&tx, &f.claims, &input)
+            .await
+            .unwrap(),
+        ServerCustodyReply::Pending
+    ));
+    let result = f.pending(&tx, Some(tally)).await;
+    let mut current = f.request.clone();
+    current.tally_session_id = Some(tally.to_string());
+    assert_eq!(result.request, current);
+    let mut replay = result.clone();
+    replay.outcome = TrusteeActionOutcome::Ready {
+        custody_proof_json: original.attest(&f.secrets).unwrap(),
+    };
+    assert!(
+        trustee_updates::submit_action_result(&tx, &f.claims, &replay)
+            .await
+            .is_err()
+    );
+    trustee_updates::submit_action_result(&tx, &f.claims, &result)
+        .await
+        .unwrap();
+    for field in [
+        "tenant_id",
+        "election_event_id",
+        "keys_ceremony_id",
+        "trustee_name",
+        "signing_public_key",
+        "share_encryption_public_key",
+        "tally_session_id",
+    ] {
+        let mut wrong = serde_json::to_value(&original).unwrap();
+        wrong[field] = json!("wrong");
+        input.custody_request_json = wrong.to_string();
+        let error = trustee_updates::request_server_custody(&tx, &f.claims, &input)
+            .await
+            .unwrap_err();
+        assert!(
+            error.to_string().contains("does not match this trustee"),
+            "{field}: {error}"
+        );
+    }
+    tx.execute("UPDATE sequent_backend.keys_ceremony SET annotations=$2 WHERE id=$1", &[&f.keys, &json!({"trustee:imported-custody-files": {"configuration_hash": "wrong", "scopes": provenance["scopes"]}})]).await.unwrap();
+    input.custody_request_json = serde_json::to_string(&original).unwrap();
+    assert!(
+        trustee_updates::request_server_custody(&tx, &f.claims, &input)
+            .await
+            .is_err()
+    );
+}
