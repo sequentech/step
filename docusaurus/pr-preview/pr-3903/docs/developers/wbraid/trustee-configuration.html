@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Wbraid trustee configuration | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3903/docs/developers/wbraid/trustee-configuration"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Wbraid trustee configuration | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3903/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3903/docs/developers/wbraid/trustee-configuration"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3903/docs/developers/wbraid/trustee-configuration" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3903/docs/developers/wbraid/trustee-configuration" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Wbraid trustees","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3903/docs/developers/wbraid/trustee-configuration"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3903/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3903/assets/js/runtime~main.1d539c87.js" defer="defer"></script>
-<script src="/docusaurus/pr-preview/pr-3903/assets/js/main.71cc587f.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3903/assets/js/runtime~main.9e6acdfc.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3903/assets/js/main.ef56ae6c.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg style="display: none;"><defs>
@@ -106,8 +106,13 @@ voting, ballot tracking, public verification and election archive import. The
 browser journeys exercise both ceremony policies with real Chromium trustees.
 Each launcher owns and cleans up its own Compose project and volumes.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="manual-custody-proofs">Manual custody proofs<a href="#manual-custody-proofs" class="hash-link" aria-label="Direct link to Manual custody proofs" title="Direct link to Manual custody proofs" translate="no">​</a></h2>
-<p>For a server trustee, <strong>Download Ceremony File</strong> in the key-ceremony wizard saves
-<code>&lt;trustee&gt;-custody-request.json</code>. The operator saves it and uploads that same file
+<p>The portal calls the reusable request a <strong>Custody file</strong> and downloads it as
+<code>&lt;trustee&gt;-custody.json</code>. A manually generated <strong>Signed custody proof</strong> downloads
+as <code>&lt;trustee&gt;-signed-custody-proof.json</code>. Files saved under the previous
+<code>*-custody-request.json</code> and <code>*-custody-proof.json</code> names remain accepted; uploads
+are checked by their contents. Keep the custody file for future manual tallies.</p>
+<p>For a server trustee, <strong>Download Custody File</strong> in the key-ceremony wizard saves
+<code>&lt;trustee&gt;-custody.json</code>. The operator saves it and uploads that same file
 to confirm custody. Upload it again when authorizing a manual tally. The running
 trustee fetches the requested work and creates the signed proof automatically;
 no shell access or command is needed.</p>
@@ -122,7 +127,7 @@ event, key ceremony and optional tally session. It does not demonstrate a backup
 exists or that the runner can recover its recorded DKG state. Operators must
 still back up both the runner&#x27;s keys and its private protocol store.</p>
 <p>For an offline trustee, produce and upload a signed proof as before:</p>
-<div class="language-sh codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-sh codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">trustee attest </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--request</span><span class="token plain"> trustee1-custody-request.json --trustee-config trustee.toml </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--output</span><span class="token plain"> custody-proof.json</span><br></span></code></pre></div></div>
+<div class="language-sh codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-sh codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">trustee attest </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--request</span><span class="token plain"> trustee1-custody.json --trustee-config trustee.toml </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--output</span><span class="token plain"> signed-custody-proof.json</span><br></span></code></pre></div></div>
 <p>For tally authorization add <code>--tally-session-id &lt;tally UUID&gt;</code>. Offline and browser
 proof files remain accepted directly by both upload steps. Reusing the saved
 public file asks the server for a proof of the current tally; reusing an old
@@ -194,15 +199,19 @@ unchanged. Ballot publications are unpublished and must be published explicitly.
 The copy starts with a fresh ballot box: the archive preserves tally transcripts
 and results, rather than restoring accepted ballots, revote history or voter
 receipts into a running election.</p>
-<p>For a copied manual event, start a tally and use <strong>Download Ceremony File</strong> on
-the trustee&#x27;s tally screen. Save and upload this newly scoped public file. The
-original event&#x27;s file is rejected because its platform IDs differ. Downloading
-never queues a proof or changes custody approval; uploading creates a fresh
-server proof, followed by the existing human authorization and signing gate.
-The same file can be reused for subsequent tallies in the copy. The existing
-<code>get_custody_request</code> action takes an optional <code>tally_session_id</code> for this read-only
-download and validates the supplied ceremony against that active tally. Without
-it, the initial key ceremony download retains its existing lifecycle checks.</p>
+<p>For a copied manual event, start a tally and upload the original custody file
+saved during the key ceremony. Import preserves that file&#x27;s source scope, bound
+to the unchanged signed DKG configuration. Repeated imports preserve earlier
+source scopes too. The key ceremony&#x27;s <code>annotations</code> field stores this history under
+<code>protocol:imported-ceremony-origins</code>: a <code>configuration_hash</code> and a <code>scopes</code> array
+of source <code>tenant_id</code>, <code>election_event_id</code> and <code>keys_ceremony_id</code> values.
+The trustee&#x27;s name and both public keys must still match the
+current ceremony. Uploading queues a fresh proof scoped to the imported event
+and active tally, followed by the existing human authorization and signing gate.
+Proofs from the original event or another tally are rejected. The tally screen
+has no custody-file download; trustees must bring their saved file. For copies
+imported before source scopes were preserved, reimport the original event archive
+to use the original custody files.</p>
 <p>An event archive does not include native trustee private identities or their
 local runner state. An imported parent board reuses the trustee&#x27;s original local
 DKG observations by the signed configuration&#x27;s immutable ID. The runner still
@@ -223,8 +232,8 @@ keys</strong>, or <strong>Import private keys</strong> to use an existing native
 Legacy browser configurations and protocol stores use incompatible crypto; generate
 a new native identity and run a new key ceremony for those elections.
 Downloads include the trustee name: for example, <code>trustee1-private-keys.toml</code>,
-<code>trustee1-browser-sessions.json</code> and <code>trustee1-custody-proof.json</code>. The ceremony
-wizard also prefixes ceremony filenames with the trustee name.
+<code>trustee1-browser-sessions.json</code> and <code>trustee1-signed-custody-proof.json</code>. The ceremony
+wizard also prefixes custody filenames with the trustee name.
 Download and privately back up the keys. Register both displayed public keys for
 this trustee before starting its key ceremony. The account&#x27;s <code>trustee</code> attribute
 must match the registered trustee name.</p>
@@ -245,10 +254,22 @@ Do not clear browser storage or run the same identity in another browser or nati
 runner during a ceremony. Native SQLite stores and browser IndexedDB stores are distinct; a
 native keys file can enroll a browser participant before DKG, but moving an active
 native participant to a browser requires its protocol state as well.</p>
-<p>For a manual ceremony, download the public custody request from its wizard. On
-the trustee screen, select <strong>Create custody proof</strong> and choose that request.
-Upload the downloaded <code>custody-proof.json</code> to the wizard. For a tally restore,
-enter the tally session UUID before creating the proof. The proof contains only
+<p>For manual key or tally custody, load the original keys, click <strong>Start browser trustee</strong>
+and keep <code>/trustee</code> open. In another tab, download and upload the
+custody file in the ceremony wizard. The browser polls
+<code>trustee_event_updates</code>, signs the queued request locally with its exact ceremony
+and tally scope, and acknowledges it through <code>submit_trustee_action_result</code>.
+The wizard then verifies the proof and retains the explicit human confirmation
+and any required certificate signing. Private keys never leave the browser.</p>
+<p>Alternatively, stop the runner and select
+<strong>Advanced → Generate signed custody proof manually</strong>. Choose the custody file.
+For a tally restore, enter the active tally session&#x27;s UUID
+in <strong>Tally session ID</strong> before creating the proof. The trustee&#x27;s tally wizard
+displays the selectable ID before custody confirmation and on its status step.
+The saved custody file omits that UUID so it can be reused: leaving the field
+blank creates
+a key-ceremony proof, which the tally rejects. Upload the downloaded
+<code>signed-custody-proof.json</code> to the wizard. The proof contains only
 public metadata and a signature, and the platform checks its ceremony and tally
 scope. The browser rejects requests for another trustee or either wrong public key.</p>
 <p>Production browser participation requires HTTPS, WebAssembly threads, IndexedDB,
@@ -258,7 +279,8 @@ The board service and its presigned S3 URLs must be reachable by the browser, us
 HTTPS in production, and permit the portal origin through CORS. Configure:</p>
 <table><thead><tr><th>Setting</th><th>Purpose</th></tr></thead><tbody><tr><td>Admin <code>WBRAID_BOARD_URL</code></td><td>Browser-reachable native board URL; Compose reads <code>WBRAID_BOARD_PUBLIC_URL</code></td></tr><tr><td>Admin <code>HASURA_URL</code></td><td>Public GraphQL endpoint used for assigned-board discovery and halt reports; locally <code>http://localhost:8080/v1/graphql</code></td></tr></tbody></table>
 <p>The displayed <strong>Platform URL</strong> is <code>HASURA_URL</code>. Browser trustees use the
-<code>list_trustee_boards</code> query and <code>report_trustee_board</code> mutation with their bearer
+<code>trustee_event_updates</code> query, <code>submit_trustee_action_result</code> mutation and
+<code>report_trustee_board</code> mutation with their bearer
 token and the <code>trustee-ceremony</code> role. Hasura forwards those calls internally to
 Harvest, which independently verifies the JWT, tenant, trustee identity and
 assigned board. Harvest remains private and needs no browser-facing URL or CORS
@@ -288,7 +310,7 @@ The runner cleans up only its own stack and controller.</p>
 <div class="language-sh codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-sh codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">scripts/e2e/run-server-custody.sh</span><br></span></code></pre></div></div>
 <p>This separate disposable journey keeps the native trustee daemons running and
 opens the production administration portal in Chromium. Each trustee logs in,
-downloads its public ceremony file, saves two copies, rejects an incorrect file,
+downloads its custody file, saves two copies, rejects an incorrect file,
 and uploads the original to confirm key custody. The same saved file authorizes
 a subsequent manual tally without a server command. The journey also checks
 that pending custody blocks ballot publication, proofs cannot be replayed across
