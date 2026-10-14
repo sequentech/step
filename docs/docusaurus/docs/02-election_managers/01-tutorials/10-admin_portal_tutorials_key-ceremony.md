@@ -102,8 +102,11 @@ Resolve the runner or protocol failure before arranging a replacement ceremony.
 
 
 Browser trustees can generate or import their identity and participate from the
-portal's `/trustee` screen. Keep the page open while its runner is active. Use
-**Create custody proof** with the downloaded public request, then upload the
-result to the ceremony wizard. Keep private backups of both the keys and browser
+portal's `/trustee` screen. Start the browser trustee and keep its page open.
+In another tab, upload the saved public ceremony file to the ceremony wizard;
+the browser generates the proof automatically. For a manual proof file, stop the
+runner and choose **Advanced → Generate proof file manually** with the saved
+public request, then upload the result to the ceremony wizard.
+Keep private backups of both the keys and browser
 sessions. See [browser trustee setup](../../07-developers/09-wbraid/trustee-configuration.md#browser-trustees)
 for key registration, browser storage recovery, and tally restore instructions.

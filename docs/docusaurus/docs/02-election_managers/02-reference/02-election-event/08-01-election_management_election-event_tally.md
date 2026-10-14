@@ -68,7 +68,7 @@ Before initiating the tally process:
    trustee attest --request custody-request.json --trustee-config trustee.toml --tally-session-id <TALLY_SESSION_ID> --output custody-proof.json
    ```
 
-   Browser trustees use **Create custody proof** with the tally session identifier
+   Browser trustees use **Advanced → Generate proof file manually** with the tally session identifier
    on `/trustee`. Upload `custody-proof.json`, then complete any required approval
    signature. Keep private keys and protocol state on the trustee machine.
 6. Repeat for enough trustees to reach the ceremony threshold. A proof for another

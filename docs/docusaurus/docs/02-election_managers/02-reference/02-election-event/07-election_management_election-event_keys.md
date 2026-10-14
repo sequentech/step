@@ -106,7 +106,7 @@ confirmations required to complete key generation.
      trustee attest --request custody-request.json --trustee-config trustee.toml --output custody-proof.json
      ```
 
-   - Browser trustees use **Create custody proof** on the `/trustee` screen.
+   - Browser trustees use **Advanced → Generate proof file manually** on the `/trustee` screen.
    - Upload `custody-proof.json` in the ceremony wizard. Complete any required
      approval signature. Private keys and protocol state remain on the trustee machine.
 

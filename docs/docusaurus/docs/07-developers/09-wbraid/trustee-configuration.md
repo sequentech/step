@@ -326,9 +326,9 @@ and tally scope, and acknowledges it through `submit_trustee_action_result`.
 The wizard then verifies the proof and retains the explicit human confirmation
 and any required certificate signing. Private keys never leave the browser.
 
-Alternatively, stop the runner, select **Create custody proof** and choose the
-public ceremony file. For a tally restore, enter the active tally session's UUID
-in **Tally session ID (for tally restore)** before creating the proof. The saved
+Alternatively, stop the runner, select **Advanced → Generate proof file manually**
+and choose the public ceremony file. For a tally restore, enter the active tally session's UUID
+in **Tally session ID** before creating the proof. The saved
 ceremony file omits that UUID so it can be reused: leaving the field blank creates
 a key-ceremony proof, which the tally rejects. Upload the downloaded
 `custody-proof.json` to the wizard. The proof contains only

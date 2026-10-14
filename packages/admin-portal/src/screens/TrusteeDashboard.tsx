@@ -1,7 +1,19 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useState, useRef, useEffect} from "react"
-import {Alert, Box, Button, Card, CardContent, TextField, Typography} from "@mui/material"
+import {
+    Accordion,
+    AccordionSummary,
+    AccordionDetails,
+    Alert,
+    Box,
+    Button,
+    Card,
+    CardContent,
+    TextField,
+    Typography,
+} from "@mui/material"
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {trusteeFilename} from "@/services/trusteeFilename"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
@@ -436,35 +448,57 @@ export const TrusteeDashboard = () => {
                     <Typography role="status" sx={{my: 2}}>
                         {browserStatus}
                     </Typography>
-                    <TextField
-                        label="Tally session ID (for tally restore)"
-                        helperText="For a manual tally proof file, copy the active tally's ID from the tally list. Leave blank only for key-ceremony custody."
-                        value={tallyId}
-                        disabled={busy || running}
-                        onChange={(event) => setTallyId(event.target.value)}
-                        fullWidth
-                        sx={{mb: 2}}
-                    />
-                    <Box sx={actionGrid}>
-                        <Button
-                            variant="outlined"
-                            disabled={!keys || busy || running}
-                            onClick={() => custodyInput.current?.click()}
+                    <Accordion
+                        disableGutters
+                        sx={{mt: 2}}
+                        slotProps={{transition: {unmountOnExit: true}}}
+                    >
+                        <AccordionSummary
+                            id="browser-trustee-advanced-heading"
+                            aria-controls="browser-trustee-advanced-content"
+                            expandIcon={<ExpandMoreIcon />}
                         >
-                            Create custody proof
-                        </Button>
-                    </Box>
-                    <input
-                        ref={custodyInput}
-                        aria-label="Custody request"
-                        type="file"
-                        hidden
-                        accept=".json"
-                        onChange={(event) => {
-                            prove(event.target.files?.[0])
-                            event.target.value = ""
-                        }}
-                    />
+                            <Typography component="h3">Advanced</Typography>
+                        </AccordionSummary>
+                        <AccordionDetails>
+                            <Typography sx={{mb: 2}}>
+                                A running browser trustee generates custody proofs automatically
+                                when you upload the saved ceremony file in the ceremony or tally
+                                wizard. Use this option only when you need to create and upload a
+                                proof file yourself. Stop the browser trustee before generating a
+                                file.
+                            </Typography>
+                            <TextField
+                                label="Tally session ID"
+                                helperText="For a tally proof, copy the tally ID from the tally wizard. Leave blank for key-ceremony custody."
+                                value={tallyId}
+                                disabled={busy || running}
+                                onChange={(event) => setTallyId(event.target.value)}
+                                fullWidth
+                                sx={{mb: 2}}
+                            />
+                            <Box sx={actionGrid}>
+                                <Button
+                                    variant="outlined"
+                                    disabled={!keys || busy || running}
+                                    onClick={() => custodyInput.current?.click()}
+                                >
+                                    Generate proof file manually
+                                </Button>
+                            </Box>
+                            <input
+                                ref={custodyInput}
+                                aria-label="Custody request"
+                                type="file"
+                                hidden
+                                accept=".json"
+                                onChange={(event) => {
+                                    prove(event.target.files?.[0])
+                                    event.target.value = ""
+                                }}
+                            />
+                        </AccordionDetails>
+                    </Accordion>
                 </CardContent>
             </Card>
             <Card>
