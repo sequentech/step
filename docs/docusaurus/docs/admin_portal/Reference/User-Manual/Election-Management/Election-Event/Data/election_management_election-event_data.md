@@ -60,7 +60,7 @@ Contact Sequent support to undo it.
 | Button | Use |
 | --- | --- |
 | **Export** | Opens the **Export Election Event** window. See [Export the election event](#export-the-election-event). |
-| **Import Candidates** | Opens a panel to import candidates from a file. In version 9.0 the panel title shows a text code, not a translated title. |
+| **Import Candidates** | Opens a panel to import candidates from a file. The file must have the fixed layout of a specific external integration. It is not a general-purpose import. To add candidates, use the election event tree or import an election event. In version 9.0 the panel title shows a text code, not a translated title. |
 | **Save** | Saves the changes. |
 
 ## Export the election event

@@ -84,11 +84,11 @@
     "description": "The label for category Election Management in sidebar docs"
   },
   "sidebar.docs.category.Election Event": {
-    "message": "Evento electoral",
+    "message": "Proceso electoral",
     "description": "The label for category Election Event in sidebar docs"
   },
   "sidebar.docs.category.Election Event.link.generated-index.description": {
-    "message": "Las pestañas de un evento electoral.",
+    "message": "Las pestañas de un proceso electoral.",
     "description": "The generated-index page description for category Election Event in sidebar docs"
   },
   "sidebar.docs.category.Election": {
@@ -116,7 +116,7 @@
     "description": "The generated-index page description for category Candidate in sidebar docs"
   },
   "sidebar.docs.category.Settings": {
-    "message": "Ajustes",
+    "message": "Configuración",
     "description": "The label for category Settings in sidebar docs"
   },
   "sidebar.docs.category.Users and Roles": {

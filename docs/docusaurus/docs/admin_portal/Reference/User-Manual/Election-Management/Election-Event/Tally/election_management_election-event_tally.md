@@ -106,3 +106,4 @@ that document.
 - [Keys](../Keys/election_management_election-event_keys.md)
 - [Contest: Tally Sheets](../../Contest/Tally-Sheets/election_management_contest_tally-sheets.md)
 - [Reports](../Reports/election_management_election-event_reports.md)
+- [Transmission](election_management_election-event_transmission.md)

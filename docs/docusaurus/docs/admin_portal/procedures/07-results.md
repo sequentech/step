@@ -109,6 +109,7 @@ persons who announce the results.
 ## More information
 
 - [Election event: Tally](../Reference/User-Manual/Election-Management/Election-Event/Tally/election_management_election-event_tally.md)
+- [Election event: Transmission](../Reference/User-Manual/Election-Management/Election-Event/Tally/election_management_election-event_transmission.md)
 - [Election event: Reports](../Reference/User-Manual/Election-Management/Election-Event/Reports/election_management_election-event_reports.md)
 - [Reports and Templates](../Tutorials/Reports-and-Templates/reports_and_templates.md)
 - [Value to Template Association](../Tutorials/Reports-and-Templates/value_to_template_association.md)

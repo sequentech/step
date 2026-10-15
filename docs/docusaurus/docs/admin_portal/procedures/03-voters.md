@@ -48,9 +48,25 @@ below.
 | `enabled` | `TRUE` or `FALSE`. A voter with `FALSE` cannot sign in. |
 | `password` | Optional. The password of the voter. |
 | `sequent.read-only.mobile-number` | Optional. The mobile number, for text messages. |
+| `authorized-election-ids` | Optional. The elections that the voter can vote in. Type the **Alias** of each election, or its ID if it has no alias. Separate the values with `\|`. If you leave it empty, the voter can vote in the elections of their area. |
 
 A column with another name becomes an attribute of the voter. A column name can contain only
 letters, digits, `.`, `_` and `-`.
+
+Example with two voters. The second voter can vote only in the elections with the aliases
+`election-1` and `election-2`:
+
+```csv
+username,email,first_name,last_name,area_name,enabled,authorized-election-ids
+voter001,voter001@example.com,Ana,Lopez,North,TRUE,
+voter002,voter002@example.com,Ben,Smith,South,TRUE,election-1|election-2
+```
+
+:::caution CAUTION
+A value in `authorized-election-ids` that does not match an election is ignored without an error.
+If no value matches, the voter cannot vote in any election. Check the aliases of the elections
+before you import the file.
+:::
 
 **Expected result:** you have a CSV file with one row for each voter and the correct header.
 
@@ -90,7 +106,7 @@ To add a voter:
 1. On the **Voters** tab, click **Add**. If the list is empty, click **Create Voter**.
 2. Type the fields of the voter.
 3. Make sure that **Enabled** is selected.
-4. In **Area**, type three or more letters of the area name, then select the area.
+4. In **Area**, type part of the area name, then select the area.
 5. If the voter signs in with a password, type it in **Password:** and in **Repeat Password:**.
 6. If the voter must change the password at the first sign-in, keep **Temporary** on.
 7. Click **Save**.

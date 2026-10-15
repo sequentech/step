@@ -23,9 +23,11 @@ the voting period. The election administrator does this procedure.
 - You know your password. Publication and the voting status are sensitive actions. See
   [Before You Start](../00-before-you-start.md#sensitive-actions).
 
-:::danger WARNING
-Do not publish before the key ceremony status is `SUCCESS`. Version 9.0 does not stop you. A
-ballot that you publish without the public key cannot be encrypted correctly.
+:::note
+You can publish before the key ceremony status is `SUCCESS`. The voting portal then works in demo
+mode: reviewers can check how the election event looks before you make it final, but the votes
+are not real. After the key ceremony, make and publish a new publication. Start the voting period
+only after the key ceremony status is `SUCCESS` and you published again.
 :::
 
 ## 1. Make a publication
@@ -34,8 +36,8 @@ ballot that you publish without the public key cannot be encrypted correctly.
 2. Click the **Publish** tab.
 3. Click **Generate Publication**. If the election event already has a publication, click
    **Publish Changes**.
-4. Read the message "You are about to generate a publication."
-5. Click **Confirm**. If the admin portal asks for your password, type it.
+4. If a **Confirm Action** window opens, read the message and click **Confirm**.
+5. If the admin portal asks for your password, type it.
 
 **Expected result:** the message "Ballot generated" shows. The **Changes to be Published** page
 compares the **Current** publication with the **Changes to Publish**.
@@ -92,8 +94,9 @@ automatically, use [scheduled events](#7-schedule-the-voting-period-alternative)
 1. Open the election event.
 2. Click the **Publish** tab.
 3. Click **Start Voting**.
-4. Read the message "You are about to start voting period."
-5. Confirm the action. If the admin portal asks for your password, type it.
+4. In the **Confirm Action** window, read the message and click **Confirm**.
+5. If the admin portal asks for your password, type it. The admin portal then starts the
+   voting period.
 
 **Expected result:** the message "Election status changed" shows. Voters can vote in the
 voting portal on the voting channels of the election event.

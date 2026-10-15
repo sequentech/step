@@ -26,6 +26,7 @@ module.exports = {
             'admin_portal/Tutorials/admin_portal_tutorials_setting-up-your-first-election',
             'admin_portal/Tutorials/admin_portal_tutorials_permission-labels',
             'admin_portal/Tutorials/admin_portal_tutorials_setting-up-an-automated-election',
+            'admin_portal/Tutorials/admin_portal_tutorials_custom_css',
             'admin_portal/Tutorials/Reports-and-Templates/reports_and_templates',
             'admin_portal/Tutorials/Reports-and-Templates/value_to_template_association',
           ],
@@ -36,6 +37,7 @@ module.exports = {
           link: {type: 'doc', id: 'admin_portal/Reference/User-Manual/admin_portal_reference_user_manual'},
           items: [
             'admin_portal/Reference/basic_navigation',
+            'admin_portal/Reference/import_file_formats',
             {
               type: 'category',
               label: 'Election Management',
@@ -58,6 +60,7 @@ module.exports = {
                     'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Reports/election_management_election_event_reports',
                     'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Scheduled-Events/election_management_election_event_scheduled_events',
                     'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Tally/election_management_election_event_tally',
+                    'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Tally/election_management_election_event_transmission',
                     'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Tasks/election_management_election_event_tasks',
                     'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Voters/election_management_election_event_voters',
                   ],

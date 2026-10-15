@@ -73,6 +73,19 @@ each variable with its value when it makes the message or the document. Use **Pr
 2. Type the SHA-256 hash of the file in **Integrity Check (SHA-256)**.
 3. Upload the file and click **Import**.
 
+Import only a file that you made with **Export**. Do not make the file by hand. The import adds
+each row as a new template. The file has a header row and ten columns in this order:
+
+```csv
+alias,tenant_id,template,created_by,labels,annotations,created_at,updated_at,communication_method,type
+```
+
+:::caution CAUTION
+The import uses the tenant ID in the `tenant_id` column of each row, not the tenant that you are
+signed in to. Rows with a tenant ID that is not valid are skipped. Import a file only into the
+tenant where you exported it.
+:::
+
 ## If there is a problem
 
 | Problem | Action |

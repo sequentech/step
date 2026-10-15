@@ -49,14 +49,15 @@ cannot get keys.
 4. In **Threshold**, type the threshold.
 5. In **Trustees**, select the trustees of the ceremony. Select a number of trustees that is
    equal to or more than the threshold.
-6. In **Election**, select one election. To make one key for all the elections, leave the field
-   empty. The ceremony then has the name **All Elections**.
+6. In **Election**, select one election. To make one key for all the elections, keep the default
+   value, **All Elections**.
 7. Click **Create Keys Ceremony**.
 8. Read the message "Are you sure you want to Create Keys Ceremony?".
 9. Click **Yes, Create Keys Ceremony**.
 
-**Expected result:** the message "Keys Ceremony created" shows. The ceremony shows in the list
-of the **Keys** tab. Its status is `STARTED`, and then `IN_PROGRESS`.
+**Expected result:** the message "Keys Ceremony created" shows. The **Keys Ceremony Progress**
+page opens with "Status: STARTED". The status changes to `IN_PROGRESS` when the trustee
+services are ready.
 
 10. Tell the trustees that the key ceremony has started.
 
@@ -77,7 +78,8 @@ If the message "Waiting for Keys Generation.." shows, the trustee services have 
 keys yet. Wait one or two minutes. **Next** becomes available.
 
 7. Click **Download your Encrypted Private Key**. The browser saves a file with the name
-   `encrypted_private_key_trustee_<user>_<election>.txt`.
+   `encrypted_private_key_trustee_<user>_<name>.txt`, where `<name>` is the name of the election
+   or, for **All Elections**, of the election event.
 8. Copy the file to your first storage device.
 9. Copy the file to your second storage device.
 10. Click **Next**. The **Backup your Encrypted Private Key** window opens.
@@ -104,7 +106,8 @@ lose their fragment, nobody can decrypt the votes.
 
 1. Open the election event.
 2. Click the **Keys** tab.
-3. Click the view icon of the ceremony. The **Keys Ceremony Progress** page opens.
+3. In the row of the ceremony, click the icon in the **Actions** column. The **Keys Ceremony
+   Progress** page opens.
 4. Make sure that each trustee has a tick in these columns:
    - **Key Fragment Generated**
    - **Private Key Fragment Downloaded**

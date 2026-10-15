@@ -34,8 +34,8 @@ the areas.
 4. Type the **Description**.
 5. Click **Save**.
 
-**Expected result:** the message "Election Event created" shows. The admin portal opens the
-new election event. The election event shows these tabs:
+**Expected result:** the task panel "Task: Create Election Event" shows **SUCCESS**. The message
+"Election Event created" shows and the admin portal opens the new election event. The election event shows these tabs:
 
 | Tab | Use |
 | --- | --- |
@@ -70,8 +70,10 @@ election event.
 **Expected result:** the message "Election event imported Successfully" shows.
 
 :::caution CAUTION
-If you do not type the hash, the admin portal asks "Import Without Integrity Check?". Click
-**Go Back** and type the hash. Without the hash, you cannot know if somebody changed the file.
+In this version the admin portal does not send the hash of an election event file to the server,
+so the import does not check it. Before you import, get the hash of the file and compare it with
+the hash in the file name. See [Import File Formats](../Reference/import-file-formats.md#election-event). Without this check,
+you cannot know if somebody changed the file.
 :::
 
 ## 2. Configure the election event
@@ -108,8 +110,7 @@ Do these steps for each election.
 9. In **Voting Channels Allowed**, select the voting channels of this election.
 10. In **Advanced Configuration**, set **Initialize Report Policy**. Select **Required** if you
     must make an initialization report before the voting period opens.
-11. In **Advanced Configuration**, under **Custom filters**, set **Allow Tally**. The table gives
-    the values.
+11. In **Advanced Configuration**, set **Allow Tally**. The table gives the values.
 12. Click **Save**.
 
 | **Allow Tally** value | Meaning |
@@ -118,7 +119,8 @@ Do these steps for each election.
 | **Disallowed** | You cannot start the tally. |
 | **Requires Voting Period End** | You can start the tally only after the voting period is closed. |
 
-**Expected result:** the election shows under the election event in the menu.
+**Expected result:** the election shows under the election event in the menu. The menu shows
+the **External ID** of the election, not its name.
 
 :::note
 You cannot change the **External ID** after you save it.
@@ -140,7 +142,7 @@ Do these steps for each contest.
      contest blank.
    - **Max votes**: the maximum number of selections.
    - **Winning candidates num**: the number of winning candidates.
-8. In **Policies**, set **Under Vote Policy**, **Over Vote Policy** and **Blank Vote Policy**.
+8. In **Ballot Design**, set **Under Vote Policy**, **Over Vote Policy** and **Blank Vote Policy**.
    They tell the voting portal what to do when a voter selects too few, too many or no
    candidates.
 9. Click **Save**.
@@ -175,8 +177,8 @@ An area tells which contests its voters see. Each voter belongs to one area.
 2. Click the **Areas** tab.
 3. Click **Add**. If the list is empty, click **Create Area**.
 4. Type the **Name** and the **Description**. Voters refer to the area by its **Name**.
-5. In **Contests**, type three or more letters of a contest name, then select the contest. Do
-   this for each contest of the area.
+5. In **Area contest**, type part of a contest name, then select the contest. Do this for each
+   contest of the area.
 6. If the area is part of a larger area, select the area in **Parent**.
 7. Click **Save**.
 
@@ -185,12 +187,19 @@ An area tells which contests its voters see. Each voter belongs to one area.
 ### Import areas (alternative)
 
 1. Make a CSV file without a header row. Each row has five columns in this order: area name,
-   country code, code, description, delete flag.
+   country code, code, description, delete flag. The country code and the code are not used. You
+   can leave them empty. Example:
+
+   ```csv
+   North,,,North District,0
+   South,,,South District,0
+   ```
+
 2. Type `0` in the delete flag column of each area to import. Rows with another value are not
    imported.
 3. On the **Areas** tab, click **Import**.
 4. Type the SHA-256 hash of the file in **Integrity Check (SHA-256)**.
-5. Upload the file and click **Import**.
+5. Drop the file in the upload area, or click **Browse**. Then click **Import**.
 
 **Expected result:** the message "Areas Imported Successfully" shows. The first column becomes
 the **Name** of the area. The fourth column becomes its **Description**.
@@ -207,7 +216,7 @@ import, open each area and remove the contests that are not for that area.
 | The **+** icon next to **Election Events** is not there. | Your account does not have the permission to create election events. Ask your tenant administrator. |
 | The import shows "Hashes don't match. Integrity check failure." | The file is not the file that you expect. Get the file again from its source. Do not import it without the check. |
 | A language is not available in **Language**. | Turn on the language in **Settings** > **LANGUAGES**. See [Set Up the Tenant](01-tenant.md). |
-| A contest is not in the list of **Contests** of an area. | Type three or more letters of the contest name. |
+| A contest is not in the list of **Area contest**. | Make sure that you created the contest. Type part of the contest name. |
 | "Error creating candidate" when you create a contest | Version 9.0 shows this text for a contest error. Check the **Name**, then save again. |
 
 ## More information

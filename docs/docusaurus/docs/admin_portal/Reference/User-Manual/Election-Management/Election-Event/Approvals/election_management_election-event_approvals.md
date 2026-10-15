@@ -34,6 +34,35 @@ permission labels permit.
 | **Import** | Opens **Import applications** to import applications from a CSV file. | **Application Import** |
 | **Export** | Opens **Export applications** to export the applications as a CSV file. | **Application Export** |
 
+## Import file
+
+Import only a file that you made with **Export**. Do not make the file by hand. The import adds
+each row as a new application.
+
+The file has a header row and twelve columns in this order:
+
+```csv
+id,created_at,updated_at,tenant_id,election_event_id,area_id,applicant_id,applicant_data,labels,annotations,verification_type,status
+```
+
+| Column | Content |
+| --- | --- |
+| `id` | The ID of the application. The import gives each application a new ID. |
+| `created_at`, `updated_at` | Dates. |
+| `tenant_id`, `election_event_id` | The tenant and the election event. The import adds the application to them. |
+| `area_id` | The area of the applicant. |
+| `applicant_id` | The identifier of the linked voter. |
+| `applicant_data` | The data that the voter typed, in JSON. |
+| `labels`, `annotations` | Extra data. You can leave them empty. |
+| `verification_type` | Manual or automatic. |
+| `status` | Pending, accepted or rejected. |
+
+:::caution CAUTION
+The import uses the tenant ID and the election event ID in each row of the file, not the election
+event that you have open. Rows with a tenant ID that is not valid are skipped. Import a file only
+into the election event where you exported it.
+:::
+
 ## Columns
 
 | Column | Content |
