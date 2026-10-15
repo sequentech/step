@@ -273,6 +273,7 @@ const frenchTranslation: TranslationType = {
                     tally_session_count: "Sessions de dépouillement",
                     publication: "Publication",
                     publication_id: "ID de publication",
+                    publication_ids: "ID des publications",
                     matches_manifest: "Correspond au manifeste signé",
                     design_count: "Modèles publiés",
                     seal_at_close: "Sceller à la fermeture",

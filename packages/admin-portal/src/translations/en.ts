@@ -270,6 +270,7 @@ const englishTranslation = {
                     tally_session_count: "Tally sessions",
                     publication: "Publication",
                     publication_id: "Publication ID",
+                    publication_ids: "Publication IDs",
                     matches_manifest: "Matches signed manifest",
                     design_count: "Published designs",
                     seal_at_close: "Seal at close",

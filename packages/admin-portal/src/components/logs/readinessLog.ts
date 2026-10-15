@@ -48,6 +48,7 @@ const FIELD_NAMES = [
     "tally_session_count",
     "publication",
     "publication_id",
+    "publication_ids",
     "matches_manifest",
     "design_count",
     "seal_at_close",

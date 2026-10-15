@@ -272,6 +272,7 @@ const spanishTranslation: TranslationType = {
                     tally_session_count: "Sesiones de recuento",
                     publication: "Publicación",
                     publication_id: "ID de publicación",
+                    publication_ids: "ID de las publicaciones",
                     matches_manifest: "Coincide con el manifiesto firmado",
                     design_count: "Diseños publicados",
                     seal_at_close: "Sellar al cierre",

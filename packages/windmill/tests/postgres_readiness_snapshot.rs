@@ -103,7 +103,7 @@ async fn published_content(tx: &Transaction<'_>, ids: FixtureIds) -> Content {
     )
     .await
     .unwrap();
-    tx.execute("UPDATE sequent_backend.election SET external_id = 'approved-election', presentation = $2, voting_channels = $3 WHERE id = $1", &[&ids.election, &json!({"i18n":{"en":{"name":"General election"}}}), &json!({"online":true})]).await.unwrap();
+    tx.execute("UPDATE sequent_backend.election SET external_id = COALESCE(external_id, 'approved-election'), presentation = $2, voting_channels = $3 WHERE id = $1", &[&ids.election, &json!({"i18n":{"en":{"name":"General election"}}}), &json!({"online":true})]).await.unwrap();
     let contest = Uuid::new_v4();
     tx.execute("INSERT INTO sequent_backend.contest (id, tenant_id, election_event_id, election_id, external_id, min_votes, max_votes, winning_candidates_num, is_encrypted, counting_algorithm, presentation) VALUES ($1, $2, $3, $4, 'president', 0, 1, 1, true, 'plurality-at-large', $5)", &[&contest, &ids.tenant, &ids.event, &ids.election, &json!({"i18n":{"en":{"name":"President"}}})]).await.unwrap();
     tx.execute("INSERT INTO sequent_backend.candidate (id, tenant_id, election_event_id, contest_id, external_id, presentation) VALUES ($1, $2, $3, $4, 'alice', $5)", &[&Uuid::new_v4(), &ids.tenant, &ids.event, &contest, &json!({"i18n":{"en":{"name":"Alice"}}})]).await.unwrap();
@@ -127,9 +127,17 @@ async fn published_content(tx: &Transaction<'_>, ids: FixtureIds) -> Content {
     let keys = DesignKeys::of_entities(&areas, &elections, &contests, &candidates).unwrap();
     let style = sequent_core::ballot_style::create_ballot_style(
         Uuid::new_v4().to_string(),
-        areas[0].clone(),
+        areas
+            .iter()
+            .find(|area| area.id == ids.area.to_string())
+            .unwrap()
+            .clone(),
         event_row,
-        elections[0].clone(),
+        elections
+            .iter()
+            .find(|election| election.id == ids.election.to_string())
+            .unwrap()
+            .clone(),
         contests.clone(),
         &contests,
         candidates,
@@ -149,7 +157,7 @@ async fn published_content(tx: &Transaction<'_>, ids: FixtureIds) -> Content {
         })
         .collect();
     let publication = Uuid::new_v4();
-    tx.execute("INSERT INTO sequent_backend.ballot_publication (id, tenant_id, election_event_id) VALUES ($1, $2, $3)", &[&publication, &ids.tenant, &ids.event]).await.unwrap();
+    tx.execute("INSERT INTO sequent_backend.ballot_publication (id, tenant_id, election_event_id, election_id) VALUES ($1, $2, $3, $4)", &[&publication, &ids.tenant, &ids.event, &ids.election]).await.unwrap();
     tx.execute("INSERT INTO sequent_backend.ballot_style (id, tenant_id, election_event_id, election_id, area_id, ballot_publication_id, ballot_eml) VALUES ($1, $2, $3, $4, $5, $6, $7)", &[&Uuid::parse_str(&style.id).unwrap(), &ids.tenant, &ids.event, &ids.election, &ids.area, &publication, &serde_json::to_string(&style).unwrap()]).await.unwrap();
     // Complete through the production server helper: it supplies the trusted
     // transaction mark required by the publication authority guard.
@@ -660,6 +668,169 @@ fn real_snapshot_requires_delivered_valid_receipt_and_current_full_census_withou
             passed.evidence.tested.sealed_boxes
         );
         assert_signed_report(&db, &key, &passed).await;
+        // Per-election publications remain supported: neither individual
+        // publication contains every design, but together they cover both.
+        tx.batch_execute("SAVEPOINT split_publications")
+            .await
+            .unwrap();
+        for ids in [official_ids, tested_ids] {
+            let second = FixtureIds {
+                election: Uuid::new_v4(),
+                ..ids
+            };
+            tx.execute("INSERT INTO sequent_backend.election (id, tenant_id, election_event_id, external_id, status) VALUES ($1, $2, $3, 'second-election', '{}'::jsonb)", &[&second.election, &tenant, &ids.event]).await.unwrap();
+            let additional = published_content(&tx, second).await;
+            let row = tx.query_one("SELECT manifest FROM sequent_backend.configuration_package WHERE election_event_id = $1", &[&ids.event]).await.unwrap();
+            let mut manifest: Manifest = serde_json::from_value(row.get(0)).unwrap();
+            manifest
+                .content
+                .ballot_designs
+                .extend(additional.ballot_designs);
+            manifest.content_sha256 = manifest.content.sha256().unwrap();
+            let hash =
+                sequent_core::election_config::manifest::sha256_hex(&manifest.to_bytes().unwrap());
+            tx.execute("UPDATE sequent_backend.configuration_package SET manifest = $2, manifest_sha256 = $3 WHERE election_event_id = $1", &[&ids.event, &serde_json::to_value(manifest).unwrap(), &hash]).await.unwrap();
+            if ids.event == tested_event {
+                tx.execute(
+                    "UPDATE sequent_backend.election SET status = $2 WHERE id = $1",
+                    &[&second.election, &closed_status],
+                )
+                .await
+                .unwrap();
+                seal_tested_box(&tx, second, &tested_db, &tested_key).await;
+            }
+        }
+        let split = verify(
+            &tx,
+            &tenant_id,
+            &event_id,
+            &tested_event.to_string(),
+            &actor,
+        )
+        .await
+        .unwrap();
+        assert!(
+            split.passed,
+            "Separate published elections must compose: {:#?}",
+            split.checks
+        );
+        assert_eq!(
+            split
+                .evidence
+                .official
+                .publication
+                .as_ref()
+                .unwrap()
+                .publication_ids
+                .len(),
+            2
+        );
+        assert_eq!(split.evidence.tested.expected_boxes.len(), 2);
+        // A retained publication may also contain retired styles after a
+        // partial replacement. Even unreadable retired content is irrelevant
+        // to the current published design set.
+        for ids in [official_ids, tested_ids] {
+            let publication: Uuid = tx.query_one("SELECT id FROM sequent_backend.ballot_publication WHERE election_event_id = $1 ORDER BY published_at ASC LIMIT 1", &[&ids.event]).await.unwrap().get(0);
+            let second: Uuid = tx.query_one("SELECT id FROM sequent_backend.election WHERE election_event_id = $1 AND external_id = 'second-election'", &[&ids.event]).await.unwrap().get(0);
+            tx.execute("INSERT INTO sequent_backend.ballot_style (id, tenant_id, election_event_id, election_id, area_id, ballot_publication_id, ballot_eml, deleted_at) VALUES ($1, $2, $3, $4, $5, $6, 'retired material', now())", &[&Uuid::new_v4(), &tenant, &ids.event, &second, &ids.area, &publication]).await.unwrap();
+        }
+        let retired = verify(
+            &tx,
+            &tenant_id,
+            &event_id,
+            &tested_event.to_string(),
+            &actor,
+        )
+        .await
+        .unwrap();
+        assert!(
+            retired.passed,
+            "Retired styles must not affect readiness: {:#?}",
+            retired.checks
+        );
+        tx.batch_execute("ROLLBACK TO SAVEPOINT split_publications")
+            .await
+            .unwrap();
+
+        // A generated draft was never used for voting. It must not enlarge
+        // the tested publication's required seal scope.
+        tx.batch_execute("SAVEPOINT draft_publication")
+            .await
+            .unwrap();
+        let draft_publication = Uuid::new_v4();
+        let draft_area = Uuid::new_v4();
+        tx.execute("INSERT INTO sequent_backend.area (id, tenant_id, election_event_id, name) VALUES ($1, $2, $3, 'Draft area')", &[&draft_area, &tenant, &tested_event]).await.unwrap();
+        tx.execute("INSERT INTO sequent_backend.ballot_publication (id, tenant_id, election_event_id, is_generated) VALUES ($1, $2, $3, true)", &[&draft_publication, &tenant, &tested_event]).await.unwrap();
+        let eml: String = tx.query_one("SELECT ballot_eml FROM sequent_backend.ballot_style WHERE election_event_id = $1 LIMIT 1", &[&tested_event]).await.unwrap().get(0);
+        let mut draft: serde_json::Value = serde_json::from_str(&eml).unwrap();
+        let draft_style = Uuid::new_v4();
+        draft["id"] = json!(draft_style);
+        draft["area_id"] = json!(draft_area);
+        tx.execute("INSERT INTO sequent_backend.ballot_style (id, tenant_id, election_event_id, election_id, area_id, ballot_publication_id, ballot_eml) VALUES ($1, $2, $3, $4, $5, $6, $7)", &[&draft_style, &tenant, &tested_event, &tested_election, &draft_area, &draft_publication, &draft.to_string()]).await.unwrap();
+        let with_draft = verify(
+            &tx,
+            &tenant_id,
+            &event_id,
+            &tested_event.to_string(),
+            &actor,
+        )
+        .await
+        .unwrap();
+        tx.batch_execute("ROLLBACK TO SAVEPOINT draft_publication")
+            .await
+            .unwrap();
+
+        // Matching signed packages are insufficient if both actual
+        // publications omit an approved design. The publication checker used
+        // by publishing permits subsets; readiness requires the whole scope.
+        tx.batch_execute("SAVEPOINT missing_design").await.unwrap();
+        for id in [event, tested_event] {
+            let row = tx.query_one("SELECT manifest FROM sequent_backend.configuration_package WHERE election_event_id = $1", &[&id]).await.unwrap();
+            let mut manifest: Manifest = serde_json::from_value(row.get(0)).unwrap();
+            let mut missing = manifest.content.ballot_designs[0].clone();
+            missing.area = "Missing area".into();
+            manifest.content.ballot_designs.push(missing);
+            manifest.content_sha256 = manifest.content.sha256().unwrap();
+            let hash =
+                sequent_core::election_config::manifest::sha256_hex(&manifest.to_bytes().unwrap());
+            tx.execute("UPDATE sequent_backend.configuration_package SET manifest = $2, manifest_sha256 = $3 WHERE election_event_id = $1", &[&id, &serde_json::to_value(manifest).unwrap(), &hash]).await.unwrap();
+        }
+        let entries_before_missing = db
+            .store
+            .count(&db.board, &LogQuery::default())
+            .await
+            .unwrap();
+        let missing = verify(
+            &tx,
+            &tenant_id,
+            &event_id,
+            &tested_event.to_string(),
+            &actor,
+        )
+        .await
+        .unwrap();
+        let missing_wrote_nothing = db
+            .store
+            .count(&db.board, &LogQuery::default())
+            .await
+            .unwrap()
+            == entries_before_missing;
+        tx.batch_execute("ROLLBACK TO SAVEPOINT missing_design")
+            .await
+            .unwrap();
+        assert!(with_draft.passed && !missing.passed && missing_wrote_nothing,
+            "Unpublished draft verdict: {:#?}; missing approved design verdict: {:#?}; missing design wrote nothing: {missing_wrote_nothing}", with_draft.checks, missing.checks);
+        for kind in [CheckKind::Publication, CheckKind::TestedFinished] {
+            assert!(
+                missing
+                    .checks
+                    .iter()
+                    .any(|check| check.kind == kind && !check.passed),
+                "{kind:?}: {:#?}",
+                missing.checks
+            );
+        }
+
         tx.batch_execute("SAVEPOINT pending_import").await.unwrap();
         tx.execute("INSERT INTO sequent_backend.tasks_execution (id, tenant_id, election_event_id, name, type, execution_status, executed_by_user) VALUES ($1, $2, $3, 'Pending import', 'IMPORT_USERS', 'IN_PROGRESS', 'ada')", &[&Uuid::new_v4(), &tenant, &event]).await.unwrap();
         let entries_before_pending = db

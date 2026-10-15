@@ -272,6 +272,7 @@ const galegoTranslation: TranslationType = {
                     tally_session_count: "Sesións de reconto",
                     publication: "Publicación",
                     publication_id: "ID da publicación",
+                    publication_ids: "ID das publicacións",
                     matches_manifest: "Coincide co manifesto asinado",
                     design_count: "Deseños publicados",
                     seal_at_close: "Selar ao peche",

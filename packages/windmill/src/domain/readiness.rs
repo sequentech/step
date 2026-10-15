@@ -13,6 +13,10 @@ use std::collections::{BTreeMap, BTreeSet};
 #[path = "../../tests/support/readiness_adversarial.rs"]
 mod adversarial_tests;
 
+#[cfg(test)]
+#[path = "../../tests/support/readiness_review.rs"]
+mod review_tests;
+
 pub const CHANNELS: [VotingStatusChannel; 4] = [
     VotingStatusChannel::ONLINE,
     VotingStatusChannel::KIOSK,
@@ -41,7 +45,11 @@ pub struct ElectionEvidence {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PublicationEvidence {
+    /// Newest applicable publication, retained for older report consumers.
     pub publication_id: String,
+    /// All active publications contributing designs, including per-election ones.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub publication_ids: Vec<String>,
     pub matches_manifest: bool,
     pub design_count: usize,
 }
@@ -144,6 +152,13 @@ fn certified_voters(event: &EventEvidence) -> bool {
     }
 }
 
+fn matching_publication(event: &EventEvidence) -> bool {
+    event
+        .publication
+        .as_ref()
+        .is_some_and(|publication| publication.matches_manifest && publication.design_count > 0)
+}
+
 pub fn evaluate(evidence: ReadinessEvidence, checked_at: String) -> ReadinessReport {
     let official = &evidence.official;
     let tested = &evidence.tested;
@@ -165,11 +180,9 @@ pub fn evaluate(evidence: ReadinessEvidence, checked_at: String) -> ReadinessRep
             .elections
             .iter()
             .all(|election| election.status.as_ref().is_some_and(never_started));
-    let publication_matches = official
-        .publication
-        .as_ref()
-        .is_some_and(|publication| publication.matches_manifest && publication.design_count > 0);
-    let tested_finished = !tested.elections.is_empty()
+    let publication_matches = matching_publication(official);
+    let tested_finished = matching_publication(tested)
+        && !tested.elections.is_empty()
         && tested.all_channels_closed
         && tested.seal_at_close
         && !tested.expected_boxes.is_empty()
@@ -182,9 +195,9 @@ pub fn evaluate(evidence: ReadinessEvidence, checked_at: String) -> ReadinessRep
         (CheckKind::OfficialZero, official_zero,
             "The official event has never opened voting and holds no ballots or tally sessions"),
         (CheckKind::Publication, publication_matches,
-            "The official publication still matches its signed manifest"),
+            "The complete official publication matches its signed manifest"),
         (CheckKind::TestedFinished, tested_finished,
-            "Every tested voting channel is closed and every expected ballot box is sealed"),
+            "The complete tested publication matches its signed manifest, every voting channel is closed and every expected ballot box is sealed"),
     ];
     let checks: Vec<ReadinessCheck> = facts
         .into_iter()

@@ -275,6 +275,7 @@ const dutchTranslation: TranslationType = {
                     tally_session_count: "Telsessies",
                     publication: "Publicatie",
                     publication_id: "Publicatie-ID",
+                    publication_ids: "Publicatie-ID’s",
                     matches_manifest: "Komt overeen met ondertekend manifest",
                     design_count: "Gepubliceerde ontwerpen",
                     seal_at_close: "Verzegelen bij sluiting",

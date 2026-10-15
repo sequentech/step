@@ -89,6 +89,13 @@ and storage isolation are implemented, use isolated practice events;
 official-event practice cannot currently be certified. The report is a snapshot
 at `checked_at`.
 
+Both events' active publications must together contain every ballot design in
+their signed manifest. Separate publications per election are supported; their
+references are listed in `publication_ids`. An incomplete set cannot establish
+readiness, even when every published design is approved. The tested event's
+required seals come from these publications; generated but unpublished drafts
+and retired styles do not add required boxes.
+
 A successful invocation appends `ReadinessVerified` to the official event log;
 a failed check does not. In the existing **Logs** tab, filter statement kind to
 `ReadinessVerified`, open the entry and correlate its report with the returned

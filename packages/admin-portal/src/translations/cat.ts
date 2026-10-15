@@ -351,6 +351,7 @@ const catalanTranslation: TranslationType = {
                     tally_session_count: "Sessions de recompte",
                     publication: "Publicació",
                     publication_id: "ID de publicació",
+                    publication_ids: "ID de les publicacions",
                     matches_manifest: "Coincideix amb el manifest signat",
                     design_count: "Dissenys publicats",
                     seal_at_close: "Segellar al tancament",

@@ -273,6 +273,7 @@ const basqueTranslation: TranslationType = {
                     tally_session_count: "Zenbaketa-saioak",
                     publication: "Argitalpena",
                     publication_id: "Argitalpenaren IDa",
+                    publication_ids: "Argitalpenen IDak",
                     matches_manifest: "Sinatutako manifestuarekin bat dator",
                     design_count: "Argitaratutako diseinuak",
                     seal_at_close: "Zigilatu ixtean",

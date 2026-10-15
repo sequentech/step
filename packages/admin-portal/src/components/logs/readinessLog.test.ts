@@ -96,3 +96,24 @@ it("preserves every dynamic area name even when it resembles a structural field 
         expect(JSON.stringify(signed)).toBe(before)
     }
 })
+
+it("shows every contributing publication with translated labels alongside the legacy reference", async () => {
+    const t = await translate()
+    const signed = message({
+        report: {
+            evidence: {
+                official: {
+                    publication: {
+                        publication_id: "latest",
+                        publication_ids: ["latest", "earlier"],
+                    },
+                },
+            },
+        },
+    })
+    const original = JSON.stringify(signed)
+    const rows = readinessDetailRows(t, "ReadinessVerified", signed)
+    expect(rows?.[0].value).toContain("Publication ID: latest")
+    expect(rows?.[0].value).toContain("Publication IDs: latest, earlier")
+    expect(JSON.stringify(signed)).toBe(original)
+})

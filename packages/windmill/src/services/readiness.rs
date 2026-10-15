@@ -8,14 +8,14 @@ use crate::domain::readiness::{
     ReadinessEvidence, ReadinessReport,
 };
 use crate::postgres::{
-    area, ballot_box_seal, ballot_publication, configuration_packages, election, election_event,
-    signing, voter_import,
+    area, ballot_box_seal, ballot_publication, ballot_style, configuration_packages, election,
+    election_event, signing, voter_import,
 };
 use crate::services::audit_log::AuditActor;
 use crate::services::audit_log_writer::delivery_id;
 use crate::services::ballot_box_reads::get_event_ballot_box;
-use crate::services::ballot_box_seal::{deadline, expected_ballot_boxes, published_ballot_styles};
-use crate::services::ballot_styles::design_check::check_publication_designs;
+use crate::services::ballot_box_seal::{deadline, expected_ballot_boxes};
+use crate::services::ballot_styles::design_check::check_active_publication_designs;
 use crate::services::database::get_keycloak_pool;
 use crate::services::electoral_log::ElectoralLog;
 use anyhow::{ensure, Context, Result};
@@ -23,13 +23,14 @@ use deadpool_postgres::Transaction;
 use electoral_log::messages::message::Message;
 use electoral_log::messages::newtypes::AuditStatementKind;
 use electoral_log::messages::statement::StatementBody;
-use sequent_core::ballot::{BallotBoxSealPolicy, ElectionStatus, LockedDown};
+use sequent_core::ballot::{BallotBoxSealPolicy, BallotStyle, ElectionStatus, LockedDown};
+use sequent_core::election_config::design::{BallotDesign, DesignDigest};
 use sequent_core::election_config::package_verify::CertificateIdentity;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::hasura::core::VotingChannels;
 use sequent_core::types::voter_import::VotersImportedEvidence;
 use serde_json::Value;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use uuid::Uuid;
 use voting_crypto::signing::VerificationKey;
 use voting_crypto::RecordDeserialize;
@@ -215,6 +216,22 @@ async fn voter_receipt_delivered(
     }
 }
 
+/// Publication admission checks the designs being published and permits a
+/// subset. Readiness needs every approved design, including its multiplicity.
+fn complete_designs(approved: &[BallotDesign], published: &[DesignDigest]) -> bool {
+    let mut expected: Vec<_> = approved
+        .iter()
+        .map(|design| (&design.area, &design.election, &design.sha256))
+        .collect();
+    let mut actual: Vec<_> = published
+        .iter()
+        .map(|design| (&design.area, &design.election, &design.sha256))
+        .collect();
+    expected.sort_unstable();
+    actual.sort_unstable();
+    !expected.is_empty() && expected == actual
+}
+
 pub async fn snapshot(tx: &Transaction<'_>, tenant: &str, event_id: &str) -> Result<EventEvidence> {
     let event = election_event::get_election_event_by_id(tx, tenant, event_id).await?;
     let presentation = event.get_presentation()?.unwrap_or_default();
@@ -264,25 +281,51 @@ pub async fn snapshot(tx: &Transaction<'_>, tenant: &str, event_id: &str) -> Res
         None => false,
     };
     let current_voter_counts = current_registry_counts(tx, tenant, event_id).await?;
-    let mut publication = None;
-    // generated-but-unpublished rows have NULL published_at and must not win.
-    let publication_row = tx.query_opt(
-        "SELECT id::text FROM sequent_backend.ballot_publication WHERE tenant_id = $1 AND election_event_id = $2 AND deleted_at IS NULL AND published_at IS NOT NULL ORDER BY published_at DESC LIMIT 1",
+    let mut expected_boxes = BTreeSet::new();
+    let mut publication_ids = Vec::new();
+    let mut digests = Vec::new();
+    let mut all_styles_available = true;
+    // Different elections may be published separately. Combine active styles
+    // from every actual publication, excluding drafts and retired styles.
+    let publication_rows = tx.query(
+        "SELECT id::text FROM sequent_backend.ballot_publication WHERE tenant_id = $1 AND election_event_id = $2 AND deleted_at IS NULL AND published_at IS NOT NULL ORDER BY published_at DESC, id DESC",
         &[&Uuid::parse_str(tenant)?, &Uuid::parse_str(event_id)?],
     ).await?;
-    if let Some(row) = publication_row {
+    for row in publication_rows {
         let id: String = row.try_get(0)?;
-        let checked = check_publication_designs(tx, tenant, event_id, &id).await?;
-        publication = Some(PublicationEvidence {
-            publication_id: id,
-            matches_manifest: checked
-                .as_ref()
-                .is_some_and(|check| check.mismatches.is_empty()),
-            design_count: checked.map_or(0, |check| check.digests.len()),
-        });
+        let rows: Vec<_> =
+            ballot_style::get_publication_ballot_styles(tx, tenant, event_id, &id, None)
+                .await?
+                .into_iter()
+                .filter(|row| row.deleted_at.is_none())
+                .collect();
+        if rows.is_empty() {
+            continue;
+        }
+        let checked = check_active_publication_designs(tx, tenant, event_id, &id).await?;
+        all_styles_available &= rows.iter().all(|row| row.ballot_eml.is_some());
+        match checked {
+            Some(check) => digests.extend(check.digests),
+            None => all_styles_available = false,
+        }
+        let styles: Vec<BallotStyle> = rows
+            .iter()
+            .filter_map(|row| row.ballot_eml.as_deref())
+            .map(serde_json::from_str)
+            .collect::<std::result::Result<_, _>>()?;
+        expected_boxes.extend(expected_ballot_boxes(&styles));
+        publication_ids.push(id);
     }
-    let styles = published_ballot_styles(tx, tenant, event_id, &ids).await?;
-    let expected_boxes = expected_ballot_boxes(&styles);
+    let manifest = configuration_packages::manifest_of_event(tx, tenant, event_id).await?;
+    let publication = publication_ids.first().map(|id| PublicationEvidence {
+        publication_id: id.clone(),
+        publication_ids: publication_ids.clone(),
+        matches_manifest: all_styles_available
+            && manifest.as_ref().is_some_and(|(manifest, _)| {
+                complete_designs(&manifest.content.ballot_designs, &digests)
+            }),
+        design_count: digests.len(),
+    });
     let uuids: Vec<Uuid> = ids
         .iter()
         .map(|id| Uuid::parse_str(id))
@@ -414,6 +457,47 @@ pub async fn record_if_passed(
 mod tests {
     use super::*;
     use std::sync::Mutex;
+
+    #[test]
+    fn complete_publication_requires_each_approved_design_exactly_once() {
+        let approved = [
+            BallotDesign {
+                area: "Area A".into(),
+                election: "election".into(),
+                sha256: "ab".repeat(32),
+                version: 1,
+            },
+            BallotDesign {
+                area: "Area B".into(),
+                election: "election".into(),
+                sha256: "cd".repeat(32),
+                version: 1,
+            },
+        ];
+        let a = DesignDigest {
+            area: "Area A".into(),
+            election: "election".into(),
+            sha256: "ab".repeat(32),
+        };
+        let b = DesignDigest {
+            area: "Area B".into(),
+            election: "election".into(),
+            sha256: "cd".repeat(32),
+        };
+        assert!(complete_designs(&approved, &[b.clone(), a.clone()]));
+        assert!(!complete_designs(&approved, &[a.clone()]));
+        assert!(!complete_designs(&approved, &[a.clone(), a.clone()]));
+        assert!(!complete_designs(
+            &approved,
+            &[a.clone(), b.clone(), b.clone()]
+        ));
+        let changed = DesignDigest {
+            sha256: "ef".repeat(32),
+            ..b
+        };
+        assert!(!complete_designs(&approved, &[a, changed]));
+        assert!(!complete_designs(&[], &[]));
+    }
 
     struct Recorder {
         entries: Mutex<Vec<Value>>,

@@ -274,6 +274,7 @@ const tagalogTranslation: TranslationType = {
                     tally_session_count: "Mga sesyon ng pagbibilang",
                     publication: "Paglalathala",
                     publication_id: "ID ng paglalathala",
+                    publication_ids: "Mga ID ng paglalathala",
                     matches_manifest: "Tugma sa nilagdaang manifest",
                     design_count: "Mga nailathalang disenyo",
                     seal_at_close: "Selyuhan sa pagsasara",
