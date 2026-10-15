@@ -296,6 +296,12 @@ units = ["messaging-webhooks", "docker-images"]
 globs = ["packages/test-support/**"]
 units = ["test-support"]
 
+# The ER transmission sample configuration and kit: windmill's kit test,
+# step-cli's job runs the loader's tests, and the backend journeys load it.
+[[paths]]
+globs = ["scripts/transmission-sample/**"]
+units = ["windmill", "step-cli", "scripts-e2e"]
+
 # Writes the synthetic signing certificates the admin portal tests read.
 [[paths]]
 globs = ["scripts/signing/**"]
