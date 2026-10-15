@@ -12,7 +12,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 Use the stable classes below in **Data → Ballot Design → Custom CSS**. Prefer a
 screen or component class over generated Emotion classes, translated text, element
-positions, or an assumed HTML tag. A navigation action may be a link styled as a
+positions, or an assumed HTML tag. For the steps, see
+[Customize the Voting Portal with CSS](../01-tutorials/22-admin_portal_tutorials_custom-css.md).
+A navigation action may be a link styled as a
 button. Existing classes remain supported. Authored layout elements, labels,
 icons, loading indicators and controls have descriptive hooks as well as their
 containing sections. React fragments, providers and routing components do not
