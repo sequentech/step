@@ -168,7 +168,7 @@
     "description": "The label for category 'Try it out' in sidebar 'docs'"
   },
   "sidebar.docs.category.Election Managers": {
-    "message": "Gestores electorales",
+    "message": "Administradores electorales",
     "description": "The label for category 'Election Managers' in sidebar 'docs'"
   },
   "sidebar.docs.category.Procedures": {
@@ -184,7 +184,7 @@
     "description": "The label for category 'Reference' in sidebar 'docs'"
   },
   "sidebar.docs.category.Election Event": {
-    "message": "Evento electoral",
+    "message": "Proceso electoral",
     "description": "The label for category 'Election Event' in sidebar 'docs'"
   },
   "sidebar.docs.category.Election": {
@@ -200,7 +200,7 @@
     "description": "The label for category 'Candidate' in sidebar 'docs'"
   },
   "sidebar.docs.category.Tenant Configuration": {
-    "message": "Configuración del cliente",
+    "message": "Configuración del inquilino",
     "description": "The label for category 'Tenant Configuration' in sidebar 'docs'"
   },
   "sidebar.docs.category.electoral-log": {
@@ -216,7 +216,7 @@
     "description": "The label for category 'templates' in sidebar 'docs'"
   },
   "sidebar.docs.category.Users and Roles": {
-    "message": "Usuarios y roles",
+    "message": "Usuarios y Roles",
     "description": "The label for category 'Users and Roles' in sidebar 'docs'"
   },
   "sidebar.docs.category.election_managers-reference": {
@@ -272,7 +272,7 @@
     "description": "The generated-index page description for category 'Tenant Configuration' in sidebar 'docs'"
   },
   "sidebar.docs.category.Settings": {
-    "message": "Ajustes",
+    "message": "Configuración",
     "description": "The label for category 'Settings' in sidebar 'docs'"
   },
   "sidebar.docs.category.Settings.link.generated-index.description": {
@@ -290,5 +290,9 @@
   "sidebar.docs.category.Templates.link.generated-index.description": {
     "message": "La página Plantillas.",
     "description": "The generated-index page description for category 'Templates' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Import File Formats": {
+    "message": "Formatos de los archivos de importación",
+    "description": "The label for category 'Import File Formats' in sidebar 'docs'"
   }
 }
