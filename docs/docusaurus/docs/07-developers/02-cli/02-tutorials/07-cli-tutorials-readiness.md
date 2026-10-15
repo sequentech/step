@@ -17,15 +17,16 @@ these commands.
 ## Import a certified voter file
 
 For signed configuration packages, configure **Required SHA-256** and **Seal at
-close** in the source before producing and approving the ERT, FTL and official
-packages. The existing lifecycle preset includes these policies. JSON policy
-fields participate in the signed ballot-design digest; changing an admitted
+close** in the source before producing and approving the tested and official
+packages. Verify the selected source configuration or preset explicitly includes
+both policies before signing. JSON policy fields participate in the signed ballot-design digest; changing an admitted
 policy can invalidate publication verification. Obtain corrected higher signed
 and approved revisions when the source policy needs correction.
 
-The expected hash must come from the independent certified transmittal. For FTL,
-import the identical certified full actual registry into the tested and official
-events. ERT uses its separately certified test-voter file:
+The expected hash must come from the independent certified transmittal. Import
+the identical certified full registry into the tested and official events.
+Earlier rehearsals may use separately certified test data; the event selected
+for readiness comparison must match the official registry:
 
 ```bash
 step-cli step import-voters \
@@ -45,26 +46,28 @@ compares it to the exact uploaded bytes before writing voters. An event with
 Older events default to `"OPTIONAL"`; an import without a verified declared hash
 cannot establish certified readiness evidence. The command waits for task
 completion and exits nonzero on failure or timeout. Retain the successful
-`VotersImported` log entry and independently verify its Post counts against the
-transmittal. Do not substitute the last delta file for a full certified registry.
+`VotersImported` log entry and independently verify its area counts against the
+transmittal. Count-map keys are trimmed `area.name` values matched to
+`manifest.content.ballot_designs[].area`. Do not substitute the last delta file
+for a full certified registry.
 
 A `FAILED` task is terminal. Fix the reported cause and submit a new import
 command to create a new task; do not retry the old task. A failure during voter
 commit or completed-import receipt persistence requires reconciling the current
-registry, Post counts and log evidence against the certified transmittal before
+registry, area counts and log evidence against the certified transmittal before
 submitting the new import. The failed task alone does not prove that no voter
 changes occurred.
 
 ## Compare the tested and official events
 
-After closing and sealing the FTL event and publishing the unopened official
+After closing and sealing the tested event and publishing the unopened official
 event, run:
 
 ```bash
 step-cli step readiness-check \
   --official "$OFFICIAL_EVENT_ID" \
   --tested "$TESTED_EVENT_ID" \
-  > readiness-after-ftl.json
+  > readiness-after-rehearsal.json
 ```
 
 Both events must be distinct and belong to the configured tenant. The server
@@ -75,7 +78,7 @@ the report as a pass.
 
 The report contains `passed`, `checked_at`, named `checks` with their verdicts
 and explanations, `evidence` for both events and `log_entry_id` on success. It
-compares approved package content and approvers, certified voter hashes and Post
+compares approved package content and approvers, certified voter hashes and area
 counts, official zero state, official publication designs and tested close/seal
 completeness. Each event's evidence includes `current_voter_counts`,
 `voter_import_in_progress` and `received_ballot_count`. Current voter counts must
@@ -92,7 +95,7 @@ a failed check does not. In the existing **Logs** tab, filter statement kind to
 reference. Export CSV/PDF logs through the existing export action. Keep the
 complete JSON alongside the exports.
 
-Repeat at the approved lockdown start, writing to a separate file such as
-`readiness-at-lockdown.json`. An intentional new invocation is a new readiness
-snapshot. Neither invocation opens voting, clears ballots, changes seals or
+Repeat at the points required by the authority-approved procedure, including
+lockdown start if applicable. Write each report to a separate file, such as
+`readiness-at-lockdown.json`. An intentional new invocation is a new snapshot. Neither invocation opens voting, clears ballots, changes seals or
 replaces the operational approval procedure.
