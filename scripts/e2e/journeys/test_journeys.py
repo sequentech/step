@@ -2443,7 +2443,7 @@ class BackendJourneys(unittest.TestCase):
         )
         self.assertEqual(response.status, 200)
         Hasura(token=token, role="miru-sign").query(
-            """mutation ($election: uuid!, $area: uuid!, $session: uuid!, $document: String!, $password: String!) {
+            """mutation ($election: uuid!, $area: uuid!, $session: uuid!, $document: uuid!, $password: String!) {
               upload_signature(election_id: $election, area_id: $area, tally_session_id: $session,
                                document_id: $document, password: $password) { __typename }
             }""",
@@ -2518,14 +2518,25 @@ class BackendJourneys(unittest.TestCase):
         created = Hasura(token=admin_token, role="miru-create").query(
             """mutation ($event: uuid!, $election: uuid!, $area: uuid!, $session: uuid!) {
               create_transmission_package(election_event_id: $event, election_id: $election, area_id: $area,
-                                          tally_session_id: $session, force: false) { error_msg }
+                                          tally_session_id: $session, force: false) {
+                error_msg task_execution { id }
+              }
             }""",
             self.transmission_ids(),
         )["create_transmission_package"]
         self.assertIsNone(created["error_msg"], created)
-        package = wait_until(
-            "the transmission package", self.transmission_package, timeout=300, interval=3
-        )
+        task_id = created["task_execution"]["id"]
+
+        def generated():
+            (task,) = self.admin.query(
+                "query ($id: uuid!) { sequent_backend_tasks_execution(where: {id: {_eq: $id}}) { execution_status logs } }",
+                {"id": task_id},
+            )["sequent_backend_tasks_execution"]
+            if task["execution_status"] == "FAILED":
+                raise AssertionError(f"Generating the package failed: {task['logs']}")
+            return task["execution_status"] == "SUCCESS" and self.transmission_package()
+
+        package = wait_until("the transmission package", generated, timeout=300, interval=3)
         (server,) = package["servers"]
         self.assertEqual((server["name"], server["address"]), ("CCS Manila (SBOC)", ""))
         (document,) = package["documents"]

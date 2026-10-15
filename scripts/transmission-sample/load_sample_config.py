@@ -131,13 +131,29 @@ query ($event: uuid!, $election: uuid!, $area: uuid!) {
 }
 """
 
-APPEND = """
+CURRENT = """
+query ($id: uuid!) {
+  sequent_backend_%s(where: {id: {_eq: $id}}) { annotations }
+}
+"""
+
+# Not `_append`: jsonb concatenation onto a row without annotations (NULL)
+# stays NULL.
+SET = """
 mutation ($id: uuid!, $annotations: jsonb!) {
-  update_sequent_backend_%s(where: {id: {_eq: $id}}, _append: {annotations: $annotations}) {
+  update_sequent_backend_%s(where: {id: {_eq: $id}}, _set: {annotations: $annotations}) {
     affected_rows
   }
 }
 """
+
+
+def merged(client, table, row_id, values):
+    """The row's annotations with `values` written over them."""
+    rows = client.query(CURRENT % table, {"id": row_id})[f"sequent_backend_{table}"]
+    if len(rows) != 1:
+        raise RuntimeError(f"{table} {row_id} not found")
+    return {**(rows[0]["annotations"] or {}), **values}
 
 
 SCOPE_ALL = "all"
@@ -179,7 +195,8 @@ def load(
         updates += [("contest", row_id, values) for row_id, values in contest_updates]
         updates += [("candidate", row_id, values) for row_id, values in candidate_updates]
     for table, row_id, values in updates:
-        changed = client.query(APPEND % table, {"id": row_id, "annotations": values})[
+        annotations = merged(client, table, row_id, values)
+        changed = client.query(SET % table, {"id": row_id, "annotations": annotations})[
             f"update_sequent_backend_{table}"
         ]["affected_rows"]
         if changed != 1:

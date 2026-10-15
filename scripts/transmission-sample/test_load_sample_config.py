@@ -54,13 +54,20 @@ def row(row_id, name):
 
 
 class FakeHasura:
-    def __init__(self, contests):
+    """Rows have no annotations (NULL) unless `existing` gives them some."""
+
+    def __init__(self, contests, existing=None):
         self.contests = contests
+        self.existing = existing or {}
         self.updates = []
 
     def query(self, query, variables=None):
         if "sequent_backend_area_contest" in query:
             return {"sequent_backend_area_contest": [{"contest": c} for c in self.contests]}
+        if "update_sequent_backend_" not in query:
+            table = query.split("sequent_backend_")[1].split("(")[0]
+            row = {"annotations": self.existing.get(variables["id"])}
+            return {f"sequent_backend_{table}": [row]}
         table = query.split("update_sequent_backend_")[1].split("(")[0]
         self.updates.append((table, variables["id"], variables["annotations"]))
         return {f"update_sequent_backend_{table}": {"affected_rows": 1}}
@@ -153,6 +160,16 @@ class Loading(unittest.TestCase):
             loader.plan(CONFIG, [row("c", "Contest")], {"c": many})
         with self.assertRaisesRegex(ValueError, "4 SBEI accounts"):
             loader.with_sbeis(CONFIG, ["a", "b", "c", "d"])
+
+    def test_annotations_are_merged_and_written_onto_rows_without_any(self):
+        hasura = FakeHasura([], existing={"event": {"keep": "me", "miru:use-root-ca": "false"}})
+        loader.load(hasura, CONFIG, "event", "post", "country", scope=loader.SCOPE_PACKAGE)
+        updates = {row_id: values for _, row_id, values in hasura.updates}
+        self.assertEqual(updates["event"]["keep"], "me")
+        self.assertEqual(updates["event"]["miru:use-root-ca"], "true")
+        # The country has no annotations yet: it gets the configuration's.
+        self.assertEqual(updates["country"]["miru:area-threshold"], "2")
+        self.assertNotIn("_append", loader.SET)
 
     def test_a_scope_writes_only_its_part(self):
         contests = [dict(row("c1", "Contest A"), candidates=[row("a1", "Alice")])]
