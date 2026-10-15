@@ -103,6 +103,15 @@ items that your role permits:
 Under each election event, the menu shows a tree: election event, elections, contests and
 candidates. Click the three dots next to an item to see the actions for it.
 
+### If you forget your password
+
+1. If the sign-in page shows a link to reset the password, click it.
+2. Type the email address of your account and send the form.
+3. Open the email that you get and do the steps in it.
+
+If the sign-in page has no reset link, ask your tenant administrator. The tenant administrator
+sets a new password with **Change password** on the users list. See [Users](02-reference/user-manual/users-and-roles/users-and-roles_users.md).
+
 ## Sensitive actions
 
 Some actions need a recent confirmation of your identity, for example to publish the ballot or

@@ -33,12 +33,12 @@ The order of the steps is important. Create the areas after the contests.
 2. Click **Create an Election Event**.
 3. Type the **Name** of the election event.
 4. Type the **Description**.
-5. Click the save button.
+5. Click **Save**.
 
 ![The Create an Election Event form](../01-tutorials/assets/elections_name_desc.png)
 
-**Expected result:** the message "Election Event created" shows. The admin portal opens the
-new election event. The election event shows these tabs. You see only the tabs that your role permits:
+**Expected result:** the task panel "Task: Create Election Event" shows **SUCCESS**. The message
+"Election Event created" shows and the admin portal opens the new election event. The election event shows these tabs. You see only the tabs that your role permits:
 
 | Tab | Use |
 | --- | --- |
@@ -77,8 +77,10 @@ election event.
 **Expected result:** the message "Election event imported Successfully" shows.
 
 :::caution CAUTION
-If you do not type the hash, the admin portal asks "Import Without Integrity Check?". Click
-**Go Back** and type the hash. Without the hash, you cannot know if somebody changed the file.
+In this version the admin portal does not send the hash of an election event file to the server,
+so the import does not check it. Before you import, get the hash of the file and compare it with
+the hash in the file name. See [Import File Formats](../02-reference/12-import-file-formats.md#election-event). Without this check,
+you cannot know if somebody changed the file.
 :::
 
 ## 2. Configure the election event
@@ -99,7 +101,7 @@ If you do not type the hash, the admin portal asks "Import Without Integrity Che
    - **Allow Automatic Ceremonies**: you can make ceremonies without trustee actions.
 10. To publish the results on the results website, set **Results Website** to **Enabled**.
     Then set **Results Website Access** and **Results Website Visibility**.
-11. Click the save button.
+11. Click **Save**.
 
 ![The Data tab of an election event](../01-tutorials/assets/elections_data.png)
 
@@ -125,14 +127,14 @@ Do these steps for each election.
 3. Type the **Name**.
 4. Type the **External ID**. This is the identifier of the election in your other systems.
 5. Type the **Description**.
-6. Click the save button.
+6. Click **Save**.
 7. Click the **Data** tab of the new election.
 8. In **General**, type the name and the description for each language.
 9. In **Voting Channels Allowed**, select the voting channels of this election.
 10. In **Advanced Configuration**, set **Initialize Report Policy**. Select **Required** if you
     must make an initialization report before the voting period opens.
-11. In **Custom filters**, set **Allow Tally**. The table gives the values.
-12. Click the save button.
+11. In **Advanced Configuration**, set **Allow Tally**. The table gives the values.
+12. Click **Save**.
 
 | **Allow Tally** value | Meaning |
 | --- | --- |
@@ -156,9 +158,9 @@ Do these steps for each contest.
 1. In the menu on the left, click the arrow next to the election to show its contests.
 2. Under the contests, click **Create a Contest**.
 3. Type the **Name**, the **Description** and the **External ID**.
-4. Click the save button.
+4. Click **Save**.
 5. Click the **Data** tab of the new contest.
-6. In **Ballot Voting System**, select the counting algorithm:
+6. In **Ballot Voting System**, select the **Counting algorithm**:
    - **Plurality at Large**: the voter selects candidates. The candidates with the most votes
      win.
    - **Instant Runoff**: the voter ranks the candidates. Then select the **Tie-Breaking
@@ -168,10 +170,10 @@ Do these steps for each contest.
    - The maximum number of selections. For **Instant Runoff**, this is the lowest rank that a
      voter can give.
    - The number of winning candidates.
-8. In **Policies**, set what the voting portal does when a voter selects too few, too many or
+8. In **Ballot Design**, under **Policies**, set what the voting portal does when a voter selects too few, too many or
    no candidates. For **Instant Runoff**, also set the policies for duplicated ranks and skipped
    ranks.
-9. Click the save button.
+9. Click **Save**.
 
 ![The Create a Contest form](../01-tutorials/assets/elections_create_contest.png)
 
@@ -189,11 +191,11 @@ Do these steps for each candidate.
 1. In the menu on the left, click the arrow next to the contest to show its candidates.
 2. Under the candidates, click **Create a Candidate**.
 3. Type the **Name**, the **Description** and the **External ID**.
-4. Click the save button.
+4. Click **Save**.
 5. Click the **Data** tab of the new candidate.
 6. In **General**, type the name and the description for each language.
 7. In **Image**, add a photo or a logo if necessary.
-8. Click the save button.
+8. Click **Save**.
 
 ![The Create a Candidate form](../01-tutorials/assets/elections_create_candidate.png)
 
@@ -205,13 +207,14 @@ An area tells which contests its voters see. Each voter belongs to one area.
 
 1. Open the election event.
 2. Click the **Areas** tab.
-3. Click **Create Area**.
+3. Click **Create Area**. If the list already has areas, click **Add**.
 4. Type the **Name** and the **Description**.
-5. In **Contests**, type three or more letters of a contest name, then select the contest. Do
-   this for each contest of the area.
+5. In **Area contest**, type part of a contest name, then select the contest. Do this for each
+   contest of the area.
 6. If the area is part of a larger area, select the parent area.
-7. If the voters of the area can vote early, turn on **Allow Early Voting**.
-8. Click the save button.
+7. If the voters of the area can vote early, turn on **Allow Early Voting**. This option is
+   available only if **Early voting** is on in the voting channels of the election event.
+8. Click **Save**.
 
 ![The Areas form](../01-tutorials/assets/area_config_details.png)
 
@@ -219,10 +222,27 @@ An area tells which contests its voters see. Each voter belongs to one area.
 
 ### Import areas (alternative)
 
-1. On the **Areas** tab, click **Import**.
-2. Upload a CSV file without a header row. Each row has six columns in this order:
-   identifier, country code, code, area name, delete flag, early voting policy.
-3. Use `0` in the delete flag column for each area to import.
+1. Make a CSV file without a header row. Each row has six columns in this order:
+
+   | Column | Value |
+   | --- | --- |
+   | 1 | The **Name** of the area. |
+   | 2 | Not used. Leave it empty. |
+   | 3 | Not used. Leave it empty. |
+   | 4 | The **Description** of the area. |
+   | 5 | Delete flag. Type `0` to import the row. Rows with another value are not imported. |
+   | 6 | Early voting policy: `allow_early_voting` or `no_early_voting`. An empty or other value gives `no_early_voting`. |
+
+   Example:
+
+   ```csv
+   North,,,North District,0,no_early_voting
+   South,,,South District,0,allow_early_voting
+   ```
+
+2. On the **Areas** tab, click **Import**.
+3. Type the hash of the file in **Integrity Check (SHA-256)**.
+4. Upload the CSV file. Then click **Import**.
 
 ![The Import Areas panel](../01-tutorials/assets/import_areas.png)
 
@@ -238,7 +258,7 @@ import, open each area and remove the contests that are not for that area.
 | The **+** icon next to **Election Events** is not there. | Your account does not have the permission to create election events. Ask your tenant administrator. |
 | The import shows "Hashes don't match. Integrity check failure." | The file is not the file that you expect. Get the file again from its source. Do not import it without the check. |
 | A language is not available in **Language**. | Turn on the language in **Settings** > **LANGUAGES**. See [Set Up the Tenant](01-tenant.md). |
-| A contest is not in the list of **Contests** of an area. | Type three or more letters of the contest name. |
+| A contest is not in the list of **Area contest**. | Make sure that you created the contest. Type part of the contest name. |
 
 ## More information
 

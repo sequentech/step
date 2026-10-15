@@ -52,16 +52,17 @@ cannot get keys.
 6. If the election event permits automatic ceremonies, decide about **Automatic Ceremony**.
    Leave it off for an election with trustees. See the warning in
    [Create the Election Event](02-event.md#2-configure-the-election-event).
-7. In **Election**, select one election. To make one key for all the elections, leave the field
-   empty. The ceremony then has the name **All Elections**.
+7. In **Election**, select one election. To make one key for all the elections, keep the default
+   value, **All Elections**.
 8. Click **Create Key Ceremony**.
 9. Read the message "Are you sure you want to Create Key Ceremony?".
 10. Click **Yes, Create Key Ceremony**.
 
 ![The Create Election Event Key Ceremony page](../01-tutorials/assets/keys_config_panel.png)
 
-**Expected result:** the message "Key Ceremony created" shows. The ceremony shows in the list
-of the **Keys** tab. Its status is `STARTED`, and then `IN_PROGRESS`.
+**Expected result:** the message "Key Ceremony created" shows. The **Key Ceremony Progress**
+page opens with "Status: STARTED". The status changes to `IN_PROGRESS` when the trustee
+services are ready.
 
 11. Tell the trustees that the key ceremony has started. For an automatic ceremony, the trustees
     do nothing. Go to [step 3](#3-check-that-the-ceremony-is-complete-election-administrator).
