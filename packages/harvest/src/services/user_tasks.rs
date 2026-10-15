@@ -9,7 +9,9 @@ use crate::services::access::{
 use crate::services::audit;
 use rocket::http::Status;
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use sequent_core::types::permissions::Permissions;
+use sequent_core::types::voter_import::FileIntegrityPolicy;
 use tracing::info;
 use windmill::services::electoral_log::ElectoralLogAdminContext;
 use windmill::services::export::export_users::{ExportBody, ExportUsersBody};
@@ -23,6 +25,9 @@ pub async fn import_users_with(
     claims: JwtClaims,
     input: ImportUsersBody,
 ) -> UserTaskResult<ImportUsersOutput> {
+    FileIntegrityPolicy::OPTIONAL
+        .validate_declared_sha256(input.sha256.as_deref())
+        .map_err(|error| (Status::BadRequest, error))?;
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let election_event_id = input.election_event_id.clone().unwrap_or_default();
     let is_admin = election_event_id.is_empty();
@@ -35,7 +40,13 @@ pub async fn import_users_with(
     let required_perm =
         create_permission(UserScope::of(input.election_event_id.as_deref()));
 
-    // Insert the task execution record
+    authorization.authorize(
+        &claims,
+        input.tenant_id.clone(),
+        vec![required_perm],
+    )?;
+    // Only authorized requests create a task. Orphan IN_PROGRESS rows would
+    // block readiness even though no worker could ever mutate the census.
     let task_execution = ledger
         .create_import(&tenant_id, &election_event_id, &executer_name)
         .await
@@ -46,11 +57,6 @@ pub async fn import_users_with(
             )
         })?;
 
-    authorization.authorize(
-        &claims,
-        input.tenant_id.clone(),
-        vec![required_perm],
-    )?;
     let connection = dispatch.connect().await;
 
     let mut task_input = input.clone();
@@ -83,9 +89,19 @@ pub async fn import_users_with(
     };
     match sent {
         Ok(()) => {}
-        Err(_) => {
+        Err(error) => {
+            ledger.fail(
+                &task_execution,
+                &format!("Failed to enqueue user import: {}", error.debug),
+            ).await.map_err(|update_error| (
+                Status::InternalServerError,
+                format!("Failed to mark unqueued user import failed: {update_error:?}"),
+            ))?;
+            let mut failed_task = task_execution.clone();
+            failed_task.execution_status =
+                TasksExecutionStatus::FAILED.to_string();
             return Ok(ImportUsersOutput {
-                task_execution: task_execution.clone(),
+                task_execution: failed_task,
             });
         }
     };

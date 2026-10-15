@@ -58,6 +58,7 @@ pub mod monitoring_export;
 pub mod permissions;
 pub mod phone_blacklist;
 pub mod plugins;
+pub mod readiness;
 pub mod realm_attributes;
 pub mod realm_password_policy;
 pub mod receive_ballot;

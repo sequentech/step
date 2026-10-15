@@ -56,6 +56,10 @@ type Mutation {
     audit_electoral_log(election_event_id: String!): taskOutput!
 }
 
+type Mutation {
+    readiness_check(official_event_id: String!, tested_event_id: String!): jsonb!
+}
+
 type Query {
     electoral_log_console_page(
         tenant_id: String

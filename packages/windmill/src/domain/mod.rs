@@ -8,6 +8,7 @@
 pub mod datafix_cast_vote;
 pub mod keys_ceremony;
 pub mod publication_files;
+pub mod readiness;
 pub mod results_publication;
 pub mod tally_ceremony;
 pub mod tally_creation;

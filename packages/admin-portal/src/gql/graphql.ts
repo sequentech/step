@@ -2574,6 +2574,7 @@ export type Mutation_Root = {
   /** Publish selected tally contests to the results website */
   publishResultsWebsite: PublishResultsWebsiteOutput;
   publish_ballot?: Maybe<PublishBallotOutput>;
+  readiness_check: Scalars['jsonb']['output'];
   /** receive_ballot */
   receive_ballot?: Maybe<ReceiveBallotOutput>;
   /** Recount a completed tally session with fresh result ids */
@@ -5245,6 +5246,13 @@ export type Mutation_RootPublishResultsWebsiteArgs = {
 export type Mutation_RootPublish_BallotArgs = {
   ballot_publication_id: Scalars['uuid']['input'];
   election_event_id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootReadiness_CheckArgs = {
+  official_event_id: Scalars['String']['input'];
+  tested_event_id: Scalars['String']['input'];
 };
 
 
