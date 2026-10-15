@@ -77,6 +77,61 @@ interface TrusteeReport {
     kind: "HALTED"
     detail: string
 }
+interface CustodyRequest {
+    tenant_id: string
+    election_event_id: string
+    keys_ceremony_id: string
+    tally_session_id: string | null
+    trustee_name: string
+    signing_public_key: string
+    share_encryption_public_key: string
+}
+interface CustodyAction {
+    id: string
+    kind: "CREATE_CUSTODY_PROOF"
+    request: CustodyRequest
+}
+type CustodyOutcome =
+    | {status: "READY"; custody_proof_json: string}
+    | {status: "FAILED"; detail: string}
+
+function parseCustodyActions(value: unknown): CustodyAction[] {
+    if (typeof value !== "object" || value === null)
+        throw new Error("Invalid trustee event updates.")
+    if (!("actions" in value)) return []
+    if (!Array.isArray(value.actions)) throw new Error("Invalid trustee actions.")
+    const actions: CustodyAction[] = []
+    for (const action of value.actions as unknown[]) {
+        if (typeof action !== "object" || action === null || !("kind" in action))
+            throw new Error("Invalid trustee action.")
+        // Future action kinds must not stop this runner's protocol boards.
+        if (action.kind !== "CREATE_CUSTODY_PROOF") continue
+        if (!("id" in action) || typeof action.id !== "string" || !("request" in action))
+            throw new Error("Invalid custody action.")
+        const request = action.request
+        if (
+            typeof request !== "object" ||
+            request === null ||
+            ![
+                "tenant_id",
+                "election_event_id",
+                "keys_ceremony_id",
+                "trustee_name",
+                "signing_public_key",
+                "share_encryption_public_key",
+            ].every((key) => key in request && typeof Reflect.get(request, key) === "string") ||
+            !("tally_session_id" in request) ||
+            !(request.tally_session_id === null || typeof request.tally_session_id === "string")
+        )
+            throw new Error("Invalid custody request.")
+        actions.push({
+            id: action.id,
+            kind: "CREATE_CUSTODY_PROOF",
+            request: request as CustodyRequest,
+        })
+    }
+    return actions
+}
 const boardPattern = /^(dkg_[0-9a-f]{32}|tally_[0-9a-f]{32}_[0-9]+)$/
 export function parseBoards(value: unknown): TrusteeBoard[] {
     if (
@@ -154,8 +209,38 @@ export async function runBrowserCycle(
     token: string,
     remember: (boards: TrusteeBoard[]) => void
 ): Promise<TrusteeBoard[]> {
-    const boards = await listBrowserTrusteeBoards(platform, token)
+    const data = await trusteeGraphql<{trustee_event_updates: unknown}>(
+        platform,
+        token,
+        "query TrusteeEventUpdates { trustee_event_updates }"
+    )
+    const boards = parseBoards(data.trustee_event_updates)
+    const actions = parseCustodyActions(data.trustee_event_updates)
     remember(boards)
+    for (const action of actions) {
+        let outcome: CustodyOutcome
+        try {
+            outcome = {
+                status: "READY",
+                custody_proof_json: engine.attest(JSON.stringify(action.request)),
+            }
+        } catch (error: unknown) {
+            outcome = {
+                status: "FAILED",
+                detail: error instanceof Error ? error.message : String(error),
+            }
+        }
+        const acknowledgement = await trusteeGraphql<{
+            submit_trustee_action_result: {accepted: boolean} | null
+        }>(
+            platform,
+            token,
+            "mutation SubmitTrusteeActionResult($result: jsonb!) { submit_trustee_action_result(result: $result) { accepted } }",
+            {result: {id: action.id, request: action.request, ...outcome}}
+        )
+        if (acknowledgement.submit_trustee_action_result?.accepted !== true)
+            throw new Error("The platform did not acknowledge the custody action.")
+    }
     const reports: TrusteeReport[] = JSON.parse(await engine.advance(JSON.stringify(boards)))
     for (const report of reports) {
         const data = await trusteeGraphql<{report_trustee_board: {accepted: boolean} | null}>(

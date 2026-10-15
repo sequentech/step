@@ -1,4 +1,13 @@
 type Query {
+    trustee_event_updates: jsonb!
+}
+
+type Mutation {
+    request_server_custody(object: jsonb!): jsonb!
+    submit_trustee_action_result(result: jsonb!): TrusteeReportOutput!
+}
+
+type Query {
     list_trustee_boards: TrusteeBoardsOutput!
 }
 
@@ -416,6 +425,21 @@ type Mutation {
         created_from: String
         created_to: String
         time_zone: String
+        scope: String
+        election_id: String
+        area_id: String
+        username: String
+    ): ExportLogsOutput
+}
+
+type Mutation {
+    export_tenant_logs(
+        format: String!
+        scope: String!
+        username: String
+        created_from: String
+        created_to: String
+        time_zone: String
     ): ExportLogsOutput
 }
 
@@ -760,6 +784,8 @@ type Query {
         election_event_id: String
         filter: ElectoralLogFilter
         order_by: ElectoralLogOrderBy
+        election_id: String
+        area_ids: [String!]
     ): DataListElectoralLog
 }
 
@@ -1033,6 +1059,12 @@ enum VotingStatusChannel {
     TELEPHONE
 }
 
+enum RestorePrivateKeyOutcome {
+    ALREADY_RESTORED
+    INVALID
+    RESTORED
+}
+
 input TemplateInput {
     template: String!
     format: String!
@@ -1051,6 +1083,8 @@ input ElectoralLogFilter {
     statement_timestamp_to: String
     channel: String
     outcome: String
+    event_type: String
+    log_type: String
 }
 
 input ElectoralLogOrderBy {
@@ -1142,6 +1176,7 @@ input ElectionStatsInput {
 input GetCustodyRequestInput {
     election_event_id: String!
     keys_ceremony_id: String!
+    tally_session_id: String
 }
 
 input ConfirmKeyCustodyInput {
@@ -1648,7 +1683,6 @@ type CustodyProofSignatureStatusOutput {
 type AuthorizeTallyCustodyOutput {
     is_valid: Boolean!
     signing_request: SigningRequestSummary
-    outcome: RestorePrivateKeyOutcome!
 }
 
 type InsertCastVoteOutput {

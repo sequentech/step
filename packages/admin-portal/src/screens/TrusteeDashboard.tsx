@@ -1,7 +1,19 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useState, useRef, useEffect} from "react"
-import {Alert, Box, Button, Card, CardContent, TextField, Typography} from "@mui/material"
+import {
+    Accordion,
+    AccordionSummary,
+    AccordionDetails,
+    Alert,
+    Box,
+    Button,
+    Card,
+    CardContent,
+    TextField,
+    Typography,
+} from "@mui/material"
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {trusteeFilename} from "@/services/trusteeFilename"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
@@ -51,8 +63,8 @@ export const TrusteeDashboard = () => {
     const platform = globalSettings.HASURA_URL
     const trustee = auth.trustee || auth.username
     const keysFilename = trusteeFilename(trustee, "private-keys.toml")
-    const requestFilename = trusteeFilename(trustee, "custody-request.json")
-    const proofFilename = trusteeFilename(trustee, "custody-proof.json")
+    const requestFilename = trusteeFilename(trustee, "custody.json")
+    const proofFilename = trusteeFilename(trustee, "signed-custody-proof.json")
     const [boards, setBoards] = useState<TrusteeBoard[]>([])
     const [error, setError] = useState("")
     const [loading, setLoading] = useState(false)
@@ -269,12 +281,12 @@ export const TrusteeDashboard = () => {
                 if (!engine.current) throw new Error("Import your trustee keys first.")
                 const request: Record<string, unknown> = JSON.parse(await file.text())
                 if (!auth.trustee || request.trustee_name !== auth.trustee)
-                    throw new Error("The custody request belongs to another trustee.")
+                    throw new Error("The custody file belongs to another trustee.")
                 if (tallyId.trim()) request.tally_session_id = tallyId.trim()
                 const proof = engine.current.attest(JSON.stringify(request))
-                download("custody-proof.json", proof, "application/json")
+                download("signed-custody-proof.json", proof, "application/json")
                 setBrowserStatus(
-                    "Custody proof ready to upload to the ceremony or tally restore step."
+                    "Signed custody proof ready to upload to the key or tally ceremony."
                 )
             })
     }
@@ -297,6 +309,12 @@ export const TrusteeDashboard = () => {
                         Generate or import your local trustee keys. Your private keys stay in this
                         browser's memory. Back up the keys file and browser sessions, and keep this
                         page open while participating.
+                    </Typography>
+                    <Typography sx={{my: 2}}>
+                        For manual custody, start this browser trustee and keep this tab open.
+                        Upload the saved custody file in the key ceremony or tally tab; this browser
+                        creates the scoped proof automatically. Complete the custody confirmation
+                        and any required signing in that tab.
                     </Typography>
                     <TextField
                         label="Board service URL"
@@ -430,34 +448,57 @@ export const TrusteeDashboard = () => {
                     <Typography role="status" sx={{my: 2}}>
                         {browserStatus}
                     </Typography>
-                    <TextField
-                        label="Tally session ID (for tally restore)"
-                        value={tallyId}
-                        disabled={busy || running}
-                        onChange={(event) => setTallyId(event.target.value)}
-                        fullWidth
-                        sx={{mb: 2}}
-                    />
-                    <Box sx={actionGrid}>
-                        <Button
-                            variant="outlined"
-                            disabled={!keys || busy || running}
-                            onClick={() => custodyInput.current?.click()}
+                    <Accordion
+                        disableGutters
+                        sx={{mt: 2}}
+                        slotProps={{transition: {unmountOnExit: true}}}
+                    >
+                        <AccordionSummary
+                            id="browser-trustee-advanced-heading"
+                            aria-controls="browser-trustee-advanced-content"
+                            expandIcon={<ExpandMoreIcon />}
                         >
-                            Create custody proof
-                        </Button>
-                    </Box>
-                    <input
-                        ref={custodyInput}
-                        aria-label="Custody request"
-                        type="file"
-                        hidden
-                        accept=".json"
-                        onChange={(event) => {
-                            prove(event.target.files?.[0])
-                            event.target.value = ""
-                        }}
-                    />
+                            <Typography component="h3">Advanced</Typography>
+                        </AccordionSummary>
+                        <AccordionDetails>
+                            <Typography sx={{mb: 2}}>
+                                A running browser trustee generates signed custody proofs
+                                automatically when you upload the saved custody file in the ceremony
+                                or tally wizard. Use this option only when you need to create and
+                                upload a proof file yourself. Stop the browser trustee before
+                                generating a file.
+                            </Typography>
+                            <TextField
+                                label="Tally session ID"
+                                helperText="For a tally proof, copy the tally ID from the tally wizard. Leave blank for key-ceremony custody."
+                                value={tallyId}
+                                disabled={busy || running}
+                                onChange={(event) => setTallyId(event.target.value)}
+                                fullWidth
+                                sx={{mb: 2}}
+                            />
+                            <Box sx={actionGrid}>
+                                <Button
+                                    variant="outlined"
+                                    disabled={!keys || busy || running}
+                                    onClick={() => custodyInput.current?.click()}
+                                >
+                                    Generate signed custody proof manually
+                                </Button>
+                            </Box>
+                            <input
+                                ref={custodyInput}
+                                aria-label="Custody file"
+                                type="file"
+                                hidden
+                                accept=".json"
+                                onChange={(event) => {
+                                    prove(event.target.files?.[0])
+                                    event.target.value = ""
+                                }}
+                            />
+                        </AccordionDetails>
+                    </Accordion>
                 </CardContent>
             </Card>
             <Card>
@@ -474,8 +515,8 @@ trustee start --trustee-config ${keysFilename}`}</code>
                         {keysFilename} and the message_store directory.
                     </Typography>
                     <Typography sx={{mt: 2}}>
-                        For a manual ceremony, download its custody request and create a proof to
-                        upload to the portal:
+                        For a manual ceremony, download its custody file and create a signed custody
+                        proof to upload to the portal:
                     </Typography>
                     <Box component="pre" sx={codeExample}>
                         <code>{`trustee attest --request ${requestFilename} --trustee-config ${keysFilename} --output ${proofFilename}`}</code>

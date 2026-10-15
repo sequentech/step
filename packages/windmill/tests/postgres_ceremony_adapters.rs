@@ -2430,6 +2430,7 @@ async fn insert_many_tally_session_contests_rejects_an_invalid_area_id_before_wr
 
 fn ceremony_status(election_id: &str) -> TallyCeremonyStatus {
     TallyCeremonyStatus {
+        quorum: None,
         boards: None,
         failure: None,
         stop_date: None,

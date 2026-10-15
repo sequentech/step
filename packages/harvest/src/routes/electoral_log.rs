@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::electoral_log::{
-    list_electoral_log as get_logs, ElectoralLogRow, GetElectoralLogBody,
+    list_electoral_log as get_logs, ElectoralLogRow, GetElectoralLogBody, LogOf,
 };
 use windmill::types::resources::DataList;
 
@@ -24,6 +24,20 @@ pub async fn list_electoral_log(
     claims: JwtClaims,
 ) -> Result<Json<DataList<ElectoralLogRow>>, (Status, String)> {
     let mut input = body.into_inner();
+    // The tenant's log belongs to the tenant: only its own readers list it.
+    if input.log() == LogOf::Tenant {
+        authorize(
+            &claims,
+            false,
+            Some(input.tenant_id.clone()),
+            vec![Permissions::TENANT_LOGS_READ],
+        )
+        .map_err(|(_, reason)| (Status::Forbidden, reason))?;
+        let logs = get_logs(input)
+            .await
+            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        return Ok(Json(logs));
+    }
     authorize(
         &claims,
         true,

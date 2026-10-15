@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
+use crate::services::tenant_activity::{TenantAction, TenantActivityRecorder};
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -11,6 +12,7 @@ use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use tracing::{event, instrument, Level};
 use windmill::postgres::election_event::{
     SealedEventDeleteRefusal, SEALED_EVENT_DELETE_REFUSAL,
@@ -81,8 +83,14 @@ async fn election_event_deletion_refusal(
 pub async fn delete_election_event_f(
     body: Json<DeleteElectionEventInput>,
     claims: JwtClaims,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<DeleteElectionEventOutput>, (Status, String)> {
     let input = body.into_inner();
+    activity.record(
+        &claims,
+        TenantAction::DeleteElectionEvent,
+        json!({"election_event_id": input.election_event_id}),
+    );
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let executer_name = claims
         .name
@@ -174,6 +182,11 @@ pub async fn delete_election_event_f(
             realm.clone(),
             task_execution.clone(),
             permission_labels,
+            Some(windmill::services::audit_log::AuditActor {
+                user_id: Some(claims.hasura_claims.user_id.clone()),
+                username: claims.preferred_username.clone(),
+                role: None,
+            }),
         ))
         .await;
 

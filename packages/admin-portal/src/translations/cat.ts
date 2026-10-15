@@ -237,6 +237,7 @@ const catalanTranslation: TranslationType = {
                 CREATE_TRANSMISSION_PACKAGE: "Crear paquet de transmissió",
                 EXPORT_BALLOT_PUBLICATION: "Exporta Publicació de Butlleta",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exportar Informe de Registres d'Activitat",
+                EXPORT_TENANT_LOGS: "Exportar Bitàcola de l'Inquilí",
                 GENERATE_REPORT: "Generar informe",
                 GENERATE_TRANSMISSION_REPORT: "Generar informe de transmissió",
                 EXPORT_TRUSTEES: "Exportar Autoritats",
@@ -278,10 +279,184 @@ const catalanTranslation: TranslationType = {
                 error: "Error en exportar l'Execució de Tasques",
             },
         },
+        tenantLogs: {
+            explanation: {
+                action: "Acció: {{action}}",
+                outcome: {
+                    succeeded: "Acceptada (HTTP {{status}})",
+                    denied: "Denegada (HTTP {{status}})",
+                    failed: "Fallida (HTTP {{status}})",
+                },
+                by: "Demanada per {{username}} ({{userId}})",
+                detail: "{{name}}: {{value}}",
+                board: "Registre: {{board}}",
+                publicKey: "Clau pública del registre: {{key}}",
+            },
+        },
         logsScreen: {
             noPermissions: "No tens permís per accedir a les bitàcoles.",
             title: "Bitàcoles",
-            subtitle: "Bitàcoles generals de les bases de dades principal i de IAM.",
+            subtitle:
+                "Tot el que es fa en aquest esdeveniment electoral. Els inicis de sessió i els canvis fora d'ell són a Configuració > Bitàcoles.",
+            empty: "No s'han trobat entrades.",
+            tenant: {
+                subtitle:
+                    "Inicis de sessió, comptes del personal i rols, configuració i esdeveniments electorals d'aquesta organització. Cada esdeveniment electoral desa la seva pròpia bitàcola a la seva pestanya Bitàcoles.",
+                noPermissions: "No tens permís per veure aquesta bitàcola.",
+            },
+            entry: {
+                title: "Entrada de bitàcola {{id}}",
+                statementKind: "Tipus de declaració",
+                eventType: "Tipus d'esdeveniment",
+                logType: "Tipus de registre",
+                when: "Quan",
+                utc: "{{time}} UTC",
+                who: "Qui",
+                userId: "ID d'usuari {{id}}",
+                role: "Rol {{role}}",
+                unknownAccount: "Compte desconegut (no es registra el nom escrit)",
+                madeIn: "Fet a",
+                changed: "Canviat",
+                objectId: "ID {{id}}",
+                actionLabel: "Acció",
+                details: "Detalls",
+                origin: {
+                    "hasura": "Portal d'administració (a través de Hasura)",
+                    "harvest": "Portal d'administració (a través de Harvest)",
+                    "windmill": "Portal d'administració (una tasca de Windmill)",
+                    "keycloak-console":
+                        "Consola d'administració de Keycloak, fora del portal d'administració",
+                    "service-account":
+                        "Compte de servei de Step, per un canvi fet al portal d'administració",
+                },
+                action: {
+                    create: "Creat",
+                    update: "Actualitzat",
+                    delete: "Eliminat",
+                    import: "Importat",
+                    export: "Exportat",
+                    archive: "Arxivat",
+                    unarchive: "Desarxivat",
+                    enable: "Activat",
+                    disable: "Desactivat",
+                    reset_password: "Contrasenya restablerta",
+                    grant: "Concedit",
+                    revoke: "Revocat",
+                },
+                objectType: {
+                    tenant: "Configuració de l'inquilí",
+                    tenant_log: "Bitàcola de l'inquilí",
+                    staff_account: "Compte del personal",
+                    role: "Rol",
+                    template: "Plantilla",
+                    trustee: "Fideïcomissari",
+                    election_type: "Tipus d'elecció",
+                    election_event: "Esdeveniment electoral",
+                    election: "Elecció",
+                    contest: "Contesa",
+                    candidate: "Candidat",
+                    area: "Àrea",
+                },
+                values: {
+                    title: "Valors anteriors i nous",
+                    field: "Camp",
+                    old: "Valor anterior",
+                    new: "Valor nou",
+                    none: "(cap)",
+                    secret: "Canviat. Els valors secrets no es registren mai.",
+                    yes: "Sí",
+                    no: "No",
+                    sha: "SHA-256 {{hash}}",
+                },
+                field: {
+                    tenant: {
+                        slug: "Nom curt",
+                        isActive: "Actiu",
+                        logsTimezone: "Fus horari de la bitàcola de l'inquilí (Idiomes)",
+                        languages: "Idiomes",
+                        enabledLanguages: "Idiomes habilitats (Idiomes)",
+                        defaultLanguage: "Idioma per defecte (Idiomes)",
+                        languageDetection: "Detecció de l'idioma (Idiomes)",
+                        translations: "Traduccions (Localització)",
+                        sms: "SMS",
+                        mail: "Correu electrònic",
+                        gapiKey: "Clau de l'API de Google (Integracions)",
+                        gapiEmail: "Correu de l'API de Google (Integracions)",
+                        helpLinks: "Enllaços d'ajuda (Aparença)",
+                        displayName: "Nom de l'organització (Aparença)",
+                        votingCountries: "Països bloquejats per votar (Països)",
+                        enrollCountries: "Països bloquejats per inscriure's (Països)",
+                        logoUrl: "Logotip (Aparença)",
+                        css: "CSS personalitzat (Aparença)",
+                        votingChannels: "Canals de votació",
+                        onlineVoting: "Vot en línia (Canals de votació)",
+                        kioskVoting: "Vot en quiosc (Canals de votació)",
+                        telephoneVoting: "Vot telefònic (Canals de votació)",
+                        earlyVoting: "Vot anticipat (Canals de votació)",
+                        paperVoting: "Vot en paper (Canals de votació)",
+                    },
+                },
+                signIn: {
+                    title: "Inici de sessió i seguretat del compte",
+                    event: "Esdeveniment de Keycloak",
+                    error: "Error",
+                    authentication: "Autenticació",
+                    credential: "Credencial",
+                    failures: "Errors seguits",
+                    client: "Client",
+                    ipAddress: "Adreça IP",
+                },
+                keycloak: {
+                    title: "Canvi a Keycloak",
+                    account: "Compte",
+                    operation: "Operació",
+                    appliesTo: "S'aplica a",
+                    resource: "Recurs",
+                    newValue: "Valor nou",
+                    error: "Error",
+                },
+                deletedEvent: {
+                    title: "La bitàcola de l'esdeveniment electoral eliminat",
+                    lastEntry: "Darrera entrada",
+                    stateHash: "Hash d'estat",
+                    logDatabase: "Base de dades de la bitàcola",
+                    status: "Estat",
+                    retired:
+                        "Descarregada i conservada fins que s'esborri segons la política de conservació",
+                    task: "Tasca",
+                },
+                exported: {
+                    title: "Exportació",
+                    entries: "Entrades",
+                    sha256: "SHA-256 del fitxer",
+                    document: "Document",
+                    scope: {
+                        TENANT_LOG: "Tota la bitàcola de l'inquilí",
+                        ACCOUNT: "Un compte",
+                        ACCOUNT_WITH_EVENTS:
+                            "Un compte, amb les seves entrades a cada esdeveniment electoral",
+                        ALL: "Tot l'esdeveniment electoral",
+                        ELECTION: "Una elecció",
+                        AREA: "Una àrea",
+                    },
+                },
+                writer: {
+                    title: "Escriptor de la bitàcola",
+                    release: "Versió",
+                    lastEntry: "Darrera entrada publicada",
+                },
+                signatures: {
+                    title: "Bitàcola i signatures",
+                    log: "Bitàcola",
+                    tenantLog: "Bitàcola de l'inquilí",
+                    eventLog: "Bitàcola de l'esdeveniment electoral",
+                    signedBy: "Signat per",
+                    adminKey: "Clau d'administració de {{name}}",
+                    systemOnly: "Només la clau de sistema de la bitàcola",
+                    systemSignature: "Signatura del sistema",
+                    publicKey: "Clau d'administració publicada",
+                },
+            },
             actions: {
                 csv: "Exportar en CSV",
                 pdf: "Exportar en PDF",
@@ -303,6 +478,27 @@ const catalanTranslation: TranslationType = {
                 format: "Format",
                 csv: "CSV",
                 pdf: "PDF",
+                sql: "SQL",
+                scope: {
+                    label: "Abast",
+                    tenant: {
+                        TENANT_LOG: "Tota la bitàcola de l'inquilí",
+                        ACCOUNT: "Un compte",
+                    },
+                    event: {
+                        ALL: "Tot l'esdeveniment electoral",
+                        ELECTION: "Una elecció",
+                        AREA: "Una àrea",
+                        ACCOUNT: "Un compte",
+                    },
+                },
+                username: "Nom d'usuari",
+                election: "Elecció",
+                area: "Àrea",
+                withElectionEvents:
+                    "Inclou les entrades d'aquest compte a cada esdeveniment electoral",
+                rowsNameLog: "Les files dels esdeveniments electorals indiquen la seva bitàcola.",
+                recorded: "La mateixa exportació queda registrada en aquesta bitàcola.",
                 zoneNote:
                     "Cada fila conserva la seva hora en UTC (ISO 8601) i en {{abbr}}, amb el nom del fus horari. L'interval de dates inclou els dos extrems, en {{abbr}}.",
                 zoneNotePdf:
@@ -460,6 +656,7 @@ const catalanTranslation: TranslationType = {
                 schedules: "ESDEVENIMENTS PROGRAMATS",
                 trustees: "AUTORITATS",
                 BackupRestore: "SAUVEGARDE / RESTAURATION",
+                logs: "BITÀCOLES",
             },
         },
         trusteesSettingsScreen: {
@@ -1795,6 +1992,8 @@ const catalanTranslation: TranslationType = {
                 "application-write": "Editar Aplicació",
                 "approval-matrix-write": "Editar la Matriu d'Aprovació",
                 "logs-export": "Exportar Registres",
+                "tenant-logs-read": "Llegir Bitàcola de l'Inquilí",
+                "tenant-logs-export": "Exportar Bitàcola de l'Inquilí",
                 "election-event-logs-columns":
                     "Columnes dels Registres de l'Esdeveniment Electoral",
                 "election-events-logs-filters":
@@ -2360,6 +2559,42 @@ const catalanTranslation: TranslationType = {
         },
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
+            downloadStep: {
+                ...englishTranslation.translations.keysGeneration.downloadStep,
+                title: "Descarregar fitxer de custòdia",
+                downloadButton: "Descarregar fitxer de custòdia",
+                confirmdDialog: {
+                    ...englishTranslation.translations.keysGeneration.downloadStep.confirmdDialog,
+                    title: "Desar el fitxer de custòdia",
+                },
+            },
+            checkStep: {
+                ...englishTranslation.translations.keysGeneration.checkStep,
+                subtitle: "Carrega el fitxer de custòdia desat o una prova de custòdia signada:",
+                required: "Cal confirmar la custòdia",
+                reconfirmButton: "Tornar a confirmar la custòdia (opcional)",
+                reconfirmDescription:
+                    "La teva custòdia ja està confirmada. Aquesta confirmació addicional és opcional.",
+            },
+            serverCustody: {
+                recoveryInstructions:
+                    "Si heu importat aquest esdeveniment electoral o heu perdut el fitxer desat, descarregueu aquí el fitxer de custòdia actual. Deseu-lo i després carregueu-lo a continuació.",
+                fileFormat: "Format admès: JSON",
+                waiting: "Esperant que el teu servidor custodi creï una prova de custòdia…",
+                unavailable:
+                    "El servidor custodi no ha respost. Comprova que està actiu i torna a carregar el fitxer de custòdia.",
+                failed: "El servidor custodi no ha pogut crear la prova: {{error}}",
+                invalidReply:
+                    "El servidor custodi ha retornat una resposta incompleta. Torna-ho a provar.",
+                cancelled:
+                    "La sol·licitud s’ha cancel·lat. Torna a carregar el fitxer per continuar.",
+                downloadInstructions:
+                    "Descarrega i desa aquest fitxer de custòdia. Carrega el mateix fitxer al pas següent i als recomptes futurs. No és una còpia de seguretat de les teves claus privades.",
+                uploadInstructions:
+                    "Carrega el fitxer de custòdia descarregat. El teu servidor custodi crearà la prova. També pots carregar una prova creada per un custodi fora de línia o de navegador.",
+                tallyInstructions:
+                    "Carrega el fitxer desat durant la cerimònia de claus. El teu servidor custodi crearà una prova nova per a aquest recompte. També s’accepten proves de custodis fora de línia o de navegador.",
+            },
             configureStep: {
                 create: "Crear Cerimònia de Claus",
                 name: "Nom de la Cerimònia de Claus",
@@ -2398,6 +2633,11 @@ const catalanTranslation: TranslationType = {
             // Native custody instructions use the English fallback until translated.
             ceremonyStep: {
                 ...englishTranslation.translations.keysGeneration.ceremonyStep,
+                custodyConfirmed: "Custòdia confirmada",
+                custodyComplete: "La teva part ha finalitzat. No cal que facis cap altra acció.",
+                waitingForTrustees:
+                    "S’està esperant que les autoritats restants completin la confirmació de custòdia i qualsevol aprovació requerida.",
+                moreActions: "Més accions",
                 cancel: "Cancel·lar Cerimònia de Claus",
                 progressHeader: "Progrés de Cerimònia de Claus",
                 executionStatus: "Estat: {{status}}",
@@ -2581,6 +2821,8 @@ const catalanTranslation: TranslationType = {
             logsTitle: "Registres",
             resultsTitle: "Resultats & Participació",
             generalInfoTitle: "Informació General",
+            sessionId: "ID de la sessió de recompte",
+            selectedQuorum: "Quòrum seleccionat",
             trusteeTallyTitle: "Trustee",
             trusteeTallySubTitle: "Estat de confirmació de custòdia",
             ballotBoxes: {
@@ -2633,7 +2875,7 @@ const catalanTranslation: TranslationType = {
             recountTallyCeremonyError: "No s'ha pogut iniciar el recompte",
             recountTallyCeremonyOk: "Repetir el recompte",
             trusteeTitle: "Proces del trustee",
-            trusteeSubTitle: "Carregueu el vostre fitxer públic custody-proof.json",
+            trusteeSubTitle: "Carrega el fitxer de custòdia desat o una prova de custòdia signada:",
             invited: "Has estat convidat a participar en una cerimònia de recompte. Si us plau, ",
             click: "feu clic en l'acció de recompte",
             participate: "per participar.",
@@ -3270,6 +3512,7 @@ const catalanTranslation: TranslationType = {
                 },
             },
             languages: {
+                logsTimezone: "Fus horari de la bitàcola de l'inquilí",
                 default: "Llengua per defecte",
             },
         },
@@ -4934,10 +5177,10 @@ const catalanTranslation: TranslationType = {
                 record: "Anotar el meu prova de custòdia",
                 failed: "No s'ha pogut anotar el vostre prova de custòdia signat: {{error}}",
                 dropAgain:
-                    "Torneu a deixar anar el vostre fitxer de prova de custòdia per anotar el prova de custòdia signat. (custody-proof.json)",
+                    "Torneu a deixar anar el vostre fitxer de prova de custòdia per anotar el prova de custòdia signat. (signed-custody-proof.json)",
                 redo: "El vostre prova de custòdia es va aportar sense la vostra signatura, que ara aquesta elecció requereix. Torneu-lo a aportar i signeu-lo.",
                 notTaken:
-                    "La cerimònia ja no accepta aquest prova de custòdia. Torneu a deixar anar el vostre fitxer de prova de custòdia. (custody-proof.json)",
+                    "La cerimònia ja no accepta aquest prova de custòdia. Torneu a deixar anar el vostre fitxer de prova de custòdia. (signed-custody-proof.json)",
             },
         },
         lifecycle: {

@@ -60,6 +60,7 @@ const sessionStatus = (workflow: EStoryWorkflow) =>
 const ended = electionStatus(EStoryWorkflow.ENDED)
 
 interface Scenario {
+    quorum?: string[]
     data: EStoryDataState
     /** Election status; by default the workflow step decides it. */
     status?: Record<string, unknown>
@@ -182,6 +183,7 @@ const meta = {
                         {
                             id: "execution",
                             status: {
+                                quorum: args.quorum,
                                 trustees: [
                                     {name: "Alice", status: "CUSTODY_CONFIRMED"},
                                     {name: "Bob", status: "CUSTODY_CONFIRMED"},
@@ -301,6 +303,28 @@ export const TallyCompleted: Story = {
         await expect(canvas.getByText("Results & Participation")).toBeVisible()
         expect(mutations()).toEqual([])
     },
+}
+
+export const ManualTallyQuorum: Story = {
+    args: {initialSession: ITallyExecutionStatus.IN_PROGRESS, quorum: ["Alice", "Carol"]},
+    globals: {workflow: EStoryWorkflow.TALLY},
+    parameters: {
+        expectedFailure: {
+            reason: "The existing progress bars lack accessible names, status chips have low contrast, and the tally accordions lack distinct region names.",
+            a11y: ["aria-progressbar-name", "color-contrast", "landmark-unique"],
+        },
+    },
+    play: async ({canvasElement}) => {
+        await expect(
+            await within(canvasElement).findByText("Selected quorum: Alice, Carol")
+        ).toBeVisible()
+        expect(mutations()).toEqual([])
+    },
+}
+
+export const AutomatedTallyQuorum: Story = {
+    ...ManualTallyQuorum,
+    args: {...ManualTallyQuorum.args, automated: true},
 }
 export const SelectAndCreateManualCeremony: Story = {
     globals: votingEnded,

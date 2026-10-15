@@ -201,10 +201,184 @@ const galegoTranslation: TranslationType = {
                 },
             },
         },
+        tenantLogs: {
+            explanation: {
+                action: "Acción: {{action}}",
+                outcome: {
+                    succeeded: "Aceptada (HTTP {{status}})",
+                    denied: "Denegada (HTTP {{status}})",
+                    failed: "Fallida (HTTP {{status}})",
+                },
+                by: "Pedida por {{username}} ({{userId}})",
+                detail: "{{name}}: {{value}}",
+                board: "Rexistro: {{board}}",
+                publicKey: "Clave pública do rexistro: {{key}}",
+            },
+        },
         logsScreen: {
             noPermissions: "Non tes permiso para acceder aos rexistros.",
             title: "Rexistros",
-            subtitle: "Rexistros xerais das bases de datos principal e IAM",
+            subtitle:
+                "Todo o que se fai neste evento electoral. Os inicios de sesión e os cambios fóra del están en Configuracións > Rexistros.",
+            empty: "Non se atoparon entradas.",
+            tenant: {
+                subtitle:
+                    "Inicios de sesión, contas do persoal e roles, configuración e eventos electorais desta organización. Cada evento electoral garda o seu propio rexistro na súa lapela Rexistros.",
+                noPermissions: "Non tes permiso para ver este rexistro.",
+            },
+            entry: {
+                title: "Entrada do rexistro {{id}}",
+                statementKind: "Tipo de declaración",
+                eventType: "Tipo de evento",
+                logType: "Tipo de rexistro",
+                when: "Cando",
+                utc: "{{time}} UTC",
+                who: "Quen",
+                userId: "ID de usuario {{id}}",
+                role: "Rol {{role}}",
+                unknownAccount: "Conta descoñecida (non se rexistra o nome escrito)",
+                madeIn: "Feito en",
+                changed: "Cambiado",
+                objectId: "ID {{id}}",
+                actionLabel: "Acción",
+                details: "Detalles",
+                origin: {
+                    "hasura": "Portal de administración (a través de Hasura)",
+                    "harvest": "Portal de administración (a través de Harvest)",
+                    "windmill": "Portal de administración (unha tarefa de Windmill)",
+                    "keycloak-console":
+                        "Consola de administración de Keycloak, fóra do portal de administración",
+                    "service-account":
+                        "Conta de servizo de Step, por un cambio feito no portal de administración",
+                },
+                action: {
+                    create: "Creado",
+                    update: "Actualizado",
+                    delete: "Eliminado",
+                    import: "Importado",
+                    export: "Exportado",
+                    archive: "Arquivado",
+                    unarchive: "Desarquivado",
+                    enable: "Activado",
+                    disable: "Desactivado",
+                    reset_password: "Contrasinal restablecido",
+                    grant: "Concedido",
+                    revoke: "Revogado",
+                },
+                objectType: {
+                    tenant: "Configuración do inquilino",
+                    tenant_log: "Rexistro do inquilino",
+                    staff_account: "Conta do persoal",
+                    role: "Rol",
+                    template: "Modelo",
+                    trustee: "Fideicomisario",
+                    election_type: "Tipo de elección",
+                    election_event: "Evento electoral",
+                    election: "Elección",
+                    contest: "Contenda",
+                    candidate: "Candidato",
+                    area: "Área",
+                },
+                values: {
+                    title: "Valores anteriores e novos",
+                    field: "Campo",
+                    old: "Valor anterior",
+                    new: "Valor novo",
+                    none: "(ningún)",
+                    secret: "Cambiado. Os valores secretos nunca se rexistran.",
+                    yes: "Si",
+                    no: "Non",
+                    sha: "SHA-256 {{hash}}",
+                },
+                field: {
+                    tenant: {
+                        slug: "Nome curto",
+                        isActive: "Activo",
+                        logsTimezone: "Fuso horario do rexistro do inquilino (Idiomas)",
+                        languages: "Idiomas",
+                        enabledLanguages: "Idiomas habilitados (Idiomas)",
+                        defaultLanguage: "Idioma predeterminado (Idiomas)",
+                        languageDetection: "Detección do idioma (Idiomas)",
+                        translations: "Traducións (Localización)",
+                        sms: "SMS",
+                        mail: "Correo electrónico",
+                        gapiKey: "Clave da API de Google (Integracións)",
+                        gapiEmail: "Correo da API de Google (Integracións)",
+                        helpLinks: "Ligazóns de axuda (Aspecto)",
+                        displayName: "Nome da organización (Aspecto)",
+                        votingCountries: "Países bloqueados para votar (Países)",
+                        enrollCountries: "Países bloqueados para inscribirse (Países)",
+                        logoUrl: "Logotipo (Aspecto)",
+                        css: "CSS personalizado (Aspecto)",
+                        votingChannels: "Canles de votación",
+                        onlineVoting: "Voto en liña (Canles de votación)",
+                        kioskVoting: "Voto en quiosco (Canles de votación)",
+                        telephoneVoting: "Voto telefónico (Canles de votación)",
+                        earlyVoting: "Voto anticipado (Canles de votación)",
+                        paperVoting: "Voto en papel (Canles de votación)",
+                    },
+                },
+                signIn: {
+                    title: "Inicio de sesión e seguridade da conta",
+                    event: "Evento de Keycloak",
+                    error: "Erro",
+                    authentication: "Autenticación",
+                    credential: "Credencial",
+                    failures: "Fallos seguidos",
+                    client: "Cliente",
+                    ipAddress: "Enderezo IP",
+                },
+                keycloak: {
+                    title: "Cambio en Keycloak",
+                    account: "Conta",
+                    operation: "Operación",
+                    appliesTo: "Aplícase a",
+                    resource: "Recurso",
+                    newValue: "Valor novo",
+                    error: "Erro",
+                },
+                deletedEvent: {
+                    title: "O rexistro do evento electoral eliminado",
+                    lastEntry: "Última entrada",
+                    stateHash: "Hash de estado",
+                    logDatabase: "Base de datos do rexistro",
+                    status: "Estado",
+                    retired:
+                        "Descargado e conservado ata que se borre segundo a política de conservación",
+                    task: "Tarefa",
+                },
+                exported: {
+                    title: "Exportación",
+                    entries: "Entradas",
+                    sha256: "SHA-256 do ficheiro",
+                    document: "Documento",
+                    scope: {
+                        TENANT_LOG: "Todo o rexistro do inquilino",
+                        ACCOUNT: "Unha conta",
+                        ACCOUNT_WITH_EVENTS:
+                            "Unha conta, coas súas entradas en cada evento electoral",
+                        ALL: "Todo o evento electoral",
+                        ELECTION: "Unha elección",
+                        AREA: "Unha área",
+                    },
+                },
+                writer: {
+                    title: "Escritor do rexistro",
+                    release: "Versión",
+                    lastEntry: "Última entrada publicada",
+                },
+                signatures: {
+                    title: "Rexistro e sinaturas",
+                    log: "Rexistro",
+                    tenantLog: "Rexistro do inquilino",
+                    eventLog: "Rexistro do evento electoral",
+                    signedBy: "Asinado por",
+                    adminKey: "Clave de administración de {{name}}",
+                    systemOnly: "Só a clave de sistema do rexistro",
+                    systemSignature: "Sinatura do sistema",
+                    publicKey: "Clave de administración publicada",
+                },
+            },
             actions: {
                 csv: "Exportar en CSV",
                 pdf: "Exportar en PDF",
@@ -226,6 +400,26 @@ const galegoTranslation: TranslationType = {
                 format: "Formato",
                 csv: "CSV",
                 pdf: "PDF",
+                sql: "SQL",
+                scope: {
+                    label: "Alcance",
+                    tenant: {
+                        TENANT_LOG: "Todo o rexistro do inquilino",
+                        ACCOUNT: "Unha conta",
+                    },
+                    event: {
+                        ALL: "Todo o evento electoral",
+                        ELECTION: "Unha elección",
+                        AREA: "Unha área",
+                        ACCOUNT: "Unha conta",
+                    },
+                },
+                username: "Nome de usuario",
+                election: "Elección",
+                area: "Área",
+                withElectionEvents: "Incluír as entradas desta conta en cada evento electoral",
+                rowsNameLog: "As filas dos eventos electorais indican o seu rexistro.",
+                recorded: "A propia exportación queda rexistrada neste rexistro.",
                 zoneNote:
                     "Cada fila conserva a súa hora en UTC (ISO 8601) e en {{abbr}}, co nome do fuso horario. O intervalo de datas inclúe ambos os extremos, en {{abbr}}.",
                 zoneNotePdf:
@@ -344,6 +538,7 @@ const galegoTranslation: TranslationType = {
                 CREATE_TRANSMISSION_PACKAGE: "Crear paquete de transmisión",
                 EXPORT_BALLOT_PUBLICATION: "Exportar Publicación de Boleta",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exportar Informe de Registros de Actividad",
+                EXPORT_TENANT_LOGS: "Exportar Rexistro do Inquilino",
                 GENERATE_REPORT: "Generar Reporte",
                 GENERATE_TRANSMISSION_REPORT: "Generar Informe de Transmisión",
                 EXPORT_TRUSTEES: "Exportar Autoridades",
@@ -459,6 +654,7 @@ const galegoTranslation: TranslationType = {
                 schedules: "EVENTOS PROGRAMADOS",
                 trustees: "FIDUCIARIOS",
                 BackupRestore: "COPIA DE SEGURIDAD / RESTAURAR",
+                logs: "Rexistros",
             },
         },
         trusteesSettingsScreen: {
@@ -1786,6 +1982,8 @@ const galegoTranslation: TranslationType = {
                 "application-write": "Editar Aplicación",
                 "approval-matrix-write": "Editar a Matriz de Aprobación",
                 "logs-export": "Exportar Registros",
+                "tenant-logs-read": "Ler Rexistro do Inquilino",
+                "tenant-logs-export": "Exportar Rexistro do Inquilino",
                 "election-event-logs-columns": "Columnas de los Registros del Evento Electoral",
                 "election-events-logs-filters": "Filtros de los Registros del Evento Electoral",
                 "election-event-scheduled-event-columns":
@@ -2346,6 +2544,41 @@ const galegoTranslation: TranslationType = {
         },
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
+            downloadStep: {
+                ...englishTranslation.translations.keysGeneration.downloadStep,
+                title: "Descargar ficheiro de custodia",
+                downloadButton: "Descargar ficheiro de custodia",
+                confirmdDialog: {
+                    ...englishTranslation.translations.keysGeneration.downloadStep.confirmdDialog,
+                    title: "Gardar o ficheiro de custodia",
+                },
+            },
+            checkStep: {
+                ...englishTranslation.translations.keysGeneration.checkStep,
+                subtitle: "Carga o ficheiro de custodia gardado ou unha proba de custodia asinada:",
+                required: "É necesario confirmar a custodia",
+                reconfirmButton: "Confirmar de novo a custodia (opcional)",
+                reconfirmDescription:
+                    "A túa custodia xa está confirmada. Esta confirmación adicional é opcional.",
+            },
+            serverCustody: {
+                recoveryInstructions:
+                    "Se importou este evento electoral ou perdeu o ficheiro gardado, descargue aquí o ficheiro de custodia actual. Gárdeo e logo cárgueo a continuación.",
+                fileFormat: "Formato admitido: JSON",
+                waiting: "Agardando a que o servidor custodio cree unha proba de custodia…",
+                unavailable:
+                    "O servidor custodio non respondeu. Comproba que está activo e volve cargar o ficheiro de custodia.",
+                failed: "O servidor custodio non puido crear a proba: {{error}}",
+                invalidReply:
+                    "O servidor custodio devolveu unha resposta incompleta. Téntao de novo.",
+                cancelled: "A solicitude cancelouse. Volve cargar o ficheiro para continuar.",
+                downloadInstructions:
+                    "Descarga e garda este ficheiro de custodia. Carga o mesmo ficheiro no seguinte paso e nos recontos futuros. Non é unha copia de seguridade das túas claves privadas.",
+                uploadInstructions:
+                    "Carga o ficheiro de custodia descargado. O servidor custodio creará a proba. Tamén podes cargar unha proba creada por un custodio sen conexión ou no navegador.",
+                tallyInstructions:
+                    "Carga o ficheiro gardado durante a cerimonia de claves. O servidor custodio creará unha nova proba para este reconto. Tamén se aceptan probas de custodios sen conexión ou no navegador.",
+            },
             configureStep: {
                 create: "Crear Cerimonia de Chaves",
                 name: "Nome da Cerimonia de Chaves",
@@ -2384,6 +2617,11 @@ const galegoTranslation: TranslationType = {
             // Native custody instructions use the English fallback until translated.
             ceremonyStep: {
                 ...englishTranslation.translations.keysGeneration.ceremonyStep,
+                custodyConfirmed: "Custodia confirmada",
+                custodyComplete: "A túa parte rematou. Non tes que realizar ningunha outra acción.",
+                waitingForTrustees:
+                    "Agardando a que as autoridades restantes completen a confirmación de custodia e calquera aprobación requirida.",
+                moreActions: "Máis accións",
                 cancel: "Cancelar Cerimonia de Chaves",
                 progressHeader: "Progreso da Cerimonia de Chaves",
                 executionStatus: "Estado: {{status}}",
@@ -2566,6 +2804,8 @@ const galegoTranslation: TranslationType = {
             logsTitle: "Rexistros",
             resultsTitle: "Resultados e Participación",
             generalInfoTitle: "Información Xeral",
+            sessionId: "ID da sesión de reconto",
+            selectedQuorum: "Quórum seleccionado",
             trusteeTallyTitle: "Fiduciarios",
             trusteeTallySubTitle: "Estado de confirmación da custodia",
             ballotBoxes: {
@@ -2619,7 +2859,8 @@ const galegoTranslation: TranslationType = {
             recountTallyCeremonyError: "Non se puido iniciar o reconto",
             recountTallyCeremonyOk: "Repetir o reconto",
             trusteeTitle: "Proceso dos Fiduciarios",
-            trusteeSubTitle: "Carga o teu ficheiro público custody-proof.json",
+            trusteeSubTitle:
+                "Carga o ficheiro de custodia gardado ou unha proba de custodia asinada:",
             invited: "Fostes invitado a participar nunha Cerimonia de Escrutinio. Por favor ",
             click: "fai clic na Acción de Escrutinio",
             participate: "para participar.",
@@ -3255,6 +3496,7 @@ const galegoTranslation: TranslationType = {
                 },
             },
             languages: {
+                logsTimezone: "Fuso horario do rexistro do inquilino",
                 default: "Idioma predeterminado",
             },
         },
@@ -4908,10 +5150,10 @@ const galegoTranslation: TranslationType = {
                 record: "Anotar o meu proba de custodia",
                 failed: "Non se puido anotar o seu proba de custodia asinado: {{error}}",
                 dropAgain:
-                    "Volva soltar o seu ficheiro de proba de custodia para anotar o seu proba de custodia asinado. (custody-proof.json)",
+                    "Volva soltar o seu ficheiro de proba de custodia para anotar o seu proba de custodia asinado. (signed-custody-proof.json)",
                 redo: "O seu proba de custodia achegouse sen a súa sinatura, que esta elección agora require. Achégueo de novo e asíneo.",
                 notTaken:
-                    "A cerimonia xa non acepta este proba de custodia. Volva soltar o seu ficheiro de proba de custodia. (custody-proof.json)",
+                    "A cerimonia xa non acepta este proba de custodia. Volva soltar o seu ficheiro de proba de custodia. (signed-custody-proof.json)",
             },
         },
         lifecycle: {

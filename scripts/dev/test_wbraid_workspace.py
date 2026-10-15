@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The workspace launches native wbraid trustees without rebuilding its editor."""
 
+import json
 import shlex
 import tempfile
 import unittest
@@ -10,7 +11,7 @@ from pathlib import Path
 from scripts.dev.mode.checkout import load_checkout
 from scripts.dev.mode.docker import Compose
 from scripts.dev.mode.manifest import load_manifest
-from scripts.dev.test_mode import ROOT, compose_available, compose_services
+from scripts.dev.test_mode import ROOT, compose_available, compose_services, load_jsonc
 
 
 @unittest.skipUnless(compose_available(), "Docker Compose is required")
@@ -39,6 +40,16 @@ class WorkspaceTrusteesTest(unittest.TestCase):
                     service["environment"].get("CARGO_TARGET_DIR"),
                     "/workspaces/step/packages/rust-local-target/docker-dev",
                 )
+
+    def test_signed_storage_urls_work_without_browser_hosts_file_changes(self):
+        self.assertEqual(
+            self.services["b4v6"]["environment"]["AWS_ENDPOINT_URL"],
+            "http://localhost.localstack.cloud:4566",
+        )
+        self.assertIn(
+            "localhost.localstack.cloud",
+            self.services["localstack"]["networks"]["default"]["aliases"],
+        )
 
     def test_trustee_identity_store_and_service_addresses_match_the_runner(self):
         for name in ("trustee1", "trustee2"):
@@ -77,11 +88,50 @@ class WorkspaceTrusteesTest(unittest.TestCase):
                 )
         self.assertEqual(
             self.services["b4v6"]["environment"]["AWS_ENDPOINT_URL"],
-            "http://localstack:4566",
+            "http://localhost.localstack.cloud:4566",
         )
 
 
 class WorkspaceEnvironmentTest(unittest.TestCase):
+    def test_browser_trustee_accounts_have_distinct_matching_identities(self):
+        realm = json.loads(
+            (
+                ROOT
+                / ".devcontainer/keycloak/import"
+                / "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json"
+            ).read_text()
+        )
+        users = {user["username"]: user for user in realm["users"]}
+        for name in ("trustee1-wbraid", "trustee2-wbraid"):
+            with self.subTest(name=name):
+                self.assertIn(name, users)
+                user = users[name]
+                self.assertEqual(user["attributes"]["trustee"], [name])
+                self.assertEqual(
+                    user["attributes"]["tenant-id"],
+                    ["90505c8a-23a9-4cdf-a26b-4e19f6a097d5"],
+                )
+                self.assertIn("/trustee", user["groups"])
+                self.assertTrue(
+                    user["firstName"] and user["lastName"] and user["email"]
+                )
+        for name in ("trustee1", "trustee2"):
+            self.assertEqual(users[name]["attributes"]["trustee"], [name])
+
+    def test_browser_service_ports_cannot_be_silently_forwarded_to_other_ports(self):
+        for path in ("devcontainer.json", "backend/devcontainer.json"):
+            config = load_jsonc(ROOT / ".devcontainer" / path)
+            with self.subTest(config=path):
+                self.assertIn("hasura:8080", config["forwardPorts"])
+                self.assertIn("b4v6:3005", config["forwardPorts"])
+                self.assertIn("localstack:4566", config["forwardPorts"])
+                for port in (3005, 4566, 8080, 8090):
+                    self.assertTrue(
+                        config["portsAttributes"][str(port)]["requireLocalPort"]
+                    )
+                if path == "devcontainer.json":
+                    self.assertIn(3002, config["forwardPorts"])
+
     def test_existing_local_env_inherits_new_defaults_without_being_rewritten(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

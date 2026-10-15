@@ -2,12 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
+use crate::services::tenant_activity::{TenantAction, TenantActivityRecorder};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::types::permissions::Permissions;
 use sequent_core::{services::jwt, types::hasura::core::TasksExecution};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use tracing::{event, instrument, Level};
 use windmill::{
     services::providers::transactions_provider::provide_hasura_transaction,
@@ -52,8 +55,18 @@ fn authorize_import_templates(
 pub async fn import_templates_route(
     claims: jwt::JwtClaims,
     input: Json<ImportTemplatesInput>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<ImportTemplatesOutput>, (Status, String)> {
     let body = input.into_inner();
+    activity.record(
+        &claims,
+        TenantAction::ImportTemplates,
+        json!({
+            "tenant_id": body.tenant_id,
+            "document_id": body.document_id,
+            "sha256": body.sha256,
+        }),
+    );
     authorize_import_templates(&claims, &body)?;
     let tenant_id = body.tenant_id.clone();
     let executer_name = claims
@@ -84,6 +97,7 @@ pub async fn import_templates_route(
             document_id,
             body.sha256.clone(),
             task_execution.clone(),
+            Some(audit::actor(&claims)),
         ))
         .await;
 

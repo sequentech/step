@@ -330,7 +330,7 @@ def measure(
 
     try:
         excluded_files = profile.get("excluded_files", {})
-        scope_exceptions = profile["scope_exceptions"]
+        scope_exceptions = profile.get("scope_exceptions", {})
         cargo_features = profile["features"]
         if comparison_base:
             # Features the head adds cannot be requested from an older

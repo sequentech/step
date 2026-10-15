@@ -29,6 +29,13 @@
     3002,
     3004
   ],
+  "portsAttributes": {
+    "3002": {"label": "Admin portal / browser trustees", "requireLocalPort": true},
+    "3005": {"label": "Wbraid board", "requireLocalPort": true},
+    "4566": {"label": "Wbraid storage", "requireLocalPort": true},
+    "8080": {"label": "Hasura", "requireLocalPort": true},
+    "8090": {"label": "Keycloak", "requireLocalPort": true}
+  },
   // Fixes usage of LOCAL_WORKSPACE_FOLDER. See:
   // https://github.com/microsoft/vscode-remote-release/issues/6844#issuecomment-1252288457
   "initializeCommand": [

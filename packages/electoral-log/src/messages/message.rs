@@ -363,6 +363,38 @@ impl Message {
         Self::from_body(event, body, sd, user_id, username, None, area_id, None)
     }
 
+    /// A Keycloak event stamped with when Keycloak saw it, not with when the
+    /// entry is posted.
+    #[allow(clippy::too_many_arguments)]
+    pub fn keycloak_user_event_at(
+        event: EventIdString,
+        event_type: KeycloakEventTypeString,
+        error: ErrorMessageString,
+        timestamp: Timestamp,
+        user_id: Option<String>,
+        username: Option<String>,
+        sd: &SigningData,
+        area_id: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::KeycloakUserEvent(error, event_type);
+        let head = StatementHead {
+            timestamp,
+            ..StatementHead::from_body(event, &body)
+        };
+        Message::sign(
+            Statement::new(head, body),
+            None,
+            &sd.sender_sk,
+            &sd.sender_name,
+            &sd.system_sk,
+            user_id,
+            username,
+            None,
+            area_id,
+            None,
+        )
+    }
+
     pub fn keygen_message(
         event: EventIdString,
         sd: &SigningData,
@@ -523,6 +555,39 @@ impl Message {
     ) -> Result<Self> {
         let body = StatementBody::ApprovalMatrixUpdated(event.clone(), version, digest);
         Self::from_body(event, body, sd, user_id, username, None, None, None)
+    }
+
+    /// One audit entry, in the log of `event` (a tenant or an election
+    /// event). `timestamp` is when the action happened (the outbox row's
+    /// `occurred_at`), not when the entry is posted.
+    #[allow(clippy::too_many_arguments)]
+    pub fn audit_message(
+        event: EventIdString,
+        entry: AuditLogEntry,
+        timestamp: Timestamp,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+        election_id: Option<String>,
+        area_id: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::Audit(entry);
+        let head = StatementHead {
+            timestamp,
+            ..StatementHead::from_body(event, &body)
+        };
+        Message::sign(
+            Statement::new(head, body),
+            None,
+            &sd.sender_sk,
+            &sd.sender_name,
+            &sd.system_sk,
+            user_id,
+            username,
+            election_id,
+            area_id,
+            None,
+        )
     }
 
     /// One entry of a signing step. The worker that posts the outbox calls
@@ -867,6 +932,35 @@ impl Message {
             None,
             Some(election_id.to_string()),
             Some(area_id.to_string()),
+            None,
+        )
+    }
+
+    /// One entry of a tenant's log. It belongs to no election event, so its
+    /// head names `GENERIC_EVENT`. `timestamp` is when the activity happened,
+    /// not when the entry is posted.
+    pub fn tenant_activity_message(
+        entry: TenantActivityEntry,
+        timestamp: Timestamp,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::TenantActivity(entry);
+        let head = StatementHead {
+            timestamp,
+            ..StatementHead::from_body(EventIdString(GENERIC_EVENT.to_string()), &body)
+        };
+        Message::sign(
+            Statement::new(head, body),
+            None,
+            &sd.sender_sk,
+            &sd.sender_name,
+            &sd.system_sk,
+            user_id,
+            username,
+            None,
+            None,
             None,
         )
     }

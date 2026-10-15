@@ -528,6 +528,22 @@ fn validate_publication_ceremonies(
     Ok(())
 }
 
+fn validate_election_ceremony_binding(
+    key: Option<&PublicKeyConfig>,
+    ceremony_id: Option<&str>,
+) -> Result<()> {
+    if let Some(ceremony_id) = ceremony_id {
+        if !key
+            .is_some_and(|key| !key.is_demo && key.keys_ceremony_id.as_deref() == Some(ceremony_id))
+        {
+            return Err(BallotPublicationValidationError::new(vec![format!(
+                "Keys ceremony {ceremony_id} must complete before ballot publication; regenerate ballots with its verified joint public key."
+            )]).into());
+        }
+    }
+    Ok(())
+}
+
 async fn validate_published_ballot_styles(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -549,7 +565,23 @@ async fn validate_published_ballot_styles(
         election_event_id,
     )
     .await?;
-    let keys = parse_ballot_styles(&current)?
+    // Generated styles can predate ceremony creation. Check the current
+    // election binding before trusting a cached demo key or old ceremony key.
+    let elections =
+        crate::postgres::election::get_elections(hasura_transaction, tenant_id, election_event_id)
+            .await?;
+    let styles = parse_ballot_styles(&current)?;
+    for style in &styles {
+        let election = elections
+            .iter()
+            .find(|election| election.id == style.election_id)
+            .context("Published ballot election no longer exists")?;
+        validate_election_ceremony_binding(
+            style.public_key.as_ref(),
+            election.keys_ceremony_id.as_deref(),
+        )?;
+    }
+    let keys = styles
         .into_iter()
         .filter_map(|style| style.public_key)
         .collect::<Vec<_>>();
@@ -704,6 +736,14 @@ pub async fn update_publish_ballot(
     if ballot_publication.published_at.is_some() {
         return Ok(());
     }
+
+    validate_published_ballot_styles(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication,
+    )
+    .await?;
 
     validate_published_slates(
         hasura_transaction,
@@ -1082,6 +1122,26 @@ mod tests {
         };
         assert!(validate_publication_ceremonies(&[demo], &[]).is_ok());
         assert!(validate_publication_ceremonies(&[], &[]).is_ok());
+    }
+
+    #[test]
+    fn stale_demo_publication_cannot_bypass_an_assigned_keys_ceremony() {
+        let demo = PublicKeyConfig {
+            public_key: "demo".into(),
+            is_demo: true,
+            keys_ceremony_id: None,
+            configuration_id: None,
+        };
+        assert!(validate_election_ceremony_binding(Some(&demo), Some("ceremony")).is_err());
+        assert!(validate_election_ceremony_binding(None, Some("ceremony")).is_err());
+        assert!(validate_election_ceremony_binding(Some(&demo), None).is_ok());
+        let native = PublicKeyConfig {
+            is_demo: false,
+            keys_ceremony_id: Some("ceremony".into()),
+            ..demo
+        };
+        assert!(validate_election_ceremony_binding(Some(&native), Some("ceremony")).is_ok());
+        assert!(validate_election_ceremony_binding(Some(&native), Some("other")).is_err());
     }
 
     #[test]

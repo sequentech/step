@@ -18,6 +18,7 @@ use crate::services::plugins_manager::plugin_manager::init_plugin_manager;
 use crate::tasks::activity_logs_report::generate_activity_logs_report;
 use crate::tasks::apply_reconciliation_patch::apply_reconciliation_patch;
 use crate::tasks::audit_electoral_log::audit_electoral_log;
+use crate::tasks::audit_log_outbox::post_audit_log_outbox;
 use crate::tasks::create_ballot_receipt::create_ballot_receipt;
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::delete_election_event::delete_election_event_t;
@@ -30,6 +31,7 @@ use crate::tasks::electoral_log::{
 use crate::tasks::enforce_signed_closes::enforce_signed_closes_task;
 use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::tasks::export_application::export_application;
+use crate::tasks::export_audit_logs::export_audit_logs;
 use crate::tasks::export_ballot_publication::export_ballot_publication;
 use crate::tasks::export_certificate_authority::export_certificate_authority;
 use crate::tasks::export_election_event::export_election_event;
@@ -63,6 +65,7 @@ use crate::tasks::manual_verification_report::generate_manual_verification_repor
 use crate::tasks::migrate_messaging_attributes::migrate_messaging_attributes;
 use crate::tasks::migrate_realm_permissions::migrate_realm_permissions;
 use crate::tasks::migrate_registration_flows::migrate_registration_flows;
+use crate::tasks::migrate_tenant_logs::migrate_tenant_logs;
 use crate::tasks::miru_plugin_tasks::create_transmission_package_task;
 use crate::tasks::miru_plugin_tasks::send_transmission_package_task;
 use crate::tasks::plugins_tasks::execute_plugin_task;
@@ -346,6 +349,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             import_applications,
             export_trustees_task,
             export_tenant_config,
+            export_audit_logs,
             import_tenant_config,
             enqueue_electoral_log_event,
             process_electoral_log_events_batch,
@@ -367,6 +371,8 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             generate_voter_information_letter,
             migrate_realm_permissions,
             post_signing_log_outbox,
+            post_audit_log_outbox,
+            migrate_tenant_logs,
             expire_signing_requests,
             sweep_signing_executions,
             refresh_staff_crls,
@@ -417,6 +423,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             import_election_event::NAME => Queue::ImportExport.queue_name(),
             export_templates::NAME => Queue::ImportExport.queue_name(),
             export_tenant_config::NAME => Queue::ImportExport.queue_name(),
+            export_audit_logs::NAME => Queue::ImportExport.queue_name(),
             import_tenant_config::NAME => Queue::ImportExport.queue_name(),
             scheduled_events::NAME => Queue::Beat.queue_name(),
             scheduled_reports::NAME => Queue::Beat.queue_name(),
@@ -465,6 +472,8 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             migrate_registration_flows::NAME => Queue::Short.queue_name(),
             migrate_messaging_attributes::NAME => Queue::Short.queue_name(),
             post_signing_log_outbox::NAME => Queue::ElectoralLogBeat.queue_name(),
+            post_audit_log_outbox::NAME => Queue::ElectoralLogBeat.queue_name(),
+            migrate_tenant_logs::NAME => Queue::Short.queue_name(),
             expire_signing_requests::NAME => Queue::Beat.queue_name(),
             sweep_signing_executions::NAME => Queue::Beat.queue_name(),
             refresh_staff_crls::NAME => Queue::Beat.queue_name(),

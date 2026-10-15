@@ -24,6 +24,12 @@ fixtures, and the tests register matching issuer settings backed by a local key
 server, so the request guards verify them as they do real tokens. They are not
 a substitute for deployment access controls.
 
+`support/request_logging.rs` checks that routine `GET /trustee/boards` polls,
+including Rocket request logs and shared helper spans, are visible only with
+`LOG_LEVEL=debug` or `trace`. Warnings, errors and failed polls remain visible;
+other endpoints, including trustee reports, retain their existing logging.
+The test dispatches concurrent requests and isolates the process-global logger.
+
 `support/error_contracts.rs` checks the error JSON consumed by the portals,
 including password-policy counts and truncated profile-validation totals.
 The audit-query suite checks bound values and closed SQL identifiers; import
@@ -39,6 +45,7 @@ export KEYCLOAK_DB__HOST=127.0.0.1 HASURA_DB__HOST=127.0.0.1
 export LOW_SQL_LIMIT=1000 DEFAULT_SQL_LIMIT=20 DEFAULT_SQL_BATCH_SIZE=1000
 cargo test -p harvest --locked --offline --bin harvest -- request_boundaries
 cargo test -p harvest --locked --offline --bin harvest -- error_contracts
+cargo test -p harvest --locked --offline --bin harvest -- services::request_logging
 cargo test -p harvest --locked --offline --bin harvest -- boundary_tests
 cargo test -p harvest --locked --offline --bin harvest -- services::access
 ```

@@ -11,7 +11,7 @@ import {
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import {ElectionStatusItem} from "@/components/ElectionStatusItem"
 import {styled} from "@mui/material/styles"
-import {LinearProgress, Typography, linearProgressClasses} from "@mui/material"
+import {Box, LinearProgress, Typography, linearProgressClasses} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {ITallyCeremonyStatus, ITallyElectionStatus} from "@/types/ceremonies"
 import {formatPercentOne} from "@sequentech/ui-core"
@@ -37,6 +37,8 @@ export const TallyElectionsProgress: React.FC<TallyElectionsProgressProps> = ({
 }) => {
     const {t, i18n} = useTranslation()
     const aliasRenderer = useAliasRenderer()
+    const status = execution?.[0]?.status as ITallyCeremonyStatus | undefined
+    const quorum = status?.quorum
 
     const elections = useMemo(() => {
         return (
@@ -142,18 +144,25 @@ export const TallyElectionsProgress: React.FC<TallyElectionsProgressProps> = ({
     }))
 
     return (
-        <DataGrid
-            rows={electionsData}
-            columns={columns}
-            initialState={{
-                pagination: {
-                    paginationModel: {
-                        pageSize: 10,
+        <Box sx={{width: "100%"}}>
+            {!!quorum?.length && (
+                <Typography variant="body2" sx={{mb: 2, overflowWrap: "anywhere"}}>
+                    {t("tally.selectedQuorum")}: {quorum.join(", ")}
+                </Typography>
+            )}
+            <DataGrid
+                rows={electionsData}
+                columns={columns}
+                initialState={{
+                    pagination: {
+                        paginationModel: {
+                            pageSize: 10,
+                        },
                     },
-                },
-            }}
-            pageSizeOptions={[10, 20, 50, 100]}
-            disableRowSelectionOnClick
-        />
+                }}
+                pageSizeOptions={[10, 20, 50, 100]}
+                disableRowSelectionOnClick
+            />
+        </Box>
     )
 }

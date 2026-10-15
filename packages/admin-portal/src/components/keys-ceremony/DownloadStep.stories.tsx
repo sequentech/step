@@ -108,7 +108,7 @@ export default meta
 type Story = StoryObj<Scenario>
 
 const downloadButton = (canvasElement: HTMLElement) =>
-    within(canvasElement).findByRole("button", {name: "Download Custody Request"})
+    within(canvasElement).findByRole("button", {name: "Download Custody File"})
 
 async function download(canvasElement: HTMLElement) {
     const button = await downloadButton(canvasElement)
@@ -127,7 +127,7 @@ export const Populated: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await downloadButton(canvasElement)).toBeEnabled()
-        await expect(canvas.getByRole("heading", {name: "Download Custody Request"})).toBeVisible()
+        await expect(canvas.getByRole("heading", {name: "Download Custody File"})).toBeVisible()
         expect(canvas.getByRole("button", {name: "Next"})).toBeDisabled()
         await waitFor(() =>
             expect(data.calls[0]).toEqual({
@@ -146,23 +146,21 @@ export const DownloadAndConfirmBackups: Story = {
     play: async ({canvasElement, args}) => {
         const canvas = within(canvasElement)
         await download(canvasElement)
-        await expect(
-            await canvas.findByText("Public custody request downloaded successfully.")
-        ).toBeVisible()
+        await expect(await canvas.findByText("Custody file downloaded successfully.")).toBeVisible()
         expect(graphql.calls).toEqual([keyRequest])
         expect(saved.downloads).toEqual([
             {
-                name: "trustee1-custody-request.json",
+                name: "trustee1-custody.json",
                 href: expect.stringMatching(/^blob:/),
             },
         ])
         await userEvent.click(canvas.getByRole("button", {name: "Next"}))
         const dialog = within(await within(document.body).findByRole("dialog"))
-        const confirm = dialog.getByRole("button", {name: "Confirm Backups and Continue"})
+        const confirm = dialog.getByRole("button", {name: "Confirm Saved Copies and Continue"})
         expect(confirm).toBeDisabled()
-        await userEvent.click(dialog.getByRole("checkbox", {name: "First backup secured"}))
+        await userEvent.click(dialog.getByRole("checkbox", {name: "First copy saved"}))
         expect(confirm).toBeDisabled()
-        await userEvent.click(dialog.getByRole("checkbox", {name: "Second backup secured"}))
+        await userEvent.click(dialog.getByRole("checkbox", {name: "Second copy saved"}))
         await userEvent.click(confirm)
         expect(args.goNext).toHaveBeenCalledTimes(1)
         await waitFor(() => expect(within(document.body).queryByRole("dialog")).toBeNull())
@@ -175,13 +173,13 @@ export const CancelBackupConfirmation: Story = {
         await download(canvasElement)
         await userEvent.click(await canvas.findByRole("button", {name: "Next"}))
         const dialog = within(await within(document.body).findByRole("dialog"))
-        await userEvent.click(dialog.getByRole("checkbox", {name: "First backup secured"}))
+        await userEvent.click(dialog.getByRole("checkbox", {name: "First copy saved"}))
         await userEvent.click(dialog.getByRole("button", {name: "Go Back"}))
         await waitFor(() => expect(within(document.body).queryByRole("dialog")).toBeNull())
         await userEvent.click(canvas.getByRole("button", {name: "Next"}))
         const reopened = within(await within(document.body).findByRole("dialog"))
         // Cancelling clears the acknowledgements.
-        expect(reopened.getByRole("checkbox", {name: "First backup secured"})).not.toBeChecked()
+        expect(reopened.getByRole("checkbox", {name: "First copy saved"})).not.toBeChecked()
         expect(args.goNext).not.toHaveBeenCalled()
         await userEvent.click(reopened.getByRole("button", {name: "Go Back"}))
         await waitFor(() => expect(within(document.body).queryByRole("dialog")).toBeNull())
@@ -206,9 +204,7 @@ export const KeyServiceFailure: Story = {
         const canvas = within(canvasElement)
         await download(canvasElement)
         await expect(
-            await canvas.findByText(
-                "The custody request could not be downloaded. Please try again."
-            )
+            await canvas.findByText("The custody file could not be downloaded. Please try again.")
         ).toBeVisible()
         // The download can be retried.
         await expect(await downloadButton(canvasElement)).toBeEnabled()
@@ -223,7 +219,7 @@ export const ServiceReportsTheCeremonyMovedOn: Story = {
         await download(canvasElement)
         await expect(
             await canvas.findByText(
-                "The custody request is no longer available because the ceremony has moved on."
+                "The custody file is no longer available because the ceremony has moved on."
             )
         ).toBeVisible()
         await expect(await downloadButton(canvasElement)).toBeDisabled()
@@ -250,7 +246,7 @@ export const CeremonyFinished: Story = {
         const canvas = within(canvasElement)
         await expect(
             await canvas.findByText(
-                "The custody request is no longer available because the ceremony has moved on."
+                "The custody file is no longer available because the ceremony has moved on."
             )
         ).toBeVisible()
         await expect(await downloadButton(canvasElement)).toBeDisabled()

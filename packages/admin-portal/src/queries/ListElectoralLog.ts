@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {gql} from "@apollo/client"
 import {browserTimeZone, zonedToInstant} from "@sequentech/ui-core"
+import {IPermissions} from "@/types/keycloak"
 
 /** The range filters: wall times ("YYYY-MM-DDTHH:MM") in the `time_zone` filter's zone. */
 export const ELECTORAL_LOG_RANGE_FILTERS = [
@@ -100,4 +101,35 @@ export const getElectoralLog = (fields: any) => {
             }
         }
     `
+}
+
+/** The tenant log: the same action without an election event. */
+export const LIST_TENANT_LOG = gql`
+    query listTenantLog(
+        $limit: Int
+        $offset: Int
+        $filter: ElectoralLogFilter
+        $order_by: ElectoralLogOrderBy
+    ) {
+        listElectoralLog(limit: $limit, offset: $offset, filter: $filter, order_by: $order_by) {
+            items {
+                id
+                created
+                statement_timestamp
+                statement_kind
+                message
+                user_id
+            }
+            total {
+                aggregate {
+                    count
+                }
+            }
+        }
+    }
+`
+
+/** Harvest reads the tenant log only for tenant-logs-read, whatever the default role. */
+export const TENANT_LOG_CONTEXT = {
+    headers: {"x-hasura-role": IPermissions.TENANT_LOGS_READ},
 }

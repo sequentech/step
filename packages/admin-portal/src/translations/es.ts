@@ -201,10 +201,184 @@ const spanishTranslation: TranslationType = {
                 },
             },
         },
+        tenantLogs: {
+            explanation: {
+                action: "Acción: {{action}}",
+                outcome: {
+                    succeeded: "Aceptada (HTTP {{status}})",
+                    denied: "Denegada (HTTP {{status}})",
+                    failed: "Fallida (HTTP {{status}})",
+                },
+                by: "Pedida por {{username}} ({{userId}})",
+                detail: "{{name}}: {{value}}",
+                board: "Bitácora: {{board}}",
+                publicKey: "Clave pública de la bitácora: {{key}}",
+            },
+        },
         logsScreen: {
             noPermissions: "No tienes permiso para acceder a las bitácoras.",
             title: "Bitácoras",
-            subtitle: "Bitácoras generales de las baseses de datos principal y de IAM.",
+            subtitle:
+                "Todo lo que se hace en este evento electoral. Los inicios de sesión y los cambios fuera de él están en Configuración > Bitácoras.",
+            empty: "No se encontraron entradas.",
+            tenant: {
+                subtitle:
+                    "Inicios de sesión, cuentas del personal y roles, configuración y eventos electorales de esta organización. Cada evento electoral guarda su propia bitácora en su pestaña Bitácoras.",
+                noPermissions: "No tienes permiso para ver esta bitácora.",
+            },
+            entry: {
+                title: "Entrada de bitácora {{id}}",
+                statementKind: "Tipo de declaración",
+                eventType: "Tipo de evento",
+                logType: "Tipo de registro",
+                when: "Cuándo",
+                utc: "{{time}} UTC",
+                who: "Quién",
+                userId: "ID de usuario {{id}}",
+                role: "Rol {{role}}",
+                unknownAccount: "Cuenta desconocida (no se registra el nombre escrito)",
+                madeIn: "Hecho en",
+                changed: "Cambiado",
+                objectId: "ID {{id}}",
+                actionLabel: "Acción",
+                details: "Detalles",
+                origin: {
+                    "hasura": "Portal de administración (a través de Hasura)",
+                    "harvest": "Portal de administración (a través de Harvest)",
+                    "windmill": "Portal de administración (una tarea de Windmill)",
+                    "keycloak-console":
+                        "Consola de administración de Keycloak, fuera del portal de administración",
+                    "service-account":
+                        "Cuenta de servicio de Step, por un cambio hecho en el portal de administración",
+                },
+                action: {
+                    create: "Creado",
+                    update: "Actualizado",
+                    delete: "Eliminado",
+                    import: "Importado",
+                    export: "Exportado",
+                    archive: "Archivado",
+                    unarchive: "Desarchivado",
+                    enable: "Activado",
+                    disable: "Desactivado",
+                    reset_password: "Contraseña restablecida",
+                    grant: "Concedido",
+                    revoke: "Revocado",
+                },
+                objectType: {
+                    tenant: "Configuración del inquilino",
+                    tenant_log: "Bitácora del inquilino",
+                    staff_account: "Cuenta del personal",
+                    role: "Rol",
+                    template: "Plantilla",
+                    trustee: "Fideicomisario",
+                    election_type: "Tipo de elección",
+                    election_event: "Evento electoral",
+                    election: "Elección",
+                    contest: "Contienda",
+                    candidate: "Candidato",
+                    area: "Área",
+                },
+                values: {
+                    title: "Valores anteriores y nuevos",
+                    field: "Campo",
+                    old: "Valor anterior",
+                    new: "Valor nuevo",
+                    none: "(ninguno)",
+                    secret: "Cambiado. Los valores secretos nunca se registran.",
+                    yes: "Sí",
+                    no: "No",
+                    sha: "SHA-256 {{hash}}",
+                },
+                field: {
+                    tenant: {
+                        slug: "Nombre corto",
+                        isActive: "Activo",
+                        logsTimezone: "Zona horaria de la bitácora del inquilino (Idiomas)",
+                        languages: "Idiomas",
+                        enabledLanguages: "Idiomas habilitados (Idiomas)",
+                        defaultLanguage: "Idioma predeterminado (Idiomas)",
+                        languageDetection: "Detección del idioma (Idiomas)",
+                        translations: "Traducciones (Localización)",
+                        sms: "SMS",
+                        mail: "Correo electrónico",
+                        gapiKey: "Clave de la API de Google (Integraciones)",
+                        gapiEmail: "Correo de la API de Google (Integraciones)",
+                        helpLinks: "Enlaces de ayuda (Apariencia)",
+                        displayName: "Nombre de la organización (Apariencia)",
+                        votingCountries: "Países bloqueados para votar (Países)",
+                        enrollCountries: "Países bloqueados para inscribirse (Países)",
+                        logoUrl: "Logotipo (Apariencia)",
+                        css: "CSS personalizado (Apariencia)",
+                        votingChannels: "Canales de votación",
+                        onlineVoting: "Voto en línea (Canales de votación)",
+                        kioskVoting: "Voto en quiosco (Canales de votación)",
+                        telephoneVoting: "Voto telefónico (Canales de votación)",
+                        earlyVoting: "Voto anticipado (Canales de votación)",
+                        paperVoting: "Voto en papel (Canales de votación)",
+                    },
+                },
+                signIn: {
+                    title: "Inicio de sesión y seguridad de la cuenta",
+                    event: "Evento de Keycloak",
+                    error: "Error",
+                    authentication: "Autenticación",
+                    credential: "Credencial",
+                    failures: "Fallos seguidos",
+                    client: "Cliente",
+                    ipAddress: "Dirección IP",
+                },
+                keycloak: {
+                    title: "Cambio en Keycloak",
+                    account: "Cuenta",
+                    operation: "Operación",
+                    appliesTo: "Se aplica a",
+                    resource: "Recurso",
+                    newValue: "Valor nuevo",
+                    error: "Error",
+                },
+                deletedEvent: {
+                    title: "La bitácora del evento electoral eliminado",
+                    lastEntry: "Última entrada",
+                    stateHash: "Hash de estado",
+                    logDatabase: "Base de datos de la bitácora",
+                    status: "Estado",
+                    retired:
+                        "Descargada y conservada hasta que se borre según la política de conservación",
+                    task: "Tarea",
+                },
+                exported: {
+                    title: "Exportación",
+                    entries: "Entradas",
+                    sha256: "SHA-256 del archivo",
+                    document: "Documento",
+                    scope: {
+                        TENANT_LOG: "Toda la bitácora del inquilino",
+                        ACCOUNT: "Una cuenta",
+                        ACCOUNT_WITH_EVENTS:
+                            "Una cuenta, con sus entradas en cada evento electoral",
+                        ALL: "Todo el evento electoral",
+                        ELECTION: "Una elección",
+                        AREA: "Un área",
+                    },
+                },
+                writer: {
+                    title: "Escritor de la bitácora",
+                    release: "Versión",
+                    lastEntry: "Última entrada publicada",
+                },
+                signatures: {
+                    title: "Bitácora y firmas",
+                    log: "Bitácora",
+                    tenantLog: "Bitácora del inquilino",
+                    eventLog: "Bitácora del evento electoral",
+                    signedBy: "Firmado por",
+                    adminKey: "Clave de administración de {{name}}",
+                    systemOnly: "Solo la clave de sistema de la bitácora",
+                    systemSignature: "Firma del sistema",
+                    publicKey: "Clave de administración publicada",
+                },
+            },
             column: {
                 id: "ID",
                 statement_kind: "Tipo de declaración",
@@ -235,6 +409,26 @@ const spanishTranslation: TranslationType = {
                 format: "Formato",
                 csv: "CSV",
                 pdf: "PDF",
+                sql: "SQL",
+                scope: {
+                    label: "Alcance",
+                    tenant: {
+                        TENANT_LOG: "Toda la bitácora del inquilino",
+                        ACCOUNT: "Una cuenta",
+                    },
+                    event: {
+                        ALL: "Todo el evento electoral",
+                        ELECTION: "Una elección",
+                        AREA: "Un área",
+                        ACCOUNT: "Una cuenta",
+                    },
+                },
+                username: "Nombre de usuario",
+                election: "Elección",
+                area: "Área",
+                withElectionEvents: "Incluir las entradas de esta cuenta en cada evento electoral",
+                rowsNameLog: "Las filas de los eventos electorales indican su bitácora.",
+                recorded: "La propia exportación queda registrada en esta bitácora.",
                 zoneNote:
                     "Cada fila conserva su hora en UTC (ISO 8601) y en {{abbr}}, con el nombre de la zona horaria. El intervalo de fechas incluye ambos extremos, en {{abbr}}.",
                 zoneNotePdf:
@@ -343,6 +537,7 @@ const spanishTranslation: TranslationType = {
                 CREATE_TRANSMISSION_PACKAGE: "Crear paquete de transmisión",
                 EXPORT_BALLOT_PUBLICATION: "Exportar Publicación de Boleta",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exportar Informe de Registros de Actividad",
+                EXPORT_TENANT_LOGS: "Exportar Bitácora del Inquilino",
                 GENERATE_REPORT: "Generar Reporte",
                 GENERATE_TRANSMISSION_REPORT: "Generar Informe de Transmisión",
                 EXPORT_TRUSTEES: "Exportar Autoridades",
@@ -459,6 +654,7 @@ const spanishTranslation: TranslationType = {
                 schedules: "EVENTOS PROGRAMADOS",
                 trustees: "AUTORIDADES",
                 BackupRestore: "COPIA DE SEGURIDAD / RESTAURAR",
+                logs: "BITÁCORAS",
             },
         },
         trusteesSettingsScreen: {
@@ -1788,6 +1984,8 @@ const spanishTranslation: TranslationType = {
                 "application-write": "Editar Aplicación",
                 "approval-matrix-write": "Editar la Matriz de Aprobación",
                 "logs-export": "Exportar Registros",
+                "tenant-logs-read": "Leer Bitácora del Inquilino",
+                "tenant-logs-export": "Exportar Bitácora del Inquilino",
                 "election-event-logs-columns": "Columnas de los Registros del Evento Electoral",
                 "election-events-logs-filters": "Filtros de los Registros del Evento Electoral",
                 "election-event-scheduled-event-columns":
@@ -2349,6 +2547,41 @@ const spanishTranslation: TranslationType = {
         },
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
+            downloadStep: {
+                ...englishTranslation.translations.keysGeneration.downloadStep,
+                title: "Descargar archivo de custodia",
+                downloadButton: "Descargar archivo de custodia",
+                confirmdDialog: {
+                    ...englishTranslation.translations.keysGeneration.downloadStep.confirmdDialog,
+                    title: "Guardar archivo de custodia",
+                },
+            },
+            checkStep: {
+                ...englishTranslation.translations.keysGeneration.checkStep,
+                subtitle: "Carga tu archivo de custodia guardado o una prueba de custodia firmada:",
+                required: "Se requiere confirmar la custodia",
+                reconfirmButton: "Volver a confirmar la custodia (opcional)",
+                reconfirmDescription:
+                    "Tu custodia ya está confirmada. Esta confirmación adicional es opcional.",
+            },
+            serverCustody: {
+                recoveryInstructions:
+                    "Si ha importado este evento electoral o ha perdido el archivo guardado, descargue aquí el archivo de custodia actual. Guárdelo y luego cárguelo a continuación.",
+                fileFormat: "Formato admitido: JSON",
+                waiting: "Esperando a que tu servidor custodio cree una prueba de custodia…",
+                unavailable:
+                    "El servidor custodio no ha respondido. Comprueba que está activo y vuelve a cargar el archivo de custodia.",
+                failed: "El servidor custodio no pudo crear la prueba: {{error}}",
+                invalidReply:
+                    "El servidor custodio devolvió una respuesta incompleta. Inténtalo de nuevo.",
+                cancelled: "La solicitud se canceló. Vuelve a cargar el archivo para continuar.",
+                downloadInstructions:
+                    "Descarga y guarda este archivo de custodia. Carga el mismo archivo en el siguiente paso y en futuros recuentos. No es una copia de seguridad de tus claves privadas.",
+                uploadInstructions:
+                    "Carga el archivo de custodia descargado. Tu servidor custodio creará la prueba. También puedes cargar una prueba creada por un custodio sin conexión o de navegador.",
+                tallyInstructions:
+                    "Carga el archivo guardado durante la ceremonia de claves. Tu servidor custodio creará una nueva prueba para este recuento. También se aceptan pruebas de custodios sin conexión o de navegador.",
+            },
             configureStep: {
                 create: "Crear Ceremonia de Claves",
                 name: "Nombre de la Ceremonia de Claves",
@@ -2387,6 +2620,12 @@ const spanishTranslation: TranslationType = {
             // Native custody instructions use the English fallback until translated.
             ceremonyStep: {
                 ...englishTranslation.translations.keysGeneration.ceremonyStep,
+                custodyConfirmed: "Custodia confirmada",
+                custodyComplete:
+                    "Tu parte ha finalizado. No necesitas realizar ninguna otra acción.",
+                waitingForTrustees:
+                    "Esperando a que las autoridades restantes completen la confirmación de custodia y cualquier aprobación requerida.",
+                moreActions: "Más acciones",
                 cancel: "Cancelar Ceremonia de Claves",
                 progressHeader: "Progreso de Ceremonia de Claves",
                 executionStatus: "Estado: {{status}}",
@@ -2570,6 +2809,8 @@ const spanishTranslation: TranslationType = {
             logsTitle: "Logs",
             resultsTitle: "Resultados & Participación",
             generalInfoTitle: "Información General",
+            sessionId: "ID de la sesión de recuento",
+            selectedQuorum: "Quórum seleccionado",
             trusteeTallyTitle: "Trustee",
             trusteeTallySubTitle: "Estado de confirmación de custodia",
             ballotBoxes: {
@@ -2622,7 +2863,8 @@ const spanishTranslation: TranslationType = {
             recountTallyCeremonyError: "No se ha podido iniciar el recuento",
             recountTallyCeremonyOk: "Repetir el recuento",
             trusteeTitle: "Proceso del trustee",
-            trusteeSubTitle: "Cargue su archivo público custody-proof.json",
+            trusteeSubTitle:
+                "Carga tu archivo de custodia guardado o una prueba de custodia firmada:",
             invited: "Has sido invitado a participar en una ceremonia de recuento. Por favor, ",
             click: "haz clic en la acción de recuento",
             participate: "para participar.",
@@ -3260,6 +3502,7 @@ const spanishTranslation: TranslationType = {
                 },
             },
             languages: {
+                logsTimezone: "Zona horaria de la bitácora del inquilino",
                 default: "Idioma predeterminado",
             },
         },
@@ -4921,10 +5164,10 @@ const spanishTranslation: TranslationType = {
                 record: "Registrar mi prueba de custodia",
                 failed: "No se pudo registrar su prueba de custodia firmado: {{error}}",
                 dropAgain:
-                    "Vuelva a soltar su archivo de prueba de custodia para registrar su prueba de custodia firmado. (custody-proof.json)",
+                    "Vuelva a soltar su archivo de prueba de custodia para registrar su prueba de custodia firmado. (signed-custody-proof.json)",
                 redo: "Su prueba de custodia se aportó sin su firma, que esta elección ahora requiere. Apórtelo de nuevo y fírmelo.",
                 notTaken:
-                    "La ceremonia ya no acepta este prueba de custodia. Vuelva a soltar su archivo de prueba de custodia. (custody-proof.json)",
+                    "La ceremonia ya no acepta este prueba de custodia. Vuelva a soltar su archivo de prueba de custodia. (signed-custody-proof.json)",
             },
         },
         lifecycle: {

@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Voter enrollment and OTP settings: only changes against the election
-//! event's presentation reach Keycloak.
+//! event's presentation reach Keycloak, and what Keycloak changed is an
+//! entry of the event's log.
 
 use crate::adapters::memory::identity::{
     AuthenticationChange, AuthenticationUpdate, LocalIdentityAdmin,
@@ -48,6 +49,34 @@ fn change(event: &Event, update: AuthenticationUpdate) -> AuthenticationChange {
     }
 }
 
+/// The changes queued for the event's log, one list per entry.
+async fn audited(
+    services: &Services,
+    event: &Event,
+) -> Vec<(String, serde_json::Value)> {
+    rows::query(
+        &services.hasura,
+        "SELECT description, details FROM sequent_backend.audit_log_outbox
+         WHERE tenant_id = $1::text::uuid AND election_event_id = $2::text::uuid
+             AND statement_kind = 'AdminChange' AND user_id = 'any-admin'
+         ORDER BY seq",
+        &[&event.tenant_id, &event.election_event_id],
+    )
+    .await
+    .iter()
+    .map(|row| {
+        let details: serde_json::Value = row.get(1);
+        assert_eq!(
+            details["object"],
+            json!({"type": "election_event", "id": event.election_event_id, "name": null})
+        );
+        assert_eq!(details["action"], "update");
+        assert_eq!(details["origin"], "harvest");
+        (row.get(0), details["changes"].clone())
+    })
+    .collect()
+}
+
 fn updated() -> (Status, serde_json::Value) {
     (
         Status::Ok,
@@ -69,6 +98,7 @@ async fn settings_that_match_the_event_are_not_sent_to_keycloak() {
     // Blank settings are left as they are.
     assert_eq!(json(set(&client, &event, " ", "").await).await, updated());
     assert!(services.identity.updates().is_empty());
+    assert!(audited(&services, &event).await.is_empty());
 }
 
 #[rocket::async_test]
@@ -87,6 +117,19 @@ async fn changed_settings_are_sent_to_keycloak() {
             change(&event, AuthenticationUpdate::Enrollment(false)),
             change(&event, AuthenticationUpdate::Otp("DISABLED".into())),
         ]
+    );
+    assert_eq!(
+        audited(&services, &event).await,
+        vec![(
+            format!(
+                "Updated election event {}: voter_authentication.enrollment, voter_authentication.otp",
+                event.election_event_id
+            ),
+            json!([
+                {"path": "voter_authentication.enrollment", "old": "enabled", "new": "disabled"},
+                {"path": "voter_authentication.otp", "old": "enabled", "new": "disabled"},
+            ])
+        )]
     );
 }
 
@@ -134,6 +177,7 @@ async fn a_setting_keycloak_refuses_is_a_server_error() {
         message.starts_with("Error updating enrollment: "),
         "{message}"
     );
+    assert!(audited(&services, &event).await.is_empty());
     let (status, message) =
         text(set(&client, &event, "enabled", "disabled").await).await;
     assert_eq!(status, Status::InternalServerError);

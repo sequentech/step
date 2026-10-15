@@ -79,6 +79,7 @@ export interface ITallyCeremonyStatus {
     stop_date?: string
     logs: Array<ILog>
     trustees: Array<ITallyTrustee>
+    quorum?: string[] | null
     elections_status: Array<ITallyElection>
 }
 

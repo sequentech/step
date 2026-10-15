@@ -82,6 +82,9 @@ jest.mock("@/components/keys-ceremony/useCustodyProofSigning", () => ({
     CustodyProofCheck: {},
     useCustodyProofSigning: () => ({check: jest.fn(), waiting: false}),
 }))
+jest.mock("@/components/keys-ceremony/useServerCustodyProof", () => ({
+    useServerCustodyProof: () => ({resolve: jest.fn(), waiting: false}),
+}))
 jest.mock(
     "@sequentech/ui-essentials",
     () => ({

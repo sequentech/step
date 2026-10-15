@@ -202,10 +202,184 @@ const frenchTranslation: TranslationType = {
                 },
             },
         },
+        tenantLogs: {
+            explanation: {
+                action: "Action : {{action}}",
+                outcome: {
+                    succeeded: "Acceptée (HTTP {{status}})",
+                    denied: "Refusée (HTTP {{status}})",
+                    failed: "Échouée (HTTP {{status}})",
+                },
+                by: "Demandée par {{username}} ({{userId}})",
+                detail: "{{name}} : {{value}}",
+                board: "Journal : {{board}}",
+                publicKey: "Clé publique du journal : {{key}}",
+            },
+        },
         logsScreen: {
             noPermissions: "Vous n'avez pas la permission d'accéder aux journaux.",
             title: "Journaux",
-            subtitle: "Journaux généraux des bases de données principale et IAM.",
+            subtitle:
+                "Tout ce qui est fait dans cet événement électoral. Les connexions et les modifications en dehors de celui-ci se trouvent dans Configuration > Journaux.",
+            empty: "Aucune entrée trouvée.",
+            tenant: {
+                subtitle:
+                    "Connexions, comptes du personnel et rôles, paramètres et événements électoraux de cette organisation. Chaque événement électoral conserve son propre journal dans son onglet Journaux.",
+                noPermissions: "Vous n'avez pas la permission de voir ce journal.",
+            },
+            entry: {
+                title: "Entrée de journal {{id}}",
+                statementKind: "Type de déclaration",
+                eventType: "Type d'événement",
+                logType: "Type de journal",
+                when: "Quand",
+                utc: "{{time}} UTC",
+                who: "Qui",
+                userId: "ID utilisateur {{id}}",
+                role: "Rôle {{role}}",
+                unknownAccount: "Compte inconnu (le nom saisi n'est pas enregistré)",
+                madeIn: "Fait dans",
+                changed: "Modifié",
+                objectId: "ID {{id}}",
+                actionLabel: "Action",
+                details: "Détails",
+                origin: {
+                    "hasura": "Portail d'administration (via Hasura)",
+                    "harvest": "Portail d'administration (via Harvest)",
+                    "windmill": "Portail d'administration (une tâche Windmill)",
+                    "keycloak-console":
+                        "Console d'administration de Keycloak, en dehors du portail d'administration",
+                    "service-account":
+                        "Compte de service de Step, pour une modification faite dans le portail d'administration",
+                },
+                action: {
+                    create: "Créé",
+                    update: "Mis à jour",
+                    delete: "Supprimé",
+                    import: "Importé",
+                    export: "Exporté",
+                    archive: "Archivé",
+                    unarchive: "Désarchivé",
+                    enable: "Activé",
+                    disable: "Désactivé",
+                    reset_password: "Mot de passe réinitialisé",
+                    grant: "Accordé",
+                    revoke: "Révoqué",
+                },
+                objectType: {
+                    tenant: "Paramètres du locataire",
+                    tenant_log: "Journal du locataire",
+                    staff_account: "Compte du personnel",
+                    role: "Rôle",
+                    template: "Modèle",
+                    trustee: "Dépositaire",
+                    election_type: "Type d'élection",
+                    election_event: "Événement électoral",
+                    election: "Élection",
+                    contest: "Scrutin",
+                    candidate: "Candidat",
+                    area: "Zone",
+                },
+                values: {
+                    title: "Anciennes et nouvelles valeurs",
+                    field: "Champ",
+                    old: "Ancienne valeur",
+                    new: "Nouvelle valeur",
+                    none: "(aucune)",
+                    secret: "Modifié. Les valeurs secrètes ne sont jamais journalisées.",
+                    yes: "Oui",
+                    no: "Non",
+                    sha: "SHA-256 {{hash}}",
+                },
+                field: {
+                    tenant: {
+                        slug: "Nom court",
+                        isActive: "Actif",
+                        logsTimezone: "Fuseau horaire du journal du locataire (Langues)",
+                        languages: "Langues",
+                        enabledLanguages: "Langues activées (Langues)",
+                        defaultLanguage: "Langue par défaut (Langues)",
+                        languageDetection: "Détection de la langue (Langues)",
+                        translations: "Traductions (Localisation)",
+                        sms: "SMS",
+                        mail: "E-mail",
+                        gapiKey: "Clé de l'API Google (Intégrations)",
+                        gapiEmail: "E-mail de l'API Google (Intégrations)",
+                        helpLinks: "Liens d'aide (Apparence)",
+                        displayName: "Nom de l'organisation (Apparence)",
+                        votingCountries: "Pays bloqués pour le vote (Pays)",
+                        enrollCountries: "Pays bloqués pour l'inscription (Pays)",
+                        logoUrl: "Logo (Apparence)",
+                        css: "CSS personnalisé (Apparence)",
+                        votingChannels: "Canaux de vote",
+                        onlineVoting: "Vote en ligne (Canaux de vote)",
+                        kioskVoting: "Vote sur borne (Canaux de vote)",
+                        telephoneVoting: "Vote par téléphone (Canaux de vote)",
+                        earlyVoting: "Vote anticipé (Canaux de vote)",
+                        paperVoting: "Vote papier (Canaux de vote)",
+                    },
+                },
+                signIn: {
+                    title: "Connexion et sécurité du compte",
+                    event: "Événement Keycloak",
+                    error: "Erreur",
+                    authentication: "Authentification",
+                    credential: "Identifiant",
+                    failures: "Échecs consécutifs",
+                    client: "Client",
+                    ipAddress: "Adresse IP",
+                },
+                keycloak: {
+                    title: "Modification dans Keycloak",
+                    account: "Compte",
+                    operation: "Opération",
+                    appliesTo: "S'applique à",
+                    resource: "Ressource",
+                    newValue: "Nouvelle valeur",
+                    error: "Erreur",
+                },
+                deletedEvent: {
+                    title: "Le journal de l'événement électoral supprimé",
+                    lastEntry: "Dernière entrée",
+                    stateHash: "Hachage d'état",
+                    logDatabase: "Base de données du journal",
+                    status: "État",
+                    retired:
+                        "Déchargé et conservé jusqu'à son effacement selon la politique de conservation",
+                    task: "Tâche",
+                },
+                exported: {
+                    title: "Export",
+                    entries: "Entrées",
+                    sha256: "SHA-256 du fichier",
+                    document: "Document",
+                    scope: {
+                        TENANT_LOG: "Tout le journal du locataire",
+                        ACCOUNT: "Un compte",
+                        ACCOUNT_WITH_EVENTS:
+                            "Un compte, avec ses entrées dans chaque événement électoral",
+                        ALL: "Tout l'événement électoral",
+                        ELECTION: "Une élection",
+                        AREA: "Une zone",
+                    },
+                },
+                writer: {
+                    title: "Rédacteur du journal",
+                    release: "Version",
+                    lastEntry: "Dernière entrée publiée",
+                },
+                signatures: {
+                    title: "Journal et signatures",
+                    log: "Journal",
+                    tenantLog: "Journal du locataire",
+                    eventLog: "Journal de l'événement électoral",
+                    signedBy: "Signé par",
+                    adminKey: "Clé d'administration de {{name}}",
+                    systemOnly: "Uniquement la clé système du journal",
+                    systemSignature: "Signature du système",
+                    publicKey: "Clé d'administration publiée",
+                },
+            },
             actions: {
                 csv: "Exporter en CSV",
                 pdf: "Exporter en PDF",
@@ -227,6 +401,27 @@ const frenchTranslation: TranslationType = {
                 format: "Format",
                 csv: "CSV",
                 pdf: "PDF",
+                sql: "SQL",
+                scope: {
+                    label: "Périmètre",
+                    tenant: {
+                        TENANT_LOG: "Tout le journal du locataire",
+                        ACCOUNT: "Un compte",
+                    },
+                    event: {
+                        ALL: "Tout l'événement électoral",
+                        ELECTION: "Une élection",
+                        AREA: "Une zone",
+                        ACCOUNT: "Un compte",
+                    },
+                },
+                username: "Nom d'utilisateur",
+                election: "Élection",
+                area: "Zone",
+                withElectionEvents:
+                    "Inclure les entrées de ce compte dans chaque événement électoral",
+                rowsNameLog: "Les lignes des événements électoraux indiquent leur journal.",
+                recorded: "L'export lui-même est enregistré dans ce journal.",
                 zoneNote:
                     "Chaque ligne conserve son heure en UTC (ISO 8601) et en {{abbr}}, avec le nom du fuseau horaire. La plage de dates inclut les deux bornes, en {{abbr}}.",
                 zoneNotePdf:
@@ -344,6 +539,7 @@ const frenchTranslation: TranslationType = {
                 CREATE_TRANSMISSION_PACKAGE: "Créer un paquet de transmission",
                 EXPORT_BALLOT_PUBLICATION: "Exporter Publication de Bulletin",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exporter le Rapport des Journaux d'Activité",
+                EXPORT_TENANT_LOGS: "Exporter le Journal du Locataire",
                 GENERATE_REPORT: "Générer un rapport",
                 GENERATE_TRANSMISSION_REPORT: "Générer un rapport de transmission",
                 EXPORT_TRUSTEES: "Exporter les Autorités",
@@ -459,6 +655,7 @@ const frenchTranslation: TranslationType = {
                 schedules: "ÉVÉNEMENTS PROGRAMMÉS",
                 trustees: "AUTORITÉS",
                 BackupRestore: "SAUVEGARDE / RESTAURATION",
+                logs: "JOURNAUX",
             },
         },
         trusteesSettingsScreen: {
@@ -1800,6 +1997,8 @@ const frenchTranslation: TranslationType = {
                 "application-write": "Modifier l'Application",
                 "approval-matrix-write": "Modifier la Matrice d'Approbation",
                 "logs-export": "Exporter les Journaux",
+                "tenant-logs-read": "Lire le Journal du Locataire",
+                "tenant-logs-export": "Exporter le Journal du Locataire",
                 "election-event-logs-columns": "Colonnes des Journaux de l'Événement Électoral",
                 "election-events-logs-filters": "Filtres des Journaux de l'Événement Électoral",
                 "election-event-scheduled-event-columns":
@@ -2369,6 +2568,42 @@ const frenchTranslation: TranslationType = {
         },
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
+            downloadStep: {
+                ...englishTranslation.translations.keysGeneration.downloadStep,
+                title: "Télécharger le fichier de garde",
+                downloadButton: "Télécharger le fichier de garde",
+                confirmdDialog: {
+                    ...englishTranslation.translations.keysGeneration.downloadStep.confirmdDialog,
+                    title: "Enregistrer votre fichier de garde",
+                },
+            },
+            checkStep: {
+                ...englishTranslation.translations.keysGeneration.checkStep,
+                subtitle:
+                    "Importez votre fichier de garde enregistré ou une preuve de garde signée :",
+                required: "Confirmation de garde requise",
+                reconfirmButton: "Confirmer à nouveau la garde (facultatif)",
+                reconfirmDescription:
+                    "Votre garde est déjà confirmée. Cette confirmation supplémentaire est facultative.",
+            },
+            serverCustody: {
+                recoveryInstructions:
+                    "Si vous avez importé cet événement électoral ou perdu le fichier enregistré, téléchargez ici son fichier de garde actuel. Enregistrez-le, puis téléversez-le ci-dessous.",
+                fileFormat: "Format accepté : JSON",
+                waiting: "En attente de la preuve de garde créée par votre serveur dépositaire…",
+                unavailable:
+                    "Le serveur dépositaire n’a pas répondu. Vérifiez qu’il fonctionne, puis importez à nouveau le fichier de garde.",
+                failed: "Le serveur dépositaire n’a pas pu créer la preuve : {{error}}",
+                invalidReply: "Le serveur dépositaire a renvoyé une réponse incomplète. Réessayez.",
+                cancelled:
+                    "La demande a été annulée. Importez à nouveau le fichier pour continuer.",
+                downloadInstructions:
+                    "Téléchargez et conservez ce fichier de garde. Importez le même fichier à l’étape suivante et lors des dépouillements futurs. Il ne constitue pas une sauvegarde de vos clés privées.",
+                uploadInstructions:
+                    "Importez le fichier de garde téléchargé. Votre serveur dépositaire créera la preuve. Vous pouvez aussi importer une preuve créée par un dépositaire hors ligne ou dans le navigateur.",
+                tallyInstructions:
+                    "Importez le fichier conservé lors de la cérémonie des clés. Votre serveur dépositaire créera une nouvelle preuve pour ce dépouillement. Les preuves hors ligne ou du navigateur sont aussi acceptées.",
+            },
             configureStep: {
                 create: "Créer une Cérémonie de Clés",
                 name: "Nom de la Cérémonie des Clés",
@@ -2408,6 +2643,12 @@ const frenchTranslation: TranslationType = {
             // Native custody instructions use the English fallback until translated.
             ceremonyStep: {
                 ...englishTranslation.translations.keysGeneration.ceremonyStep,
+                custodyConfirmed: "Garde confirmée",
+                custodyComplete:
+                    "Votre participation est terminée. Aucune autre action n’est requise de votre part.",
+                waitingForTrustees:
+                    "En attente de la confirmation de garde et de toute approbation requise des autres autorités.",
+                moreActions: "Autres actions",
                 cancel: "Annuler la Cérémonie de Clés",
                 progressHeader: "Progrès de la Cérémonie de Clés",
                 executionStatus: "État : {{status}}",
@@ -2592,6 +2833,8 @@ const frenchTranslation: TranslationType = {
             logsTitle: "Journaux",
             resultsTitle: "Résultats & Participation",
             generalInfoTitle: "Informations Générales",
+            sessionId: "Identifiant de la session de dépouillement",
+            selectedQuorum: "Quorum sélectionné",
             trusteeTallyTitle: "Trustee",
             trusteeTallySubTitle: "État de confirmation de garde",
             ballotBoxes: {
@@ -2646,7 +2889,8 @@ const frenchTranslation: TranslationType = {
             recountTallyCeremonyError: "Impossible de démarrer le recomptage",
             recountTallyCeremonyOk: "Recompter",
             trusteeTitle: "Processus du trustee",
-            trusteeSubTitle: "Importez votre fichier public custody-proof.json",
+            trusteeSubTitle:
+                "Importez votre fichier de garde enregistré ou une preuve de garde signée :",
             invited: "Vous avez été invité à participer à une cérémonie de comptage. Veuillez, ",
             click: "cliquez sur l'action de comptage",
             participate: "pour participer.",
@@ -3284,6 +3528,7 @@ const frenchTranslation: TranslationType = {
                 },
             },
             languages: {
+                logsTimezone: "Fuseau horaire du journal du locataire",
                 default: "Langue par défaut",
             },
         },
@@ -4961,10 +5206,10 @@ const frenchTranslation: TranslationType = {
                 record: "Consigner mon preuve de garde",
                 failed: "Votre preuve de garde signé n'a pas pu être consigné : {{error}}",
                 dropAgain:
-                    "Déposez à nouveau votre fichier de preuve de garde pour consigner votre preuve de garde signé. (custody-proof.json)",
+                    "Déposez à nouveau votre fichier de preuve de garde pour consigner votre preuve de garde signé. (signed-custody-proof.json)",
                 redo: "Votre preuve de garde a été apporté sans votre signature, que cette élection exige désormais. Apportez-le à nouveau et signez-le.",
                 notTaken:
-                    "La cérémonie n'accepte plus ce preuve de garde. Déposez à nouveau votre fichier de preuve de garde. (custody-proof.json)",
+                    "La cérémonie n'accepte plus ce preuve de garde. Déposez à nouveau votre fichier de preuve de garde. (signed-custody-proof.json)",
             },
         },
         lifecycle: {

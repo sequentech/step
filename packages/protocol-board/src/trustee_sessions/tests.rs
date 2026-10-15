@@ -301,6 +301,32 @@ impl Harness {
         Arc::clone(&self.boards.borrow()[board])
     }
 
+    /// A remapped platform board carrying the exact archived DKG transcript.
+    fn imported_parent(&self, source: &BoardName, id: u128) -> BoardName {
+        let name = BoardName::for_dkg(&Uuid::from_u128(id));
+        let source_dkgs = self.dkgs.borrow();
+        let source_dkg = &source_dkgs[source];
+        let dkg = PlatformDkg {
+            board: DkgBoard::from_signed_configuration(
+                &Uuid::from_u128(id),
+                source_dkg.board.configuration.clone(),
+            ),
+            manager: crate::parse_manager_key(
+                &crate::encode_manager_key(&source_dkg.manager).unwrap(),
+            )
+            .unwrap(),
+            committee: source_dkg.committee.clone(),
+        };
+        drop(source_dkgs);
+        let memory = MemoryBoard::<Ctx>::new();
+        for message in self.memory(source).snapshot() {
+            memory.push(message);
+        }
+        self.boards.borrow_mut().insert(name.clone(), memory);
+        self.dkgs.borrow_mut().insert(name.clone(), dkg);
+        name
+    }
+
     /// How many messages the board service holds, over every board.
     fn posted(&self) -> usize {
         self.boards
@@ -887,4 +913,211 @@ async fn a_board_whose_configuration_does_not_name_the_trustee_is_skipped() {
 
     outsider.reconcile(&[]).await;
     assert!(kept(&outsider).is_empty());
+}
+
+#[tokio::test]
+async fn an_imported_dkg_resumes_without_reposting_its_completed_messages() {
+    let harness = Harness::new(3);
+    let source = harness.board(1, &[0, 1, 2]);
+    let mut sets = harness.start_all();
+    generate_key(&harness, &mut sets, &source).await;
+    let imported = harness.imported_parent(&source, 2);
+    let messages = harness.memory(&imported).snapshot().len();
+    let mut restarted = harness.start_all();
+    round(&mut restarted, &[dkg(&imported)]).await;
+    assert_nothing_halted(&restarted);
+    assert_eq!(harness.memory(&imported).snapshot().len(), messages);
+}
+
+#[tokio::test]
+async fn an_imported_dkg_still_skips_a_trustee_outside_its_configuration() {
+    let harness = Harness::new(4);
+    let source = harness.board(1, &[0, 1, 2]);
+    let mut sets = harness.start_all();
+    rounds_until_quiet(&harness, &mut sets, &[dkg(&source)]).await;
+    let imported = harness.imported_parent(&source, 2);
+    let mut outsider = harness.start(3);
+    outsider.reconcile(&[dkg(&imported)]).await;
+    outsider.advance().await;
+    assert!(outsider.pending_reports().is_empty());
+    assert!(matches!(
+        outsider.entries[&imported],
+        super::BoardEntry::Skipped
+    ));
+}
+
+#[tokio::test]
+async fn an_imported_dkg_checks_original_local_records_before_resuming() {
+    let harness = Harness::new(3);
+    let source = harness.board(1, &[0, 1, 2]);
+    let mut sets = harness.start_all();
+    generate_key(&harness, &mut sets, &source).await;
+    let imported = harness.imported_parent(&source, 2);
+    harness.replace_dealing(&imported, 0).await;
+    let mut restarted = harness.start_all();
+    round(&mut restarted, &[dkg(&imported)]).await;
+    for set in &restarted {
+        assert_halted_on_a_rewrite(set, &imported);
+    }
+}
+
+#[tokio::test]
+async fn an_imported_dkg_continues_when_all_prior_handoffs_are_archived() {
+    let harness = Harness::new(3);
+    let source = harness.board(1, &[0, 1, 2]);
+    let mut sets = harness.start_all();
+    round(&mut sets, &[dkg(&source)]).await;
+    let imported = harness.imported_parent(&source, 2);
+    let mut restarted = harness.start_all();
+    generate_key(&harness, &mut restarted, &imported).await;
+    assert_nothing_halted(&restarted);
+}
+
+#[tokio::test]
+async fn an_imported_dkg_cannot_regenerate_a_staged_but_unarchived_dealing() {
+    let harness = Harness::new(3);
+    let source = harness.board(1, &[0, 1, 2]);
+    let mut sets = harness.start_all();
+    harness.members[0].faults.commit.set(true);
+    round(&mut sets, &[dkg(&source)]).await;
+    assert!(harness.sent(&source, 0, MessageType::Shares).is_empty());
+    let staged = harness.members[0].staged.borrow().len();
+    let imported = harness.imported_parent(&source, 2);
+    harness.members[0].faults.commit.set(false);
+    let mut restarted = harness.start(0);
+    restarted.reconcile(&[dkg(&imported)]).await;
+    restarted.advance().await;
+    assert_halted_on_a_rewrite(&restarted, &imported);
+    assert_eq!(harness.members[0].staged.borrow().len(), staged);
+    assert!(harness.sent(&imported, 0, MessageType::Shares).is_empty());
+}
+
+#[tokio::test]
+async fn an_imported_dkg_cannot_bootstrap_without_original_local_records() {
+    let harness = Harness::new(3);
+    let source = harness.board(1, &[0, 1, 2]);
+    let mut sets = harness.start_all();
+    generate_key(&harness, &mut sets, &source).await;
+    let imported = harness.imported_parent(&source, 2);
+    drop(sets);
+    fs::remove_file(harness.members[0].store_file(&source)).unwrap();
+    let mut restarted = harness.start(0);
+    restarted.reconcile(&[dkg(&imported)]).await;
+    let reports = restarted.pending_reports();
+    assert_eq!(reports.len(), 1);
+    assert!(reports[0]
+        .detail
+        .contains("no record of its key generation"));
+}
+
+#[tokio::test]
+async fn an_imported_dkg_rejects_original_records_from_another_configuration() {
+    let harness = Harness::new(3);
+    let source = harness.board(1, &[0, 1, 2]);
+    let mut sets = harness.start_all();
+    generate_key(&harness, &mut sets, &source).await;
+    let imported = harness.imported_parent(&source, 2);
+    let records: Vec<_> = harness.members.iter().map(Member::record).collect();
+    let impostor = DkgBoard::new(
+        &Uuid::from_u128(1),
+        &generate_manager(),
+        &Committee::new(&records).unwrap(),
+        THRESHOLD,
+    )
+    .unwrap();
+    harness.register(&imported, &impostor.configuration.to_bytes());
+    let mut restarted = harness.start(0);
+    restarted.reconcile(&[dkg(&imported)]).await;
+    let reports = restarted.pending_reports();
+    assert_eq!(reports.len(), 1);
+    assert!(reports[0].detail.contains("different configuration"));
+}
+
+#[tokio::test]
+async fn an_imported_parent_reuses_only_local_knowledge_of_its_immutable_configuration(
+) {
+    let harness = Harness::new(3);
+    let source = harness.board(1, &[0, 1, 2]);
+    let mut sets = harness.start_all();
+    generate_key(&harness, &mut sets, &source).await;
+    let parent = harness.imported_parent(&source, 2);
+    let payloads = [payload(b"imported-key")];
+    let board = harness.tally_board(&parent, &[0, 1], &payloads);
+    drop(sets);
+    let mut restarted = harness.start_all();
+    rounds_until_quiet(&harness, &mut restarted, &[tally(&board, &parent)])
+        .await;
+    assert_nothing_halted(&restarted);
+    for member in [0, 1] {
+        assert_eq!(harness.decrypted(&board, member), payloads);
+    }
+    assert!(restarted.iter().all(|set| set.pending_reports().is_empty()));
+}
+
+#[tokio::test]
+async fn an_imported_parent_still_rejects_a_rewritten_dealing() {
+    let harness = Harness::new(3);
+    let source = harness.board(1, &[0, 1, 2]);
+    let mut sets = harness.start_all();
+    generate_key(&harness, &mut sets, &source).await;
+    let parent = harness.imported_parent(&source, 2);
+    let board =
+        harness.tally_board(&parent, &[0, 1], &[payload(b"rewritten-copy")]);
+    harness.replace_dealing(&parent, 0).await;
+    let mut restarted = harness.start_all();
+    round(&mut restarted, &[tally(&board, &parent)]).await;
+    for set in &restarted {
+        assert_halted_on_a_rewrite(set, &board);
+    }
+    assert_eq!(harness.memory(&board).snapshot().len(), 1);
+}
+
+#[tokio::test]
+async fn an_imported_parent_cannot_bootstrap_trust_from_the_public_board() {
+    let harness = Harness::new(3);
+    let source = harness.board(1, &[0, 1, 2]);
+    let mut sets = harness.start_all();
+    generate_key(&harness, &mut sets, &source).await;
+    let parent = harness.imported_parent(&source, 2);
+    let board =
+        harness.tally_board(&parent, &[0, 1], &[payload(b"missing-anchor")]);
+    drop(sets);
+    fs::remove_file(harness.members[0].store_file(&source)).unwrap();
+    let mut forgetful = harness.start(0);
+    forgetful.reconcile(&[tally(&board, &parent)]).await;
+    forgetful.advance().await;
+    let reports = forgetful.pending_reports();
+    assert_eq!(reports.len(), 1);
+    assert!(reports[0]
+        .detail
+        .contains("no record of its key generation"));
+    assert_eq!(harness.memory(&board).snapshot().len(), 1);
+}
+
+#[tokio::test]
+async fn an_imported_parent_cannot_reuse_a_configuration_id_with_different_keys(
+) {
+    let harness = Harness::new(3);
+    let source = harness.board(1, &[0, 1, 2]);
+    let mut sets = harness.start_all();
+    generate_key(&harness, &mut sets, &source).await;
+    let parent = harness.imported_parent(&source, 2);
+    let records: Vec<_> = harness.members.iter().map(Member::record).collect();
+    // A valid manager signature and the original ID are insufficient: this
+    // fresh manager creates a different cryptographic configuration.
+    let impostor = DkgBoard::new(
+        &Uuid::from_u128(1),
+        &generate_manager(),
+        &Committee::new(&records).unwrap(),
+        THRESHOLD,
+    )
+    .unwrap();
+    harness.register(&parent, &impostor.configuration.to_bytes());
+    let restarted = harness.start(0);
+    assert!(restarted
+        .seed(&parent)
+        .await
+        .unwrap_err()
+        .to_string()
+        .contains("different configuration"));
 }

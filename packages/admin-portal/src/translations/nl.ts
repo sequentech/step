@@ -203,10 +203,182 @@ const dutchTranslation: TranslationType = {
                 },
             },
         },
+        tenantLogs: {
+            explanation: {
+                action: "Actie: {{action}}",
+                outcome: {
+                    succeeded: "Geaccepteerd (HTTP {{status}})",
+                    denied: "Geweigerd (HTTP {{status}})",
+                    failed: "Mislukt (HTTP {{status}})",
+                },
+                by: "Gevraagd door {{username}} ({{userId}})",
+                detail: "{{name}}: {{value}}",
+                board: "Log: {{board}}",
+                publicKey: "Publieke sleutel van het log: {{key}}",
+            },
+        },
         logsScreen: {
             noPermissions: "U hebt geen toestemming om toegang te krijgen tot de logs.",
             title: "Logs",
-            subtitle: "Algemene logs van de hoofd- en IAM-databases",
+            subtitle:
+                "Alles wat in dit verkiezingsevenement is gedaan. Aanmeldingen en wijzigingen daarbuiten staan in Instellingen > Logs.",
+            empty: "Geen vermeldingen gevonden.",
+            tenant: {
+                subtitle:
+                    "Aanmeldingen, medewerkersaccounts en rollen, instellingen en verkiezingsevenementen van deze organisatie. Elk verkiezingsevenement houdt zijn eigen log bij in zijn tabblad Logs.",
+                noPermissions: "U hebt geen toestemming om dit log te bekijken.",
+            },
+            entry: {
+                title: "Logvermelding {{id}}",
+                statementKind: "Soort verklaring",
+                eventType: "Eventtype",
+                logType: "Logtype",
+                when: "Wanneer",
+                utc: "{{time}} UTC",
+                who: "Wie",
+                userId: "Gebruikers-ID {{id}}",
+                role: "Rol {{role}}",
+                unknownAccount: "Onbekend account (de getypte naam wordt niet vastgelegd)",
+                madeIn: "Gedaan in",
+                changed: "Gewijzigd",
+                objectId: "ID {{id}}",
+                actionLabel: "Actie",
+                details: "Details",
+                origin: {
+                    "hasura": "Beheerportaal (via Hasura)",
+                    "harvest": "Beheerportaal (via Harvest)",
+                    "windmill": "Beheerportaal (een Windmill-taak)",
+                    "keycloak-console": "Beheerconsole van Keycloak, buiten het beheerportaal",
+                    "service-account":
+                        "Serviceaccount van Step, voor een wijziging in het beheerportaal",
+                },
+                action: {
+                    create: "Aangemaakt",
+                    update: "Bijgewerkt",
+                    delete: "Verwijderd",
+                    import: "Geïmporteerd",
+                    export: "Geëxporteerd",
+                    archive: "Gearchiveerd",
+                    unarchive: "Uit archief gehaald",
+                    enable: "Ingeschakeld",
+                    disable: "Uitgeschakeld",
+                    reset_password: "Wachtwoord opnieuw ingesteld",
+                    grant: "Toegekend",
+                    revoke: "Ingetrokken",
+                },
+                objectType: {
+                    tenant: "Tenantinstellingen",
+                    tenant_log: "Tenantlog",
+                    staff_account: "Medewerkersaccount",
+                    role: "Rol",
+                    template: "Sjabloon",
+                    trustee: "Trustee",
+                    election_type: "Verkiezingstype",
+                    election_event: "Verkiezingsevenement",
+                    election: "Verkiezing",
+                    contest: "Stemming",
+                    candidate: "Kandidaat",
+                    area: "Gebied",
+                },
+                values: {
+                    title: "Oude en nieuwe waarden",
+                    field: "Veld",
+                    old: "Oude waarde",
+                    new: "Nieuwe waarde",
+                    none: "(geen)",
+                    secret: "Gewijzigd. Geheime waarden worden nooit vastgelegd.",
+                    yes: "Ja",
+                    no: "Nee",
+                    sha: "SHA-256 {{hash}}",
+                },
+                field: {
+                    tenant: {
+                        slug: "Korte naam",
+                        isActive: "Actief",
+                        logsTimezone: "Tijdzone voor het tenantlog (Talen)",
+                        languages: "Talen",
+                        enabledLanguages: "Ingeschakelde talen (Talen)",
+                        defaultLanguage: "Standaardtaal (Talen)",
+                        languageDetection: "Taaldetectie (Talen)",
+                        translations: "Vertalingen (Lokalisatie)",
+                        sms: "Sms",
+                        mail: "E-mail",
+                        gapiKey: "Google API-sleutel (Integraties)",
+                        gapiEmail: "Google API-e-mailadres (Integraties)",
+                        helpLinks: "Hulplinks (Uiterlijk)",
+                        displayName: "Naam van de organisatie (Uiterlijk)",
+                        votingCountries: "Landen geblokkeerd voor stemmen (Landen)",
+                        enrollCountries: "Landen geblokkeerd voor inschrijving (Landen)",
+                        logoUrl: "Logo (Uiterlijk)",
+                        css: "Aangepaste CSS (Uiterlijk)",
+                        votingChannels: "Stemkanalen",
+                        onlineVoting: "Online stemmen (Stemkanalen)",
+                        kioskVoting: "Stemmen via kiosk (Stemkanalen)",
+                        telephoneVoting: "Telefonisch stemmen (Stemkanalen)",
+                        earlyVoting: "Vervroegd stemmen (Stemkanalen)",
+                        paperVoting: "Stemmen op papier (Stemkanalen)",
+                    },
+                },
+                signIn: {
+                    title: "Aanmelding en accountbeveiliging",
+                    event: "Keycloak-gebeurtenis",
+                    error: "Fout",
+                    authentication: "Authenticatie",
+                    credential: "Inloggegeven",
+                    failures: "Mislukte pogingen op rij",
+                    client: "Client",
+                    ipAddress: "IP-adres",
+                },
+                keycloak: {
+                    title: "Wijziging in Keycloak",
+                    account: "Account",
+                    operation: "Bewerking",
+                    appliesTo: "Van toepassing op",
+                    resource: "Resource",
+                    newValue: "Nieuwe waarde",
+                    error: "Fout",
+                },
+                deletedEvent: {
+                    title: "Het log van het verwijderde verkiezingsevenement",
+                    lastEntry: "Laatste vermelding",
+                    stateHash: "Statushash",
+                    logDatabase: "Logdatabase",
+                    status: "Status",
+                    retired: "Ontladen en bewaard totdat het volgens het bewaarbeleid wordt gewist",
+                    task: "Taak",
+                },
+                exported: {
+                    title: "Export",
+                    entries: "Vermeldingen",
+                    sha256: "SHA-256 van het bestand",
+                    document: "Document",
+                    scope: {
+                        TENANT_LOG: "Het hele tenantlog",
+                        ACCOUNT: "Eén account",
+                        ACCOUNT_WITH_EVENTS:
+                            "Eén account, met zijn vermeldingen in elk verkiezingsevenement",
+                        ALL: "Het hele verkiezingsevenement",
+                        ELECTION: "Eén verkiezing",
+                        AREA: "Eén gebied",
+                    },
+                },
+                writer: {
+                    title: "Logschrijver",
+                    release: "Release",
+                    lastEntry: "Laatst geplaatste vermelding",
+                },
+                signatures: {
+                    title: "Log en handtekeningen",
+                    log: "Log",
+                    tenantLog: "Tenantlog",
+                    eventLog: "Log van het verkiezingsevenement",
+                    signedBy: "Ondertekend door",
+                    adminKey: "Beheersleutel van {{name}}",
+                    systemOnly: "Alleen de systeemsleutel van het log",
+                    systemSignature: "Systeemhandtekening",
+                    publicKey: "Gepubliceerde beheersleutel",
+                },
+            },
             actions: {
                 csv: "Exporteren als CSV",
                 pdf: "Exporteren als PDF",
@@ -227,6 +399,27 @@ const dutchTranslation: TranslationType = {
                 format: "Formaat",
                 csv: "CSV",
                 pdf: "PDF",
+                sql: "SQL",
+                scope: {
+                    label: "Bereik",
+                    tenant: {
+                        TENANT_LOG: "Het hele tenantlog",
+                        ACCOUNT: "Eén account",
+                    },
+                    event: {
+                        ALL: "Het hele verkiezingsevenement",
+                        ELECTION: "Eén verkiezing",
+                        AREA: "Eén gebied",
+                        ACCOUNT: "Eén account",
+                    },
+                },
+                username: "Gebruikersnaam",
+                election: "Verkiezing",
+                area: "Gebied",
+                withElectionEvents:
+                    "De vermeldingen van dit account in elk verkiezingsevenement opnemen",
+                rowsNameLog: "Rijen uit verkiezingsevenementen vermelden hun log.",
+                recorded: "De export zelf wordt in dit log vastgelegd.",
                 zoneNote:
                     "Elke rij bewaart de tijd in UTC (ISO 8601) en in {{abbr}}, met de naam van de tijdzone. Het datumbereik omvat beide grenzen, in {{abbr}}.",
                 zoneNotePdf:
@@ -344,6 +537,7 @@ const dutchTranslation: TranslationType = {
                 CREATE_TRANSMISSION_PACKAGE: "Transmissiepakket Aanmaken",
                 EXPORT_BALLOT_PUBLICATION: "Publicatie Stembiljet Exporteren",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Activiteitenlogboek Rapport Exporteren",
+                EXPORT_TENANT_LOGS: "Tenantlog Exporteren",
                 GENERATE_REPORT: "Rapport Genereren",
                 GENERATE_TRANSMISSION_REPORT: "Transmissierapport Genereren",
                 EXPORT_TRUSTEES: "Trustees Exporteren",
@@ -459,6 +653,7 @@ const dutchTranslation: TranslationType = {
                 schedules: "GEPLANDE GEBEURTENISSEN",
                 trustees: "TRUSTEES",
                 BackupRestore: "BACK-UP / HERSTELLEN",
+                logs: "LOGS",
             },
         },
         trusteesSettingsScreen: {
@@ -1788,6 +1983,8 @@ const dutchTranslation: TranslationType = {
                 "application-write": "Applicatie Bewerken",
                 "approval-matrix-write": "Goedkeuringsmatrix Bewerken",
                 "logs-export": "Logs Exporteren",
+                "tenant-logs-read": "Tenantlog Lezen",
+                "tenant-logs-export": "Tenantlog Exporteren",
                 "election-event-logs-columns": "Kolommen Logs Verkiezingsevenement",
                 "election-events-logs-filters": "Filters Logs Verkiezingsevenement",
                 "election-event-scheduled-event-columns":
@@ -2347,6 +2544,42 @@ const dutchTranslation: TranslationType = {
         },
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
+            downloadStep: {
+                ...englishTranslation.translations.keysGeneration.downloadStep,
+                title: "Bewaringsbestand downloaden",
+                downloadButton: "Bewaringsbestand downloaden",
+                confirmdDialog: {
+                    ...englishTranslation.translations.keysGeneration.downloadStep.confirmdDialog,
+                    title: "Bewaringsbestand opslaan",
+                },
+            },
+            checkStep: {
+                ...englishTranslation.translations.keysGeneration.checkStep,
+                subtitle:
+                    "Upload uw opgeslagen bewaringsbestand of een ondertekend bewijs van bewaring:",
+                required: "Bevestiging van bewaring vereist",
+                reconfirmButton: "Bewaring opnieuw bevestigen (optioneel)",
+                reconfirmDescription:
+                    "Uw bewaring is al bevestigd. Deze aanvullende bevestiging is optioneel.",
+            },
+            serverCustody: {
+                recoveryInstructions:
+                    "Als u deze verkiezing hebt geïmporteerd of het opgeslagen bestand kwijt bent, download dan hier het huidige bewaringsbestand. Sla het op en upload het hieronder.",
+                fileFormat: "Ondersteund formaat: JSON",
+                waiting: "Wachten tot uw trusteeserver een bewijs van sleutelbezit maakt…",
+                unavailable:
+                    "De trusteeserver heeft niet gereageerd. Controleer of deze actief is en upload het bewaringsbestand opnieuw.",
+                failed: "De trusteeserver kon het bewijs niet maken: {{error}}",
+                invalidReply: "De trusteeserver gaf een onvolledig antwoord. Probeer het opnieuw.",
+                cancelled:
+                    "Het verzoek is geannuleerd. Upload het bestand opnieuw om verder te gaan.",
+                downloadInstructions:
+                    "Download en bewaar dit bewaringsbestand. Upload hetzelfde bestand bij de volgende stap en bij toekomstige tellingen. Het is geen back-up van uw privésleutels.",
+                uploadInstructions:
+                    "Upload het gedownloade bewaringsbestand. Uw trusteeserver maakt het bewijs. U kunt ook een bewijs uploaden dat door een offline trustee of browsertrustee is gemaakt.",
+                tallyInstructions:
+                    "Upload het bestand dat u tijdens de sleutelceremonie hebt bewaard. Uw trusteeserver maakt een nieuw bewijs voor deze telling. Bewijzen van offline trustees en browsertrustees worden ook geaccepteerd.",
+            },
             configureStep: {
                 create: "Sleutelceremonie Aanmaken",
                 name: "Naam Sleutelceremonie",
@@ -2385,6 +2618,11 @@ const dutchTranslation: TranslationType = {
             // Native custody instructions use the English fallback until translated.
             ceremonyStep: {
                 ...englishTranslation.translations.keysGeneration.ceremonyStep,
+                custodyConfirmed: "Bewaring bevestigd",
+                custodyComplete: "Uw deel is voltooid. U hoeft niets meer te doen.",
+                waitingForTrustees:
+                    "Wachten totdat de overige beheerders hun bewaring en eventuele vereiste goedkeuring hebben afgerond.",
+                moreActions: "Meer acties",
                 cancel: "Sleutelceremonie Annuleren",
                 progressHeader: "Voortgang Sleutelceremonie",
                 executionStatus: "Status: {{status}}",
@@ -2566,6 +2804,8 @@ const dutchTranslation: TranslationType = {
             logsTitle: "Logs",
             resultsTitle: "Resultaten & Deelname",
             generalInfoTitle: "Algemene Informatie",
+            sessionId: "ID van de telsessie",
+            selectedQuorum: "Geselecteerd quorum",
             trusteeTallyTitle: "Trustees",
             trusteeTallySubTitle: "Status van bevestigingen van bewaring",
             ballotBoxes: {
@@ -2618,7 +2858,8 @@ const dutchTranslation: TranslationType = {
             recountTallyCeremonyError: "Kon hertelling niet starten",
             recountTallyCeremonyOk: "Hertellen",
             trusteeTitle: "Proces Trustees",
-            trusteeSubTitle: "Upload uw openbare bestand custody-proof.json",
+            trusteeSubTitle:
+                "Upload uw opgeslagen bewaringsbestand of een ondertekend bewijs van bewaring:",
             invited: "U bent uitgenodigd om deel te nemen aan een Telceremonie. Gelieve ",
             click: "op de Telactie te klikken",
             participate: "om deel te nemen.",
@@ -3255,6 +3496,7 @@ const dutchTranslation: TranslationType = {
                 },
             },
             languages: {
+                logsTimezone: "Tijdzone voor het tenantlog",
                 default: "Standaardtaal",
             },
         },
@@ -4939,10 +5181,10 @@ const dutchTranslation: TranslationType = {
                 record: "Mijn bewijs van bewaring vastleggen",
                 failed: "Uw ondertekende bewijs van bewaring kon niet worden vastgelegd: {{error}}",
                 dropAgain:
-                    "Sleep uw bewijs van bewaringbestand opnieuw hierheen om uw ondertekende bewijs van bewaring vast te leggen. (custody-proof.json)",
+                    "Sleep uw bewijs van bewaringbestand opnieuw hierheen om uw ondertekende bewijs van bewaring vast te leggen. (signed-custody-proof.json)",
                 redo: "Uw bewijs van bewaring is bijgedragen zonder uw handtekening, die deze verkiezing nu vereist. Draag het opnieuw bij en onderteken het.",
                 notTaken:
-                    "De ceremonie accepteert dit bewijs van bewaring niet meer. Sleep uw bewijs van bewaringbestand opnieuw hierheen. (custody-proof.json)",
+                    "De ceremonie accepteert dit bewijs van bewaring niet meer. Sleep uw bewijs van bewaringbestand opnieuw hierheen. (signed-custody-proof.json)",
             },
         },
         lifecycle: {

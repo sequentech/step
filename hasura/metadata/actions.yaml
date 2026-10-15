@@ -1,4 +1,46 @@
 actions:
+    - name: request_server_custody
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/trustee/request-server-custody
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input.object}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: trustee-ceremony
+      comment: Authenticated trustee ceremony work
+    - name: submit_trustee_action_result
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/trustee/action-result
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input.result}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: trustee-ceremony
+      comment: Authenticated trustee ceremony work
+    - name: trustee_event_updates
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/trustee/event-updates
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: remove
+              method: GET
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: trustee-ceremony
+      comment: Authenticated trustee ceremony work
     - name: list_trustee_boards
       definition:
           type: query
@@ -1068,6 +1110,20 @@ actions:
           - role: logs-export
           - role: election-event-read
           - role: logs-read
+    - name: export_tenant_logs
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/export-tenant-logs
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: tenant-logs-export
+      comment: Export the tenant log
     - name: export_election_event_tasks
       definition:
           kind: synchronous
@@ -1830,13 +1886,16 @@ actions:
                         "limit": {{$body.input?.limit}},
                         "offset": {{$body.input?.offset}},
                         "filter": {{$body.input?.filter}},
-                        "order_by": {{$body.input?.order_by}}
+                        "order_by": {{$body.input?.order_by}},
+                        "election_id": {{$body.input?.election_id}},
+                        "area_ids": {{$body.input?.area_ids}}
                       }
               template_engine: Kriti
               version: 2
       permissions:
           - role: logs-read
           - role: admin-user
+          - role: tenant-logs-read
       comment: List Electoral Log
     - name: list_cast_vote_messages
       definition:
@@ -2991,6 +3050,17 @@ custom_types:
               - description: null
                 is_deprecated: null
                 value: TELEPHONE
+        - name: RestorePrivateKeyOutcome
+          values:
+              - description: null
+                is_deprecated: null
+                value: ALREADY_RESTORED
+              - description: null
+                is_deprecated: null
+                value: INVALID
+              - description: null
+                is_deprecated: null
+                value: RESTORED
     input_objects:
         - name: TemplateInput
         - name: ElectoralLogFilter

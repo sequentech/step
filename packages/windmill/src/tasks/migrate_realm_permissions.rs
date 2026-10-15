@@ -102,8 +102,8 @@ pub const MIGRATED_PERMISSIONS: [(Permissions, &str); 25] = [
         Permissions::SIGN_APPROVE_CONFIGURATION,
         "Sign: approve a configuration version",
     ),
-    (Permissions::SIGN_KEY_CEREMONY, "Sign: confirm a key share"),
-    (Permissions::SIGN_TALLY_KEY, "Sign: contribute a key share"),
+    (Permissions::SIGN_KEY_CEREMONY, "Sign: confirm custody"),
+    (Permissions::SIGN_TALLY_KEY, "Sign: authorize tally custody"),
     (
         Permissions::MESSAGING_ACCOUNT_READ,
         "Read messaging accounts",
@@ -165,7 +165,7 @@ pub struct RealmMigration {
     pub granted: Vec<GroupGrant>,
 }
 
-async fn admin_get<T: serde::de::DeserializeOwned>(
+pub(crate) async fn admin_get<T: serde::de::DeserializeOwned>(
     client: &PubKeycloakAdmin,
     path: &str,
     query: &[(&str, &str)],
@@ -185,7 +185,7 @@ async fn admin_get<T: serde::de::DeserializeOwned>(
 }
 
 /// The top-level group named `name`, if the realm has one.
-async fn top_level_group(
+pub(crate) async fn top_level_group(
     client: &PubKeycloakAdmin,
     realm: &str,
     name: &str,

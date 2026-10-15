@@ -14,11 +14,17 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use tokio::runtime::Builder;
 use tracing::{event, Level};
+use windmill::services::audit_log_writer::{record_log_writer, LogWriterEvent};
 use windmill::services::celery_app::{self as celery_cfg, Queue};
+use windmill::services::database::get_hasura_pool;
 use windmill::services::monitoring::cadence;
 use windmill::services::probe::{setup_probe, AppName};
 use windmill::services::task_queues::set_up_task_queue_database;
 use windmill::services::tasks_semaphore::init_semaphore;
+
+/// How often, and how many times, the start of the log writer is tried.
+const LOG_WRITER_START_RETRY: std::time::Duration = std::time::Duration::from_secs(15);
+const LOG_WRITER_START_ATTEMPTS: usize = 40;
 
 #[derive(Debug, Parser, Clone)]
 #[command(name = "windmill", about = "Windmill task queue prosumer.")]
@@ -77,6 +83,43 @@ fn find_duplicates(input: Vec<&str>) -> Vec<&str> {
         }
     }
     duplicates
+}
+
+/// Queues the log writer's start or stop in every tenant's log. A failure is
+/// logged: the worker starts and stops whether or not it can be recorded.
+/// Returns whether it was recorded.
+async fn record_log_writer_event(event: LogWriterEvent) -> bool {
+    let recorded = async {
+        let mut client = get_hasura_pool().await.get().await?;
+        record_log_writer(&mut client, event).await
+    }
+    .await;
+    match recorded {
+        Ok(tenants) => {
+            event!(
+                Level::INFO,
+                "Log writer {event:?} recorded for {tenants} tenants"
+            );
+            true
+        }
+        Err(error) => {
+            event!(Level::WARN, "Log writer {event:?} not recorded: {error:#}");
+            false
+        }
+    }
+}
+
+/// Records the writer's start in the background, trying again while the
+/// database is not ready, as when the worker starts before the migrations ran.
+fn record_log_writer_start() {
+    tokio::spawn(async {
+        for _ in 0..LOG_WRITER_START_ATTEMPTS {
+            if record_log_writer_event(LogWriterEvent::Started).await {
+                return;
+            }
+            tokio::time::sleep(LOG_WRITER_START_RETRY).await;
+        }
+    });
 }
 
 fn read_worker_threads(opt: &CeleryOpt) -> usize {
@@ -208,9 +251,20 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
             // Read now rather than at the first pass, so the cadence and any
             // value it had to replace are logged when the worker starts.
             cadence::configured();
+            // The worker of this queue posts the audit log outbox: its start
+            // and its stop are entries of every tenant's log.
+            let writes_logs = queues
+                .iter()
+                .any(|consumed| consumed == Queue::ElectoralLogBeat.queue_name());
+            if writes_logs {
+                record_log_writer_start();
+            }
             celery_cfg::set_is_app_active(true);
             celery_app.consume_from(&vec_str[..]).await?;
             celery_cfg::set_is_app_active(false);
+            if writes_logs {
+                record_log_writer_event(LogWriterEvent::Stopped).await;
+            }
             celery_app.close().await?;
         }
         CeleryOpt::Produce => {

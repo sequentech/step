@@ -205,17 +205,32 @@ impl StatementHead {
             },
             StatementBody::KeycloakUserEvent(error_message_string, error_message_type) => {
                 let mut description = format!("{}", error_message_type.0);
-                let log_type = if error_message_type.0.contains("ERROR") {
+                // A tenant realm's event carries its details as JSON: the error is a field.
+                let details = keycloak_event_details(&error_message_string.0);
+                let detailed_error = details
+                    .as_ref()
+                    .and_then(|details| details["error"].as_str())
+                    .map(str::to_string);
+                let is_error = error_message_type.0.contains("ERROR")
+                    || error_message_type.0.contains("LOCKOUT")
+                    || detailed_error.is_some();
+                let log_type = if is_error {
                     // Leave the first word in error_message_string which should be the error code.
-                    description = format!(
-                        "{} {}",
-                        description,
-                        error_message_string
-                            .0
-                            .split_whitespace()
-                            .next()
-                            .unwrap_or("")
-                    );
+                    description = match (&details, detailed_error) {
+                        (_, Some(error)) => format!("{description} {error}"),
+                        // A lockout says it all in its type.
+                        (Some(_), None) => description,
+                        (None, None) if !error_message_type.0.contains("ERROR") => description,
+                        (None, None) => format!(
+                            "{} {}",
+                            description,
+                            error_message_string
+                                .0
+                                .split_whitespace()
+                                .next()
+                                .unwrap_or("")
+                        ),
+                    };
                     StatementLogType::ERROR
                 } else {
                     // Remove ":" char from description if exists
@@ -331,7 +346,21 @@ impl StatementHead {
                 ),
                 ..default_head
             },
+            StatementBody::TenantActivity(entry) => StatementHead {
+                kind: entry.kind.statement_type(),
+                event_type: entry.event_type.clone(),
+                log_type: entry.log_type.clone(),
+                description: entry.description.clone(),
+                ..default_head
+            },
             StatementBody::Signing(entry) => StatementHead {
+                kind: entry.kind.statement_type(),
+                event_type: entry.event_type.clone(),
+                log_type: entry.log_type.clone(),
+                description: entry.description.clone(),
+                ..default_head
+            },
+            StatementBody::Audit(entry) => StatementHead {
                 kind: entry.kind.statement_type(),
                 event_type: entry.event_type.clone(),
                 log_type: entry.log_type.clone(),
@@ -450,6 +479,14 @@ impl StatementHead {
             },
         }
     }
+}
+
+/// The details of a Keycloak event whose text is a JSON object, as the tenant
+/// realm's events carry them; `None` for the plain error text of other events.
+fn keycloak_event_details(text: &str) -> Option<serde_json::Value> {
+    serde_json::from_str::<serde_json::Value>(text)
+        .ok()
+        .filter(serde_json::Value::is_object)
 }
 
 fn report_generated_description(details: &ReportGeneratedDetails) -> String {
@@ -769,6 +806,17 @@ pub enum StatementBody {
     /// The tally found a ballot box that does not match its seal: what
     /// differs and the tally session id (VOTE-FREEZE).
     TallyBallotBoxRejected(ElectionIdString, AreaIdString, String, String),
+    /// One entry of a tenant's log: activity that belongs to no election
+    /// event. The entry sets the head's kind, event type, log type and
+    /// description.
+    TenantActivity(TenantActivityEntry),
+    /// One audit entry of an administrative action, in a tenant's log or an
+    /// election event's. The entry sets the head's kind, event type, log
+    /// type and description.
+    ///
+    /// Rollout invariant: as for `CastVoteWithChannel`, readers must be
+    /// upgraded before writers emit this variant.
+    Audit(AuditLogEntry),
 }
 
 // Note: When creating new variants, consider that the length limit STATEMENT_KIND_VARCHAR_LENGTH is 40.
@@ -836,6 +884,13 @@ pub enum StatementType {
     BallotBoxSealFailed,
     TallyBallotBoxVerified,
     TallyBallotBoxRejected,
+    TenantLogOpened,
+    TenantAdminAction,
+    AdminChange,
+    KeycloakAdminEvent,
+    LogsExported,
+    LogWriterStarted,
+    LogWriterStopped,
 }
 
 #[derive(
@@ -899,3 +954,9 @@ mod election_initialized_tests;
 #[cfg(test)]
 #[path = "../../tests/support/statement_lockdown_tests.rs"]
 mod lockdown_tests;
+
+#[path = "../../tests/support/statement_audit_tests.rs"]
+mod audit_tests;
+#[cfg(test)]
+#[path = "../../tests/support/statement_tenant_activity_tests.rs"]
+mod tenant_activity_tests;

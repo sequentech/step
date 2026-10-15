@@ -31,7 +31,7 @@ const UUID_TENANT_ID: &str = "00000000-0000-0000-0000-00000000000a";
 const SUPER_ADMIN_TENANT_ID: &str = "fixture-super-admin";
 const USER_ID: &str = "test-user";
 // Update only with a reviewed change to the checked-in route inventory.
-const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 194;
+const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 197;
 
 const CHILD: &str = "HARVEST_ISOLATED_TEST_CHILD";
 
@@ -158,9 +158,10 @@ async fn role_creation_requires_create_permission_and_preserves_the_role() {
                 json!([{"id":"new-role", "name":"Election observer"}]),
             ),
         ]);
-        run_isolated(
+        run_isolated_with_postgres(
             "request_boundaries::role_creation_requires_create_permission_and_preserves_the_role",
             &peer.url,
+            true,
         );
         let requests = peer.finish();
         let created = requests
@@ -174,6 +175,17 @@ async fn role_creation_requires_create_permission_and_preserves_the_role() {
         );
         return;
     }
+    // Creating a role queues its audit entry, through the pool this child
+    // initializes on its own migrated database.
+    let services = crate::route_services::Services::on_test_database().await;
+    let database: String = crate::route_services::rows::query(
+        &services.hasura,
+        "SELECT current_database() AS name",
+        &[],
+    )
+    .await[0]
+        .get("name");
+    std::env::set_var("HASURA_DB__DBNAME", database);
     let client = client().await;
     let body =
         json!({"tenant_id": TENANT_ID, "role": {"name": "Election observer"}});
@@ -1594,6 +1606,28 @@ async fn setting_the_google_service_account_key_stores_it_in_the_vault() {
         settings[0].get::<_, Value>("settings"),
         json!({"gapi_email": "organizer@example.org"})
     );
+    // The change is one entry of the tenant's log, without the key.
+    let entries = rows::query(
+        &services.hasura,
+        "SELECT election_event_id, user_id, details FROM sequent_backend.audit_log_outbox WHERE tenant_id = $1",
+        &[&tenant_id],
+    )
+    .await;
+    assert_eq!(entries.len(), 1);
+    assert_eq!(
+        entries[0].get::<_, Option<uuid::Uuid>>("election_event_id"),
+        None
+    );
+    let details = entries[0].get::<_, Value>("details");
+    assert_eq!(
+        details["changes"],
+        json!([{"path": "settings.gapi_key", "secret": true}])
+    );
+    assert_eq!(
+        details["extra"]["client_email"],
+        "meet@project.iam.gserviceaccount.com"
+    );
+    assert!(!details.to_string().contains("PRIVATE KEY"));
 
     // A key that cannot be used is the caller's mistake.
     for (body, message) in [

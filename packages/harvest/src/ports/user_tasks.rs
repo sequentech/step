@@ -8,6 +8,7 @@ use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde_json::Value;
 use std::future::Future;
+use windmill::services::audit_log::AuditActor;
 use windmill::services::export::export_users::ExportBody;
 use windmill::tasks::import_users::ImportUsersBody;
 
@@ -66,6 +67,7 @@ pub trait UserTaskDispatch: Sync {
         input: ExportBody,
         document_id: String,
         task: Option<TasksExecution>,
+        actor: AuditActor,
     ) -> impl Future<Output = Result<(), UserTaskSendFailure>> + Send;
 }
 

@@ -24,10 +24,12 @@ use windmill::services::messaging::checks::{
 };
 use windmill::services::monitoring::cadence;
 use windmill::services::probe::{setup_probe, AppName};
+use windmill::tasks::audit_log_outbox::post_audit_log_outbox;
 use windmill::tasks::electoral_log::electoral_log_batch_dispatcher;
 use windmill::tasks::migrate_messaging_attributes::migrate_messaging_attributes;
 use windmill::tasks::migrate_realm_permissions::{migrate_realm_permissions, RunOnce};
 use windmill::tasks::migrate_registration_flows::migrate_registration_flows;
+use windmill::tasks::migrate_tenant_logs::migrate_tenant_logs;
 use windmill::tasks::publish_electoral_log_checkpoint::publish_periodic_electoral_log_checkpoints;
 use windmill::tasks::purge_queue_archives::{
     purge_interval_secs, purge_queue_archives, DEFAULT_PURGE_INTERVAL_SECS,
@@ -78,6 +80,9 @@ struct CeleryOpt {
     /// Seconds between two passes of the signing log outbox.
     #[arg(short = 'g', long, default_value = "5")]
     signing_log_interval: u64,
+    /// Seconds between two passes of the audit log outbox.
+    #[arg(long, default_value = "5")]
+    audit_log_interval: u64,
     /// Seconds between two refreshes of the staff issuers' revocation lists.
     #[arg(long, env = "STAFF_CRL_INTERVAL", default_value = "3600")]
     staff_crl_interval: u64,
@@ -173,6 +178,11 @@ async fn main() -> Result<()> {
                 schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().signing_log_interval)),
                 args = (),
             },
+            post_audit_log_outbox::NAME => {
+                post_audit_log_outbox,
+                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().audit_log_interval)),
+                args = (),
+            },
             expire_signing_requests::NAME => {
                 expire_signing_requests,
                 schedule = DeltaSchedule::new(Duration::from_secs(SIGNING_JOBS_INTERVAL_SECONDS)),
@@ -247,6 +257,8 @@ async fn main() -> Result<()> {
             migrate_registration_flows::NAME => Queue::Short.queue_name(),
             migrate_messaging_attributes::NAME => Queue::Short.queue_name(),
             post_signing_log_outbox::NAME => Queue::ElectoralLogBeat.queue_name(),
+            post_audit_log_outbox::NAME => Queue::ElectoralLogBeat.queue_name(),
+            migrate_tenant_logs::NAME => Queue::Short.queue_name(),
             expire_signing_requests::NAME => Queue::Beat.queue_name(),
             sweep_signing_executions::NAME => Queue::Beat.queue_name(),
             refresh_staff_crls::NAME => Queue::Beat.queue_name(),
@@ -278,6 +290,9 @@ async fn main() -> Result<()> {
     // Voters of event realms get the single-channel attributes once,
     // whenever beat starts (INFRA-MSG).
     beat.schedule_task(migrate_messaging_attributes::new(), RunOnce);
+    // Tenants made before the tenant log get their log, its key and the
+    // realm settings that feed it, once whenever beat starts (EMS-AUDIT).
+    beat.schedule_task(migrate_tenant_logs::new(), RunOnce);
 
     set_is_app_active(true);
     let monitor = async {

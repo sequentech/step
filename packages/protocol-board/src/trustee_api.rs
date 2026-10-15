@@ -48,6 +48,48 @@ pub struct TrusteeBoardsResponse {
     pub boards: Vec<TrusteeBoard>,
 }
 
+/// One polling response for board discovery and explicitly requested work.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TrusteeEventUpdates {
+    pub boards: Vec<TrusteeBoard>,
+    #[serde(default)]
+    pub actions: Vec<TrusteeAction>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TrusteeAction {
+    pub id: String,
+    #[serde(flatten)]
+    pub action: TrusteeActionKind,
+}
+
+/// Extensible actions: an older runner skips future kinds and continues its boards.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum TrusteeActionKind {
+    CreateCustodyProof {
+        request: crate::CustodyRequest,
+    },
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "status", rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum TrusteeActionOutcome {
+    Ready { custody_proof_json: String },
+    Failed { detail: String },
+}
+
+/// Results only supply a proof; they never authorize or complete a ceremony.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TrusteeActionResult {
+    pub id: String,
+    pub request: crate::CustodyRequest,
+    #[serde(flatten)]
+    pub outcome: TrusteeActionOutcome,
+}
+
 /// What a trustee reports about one of its boards.
 #[derive(
     Display,
@@ -174,5 +216,120 @@ mod tests {
             "detail": "the board was rewritten",
         });
         assert!(serde_json::from_value::<TrusteeReport>(report).is_err());
+    }
+
+    #[test]
+    fn updates_deliver_typed_actions_and_keep_boards_in_one_response() {
+        let wire = json!({
+            "boards": [{"name": DKG_NAME, "kind": "DKG", "parent": null}],
+            "actions": [{"id": "action", "kind": "CREATE_CUSTODY_PROOF", "request": {
+                "tenant_id": "tenant", "election_event_id": "event",
+                "keys_ceremony_id": "ceremony", "tally_session_id": "tally",
+                "trustee_name": "alice", "signing_public_key": "signing",
+                "share_encryption_public_key": "encryption"
+            }}]
+        });
+        let updates: TrusteeEventUpdates =
+            serde_json::from_value(wire.clone()).unwrap();
+        assert_eq!(
+            updates.boards[0],
+            TrusteeBoard::of(DKG_NAME, None).unwrap()
+        );
+        assert!(matches!(
+            updates.actions[0].action,
+            TrusteeActionKind::CreateCustodyProof { .. }
+        ));
+        assert_eq!(serde_json::to_value(updates).unwrap(), wire);
+    }
+
+    #[test]
+    fn unknown_actions_are_skipped_without_discarding_assigned_boards() {
+        let updates: TrusteeEventUpdates = serde_json::from_value(json!({
+            "boards": [{"name": DKG_NAME, "kind": "DKG", "parent": null}],
+            "actions": [{"id": "future", "kind": "FUTURE_ACTION"}]
+        }))
+        .unwrap();
+        assert_eq!(updates.boards.len(), 1);
+        assert!(matches!(
+            updates.actions[0].action,
+            TrusteeActionKind::Unknown
+        ));
+    }
+
+    #[test]
+    fn action_results_keep_their_scoped_wire_shape_and_require_complete_outcomes(
+    ) {
+        let request = json!({
+            "tenant_id": "tenant", "election_event_id": "event",
+            "keys_ceremony_id": "ceremony", "tally_session_id": "tally",
+            "trustee_name": "alice", "signing_public_key": "signing",
+            "share_encryption_public_key": "encryption"
+        });
+        for outcome in [
+            json!({"status": "READY", "custody_proof_json": "signed-proof"}),
+            json!({"status": "FAILED", "detail": "keys unavailable"}),
+        ] {
+            let mut wire = json!({"id": "action", "request": request});
+            wire.as_object_mut()
+                .unwrap()
+                .extend(outcome.as_object().unwrap().clone());
+            let result: TrusteeActionResult =
+                serde_json::from_value(wire.clone()).unwrap();
+            assert_eq!(result.id, "action");
+            assert_eq!(
+                result.request.tally_session_id.as_deref(),
+                Some("tally")
+            );
+            match &result.outcome {
+                TrusteeActionOutcome::Ready { custody_proof_json } => {
+                    assert_eq!(custody_proof_json, "signed-proof")
+                }
+                TrusteeActionOutcome::Failed { detail } => {
+                    assert_eq!(detail, "keys unavailable")
+                }
+            }
+            assert_eq!(serde_json::to_value(&result).unwrap(), wire);
+            for field in [
+                "id",
+                "request",
+                "status",
+                if outcome["status"] == "READY" {
+                    "custody_proof_json"
+                } else {
+                    "detail"
+                },
+            ] {
+                let mut missing = wire.clone();
+                missing.as_object_mut().unwrap().remove(field);
+                assert!(
+                    serde_json::from_value::<TrusteeActionResult>(missing)
+                        .is_err(),
+                    "accepted absent {field}"
+                );
+            }
+            wire["status"] = json!("FUTURE_OUTCOME");
+            assert!(
+                serde_json::from_value::<TrusteeActionResult>(wire).is_err()
+            );
+        }
+    }
+
+    #[test]
+    fn older_board_responses_default_to_no_actions_but_malformed_known_work_is_rejected(
+    ) {
+        let legacy = json!({"boards": [{"name": DKG_NAME, "kind": "DKG", "parent": null}]});
+        let updates: TrusteeEventUpdates =
+            serde_json::from_value(legacy.clone()).unwrap();
+        assert_eq!(
+            updates.boards,
+            vec![TrusteeBoard::of(DKG_NAME, None).unwrap()]
+        );
+        assert!(updates.actions.is_empty());
+        let mut malformed = legacy;
+        malformed["actions"] =
+            json!([{"id": "action", "kind": "CREATE_CUSTODY_PROOF"}]);
+        assert!(
+            serde_json::from_value::<TrusteeEventUpdates>(malformed).is_err()
+        );
     }
 }

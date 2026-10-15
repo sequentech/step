@@ -175,6 +175,32 @@ lists each of these permissions with its label in Users and Roles, and the sampl
 groups and rules; [Signatures](../../02-election-event/16-signatures/01-election_management_election-event_signatures.md)
 describes the tab.
 
+## Tenant Log Permissions
+
+The tenant log records what happens outside election events; **Settings** > **Logs** shows it.
+
+| Permission | Allows |
+|---|---|
+| `tenant-logs-read` | See the **Logs** tab in Settings and read the tenant log. Opening Settings also needs `settings-menu`. |
+| `tenant-logs-export` | Export the tenant log from that tab as CSV, SQL or PDF. Also needs `tenant-logs-read`, to reach the tab. |
+
+They are independent of `tenant-write`, which shows the other Settings tabs: a role with
+`settings-menu` and `tenant-logs-read` but without `tenant-write` sees only **Logs**, and a role with
+`tenant-write` but without `tenant-logs-read` sees every tab except **Logs**. The server refuses to
+list or export the tenant log without them, whatever the user's other permissions.
+
+`logs-read` and `logs-export` are the equivalent permissions for the **Logs** tab of an election
+event. Exporting an election event's logs needs `logs-export`; earlier releases checked
+`report-write`.
+
+New tenant realms grant both tenant log permissions to the `admin` group, in the default tenant realm
+template and in the janitor's client template. Existing tenant realms get both permissions, and their
+`admin` group gets them too, when Windmill's scheduler (beat) starts after an upgrade;
+`step-cli step migrate-realm-permissions` does the same by hand. Grant them to any other role in
+**Users and Roles** > **Roles**. Users must log in again for the change to apply.
+
+See [Settings > Logs](../settings/settings_logs.md) for the tab.
+
 ## Electoral Log Permissions
 
 | Permission | Allows |

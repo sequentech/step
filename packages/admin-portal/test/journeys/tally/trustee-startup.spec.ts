@@ -74,27 +74,31 @@ for (const width of [1280, 390])
                 .getByLabel("Share encryption public key", {exact: true})
                 .inputValue(),
         }
+        await page.getByRole("button", {name: "Advanced", exact: true}).click()
+        await expect(
+            page.getByRole("button", {name: "Generate signed custody proof manually"})
+        ).toBeEnabled()
         const proofDownload = page.waitForEvent("download")
-        await page.getByLabel("Custody request").setInputFiles({
+        await page.getByLabel("Custody file").setInputFiles({
             name: "request.json",
             mimeType: "application/json",
             buffer: Buffer.from(JSON.stringify(request)),
         })
         const proofFile = await proofDownload
-        expect(proofFile.suggestedFilename()).toBe("browser-trustee-custody-proof.json")
+        expect(proofFile.suggestedFilename()).toBe("browser-trustee-signed-custody-proof.json")
         const proofPath = await proofFile.path()
         if (!proofPath) throw new Error("No custody proof download")
         const proof = JSON.parse(await readFile(proofPath, "utf8"))
         expect(proof.request).toEqual(request)
         expect(Buffer.from(proof.signature, "base64")).toHaveLength(64)
         expect(Object.keys(proof).sort()).toEqual(["request", "signature"])
-        await page.getByLabel("Custody request").setInputFiles({
+        await page.getByLabel("Custody file").setInputFiles({
             name: "request.json",
             mimeType: "application/json",
             buffer: Buffer.from(JSON.stringify({...request, trustee_name: "other-trustee"})),
         })
         await expect(page.getByRole("alert")).toContainText("another trustee")
-        await page.getByLabel("Custody request").setInputFiles({
+        await page.getByLabel("Custody file").setInputFiles({
             name: "request.json",
             mimeType: "application/json",
             buffer: Buffer.from(
@@ -117,10 +121,10 @@ for (const width of [1280, 390])
 
 test("prevents the same trustee from running in two tabs", async ({page, context, portal}) => {
     portal.trustee = "browser-trustee"
-    portal.graphql.on("ListTrusteeBoards", ({headers}) => {
+    portal.graphql.on("TrusteeEventUpdates", ({headers}) => {
         expect(headers.authorization).toMatch(/^Bearer /)
         expect(headers["x-hasura-role"]).toBe("trustee-ceremony")
-        return {data: {list_trustee_boards: {boards: []}}}
+        return {data: {trustee_event_updates: {boards: [], actions: []}}}
     })
     await page.goto(`${portal.origin}/trustee?lang=en`)
     await expect(page.getByLabel("Platform URL")).toHaveValue(`${portal.origin}/v1/graphql`)

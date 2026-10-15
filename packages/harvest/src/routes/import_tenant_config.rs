@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
+use crate::services::tenant_activity::{TenantAction, TenantActivityRecorder};
 use anyhow::{anyhow, Context, Result};
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -11,6 +13,7 @@ use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
@@ -49,8 +52,18 @@ fn authorize_import_tenant_config(
 pub async fn import_tenant_config_route(
     claims: jwt::JwtClaims,
     input: Json<ImportTenantConfigInput>,
+    activity: TenantActivityRecorder<'_>,
 ) -> Result<Json<ImportTenantConfigOutput>, (Status, String)> {
     let body = input.into_inner();
+    activity.record(
+        &claims,
+        TenantAction::ImportTenantConfig,
+        json!({
+            "tenant_id": body.tenant_id,
+            "document_id": body.document_id,
+            "sha256": body.sha256,
+        }),
+    );
     authorize_import_tenant_config(&claims, &body)?;
 
     let executer_name = claims
@@ -82,6 +95,7 @@ pub async fn import_tenant_config_route(
             body.document_id.clone(),
             body.sha256.clone(),
             task_execution.clone(),
+            Some(audit::actor(&claims)),
         ))
         .await
         .map_err(|error| {

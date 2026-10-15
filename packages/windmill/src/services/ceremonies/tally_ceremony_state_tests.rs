@@ -58,6 +58,7 @@ fn tally_session(execution_status: &TallyExecutionStatus) -> TallySession {
 
 fn ceremony_status(trustees: &[(&str, TallyTrusteeStatus)]) -> TallyCeremonyStatus {
     TallyCeremonyStatus {
+        quorum: None,
         boards: None,
         failure: None,
         stop_date: None,

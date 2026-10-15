@@ -1381,7 +1381,7 @@ checksum = "c303bfdf857413adbd19d9b15dddd9b4adb8e2be7e493c8a38d9fc6179a074ac"
 
 [[package]]
 name = "b4"
-version = "0.6.0"
+version = "0.6.5"
 dependencies = [
  "anyhow",
  "aws-config",
@@ -1609,7 +1609,7 @@ checksum = "38c99613cb3cd7429889a08dfcf651721ca971c86afa30798461f8eee994de47"
 
 [[package]]
 name = "braid"
-version = "0.6.4"
+version = "0.6.5"
 dependencies = [
  "anyhow",
  "ascent",
@@ -4626,6 +4626,8 @@ dependencies = [
  "tokio",
  "tokio-postgres",
  "tracing",
+ "tracing-log",
+ "tracing-subscriber",
  "uuid",
  "voting-crypto",
  "windmill",
@@ -11649,7 +11651,7 @@ dependencies = [
 
 [[package]]
 name = "vsc"
-version = "0.6.4"
+version = "0.6.5"
 dependencies = [
  "aead",
  "base64 0.22.1",

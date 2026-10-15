@@ -24,22 +24,30 @@ import {SettingsCountries} from "@/resources/Settings/SettingsCountries"
 import SettingsLocalization from "@/resources/Settings/SettingsLocalization"
 import {SettingsBackupRestore} from "@/resources/Settings/SettingsBackupRestore"
 import {SettingsPreviews} from "@/resources/Settings/SettingsPreviews"
+import {SettingsLogs} from "@/resources/Settings/SettingsLogs"
+import {
+    ESettingsAccess,
+    settingsAccess,
+    showsConfiguration,
+    showsLogs,
+} from "@/services/settingsAccess"
 
 export const SettingsScreen: React.FC = () => {
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
     const [tenantId] = useTenantStore()
-    const hasPermissions = authContext.isAuthorized(true, tenantId, IPermissions.TENANT_WRITE)
+    const access = settingsAccess((permission) =>
+        authContext.isAuthorized(true, tenantId, permission)
+    )
     const [open] = useSidebarState()
 
-    const showSettingsMenu = authContext.isAuthorized(true, tenantId, IPermissions.SETTINGS_MENU)
     const showMessaging = authContext.isAuthorized(
         true,
         tenantId,
         IPermissions.MESSAGING_ACCOUNT_READ
     )
 
-    if (!hasPermissions || !showSettingsMenu) {
+    if (access === ESettingsAccess.NONE) {
         return (
             <ResourceListStyles.EmptyBox>
                 <Typography variant="h4" paragraph>
@@ -48,6 +56,69 @@ export const SettingsScreen: React.FC = () => {
             </ResourceListStyles.EmptyBox>
         )
     }
+
+    const configurationTabs = [
+        {
+            label: t("electionTypeScreen.tabs.electionTypes"),
+            component: () => (
+                <Resource
+                    name="sequent_backend_election_type"
+                    list={SettingsElectionsTypes}
+                    create={SettingsElectionsTypesCreate}
+                    edit={SettingsElectionsTypesCreate}
+                    show={SettingsElectionsTypesCreate}
+                />
+            ),
+        },
+        {
+            label: t("electionTypeScreen.tabs.votingChannels"),
+            component: () => (
+                <Resource name="sequent_backend_tenant" list={SettingsVotingChannels} />
+            ),
+        },
+        ...(showMessaging
+            ? [
+                  {
+                      label: t("messagingAccounts.tab"),
+                      component: () => <SettingsMessaging />,
+                  },
+              ]
+            : []),
+        {
+            label: t("electionTypeScreen.tabs.languages"),
+            component: () => <Resource name="sequent_backend_tenant" list={SettingsLanguages} />,
+        },
+        {
+            label: t("electionTypeScreen.tabs.localization"),
+            component: () => <Resource name="sequent_backend_tenant" list={SettingsLocalization} />,
+        },
+        {
+            label: t("electionTypeScreen.tabs.integrations"),
+            component: () => <Resource name="sequent_backend_tenant" list={SettingsIntegrations} />,
+        },
+        {
+            label: t("electionTypeScreen.tabs.lookAndFeel"),
+            component: () => <Resource name="sequent_backend_tenant" list={SettingsLookAndFeel} />,
+        },
+        {
+            label: t("electionTypeScreen.tabs.trustees"),
+            component: () => <Resource name="sequent_backend_trustee" list={SettingsTrustees} />,
+        },
+        {
+            label: "Countries",
+            component: () => <Resource name="sequent_backend_tenant" list={SettingsCountries} />,
+        },
+        {
+            label: t("electionTypeScreen.tabs.BackupRestore"),
+            component: () => (
+                <Resource name="sequent_backend_tenant" list={SettingsBackupRestore} />
+            ),
+        },
+        {
+            label: t("settings.previewScreen.label"),
+            component: () => <Resource name="sequent_backend_preview" list={SettingsPreviews} />,
+        },
+    ]
 
     return (
         <Box
@@ -61,80 +132,15 @@ export const SettingsScreen: React.FC = () => {
 
             <Tabs
                 elements={[
-                    {
-                        label: t("electionTypeScreen.tabs.electionTypes"),
-                        component: () => (
-                            <Resource
-                                name="sequent_backend_election_type"
-                                list={SettingsElectionsTypes}
-                                create={SettingsElectionsTypesCreate}
-                                edit={SettingsElectionsTypesCreate}
-                                show={SettingsElectionsTypesCreate}
-                            />
-                        ),
-                    },
-                    {
-                        label: t("electionTypeScreen.tabs.votingChannels"),
-                        component: () => (
-                            <Resource name="sequent_backend_tenant" list={SettingsVotingChannels} />
-                        ),
-                    },
-                    ...(showMessaging
+                    ...(showsConfiguration(access) ? configurationTabs : []),
+                    ...(showsLogs(access)
                         ? [
                               {
-                                  label: t("messagingAccounts.tab"),
-                                  component: () => <SettingsMessaging />,
+                                  label: t("electionTypeScreen.tabs.logs"),
+                                  component: () => <SettingsLogs />,
                               },
                           ]
                         : []),
-                    {
-                        label: t("electionTypeScreen.tabs.languages"),
-                        component: () => (
-                            <Resource name="sequent_backend_tenant" list={SettingsLanguages} />
-                        ),
-                    },
-                    {
-                        label: t("electionTypeScreen.tabs.localization"),
-                        component: () => (
-                            <Resource name="sequent_backend_tenant" list={SettingsLocalization} />
-                        ),
-                    },
-                    {
-                        label: t("electionTypeScreen.tabs.integrations"),
-                        component: () => (
-                            <Resource name="sequent_backend_tenant" list={SettingsIntegrations} />
-                        ),
-                    },
-                    {
-                        label: t("electionTypeScreen.tabs.lookAndFeel"),
-                        component: () => (
-                            <Resource name="sequent_backend_tenant" list={SettingsLookAndFeel} />
-                        ),
-                    },
-                    {
-                        label: t("electionTypeScreen.tabs.trustees"),
-                        component: () => (
-                            <Resource name="sequent_backend_trustee" list={SettingsTrustees} />
-                        ),
-                    },
-                    {
-                        label: "Countries",
-                        component: () => (
-                            <Resource name="sequent_backend_tenant" list={SettingsCountries} />
-                        ),
-                    },
-                    {
-                        label: t("electionTypeScreen.tabs.BackupRestore"),
-                        component: () => (
-                            <Resource name="sequent_backend_tenant" list={SettingsBackupRestore} />
-                        ),
-                    },
-                    {
-                        label: t("settings.previewScreen.label"),
-                        component: () => (
-                            <Resource name="sequent_backend_preview" list={SettingsPreviews} />
-                        ),
-                    },
                 ]}
             />
         </Box>

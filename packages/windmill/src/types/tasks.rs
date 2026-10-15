@@ -44,6 +44,7 @@ pub enum ETasksExecution {
     EXPORT_MONITORING_DATA,
     RUN_SIGNED_ACTION,
     AUDIT_ELECTORAL_LOG,
+    EXPORT_TENANT_LOGS,
 }
 
 impl ETasksExecution {
@@ -87,6 +88,7 @@ impl ETasksExecution {
             ETasksExecution::EXPORT_MONITORING_DATA => "Export Monitoring Data",
             ETasksExecution::RUN_SIGNED_ACTION => "Run Signed Action",
             ETasksExecution::AUDIT_ELECTORAL_LOG => "Audit Electoral Log",
+            ETasksExecution::EXPORT_TENANT_LOGS => "Export Tenant Logs",
         }
     }
 }

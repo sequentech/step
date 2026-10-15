@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {ServerCustodyError} from "@/services/serverCustody"
+import {useServerCustodyProof} from "@/components/keys-ceremony/useServerCustodyProof"
 import {IPermissions} from "@/types/keycloak"
-import {trusteeFilename} from "@/services/trusteeFilename"
 import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
 import Button from "@mui/material/Button"
 import {BreadCrumbSteps, BreadCrumbStepsVariant, DropFile} from "@sequentech/ui-essentials"
@@ -63,20 +64,20 @@ export const TallyCeremonyTrustees: React.FC = () => {
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
     const trustee = authContext.trustee || authContext.username
-    const requestFilename = trusteeFilename(trustee, "custody-request.json")
-    const keysFilename = trusteeFilename(trustee, "private-keys.toml")
-    const proofFilename = trusteeFilename(trustee, "custody-proof.json")
 
     const [hasContinuedToStatus, setHasContinuedToStatus] = useState(false)
     const [selectedElections, setSelectedElections] = useState<string[]>([])
     const [selectedTrustees, setSelectedTrustees] = useState<boolean>(false)
     const [tally, setTally] = useState<Sequent_Backend_Tally_Session>()
+    const serverCustody = useServerCustodyProof({
+        election_event_id: record?.id || "",
+        tally_session_id: tally?.id || tallyId || "",
+    })
     const [verified, setVerified] = useState<boolean>(false)
     const [uploading, setUploading] = useState<boolean>(false)
     const [errors, setErrors] = useState<String | null>(null)
     const {globalSettings} = useContext(SettingsContext)
     const [isTallyCompleted, setIsTallyCompleted] = useState<boolean>(false)
-
     const {data} = useGetOne<Sequent_Backend_Tally_Session>(
         "sequent_backend_tally_session",
         {
@@ -247,7 +248,6 @@ export const TallyCeremonyTrustees: React.FC = () => {
                 const fileReader = new FileReader()
                 fileReader.onload = () => resolve(fileReader.result as string)
                 fileReader.onerror = (error) => reject(error)
-                // Read the file as a data URL (base64 encoded string)
                 fileReader.readAsText(file)
             })
         }
@@ -258,7 +258,9 @@ export const TallyCeremonyTrustees: React.FC = () => {
                 return
             }
             setUploading(true)
-            const checked = await custodyProofSigning.check(fileContent)
+            const checked = await custodyProofSigning.check(
+                await serverCustody.resolve(fileContent)
+            )
             setUploading(false)
             if (checked === CustodyProofCheck.Invalid) {
                 setErrors(t("keysGeneration.checkStep.errorUploading", {error: "empty"}))
@@ -266,8 +268,13 @@ export const TallyCeremonyTrustees: React.FC = () => {
                 setVerified(true)
             }
         } catch (exception) {
+            if (exception instanceof ServerCustodyError && exception.reason === "cancelled") return
             setUploading(false)
-            setErrors(t("keysGeneration.checkStep.errorUploading", {error: String(exception)}))
+            setErrors(
+                exception instanceof ServerCustodyError
+                    ? exception.message
+                    : t("keysGeneration.checkStep.errorUploading", {error: String(exception)})
+            )
         }
     }
 
@@ -283,6 +290,25 @@ export const TallyCeremonyTrustees: React.FC = () => {
                             colorPreviousSteps={true}
                         />
                     </TallyStyles.StyledHeader>
+
+                    {tally?.id && (
+                        <Box sx={{my: 2}}>
+                            <Typography variant="body2" sx={{m: 0}}>
+                                {t("tally.sessionId")}
+                            </Typography>
+                            <Typography
+                                component="code"
+                                sx={{
+                                    display: "block",
+                                    overflowWrap: "anywhere",
+                                    userSelect: "all",
+                                    m: 0,
+                                }}
+                            >
+                                {tally.id}
+                            </Typography>
+                        </Box>
+                    )}
 
                     {page === WizardSteps.Start && (
                         <>
@@ -303,7 +329,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
                             <Box>
                                 <ElectionHeader
                                     title={"tally.trusteeTitle"}
-                                    subtitle={"tally.trusteeSubTitle"}
+                                    subtitle={"keysGeneration.checkStep.subtitle"}
                                 />
                                 {redoSigned && !verified ? (
                                     <Typography variant="body1">
@@ -312,14 +338,12 @@ export const TallyCeremonyTrustees: React.FC = () => {
                                 ) : null}
 
                                 <Alert severity="info" sx={{mb: 2}}>
-                                    Create a custody proof locally using your saved request:
-                                    <Typography component="pre" sx={{whiteSpace: "pre-wrap"}}>
-                                        {`trustee attest --request ${requestFilename} --trustee-config ${keysFilename} --tally-session-id ${tally?.id || tallyId} --output ${proofFilename}`}
-                                    </Typography>
-                                    Upload {proofFilename}. Keep {keysFilename} on your trustee
-                                    machine.
+                                    {t("keysGeneration.serverCustody.tallyInstructions")}
                                 </Alert>
-                                <DropFile handleFiles={uploadCustodyProof} />
+                                <DropFile
+                                    handleFiles={uploadCustodyProof}
+                                    formatLabel={t("keysGeneration.serverCustody.fileFormat")}
+                                />
 
                                 <WizardStyles.StatusBox>
                                     {uploading ? <WizardStyles.DownloadProgress /> : null}
@@ -327,6 +351,11 @@ export const TallyCeremonyTrustees: React.FC = () => {
                                         <WizardStyles.ErrorMessage variant="body2">
                                             {errors}
                                         </WizardStyles.ErrorMessage>
+                                    ) : null}
+                                    {serverCustody.waiting && !errors ? (
+                                        <Typography role="status">
+                                            {t("keysGeneration.serverCustody.waiting")}
+                                        </Typography>
                                     ) : null}
                                     {custodyProofSigning.waiting && !errors ? (
                                         <Typography variant="body1">

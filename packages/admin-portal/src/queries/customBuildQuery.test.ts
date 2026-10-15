@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {readFileSync} from "node:fs"
 import {resolve} from "node:path"
-import {type DocumentNode, type OperationDefinitionNode} from "graphql"
+import {print, type DocumentNode, type OperationDefinitionNode} from "graphql"
 import {introspectSchema} from "ra-data-graphql/dist/cjs/introspection"
 import {customBuildQuery} from "./customBuildQuery"
 import {electionSearchFilter} from "../services/ElectionSearch"
 import {ACTIVE_SCHEDULED_EVENTS} from "../services/ScheduledEvent"
 import {Order_By} from "@/gql/graphql"
+import {ELogScope} from "@/components/logs/logScope"
 
 // The log range filter reads its wall times with the timezone service.
 jest.mock("@sequentech/ui-core", () => ({
@@ -435,6 +436,37 @@ describe("action-backed lists", () => {
         expect(new Date(filter.created_from).getTime()).toBe(Date.parse("2028-04-07T16:00:00Z"))
         expect(new Date(filter.created_to).getTime()).toBe(Date.parse("2028-04-09T15:59:00Z"))
         expect(JSON.stringify(built.variables)).not.toContain("time_zone")
+    })
+
+    it("filters either log by event type and log type", () => {
+        const built = list("electoral_log", {
+            filter: {election_event_id: EVENT, event_type: "SYSTEM", log_type: "ERROR"},
+        })
+        expect(built.variables.filter).toEqual({event_type: "SYSTEM", log_type: "ERROR"})
+    })
+
+    it("reads an event's log as the default role, naming the event", () => {
+        const built = list("electoral_log", {filter: {election_event_id: EVENT}}) as Built & {
+            context?: unknown
+        }
+        expect(built.context).toBeUndefined()
+        expect(print(built.query)).toContain(`$election_event_id: String = "${EVENT}"`)
+    })
+
+    it("reads the tenant log without an election event, as tenant-logs-read", () => {
+        const built = list("electoral_log", {
+            filter: {election_event_id: EVENT, username: "rosa.marin", event_type: "USER"},
+            meta: {logScope: ELogScope.TENANT},
+        }) as Built & {context?: unknown}
+        expect(operationName(built.query)).toBe("listTenantLog")
+        expect(print(built.query)).not.toContain("election_event_id")
+        expect(JSON.stringify(built.variables)).not.toContain(EVENT)
+        expect(built.variables.filter).toEqual({username: "rosa.marin", event_type: "USER"})
+        expect(built.context).toEqual({headers: {"x-hasura-role": "tenant-logs-read"}})
+        expect(built.parseResponse({data: {listElectoralLog: page}})).toEqual({
+            data: page.items,
+            total: 7,
+        })
     })
 })
 

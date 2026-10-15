@@ -4,7 +4,8 @@
 //! Changing a role's permissions in Users and Roles: who may change which
 //! permission, and that a sign permission's change is logged in the
 //! election events with a rule for its action, only when it is a change and
-//! only once Keycloak has made it.
+//! only once Keycloak has made it. Every change to a role is also an
+//! AdminChange entry of the tenant's log.
 
 use crate::adapters::memory::identity::LocalIdentityAdmin;
 use crate::route_services::http::{Exchange, HttpServer};
@@ -60,6 +61,25 @@ async fn logged(
     .await
     .iter()
     .map(|row| (row.get(0), row.get(1), row.get::<_, Value>(2)["description"].clone()))
+    .collect()
+}
+
+/// The tenant log's queued entries: (description, username, details).
+async fn audited(
+    services: &Services,
+    event: &Event,
+) -> Vec<(String, Option<String>, Value)> {
+    rows::query(
+        &services.hasura,
+        "SELECT description, username, details FROM sequent_backend.audit_log_outbox
+         WHERE tenant_id = $1::text::uuid AND election_event_id IS NULL
+             AND statement_kind = 'AdminChange'
+         ORDER BY seq",
+        &[&event.tenant_id],
+    )
+    .await
+    .iter()
+    .map(|row| (row.get(0), row.get(1), row.get(2)))
     .collect()
 }
 
@@ -196,6 +216,24 @@ async fn a_sign_permission_change_is_logged_once_keycloak_makes_it() {
             ],
             "{path}"
         );
+        let (action, value) = match holds {
+            true => ("revoke", json!({"path": "permissions", "old": name})),
+            false => ("grant", json!({"path": "permissions", "new": name})),
+        };
+        let entries = audited(&services, &event).await;
+        assert_eq!(entries.len(), 1, "{path}");
+        assert_eq!(entries[0].1.as_deref(), Some(EDITOR), "{path}");
+        assert_eq!(
+            entries[0].2,
+            json!({
+                "object": {"type": "role", "id": ROLE_ID, "name": role},
+                "action": action,
+                "actor": {"user_id": EDITOR_ID, "username": EDITOR, "role": "user"},
+                "origin": "harvest",
+                "changes": [value],
+            }),
+            "{path}"
+        );
     }
 }
 
@@ -228,10 +266,11 @@ async fn a_sign_permission_change_keycloak_refuses_is_not_logged() {
     assert_eq!(status, Status::InternalServerError);
     peer.finish();
     assert_eq!(logged(&services, &event).await, vec![]);
+    assert_eq!(audited(&services, &event).await, vec![]);
 }
 
-/// Other permissions, the tab's own included, change as before: no role
-/// lookup and no log entry.
+/// Other permissions, the tab's own included, are no signing log entries:
+/// their change is an entry of the tenant's log.
 #[rocket::async_test]
 async fn other_permission_changes_are_not_signing_log_entries() {
     let base = Services::on_test_database().await;
@@ -239,6 +278,8 @@ async fn other_permission_changes_are_not_signing_log_entries() {
     rule(&base, &event, SigningAction::CloseVoting).await;
     let name = Permissions::SIGNING_RULES_WRITE.to_string();
     let peer = HttpServer::start(vec![
+        held(&event, &[]),
+        group(&event, "sbei"),
         permission(&event, &name),
         mapping(&event, "POST", 204),
     ]);
@@ -258,6 +299,74 @@ async fn other_permission_changes_are_not_signing_log_entries() {
     assert_eq!(status, Status::Ok, "{answer}");
     peer.finish();
     assert_eq!(logged(&services, &event).await, vec![]);
+    let entries = audited(&services, &event).await;
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].0, "Granted role \"sbei\"");
+    assert_eq!(entries[0].2["action"], "grant");
+    assert_eq!(
+        entries[0].2["changes"],
+        json!([{"path": "permissions", "new": name}])
+    );
+}
+
+/// An ordinary permission Keycloak refuses to set leaves no entry.
+#[rocket::async_test]
+async fn an_ordinary_permission_change_keycloak_refuses_is_not_audited() {
+    let base = Services::on_test_database().await;
+    let event = rows::event(&base.hasura).await;
+    let name = Permissions::SIGNING_RULES_WRITE.to_string();
+    let peer = HttpServer::start(vec![
+        held(&event, &[]),
+        group(&event, "sbei"),
+        permission(&event, &name),
+        mapping(&event, "POST", 403),
+    ]);
+    let services = base.with_identity(keycloak(&peer));
+    let client = services.client().await;
+
+    let (status, _) = text(
+        post(
+            &client,
+            "/set-role-permission",
+            &editor(&event),
+            &body(&event, &name),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::InternalServerError);
+    peer.finish();
+    assert_eq!(audited(&services, &event).await, vec![]);
+}
+
+/// Setting an ordinary permission the role holds changes nothing: Keycloak
+/// is still asked, nothing is logged.
+#[rocket::async_test]
+async fn an_ordinary_permission_the_role_holds_is_not_audited_again() {
+    let base = Services::on_test_database().await;
+    let event = rows::event(&base.hasura).await;
+    let name = Permissions::SIGNING_RULES_WRITE.to_string();
+    let peer = HttpServer::start(vec![
+        held(&event, &[name.as_str()]),
+        permission(&event, &name),
+        mapping(&event, "POST", 204),
+    ]);
+    let services = base.with_identity(keycloak(&peer));
+    let client = services.client().await;
+
+    let (status, answer) = json(
+        post(
+            &client,
+            "/set-role-permission",
+            &editor(&event),
+            &body(&event, &name),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{answer}");
+    peer.finish();
+    assert_eq!(audited(&services, &event).await, vec![]);
 }
 
 fn realm_path(event: &Event, rest: &str) -> String {
@@ -312,6 +421,21 @@ async fn a_role_created_with_sign_permissions_is_logged() {
             ("SYSTEM".into(), None, json!(description)),
         ]
     );
+    let entries = audited(&services, &event).await;
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].0, "Created role \"Post signers\"");
+    assert_eq!(entries[0].1.as_deref(), Some(EDITOR));
+    assert_eq!(
+        entries[0].2["object"],
+        json!({"type": "role", "id": ROLE_ID, "name": "Post signers"})
+    );
+    assert_eq!(
+        entries[0].2["changes"],
+        json!([
+            {"path": "name", "new": "Post signers"},
+            {"path": "permissions", "new": [sign, "role-read"]},
+        ])
+    );
 }
 
 /// Deleting a role that holds sign permissions logs their removal; a role
@@ -328,11 +452,10 @@ async fn deleting_a_role_logs_the_sign_permissions_it_held() {
         let base = Services::on_test_database().await;
         let event = rows::event(&base.hasura).await;
         rule(&base, &event, SigningAction::ApproveVoter).await;
-        let mut exchanges = vec![held(&event, holding)];
+        let mut exchanges = vec![held(&event, holding), group(&event, "OFOV")];
         if !expected.is_empty() {
             // Read again under the events' locks.
             exchanges.push(held(&event, holding));
-            exchanges.push(group(&event, "OFOV"));
         }
         exchanges.push(Exchange::json(
             "DELETE",
@@ -369,6 +492,17 @@ async fn deleting_a_role_logs_the_sign_permissions_it_held() {
             .flat_map(|description| [json!(description), json!(description)])
             .collect();
         assert_eq!(descriptions, expected);
+        let mut sorted = holding.to_vec();
+        sorted.sort();
+        let entries = audited(&services, &event).await;
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].0, "Deleted role \"OFOV\"");
+        assert_eq!(entries[0].1.as_deref(), Some(EDITOR));
+        assert_eq!(entries[0].2["action"], "delete");
+        assert_eq!(
+            entries[0].2["changes"],
+            json!([{"path": "permissions", "old": sorted}])
+        );
     }
 }
 
@@ -407,6 +541,7 @@ async fn a_role_deletion_keycloak_refuses_is_not_logged() {
     assert_eq!(status, Status::InternalServerError);
     peer.finish();
     assert_eq!(logged(&services, &event).await, vec![]);
+    assert_eq!(audited(&services, &event).await, vec![]);
 }
 
 /// Setting a permission the role already holds, or removing one it doesn't,
@@ -632,8 +767,11 @@ async fn reserved_permission_names_are_refused_before_keycloak() {
 /// Other names are still assigned to a role and set on a new one.
 #[rocket::async_test]
 async fn ordinary_permission_names_are_still_accepted() {
-    let event = tenant_event();
+    let base = Services::on_test_database().await;
+    let event = rows::event(&base.hasura).await;
     let peer = HttpServer::start(vec![
+        held(&event, &[]),
+        group(&event, "Clerks"),
         permission(&event, "election-event-read"),
         mapping(&event, "POST", 204),
         Exchange::json("POST", &realm_path(&event, "/groups"), 201, json!({})),
@@ -646,7 +784,7 @@ async fn ordinary_permission_names_are_still_accepted() {
         permission(&event, "role-read"),
         mapping(&event, "POST", 204),
     ]);
-    let services = Services::without_database().with_identity(keycloak(&peer));
+    let services = base.with_identity(keycloak(&peer));
     let client = services.client().await;
     let cases = [
         (
@@ -671,17 +809,29 @@ async fn ordinary_permission_names_are_still_accepted() {
         assert_eq!(status, Status::Ok, "{path}: {answer}");
     }
     peer.finish();
+    let described: Vec<String> = audited(&services, &event)
+        .await
+        .into_iter()
+        .map(|(description, _, _)| description)
+        .collect();
+    assert_eq!(
+        described,
+        vec!["Granted role \"Clerks\"", "Created role \"Clerks\""]
+    );
 }
 
 /// A reserved permission a role already holds can still be taken off it.
 #[rocket::async_test]
 async fn a_reserved_permission_can_still_be_removed_from_a_role() {
-    let event = tenant_event();
+    let base = Services::on_test_database().await;
+    let event = rows::event(&base.hasura).await;
     let peer = HttpServer::start(vec![
+        held(&event, &["service-account"]),
+        group(&event, "Clerks"),
         permission(&event, "service-account"),
         mapping(&event, "DELETE", 204),
     ]);
-    let services = Services::without_database().with_identity(keycloak(&peer));
+    let services = base.with_identity(keycloak(&peer));
     let client = services.client().await;
     let caller = Claims::new(&event.tenant_id, EDITOR_ID)
         .roles([Permissions::USER_PERMISSION_WRITE, Permissions::ROLE_WRITE]);
@@ -699,4 +849,109 @@ async fn a_reserved_permission_can_still_be_removed_from_a_role() {
 
     assert_eq!(status, Status::Ok, "{answer}");
     peer.finish();
+    let entries = audited(&services, &event).await;
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].0, "Revoked role \"Clerks\"");
+    assert_eq!(
+        entries[0].2["changes"],
+        json!([{"path": "permissions", "old": "service-account"}])
+    );
+}
+
+/// Creating and deleting a permission are entries of the tenant's log, and
+/// one Keycloak refuses leaves none.
+#[rocket::async_test]
+async fn created_and_deleted_permissions_are_audited_once_keycloak_makes_them()
+{
+    for (status, answered) in
+        [(201, Status::Ok), (409, Status::InternalServerError)]
+    {
+        let base = Services::on_test_database().await;
+        let event = rows::event(&base.hasura).await;
+        let deleted = match status {
+            201 => 204,
+            refused => refused,
+        };
+        let peer = HttpServer::start(vec![
+            Exchange::json(
+                "POST",
+                &realm_path(&event, "/roles"),
+                status,
+                Value::Null,
+            ),
+            Exchange::json(
+                "DELETE",
+                &realm_path(&event, "/roles/observer-read"),
+                deleted,
+                Value::Null,
+            ),
+        ]);
+        let services = base.with_identity(keycloak(&peer));
+        let client = services.client().await;
+        let administrator = Claims::new(&event.tenant_id, EDITOR_ID)
+            .username(EDITOR)
+            .roles([
+                Permissions::USER_PERMISSION_CREATE,
+                Permissions::USER_PERMISSION_WRITE,
+            ]);
+
+        let created = post(
+            &client,
+            "/create-permission",
+            &administrator,
+            &json!({"tenant_id": event.tenant_id, "permission": {
+                "name": "observer-read", "description": "Reads as an observer",
+            }}),
+        )
+        .await;
+        assert_eq!(created.status(), answered);
+        let removed = post(
+            &client,
+            "/delete-permission",
+            &administrator,
+            &json!({"tenant_id": event.tenant_id, "permission_name": "observer-read"}),
+        )
+        .await;
+        assert_eq!(removed.status(), answered);
+        peer.finish();
+
+        let entries = audited(&services, &event).await;
+        if answered != Status::Ok {
+            assert_eq!(entries, vec![]);
+            continue;
+        }
+        let object = json!({
+            "type": "permission", "id": "observer-read", "name": "observer-read",
+        });
+        assert_eq!(
+            entries,
+            vec![
+                (
+                    "Created permission \"observer-read\"".to_string(),
+                    Some(EDITOR.to_string()),
+                    json!({
+                        "object": object,
+                        "action": "create",
+                        "actor": {"user_id": EDITOR_ID, "username": EDITOR, "role": "user"},
+                        "origin": "harvest",
+                        "changes": [
+                            {"path": "description", "new": "Reads as an observer"},
+                            {"path": "name", "new": "observer-read"},
+                        ],
+                    })
+                ),
+                (
+                    "Deleted permission \"observer-read\"".to_string(),
+                    Some(EDITOR.to_string()),
+                    json!({
+                        "object": object,
+                        "action": "delete",
+                        "actor": {"user_id": EDITOR_ID, "username": EDITOR, "role": "user"},
+                        "origin": "harvest",
+                        "changes": [],
+                    })
+                ),
+            ]
+        );
+    }
 }

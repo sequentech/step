@@ -5,6 +5,8 @@ import React from "react"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, waitFor, within} from "storybook/test"
 import {RecordContextProvider} from "react-admin"
+import {Box} from "@mui/material"
+import {Dialog} from "@sequentech/ui-essentials"
 import {GraphQLError} from "graphql"
 import {AdminStoryProvider, EVENT_ID, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import {type ReadState, resourceBoundary} from "@/__stories__/resourceBoundary"
@@ -31,6 +33,10 @@ interface Scenario {
     taskWidgets?: boolean
     /** Whether Harvest refuses to start the audit. */
     auditFails?: boolean
+    /** The room the list has, in pixels; the canvas's when absent. */
+    width?: number
+    /** Rendered inside a popup, as a voter's logs are. */
+    inDialog?: boolean
 }
 
 const logRow = (
@@ -107,6 +113,8 @@ function Fixture({
     roles,
     zones,
     taskWidgets,
+    width,
+    inDialog,
 }: Scenario) {
     const {permissions} = useStoryGlobals()
     const logList = (
@@ -117,7 +125,23 @@ function Fixture({
             showActions={showActions}
         />
     )
-    const list = taskWidgets ? <WidgetsContextProvider>{logList}</WidgetsContextProvider> : logList
+    const placed = inDialog ? (
+        <Dialog
+            fullWidth
+            variant="info"
+            maxWidth="xl"
+            title="Voter logs"
+            ok="Close"
+            open
+            handleClose={() => undefined}
+        >
+            {logList}
+        </Dialog>
+    ) : (
+        logList
+    )
+    const sized = width ? <Box sx={{width}}>{placed}</Box> : placed
+    const list = taskWidgets ? <WidgetsContextProvider>{sized}</WidgetsContextProvider> : sized
     return (
         <AdminStoryProvider
             boundary={graphql}
@@ -251,7 +275,17 @@ const exported = (electionEventId: string, format: string) => [
     ...ledgerReads,
     {
         name: "ExportElectionEventLogs",
-        variables: {electionEventId, format, createdFrom: null, createdTo: null, timeZone: "UTC"},
+        variables: {
+            electionEventId,
+            format,
+            scope: "ALL",
+            electionId: null,
+            areaId: null,
+            username: null,
+            createdFrom: null,
+            createdTo: null,
+            timeZone: "UTC",
+        },
         headers: {"x-hasura-role": "logs-export"},
     },
 ]
@@ -310,24 +344,132 @@ export const StatusAsLogged: Story = {
     },
 }
 
-/** A seal entry's details (seal hash, counts) open with its description under Show More. */
-export const DetailsUnderShowMore: Story = {
+const entryDialog = () => within(document.body).findByRole("dialog", {name: /^Log entry/})
+
+/**
+ * The description stays on one line; clicking the row opens the entry's
+ * popup, with the whole description and the seal's details (hash, counts).
+ */
+export const OpenAnEntry: Story = {
+    parameters: {widgets: ["OpenLogEntry"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await canvas.findByText("alice")
-        const preview = canvas.getByText(SEALED.slice(0, 50).trim())
-        await expect(preview).toBeVisible()
-        const cell = within(preview.closest("td")!)
+        const description = canvas.getByText(SEALED)
+        await expect(description).toHaveStyle({whiteSpace: "nowrap", textOverflow: "ellipsis"})
+        expect(canvas.queryByRole("button", {name: "Show More"})).toBeNull()
         expect(canvas.queryByText(`Seal hash: ${SEAL_HASH}`)).toBeNull()
-        // Short descriptions without details get no toggle.
-        const keys = within(canvas.getByText("Keys generated").closest("td")!)
-        expect(keys.queryByRole("button")).toBeNull()
-        await userEvent.click(cell.getByRole("button", {name: "Show More"}))
-        await expect(cell.getByText(SEALED)).toBeVisible()
-        await expect(cell.getByText(`Seal hash: ${SEAL_HASH}`)).toBeVisible()
-        await expect(cell.getByText("1340 of 1342 ballots counted.")).toBeVisible()
-        await userEvent.click(cell.getByRole("button", {name: "Show Less"}))
-        expect(canvas.queryByText(`Seal hash: ${SEAL_HASH}`)).toBeNull()
+        await userEvent.click(description)
+        const dialog = within(await entryDialog())
+        await waitFor(() => expect(dialog.getByText(SEALED)).toBeVisible())
+        await expect(dialog.getByText(`Seal hash: ${SEAL_HASH}`)).toBeVisible()
+        await expect(dialog.getByText("1340 of 1342 ballots counted.")).toBeVisible()
+        await expect(dialog.getByText("Election event log")).toBeVisible()
+        await userEvent.keyboard("{Escape}")
+        await waitFor(() => expect(within(document.body).queryByRole("dialog")).toBeNull())
+        // Another row opens its own entry.
+        await userEvent.click(canvas.getByText("Ballot cast"))
+        await expect(await entryDialog()).toHaveAccessibleName("Log entry 2")
+        await userEvent.click(within(await entryDialog()).getByRole("button", {name: "Close"}))
+        await waitFor(() => expect(within(document.body).queryByRole("dialog")).toBeNull())
+    },
+}
+
+/** The column headers, also while the Columns menu covers the list. */
+const headers = (canvasElement: HTMLElement) =>
+    Array.from(canvasElement.querySelectorAll("thead th")).map(({textContent}) => textContent)
+
+/** From 1,500 px every column shows; the raw message stays under Columns. */
+export const WideList: Story = {
+    args: {width: 1600},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByText("alice")
+        expect(headers(canvasElement)).toEqual([
+            "Id",
+            "Username",
+            "Created",
+            "Statement Timestamp",
+            "Statement kind",
+            "Event Type",
+            "Log Type",
+            "Channel",
+            "Status",
+            "Description",
+        ])
+        await userEvent.click(canvas.getByRole("button", {name: "Columns"}))
+        const message = await within(document.body).findByRole("switch", {name: "Message"})
+        await expect(message).not.toBeChecked()
+        await userEvent.click(message)
+        await waitFor(() => expect(headers(canvasElement)).toContain("Message"))
+        await userEvent.keyboard("{Escape}")
+        await waitFor(() => expect(within(document.body).queryByRole("switch")).toBeNull())
+    },
+}
+
+/** Below 1,500 px Created starts hidden under Columns. */
+export const MediumListHidesCreated: Story = {
+    args: {width: 1200},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByText("alice")
+        await waitFor(() => expect(headers(canvasElement)).not.toContain("Created"))
+        expect(headers(canvasElement)).toContain("Statement Timestamp")
+        await userEvent.click(canvas.getByRole("button", {name: "Columns"}))
+        const created = await within(document.body).findByRole("switch", {name: "Created"})
+        await expect(created).not.toBeChecked()
+        await userEvent.click(created)
+        await waitFor(() => expect(headers(canvasElement)).toContain("Created"))
+        await userEvent.keyboard("{Escape}")
+        await waitFor(() => expect(within(document.body).queryByRole("switch")).toBeNull())
+    },
+}
+
+/** Below 1,000 px each entry is two lines, and opens the same popup. */
+export const NarrowList: Story = {
+    args: {width: 640},
+    parameters: {widgets: ["CompactLogEntries", "CompactLogEntry"]},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await waitFor(() => expect(canvas.getAllByRole("listitem")).toHaveLength(logs.length))
+        expect(canvas.queryByRole("table")).toBeNull()
+        const entry = canvas.getByText(SEALED).closest("li") as HTMLElement
+        await expect(within(entry).getByText(/^4 · .* · BallotBoxSealed$/)).toBeVisible()
+        expect(canvas.getByText(/^2 · .* · alice · CastVote$/)).toBeVisible()
+        expect(canvas.queryByRole("button", {name: "Columns"})).toBeNull()
+        await userEvent.click(within(entry).getByRole("button"))
+        const dialog = within(await entryDialog())
+        await waitFor(() => expect(dialog.getByText(`Seal hash: ${SEAL_HASH}`)).toBeVisible())
+    },
+}
+
+/** The event type and log type filters reach the list request. */
+export const FilterByEventAndLogType: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByText("alice")
+        const choose = async (filter: string, option: string) => {
+            await userEvent.click(canvas.getByRole("button", {name: "Add filter"}))
+            await userEvent.click(
+                await within(document.body).findByRole("menuitemcheckbox", {name: filter})
+            )
+            await userEvent.click(await canvas.findByRole("combobox", {name: filter}))
+            await userEvent.click(await within(document.body).findByRole("option", {name: option}))
+        }
+        await choose("Event Type", "SYSTEM")
+        await choose("Log Type", "ERROR")
+        await waitFor(() =>
+            expect(
+                data.calls.some(
+                    ({method, args}) =>
+                        method === "getList" &&
+                        (args[1] as {filter?: Record<string, unknown>})?.filter?.event_type ===
+                            "SYSTEM" &&
+                        (args[1] as {filter?: Record<string, unknown>})?.filter?.log_type ===
+                            "ERROR"
+                )
+            ).toBe(true)
+        )
     },
 }
 
@@ -399,6 +541,35 @@ export const OneVotersLog: Story = {
         expect(listed()?.[1]).toMatchObject({
             filter: {election_event_id: EVENT_ID, user_id: STORY_IDS.user},
         })
+    },
+}
+
+/** In a voter's logs popup an entry opens as a second popup over it; Escape closes only that one. */
+export const EntryOverTheVotersLogs: Story = {
+    args: {
+        inEvent: false,
+        inDialog: true,
+        electionEventId: EVENT_ID,
+        showActions: false,
+        filterToShow: ElectoralLogFilters.USER_ID,
+        filterValue: STORY_IDS.user,
+    },
+    play: async () => {
+        const logsPopup = await within(document.body).findByRole("dialog", {name: "Voter logs"})
+        await userEvent.click(await within(logsPopup).findByText("Ballot cast"))
+        const entry = await within(document.body).findByRole("dialog", {name: "Log entry 2"})
+        await waitFor(() => expect(within(entry).getByText("Ballot cast")).toBeVisible())
+        await expect(within(entry).getByText("alice")).toBeVisible()
+        await userEvent.keyboard("{Escape}")
+        await waitFor(() =>
+            expect(within(document.body).queryByRole("dialog", {name: "Log entry 2"})).toBeNull()
+        )
+        // The voter's logs are reachable again once the entry's popup has gone.
+        await waitFor(() =>
+            expect(within(document.body).getByRole("dialog", {name: "Voter logs"})).toBeVisible()
+        )
+        await userEvent.click(await within(logsPopup).findByText("Ballot cast"))
+        await within(document.body).findByRole("dialog", {name: "Log entry 2"})
     },
 }
 

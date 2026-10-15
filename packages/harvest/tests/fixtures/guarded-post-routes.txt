@@ -57,6 +57,7 @@
 /export-tasks-execution
 /export-template
 /export-tenant-config
+/export-tenant-logs
 /export-tenant-users
 /export-trustees
 /export-users
@@ -165,7 +166,9 @@
 /staff-certificates
 /staff-certificates/<id>/revoke
 /submit-tally-resolution
+/trustee/action-result
 /trustee/boards/report
+/trustee/request-server-custody
 /task-queues/dead-letters
 /task-queues/messages
 /task-queues/overview

@@ -230,6 +230,8 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/election-event/top-votes-by-ip", {"election_event_id": EVENT_ID}, [ADMIN_DASHBOARD_VIEW], BACKEND, UNAUTHORIZED),
         case!(Admin, "/election/stats", {"election_event_id": EVENT_ID, "election_id": "test-election", "start_date": "2026-01-01", "end_date": "2026-01-02", "user_timezone": "UTC"}, [ADMIN_DASHBOARD_VIEW], BACKEND, UNAUTHORIZED),
         case!(Admin, "/electoral-log", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [LOGS_READ], BACKEND, UNAUTHORIZED),
+        // Without an election event it is the tenant log, which refuses its non-readers.
+        case!(Admin, "/electoral-log", {"tenant_id": TENANT_ID}, [TENANT_LOGS_READ], BACKEND_TEXT, FORBIDDEN),
         case!(SuperAdmin, "/electoral-log-console/page", {"tenant_id": UUID_V4_TENANT_ID, "election_event_id": UUID_V4_EVENT_ID, "table": "records"}, [ELECTORAL_LOG_CONSOLE_READ], BACKEND, UNAUTHORIZED_JSON),
         case!(SuperAdmin, "/electoral-log-console/query", {"tenant_id": UUID_V4_TENANT_ID, "election_event_id": UUID_V4_EVENT_ID, "sql": "SELECT 1"}, [ELECTORAL_LOG_CONSOLE_QUERY, ELECTORAL_LOG_PERSONAL_DATA_READ], BACKEND, UNAUTHORIZED_JSON),
         case!(SuperAdmin, "/electoral-log-console/record", {"tenant_id": UUID_V4_TENANT_ID, "election_event_id": UUID_V4_EVENT_ID, "position": 1}, [ELECTORAL_LOG_CONSOLE_READ], BACKEND, UNAUTHORIZED_JSON),
@@ -254,12 +256,13 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/export-ballot-publication", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "ballot_publication_id": "test-publication"}, [PUBLISH_WRITE], BACKEND, BACKEND),
         case!(Admin, "/export-certificate-authority", {"ids": [], "election_event_id": UUID_EVENT_ID}, [CA_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/export-election-event", {"election_event_id": EVENT_ID, "export_configurations": {}}, [ELECTION_EVENT_READ], BACKEND, UNAUTHORIZED),
-        case!(Admin, "/export-election-event-logs", {"election_event_id": EVENT_ID, "format": "CSV"}, [REPORT_WRITE], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/export-election-event-logs", {"election_event_id": EVENT_ID, "format": "CSV"}, [LOGS_EXPORT], BACKEND, UNAUTHORIZED),
         case!(Admin, "/export-tally-results", {"election_event_id": EVENT_ID, "tally_session_id": "test-session"}, [TALLY_RESULTS_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/export-tasks-execution", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [TASKS_READ], BACKEND, UNAUTHORIZED),
         // The task row is written before the permission check.
         case!(Admin, "/export-template", {"tenant_id": TENANT_ID}, [TEMPLATE_WRITE], BACKEND, BACKEND),
         case!(Admin, "/export-tenant-config", {"tenant_id": TENANT_ID}, [TENANT_READ], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/export-tenant-logs", {"format": "CSV", "scope": "TENANT_LOG"}, [TENANT_LOGS_EXPORT], BACKEND, FORBIDDEN),
         case!(Admin, "/export-tenant-users", {"tenant_id": TENANT_ID}, [USER_READ], BACKEND, UNAUTHORIZED),
         // The task row is written before the permission check.
         case!(Admin, "/export-trustees", {"password": "test-password"}, [TRUSTEES_EXPORT], BACKEND, BACKEND),
@@ -301,7 +304,9 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/get-user-template", {"template_type": "test-template"}, [REPORT_READ], BACKEND_TEXT, UNAUTHORIZED),
         case!(Admin, "/get-users", {"tenant_id": TENANT_ID}, [USER_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/get-users", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [VOTER_READ], BACKEND_TEXT, UNAUTHORIZED),
+        case!(Admin, "/trustee/action-result", {"id": "test-action", "request": {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "keys_ceremony_id": "test-ceremony", "trustee_name": "test-trustee", "signing_public_key": "fixture-signing-key", "share_encryption_public_key": "fixture-share-key"}, "status": "FAILED", "detail": "fixture error"}, [TRUSTEE_CEREMONY], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/trustee/boards/report", {"board": "dkg_d9792af071b849528aac94bc0fead5f7", "kind": "HALTED", "detail": "fixture error"}, [TRUSTEE_CEREMONY], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/trustee/request-server-custody", {"election_event_id": EVENT_ID, "keys_ceremony_id": "test-ceremony", "custody_request_json": "{}"}, [TRUSTEE_CEREMONY], BACKEND, UNAUTHORIZED_JSON),
         case!(Voter, "/get-voter-cast-votes", {"election_event_id": EVENT_ID}, [CAST_VOTE], BACKEND, FORBIDDEN),
         // Looking ballots up by their ID first reads the checks period.
         case!(Voter, "/get-voter-cast-votes", {"election_event_id": EVENT_ID, "election_id": ELECTION_ID, "ballot_id": "0abc12"}, [CAST_VOTE], BACKEND, FORBIDDEN),

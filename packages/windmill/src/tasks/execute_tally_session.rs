@@ -703,12 +703,20 @@ async fn create_tally_boards(
         tally_session.id
     );
 
-    let state = apply_tally_event(
+    apply_tally_event(
         hasura_transaction,
         tenant_id,
         election_event_id,
         &tally_session.id,
         TallyEvent::BoardsCreated(boards),
+    )
+    .await?;
+    let state = apply_tally_event(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &tally_session.id,
+        TallyEvent::QuorumObserved(trustee_names),
     )
     .await?;
     Ok(Some(state))
@@ -723,6 +731,7 @@ async fn read_tally_boards(
     hasura_transaction: &Transaction<'_>,
     tally_session: &TallySession,
     dkg: &DkgBoard,
+    keys_ceremony: &KeysCeremony,
 ) -> AnyhowResult<Option<(TallySessionState, Vec<(i64, BoardName, TallyView)>)>> {
     let tenant_id = &tally_session.tenant_id;
     let election_event_id = &tally_session.election_event_id;
@@ -734,6 +743,29 @@ async fn read_tally_boards(
         &dkg.configuration,
     )
     .await?;
+    let committee_names: Vec<String> = keys_ceremony
+        .status()?
+        .trustees
+        .into_iter()
+        .map(|trustee| trustee.name)
+        .collect();
+    if let Some((_, first)) = boards.first() {
+        let quorum = first.quorum_names(&committee_names)?;
+        for (_, ballots) in &boards {
+            anyhow::ensure!(
+                ballots.quorum_names(&committee_names)? == quorum,
+                "tally boards have different selected quorums"
+            );
+        }
+        apply_tally_event(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            &tally_session.id,
+            TallyEvent::QuorumObserved(quorum),
+        )
+        .await?;
+    }
     let parent = board_handle(&dkg.name)?;
 
     let mut views = Vec::with_capacity(boards.len());
@@ -1129,7 +1161,7 @@ async fn map_plaintext_data(
         }
     } else {
         let Some((state, views)) =
-            read_tally_boards(hasura_transaction, &tally_session, &dkg).await?
+            read_tally_boards(hasura_transaction, &tally_session, &dkg, keys_ceremony).await?
         else {
             return Ok(None);
         };

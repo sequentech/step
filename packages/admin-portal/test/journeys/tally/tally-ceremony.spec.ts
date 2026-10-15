@@ -448,7 +448,7 @@ test.describe("as a trustee", () => {
         ).toContain("trustee-ceremony")
         await rowAction(row, "Add Tally Key").click()
         await expect(
-            page.getByText(/Create a custody proof locally using your saved request/)
+            page.getByText(/Upload the custody file saved during the key ceremony/)
         ).toBeVisible()
         const next = page.getByRole("button", {name: "Next", exact: true})
         await expect(next).toBeDisabled()
@@ -475,7 +475,7 @@ test.describe("as a trustee", () => {
         const validProof = proof("accepted-public-signature")
         await upload(invalidProof)
         await expect(
-            page.getByText("Invalid custody proof, please try again", {exact: true})
+            page.getByText("Invalid signed custody proof, please try again", {exact: true})
         ).toBeVisible()
         await expect(next).toBeDisabled()
         await upload(validProof)

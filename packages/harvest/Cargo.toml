@@ -64,6 +64,8 @@ serde_yaml = "0.9"
 sha2 = "0.10"
 
 [dev-dependencies]
+tracing-subscriber = "0.3"
+tracing-log = "0.2"
 keycloak = "24.0"
 # The test PKI of the signing certificate routes.
 openssl = "0.10"

@@ -209,6 +209,22 @@ describe.each(REALM_TEMPLATES)("realm template %s", (template) => {
 })
 
 describe("getOperationRole", () => {
+    it("reads the schema as the tenant log's reader for an auditor who holds nothing else", () => {
+        const auditor = [IPermissions.SETTINGS_MENU, IPermissions.TENANT_LOGS_READ]
+        expect(roleFor("IntrospectionQuery", auditor)).toBe(IPermissions.TENANT_LOGS_READ)
+        expect(roleFor(undefined, auditor)).toBe(IPermissions.TENANT_LOGS_READ)
+        expect(roleFor("election_events_tree", auditor)).toBe(IPermissions.TENANT_LOGS_READ)
+        // With the event read role, or without the log's, nothing changes.
+        const reader = [...auditor, IPermissions.ELECTION_EVENT_READ]
+        expect(roleFor("IntrospectionQuery", reader)).toBe(IPermissions.ELECTION_EVENT_READ)
+        expect(roleFor("IntrospectionQuery", [IPermissions.SETTINGS_MENU])).toBe(
+            IPermissions.ELECTION_EVENT_READ
+        )
+        expect(roleFor("getRoles", [...auditor, IPermissions.ROLE_READ])).toBe(
+            IPermissions.ROLE_READ
+        )
+    })
+
     it("keeps unnamed and unmapped operations on admin-user for admins", () => {
         const roles = [IPermissions.ADMIN_USER, IPermissions.ELECTION_EVENT_READ]
         expect(roleFor(undefined, roles)).toBe(IPermissions.ADMIN_USER)

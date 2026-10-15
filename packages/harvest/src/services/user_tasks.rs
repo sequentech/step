@@ -6,6 +6,7 @@ use crate::ports::user_tasks::*;
 use crate::services::access::{
     create_permission, import_users_privileges, read_permission, UserScope,
 };
+use crate::services::audit;
 use rocket::http::Status;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
@@ -65,6 +66,7 @@ pub async fn import_users_with(
     task_input.secret_write_initiator = task_input
         .may_write_secret_attributes
         .then(|| ElectoralLogAdminContext::from_claims(&claims));
+    task_input.audit_actor = Some(audit::actor(&claims));
     task_input.privileges = import_users_privileges(|permissions| {
         authorization
             .authorize(&claims, input.tenant_id.clone(), permissions)
@@ -196,6 +198,7 @@ pub async fn export_users_with(
                     },
                     document_id.clone(),
                     task_execution.clone(),
+                    audit::actor(&claims),
                 )
                 .await
         }

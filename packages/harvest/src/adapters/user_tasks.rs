@@ -12,6 +12,7 @@ use sequent_core::types::permissions::Permissions;
 use serde_json::Value;
 use std::sync::Arc;
 use uuid::Uuid;
+use windmill::services::audit_log::AuditActor;
 use windmill::services::celery_app::try_get_celery_app;
 use windmill::services::electoral_log::{
     post_voter_secret_attribute_audit, ElectoralLogAdminContext,
@@ -112,12 +113,14 @@ impl UserTaskDispatch for CeleryUserTaskDispatch {
         input: ExportBody,
         document_id: String,
         task: Option<TasksExecution>,
+        actor: AuditActor,
     ) -> Result<(), UserTaskSendFailure> {
         connection
             .send_task(export_users::export_users::new(
                 input,
                 document_id,
                 task,
+                Some(actor),
             ))
             .await
             .map(|_| ())

@@ -35,7 +35,11 @@ class PlanTests(unittest.TestCase):
                 plan = self.plan(f"packages/{package}/src/lib.rs")
                 job = next(row for row in plan["rust"] if row["service"] == package)
                 self.assertIn("--release", job["extra"])
-                check = next(check for check in self.model.checks if check.id == f"cargo-test:{package}")
+                check = next(
+                    check
+                    for check in self.model.checks
+                    if check.id == f"cargo-test:{package}"
+                )
                 self.assertIn("--release", check.command)
 
     def test_docs_change_does_not_compile_application_code(self):

@@ -960,6 +960,24 @@
         "attributes": {}
       },
       {
+        "id": "5d0c7e0b-6a57-4f3e-9a1e-2c4b8f6d3a91",
+        "name": "tenant-logs-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "b132f94a-7507-4e18-81c2-078fb6323088",
+        "name": "tenant-logs-export",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "14d7e770-5841-4de9-949b-54597f986c2b",
         "name": "electoral-log-audit",
         "description": "",
@@ -2168,7 +2186,7 @@
       {
         "id": "cf8c266f-056b-45e9-a395-56c1a3fafce0",
         "name": "sign-key-ceremony",
-        "description": "Sign: confirm a key share",
+        "description": "Sign: confirm custody",
         "composite": false,
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
@@ -2177,7 +2195,7 @@
       {
         "id": "9f64321f-820e-4d9f-8de3-098cab9ae196",
         "name": "sign-tally-key",
-        "description": "Sign: contribute a key share",
+        "description": "Sign: authorize tally custody",
         "composite": false,
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
@@ -2652,6 +2670,7 @@
         "election-event-approvals-tab",
         "candidate-delete",
         "logs-read",
+        "tenant-logs-export",
         "electoral-log-audit",
         "electoral-log-console-read",
         "electoral-log-console-query",
@@ -2668,6 +2687,7 @@
         "election-event-publish-tab",
         "voter-write",
         "settings-menu",
+        "tenant-logs-read",
         "role-assign",
         "voting-channel-read",
         "tally-sheet-review",
@@ -5090,6 +5110,7 @@
   "eventsEnabled": true,
   "eventsExpiration": 15552000,
   "eventsListeners": [
+    "custom-event-listener",
     "jboss-logging"
   ],
   "enabledEventTypes": [
@@ -5173,8 +5194,8 @@
     "GRANT_CONSENT_ERROR",
     "IDENTITY_PROVIDER_FIRST_LOGIN_ERROR"
   ],
-  "adminEventsEnabled": false,
-  "adminEventsDetailsEnabled": false,
+  "adminEventsEnabled": true,
+  "adminEventsDetailsEnabled": true,
   "identityProviders": [],
   "identityProviderMappers": [],
   "components": {

@@ -155,6 +155,49 @@ class RunSafety(unittest.TestCase):
             check=False,
         )
 
+    def run_server_custody_script(self, **environment):
+        script = self.root / "scripts/e2e/run-server-custody.sh"
+        shutil.copyfile(ROOT / "scripts/e2e/run-server-custody.sh", script)
+        script.chmod(0o755)
+        module = self.root / "scripts/dev/mode/checkout.py"
+        module.parent.mkdir(parents=True)
+        shutil.copyfile(ROOT / "scripts/dev/mode/checkout.py", module)
+        (self.root / ".devcontainer/.env").write_text("# synthetic checkout\n")
+        dist = self.root / "packages/admin-portal/dist"
+        (dist / "wbraid-trustee").mkdir(parents=True)
+        (dist / "index.html").touch()
+        (dist / "wbraid-trustee/index_bg.wasm").touch()
+        return subprocess.run(
+            [str(script), "--skip-images", "--skip-build", "--skip-ui-build"],
+            env={**self.env, **environment},
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+
+    def test_server_custody_collision_preserves_existing_project(self):
+        result = self.run_server_custody_script(
+            STEP_E2E_PROJECT="custody-collision-" + self.root.name.lower(),
+            FAKE_DOCKER_MODE="collision-container",
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("already", result.stderr)
+        self.assertEqual(self.compose_calls("up"), [])
+        self.assertEqual(self.compose_calls("down"), [])
+
+    def test_server_custody_failed_journey_cleans_owned_controller_and_backend(self):
+        result = self.run_server_custody_script(
+            STEP_E2E_PROJECT="custody-failure-" + self.root.name.lower(),
+            FAKE_DOCKER_MODE="journeys-failure",
+        )
+        self.assertEqual(result.returncode, 7, result.stderr)
+        self.assertEqual(len(self.compose_calls("down")), 1)
+        stops = [call for call in self.calls() if call[0] == "stop"]
+        self.assertEqual(len(stops), 1)
+        self.assertTrue(stops[0][1].endswith("-server-custody"))
+        self.assertFalse(list((self.root / ".cache/backend-e2e").glob("*/.owned-*")))
+
     def test_browser_collision_and_stale_marker_preserve_existing_project(self):
         output = self.root / "prior-browser-output"
         output.mkdir()

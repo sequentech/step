@@ -61,6 +61,11 @@ CREATE TABLE IF NOT EXISTS electoral_log_messages (
     ballot_id TEXT,
     UNIQUE (board_name, delivery_id)
 );
+-- The signed statement's event type (USER, SYSTEM) and log type (INFO, ERROR),
+-- copied out of `message` so that lists can filter by them. They are not part of
+-- a record's commitment.
+ALTER TABLE electoral_log_messages ADD COLUMN IF NOT EXISTS event_type TEXT;
+ALTER TABLE electoral_log_messages ADD COLUMN IF NOT EXISTS log_type TEXT;
 CREATE INDEX IF NOT EXISTS electoral_log_board_cursor ON electoral_log_messages (board_name, id);
 CREATE INDEX IF NOT EXISTS electoral_log_cast_vote ON electoral_log_messages (board_name, statement_kind, election_id, id);
 CREATE INDEX IF NOT EXISTS electoral_log_voter ON electoral_log_messages (board_name, user_id, ballot_id, id);

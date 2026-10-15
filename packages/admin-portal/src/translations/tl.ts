@@ -202,10 +202,183 @@ const tagalogTranslation: TranslationType = {
                 },
             },
         },
+        tenantLogs: {
+            explanation: {
+                action: "Aksyon: {{action}}",
+                outcome: {
+                    succeeded: "Tinanggap (HTTP {{status}})",
+                    denied: "Tinanggihan (HTTP {{status}})",
+                    failed: "Nabigo (HTTP {{status}})",
+                },
+                by: "Hiniling ni {{username}} ({{userId}})",
+                detail: "{{name}}: {{value}}",
+                board: "Log: {{board}}",
+                publicKey: "Pampublikong susi ng log: {{key}}",
+            },
+        },
         logsScreen: {
             noPermissions: "Wala kang permiso upang ma-access ang mga log.",
             title: "Mga Log",
-            subtitle: "Pangkalahatang mga log ng pangunahing at IAM na database",
+            subtitle:
+                "Lahat ng ginawa sa kaganapan ng halalan na ito. Ang mga pag-sign in at mga pagbabago sa labas nito ay nasa Mga Setting > Mga Log.",
+            empty: "Walang nahanap na entry.",
+            tenant: {
+                subtitle:
+                    "Mga pag-sign in, mga account ng kawani at mga tungkulin, mga setting at mga kaganapan ng halalan ng organisasyong ito. Ang bawat kaganapan ng halalan ay may sariling log sa tab nitong Mga Log.",
+                noPermissions: "Wala kang permiso upang makita ang log na ito.",
+            },
+            entry: {
+                title: "Entry ng log {{id}}",
+                statementKind: "Uri ng Pahayag",
+                eventType: "Uri ng Kaganapan",
+                logType: "Uri ng Log",
+                when: "Kailan",
+                utc: "{{time}} UTC",
+                who: "Sino",
+                userId: "ID ng User {{id}}",
+                role: "Tungkulin {{role}}",
+                unknownAccount: "Hindi kilalang account (hindi itinatala ang pangalang itinipa)",
+                madeIn: "Ginawa sa",
+                changed: "Binago",
+                objectId: "ID {{id}}",
+                actionLabel: "Aksyon",
+                details: "Mga Detalye",
+                origin: {
+                    "hasura": "Admin Portal (sa pamamagitan ng Hasura)",
+                    "harvest": "Admin Portal (sa pamamagitan ng Harvest)",
+                    "windmill": "Admin Portal (isang gawain ng Windmill)",
+                    "keycloak-console": "Admin console ng Keycloak, sa labas ng Admin Portal",
+                    "service-account":
+                        "Service account ng Step, para sa pagbabagong ginawa sa Admin Portal",
+                },
+                action: {
+                    create: "Nilikha",
+                    update: "Na-update",
+                    delete: "Binura",
+                    import: "Na-import",
+                    export: "Na-export",
+                    archive: "Na-archive",
+                    unarchive: "Inalis sa archive",
+                    enable: "Pinagana",
+                    disable: "Hindi pinagana",
+                    reset_password: "Na-reset ang password",
+                    grant: "Ibinigay",
+                    revoke: "Binawi",
+                },
+                objectType: {
+                    tenant: "Mga setting ng tenant",
+                    tenant_log: "Log ng tenant",
+                    staff_account: "Account ng kawani",
+                    role: "Tungkulin",
+                    template: "Template",
+                    trustee: "Tagapangasiwa",
+                    election_type: "Uri ng halalan",
+                    election_event: "Kaganapan ng halalan",
+                    election: "Halalan",
+                    contest: "Paligsahan",
+                    candidate: "Kandidato",
+                    area: "Lugar",
+                },
+                values: {
+                    title: "Mga luma at bagong halaga",
+                    field: "Field",
+                    old: "Lumang halaga",
+                    new: "Bagong halaga",
+                    none: "(wala)",
+                    secret: "Binago. Hindi kailanman itinatala ang mga lihim na halaga.",
+                    yes: "Oo",
+                    no: "Hindi",
+                    sha: "SHA-256 {{hash}}",
+                },
+                field: {
+                    tenant: {
+                        slug: "Maikling pangalan",
+                        isActive: "Aktibo",
+                        logsTimezone: "Timezone para sa log ng tenant (Mga Wika)",
+                        languages: "Mga Wika",
+                        enabledLanguages: "Mga pinaganang wika (Mga Wika)",
+                        defaultLanguage: "Default na wika (Mga Wika)",
+                        languageDetection: "Pagtukoy ng wika (Mga Wika)",
+                        translations: "Mga salin (Lokalisasyon)",
+                        sms: "SMS",
+                        mail: "Email",
+                        gapiKey: "Google API key (Mga Integrasyon)",
+                        gapiEmail: "Email ng Google API (Mga Integrasyon)",
+                        helpLinks: "Mga link ng tulong (Itsura)",
+                        displayName: "Pangalan ng organisasyon (Itsura)",
+                        votingCountries: "Mga bansang hinarang sa pagboto (Mga Bansa)",
+                        enrollCountries: "Mga bansang hinarang sa pagpapatala (Mga Bansa)",
+                        logoUrl: "Logo (Itsura)",
+                        css: "Pasadyang CSS (Itsura)",
+                        votingChannels: "Mga Channel ng Pagboto",
+                        onlineVoting: "Online na pagboto (Mga Channel ng Pagboto)",
+                        kioskVoting: "Pagboto sa kiosk (Mga Channel ng Pagboto)",
+                        telephoneVoting: "Pagboto sa telepono (Mga Channel ng Pagboto)",
+                        earlyVoting: "Maagang pagboto (Mga Channel ng Pagboto)",
+                        paperVoting: "Pagboto sa papel (Mga Channel ng Pagboto)",
+                    },
+                },
+                signIn: {
+                    title: "Pag-sign in at seguridad ng account",
+                    event: "Kaganapan ng Keycloak",
+                    error: "Error",
+                    authentication: "Pagpapatunay",
+                    credential: "Kredensyal",
+                    failures: "Magkakasunod na pagkabigo",
+                    client: "Client",
+                    ipAddress: "IP address",
+                },
+                keycloak: {
+                    title: "Pagbabago sa Keycloak",
+                    account: "Account",
+                    operation: "Operasyon",
+                    appliesTo: "Nalalapat sa",
+                    resource: "Resource",
+                    newValue: "Bagong halaga",
+                    error: "Error",
+                },
+                deletedEvent: {
+                    title: "Ang log ng binurang kaganapan ng halalan",
+                    lastEntry: "Huling entry",
+                    stateHash: "Hash ng estado",
+                    logDatabase: "Database ng log",
+                    status: "Katayuan",
+                    retired:
+                        "Inalis sa pagkaka-load at iniingatan hanggang mabura ito ayon sa patakaran sa pagpapanatili",
+                    task: "Gawain",
+                },
+                exported: {
+                    title: "Pag-export",
+                    entries: "Mga entry",
+                    sha256: "SHA-256 ng file",
+                    document: "Dokumento",
+                    scope: {
+                        TENANT_LOG: "Ang buong log ng tenant",
+                        ACCOUNT: "Isang account",
+                        ACCOUNT_WITH_EVENTS:
+                            "Isang account, kasama ang mga entry nito sa bawat kaganapan ng halalan",
+                        ALL: "Ang buong kaganapan ng halalan",
+                        ELECTION: "Isang halalan",
+                        AREA: "Isang lugar",
+                    },
+                },
+                writer: {
+                    title: "Tagasulat ng log",
+                    release: "Release",
+                    lastEntry: "Huling entry na nai-post",
+                },
+                signatures: {
+                    title: "Log at mga lagda",
+                    log: "Log",
+                    tenantLog: "Log ng tenant",
+                    eventLog: "Log ng kaganapan ng halalan",
+                    signedBy: "Nilagdaan ni",
+                    adminKey: "Admin key ni {{name}}",
+                    systemOnly: "Ang system key lamang ng log",
+                    systemSignature: "Lagda ng system",
+                    publicKey: "Nai-publish na admin key",
+                },
+            },
             actions: {
                 csv: "I-export sa CSV",
                 pdf: "I-export sa PDF",
@@ -227,6 +400,28 @@ const tagalogTranslation: TranslationType = {
                 format: "Format",
                 csv: "CSV",
                 pdf: "PDF",
+                sql: "SQL",
+                scope: {
+                    label: "Saklaw",
+                    tenant: {
+                        TENANT_LOG: "Ang buong log ng tenant",
+                        ACCOUNT: "Isang account",
+                    },
+                    event: {
+                        ALL: "Ang buong kaganapan ng halalan",
+                        ELECTION: "Isang halalan",
+                        AREA: "Isang lugar",
+                        ACCOUNT: "Isang account",
+                    },
+                },
+                username: "Username",
+                election: "Halalan",
+                area: "Lugar",
+                withElectionEvents:
+                    "Isama ang mga entry ng account na ito sa bawat kaganapan ng halalan",
+                rowsNameLog:
+                    "Tinutukoy ng mga row mula sa mga kaganapan ng halalan ang kanilang log.",
+                recorded: "Ang mismong pag-export ay itinatala sa log na ito.",
                 zoneNote:
                     "Bawat hilera ay may oras sa UTC (ISO 8601) at sa {{abbr}}, kasama ang pangalan ng timezone. Kasama sa saklaw ng petsa ang magkabilang dulo, sa {{abbr}}.",
                 zoneNotePdf:
@@ -347,6 +542,7 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_BALLOT_PUBLICATION: "I-export ang Paglalathala ng Balota",
                 GENERATE_TRANSMISSION_REPORT: "Bumuo ng Ulat ng Paglilipat",
                 EXPORT_ACTIVITY_LOGS_REPORT: "I-export ang Ulat ng Mga Log ng Aktibidad",
+                EXPORT_TENANT_LOGS: "I-export ang Log ng Tenant",
                 GENERATE_REPORT: "Bumuo ng ulat",
                 EXPORT_TRUSTEES: "I-export ang mga Awtoridad",
                 EXPORT_APPLICATION: "I-export ang Mga Aplikasyon",
@@ -462,6 +658,7 @@ const tagalogTranslation: TranslationType = {
                 schedules: "NAISKEDYUL NA MGA KAGANAPAN",
                 trustees: "TAGAPANGALAGA",
                 BackupRestore: "Backup / Ibalik",
+                logs: "MGA LOG",
             },
         },
         trusteesSettingsScreen: {
@@ -1796,6 +1993,8 @@ const tagalogTranslation: TranslationType = {
                 "application-write": "I-edit ang Aplikasyon",
                 "approval-matrix-write": "I-edit ang Matrix ng Pag-apruba",
                 "logs-export": "I-export ang mga Log",
+                "tenant-logs-read": "Basahin ang Log ng Tenant",
+                "tenant-logs-export": "I-export ang Log ng Tenant",
                 "election-event-logs-columns": "Mga Kolum ng mga Log ng Kaganapang Halalan",
                 "election-events-logs-filters": "Mga Filter ng mga Log ng Kaganapang Halalan",
                 "election-event-scheduled-event-columns":
@@ -2360,6 +2559,41 @@ const tagalogTranslation: TranslationType = {
         },
         keysGeneration: {
             ...englishTranslation.translations.keysGeneration,
+            downloadStep: {
+                ...englishTranslation.translations.keysGeneration.downloadStep,
+                title: "I-download ang file ng kustodiya",
+                downloadButton: "I-download ang file ng kustodiya",
+                confirmdDialog: {
+                    ...englishTranslation.translations.keysGeneration.downloadStep.confirmdDialog,
+                    title: "I-save ang file ng kustodiya",
+                },
+            },
+            checkStep: {
+                ...englishTranslation.translations.keysGeneration.checkStep,
+                subtitle:
+                    "I-upload ang na-save na file ng kustodiya o isang nilagdaang patunay ng kustodiya:",
+                required: "Kailangang kumpirmahin ang kustodiya",
+                reconfirmButton: "Kumpirmahin muli ang kustodiya (opsyonal)",
+                reconfirmDescription:
+                    "Nakumpirma na ang iyong kustodiya. Opsyonal ang karagdagang pagkumpirmang ito.",
+            },
+            serverCustody: {
+                recoveryInstructions:
+                    "Kung na-import mo ang kaganapang ito sa halalan o nawala ang na-save na file, i-download dito ang kasalukuyang file ng kustodiya. I-save ito, pagkatapos ay i-upload sa ibaba.",
+                fileFormat: "Sinusuportahang format: JSON",
+                waiting: "Hinihintay ang trustee server na gumawa ng patunay ng pag-iingat…",
+                unavailable:
+                    "Hindi tumugon ang trustee server. Tiyaking tumatakbo ito, pagkatapos ay i-upload muli ang file ng kustodiya.",
+                failed: "Hindi nagawa ng trustee server ang patunay: {{error}}",
+                invalidReply: "Hindi kumpleto ang tugon ng trustee server. Subukan muli.",
+                cancelled: "Nakansela ang kahilingan. I-upload muli ang file upang magpatuloy.",
+                downloadInstructions:
+                    "I-download at itago ang file ng kustodiya na ito. I-upload ang parehong file sa susunod na hakbang at sa mga susunod na pagbibilang. Hindi ito backup ng iyong mga pribadong susi.",
+                uploadInstructions:
+                    "I-upload ang na-download na file ng kustodiya. Gagawa ng patunay ang iyong trustee server. Maaari ka ring mag-upload ng patunay mula sa offline o browser trustee.",
+                tallyInstructions:
+                    "I-upload ang file na itinago noong key ceremony. Gagawa ang trustee server ng bagong patunay para sa pagbibilang na ito. Tinatanggap din ang mga patunay mula sa offline at browser trustees.",
+            },
             configureStep: {
                 create: "Lumikha ng Seremonya ng Mga Susi",
                 name: "Pangalan ng Seremonya ng mga Susi",
@@ -2398,6 +2632,11 @@ const tagalogTranslation: TranslationType = {
             // Native custody instructions use the English fallback until translated.
             ceremonyStep: {
                 ...englishTranslation.translations.keysGeneration.ceremonyStep,
+                custodyConfirmed: "Nakumpirma na ang kustodiya",
+                custodyComplete: "Tapos na ang iyong bahagi. Wala ka nang kailangang gawin.",
+                waitingForTrustees:
+                    "Hinihintay ang ibang katiwala na makumpleto ang pagkumpirma ng kustodiya at anumang kinakailangang pag-apruba.",
+                moreActions: "Iba pang mga aksyon",
                 cancel: "Kanselahin ang Seremonya ng Mga Susi",
                 progressHeader: "Pag-andar ng Seremonya ng Mga Susi",
                 executionStatus: "Katayuan: {{status}}",
@@ -2581,6 +2820,8 @@ const tagalogTranslation: TranslationType = {
             logsTitle: "Mga Logs",
             resultsTitle: "Mga Resulta at Pakikilahok",
             generalInfoTitle: "Pangkalahatang Impormasyon",
+            sessionId: "ID ng sesyon ng pagbilang",
+            selectedQuorum: "Napiling quorum",
             trusteeTallyTitle: "Tagapagtiwala",
             trusteeTallySubTitle: "Katayuan ng pagkumpirma ng pag-iingat",
             ballotBoxes: {
@@ -2634,7 +2875,8 @@ const tagalogTranslation: TranslationType = {
             recountTallyCeremonyError: "Hindi nasimulan ang muling pagbibilang",
             recountTallyCeremonyOk: "Muling bilangin",
             trusteeTitle: "Proseso ng tagapagtiwala",
-            trusteeSubTitle: "I-upload ang iyong pampublikong file na custody-proof.json",
+            trusteeSubTitle:
+                "I-upload ang na-save na file ng kustodiya o isang nilagdaang patunay ng kustodiya:",
             invited: "Naanyayahan kang lumahok sa isang seremonya ng pagbibilang. Pakisuyo, ",
             click: "i-click ang aksyon ng pagbibilang",
             participate: "para lumahok.",
@@ -3275,6 +3517,7 @@ const tagalogTranslation: TranslationType = {
                 },
             },
             languages: {
+                logsTimezone: "Timezone para sa log ng tenant",
                 default: "Default na Wika",
             },
         },
@@ -4952,10 +5195,10 @@ const tagalogTranslation: TranslationType = {
                 record: "Itala ang aking patunay ng pag-iingat",
                 failed: "Hindi maitala ang iyong pinirmahang patunay ng pag-iingat: {{error}}",
                 dropAgain:
-                    "I-drop muli ang file ng iyong patunay ng pag-iingat para maitala ang iyong pinirmahang patunay ng pag-iingat. (custody-proof.json)",
+                    "I-drop muli ang file ng iyong patunay ng pag-iingat para maitala ang iyong pinirmahang patunay ng pag-iingat. (signed-custody-proof.json)",
                 redo: "Naiambag ang iyong patunay ng pag-iingat nang walang pirma mo, na kailangan na ngayon ng halalang ito. Iambag itong muli at pirmahan.",
                 notTaken:
-                    "Hindi na tinatanggap ng seremonya ang patunay ng pag-iingat na ito. I-drop muli ang file ng iyong patunay ng pag-iingat. (custody-proof.json)",
+                    "Hindi na tinatanggap ng seremonya ang patunay ng pag-iingat na ito. I-drop muli ang file ng iyong patunay ng pag-iingat. (signed-custody-proof.json)",
             },
         },
         lifecycle: {

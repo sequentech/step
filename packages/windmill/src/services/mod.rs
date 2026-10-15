@@ -4,6 +4,9 @@
 
 pub mod application;
 pub mod approval_matrix;
+pub mod audit_log;
+pub mod audit_log_export;
+pub mod audit_log_writer;
 pub mod ballot_box;
 pub mod ballot_box_key;
 pub mod ballot_box_reads;
@@ -79,15 +82,18 @@ pub mod sql_utils;
 pub mod support_materials;
 pub mod tally_sheet_import;
 pub mod tally_sheets;
+pub mod task_audit;
 pub mod task_queues;
 pub mod tasks_execution;
 pub mod tasks_semaphore;
 pub mod temp_path;
+pub mod tenant_log;
 pub mod time_zone_links;
 pub mod time_zones;
 pub mod to_result;
 pub mod transmission;
 pub mod trustee_boards;
+pub mod trustee_updates;
 pub mod users;
 pub mod vault;
 pub mod voter_secret_attributes;

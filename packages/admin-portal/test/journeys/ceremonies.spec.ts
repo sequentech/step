@@ -660,19 +660,19 @@ test.describe("manual native trustee ceremony", () => {
             await page.getByRole("button", {name: "Next", exact: true}).click()
             const [download] = await Promise.all([
                 page.waitForEvent("download"),
-                page.getByRole("button", {name: "Download Custody Request", exact: true}).click(),
+                page.getByRole("button", {name: "Download Custody File", exact: true}).click(),
             ])
-            expect(download.suggestedFilename()).toBe("custody-request.json")
+            expect(download.suggestedFilename()).toBe("Alice-custody.json")
             const downloadPath = await download.path()
             if (!downloadPath) throw new Error("Custody request download is missing")
             expect(await readFile(downloadPath, "utf8")).toBe(request)
             await page.getByRole("button", {name: "Next", exact: true}).click()
             const dialog = page.getByRole("dialog")
-            const confirm = dialog.getByRole("button", {name: "Confirm Backups and Continue"})
+            const confirm = dialog.getByRole("button", {name: "Confirm Saved Copies and Continue"})
             await expect(confirm).toBeDisabled()
-            await dialog.getByRole("checkbox", {name: "First backup secured"}).check()
+            await dialog.getByRole("checkbox", {name: "First copy saved"}).check()
             await expect(confirm).toBeDisabled()
-            await dialog.getByRole("checkbox", {name: "Second backup secured"}).check()
+            await dialog.getByRole("checkbox", {name: "Second copy saved"}).check()
             await confirm.click()
             await expect(page.getByRole("heading", {name: "Confirm Trustee Custody"})).toBeVisible()
             const upload = page.locator('input[type="file"]')
@@ -681,7 +681,9 @@ test.describe("manual native trustee ceremony", () => {
                 mimeType: "application/json",
                 buffer: Buffer.from("wrong trustee proof"),
             })
-            await expect(page.getByText("Invalid custody proof, please try again")).toBeVisible()
+            await expect(
+                page.getByText("Invalid signed custody proof, please try again")
+            ).toBeVisible()
             await expect(page.getByRole("button", {name: "Next", exact: true})).toBeDisabled()
             await upload.setInputFiles({
                 name: "custody-proof.json",
@@ -705,7 +707,13 @@ test.describe("manual native trustee ceremony", () => {
             await page.clock.runFor(101)
             await expect(page.getByText("Status: SUCCESS", {exact: true})).toBeVisible()
             await expect(page.getByRole("button", {name: "Next", exact: true})).toHaveCount(0)
-            await expect(page.getByRole("button", {name: "Verify Custody Proof"})).toBeVisible()
+            await expect(
+                page.getByText("Your part is complete. No further action is required from you.")
+            ).toBeVisible()
+            await page.getByRole("button", {name: "More actions", exact: true}).click()
+            await expect(
+                page.getByRole("menuitem", {name: "Reconfirm custody (optional)", exact: true})
+            ).toBeVisible()
         })
     }
 })

@@ -377,12 +377,15 @@ test("confirms transmission send and regeneration, then downloads its generated 
     expect(portal.graphql.callsTo("generate_transmission_report")[0].headers["x-hasura-role"]).toBe(
         "transmission-report-generate"
     )
-    expect(
-        portal.graphql
-            .callsTo("FetchDocument")
-            .filter((call) => call.variables.documentId === REPORT_DOCUMENT_ID)
-            .map(({variables}) => variables)
-    ).toEqual([{electionEventId: EVENT_ID, documentId: REPORT_DOCUMENT_ID}])
+    // Reading the document metadata can refresh its presigned URL. Every read
+    // must retain the selected scope; the report fixture requires one download.
+    const documentFetches = portal.graphql
+        .callsTo("FetchDocument")
+        .filter((call) => call.variables.documentId === REPORT_DOCUMENT_ID)
+    expect(documentFetches.length).toBeGreaterThan(0)
+    for (const {variables} of documentFetches) {
+        expect(variables).toEqual({electionEventId: EVENT_ID, documentId: REPORT_DOCUMENT_ID})
+    }
 })
 
 test("uploads signature bytes and signs the selected area with the entered password", async ({
