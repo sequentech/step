@@ -429,6 +429,19 @@ fn changed_workbook(
 ) -> Vec<u8> {
     let mut sheets = read_xlsx(bytes).unwrap().sheets().to_vec();
     change(&mut sheets);
+    for sheet in &mut sheets {
+        if !sheet.rows.is_empty() {
+            let mut headers = Vec::new();
+            for row in &sheet.rows {
+                for (name, _) in &row.cells {
+                    if !headers.contains(name) {
+                        headers.push(name.clone());
+                    }
+                }
+            }
+            sheet.headers = headers;
+        }
+    }
     write_xlsx(&Workbook::new(sheets).unwrap()).unwrap()
 }
 fn bound_options(sql: &[u8], xlsx: &[u8]) -> HistoricalOptions {
@@ -959,15 +972,12 @@ fn schedules_require_real_dates_aliases_and_an_explicit_bounded_offset() {
     });
     refused_code(&sql, &alias, &reviewed(), Code::DanglingReference);
     let blank = changed_workbook(&xlsx, |s| {
-        set(
-            &mut s
-                .iter_mut()
-                .find(|s| s.key == "scheduledevents")
-                .unwrap()
-                .rows[0],
-            "date",
-            Value::Null,
-        )
+        s.iter_mut()
+            .find(|s| s.key == "scheduledevents")
+            .unwrap()
+            .rows[0]
+            .cells
+            .retain(|(column, _)| column != "date");
     });
     refused_code(&sql, &blank, &reviewed(), Code::MissingField);
     let no_sheet =
@@ -1047,7 +1057,7 @@ fn actual_excel_date_cells_preserve_the_reviewed_instant() {
     assert_eq!(dates[&2], "2027-01-01T10:00:00+08:00");
     assert!(dates[&3].ends_with("12:00:00+08:00"));
     assert_eq!(dates.len(), 2);
-    let broken = rewrite_zip(&xlsx, "xl/worksheets/sheet5.xml", b"<broken>");
+    let broken = rewrite_zip(&xlsx, "xl/worksheets/sheet5.xml", br#"<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="n"><v>not-a-number</v></c></row></sheetData></worksheet>"#);
     assert_eq!(
         historical_dates(&broken, None).unwrap_err().code,
         Code::Unreadable

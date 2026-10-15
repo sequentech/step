@@ -253,3 +253,45 @@ it("waits for local asynchronous validation and never accepts a rejected result"
     expect(screen.getByRole("button", {name: "Accept reviewed package and upload"})).toBeDisabled()
     expect(accepted).not.toHaveBeenCalled()
 })
+
+it("passes only the validated ZIP and its actual SHA-256 after explicit acceptance", async () => {
+    const {webcrypto, createHash} = require("node:crypto")
+    const original = Object.getOwnPropertyDescriptor(globalThis.crypto, "subtle")
+    Object.defineProperty(globalThis.crypto, "subtle", {
+        value: webcrypto.subtle,
+        configurable: true,
+    })
+    try {
+        const accepted = jest.fn(async () => {})
+        const bytes = [80, 75, 3, 4]
+        mockBuild.mockResolvedValue({
+            summary: {sourceRows: {}, generatedRows: {}, excludedVoters: 1, opaqueBinaryValues: 0},
+            output: {archive: {name: "reviewed.zip", bytes}, report: {problems: []}},
+        })
+        render(
+            <HistoricalSourcePanel
+                api={{buildFromHistorical: mockBuild}}
+                disabled={false}
+                onPrepare={jest.fn()}
+                onAccepted={accepted}
+            />
+        )
+        inputs()
+        await reviewedDecisions()
+        fireEvent.click(screen.getByRole("button", {name: "Convert and validate locally"}))
+        const accept = await screen.findByRole("button", {
+            name: "Accept reviewed package and upload",
+        })
+        expect(accepted).not.toHaveBeenCalled()
+        fireEvent.click(accept)
+        await waitFor(() => expect(accepted).toHaveBeenCalledTimes(1))
+        const [file, digest] = accepted.mock.calls[0] as unknown as [File, string]
+        expect(file.name).toBe("reviewed.zip")
+        expect(file.type).toBe("application/zip")
+        expect(file.size).toBe(bytes.length)
+        expect(digest).toBe(createHash("sha256").update(Buffer.from(bytes)).digest("hex"))
+    } finally {
+        if (original) Object.defineProperty(globalThis.crypto, "subtle", original)
+        else Reflect.deleteProperty(globalThis.crypto, "subtle")
+    }
+})
