@@ -26,3 +26,4 @@ pub mod templates;
 pub mod voter_channel;
 
 pub mod to_map;
+pub mod voter_import;

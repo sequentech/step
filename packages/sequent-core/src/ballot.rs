@@ -1346,9 +1346,21 @@ pub struct ElectionEventPresentation {
     #[borsh(skip)]
     #[serde(default)]
     pub ballot_tracker_policy: Option<BallotTrackerPolicy>,
+    /// File-byte verification is enforced by the import worker. Skipped by
+    /// Borsh to preserve existing published ballot-style hashes.
+    #[borsh(skip)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub file_integrity_policy:
+        Option<crate::types::voter_import::FileIntegrityPolicy>,
 }
 
 impl ElectionEventPresentation {
+    pub fn file_integrity_policy(
+        &self,
+    ) -> crate::types::voter_import::FileIntegrityPolicy {
+        self.file_integrity_policy.unwrap_or_default()
+    }
+
     /// `SEAL_AT_CLOSE` only when set; unset means `DO_NOT_SEAL`.
     pub fn ballot_box_seal_policy(&self) -> BallotBoxSealPolicy {
         match self.ballot_box_seal_policy {

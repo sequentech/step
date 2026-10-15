@@ -56,6 +56,13 @@ fn the_audit_kinds_are_appended() {
             68,
             "LogWriterStopped",
         ),
+        (AuditStatementKind::VotersImported, 5, 69, "VotersImported"),
+        (
+            AuditStatementKind::ReadinessVerified,
+            6,
+            70,
+            "ReadinessVerified",
+        ),
     ];
     for (kind, kind_tag, type_tag, name) in expected {
         assert_eq!(borsh::to_vec(&kind).unwrap(), vec![kind_tag]);
@@ -68,7 +75,7 @@ fn the_audit_kinds_are_appended() {
         assert_eq!(name.parse::<AuditStatementKind>().unwrap(), kind);
     }
     assert!("CastVote".parse::<AuditStatementKind>().is_err());
-    assert!(borsh::from_slice::<StatementType>(&[69]).is_err());
+    assert!(borsh::from_slice::<StatementType>(&[71]).is_err());
 }
 
 #[test]
@@ -126,4 +133,25 @@ fn a_keycloak_event_with_a_plain_text_keeps_its_first_word() {
     let signed_in = keycloak_head("LOGIN", "null");
     assert_eq!(signed_in.log_type, StatementLogType::INFO);
     assert_eq!(signed_in.description, "LOGIN");
+}
+
+/// Both readiness kinds reuse the existing signed audit body rather than
+/// changing the encoding of historical entries.
+#[test]
+fn readiness_evidence_uses_the_existing_audit_envelope() {
+    for kind in [
+        AuditStatementKind::VotersImported,
+        AuditStatementKind::ReadinessVerified,
+    ] {
+        let body = StatementBody::Audit(entry(kind));
+        let bytes = borsh::to_vec(&body).unwrap();
+        assert_eq!(bytes[0], 44);
+        let head = StatementHead::from_body(EventIdString("event".to_string()), &body);
+        assert_eq!(head.kind.to_string(), kind.to_string());
+        let StatementBody::Audit(decoded) = borsh::from_slice::<StatementBody>(&bytes).unwrap()
+        else {
+            panic!("not an audit entry");
+        };
+        assert_eq!(decoded, entry(kind));
+    }
 }

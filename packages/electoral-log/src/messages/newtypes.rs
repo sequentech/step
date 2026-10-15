@@ -736,6 +736,10 @@ pub enum AuditStatementKind {
     LogWriterStarted,
     /// The writer of audit entries stopped.
     LogWriterStopped,
+    /// Completed certified voter registry import and its counts per Post.
+    VotersImported,
+    /// A successful comparison of a tested event against the official event.
+    ReadinessVerified,
 }
 
 impl AuditStatementKind {
@@ -746,6 +750,8 @@ impl AuditStatementKind {
             Self::LogsExported => StatementType::LogsExported,
             Self::LogWriterStarted => StatementType::LogWriterStarted,
             Self::LogWriterStopped => StatementType::LogWriterStopped,
+            Self::VotersImported => StatementType::VotersImported,
+            Self::ReadinessVerified => StatementType::ReadinessVerified,
         }
     }
 }

@@ -891,6 +891,9 @@ pub enum StatementType {
     LogsExported,
     LogWriterStarted,
     LogWriterStopped,
+    // Append only: signed historical statements encode this variant index.
+    VotersImported,
+    ReadinessVerified,
 }
 
 #[derive(

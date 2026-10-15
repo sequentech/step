@@ -13,7 +13,7 @@ use windmill::tasks::migrate_realm_permissions::{
 /// them, as Windmill's beat does when it starts. Reads the tenants from the
 /// Hasura database (`HASURA_DB__*`) and signs in to Keycloak with the admin
 /// client the environment names (`KEYCLOAK_URL`, `KEYCLOAK_ADMIN_CLIENT_ID`,
-/// `KEYCLOAK_ADMIN_CLIENT_SECRET`). Groups get only the messaging roles the
+/// `KEYCLOAK_ADMIN_CLIENT_SECRET`). Groups receive the release roles the
 /// realm template gives them.
 #[derive(Args)]
 #[command(about = "Add this release's permissions to every tenant realm")]

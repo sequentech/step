@@ -64,6 +64,13 @@ class ComelecPresetTest(unittest.TestCase):
 
 
 class ApplyTest(unittest.TestCase):
+    def test_certified_import_policy_is_applied_and_preserves_explicit_configuration(self):
+        self.assertEqual(PRESET["file_integrity_policy"], "REQUIRED_SHA256")
+        event = lifecycle_preset.apply_event({}, PRESET)
+        self.assertEqual(event["presentation"]["file_integrity_policy"], "REQUIRED_SHA256")
+        explicit = lifecycle_preset.apply_event({"presentation": {"file_integrity_policy": "OPTIONAL"}}, PRESET)
+        self.assertEqual(explicit["presentation"]["file_integrity_policy"], "OPTIONAL")
+
     def test_the_event_gets_the_preset_unless_it_has_its_own(self):
         event = lifecycle_preset.apply_event({"presentation": {"locked_down": "not-locked-down"}}, PRESET)
         self.assertEqual(event["presentation"]["timezones"], PRESET["timezones"])

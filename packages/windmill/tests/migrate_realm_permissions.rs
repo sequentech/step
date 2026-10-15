@@ -27,11 +27,11 @@ use uuid::Uuid;
 use windmill::postgres::tenant::get_tenant_ids;
 use windmill::tasks::migrate_realm_permissions::{
     migrate_realm_permissions, migrate_realms, migrated_roles, retry_countdown, GroupGrant,
-    RealmMigration, RunOnce, MESSAGING_GROUP_GRANTS,
+    RealmMigration, RunOnce, TEMPLATE_GROUP_GRANTS,
 };
 
 /// The English labels Users and Roles shows for the migrated permissions
-/// (signing and messaging), read from the admin portal's translations: the
+/// (signing, messaging and readiness), read from the admin portal's translations: the
 /// migration gives each role its label as its description.
 fn migrated_labels_in_the_portal() -> BTreeMap<String, String> {
     include_str!("../../admin-portal/src/translations/en.ts")
@@ -45,7 +45,8 @@ fn migrated_labels_in_the_portal() -> BTreeMap<String, String> {
                 && (key == "election-event-signatures-tab"
                     || key.starts_with("signing-")
                     || key.starts_with("sign-")
-                    || key.starts_with("messaging-"));
+                    || key.starts_with("messaging-")
+                    || key == "readiness-check");
             let value = value.trim_end_matches(',');
             (migrated && value.starts_with('"'))
                 .then(|| (key.to_string(), value.trim_matches('"').to_string()))
@@ -54,9 +55,9 @@ fn migrated_labels_in_the_portal() -> BTreeMap<String, String> {
 }
 
 #[test]
-fn the_migration_adds_the_signing_and_messaging_permissions_with_their_labels() {
+fn the_migration_adds_release_permissions_with_their_labels() {
     let expected = migrated_labels_in_the_portal();
-    assert_eq!(expected.len(), 25, "{expected:?}");
+    assert_eq!(expected.len(), 26, "{expected:?}");
     let roles: BTreeMap<String, String> = migrated_roles()
         .into_iter()
         .map(|role| (role.name.unwrap(), role.description.unwrap()))
@@ -87,6 +88,7 @@ fn groups_already_granted(realm: &str) -> Vec<Exchange> {
         "messaging-account-write",
         "messaging-config-write",
         "messaging-config-read",
+        "readiness-check",
     ];
     vec![
         Exchange::json(
@@ -143,8 +145,8 @@ fn groups_already_granted(realm: &str) -> Vec<Exchange> {
 async fn every_tenant_realm_gets_the_roles_it_lacks() {
     let tenants = ["tenant-one".to_string(), "tenant-two".to_string()];
     let mut exchanges = vec![
-        import("tenant-tenant-one", 200, json!({"added": 25, "skipped": 0})),
-        import("tenant-tenant-two", 200, json!({"added": 0, "skipped": 25})),
+        import("tenant-tenant-one", 200, json!({"added": 26, "skipped": 0})),
+        import("tenant-tenant-two", 200, json!({"added": 0, "skipped": 26})),
     ];
     exchanges.extend(groups_already_granted("tenant-tenant-one"));
     exchanges.extend(groups_already_granted("tenant-tenant-two"));
@@ -158,7 +160,7 @@ async fn every_tenant_realm_gets_the_roles_it_lacks() {
             RealmMigration {
                 realm: "tenant-tenant-one".to_string(),
                 roles: PartialImportSummary {
-                    added: 25,
+                    added: 26,
                     ..Default::default()
                 },
                 granted: vec![],
@@ -166,7 +168,7 @@ async fn every_tenant_realm_gets_the_roles_it_lacks() {
             RealmMigration {
                 realm: "tenant-tenant-two".to_string(),
                 roles: PartialImportSummary {
-                    skipped: 25,
+                    skipped: 26,
                     ..Default::default()
                 },
                 granted: vec![],
@@ -198,7 +200,7 @@ async fn every_tenant_realm_gets_the_roles_it_lacks() {
 /// The groups get what the realm template gives new realms; any group that
 /// manages messaging accounts or configurations can read it too.
 #[tokio::test]
-async fn existing_groups_get_the_messaging_roles_the_template_gives_them() {
+async fn existing_groups_get_the_release_roles_the_template_gives_them() {
     let realm = "tenant-upgraded";
     let role = |name: &str| {
         Exchange::json(
@@ -252,6 +254,7 @@ async fn existing_groups_get_the_messaging_roles_the_template_gives_them() {
         role("messaging-account-write"),
         role("messaging-config-write"),
         role("messaging-config-read"),
+        role("readiness-check"),
         Exchange::json(
             "POST",
             &format!("/admin/realms/{realm}/groups/admin-id/role-mappings/realm"),
@@ -285,6 +288,7 @@ async fn existing_groups_get_the_messaging_roles_the_template_gives_them() {
                     "messaging-account-write".to_string(),
                     "messaging-config-write".to_string(),
                     "messaging-config-read".to_string(),
+                    "readiness-check".to_string(),
                 ],
             },
             GroupGrant {
@@ -315,7 +319,8 @@ async fn existing_groups_get_the_messaging_roles_the_template_gives_them() {
                 mapping(&[
                     "messaging-account-write",
                     "messaging-config-write",
-                    "messaging-config-read"
+                    "messaging-config-read",
+                    "readiness-check"
                 ]),
             ),
             (
@@ -360,7 +365,7 @@ fn the_granted_roles_are_the_realm_templates() {
         ),
     ] {
         let realm: Value = serde_json::from_str(text).unwrap();
-        for (group, roles) in MESSAGING_GROUP_GRANTS {
+        for (group, roles) in TEMPLATE_GROUP_GRANTS {
             let held: Vec<String> = realm["groups"]
                 .as_array()
                 .unwrap()
@@ -371,7 +376,7 @@ fn the_granted_roles_are_the_realm_templates() {
                 .unwrap()
                 .iter()
                 .filter_map(|role| role.as_str())
-                .filter(|role| role.starts_with("messaging-"))
+                .filter(|role| role.starts_with("messaging-") || *role == "readiness-check")
                 .map(str::to_string)
                 .collect();
             let mut granted: Vec<String> = roles.iter().map(|r| r.to_string()).collect();
@@ -388,7 +393,7 @@ async fn a_realm_that_fails_does_not_stop_the_others_and_fails_the_run() {
     let tenants = ["missing".to_string(), "present".to_string()];
     let mut exchanges = vec![
         import("tenant-missing", 404, json!({"error": "Realm not found."})),
-        import("tenant-present", 200, json!({"added": 25})),
+        import("tenant-present", 200, json!({"added": 26})),
     ];
     exchanges.extend(groups_already_granted("tenant-present"));
     let peer = HttpServer::start(exchanges);
@@ -445,7 +450,7 @@ async fn the_realm_of_every_tenant_in_the_database_is_migrated() {
             .iter()
             .flat_map(|tenant| {
                 let realm = format!("tenant-{tenant}");
-                let mut exchanges = vec![import(&realm, 200, json!({"added": 25}))];
+                let mut exchanges = vec![import(&realm, 200, json!({"added": 26}))];
                 exchanges.extend(groups_already_granted(&realm));
                 exchanges
             })

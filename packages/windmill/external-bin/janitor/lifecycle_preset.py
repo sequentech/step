@@ -4,11 +4,12 @@
 """The client's lifecycle preset (``templates/<client>/lifecycle.json``): the
 event's timezones (configured list, primary, times in logs), its lifecycle
 policies (initialization scope, what an unsigned scheduled close does), its
-ballot box seal policy and each Post's timezone.
+ballot box seal and file integrity policies, and each Post's timezone.
 
 The event gets the preset's ``timezones``, ``lifecycle_policies`` and
-``ballot_box_seal_policy`` unless its presentation already has them; the Parameters sheet is applied after
-this, so it can still change either. An election gets its Post's zone when
+``ballot_box_seal_policy`` and ``file_integrity_policy`` unless its presentation
+already has them; the Parameters sheet is applied after this, so it can still
+change them. An election gets its Post's zone when
 the Posts sheet gave it none. The Post of an election is the part of its
 alias before `` - `` (``DUBAI PCG - General Election`` and
 ``DUBAI PCG - Test Voting`` are both ``DUBAI PCG``).
@@ -42,7 +43,7 @@ def apply_event(election_event, preset):
     """The event's presentation with the preset's timezones and policies,
     where it has none of its own."""
     presentation = election_event.setdefault("presentation", {})
-    for key in ("timezones", "lifecycle_policies", "ballot_box_seal_policy"):
+    for key in ("timezones", "lifecycle_policies", "ballot_box_seal_policy", "file_integrity_policy"):
         if presentation.get(key) is None and key in preset:
             presentation[key] = json.loads(json.dumps(preset[key]))
     return election_event
