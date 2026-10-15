@@ -28,12 +28,12 @@ async fn current_census_counts_unique_users_across_the_whole_realm_and_retains_i
         INSERT INTO user_entity VALUES ('ada', 'realm', NULL), ('bob', 'realm', NULL),
             ('charles', 'realm', NULL), ('service', 'realm', 'client'), ('outsider', 'other', NULL);").await.unwrap();
     for (user, area) in [
-        ("ada", "north-id"),
-        ("bob", "south-id"),
-        ("charles", "north-id"),
-        ("charles", "north-id"),
-        ("service", "north-id"),
-        ("outsider", "north-id"),
+        ("ada", "area-a-id"),
+        ("bob", "area-b-id"),
+        ("charles", "area-a-id"),
+        ("charles", "area-a-id"),
+        ("service", "area-a-id"),
+        ("outsider", "area-a-id"),
     ] {
         client
             .execute(
@@ -44,13 +44,13 @@ async fn current_census_counts_unique_users_across_the_whole_realm_and_retains_i
             .unwrap();
     }
     let names = [
-        ("north-id".into(), " North ".into()),
-        ("south-id".into(), "South".into()),
+        ("area-a-id".into(), " Area A ".into()),
+        ("area-b-id".into(), "Area B".into()),
     ]
     .into();
     assert_eq!(
         registry_counts(&client, "official", &names).await.unwrap(),
-        [("North".into(), 2), ("South".into(), 1)].into()
+        [("Area A".into(), 2), ("Area B".into(), 1)].into()
     );
     // A later additive import cannot masquerade as the whole certified file.
     client
@@ -59,20 +59,20 @@ async fn current_census_counts_unique_users_across_the_whole_realm_and_retains_i
         .unwrap();
     client
         .execute(
-            "INSERT INTO user_attribute VALUES ('delta', $1, 'south-id')",
+            "INSERT INTO user_attribute VALUES ('delta', $1, 'area-b-id')",
             &[&AREA_ID_ATTR_NAME],
         )
         .await
         .unwrap();
     assert_eq!(
         registry_counts(&client, "official", &names).await.unwrap(),
-        [("North".into(), 2), ("South".into(), 2)].into()
+        [("Area A".into(), 2), ("Area B".into(), 2)].into()
     );
     client.batch_execute("INSERT INTO user_entity VALUES ('unassigned', 'realm', NULL), ('unknown', 'realm', NULL), ('ambiguous', 'realm', NULL)").await.unwrap();
     for (user, area) in [
         ("unknown", "deleted-area"),
-        ("ambiguous", "north-id"),
-        ("ambiguous", "south-id"),
+        ("ambiguous", "area-a-id"),
+        ("ambiguous", "area-b-id"),
     ] {
         client
             .execute(
@@ -84,7 +84,7 @@ async fn current_census_counts_unique_users_across_the_whole_realm_and_retains_i
     }
     assert_eq!(
         registry_counts(&client, "official", &names).await.unwrap(),
-        [("".into(), 3), ("North".into(), 2), ("South".into(), 2)].into()
+        [("".into(), 3), ("Area A".into(), 2), ("Area B".into(), 2)].into()
     );
 }
 

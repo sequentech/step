@@ -100,7 +100,7 @@ async fn configuration(
             .iter()
             .map(serde_json::to_string)
             .collect::<std::result::Result<_, _>>()?,
-        posts: manifest
+        areas: manifest
             .content
             .ballot_designs
             .iter()

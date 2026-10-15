@@ -67,10 +67,10 @@ fn readiness_refuses_cross_tenant_and_either_events_missing_permission_labels_wi
             rows::event_of(&services.hasura, &official.tenant_id).await;
         let foreign = rows::event(&services.hasura).await;
         official
-            .labelled_election(&services.hasura, "official-post")
+            .labelled_election(&services.hasura, "official-area")
             .await;
         tested
-            .labelled_election(&services.hasura, "tested-post")
+            .labelled_election(&services.hasura, "tested-area")
             .await;
         let client = services.client().await;
         let operator = Claims::new(&official.tenant_id, "operator")
@@ -78,7 +78,7 @@ fn readiness_refuses_cross_tenant_and_either_events_missing_permission_labels_wi
         let before = audit_entries(&services, &official.tenant_id).await;
         let body =
             request(&official.election_event_id, &tested.election_event_id);
-        for labels in [&["official-post"][..], &["tested-post"][..]] {
+        for labels in [&["official-area"][..], &["tested-area"][..]] {
             let restricted = Claims::new(&official.tenant_id, "restricted")
                 .roles([Permissions::READINESS_CHECK])
                 .permission_labels(labels);
@@ -89,7 +89,7 @@ fn readiness_refuses_cross_tenant_and_either_events_missing_permission_labels_wi
             assert_eq!(status, Status::Forbidden);
         }
         let full =
-            operator.permission_labels(&["official-post", "tested-post"]);
+            operator.permission_labels(&["official-area", "tested-area"]);
         for body in [
             request(&official.election_event_id, &foreign.election_event_id),
             request(&foreign.election_event_id, &tested.election_event_id),

@@ -83,7 +83,7 @@ pub async fn record_voter_import(
             area_id: None,
             description: format!(
                 "Imported {} voters",
-                evidence.counts_by_post.values().sum::<u64>()
+                evidence.counts_by_area.values().sum::<u64>()
             ),
             details: details.clone(),
         },

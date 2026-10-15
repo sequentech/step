@@ -29,7 +29,8 @@ pub struct ConfigurationEvidence {
     /// Canonical verified certificate identities, independent of approval order.
     pub approvers: BTreeSet<String>,
     /// Stable area names from the signed ballot designs.
-    pub posts: BTreeSet<String>,
+    #[serde(alias = "posts")]
+    pub areas: BTreeSet<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -116,12 +117,12 @@ fn same_configuration(official: &EventEvidence, tested: &EventEvidence) -> bool 
             official.event_id != tested.event_id
                 && !left.external_id.is_empty()
                 && !left.approvers.is_empty()
-                && !left.posts.is_empty()
+                && !left.areas.is_empty()
                 && left.content_sha256.len() == 64
                 && left.external_id == right.external_id
                 && left.content_sha256 == right.content_sha256
                 && left.approvers == right.approvers
-                && left.posts == right.posts
+                && left.areas == right.areas
         }
         _ => false,
     }
@@ -133,11 +134,11 @@ fn certified_voters(event: &EventEvidence) -> bool {
             event.voter_log_delivered
                 && !event.voter_import_in_progress
                 && voters.is_certified()
-                && voters.counts_by_post == event.current_voter_counts
+                && voters.counts_by_area == event.current_voter_counts
                 && voters
-                    .counts_by_post
+                    .counts_by_area
                     .keys()
-                    .all(|post| configuration.posts.contains(post))
+                    .all(|area| configuration.areas.contains(area))
         }
         _ => false,
     }
@@ -151,7 +152,7 @@ pub fn evaluate(evidence: ReadinessEvidence, checked_at: String) -> ReadinessRep
         && match (&official.voters, &tested.voters) {
             (Some(left), Some(right)) => {
                 left.sha256.eq_ignore_ascii_case(&right.sha256)
-                    && left.counts_by_post == right.counts_by_post
+                    && left.counts_by_area == right.counts_by_area
             }
             _ => false,
         };
@@ -177,7 +178,7 @@ pub fn evaluate(evidence: ReadinessEvidence, checked_at: String) -> ReadinessRep
         (CheckKind::Configuration, same_configuration(official, tested),
             "Both events have the same signed content and verified approvers"),
         (CheckKind::CertifiedVoters, voters_match,
-            "Both events have the same certified file, full current registry counts per Post and signed import evidence"),
+            "Both events have the same certified file, full current registry counts per area and signed import evidence"),
         (CheckKind::OfficialZero, official_zero,
             "The official event has never opened voting and holds no ballots or tally sessions"),
         (CheckKind::Publication, publication_matches,
@@ -213,17 +214,17 @@ pub(crate) mod tests {
             "configuration": {
                 "external_id": "approved-2028", "revision": revision,
                 "content_sha256": "ab".repeat(32), "manifest_sha256": "cd".repeat(32),
-                "approvers": ["cert-a", "cert-b"], "posts": ["Madrid", "Riyadh"]
+                "approvers": ["cert-a", "cert-b"], "areas": ["Area A", "Area B"]
             },
             "voters": {
                 "import_id": format!("import-{id}"), "document_id": "document",
                 "file_name": "certified.csv", "sha256": "ef".repeat(32),
                 "declared_sha256": "ef".repeat(32),
-                "counts_by_post": {"Madrid": 3, "Riyadh": 2},
+                "counts_by_area": {"Area A": 3, "Area B": 2},
                 "imported_at": "2026-10-14T09:00:00Z"
             },
             "voter_log_delivered": true,
-            "current_voter_counts": {"Madrid": 3, "Riyadh": 2},
+            "current_voter_counts": {"Area A": 3, "Area B": 2},
             "voter_import_in_progress": false,
             "status": {},
             "elections": [{"election_id": format!("election-{id}"), "status": {}}],
@@ -245,6 +246,38 @@ pub(crate) mod tests {
             serde_json::from_value(value).unwrap(),
             "2026-10-14T10:00:00Z".into(),
         )
+    }
+
+    #[test]
+    fn legacy_readiness_evidence_reads_and_only_emits_neutral_area_names() {
+        let mut legacy = evidence();
+        for event in ["official", "tested"] {
+            let configuration = legacy[event]["configuration"].as_object_mut().unwrap();
+            let areas = configuration
+                .remove("areas")
+                .or_else(|| configuration.remove("posts"))
+                .unwrap();
+            configuration.insert("posts".into(), areas);
+            let voters = legacy[event]["voters"].as_object_mut().unwrap();
+            let counts = voters
+                .remove("counts_by_area")
+                .or_else(|| voters.remove("counts_by_post"))
+                .unwrap();
+            voters.insert("counts_by_post".into(), counts);
+        }
+        let report = check(legacy.clone());
+        assert!(report.passed);
+        let mut stored_report = serde_json::to_value(&report).unwrap();
+        stored_report["evidence"] = legacy;
+        let restored: ReadinessReport = serde_json::from_value(stored_report).unwrap();
+        let neutral = serde_json::to_value(&restored).unwrap();
+        for event in ["official", "tested"] {
+            let evidence = &neutral["evidence"][event];
+            assert!(evidence["configuration"].get("areas").is_some());
+            assert!(evidence["configuration"].get("posts").is_none());
+            assert!(evidence["voters"].get("counts_by_area").is_some());
+            assert!(evidence["voters"].get("counts_by_post").is_none());
+        }
     }
 
     #[test]
@@ -283,7 +316,7 @@ pub(crate) mod tests {
                 CheckKind::CertifiedVoters,
             ),
             (
-                "/tested/voters/counts_by_post/Madrid",
+                "/tested/voters/counts_by_area/Area A",
                 json!(4),
                 CheckKind::CertifiedVoters,
             ),
@@ -293,7 +326,7 @@ pub(crate) mod tests {
                 CheckKind::CertifiedVoters,
             ),
             (
-                "/official/current_voter_counts/Madrid",
+                "/official/current_voter_counts/Area A",
                 json!(4),
                 CheckKind::CertifiedVoters,
             ),

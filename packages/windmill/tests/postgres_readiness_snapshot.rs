@@ -38,7 +38,22 @@ use windmill::services::electoral_log_board::{
 use windmill::services::readiness::{snapshot, verify};
 
 fn signed_receipt(event: &str, receipt: &VotersImportedEvidence, key: &SigningKey) -> LogEntry {
+    receipt_with_counts_key(event, receipt, key, "counts_by_area")
+}
+
+fn receipt_with_counts_key(
+    event: &str,
+    receipt: &VotersImportedEvidence,
+    key: &SigningKey,
+    counts_key: &str,
+) -> LogEntry {
     let mut details = serde_json::to_value(receipt).unwrap();
+    let object = details.as_object_mut().unwrap();
+    let counts = object
+        .remove("counts_by_area")
+        .or_else(|| object.remove("counts_by_post"))
+        .unwrap();
+    object.insert(counts_key.into(), counts);
     details["actor"] = json!({"user_id":"admin-id", "username":"ada", "role":null});
     let message = Message::audit_message(
         EventIdString(event.into()),
@@ -232,7 +247,7 @@ async fn seal_tested_box(
         &built.manifest,
         built.hash,
         "General election",
-        "North",
+        "Area A",
         &SigningData::new(key.clone(), "ada", key.clone()),
     )
     .unwrap();
@@ -371,7 +386,7 @@ fn real_snapshot_requires_delivered_valid_receipt_and_current_full_census_withou
         .unwrap();
         tx.execute("INSERT INTO sequent_backend.election_event (id, tenant_id, encryption_protocol, status, bulletin_board_reference) VALUES ($1, $2, 'RSA256', '{}'::jsonb, $3)", &[&event, &tenant, &json!({"id": 1, "database_name": db.board, "is_archived": false})]).await.unwrap();
         tx.execute("INSERT INTO sequent_backend.election (id, tenant_id, election_event_id, status) VALUES ($1, $2, $3, '{}'::jsonb)", &[&election, &tenant, &event]).await.unwrap();
-        tx.execute("INSERT INTO sequent_backend.area (id, tenant_id, election_event_id, name) VALUES ($1, $2, $3, 'North')", &[&area, &tenant, &event]).await.unwrap();
+        tx.execute("INSERT INTO sequent_backend.area (id, tenant_id, election_event_id, name) VALUES ($1, $2, $3, 'Area A')", &[&area, &tenant, &event]).await.unwrap();
         tx.execute("INSERT INTO sequent_backend.tasks_execution (id, tenant_id, election_event_id, name, type, execution_status, executed_by_user) VALUES ($1, $2, $3, 'Import voters', 'IMPORT_USERS', 'IN_PROGRESS', 'ada')", &[&task, &tenant, &event]).await.unwrap();
         let tenant_id = tenant.to_string();
         let event_id = event.to_string();
@@ -398,12 +413,17 @@ fn real_snapshot_requires_delivered_valid_receipt_and_current_full_census_withou
                 file_name: "certified.csv".into(),
                 sha256: "ab".repeat(32),
                 declared_sha256: Some("ab".repeat(32)),
-                counts_by_post: [("North".into(), 2)].into(),
+                counts_by_area: [("Area A".into(), 2)].into(),
                 imported_at: "2026-10-14T10:00:00Z".into(),
             },
         )
         .await
         .unwrap();
+        // Retained outbox rows written before the neutral rename also remain readable.
+        tx.execute(
+            "UPDATE sequent_backend.audit_log_outbox SET details = (details - 'counts_by_area') || jsonb_build_object('counts_by_post', details->'counts_by_area') WHERE id = $1",
+            &[&Uuid::parse_str(&receipt.import_id).unwrap()],
+        ).await.unwrap();
         complete_import_task(&tx, &tenant_id, &task.to_string())
             .await
             .unwrap();
@@ -413,18 +433,35 @@ fn real_snapshot_requires_delivered_valid_receipt_and_current_full_census_withou
                 .unwrap()
                 .voter_log_delivered
         );
+        let legacy_signed = receipt_with_counts_key(&event_id, &receipt, &key, "counts_by_post");
+        let original_signed_bytes = legacy_signed.message.message.clone();
         db.store
-            .append(
-                &db.board,
-                &mut [signed_receipt(&event_id, &receipt, &key)]
-                    .into_iter()
-                    .map(Ok),
-            )
+            .append(&db.board, &mut [legacy_signed].into_iter().map(Ok))
             .await
             .unwrap();
         let state = snapshot(&tx, &tenant_id, &event_id).await.unwrap();
         assert!(state.voter_log_delivered);
         assert_eq!(state.voters, Some(receipt.clone()));
+        let retained = db
+            .store
+            .delivered(&db.board, &format!("audit:{}", receipt.import_id))
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(retained.message.message, original_signed_bytes);
+        let legacy_message = Message::record_deserialize(&retained.message.message).unwrap();
+        legacy_message
+            .verify(&VerificationKey::from_sk(&key).unwrap())
+            .unwrap();
+        let electoral_log::messages::statement::StatementBody::Audit(legacy_entry) =
+            legacy_message.statement.body
+        else {
+            panic!("Expected import receipt");
+        };
+        let original_details: serde_json::Value =
+            serde_json::from_str(&legacy_entry.details_json).unwrap();
+        assert!(original_details.get("counts_by_post").is_some());
+        assert!(original_details.get("counts_by_area").is_none());
         assert_eq!(state.ballot_count, 0);
         assert_eq!(state.elections.len(), 1);
         assert!(state.configuration.is_none());
@@ -470,7 +507,7 @@ fn real_snapshot_requires_delivered_valid_receipt_and_current_full_census_withou
             .unwrap();
         let changed = snapshot(&tx, &tenant_id, &event_id).await.unwrap();
         assert!(changed.voter_log_delivered);
-        assert_eq!(changed.current_voter_counts, [("North".into(), 3)].into());
+        assert_eq!(changed.current_voter_counts, [("Area A".into(), 3)].into());
         let stale_report = verify(&tx, &tenant_id, &event_id, &event_id, &actor)
             .await
             .unwrap();
@@ -498,7 +535,7 @@ fn real_snapshot_requires_delivered_valid_receipt_and_current_full_census_withou
         }});
         tx.execute("INSERT INTO sequent_backend.election_event (id, tenant_id, encryption_protocol, status, bulletin_board_reference, presentation) VALUES ($1, $2, 'RSA256', $3, $4, $5)", &[&tested_event, &tenant, &json!({}), &json!({"id":1,"database_name":tested_db.board,"is_archived":false}), &json!({"ballot_box_seal_policy":"seal-at-close", "file_integrity_policy":"REQUIRED_SHA256"})]).await.unwrap();
         tx.execute("INSERT INTO sequent_backend.election (id, tenant_id, election_event_id, status) VALUES ($1, $2, $3, $4)", &[&tested_election, &tenant, &tested_event, &json!({})]).await.unwrap();
-        tx.execute("INSERT INTO sequent_backend.area (id, tenant_id, election_event_id, name) VALUES ($1, $2, $3, 'North')", &[&tested_area, &tenant, &tested_event]).await.unwrap();
+        tx.execute("INSERT INTO sequent_backend.area (id, tenant_id, election_event_id, name) VALUES ($1, $2, $3, 'Area A')", &[&tested_area, &tenant, &tested_event]).await.unwrap();
         tx.execute("INSERT INTO sequent_backend.tasks_execution (id, tenant_id, election_event_id, name, type, execution_status, executed_by_user) VALUES ($1, $2, $3, 'Import voters', 'IMPORT_USERS', 'IN_PROGRESS', 'ada')", &[&tested_task, &tenant, &tested_event]).await.unwrap();
         let tested_realm = get_event_realm(&tenant_id, &tested_event.to_string());
         census
@@ -615,7 +652,7 @@ fn real_snapshot_requires_delivered_valid_receipt_and_current_full_census_withou
         assert!(passed.passed, "{:#?}", passed.checks);
         assert_eq!(
             passed.evidence.official.current_voter_counts,
-            [("North".into(), 2)].into()
+            [("Area A".into(), 2)].into()
         );
         assert_eq!(passed.evidence.tested.expected_boxes.len(), 1);
         assert_eq!(

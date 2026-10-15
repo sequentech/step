@@ -736,7 +736,7 @@ pub enum AuditStatementKind {
     LogWriterStarted,
     /// The writer of audit entries stopped.
     LogWriterStopped,
-    /// Completed certified voter registry import and its counts per Post.
+    /// Completed certified voter registry import and its counts per area.
     VotersImported,
     /// A successful comparison of a tested event against the official event.
     ReadinessVerified,

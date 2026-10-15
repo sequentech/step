@@ -645,7 +645,7 @@ fn get_insert_user_query(
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ImportedUsersSummary {
     pub accepted_count: u64,
-    pub counts_by_post: BTreeMap<String, u64>,
+    pub counts_by_area: BTreeMap<String, u64>,
 }
 
 impl ImportedUsersSummary {
@@ -655,7 +655,7 @@ impl ImportedUsersSummary {
             .and_then(|id| areas.get(id))
             .cloned()
             .unwrap_or_default();
-        *self.counts_by_post.entry(key).or_default() += 1;
+        *self.counts_by_area.entry(key).or_default() += 1;
     }
 }
 
@@ -1069,8 +1069,8 @@ mod tests {
     #[test]
     fn accepted_voters_are_counted_once_under_the_stable_area_name() {
         let areas = [
-            ("area-1".to_string(), "North".to_string()),
-            ("area-2".to_string(), "South".to_string()),
+            ("area-1".to_string(), "Area A".to_string()),
+            ("area-2".to_string(), "Area B".to_string()),
         ]
         .into();
         let mut summary = ImportedUsersSummary::default();
@@ -1079,8 +1079,8 @@ mod tests {
         summary.accept(Some("area-2"), &areas);
         assert_eq!(summary.accepted_count, 3);
         assert_eq!(
-            summary.counts_by_post,
-            [("North".to_string(), 2), ("South".to_string(), 1)].into()
+            summary.counts_by_area,
+            [("Area A".to_string(), 2), ("Area B".to_string(), 1)].into()
         );
     }
 
@@ -1090,7 +1090,7 @@ mod tests {
         summary.accept(None, &Default::default());
         summary.accept(Some("missing-area"), &Default::default());
         assert_eq!(summary.accepted_count, 2);
-        assert_eq!(summary.counts_by_post.get(""), Some(&2));
+        assert_eq!(summary.counts_by_area.get(""), Some(&2));
     }
 
     /// The import writes `user_attribute.name` straight from these lists and the

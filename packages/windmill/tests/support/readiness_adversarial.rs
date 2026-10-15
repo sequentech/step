@@ -8,9 +8,9 @@ fn valid() -> Value {
     let event = |id: &str| {
         json!({
             "event_id":id,
-            "configuration":{"external_id":"approved", "revision":1,"content_sha256":"ab".repeat(32),"manifest_sha256":"cd".repeat(32),"approvers":["approver"],"posts":["Post"]},
-            "voters":{"import_id":format!("import-{id}"),"document_id":"document","file_name":"registry.csv","sha256":"ef".repeat(32),"declared_sha256":"ef".repeat(32),"counts_by_post":{"Post":2},"imported_at":"2026-10-14T10:00:00Z"},
-            "voter_log_delivered":true,"current_voter_counts":{"Post":2},"voter_import_in_progress":false,"status":{},"elections":[{"election_id":format!("election-{id}"),"status":{}}],
+            "configuration":{"external_id":"approved", "revision":1,"content_sha256":"ab".repeat(32),"manifest_sha256":"cd".repeat(32),"approvers":["approver"],"areas":["Area A"]},
+            "voters":{"import_id":format!("import-{id}"),"document_id":"document","file_name":"registry.csv","sha256":"ef".repeat(32),"declared_sha256":"ef".repeat(32),"counts_by_area":{"Area A":2},"imported_at":"2026-10-14T10:00:00Z"},
+            "voter_log_delivered":true,"current_voter_counts":{"Area A":2},"voter_import_in_progress":false,"status":{},"elections":[{"election_id":format!("election-{id}"),"status":{}}],
             "ballot_count":0,"received_ballot_count":0,"tally_session_count":0,
             "publication":{"publication_id":"publication","matches_manifest":true,"design_count":1},
             "seal_at_close":true,"expected_boxes":[[format!("election-{id}"),"area"]],
@@ -93,7 +93,7 @@ fn adversarial_matching_event_identity_and_partial_seals_cannot_pass() {
 }
 
 #[test]
-fn adversarial_undelivered_or_uncertified_or_wrong_post_evidence_fails_on_either_event() {
+fn adversarial_undelivered_or_uncertified_or_wrong_area_evidence_fails_on_either_event() {
     for event in ["official", "tested"] {
         let mut value = valid();
         value[event]["voter_log_delivered"] = json!(false);
@@ -103,10 +103,10 @@ fn adversarial_undelivered_or_uncertified_or_wrong_post_evidence_fails_on_either
         fails(value, CheckKind::CertifiedVoters);
     }
     // Matching counts and hashes between the two events still cannot prove
-    // that voters belong to the signed configuration's actual Post scope.
+    // that voters belong to the signed configuration's actual area scope.
     let mut value = valid();
     for event in ["official", "tested"] {
-        value[event]["voters"]["counts_by_post"] = json!({"Unknown Post":2});
+        value[event]["voters"]["counts_by_area"] = json!({"Unknown area":2});
     }
     fails(value, CheckKind::CertifiedVoters);
 }

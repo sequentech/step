@@ -303,7 +303,7 @@ async fn run_import_users(
                 file_name,
                 sha256: computed_sha256,
                 declared_sha256: declared,
-                counts_by_post: summary.counts_by_post,
+                counts_by_area: summary.counts_by_area,
                 imported_at: chrono::Utc::now().to_rfc3339(),
             },
         )

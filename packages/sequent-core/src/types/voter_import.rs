@@ -58,7 +58,7 @@ fn valid_sha256(value: &str) -> bool {
 
 /// A successful import, persisted only after the voter transaction commits.
 /// `import_id` is the audit outbox UUID and the signed audit entry's entry_id.
-/// Post keys are stable area names, as in the signed configuration's design
+/// Area keys are stable area names, as in the signed configuration's design
 /// keys. An empty key retains unassigned rows and cannot certify readiness.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct VotersImportedEvidence {
@@ -67,12 +67,13 @@ pub struct VotersImportedEvidence {
     pub file_name: String,
     pub sha256: String,
     pub declared_sha256: Option<String>,
-    pub counts_by_post: BTreeMap<String, u64>,
+    #[serde(alias = "counts_by_post")]
+    pub counts_by_area: BTreeMap<String, u64>,
     pub imported_at: String,
 }
 
 impl VotersImportedEvidence {
-    /// Readiness also checks these Post keys against the verified manifest and
+    /// Readiness also checks these area keys against the verified manifest and
     /// rejects later incomplete imports; a computed digest alone is not a
     /// certified transmittal.
     pub fn is_certified(&self) -> bool {
@@ -81,8 +82,8 @@ impl VotersImportedEvidence {
                 valid_sha256(declared)
                     && declared.eq_ignore_ascii_case(&self.sha256)
             })
-            && !self.counts_by_post.is_empty()
-            && self.counts_by_post.keys().all(|key| !key.trim().is_empty())
+            && !self.counts_by_area.is_empty()
+            && self.counts_by_area.keys().all(|key| !key.trim().is_empty())
     }
 }
 
@@ -91,6 +92,28 @@ mod tests {
     use super::*;
     #[cfg(feature = "default_features")]
     use crate::ballot::ElectionEventPresentation;
+
+    #[test]
+    fn legacy_voter_receipts_read_but_new_json_uses_area_counts() {
+        let legacy = serde_json::json!({
+            "import_id":"import-1", "document_id":"document-1", "file_name":"registry.csv",
+            "sha256":"ab".repeat(32), "declared_sha256":"ab".repeat(32),
+            "counts_by_post":{"Area A":2,"Area B":1}, "imported_at":"2026-10-14T10:00:00Z"
+        });
+        let receipt: VotersImportedEvidence =
+            serde_json::from_value(legacy).unwrap();
+        assert!(receipt.is_certified());
+        let neutral = serde_json::to_value(&receipt).unwrap();
+        assert_eq!(
+            neutral["counts_by_area"],
+            serde_json::json!({"Area A":2,"Area B":1})
+        );
+        assert!(neutral.get("counts_by_post").is_none());
+        assert_eq!(
+            serde_json::from_value::<VotersImportedEvidence>(neutral).unwrap(),
+            receipt
+        );
+    }
 
     #[test]
     fn required_sha256_rejects_missing_and_malformed_declarations() {
@@ -151,21 +174,21 @@ mod tests {
     }
 
     #[test]
-    fn certification_requires_verified_hash_and_stable_post_counts() {
+    fn certification_requires_verified_hash_and_stable_area_counts() {
         let mut evidence = VotersImportedEvidence {
             import_id: "import-1".into(),
             document_id: "document-1".into(),
             file_name: "voters.csv".into(),
             sha256: "ab".repeat(32),
             declared_sha256: Some("ab".repeat(32)),
-            counts_by_post: [("north".into(), 2)].into(),
+            counts_by_area: [("Area A".into(), 2)].into(),
             imported_at: "2026-10-14T10:00:00Z".into(),
         };
         assert!(evidence.is_certified());
         evidence.declared_sha256 = None;
         assert!(!evidence.is_certified());
         evidence.declared_sha256 = Some("ab".repeat(32));
-        evidence.counts_by_post = [("".into(), 2)].into();
+        evidence.counts_by_area = [("".into(), 2)].into();
         assert!(!evidence.is_certified());
     }
 }

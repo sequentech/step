@@ -4,15 +4,15 @@
 """The client's lifecycle preset (``templates/<client>/lifecycle.json``): the
 event's timezones (configured list, primary, times in logs), its lifecycle
 policies (initialization scope, what an unsigned scheduled close does), its
-ballot box seal and file integrity policies, and each Post's timezone.
+ballot box seal and file integrity policies, and each voting area's timezone.
 
 The event gets the preset's ``timezones``, ``lifecycle_policies`` and
 ``ballot_box_seal_policy`` and ``file_integrity_policy`` unless its presentation
 already has them; the Parameters sheet is applied after this, so it can still
-change them. An election gets its Post's zone when
-the Posts sheet gave it none. The Post of an election is the part of its
-alias before `` - `` (``DUBAI PCG - General Election`` and
-``DUBAI PCG - Test Voting`` are both ``DUBAI PCG``).
+change them. When the delivery spreadsheet provides no timezone, the existing
+import maps each election's alias prefix to the preset's legacy ``posts``
+entries. The prefix is the part before `` - `` (for example, ``Area A`` in
+``Area A - General Election``).
 
 Kept apart from run.py, which runs a delivery when it is imported, so the
 pieces can be tested on their own.

@@ -21,7 +21,7 @@ fn evidence() -> VotersImportedEvidence {
         file_name: "certified.csv".into(),
         sha256: "ab".repeat(32),
         declared_sha256: Some("ab".repeat(32)),
-        counts_by_post: [("North".into(), 2), ("South".into(), 1)].into(),
+        counts_by_area: [("Area A".into(), 2), ("Area B".into(), 1)].into(),
         imported_at: "2026-10-14T10:00:00Z".into(),
     }
 }

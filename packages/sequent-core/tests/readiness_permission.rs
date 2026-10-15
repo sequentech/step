@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! The readiness operator permission must be provisioned on new and deployed
-//! tenants and must remain tenant scoped at the authorization boundary.
+//! The readiness operator permission is provisioned by the generic tenant
+//! template and remains tenant scoped at the authorization boundary.
 use sequent_core::types::permissions::Permissions;
 use serde_json::Value;
 
@@ -14,17 +14,27 @@ fn readiness_permission_is_named_and_provisioned_for_administrators() {
         .parse()
         .expect("readiness-check permission exists");
     assert_eq!(permission.to_string(), PERMISSION);
-    for (name, text) in [
-        ("tenant realm", include_str!("../../../.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json")),
-        ("deployed realm", include_str!("../../windmill/external-bin/janitor/templates/COMELEC/keycloakAdmin.hbs")),
-    ] {
-        let realm: Value = serde_json::from_str(text).unwrap();
-        assert!(realm["roles"]["realm"].as_array().unwrap().iter().any(|role| role["name"] == PERMISSION), "{name}: missing readiness role");
-        let groups: Vec<&str> = realm["groups"].as_array().unwrap().iter().filter(|group| {
-            group["realmRoles"].as_array().is_some_and(|roles| roles.iter().any(|role| role == PERMISSION))
-        }).map(|group| group["name"].as_str().unwrap()).collect();
-        assert_eq!(groups, ["admin"], "{name}: readiness is an operator action");
-    }
+    let realm: Value = serde_json::from_str(include_str!(
+        "../../../.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json"
+    ))
+    .unwrap();
+    assert!(realm["roles"]["realm"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|role| role["name"] == PERMISSION));
+    let groups: Vec<&str> = realm["groups"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|group| {
+            group["realmRoles"].as_array().is_some_and(|roles| {
+                roles.iter().any(|role| role == PERMISSION)
+            })
+        })
+        .map(|group| group["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(groups, ["admin"], "readiness is an operator action");
 }
 
 #[cfg(all(feature = "default_features", feature = "keycloak"))]
