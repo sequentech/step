@@ -593,3 +593,18 @@ cli step export-cast-votes \
 * `--output` – Output CSV file *(default: `output.csv`)*
 
 The file is written as `<output>.partial` and renamed to `<output>` only when the export completes. On any error the command removes the partial file, leaves an existing `<output>` unchanged and exits with a non-zero status.
+
+
+## Certified voter import and readiness
+
+`step-cli step import-voters --election-event-id <ID> --file-path <CSV> --sha256 <SHA256>`
+imports a voter file with the independently certified expected hash. Events
+configured with `REQUIRED_SHA256` refuse an absent hash. The import command waits
+for completion and exits nonzero when the task fails.
+
+`step-cli step readiness-check --official <ID> --tested <ID>` compares the official
+event with a closed and sealed tested event. It writes a JSON report to stdout
+and exits nonzero on a failed check or unconfirmed signed-log delivery. A pass
+records `ReadinessVerified` in the official event log. See
+[Certified imports and readiness checks](../02-tutorials/07-cli-tutorials-readiness.md)
+for prerequisites, report fields and evidence retention.
