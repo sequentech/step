@@ -891,6 +891,7 @@ pub enum StatementType {
     LogsExported,
     LogWriterStarted,
     LogWriterStopped,
+    TransmissionFileDownloaded,
 }
 
 #[derive(

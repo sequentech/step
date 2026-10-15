@@ -2743,6 +2743,7 @@ const frenchTranslation: TranslationType = {
                 title: "Paquet de Transmission pour la Zone '{{name}}' y Elección '{{eventName}}'",
                 description:
                     "Vous permet d'exporter un Paquet de Transmission vers des Serveurs de Destination ou de le télécharger.",
+                erFileSha256: "Fichier ER SHA-256 :",
                 actions: {
                     sign: {
                         title: "Régénérer",
@@ -2785,6 +2786,10 @@ const frenchTranslation: TranslationType = {
                         emlTitle: "Télécharger EML {{date}}",
                         transmissionPackageTitle: "Télécharger le Paquet de Transmission {{date}}",
                         transmissionReportTitle: "Télécharger le rapport de transmission",
+                        csvTitle: "Télécharger le CSV des résultats {{date}}",
+                        ovcsPublicKeyTitle: "Télécharger la clé publique de l'OVCS",
+                        recordError:
+                            "Le téléchargement n'a pas pu être enregistré, il n'a donc pas commencé. Réessayez.",
                         dialog: {
                             title: "Voulez-vous télécharger le Paquet de Transmission?",
                             description:
@@ -2799,6 +2804,9 @@ const frenchTranslation: TranslationType = {
                     description:
                         "Le tableau ci-dessous montre l'état d'envoi de chacun des Serveurs de Destination.",
                     status: "Envoyé à {{signed}} sur {{total}}",
+                    manualReceipt: "Remise manuelle",
+                    handOver: "Téléchargez le paquet et remettez-le en main propre",
+                    sealedFor: "Scellé pour sa clé, SHA-256 {{key}}…",
                     table: {
                         serverName: "Nom du Serveur",
                         sendStatus: "État de l'Envoi",
@@ -2812,7 +2820,8 @@ const frenchTranslation: TranslationType = {
                         trusteeName: "Membre",
                         signed: "A Signé",
                     },
-                    status: "{{signed}} sur {{total}} Ont Signé, minimum {{minimum}}",
+                    status: "{{signed}} sur {{total}}, {{minimum}} requises",
+                    statusNoMinimum: "{{signed}} sur {{total}}",
                 },
             },
             sendToTransmissionPackageServers:

@@ -2731,6 +2731,7 @@ const catalanTranslation: TranslationType = {
                 title: "Paquet de Transmissió per a l'Àrea '{{name}}' y Elección '{{eventName}}'",
                 description:
                     "Et permet exportar un Paquet de Transmissió als Servidors de Destinació o descarregar-lo.",
+                erFileSha256: "Fitxer ER SHA-256:",
                 actions: {
                     sign: {
                         title: "Regenerar",
@@ -2773,6 +2774,10 @@ const catalanTranslation: TranslationType = {
                         emlTitle: "Descarregar EML {{date}}",
                         transmissionPackageTitle: "Descarregar el Paquet de Transmissió {{date}}",
                         transmissionReportTitle: "Descarrega l'informe de transmissió",
+                        csvTitle: "Descarrega el CSV de resultats {{date}}",
+                        ovcsPublicKeyTitle: "Descarrega la clau pública de l'OVCS",
+                        recordError:
+                            "No s'ha pogut registrar la baixada, així que no s'ha iniciat. Torna-ho a provar.",
                         dialog: {
                             title: "Vols descarregar el Paquet de Transmissió?",
                             description:
@@ -2787,6 +2792,9 @@ const catalanTranslation: TranslationType = {
                     description:
                         "La taula a continuació mostra l'estat d'enviament de cadascun dels Servidors de Destinació.",
                     status: "Enviat a {{signed}} de {{total}}",
+                    manualReceipt: "Recepció manual",
+                    handOver: "Descarrega el paquet i lliura'l en mà",
+                    sealedFor: "Segellat per a la seva clau, SHA-256 {{key}}…",
                     table: {
                         serverName: "Nom del Servidor",
                         sendStatus: "Estat d'Enviament",
@@ -2800,7 +2808,8 @@ const catalanTranslation: TranslationType = {
                         trusteeName: "Membre",
                         signed: "Ha Signat",
                     },
-                    status: "{{signed}} de {{total}} Han Signat, mínim {{minimum}}",
+                    status: "{{signed}} de {{total}}, se'n necessiten {{minimum}}",
+                    statusNoMinimum: "{{signed}} de {{total}}",
                 },
             },
             sendToTransmissionPackageServers:

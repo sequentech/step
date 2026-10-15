@@ -578,6 +578,60 @@ fn a_refused_send_answers_its_code() {
     assert_eq!(unsigned.code.to_string(), "signing-required");
 }
 
+/// A package whose destinations all receive it by hand is not sent: 409,
+/// saying to download it.
+#[test]
+fn a_package_received_by_hand_is_not_sent() {
+    use crate::routes::miru_plugin::send_refusal;
+    use windmill::services::consolidation::send_transmission_package_service::SendRefusal;
+
+    let refused = send_refusal(&SendRefusal::ManualReceiptOnly);
+    assert_eq!(refused.status, Status::Conflict);
+    assert!(
+        refused.message.contains("receives it by hand"),
+        "{}",
+        refused.message
+    );
+    assert_eq!(
+        send_refusal(&SendRefusal::NoTallySession).status,
+        Status::NotFound
+    );
+}
+
+/// A download's record answers the file and its hash; a document that is
+/// not the package's answers 404, and a failure to record it 500.
+#[test]
+fn a_recorded_download_answers_the_file_and_its_hash() {
+    use crate::routes::miru_plugin::recorded_download_reply;
+    use windmill::services::consolidation::download_log::{
+        DownloadRefusal, RecordedDownload,
+    };
+
+    let recorded = recorded_download_reply(Ok(Ok(RecordedDownload {
+        file_name: "all_servers.zip".to_string(),
+        sha256: "E8D67AC4".to_string(),
+    })))
+    .unwrap()
+    .into_inner();
+    assert_eq!(
+        (recorded.file_name.as_str(), recorded.sha256.as_str()),
+        ("all_servers.zip", "E8D67AC4")
+    );
+    let (status, message) =
+        recorded_download_reply(Ok(Err(DownloadRefusal::NotAPackageFile)))
+            .unwrap_err();
+    assert_eq!(status, Status::NotFound);
+    assert_eq!(
+        message,
+        "The document is not a file of this transmission package."
+    );
+    let (status, message) =
+        recorded_download_reply(Err(anyhow::anyhow!("no database")))
+            .unwrap_err();
+    assert_eq!(status, Status::InternalServerError);
+    assert!(message.contains("no database"), "{message}");
+}
+
 /// Rows the key step's transaction wrote, on the connection that holds the
 /// marker table.
 async fn markers(client: &deadpool_postgres::Object) -> i64 {

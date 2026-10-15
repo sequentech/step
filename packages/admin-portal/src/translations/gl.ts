@@ -2714,6 +2714,7 @@ const galegoTranslation: TranslationType = {
                 title: "Paquete de Transmisión para a Área '{{name}}' e Elección '{{eventName}}'",
                 description:
                     "Permítelle exportar un Paquete de Transmisión a Servidores de Destino ou descargalo.",
+                erFileSha256: "Ficheiro ER SHA-256:",
                 actions: {
                     send: {
                         title: "Enviar",
@@ -2756,6 +2757,10 @@ const galegoTranslation: TranslationType = {
                         emlTitle: "Descargar EML {{date}}",
                         transmissionPackageTitle: "Descargar Paquete de Transmisión {{date}}",
                         transmissionReportTitle: "Descargar informe de transmisión",
+                        csvTitle: "Descargar CSV de resultados {{date}}",
+                        ovcsPublicKeyTitle: "Descargar a chave pública da OVCS",
+                        recordError:
+                            "Non se puido rexistrar a descarga, así que non se iniciou. Téntao de novo.",
                         dialog: {
                             title: "¿Queres Descargar o Paquete de Transmisión?",
                             description:
@@ -2770,6 +2775,9 @@ const galegoTranslation: TranslationType = {
                     description:
                         "A táboa a continuación mostra o estado de envío de cada un dos Servidores de Destino.",
                     status: "Enviado a {{signed}} de {{total}}",
+                    manualReceipt: "Recepción manual",
+                    handOver: "Descarga o paquete e entrégao en man",
+                    sealedFor: "Selado para a súa chave, SHA-256 {{key}}…",
                     table: {
                         serverName: "Nome do Servidor",
                         sendStatus: "Estado de Envío",
@@ -2779,7 +2787,8 @@ const galegoTranslation: TranslationType = {
                     title: "Sinaturas",
                     description:
                         "Os membros poden asinar o paquete de transmisión. A táboa mostra o estado de sinatura de cada membro.",
-                    status: "{{signed}} de {{total}} Asinados, mínimo de {{minimum}}",
+                    status: "{{signed}} de {{total}}, necesítanse {{minimum}}",
+                    statusNoMinimum: "{{signed}} de {{total}}",
                     table: {
                         trusteeName: "Membro",
                         signed: "Asinou",

@@ -2719,6 +2719,7 @@ const spanishTranslation: TranslationType = {
                 title: "Paquete de Transmisión para el Área '{{name}}' y Elección '{{eventName}}'",
                 description:
                     "Te permite exportar un Paquete de Transmisión a los Servidores de Destino o descargarlo.",
+                erFileSha256: "Archivo ER SHA-256:",
                 actions: {
                     sign: {
                         title: "Regenerar",
@@ -2761,6 +2762,10 @@ const spanishTranslation: TranslationType = {
                         emlTitle: "Descargar EML {{date}}",
                         transmissionPackageTitle: "Descargar el Paquete de Transmisión {{date}}",
                         transmissionReportTitle: "Descargar informe de transmisión",
+                        csvTitle: "Descargar CSV de resultados {{date}}",
+                        ovcsPublicKeyTitle: "Descargar clave pública de la OVCS",
+                        recordError:
+                            "No se pudo registrar la descarga, así que no se ha iniciado. Inténtalo de nuevo.",
                         dialog: {
                             title: "¿Quieres descargar el Paquete de Transmisión?",
                             description:
@@ -2775,6 +2780,9 @@ const spanishTranslation: TranslationType = {
                     description:
                         "La tabla a continuación muestra el estado de envío de cada uno de los Servidores de Destino.",
                     status: "Enviado a {{signed}} de {{total}}",
+                    manualReceipt: "Recepción manual",
+                    handOver: "Descarga el paquete y entrégalo en mano",
+                    sealedFor: "Sellado para su clave, SHA-256 {{key}}…",
                     table: {
                         serverName: "Nombre del Servidor",
                         sendStatus: "Estado de Envío",
@@ -2788,7 +2796,8 @@ const spanishTranslation: TranslationType = {
                         trusteeName: "Miembro",
                         signed: "Ha Firmado",
                     },
-                    status: "{{signed}} de {{total}} Han Firmado, mínimo {{minimum}}",
+                    status: "{{signed}} de {{total}}, se necesitan {{minimum}}",
+                    statusNoMinimum: "{{signed}} de {{total}}",
                 },
             },
             sendToTransmissionPackageServers:

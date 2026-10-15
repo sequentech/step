@@ -2715,6 +2715,7 @@ const dutchTranslation: TranslationType = {
                 title: "Transmissiepakket voor Gebied '{{name}}' en Verkiezing '{{eventName}}'",
                 description:
                     "Hiermee kunt u een Transmissiepakket exporteren naar Bestemmingsservers of downloaden.",
+                erFileSha256: "ER-bestand SHA-256:",
                 actions: {
                     send: {
                         title: "Verzenden",
@@ -2757,6 +2758,10 @@ const dutchTranslation: TranslationType = {
                         emlTitle: "EML Downloaden {{date}}",
                         transmissionPackageTitle: "Transmissiepakket Downloaden {{date}}",
                         transmissionReportTitle: "Transmissierapport Downloaden",
+                        csvTitle: "Resultaten-CSV downloaden {{date}}",
+                        ovcsPublicKeyTitle: "Publieke sleutel van de OVCS downloaden",
+                        recordError:
+                            "De download kon niet worden vastgelegd en is daarom niet gestart. Probeer het opnieuw.",
                         dialog: {
                             title: "Wilt u het Transmissiepakket Downloaden?",
                             description:
@@ -2771,6 +2776,9 @@ const dutchTranslation: TranslationType = {
                     description:
                         "De onderstaande tabel toont de verzendstatus van elk van de Bestemmingsservers.",
                     status: "Verzonden naar {{signed}} van {{total}}",
+                    manualReceipt: "Handmatige ontvangst",
+                    handOver: "Download het pakket en overhandig het",
+                    sealedFor: "Verzegeld voor de sleutel, SHA-256 {{key}}…",
                     table: {
                         serverName: "Servernaam",
                         sendStatus: "Verzendstatus",
@@ -2780,7 +2788,8 @@ const dutchTranslation: TranslationType = {
                     title: "Handtekeningen",
                     description:
                         "Leden kunnen het transmissiepakket ondertekenen. De tabel toont de ondertekeningsstatus van elk lid.",
-                    status: "{{signed}} van {{total}} Ondertekend, {{minimum}} minimum",
+                    status: "{{signed}} van {{total}}, {{minimum}} nodig",
+                    statusNoMinimum: "{{signed}} van {{total}}",
                     table: {
                         trusteeName: "Lid",
                         signed: "Heeft Ondertekend",

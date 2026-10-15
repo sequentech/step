@@ -2705,6 +2705,7 @@ const basqueTranslation: TranslationType = {
                 title: "'{{name}}' Eremuaren eta '{{eventName}}' Hauteskundearen Transmisio Paketea",
                 description:
                     "Transmisio Paketea Helburu Zerbitzarietara esportatzeko edo deskargatzeko aukera ematen du.",
+                erFileSha256: "ER fitxategiaren SHA-256:",
                 actions: {
                     send: {
                         title: "Bidali",
@@ -2747,6 +2748,10 @@ const basqueTranslation: TranslationType = {
                         emlTitle: "Deskargatu EML {{date}}",
                         transmissionPackageTitle: "Deskargatu Transmisio Paketea {{date}}",
                         transmissionReportTitle: "Deskargatu Transmisio Txostena",
+                        csvTitle: "Deskargatu emaitzen CSVa {{date}}",
+                        ovcsPublicKeyTitle: "Deskargatu OVCSren gako publikoa",
+                        recordError:
+                            "Ezin izan da deskarga erregistratu, beraz ez da hasi. Saiatu berriro.",
                         dialog: {
                             title: "Transmisio Paketea deskargatu nahi duzu?",
                             description:
@@ -2761,6 +2766,9 @@ const basqueTranslation: TranslationType = {
                     description:
                         "Beheko taulak Helburu Zerbitzari bakoitzaren bidaltze egoera erakusten du.",
                     status: "Bidalia {{signed}}/{{total}}",
+                    manualReceipt: "Eskuzko jasotzea",
+                    handOver: "Deskargatu paketea eta eman eskuz",
+                    sealedFor: "Bere gakoarentzat zigilatua, SHA-256 {{key}}…",
                     table: {
                         serverName: "Zerbitzari Izena",
                         sendStatus: "Bidaltze Egoera",
@@ -2770,7 +2778,8 @@ const basqueTranslation: TranslationType = {
                     title: "Sinadurak",
                     description:
                         "Kideek transmisio-paketea sina dezakete. Taulak kide bakoitzaren sinadura-egoera erakusten du.",
-                    status: "{{signed}}/{{total}} Sinatuak, {{minimum}} gutxienez",
+                    status: "{{signed}}/{{total}}, {{minimum}} behar dira",
+                    statusNoMinimum: "{{signed}}/{{total}}",
                     table: {
                         trusteeName: "Kidea",
                         signed: "Sinatua du",

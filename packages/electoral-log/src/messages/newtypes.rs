@@ -736,6 +736,9 @@ pub enum AuditStatementKind {
     LogWriterStarted,
     /// The writer of audit entries stopped.
     LogWriterStopped,
+    /// A file of an ER transmission package was downloaded for manual
+    /// receipt: which file, its SHA-256 and who downloaded it.
+    TransmissionFileDownloaded,
 }
 
 impl AuditStatementKind {
@@ -746,6 +749,7 @@ impl AuditStatementKind {
             Self::LogsExported => StatementType::LogsExported,
             Self::LogWriterStarted => StatementType::LogWriterStarted,
             Self::LogWriterStopped => StatementType::LogWriterStopped,
+            Self::TransmissionFileDownloaded => StatementType::TransmissionFileDownloaded,
         }
     }
 }

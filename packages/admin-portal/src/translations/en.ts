@@ -2708,6 +2708,7 @@ const englishTranslation = {
                 title: "Transmission Package for Area '{{name}}' and Election '{{eventName}}'",
                 description:
                     "Allows you to export a Transmission Package to Destination Servers or download it.",
+                erFileSha256: "ER file SHA-256:",
                 actions: {
                     send: {
                         title: "Send",
@@ -2750,6 +2751,10 @@ const englishTranslation = {
                         emlTitle: "Download EML {{date}}",
                         transmissionPackageTitle: "Download Transmission Package {{date}}",
                         transmissionReportTitle: "Download Transmission Report",
+                        csvTitle: "Download Results CSV {{date}}",
+                        ovcsPublicKeyTitle: "Download OVCS public key",
+                        recordError:
+                            "The download could not be recorded, so it was not started. Please try again.",
                         dialog: {
                             title: "Do you want to Download the Transmission Package?",
                             description:
@@ -2764,6 +2769,9 @@ const englishTranslation = {
                     description:
                         "The table below shows the sending status of each of the Destination Servers.",
                     status: "Sent to {{signed}} out of {{total}}",
+                    manualReceipt: "Manual receipt",
+                    handOver: "Download the package and hand it over",
+                    sealedFor: "Sealed for its key, SHA-256 {{key}}…",
                     table: {
                         serverName: "Server Name",
                         sendStatus: "Sending Status",
@@ -2773,7 +2781,8 @@ const englishTranslation = {
                     title: "Signatures",
                     description:
                         "Members can sign the transmission package. The table shows each member’s signing status.",
-                    status: "{{signed}} out of {{total}} Signed, {{minimum}} minimum",
+                    status: "{{signed}} of {{total}}, {{minimum}} needed",
+                    statusNoMinimum: "{{signed}} of {{total}}",
                     table: {
                         trusteeName: "Member",
                         signed: "Has Signed",

@@ -126,6 +126,7 @@
 /messaging/recount-voters
 /messaging/voter-counts
 /miru/create-transmission-package
+/miru/record-download
 /miru/send-transmission-package
 /miru/upload-signature
 /monitoring/export

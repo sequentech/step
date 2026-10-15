@@ -370,6 +370,7 @@ fn cases() -> Vec<Case> {
         case!(UuidTenant, "/messaging/recount-voters", {"election_event_id": UUID_EVENT_ID}, [MESSAGING_CONFIG_READ], BACKEND, UNAUTHORIZED_JSON),
         // The task row is written before the permission check.
         case!(Admin, "/miru/create-transmission-package", {"election_event_id": EVENT_ID, "election_id": "test-election", "area_id": AREA_ID, "tally_session_id": "test-session", "force": false}, [MIRU_CREATE], BACKEND, BACKEND),
+        case!(Admin, "/miru/record-download", {"election_event_id": EVENT_ID, "election_id": "test-election", "area_id": AREA_ID, "tally_session_id": "test-session", "document_id": "test-document"}, [MIRU_DOWNLOAD], BACKEND, UNAUTHORIZED),
         case!(Admin, "/miru/send-transmission-package", {"election_id": "test-election", "area_id": AREA_ID, "tally_session_id": "test-session"}, [MIRU_SEND], BACKEND, UNAUTHORIZED),
         case!(Admin, "/miru/upload-signature", {"election_id": "test-election", "area_id": AREA_ID, "tally_session_id": "test-session", "document_id": "test-document", "password": "test-password"}, [MIRU_SIGN], BACKEND_TEXT, UNAUTHORIZED),
         // Plugins receive the claims and make their own decisions.

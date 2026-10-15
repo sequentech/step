@@ -13,9 +13,11 @@ use super::package_manifest::{
     eml_name, link_returns, package_requester, store_package_manifest, xz_name, StoredReturns,
     ALL_SERVERS_NAME,
 };
+use super::results_csv::csv_name;
 use super::signed_transmission_package::{lock_transmission_data, transmission_zone};
 use super::transmission_package::{
     create_logs_package, create_transmission_package, generate_base_compressed_xml,
+    GeneratedReturns,
 };
 use super::zip::compress_folder_to_zip;
 use crate::postgres::area::get_area_by_id;
@@ -36,11 +38,17 @@ use crate::services::documents::{
 use crate::services::folders::list_files;
 use crate::services::reports::generation::ReportRequester;
 use crate::services::reports::report_variables::configuration_stamp_without_template;
-use crate::services::signing::actions::transmission::{guard_transmission_package, PackageToSign};
+use crate::services::signing::actions::transmission::{
+    guard_transmission_package, sha256_hex, PackageToSign,
+};
 use crate::services::signing::SigningCaller;
 use crate::types::miru_plugin::{
-    MiruCcsServer, MiruDocument, MiruDocumentIds, MiruTransmissionPackageData,
+    MiruCcsServer, MiruDocument, MiruDocumentHashes, MiruDocumentIds, MiruSignature,
+    MiruTransmissionPackageData,
 };
+
+/// The media type the results CSV is stored with.
+pub const RESULTS_CSV_MEDIA_TYPE: &str = "text/csv";
 use crate::{
     postgres::election_event::get_election_event_by_election_area,
     types::miru_plugin::MiruTallySessionData,
@@ -156,6 +164,49 @@ pub async fn update_transmission_package_annotations(
     Ok(())
 }
 
+/// The stored archive of every destination's package.
+pub struct AllServersDocument {
+    pub document: Document,
+    /// Uppercase hex SHA-256 of the archive.
+    pub sha256: String,
+    /// The OVCS public key (PEM) the packages are signed with.
+    pub ovcs_public_key: String,
+}
+
+/// Uppercase hex SHA-256, as a package's files are named on its page.
+pub fn file_sha256(bytes: &[u8]) -> String {
+    sha256_hex(bytes).to_uppercase()
+}
+
+/// The document of a package sealed again with `signatures`: the same
+/// returns, EML and CSV as `previous`, and the new archive.
+pub fn resealed_document(
+    previous: &MiruDocument,
+    all_servers: &AllServersDocument,
+    eml_hash: &str,
+    created_at: String,
+    signatures: Vec<MiruSignature>,
+) -> MiruDocument {
+    MiruDocument {
+        document_ids: MiruDocumentIds {
+            all_servers: all_servers.document.id.clone(),
+            ..previous.document_ids.clone()
+        },
+        transaction_id: previous.transaction_id.clone(),
+        servers_sent_to: vec![],
+        created_at,
+        signatures,
+        sha256: Some(MiruDocumentHashes {
+            eml: eml_hash.to_string(),
+            csv: previous
+                .sha256
+                .as_ref()
+                .and_then(|hashes| hashes.csv.clone()),
+            all_servers: all_servers.sha256.clone(),
+        }),
+    }
+}
+
 #[instrument(skip_all, err)]
 pub async fn generate_all_servers_document(
     hasura_transaction: &Transaction<'_>,
@@ -174,7 +225,7 @@ pub async fn generate_all_servers_document(
     election_annotations: &MiruElectionAnnotations,
     transaction_id: &str,
     requester: &ReportRequester,
-) -> Result<Document> {
+) -> Result<AllServersDocument> {
     let acm_key_pair = get_acm_key_pair(hasura_transaction, tenant_id, election_event_id).await?;
     let temp_dir = tempdir().with_context(|| "Error generating temp directory")?;
     let temp_dir_path = temp_dir.path();
@@ -226,6 +277,8 @@ pub async fn generate_all_servers_document(
     let file_size =
         get_file_size(dst_file_string.as_str()).with_context(|| "Error obtaining file size")?;
 
+    let archive =
+        std::fs::read(dst_file_path).with_context(|| "Error reading the servers' archive")?;
     let manifest_link = store_package_manifest(
         hasura_transaction,
         tenant_id,
@@ -235,7 +288,7 @@ pub async fn generate_all_servers_document(
             eml: eml.as_bytes(),
             compressed: &compressed_xml_bytes,
         },
-        &std::fs::read(dst_file_path).with_context(|| "Error reading the servers' archive")?,
+        &archive,
         requester,
     )
     .await?;
@@ -272,7 +325,11 @@ pub async fn generate_all_servers_document(
         }
     };
 
-    Ok(document)
+    Ok(AllServersDocument {
+        document,
+        sha256: file_sha256(&archive),
+        ovcs_public_key: acm_key_pair.public_key_pem,
+    })
 }
 
 #[instrument(err)]
@@ -392,7 +449,12 @@ pub async fn create_transmission_package_service(
     let stamp =
         configuration_stamp_without_template(&hasura_transaction, tenant_id, &election_event.id)
             .await?;
-    let (base_compressed_xml, eml, eml_hash) = generate_base_compressed_xml(
+    let GeneratedReturns {
+        compressed_xml: base_compressed_xml,
+        eml,
+        eml_hash,
+        csv,
+    } = generate_base_compressed_xml(
         tally_id,
         &transaction_id,
         time_zone.clone(),
@@ -486,6 +548,23 @@ pub async fn create_transmission_package_service(
     )
     .await?;
 
+    // upload the results csv
+    let csv_name = csv_name(&transaction_id);
+    let (_csv_temp_path, csv_temp_path_string, csv_file_size) =
+        write_into_named_temp_file(&csv.as_bytes().to_vec(), &csv_name, ".csv")?;
+    let csv_document = upload_and_return_document(
+        &hasura_transaction,
+        &csv_temp_path_string,
+        csv_file_size,
+        RESULTS_CSV_MEDIA_TYPE,
+        tenant_id,
+        Some(election_event.id.to_string()),
+        &csv_name,
+        None,
+        false,
+    )
+    .await?;
+
     let area_name = area.name.clone().unwrap_or("".into());
     let mut logs = if let Some(package) = found_package {
         package.logs.clone()
@@ -525,7 +604,7 @@ pub async fn create_transmission_package_service(
         &hasura_transaction,
         tenant_id,
         &election_event.id,
-        &all_servers_document,
+        &all_servers_document.document,
         [&eml_document.id, &xz_document.id],
     )
     .await?;
@@ -538,16 +617,23 @@ pub async fn create_transmission_package_service(
             document_ids: MiruDocumentIds {
                 eml: eml_document.id.clone(),
                 xz: xz_document.id.clone(),
-                all_servers: all_servers_document.id.clone(),
+                all_servers: all_servers_document.document.id.clone(),
+                csv: Some(csv_document.id.clone()),
             },
             transaction_id: transaction_id.clone(),
             servers_sent_to: vec![],
             created_at: now_local.to_rfc3339(),
             signatures: vec![],
+            sha256: Some(MiruDocumentHashes {
+                eml: eml_hash.clone(),
+                csv: Some(file_sha256(csv.as_bytes())),
+                all_servers: all_servers_document.sha256.clone(),
+            }),
         }],
         logs,
         threshold: threshold,
         signing_request,
+        ovcs_public_key: Some(all_servers_document.ovcs_public_key.clone()),
     };
     update_transmission_package_annotations(
         &hasura_transaction,

@@ -1,0 +1,78 @@
+<EML Id="510" SchemaVersion="7.0" xmlns="urn:oasis:names:tc:evs:schema:eml">
+  <EMLHeader>
+    <TransactionId>3141</TransactionId>
+    <IssueDate>2026-10-15T10:00:00+08:00</IssueDate>
+    <OfficialStatusDetail>
+      <OfficialStatus>Official</OfficialStatus>
+      <StatusDate>2026-10-15T10:00:00+08:00</StatusDate>
+    </OfficialStatusDetail>
+  </EMLHeader>
+    <Count>
+      <EventIdentifier IdNumber="EV-2026">
+        <EventName>Overseas Voting 2026</EventName>
+      </EventIdentifier>
+        <Election>
+          <ElectionIdentifier IdNumber="1">
+            <ElectionName>National Election</ElectionName>
+          </ElectionIdentifier>
+          <Contests>
+              <Contest>
+                <ContestIdentifier IdNumber="PRES">
+                  <ContestName>President</ContestName>
+                </ContestIdentifier>
+                <TotalVotes>
+                    <CountMetric Type="Total Number of Registered Voters" Id="RV">120</CountMetric>
+                    <CountMetric Type="Total Number of Ballots In Ballot Box" Id="BB">100</CountMetric>
+                    <CountMetric Type="Total Number of Valid Ballots" Id="VB">97</CountMetric>
+                    <CountMetric Type="Total Number of Invalid Ballots" Id="IB">3</CountMetric>
+                    <Selection>
+                        <Candidate>
+                          <CandidateIdentifier IdNumber="C1">
+                            <CandidateName>Alice Example</CandidateName>
+                          </CandidateIdentifier>
+                          <StatusDetails>
+                          </StatusDetails>
+                              <Affiliation>
+                                <AffiliationIdentifier IdNumber="P1">
+                                    <RegisteredName>Party One</RegisteredName>
+                                </AffiliationIdentifier>
+                                <Type>Party</Type>
+                              </Affiliation>
+                        </Candidate>
+                      <ValidVotes>60</ValidVotes>
+                    </Selection>
+                    <Selection>
+                        <Candidate>
+                          <CandidateIdentifier IdNumber="C2">
+                            <CandidateName>Bob Sample &amp; Co</CandidateName>
+                          </CandidateIdentifier>
+                          <StatusDetails>
+                          </StatusDetails>
+                        </Candidate>
+                      <ValidVotes>37</ValidVotes>
+                    </Selection>
+                </TotalVotes>
+              </Contest>
+              <Contest>
+                <ContestIdentifier IdNumber="SEN">
+                  <ContestName>Senator</ContestName>
+                </ContestIdentifier>
+                <TotalVotes>
+                    <CountMetric Type="Total Number of Registered Voters" Id="RV">120</CountMetric>
+                    <CountMetric Type="Total Number of Under Votes" Id="UV">5</CountMetric>
+                    <Selection>
+                        <Candidate>
+                          <CandidateIdentifier IdNumber="S1">
+                            <CandidateName>Carol Candidate</CandidateName>
+                          </CandidateIdentifier>
+                          <StatusDetails>
+                          </StatusDetails>
+                        </Candidate>
+                      <ValidVotes>92</ValidVotes>
+                    </Selection>
+                </TotalVotes>
+              </Contest>
+          </Contests>
+        </Election>
+    </Count>
+</EML>

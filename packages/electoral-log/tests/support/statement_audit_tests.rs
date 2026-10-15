@@ -56,6 +56,12 @@ fn the_audit_kinds_are_appended() {
             68,
             "LogWriterStopped",
         ),
+        (
+            AuditStatementKind::TransmissionFileDownloaded,
+            5,
+            69,
+            "TransmissionFileDownloaded",
+        ),
     ];
     for (kind, kind_tag, type_tag, name) in expected {
         assert_eq!(borsh::to_vec(&kind).unwrap(), vec![kind_tag]);
@@ -68,7 +74,7 @@ fn the_audit_kinds_are_appended() {
         assert_eq!(name.parse::<AuditStatementKind>().unwrap(), kind);
     }
     assert!("CastVote".parse::<AuditStatementKind>().is_err());
-    assert!(borsh::from_slice::<StatementType>(&[69]).is_err());
+    assert!(borsh::from_slice::<StatementType>(&[70]).is_err());
 }
 
 #[test]

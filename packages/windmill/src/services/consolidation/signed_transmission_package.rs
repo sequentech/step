@@ -7,7 +7,7 @@
 //! lock, and the package's stored documents.
 
 use super::create_transmission_package_service::{
-    generate_all_servers_document, update_transmission_package_annotations,
+    generate_all_servers_document, resealed_document, update_transmission_package_annotations,
 };
 use super::eml_generator::ValidateAnnotations;
 use super::eml_types::ACMTrustee;
@@ -343,17 +343,14 @@ impl TransmissionPackages for StoredPackages {
             &ReportRequester::default(),
         )
         .await?;
-        package.documents.push(MiruDocument {
-            document_ids: MiruDocumentIds {
-                eml: latest.document_ids.eml.clone(),
-                xz: latest.document_ids.xz.clone(),
-                all_servers: all_servers.id.clone(),
-            },
-            transaction_id: latest.transaction_id.clone(),
-            servers_sent_to: vec![],
-            created_at: now_local.to_rfc3339(),
+        package.documents.push(resealed_document(
+            &latest,
+            &all_servers,
+            &eml_hash,
+            now_local.to_rfc3339(),
             signatures,
-        });
+        ));
+        package.ovcs_public_key = Some(all_servers.ovcs_public_key.clone());
         update_transmission_package_annotations(
             hasura_transaction,
             &at.tenant_id,
@@ -366,6 +363,6 @@ impl TransmissionPackages for StoredPackages {
             tally_annotations,
         )
         .await?;
-        Ok(all_servers.id)
+        Ok(all_servers.document.id)
     }
 }
