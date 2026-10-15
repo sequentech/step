@@ -9,6 +9,7 @@ import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {MyTimeZoneProvider} from "@/providers/EventTimeZoneProvider"
 import {LogEntryDialog, type ILogRow} from "./LogEntryDialog"
 import {ELogScope, type ILogTarget} from "./logScope"
+import {triggerOverrideTranslations} from "@/services/i18n"
 import {
     ADMIN_KEY,
     DELETED_EVENT_DATABASE,
@@ -31,6 +32,7 @@ interface Scenario {
     zone: string
     myZone: string
     onClose: () => void
+    readinessTerminology?: "areas" | "districts"
 }
 
 const TENANT_LOG: ILogTarget = {kind: ELogScope.TENANT}
@@ -74,9 +76,26 @@ const meta = {
         myZone: "America/New_York",
         onClose: fn(),
     },
-    beforeEach: async () => {
+    beforeEach: async ({args}) => {
+        triggerOverrideTranslations(
+            args.readinessTerminology === "districts"
+                ? {
+                      en: {
+                          "logsScreen.readiness.fields.areas": "Districts",
+                          "logsScreen.readiness.fields.counts_by_area": "Voters by district",
+                          "logsScreen.readiness.fields.current_voter_counts":
+                              "Current voters by district",
+                          "logsScreen.readiness.checks.configuration":
+                              "Both events have matching approved content, approvers and districts.",
+                          "logsScreen.readiness.checks.certified_voters":
+                              "Both events match the certified district registry.",
+                      },
+                  }
+                : undefined
+        )
         graphql = graphqlBoundary({}, {schema: true})
         await graphql.ready
+        return () => triggerOverrideTranslations()
     },
     render: ({myZone, ...args}: Scenario) => (
         <AdminStoryProvider boundary={graphql}>
@@ -368,11 +387,7 @@ const READINESS_ENTRY: ILogRow = {
         username: "readiness.operator",
         system_signature: SYSTEM_SIGNATURE,
         statement: {
-            head: {
-                event_type: "USER",
-                log_type: "INFO",
-                description: "Official event readiness verified against the final test.",
-            },
+            head: {event_type: "USER", log_type: "INFO", description: "Legacy server description"},
             body: {
                 Audit: {
                     details_json: JSON.stringify({
@@ -382,19 +397,34 @@ const READINESS_ENTRY: ILogRow = {
                             role: "readiness-check",
                         },
                         report: {
-                            official_event_id: EVENT_ID,
-                            tested_event_id: "final-test-event",
                             passed: true,
+                            checked_at: "2026-10-15T10:00:00Z",
                             checks: [
                                 {
-                                    name: "certified_voters",
+                                    kind: "configuration",
                                     passed: true,
-                                    evidence: {
-                                        sha256: "ab".repeat(32),
-                                        counts_by_post: {"POST-A": 12},
-                                    },
+                                    message: "Legacy configuration wording",
+                                },
+                                {
+                                    kind: "certified_voters",
+                                    passed: true,
+                                    message: "Legacy registry wording",
                                 },
                             ],
+                            evidence: {
+                                official: {
+                                    event_id: EVENT_ID,
+                                    configuration: {areas: ["Area A", "Area B"]},
+                                    voters: {
+                                        sha256: "ab".repeat(32),
+                                        counts_by_area: {"Area A": 12, "Area B": 0},
+                                    },
+                                },
+                                tested: {
+                                    event_id: "tested-event",
+                                    current_voter_counts: {"Area A": 12, "Area B": 0},
+                                },
+                            },
                         },
                     }),
                 },
@@ -408,8 +438,44 @@ export const ReadinessEvidence: Story = {
     play: async () => {
         const view = await dialog()
         await expect(view.getByText("ReadinessVerified")).toBeVisible()
-        await expect(view.getByText(/final-test-event/)).toBeVisible()
-        await expect(view.getByText(/POST-A/)).toBeVisible()
+        await expect(view.getByText(/tested-event/)).toBeVisible()
+        await expect(view.getByText(/Areas: Area A, Area B/)).toBeVisible()
+        await expect(view.getByText(/Voters by area: Area A: 12; Area B: 0/)).toBeVisible()
+        await expect(
+            view.getByText(
+                "Passed: Both events match the same certified voter file and current counts by area."
+            )
+        ).toBeVisible()
+        await expect(view.queryByText(/Legacy registry wording/)).toBeNull()
         await expect(view.getByText("readiness.operator")).toBeVisible()
+    },
+}
+
+// Historical signed payloads retain their original field names in storage.
+const LEGACY_READINESS_ENTRY = {
+    ...READINESS_ENTRY,
+    message: READINESS_ENTRY.message
+        ?.replaceAll("counts_by_area", "counts_by_post")
+        .replaceAll("areas", "posts"),
+}
+
+export const ReadinessDistrictTerminology: Story = {
+    args: {
+        entry: LEGACY_READINESS_ENTRY,
+        readinessTerminology: "districts",
+        log: {kind: ELogScope.EVENT, electionEventId: EVENT_ID},
+    },
+    play: async () => {
+        const original = LEGACY_READINESS_ENTRY.message
+        const view = await dialog()
+        await expect(view.getByText(/Districts: Area A, Area B/)).toBeVisible()
+        await expect(view.getByText(/Voters by district: Area A: 12; Area B: 0/)).toBeVisible()
+        await expect(
+            view.getByText("Passed: Both events match the certified district registry.")
+        ).toBeVisible()
+        await expect(view.queryByText(/Legacy registry wording/)).toBeNull()
+        await expect(view.queryByText(/counts_by_post/)).toBeNull()
+        expect(LEGACY_READINESS_ENTRY.message).toBe(original)
+        expect(LEGACY_READINESS_ENTRY.message).toContain("counts_by_post")
     },
 }

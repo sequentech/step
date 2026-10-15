@@ -621,7 +621,7 @@ describe("field and object names", () => {
 })
 
 describe("certified import and readiness evidence", () => {
-    it("shows voter import hash, stable Post counts and the authenticated actor", () => {
+    it("shows voter import hash, stable area counts and the authenticated actor", () => {
         const view = logEntryView(
             audit(
                 "VotersImported",
@@ -632,7 +632,7 @@ describe("certified import and readiness evidence", () => {
                     file_name: "registry.csv",
                     sha256: "ab".repeat(32),
                     declared_sha256: "ab".repeat(32),
-                    counts_by_post: {"POST-A": 12, "POST-B": 0},
+                    counts_by_area: {"Area A": 12, "Area B": 0},
                     imported_at: "2026-10-14T09:00:00Z",
                 },
                 {username: null, userId: null}
@@ -647,7 +647,7 @@ describe("certified import and readiness evidence", () => {
             expect.arrayContaining([
                 {name: "import_id", value: "import-123"},
                 {name: "sha256", value: "ab".repeat(32)},
-                {name: "counts_by_post", value: "POST-A: 12; POST-B: 0"},
+                {name: "counts_by_area", value: "Area A: 12; Area B: 0"},
             ])
         )
     })

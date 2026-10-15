@@ -38,6 +38,8 @@ import {
     ELECTORAL_LOG_DEFAULT_ZONE_FILTER,
     ELECTORAL_LOG_ZONE_FILTER,
 } from "@/queries/ListElectoralLog"
+import type {TFunction} from "i18next"
+import {readinessDescription} from "./logs/readinessLog"
 import {logMessage} from "./logs/logMessage"
 import {LogTime} from "./logs/LogTime"
 import {ExportLogsDialog} from "./logs/ExportLogsDialog"
@@ -180,8 +182,9 @@ const messageUser = (record: ILogRow, field: "user_id" | "username"): string | n
     return !value || value === "null" ? null : value
 }
 
-const description = (record: ILogRow): string =>
-    logMessage(record)?.statement?.head?.description || "-"
+const description = (t: TFunction, record: ILogRow): string =>
+    readinessDescription(t, record.statement_kind) ??
+    (logMessage(record)?.statement?.head?.description || "-")
 
 /** A narrow list's entry: two lines that open the same popup as a row. */
 const CompactLogEntry: React.FC<{
@@ -190,6 +193,7 @@ const CompactLogEntry: React.FC<{
     format: IZonedFormat
     onOpen: (record: ILogRow) => void
 }> = ({record, zones, format, onOpen}) => {
+    const {t} = useTranslation()
     const zoneOf = useLogRowZone(zones)
     const seconds = record.statement_timestamp ?? record.created
     const logType = headField(record, "log_type")
@@ -224,7 +228,7 @@ const CompactLogEntry: React.FC<{
                         .join(" · ")}
                 </Typography>
                 <Typography component="span" variant="body2" sx={{...ONE_LINE, m: 0}}>
-                    {description(record)}
+                    {description(t, record)}
                 </Typography>
             </ButtonBase>
         </Box>
@@ -537,10 +541,10 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                         <Box
                             component="span"
                             className="log-description"
-                            title={description(row)}
+                            title={description(t, row)}
                             sx={{...ONE_LINE, maxWidth: "min(40vw, 34rem)"}}
                         >
-                            {description(row)}
+                            {description(t, row)}
                         </Box>
                     )}
                 />
