@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Add the Voters | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3511/docs/election_managers/procedures/voters"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Add the Voters | Sequent Online Voting"><meta data-rh="true" name="description" content="This procedure makes the voter list of the election event: you prepare the voter file, import it, add or change single voters and check the list."><meta data-rh="true" property="og:description" content="This procedure makes the voter list of the election event: you prepare the voter file, import it, add or change single voters and check the list."><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3511/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3511/docs/election_managers/procedures/voters"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3511/docs/election_managers/procedures/voters" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3511/docs/election_managers/procedures/voters" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Election Managers","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3511/docs/election_managers/election_management"},{"@type":"ListItem","position":2,"name":"Procedures","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3511/docs/election_managers/procedures"},{"@type":"ListItem","position":3,"name":"Add the Voters","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3511/docs/election_managers/procedures/voters"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3511/assets/css/styles.fc78c976.css">
-<script src="/docusaurus/pr-preview/pr-3511/assets/js/runtime~main.2c96154d.js" defer="defer"></script>
-<script src="/docusaurus/pr-preview/pr-3511/assets/js/main.893a9613.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3511/assets/js/runtime~main.b63b2f44.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3511/assets/js/main.d62fa7d9.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg style="display: none;"><defs>
@@ -27,27 +27,33 @@ the login methods.</li>
 <div class="theme-admonition theme-admonition-caution admonition_xJq3 alert alert--warning"><div class="admonitionHeading_Gvgb"><span class="admonitionIcon_Rf37"><svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8.893 1.5c-.183-.31-.52-.5-.887-.5s-.703.19-.886.5L.138 13.499a.98.98 0 0 0 0 1.001c.193.31.53.501.886.501h13.964c.367 0 .704-.19.877-.5a1.03 1.03 0 0 0 .01-1.002L8.893 1.5zm.133 11.497H6.987v-2.003h2.039v2.003zm0-3.004H6.987V5.987h2.039v4.006z"></path></svg></span>CAUTION</div><div class="admonitionContent_BuS1"><p>The voter file contains personal data. Keep it on a protected computer. Delete the working
 copies after the import, as your data protection rules require.</p></div></div>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-prepare-the-voter-file">1. Prepare the voter file<a href="#1-prepare-the-voter-file" class="hash-link" aria-label="Direct link to 1. Prepare the voter file" title="Direct link to 1. Prepare the voter file" translate="no">​</a></h2>
+<p>The admin portal does not supply an example file. Make the file from the table and the example
+below.</p>
 <ol>
-<li class="">Open the election event.</li>
-<li class="">Click the <strong>Voters</strong> tab.</li>
-<li class="">Click <strong>Import</strong>. The <strong>Import Voters</strong> panel opens.</li>
-<li class="">Click the link in &quot;Download an example import CSV file here.&quot; to download the example file.</li>
-<li class="">Make your CSV file from the example. The first row must be the header. The table gives the
-columns.</li>
+<li class="">Make a CSV file with one row for each voter.</li>
+<li class="">Put the header in the first row. Use the column names of the table.</li>
+<li class="">Use a comma as the separator. For a tab separator, give the file the extension <code>.tsv</code>.</li>
+<li class="">Save the file.</li>
 </ol>
-<table><thead><tr><th>Column</th><th>Content</th></tr></thead><tbody><tr><td><code>username</code></td><td>The user name of the voter. It must be unique in the election event.</td></tr><tr><td><code>email</code></td><td>The email address.</td></tr><tr><td><code>first_name</code>, <code>last_name</code></td><td>The name of the voter.</td></tr><tr><td><code>area_name</code></td><td>The name of the area of the voter. It must be the same as on the <strong>Areas</strong> tab.</td></tr><tr><td><code>enabled</code></td><td><code>TRUE</code> or <code>FALSE</code>. A voter with <code>FALSE</code> cannot sign in.</td></tr><tr><td><code>password</code></td><td>Optional. The password of the voter.</td></tr><tr><td><code>sequent.read-only.mobile-number</code></td><td>Optional. The mobile number, for text messages.</td></tr><tr><td><code>vote-weight</code></td><td>Optional. A positive whole number. Use it only if the election event uses weighted voting.</td></tr></tbody></table>
+<table><thead><tr><th>Column</th><th>Content</th></tr></thead><tbody><tr><td><code>username</code></td><td>The user name of the voter. It must be unique in the election event.</td></tr><tr><td><code>email</code></td><td>The email address.</td></tr><tr><td><code>first_name</code>, <code>last_name</code></td><td>The name of the voter.</td></tr><tr><td><code>area_name</code></td><td>The name of the area of the voter. It must be the same as on the <strong>Areas</strong> tab.</td></tr><tr><td><code>enabled</code></td><td><code>TRUE</code> or <code>FALSE</code>. A voter with <code>FALSE</code> cannot sign in.</td></tr><tr><td><code>password</code></td><td>Optional. The password of the voter.</td></tr><tr><td><code>sequent.read-only.mobile-number</code></td><td>Optional. The mobile number, for text messages.</td></tr><tr><td><code>vote-weight</code></td><td>Optional. A positive whole number. Use it only if the election event uses weighted voting.</td></tr><tr><td><code>authorized-election-ids</code></td><td>Optional. The elections that the voter can vote in. Type the <strong>External ID</strong> of each election, or its ID if it has no External ID. Separate the values with <code>|</code>. If you leave it empty, the voter can vote in the elections of their area.</td></tr></tbody></table>
 <p>Other columns become attributes of the voter, for example a date of birth for the login. Use the
-attribute name as the header, not the label that the admin portal shows. Use a comma as the
-separator. For a tab separator, give the file the extension <code>.tsv</code>.</p>
+attribute name as the header, not the label that the admin portal shows.</p>
+<p>Example with two voters. The second voter can vote only in the elections with the External IDs
+<code>election-1</code> and <code>election-2</code>:</p>
+<div class="language-csv codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-csv codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">username,email,first_name,last_name,area_name,enabled,authorized-election-ids</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">voter001,voter001@example.com,Ana,Lopez,North,TRUE,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">voter002,voter002@example.com,Ben,Smith,South,TRUE,election-1|election-2</span><br></span></code></pre></div></div>
+<div class="theme-admonition theme-admonition-caution admonition_xJq3 alert alert--warning"><div class="admonitionHeading_Gvgb"><span class="admonitionIcon_Rf37"><svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8.893 1.5c-.183-.31-.52-.5-.887-.5s-.703.19-.886.5L.138 13.499a.98.98 0 0 0 0 1.001c.193.31.53.501.886.501h13.964c.367 0 .704-.19.877-.5a1.03 1.03 0 0 0 .01-1.002L8.893 1.5zm.133 11.497H6.987v-2.003h2.039v2.003zm0-3.004H6.987V5.987h2.039v4.006z"></path></svg></span>CAUTION</div><div class="admonitionContent_BuS1"><p>A value in <code>authorized-election-ids</code> that does not match an election is ignored without an error.
+If no value matches, the voter cannot vote in any election. Check the External IDs of the elections
+before you import the file.</p></div></div>
 <p><strong>Expected result:</strong> you have a CSV file with one row for each voter and the correct header.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-import-the-voters">2. Import the voters<a href="#2-import-the-voters" class="hash-link" aria-label="Direct link to 2. Import the voters" title="Direct link to 2. Import the voters" translate="no">​</a></h2>
 <ol>
 <li class="">On the <strong>Voters</strong> tab, click <strong>Import</strong>.</li>
+<li class="">Type the hash of the file in <strong>Integrity Check (SHA-256)</strong>.</li>
 <li class="">Upload the CSV file.</li>
 <li class="">Click <strong>Import</strong>.</li>
 </ol>
 <p><strong>Expected result:</strong> the message &quot;Voters Import Scheduled Successfully&quot; shows.</p>
-<ol start="4">
+<ol start="5">
 <li class="">Click the <strong>Tasks</strong> tab. Wait until the import task is complete.</li>
 <li class="">If the task shows an error, open the task and read the error. Correct the file and import
 it again.</li>
@@ -58,7 +64,8 @@ it again.</li>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-add-or-change-one-voter">3. Add or change one voter<a href="#3-add-or-change-one-voter" class="hash-link" aria-label="Direct link to 3. Add or change one voter" title="Direct link to 3. Add or change one voter" translate="no">​</a></h2>
 <p>To add a voter:</p>
 <ol>
-<li class="">On the <strong>Voters</strong> tab, click <strong>Add</strong>. The <strong>Create Voter</strong> panel opens.</li>
+<li class="">On the <strong>Voters</strong> tab, click <strong>Create Voter</strong>. If the list already has voters, click <strong>Add</strong>.
+The <strong>Create Voter</strong> panel opens.</li>
 <li class="">Type the fields of the voter.</li>
 <li class="">Select the <strong>Area</strong> of the voter.</li>
 <li class="">Make sure that <strong>Enabled</strong> is selected.</li>
