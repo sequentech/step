@@ -16,7 +16,9 @@ The Data tab is similar across multiple entities in the system (Election Events,
 ## Actions buttons in the Election Event Data Tab
 
 - **Export**: Export election event data.
-- **Import candidates**: Import candidates for the election event.
+- **Import candidates**: Import candidates for the election event from a file. The file must have
+  the fixed layout of a specific external integration. It is not a general-purpose import. To add
+  candidates, use the election event tree or import an election event.
 - **Google meet**: Generate google meet link and create event in google calendar.
 
 

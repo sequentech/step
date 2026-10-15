@@ -23,10 +23,11 @@ the voting period. The election administrator does this procedure.
 - You know your password. Publication and the voting status are sensitive actions. See
   [Before You Start](../00-before-you-start.md#sensitive-actions).
 
-:::danger WARNING
-Do not publish the ballot for voters before the key ceremony status is `SUCCESS`. The admin portal
-does not stop you. Without the election key, the voting portal works in demo mode and does not
-record real votes.
+:::note
+You can publish before the key ceremony status is `SUCCESS`. The voting portal then works in demo
+mode: reviewers can check how the election event looks before you make it final, but the votes
+are not real. After the key ceremony, make and publish a new publication. Start the voting period
+only after the key ceremony status is `SUCCESS` and you published again.
 :::
 
 :::note
@@ -40,8 +41,8 @@ a **Publish** tab that applies only to that election.
 2. Click the **Publish** tab.
 3. Click **Generate Publication**. If the election event already has a publication, click
    **Publish Changes**.
-4. Read the message "You are about to generate a publication."
-5. Click **Confirm**. If the admin portal asks for your password, type it.
+4. If a **Confirm Action** window opens, read the message and click **Confirm**.
+5. If the admin portal asks for your password, type it.
 
 **Expected result:** the message "Ballot generated" shows. The **Changes to be Published** page
 compares the **Current** publication with the **Changes to Publish**.
@@ -110,8 +111,8 @@ of the voting period. If an election needs these checks, open and close its chan
 2. Click the **Publish** tab.
 3. Click **Start Voting**. A menu shows one item for each channel.
 4. Click the channel to open, for example **Start Online Voting**.
-5. Read the message "You are about to start voting period."
-6. Confirm the action. If the admin portal asks for your password, type it.
+5. In the **Confirm Action** window, read the message and click **Confirm**.
+6. If the admin portal asks for your password, type it. The admin portal then opens the channel.
 7. Do steps 3 to 6 for each other channel of the election event.
 
 **Expected result:** the message "Election status changed" shows. Voters can vote on the

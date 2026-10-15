@@ -31,12 +31,13 @@ copies after the import, as your data protection rules require.
 
 ## 1. Prepare the voter file
 
-1. Open the election event.
-2. Click the **Voters** tab.
-3. Click **Import**. The **Import Voters** panel opens.
-4. Click the link in "Download an example import CSV file here." to download the example file.
-5. Make your CSV file from the example. The first row must be the header. The table gives the
-   columns.
+The admin portal does not supply an example file. Make the file from the table and the example
+below.
+
+1. Make a CSV file with one row for each voter.
+2. Put the header in the first row. Use the column names of the table.
+3. Use a comma as the separator. For a tab separator, give the file the extension `.tsv`.
+4. Save the file.
 
 | Column | Content |
 | --- | --- |
@@ -48,23 +49,39 @@ copies after the import, as your data protection rules require.
 | `password` | Optional. The password of the voter. |
 | `sequent.read-only.mobile-number` | Optional. The mobile number, for text messages. |
 | `vote-weight` | Optional. A positive whole number. Use it only if the election event uses weighted voting. |
+| `authorized-election-ids` | Optional. The elections that the voter can vote in. Type the **External ID** of each election, or its ID if it has no External ID. Separate the values with `\|`. If you leave it empty, the voter can vote in the elections of their area. |
 
 Other columns become attributes of the voter, for example a date of birth for the login. Use the
-attribute name as the header, not the label that the admin portal shows. Use a comma as the
-separator. For a tab separator, give the file the extension `.tsv`.
+attribute name as the header, not the label that the admin portal shows.
+
+Example with two voters. The second voter can vote only in the elections with the External IDs
+`election-1` and `election-2`:
+
+```csv
+username,email,first_name,last_name,area_name,enabled,authorized-election-ids
+voter001,voter001@example.com,Ana,Lopez,North,TRUE,
+voter002,voter002@example.com,Ben,Smith,South,TRUE,election-1|election-2
+```
+
+:::caution CAUTION
+A value in `authorized-election-ids` that does not match an election is ignored without an error.
+If no value matches, the voter cannot vote in any election. Check the External IDs of the elections
+before you import the file.
+:::
 
 **Expected result:** you have a CSV file with one row for each voter and the correct header.
 
 ## 2. Import the voters
 
 1. On the **Voters** tab, click **Import**.
-2. Upload the CSV file.
-3. Click **Import**.
+2. Type the hash of the file in **Integrity Check (SHA-256)**.
+3. Upload the CSV file.
+4. Click **Import**.
 
 **Expected result:** the message "Voters Import Scheduled Successfully" shows.
 
-4. Click the **Tasks** tab. Wait until the import task is complete.
-5. If the task shows an error, open the task and read the error. Correct the file and import
+5. Click the **Tasks** tab. Wait until the import task is complete.
+6. If the task shows an error, open the task and read the error. Correct the file and import
    it again.
 
 **Expected result:** the voters show on the **Voters** tab.
@@ -78,7 +95,8 @@ If some columns are secret voter fields, your account needs the permission to wr
 
 To add a voter:
 
-1. On the **Voters** tab, click **Add**. The **Create Voter** panel opens.
+1. On the **Voters** tab, click **Create Voter**. If the list already has voters, click **Add**.
+   The **Create Voter** panel opens.
 2. Type the fields of the voter.
 3. Select the **Area** of the voter.
 4. Make sure that **Enabled** is selected.

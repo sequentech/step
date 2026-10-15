@@ -12,7 +12,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 While a voter fills in their ballot, the Voting Portal validates the selections and displays error and warning boxes — for example when the voter selects fewer choices than the minimum, exceeds the maximum, or leaves a preferential order with gaps. Each of these boxes carries stable CSS hooks so that individual messages can be styled (or hidden) using the **Custom CSS** setting, without affecting the rest of the messages.
 
-Custom CSS can be configured in the Admin Portal under **Data → Ballot Design → Custom CSS**, at the Election Event level or per Election.
+Custom CSS can be configured in the Admin Portal under **Data → Ballot Design → Custom CSS** of the election event. Elections have no Custom CSS field of their own.
 
 ---
 
@@ -97,4 +97,4 @@ Target a message by its raw identifier instead of the derived class:
 }
 ```
 
-Since the Custom CSS setting exists both on the Election Event and on each Election, styles can be applied globally to the whole event or only to a specific election.
+The Custom CSS setting exists only on the election event, so the styles apply to all the elections of the event.

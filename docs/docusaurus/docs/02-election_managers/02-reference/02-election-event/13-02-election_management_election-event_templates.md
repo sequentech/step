@@ -24,6 +24,41 @@ Managing Templates is essential for consistent report generation. Each Report Ty
 
 Once configured, the Template becomes available for its associated Report Types and other system areas.
 
+### Exporting and importing templates
+
+Use **Export** and **Import** to copy templates, for example to keep a backup.
+
+1. To export, click **Export**. The admin portal makes a CSV file with all the templates. Download
+   the file when it is ready.
+2. To import, click **Import**. Type the hash of the file in **Integrity Check (SHA-256)**, upload
+   the CSV file and click **Import**.
+
+Import only a file that you made with **Export**. Do not make the file by hand. The import adds
+each row as a new template. It does not change the templates that exist.
+
+The file has a header row and ten columns in this order:
+
+```csv
+alias,tenant_id,template,created_by,labels,annotations,created_at,updated_at,communication_method,type
+```
+
+| Column | Content |
+| --- | --- |
+| `alias` | The alias of the template. |
+| `tenant_id` | The ID of the tenant. The import adds the template to this tenant. |
+| `template` | The content of the template, in JSON. |
+| `created_by` | The user that made the template. |
+| `labels`, `annotations` | Extra data. You can leave them empty. |
+| `created_at`, `updated_at` | Dates. The import replaces them with the date of the import. |
+| `communication_method` | The communication method of the template (email, SMS or document). |
+| `type` | The **Template Type**. |
+
+:::caution CAUTION
+The import uses the tenant ID in each row of the file, not the tenant that you are signed in to.
+Rows with a tenant ID that is not valid are skipped. Import a file only into the tenant where you
+exported it.
+:::
+
 ### Key Points
 
 - **Consistency**: Use predefined or default formats where possible to ensure consistency across reports.

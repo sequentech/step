@@ -142,6 +142,7 @@ For more information, see [Results website](../02-results-website.md) and [Elect
 
 - [Election results in depth](../01-tutorials/17-admin_portal_tutorials_election-results.md)
 - [Reports and templates](../01-tutorials/18-reports_and_templates.md)
+- [Election event: Transmission](../02-reference/02-election-event/08-02-election_management_election-event_transmission.md)
 - [Election event: Reports](../02-reference/02-election-event/13-01-election_management_election-event_reports.md)
 - [Election logs](../01-tutorials/19-admin_portal_tutorials_election-logs.md)
 - [Export the election event data](../01-tutorials/20-admin_portal_tutorials_export-data.md)
