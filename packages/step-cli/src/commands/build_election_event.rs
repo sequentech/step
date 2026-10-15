@@ -837,4 +837,109 @@ mod tests {
         }
         assert!(!outside.exists());
     }
+    fn historical_fixture() -> Fixture {
+        let mut sql=String::from("CREATE TABLE `allbgy` (`ID_BARANGAY` text, `AREANAME` text); INSERT INTO `allbgy` VALUES ('B01','Area One');\nCREATE TABLE `allmun` (`ID_CITY` text, `AREANAME` text); INSERT INTO `allmun` VALUES ('001002','City One');\nCREATE TABLE `polling_centers` (`ID` text, `POLLING_PLACE` text); INSERT INTO `polling_centers` VALUES ('P01','Post One');\nCREATE TABLE `pop` (`CLUSTERPOLLCENTER` text, `POLLCENTER_CODE` text, `PROV_CODE` text, `MUN_CODE` text, `BRGY_CODE` text); INSERT INTO `pop` VALUES ('B01','P01','001','002','003');\nCREATE TABLE `trans_route` (`TRANS_SOURCE_ID` text, `TRANS_DEST_ID` text); INSERT INTO `trans_route` VALUES ('0010020003','DEST01');\nCREATE TABLE `seat` (`DISTRICTCODE` text, `CONTEST` text, `ELIGIBLEAMOUNT` int, `GEOCODE` text); INSERT INTO `seat` VALUES ('S01','Example Seat',1,'G01');\nCREATE TABLE `contest` (`POSTCODE` text, `POSTNAME` text, `SORT_ORDER` int); INSERT INTO `contest` VALUES ('C01','Example Seat',1);\nCREATE TABLE `candidate` (`CAND_CODE` text, `NAMEONBALLOT` text, `POST_CODE` text, `DISTRICTCODE` text, `NOMINATEDBY` text); INSERT INTO `candidate` VALUES ('0007','Example Candidate','C01','S01','PR01');\nCREATE TABLE `party_list` (`CODE_PARTY` text, `SHORT_NAME` text, `NAME_PARTY` text); INSERT INTO `party_list` VALUES ('PR01','EP','Example Party');\nCREATE TABLE `geographical` (`GEOCODE` text); INSERT INTO `geographical` VALUES ('G01');\nCREATE TABLE `voters` (`ID` text); INSERT INTO `voters` VALUES ('private-voter-id');\n");
+        for name in [
+            "allprov",
+            "canvass_center",
+            "district_type",
+            "ref_typeboard",
+        ] {
+            sql.push_str(&format!("CREATE TABLE `{name}` (`ID` text);\n"));
+        }
+        let grids = vec![
+            (
+                "ElectionEvent",
+                vec![
+                    vec![text("name"), text("annotations.miru_election_event_id")],
+                    vec![text("Synthetic event"), text("fixture")],
+                ],
+            ),
+            (
+                "Elections",
+                vec![
+                    vec![text("name"), text("election_post"), text("alias")],
+                    vec![text("Synthetic election"), text("Post One"), text("e1")],
+                ],
+            ),
+            ("Areas", vec![vec![text("name")], vec![text("Area One")]]),
+            ("CcsServers", vec![vec![text("tag")]]),
+            (
+                "ScheduledEvents",
+                vec![
+                    vec![text("election_alias"), text("type"), text("date")],
+                    vec![
+                        text("e1"),
+                        text("START_VOTING_PERIOD"),
+                        text("2027-01-01T00:00:00Z"),
+                    ],
+                ],
+            ),
+        ];
+        let book = Workbook::new(
+            grids
+                .into_iter()
+                .map(|(name, grid)| Sheet::from_grid(name, &grid).unwrap())
+                .collect(),
+        )
+        .unwrap();
+        let mut fixture = Fixture::new(&write_xlsx(&book).unwrap());
+        fixture.command.historical_sql = Some(fixture.file("synthetic.sql", sql.as_bytes()));
+        fixture.command.historical_decisions=Some(fixture.file("decisions.json",br#"{"census":"configuration-only","ballot":"seat-plurality-at-large","scope":"configured-seats-only"}"#));
+        fixture
+    }
+    #[test]
+    fn historical_sources_build_through_the_shared_validator_and_native_writer() {
+        let mut fixture = historical_fixture();
+        fixture.command.check_only = true;
+        fixture.command.build().unwrap();
+        assert!(!fixture.directory().exists());
+        fixture.command.check_only = false;
+        fixture.command.build().unwrap();
+        let archive = fs::read(fixture.directory().join("event.zip")).unwrap();
+        let mut zip = zip::ZipArchive::new(std::io::Cursor::new(archive)).unwrap();
+        let name = zip
+            .file_names()
+            .find(|name| name.starts_with("export_election_event-"))
+            .unwrap()
+            .to_string();
+        let event: serde_json::Value =
+            serde_json::from_reader(zip.by_name(&name).unwrap()).unwrap();
+        assert_eq!(event["candidates"].as_array().unwrap().len(), 1);
+        assert_eq!(
+            event["candidates"][0]["annotations"]["miru:candidate-id"],
+            "0007"
+        );
+        assert!(event["election_event"]["annotations"]["import:provenance"]
+            .as_str()
+            .unwrap()
+            .contains("configuration-only"));
+        assert!(!zip
+            .file_names()
+            .any(|name| name.starts_with("export_voters-")));
+    }
+    #[test]
+    fn historical_io_decision_and_conversion_failures_never_write_a_package() {
+        let mut fixture = historical_fixture();
+        fixture.command.historical_sql = Some(fixture.root.path().join("missing.sql"));
+        assert!(fixture.error().contains("could not read historical SQL"));
+        fixture.command.historical_sql = Some(fixture.file("synthetic.sql", b"SELECT 1;"));
+        fixture.command.historical_decisions = None;
+        assert!(fixture
+            .error()
+            .contains("historical decisions are required"));
+        fixture.command.historical_decisions = Some(fixture.root.path().join("missing.json"));
+        assert!(fixture
+            .error()
+            .contains("could not read historical decisions"));
+        fixture.command.historical_decisions = Some(fixture.file("invalid.json", b"not JSON"));
+        assert!(fixture
+            .error()
+            .contains("invalid historical decisions JSON"));
+        fixture.command.historical_decisions = Some(fixture.file("decisions.json", b"{}"));
+        assert!(fixture
+            .error()
+            .contains("historical source conversion refused"));
+        assert!(!fixture.directory().exists());
+    }
 }

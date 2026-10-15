@@ -26,7 +26,9 @@ jest.mock("react-admin", () => ({
 jest.mock("react-i18next", () => ({useTranslation: () => ({t: (key: string) => key})}))
 jest.mock("react-router-dom", () => ({useNavigate: () => jest.fn()}))
 jest.mock("@sequentech/ui-core", () => ({isNull: (value: unknown) => value == null}))
-jest.mock("@sequentech/ui-essentials", () => ({readProblems: (value: unknown) => value}))
+jest.mock("@sequentech/ui-essentials", () => ({readProblems: (value: unknown) => value}), {
+    virtual: true,
+})
 jest.mock("@/providers/NewResourceProvider", () => ({
     NewResourceContext: require("react").createContext({setLastCreatedResource: jest.fn()}),
 }))
