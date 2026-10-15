@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Fast feedback loops | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3897/docs/developers/development-environment/fast-feedback"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Fast feedback loops | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3897/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3897/docs/developers/development-environment/fast-feedback"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3897/docs/developers/development-environment/fast-feedback" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3897/docs/developers/development-environment/fast-feedback" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Fast feedback loops","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3897/docs/developers/development-environment/fast-feedback"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3897/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3897/assets/js/runtime~main.a1d74eca.js" defer="defer"></script>
-<script src="/docusaurus/pr-preview/pr-3897/assets/js/main.1f624ee6.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3897/assets/js/runtime~main.60e0b20b.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3897/assets/js/main.91fa9322.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg style="display: none;"><defs>
@@ -36,6 +36,10 @@ Compose project publishes a port or holds a container name the mode needs.</p>
 <p>Reopening the folder with another configuration attaches to the running
 devcontainer without starting that mode&#x27;s services: run <code>step-dev mode switch</code>,
 or <strong>Dev Containers: Rebuild Container</strong> and pick the configuration.</p>
+<p>For browser key ceremonies, use the dedicated development accounts and local
+forwarded ports in <a class="" href="/docusaurus/pr-preview/pr-3897/docs/developers/wbraid/trustee-configuration#browser-trustee-accounts">browser trustee setup</a>.
+<code>scripts/dev/step-dev browser_trustees</code> provisions the accounts on an existing
+realm without resetting their passwords or MFA or changing native trustee accounts.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="opt-in-scanovate-services">Opt-in Scanovate services<a href="#opt-in-scanovate-services" class="hash-link" aria-label="Direct link to Opt-in Scanovate services" title="Direct link to Opt-in Scanovate services" translate="no">​</a></h3>
 <p>The identity verification of enrollment (Liveness Plus with its PAD server, Face
 Match and OCR) belongs to the <code>scanovate</code> Compose profile, which no mode starts:

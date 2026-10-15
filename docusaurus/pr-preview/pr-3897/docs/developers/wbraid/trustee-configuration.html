@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Wbraid trustee configuration | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3897/docs/developers/wbraid/trustee-configuration"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Wbraid trustee configuration | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3897/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3897/docs/developers/wbraid/trustee-configuration"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3897/docs/developers/wbraid/trustee-configuration" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3897/docs/developers/wbraid/trustee-configuration" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Wbraid trustees","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3897/docs/developers/wbraid/trustee-configuration"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3897/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3897/assets/js/runtime~main.a1d74eca.js" defer="defer"></script>
-<script src="/docusaurus/pr-preview/pr-3897/assets/js/main.1f624ee6.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3897/assets/js/runtime~main.60e0b20b.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3897/assets/js/main.91fa9322.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg style="display: none;"><defs>
@@ -49,12 +49,49 @@ retries authentication while the account is being configured.</p>
 <p><code>scripts/dev/step-dev mode</code> reads <code>.env.development</code> first and <code>.env</code> second.
 Existing workspaces therefore inherit new settings without replacing local
 overrides or secrets. Explicit local values still win: remove an obsolete
-override or update it when migrating a workspace. In particular,
-<code>WBRAID_S3_ENDPOINT_URL=http://localstack:4566</code> must be reachable from both native
-trustees and browser trustees. Add <code>127.0.0.1 localstack</code> to the browser host&#x27;s
-hosts file and forward port <code>4566</code> from the workspace.
+override or update it when migrating a workspace. The default
+<code>WBRAID_S3_ENDPOINT_URL=http://localhost.localstack.cloud:4566</code> reaches LocalStack
+through public loopback DNS from a browser and a network alias inside Compose.
+No browser-host hosts-file change is needed. Older workspaces with an explicit
+<code>http://localstack:4566</code> override must update it to this default.
 The browser board URL defaults to <code>http://localhost:3005</code> through
 <code>WBRAID_BOARD_PUBLIC_URL</code>.</p>
+<p>The full and backend devcontainers forward ports <strong>3002</strong> (admin portal),
+<strong>3005</strong> (board), <strong>4566</strong> (storage), <strong>8080</strong> (Hasura) and <strong>8090</strong> (Keycloak).
+These ports must retain their local numbers; VS Code reports a conflict instead
+of silently selecting another port. Use the local forwarded admin URL,
+<code>http://localhost:3002/trustee</code>, when developing through a remote workspace.
+An HTTPS preview URL also requires HTTPS board and storage endpoints.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="browser-trustee-accounts">Browser trustee accounts<a href="#browser-trustee-accounts" class="hash-link" aria-label="Direct link to Browser trustee accounts" title="Direct link to Browser trustee accounts" translate="no">​</a></h3>
+<p>The default development realm includes <code>trustee1-wbraid</code> and <code>trustee2-wbraid</code>,
+whose <code>trustee</code> attributes match their usernames. They belong to the trustee
+group and are separate from the native runners&#x27; <code>trustee1</code> and <code>trustee2</code> accounts.
+The backend/full post-create setup provisions their initial passwords. To apply
+the same setup to an existing realm, run from the checkout root:</p>
+<div class="language-sh codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-sh codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">scripts/dev/step-dev browser_trustees</span><br></span></code></pre></div></div>
+<p>When initial password settings are unset or empty, the passwords default to
+<code>trustee1-wbraid</code> and <code>trustee2-wbraid</code>, respectively. Override them with
+<code>BROWSER_TRUSTEE1_PASSWORD</code> and <code>BROWSER_TRUSTEE2_PASSWORD</code> in <code>.devcontainer/.env</code>
+or the command&#x27;s environment. Process environment values take precedence over
+the file settings. Setup preserves existing passwords, MFA credentials, profile
+fields and unrelated attributes. Accounts without MFA receive a synthetic email OTP enrollment marker;
+existing MFA methods are preserved. Setup enables message OTP test mode in the
+default development tenant because the dummy sender suppresses email content.
+Sign in using code <strong>123456</strong> on the email OTP page.
+<code>BROWSER_TRUSTEE_OTP_CODE</code> overrides this synthetic code. The command leaves
+other tenants and the checked-in realm&#x27;s authentication policy unchanged.</p>
+<p>Use a separate browser profile for each account. Generate keys on <code>/trustee</code>,
+back them up, and register <strong>both public keys</strong> under the corresponding
+<code>trustee1-wbraid</code> or <code>trustee2-wbraid</code> name in <strong>Settings → Trustees</strong> before creating
+the ceremony. Select those trustees when creating it. For an existing ceremony,
+import its original keys or browser backup instead of generating another identity.
+The account&#x27;s <code>trustee</code> claim, rather than its username or loaded public keys,
+selects the assigned boards. <strong>Boards assigned to</strong> must show the selected trustee
+name; sign out and back in after changing account attributes.</p>
+<p>If a configuration was posted but no board appears, verify the account&#x27;s claim
+matches a selected trustee and the ceremony is still <strong>IN_PROGRESS</strong>. Discovery
+uses the dashboard&#x27;s <strong>Platform URL</strong> (<code>HASURA_URL</code>); the <strong>Board service URL</strong> is
+used after discovery. Click <strong>Refresh boards</strong>, then <strong>Start browser trustee</strong>.</p>
 <p>To apply only the crypto service changes to an existing workspace, after checking
 its local settings and trustee enrollment, run from the checkout root:</p>
 <div class="language-sh codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-sh codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token function" style="color:rgb(130, 170, 255)">docker</span><span class="token plain"> compose --project-directory .devcontainer </span><span class="token punctuation" style="color:rgb(199, 146, 234)">\</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  --env-file .devcontainer/.env.development --env-file .devcontainer/.env </span><span class="token punctuation" style="color:rgb(199, 146, 234)">\</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-f</span><span class="token plain"> .devcontainer/docker-compose.yml </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--profile</span><span class="token plain"> full up </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-d</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--build</span><span class="token plain"> --no-deps </span><span class="token punctuation" style="color:rgb(199, 146, 234)">\</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  postgres-b4v6 localstack configure-localstack b4v6 trustee1 trustee2</span><br></span></code></pre></div></div>
@@ -69,15 +106,125 @@ voting, ballot tracking, public verification and election archive import. The
 browser journeys exercise both ceremony policies with real Chromium trustees.
 Each launcher owns and cleans up its own Compose project and volumes.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="manual-custody-proofs">Manual custody proofs<a href="#manual-custody-proofs" class="hash-link" aria-label="Direct link to Manual custody proofs" title="Direct link to Manual custody proofs" translate="no">​</a></h2>
-<p>For manual ceremonies, download the public custody request from the portal and
-produce a signed proof locally:</p>
-<div class="language-sh codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-sh codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">trustee attest </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--request</span><span class="token plain"> custody-request.json --trustee-config trustee.toml </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--output</span><span class="token plain"> custody-proof.json</span><br></span></code></pre></div></div>
-<p>Upload the proof. For a tally restore, add <code>--tally-session-id &lt;tally UUID&gt;</code>.
-The proof is bound to the event, ceremony, trustee and, for restore, tally.
-Private keys stay in the runner&#x27;s keys file.</p>
+<p>The portal calls the reusable request a <strong>Custody file</strong> and downloads it as
+<code>&lt;trustee&gt;-custody.json</code>. A manually generated <strong>Signed custody proof</strong> downloads
+as <code>&lt;trustee&gt;-signed-custody-proof.json</code>. Files saved under the previous
+<code>*-custody-request.json</code> and <code>*-custody-proof.json</code> names remain accepted; uploads
+are checked by their contents. Keep the custody file for future manual tallies.</p>
+<p>For a server trustee, <strong>Download Custody File</strong> in the key-ceremony wizard saves
+<code>&lt;trustee&gt;-custody.json</code>. The operator saves it and uploads that same file
+to confirm custody. Upload it again when authorizing a manual tally. The running
+trustee fetches the requested work and creates the signed proof automatically;
+no shell access or command is needed.</p>
+<p>A file upload queues work only. The portal waits for the result, then submits it
+through the existing <code>confirm_key_custody</code> or <code>authorize_tally_custody</code> action.
+Additional staff signatures remain required when the event&#x27;s signing policy
+requires them, and bind the hash of the actual proof. Server action results do
+not advance ceremony status or consume staff approvals.</p>
+<p>The file is public metadata, not a backup of private keys or protocol state. A
+proof demonstrates control of the trustee&#x27;s signing key for the named tenant,
+event, key ceremony and optional tally session. It does not demonstrate a backup
+exists or that the runner can recover its recorded DKG state. Operators must
+still back up both the runner&#x27;s keys and its private protocol store.</p>
+<p>For an offline trustee, produce and upload a signed proof as before:</p>
+<div class="language-sh codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-sh codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">trustee attest </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--request</span><span class="token plain"> trustee1-custody.json --trustee-config trustee.toml </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--output</span><span class="token plain"> signed-custody-proof.json</span><br></span></code></pre></div></div>
+<p>For tally authorization add <code>--tally-session-id &lt;tally UUID&gt;</code>. Offline and browser
+proof files remain accepted directly by both upload steps. Reusing the saved
+public file asks the server for a proof of the current tally; reusing an old
+signed proof cannot authorize another tally.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="trustee-event-updates">Trustee event updates<a href="#trustee-event-updates" class="hash-link" aria-label="Direct link to Trustee event updates" title="Direct link to Trustee event updates" translate="no">​</a></h3>
+<p>Server trustees poll the <code>trustee_event_updates: jsonb!</code> Hasura query. Harvest&#x27;s
+<code>GET /trustee/event-updates</code> returns assigned <code>boards</code> and pending <code>actions</code> in
+one authenticated response. Each action has an opaque <code>id</code>, a typed <code>kind</code>, and
+its payload. <code>CREATE_CUSTODY_PROOF</code> carries the canonical <code>request</code>. Native
+trustees skip unknown kinds, so more action types can be introduced without
+breaking older runners. If the query field is absent during an upgrade, discovery
+falls back to <code>list_trustee_boards</code>; queued proof work needs the new runner and API.</p>
+<p>The portal calls <code>request_server_custody(object: jsonb!): jsonb!</code>, forwarded to
+<code>POST /trustee/request-server-custody</code>. Input names <code>election_event_id</code>, exactly
+one of <code>keys_ceremony_id</code> or <code>tally_session_id</code>, and the uploaded
+<code>custody_request_json</code>. Optional <code>retry_policy</code> defaults to <code>KEEP</code>;
+<code>RETRY_FAILED</code> starts a new action after failure. Replies have <code>status</code> <code>PENDING</code>,
+<code>READY</code> with <code>custody_proof_json</code>, or <code>FAILED</code> with <code>detail</code>. The first upload
+requests a failed-action retry; subsequent polls keep the same action. The portal
+stops waiting after two minutes, including stalled network requests, leaving
+pending work available for a later upload. It cancels polling and in-flight HTTP
+requests when navigating away.</p>
+<p>The runner submits <code>submit_trustee_action_result(result: jsonb!)</code>, forwarded to
+<code>POST /trustee/action-result</code>, and requires an explicit <code>{accepted: true}</code> before
+settling delivery. A result includes the action <code>id</code>, canonical <code>request</code>, and
+<code>status</code> <code>READY</code> with <code>custody_proof_json</code> or <code>FAILED</code> with <code>detail</code>. Pending work
+is replayed until acknowledged. Repeated identical results are accepted; stale
+IDs, changed scope, invalid signatures and changed completed results are refused.
+Unknown action kinds are left pending for a compatible runner.</p>
+<p>All three actions use the <code>trustee-ceremony</code> role and trustee JWT claim. Harvest
+rebuilds scope from the tenant&#x27;s stored, signed DKG configuration, checks committee
+membership and current ceremony lifecycle, and validates uploaded files against
+that scope. The current tally ID is assigned by the platform, never taken from
+the saved file. Work and results are stored as JSON strings in existing ceremony
+annotations, under <code>trustee:server-custody:&lt;trustee UUID&gt;</code>, with a unique action ID
+and requesting user. No database migration is needed. A cancelled or inactive
+ceremony does not deliver pending work and cannot accept its result. Unreadable
+imported action metadata is skipped during discovery so it cannot halt other
+boards; a validated current file can replace it with fresh work.</p>
 <p>The ballot context is the signed configuration&#x27;s immutable decimal identifier.
 Export/import can remap platform UUIDs and board names while preserving signed
-canonical messages and that cryptographic identifier.</p>
+canonical messages and that cryptographic identifier. The same rule applies to
+archived tally identifiers: <code>WasmVerifier.tallyIdentifier</code> verifies the trusted
+signed Ballots statement against its configuration and returns its original
+identifier. A copied platform row&#x27;s UUID is not a cryptographic trust anchor.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="election-event-archives">Election event archives<a href="#election-event-archives" class="hash-link" aria-label="Direct link to Election event archives" title="Direct link to Election event archives" translate="no">​</a></h2>
+<p>The protocol recovery described here applies to wbraid archives. Pre-wbraid
+bulletin-board CSVs contain artifacts from the earlier protocol and cannot be
+converted into or resumed as wbraid ceremonies. Keep those original archives
+and their matching verifier when recovering or auditing historical ceremonies.</p>
+<p>Configuration-only exports can be imported as new events. Publication-only and
+activity-log-only archives also work without including native manager secrets
+or ceremony state. Older selective archives that inadvertently contain unused
+native manager keys remain importable; those keys are ignored. Activity logs
+use <code>sequent-electoral-log-export-v2</code> to name the main event board explicitly
+and preserve independent election audit boards as well as continuation history.
+Import verifies every recorded continuation against the earlier archived log&#x27;s
+identity and checkpoint. Legacy linear V1 archives retain their existing checks;
+older V1 exports containing several open boards are recognized and recovered.</p>
+<p>Select <strong>Bulletin Board</strong> to preserve native DKG configurations, canonical signed
+messages, board relationships and the required manager keys. Select <strong>Tally</strong> as
+well to preserve tally sessions and results; tally data requires the bulletin
+boards. These archives are password encrypted. Import rejects native archives
+that omit the manager-key file or any declared DKG board&#x27;s manager key, or supply
+a private manager key that does not match that board&#x27;s signed configuration.</p>
+<p>Import creates a copied election event with new platform IDs. Signed protocol
+messages and their original cryptographic configuration identifier remain
+unchanged. Ballot publications are unpublished and must be published explicitly.
+The copy starts with a fresh ballot box: the archive preserves tally transcripts
+and results, rather than restoring accepted ballots, revote history or voter
+receipts into a running election.</p>
+<p>For a copied manual event, start a tally and upload the original custody file
+saved during the key ceremony. Import preserves that file&#x27;s source scope, bound
+to the unchanged signed DKG configuration. Repeated imports preserve earlier
+source scopes too. The key ceremony&#x27;s <code>annotations</code> field stores this history under
+<code>protocol:imported-ceremony-origins</code>: a <code>configuration_hash</code> and a <code>scopes</code> array
+of source <code>tenant_id</code>, <code>election_event_id</code> and <code>keys_ceremony_id</code> values.
+The trustee&#x27;s name and both public keys must still match the
+current ceremony. Uploading queues a fresh proof scoped to the imported event
+and active tally, followed by the existing human authorization and signing gate.
+Proofs from the original event or another tally are rejected. The tally screen
+has no custody-file download; trustees must bring their saved file. For copies
+imported before source scopes were preserved, reimport the original event archive
+to use the original custody files.</p>
+<p>An event archive does not include native trustee private identities or their
+local runner state. An imported parent board reuses the trustee&#x27;s original local
+DKG observations by the signed configuration&#x27;s immutable ID. The runner still
+checks the copied transcript against those observations and rejects rewrites or
+missing local records. Back up each trustee&#x27;s private configuration and runner data
+separately. Browser trustees retain their existing private-key import/export and
+session backup controls; restoring a browser identity requires its original keys.</p>
+<p>Reopening a copied DKG ceremony also checks the original local observations and
+the predicates of messages already staged by that trustee. An unfinished DKG can
+continue when the archive contains those messages. If an original handoff is
+missing from the archive, the runner halts before generating another artifact
+for that slot; a staged publish handle from the original board cannot be reused
+on the copied board. Finish that handoff on the original board and export again.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="browser-trustees">Browser trustees<a href="#browser-trustees" class="hash-link" aria-label="Direct link to Browser trustees" title="Direct link to Browser trustees" translate="no">​</a></h2>
 <p>The administration portal&#x27;s <code>/trustee</code> screen runs the supplied wbraid protocol
 in WebAssembly. Sign in with the trustee account, then choose <strong>Generate browser
@@ -85,9 +232,8 @@ keys</strong>, or <strong>Import private keys</strong> to use an existing native
 Legacy browser configurations and protocol stores use incompatible crypto; generate
 a new native identity and run a new key ceremony for those elections.
 Downloads include the trustee name: for example, <code>trustee1-private-keys.toml</code>,
-<code>trustee1-browser-sessions.json</code> and <code>trustee1-custody-proof.json</code>. The ceremony
-wizard also prefixes custody request filenames with the trustee name, and the
-local command examples use those filenames.
+<code>trustee1-browser-sessions.json</code> and <code>trustee1-signed-custody-proof.json</code>. The ceremony
+wizard also prefixes custody filenames with the trustee name.
 Download and privately back up the keys. Register both displayed public keys for
 this trustee before starting its key ceremony. The account&#x27;s <code>trustee</code> attribute
 must match the registered trustee name.</p>
@@ -108,10 +254,22 @@ Do not clear browser storage or run the same identity in another browser or nati
 runner during a ceremony. Native SQLite stores and browser IndexedDB stores are distinct; a
 native keys file can enroll a browser participant before DKG, but moving an active
 native participant to a browser requires its protocol state as well.</p>
-<p>For a manual ceremony, download the public custody request from its wizard. On
-the trustee screen, select <strong>Create custody proof</strong> and choose that request.
-Upload the downloaded <code>custody-proof.json</code> to the wizard. For a tally restore,
-enter the tally session UUID before creating the proof. The proof contains only
+<p>For manual key or tally custody, load the original keys, click <strong>Start browser trustee</strong>
+and keep <code>/trustee</code> open. In another tab, download and upload the
+custody file in the ceremony wizard. The browser polls
+<code>trustee_event_updates</code>, signs the queued request locally with its exact ceremony
+and tally scope, and acknowledges it through <code>submit_trustee_action_result</code>.
+The wizard then verifies the proof and retains the explicit human confirmation
+and any required certificate signing. Private keys never leave the browser.</p>
+<p>Alternatively, stop the runner and select
+<strong>Advanced → Generate signed custody proof manually</strong>. Choose the custody file.
+For a tally restore, enter the active tally session&#x27;s UUID
+in <strong>Tally session ID</strong> before creating the proof. The trustee&#x27;s tally wizard
+displays the selectable ID before custody confirmation and on its status step.
+The saved custody file omits that UUID so it can be reused: leaving the field
+blank creates
+a key-ceremony proof, which the tally rejects. Upload the downloaded
+<code>signed-custody-proof.json</code> to the wizard. The proof contains only
 public metadata and a signature, and the platform checks its ceremony and tally
 scope. The browser rejects requests for another trustee or either wrong public key.</p>
 <p>Production browser participation requires HTTPS, WebAssembly threads, IndexedDB,
@@ -121,12 +279,14 @@ The board service and its presigned S3 URLs must be reachable by the browser, us
 HTTPS in production, and permit the portal origin through CORS. Configure:</p>
 <table><thead><tr><th>Setting</th><th>Purpose</th></tr></thead><tbody><tr><td>Admin <code>WBRAID_BOARD_URL</code></td><td>Browser-reachable native board URL; Compose reads <code>WBRAID_BOARD_PUBLIC_URL</code></td></tr><tr><td>Admin <code>HASURA_URL</code></td><td>Public GraphQL endpoint used for assigned-board discovery and halt reports; locally <code>http://localhost:8080/v1/graphql</code></td></tr></tbody></table>
 <p>The displayed <strong>Platform URL</strong> is <code>HASURA_URL</code>. Browser trustees use the
-<code>list_trustee_boards</code> query and <code>report_trustee_board</code> mutation with their bearer
+<code>trustee_event_updates</code> query, <code>submit_trustee_action_result</code> mutation and
+<code>report_trustee_board</code> mutation with their bearer
 token and the <code>trustee-ceremony</code> role. Hasura forwards those calls internally to
 Harvest, which independently verifies the JWT, tenant, trustee identity and
 assigned board. Harvest remains private and needs no browser-facing URL or CORS
-configuration. Server trustees use the same query and mutation, bearer token and
-role through <code>TRUSTEE_PLATFORM_URL</code>. Both require an explicit successful report
+configuration. Server trustees use <code>trustee_event_updates</code> for discovery and pending work, and
+<code>report_trustee_board</code> for halts, with the same bearer token and role through
+<code>TRUSTEE_PLATFORM_URL</code>. Both require an explicit successful report
 acknowledgement before clearing a pending halt.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="building-and-validating-browser-trustees">Building and validating browser trustees<a href="#building-and-validating-browser-trustees" class="hash-link" aria-label="Direct link to Building and validating browser trustees" title="Direct link to Building and validating browser trustees" translate="no">​</a></h2>
 <p>From the checkout root, use the pinned devenv toolchain:</p>
@@ -147,9 +307,23 @@ ballot publication, voting admission, revotes and grace-period checks. Reports a
 <code>.cache/backend-e2e/&lt;project&gt;/browser-journey.json</code>. <code>--skip-images --skip-build</code>
 reuses prebuilt backend fixtures; browser bindings must already match the source.
 The runner cleans up only its own stack and controller.</p>
+<div class="language-sh codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-sh codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">scripts/e2e/run-server-custody.sh</span><br></span></code></pre></div></div>
+<p>This separate disposable journey keeps the native trustee daemons running and
+opens the production administration portal in Chromium. Each trustee logs in,
+downloads its custody file, saves two copies, rejects an incorrect file,
+and uploads the original to confirm key custody. The same saved file authorizes
+a subsequent manual tally without a server command. The journey also checks
+that pending custody blocks ballot publication, proofs cannot be replayed across
+ceremonies, votes produce the expected result, and an anonymous WASM observer
+verifies the public transcripts with invalid-anchor and truncated-transcript
+controls. Reports, saved files and screenshots are in
+<code>.cache/backend-e2e/&lt;project&gt;/</code>. The launcher builds the production portal;
+<code>--skip-ui-build</code> reuses it, and <code>--skip-images --skip-build</code> reuse backend
+fixtures. It restores synthetic OTP settings after browser login and cleans up
+only its own stack and controller.</p>
 <p><a class="" href="/docusaurus/pr-preview/pr-3897/docs/developers/wbraid/public-verification">Public ceremony and tally verification</a> describes
 the independent native and browser verifier, public exports, trust anchors and
 the distinction between ballot tracking and tally-input inclusion.</p>
-<p>For the board database connection, see <a class="" href="/docusaurus/pr-preview/pr-3897/docs/developers/wbraid/postgresql-tls">native PostgreSQL TLS</a>.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/07-developers/09-wbraid/trustee-configuration.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-3897/docs/developers/wbraid/public-verification"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">public-verification</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-3897/docs/developers/tutorials/add_new_language"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Add a New Language</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#development-workspace" class="table-of-contents__link toc-highlight">Development workspace</a></li><li><a href="#manual-custody-proofs" class="table-of-contents__link toc-highlight">Manual custody proofs</a></li><li><a href="#browser-trustees" class="table-of-contents__link toc-highlight">Browser trustees</a></li><li><a href="#building-and-validating-browser-trustees" class="table-of-contents__link toc-highlight">Building and validating browser trustees</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
+<p>For the board database connection, see <a class="" href="/docusaurus/pr-preview/pr-3897/docs/developers/wbraid/postgresql-tls">native PostgreSQL TLS</a>.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/07-developers/09-wbraid/trustee-configuration.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-3897/docs/developers/wbraid/public-verification"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">public-verification</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-3897/docs/developers/tutorials/add_new_language"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Add a New Language</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#development-workspace" class="table-of-contents__link toc-highlight">Development workspace</a><ul><li><a href="#browser-trustee-accounts" class="table-of-contents__link toc-highlight">Browser trustee accounts</a></li></ul></li><li><a href="#manual-custody-proofs" class="table-of-contents__link toc-highlight">Manual custody proofs</a><ul><li><a href="#trustee-event-updates" class="table-of-contents__link toc-highlight">Trustee event updates</a></li></ul></li><li><a href="#election-event-archives" class="table-of-contents__link toc-highlight">Election event archives</a></li><li><a href="#browser-trustees" class="table-of-contents__link toc-highlight">Browser trustees</a></li><li><a href="#building-and-validating-browser-trustees" class="table-of-contents__link toc-highlight">Building and validating browser trustees</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
 </body>
 </html>
