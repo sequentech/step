@@ -358,3 +358,58 @@ export const Closed: Story = {
         expect(within(document.body).queryByRole("dialog")).toBeNull()
     },
 }
+
+const READINESS_ENTRY: ILogRow = {
+    id: 18443,
+    statement_timestamp: 1833186097,
+    statement_kind: "ReadinessVerified",
+    message: JSON.stringify({
+        user_id: "readiness-operator",
+        username: "readiness.operator",
+        system_signature: SYSTEM_SIGNATURE,
+        statement: {
+            head: {
+                event_type: "USER",
+                log_type: "INFO",
+                description: "Official event readiness verified against the final test.",
+            },
+            body: {
+                Audit: {
+                    details_json: JSON.stringify({
+                        actor: {
+                            user_id: "readiness-operator",
+                            username: "readiness.operator",
+                            role: "readiness-check",
+                        },
+                        report: {
+                            official_event_id: EVENT_ID,
+                            tested_event_id: "final-test-event",
+                            passed: true,
+                            checks: [
+                                {
+                                    name: "certified_voters",
+                                    passed: true,
+                                    evidence: {
+                                        sha256: "ab".repeat(32),
+                                        counts_by_post: {"POST-A": 12},
+                                    },
+                                },
+                            ],
+                        },
+                    }),
+                },
+            },
+        },
+    }),
+}
+
+export const ReadinessEvidence: Story = {
+    args: {entry: READINESS_ENTRY, log: {kind: ELogScope.EVENT, electionEventId: EVENT_ID}},
+    play: async () => {
+        const view = await dialog()
+        await expect(view.getByText("ReadinessVerified")).toBeVisible()
+        await expect(view.getByText(/final-test-event/)).toBeVisible()
+        await expect(view.getByText(/POST-A/)).toBeVisible()
+        await expect(view.getByText("readiness.operator")).toBeVisible()
+    },
+}

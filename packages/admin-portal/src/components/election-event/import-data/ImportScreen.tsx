@@ -11,6 +11,7 @@ import {GetUploadUrlMutation} from "@/gql/graphql"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {useMutation} from "@apollo/client"
 import {SimpleForm, useNotify} from "react-admin"
+import {EFileIntegrityPolicy} from "@sequentech/ui-core"
 
 interface ImportScreenProps {
     doImport: (documentId: string, sha256: string, password?: string) => Promise<void>
@@ -23,6 +24,7 @@ interface ImportScreenProps {
      * paragraph.
      */
     problems?: Problem[] | null
+    fileIntegrityPolicy?: EFileIntegrityPolicy
     disableImport?: boolean
     refresh?: string
 }
@@ -47,6 +49,7 @@ const PasswordInputStyle = styled(FormStyles.PasswordInput)`
 export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenProps>> = memo(
     (props: ImportScreenProps): React.JSX.Element => {
         const {doCancel, uploadCallback, doImport, disableImport, refresh, errors, problems} = props
+        const requiresSha = props.fileIntegrityPolicy === EFileIntegrityPolicy.REQUIRED_SHA256
         const {t} = useTranslation()
         const notify = useNotify()
         const [loading, setLoading] = useState<boolean>(false)
@@ -155,15 +158,21 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             await uploadFileToS3(theFile, password)
         }
 
+        const validSha = /^[a-fA-F0-9]{64}$/.test(shaField)
+
         const onImportButtonClick = async () => {
+            if (requiresSha && !validSha) return
             if (!shaField) {
                 setShowShaDialog(true)
                 return
             }
 
             setLoading(true)
-            await doImport(documentId as string, shaField, password)
-            setLoading(false)
+            try {
+                await doImport(documentId as string, shaField, password)
+            } finally {
+                setLoading(false)
+            }
         }
 
         const isWorking = () => loading || isUploading
@@ -172,6 +181,11 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             <Box sx={{padding: "0"}}>
                 <TextField
                     disabled={isWorking()}
+                    required={requiresSha}
+                    helperText={
+                        requiresSha ? t("electionEventScreen.import.shaRequiredHelp") : undefined
+                    }
+                    error={requiresSha && shaField.length > 0 && !validSha}
                     label={String(t("electionEventScreen.import.sha"))}
                     size="small"
                     value={shaField}
@@ -208,7 +222,13 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                         {t("electionEventScreen.import.cancel")}
                     </ImportStyles.CancelButton>
                     <ImportStyles.ImportButton
-                        disabled={!documentId || isWorking() || disableImport || showShaDialog}
+                        disabled={
+                            !documentId ||
+                            isWorking() ||
+                            disableImport ||
+                            showShaDialog ||
+                            (requiresSha && !validSha)
+                        }
                         onClick={onImportButtonClick}
                     >
                         {t("electionEventScreen.import.import")}
@@ -217,12 +237,12 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
 
                 <Dialog
                     variant="warning"
-                    open={showShaDialog}
+                    open={!requiresSha && showShaDialog}
                     ok={String(t("electionEventScreen.import.shaDialog.ok"))}
                     cancel={String(t("electionEventScreen.import.shaDialog.cancel"))}
                     title={String(t("electionEventScreen.import.shaDialog.title"))}
                     handleClose={(result: boolean) => {
-                        if (result) {
+                        if (result && !requiresSha) {
                             doImport(documentId as string, shaField, password)
                         }
 

@@ -1066,6 +1066,15 @@ const frenchTranslation: TranslationType = {
                         "Inclure les bulletins décodés dans la base de données de résultats",
                     options: {"included": "Inclure", "not-included": "Ne pas inclure"},
                 },
+                fileIntegrityPolicy: {
+                    policyLabel: "Intégrité du fichier des électeurs",
+                    helperText:
+                        "Exiger le SHA-256 certifié indépendamment avant d’importer les électeurs.",
+                    options: {
+                        OPTIONAL: "SHA-256 facultatif",
+                        REQUIRED_SHA256: "SHA-256 obligatoire",
+                    },
+                },
                 contestEncryptionPolicy: {
                     options: {
                         "single-contest": "Scrutin unique",
@@ -1401,6 +1410,8 @@ const frenchTranslation: TranslationType = {
                 importVotersError: "Erreur lors de l'Importation des Électeurs.",
                 importElectionEventSuccess: "Événement électoral importé avec succès",
                 importElectionEventError: "Erreur lors de l'importation de l'événement électoral",
+                shaRequiredHelp:
+                    "Saisissez le SHA-256 hexadécimal certifié de 64 caractères. Il est obligatoire pour importer.",
                 shaDialog: {
                     ok: "Oui, Importer Sans Vérification de l'Intégrité",
                     cancel: "Retour",
@@ -1996,6 +2007,7 @@ const frenchTranslation: TranslationType = {
                 "application-read": "Lire l'Application",
                 "application-write": "Modifier l'Application",
                 "approval-matrix-write": "Modifier la Matrice d'Approbation",
+                "readiness-check": "Vérifier la préparation électorale",
                 "logs-export": "Exporter les Journaux",
                 "tenant-logs-read": "Lire le Journal du Locataire",
                 "tenant-logs-export": "Exporter le Journal du Locataire",

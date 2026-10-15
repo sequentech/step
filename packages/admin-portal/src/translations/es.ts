@@ -1061,6 +1061,15 @@ const spanishTranslation: TranslationType = {
                         "Incluir papeletas decodificadas en la base de datos de resultados",
                     options: {"included": "Incluir", "not-included": "No incluir"},
                 },
+                fileIntegrityPolicy: {
+                    policyLabel: "Integridad del archivo de votantes",
+                    helperText:
+                        "Exigir el SHA-256 certificado de forma independiente antes de importar votantes.",
+                    options: {
+                        OPTIONAL: "SHA-256 opcional",
+                        REQUIRED_SHA256: "SHA-256 obligatorio",
+                    },
+                },
                 contestEncryptionPolicy: {
                     options: {
                         "single-contest": "Pregunta única",
@@ -1393,6 +1402,8 @@ const spanishTranslation: TranslationType = {
                 importVotersError: "Error Importando Votantes.",
                 importElectionEventSuccess: "Evento electoral importado correctamente",
                 importElectionEventError: "Error al importar el evento electoral",
+                shaRequiredHelp:
+                    "Introduzca el SHA-256 hexadecimal certificado de 64 caracteres. Es obligatorio para importar.",
                 shaDialog: {
                     ok: "Sí, Importar Sin Verificación de Integridad",
                     cancel: "Volver",
@@ -1983,6 +1994,7 @@ const spanishTranslation: TranslationType = {
                 "application-read": "Leer Aplicación",
                 "application-write": "Editar Aplicación",
                 "approval-matrix-write": "Editar la Matriz de Aprobación",
+                "readiness-check": "Verificar la preparación electoral",
                 "logs-export": "Exportar Registros",
                 "tenant-logs-read": "Leer Bitácora del Inquilino",
                 "tenant-logs-export": "Exportar Bitácora del Inquilino",

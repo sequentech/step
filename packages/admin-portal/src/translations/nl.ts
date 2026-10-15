@@ -1059,6 +1059,15 @@ const dutchTranslation: TranslationType = {
                     policyLabel: "Gedecodeerde stembiljetten opnemen in de resultaten database",
                     options: {"included": "Opnemen", "not-included": "Niet opnemen"},
                 },
+                fileIntegrityPolicy: {
+                    policyLabel: "Integriteit van het kiezersbestand",
+                    helperText:
+                        "Vereis de onafhankelijk gecertificeerde SHA-256 voordat kiezers worden geïmporteerd.",
+                    options: {
+                        OPTIONAL: "Optionele SHA-256",
+                        REQUIRED_SHA256: "Verplichte SHA-256",
+                    },
+                },
                 contestEncryptionPolicy: {
                     options: {
                         "single-contest": "Enkele Stemming",
@@ -1390,6 +1399,8 @@ const dutchTranslation: TranslationType = {
                 importVotersError: "Fout bij importeren van kiezers",
                 importElectionEventSuccess: "Verkiezingsevenement succesvol geïmporteerd",
                 importElectionEventError: "Fout bij importeren verkiezingsevenement",
+                shaRequiredHelp:
+                    "Voer de gecertificeerde hexadecimale SHA-256 van 64 tekens in. Deze is verplicht voor de import.",
                 shaDialog: {
                     ok: "Ja, importeren zonder integriteitscontrole",
                     cancel: "Terug",
@@ -1982,6 +1993,7 @@ const dutchTranslation: TranslationType = {
                 "application-read": "Applicatie Lezen",
                 "application-write": "Applicatie Bewerken",
                 "approval-matrix-write": "Goedkeuringsmatrix Bewerken",
+                "readiness-check": "Verkiezingsgereedheid controleren",
                 "logs-export": "Logs Exporteren",
                 "tenant-logs-read": "Tenantlog Lezen",
                 "tenant-logs-export": "Tenantlog Exporteren",

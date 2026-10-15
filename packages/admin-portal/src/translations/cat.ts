@@ -1064,6 +1064,15 @@ const catalanTranslation: TranslationType = {
                         "Inclou les paperetes descodificades a la base de dades de resultats",
                     options: {"included": "Inclou", "not-included": "No incloguis"},
                 },
+                fileIntegrityPolicy: {
+                    policyLabel: "Integritat del fitxer de votants",
+                    helperText:
+                        "Exigeix el SHA-256 certificat de manera independent abans d’importar votants.",
+                    options: {
+                        OPTIONAL: "SHA-256 opcional",
+                        REQUIRED_SHA256: "SHA-256 obligatori",
+                    },
+                },
                 contestEncryptionPolicy: {
                     options: {
                         "single-contest": "Pregunta única",
@@ -1397,6 +1406,8 @@ const catalanTranslation: TranslationType = {
                 importVotersError: "Error Important Votants.",
                 importElectionEventSuccess: "Esdeveniment electoral importat correctament",
                 importElectionEventError: "Error en importar l'esdeveniment electoral",
+                shaRequiredHelp:
+                    "Introduïu el SHA-256 hexadecimal certificat de 64 caràcters. És obligatori per importar.",
                 shaDialog: {
                     ok: "Sí, Importar Sense Verificació d'Integritat",
                     cancel: "Tornar",
@@ -1991,6 +2002,7 @@ const catalanTranslation: TranslationType = {
                 "application-read": "Llegir Aplicació",
                 "application-write": "Editar Aplicació",
                 "approval-matrix-write": "Editar la Matriu d'Aprovació",
+                "readiness-check": "Verificar la preparació electoral",
                 "logs-export": "Exportar Registres",
                 "tenant-logs-read": "Llegir Bitàcola de l'Inquilí",
                 "tenant-logs-export": "Exportar Bitàcola de l'Inquilí",

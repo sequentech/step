@@ -6,6 +6,11 @@ import React from "react"
 import {act, fireEvent, render, screen, waitFor} from "@testing-library/react"
 import "@testing-library/jest-dom"
 import {ImportScreen} from "./ImportScreen"
+import {EFileIntegrityPolicy} from "../../../../../ui-core/src/types/ElectionEventPresentation"
+
+jest.mock("@sequentech/ui-core", () =>
+    jest.requireActual("../../../../../ui-core/src/types/ElectionEventPresentation")
+)
 
 const mockGetUploadUrl = jest.fn()
 const mockNotify = jest.fn()
@@ -107,7 +112,7 @@ afterAll(() => {
     globalThis.fetch = originalFetch
 })
 
-function renderImport() {
+function renderImport(fileIntegrityPolicy?: EFileIntegrityPolicy) {
     const uploadCallback = jest.fn(async () => {})
     const doImport = jest.fn(async () => {})
     const doCancel = jest.fn()
@@ -117,6 +122,7 @@ function renderImport() {
             doImport={doImport}
             doCancel={doCancel}
             errors={null}
+            fileIntegrityPolicy={fileIntegrityPolicy}
         />
     )
     return {uploadCallback, doImport, doCancel}
@@ -357,4 +363,36 @@ it("names each problem instead of repeating the English paragraph", () => {
     )
     expect(screen.getByRole("list", {name: "Problems"})).toHaveTextContent("file.not-json")
     expect(screen.queryByText(/cannot be imported/)).not.toBeInTheDocument()
+})
+
+it("requires the certified hash in required mode without offering a bypass", async () => {
+    const callbacks = renderImport(EFileIntegrityPolicy.REQUIRED_SHA256)
+    uploadFile()
+    await waitFor(() => expect(callbacks.uploadCallback).toHaveBeenCalledTimes(1))
+    const hash = screen.getByRole("textbox", {name: /electionEventScreen.import.sha/})
+    const button = screen.getByRole("button", {name: "electionEventScreen.import.import"})
+    expect(hash).toBeRequired()
+    expect(screen.getByText("electionEventScreen.import.shaRequiredHelp")).toBeInTheDocument()
+    expect(button).toBeDisabled()
+    fireEvent.change(hash, {target: {value: "not-a-sha256"}})
+    expect(button).toBeDisabled()
+    fireEvent.click(button)
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    expect(callbacks.doImport).not.toHaveBeenCalled()
+    fireEvent.change(hash, {target: {value: "AB".repeat(32)}})
+    expect(button).toBeEnabled()
+    fireEvent.click(button)
+    await waitFor(() =>
+        expect(callbacks.doImport).toHaveBeenCalledWith(DOCUMENT_ID, "AB".repeat(32), "")
+    )
+})
+
+it("preserves optional imports with the existing explicit bypass confirmation", async () => {
+    const callbacks = renderImport()
+    uploadFile()
+    await waitFor(() => expect(callbacks.uploadCallback).toHaveBeenCalledTimes(1))
+    fireEvent.click(screen.getByRole("button", {name: "electionEventScreen.import.import"}))
+    expect(callbacks.doImport).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole("button", {name: "electionEventScreen.import.shaDialog.ok"}))
+    await waitFor(() => expect(callbacks.doImport).toHaveBeenCalledWith(DOCUMENT_ID, "", ""))
 })

@@ -1045,6 +1045,15 @@ const englishTranslation = {
                         "not-included": "Don't include",
                     },
                 },
+                fileIntegrityPolicy: {
+                    policyLabel: "Voter file integrity",
+                    helperText:
+                        "Require the independently certified SHA-256 before importing voters.",
+                    options: {
+                        OPTIONAL: "Optional SHA-256",
+                        REQUIRED_SHA256: "Required SHA-256",
+                    },
+                },
                 contestEncryptionPolicy: {
                     options: {
                         "single-contest": "Single Contest",
@@ -1371,6 +1380,8 @@ const englishTranslation = {
                 importVotersError: "Error importing Voters",
                 importElectionEventSuccess: "Election event imported Successfully",
                 importElectionEventError: "Error importing election event",
+                shaRequiredHelp:
+                    "Enter the independently certified 64-character hexadecimal SHA-256. Import cannot proceed without it.",
                 shaDialog: {
                     ok: "Yes, Import without Integrity Check",
                     cancel: "Go Back",
@@ -1957,6 +1968,7 @@ const englishTranslation = {
                 "application-read": "Read Application",
                 "application-write": "Edit Application",
                 "approval-matrix-write": "Edit Approval Matrix",
+                "readiness-check": "Verify election readiness",
                 "logs-export": "Export Logs",
                 "tenant-logs-read": "Read Tenant Logs",
                 "tenant-logs-export": "Export Tenant Logs",

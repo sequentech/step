@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
+import type {EFileIntegrityPolicy} from "@sequentech/ui-core"
 import {DrawerStyles} from "@/components/styles/DrawerStyles"
 import ElectionHeader from "@/components/ElectionHeader"
 import {useTranslation} from "react-i18next"
@@ -18,6 +19,7 @@ interface ImportVotersTabsProps {
     subtitle: string
     paragraph: string
     doImport?: (documentId: string, sha256: string, password?: string) => Promise<void> | null
+    fileIntegrityPolicy?: EFileIntegrityPolicy
     disableImport?: boolean
     uploadCallback?: (documentId: string) => Promise<void> | null
     errors?: string | null
@@ -32,6 +34,7 @@ export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
     paragraph,
     doImport = null,
     disableImport,
+    fileIntegrityPolicy,
     uploadCallback = null,
     errors,
     problems,
@@ -56,7 +59,8 @@ export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
                     closeDrawer ? closeDrawer() : closeImportDrawer()
                 }}
                 PaperProps={{
-                    sx: {width: "30%"},
+                    "aria-label": String(t(title)),
+                    "sx": {width: {xs: "100%", sm: "60%", md: "40%", lg: "30%"}},
                 }}
             >
                 <Box sx={{padding: "16px"}}>
@@ -65,6 +69,7 @@ export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
                         <>
                             <DrawerStyles.SubTitle>{t(paragraph)}</DrawerStyles.SubTitle>
                             <ImportScreen
+                                fileIntegrityPolicy={fileIntegrityPolicy}
                                 refresh="electionEventScreen.import.voters"
                                 doCancel={() => {
                                     closeDrawer ? closeDrawer() : closeImportDrawer()

@@ -1051,6 +1051,15 @@ const basqueTranslation: TranslationType = {
                     policyLabel: "Deskodetutako boto-paperak emaitzen datu-basean sartu",
                     options: {"included": "Sartu", "not-included": "Ez sartu"},
                 },
+                fileIntegrityPolicy: {
+                    policyLabel: "Hautesleen fitxategiaren osotasuna",
+                    helperText:
+                        "Eskatu modu independentean ziurtatutako SHA-256 hautesleak inportatu aurretik.",
+                    options: {
+                        OPTIONAL: "Aukerako SHA-256",
+                        REQUIRED_SHA256: "Nahitaezko SHA-256",
+                    },
+                },
                 contestEncryptionPolicy: {
                     options: {
                         "single-contest": "Galdera Bakarra",
@@ -1383,6 +1392,8 @@ const basqueTranslation: TranslationType = {
                 importVotersError: "Errorea Bozkatzaileak inportatzerakoan",
                 importElectionEventSuccess: "Hauteskunde gertaera arrakastaz inportatua",
                 importElectionEventError: "Errorea hauteskunde gertaera inportatzerakoan",
+                shaRequiredHelp:
+                    "Sartu ziurtatutako 64 karaktereko SHA-256 hamaseitarra. Inportatzeko beharrezkoa da.",
                 shaDialog: {
                     ok: "Bai, Inportatu Osotasun Egiaztapenik gabe",
                     cancel: "Itzuli",
@@ -1973,6 +1984,7 @@ const basqueTranslation: TranslationType = {
                 "application-read": "Irakurri Aplikazioa",
                 "application-write": "Editatu Aplikazioa",
                 "approval-matrix-write": "Editatu Onarpen Matrizea",
+                "readiness-check": "Egiaztatu hauteskundeen prestasuna",
                 "logs-export": "Esportatu Egunkariak",
                 "tenant-logs-read": "Irakurri Maizterraren Egunkaria",
                 "tenant-logs-export": "Esportatu Maizterraren Egunkaria",

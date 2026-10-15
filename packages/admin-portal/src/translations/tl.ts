@@ -1067,6 +1067,15 @@ const tagalogTranslation: TranslationType = {
                     policyLabel: "Isama ang mga na-decode na balota sa database ng mga resulta",
                     options: {"included": "Isama", "not-included": "Huwag isama"},
                 },
+                fileIntegrityPolicy: {
+                    policyLabel: "Integridad ng file ng mga botante",
+                    helperText:
+                        "Hingin ang hiwalay na sertipikadong SHA-256 bago mag-import ng mga botante.",
+                    options: {
+                        OPTIONAL: "Opsyonal na SHA-256",
+                        REQUIRED_SHA256: "Kinakailangang SHA-256",
+                    },
+                },
                 contestEncryptionPolicy: {
                     options: {
                         "single-contest": "Isang Paligsahan",
@@ -1397,6 +1406,8 @@ const tagalogTranslation: TranslationType = {
                 importVotersError: "Error sa pag-import ng mga Botante",
                 importElectionEventSuccess: "Matagumpay na na-import ang kaganapan ng halalan",
                 importElectionEventError: "Error sa pag-import ng kaganapan ng halalan",
+                shaRequiredHelp:
+                    "Ilagay ang sertipikadong SHA-256 na may 64 na hexadecimal na character. Kailangan ito upang mag-import.",
                 shaDialog: {
                     ok: "Oo, Mag-import nang walang Pag-check ng Integridad",
                     cancel: "Bumalik",
@@ -1992,6 +2003,7 @@ const tagalogTranslation: TranslationType = {
                 "application-read": "Basahin ang Aplikasyon",
                 "application-write": "I-edit ang Aplikasyon",
                 "approval-matrix-write": "I-edit ang Matrix ng Pag-apruba",
+                "readiness-check": "Suriin ang kahandaan ng halalan",
                 "logs-export": "I-export ang mga Log",
                 "tenant-logs-read": "Basahin ang Log ng Tenant",
                 "tenant-logs-export": "I-export ang Log ng Tenant",
