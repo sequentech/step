@@ -107,7 +107,7 @@ settings.
 ## Generating and downloading the package
 
 1. Tally the Post. Then, under **Tally › results › Export**, choose **Generate
-   Transmission Package for Area '<country>'**.
+   Transmission Package for Area '&lt;country&gt;'**.
 2. The Transmission page opens.
    - The ER file's SHA-256 is under the title, in groups of eight characters,
      so it can be read out and compared with what is received.
