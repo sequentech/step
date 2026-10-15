@@ -25,6 +25,9 @@ const sites = [
 // The manual of this branch.
 const manualHome = MANUAL;
 
+// The branch of this site. The "Edit this page" links open the files of this branch.
+const branch = 'main';
+
 // "main", the full release branch name after "release/" (for example "10.0"
 // or "9.0.0"), or "dev" for PR previews and local builds.
 function versionName(baseUrl) {
@@ -47,6 +50,7 @@ module.exports = {
   label: versionLabel(name),
   sites,
   manualHome,
+  branch,
   versionName,
   versionLabel,
 };
