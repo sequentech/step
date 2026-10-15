@@ -129,3 +129,33 @@ pub struct MiruSbeiUser {
 }
 
 pub type MiruTallySessionData = Vec<MiruTransmissionPackageData>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn server(address: &str) -> MiruCcsServer {
+        MiruCcsServer {
+            name: "CCS".to_string(),
+            tag: "ccs".to_string(),
+            address: address.to_string(),
+            public_key_pem: String::new(),
+            send_logs: None,
+        }
+    }
+
+    #[test]
+    fn a_destination_without_an_address_receives_its_package_by_hand() {
+        assert_eq!(server("").delivery(), MiruDelivery::ManualReceipt);
+        assert_eq!(server("  ").delivery(), MiruDelivery::ManualReceipt);
+        assert_eq!(
+            server("https://ccs.example").delivery(),
+            MiruDelivery::Network
+        );
+        let missing: MiruCcsServer = serde_json::from_str(
+            r#"{"name": "CCS", "tag": "ccs", "public_key_pem": "", "send_logs": null}"#,
+        )
+        .unwrap();
+        assert_eq!(missing.delivery(), MiruDelivery::ManualReceipt);
+    }
+}

@@ -662,3 +662,34 @@ pub async fn send_transmission_package_service(
         .with_context(|| "error comitting transaction")?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn server(name: &str, address: &str) -> MiruCcsServer {
+        MiruCcsServer {
+            name: name.to_string(),
+            tag: name.to_string(),
+            address: address.to_string(),
+            public_key_pem: String::new(),
+            send_logs: None,
+        }
+    }
+
+    #[test]
+    fn only_destinations_with_an_address_are_sent_to() {
+        let servers = vec![
+            server("manila", ""),
+            server("central", "https://central.example"),
+            server("transparency", " "),
+        ];
+        let sent: Vec<&str> = network_destinations(&servers)
+            .iter()
+            .map(|server| server.name.as_str())
+            .collect();
+        assert_eq!(sent, vec!["central"]);
+        assert!(network_destinations(&servers[..1]).is_empty());
+        assert!(network_destinations(&[]).is_empty());
+    }
+}
