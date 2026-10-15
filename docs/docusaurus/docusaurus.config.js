@@ -51,8 +51,8 @@ const config = {
           path: 'docs',
           remarkPlugins: [require('./plugins/remark-code-tabs')],
           sidebarPath: require.resolve('./sidebars.js'),
-          editUrl:
-            'https://github.com/sequentech/step/edit/main/docs/docusaurus',
+          editUrl: `https://github.com/sequentech/step/edit/${docsVersion.branch}/docs/docusaurus`,
+          editLocalizedFiles: true,
         },
         // completely remove the blog
         blog: false,
