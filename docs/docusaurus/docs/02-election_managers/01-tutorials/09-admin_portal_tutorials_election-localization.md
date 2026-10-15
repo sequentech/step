@@ -38,7 +38,7 @@ To customize the experience for voters, you can modify instructions and descript
 2. Click the **Localization** tab.
 3. Click **Add** to overwrite a specific element of the voter interface.
 
-![Voter Portal Localization Key Entry](./assets/voter_localization_key.png)
+![Voter Portal Localization Key Entry](./assets/voter_localization_key_field.png)
 
 4. Select the **Portal scope**, for example **Voting portal**. Provide the specific **Key** (e.g., `startScreen.step1Description`) and the new **Value**.
 5. Click the save button to apply the changes to the voter experience.

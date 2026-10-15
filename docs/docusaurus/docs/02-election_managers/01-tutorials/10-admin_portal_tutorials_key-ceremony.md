@@ -48,7 +48,7 @@ Once the ceremony is created, each assigned Trustee must perform their individua
 
 3.  **Download**: Click **Download your Encrypted Private Key** to download the private key fragment.
 
-![Trustee Key Download](./assets/keys_download_key.png)
+![Trustee Key Download](./assets/keys_download_step.png)
 
 
 4.  **Secure Backups**: Trustees are required to confirm they have saved the fragment in at least two different secure locations, typically encrypted USB devices.
