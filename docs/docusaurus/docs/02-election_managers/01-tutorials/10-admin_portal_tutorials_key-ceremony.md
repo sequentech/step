@@ -51,7 +51,7 @@ Once the ceremony is created, each assigned Trustee must perform their individua
 3.  **Start**: Read the steps on the **Trustee Key Ceremony** page and click **Next**. If the message "Waiting for Keys Generation.." shows, wait until the keys exist.
 4.  **Download**: Click **Download your Encrypted Private Key** to download the unique private key fragment.
 
-![Trustee Key Download](./assets/keys_download_key.png)
+![Trustee Key Download](./assets/keys_download_step.png)
 
 
 5.  **Secure Backups**: Click **Next**. In the **Backup your Encrypted Private Key** window, select **First backup secured** and **Second backup secured**, then click **Confirm Backups and Continue**. Trustees are required to confirm they have saved the fragment in at least two different secure locations, typically encrypted USB devices.

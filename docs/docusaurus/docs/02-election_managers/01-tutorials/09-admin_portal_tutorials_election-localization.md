@@ -39,7 +39,7 @@ To customize the experience for voters, you can modify instructions and descript
 3. If the tab shows **Select Language**, choose the language you wish to modify.
 4. Click **Add** to overwrite a specific element of the voter interface.
 
-![Voter Portal Localization Key Entry](./assets/voter_localization_key.png)
+![Voter Portal Localization Key Entry](./assets/voter_localization_key_field.png)
 
 5. In **Portal scope**, select **Voting portal** (the default), **Ballot verifier**, **Results portal** or **Global**. Provide the specific **Key** (e.g., `startScreen.step1Description`) and the new **Value**.
 6. Click the save button to apply the changes to the voter experience.
