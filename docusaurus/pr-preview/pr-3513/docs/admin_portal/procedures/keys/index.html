@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.8.1">
 <title data-rh="true">Run the Key Ceremony | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-3513/docs/admin_portal/procedures/keys"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Run the Key Ceremony | Sequent Online Voting"><meta data-rh="true" name="description" content="The key ceremony makes the keys of the election. The voting portal encrypts each ballot with the public key. The private key is in fragments: each trustee keeps one fragment."><meta data-rh="true" property="og:description" content="The key ceremony makes the keys of the election. The voting portal encrypts each ballot with the public key. The private key is in fragments: each trustee keeps one fragment."><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3513/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-3513/docs/admin_portal/procedures/keys"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-3513/docs/admin_portal/procedures/keys" hreflang="en"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-3513/docs/admin_portal/procedures/keys" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Election Managers","item":"https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-3513/docs/admin_portal/election_management"},{"@type":"ListItem","position":2,"name":"Procedures","item":"https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-3513/docs/admin_portal/procedures"},{"@type":"ListItem","position":3,"name":"Run the Key Ceremony","item":"https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-3513/docs/admin_portal/procedures/keys"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3513/assets/css/styles.8614359e.css">
-<script src="/docusaurus/pr-preview/pr-3513/assets/js/runtime~main.d0b46466.js" defer="defer"></script>
-<script src="/docusaurus/pr-preview/pr-3513/assets/js/main.9047de74.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3513/assets/js/runtime~main.3b9aec63.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3513/assets/js/main.c2527c23.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg xmlns="http://www.w3.org/2000/svg" style="display: none;"><defs>
@@ -42,14 +42,15 @@ cannot get keys.</p></div></div>
 <li>In <strong>Threshold</strong>, type the threshold.</li>
 <li>In <strong>Trustees</strong>, select the trustees of the ceremony. Select a number of trustees that is
 equal to or more than the threshold.</li>
-<li>In <strong>Election</strong>, select one election. To make one key for all the elections, leave the field
-empty. The ceremony then has the name <strong>All Elections</strong>.</li>
+<li>In <strong>Election</strong>, select one election. To make one key for all the elections, keep the default
+value, <strong>All Elections</strong>.</li>
 <li>Click <strong>Create Keys Ceremony</strong>.</li>
 <li>Read the message &quot;Are you sure you want to Create Keys Ceremony?&quot;.</li>
 <li>Click <strong>Yes, Create Keys Ceremony</strong>.</li>
 </ol>
-<p><strong>Expected result:</strong> the message &quot;Keys Ceremony created&quot; shows. The ceremony shows in the list
-of the <strong>Keys</strong> tab. Its status is <code>STARTED</code>, and then <code>IN_PROGRESS</code>.</p>
+<p><strong>Expected result:</strong> the message &quot;Keys Ceremony created&quot; shows. The <strong>Keys Ceremony Progress</strong>
+page opens with &quot;Status: STARTED&quot;. The status changes to <code>IN_PROGRESS</code> when the trustee
+services are ready.</p>
 <ol start="10">
 <li>Tell the trustees that the key ceremony has started.</li>
 </ol>
@@ -69,7 +70,8 @@ your trustee.</li>
 keys yet. Wait one or two minutes. <strong>Next</strong> becomes available.</p>
 <ol start="7">
 <li>Click <strong>Download your Encrypted Private Key</strong>. The browser saves a file with the name
-<code>encrypted_private_key_trustee_&lt;user&gt;_&lt;election&gt;.txt</code>.</li>
+<code>encrypted_private_key_trustee_&lt;user&gt;_&lt;name&gt;.txt</code>, where <code>&lt;name&gt;</code> is the name of the election
+or, for <strong>All Elections</strong>, of the election event.</li>
 <li>Copy the file to your first storage device.</li>
 <li>Copy the file to your second storage device.</li>
 <li>Click <strong>Next</strong>. The <strong>Backup your Encrypted Private Key</strong> window opens.</li>
@@ -92,7 +94,8 @@ lose their fragment, nobody can decrypt the votes.</p></div></div>
 <ol>
 <li>Open the election event.</li>
 <li>Click the <strong>Keys</strong> tab.</li>
-<li>Click the view icon of the ceremony. The <strong>Keys Ceremony Progress</strong> page opens.</li>
+<li>In the row of the ceremony, click the icon in the <strong>Actions</strong> column. The <strong>Keys Ceremony
+Progress</strong> page opens.</li>
 <li>Make sure that each trustee has a tick in these columns:<!-- -->
 <ul>
 <li><strong>Key Fragment Generated</strong></li>
