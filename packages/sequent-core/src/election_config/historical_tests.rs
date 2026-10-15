@@ -1175,3 +1175,41 @@ fn repeated_precinct_rows_with_identical_metadata_share_one_canonical_area() {
     assert_eq!(adapted.summary.generated_rows["AreaContests"], 1);
     assert_eq!(adapted.summary.generated_rows["Candidates"], 1);
 }
+
+#[test]
+fn each_required_source_table_reports_its_missing_column_before_conversion() {
+    let (source, xlsx) = fixture();
+    let source = String::from_utf8(source).unwrap();
+    for (table, column) in [
+        ("pop", "POLLCENTER_CODE"),
+        ("polling_centers", "POLLING_PLACE"),
+        ("allbgy", "ID_BARANGAY"),
+        ("allmun", "ID_CITY"),
+        ("trans_route", "TRANS_DEST_ID"),
+        ("seat", "ELIGIBLEAMOUNT"),
+        ("contest", "SORT_ORDER"),
+        ("candidate", "CAND_CODE"),
+        ("party_list", "CODE_PARTY"),
+        ("geographical", "GEOCODE"),
+    ] {
+        let prefix = format!("CREATE TABLE `{table}` ");
+        let declaration = source
+            .lines()
+            .find(|line| line.starts_with(&prefix))
+            .unwrap();
+        let marker = format!("`{column}`");
+        assert!(declaration.contains(&marker));
+        let changed = source.replace(
+            declaration,
+            &declaration.replacen(&marker, "`unavailable_column`", 1),
+        );
+        let problem = refused_code(
+            changed.as_bytes(),
+            &xlsx,
+            &reviewed(),
+            Code::MissingField,
+        );
+        assert!(problem.path.contains(table), "{table}: {}", problem.path);
+        assert!(problem.path.contains(column), "{column}: {}", problem.path);
+    }
+}
