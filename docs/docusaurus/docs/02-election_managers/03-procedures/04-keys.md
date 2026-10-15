@@ -108,7 +108,7 @@ until the end of the tally ceremony and the end of the period for claims. If too
 lose their fragment, nobody can decrypt the votes.
 :::
 
-![The Download Encrypted Private Key step](../01-tutorials/assets/keys_download_key.png)
+![The Download Encrypted Private Key step](../01-tutorials/assets/keys_download_step.png)
 
 ![The Backup your Encrypted Private Key window](../01-tutorials/assets/keys_secure_backups.png)
 
