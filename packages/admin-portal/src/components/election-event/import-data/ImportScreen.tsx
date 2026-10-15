@@ -33,7 +33,7 @@ interface ImportScreenProps {
 
 const stageLabels = {
     "select":
-        "1. Select a native package, or both historical sources locally. Source selection does not upload files.",
+        "1. Select a native package to upload, or choose both historical files for local conversion. Historical source files stay on this machine.",
     "local":
         "2. Local conversion and validation. No backend request has been made for these sources.",
     "uploading": "3. Upload transport: sending the accepted native package to the backend.",

@@ -1106,3 +1106,72 @@ fn workbook_zip_limits_and_malformed_containers_are_refused_before_parsing_data(
     refused_code(&sql, &encrypted, &reviewed(), Code::Unreadable);
     assert!(adapt(&sql, &small, &reviewed()).is_err());
 }
+
+#[test]
+fn review_binding_checks_workbook_bytes_even_when_sql_is_unchanged() {
+    let (sql, xlsx) = fixture();
+    let mut options = bound_options(&sql, &xlsx);
+    options.election_mappings = vec![ElectionMapping {
+        workbook_row: 2,
+        seat_rows: vec![1],
+    }];
+    let changed = changed_workbook(&xlsx, |sheets| {
+        set(
+            &mut sheets
+                .iter_mut()
+                .find(|sheet| sheet.key == "electionevent")
+                .unwrap()
+                .rows[0],
+            "description",
+            json!("Updated supplemental context"),
+        );
+    });
+    let problem =
+        refused_code(&sql, &changed, &options, Code::IntegrityMismatch);
+    assert!(problem.path.contains("sourceDigests"));
+}
+#[test]
+fn explicit_candidate_scope_records_exclusions_without_inventing_affiliations()
+{
+    let (sql, xlsx) = fixture();
+    let mut sql = String::from_utf8(sql)
+        .unwrap()
+        .replace("'S01','PR01'", "'S01',''");
+    sql.push_str("INSERT INTO candidate VALUES ('0008','Outside example','C01','S02',NULL);");
+    let adapted = adapt(sql.as_bytes(), &xlsx, &reviewed()).unwrap();
+    assert_eq!(adapted.summary.selected_candidates, 1);
+    assert_eq!(adapted.summary.outside_scope_candidates, 1);
+    assert_eq!(adapted.summary.unresolved_affiliations, 0);
+    assert!(adapted.workbook.rows("candidates")[0]
+        .get("annotations.miru:candidate-affiliation-id")
+        .is_none());
+    let mut strict = reviewed();
+    strict.scope = ScopePolicy::RequireCompleteCoverage;
+    refused_code(sql.as_bytes(), &xlsx, &strict, Code::NotApproved);
+}
+#[test]
+fn an_empty_source_census_never_requires_invented_voter_credentials() {
+    let (sql, xlsx) = fixture();
+    let sql = String::from_utf8(sql)
+        .unwrap()
+        .replace("INSERT INTO `voters` VALUES ('private-voter-id');", "");
+    let mut options = reviewed();
+    options.census = CensusPolicy::RequireReviewedMapping;
+    options.scope = ScopePolicy::RequireCompleteCoverage;
+    let adapted = adapt(sql.as_bytes(), &xlsx, &options).unwrap();
+    assert_eq!(adapted.summary.excluded_voters, 0);
+    assert_eq!(adapted.summary.outside_scope_candidates, 0);
+    assert!(adapted.workbook.rows("voters").is_empty());
+}
+#[test]
+fn repeated_precinct_rows_with_identical_metadata_share_one_canonical_area() {
+    let (mut sql, xlsx) = fixture();
+    sql.extend_from_slice(
+        b"INSERT INTO pop VALUES ('B01','P01','001','002','003');",
+    );
+    let adapted = adapt(&sql, &xlsx, &reviewed()).unwrap();
+    assert_eq!(adapted.summary.source_rows["pop"], 2);
+    assert_eq!(adapted.summary.generated_rows["Areas"], 1);
+    assert_eq!(adapted.summary.generated_rows["AreaContests"], 1);
+    assert_eq!(adapted.summary.generated_rows["Candidates"], 1);
+}

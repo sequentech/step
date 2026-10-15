@@ -20,6 +20,8 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 # Exact filenames prevent a future production file from disappearing behind
 # a fixtures/** wildcard. Each exclusion is visible in every run's summary.
 [profiles.sequent-core.excluded_files]
+"src/election_config/historical_tests.rs" = "Standalone unit-test module under cfg(test); historical SQL/workbook mapping and package construction remain measured."
+"src/election_config/sql_dump_tests.rs" = "Standalone unit-test module under cfg(test); the data-only SQL parser remains measured."
 "src/time_zones_tests.rs" = "Standalone unit-test module under cfg(test); timezone selection, lifecycle defaults and public policy wire contracts remain measured."
 "src/services/reports_time_zones_tests.rs" = "Standalone unit-test module under cfg(test); report timezone rendering remains measured."
 "src/services/keycloak/realm_scope_tests.rs" = "Standalone unit-test module under cfg(test); the Keycloak admin request path checks remain measured."
@@ -103,6 +105,8 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 # Exact filenames prevent a future production file from disappearing behind
 # a fixtures/** wildcard. Each exclusion is visible in every run's summary.
 [profiles.sequent-core-native.excluded_files]
+"src/election_config/historical_tests.rs" = "Standalone unit-test module under cfg(test); historical SQL/workbook mapping and package construction remain measured."
+"src/election_config/sql_dump_tests.rs" = "Standalone unit-test module under cfg(test); the data-only SQL parser remains measured."
 "src/time_zones_tests.rs" = "Standalone unit-test module under cfg(test); timezone selection, lifecycle defaults and public policy wire contracts remain measured."
 "src/services/reports_time_zones_tests.rs" = "Standalone unit-test module under cfg(test); report timezone rendering remains measured."
 "src/services/keycloak/realm_scope_tests.rs" = "Standalone unit-test module under cfg(test); the Keycloak admin request path checks remain measured."
