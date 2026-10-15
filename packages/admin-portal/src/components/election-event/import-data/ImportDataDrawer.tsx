@@ -56,7 +56,7 @@ export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
                     closeDrawer ? closeDrawer() : closeImportDrawer()
                 }}
                 PaperProps={{
-                    sx: {width: "30%"},
+                    sx: {width: {xs: "100%", sm: "min(640px, 100%)"}},
                 }}
             >
                 <Box sx={{padding: "16px"}}>
@@ -65,6 +65,7 @@ export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
                         <>
                             <DrawerStyles.SubTitle>{t(paragraph)}</DrawerStyles.SubTitle>
                             <ImportScreen
+                                allowHistoricalSource={!doImport}
                                 refresh="electionEventScreen.import.voters"
                                 doCancel={() => {
                                     closeDrawer ? closeDrawer() : closeImportDrawer()

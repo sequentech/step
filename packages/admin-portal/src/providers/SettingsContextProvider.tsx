@@ -25,6 +25,8 @@ export interface GlobalSettings {
     KIOSK_VOTING_PORTAL_URL?: string
     RESULTS_PORTAL_URL: string
     IVR_EMULATOR_BASE_URL: string
+    /** Opt-in extensionless JS/WASM converter asset URL, following IVR conventions. */
+    ELECTION_EVENT_IMPORT_CONVERTER_BASE_URL?: string
     ACTIVATE_MIRU_EXPORT: boolean
     CUSTOM_URLS_DOMAIN_NAME: string
 }

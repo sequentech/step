@@ -37,6 +37,14 @@ pub struct BuildElectionEvent {
     #[arg(short = 'w', long, value_name = "WORKBOOK")]
     workbook: PathBuf,
 
+    /// Historical data-only SQL used with the supplemental workbook
+    #[arg(long, value_name = "SQL", requires = "historical_decisions")]
+    historical_sql: Option<PathBuf>,
+
+    /// JSON decisions for the legacy-seat-v1 profile (census, ballot, scope, timezone)
+    #[arg(long, value_name = "JSON", requires = "historical_sql")]
+    historical_decisions: Option<PathBuf>,
+
     /// Directory to write the bundle into, under a subdirectory named after the
     /// event
     #[arg(short = 'o', long, value_name = "OUT", default_value = "out")]
@@ -121,7 +129,31 @@ impl BuildElectionEvent {
 
         let bytes = fs::read(&self.workbook)
             .with_context(|| format!("could not read {}", self.workbook.display()))?;
-        let workbook = read_xlsx(&bytes).map_err(problem_error)?;
+        let workbook = if let Some(sql_path) = &self.historical_sql {
+            use sequent_core::election_config::historical::{adapt, HistoricalOptions};
+            let sql = fs::read(sql_path).context("could not read historical SQL")?;
+            let decisions_path = self
+                .historical_decisions
+                .as_ref()
+                .ok_or_else(|| anyhow!("historical decisions are required"))?;
+            let decisions: HistoricalOptions = serde_json::from_slice(
+                &fs::read(decisions_path).context("could not read historical decisions")?,
+            )
+            .context("invalid historical decisions JSON")?;
+            match adapt(&sql, &bytes, &decisions) {
+                Ok(adapted) => {
+                    println!("{}", serde_json::to_string_pretty(&adapted.summary)?);
+                    adapted.workbook
+                }
+                Err(refused) => {
+                    println!("{}", serde_json::to_string_pretty(&refused.summary)?);
+                    report_problems(&refused.report);
+                    return Err(anyhow!("historical source conversion refused"));
+                }
+            }
+        } else {
+            read_xlsx(&bytes).map_err(problem_error)?
+        };
 
         for unread in workbook.unread_sheets() {
             // A misspelled tab is silently ignored otherwise, and the missing
@@ -526,6 +558,8 @@ mod tests {
             let path = root.path().join("event.xlsx");
             fs::write(&path, bytes).unwrap();
             let command = BuildElectionEvent {
+                historical_sql: None,
+                historical_decisions: None,
                 workbook: path,
                 out: root.path().join("out"),
                 tenant_id: Some(TENANT.to_string()),
