@@ -340,7 +340,15 @@ async fn a_session_is_stored_with_its_keys_ceremony_areas_and_executer() {
     assert_eq!(tally_session.tally_type.as_deref(), Some(ELECTORAL_RESULTS));
     assert_eq!(
         tally_session.annotations,
-        Some(json!({"executer_username": ADMIN, "executer_user_id": ADMIN_ID}))
+        Some(json!({
+            "executer_username": ADMIN,
+            "executer_user_id": ADMIN_ID,
+            ELECTION_AREAS_ANNOTATION: serde_json::to_string(&election_areas([
+                (ELECTION, "north"),
+                (ELECTION, "south"),
+            ]))
+            .unwrap(),
+        }))
     );
     assert_eq!(tally_session.permission_label, Some(vec![]));
 }
@@ -1090,6 +1098,8 @@ async fn a_country_initialization_covers_only_that_country() {
             "executer_username": ADMIN,
             "executer_user_id": ADMIN_ID,
             INITIALIZATION_AREA_IDS_ANNOTATION: ["north"],
+            ELECTION_AREAS_ANNOTATION:
+                serde_json::to_string(&election_areas([(ELECTION, "north")])).unwrap(),
         }))
     );
     let areas: Vec<String> = ceremony
