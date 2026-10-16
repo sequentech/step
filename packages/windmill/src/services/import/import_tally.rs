@@ -1170,7 +1170,7 @@ mod tests {
             Some(&Value::from("admin"))
         );
 
-        // A recount of the imported session counts the recorded 4, not 5.
+        // A later run of the imported session counts the recorded 4, not 5.
         let contests = vec![contest_area(NEW_NORTH, 3, 2), contest_area(NEW_SOUTH, 2, 1)];
         let counts = count_cast_votes_election_with_census(
             &contests,
