@@ -2130,6 +2130,10 @@ mod tests {
         const ELSEWHERE: &str = "20000000-0000-4000-8000-00000000000d";
         // Every voter of this area is disabled.
         const DISABLED: &str = "20000000-0000-4000-8000-00000000000e";
+        // Its voter is authorized for an election without an external id,
+        // which Keycloak names by its id.
+        const BY_ID: &str = "20000000-0000-4000-8000-00000000000f";
+        const ELECTION_ID: &str = "30000000-0000-4000-8000-000000000001";
         const ELECTION_ALIAS: &str = "election-a";
 
         let pool = crate::services::database::generate_keycloak_pool().await?;
@@ -2167,6 +2171,7 @@ mod tests {
                        ('elsewhere', 'realm-a', 'elsewhere', true, NULL),
                        ('disabled-1', 'realm-a', 'disabled-1', false, NULL),
                        ('disabled-2', 'realm-a', 'disabled-2', false, NULL),
+                       ('by-id', 'realm-a', 'by-id', true, NULL),
                        ('service', 'realm-a', 'service', true, 'client'),
                        ('other-realm', 'realm-b', 'other-realm', true, NULL);
                 INSERT INTO user_attribute (user_id, name, value)
@@ -2187,6 +2192,8 @@ mod tests {
                        ('elsewhere', '{AREA_ID_ATTR_NAME}', '{ELSEWHERE}'),
                        ('disabled-1', '{AREA_ID_ATTR_NAME}', '{DISABLED}'),
                        ('disabled-2', '{AREA_ID_ATTR_NAME}', '{DISABLED}'),
+                       ('by-id', '{AREA_ID_ATTR_NAME}', '{BY_ID}'),
+                       ('by-id', '{AUTHORIZED_ELECTION_IDS_NAME}', '{ELECTION_ID}'),
                        ('service', '{AREA_ID_ATTR_NAME}', '{NORTH}'),
                        ('other-realm', '{AREA_ID_ATTR_NAME}', '{NORTH}');
                 "#
@@ -2226,6 +2233,23 @@ mod tests {
             7
         );
         assert_eq!(count(vec![], vec![]).await?, 0);
+        // Named by its id, the election has the voter authorized by its id;
+        // named by an empty alias, it does not.
+        let by_id = |alias: &'static str| {
+            let transaction = &transaction;
+            async move {
+                count_keycloak_enabled_voters_of_areas(
+                    transaction,
+                    "event-a",
+                    &[BY_ID.to_string()],
+                    &[],
+                    alias,
+                )
+                .await
+            }
+        };
+        assert_eq!(by_id(ELECTION_ID).await?, 1);
+        assert_eq!(by_id("").await?, 0);
         transaction.rollback().await?;
         Ok(())
     }
