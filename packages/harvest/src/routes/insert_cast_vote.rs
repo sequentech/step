@@ -292,6 +292,16 @@ pub async fn insert_cast_vote(
                 &msg,
                 ErrorCode::BallotIdMismatch,
             ),
+            CastVoteError::GetBallotStyleFailed(_) => ErrorResponse::new(
+                Status::InternalServerError,
+                ErrorCode::InternalServerError.to_string().as_str(),
+                ErrorCode::InternalServerError,
+            ),
+            CastVoteError::BallotStyleMismatch(_) => ErrorResponse::new(
+                Status::BadRequest,
+                ErrorCode::DeserializeBallotFailed.to_string().as_str(),
+                ErrorCode::DeserializeBallotFailed,
+            ),
         }
     })?;
 
