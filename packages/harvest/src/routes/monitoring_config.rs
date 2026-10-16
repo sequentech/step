@@ -14,6 +14,7 @@
 
 use crate::ports::monitoring_renderer::{ColorScheme, RenderBoard};
 use crate::routes::monitoring::authorize_monitoring;
+use crate::services::audit;
 use crate::services::dependencies::HarvestServices;
 use crate::services::monitoring::{
     author, event_ref, hasura_client, is_locked_down, live_config, problems,
@@ -42,10 +43,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tracing::instrument;
 use windmill::services::monitoring::config_store::{
-    get_document, history, reset_to_preset, save, set_mode, Author,
+    get_document, history, reset_to_preset_as, save_as, set_mode_as, Author,
     DocumentEdit, EventRef, ExpectedHead, ModeError, ModeOutcome, ResetError,
     ResetOutcome, SaveError, SaveOutcome, StoredRevision,
 };
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 
 fn configure(claims: &JwtClaims) -> MonitoringResult<()> {
     authorize_monitoring(claims, vec![Permissions::MONITORING_CONFIGURE])
@@ -355,7 +357,9 @@ pub async fn save_config(
     let checks = RendererChecks {
         renderer: services.monitoring_renderer.clone(),
     };
-    let outcome = save(
+    // The electoral log records the change; the audit log keeps the rows
+    // it wrote, as the admin's (SW-F-0364).
+    let outcome = save_as(
         &mut client,
         &checks,
         services.monitoring_audit.as_ref(),
@@ -367,9 +371,11 @@ pub async fn save_config(
             edit,
             expected,
         },
+        Some(&audit::actor(&claims)),
     )
     .await
     .map_err(save_error)?;
+    kick_audit_log_outbox();
     let (revision, warnings) = match outcome {
         SaveOutcome::Saved { revision, warnings } => (revision, warnings),
         SaveOutcome::Unchanged(revision) => (revision, Report::default()),
@@ -428,13 +434,14 @@ pub async fn reset_config_to_preset(
     let event = event_ref(&claims, &input.election_event_id)?;
     let mut client = hasura_client(services).await?;
     check_not_locked_down(&mut client, event).await?;
-    let outcome = reset_to_preset(
+    let outcome = reset_to_preset_as(
         &mut client,
         services.monitoring_audit.as_ref(),
         event,
         &author(&claims),
         &input.preset_id,
         input.mode.unwrap_or(DashboardMode::Configured),
+        Some(&audit::actor(&claims)),
     )
     .await
     .map_err(|error| match error {
@@ -447,6 +454,7 @@ pub async fn reset_config_to_preset(
         ResetError::Invalid(report) => MonitoringError::invalid(&report),
         ResetError::Internal(error) => MonitoringError::internal(error),
     })?;
+    kick_audit_log_outbox();
     Ok(Json(match outcome {
         ResetOutcome::Reset {
             generation,
@@ -529,12 +537,13 @@ pub async fn set_dashboard_mode(
     let mut client = hasura_client(services).await?;
     // Which dashboard the event shows is part of its configuration.
     check_not_locked_down(&mut client, event).await?;
-    let outcome = set_mode(
+    let outcome = set_mode_as(
         &mut client,
         services.monitoring_audit.as_ref(),
         event,
         &author(&claims),
         input.mode,
+        Some(&audit::actor(&claims)),
     )
     .await
     .map_err(|error| match error {
@@ -544,6 +553,7 @@ pub async fn set_dashboard_mode(
         ModeError::Invalid(report) => MonitoringError::invalid(&report),
         ModeError::Internal(error) => MonitoringError::internal(error),
     })?;
+    kick_audit_log_outbox();
     let generation = match outcome {
         ModeOutcome::Switched { generation } => generation,
         ModeOutcome::Unchanged => current_generation(services, event).await?,

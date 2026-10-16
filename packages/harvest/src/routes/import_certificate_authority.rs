@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -17,6 +18,7 @@ use windmill::services::certificate_authority::{
     import_certificate_authority as import_certs, split_pem_bundle,
 };
 use windmill::services::database::get_hasura_pool;
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ImportCertificateAuthorityInput {
@@ -70,6 +72,10 @@ pub async fn import_certificate_authority(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
+    // Windmill commits the transaction; the certificates it adds or
+    // removes are logged as this admin's (audit_change).
+    audit::act_for(&hasura_transaction, &claims).await?;
+
     let election_event = get_election_event_by_id(
         &hasura_transaction,
         &tenant_id_str,
@@ -104,6 +110,7 @@ pub async fn import_certificate_authority(
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    kick_audit_log_outbox();
 
     Ok(Json(ImportCertificateAuthorityOutput {
         inserted_count: result.inserted_count,

@@ -7,6 +7,7 @@
 //! route answers 403 without its permission and a typed JSON error (design
 //! §5, the signing API contract).
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
 use crate::services::dependencies::HarvestServices;
 use crate::services::signing_http::{
@@ -46,6 +47,7 @@ use windmill::services::signing::staff_certificates::{
     StaffCertificateRegistrationInput, MAX_REVOKE_REASON_CHARS,
 };
 use windmill::services::signing::Allowance;
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 
 type RouteResult<T> = SigningResult<Json<T>>;
 
@@ -128,6 +130,7 @@ pub async fn import_signing_issuers(
     let mut client = hasura(services).await?;
     let transaction =
         client.transaction().await.map_err(SigningError::internal)?;
+    audit::act_for(&transaction, &claims).await?;
     let import = import_staff_issuers(
         &transaction,
         tenant_id,
@@ -140,6 +143,7 @@ pub async fn import_signing_issuers(
     .await
     .map_err(SigningError::internal)?;
     transaction.commit().await.map_err(SigningError::internal)?;
+    kick_audit_log_outbox();
     Ok(Json(ImportSigningIssuersOutput {
         imported: import.imported.len(),
         skipped: import.skipped.len(),
@@ -175,6 +179,7 @@ pub async fn remove_signing_issuer(
     let mut client = hasura(services).await?;
     let transaction =
         client.transaction().await.map_err(SigningError::internal)?;
+    audit::act_for(&transaction, &claims).await?;
     let removed = remove_staff_issuer(
         &transaction,
         tenant_id,
@@ -186,6 +191,7 @@ pub async fn remove_signing_issuer(
     .map_err(SigningError::internal)?
     .ok_or_else(|| SigningError::not_found("No such trusted issuer"))?;
     transaction.commit().await.map_err(SigningError::internal)?;
+    kick_audit_log_outbox();
     Ok(Json(RemoveSigningIssuerOutput {
         issuer_id: removed.id,
     }))
@@ -236,6 +242,7 @@ pub async fn put_signing_checks(
     let mut client = hasura(services).await?;
     let transaction =
         client.transaction().await.map_err(SigningError::internal)?;
+    audit::act_for(&transaction, &claims).await?;
     let row = update_signing_checks(
         &transaction,
         tenant_id,
@@ -253,6 +260,7 @@ pub async fn put_signing_checks(
         )
     })?;
     transaction.commit().await.map_err(SigningError::internal)?;
+    kick_audit_log_outbox();
     Ok(Json(PutSigningChecksOutput {
         revision: row.checks.revision,
     }))
@@ -338,6 +346,7 @@ pub async fn register_staff_certificate_route(
     let mut client = hasura(services).await?;
     let transaction =
         client.transaction().await.map_err(SigningError::internal)?;
+    audit::act_for(&transaction, &claims).await?;
     let outcome = register_staff_certificate(
         &transaction,
         &StaffCertificateRegistrationInput {
@@ -360,6 +369,7 @@ pub async fn register_staff_certificate_route(
     .map_err(SigningError::internal)?;
     let row = outcome.map_err(registration_error)?;
     transaction.commit().await.map_err(SigningError::internal)?;
+    kick_audit_log_outbox();
     Ok(Json(StaffCertificateIdOutput {
         certificate_id: row.id,
     }))
@@ -399,6 +409,7 @@ pub async fn revoke_staff_certificate_route(
     let mut client = hasura(services).await?;
     let transaction =
         client.transaction().await.map_err(SigningError::internal)?;
+    audit::act_for(&transaction, &claims).await?;
     let outcome = revoke_registration(
         &transaction,
         tenant_id,
@@ -415,6 +426,7 @@ pub async fn revoke_staff_certificate_route(
             certificate: row, ..
         } => {
             transaction.commit().await.map_err(SigningError::internal)?;
+            kick_audit_log_outbox();
             Ok(Json(StaffCertificateIdOutput {
                 certificate_id: row.id,
             }))

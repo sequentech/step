@@ -7,6 +7,7 @@
 //! version.
 
 use crate::ports::electoral_log::ApprovalMatrixLog;
+use crate::services::audit;
 use crate::services::authorization::authorize;
 use crate::services::dependencies::HarvestServices;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
@@ -17,6 +18,7 @@ use rocket::State;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::collections::BTreeMap;
 use tracing::instrument;
 use windmill::postgres::election_event::get_election_event_by_id;
@@ -30,6 +32,10 @@ use windmill::services::approval_matrix::store::{
 use windmill::services::approval_matrix::{
     ApprovalMatrix, FieldMatch, IdentityMethod, MatrixError, BUILT_IN_VERSION,
 };
+use windmill::services::audit_log::{
+    diff_values, stage, AdminAction, AuditObject,
+};
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 use windmill::types::application::{
     ApplicationRejectReason, ApplicationStatus,
 };
@@ -296,6 +302,16 @@ pub async fn save_approval_matrix(
             )
         })?;
 
+    // The matrix table has no audit trigger: the entry is written by hand,
+    // in the transaction of the change.
+    let previous = get_latest_approval_matrix(
+        &transaction,
+        tenant_id,
+        &body.election_event_id,
+    )
+    .await
+    .map_err(|error| internal("Failed to read the approval matrix", error))?;
+
     let saved = insert_approval_matrix(
         &transaction,
         tenant_id,
@@ -327,10 +343,51 @@ pub async fn save_approval_matrix(
             internal("Failed to post the electoral log message", error)
         })?;
 
+    let fields = |version: i32, matrix: &ApprovalMatrix| {
+        serde_json::to_value(matrix)
+            .map(|matrix| json!({ "version": version, "matrix": matrix }))
+    };
+    let old_fields = previous
+        .as_ref()
+        .map(|previous| fields(previous.version, &previous.matrix))
+        .transpose()
+        .map_err(|error| internal("Failed to describe the change", error))?;
+    let new_fields = fields(saved.version, &saved.matrix)
+        .map_err(|error| internal("Failed to describe the change", error))?;
+    let target =
+        audit::target(tenant_id, Some(body.election_event_id.as_str()))
+            .map_err(|(status, message)| {
+                ErrorResponse::new(
+                    status,
+                    &message,
+                    ErrorCode::InternalServerError,
+                )
+            })?;
+    let version_name = format!("version {}", saved.version);
+    let change = audit::change(
+        &claims,
+        target,
+        AuditObject::new(
+            "approval_matrix",
+            &body.election_event_id,
+            Some(version_name.as_str()),
+        ),
+        AdminAction::Update,
+    )
+    .with_changes(diff_values("", old_fields.as_ref(), Some(&new_fields)))
+    .with_description(format!(
+        "Saved version {} of the approval matrix",
+        saved.version
+    ));
+    stage(&transaction, &change)
+        .await
+        .map_err(|error| internal("Failed to queue the audit entry", error))?;
+
     transaction
         .commit()
         .await
         .map_err(|error| internal("Failed to commit the transaction", error))?;
+    kick_audit_log_outbox();
 
     Ok(Json(output(
         saved.matrix_version(),

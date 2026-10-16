@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::routes::signing::{signing_failure, SigningReply};
+use crate::services::audit;
 use crate::services::authorization::{
     authorize, authorize_election_permission_labels,
 };
@@ -19,6 +20,7 @@ use sequent_core::{
 };
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
+use windmill::services::audit_log::{self, AdminAction, AuditObject};
 use windmill::services::electoral_log::{
     ElectoralLogAdminContext, VoterSecretAttributeAction,
     VoterSecretAttributeAudit,
@@ -27,6 +29,7 @@ use windmill::services::signing::actions::reports::{
     held_report_requests, reads_report_requests, HeldReportRequest,
 };
 use windmill::services::signing::{SigningCaller, SigningError};
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 
 use strum_macros::{Display, EnumString};
 use tracing::instrument;
@@ -470,6 +473,27 @@ pub async fn generate_report(
             )
         })?;
 
+    // A report is an export of the event's data: who asked for it is
+    // logged once the task that makes it is queued (SW-F-0364).
+    let change = audit::change(
+        &claims,
+        audit::target(
+            &report.tenant_id,
+            Some(report.election_event_id.as_str()),
+        )?,
+        AuditObject::new(
+            "report",
+            &report.id,
+            Some(report.report_type.as_str()),
+        ),
+        AdminAction::Export,
+    )
+    .with_description(format!(
+        "Requested the {} report ({:?})",
+        report.report_type, input.report_mode
+    ));
+    audit::record(services, &change).await?;
+
     Ok(Json(GenerateReportResponse {
         document_id: document_id,
         encryption_policy: report.encryption_policy,
@@ -489,7 +513,7 @@ pub struct ExportTemplateOutput {
     error_msg: Option<String>,
 }
 
-#[instrument(skip(claims, services))]
+#[instrument(skip(claims, input, services))]
 #[post("/encrypt-report", format = "json", data = "<input>")]
 pub async fn encrypt_report_route(
     claims: jwt::JwtClaims,
@@ -531,7 +555,38 @@ pub async fn encrypt_report_route(
         .await
         .map_err(|err| (Status::InternalServerError, err.to_string()))?;
 
-    info!("body {:?}", body);
+    // The password is a secret: the entry says that it was set, and for
+    // which report, never the password.
+    let object = match body.report_id.as_deref() {
+        Some(report_id) => AuditObject::new("report", report_id, None),
+        None => audit::election_event(&body.election_event_id),
+    };
+    let change = audit::change(
+        &claims,
+        audit::target(
+            &claims.hasura_claims.tenant_id,
+            Some(body.election_event_id.as_str()),
+        )?,
+        object,
+        AdminAction::Update,
+    )
+    .with_changes(vec![audit::secret_change("encryption_password")])
+    .with_description(match body.report_id.as_deref() {
+        Some(report_id) => {
+            format!("Set the encryption password of report {report_id}")
+        }
+        None => {
+            "Set the encryption password of the event's reports".to_string()
+        }
+    });
+    audit_log::stage(&hasura_transaction, &change)
+        .await
+        .map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error queueing the audit entry: {err:?}"),
+            )
+        })?;
 
     let document_id = Uuid::new_v4().to_string();
 
@@ -544,6 +599,7 @@ pub async fn encrypt_report_route(
         .commit()
         .await
         .map_err(|err| (Status::InternalServerError, err.to_string()))?;
+    kick_audit_log_outbox();
 
     Ok(Json(output))
 }

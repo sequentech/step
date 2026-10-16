@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::{
     authorize, authorize_election_permission_labels,
 };
@@ -118,6 +119,7 @@ pub async fn configure_results_website_policy(
     let output = configure_results_website_policy_request(
         &claims.hasura_claims.tenant_id,
         &body.into_inner(),
+        &audit::actor(&claims),
     )
     .await
     .map_err(map_service_error)?;
@@ -148,6 +150,7 @@ pub async fn publish_results_website(
         claims.preferred_username.clone(),
         executed_by_user,
         &input,
+        &audit::actor(&claims),
     )
     .await
     .map_err(map_service_error)?;
@@ -196,6 +199,7 @@ pub async fn revoke_results_publication(
         &claims.hasura_claims.user_id,
         claims.preferred_username.clone(),
         &input,
+        &audit::actor(&claims),
     )
     .await
     .map_err(map_service_error)?;

@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
 
 use sequent_core::services::connection;
@@ -24,6 +25,7 @@ use windmill::services::electoral_log::{
     post_voter_secret_attribute_audit, ElectoralLogAdminContext,
     VoterSecretAttributeAction, VoterSecretAttributeAudit,
 };
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 
 use crate::services;
 
@@ -73,6 +75,8 @@ async fn record_send(
         .transaction()
         .await
         .map_err(|error| internal(error.into()))?;
+    // The send's row is an admin's: the audit log keeps it as theirs.
+    audit::act_for(&tx, claims).await?;
     let send_id = record_bulk_send(
         &tx,
         &tenant_id,
@@ -83,6 +87,7 @@ async fn record_send(
     .await
     .map_err(internal)?;
     tx.commit().await.map_err(|error| internal(error.into()))?;
+    kick_audit_log_outbox();
     let mut payload = input.event_payload.clone();
     if let Some(object) = payload.as_object_mut() {
         object

@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -11,6 +12,7 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
+use windmill::services::audit_log::AuditObject;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::tasks_execution::*;
 use windmill::types::tasks::ETasksExecution;
@@ -95,6 +97,19 @@ pub async fn export_application_route(
 
     let _res =
         update_complete(&task_execution, Some(document_id.clone())).await;
+
+    let entry = audit::exported(
+        &claims,
+        audit::target(
+            &claims.hasura_claims.tenant_id,
+            Some(&body.election_event_id),
+        )?,
+        AuditObject::new("applications", audit::MANY, None),
+        "Requested the export of the applications",
+        Some(&task_execution.id),
+        Some(&document_id),
+    );
+    audit::record_after(entry).await?;
 
     let output = ExportApplicationOutput {
         document_id,

@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
 use anyhow::{anyhow, Context, Result};
 use rocket::http::Status;
@@ -12,6 +13,7 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
+use windmill::services::audit_log::AuditObject;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::tasks_execution::*;
 use windmill::tasks::export_election_event::{self, ExportOptions};
@@ -94,6 +96,16 @@ pub async fn export_trustees_route(
                 format!("Error sending export_trustees task: {error:?}"),
             )
         })?;
+
+    let entry = audit::exported(
+        &claims,
+        audit::target(&claims.hasura_claims.tenant_id, None)?,
+        AuditObject::new("trustee", audit::MANY, None),
+        "Requested the export of the trustees",
+        Some(&task_execution.id),
+        Some(&document_id),
+    );
+    audit::record_after(entry).await?;
 
     let output = ExportTrusteesOutput {
         document_id,

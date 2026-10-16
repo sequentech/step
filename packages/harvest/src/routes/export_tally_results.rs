@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::{
     authorize, authorize_tally_session_permission_labels,
 };
@@ -16,6 +17,7 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
+use windmill::services::audit_log::AuditObject;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::tasks_execution::*;
@@ -113,6 +115,19 @@ pub async fn export_tally_results_route(
             }))
         }
     };
+
+    let entry = audit::exported(
+        &claims,
+        audit::target(
+            &claims.hasura_claims.tenant_id,
+            Some(&body.election_event_id),
+        )?,
+        AuditObject::new("tally_session", &body.tally_session_id, None),
+        "Requested the export of the tally results",
+        Some(&task_execution.id),
+        Some(&document_id),
+    );
+    audit::record_after(entry).await?;
 
     let output = ExportTallyResultsOutput {
         document_id,

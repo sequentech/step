@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
 use anyhow::Result;
 use rocket::http::Status;
@@ -37,6 +38,13 @@ pub async fn import_candidates_route(
     claims: jwt::JwtClaims,
     input: Json<ImportCandidatesInput>,
 ) -> Result<Json<ImportCandidatesOutput>, (Status, String)> {
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::ADMIN_USER],
+    )?;
+
     let body = input.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let election_event_id = body.election_event_id.clone();
@@ -60,13 +68,6 @@ pub async fn import_candidates_route(
         )
     })?;
 
-    authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::ADMIN_USER],
-    )?;
-
     match import_candidates_task(
         claims.hasura_claims.tenant_id.clone(),
         election_event_id,
@@ -85,6 +86,16 @@ pub async fn import_candidates_route(
             }));
         }
     };
+    let entry = audit::imported(
+        &claims,
+        audit::target(&tenant_id, Some(&body.election_event_id))?,
+        "candidate",
+        &body.document_id,
+        body.sha256.as_deref(),
+        "Imported candidates",
+    );
+    // The task commits on its own; its entry follows the change.
+    audit::record_after(entry).await?;
 
     let output = ImportCandidatesOutput {
         error_msg: None,

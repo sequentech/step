@@ -434,3 +434,103 @@ fn realm_attribute_changes_name_what_changed_and_hide_secrets() {
     );
     assert!(realm_attribute_changes(&current, &HashMap::new()).is_empty());
 }
+
+#[rocket::async_test]
+async fn a_route_that_names_its_admin_logs_the_rows_it_changes() {
+    let services = Services::on_test_database().await;
+    let event = rows::event(&services.hasura).await;
+    let admin = Claims::new(&event.tenant_id, ADMIN_ID)
+        .username(ADMIN)
+        .build();
+    let area = event.area(&services.hasura, "North").await;
+
+    let mut client = services.hasura.get().await.unwrap();
+    let transaction = client.transaction().await.unwrap();
+    act_for(&transaction, &admin).await.unwrap();
+    transaction
+        .execute(
+            "UPDATE sequent_backend.area SET name = 'North-East'
+             WHERE id = $1::text::uuid",
+            &[&area],
+        )
+        .await
+        .unwrap();
+    transaction.commit().await.unwrap();
+
+    let queued = rows::query(
+        &services.hasura,
+        "SELECT election_event_id::text, username, description, details
+         FROM sequent_backend.audit_log_outbox
+         WHERE tenant_id = $1::text::uuid ORDER BY seq",
+        &[&event.tenant_id],
+    )
+    .await;
+    assert_eq!(queued.len(), 1);
+    let row = &queued[0];
+    assert_eq!(
+        row.get::<_, Option<String>>(0),
+        Some(event.election_event_id.clone())
+    );
+    assert_eq!(row.get::<_, Option<String>>(1).as_deref(), Some(ADMIN));
+    assert_eq!(row.get::<_, String>(2), "Updated area \"North-East\": name");
+    let details = row.get::<_, Value>(3);
+    assert_eq!(details["origin"], "harvest");
+    assert_eq!(
+        details["actor"],
+        json!({"user_id": ADMIN_ID, "username": ADMIN, "role": "user"})
+    );
+    assert_eq!(
+        details["changes"],
+        json!([{"path": "name", "old": "North", "new": "North-East"}])
+    );
+}
+
+#[test]
+fn an_import_is_one_entry_with_its_source_document() {
+    let entry = imported(
+        &admin(),
+        event_log(),
+        "candidate",
+        "document-1",
+        Some("ABCD"),
+        "Imported candidates",
+    );
+    assert_eq!(entry.action, AdminAction::Import);
+    assert_eq!(entry.object, AuditObject::new("candidate", MANY, None));
+    assert_eq!(entry.describe(), "Imported candidates");
+    assert_eq!(
+        entry.extra,
+        json!({"document_id": "document-1", "declared_sha256": "abcd"})
+    );
+}
+
+#[test]
+fn an_export_names_its_task_and_its_document() {
+    let entry = exported(
+        &admin(),
+        event_log(),
+        election_event(EVENT_ID),
+        "Exported the election event",
+        Some("task-1"),
+        Some("document-1"),
+    );
+    assert_eq!(entry.action, AdminAction::Export);
+    assert_eq!(entry.actor, actor(&admin()));
+    assert_eq!(entry.describe(), "Exported the election event");
+    assert_eq!(
+        entry.extra,
+        json!({"task_execution_id": "task-1", "document_id": "document-1"})
+    );
+    let without_document = exported(
+        &admin(),
+        event_log(),
+        election_event(EVENT_ID),
+        "Exported the trustees",
+        Some("task-2"),
+        None,
+    );
+    assert_eq!(
+        without_document.extra,
+        json!({"task_execution_id": "task-2"})
+    );
+}

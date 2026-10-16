@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
 use anyhow::{anyhow, Context, Result};
 use rocket::http::Status;
@@ -13,6 +14,7 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
+use windmill::services::audit_log::AuditObject;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::tasks_execution::*;
 use windmill::tasks::export_ballot_publication::export_ballot_publication;
@@ -98,6 +100,23 @@ pub async fn export_ballot_publication_route(
         },
         Ok(task) => task,
     };
+
+    let entry = audit::exported(
+        &claims,
+        audit::target(
+            &claims.hasura_claims.tenant_id,
+            Some(&body.election_event_id),
+        )?,
+        AuditObject::new(
+            "ballot_publication",
+            &body.ballot_publication_id,
+            None,
+        ),
+        "Requested the export of the ballot publication",
+        Some(&task_execution.id),
+        Some(&document_id),
+    );
+    audit::record_after(entry).await?;
 
     let output = ExportBallotPublicationOutput {
         document_id,

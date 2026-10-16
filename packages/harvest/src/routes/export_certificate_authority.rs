@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -11,9 +12,11 @@ use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use tracing::instrument;
 use uuid::Uuid;
 use windmill::postgres::election_event::get_election_event_by_id;
+use windmill::services::audit_log::{AdminAction, AuditObject};
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::tasks_execution::post;
@@ -111,9 +114,9 @@ pub async fn export_certificate_authority_route(
     celery_app
         .send_task(
             windmill::tasks::export_certificate_authority::export_certificate_authority::new(
-                tenant_id_str,
+                tenant_id_str.clone(),
                 body.election_event_id,
-                body.ids,
+                body.ids.clone(),
                 document_id.clone(),
                 task_execution.clone(),
             ),
@@ -125,6 +128,30 @@ pub async fn export_certificate_authority_route(
                 format!("Error sending export_certificate_authority task: {e:?}"),
             )
         })?;
+
+    let election_event_id = body.election_event_id.to_string();
+    let ids = &body.ids;
+    let exported = match ids.as_slice() {
+        [id] => id.to_string(),
+        _ => audit::MANY.to_string(),
+    };
+    audit::record_after(
+        audit::change(
+            &claims,
+            audit::target(&tenant_id_str, Some(election_event_id.as_str()))?,
+            AuditObject::new(audit::CERTIFICATE_AUTHORITY, exported, None),
+            AdminAction::Export,
+        )
+        .with_extra(json!({
+            "certificate_authority_ids": ids,
+            "document_id": document_id,
+        }))
+        .with_description(format!(
+            "Requested the export of {} certificate authorities",
+            ids.len()
+        )),
+    )
+    .await?;
 
     Ok(Json(ExportCertificateAuthorityOutput {
         document_id,

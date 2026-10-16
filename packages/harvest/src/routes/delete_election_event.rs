@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
 use crate::services::tenant_activity::{TenantAction, TenantActivityRecorder};
 use anyhow::Result;
@@ -182,11 +183,7 @@ pub async fn delete_election_event_f(
             realm.clone(),
             task_execution.clone(),
             permission_labels,
-            Some(windmill::services::audit_log::AuditActor {
-                user_id: Some(claims.hasura_claims.user_id.clone()),
-                username: claims.preferred_username.clone(),
-                role: None,
-            }),
+            Some(audit::actor(&claims)),
         ))
         .await;
 

@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
 use crate::types::error_response::ErrorCode;
 use anyhow::{anyhow, Context, Result};
@@ -188,6 +189,19 @@ pub async fn export_election_event_route(
             ));
         }
     };
+
+    let entry = audit::exported(
+        &claims,
+        audit::target(
+            &claims.hasura_claims.tenant_id,
+            Some(&body.election_event_id),
+        )?,
+        audit::election_event(&body.election_event_id),
+        "Requested the export of the election event",
+        Some(&task_execution.id),
+        Some(&document_id),
+    );
+    audit::record_after(entry).await?;
 
     let output = ExportElectionEventOutput {
         document_id,

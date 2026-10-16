@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::audit;
 use crate::services::authorization::{
     authorize, authorize_election_permission_labels,
 };
@@ -27,6 +28,7 @@ use windmill::services::signing::actions::voting::{
 use windmill::services::signing::actions::{event_ids, is_required};
 use windmill::services::signing::guard::SigningRequestSummary;
 use windmill::services::{election_event_status, voting_status};
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 use windmill::tasks::seal_ballot_boxes::kick_ballot_box_sealer;
 use windmill::tasks::signing_log_outbox::kick_signing_log_outbox;
 
@@ -123,6 +125,7 @@ async fn update_event_status_response(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    audit::act_for(&hasura_transaction, &claims).await?;
 
     authorize_election_permission_labels(
         &hasura_transaction,
@@ -165,6 +168,7 @@ async fn update_event_status_response(
         .commit()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    kick_audit_log_outbox();
     // The close may have created ballot box seals to make (VOTE-FREEZE).
     if input.voting_status == VotingStatus::CLOSED {
         kick_ballot_box_sealer();
@@ -232,6 +236,7 @@ async fn update_election_status_response(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    audit::act_for(&hasura_transaction, &claims).await?;
 
     authorize_election_permission_labels(
         &hasura_transaction,
@@ -258,6 +263,7 @@ async fn update_election_status_response(
             .await
             .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
         kick_signing_log_outbox();
+        kick_audit_log_outbox();
         return Ok(Json(UpdateElectionVotingStatusOutput {
             election_id: input.election_id,
             signing_request: Some(signing_request),
@@ -281,6 +287,7 @@ async fn update_election_status_response(
         .commit()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    kick_audit_log_outbox();
     // The close may have created ballot box seals to make (VOTE-FREEZE).
     if input.voting_status == VotingStatus::CLOSED {
         kick_ballot_box_sealer();
