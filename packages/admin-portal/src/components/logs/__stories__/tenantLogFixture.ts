@@ -264,6 +264,9 @@ const WRITER_STOPPED_ENTRY = audit({
     details: {release: "10.0.4", last_entry_id: 5253},
 })
 
+/** The deleted event's log key, kept in the entry: the event's keys go with it. */
+export const RETIRED_SYSTEM_KEY = "bBSuL4bXEkBrqtmLXKFHmhxsZGJGCNGYXXKRpaw0go="
+
 export const DELETED_EVENT_ENTRY = audit({
     id: 5253,
     kind: "AdminChange",
@@ -283,6 +286,7 @@ export const DELETED_EVENT_ENTRY = audit({
             entries: 18442,
             status: "RETIRED",
             task_id: storyId(7, 3),
+            system_public_key: RETIRED_SYSTEM_KEY,
         },
     },
 })

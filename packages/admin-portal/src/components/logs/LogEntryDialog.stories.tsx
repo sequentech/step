@@ -14,6 +14,7 @@ import {
     DELETED_EVENT_DATABASE,
     DELETED_EVENT_ENTRY,
     DECLARED_SHA256,
+    RETIRED_SYSTEM_KEY,
     IMPORTED_EVENT_ENTRY,
     IMPORTED_FILE_SHA256,
     EXPORT_ENTRY,
@@ -219,6 +220,9 @@ export const DeletedElectionEvent: Story = {
         expect(view.getByText("18442")).toBeVisible()
         expect(view.getByTitle(STATE_HASH)).toBeVisible()
         expect(view.getByText(DELETED_EVENT_DATABASE)).toBeVisible()
+        expect(view.getByText("The log's system key")).toBeVisible()
+        expect(view.getByText(RETIRED_SYSTEM_KEY)).toBeVisible()
+        expect(view.queryByText("system_public_key")).toBeNull()
         expect(
             view.getByText("Unloaded and kept until it is erased under the retention policy")
         ).toBeVisible()

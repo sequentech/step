@@ -368,6 +368,7 @@ const frenchTranslation: TranslationType = {
                     retired:
                         "Déchargé et conservé jusqu'à son effacement selon la politique de conservation",
                     task: "Tâche",
+                    systemKey: "La clé système du journal",
                 },
                 exported: {
                     title: "Export",

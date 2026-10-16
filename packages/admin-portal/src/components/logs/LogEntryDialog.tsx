@@ -535,6 +535,11 @@ const EntryContent: React.FC<{entry: ILogRow; log: ILogTarget; zone: string}> = 
                                 <Mono>{deletedEvent.taskId}</Mono>
                             </Fact>
                         ) : null}
+                        {deletedEvent.systemPublicKey ? (
+                            <Fact label={String(t("logsScreen.entry.deletedEvent.systemKey"))} wide>
+                                <Mono>{deletedEvent.systemPublicKey}</Mono>
+                            </Fact>
+                        ) : null}
                     </Facts>
                 </Section>
             ) : null}

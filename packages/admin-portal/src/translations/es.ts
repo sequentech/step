@@ -367,6 +367,7 @@ const spanishTranslation: TranslationType = {
                     retired:
                         "Descargada y conservada hasta que se borre según la política de conservación",
                     task: "Tarea",
+                    systemKey: "La clave de sistema de la bitácora",
                 },
                 exported: {
                     title: "Exportación",

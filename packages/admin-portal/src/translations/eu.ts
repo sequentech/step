@@ -367,6 +367,7 @@ const basqueTranslation: TranslationType = {
                     status: "Egoera",
                     retired: "Deskargatuta eta gordeta, atxikipen politikaren arabera ezabatu arte",
                     task: "Ataza",
+                    systemKey: "Egunkariaren sistema-gakoa",
                 },
                 exported: {
                     title: "Esportazioa",

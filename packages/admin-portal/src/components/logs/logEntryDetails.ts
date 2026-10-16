@@ -90,6 +90,8 @@ export interface ILogDeletedEvent {
     entries: string | null
     status: string | null
     taskId: string | null
+    /** The retired log's system key: the event's keys are deleted with it. */
+    systemPublicKey: string | null
 }
 
 export interface ILogExport {
@@ -260,6 +262,7 @@ const DELETED_EVENT_KEYS = [
     "entries",
     "status",
     "task_id",
+    "system_public_key",
 ]
 
 const IMPORTED_FILE_KEYS = [
@@ -300,6 +303,7 @@ const deletedEventOf = (extra: Json | null): ILogDeletedEvent | null => {
         entries: text(extra.entries),
         status: text(extra.status),
         taskId: text(extra.task_id),
+        systemPublicKey: text(extra.system_public_key),
     }
 }
 

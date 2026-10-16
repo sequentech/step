@@ -445,6 +445,7 @@ const catalanTranslation: TranslationType = {
                     retired:
                         "Descarregada i conservada fins que s'esborri segons la política de conservació",
                     task: "Tasca",
+                    systemKey: "La clau de sistema de la bitàcola",
                 },
                 exported: {
                     title: "Exportació",

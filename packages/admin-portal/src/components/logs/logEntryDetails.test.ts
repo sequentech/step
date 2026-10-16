@@ -281,6 +281,7 @@ describe("AdminChange", () => {
                     entries: 18442,
                     status: "RETIRED",
                     task_id: "7c1d81ab-0000-4000-8000-000000000001",
+                    system_public_key: "bBSuL4bXEkBrqtmLXKFHmhxsZGJGCNG=",
                 },
             })
         )
@@ -291,6 +292,7 @@ describe("AdminChange", () => {
             entries: "18442",
             status: "RETIRED",
             taskId: "7c1d81ab-0000-4000-8000-000000000001",
+            systemPublicKey: "bBSuL4bXEkBrqtmLXKFHmhxsZGJGCNG=",
         })
         expect(view.extra).toEqual([])
         expect(view.origin).toBe(ELogOrigin.WINDMILL)

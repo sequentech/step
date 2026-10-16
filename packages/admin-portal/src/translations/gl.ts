@@ -367,6 +367,7 @@ const galegoTranslation: TranslationType = {
                     retired:
                         "Descargado e conservado ata que se borre segundo a política de conservación",
                     task: "Tarefa",
+                    systemKey: "A clave de sistema do rexistro",
                 },
                 exported: {
                     title: "Exportación",

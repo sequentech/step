@@ -367,6 +367,7 @@ const dutchTranslation: TranslationType = {
                     status: "Status",
                     retired: "Ontladen en bewaard totdat het volgens het bewaarbeleid wordt gewist",
                     task: "Taak",
+                    systemKey: "De systeemsleutel van het log",
                 },
                 exported: {
                     title: "Export",

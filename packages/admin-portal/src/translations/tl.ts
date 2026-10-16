@@ -367,6 +367,7 @@ const tagalogTranslation: TranslationType = {
                     retired:
                         "Inalis sa pagkaka-load at iniingatan hanggang mabura ito ayon sa patakaran sa pagpapanatili",
                     task: "Gawain",
+                    systemKey: "Ang system key ng log",
                 },
                 exported: {
                     title: "Pag-export",

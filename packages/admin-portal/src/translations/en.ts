@@ -363,6 +363,7 @@ const englishTranslation = {
                     status: "Status",
                     retired: "Unloaded and kept until it is erased under the retention policy",
                     task: "Task",
+                    systemKey: "The log's system key",
                 },
                 exported: {
                     title: "Export",
