@@ -516,6 +516,8 @@ What queues entries today:
 | Harvest `routes/reports.rs` (`/encrypt-report`), `routes/document_password.rs` | A report's password set (named, never recorded); a document's password revealed |
 | Harvest `routes/electoral_log_console.rs` | A console query, with its SQL |
 | Harvest `routes/voter_information_letter.rs` | A voter information letter requested, which resets the voter's password |
+| Harvest `routes/limit_access_by_countries.rs` | The country lists before and after, once Cloudflare set them |
+| Windmill `tasks/delete_tenant.rs` | Tenant deleted, in the log of the tenant whose admin deleted it |
 
 ### 6.1 Naming the admin to the trigger
 
@@ -819,8 +821,8 @@ a growing wait, as when Keycloak is still starting with beat.
   registered as an event's. Retention and erasure are a separate piece of work.
 - **Deleted events are not part of an account's export.** `ACCOUNT_WITH_EVENTS` reads the events that
   exist; a retired database is not read.
-- **Deleting a tenant** does not retire or drop its log database, and is recorded by the
-  request's `TenantAdminAction` only, not as an `AdminChange`.
+- **Deleting a tenant** does not retire or drop its log database. Its `AdminChange` goes to the log
+  of the tenant whose admin deleted it, staged in the deleting transaction.
 - **No checkpoints, audits or proofs for the tenant log.** The tenant log has a Merkle log, but no
   code publishes its checkpoints, audits it or serves proofs of it; the Admin Portal offers **Audit**
   only in an election event's Logs tab.

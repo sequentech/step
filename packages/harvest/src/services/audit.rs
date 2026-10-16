@@ -35,6 +35,7 @@ pub const PERMISSION: &str = "permission";
 pub const PHONE_BLACKLIST: &str = "phone_blacklist";
 pub const ELECTION_EVENT: &str = "election_event";
 pub const CERTIFICATE_AUTHORITY: &str = "certificate_authority";
+pub const TENANT: &str = "tenant";
 
 /// The id of an object that stands for several: a bulk deletion, an import.
 pub const MANY: &str = "*";
