@@ -1,7 +1,14 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {ELogChangeKind, ELogOrigin, logEntryView, logValue, shortened} from "./logEntryDetails"
+import {
+    EImportChecksum,
+    ELogChangeKind,
+    ELogOrigin,
+    logEntryView,
+    logValue,
+    shortened,
+} from "./logEntryDetails"
 import {logFieldLabelKey, logObjectTypeKey} from "./logFieldLabels"
 
 const USER_ID = "2e9b6d14-8a3f-4c57-b0e2-9d4f1a7c3e58"
@@ -73,6 +80,7 @@ describe("the head and who of any entry", () => {
             signIn: null,
             keycloak: null,
             deletedEvent: null,
+            importedFile: null,
             exported: null,
             writer: null,
         })
@@ -288,14 +296,76 @@ describe("AdminChange", () => {
         expect(view.origin).toBe(ELogOrigin.WINDMILL)
     })
 
-    it("keeps an import's counts as extra details", () => {
+    it("reads the file an import read, with its count, and keeps other details", () => {
         const view = logEntryView(
-            audit("AdminChange", {...details, extra: {count: 12, file_sha256: "cc33", note: null}})
+            audit("AdminChange", {
+                ...details,
+                extra: {
+                    count: 12,
+                    file_sha256: "cc33",
+                    document_id: "doc-1",
+                    note: "x",
+                    gone: null,
+                },
+            })
         )
         expect(view.deletedEvent).toBeNull()
+        expect(view.importedFile).toEqual({
+            documentId: "doc-1",
+            fileSha256: "cc33",
+            declaredSha256: null,
+            declaredChecksum: null,
+            counts: [{name: "count", value: "12"}],
+        })
+        expect(view.extra).toEqual([{name: "note", value: "x"}])
+    })
+
+    it("reads an import's counts and how its declared checksum compares", () => {
+        const view = logEntryView(
+            audit("AdminChange", {
+                ...details,
+                action: "import",
+                extra: {
+                    document_id: "doc-2",
+                    file_sha256: "aa11",
+                    declared_sha256: "bb22",
+                    declared_checksum: "mismatch",
+                    counts: {elections: 2, candidates: 7, areas: 0},
+                },
+            })
+        )
+        expect(view.importedFile).toEqual({
+            documentId: "doc-2",
+            fileSha256: "aa11",
+            declaredSha256: "bb22",
+            declaredChecksum: EImportChecksum.MISMATCH,
+            counts: [
+                {name: "elections", value: "2"},
+                {name: "candidates", value: "7"},
+                {name: "areas", value: "0"},
+            ],
+        })
+        expect(view.extra).toEqual([])
+    })
+
+    it("ignores a checksum verdict it doesn't know", () => {
+        const view = logEntryView(
+            audit("AdminChange", {
+                ...details,
+                extra: {file_sha256: "aa11", declared_checksum: "maybe", counts: "many"},
+            })
+        )
+        expect(view.importedFile).toMatchObject({declaredChecksum: null, counts: []})
+    })
+
+    it("has no imported file without a computed SHA-256", () => {
+        const view = logEntryView(
+            audit("AdminChange", {...details, extra: {declared_sha256: "bb22", count: 3}})
+        )
+        expect(view.importedFile).toBeNull()
         expect(view.extra).toEqual([
-            {name: "count", value: "12"},
-            {name: "file_sha256", value: "cc33"},
+            {name: "declared_sha256", value: "bb22"},
+            {name: "count", value: "3"},
         ])
     })
 })

@@ -337,6 +337,27 @@ const galegoTranslation: TranslationType = {
                     newValue: "Valor novo",
                     error: "Erro",
                 },
+                importedFile: {
+                    title: "O ficheiro importado",
+                    declared: "Suma de comprobación declarada",
+                    sha256: "SHA-256 do ficheiro",
+                    declaredSha256: "SHA-256 declarado",
+                    document: "Documento",
+                    checksum: {
+                        undeclared: "Non se declarou",
+                        matches: "Coincide co ficheiro",
+                        mismatch: "Non coincide co ficheiro",
+                    },
+                    counts: {
+                        count: "Filas",
+                        elections: "Eleccións",
+                        contests: "Contendas",
+                        candidates: "Candidatos",
+                        areas: "Áreas",
+                        area_contests: "Áreas por contenda",
+                        sections: "Seccións de configuración",
+                    },
+                },
                 deletedEvent: {
                     title: "O rexistro do evento electoral eliminado",
                     lastEntry: "Última entrada",

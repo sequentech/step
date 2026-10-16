@@ -415,6 +415,27 @@ const catalanTranslation: TranslationType = {
                     newValue: "Valor nou",
                     error: "Error",
                 },
+                importedFile: {
+                    title: "El fitxer importat",
+                    declared: "Suma de verificació declarada",
+                    sha256: "SHA-256 del fitxer",
+                    declaredSha256: "SHA-256 declarat",
+                    document: "Document",
+                    checksum: {
+                        undeclared: "No se n'ha declarat cap",
+                        matches: "Coincideix amb el fitxer",
+                        mismatch: "No coincideix amb el fitxer",
+                    },
+                    counts: {
+                        count: "Files",
+                        elections: "Eleccions",
+                        contests: "Contesses",
+                        candidates: "Candidats",
+                        areas: "Àrees",
+                        area_contests: "Àrees per contesa",
+                        sections: "Seccions de configuració",
+                    },
+                },
                 deletedEvent: {
                     title: "La bitàcola de l'esdeveniment electoral eliminat",
                     lastEntry: "Darrera entrada",

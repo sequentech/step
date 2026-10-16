@@ -106,6 +106,24 @@ export interface ILogExport {
     documentId: string | null
 }
 
+/** How the checksum an admin declared for an imported file compares with the file's. */
+export enum EImportChecksum {
+    UNDECLARED = "undeclared",
+    MATCHES = "matches",
+    MISMATCH = "mismatch",
+}
+
+/** The file an import read, as the task that read it hashed and counted it. */
+export interface ILogImportedFile {
+    documentId: string | null
+    fileSha256: string
+    declaredSha256: string | null
+    /** Null when the entry doesn't say, as older imports don't. */
+    declaredChecksum: EImportChecksum | null
+    /** What the file held, by name: elections, candidates, rows (`count`)… */
+    counts: Array<{name: string; value: string}>
+}
+
 export interface ILogWriter {
     release: string | null
     lastEntryId: string | null
@@ -135,6 +153,7 @@ export interface ILogEntryView {
     signIn: ILogSignIn | null
     keycloak: ILogKeycloakChange | null
     deletedEvent: ILogDeletedEvent | null
+    importedFile: ILogImportedFile | null
     exported: ILogExport | null
     writer: ILogWriter | null
     /** Free details of a change that the popup has no section for (import counts, hashes). */
@@ -242,6 +261,34 @@ const DELETED_EVENT_KEYS = [
     "status",
     "task_id",
 ]
+
+const IMPORTED_FILE_KEYS = [
+    "document_id",
+    "file_sha256",
+    "declared_sha256",
+    "declared_checksum",
+    "counts",
+    "count",
+]
+
+const importChecksum = (value: unknown): EImportChecksum | null =>
+    (Object.values(EImportChecksum) as unknown[]).includes(value)
+        ? (value as EImportChecksum)
+        : null
+
+const importedFileOf = (extra: Json | null): ILogImportedFile | null => {
+    const fileSha256 = text(extra?.file_sha256)
+    if (!extra || !fileSha256) return null
+    const counts = isObject(extra.counts) ? rows(extra.counts) : []
+    const count = text(extra.count)
+    return {
+        documentId: text(extra.document_id),
+        fileSha256,
+        declaredSha256: text(extra.declared_sha256),
+        declaredChecksum: importChecksum(extra.declared_checksum),
+        counts: count === null ? counts : [{name: "count", value: count}, ...counts],
+    }
+}
 
 const deletedEventOf = (extra: Json | null): ILogDeletedEvent | null => {
     const logDatabase = text(extra?.log_database)
@@ -382,6 +429,7 @@ const emptyView = (description: string, statementKind: string | null): ILogEntry
     signIn: null,
     keycloak: null,
     deletedEvent: null,
+    importedFile: null,
     exported: null,
     writer: null,
     extra: [],
@@ -464,7 +512,13 @@ export const logEntryView = (
                 .map(changeOf)
                 .filter((change): change is ILogChange => change !== null)
             view.deletedEvent = deletedEventOf(extra)
-            view.extra = extra ? rows(extra, view.deletedEvent ? DELETED_EVENT_KEYS : []) : []
+            view.importedFile = importedFileOf(extra)
+            view.extra = extra
+                ? rows(extra, [
+                      ...(view.deletedEvent ? DELETED_EVENT_KEYS : []),
+                      ...(view.importedFile ? IMPORTED_FILE_KEYS : []),
+                  ])
+                : []
             break
         }
         case STATEMENT_KIND_KEYCLOAK_ADMIN_EVENT: {

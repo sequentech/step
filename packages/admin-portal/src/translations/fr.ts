@@ -338,6 +338,27 @@ const frenchTranslation: TranslationType = {
                     newValue: "Nouvelle valeur",
                     error: "Erreur",
                 },
+                importedFile: {
+                    title: "Le fichier importé",
+                    declared: "Somme de contrôle déclarée",
+                    sha256: "SHA-256 du fichier",
+                    declaredSha256: "SHA-256 déclaré",
+                    document: "Document",
+                    checksum: {
+                        undeclared: "Aucune déclarée",
+                        matches: "Correspond au fichier",
+                        mismatch: "Ne correspond pas au fichier",
+                    },
+                    counts: {
+                        count: "Lignes",
+                        elections: "Élections",
+                        contests: "Scrutins",
+                        candidates: "Candidats",
+                        areas: "Zones",
+                        area_contests: "Zones par scrutin",
+                        sections: "Sections de configuration",
+                    },
+                },
                 deletedEvent: {
                     title: "Le journal de l'événement électoral supprimé",
                     lastEntry: "Dernière entrée",

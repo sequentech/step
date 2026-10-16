@@ -337,6 +337,27 @@ const spanishTranslation: TranslationType = {
                     newValue: "Valor nuevo",
                     error: "Error",
                 },
+                importedFile: {
+                    title: "El archivo importado",
+                    declared: "Suma de comprobación declarada",
+                    sha256: "SHA-256 del archivo",
+                    declaredSha256: "SHA-256 declarado",
+                    document: "Documento",
+                    checksum: {
+                        undeclared: "No se declaró",
+                        matches: "Coincide con el archivo",
+                        mismatch: "No coincide con el archivo",
+                    },
+                    counts: {
+                        count: "Filas",
+                        elections: "Elecciones",
+                        contests: "Contiendas",
+                        candidates: "Candidatos",
+                        areas: "Áreas",
+                        area_contests: "Áreas por contienda",
+                        sections: "Secciones de configuración",
+                    },
+                },
                 deletedEvent: {
                     title: "La bitácora del evento electoral eliminado",
                     lastEntry: "Última entrada",

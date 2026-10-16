@@ -13,6 +13,9 @@ import {
     ADMIN_KEY,
     DELETED_EVENT_DATABASE,
     DELETED_EVENT_ENTRY,
+    DECLARED_SHA256,
+    IMPORTED_EVENT_ENTRY,
+    IMPORTED_FILE_SHA256,
     EXPORT_ENTRY,
     KEYCLOAK_CONSOLE_ENTRY,
     LOCKOUT_ENTRY,
@@ -223,6 +226,24 @@ export const DeletedElectionEvent: Story = {
         expect(view.getByText("Admin Portal (a Windmill task)")).toBeVisible()
         expect(view.getByText("Deleted")).toBeVisible()
         expect(view.queryByText("Old and new values")).toBeNull()
+    },
+}
+
+/** An import names the file it read: its SHA-256, the declared checksum and what it held. */
+export const ImportedElectionEvent: Story = {
+    args: {entry: IMPORTED_EVENT_ENTRY},
+    parameters: {widgets: ["Mono"]},
+    play: async () => {
+        const view = await dialog()
+        expect(view.getByText("The imported file")).toBeVisible()
+        expect(view.getByText("Doesn't match the file")).toBeVisible()
+        expect(view.getByText(IMPORTED_FILE_SHA256)).toBeVisible()
+        expect(view.getByText(DECLARED_SHA256)).toBeVisible()
+        expect(view.getByText("Candidates")).toBeVisible()
+        expect(view.getByText("7")).toBeVisible()
+        expect(view.getByText("Areas per contest")).toBeVisible()
+        expect(view.queryByText("file_sha256")).toBeNull()
+        expect(view.getByText("Imported")).toBeVisible()
     },
 }
 
