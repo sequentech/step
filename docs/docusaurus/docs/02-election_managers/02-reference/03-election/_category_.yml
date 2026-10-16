@@ -1,2 +1,6 @@
 label: 'Election'
 position: 3
+link:
+  type: generated-index
+  slug: /election_managers/reference/election
+  description: 'The tabs of an election.'

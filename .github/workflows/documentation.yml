@@ -51,12 +51,24 @@ jobs:
           elif [ "${{ github.event_name }}" == "push" ] && [ "${{ github.ref_name }}" == "main" ]; then
             URL_PATH="/docusaurus/main"
           elif [ "${{ github.event_name }}" == "push" ] && [[ "${{ github.ref_name }}" == release/* ]]; then
-            URL_PATH="/docusaurus/release-preview/${{ github.ref_name }}"
+            URL_PATH="/docusaurus/${{ github.ref_name }}"
           fi
           echo "BASE_URL=$URL_PATH" >> $GITHUB_ENV
           export BASE_URL=$URL_PATH
           yarn install --frozen-lockfile
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            # PR previews are for reviewing pages: English only keeps them small.
+            export DOCS_LOCALES=en
+          fi
           yarn build
+
+      # The administrator manual as PDF (uses the runner's Chrome). PR previews
+      # skip it, and a failure here does not stop the site from publishing.
+      - name: Print the administrator manual (PDF)
+        if: github.event_name == 'push'
+        continue-on-error: true
+        working-directory: ./docs/docusaurus
+        run: yarn pdf
 
       - name: Spectaql | GraphQL Documentation
         working-directory: ./docs/api/graphql
@@ -80,6 +92,7 @@ jobs:
           clean-exclude: |
             docusaurus/main
             docusaurus/release-preview/*
+            docusaurus/release/*
           umbrella-dir: docusaurus/pr-preview
 
       - name: Publish (main)
@@ -94,6 +107,7 @@ jobs:
           clean-exclude: |
             docusaurus/pr-preview/*
             docusaurus/release-preview/*
+            docusaurus/release/*
 
       - name: Publish (release)
         uses: JamesIves/github-pages-deploy-action@v4
@@ -101,10 +115,11 @@ jobs:
         with:
           folder: ./docs/docusaurus/build/
           branch: doc-previews
-          target-folder: "docusaurus/release-preview/${{ github.ref_name }}"
+          target-folder: "docusaurus/${{ github.ref_name }}"
           commit-message: "Deploy preview for ${{ github.ref_name }}"
           token: ${{ secrets.PAT }}
           clean-exclude: |
             docusaurus/main
             docusaurus/pr-preview/*
             docusaurus/release-preview/*
+            docusaurus/release/*

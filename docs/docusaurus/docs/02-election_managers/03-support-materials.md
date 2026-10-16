@@ -1,6 +1,8 @@
 ---
+sidebar_position: 6
 id: support_materials
 title: Support Materials
+description: "Support Materials are event-level documents (guides, sample ballots, instructional videos) that voters can review before voting."
 ---
 
 <!--
