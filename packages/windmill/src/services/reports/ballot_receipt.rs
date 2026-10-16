@@ -28,7 +28,8 @@ pub struct BallotData {
     pub area_id: String,
     pub voter_id: String,
     pub ballot_id: String,
-    pub ballot_tracker_url: String,
+    /// The voter's token comes from the kiosk portal client.
+    pub is_kiosk: bool,
     pub time_zone: Option<TimeZone>,
     pub date_format: Option<DateFormat>,
 }
@@ -109,13 +110,13 @@ impl TemplateRenderer for BallotTemplate {
             return Err(anyhow!("Empty election_id"));
         };
 
-        let (area_id, voter_id, ballot_id, ballot_tracker_url, time_zone, date_format) =
+        let (area_id, voter_id, ballot_id, is_kiosk, time_zone, date_format) =
             match &self.ballot_data {
                 Some(ballot_data) => (
                     ballot_data.area_id.as_str(),
                     ballot_data.voter_id.as_str(),
                     ballot_data.ballot_id.as_str(),
-                    ballot_data.ballot_tracker_url.as_str(),
+                    ballot_data.is_kiosk,
                     ballot_data.time_zone.clone(),
                     ballot_data.date_format.clone(),
                 ),
@@ -161,7 +162,7 @@ impl TemplateRenderer for BallotTemplate {
             ballot_tracker_url: build_ballot_tracker_url(
                 &std::env::var("VOTING_PORTAL_URL").context("VOTING_PORTAL_URL env var missing")?,
                 kiosk_base.as_deref(),
-                ballot_tracker_url,
+                is_kiosk,
                 BallotTrackerPath {
                     tenant_id: &self.ids.tenant_id,
                     election_event_id: &self.ids.election_event_id,
