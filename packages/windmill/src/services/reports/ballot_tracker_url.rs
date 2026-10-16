@@ -36,33 +36,20 @@ fn portal_base_url(base: &str, setting: &str) -> Result<Url> {
     Ok(url)
 }
 
-/// The legacy client URL selects only a configured kiosk origin. Its path and
-/// content never enter receipt data, including for already queued tasks.
+/// Builds the receipt's tracker link from portal configuration and the
+/// receipt's authorized identifiers. `is_kiosk` comes from the voter's token,
+/// so nothing the client sends enters receipt data.
 pub(super) fn build_ballot_tracker_url(
     portal_base: &str,
     kiosk_base: Option<&str>,
-    client_url: &str,
+    is_kiosk: bool,
     path: BallotTrackerPath<'_>,
 ) -> Result<String> {
     let mut url = portal_base_url(portal_base, "VOTING_PORTAL_URL")?;
-    let requested = Url::parse(client_url).ok();
-    let mut selected_kiosk = false;
-    let mut permitted_origin = requested
-        .as_ref()
-        .is_some_and(|client| client.origin() == url.origin());
     if let Some(kiosk_base) = kiosk_base.filter(|base| !base.trim().is_empty()) {
         let kiosk_url = portal_base_url(kiosk_base, "KIOSK_VOTING_PORTAL_URL")?;
-        permitted_origin |= requested
-            .as_ref()
-            .is_some_and(|client| client.origin() == kiosk_url.origin());
-        // A shared origin cannot distinguish normal and kiosk requests.
-        if kiosk_url.origin() != url.origin()
-            && requested
-                .as_ref()
-                .is_some_and(|client| client.origin() == kiosk_url.origin())
-        {
+        if is_kiosk {
             url = kiosk_url;
-            selected_kiosk = true;
         }
     }
     url.path_segments_mut()
@@ -78,13 +65,8 @@ pub(super) fn build_ballot_tracker_url(
             "ballot-locator",
             path.ballot_id,
         ]);
-    // Keep the established kiosk login mode without carrying arbitrary queries.
-    if selected_kiosk
-        || permitted_origin
-            && requested
-                .as_ref()
-                .is_some_and(|client| client.query_pairs().any(|(key, _)| key == "kiosk"))
-    {
+    // The portal's kiosk login flag.
+    if is_kiosk {
         url.set_query(Some("kiosk"));
     }
 
@@ -104,58 +86,102 @@ pub(super) fn build_ballot_tracker_url(
 mod tests {
     use super::*;
 
-    fn tracker(base: &str, kiosk: Option<&str>, client: &str) -> Result<String> {
+    const LOCATOR: &str =
+        "/tenant/tenant-id/event/event-id/election/election-id/ballot-locator/0123456789abcdef";
+
+    fn tracker_for(
+        base: &str,
+        kiosk_base: Option<&str>,
+        is_kiosk: bool,
+        ballot_id: &str,
+    ) -> Result<String> {
         build_ballot_tracker_url(
             base,
-            kiosk,
-            client,
+            kiosk_base,
+            is_kiosk,
             BallotTrackerPath {
                 tenant_id: "tenant-id",
                 election_event_id: "event-id",
                 election_id: "election-id",
-                ballot_id: "0123456789abcdef",
+                ballot_id,
             },
         )
+    }
+
+    fn tracker(base: &str, kiosk_base: Option<&str>, is_kiosk: bool) -> Result<String> {
+        tracker_for(base, kiosk_base, is_kiosk, "0123456789abcdef")
     }
 
     #[test]
     fn tracker_uses_configured_portal_and_owned_ballot() {
         for base in ["https://voting.example", "https://voting.example/"] {
             assert_eq!(
-                tracker(base, None, "https://voting.example/old-path").unwrap(),
-                "https://voting.example/tenant/tenant-id/event/event-id/election/election-id/ballot-locator/0123456789abcdef"
+                tracker(base, None, false).unwrap(),
+                format!("https://voting.example{LOCATOR}")
             );
         }
         assert_eq!(
-            tracker("http://localhost:3000/portal/", None, "ignored").unwrap(),
-            "http://localhost:3000/portal/tenant/tenant-id/event/event-id/election/election-id/ballot-locator/0123456789abcdef"
+            tracker("http://localhost:3000/portal/", None, false).unwrap(),
+            format!("http://localhost:3000/portal{LOCATOR}")
         );
     }
 
     #[test]
-    fn client_script_and_alternate_urls_do_not_enter_receipt_data() {
-        let expected = tracker("https://voting.example", None, "").unwrap();
-        for client in [
-            "https://voting.example/\"};globalThis.receiptInjected=true;//",
-            "https://voting.example/</script><script>globalThis.receiptInjected=true</script>",
-            "javascript:globalThis.receiptInjected=true",
-            "file:///etc/passwd",
-            "http://169.254.169.254/latest/meta-data/",
-            "https://voting.example/tenant/other/event/other/ballot-locator/other",
-            "not a URL",
-        ] {
+    fn kiosk_receipts_use_the_kiosk_portal_and_login_flag() {
+        let kiosk = Some("https://kiosk.example/portal");
+        assert_eq!(
+            tracker("https://voting.example", kiosk, true).unwrap(),
+            format!("https://kiosk.example/portal{LOCATOR}?kiosk")
+        );
+        assert_eq!(
+            tracker("https://voting.example", kiosk, false).unwrap(),
+            format!("https://voting.example{LOCATOR}")
+        );
+        assert_eq!(
+            tracker(
+                "https://voting.example",
+                Some(" https://kiosk.example:443/portal "),
+                true
+            )
+            .unwrap(),
+            tracker("https://voting.example", kiosk, true).unwrap()
+        );
+        // The voter's client, not the origin, selects a kiosk portal that
+        // shares the normal portal's origin.
+        assert_eq!(
+            tracker(
+                "https://voting.example",
+                Some("https://voting.example/kiosk"),
+                true
+            )
+            .unwrap(),
+            format!("https://voting.example/kiosk{LOCATOR}?kiosk")
+        );
+    }
+
+    #[test]
+    fn kiosk_receipts_without_a_kiosk_portal_keep_the_login_flag() {
+        for kiosk in [None, Some(""), Some("  ")] {
             assert_eq!(
-                tracker("https://voting.example", None, client).unwrap(),
-                expected
+                tracker("https://voting.example", kiosk, true).unwrap(),
+                format!("https://voting.example{LOCATOR}?kiosk")
+            );
+            assert_eq!(
+                tracker("https://voting.example", kiosk, false).unwrap(),
+                format!("https://voting.example{LOCATOR}")
             );
         }
     }
 
     #[test]
     fn deployed_receipt_script_renders_the_server_tracker_url() {
-        let client =
-            "https://voting.example/</script><script>globalThis.receiptInjected=true</script>";
-        let url = tracker("https://voting.example", None, client).unwrap();
+        let url = tracker_for(
+            "https://voting.example",
+            None,
+            false,
+            "</script><script>globalThis.receiptInjected=true</script>",
+        )
+        .unwrap();
         let template = include_str!(
             "../../../../../.devcontainer/minio/public-assets/ballot_receipt_user.hbs"
         );
@@ -163,90 +189,8 @@ mod tests {
         let rendered = handlebars::Handlebars::new()
             .render_template(script, &serde_json::json!({"ballot_tracker_url": url}))
             .unwrap();
-        assert!(!rendered.contains("receiptInjected"));
         assert!(rendered.contains(&format!("text: \"{url}\"")));
         assert_eq!(rendered.matches("<script>").count(), 1);
-    }
-
-    #[test]
-    fn kiosk_receipts_use_only_the_configured_kiosk_base() {
-        let kiosk = Some("https://kiosk.example/portal");
-        assert_eq!(
-            tracker("https://voting.example", kiosk, "https://kiosk.example/\"};globalThis.receiptInjected=true;//").unwrap(),
-            "https://kiosk.example/portal/tenant/tenant-id/event/event-id/election/election-id/ballot-locator/0123456789abcdef?kiosk"
-        );
-        for client in [
-            "https://kiosk.example.untrusted.example",
-            "http://kiosk.example",
-            "https://kiosk.example:8443",
-        ] {
-            assert!(tracker("https://voting.example", kiosk, client)
-                .unwrap()
-                .starts_with("https://voting.example/tenant/"));
-        }
-        assert_eq!(
-            tracker("https://voting.example", Some(""), "https://kiosk.example").unwrap(),
-            tracker("https://voting.example", None, "").unwrap()
-        );
-        assert_eq!(
-            tracker(
-                "https://voting.example",
-                Some("https://voting.example/kiosk"),
-                "https://voting.example/tenant/tenant-id"
-            )
-            .unwrap(),
-            tracker("https://voting.example", None, "").unwrap()
-        );
-        assert_eq!(
-            tracker(
-                "https://voting.example",
-                Some(" https://kiosk.example/portal "),
-                "https://kiosk.example/tenant/tenant-id"
-            )
-            .unwrap(),
-            tracker("https://voting.example", kiosk, "https://kiosk.example").unwrap()
-        );
-        for (kiosk_base, client) in [
-            ("https://kiosk.example:443/portal", "https://kiosk.example"),
-            ("https://kiosk.example/portal", "https://kiosk.example:443/"),
-            (
-                "https://kiosk.example/portal",
-                " https://kiosk.example/old-path \n",
-            ),
-        ] {
-            assert_eq!(
-                tracker("https://voting.example", Some(kiosk_base), client).unwrap(),
-                tracker("https://voting.example", kiosk, "https://kiosk.example").unwrap()
-            );
-        }
-    }
-
-    #[test]
-    fn legacy_kiosk_origin_restores_the_static_login_flag() {
-        let url = tracker(
-            "https://voting.example",
-            Some("https://kiosk.example"),
-            "https://kiosk.example/legacy-path",
-        )
-        .unwrap();
-        assert!(url.ends_with("/ballot-locator/0123456789abcdef?kiosk"));
-        for (kiosk, client) in [
-            (
-                Some("https://kiosk.example"),
-                "https://voting.example/legacy-path",
-            ),
-            (
-                Some("https://voting.example/kiosk"),
-                "https://voting.example/legacy-path",
-            ),
-            (
-                Some("https://kiosk.example"),
-                "https://untrusted.example/legacy-path",
-            ),
-        ] {
-            let normal = tracker("https://voting.example", kiosk, client).unwrap();
-            assert!(!normal.contains('?'));
-        }
     }
 
     #[test]
@@ -260,19 +204,21 @@ mod tests {
             "https://voting.example/#fragment",
             "https://voting.example/\npath",
         ] {
-            assert!(tracker(base, None, "").is_err(), "accepted {base}");
-            assert!(
-                tracker("https://voting.example", Some(base), "").is_err(),
-                "accepted kiosk {base}"
-            );
+            assert!(tracker(base, None, false).is_err(), "accepted {base}");
+            for is_kiosk in [false, true] {
+                assert!(
+                    tracker("https://voting.example", Some(base), is_kiosk).is_err(),
+                    "accepted kiosk {base}"
+                );
+            }
         }
     }
 
     #[test]
     fn portal_settings_normalize_whitespace_and_identify_configuration_errors() {
         assert_eq!(
-            tracker(" https://voting.example/portal ", None, "").unwrap(),
-            tracker("https://voting.example/portal", None, "").unwrap()
+            tracker(" https://voting.example/portal ", None, false).unwrap(),
+            tracker("https://voting.example/portal", None, false).unwrap()
         );
         for (base, kiosk, setting) in [
             ("invalid", None, "VOTING_PORTAL_URL"),
@@ -282,7 +228,7 @@ mod tests {
                 "KIOSK_VOTING_PORTAL_URL",
             ),
         ] {
-            assert!(tracker(base, kiosk, "")
+            assert!(tracker(base, kiosk, false)
                 .unwrap_err()
                 .to_string()
                 .contains(setting));
@@ -290,43 +236,11 @@ mod tests {
     }
 
     #[test]
-    fn kiosk_login_flag_survives_without_client_query_content() {
-        for (base, kiosk, client) in [
-            (
-                "https://voting.example",
-                None,
-                "https://voting.example/old-path?kiosk&other=ignored",
-            ),
-            (
-                "https://voting.example",
-                Some("https://voting.example/kiosk"),
-                "https://voting.example/old-path?kiosk",
-            ),
-            (
-                "https://voting.example",
-                Some("https://kiosk.example"),
-                "https://kiosk.example/old-path?kiosk",
-            ),
-        ] {
-            let url = tracker(base, kiosk, client).unwrap();
-            assert!(url.ends_with("/ballot-locator/0123456789abcdef?kiosk"));
-            assert!(!url.contains("ignored") && !url.contains("%3F"));
-        }
-        let normal = tracker(
-            "https://voting.example",
-            None,
-            "https://untrusted.example/?kiosk",
-        )
-        .unwrap();
-        assert!(!normal.contains('?'));
-    }
-
-    #[test]
     fn generated_url_is_safe_in_legacy_and_custom_script_literals() {
         let url = build_ballot_tracker_url(
             "https://voting.example/prefix'`$&",
             None,
-            "ignored",
+            true,
             BallotTrackerPath {
                 tenant_id: "tenant-id",
                 election_event_id: "event-id",
@@ -336,6 +250,7 @@ mod tests {
         )
         .unwrap();
         assert!(url.starts_with("https://voting.example/prefix%27%60%24%26/tenant/"));
+        assert!(url.ends_with("?kiosk"));
         assert!(!url
             .chars()
             .any(|c| "\"'`\\<>&$\n\r\u{2028}\u{2029}".contains(c)));

@@ -15,19 +15,20 @@ authorized tenant, election event, election and ballot ID. Configure an absolute
 HTTP(S) base URL without credentials, query parameters or a fragment; a path
 prefix and trailing slash are supported. Both portal settings ignore surrounding
 whitespace and report their setting name when validation fails.
-When `KIOSK_VOTING_PORTAL_URL` is set,
-a receipt requested from that origin uses the configured kiosk base instead.
-Selecting a distinct configured kiosk origin also restores the fixed `?kiosk`
-login flag for older portal requests that omitted their query string.
 
-The existing `ballot_tracker_url` request and task fields remain compatible,
-including for queued tasks, but only select a configured kiosk origin and the
-fixed `?kiosk` login flag on a configured portal origin. Other client paths and
-query parameters are ignored. Receipt templates still receive the
-`ballot_tracker_url` variable as a complete link. Existing deployed and custom
-templates need no migration, and all PDF renderer backends receive the same
-server-built link. Restart Windmill workers after updating the code or these
-URL settings.
+Harvest marks a receipt as a kiosk receipt when the voter's token was issued to
+the `voting-portal-kiosk` client, and passes that to Windmill in the task's
+`is_kiosk` argument. A kiosk receipt links to `KIOSK_VOTING_PORTAL_URL` when it
+is set, otherwise to `VOTING_PORTAL_URL`, and always adds the `?kiosk` login
+flag. Receipts for every other client link to `VOTING_PORTAL_URL`.
+
+The `ballot_tracker_url` request and task fields remain so that current portal
+requests and queued tasks stay compatible, but Windmill ignores them. A task
+queued without `is_kiosk` gets a normal portal link. Receipt templates still
+receive the `ballot_tracker_url` variable as a complete link. Existing deployed
+and custom templates need no migration, and all PDF renderer backends receive
+the same server-built link. Restart Windmill workers after updating the code or
+these URL settings.
 
 ## Password-policy cache
 
