@@ -131,7 +131,7 @@ export const ImportAnEvent: Story = {
         })
         await waitFor(() => expect(drawer).toBeVisible())
         expect(within(drawer).getAllByTestId("drop-input-file")).toHaveLength(1)
-        expect(within(drawer).getByTestId("drop-input-file")).toHaveAttribute("multiple")
+        expect(within(drawer).getByTestId("drop-input-file")).not.toHaveAttribute("multiple")
         expect(services.graphql.calls.map(({name}) => name)).not.toContain("ImportElectionEvent")
     },
 }

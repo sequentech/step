@@ -2,7 +2,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {Box, styled, Button, TextField, InputLabel, Typography} from "@mui/material"
+import {
+    Box,
+    styled,
+    Button,
+    TextField,
+    InputLabel,
+    Typography,
+    IconButton,
+    Menu,
+    MenuItem,
+} from "@mui/material"
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz"
 import {DropFile, Dialog, ProblemList, type Problem} from "@sequentech/ui-essentials"
 import {FormStyles} from "@/components/styles/FormStyles"
 import React, {useEffect, useRef, memo, useState} from "react"
@@ -11,10 +22,11 @@ import {GetUploadUrlMutation} from "@/gql/graphql"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {useMutation} from "@apollo/client"
 import {SimpleForm, useNotify} from "react-admin"
-import {HistoricalImportPlugin} from "./HistoricalImportPlugin"
 import {selectImportFiles} from "@/services/ImportFileSelection"
 import {ImportRequestError} from "@/services/ImportRequestError"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+
+const DOWNLOAD_URL_LIFETIME_MS = 1000
 
 interface ImportScreenProps {
     doImport: (documentId: string, sha256: string, password?: string) => Promise<void>
@@ -34,8 +46,7 @@ interface ImportScreenProps {
 }
 
 const stageLabels = {
-    "select":
-        "Drop a native ZIP, or a supported SQL dump and supplemental XLSX. Sources stay on this machine.",
+    "select": "Select a native file to import.",
     "local-ready":
         "Local validation passed. Create uploads the generated ZIP, validates it with the backend and requests creation.",
     "local":
@@ -91,7 +102,9 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             allowHistoricalSource,
         } = props
         const {globalSettings} = React.useContext(SettingsContext)
-        const converterUrl = globalSettings.ELECTION_EVENT_IMPORT_CONVERTER_BASE_URL?.trim()
+        const configuredUrl = globalSettings.ELECTION_EVENT_IMPORT_CONVERTER_BASE_URL
+        const converterUrl = typeof configuredUrl === "string" ? configuredUrl.trim() : undefined
+        const historicalEnabled = !!allowHistoricalSource && !!converterUrl
         const {t} = useTranslation()
         const notify = useNotify()
         const [loading, setLoading] = useState<boolean>(false)
@@ -106,13 +119,59 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
         const [theFile, setTheFile] = useState<File | undefined>()
         const [generatedHash, setGeneratedHash] = useState<string | null>(null)
         const [selectionError, setSelectionError] = useState("")
+        const [downloadAnchor, setDownloadAnchor] = useState<HTMLElement | null>(null)
+        const [downloadError, setDownloadError] = useState("")
+        const [HistoricalImportPlugin, setHistoricalImportPlugin] =
+            useState<typeof import("./HistoricalImportPlugin").HistoricalImportPlugin>()
+        const [pluginLoadError, setPluginLoadError] = useState("")
         const [historicalFiles, setHistoricalFiles] = useState<File[]>([])
+        const previousConverterUrl = useRef(converterUrl)
         const [stage, setStage] = useState<keyof typeof stageLabels>("select")
 
         useEffect(() => {
             setShaField("")
             setDocumentId(null)
         }, [refresh])
+
+        useEffect(() => {
+            const changed = previousConverterUrl.current !== converterUrl
+            previousConverterUrl.current = converterUrl
+            if ((!changed && historicalEnabled) || (!historicalFiles.length && !generatedHash))
+                return
+            setHistoricalFiles([])
+            setGeneratedHash(null)
+            setTheFile(undefined)
+            setShaField("")
+            setDocumentId(null)
+            setStage("select")
+            setDownloadAnchor(null)
+            setDownloadError("")
+        }, [converterUrl, historicalEnabled, historicalFiles.length, generatedHash])
+
+        useEffect(() => {
+            if (!historicalEnabled || !historicalFiles.length || HistoricalImportPlugin) return
+            let active = true
+            setPluginLoadError("")
+            void import("./HistoricalImportPlugin").then(
+                (module) => {
+                    if (active) setHistoricalImportPlugin(() => module.HistoricalImportPlugin)
+                },
+                () => {
+                    if (active)
+                        setPluginLoadError(
+                            String(
+                                t("electionEventScreen.import.pluginLoadError", {
+                                    defaultValue:
+                                        "Could not load the local converter. Reload the page and try again, or use a native ZIP. No files were uploaded.",
+                                })
+                            )
+                        )
+                }
+            )
+            return () => {
+                active = false
+            }
+        }, [historicalEnabled, historicalFiles, HistoricalImportPlugin, t])
 
         // Used to autofocus the password input field in the modal dialog. Just
         // using the autofocus property in PasswordInputStyle's inputProps
@@ -195,6 +254,8 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             setPassword("")
             const selected = Array.from(files ?? [])
             if (!selected.length) return
+            setDownloadAnchor(null)
+            setDownloadError("")
             onSourceChange?.()
             setSelectionError("")
             setTheFile(undefined)
@@ -202,11 +263,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 allowHistoricalSource ||
                 selected.some((file) => /\.(sql|xlsx)$/i.test(file.name))
             ) {
-                const selection = selectImportFiles(
-                    selected,
-                    historicalFiles,
-                    !!allowHistoricalSource && !!converterUrl
-                )
+                const selection = selectImportFiles(selected, historicalFiles, historicalEnabled)
                 if (selection.kind === "error") {
                     setHistoricalFiles([])
                     setStage("select")
@@ -265,6 +322,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             }
         }
         const onImportButtonClick = async () => {
+            if (generatedHash && !historicalEnabled) return
             if (generatedHash && theFile && !documentId) {
                 const id = await uploadFileToS3(theFile, "", generatedHash)
                 if (id) await submitImport(id)
@@ -278,6 +336,38 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
         }
 
         const isWorking = () => loading || isUploading
+        const downloadConvertedZip = () => {
+            setDownloadAnchor(null)
+            setDownloadError("")
+            if (!historicalEnabled || !generatedHash || !theFile || isWorking()) return
+            let url: string | undefined
+            let link: HTMLAnchorElement | undefined
+            try {
+                // Reuse the accepted File itself: download and upload share identical bytes/name/type.
+                url = URL.createObjectURL(theFile)
+                link = document.createElement("a")
+                link.href = url
+                link.download = theFile.name
+                document.body.appendChild(link)
+                link.click()
+            } catch {
+                setDownloadError(
+                    String(
+                        t("electionEventScreen.import.downloadError", {
+                            defaultValue:
+                                "Could not start the ZIP download. Try Download ZIP again. This action does not upload or import the package.",
+                        })
+                    )
+                )
+            } finally {
+                link?.remove()
+                if (url) {
+                    const objectUrl = url
+                    // Let the browser begin consuming the download before releasing its URL.
+                    setTimeout(() => URL.revokeObjectURL(objectUrl), DOWNLOAD_URL_LIFETIME_MS)
+                }
+            }
+        }
 
         return (
             <Box sx={{padding: "0"}}>
@@ -293,8 +383,8 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
 
                 <Box component="fieldset" disabled={isWorking()} sx={{border: 0, m: 0, p: 0}}>
                     <DropFile
-                        multiple={!!allowHistoricalSource}
-                        formatLabel={allowHistoricalSource ? "Native ZIP or SQL + XLSX" : undefined}
+                        multiple={historicalEnabled}
+                        formatLabel={allowHistoricalSource ? "ZIP / JSON / EZIP" : undefined}
                         handleFiles={async (files) => handleFiles(files)}
                     />
                 </Box>
@@ -304,40 +394,63 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                         {selectionError}
                     </Typography>
                 )}
-                {allowHistoricalSource && historicalFiles.length > 0 && (
-                    <HistoricalImportPlugin
-                        baseUrl={converterUrl}
-                        disabled={isWorking()}
-                        droppedFiles={historicalFiles}
-                        onPrepare={() => {
-                            setStage("local")
-                            setDocumentId(null)
-                            setShaField("")
-                            setGeneratedHash(null)
-                            setTheFile(undefined)
-                        }}
-                        onAccepted={async (file, hash) => {
-                            setPassword("")
-                            setTheFile(file)
-                            setShaField(hash)
-                            setGeneratedHash(hash)
-                            setStage("local-ready")
-                        }}
-                    />
-                )}
+                {historicalEnabled &&
+                    historicalFiles.length > 0 &&
+                    (HistoricalImportPlugin ? (
+                        <HistoricalImportPlugin
+                            baseUrl={converterUrl}
+                            disabled={isWorking()}
+                            droppedFiles={historicalFiles}
+                            onPrepare={() => {
+                                setDownloadAnchor(null)
+                                setDownloadError("")
+                                setStage("local")
+                                setDocumentId(null)
+                                setShaField("")
+                                setGeneratedHash(null)
+                                setTheFile(undefined)
+                            }}
+                            onAccepted={async (file, hash) => {
+                                setPassword("")
+                                setTheFile(file)
+                                setShaField(hash)
+                                setGeneratedHash(hash)
+                                setStage("local-ready")
+                            }}
+                        />
+                    ) : (
+                        <Typography
+                            role={pluginLoadError ? "alert" : "status"}
+                            color={pluginLoadError ? "error" : undefined}
+                        >
+                            {pluginLoadError ||
+                                String(
+                                    t("electionEventScreen.import.loadingConverter", {
+                                        defaultValue: "Loading local converter…",
+                                    })
+                                )}
+                        </Typography>
+                    ))}
 
-                <Typography
-                    role="status"
-                    data-testid="import-stage"
-                    color={stage.endsWith("error") ? "error" : undefined}
-                    sx={{mt: 2}}
-                >
-                    {String(
-                        t(`electionEventScreen.import.stage.${stage}`, {
-                            defaultValue: stageLabels[stage],
-                        })
-                    )}
-                </Typography>
+                {stage !== "select" && (
+                    <Typography
+                        role="status"
+                        data-testid="import-stage"
+                        color={stage.endsWith("error") ? "error" : undefined}
+                        sx={{mt: 2}}
+                    >
+                        {String(
+                            t(`electionEventScreen.import.stage.${stage}`, {
+                                defaultValue: stageLabels[stage],
+                            })
+                        )}
+                    </Typography>
+                )}
+                {downloadError && (
+                    <Typography role="alert" color="error">
+                        {downloadError}
+                    </Typography>
+                )}
                 <FormStyles.StatusBox>
                     {isWorking() ? <FormStyles.ShowProgress /> : null}
                     {problems && problems.length > 0 ? (
@@ -369,9 +482,41 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                     <ImportStyles.CancelButton disabled={isWorking()} onClick={() => doCancel()}>
                         {t("electionEventScreen.import.cancel")}
                     </ImportStyles.CancelButton>
+                    {historicalEnabled && generatedHash && theFile && (
+                        <>
+                            <IconButton
+                                aria-label={String(
+                                    t("electionEventScreen.import.downloadOptions", {
+                                        defaultValue: "Converted ZIP options",
+                                    })
+                                )}
+                                aria-haspopup="menu"
+                                aria-expanded={!!downloadAnchor}
+                                disabled={isWorking()}
+                                onClick={(event) => setDownloadAnchor(event.currentTarget)}
+                            >
+                                <MoreHorizIcon />
+                            </IconButton>
+                            <Menu
+                                anchorEl={downloadAnchor}
+                                open={!!downloadAnchor}
+                                onClose={() => setDownloadAnchor(null)}
+                            >
+                                <MenuItem onClick={downloadConvertedZip} disabled={isWorking()}>
+                                    {String(
+                                        t("electionEventScreen.import.downloadZip", {
+                                            defaultValue: "Download ZIP",
+                                        })
+                                    )}
+                                </MenuItem>
+                            </Menu>
+                        </>
+                    )}
                     <ImportStyles.ImportButton
+                        sx={{marginLeft: generatedHash ? 1 : "auto"}}
                         disabled={
                             (!documentId && !generatedHash) ||
+                            (!!generatedHash && !historicalEnabled) ||
                             isWorking() ||
                             disableImport ||
                             stage === "validation-error" ||

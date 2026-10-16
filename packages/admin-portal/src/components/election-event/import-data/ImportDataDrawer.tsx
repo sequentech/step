@@ -63,14 +63,7 @@ export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
                     <ElectionHeader title={title} subtitle={subtitle} />
                     <DrawerStyles.Wrapper>
                         <>
-                            <DrawerStyles.SubTitle>
-                                {doImport
-                                    ? t(paragraph)
-                                    : t("electionEventScreen.import.sourceInstructions", {
-                                          defaultValue:
-                                              "Drop a native ZIP, or the supported SQL dump and supplemental XLSX workbook.",
-                                      })}
-                            </DrawerStyles.SubTitle>
+                            <DrawerStyles.SubTitle>{t(paragraph)}</DrawerStyles.SubTitle>
                             <ImportScreen
                                 allowHistoricalSource={!doImport}
                                 onSourceChange={!doImport ? openImportDrawer : undefined}

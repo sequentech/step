@@ -21,7 +21,7 @@ export const getEvidence = () => ({
     unexpected: flow.graphql.unexpected,
     created: flow.created.mock.calls,
 })
-function DrawerFixture({enabled}: {enabled: boolean}) {
+function DrawerFixture({enabled, converterBaseUrl}: {enabled: boolean; converterBaseUrl?: string}) {
     const settings = useContext(SettingsContext)
     const {openImportDrawer} = useCreateElectionEventStore()
     useEffect(() => openImportDrawer(), [])
@@ -32,7 +32,7 @@ function DrawerFixture({enabled}: {enabled: boolean}) {
                 globalSettings: {
                     ...settings.globalSettings,
                     ELECTION_EVENT_IMPORT_CONVERTER_BASE_URL: enabled
-                        ? "/wasm/election_event_import_converter"
+                        ? (converterBaseUrl ?? "/wasm/election_event_import_converter")
                         : undefined,
                 },
             }}
@@ -46,7 +46,7 @@ function DrawerFixture({enabled}: {enabled: boolean}) {
         </SettingsContext.Provider>
     )
 }
-type Scenario = {enabled: boolean; importError?: string}
+type Scenario = {enabled: boolean; importError?: string; converterBaseUrl?: string}
 function Fixture(args: Scenario) {
     const {permissions, tenant} = useStoryGlobals()
     return (
@@ -77,10 +77,30 @@ export const LocalDropZone: Story = {
         await expect(document.querySelectorAll('input[type="file"]')).toHaveLength(1)
         await expect(view.getByTestId("drop-input-file")).toHaveAttribute("multiple")
         await expect(view.queryByRole("combobox")).not.toBeInTheDocument()
+        await expect(view.queryByText(/SQL|XLSX|converter|historical/i)).not.toBeInTheDocument()
+        await expect(
+            view.queryByRole("button", {name: "Converted ZIP options"})
+        ).not.toBeInTheDocument()
         await expect(flow.graphql.calls).toEqual([])
     },
 }
-export const PluginDisabled: Story = {args: {enabled: false}}
+export const PluginDisabled: Story = {
+    args: {enabled: false},
+    play: async () => {
+        const view = within(document.body)
+        await view.findByRole("dialog", {name: "Import Election Event"})
+        await expect(view.getByTestId("drop-input-file")).not.toHaveAttribute("multiple")
+        await expect(view.queryByText(/SQL|XLSX|converter|historical/i)).not.toBeInTheDocument()
+        await expect(
+            view.queryByRole("button", {name: "Converted ZIP options"})
+        ).not.toBeInTheDocument()
+        await expect(flow.graphql.calls).toEqual([])
+    },
+}
+export const BlankConfiguration: Story = {
+    args: {enabled: true, converterBaseUrl: "   "},
+    play: PluginDisabled.play,
+}
 
 export const BackendRejects: Story = {
     args: {importError: "Synthetic backend validation refused the package."},

@@ -17,7 +17,10 @@ The historical converter appears only when the Admin Portal's runtime
 `global-settings.json` sets `ELECTION_EVENT_IMPORT_CONVERTER_BASE_URL` to a
 nonempty extensionless base URL. There is no enabled-by-default fallback. The
 standard native ZIP import remains available when the setting is absent, blank,
-or the converter fails to load. Historical SQL/XLSX files never enter the native
+non-string (including `null` or `false`), or the converter fails to load. Omit
+the key or set it to `""` to disable conversion. The key is read from the
+Admin runtime JSON through `SettingsContextProvider`; it is not a separate
+build-time environment flag. Historical SQL/XLSX files never enter the native
 upload path.
 
 The loader follows `IVR_EMULATOR_BASE_URL`: it strips query/fragment and loads
@@ -41,8 +44,10 @@ and `/historical-import-worker.js`. Conversion requires no Internet or S3 access
 Do not point this setting at a source SQL/XLSX file. The normal backend upload
 and import still require the existing backend services.
 
-The normal Import Event side drawer has one drag/drop zone, with multi-file
-browsing available from that same zone. File extensions route the selection;
+The normal Import Event side drawer opens with the same native-import UI
+whether the plugin is enabled or disabled. There are no initial converter
+controls or policy settings. Its one drag/drop zone accepts multiple source
+files when configured, with browsing available from that same zone. File extensions route the selection;
 the Rust adapter verifies the actual SQL profile and required workbook tabs.
 File count alone never identifies a format.
 
@@ -54,16 +59,26 @@ File count alone never identifies a format.
    Read the local table/sheet/row/field diagnostics. Source hashes, counts and
    exclusions are available under **Source details and exclusions**. Local
    errors retain files for retry or replacement. No backend request is made.
-3. A valid local package enables **Create**. That explicit action uploads only
+3. A valid local package reveals a three-dot **Converted ZIP options** menu
+   with optional **Download ZIP**. It downloads the same accepted File that
+   Create will upload, preserving its filename, `application/zip` MIME type
+   and bytes. Download can be repeated and does not upload, validate with the
+   backend, or create an event. A download failure leaves Create available.
+   Replacing sources, clearing configuration, or closing/reopening invalidates
+   the prior download. No download is offered for native archives or invalid
+   conversion results.
+4. A valid local package enables **Create**. That explicit action uploads only
    the generated ZIP, requests backend `checkOnly` validation, and submits the
    separate creation request only after that validation succeeds. A rejected
    dry run blocks creation; transport failures remain retryable.
-4. The import task reports final asynchronous success or errors. A passing dry
+5. The import task reports final asynchronous success or errors. A passing dry
    run is not a guarantee of creation. Cancel/reopen starts a fresh local
    selection; a late result from a cancelled/replaced conversion is ignored.
 
 The native archive path retains its existing upload, validation and final
-Import action. An unconfigured historical plugin does not load converter assets.
+Import action. An unconfigured historical plugin does not load its UI module, worker or
+converter assets. A configured plugin is loaded lazily after a recognized
+source selection; the initial drawer and ordinary native imports do not load it.
 
 Plugin loading/ABI errors, local source diagnostics, upload transport,
 backend dry-run and final creation are displayed separately. Unexpected runtime

@@ -69,9 +69,19 @@ jest.mock(
                     require("react").createElement("li", {key: index}, problem.id)
                 )
             ),
-        DropFile: ({handleFiles}: {handleFiles: (files: FileList | null) => Promise<void>}) =>
+        DropFile: ({
+            handleFiles,
+            multiple,
+            formatLabel,
+        }: {
+            handleFiles: (files: FileList | null) => Promise<void>
+            multiple?: boolean
+            formatLabel?: string
+        }) =>
             require("react").createElement("input", {
                 "aria-label": "Import file",
+                "multiple": multiple,
+                "data-format-label": formatLabel,
                 "type": "file",
                 "onChange": (event: React.ChangeEvent<HTMLInputElement>) =>
                     handleFiles(event.target.files),
@@ -410,7 +420,7 @@ it("makes no backend request before explicit acceptance and separates dry-run fr
                 finishDryRun = resolve
             })
     )
-    fireEvent.click(screen.getByRole("button", {name: "Accept synthetic reviewed package"}))
+    fireEvent.click(await screen.findByRole("button", {name: "Accept synthetic reviewed package"}))
     await waitFor(() =>
         expect(screen.getByTestId("import-stage")).toHaveTextContent("stage.local-ready")
     )
@@ -430,7 +440,9 @@ it.each(["transport", "validation"] as const)(
     async (kind) => {
         const callbacks = renderImport(true)
         callbacks.uploadCallback.mockRejectedValue(new ImportRequestError(kind))
-        fireEvent.click(screen.getByRole("button", {name: "Accept synthetic reviewed package"}))
+        fireEvent.click(
+            await screen.findByRole("button", {name: "Accept synthetic reviewed package"})
+        )
         await waitFor(() =>
             expect(screen.getByTestId("import-stage")).toHaveTextContent("stage.local-ready")
         )
@@ -449,7 +461,7 @@ it.each(["transport", "validation"] as const)(
 it("does not confuse a passing dry-run with successful creation and permits correction", async () => {
     const callbacks = renderImport(true)
     callbacks.doImport.mockRejectedValue(new ImportRequestError("creation"))
-    fireEvent.click(screen.getByRole("button", {name: "Accept synthetic reviewed package"}))
+    fireEvent.click(await screen.findByRole("button", {name: "Accept synthetic reviewed package"}))
     await waitFor(() =>
         expect(screen.getByTestId("import-stage")).toHaveTextContent("stage.local-ready")
     )
@@ -489,7 +501,7 @@ it("keeps native import working and blocks raw source upload when the plugin is 
     expect(screen.getByRole("button", {name: "electionEventScreen.import.import"})).toBeEnabled()
 })
 
-it("resets old backend diagnostics when a new source selection starts", () => {
+it("resets old backend diagnostics when a new source selection starts", async () => {
     const onSourceChange = jest.fn()
     render(
         <ImportScreen
@@ -503,6 +515,168 @@ it("resets old backend diagnostics when a new source selection starts", () => {
     fireEvent.change(screen.getByLabelText("Import file"), {
         target: {files: [new File(["sql"], "replacement.sql")]},
     })
+    await screen.findByRole("button", {name: "Accept synthetic reviewed package"})
     expect(onSourceChange).toHaveBeenCalledTimes(1)
     expect(mockGetUploadUrl).not.toHaveBeenCalled()
+})
+
+const downloadOptions = "electionEventScreen.import.downloadOptions"
+const downloadZip = "electionEventScreen.import.downloadZip"
+
+it("downloads the exact accepted file repeatedly without backend requests before Create", async () => {
+    const createUrl = jest.fn((_file: Blob) => "blob:synthetic-download")
+    Object.defineProperty(URL, "createObjectURL", {value: createUrl, configurable: true})
+    Object.defineProperty(URL, "revokeObjectURL", {value: jest.fn(), configurable: true})
+    const click = jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {})
+    const callbacks = renderImport(true)
+    expect(screen.queryByRole("button", {name: downloadOptions})).not.toBeInTheDocument()
+    fireEvent.click(await screen.findByRole("button", {name: "Accept synthetic reviewed package"}))
+    for (let attempt = 0; attempt < 2; attempt++) {
+        fireEvent.click(await screen.findByRole("button", {name: downloadOptions}))
+        fireEvent.click(await screen.findByRole("menuitem", {name: downloadZip}))
+    }
+    expect(createUrl).toHaveBeenCalledTimes(2)
+    const downloaded = createUrl.mock.calls[0][0] as File
+    expect(downloaded.name).toBe("reviewed.zip")
+    expect(downloaded.type).toBe("application/zip")
+    expect(createUrl.mock.calls[1][0]).toBe(downloaded)
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(mockGetUploadUrl).not.toHaveBeenCalled()
+    expect(callbacks.uploadCallback).not.toHaveBeenCalled()
+    expect(callbacks.doImport).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole("button", {name: "electionEventScreen.import.create"}))
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1))
+    expect(mockFetch.mock.calls[0][1].body).toBe(downloaded)
+    await waitFor(() => expect(callbacks.doImport).toHaveBeenCalledTimes(1))
+    click.mockRestore()
+})
+
+it("removes the old download when sources change or native import is selected", async () => {
+    renderImport(true)
+    fireEvent.click(await screen.findByRole("button", {name: "Accept synthetic reviewed package"}))
+    await screen.findByRole("button", {name: downloadOptions})
+    fireEvent.change(screen.getByLabelText("Import file"), {
+        target: {files: [new File(["new"], "replacement.sql")]},
+    })
+    expect(screen.queryByRole("button", {name: downloadOptions})).not.toBeInTheDocument()
+    fireEvent.click(await screen.findByRole("button", {name: "Accept synthetic reviewed package"}))
+    await screen.findByRole("button", {name: downloadOptions})
+    fireEvent.change(screen.getByLabelText("Import file"), {
+        target: {files: [new File(["zip"], "native.zip", {type: "application/zip"})]},
+    })
+    expect(screen.queryByRole("button", {name: downloadOptions})).not.toBeInTheDocument()
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1))
+})
+
+it.each([undefined, "", "   ", null, false])(
+    "has standard native-only UI when the global setting is %s",
+    async (setting) => {
+        render(
+            <SettingsContext.Provider
+                value={
+                    {
+                        loaded: true,
+                        globalSettings: {ELECTION_EVENT_IMPORT_CONVERTER_BASE_URL: setting},
+                    } as React.ContextType<typeof SettingsContext>
+                }
+            >
+                <ImportScreen
+                    allowHistoricalSource
+                    doImport={jest.fn()}
+                    doCancel={jest.fn()}
+                    errors={null}
+                />
+            </SettingsContext.Provider>
+        )
+        expect(screen.getByLabelText("Import file")).not.toHaveAttribute("multiple")
+        expect(screen.getByLabelText("Import file")).toHaveAttribute(
+            "data-format-label",
+            "ZIP / JSON / EZIP"
+        )
+        expect(screen.queryByRole("button", {name: downloadOptions})).not.toBeInTheDocument()
+        fireEvent.change(screen.getByLabelText("Import file"), {
+            target: {files: [new File(["sql"], "input.sql"), new File(["xlsx"], "input.xlsx")]},
+        })
+        expect(await screen.findByRole("alert")).toHaveTextContent("not configured")
+        expect(
+            screen.queryByRole("button", {name: "Accept synthetic reviewed package"})
+        ).not.toBeInTheDocument()
+        expect(mockFetch).not.toHaveBeenCalled()
+        expect(mockGetUploadUrl).not.toHaveBeenCalled()
+    }
+)
+
+it.each([undefined, "/wasm/replacement"])(
+    "invalidates an accepted package if global configuration changes to %s",
+    async (replacementUrl) => {
+        const callbacks = {
+            doImport: jest.fn(),
+            doCancel: jest.fn(),
+            errors: null,
+            allowHistoricalSource: true,
+        }
+        const renderWith = (baseUrl?: string) => (
+            <SettingsContext.Provider
+                value={
+                    {
+                        loaded: true,
+                        globalSettings: {ELECTION_EVENT_IMPORT_CONVERTER_BASE_URL: baseUrl},
+                    } as React.ContextType<typeof SettingsContext>
+                }
+            >
+                <ImportScreen {...callbacks} />
+            </SettingsContext.Provider>
+        )
+        const view = render(renderWith("/wasm/converter"))
+        fireEvent.change(screen.getByLabelText("Import file"), {
+            target: {files: [new File(["sql"], "input.sql"), new File(["xlsx"], "input.xlsx")]},
+        })
+        fireEvent.click(
+            await screen.findByRole("button", {name: "Accept synthetic reviewed package"})
+        )
+        await screen.findByRole("button", {name: downloadOptions})
+        view.rerender(renderWith(replacementUrl))
+        expect(screen.queryByRole("button", {name: downloadOptions})).not.toBeInTheDocument()
+        expect(
+            screen.queryByRole("button", {name: "Accept synthetic reviewed package"})
+        ).not.toBeInTheDocument()
+        expect(
+            screen.getByRole("button", {name: "electionEventScreen.import.import"})
+        ).toBeDisabled()
+        expect(mockFetch).not.toHaveBeenCalled()
+    }
+)
+
+it("reports download failures safely and retries without consuming the accepted package", async () => {
+    const createUrl = jest.fn((_file: Blob) => "blob:retry-download")
+    Object.defineProperty(URL, "createObjectURL", {value: createUrl, configurable: true})
+    const revokeUrl = jest.fn()
+    Object.defineProperty(URL, "revokeObjectURL", {value: revokeUrl, configurable: true})
+    const click = jest
+        .spyOn(HTMLAnchorElement.prototype, "click")
+        .mockImplementationOnce(() => {
+            throw new Error("private browser detail")
+        })
+        .mockImplementation(() => {})
+    renderImport(true)
+    fireEvent.click(await screen.findByRole("button", {name: "Accept synthetic reviewed package"}))
+    fireEvent.click(await screen.findByRole("button", {name: downloadOptions}))
+    fireEvent.click(await screen.findByRole("menuitem", {name: downloadZip}))
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+        "electionEventScreen.import.downloadError"
+    )
+    expect(screen.queryByText("private browser detail")).not.toBeInTheDocument()
+    expect(document.querySelector("a[download]")).toBeNull()
+    expect(screen.getByRole("button", {name: "electionEventScreen.import.create"})).toBeEnabled()
+    expect(mockGetUploadUrl).not.toHaveBeenCalled()
+    expect(mockFetch).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole("button", {name: downloadOptions}))
+    fireEvent.click(await screen.findByRole("menuitem", {name: downloadZip}))
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+    expect(createUrl.mock.calls[1][0]).toBe(createUrl.mock.calls[0][0])
+    await waitFor(() => expect(revokeUrl).toHaveBeenCalledWith("blob:retry-download"), {
+        timeout: 2000,
+    })
+    expect(mockFetch).not.toHaveBeenCalled()
+    click.mockRestore()
 })
