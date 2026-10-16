@@ -106,9 +106,48 @@ pub struct ElectorateCount {
     pub sealed_voters: u64,
 }
 
+/// The tally session annotation that records, when the session is created,
+/// the areas of each election's ballot styles its contest areas are made
+/// from, as a JSON string.
+pub const ELECTION_AREAS_ANNOTATION: &str = "election_areas";
+
+/// The areas of each election, by election id.
+pub type ElectionAreas = BTreeMap<String, BTreeSet<String>>;
+
+/// The areas of each election of `styles`, as `(election_id, area_id)`.
+pub fn election_areas<'a>(styles: impl IntoIterator<Item = (&'a str, &'a str)>) -> ElectionAreas {
+    let mut areas = ElectionAreas::new();
+    for (election_id, area_id) in styles {
+        areas
+            .entry(election_id.to_string())
+            .or_default()
+            .insert(area_id.to_string());
+    }
+    areas
+}
+
+/// The election areas the session recorded when it was created, or `None` for
+/// a session created before they were recorded.
+pub fn recorded_election_areas(tally_session: &TallySession) -> Result<Option<ElectionAreas>> {
+    tally_session
+        .annotations
+        .as_ref()
+        .and_then(|annotations| annotations.get(ELECTION_AREAS_ANNOTATION))
+        .map(|areas| {
+            areas
+                .as_str()
+                .ok_or_else(|| anyhow!("not a string"))
+                .and_then(|areas| Ok(serde_json::from_str(areas)?))
+                .with_context(|| {
+                    format!("the election areas of tally session {}", tally_session.id)
+                })
+        })
+        .transpose()
+}
+
 /// The `(election_id, area_id)` of the ballot styles that were published when
-/// the session was created, which are the ones its contest areas were made
-/// from.
+/// the session was created, for a session that did not record them: those
+/// published no later than the session.
 pub fn published_for_session(
     styles: Vec<BallotStyle>,
     tally_session: &TallySession,
@@ -189,12 +228,22 @@ pub async fn record_election_electorates(
     let tenant_id = &tally_session.tenant_id;
     let election_event_id = &tally_session.election_event_id;
     let election_ids = tally_session.election_ids.clone().unwrap_or_default();
-    let published = published_for_session(
-        PgTallyCreationReader::new(hasura_transaction)
-            .published_ballot_styles(tenant_id, election_event_id, &election_ids)
-            .await?,
-        tally_session,
-    );
+    let published: Vec<(String, String)> = match recorded_election_areas(tally_session)? {
+        Some(recorded) => recorded
+            .into_iter()
+            .flat_map(|(election_id, areas)| {
+                areas
+                    .into_iter()
+                    .map(move |area_id| (election_id.clone(), area_id))
+            })
+            .collect(),
+        None => published_for_session(
+            PgTallyCreationReader::new(hasura_transaction)
+                .published_ballot_styles(tenant_id, election_event_id, &election_ids)
+                .await?,
+            tally_session,
+        ),
+    };
     let area_filter = initialization_area_filter(tally_session);
     let aliases = election_voter_authorization_aliases(
         get_election_event_elections(hasura_transaction, tenant_id, election_event_id)
@@ -869,14 +918,16 @@ async fn posted_by_other_sessions(
 #[cfg(test)]
 mod tests {
     use super::{
-        election_voter_authorization_aliases, electorate_counts, published_for_session,
-        recorded_election_electorates, voters_replacing_their_delegation, ElectionElectorates,
-        ElectorateCount, ELECTION_ELECTORATES_ANNOTATION,
+        election_areas, election_voter_authorization_aliases, electorate_counts,
+        published_for_session, recorded_election_areas, recorded_election_electorates,
+        voters_replacing_their_delegation, ElectionElectorates, ElectorateCount,
+        ELECTION_AREAS_ANNOTATION, ELECTION_ELECTORATES_ANNOTATION,
     };
     use crate::services::users::VoterMultiplicityColumn;
     use chrono::{DateTime, Local};
     use sequent_core::types::hasura::core::{BallotStyle, TallySession, TallySessionContest};
     use std::collections::HashMap;
+    use std::collections::{BTreeMap, BTreeSet};
     use std::io::Write;
 
     fn ballots_file() -> tempfile::NamedTempFile {
@@ -1238,5 +1289,38 @@ mod tests {
                 ("post", "untimed"),
             ])
         );
+    }
+
+    #[test]
+    fn the_election_areas_recorded_at_creation_are_read_back() {
+        // What the session's contest areas were made from, including an area
+        // with nothing to tally, each area once.
+        let areas = election_areas([
+            ("post", "north"),
+            ("post", "acclaimed-area"),
+            ("post", "north"),
+            ("other", "west"),
+        ]);
+        assert_eq!(
+            areas,
+            BTreeMap::from([
+                ("other".to_string(), BTreeSet::from(["west".to_string()])),
+                (
+                    "post".to_string(),
+                    BTreeSet::from(["acclaimed-area".to_string(), "north".to_string()])
+                ),
+            ])
+        );
+
+        assert_eq!(recorded_election_areas(&session(None)).unwrap(), None);
+        let recorded = session(Some(serde_json::json!({
+            "executer_username": "admin",
+            ELECTION_AREAS_ANNOTATION: serde_json::to_string(&areas).unwrap(),
+        })));
+        assert_eq!(recorded_election_areas(&recorded).unwrap(), Some(areas));
+        assert!(recorded_election_areas(&session(Some(serde_json::json!({
+            ELECTION_AREAS_ANNOTATION: {"post": ["north"]}
+        }))))
+        .is_err());
     }
 }
