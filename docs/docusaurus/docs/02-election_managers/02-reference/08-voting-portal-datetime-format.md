@@ -2,6 +2,7 @@
 id: voting_portal_datetime_format
 title: Voting Portal Date & Time Format
 sidebar_position: 8
+description: "The Voting Portal date & time format controls how dates and times are displayed to voters across the Voting Portal for a given Election Event. It is configured in two complementary ways:"
 ---
 
 <!--
