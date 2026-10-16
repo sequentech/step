@@ -5,7 +5,6 @@
 pub mod activity_log;
 pub mod ballot_images;
 pub mod ballot_receipt;
-mod ballot_tracker_url;
 pub mod electoral_results;
 pub mod initialization;
 pub mod manual_verification;
