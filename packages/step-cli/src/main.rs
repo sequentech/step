@@ -93,6 +93,7 @@ enum StepCommands {
     MigrateRegistrationFlows(commands::migrate_registration_flows::MigrateRegistrationFlows),
     VerifyBallotBoxSeal(commands::verify_ballot_box_seal::VerifyBallotBoxSeal),
     VerifyPackage(commands::verify_package::VerifyPackage),
+    VerifyTransmissionPackage(commands::verify_transmission_package::VerifyTransmissionPackage),
 }
 
 fn main() {
@@ -185,6 +186,7 @@ fn main() {
                 exit_on_error(verify.run().map_err(|error| format!("{error:#}")))
             }
             StepCommands::VerifyPackage(cmd) => cmd.run(),
+            StepCommands::VerifyTransmissionPackage(cmd) => cmd.run(),
         },
     }
 }

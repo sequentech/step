@@ -944,6 +944,12 @@ fn an_audit_entry_is_signed_with_the_time_of_its_action() -> Result<()> {
             StatementEventType::SYSTEM,
             StatementLogType::INFO,
         ),
+        (
+            AuditStatementKind::TransmissionFileDownloaded,
+            "TransmissionFileDownloaded",
+            StatementEventType::USER,
+            StatementLogType::INFO,
+        ),
     ] {
         assert_eq!(kind.to_string(), name);
         assert_eq!(name.parse::<AuditStatementKind>()?, kind);

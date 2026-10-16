@@ -2730,6 +2730,7 @@ const tagalogTranslation: TranslationType = {
                 title: "Pakete ng Transmisyon para sa Lugar '{{name}}' at Halalan na '{{eventName}}'",
                 description:
                     "Hinahayaan kang i-export ang isang Pakete ng Transmisyon sa mga Server ng Destinasyon o i-download ito.",
+                erFileSha256: "SHA-256 ng ER file:",
                 actions: {
                     sign: {
                         title: "I-regenerate",
@@ -2772,6 +2773,10 @@ const tagalogTranslation: TranslationType = {
                         emlTitle: "I-download ang EML {{date}}",
                         transmissionPackageTitle: "I-download ang Pakete ng Transmisyon {{date}}",
                         transmissionReportTitle: "I-download ang Ulat ng Transmisyon",
+                        csvTitle: "I-download ang Results CSV {{date}}",
+                        ovcsPublicKeyTitle: "I-download ang public key ng OVCS",
+                        recordError:
+                            "Hindi naitala ang pag-download, kaya hindi ito sinimulan. Subukang muli.",
                         dialog: {
                             title: "Gusto mo bang i-download ang Pakete ng Transmisyon?",
                             description:
@@ -2786,6 +2791,9 @@ const tagalogTranslation: TranslationType = {
                     description:
                         "Ipinapakita ng talahanayan sa ibaba ang katayuan ng pagpapadala sa bawat isa sa mga Server ng Destinasyon.",
                     status: "Naipadala sa {{signed}} ng {{total}}",
+                    manualReceipt: "Manwal na pagtanggap",
+                    handOver: "I-download ang package at iabot ito nang personal",
+                    sealedFor: "Naka-seal para sa key nito, SHA-256 {{key}}…",
                     table: {
                         serverName: "Pangalan ng Server",
                         sendStatus: "Katayuan ng Pagpapadala",
@@ -2799,7 +2807,8 @@ const tagalogTranslation: TranslationType = {
                         trusteeName: "Miyembro",
                         signed: "Napirmahan",
                     },
-                    status: "{{signed}} sa {{total}} Napirmahan, minimum {{minimum}}",
+                    status: "{{signed}} sa {{total}}, {{minimum}} ang kailangan",
+                    statusNoMinimum: "{{signed}} sa {{total}}",
                 },
             },
             sendToTransmissionPackageServers:

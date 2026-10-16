@@ -8,6 +8,7 @@ use super::{
         render_eml_file, MiruAreaAnnotations, MiruElectionAnnotations, MiruElectionEventAnnotations,
     },
     eml_types::ACMJson,
+    results_csv::results_csv,
     xz_compress::xz_compress,
     zip::compress_folder_to_zip,
 };
@@ -53,6 +54,16 @@ pub fn compress_hash_eml(eml: &str) -> Result<(Vec<u8>, String)> {
     Ok((compressed_xml, rendered_xml_hash))
 }
 
+/// The returns of a package as it is generated: the EML, its compressed
+/// form and SHA-256, and the results CSV with the same votes.
+pub struct GeneratedReturns {
+    pub compressed_xml: Vec<u8>,
+    pub eml: String,
+    /// Uppercase hex SHA-256 of the EML.
+    pub eml_hash: String,
+    pub csv: String,
+}
+
 #[instrument(skip(reports), err)]
 pub async fn generate_base_compressed_xml(
     tally_id: &str,
@@ -64,7 +75,7 @@ pub async fn generate_base_compressed_xml(
     area_annotations: &MiruAreaAnnotations,
     reports: &Vec<ReportData>,
     stamp: Option<&ConfigurationStamp>,
-) -> Result<(Vec<u8>, String, String)> {
+) -> Result<GeneratedReturns> {
     let eml_data = render_eml_file(
         tally_id,
         transaction_id,
@@ -79,9 +90,15 @@ pub async fn generate_base_compressed_xml(
     let s3_template_url = get_public_asset_file_path(&template_path)
         .with_context(|| "Error fetching get_minio_url")?;
     let template_string = download_s3_file_to_string(&s3_template_url).await?;
+    let csv = results_csv(&eml_data, election_annotations, area_annotations)?;
     let render_xml = render_eml(&template_string, serde_json::to_value(eml_data)?, stamp)?;
     let (compressed_xml, rendered_xml_hash) = compress_hash_eml(&render_xml)?;
-    Ok((compressed_xml, render_xml, rendered_xml_hash))
+    Ok(GeneratedReturns {
+        compressed_xml,
+        eml: render_xml,
+        eml_hash: rendered_xml_hash,
+        csv,
+    })
 }
 
 /// What the EML template calls the line naming the signed configuration.

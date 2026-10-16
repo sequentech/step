@@ -396,7 +396,6 @@ WBRAID_BOARD_DATABASE_URL = "postgres://test:test@127.0.0.1:3322/test"
 "src/tasks/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 "src/types/application.rs" = "Struct/enum declarations and derives without handwritten executable methods; this native LLVM export attributes no line regions to the file."
 "src/types/hasura_types.rs" = "Type aliases only; no executable function bodies."
-"src/types/miru_plugin.rs" = "Struct/enum declarations and derives without handwritten executable methods; this native LLVM export attributes no line regions to the file."
 "src/types/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 
 [profiles.step-cli]

@@ -512,6 +512,7 @@ fn an_audit_entry_is_encoded_field_by_field() {
         (AuditStatementKind::LogsExported, 2),
         (AuditStatementKind::LogWriterStarted, 3),
         (AuditStatementKind::LogWriterStopped, 4),
+        (AuditStatementKind::TransmissionFileDownloaded, 5),
     ] {
         assert_eq!(borsh::to_vec(&kind).unwrap(), vec![tag]);
         assert_eq!(kind.statement_type().to_string(), kind.to_string());

@@ -15,6 +15,10 @@ use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
+use windmill::services::consolidation::download_log::{
+    record_transmission_download as windmill_record_download, DownloadRefusal,
+    Downloader, RecordedDownload, TransmissionDownload,
+};
 use windmill::services::consolidation::send_transmission_package_service::SendRefusal;
 use windmill::services::signing::actions::transmission::TransmissionRefusal;
 use windmill::services::signing::SigningCaller;
@@ -234,6 +238,79 @@ pub async fn upload_signature(
     Ok(Json(UploadSignatureOutput {}))
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RecordTransmissionDownloadInput {
+    election_event_id: String,
+    election_id: String,
+    area_id: String,
+    tally_session_id: String,
+    document_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RecordTransmissionDownloadOutput {
+    pub(crate) file_name: String,
+    pub(crate) sha256: String,
+}
+
+/// Records a download of a transmission package's file before the browser
+/// fetches it: the package's log line and the election event log's entry.
+#[instrument(skip(claims))]
+#[post("/miru/record-download", format = "json", data = "<input>")]
+pub async fn record_transmission_download(
+    claims: jwt::JwtClaims,
+    input: Json<RecordTransmissionDownloadInput>,
+) -> Result<Json<RecordTransmissionDownloadOutput>, (Status, String)> {
+    let body = input.into_inner();
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::MIRU_DOWNLOAD],
+    )?;
+    let user_id = claims.hasura_claims.user_id.clone();
+    let downloader = Downloader {
+        name: claims
+            .name
+            .clone()
+            .or_else(|| claims.preferred_username.clone())
+            .unwrap_or_else(|| user_id.clone()),
+        username: claims.preferred_username.clone(),
+        user_id,
+    };
+    let download = TransmissionDownload {
+        tenant_id: claims.hasura_claims.tenant_id.clone(),
+        election_event_id: body.election_event_id,
+        election_id: body.election_id,
+        area_id: body.area_id,
+        tally_session_id: body.tally_session_id,
+        document_id: body.document_id,
+    };
+    recorded_download_reply(
+        windmill_record_download(&download, &downloader).await,
+    )
+}
+
+/// The route's answer to a download's record: the file's name and SHA-256,
+/// 404 when it is not a file of the package, 500 when it can't be recorded.
+pub(crate) fn recorded_download_reply(
+    recorded: anyhow::Result<
+        std::result::Result<RecordedDownload, DownloadRefusal>,
+    >,
+) -> Result<Json<RecordTransmissionDownloadOutput>, (Status, String)> {
+    match recorded {
+        Ok(Ok(recorded)) => Ok(Json(RecordTransmissionDownloadOutput {
+            file_name: recorded.file_name,
+            sha256: recorded.sha256,
+        })),
+        Ok(Err(refusal)) => Err((Status::NotFound, refusal.to_string())),
+        Err(error) => Err((
+            Status::InternalServerError,
+            format!("Error recording the download: {error:?}"),
+        )),
+    }
+}
+
 /// A transmission refusal in the signing contract's error shape.
 pub(crate) fn transmission_failure(
     refusal: &TransmissionRefusal,
@@ -267,11 +344,14 @@ pub(crate) fn transmission_failure(
 }
 
 /// Why a send is not queued, in the signing contract's error shape.
-fn send_refusal(refusal: &SendRefusal) -> SigningFailure {
+pub(crate) fn send_refusal(refusal: &SendRefusal) -> SigningFailure {
     match refusal {
         SendRefusal::NoTallySession => {
             SigningFailure::not_found("There is no such tally session.")
         }
+        SendRefusal::ManualReceiptOnly => SigningFailure::conflict(
+            "Every destination of this package receives it by hand: download it and hand it over.",
+        ),
         SendRefusal::Refused(refusal) => transmission_failure(refusal),
     }
 }

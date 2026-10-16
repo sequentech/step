@@ -171,6 +171,17 @@ path = ["packages/admin-portal/src/lib/signing/__fixtures__/**"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Sequent Tech Inc <legal@sequentech.io>"
 SPDX-License-Identifier = "AGPL-3.0-only"
+
+# The ER transmission sample kit's synthetic keys and certificates, written by
+# scripts/transmission-sample/generate_kit.sh, and its JSON configuration.
+[[annotations]]
+path = [
+    "scripts/transmission-sample/kit/**",
+    "scripts/transmission-sample/transmission-sample-config.json",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Sequent Tech Inc <legal@sequentech.io>"
+SPDX-License-Identifier = "AGPL-3.0-only"
 [[annotations]]
 path = [
     "packages/trellis/.gitignore",

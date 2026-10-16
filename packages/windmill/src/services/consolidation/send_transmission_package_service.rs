@@ -28,7 +28,7 @@ use crate::{
         time_zones::event_time_zone,
     },
     types::miru_plugin::{
-        MiruCcsServer, MiruDocument, MiruServerDocument, MiruServerDocumentStatus,
+        MiruCcsServer, MiruDelivery, MiruDocument, MiruServerDocument, MiruServerDocumentStatus,
         MiruTallySessionData, MiruTransmissionPackageData,
     },
 };
@@ -161,7 +161,19 @@ pub fn check_transmission_signatures_against(
 pub enum SendRefusal {
     /// There is no such tally session in the event.
     NoTallySession,
+    /// Every destination of the package receives it by hand: there is
+    /// nowhere to send it.
+    ManualReceiptOnly,
     Refused(TransmissionRefusal),
+}
+
+/// The destinations a package is sent to over the network; the others
+/// receive it by hand.
+pub fn network_destinations(servers: &[MiruCcsServer]) -> Vec<&MiruCcsServer> {
+    servers
+        .iter()
+        .filter(|server| server.delivery() == MiruDelivery::Network)
+        .collect()
 }
 
 /// Why the package of a Post and country can't be sent, for the send route
@@ -222,6 +234,9 @@ pub async fn signed_transmission_refusal(
     else {
         return Ok(None);
     };
+    if network_destinations(&package.servers).is_empty() {
+        return Ok(Some(SendRefusal::ManualReceiptOnly));
+    }
     Ok(transmission_send_check(
         &hasura_transaction,
         Uuid::parse_str(tenant_id).with_context(|| "Error parsing the tenant id")?,
@@ -506,7 +521,7 @@ pub async fn send_transmission_package_service(
     )
     .await?;
 
-    for ccs_server in &transmission_area_election.servers {
+    for ccs_server in network_destinations(&transmission_area_election.servers) {
         if servers_sent_to.contains(&ccs_server.name) {
             info!(
                 "SHOULD BE skipping sending to server '{}' as already sent",
@@ -646,4 +661,35 @@ pub async fn send_transmission_package_service(
         .await
         .with_context(|| "error comitting transaction")?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn server(name: &str, address: &str) -> MiruCcsServer {
+        MiruCcsServer {
+            name: name.to_string(),
+            tag: name.to_string(),
+            address: address.to_string(),
+            public_key_pem: String::new(),
+            send_logs: None,
+        }
+    }
+
+    #[test]
+    fn only_destinations_with_an_address_are_sent_to() {
+        let servers = vec![
+            server("manila", ""),
+            server("central", "https://central.example"),
+            server("transparency", " "),
+        ];
+        let sent: Vec<&str> = network_destinations(&servers)
+            .iter()
+            .map(|server| server.name.as_str())
+            .collect();
+        assert_eq!(sent, vec!["central"]);
+        assert!(network_destinations(&servers[..1]).is_empty());
+        assert!(network_destinations(&[]).is_empty());
+    }
 }
