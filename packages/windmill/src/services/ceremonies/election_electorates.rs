@@ -28,13 +28,33 @@ pub const ELECTION_ELECTORATES_ANNOTATION: &str = "election_electorates";
 /// area has anything to tally.
 pub type ElectionElectorates = BTreeMap<String, u64>;
 
+/// The `(election_id, area_id)` of the ballot styles that existed when the
+/// session was created, which are the ones its contest areas were made from.
+pub fn published_for_session(
+    ballot_styles: &[BallotStyle],
+    tally_session: &TallySession,
+) -> Vec<(String, String)> {
+    ballot_styles
+        .iter()
+        .filter(|style| match (style.created_at, tally_session.created_at) {
+            (Some(style_created), Some(session_created)) => style_created <= session_created,
+            _ => true,
+        })
+        .filter_map(|style| {
+            style
+                .area_id
+                .clone()
+                .map(|area_id| (style.election_id.clone(), area_id))
+        })
+        .collect()
+}
+
 /// The areas of each of `election_ids`: those with a ballot style for it
-/// (`ballot_styles`, as `(election_id, area_id)`) within the session's areas
-/// (`session_areas`, all of them when `None`), and those of its contest areas.
+/// (`ballot_styles`, as `(election_id, area_id)`) and those of its contest
+/// areas.
 pub fn electorate_areas(
     election_ids: &[String],
     ballot_styles: &[(String, String)],
-    session_areas: Option<&[String]>,
     contests: &[TallySessionContest],
 ) -> BTreeMap<String, Vec<String>> {
     election_ids
@@ -42,10 +62,7 @@ pub fn electorate_areas(
         .map(|election_id| {
             let areas: BTreeSet<&String> = ballot_styles
                 .iter()
-                .filter(|(election, area)| {
-                    election == election_id
-                        && session_areas.map_or(true, |session_areas| session_areas.contains(area))
-                })
+                .filter(|(election, _)| election == election_id)
                 .map(|(_, area)| area)
                 .chain(
                     contests
@@ -57,6 +74,16 @@ pub fn electorate_areas(
             (election_id.clone(), areas.into_iter().cloned().collect())
         })
         .collect()
+}
+
+/// How a voter's authorized elections name an election, as Keycloak's
+/// authorized-elections mapper does: by its external id, or by its id when it
+/// has none.
+pub fn authorization_alias(election_id: &str, external_id: Option<&str>) -> String {
+    external_id
+        .filter(|external_id| !external_id.is_empty())
+        .unwrap_or(election_id)
+        .to_string()
 }
 
 /// Whether the session was counted before this run: it has results, or this
@@ -89,9 +116,6 @@ pub fn records_electorates(
 }
 
 /// Counts and records the electorate of each election of the session.
-///
-/// Elections are named as the ballot extraction names them, by their external
-/// id or not at all, so the electorate has the voters whose ballots it counts.
 #[instrument(skip_all, err)]
 pub async fn record_election_electorates(
     hasura_transaction: &Transaction<'_>,
@@ -103,37 +127,30 @@ pub async fn record_election_electorates(
     let tenant_id = &tally_session.tenant_id;
     let election_event_id = &tally_session.election_event_id;
     let election_ids = tally_session.election_ids.clone().unwrap_or_default();
-    let styled: Vec<(String, String)> = ballot_styles
-        .iter()
-        .filter_map(|style| {
-            style
-                .area_id
-                .clone()
-                .map(|area_id| (style.election_id.clone(), area_id))
-        })
-        .collect();
+    let published = published_for_session(ballot_styles, tally_session);
     let aliases: HashMap<String, String> =
         get_election_event_elections(hasura_transaction, tenant_id, election_event_id)
             .await?
             .into_iter()
-            .filter_map(|election| election.external_id.map(|alias| (election.id, alias)))
+            .map(|election| {
+                let alias = authorization_alias(&election.id, election.external_id.as_deref());
+                (election.id, alias)
+            })
             .collect();
     let realm = get_event_realm(tenant_id, election_event_id);
 
     let mut electorates = ElectionElectorates::new();
-    for (election_id, areas) in electorate_areas(
-        &election_ids,
-        &styled,
-        tally_session.area_ids.as_deref(),
-        contests,
-    ) {
-        let alias = aliases.get(&election_id).map(String::as_str).unwrap_or("");
+    for (election_id, areas) in electorate_areas(&election_ids, &published, contests) {
+        let alias = aliases
+            .get(&election_id)
+            .cloned()
+            .unwrap_or_else(|| election_id.clone());
         let electorate = count_keycloak_enabled_voters_of_areas(
             keycloak_transaction,
             &realm,
             &areas,
             &[],
-            alias,
+            &alias,
         )
         .await?;
         electorates.insert(election_id, electorate);
@@ -180,6 +197,7 @@ mod tests {
     use crate::services::consolidation::eml_generator::{
         prepend_miru_annotation, ValidateAnnotations, MIRU_TALLY_SESSION_DATA,
     };
+    use chrono::{DateTime, Local};
 
     fn contest_area(
         election_id: &str,
@@ -270,12 +288,7 @@ mod tests {
             contest_area("other", "west", "c3", None),
         ];
 
-        let areas = electorate_areas(
-            &ids(&["post", "acclaimed", "missing"]),
-            &styles,
-            None,
-            &contests,
-        );
+        let areas = electorate_areas(&ids(&["post", "acclaimed", "missing"]), &styles, &contests);
 
         assert_eq!(
             areas,
@@ -291,24 +304,73 @@ mod tests {
         );
     }
 
+    fn at(time: &str) -> Option<DateTime<Local>> {
+        Some(
+            DateTime::parse_from_rfc3339(time)
+                .unwrap()
+                .with_timezone(&Local),
+        )
+    }
+
+    fn style(area_id: &str, created_at: Option<DateTime<Local>>) -> BallotStyle {
+        BallotStyle {
+            id: format!("style-{area_id}"),
+            tenant_id: "tenant".into(),
+            election_id: "post".into(),
+            area_id: Some(area_id.into()),
+            created_at,
+            last_updated_at: None,
+            labels: None,
+            annotations: None,
+            ballot_eml: None,
+            ballot_signature: None,
+            status: None,
+            election_event_id: "event".into(),
+            deleted_at: None,
+            ballot_publication_id: "publication".into(),
+        }
+    }
+
     #[test]
-    fn an_electorate_keeps_to_the_areas_of_the_session() {
-        let styles = pairs(&[
-            ("post", "north"),
-            ("post", "south"),
-            ("post", "acclaimed-area"),
-        ]);
-        let contests = vec![contest_area("post", "north", "c1", None)];
-        let session_areas = ids(&["acclaimed-area", "north"]);
+    fn the_areas_are_those_published_when_the_session_was_created() {
+        // The session's area-contest links no longer include the acclaimed
+        // area, whose link was removed after it was published: it is still
+        // published, so it is still the election's.
+        let mut session = session(None);
+        session.created_at = at("2026-10-10T12:00:00Z");
+        session.area_ids = Some(ids(&["north"]));
+        let styles = vec![
+            style("north", at("2026-10-01T09:00:00Z")),
+            style("acclaimed-area", at("2026-10-01T09:00:00Z")),
+            // Published after the session was created.
+            style("later", at("2026-10-11T09:00:00Z")),
+            // Without a time, as far as can be told it was there.
+            style("untimed", None),
+        ];
 
-        let areas = electorate_areas(
-            &ids(&["post"]),
-            &styles,
-            Some(session_areas.as_slice()),
-            &contests,
+        assert_eq!(
+            published_for_session(&styles, &session),
+            pairs(&[
+                ("post", "north"),
+                ("post", "acclaimed-area"),
+                ("post", "untimed"),
+            ])
         );
+    }
 
-        assert_eq!(areas["post"], ids(&["acclaimed-area", "north"]));
+    #[test]
+    fn an_election_is_named_as_keycloak_authorizes_it() {
+        assert_eq!(
+            authorization_alias("election-uuid", Some("post-1")),
+            "post-1"
+        );
+        // Keycloak names an election without an external id by its id, and so
+        // do the voters' authorized elections.
+        assert_eq!(authorization_alias("election-uuid", None), "election-uuid");
+        assert_eq!(
+            authorization_alias("election-uuid", Some("")),
+            "election-uuid"
+        );
     }
 
     #[test]
