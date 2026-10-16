@@ -8,6 +8,8 @@ mod realm;
 mod realm_attributes;
 mod realm_password_policy;
 mod role;
+#[cfg(test)]
+mod test_support;
 mod user;
 
 pub use self::admin_client::*;
