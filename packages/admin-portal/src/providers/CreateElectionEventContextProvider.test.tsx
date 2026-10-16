@@ -99,7 +99,11 @@ it("keeps a confirmed empty checksum optional and reports a backend integrity fa
         },
     })
     const {result} = renderHook(useCreateElectionEventStore, {wrapper: CreateElectionEventProvider})
-    await act(async () => result.current.handleImportElectionEvent("document-a", "", ""))
+    await act(async () => {
+        await expect(
+            result.current.handleImportElectionEvent("document-a", "", "")
+        ).rejects.toMatchObject({stage: "creation"})
+    })
     expect(mockImport).toHaveBeenCalledWith({
         variables: {tenantId: "tenant-a", documentId: "document-a", sha256: "", password: ""},
     })
@@ -115,7 +119,11 @@ it("marks the widget failed when a refusal names no task to follow", async () =>
         data: {import_election_event: {id: null, error: "Checksum mismatch", task_execution: null}},
     })
     const {result} = renderHook(useCreateElectionEventStore, {wrapper: CreateElectionEventProvider})
-    await act(async () => result.current.handleImportElectionEvent("document-a", "", ""))
+    await act(async () => {
+        await expect(
+            result.current.handleImportElectionEvent("document-a", "", "")
+        ).rejects.toMatchObject({stage: "creation"})
+    })
     expect(result.current.errors).toBe("Checksum mismatch")
     expect(mockFailed).toHaveBeenCalledWith("widget-a")
     expect(mockTask).not.toHaveBeenCalled()
@@ -148,9 +156,9 @@ it("keeps the named problems of a refused archive beside its error text", async 
     })
     const {result} = renderHook(useCreateElectionEventStore, {wrapper: CreateElectionEventProvider})
     await act(async () =>
-        expect(result.current.uploadCallback("document-a", "")).rejects.toThrow(
-            "Error checking import"
-        )
+        expect(result.current.uploadCallback("document-a", "")).rejects.toMatchObject({
+            stage: "validation",
+        })
     )
     expect(result.current.errors).toBe("Error checking import")
     expect(result.current.problems).toEqual([problem])

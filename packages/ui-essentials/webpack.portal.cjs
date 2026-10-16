@@ -136,6 +136,18 @@ function developmentLoader(entry) {
     }
 }
 
+/** Entry modules must stay outside React Refresh, including worker entries. */
+function entryFiles(entry) {
+    const values =
+        typeof entry === "object" && !Array.isArray(entry) ? Object.values(entry ?? {}) : [entry]
+    return values.flatMap((value) => {
+        if (typeof value === "string") return [value]
+        if (Array.isArray(value)) return value
+        if (typeof value?.import === "string") return [value.import]
+        return Array.isArray(value?.import) ? value.import : []
+    })
+}
+
 /**
  * Completes a portal config. `PORT` overrides the dev server port and
  * `BROWSER=none` stops it opening a browser. In development mode the shared UI
@@ -170,7 +182,7 @@ function withPortalDevelopment(portal, config) {
             // page instead of mounting a second root.
             new ReactRefreshWebpackPlugin({
                 overlay: false,
-                exclude: [/node_modules/, config.entry],
+                exclude: [/node_modules/, ...entryFiles(config.entry)],
             }),
         ],
     }
