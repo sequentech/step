@@ -2,6 +2,7 @@
 id: decline_to_vote
 title: Decline to Vote
 sidebar_position: 7
+description: "The Decline to Vote policy lets voters formally abstain from an entire election at once, across all of its contests, instead of casting candidate selections."
 ---
 
 <!--

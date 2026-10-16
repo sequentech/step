@@ -1,6 +1,7 @@
 ---
 id: reports_and_templates
 title: Reports and Templates
+description: "To generate a report, you need to select the Election Event in the Admin Portal and add an entry for a specific report type."
 ---
 
 ## Overview
