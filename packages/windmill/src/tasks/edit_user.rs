@@ -6,7 +6,7 @@ use crate::postgres::cast_vote::{
     discard_voter_cast_votes, get_voter_cast_vote_state, VoterCastVoteState,
 };
 use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
-use crate::services::database::get_hasura_pool;
+use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::datafix;
 use crate::services::datafix::types::{SoapRequest, SoapRequestResponse, SoapRequestResult};
 use crate::services::datafix::utils::{
@@ -19,6 +19,7 @@ use crate::services::electoral_log::{
 };
 use crate::services::pg_lock::PgLock;
 use crate::services::tasks_execution::{update_complete, update_fail};
+use crate::services::users::census_edit_refusal;
 use crate::types::error::{Error, Result};
 use anyhow::Context;
 use celery::error::TaskError;
@@ -219,6 +220,49 @@ async fn voter_cast_vote_state(
     let mut client: DbClient = get_hasura_pool().await.get().await?;
     let transaction = client.transaction().await?;
     get_voter_cast_vote_state(&transaction, &tenant_id, &election_event_id, voter_id).await
+}
+
+/// Refuses an edit that changes a census attribute counting a valid or
+/// in-progress ballot. A disable is not checked here: it releases the voter,
+/// discarding those ballots.
+#[instrument(skip_all, err)]
+async fn ensure_census_edit_keeps_ballots(
+    body: &EditUserTaskBody,
+    current_user: &User,
+) -> std::result::Result<(), String> {
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|err| format!("Error acquiring hasura db client from pool: {err}"))?;
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|err| format!("Error acquiring hasura transaction: {err}"))?;
+    let mut keycloak_db_client: DbClient = get_keycloak_pool()
+        .await
+        .get()
+        .await
+        .map_err(|err| format!("Error acquiring keycloak db client from pool: {err}"))?;
+    let keycloak_transaction = keycloak_db_client
+        .transaction()
+        .await
+        .map_err(|err| format!("Error acquiring keycloak transaction: {err}"))?;
+    let refusal = census_edit_refusal(
+        &hasura_transaction,
+        &keycloak_transaction,
+        &body.tenant_id,
+        &body.election_event_id,
+        current_user,
+        None,
+        &body.attributes,
+    )
+    .await
+    .map_err(|err| format!("Error checking the ballots the edit affects: {err:?}"))?;
+    match refusal {
+        Some(reason) => Err(reason),
+        None => Ok(()),
+    }
 }
 
 /// Applies the requested Keycloak fields.
@@ -427,6 +471,7 @@ async fn run_datafix_voter_edit(
         .map_err(|err| format!("{err:?}"))?;
     let current_attributes = current_user.attributes.clone().unwrap_or_default();
     validate_datafix_immutable_fields(body, &current_user, &current_attributes)?;
+    ensure_census_edit_keeps_ballots(body, &current_user).await?;
 
     let needs_cast_vote_state =
         body.enabled == Some(false) || is_reenable_transition(current_user.enabled, body.enabled);
