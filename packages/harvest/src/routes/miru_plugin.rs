@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::authorization::authorize;
+use crate::services::authorization::{authorize, ensure_election_in_event};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -39,6 +39,8 @@ pub struct CreateTransmissionPackageOutput {
     error_msg: Option<String>,
 }
 
+/// Queues a transmission package for an election of the given election event
+/// in the caller's tenant.
 #[instrument(skip(claims))]
 #[post("/miru/create-transmission-package", format = "json", data = "<input>")]
 pub async fn create_transmission_package(
@@ -46,12 +48,21 @@ pub async fn create_transmission_package(
     input: Json<CreateTransmissionPackageInput>,
 ) -> Result<Json<CreateTransmissionPackageOutput>, (Status, String)> {
     let body = input.into_inner();
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::MIRU_CREATE],
+    )?;
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let election_event_id = body.election_event_id.clone();
     let executer_name = claims
         .name
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
+
+    ensure_election_in_event(&tenant_id, &election_event_id, &body.election_id)
+        .await?;
 
     // Insert the task execution record
     let task_execution = post(
@@ -68,12 +79,6 @@ pub async fn create_transmission_package(
         )
     })?;
 
-    authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::MIRU_CREATE],
-    )?;
     let celery_app = get_celery_app().await;
     let celery_task = match celery_app
         .send_task(create_transmission_package_task::new(
