@@ -565,3 +565,22 @@ fn an_audit_error_keeps_its_status_and_message_as_json() {
     assert_eq!(body["message"], "Invalid tenant_id");
     assert_eq!(body["extensions"]["code"], "InternalServerError");
 }
+
+#[test]
+fn an_entry_that_cannot_be_queued_fails_its_change() {
+    let (status, message) = queue_error(anyhow::anyhow!("outbox closed"));
+    assert_eq!(status, Status::InternalServerError);
+    assert!(
+        message.starts_with("Error queueing the audit entry"),
+        "{message}"
+    );
+    assert!(message.contains("outbox closed"), "{message}");
+
+    let error = json_queue_error(anyhow::anyhow!("outbox closed"));
+    assert_eq!(error.0, Status::InternalServerError);
+    assert!(error
+        .1
+         .0
+        .message
+        .starts_with("Error queueing the audit entry"));
+}

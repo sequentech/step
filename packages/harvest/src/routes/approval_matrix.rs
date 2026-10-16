@@ -385,10 +385,10 @@ pub async fn save_approval_matrix(
         previous.as_ref(),
         &saved,
     )
-    .map_err(|error| internal("Failed to describe the change", error))?;
+    .map_err(audit::json_queue_error)?;
     stage(&transaction, &change)
         .await
-        .map_err(|error| internal("Failed to queue the audit entry", error))?;
+        .map_err(audit::json_queue_error)?;
 
     transaction
         .commit()

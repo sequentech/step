@@ -59,6 +59,18 @@ pub fn json_error((status, message): RouteError) -> JsonError {
     ErrorResponse::new(status, &message, ErrorCode::InternalServerError)
 }
 
+/// An entry that could not be queued with its change: the change is not
+/// made either.
+pub fn queue_error(error: anyhow::Error) -> RouteError {
+    server_error("Error queueing the audit entry", error)
+}
+
+/// [`queue_error`] for routes that answer with a JSON error.
+pub fn json_queue_error(error: anyhow::Error) -> JsonError {
+    tracing::error!("Error queueing the audit entry: {error:#}");
+    json_error(queue_error(error))
+}
+
 /// The admin a request comes from.
 pub fn actor(claims: &JwtClaims) -> AuditActor {
     AuditActor {

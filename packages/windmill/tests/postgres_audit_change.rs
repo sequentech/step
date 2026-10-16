@@ -652,7 +652,7 @@ async fn json_values_are_compared_key_by_key_under_dotted_paths() {
     assert_eq!(
         entry.details["changes"],
         json!([
-            {"path": "settings.cleared", "old": "value", "new": null},
+            {"path": "settings.cleared", "old": "value"},
             {
                 "path": "settings.help_links",
                 "old": [{"url": "https://example.com/a", "title": "A"}],
@@ -1254,4 +1254,27 @@ async fn a_retried_tenant_deletion_adds_no_entry() {
             .await
             .is_err()
     );
+}
+
+#[tokio::test]
+async fn a_key_set_to_null_is_no_change_from_a_key_left_out() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let tenant = insert_tenant(&tx, &json!({"logs_timezone": "UTC", "sms": {}})).await;
+
+    act_as(&tx, ADMIN_USER, tenant).await;
+    set_settings(
+        &tx,
+        tenant,
+        &json!({
+            "logs_timezone": "Asia/Manila",
+            "ballot_tracker_policy": null,
+            "sms": {"sender": null},
+        }),
+    )
+    .await;
+
+    let entry = one_entry(&tx, tenant).await;
+    assert_eq!(entry.paths(), vec!["settings.logs_timezone"]);
 }

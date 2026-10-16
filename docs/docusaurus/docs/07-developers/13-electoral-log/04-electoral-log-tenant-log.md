@@ -398,8 +398,8 @@ For each row a person changes, the function:
    deleted row went with a parent it references `ON DELETE CASCADE` (`audit_deleted_by_cascade`).
 3. **Compares the old and new row** column by column, ignoring `created_at`, `updated_at` and
    `last_updated_at`. A JSON object column is compared key by key under dotted paths
-   (`settings.logs_timezone`); anything else is compared whole. The secret and long-text rules of
-   section 3.2 apply.
+   (`settings.logs_timezone`); anything else is compared whole. A key set to `null` is a key left
+   out. The secret and long-text rules of section 3.2 apply.
 4. **Chooses the log.** A row with an `election_event_id` goes to that event's log; any other row goes
    to the tenant log. For `election_event` itself, an insert and a delete are tenant-log entries; an
    update to `is_archived` is a tenant-log entry with the action `archive` or `unarchive`, and its
@@ -559,8 +559,8 @@ would be logged.
 
 `packages/harvest/tests/support/audited_routes.rs` fails when a file of `packages/harvest/src/routes`
 commits a transaction and neither names its admin (`audit::act_for`, or `audit::actor` handed to the
-Windmill code that opens the transaction) nor queues an entry of its own (`stage`, `audit::record`,
-`audit::record_after`). A route file that changes nothing an admin would audit (voting portal routes,
+Windmill code that opens the transaction) nor queues an entry of its own (`stage`, `audit::record`).
+A route file that changes nothing an admin would audit (voting portal routes,
 reads that commit, callbacks) is listed with its reason in
 `packages/harvest/tests/fixtures/unaudited-committing-routes.txt`. The test also fails for an
 exemption that names a file that no longer commits or that audits. It runs with Harvest's unit tests:

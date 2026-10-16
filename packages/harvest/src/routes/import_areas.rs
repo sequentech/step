@@ -16,6 +16,7 @@ use tracing::{event, instrument, Level};
 use windmill::{
     services::audit_log::stage,
     services::providers::transactions_provider::provide_hasura_transaction,
+    services::task_audit,
     tasks::audit_log_outbox::kick_audit_log_outbox,
     tasks::{import_areas::import_areas_task, upsert_areas::upsert_areas_task},
 };
@@ -89,36 +90,28 @@ pub async fn import_areas_route(
         vec![Permissions::AREA_WRITE],
     )?;
 
-    // An invalid event id fails the import first; its entry is then moot.
-    let entry = audit::target(
-        &claims.hasura_claims.tenant_id,
-        Some(&body.election_event_id),
-    )
-    .map(|target| {
-        audit::imported(
-            &claims,
-            target,
-            AREA,
-            &body.document_id,
-            body.sha256.as_deref(),
-            "Imported areas",
-        )
-    });
     provide_hasura_transaction(|hasura_transaction| {
         let tenant_id = claims.hasura_claims.tenant_id.clone();
         let election_event_id = body.election_event_id.clone();
         let document_id = body.document_id.clone();
         Box::pin(async move {
+            // An invalid event id fails the import before its entry.
             import_areas_task(
                 hasura_transaction,
-                tenant_id,
-                election_event_id,
-                document_id,
-                body.sha256,
+                tenant_id.clone(),
+                election_event_id.clone(),
+                document_id.clone(),
+                body.sha256.clone(),
             )
             .await?;
-            let entry =
-                entry.map_err(|(_, message)| anyhow::anyhow!(message))?;
+            let entry = audit::imported(
+                &claims,
+                task_audit::target(&tenant_id, Some(&election_event_id))?,
+                AREA,
+                &document_id,
+                body.sha256.as_deref(),
+                "Imported areas",
+            );
             stage(hasura_transaction, &entry).await?;
             Ok(())
         })

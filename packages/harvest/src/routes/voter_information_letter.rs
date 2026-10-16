@@ -306,7 +306,7 @@ pub async fn generate_voter_information_letter(
             }))
             .with_description("Requested a voter information letter, which resets the voter's password")
         })
-        .map_err(|_| internal_error("Invalid tenant or election event"))?;
+        .map_err(audit::json_error)?;
 
     let password_change_initiator = ElectoralLogAdminContext {
         user_id: claims.hasura_claims.user_id.clone(),
@@ -350,11 +350,9 @@ pub async fn generate_voter_information_letter(
         ));
     }
 
-    audit::record(services, &entry).await.map_err(|_| {
-        internal_error(
-            "The letter was queued, but its audit entry could not be queued",
-        )
-    })?;
+    audit::record(services, &entry)
+        .await
+        .map_err(audit::json_error)?;
 
     Ok(Json(GenerateVoterInformationLetterOutput {
         document_id,

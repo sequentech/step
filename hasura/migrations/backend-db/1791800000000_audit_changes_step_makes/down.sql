@@ -1,7 +1,7 @@
 -- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 -- SPDX-License-Identifier: AGPL-3.0-only
 
--- Restores audit_is_secret() and audit_change() as
+-- Restores audit_is_secret(), audit_changes() and audit_change() as
 -- 1791600000000_audit_log_outbox wrote them.
 DROP TRIGGER IF EXISTS audit_change ON sequent_backend.keys_ceremony;
 DROP TRIGGER IF EXISTS audit_change ON sequent_backend.messaging_account;
@@ -29,6 +29,71 @@ AS $$
                     || '|(api|gapi|private|secret|signing|access|auth|client|encryption)_keys?)'
                     || '(_(hash|salt))?$')
     );
+$$;
+
+CREATE OR REPLACE FUNCTION sequent_backend.audit_changes(path text, old_value jsonb, new_value jsonb)
+RETURNS jsonb
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+DECLARE
+    -- Longer texts are logged as their SHA-256.
+    max_value_bytes CONSTANT integer := 65536;
+    changes jsonb := '[]'::jsonb;
+    change jsonb := jsonb_build_object('path', path);
+    member text;
+    old_text text;
+    new_text text;
+BEGIN
+    IF old_value IS NOT DISTINCT FROM new_value THEN
+        RETURN changes;
+    END IF;
+    IF sequent_backend.audit_is_secret(path) THEN
+        RETURN jsonb_build_array(change || '{"secret": true}'::jsonb);
+    END IF;
+
+    IF (old_value IS NULL OR jsonb_typeof(old_value) = 'object')
+       AND (new_value IS NULL OR jsonb_typeof(new_value) = 'object')
+       AND COALESCE(old_value, '{}'::jsonb) || COALESCE(new_value, '{}'::jsonb) <> '{}'::jsonb THEN
+        FOR member IN
+            SELECT key
+            FROM jsonb_object_keys(COALESCE(old_value, '{}'::jsonb) || COALESCE(new_value, '{}'::jsonb)) AS key
+            ORDER BY key COLLATE "C"
+        LOOP
+            changes := changes || sequent_backend.audit_changes(
+                path || '.' || member, old_value -> member, new_value -> member
+            );
+        END LOOP;
+        RETURN changes;
+    END IF;
+
+    old_value := sequent_backend.audit_redact(old_value);
+    new_value := sequent_backend.audit_redact(new_value);
+    old_text := CASE jsonb_typeof(old_value)
+        WHEN 'string' THEN old_value #>> '{}' ELSE old_value::text END;
+    new_text := CASE jsonb_typeof(new_value)
+        WHEN 'string' THEN new_value #>> '{}' ELSE new_value::text END;
+    IF GREATEST(octet_length(old_text), octet_length(new_text)) > max_value_bytes THEN
+        IF old_value IS NOT NULL THEN
+            change := change || jsonb_build_object(
+                'old_sha256', encode(sha256(convert_to(old_text, 'UTF8')), 'hex')
+            );
+        END IF;
+        IF new_value IS NOT NULL THEN
+            change := change || jsonb_build_object(
+                'new_sha256', encode(sha256(convert_to(new_text, 'UTF8')), 'hex')
+            );
+        END IF;
+    ELSE
+        IF old_value IS NOT NULL THEN
+            change := change || jsonb_build_object('old', old_value);
+        END IF;
+        IF new_value IS NOT NULL THEN
+            change := change || jsonb_build_object('new', new_value);
+        END IF;
+    END IF;
+    RETURN jsonb_build_array(change);
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION sequent_backend.audit_change()

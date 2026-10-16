@@ -13,11 +13,10 @@ use std::path::Path;
 
 /// Naming the admin to the trigger, handing them to the Windmill code that
 /// opens the transaction, or staging an entry of its own.
-const AUDITS: [&str; 5] = [
+const AUDITS: [&str; 4] = [
     "audit::act_for(",
     "audit::actor(",
     "audit::record(",
-    "audit::record_after(",
     "stage(",
 ];
 

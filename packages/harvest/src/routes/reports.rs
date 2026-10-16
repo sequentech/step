@@ -581,12 +581,7 @@ pub async fn encrypt_report_route(
     });
     audit_log::stage(&hasura_transaction, &change)
         .await
-        .map_err(|err| {
-            (
-                Status::InternalServerError,
-                format!("Error queueing the audit entry: {err:?}"),
-            )
-        })?;
+        .map_err(audit::queue_error)?;
 
     let document_id = Uuid::new_v4().to_string();
 

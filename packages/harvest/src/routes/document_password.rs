@@ -126,7 +126,7 @@ pub async fn get_document_password(
     // commit together.
     let target =
         audit::target(&tenant_id, document.election_event_id.as_deref())
-            .map_err(|(_, message)| internal_error(&message))?;
+            .map_err(audit::json_error)?;
     let change = audit::change(
         &claims,
         target,
@@ -137,10 +137,9 @@ pub async fn get_document_password(
         "Revealed the password of document {}",
         document.name.as_deref().unwrap_or(&document.id)
     ));
-    stage(&transaction, &change).await.map_err(|error| {
-        error!(document_id = %document.id, "Failed to queue the audit entry: {error:#}");
-        internal_error("Failed to retrieve document password")
-    })?;
+    stage(&transaction, &change)
+        .await
+        .map_err(audit::json_queue_error)?;
 
     transaction
         .commit()
