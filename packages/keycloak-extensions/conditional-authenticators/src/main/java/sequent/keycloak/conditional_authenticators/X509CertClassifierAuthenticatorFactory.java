@@ -5,6 +5,7 @@
 package sequent.keycloak.conditional_authenticators;
 
 import com.google.auto.service.AutoService;
+import java.util.ArrayList;
 import java.util.List;
 import org.keycloak.Config.Scope;
 import org.keycloak.authentication.Authenticator;
@@ -87,7 +88,8 @@ public class X509CertClassifierAuthenticatorFactory implements AuthenticatorFact
 
   @Override
   public List<ProviderConfigProperty> getConfigProperties() {
-    return List.of(
+    List<ProviderConfigProperty> properties = new ArrayList<>();
+    properties.add(
         new ProviderConfigProperty(
             CONF_CERT_HEADER_NAME,
             "Client Certificate Header Name",
@@ -96,6 +98,8 @@ public class X509CertClassifierAuthenticatorFactory implements AuthenticatorFact
                 + " 'Cf-Tls-Client-Cert' for Cloudflare, or 'Client-Cert' for RFC 9440 proxies.",
             ProviderConfigProperty.STRING_TYPE,
             X509CertClassifierAuthenticator.DEFAULT_CERT_HEADER));
+    properties.addAll(X509CertHeaderTrust.configProperties());
+    return properties;
   }
 
   @Override
