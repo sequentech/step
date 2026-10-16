@@ -2002,17 +2002,53 @@ fn schema_with_tally_references(schema: &str, entries: &[(String, Vec<u8>)]) -> 
     Ok(serde_json::to_string(&document)?)
 }
 
+/// The rows an election event's import created, for its audit entry.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+pub struct ImportedCounts {
+    pub elections: usize,
+    pub contests: usize,
+    pub candidates: usize,
+    pub areas: usize,
+    pub area_contests: usize,
+}
+
+impl ImportedCounts {
+    pub fn of(schema: &ImportElectionEventSchema) -> Self {
+        ImportedCounts {
+            elections: schema.elections.len(),
+            contests: schema.contests.len(),
+            candidates: schema.candidates.len(),
+            areas: schema.areas.len(),
+            area_contests: schema.area_contests.len(),
+        }
+    }
+}
+
+/// What an election event's import read and did.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ImportedElectionEvent {
+    /// What the import left out, each with its reason, for the task's log.
+    pub notes: Vec<String>,
+    /// The SHA-256 of the archive imported: the upload once decrypted, the
+    /// file the importer's checksum is checked against.
+    pub file_sha256: String,
+    /// The checksum the importer declared, where it has something to check:
+    /// a signed configuration package is checked against its manifest.
+    pub declared_sha256: Option<String>,
+    pub counts: ImportedCounts,
+}
+
 /// Imports the document. Returns what the import left out, each with its
-/// reason, for the task's log.
+/// reason, for the task's log, and what its audit entry records.
 #[instrument(err, skip_all)]
 pub async fn process_document(
     hasura_transaction: &Transaction<'_>,
     object: ImportElectionEventBody,
     election_event_id: String,
     tenant_id: String,
-) -> Result<Vec<String>> {
+) -> Result<ImportedElectionEvent> {
     let importer = object.importer.clone();
-    let (temp_file_path, document, document_type, package) = get_document(
+    let (mut temp_file_path, document, document_type, package) = get_document(
         hasura_transaction,
         object.clone(),
         Some(election_event_id.clone()),
@@ -2022,6 +2058,9 @@ pub async fn process_document(
         let message = format!("Failed to get document: {err}");
         err.context(message)
     })?;
+    let file_sha256 = crate::services::task_audit::file_sha256(temp_file_path.as_file_mut())?;
+    let declared_sha256 =
+        configuration_package::typed_checksum(object.sha256.clone(), package.as_ref());
 
     let (zip_entries, spooled_entries, file_election_event_schema) =
         get_zip_entries(temp_file_path, &document_type).await?;
@@ -2489,7 +2528,12 @@ pub async fn process_document(
         .await?;
     }
 
-    Ok(notes)
+    Ok(ImportedElectionEvent {
+        notes,
+        file_sha256,
+        declared_sha256,
+        counts: ImportedCounts::of(&election_event_schema),
+    })
 }
 
 /// Drops each imported keys ceremony whose public key is not the one on its

@@ -6,7 +6,7 @@
 use anyhow::Result;
 use electoral_log::{
     adapters::{
-        events::{ActivityMark, EventDatabases},
+        events::{ActivityMark, EventDatabases, RetiredEventDatabase},
         postgres::{LogScope, PostgresStore},
         transfer::{
             ExportManifest, ExportedRecord, SignedCheckpoint, EXPORT_FORMAT_V1, EXPORT_FORMAT_V2,
@@ -182,6 +182,117 @@ async fn a_deleted_events_database_is_retired_with_its_records() -> Result<()> {
     client.create_board(&board).await?;
     assert_eq!(client.count(&board, &LogQuery::default()).await?, 0);
     databases.drop_event(&tenant.to_string(), &event_id).await?;
+    catalog
+        .batch_execute(&format!(
+            "DROP DATABASE \"{}\" WITH (FORCE)",
+            retired.database_name
+        ))
+        .await?;
+    catalog
+        .batch_execute(&format!(
+            "DELETE FROM electoral_log_retired_events WHERE database_name = '{}'",
+            retired.database_name
+        ))
+        .await?;
+    Ok(())
+}
+
+async fn allows_connections(databases: &EventDatabases, database: &str) -> Result<bool> {
+    Ok(databases
+        .catalog()
+        .client()
+        .await?
+        .query_one(
+            "SELECT datallowconn FROM pg_database WHERE datname = $1",
+            &[&database],
+        )
+        .await?
+        .get(0))
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_PG_* with a role that may create databases"]
+async fn a_retired_events_database_is_read_and_closed_again() -> Result<()> {
+    let databases = databases()?;
+    let (tenant, event, live_event) = (Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4());
+    let board = board(&tenant, &event);
+    databases
+        .create_event(&tenant.to_string(), &event.to_string())
+        .await?;
+    let client = BoardClient::new(Arc::new(databases.clone()));
+    client.create_board(&board).await?;
+    client.append(&board, &entries(0..4)).await?;
+    let retired = databases
+        .retire_event(&tenant.to_string(), &event.to_string(), 1_791_000_001)
+        .await?
+        .unwrap();
+
+    let read = databases
+        .read_retired_event(&retired, |store| async move {
+            let records = store
+                .query_scope(LogScope::Database, &LogQuery::default())
+                .await?;
+            // The read can't change what the database keeps.
+            let written = store
+                .append(&board, &mut entries(4..5).into_iter().map(Ok))
+                .await;
+            Ok((records, written.is_err()))
+        })
+        .await?;
+    assert_eq!(read.0.len(), 4);
+    assert!(read.1, "a retired database was written to");
+    assert!(!allows_connections(&databases, &retired.database_name).await?);
+
+    // A read that fails closes the database too.
+    let failed = databases
+        .read_retired_event(&retired, |_| async {
+            anyhow::bail!("the read failed") as Result<()>
+        })
+        .await;
+    assert!(failed.is_err());
+    assert!(!allows_connections(&databases, &retired.database_name).await?);
+
+    // A database left open, as by a process that stopped while reading, is
+    // closed by the next read of any retired database of the server.
+    let catalog = databases.catalog().client().await?;
+    catalog
+        .batch_execute(&format!(
+            "ALTER DATABASE \"{}\" WITH ALLOW_CONNECTIONS true",
+            retired.database_name
+        ))
+        .await?;
+    databases
+        .read_retired_event(&retired, |_| async { Ok(()) })
+        .await?;
+    assert!(!allows_connections(&databases, &retired.database_name).await?);
+
+    // Only a database the catalog lists as the tenant's retired one is opened.
+    databases
+        .create_event(&tenant.to_string(), &live_event.to_string())
+        .await?;
+    let live = databases.event(&live_event.to_string()).await?.unwrap();
+    let posing = RetiredEventDatabase {
+        election_event_id: live_event.to_string(),
+        tenant_id: tenant.to_string(),
+        database_name: live.database_name.clone(),
+    };
+    assert!(databases
+        .read_retired_event(&posing, |_| async { Ok(()) })
+        .await
+        .is_err());
+    assert!(allows_connections(&databases, &live.database_name).await?);
+    let foreign = RetiredEventDatabase {
+        tenant_id: Uuid::new_v4().to_string(),
+        ..retired.clone()
+    };
+    assert!(databases
+        .read_retired_event(&foreign, |_| async { Ok(()) })
+        .await
+        .is_err());
+
+    databases
+        .drop_event(&tenant.to_string(), &live_event.to_string())
+        .await?;
     catalog
         .batch_execute(&format!(
             "DROP DATABASE \"{}\" WITH (FORCE)",

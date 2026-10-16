@@ -95,6 +95,32 @@ pub async fn get_secret_by_key(
     }
 }
 
+/// The tenant-wide secrets (of no election event) whose key starts with
+/// `prefix`, in key order.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_secrets_by_key_prefix(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    prefix: &str,
+) -> Result<Vec<Secret>> {
+    let tenant_uuid = parse_uuid_v4(tenant_id)
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+    hasura_transaction
+        .query(
+            r#"
+            SELECT * FROM "sequent_backend".secret
+            WHERE tenant_id = $1 AND election_event_id IS NULL AND starts_with(key, $2)
+            ORDER BY key
+            "#,
+            &[&tenant_uuid, &prefix],
+        )
+        .await
+        .map_err(|err| anyhow!("Error listing secrets: {err}"))?
+        .into_iter()
+        .map(Secret::try_from)
+        .collect()
+}
+
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_secret_by_id(
     hasura_transaction: &Transaction<'_>,
