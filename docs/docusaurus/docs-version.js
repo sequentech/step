@@ -38,7 +38,6 @@ function versionName(baseUrl) {
 }
 
 function versionLabel(name) {
-  if (name === 'main') return 'Next';
   if (name === 'dev') return 'Versions';
   return name;
 }
