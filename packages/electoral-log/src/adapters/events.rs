@@ -702,9 +702,9 @@ impl EventDatabases {
         F: FnOnce(PostgresStore) -> Fut,
         Fut: std::future::Future<Output = Result<T>>,
     {
-        self.initialize().await?;
         let tenant = canonical_uuid(&retired.tenant_id)?;
         let event = canonical_uuid(&retired.election_event_id)?;
+        self.initialize().await?;
         let listed = self
             .inner
             .catalog
