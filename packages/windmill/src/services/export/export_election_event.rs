@@ -35,7 +35,6 @@ use sequent_core::temp_path::generate_temp_file;
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::{Candidate, Contest, Election};
 use std::collections::HashMap;
-use std::env;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
@@ -339,9 +338,12 @@ pub async fn process_export_zip(
         .await
         .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
     info!("export_config: {:?}", export_config);
-    // Temporary file path for the ZIP archive
+    // A task-private 0700 directory prevents same-event exports from racing
+    // over a predictable filename and removes plaintext on every return path.
+    let export_temp_dir =
+        tempfile::tempdir().context("Error creating temporary election-event export directory")?;
     let zip_filename = format!("export-election-event-{election_event_id}.zip");
-    let zip_path = env::temp_dir().join(&zip_filename);
+    let zip_path = export_temp_dir.path().join(&zip_filename);
 
     // Create a new ZIP file
     let zip_file =
@@ -752,13 +754,6 @@ pub async fn process_export_zip(
         false,
     )
     .await?;
-
-    // Clean up the ZIP files (optional)
-    std::fs::remove_file(&zip_path).map_err(|e| anyhow!("Error removing ZIP file: {e:?}"))?;
-    if encrypted_zip_path.exists() {
-        std::fs::remove_file(&encrypted_zip_path)
-            .map_err(|e| anyhow!("Error removing encrypted ZIP file: {e:?}"))?;
-    }
 
     hasura_transaction
         .commit()
