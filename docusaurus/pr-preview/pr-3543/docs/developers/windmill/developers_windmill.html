@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Developers Windmill | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3543/docs/developers/windmill/developers_windmill"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Developers Windmill | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3543/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3543/docs/developers/windmill/developers_windmill"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3543/docs/developers/windmill/developers_windmill" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3543/docs/developers/windmill/developers_windmill" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Developers Windmill","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3543/docs/developers/windmill/developers_windmill"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3543/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3543/assets/js/runtime~main.17fe5610.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3543/assets/js/runtime~main.fb4432d7.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3543/assets/js/main.ad96fad1.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -16,19 +16,19 @@
 authorized tenant, election event, election and ballot ID. Configure an absolute
 HTTP(S) base URL without credentials, query parameters or a fragment; a path
 prefix and trailing slash are supported. Both portal settings ignore surrounding
-whitespace and report their setting name when validation fails.
-When <code>KIOSK_VOTING_PORTAL_URL</code> is set,
-a receipt requested from that origin uses the configured kiosk base instead.
-Selecting a distinct configured kiosk origin also restores the fixed <code>?kiosk</code>
-login flag for older portal requests that omitted their query string.</p>
-<p>The existing <code>ballot_tracker_url</code> request and task fields remain compatible,
-including for queued tasks, but only select a configured kiosk origin and the
-fixed <code>?kiosk</code> login flag on a configured portal origin. Other client paths and
-query parameters are ignored. Receipt templates still receive the
-<code>ballot_tracker_url</code> variable as a complete link. Existing deployed and custom
-templates need no migration, and all PDF renderer backends receive the same
-server-built link. Restart Windmill workers after updating the code or these
-URL settings.</p>
+whitespace and report their setting name when validation fails.</p>
+<p>Harvest marks a receipt as a kiosk receipt when the voter&#x27;s token was issued to
+the <code>voting-portal-kiosk</code> client, and passes that to Windmill in the task&#x27;s
+<code>is_kiosk</code> argument. A kiosk receipt links to <code>KIOSK_VOTING_PORTAL_URL</code> when it
+is set, otherwise to <code>VOTING_PORTAL_URL</code>, and always adds the <code>?kiosk</code> login
+flag. Receipts for every other client link to <code>VOTING_PORTAL_URL</code>.</p>
+<p>The <code>ballot_tracker_url</code> request and task fields remain so that current portal
+requests and queued tasks stay compatible, but Windmill ignores them. A task
+queued without <code>is_kiosk</code> gets a normal portal link. Receipt templates still
+receive the <code>ballot_tracker_url</code> variable as a complete link. Existing deployed
+and custom templates need no migration, and all PDF renderer backends receive
+the same server-built link. Restart Windmill workers after updating the code or
+these URL settings.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="password-policy-cache">Password-policy cache<a href="#password-policy-cache" class="hash-link" aria-label="Direct link to Password-policy cache" title="Direct link to Password-policy cache" translate="no">​</a></h2>
 <p>Harvest and Windmill share the sequent-core password-policy reader. Each process
 caches successful reads per realm. Set <code>KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS</code>
