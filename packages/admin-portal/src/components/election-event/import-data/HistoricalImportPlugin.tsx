@@ -77,22 +77,25 @@ export const HistoricalImportPlugin: React.FC<Props> = ({baseUrl, ...panelProps}
                     )}
                 </Typography>
             )}
-            <Button
-                disabled={panelProps.disabled || !current || current.loading}
-                onClick={() => setAttempt((value) => value + 1)}
-            >
-                {String(
-                    t("electionEventScreen.import.historical.reload", {
-                        defaultValue: "Reload converter",
-                    })
-                )}
-            </Button>
+            {current?.error && (
+                <Button
+                    disabled={panelProps.disabled || !current || current.loading}
+                    onClick={() => setAttempt((value) => value + 1)}
+                >
+                    {String(
+                        t("electionEventScreen.import.historical.reload", {
+                            defaultValue: "Reload converter",
+                        })
+                    )}
+                </Button>
+            )}
             {current?.api && (
                 <HistoricalSourcePanel
                     key={configured}
                     {...panelProps}
                     disabled={panelProps.disabled || current.loading || !!current.error}
                     api={current.api}
+                    onRetry={() => setAttempt((value) => value + 1)}
                 />
             )}
         </>

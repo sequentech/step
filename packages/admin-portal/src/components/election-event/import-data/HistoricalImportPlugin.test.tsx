@@ -68,28 +68,18 @@ it("removes old controls immediately when configured assets change", async () =>
     )
 })
 
-it("reloads the converter without discarding selected local files", async () => {
-    let finish: ((api: unknown) => void) | undefined
+it("offers reload after a load failure and recovers", async () => {
     const dispose = jest.fn()
     ;(createHistoricalImportConverter as jest.Mock)
-        .mockReturnValueOnce({ready: Promise.resolve({buildFromHistorical: jest.fn()}), dispose})
+        .mockReturnValueOnce({ready: Promise.reject(new Error("Asset load failed")), dispose})
         .mockReturnValueOnce({
-            ready: new Promise((resolve) => {
-                finish = resolve
-            }),
+            ready: Promise.resolve({buildFromHistorical: jest.fn()}),
             dispose: jest.fn(),
         })
     render(<HistoricalImportPlugin {...props} baseUrl="/wasm/converter" />)
-    const input = (await screen.findByLabelText("Retained sources")) as HTMLInputElement
-    const source = new File(["synthetic"], "example.sql")
-    fireEvent.change(input, {target: {files: [source]}})
+    await screen.findByRole("alert")
     fireEvent.click(screen.getByRole("button", {name: "Reload converter"}))
+    expect(await screen.findByText("Historical source controls")).toBeInTheDocument()
     expect(dispose).toHaveBeenCalled()
-    expect(screen.getByLabelText("Retained sources")).toBe(input)
-    expect(input.files?.[0]).toBe(source)
-    expect(input).toBeDisabled()
-    await act(async () => finish?.({buildFromHistorical: jest.fn()}))
-    expect(screen.getByLabelText("Retained sources")).toBe(input)
-    expect(input.files?.[0]).toBe(source)
-    expect(input).toBeEnabled()
+    expect(screen.queryByRole("button", {name: "Reload converter"})).not.toBeInTheDocument()
 })

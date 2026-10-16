@@ -64,7 +64,11 @@ export default meta
 type Story = StoryObj<typeof meta>
 export const Configured: Story = {
     play: async ({canvasElement}) => {
-        await expect(await within(canvasElement).findByLabelText("Historical SQL")).toBeVisible()
+        await expect(
+            await within(canvasElement).findByText(
+                "Drop the SQL dump into the same zone to complete the source pair."
+            )
+        ).toBeVisible()
     },
 }
 export const IncompatiblePlugin: Story = {

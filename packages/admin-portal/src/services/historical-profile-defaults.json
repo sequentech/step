@@ -1,0 +1,12 @@
+{
+    "census": "configuration-only",
+    "ballot": "seat-plurality-at-large",
+    "scope": "require-complete-coverage",
+    "postCoverage": "require-complete-coverage",
+    "precinctCoverage": "require-complete-coverage",
+    "affiliation": "require-known-party",
+    "scheduleOffsetMinutes": null,
+    "electionMappings": [],
+    "areaMappings": [],
+    "sourceDigests": null
+}

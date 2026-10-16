@@ -89,19 +89,11 @@ function Fixture(args: Scenario) {
     )
 }
 
-const drawerDefects = {
-    expectedFailure: {
-        reason: "The drawer is a modal dialog without an accessible name.",
-        a11y: ["aria-dialog-name"],
-    },
-}
-
 const meta = {
     title: "Admin/Election event/Import data/ImportDataDrawer",
     component: ImportDataDrawer,
     args: {mode: "provider", errors: null, doImport: fn(async () => {}), closeDrawer: fn()},
     argTypes: {mode: {control: "inline-radio", options: ["provider", "props"]}},
-    parameters: drawerDefects,
     beforeEach: async ({args}) => {
         flow = createFlow({importError: args.importError, importProblems: args.importProblems})
         await flow.graphql.ready
@@ -126,7 +118,11 @@ export const ElectionEventImport: Story = {
     play: async () => {
         const root = await drawer("Import Election Event")
         const screen = within(root)
-        await expect(screen.getByText("Import Election Events using a JSON file.")).toBeVisible()
+        await expect(
+            screen.getByText(
+                "Drop a native ZIP, or the supported SQL dump and supplemental XLSX workbook."
+            )
+        ).toBeVisible()
         await userEvent.type(
             screen.getByRole("textbox", {name: "Integrity Check (SHA-256)"}),
             CHECKSUM

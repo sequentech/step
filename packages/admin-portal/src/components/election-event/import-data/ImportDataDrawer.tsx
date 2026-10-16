@@ -41,6 +41,7 @@ export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
     const {
         importDrawer,
         closeImportDrawer,
+        openImportDrawer,
         handleImportElectionEvent,
         uploadCallback: doUploadCallback,
         errors: importErrors,
@@ -55,17 +56,24 @@ export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
                 onClose={() => {
                     closeDrawer ? closeDrawer() : closeImportDrawer()
                 }}
-                PaperProps={{
-                    sx: {width: {xs: "100%", sm: "min(640px, 100%)"}},
-                }}
+                PaperProps={{"aria-label": String(t(title))}}
+                sx={{"& .MuiDrawer-paper": {width: {xs: "100%", sm: "min(640px, 100%)"}}}}
             >
                 <Box sx={{padding: "16px"}}>
                     <ElectionHeader title={title} subtitle={subtitle} />
                     <DrawerStyles.Wrapper>
                         <>
-                            <DrawerStyles.SubTitle>{t(paragraph)}</DrawerStyles.SubTitle>
+                            <DrawerStyles.SubTitle>
+                                {doImport
+                                    ? t(paragraph)
+                                    : t("electionEventScreen.import.sourceInstructions", {
+                                          defaultValue:
+                                              "Drop a native ZIP, or the supported SQL dump and supplemental XLSX workbook.",
+                                      })}
+                            </DrawerStyles.SubTitle>
                             <ImportScreen
                                 allowHistoricalSource={!doImport}
+                                onSourceChange={!doImport ? openImportDrawer : undefined}
                                 refresh="electionEventScreen.import.voters"
                                 doCancel={() => {
                                     closeDrawer ? closeDrawer() : closeImportDrawer()

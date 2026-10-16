@@ -142,6 +142,10 @@ function renderImport(allowHistoricalSource = false) {
             allowHistoricalSource={allowHistoricalSource}
         />
     )
+    if (allowHistoricalSource)
+        fireEvent.change(screen.getByLabelText("Import file"), {
+            target: {files: [new File(["sql"], "source.sql"), new File(["xlsx"], "source.xlsx")]},
+        })
     return {uploadCallback, doImport, doCancel}
 }
 
@@ -407,13 +411,17 @@ it("makes no backend request before explicit acceptance and separates dry-run fr
             })
     )
     fireEvent.click(screen.getByRole("button", {name: "Accept synthetic reviewed package"}))
+    await waitFor(() =>
+        expect(screen.getByTestId("import-stage")).toHaveTextContent("stage.local-ready")
+    )
+    expect(mockGetUploadUrl).not.toHaveBeenCalled()
+    expect(mockFetch).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole("button", {name: "electionEventScreen.import.create"}))
     await waitFor(() => expect(callbacks.uploadCallback).toHaveBeenCalledTimes(1))
     expect(screen.getByTestId("import-stage")).toHaveTextContent("stage.validating")
-    expect(screen.getByRole("button", {name: "electionEventScreen.import.import"})).toBeDisabled()
+    expect(screen.getByRole("button", {name: "electionEventScreen.import.create"})).toBeDisabled()
     expect(callbacks.doImport).not.toHaveBeenCalled()
     await act(async () => finishDryRun?.())
-    expect(screen.getByTestId("import-stage")).toHaveTextContent("stage.ready")
-    fireEvent.click(screen.getByRole("button", {name: "electionEventScreen.import.import"}))
     await waitFor(() => expect(callbacks.doImport).toHaveBeenCalledTimes(1))
     expect(screen.getByTestId("import-stage")).toHaveTextContent("stage.submitted")
 })
@@ -424,26 +432,32 @@ it.each(["transport", "validation"] as const)(
         callbacks.uploadCallback.mockRejectedValue(new ImportRequestError(kind))
         fireEvent.click(screen.getByRole("button", {name: "Accept synthetic reviewed package"}))
         await waitFor(() =>
+            expect(screen.getByTestId("import-stage")).toHaveTextContent("stage.local-ready")
+        )
+        fireEvent.click(screen.getByRole("button", {name: "electionEventScreen.import.create"}))
+        await waitFor(() =>
             expect(screen.getByTestId("import-stage")).toHaveTextContent(
                 kind === "transport" ? "stage.validation-transport-error" : "stage.validation-error"
             )
         )
         expect(callbacks.doImport).not.toHaveBeenCalled()
-        expect(
-            screen.getByRole("button", {name: "electionEventScreen.import.import"})
-        ).toBeDisabled()
+        const create = screen.getByRole("button", {name: "electionEventScreen.import.create"})
+        if (kind === "validation") expect(create).toBeDisabled()
+        else expect(create).toBeEnabled()
     }
 )
 it("does not confuse a passing dry-run with successful creation and permits correction", async () => {
     const callbacks = renderImport(true)
     callbacks.doImport.mockRejectedValue(new ImportRequestError("creation"))
     fireEvent.click(screen.getByRole("button", {name: "Accept synthetic reviewed package"}))
-    await waitFor(() => expect(screen.getByTestId("import-stage")).toHaveTextContent("stage.ready"))
-    fireEvent.click(screen.getByRole("button", {name: "electionEventScreen.import.import"}))
+    await waitFor(() =>
+        expect(screen.getByTestId("import-stage")).toHaveTextContent("stage.local-ready")
+    )
+    fireEvent.click(screen.getByRole("button", {name: "electionEventScreen.import.create"}))
     await waitFor(() =>
         expect(screen.getByTestId("import-stage")).toHaveTextContent("stage.creation-error")
     )
-    expect(screen.getByLabelText("electionEventScreen.import.sha")).toBeEnabled()
+    expect(screen.getByLabelText("electionEventScreen.import.sha")).toBeDisabled()
 })
 
 it("keeps native import working and blocks raw source upload when the plugin is unconfigured", async () => {
@@ -468,7 +482,27 @@ it("keeps native import working and blocks raw source upload when the plugin is 
     expect(mockFetch).not.toHaveBeenCalled()
     expect(uploadCallback).not.toHaveBeenCalled()
     expect(doImport).not.toHaveBeenCalled()
-    uploadFile()
+    fireEvent.change(screen.getByLabelText("Import file"), {
+        target: {files: [new File(["zip"], "event.zip")]},
+    })
     await waitFor(() => expect(uploadCallback).toHaveBeenCalledTimes(1))
     expect(screen.getByRole("button", {name: "electionEventScreen.import.import"})).toBeEnabled()
+})
+
+it("resets old backend diagnostics when a new source selection starts", () => {
+    const onSourceChange = jest.fn()
+    render(
+        <ImportScreen
+            allowHistoricalSource
+            onSourceChange={onSourceChange}
+            doImport={jest.fn()}
+            doCancel={jest.fn()}
+            errors="Previous package refused"
+        />
+    )
+    fireEvent.change(screen.getByLabelText("Import file"), {
+        target: {files: [new File(["sql"], "replacement.sql")]},
+    })
+    expect(onSourceChange).toHaveBeenCalledTimes(1)
+    expect(mockGetUploadUrl).not.toHaveBeenCalled()
 })

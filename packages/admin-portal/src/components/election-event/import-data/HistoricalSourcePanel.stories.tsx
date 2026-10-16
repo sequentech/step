@@ -33,11 +33,8 @@ type Story = StoryObj<typeof meta>
 export const SelectBothLocalSources: Story = {
     play: async ({canvasElement, args}) => {
         const view = within(canvasElement)
-        await expect(view.getByLabelText("Historical SQL")).toBeVisible()
-        await expect(view.getByLabelText("Historical workbook")).toBeVisible()
-        await expect(
-            view.getByRole("button", {name: "Convert and validate locally"})
-        ).toBeDisabled()
+        await expect(view.getByText(/Drop the SQL dump/)).toHaveTextContent("Drop the SQL dump")
+        await expect(view.queryByRole("combobox")).not.toBeInTheDocument()
         await expect(args.api.buildFromHistorical).not.toHaveBeenCalled()
         await expect(args.onAccepted).not.toHaveBeenCalled()
     },
