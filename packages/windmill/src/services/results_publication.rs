@@ -33,7 +33,7 @@ use crate::postgres::tally_results_publication::{
     NewTallyResultsPublication, TallyResultsPublication,
 };
 use crate::postgres::tally_session_execution::get_tally_session_execution_documents;
-use crate::services::audit_log::{act_for, AuditActor, AuditOrigin};
+use crate::services::audit_log::{act_for_tenant, AuditActor, AuditOrigin};
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::{
     get_document_as_temp_file, upload_and_return_document, upload_and_return_public_event_document,
@@ -1535,13 +1535,6 @@ pub async fn cleanup_revoked_results_publication(
     delete_publication_artifacts_with(artifacts, publication, true).await
 }
 
-/// The rows `tx` changes are logged as those of the admin whose request
-/// this is (SW-F-0364).
-async fn act_for_tenant(tx: &Transaction<'_>, actor: &AuditActor, tenant_id: &str) -> Result<()> {
-    let tenant = uuid::Uuid::parse_str(tenant_id).context("Invalid tenant id")?;
-    act_for(tx, actor, AuditOrigin::Harvest, tenant).await
-}
-
 pub async fn configure_results_website_policy_request(
     tenant_id: &str,
     input: &ConfigureResultsWebsitePolicyInput,
@@ -1556,7 +1549,7 @@ pub async fn configure_results_website_policy_request(
         .transaction()
         .await
         .context("Failed to start results website policy transaction")?;
-    act_for_tenant(&tx, actor, tenant_id).await?;
+    act_for_tenant(&tx, actor, AuditOrigin::Harvest, tenant_id).await?;
     let output = configure_results_website_policy(&tx, tenant_id, input).await?;
     tx.commit()
         .await
@@ -1663,7 +1656,7 @@ impl ResultsPublicationRequestSteps for HasuraPublicationRequestSteps<'_> {
             .transaction()
             .await
             .context("Failed to start publication transaction")?;
-        act_for_tenant(&tx, self.actor, publication.tenant_id).await?;
+        act_for_tenant(&tx, self.actor, AuditOrigin::Harvest, publication.tenant_id).await?;
         let publication = PgResultsPublications { transaction: &tx }
             .insert_publishing(publication)
             .await?;
@@ -2055,7 +2048,7 @@ pub async fn revoke_results_publication_request(
         .transaction()
         .await
         .context("Failed to start results revocation transaction")?;
-    act_for_tenant(&tx, actor, tenant_id).await?;
+    act_for_tenant(&tx, actor, AuditOrigin::Harvest, tenant_id).await?;
     let publication = revoke_results_publication(
         &PgResultsPublications { transaction: &tx },
         &ElectoralLogResultsPublicationAudit { transaction: &tx },

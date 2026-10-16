@@ -494,6 +494,17 @@ pub async fn act_for(
     Ok(())
 }
 
+/// [`act_for`], for a tenant named by its id as text.
+pub async fn act_for_tenant(
+    hasura_transaction: &Transaction<'_>,
+    actor: &AuditActor,
+    origin: AuditOrigin,
+    tenant_id: &str,
+) -> Result<()> {
+    let tenant_id = Uuid::parse_str(tenant_id).context("Invalid tenant id")?;
+    act_for(hasura_transaction, actor, origin, tenant_id).await
+}
+
 /// Queues an entry of any audit kind in the caller's transaction.
 #[instrument(skip_all, err)]
 pub async fn stage_entry(

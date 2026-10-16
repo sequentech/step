@@ -13,7 +13,7 @@ use deadpool_postgres::Transaction;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
-use windmill::services::audit_log::{act_for, AuditActor, AuditOrigin};
+use windmill::services::audit_log::{act_for, act_for_tenant, AuditActor, AuditOrigin};
 use windmill::services::delete_tenant::stage_tenant_deletion;
 
 const USER_ID: &str = "8f2b7a52-5a0c-4c0e-9d57-3f1f4a8f6f10";
@@ -1277,4 +1277,40 @@ async fn a_key_set_to_null_is_no_change_from_a_key_left_out() {
 
     let entry = one_entry(&tx, tenant).await;
     assert_eq!(entry.paths(), vec!["settings.logs_timezone"]);
+}
+
+#[tokio::test]
+async fn a_tenant_named_by_its_id_is_acted_for_like_any_other() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let tenant = insert_tenant(&tx, &json!({})).await;
+    let event = insert_event(&tx, tenant, "National").await;
+
+    act_for_tenant(
+        &tx,
+        &step_admin(),
+        AuditOrigin::Windmill,
+        &tenant.to_string(),
+    )
+    .await
+    .unwrap();
+    insert_area(&tx, tenant, event, "South").await;
+
+    let found = entries(&tx, tenant).await;
+    assert_eq!(found.len(), 1, "{found:#?}");
+    assert_eq!(found[0].username.as_deref(), Some("ada"));
+    assert_eq!(found[0].details["origin"], "windmill");
+}
+
+#[tokio::test]
+async fn a_tenant_id_that_is_not_a_uuid_acts_for_no_one() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+
+    let error = act_for_tenant(&tx, &step_admin(), AuditOrigin::Harvest, "not-a-tenant")
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("Invalid tenant id"), "{error:#}");
 }
