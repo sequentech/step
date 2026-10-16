@@ -115,28 +115,94 @@ pub async fn record_election_electorates(
     Ok(electorates)
 }
 
-/// The electorates the session recorded, or `None` for a session that
-/// recorded none.
+/// The annotations of an imported tally session, with the elections
+/// its recorded electorates name replaced through `replacement`, the import's id
+/// map, as the import replaces them everywhere else. An id the map does not
+/// have is an error, as it is for the session's own elections and areas.
+pub fn remap_recorded_ids(
+    annotations: Option<Value>,
+    replacement: &HashMap<String, String>,
+) -> Result<Option<Value>> {
+    let Some(mut annotations) = annotations else {
+        return Ok(None);
+    };
+    let replace = |id: &String| {
+        replacement
+            .get(id)
+            .cloned()
+            .ok_or_else(|| anyhow!("Can't find id: {id} in replacement map"))
+    };
+    if let Some(electorates) = read_recorded::<ElectionElectorates>(
+        Some(&annotations),
+        ELECTION_ELECTORATES_ANNOTATION,
+        "being imported",
+    )? {
+        let electorates = electorates
+            .into_iter()
+            .map(|(election_id, electorate)| Ok((replace(&election_id)?, electorate)))
+            .collect::<Result<ElectionElectorates>>()?;
+        annotations[ELECTION_ELECTORATES_ANNOTATION] =
+            Value::String(serde_json::to_string(&electorates)?);
+    }
+    Ok(Some(annotations))
+}
+
+/// Reads the session annotation `key`, a JSON string, as `T`.
+fn read_recorded<T: serde::de::DeserializeOwned>(
+    annotations: Option<&Value>,
+    key: &str,
+    tally_session_id: &str,
+) -> Result<Option<T>> {
+    annotations
+        .and_then(|annotations| annotations.get(key))
+        .map(|value| {
+            value
+                .as_str()
+                .ok_or_else(|| anyhow!("not a string"))
+                .and_then(|value| Ok(serde_json::from_str(value)?))
+                .with_context(|| format!("the {key} of tally session {tally_session_id}"))
+        })
+        .transpose()
+}
+
+/// Refuses a recorded map that names elections other than the session's own:
+/// it was recorded for the session's elections, so one that names others is
+/// inconsistent, and counting it, or counting without it, would change the
+/// session's census silently.
+fn of_session<'a>(
+    tally_session: &TallySession,
+    key: &str,
+    mut elections: impl Iterator<Item = &'a String>,
+) -> Result<()> {
+    let session_elections = tally_session.election_ids.as_deref().unwrap_or_default();
+    match elections.find(|election_id| !session_elections.contains(election_id)) {
+        None => Ok(()),
+        Some(election_id) => Err(anyhow!(
+            "The {key} of tally session {} name election {election_id}, which is not one of \
+             its elections",
+            tally_session.id
+        )),
+    }
+}
+
+/// The electorates the session recorded for its elections, or `None` for a
+/// session that recorded none.
 pub fn recorded_election_electorates(
     tally_session: &TallySession,
 ) -> Result<Option<ElectionElectorates>> {
-    tally_session
-        .annotations
-        .as_ref()
-        .and_then(|annotations| annotations.get(ELECTION_ELECTORATES_ANNOTATION))
-        .map(|electorates| {
-            electorates
-                .as_str()
-                .ok_or_else(|| anyhow!("not a string"))
-                .and_then(|electorates| Ok(serde_json::from_str(electorates)?))
-                .with_context(|| {
-                    format!(
-                        "the election electorates of tally session {}",
-                        tally_session.id
-                    )
-                })
-        })
-        .transpose()
+    let electorates = read_recorded::<ElectionElectorates>(
+        tally_session.annotations.as_ref(),
+        ELECTION_ELECTORATES_ANNOTATION,
+        &tally_session.id,
+    )?;
+    if let Some(electorates) = &electorates {
+        of_session(
+            tally_session,
+            ELECTION_ELECTORATES_ANNOTATION,
+            electorates.keys(),
+        )?;
+    }
+    Ok(electorates)
 }
 
 #[cfg(test)]
@@ -185,7 +251,7 @@ mod tests {
             last_updated_at: None,
             labels: None,
             annotations,
-            election_ids: None,
+            election_ids: Some(vec!["other".into(), "post".into()]),
             area_ids: None,
             is_execution_completed: false,
             keys_ceremony_id: "keys".into(),
@@ -333,5 +399,15 @@ mod tests {
             recorded_election_electorates(&with_packages).unwrap(),
             Some(electorates)
         );
+    }
+
+    #[test]
+    fn a_recorded_map_naming_other_elections_is_refused() {
+        // Recorded for elections the session does not have: inconsistent.
+        let electorates = ElectionElectorates::from([("exported-post".to_string(), 7)]);
+        let imported = session(Some(serde_json::json!({
+            ELECTION_ELECTORATES_ANNOTATION: serde_json::to_string(&electorates).unwrap(),
+        })));
+        assert!(recorded_election_electorates(&imported).is_err());
     }
 }
