@@ -262,7 +262,7 @@ fn cases() -> Vec<Case> {
         // The task row is written before the permission check.
         case!(Admin, "/export-template", {"tenant_id": TENANT_ID}, [TEMPLATE_WRITE], BACKEND, BACKEND),
         case!(Admin, "/export-tenant-config", {"tenant_id": TENANT_ID}, [TENANT_READ], BACKEND, UNAUTHORIZED),
-        case!(Admin, "/export-tenant-logs", {"format": "CSV", "scope": "TENANT_LOG"}, [TENANT_LOGS_EXPORT], BACKEND, FORBIDDEN),
+        case!(Admin, "/export-tenant-logs", {"format": "CSV", "scope": "TENANT_LOG"}, [TENANT_LOGS_EXPORT, TENANT_LOGS_READ], BACKEND, FORBIDDEN),
         case!(Admin, "/export-tenant-users", {"tenant_id": TENANT_ID}, [USER_READ], BACKEND, UNAUTHORIZED),
         // The task row is written before the permission check.
         case!(Admin, "/export-trustees", {"password": "test-password"}, [TRUSTEES_EXPORT], BACKEND, BACKEND),

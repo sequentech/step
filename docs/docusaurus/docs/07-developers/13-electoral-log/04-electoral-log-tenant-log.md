@@ -628,7 +628,7 @@ against the caller's token. With an election event, it behaves as before and req
 
 | Action | Harvest route | Permission | Task type |
 | --- | --- | --- | --- |
-| `export_tenant_logs(format, scope, username, created_from, created_to, time_zone)` | `POST /export-tenant-logs` | `tenant-logs-export` (403 otherwise) | `EXPORT_TENANT_LOGS` |
+| `export_tenant_logs(format, scope, username, created_from, created_to, time_zone)` | `POST /export-tenant-logs` | `tenant-logs-export` and `tenant-logs-read` (403 otherwise) | `EXPORT_TENANT_LOGS` |
 | `export_election_event_logs(election_event_id, format, created_from, created_to, time_zone, scope, election_id, area_id, username)` | `POST /export-election-event-logs` | `logs-export` (it was `report-write`) | `EXPORT_ACTIVITY_LOGS_REPORT` |
 
 - **Which code writes the file.** A tenant export, and an event export with a scope other than `ALL`
