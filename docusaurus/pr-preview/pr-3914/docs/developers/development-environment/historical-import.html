@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Historical SQL and workbook import | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3914/docs/developers/development-environment/historical-import"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Historical SQL and workbook import | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3914/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3914/docs/developers/development-environment/historical-import"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3914/docs/developers/development-environment/historical-import" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3914/docs/developers/development-environment/historical-import" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Historical SQL and workbook import","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3914/docs/developers/development-environment/historical-import"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3914/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3914/assets/js/runtime~main.895ab2cb.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3914/assets/js/runtime~main.92dc0659.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3914/assets/js/main.1c263c14.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -21,7 +21,10 @@ databases or use an AI service.</p>
 <code>global-settings.json</code> sets <code>ELECTION_EVENT_IMPORT_CONVERTER_BASE_URL</code> to a
 nonempty extensionless base URL. There is no enabled-by-default fallback. The
 standard native ZIP import remains available when the setting is absent, blank,
-or the converter fails to load. Historical SQL/XLSX files never enter the native
+non-string (including <code>null</code> or <code>false</code>), or the converter fails to load. Omit
+the key or set it to <code>&quot;&quot;</code> to disable conversion. The key is read from the
+Admin runtime JSON through <code>SettingsContextProvider</code>; it is not a separate
+build-time environment flag. Historical SQL/XLSX files never enter the native
 upload path.</p>
 <p>The loader follows <code>IVR_EMULATOR_BASE_URL</code>: it strips query/fragment and loads
 <code>&lt;base&gt;.js</code> plus <code>&lt;base&gt;_bg.wasm</code>. It checks the initializer, conversion export
@@ -36,8 +39,10 @@ For an offline demo served by the Admin web server, use this configuration:</p>
 and <code>/historical-import-worker.js</code>. Conversion requires no Internet or S3 access.
 Do not point this setting at a source SQL/XLSX file. The normal backend upload
 and import still require the existing backend services.</p>
-<p>The normal Import Event side drawer has one drag/drop zone, with multi-file
-browsing available from that same zone. File extensions route the selection;
+<p>The normal Import Event side drawer opens with the same native-import UI
+whether the plugin is enabled or disabled. There are no initial converter
+controls or policy settings. Its one drag/drop zone accepts multiple source
+files when configured, with browsing available from that same zone. File extensions route the selection;
 the Rust adapter verifies the actual SQL profile and required workbook tabs.
 File count alone never identifies a format.</p>
 <ol>
@@ -49,6 +54,14 @@ refused. Dropping a replacement source invalidates the previous result.</li>
 Read the local table/sheet/row/field diagnostics. Source hashes, counts and
 exclusions are available under <strong>Source details and exclusions</strong>. Local
 errors retain files for retry or replacement. No backend request is made.</li>
+<li class="">A valid local package reveals a three-dot <strong>Converted ZIP options</strong> menu
+with optional <strong>Download ZIP</strong>. It downloads the same accepted File that
+Create will upload, preserving its filename, <code>application/zip</code> MIME type
+and bytes. Download can be repeated and does not upload, validate with the
+backend, or create an event. A download failure leaves Create available.
+Replacing sources, clearing configuration, or closing/reopening invalidates
+the prior download. No download is offered for native archives or invalid
+conversion results.</li>
 <li class="">A valid local package enables <strong>Create</strong>. That explicit action uploads only
 the generated ZIP, requests backend <code>checkOnly</code> validation, and submits the
 separate creation request only after that validation succeeds. A rejected
@@ -58,7 +71,9 @@ run is not a guarantee of creation. Cancel/reopen starts a fresh local
 selection; a late result from a cancelled/replaced conversion is ignored.</li>
 </ol>
 <p>The native archive path retains its existing upload, validation and final
-Import action. An unconfigured historical plugin does not load converter assets.</p>
+Import action. An unconfigured historical plugin does not load its UI module, worker or
+converter assets. A configured plugin is loaded lazily after a recognized
+source selection; the initial drawer and ordinary native imports do not load it.</p>
 <p>Plugin loading/ABI errors, local source diagnostics, upload transport,
 backend dry-run and final creation are displayed separately. Unexpected runtime
 exceptions are sanitized instead of logging source values. SQL/XLSX originals
