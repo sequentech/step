@@ -11,6 +11,7 @@ use b3::messages::newtypes::PublicKeyHash;
 use b3::messages::newtypes::{TrusteeSet, MAX_TRUSTEES, NULL_TRUSTEE};
 use b3::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 use b3::messages::statement::StatementType;
+use b3::messages::trusted_board::{self, BoardConfigurationState};
 use deadpool_postgres::Transaction;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
@@ -118,68 +119,36 @@ pub async fn add_config_to_board<C: Ctx>(
 }
 
 #[instrument(err)]
-pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
-    let mut board = get_b3_pgsql_client().await?;
-
-    let b3 = board.get_messages(board_name, -1).await?;
-
-    let valid_statements = vec![StatementType::PublicKey, StatementType::PublicKeySigned];
-    let messages: Vec<Message> = b3
-        .into_iter()
-        .filter_map(|board_message| Message::strand_deserialize(&board_message.message).ok())
-        .collect();
-
-    let config = get_configuration::<C>(&messages)?;
-
-    config
-        .trustees
-        .into_iter()
-        .map(|trustee_signature| {
-            let trustee_pk = messages.iter().any(|message| {
-                message.sender.pk == trustee_signature
-                    && valid_statements.contains(&message.statement.get_kind())
-            });
-            if trustee_pk {
-                Ok(())
-            } else {
-                Err(anyhow!(
-                    "Missing public key for trustee {:?}",
-                    trustee_signature
-                ))
-            }
-        })
-        .collect::<Result<()>>()?;
-
-    let pks_message = messages
-        .into_iter()
-        .find(|message| StatementType::PublicKey == message.statement.get_kind())
-        .with_context(|| format!("Public Key not found on board {}", board_name))?;
-
-    let bytes = pks_message.artifact.with_context(|| {
-        format!(
-            "Artifact missing on Public Key message on board {}",
-            board_name
-        )
-    })?;
-    let dkgpk =
-        DkgPublicKey::<C>::strand_deserialize(&bytes).map_err(|err| anyhow!("{:?}", err))?;
-    Ok(dkgpk.pk)
+pub async fn get_board_public_key<C: Ctx>(
+    board_name: &str,
+    manager: &StrandSignaturePk,
+) -> Result<C::E> {
+    let board = get_b3_pgsql_client().await?;
+    let messages = convert_b3(&board.get_messages(board_name, -1).await?)?;
+    let config = trusted_board::verify_board::<C>(&messages, manager)?;
+    let message = trusted_board::agreed_public_key(&messages, &config)
+        .ok_or(anyhow!("Public key agreement is incomplete"))?;
+    let bytes = message
+        .artifact
+        .as_ref()
+        .ok_or(anyhow!("Public key artifact missing"))?;
+    Ok(DkgPublicKey::<C>::strand_deserialize(bytes)?.pk)
 }
 
-pub async fn check_configuration_exists(board_name: &str) -> Result<bool> {
+pub async fn check_configuration_exists(
+    board_name: &str,
+    manager: &StrandSignaturePk,
+) -> Result<BoardConfigurationState<RistrettoCtx>> {
     let board = get_b3_pgsql_client().await?;
-
-    let b3 = board.get_messages(board_name, -1).await?;
-    let messages = convert_b3(&b3)?;
-
-    let found_config = messages
-        .into_iter()
-        .find(|message| StatementType::Configuration == message.statement.get_kind());
-    Ok(found_config.is_some())
+    let messages = convert_b3(&board.get_messages(board_name, -1).await?)?;
+    Ok(trusted_board::configuration_state(&messages, manager))
 }
 
 #[instrument(err)]
-pub async fn get_board_public_key_messages(board_name: &str) -> Result<Vec<Message>> {
+pub async fn get_board_public_key_messages(
+    board_name: &str,
+    manager: &StrandSignaturePk,
+) -> Result<Vec<Message>> {
     let board = get_b3_pgsql_client().await?;
 
     let valid_statements = vec![
@@ -194,6 +163,7 @@ pub async fn get_board_public_key_messages(board_name: &str) -> Result<Vec<Messa
 
     let b3 = board.get_messages(board_name, -1).await?;
     let messages = convert_b3(&b3)?;
+    trusted_board::verify_board::<RistrettoCtx>(&messages, manager)?;
 
     let filtered_messages: Vec<Message> = messages
         .into_iter()
@@ -207,40 +177,31 @@ pub async fn get_board_public_key_messages(board_name: &str) -> Result<Vec<Messa
 pub async fn get_trustee_encrypted_private_key<C: Ctx>(
     board_name: &str,
     trustee_pub_key: &StrandSignaturePk,
+    manager: &StrandSignaturePk,
 ) -> Result<TrusteeShareData<C>> {
     let board = get_b3_pgsql_client().await?;
 
-    // let messages = board.get_messages(board_name, -1).await?;
-    let messages = board
-        .get_with_kind(board_name, StatementType::Channel, trustee_pub_key)
-        .await?;
-
+    let messages = convert_b3(&board.get_messages(board_name, -1).await?)?;
+    trusted_board::verify_board::<C>(&messages, manager)?;
     let channel_message = messages
-        .into_iter()
-        .map(|message| Message::strand_deserialize(&message.message))
-        .filter_map(|message| message.ok())
-        .next()
-        .with_context(|| format!("Channel not found on board {}", board_name))?;
-
-    let messages = board
-        .get_with_kind_only(board_name, StatementType::Shares)
-        .await?;
-
-    let shares: Result<Vec<Message>> = messages
-        .into_iter()
-        .map(|message| Ok(Message::strand_deserialize(&message.message)?))
-        .collect();
-
-    let shares: Result<Vec<Shares<C>>> = shares?
-        .into_iter()
-        .map(|s| {
-            let bytes = s.artifact.ok_or(anyhow!("Shares missing artifact bytes"))?;
-            let shares = Shares::<C>::strand_deserialize(&bytes)?;
-            Ok(shares)
+        .iter()
+        .find(|message| {
+            message.sender.pk == *trustee_pub_key
+                && message.statement.get_kind() == StatementType::Channel
+        })
+        .ok_or(anyhow!("Trustee channel not found"))?;
+    let shares: Result<Vec<Shares<C>>> = messages
+        .iter()
+        .filter(|m| m.statement.get_kind() == StatementType::Shares)
+        .map(|m| {
+            Ok(Shares::<C>::strand_deserialize(
+                m.artifact
+                    .as_ref()
+                    .ok_or(anyhow!("Shares missing artifact bytes"))?,
+            )?)
         })
         .collect();
-
-    let channel_bytes = channel_message.artifact.with_context(|| {
+    let channel_bytes = channel_message.artifact.as_ref().with_context(|| {
         format!(
             "Artifact missing on Private Key message on board {}",
             board_name
@@ -260,38 +221,26 @@ pub async fn get_trustee_encrypted_private_key<C: Ctx>(
 }
 
 #[instrument(skip_all, err)]
-pub fn get_configuration<C: Ctx>(messages: &Vec<Message>) -> Result<Configuration<C>> {
-    let configuration_msg = messages
-        .iter()
-        .find(|message| {
-            StatementType::Configuration == message.statement.get_kind()
-                && message.artifact.is_some()
-        })
-        .ok_or(anyhow!("Can't find configuration message"))?;
-    Ok(Configuration::<C>::strand_deserialize(
-        &configuration_msg
-            .artifact
-            .clone()
-            .ok_or(anyhow!("Missing artifact on configuration message"))?,
-    )?)
+pub fn get_configuration<C: Ctx>(
+    messages: &[Message],
+    manager: &StrandSignaturePk,
+) -> Result<Configuration<C>> {
+    trusted_board::verify_board(messages, manager)
 }
 
 #[instrument(skip_all, err)]
-pub fn get_public_key_hash<C: Ctx>(messages: &Vec<Message>) -> Result<PublicKeyHash> {
-    let public_key_message = messages
-        .iter()
-        .find(|message| {
-            StatementType::PublicKey == message.statement.get_kind() && message.artifact.is_some()
-        })
-        .ok_or(anyhow!("Can't find public key message"))?;
-    let public_key_bytes = public_key_message
-        .artifact
-        .clone()
-        .ok_or(anyhow!("Public key message artifact missing"))?;
-    let dkgpk = DkgPublicKey::<C>::strand_deserialize(&public_key_bytes)?;
-    let pk_bytes = dkgpk.strand_serialize()?;
-    let pk_h = strand::hash::hash_to_array(&pk_bytes)?;
-    Ok(PublicKeyHash(strand::util::to_u8_array(&pk_h)?))
+pub fn get_public_key_hash<C: Ctx>(
+    messages: &[Message],
+    configuration: &Configuration<C>,
+) -> Result<PublicKeyHash> {
+    let message = trusted_board::agreed_public_key(messages, configuration)
+        .ok_or(anyhow!("Public key agreement is incomplete"))?;
+    Ok(PublicKeyHash(strand::hash::hash_to_array(
+        message
+            .artifact
+            .as_ref()
+            .ok_or(anyhow!("Public key artifact missing"))?,
+    )?))
 }
 
 #[instrument(skip_all)]
@@ -501,4 +450,103 @@ pub async fn get_board_messages<C: Ctx>(
     let board_messages = b3_client.get_messages(board_name, -1).await?;
     let messages: Vec<Message> = convert_board_messages(&board_messages)?;
     Ok(messages)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use b3::messages::newtypes::{ChannelsHashes, SharesHashes};
+
+    struct Board {
+        trustees: Vec<ProtocolManager<RistrettoCtx>>,
+        configuration: Configuration<RistrettoCtx>,
+        messages: Vec<Message>,
+    }
+
+    fn board() -> Board {
+        let manager = gen_protocol_manager::<RistrettoCtx>().unwrap();
+        let trustees: Vec<_> = (0..3)
+            .map(|_| gen_protocol_manager::<RistrettoCtx>().unwrap())
+            .collect();
+        let configuration = Configuration::<RistrettoCtx>::new(
+            0,
+            StrandSignaturePk::from_sk(&manager.signing_key).unwrap(),
+            trustees
+                .iter()
+                .map(|trustee| StrandSignaturePk::from_sk(&trustee.signing_key).unwrap())
+                .collect(),
+            2,
+            PhantomData,
+        );
+        let messages = vec![Message::bootstrap_msg(&configuration, &manager).unwrap()];
+        Board {
+            trustees,
+            configuration,
+            messages,
+        }
+    }
+
+    fn post_public_key(board: &mut Board, trustee: usize, artifact: bool) {
+        let public_key = DkgPublicKey::new(RistrettoCtx.generator().clone(), vec![]);
+        let message = Message::public_key_msg(
+            &board.configuration,
+            &public_key,
+            &SharesHashes([[1; 64]; MAX_TRUSTEES]),
+            &ChannelsHashes([[2; 64]; MAX_TRUSTEES]),
+            artifact,
+            &board.trustees[trustee],
+        )
+        .unwrap();
+        board.messages.push(message);
+    }
+
+    #[test]
+    fn configuration_must_match_the_vault_manager_key() {
+        let board = board();
+        let other_manager = gen_protocol_manager::<RistrettoCtx>().unwrap();
+        let other_manager_pk = StrandSignaturePk::from_sk(&other_manager.signing_key).unwrap();
+
+        assert!(get_configuration::<RistrettoCtx>(
+            &board.messages,
+            &board.configuration.protocol_manager
+        )
+        .is_ok());
+        assert!(get_configuration::<RistrettoCtx>(&board.messages, &other_manager_pk).is_err());
+    }
+
+    #[test]
+    fn board_with_a_message_from_an_untrusted_sender_is_rejected() {
+        let mut board = board();
+        let untrusted = gen_protocol_manager::<RistrettoCtx>().unwrap();
+        board
+            .messages
+            .push(Message::configuration_msg(&board.configuration, &untrusted).unwrap());
+
+        assert!(get_configuration::<RistrettoCtx>(
+            &board.messages,
+            &board.configuration.protocol_manager
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn public_key_requires_every_configured_trustee_to_agree() {
+        let mut board = board();
+        post_public_key(&mut board, 0, true);
+        post_public_key(&mut board, 1, false);
+        assert!(get_public_key_hash(&board.messages, &board.configuration).is_err());
+
+        post_public_key(&mut board, 2, false);
+        assert!(get_public_key_hash(&board.messages, &board.configuration).is_ok());
+    }
+
+    #[test]
+    fn public_key_artifact_must_come_from_the_first_trustee() {
+        let mut board = board();
+        post_public_key(&mut board, 0, false);
+        post_public_key(&mut board, 1, true);
+        post_public_key(&mut board, 2, false);
+
+        assert!(get_public_key_hash(&board.messages, &board.configuration).is_err());
+    }
 }
