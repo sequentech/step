@@ -13,6 +13,7 @@ use crate::services::users::{list_users, list_users_with_vote_info, ListUsersFil
 use crate::services::voter_secret_attributes::{
     decrypt_user_attributes, get_secret_attribute_config, strip_undeclared_secret_attributes,
 };
+use crate::services::voter_template_variables::user_template_variables;
 use crate::types::error::Result;
 
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
@@ -53,22 +54,7 @@ fn get_variables(
     auth_action: AuthAction,
 ) -> Result<Map<String, Value>> {
     let mut variables: Map<String, Value> = Default::default();
-    let mut user_variables = Map::new();
-    user_variables.insert("first_name".to_string(), json!(user.first_name));
-    user_variables.insert("last_name".to_string(), json!(user.last_name));
-    user_variables.insert("username".to_string(), json!(user.username));
-    user_variables.insert("email".to_string(), json!(user.email));
-
-    let attributes = user.attributes.clone().unwrap_or_default();
-    for (attribute_name, values) in &attributes {
-        if let Some(first_value) = values.first() {
-            user_variables
-                .entry(attribute_name.clone())
-                .or_insert_with(|| json!(first_value));
-        }
-    }
-    user_variables.insert("attributes".to_string(), json!(attributes));
-    variables.insert("user".to_string(), Value::Object(user_variables));
+    variables.insert("user".to_string(), user_template_variables(user));
     variables.insert("tenant_id".to_string(), json!(tenant_id.clone()));
     if let Some(ref election_event) = election_event {
         let default_language = election_event.get_default_language();

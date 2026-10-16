@@ -16,6 +16,7 @@ use sequent_core::services::keycloak::{
     get_event_realm, get_realm_attributes, KeycloakAdminClient,
 };
 use sequent_core::services::pdf;
+use sequent_core::services::reports::fill_pattern;
 use sequent_core::services::s3::get_minio_url;
 use sequent_core::types::keycloak::{
     CredentialInputPolicy, REALM_ATTR_CREDENTIAL_INPUT_PATTERN, REALM_ATTR_CREDENTIAL_INPUT_POLICY,
@@ -298,25 +299,14 @@ where
 }
 
 fn apply_structured_pattern(credential: &str, pattern: &str) -> Option<String> {
-    if credential.is_empty() || !credential.bytes().all(|byte| byte.is_ascii_digit()) {
+    if credential.is_empty()
+        || !credential.bytes().all(|byte| byte.is_ascii_digit())
+        || !pattern.bytes().all(|token| matches!(token, b'd' | b'-'))
+    {
         return None;
     }
 
-    let mut digits = credential.bytes();
-    let mut formatted = String::with_capacity(pattern.len());
-    for token in pattern.bytes() {
-        match token {
-            b'd' => formatted.push(digits.next()? as char),
-            b'-' => formatted.push('-'),
-            _ => return None,
-        }
-    }
-
-    if digits.next().is_some() {
-        None
-    } else {
-        Some(formatted)
-    }
+    fill_pattern(credential.chars(), pattern, 'd')
 }
 
 fn credential_for_presentation(
@@ -468,8 +458,13 @@ impl TemplateRenderer for VoterInformationLetterTemplate {
 
 #[cfg(test)]
 mod tests {
-    use super::{credential_for_presentation, localized_issue_date};
+    use super::{credential_for_presentation, localized_issue_date, UserData};
+    use crate::services::voter_template_variables::voter_template_variables;
     use chrono::{FixedOffset, TimeZone, Utc};
+    use sequent_core::services::reports::render_template_text;
+    use sequent_core::types::keycloak::User;
+    use sequent_core::types::to_map::ToMap;
+    use std::collections::{HashMap, HashSet};
 
     #[test]
     fn formats_matching_structured_credentials() {
@@ -524,6 +519,14 @@ mod tests {
     }
 
     #[test]
+    fn leaves_credentials_unchanged_when_the_pattern_has_unsupported_characters() {
+        assert_eq!(
+            credential_for_presentation("12345678", Some("structured"), Some("dddd dddd")),
+            "12345678",
+        );
+    }
+
+    #[test]
     fn localizes_the_issue_date_using_the_event_language() {
         let date = FixedOffset::east_opt(8 * 60 * 60)
             .unwrap()
@@ -543,5 +546,47 @@ mod tests {
 
         assert_eq!("2 de agosto de 2026", localized_issue_date(bogota, "es"));
         assert_eq!("Agosto 3, 2026", localized_issue_date(manila, "tl"));
+    }
+
+    #[test]
+    fn fixed_fields_render_alongside_voter_variables() {
+        let user_data = UserData {
+            election_event_name: "Municipal Election".to_string(),
+            issue_date: "August 3, 2026".to_string(),
+            voter_first_name: "Jane".to_string(),
+            voter_last_name: "Doe".to_string(),
+            voter_full_name: "Jane Doe".to_string(),
+            username: "jane.doe".to_string(),
+            password: "1234-5678".to_string(),
+            voting_portal_url: "https://vote.example/login".to_string(),
+            logo_url: "https://assets.example/logo.png".to_string(),
+        };
+        let voter = User {
+            first_name: Some("Jane".to_string()),
+            last_name: Some("Doe".to_string()),
+            username: Some("jane.doe".to_string()),
+            attributes: Some(HashMap::from([
+                ("middle_names".to_string(), vec![String::new()]),
+                ("ward".to_string(), vec!["Ward 2".to_string()]),
+                ("corr_postal_code".to_string(), vec!["K0H1L0".to_string()]),
+            ])),
+            ..User::default()
+        };
+        let mut variables = user_data.to_map().expect("user data should convert");
+        variables.insert(
+            "user".to_string(),
+            voter_template_variables(&voter, &HashSet::new(), &HashSet::new()),
+        );
+
+        let rendered = render_template_text(
+            "{{election_event_name}}|{{issue_date}}|{{voter_full_name}}|{{username}}|{{password}}|{{voting_portal_url}}|{{concat user.first_name user.middle_names user.last_name}}|{{user.ward}}|{{format_pattern user.corr_postal_code \"### ###\"}}",
+            variables,
+        )
+        .expect("template should render");
+
+        assert_eq!(
+            rendered,
+            "Municipal Election|August 3, 2026|Jane Doe|jane.doe|1234-5678|https://vote.example/login|Jane Doe|Ward 2|K0H 1L0"
+        );
     }
 }
