@@ -37,6 +37,10 @@ const galegoTranslation: TranslationType = {
             ciphertextErrorTitle: "A verificación da papeleta fallou",
             ciphertextErrorDescription:
                 "O texto cifrado desta papeleta auditábel non é o cifrado do texto en claro e a aleatoriedade que contén. Non se pode confiar na papeleta.",
+            unpublishedStyleErrorDescription:
+                "Esta papeleta auditábel non corresponde a ningunha papeleta publicada para este evento electoral, polo que non se pode verificar.",
+            unavailableStyleErrorDescription:
+                "Non se puideron cargar as papeletas publicadas para este evento electoral, polo que esta papeleta auditábel aínda non se pode verificar. Por favor, ténteo de novo.",
             useSampleLink: "Usar unha papeleta de exemplo",
             nextButton: "Seguinte",
             ballotIdLabel: "ID de papeleta",
