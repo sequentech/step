@@ -319,6 +319,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                                 className="election-website-link"
                                 href={electionHomeUrl}
                                 target="_blank"
+                                rel="noopener noreferrer"
                             >
                                 {t("selectElection.electionWebsite")}
                             </StyledLink>
@@ -396,6 +397,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                             className="election-website-link"
                             href={electionHomeUrl}
                             target="_blank"
+                            rel="noopener noreferrer"
                         >
                             {t("selectElection.electionWebsite")}
                         </StyledLink>
@@ -419,7 +421,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                             component="a"
                             href={resultsUrl}
                             target="_blank"
-                            rel="noreferrer"
+                            rel="noopener noreferrer"
                         >
                             {t("selectElection.resultsButton")}
                         </Button>

@@ -98,6 +98,16 @@ pub(crate) fn hashes_count(input: &THashes) -> usize {
     input.iter().filter(|t| *t != &NULL_HASH).count()
 }
 
+/// Returns the hashes in a THashes array that are not NULL_HASH,
+/// each paired with its trustee position in the array.
+pub(crate) fn hashes_present(input: &THashes) -> impl Iterator<Item = (usize, Hash)> + '_ {
+    input
+        .iter()
+        .enumerate()
+        .filter(|(_, h)| **h != NULL_HASH)
+        .map(|(i, h)| (i, *h))
+}
+
 /// Returns the Phases that make up the protocol's main steps.
 // A Vec<Phase> loosely corresponds to a state machine.
 ///
@@ -212,3 +222,19 @@ pub(crate) mod cfg;
 pub(crate) mod decrypt;
 pub(crate) mod dkg;
 pub(crate) mod shuffle;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_hashes_present_keeps_trustee_positions() {
+        let mut hashes = [NULL_HASH; MAX_TRUSTEES];
+        hashes[0] = [1u8; 64];
+        hashes[2] = [3u8; 64];
+
+        let present: Vec<(usize, Hash)> = hashes_present(&hashes).collect();
+
+        assert_eq!(present, vec![(0, [1u8; 64]), (2, [3u8; 64])]);
+    }
+}

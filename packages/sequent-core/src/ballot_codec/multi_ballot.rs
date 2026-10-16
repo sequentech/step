@@ -807,7 +807,7 @@ impl BallotChoices {
         bytes: &[u8; 30],
         style: &BallotStyle,
     ) -> Result<DecodedBallotChoices, String> {
-        let bytes = vec::decode_array_to_vec(&bytes);
+        let bytes = vec::decode_array_to_vec(&bytes)?;
         let bigint = bigint::decode_bigint_from_bytes(&bytes)?;
 
         Self::decode_from_bigint(
