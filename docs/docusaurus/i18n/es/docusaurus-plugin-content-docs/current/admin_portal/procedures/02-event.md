@@ -75,7 +75,7 @@ electoral importado correctamente).
 En esta versión el portal de administración no envía al servidor el hash de un archivo de evento
 electoral, por lo que la importación no lo comprueba. Antes de importar, obtenga el hash del archivo
 y compárelo con el hash del nombre del archivo. Consulte
-[Formatos de archivos de importación](../Reference/import-file-formats.md#election-event). Sin esta
+[Formatos de archivos de importación](../Reference/import-file-formats/01-election-event.md). Sin esta
 comprobación, no puede saber si alguien ha cambiado el archivo.
 :::
 

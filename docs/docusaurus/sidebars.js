@@ -37,7 +37,22 @@ module.exports = {
           link: {type: 'doc', id: 'admin_portal/Reference/User-Manual/admin_portal_reference_user_manual'},
           items: [
             'admin_portal/Reference/basic_navigation',
-            'admin_portal/Reference/import_file_formats',
+            {
+              type: 'category',
+              label: 'Import File Formats',
+              link: {type: 'doc', id: 'admin_portal/Reference/import-file-formats/import_file_formats'},
+              items: [
+                'admin_portal/Reference/import-file-formats/import_format_election_event',
+                'admin_portal/Reference/import-file-formats/import_format_election_contest_candidate',
+                'admin_portal/Reference/import-file-formats/import_format_voters',
+                'admin_portal/Reference/import-file-formats/import_format_areas',
+                'admin_portal/Reference/import-file-formats/import_format_applications',
+                'admin_portal/Reference/import-file-formats/import_format_templates',
+                'admin_portal/Reference/import-file-formats/import_format_tenant_backup',
+                'admin_portal/Reference/import-file-formats/import_format_private_key_backup',
+                'admin_portal/Reference/import-file-formats/import_format_election_presentation',
+              ],
+            },
             {
               type: 'category',
               label: 'Election Management',
