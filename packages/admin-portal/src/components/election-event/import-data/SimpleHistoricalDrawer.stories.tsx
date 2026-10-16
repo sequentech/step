@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect} from "react"
 import {Button} from "@mui/material"
-import type {Meta, StoryObj} from "@storybook/react-vite"
+import type {StoryObj} from "@storybook/react-vite"
 import {expect, within} from "storybook/test"
+import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
 import {ImportDataDrawer} from "./ImportDataDrawer"
@@ -45,7 +46,8 @@ function DrawerFixture({enabled}: {enabled: boolean}) {
         </SettingsContext.Provider>
     )
 }
-function Fixture(args: {enabled: boolean; importError?: string}) {
+type Scenario = {enabled: boolean; importError?: string}
+function Fixture(args: Scenario) {
     const {permissions, tenant} = useStoryGlobals()
     return (
         <CreateFlowStory flow={flow} role={permissions} tenant={tenant}>
@@ -54,8 +56,8 @@ function Fixture(args: {enabled: boolean; importError?: string}) {
     )
 }
 const meta = {
-    title: "Admin/Election event/Import data/SimpleHistoricalDrawer",
-    component: Fixture,
+    title: "Screens/Admin/SimpleHistoricalDrawer",
+    component: ImportDataDrawer,
     excludeStories: ["getEvidence"],
     args: {enabled: true},
     beforeEach: async ({args}) => {
@@ -63,9 +65,9 @@ const meta = {
         await flow.graphql.ready
     },
     render: (args) => <Fixture {...args} />,
-} satisfies Meta<typeof Fixture>
+} satisfies WidgetMeta<Scenario>
 export default meta
-type Story = StoryObj<typeof meta>
+type Story = StoryObj<Scenario>
 export const LocalDropZone: Story = {
     play: async () => {
         const view = within(document.body)
