@@ -15,6 +15,8 @@ use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use tracing::{info, instrument, warn};
 
+mod template_limits;
+
 fn get_registry<'reg>() -> Handlebars<'reg> {
     let mut reg = Handlebars::new();
     reg.set_strict_mode(false);
@@ -99,6 +101,7 @@ pub fn render_template_text(
     variables_map: Map<String, Value>,
 ) -> Result<String, RenderError> {
     let reg = get_registry();
+    template_limits::check_template(template)?;
 
     // render handlebars template
     reg.render_template(template, &json!(variables_map))
@@ -113,8 +116,10 @@ pub fn render_template(
     let mut reg = get_registry();
 
     for (name, file) in template_map {
+        template_limits::check_nesting(&file)?;
         reg.register_template_string(&name, &file)?;
     }
+    template_limits::check_registered(&reg, template_name)?;
 
     // render handlebars template
     reg.render(template_name, &json!(variables_map))
