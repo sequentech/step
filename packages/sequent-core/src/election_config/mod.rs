@@ -39,6 +39,7 @@ pub mod archive;
 pub mod architect;
 
 pub mod branding;
+pub mod canonical;
 pub mod census_csv;
 
 /// A ballot design's digest, the same before and after an import. Needs
@@ -110,9 +111,17 @@ pub mod slates;
 #[cfg(feature = "election_config_templates")]
 pub mod render;
 
+#[cfg(all(
+    feature = "election_config_xlsx",
+    feature = "election_config_archive"
+))]
+pub mod historical;
 pub mod report;
 pub mod schema;
 pub mod sheet;
+pub mod sql_dump;
+#[cfg(test)]
+mod sql_dump_tests;
 
 /// What travels beside a plan rather than inside it: the census, and the files a
 /// plan names.
