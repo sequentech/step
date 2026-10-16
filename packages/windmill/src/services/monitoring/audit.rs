@@ -125,7 +125,7 @@ async fn prepare_signing_key(client: &mut Client, event: EventRef, author: &Auth
         .await
         .context("Failed to start preparing the electoral log")?;
     let board = board(&transaction, event).await?;
-    vault::get_admin_user_signing_key(
+    let (_, new_key) = vault::get_admin_user_signing_key_to_announce(
         &transaction,
         &event.tenant_id.to_string(),
         &author.id,
@@ -137,7 +137,11 @@ async fn prepare_signing_key(client: &mut Client, event: EventRef, author: &Auth
     transaction
         .commit()
         .await
-        .context("Failed to keep the administrator's signing key")
+        .context("Failed to keep the administrator's signing key")?;
+    match new_key {
+        Some(new_key) => new_key.post(client).await,
+        None => Ok(()),
+    }
 }
 
 #[async_trait]

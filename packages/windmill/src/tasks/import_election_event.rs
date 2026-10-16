@@ -15,7 +15,9 @@ use crate::services::tasks_execution::{update_complete, update_fail, update_fail
 use crate::tasks::audit_log_outbox::kick_audit_log_outbox;
 use crate::tasks::insert_election_event::ELECTION_EVENT;
 use crate::{
-    services::import::import_election_event::{self as import_election_event_service},
+    services::import::import_election_event::{
+        self as import_election_event_service, ImportedElectionEvent,
+    },
     types::error::Result,
 };
 use anyhow::{anyhow, Context};
@@ -52,23 +54,27 @@ pub struct ImportElectionEventBody {
     pub privileges: ImportUsersPrivileges,
 }
 
-/// The tenant log's entry of an imported election event. The checksum is
-/// the one the importer declared, when they did.
+/// The tenant log's entry of an imported election event: the SHA-256 of the
+/// file it read, the checksum the importer declared when there was one to
+/// check, and what it imported.
 fn imported_entry(
     object: &ImportElectionEventBody,
     tenant_id: &str,
     election_event_id: &str,
     name: Option<&str>,
+    imported: &ImportedElectionEvent,
 ) -> anyhow::Result<AdminChange> {
     let actor = object.importer.as_ref().map(|importer| AuditActor {
         user_id: Some(importer.user_id.clone()),
         username: importer.username.clone(),
         role: None,
     });
-    let mut extra = json!({"document_id": object.document_id});
-    if let Some(sha256) = object.sha256.as_deref().filter(|sha256| !sha256.is_empty()) {
-        extra["declared_sha256"] = json!(sha256.to_lowercase());
-    }
+    let mut extra = task_audit::imported_document(
+        &object.document_id,
+        &imported.file_sha256,
+        imported.declared_sha256.as_deref(),
+    );
+    extra["counts"] = serde_json::to_value(&imported.counts)?;
     Ok(task_audit::change(
         actor,
         task_audit::target(tenant_id, None)?,
@@ -125,10 +131,16 @@ pub async fn import_election_event(
             let name = imported_name(hasura_transaction, &tenant_id, &election_event_id).await?;
             stage(
                 hasura_transaction,
-                &imported_entry(&object, &tenant_id, &election_event_id, name.as_deref())?,
+                &imported_entry(
+                    &object,
+                    &tenant_id,
+                    &election_event_id,
+                    name.as_deref(),
+                    &imported,
+                )?,
             )
             .await?;
-            *notes.lock().unwrap_or_else(|e| e.into_inner()) = imported;
+            *notes.lock().unwrap_or_else(|e| e.into_inner()) = imported.notes;
             Ok(())
         })
     })
@@ -170,6 +182,7 @@ pub async fn import_election_event(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::import::import_election_event::ImportedCounts;
 
     const TENANT_ID: &str = "4f1c6b38-9f5e-4a59-8d3b-2a7f0c1e5d61";
     const EVENT_ID: &str = "b7e2d915-3c4a-4e8f-9a61-5d0f2c8b7e43";
@@ -208,6 +221,21 @@ mod tests {
         );
     }
 
+    fn imported(declared_sha256: Option<&str>) -> ImportedElectionEvent {
+        ImportedElectionEvent {
+            notes: vec![],
+            file_sha256: "ABCDEF".into(),
+            declared_sha256: declared_sha256.map(str::to_string),
+            counts: ImportedCounts {
+                elections: 2,
+                contests: 3,
+                candidates: 7,
+                areas: 4,
+                area_contests: 5,
+            },
+        }
+    }
+
     #[test]
     fn an_imported_event_is_an_entry_of_the_tenant_log_with_its_source() {
         let object = body(json!({
@@ -216,7 +244,14 @@ mod tests {
             "importer": {"user_id": "admin-id", "username": "ada",
                 "authorized_election_ids": null, "area_id": null},
         }));
-        let entry = imported_entry(&object, TENANT_ID, EVENT_ID, Some("Barangay 2026")).unwrap();
+        let entry = imported_entry(
+            &object,
+            TENANT_ID,
+            EVENT_ID,
+            Some("Barangay 2026"),
+            &imported(Some("ABCDEF")),
+        )
+        .unwrap();
 
         assert_eq!(entry.target.election_event_id, None);
         assert_eq!(
@@ -234,8 +269,36 @@ mod tests {
         );
         assert_eq!(
             entry.extra,
-            json!({"document_id": "document-1", "declared_sha256": "abcdef"})
+            json!({
+                "document_id": "document-1",
+                "file_sha256": "abcdef",
+                "declared_sha256": "abcdef",
+                "declared_checksum": "matches",
+                "counts": {"elections": 2, "contests": 3, "candidates": 7, "areas": 4,
+                    "area_contests": 5},
+            })
         );
+    }
+
+    /// The checksum compared is the one the import still had to check: none
+    /// for a signed configuration package.
+    #[test]
+    fn a_declared_checksum_that_differs_from_the_file_is_flagged() {
+        let object = body(json!({
+            "tenant_id": TENANT_ID, "document_id": "document-1", "password": null,
+            "check_only": false, "sha256": "012345",
+        }));
+        let entry = imported_entry(
+            &object,
+            TENANT_ID,
+            EVENT_ID,
+            None,
+            &imported(Some("012345")),
+        )
+        .unwrap();
+        assert_eq!(entry.extra["declared_sha256"], "012345");
+        assert_eq!(entry.extra["declared_checksum"], "mismatch");
+        assert_eq!(entry.extra["file_sha256"], "abcdef");
     }
 
     #[test]
@@ -244,11 +307,13 @@ mod tests {
             "tenant_id": TENANT_ID, "document_id": "document-1", "password": null,
             "check_only": null, "sha256": "",
         }));
-        let entry = imported_entry(&object, TENANT_ID, EVENT_ID, None).unwrap();
+        let entry = imported_entry(&object, TENANT_ID, EVENT_ID, None, &imported(None)).unwrap();
 
         assert_eq!(entry.actor, AuditActor::default());
         assert_eq!(entry.object.name, None);
-        assert_eq!(entry.extra, json!({"document_id": "document-1"}));
-        assert!(imported_entry(&object, "tenant", EVENT_ID, None).is_err());
+        assert_eq!(entry.extra["declared_checksum"], "undeclared");
+        assert!(entry.extra.get("declared_sha256").is_none());
+        assert_eq!(entry.extra["counts"]["candidates"], 7);
+        assert!(imported_entry(&object, "tenant", EVENT_ID, None, &imported(None)).is_err());
     }
 }

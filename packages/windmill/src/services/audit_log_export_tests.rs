@@ -216,8 +216,9 @@ fn manifest(request: &AuditExportRequest, entries: u64) -> ExportManifest {
         "Asia/Manila".parse().unwrap(),
         vec![ExportedLog {
             board: "board".into(),
+            retired: None,
             log: "tenant".into(),
-            system_public_key: "key".into(),
+            system_public_key: Some("key".into()),
             entries,
         }],
     )
