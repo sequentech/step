@@ -6,8 +6,11 @@
 //! them: the last valid vote of every eligible voter, split into the weight
 //! batches of the area.
 
+use crate::adapters::tally_ceremony::PgTallyCreationReader;
+use crate::ports::tally_ceremony::TallyCreationReader;
 use crate::postgres::area::get_event_areas;
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::tally_session::merge_tally_session_annotation;
 use crate::services::ballot_box_reads::count_unresolved_votes;
 use crate::services::cast_votes::find_area_ballots;
 use crate::services::celery_app::get_worker_threads;
@@ -23,6 +26,7 @@ use crate::services::join::merge_join_csv;
 use crate::services::join::read_ballot_voter_ids;
 use crate::services::join::{MergeJoinResult, MultiplicitySource};
 use crate::services::users::{
+    count_keycloak_enabled_voters_of_areas,
     list_keycloak_enabled_users_by_area_id_and_authorized_elections, VoterMultiplicityColumn,
 };
 use crate::services::weight_batches::weight_batch_offsets;
@@ -35,14 +39,14 @@ use sequent_core::ballot::{
     WeightedVotingPolicy,
 };
 use sequent_core::multi_ballot::HashableMultiBallot;
-use sequent_core::serialization::deserialize_with_path::deserialize_str;
+use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::TallySession;
 use sequent_core::types::hasura::core::{TallySessionContest, TallySessionContestAnnotations};
 use sequent_core::types::keycloak::{MAX_TOTAL_VOTE_WEIGHT, VOTE_WEIGHT_BATCHES};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::sync::Arc;
 use tempfile::NamedTempFile;
 use tracing::{event, instrument, Level};
@@ -77,6 +81,174 @@ pub fn contest_annotations(
         weight_bit_mask,
         ballot_box_seal_hash,
     }
+}
+
+/// The tally session annotation that records each election's electorate, as
+/// a JSON string like the other values of those annotations.
+pub const ELECTION_ELECTORATES_ANNOTATION: &str = "election_electorates";
+
+/// Each election's eligible voters, by election id: its enabled voters in
+/// every area of the session with a published ballot style for it, whether or
+/// not that area has anything to tally.
+pub type ElectionElectorates = BTreeMap<String, u64>;
+
+/// How one election's electorate is counted.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ElectorateCount {
+    pub election_id: String,
+    /// The areas whose voters are counted now, each voter once.
+    pub counted_areas: Vec<String>,
+    /// The areas counted from their ballot box seals, whose voters are left
+    /// out of `counted_areas`.
+    pub sealed_areas: Vec<String>,
+    /// The voters of `sealed_areas`, as their seals recorded them.
+    pub sealed_voters: u64,
+}
+
+/// How each of `election_ids` has its electorate counted, from the areas with
+/// a published ballot style for it (`published`, as `(election_id, area_id)`)
+/// within the session's areas (`session_areas`, all of them when `None`), and
+/// the session's annotated contest areas.
+///
+/// A sealed area keeps the census its seal recorded, as the tally counts it.
+pub fn electorate_counts(
+    election_ids: &[String],
+    published: &[(String, String)],
+    session_areas: Option<&[String]>,
+    contests: &[TallySessionContest],
+) -> Result<Vec<ElectorateCount>> {
+    election_ids
+        .iter()
+        .map(|election_id| {
+            let mut areas: BTreeSet<String> = published
+                .iter()
+                .filter(|(election, area)| {
+                    election == election_id
+                        && session_areas.map_or(true, |session_areas| session_areas.contains(area))
+                })
+                .map(|(_, area)| area.clone())
+                .collect();
+            let mut sealed: BTreeMap<String, u64> = BTreeMap::new();
+            for contest in contests
+                .iter()
+                .filter(|contest| &contest.election_id == election_id)
+            {
+                areas.insert(contest.area_id.clone());
+                let Some(annotations) = contest.annotations.clone() else {
+                    continue;
+                };
+                let annotations: TallySessionContestAnnotations = deserialize_value(annotations)
+                    .with_context(|| {
+                        format!("the annotations of tally session contest {}", contest.id)
+                    })?;
+                if annotations.ballot_box_seal_hash.is_some() {
+                    // Every contest of an area reads the same seal.
+                    sealed.insert(contest.area_id.clone(), annotations.elegible_voters);
+                }
+            }
+            Ok(ElectorateCount {
+                election_id: election_id.clone(),
+                counted_areas: areas
+                    .into_iter()
+                    .filter(|area| !sealed.contains_key(area))
+                    .collect(),
+                sealed_voters: sealed.values().sum(),
+                sealed_areas: sealed.into_keys().collect(),
+            })
+        })
+        .collect()
+}
+
+/// Counts and records the electorate of each election of the session when its
+/// ballots are extracted. `contests` are the session's contest areas as the
+/// extraction annotated them.
+#[instrument(skip_all, err)]
+pub async fn record_election_electorates(
+    hasura_transaction: &Transaction<'_>,
+    tally_session: &TallySession,
+    contests: &[TallySessionContest],
+) -> Result<ElectionElectorates> {
+    let tenant_id = &tally_session.tenant_id;
+    let election_event_id = &tally_session.election_event_id;
+    let election_ids = tally_session.election_ids.clone().unwrap_or_default();
+    let published: Vec<(String, String)> = PgTallyCreationReader::new(hasura_transaction)
+        .published_ballot_styles(tenant_id, election_event_id, &election_ids)
+        .await?
+        .into_iter()
+        .filter_map(|style| style.area_id.map(|area_id| (style.election_id, area_id)))
+        .collect();
+    let aliases = election_voter_authorization_aliases(
+        get_election_event_elections(hasura_transaction, tenant_id, election_event_id)
+            .await?
+            .into_iter()
+            .map(|election| (election.id, election.external_id)),
+    );
+    let realm = get_event_realm(tenant_id, election_event_id);
+    let mut keycloak_db_client: DbClient = get_keycloak_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error acquiring keycloak connection pool")?;
+    let keycloak_transaction = keycloak_db_client
+        .transaction()
+        .await
+        .with_context(|| "Error acquiring keycloak transaction")?;
+
+    let mut electorates = ElectionElectorates::new();
+    for count in electorate_counts(
+        &election_ids,
+        &published,
+        tally_session.area_ids.as_deref(),
+        contests,
+    )? {
+        let alias = aliases
+            .get(&count.election_id)
+            .cloned()
+            .unwrap_or_else(|| count.election_id.clone());
+        let counted = count_keycloak_enabled_voters_of_areas(
+            &keycloak_transaction,
+            &realm,
+            &count.counted_areas,
+            &count.sealed_areas,
+            &alias,
+        )
+        .await?;
+        electorates.insert(count.election_id, count.sealed_voters + counted);
+    }
+    merge_tally_session_annotation(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &tally_session.id,
+        ELECTION_ELECTORATES_ANNOTATION,
+        serde_json::Value::String(serde_json::to_string(&electorates)?),
+    )
+    .await?;
+    Ok(electorates)
+}
+
+/// The electorates the session recorded, or `None` for a session whose
+/// ballots were extracted before they were recorded.
+pub fn recorded_election_electorates(
+    tally_session: &TallySession,
+) -> Result<Option<ElectionElectorates>> {
+    tally_session
+        .annotations
+        .as_ref()
+        .and_then(|annotations| annotations.get(ELECTION_ELECTORATES_ANNOTATION))
+        .map(|electorates| {
+            electorates
+                .as_str()
+                .ok_or_else(|| anyhow!("not a string"))
+                .and_then(|electorates| Ok(serde_json::from_str(electorates)?))
+                .with_context(|| {
+                    format!(
+                        "the election electorates of tally session {}",
+                        tally_session.id
+                    )
+                })
+        })
+        .transpose()
 }
 
 /// What counting a sealed ballot box needs, shared by the contest tasks.
@@ -682,8 +854,13 @@ async fn posted_by_other_sessions(
 
 #[cfg(test)]
 mod tests {
-    use super::{election_voter_authorization_aliases, voters_replacing_their_delegation};
+    use super::{
+        election_voter_authorization_aliases, electorate_counts, recorded_election_electorates,
+        voters_replacing_their_delegation, ElectionElectorates, ElectorateCount,
+        ELECTION_ELECTORATES_ANNOTATION,
+    };
     use crate::services::users::VoterMultiplicityColumn;
+    use sequent_core::types::hasura::core::{TallySession, TallySessionContest};
     use std::collections::HashMap;
     use std::io::Write;
 
@@ -760,5 +937,237 @@ mod tests {
             aliases,
             HashMap::from([("election-uuid".to_string(), "election-uuid".to_string()),])
         );
+    }
+
+    fn contest_area(
+        election_id: &str,
+        area_id: &str,
+        contest_id: &str,
+        annotations: Option<serde_json::Value>,
+    ) -> TallySessionContest {
+        TallySessionContest {
+            id: format!("{election_id}-{area_id}-{contest_id}"),
+            tenant_id: "tenant".into(),
+            election_event_id: "event".into(),
+            area_id: area_id.into(),
+            contest_id: Some(contest_id.into()),
+            session_id: 1,
+            created_at: None,
+            last_updated_at: None,
+            labels: None,
+            annotations,
+            tally_session_id: "session".into(),
+            election_id: election_id.into(),
+        }
+    }
+
+    fn census(voters: u64, seal: Option<&str>) -> Option<serde_json::Value> {
+        let mut annotations = serde_json::json!({
+            "casted_ballots": 0,
+            "elegible_voters": voters,
+            "ballots_without_voter": 0
+        });
+        if let Some(seal) = seal {
+            annotations["ballot_box_seal_hash"] = seal.into();
+        }
+        Some(annotations)
+    }
+
+    fn published(styles: &[(&str, &str)]) -> Vec<(String, String)> {
+        styles
+            .iter()
+            .map(|(election, area)| (election.to_string(), area.to_string()))
+            .collect()
+    }
+
+    fn ids(values: &[&str]) -> Vec<String> {
+        values.iter().map(|value| value.to_string()).collect()
+    }
+
+    #[test]
+    fn an_electorate_counts_every_area_of_the_election_including_those_with_nothing_to_tally() {
+        // `post` is published in north, south and an area whose contests are
+        // all acclaimed, which therefore has no contest area in the session.
+        // north has two contests, so two contest areas. `other` has its own
+        // area; `acclaimed` is acclaimed everywhere.
+        let styles = published(&[
+            ("post", "north"),
+            ("post", "south"),
+            ("post", "acclaimed-area"),
+            ("other", "west"),
+            ("acclaimed", "east"),
+        ]);
+        let contests = vec![
+            contest_area("post", "north", "c1", census(3, None)),
+            contest_area("post", "north", "c2", census(3, None)),
+            contest_area("post", "south", "c1", census(2, None)),
+            contest_area("other", "west", "c3", census(1, None)),
+        ];
+
+        let counts = electorate_counts(
+            &ids(&["post", "acclaimed", "missing"]),
+            &styles,
+            None,
+            &contests,
+        )
+        .unwrap();
+
+        assert_eq!(
+            counts,
+            vec![
+                ElectorateCount {
+                    election_id: "post".into(),
+                    counted_areas: ids(&["acclaimed-area", "north", "south"]),
+                    sealed_areas: vec![],
+                    sealed_voters: 0,
+                },
+                ElectorateCount {
+                    election_id: "acclaimed".into(),
+                    counted_areas: ids(&["east"]),
+                    sealed_areas: vec![],
+                    sealed_voters: 0,
+                },
+                // An election with no published ballot style has no electorate.
+                ElectorateCount {
+                    election_id: "missing".into(),
+                    counted_areas: vec![],
+                    sealed_areas: vec![],
+                    sealed_voters: 0,
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn a_sealed_area_keeps_the_census_its_seal_recorded() {
+        let styles = published(&[
+            ("post", "north"),
+            ("post", "south"),
+            ("post", "acclaimed-area"),
+        ]);
+        let contests = vec![
+            contest_area("post", "north", "c1", census(3, Some("seal-n"))),
+            contest_area("post", "north", "c2", census(3, Some("seal-n"))),
+            contest_area("post", "south", "c1", census(2, Some("seal-s"))),
+        ];
+
+        let counts = electorate_counts(&ids(&["post"]), &styles, None, &contests).unwrap();
+
+        // The seals' 3 + 2 voters, plus the unsealed area's voters counted
+        // now, leaving out anyone already in a sealed area.
+        assert_eq!(
+            counts,
+            vec![ElectorateCount {
+                election_id: "post".into(),
+                counted_areas: ids(&["acclaimed-area"]),
+                sealed_areas: ids(&["north", "south"]),
+                sealed_voters: 5,
+            }]
+        );
+    }
+
+    #[test]
+    fn unreadable_contest_annotations_are_an_error() {
+        let contests = vec![contest_area(
+            "post",
+            "north",
+            "c1",
+            Some(serde_json::json!({"elegible_voters": "many"})),
+        )];
+        assert!(electorate_counts(&ids(&["post"]), &[], None, &contests).is_err());
+    }
+
+    #[test]
+    fn an_electorate_keeps_to_the_areas_of_the_session() {
+        // A country-by-country initialization session of `post` covers north
+        // and the acclaimed area, not south.
+        let styles = published(&[
+            ("post", "north"),
+            ("post", "south"),
+            ("post", "acclaimed-area"),
+        ]);
+        let contests = vec![contest_area("post", "north", "c1", census(3, None))];
+        let session_areas = ids(&["acclaimed-area", "north"]);
+
+        let counts = electorate_counts(
+            &ids(&["post"]),
+            &styles,
+            Some(session_areas.as_slice()),
+            &contests,
+        )
+        .unwrap();
+
+        assert_eq!(counts[0].counted_areas, ids(&["acclaimed-area", "north"]));
+    }
+
+    fn session(annotations: Option<serde_json::Value>) -> TallySession {
+        TallySession {
+            id: "session".into(),
+            tenant_id: "tenant".into(),
+            election_event_id: "event".into(),
+            created_at: None,
+            last_updated_at: None,
+            labels: None,
+            annotations,
+            election_ids: None,
+            area_ids: None,
+            is_execution_completed: false,
+            keys_ceremony_id: "keys".into(),
+            execution_status: None,
+            threshold: 2,
+            configuration: None,
+            tally_type: None,
+            permission_label: None,
+        }
+    }
+
+    #[test]
+    fn the_recorded_electorates_are_read_back() {
+        assert_eq!(recorded_election_electorates(&session(None)).unwrap(), None);
+        assert_eq!(
+            recorded_election_electorates(&session(Some(
+                serde_json::json!({"executer_username": "admin"})
+            )))
+            .unwrap(),
+            None
+        );
+        let electorates =
+            ElectionElectorates::from([("acclaimed".to_string(), 4), ("post".to_string(), 7)]);
+        assert_eq!(
+            recorded_election_electorates(&session(Some(serde_json::json!({
+                "executer_username": "admin",
+                ELECTION_ELECTORATES_ANNOTATION: serde_json::to_string(&electorates).unwrap()
+            }))))
+            .unwrap(),
+            Some(electorates)
+        );
+        for unreadable in [
+            serde_json::json!({"post": 7}),
+            serde_json::json!("{\"post\": \"many\"}"),
+        ] {
+            assert!(
+                recorded_election_electorates(&session(Some(serde_json::json!({
+                    ELECTION_ELECTORATES_ANNOTATION: unreadable
+                }))))
+                .is_err()
+            );
+        }
+    }
+
+    #[test]
+    fn sealed_areas_add_up_as_their_seals_recorded_them() {
+        // A voter in both north and south is in both seals' census. A seal
+        // records how many voters its census had, not who they were, so the
+        // two figures add up and that voter counts twice.
+        let styles = published(&[("post", "north"), ("post", "south")]);
+        let contests = vec![
+            contest_area("post", "north", "c1", census(2, Some("seal-n"))),
+            contest_area("post", "south", "c1", census(2, Some("seal-s"))),
+        ];
+
+        let counts = electorate_counts(&ids(&["post"]), &styles, None, &contests).unwrap();
+
+        assert_eq!(counts[0].sealed_voters, 4);
+        assert!(counts[0].counted_areas.is_empty());
     }
 }
