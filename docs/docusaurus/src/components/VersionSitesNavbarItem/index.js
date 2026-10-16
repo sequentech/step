@@ -10,9 +10,6 @@ import {translate} from '@docusaurus/Translate';
 import DropdownNavbarItem from '@theme/NavbarItem/DropdownNavbarItem';
 
 function versionLabel(name) {
-  if (name === 'main') {
-    return translate({id: 'versionSites.next', message: 'Next'});
-  }
   if (name === 'dev') {
     return translate({id: 'versionSites.versions', message: 'Versions'});
   }
@@ -31,10 +28,7 @@ export default function VersionSitesNavbarItem({mobile, ...props}) {
   const section = manualHome.slice(0, manualHome.lastIndexOf('/'));
   const inManual = pathname.includes(`/${section}`);
   const items = docsSites.map(({name, url, manualHome: home}) => ({
-    label:
-      name === 'main'
-        ? translate({id: 'versionSites.main', message: 'Next (main)'})
-        : name,
+    label: name,
     href: `${url}${localePrefix}${inManual ? home : ''}`,
     className: name === docsVersion ? 'dropdown__link--active' : undefined,
   }));
