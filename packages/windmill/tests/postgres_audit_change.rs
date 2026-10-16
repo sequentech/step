@@ -14,6 +14,7 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 use windmill::services::audit_log::{act_for, AuditActor, AuditOrigin};
+use windmill::services::delete_tenant::stage_tenant_deletion;
 
 const USER_ID: &str = "8f2b7a52-5a0c-4c0e-9d57-3f1f4a8f6f10";
 const ADMIN_USER: &str = "admin-user";
@@ -1196,4 +1197,61 @@ async fn a_keys_ceremony_step_creates_is_in_its_event_log() {
     assert_eq!(entry.action(), "create");
     assert_eq!(entry.details["object"]["type"], "keys_ceremony");
     assert_eq!(entry.change("execution_status")["new"], "NOT_STARTED");
+}
+
+#[tokio::test]
+async fn a_deleted_tenant_is_logged_in_the_log_of_the_admin_who_deleted_it() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let admins = insert_tenant(&tx, &json!({})).await;
+    let deleted = insert_tenant(&tx, &json!({"logs_timezone": "UTC"})).await;
+
+    stage_tenant_deletion(
+        &tx,
+        &deleted.to_string(),
+        &admins.to_string(),
+        Some(step_admin()),
+        Some("task-1"),
+    )
+    .await
+    .unwrap();
+
+    assert!(entries(&tx, deleted).await.is_empty());
+    let entry = one_entry(&tx, admins).await;
+    assert_eq!(entry.election_event_id, None);
+    assert_eq!(entry.action(), "delete");
+    assert_eq!(entry.username.as_deref(), Some("ada"));
+    assert_eq!(entry.details["origin"], "windmill");
+    assert_eq!(
+        entry.details["object"],
+        json!({"type": "tenant", "id": deleted, "name": slug(deleted)})
+    );
+    assert_eq!(entry.change("slug")["old"], slug(deleted));
+    assert_eq!(entry.change("settings.logs_timezone")["old"], "UTC");
+    assert_eq!(entry.details["extra"], json!({"task_id": "task-1"}));
+}
+
+#[tokio::test]
+async fn a_retried_tenant_deletion_adds_no_entry() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let admins = insert_tenant(&tx, &json!({})).await;
+
+    stage_tenant_deletion(
+        &tx,
+        &Uuid::new_v4().to_string(),
+        &admins.to_string(),
+        None,
+        None,
+    )
+    .await
+    .unwrap();
+    assert!(entries(&tx, admins).await.is_empty());
+    assert!(
+        stage_tenant_deletion(&tx, "not-a-tenant", "not-a-tenant", None, None)
+            .await
+            .is_err()
+    );
 }

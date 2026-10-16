@@ -27,14 +27,15 @@ use windmill::services::approval_matrix::evaluate::{
     decide, Invariant, MatrixSource, MatrixVersion, RuleInputs,
 };
 use windmill::services::approval_matrix::store::{
-    get_latest_approval_matrix, insert_approval_matrix,
+    get_latest_approval_matrix, insert_approval_matrix, SavedMatrix,
 };
 use windmill::services::approval_matrix::{
     ApprovalMatrix, FieldMatch, IdentityMethod, MatrixError, BUILT_IN_VERSION,
 };
 use windmill::services::audit_log::{
-    diff_values, stage, AdminAction, AuditObject,
+    diff_values, stage, AdminAction, AdminChange, AuditObject,
 };
+use windmill::services::task_audit;
 use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 use windmill::types::application::{
     ApplicationRejectReason, ApplicationStatus,
@@ -268,6 +269,43 @@ pub struct SaveApprovalMatrixInput {
     matrix: ApprovalMatrix,
 }
 
+/// The entry of a saved matrix: its version and rules before and after.
+/// The matrix table has no audit trigger, so the route writes it by hand,
+/// in the transaction of the change.
+fn matrix_change(
+    claims: &JwtClaims,
+    election_event_id: &str,
+    previous: Option<&SavedMatrix>,
+    saved: &SavedMatrix,
+) -> anyhow::Result<AdminChange> {
+    fn fields(matrix: &SavedMatrix) -> anyhow::Result<serde_json::Value> {
+        Ok(json!({
+            "version": matrix.version,
+            "matrix": serde_json::to_value(&matrix.matrix)?,
+        }))
+    }
+    let old_fields = previous.map(fields).transpose()?;
+    let version_name = format!("version {}", saved.version);
+    Ok(audit::change(
+        claims,
+        task_audit::target(
+            &claims.hasura_claims.tenant_id,
+            Some(election_event_id),
+        )?,
+        AuditObject::new(
+            "approval_matrix",
+            election_event_id,
+            Some(version_name.as_str()),
+        ),
+        AdminAction::Update,
+    )
+    .with_changes(diff_values("", old_fields.as_ref(), Some(&fields(saved)?)))
+    .with_description(format!(
+        "Saved version {} of the approval matrix",
+        saved.version
+    )))
+}
+
 /// Saves the rules as the election event's next version, with its
 /// electoral-log entry.
 #[instrument(skip(claims, services))]
@@ -302,8 +340,6 @@ pub async fn save_approval_matrix(
             )
         })?;
 
-    // The matrix table has no audit trigger: the entry is written by hand,
-    // in the transaction of the change.
     let previous = get_latest_approval_matrix(
         &transaction,
         tenant_id,
@@ -343,42 +379,13 @@ pub async fn save_approval_matrix(
             internal("Failed to post the electoral log message", error)
         })?;
 
-    let fields = |version: i32, matrix: &ApprovalMatrix| {
-        serde_json::to_value(matrix)
-            .map(|matrix| json!({ "version": version, "matrix": matrix }))
-    };
-    let old_fields = previous
-        .as_ref()
-        .map(|previous| fields(previous.version, &previous.matrix))
-        .transpose()
-        .map_err(|error| internal("Failed to describe the change", error))?;
-    let new_fields = fields(saved.version, &saved.matrix)
-        .map_err(|error| internal("Failed to describe the change", error))?;
-    let target =
-        audit::target(tenant_id, Some(body.election_event_id.as_str()))
-            .map_err(|(status, message)| {
-                ErrorResponse::new(
-                    status,
-                    &message,
-                    ErrorCode::InternalServerError,
-                )
-            })?;
-    let version_name = format!("version {}", saved.version);
-    let change = audit::change(
+    let change = matrix_change(
         &claims,
-        target,
-        AuditObject::new(
-            "approval_matrix",
-            &body.election_event_id,
-            Some(version_name.as_str()),
-        ),
-        AdminAction::Update,
+        &body.election_event_id,
+        previous.as_ref(),
+        &saved,
     )
-    .with_changes(diff_values("", old_fields.as_ref(), Some(&new_fields)))
-    .with_description(format!(
-        "Saved version {} of the approval matrix",
-        saved.version
-    ));
+    .map_err(|error| internal("Failed to describe the change", error))?;
     stage(&transaction, &change)
         .await
         .map_err(|error| internal("Failed to queue the audit entry", error))?;

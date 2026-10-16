@@ -39,10 +39,6 @@ fn internal(error: impl std::fmt::Debug) -> JsonError {
     )
 }
 
-fn audit_error((status, message): (Status, String)) -> JsonError {
-    ErrorResponse::new(status, &message, ErrorCode::InternalServerError)
-}
-
 fn allow(claims: &JwtClaims, permission: Permissions) -> Result<(), JsonError> {
     authorize(
         claims,
@@ -202,7 +198,7 @@ pub async fn save_lifecycle_policies_route(
     let transaction = client.transaction().await.map_err(internal)?;
     audit::act_for(&transaction, &claims)
         .await
-        .map_err(audit_error)?;
+        .map_err(audit::json_error)?;
     let saved = save_lifecycle_policies(
         &transaction,
         tenant_id,

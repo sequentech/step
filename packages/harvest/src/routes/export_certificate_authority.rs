@@ -4,9 +4,11 @@
 
 use crate::services::audit;
 use crate::services::authorization::authorize;
+use crate::services::dependencies::HarvestServices;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use rocket::State;
 use sequent_core::ballot::VoterCertificatePolicy;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::TasksExecution;
@@ -34,11 +36,12 @@ pub struct ExportCertificateAuthorityOutput {
     task_execution: TasksExecution,
 }
 
-#[instrument(skip(claims, input))]
+#[instrument(skip(services, claims, input))]
 #[post("/export-certificate-authority", format = "json", data = "<input>")]
 pub async fn export_certificate_authority_route(
     claims: JwtClaims,
     input: Json<ExportCertificateAuthorityInput>,
+    services: &State<HarvestServices>,
 ) -> Result<Json<ExportCertificateAuthorityOutput>, (Status, String)> {
     let tenant_id_str = claims.hasura_claims.tenant_id.clone();
 
@@ -135,8 +138,9 @@ pub async fn export_certificate_authority_route(
         [id] => id.to_string(),
         _ => audit::MANY.to_string(),
     };
-    audit::record_after(
-        audit::change(
+    audit::record(
+        services,
+        &audit::change(
             &claims,
             audit::target(&tenant_id_str, Some(election_event_id.as_str()))?,
             AuditObject::new(audit::CERTIFICATE_AUTHORITY, exported, None),

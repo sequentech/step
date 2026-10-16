@@ -104,11 +104,9 @@ pub async fn manage_election_dates(
                 ErrorCode::InternalServerError,
             )
         })?;
-    audit::act_for(&hasura_transaction, &claims).await.map_err(
-        |(status, message)| {
-            ErrorResponse::new(status, &message, ErrorCode::InternalServerError)
-        },
-    )?;
+    audit::act_for(&hasura_transaction, &claims)
+        .await
+        .map_err(audit::json_error)?;
 
     authorize_election_permission_labels(
         &hasura_transaction,
@@ -242,11 +240,9 @@ pub async fn apply_schedule_recompute(
         .transaction()
         .await
         .map_err(|e| internal(&e))?;
-    audit::act_for(&hasura_transaction, &claims).await.map_err(
-        |(status, message)| {
-            ErrorResponse::new(status, &message, ErrorCode::InternalServerError)
-        },
-    )?;
+    audit::act_for(&hasura_transaction, &claims)
+        .await
+        .map_err(audit::json_error)?;
     let now = Utc::now();
     let refresh_enrollment = schedule_recompute::enrollment_changes_pending(
         &hasura_transaction,

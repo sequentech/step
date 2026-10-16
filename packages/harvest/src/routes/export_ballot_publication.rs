@@ -4,9 +4,11 @@
 
 use crate::services::audit;
 use crate::services::authorization::authorize;
+use crate::services::dependencies::HarvestServices;
 use anyhow::{anyhow, Context, Result};
 use rocket::http::Status;
 use rocket::serde::json::{self, Json};
+use rocket::State;
 use sequent_core::services::jwt;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::TasksExecution;
@@ -35,11 +37,12 @@ pub struct ExportBallotPublicationOutput {
     task_execution: TasksExecution,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(services, claims))]
 #[post("/export-ballot-publication", format = "json", data = "<input>")]
 pub async fn export_ballot_publication_route(
     claims: jwt::JwtClaims,
     input: Json<ExportBallotPublicationInput>,
+    services: &State<HarvestServices>,
 ) -> Result<Json<ExportBallotPublicationOutput>, (Status, String)> {
     let body = input.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
@@ -116,7 +119,7 @@ pub async fn export_ballot_publication_route(
         Some(&task_execution.id),
         Some(&document_id),
     );
-    audit::record_after(entry).await?;
+    audit::record(services, &entry).await?;
 
     let output = ExportBallotPublicationOutput {
         document_id,

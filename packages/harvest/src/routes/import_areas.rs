@@ -4,9 +4,11 @@
 
 use crate::services::audit;
 use crate::services::authorization::authorize;
+use crate::services::dependencies::HarvestServices;
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use rocket::State;
 use sequent_core::services::jwt;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
@@ -30,11 +32,12 @@ pub struct ImportAreasOutput {}
 
 const AREA: &str = "area";
 
-#[instrument(skip(claims))]
+#[instrument(skip(services, claims))]
 #[post("/upsert-areas", format = "json", data = "<input>")]
 pub async fn upsert_areas_route(
     claims: jwt::JwtClaims,
     input: Json<ImportAreasInput>,
+    services: &State<HarvestServices>,
 ) -> Result<Json<ImportAreasOutput>, (Status, String)> {
     let body = input.into_inner();
     authorize(
@@ -67,7 +70,7 @@ pub async fn upsert_areas_route(
         "Updated the parents of areas from a file",
     );
     // The task commits on its own; its entry follows the change.
-    audit::record_after(entry).await?;
+    audit::record(services, &entry).await?;
 
     Ok(Json(ImportAreasOutput {}))
 }

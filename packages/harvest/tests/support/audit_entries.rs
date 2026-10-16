@@ -534,3 +534,34 @@ fn an_export_names_its_task_and_its_document() {
         json!({"task_execution_id": "task-2"})
     );
 }
+
+#[rocket::async_test]
+async fn naming_an_admin_needs_a_tenant_id_and_a_working_transaction() {
+    let services = Services::on_test_database().await;
+    let mut client = services.hasura.get().await.unwrap();
+    let transaction = client.transaction().await.unwrap();
+
+    let without_tenant = Claims::new("not-a-tenant", ADMIN_ID).build();
+    let (status, message) =
+        act_for(&transaction, &without_tenant).await.unwrap_err();
+    assert_eq!(status, Status::BadRequest);
+    assert!(message.starts_with("Invalid tenant_id"), "{message}");
+
+    // A statement that failed aborts the transaction: nothing more runs.
+    assert!(transaction.execute("SELECT 1/0", &[]).await.is_err());
+    let (status, message) = act_for(&transaction, &admin()).await.unwrap_err();
+    assert_eq!(status, Status::InternalServerError);
+    assert!(
+        message.starts_with("The admin of the change could not be named"),
+        "{message}"
+    );
+}
+
+#[test]
+fn an_audit_error_keeps_its_status_and_message_as_json() {
+    let error = json_error((Status::BadRequest, "Invalid tenant_id".into()));
+    let body = serde_json::to_value(&error.1 .0).unwrap();
+    assert_eq!(error.0, Status::BadRequest);
+    assert_eq!(body["message"], "Invalid tenant_id");
+    assert_eq!(body["extensions"]["code"], "InternalServerError");
+}

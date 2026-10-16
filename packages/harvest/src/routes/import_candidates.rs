@@ -4,9 +4,11 @@
 
 use crate::services::audit;
 use crate::services::authorization::authorize;
+use crate::services::dependencies::HarvestServices;
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use rocket::State;
 use sequent_core::services::jwt;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
@@ -32,11 +34,12 @@ pub struct ImportCandidatesOutput {
     task_execution: TasksExecution,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(services, claims))]
 #[post("/import-candidates", format = "json", data = "<input>")]
 pub async fn import_candidates_route(
     claims: jwt::JwtClaims,
     input: Json<ImportCandidatesInput>,
+    services: &State<HarvestServices>,
 ) -> Result<Json<ImportCandidatesOutput>, (Status, String)> {
     authorize(
         &claims,
@@ -95,7 +98,7 @@ pub async fn import_candidates_route(
         "Imported candidates",
     );
     // The task commits on its own; its entry follows the change.
-    audit::record_after(entry).await?;
+    audit::record(services, &entry).await?;
 
     let output = ImportCandidatesOutput {
         error_msg: None,

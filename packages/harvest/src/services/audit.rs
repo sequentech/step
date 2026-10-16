@@ -12,6 +12,7 @@
 //! admin event covers a change whose entry could not be queued.
 
 use crate::services::dependencies::HarvestServices;
+use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use deadpool_postgres::Transaction;
 use rocket::http::Status;
 use sequent_core::services::jwt::JwtClaims;
@@ -51,6 +52,11 @@ type RouteError = (Status, String);
 
 fn server_error(context: &str, error: impl std::fmt::Debug) -> RouteError {
     (Status::InternalServerError, format!("{context}: {error:?}"))
+}
+
+/// An audit error as the JSON error of routes that answer with one.
+pub fn json_error((status, message): RouteError) -> JsonError {
+    ErrorResponse::new(status, &message, ErrorCode::InternalServerError)
 }
 
 /// The admin a request comes from.
@@ -431,17 +437,6 @@ pub fn exported(
     change(claims, target, object, AdminAction::Export)
         .with_extra(extra)
         .with_description(description)
-}
-
-/// Queues the entry of work that committed outside the route's own
-/// transaction (a task, a file), and asks a worker to post it.
-pub async fn record_after(change: AdminChange) -> Result<(), RouteError> {
-    task_audit::record(change).await.map_err(|error| {
-        server_error(
-            "The change was made, but its audit entry could not be queued",
-            error,
-        )
-    })
 }
 
 /// The rows `transaction` changes from now on, in the tables with the

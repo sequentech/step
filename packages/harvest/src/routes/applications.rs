@@ -100,11 +100,9 @@ pub async fn verify_user_application(
         })?;
     // The service account verifies on the applicant's behalf: the entries of
     // the rows it writes name it as the actor.
-    audit::act_for(&hasura_transaction, &claims).await.map_err(
-        |(status, message)| {
-            ErrorResponse::new(status, &message, ErrorCode::InternalServerError)
-        },
-    )?;
+    audit::act_for(&hasura_transaction, &claims)
+        .await
+        .map_err(audit::json_error)?;
 
     let mut keycloak_db_client: DbClient =
         get_keycloak_pool().await.get().await.map_err(|e| {
@@ -234,11 +232,9 @@ pub async fn change_application_status(
                 ErrorCode::GetTransactionFailed,
             )
         })?;
-    audit::act_for(&hasura_transaction, &claims).await.map_err(
-        |(status, message)| {
-            ErrorResponse::new(status, &message, ErrorCode::InternalServerError)
-        },
-    )?;
+    audit::act_for(&hasura_transaction, &claims)
+        .await
+        .map_err(audit::json_error)?;
 
     let user_id = &claims.hasura_claims.user_id;
     let admin_name = claims

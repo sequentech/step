@@ -368,11 +368,9 @@ pub async fn publish_ballot(
                 ErrorCode::InternalServerError,
             )
         })?;
-    audit::act_for(&hasura_transaction, &claims).await.map_err(
-        |(status, message)| {
-            ErrorResponse::new(status, &message, ErrorCode::InternalServerError)
-        },
-    )?;
+    audit::act_for(&hasura_transaction, &claims)
+        .await
+        .map_err(audit::json_error)?;
     authorize_publication_permission_labels(
         &hasura_transaction,
         &claims,

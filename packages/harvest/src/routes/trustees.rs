@@ -4,9 +4,11 @@
 
 use crate::services::audit;
 use crate::services::authorization::authorize;
+use crate::services::dependencies::HarvestServices;
 use anyhow::{anyhow, Context, Result};
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use rocket::State;
 use sequent_core::services::jwt;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
@@ -31,11 +33,12 @@ pub struct ExportTrusteesOutput {
     task_execution: TasksExecution,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(services, claims))]
 #[post("/export-trustees", format = "json", data = "<input>")]
 pub async fn export_trustees_route(
     claims: jwt::JwtClaims,
     input: Json<ExportTrusteesInput>,
+    services: &State<HarvestServices>,
 ) -> Result<Json<ExportTrusteesOutput>, (Status, String)> {
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let body = input.into_inner();
@@ -105,7 +108,7 @@ pub async fn export_trustees_route(
         Some(&task_execution.id),
         Some(&document_id),
     );
-    audit::record_after(entry).await?;
+    audit::record(services, &entry).await?;
 
     let output = ExportTrusteesOutput {
         document_id,

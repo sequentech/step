@@ -337,11 +337,9 @@ pub async fn get_custody_request(
             );
             custody_request_download_internal_error()
         })?;
-    audit::act_for(&hasura_transaction, &claims).await.map_err(
-        |(status, message)| {
-            ErrorResponse::new(status, &message, ErrorCode::InternalServerError)
-        },
-    )?;
+    audit::act_for(&hasura_transaction, &claims)
+        .await
+        .map_err(audit::json_error)?;
 
     if let Some(tally_id) = &input.tally_session_id {
         authorize_tally_session_permission_labels(
