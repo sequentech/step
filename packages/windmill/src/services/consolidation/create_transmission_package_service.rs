@@ -14,7 +14,9 @@ use super::package_manifest::{
     ALL_SERVERS_NAME,
 };
 use super::results_csv::csv_name;
-use super::signed_transmission_package::{lock_transmission_data, transmission_zone};
+use super::signed_transmission_package::{
+    lock_transmission_data, transmission_zone, TallyAnnotations,
+};
 use super::transmission_package::{
     create_logs_package, create_transmission_package, generate_base_compressed_xml,
     GeneratedReturns,
@@ -130,7 +132,7 @@ pub async fn update_transmission_package_annotations(
     election_id: &str,
     transmission_data: Vec<MiruTransmissionPackageData>,
     new_transmission_package_data: MiruTransmissionPackageData,
-    tally_annotations: Annotations,
+    tally_annotations: TallyAnnotations,
 ) -> Result<()> {
     let mut new_transmission_data: Vec<MiruTransmissionPackageData> = transmission_data
         .clone()
@@ -144,8 +146,11 @@ pub async fn update_transmission_package_annotations(
 
     let mut new_tally_annotations = tally_annotations.clone();
     let annotation_key = prepend_miru_annotation(MIRU_TALLY_SESSION_DATA);
-    new_tally_annotations.insert(annotation_key, new_transmission_data_str);
-    let new_tally_annotations_value = serde_json::to_value(new_tally_annotations)?;
+    new_tally_annotations.insert(
+        annotation_key,
+        serde_json::Value::String(new_transmission_data_str),
+    );
+    let new_tally_annotations_value = serde_json::Value::Object(new_tally_annotations);
 
     info!(
         "Updating tally session annotations: {}",
