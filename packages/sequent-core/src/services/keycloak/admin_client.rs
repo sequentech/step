@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::serialization::deserialize_with_path::deserialize_str;
 use crate::services::connection;
-use crate::services::connection::PRE_EXPIRATION_SECS;
+use crate::services::connection::{PRE_EXPIRATION_SECS, REDACTED};
 use crate::services::keycloak::realm::get_tenant_realm;
 use anyhow::{anyhow, Result};
 use keycloak::{KeycloakAdmin, KeycloakAdminToken, KeycloakTokenSupplier};
@@ -18,7 +18,7 @@ use std::sync::RwLock;
 use std::time::{Duration, Instant};
 use tracing::{event, info, instrument, warn, Level};
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PubKeycloakAdminToken {
     pub access_token: String,
     pub expires_in: usize,
@@ -31,15 +31,33 @@ pub struct PubKeycloakAdminToken {
     pub token_type: String,
 }
 
+impl std::fmt::Debug for PubKeycloakAdminToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PubKeycloakAdminToken")
+            .field("access_token", &REDACTED)
+            .field("expires_in", &self.expires_in)
+            .field("not_before_policy", &self.not_before_policy)
+            .field("refresh_expires_in", &self.refresh_expires_in)
+            .field(
+                "refresh_token",
+                &self.refresh_token.as_ref().map(|_| REDACTED),
+            )
+            .field("scope", &self.scope)
+            .field("session_state", &self.session_state)
+            .field("token_type", &self.token_type)
+            .finish()
+    }
+}
+
 impl TryFrom<KeycloakAdminToken> for PubKeycloakAdminToken {
     type Error = anyhow::Error;
 
     fn try_from(token: KeycloakAdminToken) -> Result<Self, Self::Error> {
         let json = serde_json::to_string(&token).map_err(|err| {
-            anyhow!(format!("Error serializing: {err:?}, Token: {token:?}"))
+            anyhow!(format!("Error serializing token: {err:?}"))
         })?;
         deserialize_str(&json).map_err(|err| {
-            anyhow!(format!("Error deserializing: {err:?}, Token: {json:?}"))
+            anyhow!(format!("Error deserializing token: {err:?}"))
         })
     }
 }
@@ -48,21 +66,32 @@ impl TryFrom<PubKeycloakAdminToken> for KeycloakAdminToken {
     type Error = anyhow::Error;
 
     fn try_from(token: PubKeycloakAdminToken) -> Result<Self, Self::Error> {
-        let json = serde_json::to_string(&token)
-            .map_err(|err| anyhow!(format!("{err:?}, Token: {token:?}")))?;
+        let json = serde_json::to_string(&token).map_err(|err| {
+            anyhow!(format!("Error serializing token: {err:?}"))
+        })?;
 
         deserialize_str(&json).map_err(|err| {
-            anyhow!(format!("Error deserializing: {err:?}, Token: {json:?}"))
+            anyhow!(format!("Error deserializing token: {err:?}"))
         })
     }
 }
 
-#[derive(Debug)]
 struct KeycloakLoginConfig {
     url: String,
     client_id: String,
     client_secret: String,
     realm: String,
+}
+
+impl std::fmt::Debug for KeycloakLoginConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("KeycloakLoginConfig")
+            .field("url", &self.url)
+            .field("client_id", &self.client_id)
+            .field("client_secret", &REDACTED)
+            .field("realm", &self.realm)
+            .finish()
+    }
 }
 
 impl KeycloakLoginConfig {
@@ -103,7 +132,7 @@ fn get_keycloak_login_admin_config() -> KeycloakLoginConfig {
     KeycloakLoginConfig::new(client_id, client_secret, tenant_id)
 }
 
-#[instrument(err)]
+#[instrument(err, skip_all)]
 pub async fn get_credentials_inner(
     login_config: KeycloakLoginConfig,
 ) -> Result<String> {
@@ -127,9 +156,8 @@ pub async fn get_credentials_inner(
         .build();
     event!(
         Level::INFO,
-        "Acquiring credentials to {} with {:?}",
-        keycloak_endpoint,
-        body_string
+        "Acquiring credentials to {}",
+        keycloak_endpoint
     );
 
     let res = async {
@@ -156,9 +184,7 @@ pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
     let text = get_credentials_inner(login_config).await?;
     let credentials: KeycloakAdminToken =
         deserialize_str(&text).map_err(|err| {
-            anyhow!(format!(
-                "Error deserializing: {err:?}, Inner credentials: {text:?}"
-            ))
+            anyhow!(format!("Error deserializing credentials: {err:?}"))
         })?;
 
     event!(Level::INFO, "Successfully acquired credentials");
@@ -177,9 +203,7 @@ pub async fn get_auth_credentials() -> Result<KeycloakAdminToken> {
     let text = get_credentials_inner(login_config).await?;
     let credentials: KeycloakAdminToken =
         deserialize_str(&text).map_err(|err| {
-            anyhow!(format!(
-                "Error deserializing: {err:?}, Inner credentials: {text:?}"
-            ))
+            anyhow!(format!("Error deserializing credentials: {err:?}"))
         })?;
     event!(Level::INFO, "Successfully acquired credentials");
     Ok(credentials)
@@ -187,7 +211,7 @@ pub async fn get_auth_credentials() -> Result<KeycloakAdminToken> {
 
 /// Authenticate a party client in keycloak with specific client credentials and
 /// tenant_id
-#[instrument(err)]
+#[instrument(err, skip(client_secret))]
 pub async fn get_third_party_client_access_token(
     client_id: String,
     client_secret: String,
@@ -199,9 +223,7 @@ pub async fn get_third_party_client_access_token(
     let text = get_credentials_inner(login_config).await?;
     let keycloak_adm_tkn: KeycloakAdminToken =
         deserialize_str(&text).map_err(|err| {
-            anyhow!(format!(
-                "Error deserializing: {err:?}, Inner credentials: {text:?}"
-            ))
+            anyhow!(format!("Error deserializing credentials: {err:?}"))
         })?;
 
     event!(Level::INFO, "Successfully acquired credentials");
@@ -369,5 +391,26 @@ impl KeycloakAdminClient {
             client: client,
             token_supplier: admin_token,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn keycloak_login_config_debug_omits_client_secret() {
+        const CLIENT_SECRET: &str = "ClientSecretValue2a9c";
+        let login_config = KeycloakLoginConfig {
+            url: "http://keycloak".to_string(),
+            client_id: "client".to_string(),
+            client_secret: CLIENT_SECRET.to_string(),
+            realm: "realm".to_string(),
+        };
+
+        let debug = format!("{login_config:?}");
+
+        assert!(debug.contains("client_id"), "{debug}");
+        assert!(!debug.contains(CLIENT_SECRET), "{debug}");
     }
 }
