@@ -79,7 +79,7 @@ election event.
 :::caution CAUTION
 In this version the admin portal does not send the hash of an election event file to the server,
 so the import does not check it. Before you import, get the hash of the file and compare it with
-the hash in the file name. See [Import File Formats](../02-reference/12-import-file-formats.md#election-event). Without this check,
+the hash in the file name. See [Import File Formats](../02-reference/12-import-file-formats/01-election-event.md). Without this check,
 you cannot know if somebody changed the file.
 :::
 
