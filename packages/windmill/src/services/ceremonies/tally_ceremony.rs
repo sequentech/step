@@ -315,6 +315,7 @@ pub async fn create_tally_ceremony(
     let decoded_ballots_inclusion_policy = election_event.get_decoded_ballots_inclusion_policy();
     let delegated_voting_policy = election_event.get_delegated_voting_policy();
     let weighted_voting_policy = election_event.get_weighted_voting_policy();
+    let batch_anonymity_policy = election_event.get_batch_anonymity_policy();
     let published_ballot_style_rows =
         get_ballot_styles_by_elections(transaction, &tenant_id, &election_event_id, &election_ids)
             .await?;
@@ -457,6 +458,7 @@ pub async fn create_tally_ceremony(
     final_configuration.decoded_ballots_inclusion_policy = Some(decoded_ballots_inclusion_policy);
     final_configuration.delegated_voting_policy = Some(delegated_voting_policy);
     final_configuration.weighted_voting_policy = Some(weighted_voting_policy);
+    final_configuration.batch_anonymity_policy = Some(batch_anonymity_policy);
     let contests: Vec<Contest> = all_contests
         .into_iter()
         .filter(|contest| election_ids.contains(&contest.election_id))
