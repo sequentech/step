@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Tenant Log and Audit Entries | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3928/docs/developers/electoral-log/electoral-log-tenant-log"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Tenant Log and Audit Entries | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3928/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3928/docs/developers/electoral-log/electoral-log-tenant-log"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3928/docs/developers/electoral-log/electoral-log-tenant-log" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3928/docs/developers/electoral-log/electoral-log-tenant-log" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Tenant log","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3928/docs/developers/electoral-log/electoral-log-tenant-log"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3928/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3928/assets/js/runtime~main.effe824d.js" defer="defer"></script>
-<script src="/docusaurus/pr-preview/pr-3928/assets/js/main.2a9a5865.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3928/assets/js/runtime~main.0644a8ec.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3928/assets/js/main.8f00d692.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg style="display: none;"><defs>
@@ -240,8 +240,8 @@ themselves), when the row was written by another trigger (<code>pg_trigger_depth
 deleted row went with a parent it references <code>ON DELETE CASCADE</code> (<code>audit_deleted_by_cascade</code>).</li>
 <li class=""><strong>Compares the old and new row</strong> column by column, ignoring <code>created_at</code>, <code>updated_at</code> and
 <code>last_updated_at</code>. A JSON object column is compared key by key under dotted paths
-(<code>settings.logs_timezone</code>); anything else is compared whole. The secret and long-text rules of
-section 3.2 apply.</li>
+(<code>settings.logs_timezone</code>); anything else is compared whole. A key set to <code>null</code> is a key left
+out. The secret and long-text rules of section 3.2 apply.</li>
 <li class=""><strong>Chooses the log.</strong> A row with an <code>election_event_id</code> goes to that event&#x27;s log; any other row goes
 to the tenant log. For <code>election_event</code> itself, an insert and a delete are tenant-log entries; an
 update to <code>is_archived</code> is a tenant-log entry with the action <code>archive</code> or <code>unarchive</code>, and its
@@ -339,8 +339,8 @@ would be logged.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="62-the-route-coverage-test">6.2 The route coverage test<a href="#62-the-route-coverage-test" class="hash-link" aria-label="Direct link to 6.2 The route coverage test" title="Direct link to 6.2 The route coverage test" translate="no">​</a></h3>
 <p><code>packages/harvest/tests/support/audited_routes.rs</code> fails when a file of <code>packages/harvest/src/routes</code>
 commits a transaction and neither names its admin (<code>audit::act_for</code>, or <code>audit::actor</code> handed to the
-Windmill code that opens the transaction) nor queues an entry of its own (<code>stage</code>, <code>audit::record</code>,
-<code>audit::record_after</code>). A route file that changes nothing an admin would audit (voting portal routes,
+Windmill code that opens the transaction) nor queues an entry of its own (<code>stage</code>, <code>audit::record</code>).
+A route file that changes nothing an admin would audit (voting portal routes,
 reads that commit, callbacks) is listed with its reason in
 <code>packages/harvest/tests/fixtures/unaudited-committing-routes.txt</code>. The test also fails for an
 exemption that names a file that no longer commits or that audits. It runs with Harvest&#x27;s unit tests:</p>
