@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {IPermissions} from "@/types/keycloak"
 import {GraphQLRequest} from "@apollo/client"
-import {isUndefined} from "@sequentech/ui-core"
 
 const AdminOperationMap: Record<string, IPermissions> = {
     // area
@@ -187,11 +186,25 @@ const TrusteeOperationMap: Record<string, IPermissions> = {
     getUsers: IPermissions.VOTER_READ,
 }
 
-export const getOperationRole = (operation: GraphQLRequest, isTrustee = false): IPermissions => {
-    let operationName = operation?.operationName
-    if (isUndefined(operationName)) {
-        return IPermissions.ADMIN_USER
+// Roles that operations without a mapped role run as, in order of preference
+const DEFAULT_OPERATION_ROLES: Array<IPermissions> = [
+    IPermissions.ADMIN_USER,
+    IPermissions.TRUSTEE_CEREMONY,
+    IPermissions.PUBLISH_READ,
+]
+
+export const getOperationRole = (
+    operation: GraphQLRequest,
+    hasRole: (role: IPermissions) => boolean
+): IPermissions => {
+    const defaultRole = DEFAULT_OPERATION_ROLES.find(hasRole) ?? IPermissions.ADMIN_USER
+    const operationMap = hasRole(IPermissions.TRUSTEE_CEREMONY)
+        ? TrusteeOperationMap
+        : AdminOperationMap
+    const operationName = operation?.operationName
+    const mappedRole = operationName ? operationMap[operationName] : undefined
+    if (!mappedRole) {
+        return defaultRole
     }
-    let OperationMap = isTrustee ? TrusteeOperationMap : AdminOperationMap
-    return OperationMap[operationName] ?? IPermissions.ADMIN_USER
+    return defaultRole === IPermissions.ADMIN_USER || hasRole(mappedRole) ? mappedRole : defaultRole
 }
