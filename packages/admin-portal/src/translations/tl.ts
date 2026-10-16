@@ -5,6 +5,29 @@ import englishTranslation, {TranslationType} from "./en"
 
 const tagalogTranslation: TranslationType = {
     translations: {
+        readiness: {
+            close: "Isara",
+            action: "Suriin ang kahandaan",
+            title: "Kahandaan ng halalan",
+            description:
+                "Ihambing ang opisyal na kaganapang ito sa natapos na ensayo. Kapag pumasa, itinatala ang nilagdaang ebidensiya sa log ng opisyal na kaganapan.",
+            testedEvent: "Sinubukang kaganapan",
+            archived: "Naka-archive",
+            noEvents: "Walang ibang kaganapang magagamit",
+            retry: "Subukan muli",
+            eventsError: "Hindi mai-load ang mga kaganapan ng halalan.",
+            run: "Patakbuhin ang pagsusuri",
+            running: "Sinusuri ang kahandaan…",
+            error: "Hindi makumpleto ang pagsusuri. Suriin ang mga log bago ulitin; maaaring nawala ang tugon matapos maitala ang ebidensiya.",
+            downloadError: "Hindi ma-download ang ulat. Subukan muli.",
+            success:
+                "Napatunayan ang kahandaan. Naitala ang nilagdaang ebidensiya sa mga log ng opisyal na kaganapan.",
+            failed: "Nabigo ang pagsusuri ng kahandaan. Ayusin ang mga nabigong pagsusuri at ulitin. Walang naitalang entry ng kahandaan.",
+            download: "I-download ang ulat na JSON",
+            snapshot:
+                "Ang ulat na ito ay kalagayan sa isang sandali. Ulitin pagkatapos ng mahahalagang pagbabago; hindi nito pinipirmi ang kaganapan o pinapalitan ang pag-apruba sa operasyon.",
+            results: "Mga resulta ng pagsusuri",
+        },
         philSysID: "PhilSys ID",
         iBP: "Integrated Bar of the Philippines (IBP)",
         philippinePassport: "Pasaporte ng Pilipinas",

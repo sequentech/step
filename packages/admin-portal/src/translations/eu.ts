@@ -5,6 +5,29 @@ import englishTranslation, {TranslationType} from "./en"
 
 const basqueTranslation: TranslationType = {
     translations: {
+        readiness: {
+            close: "Itxi",
+            action: "Prestasuna egiaztatu",
+            title: "Hauteskundeen prestasuna",
+            description:
+                "Alderatu ekitaldi ofizial hau amaitutako entsegu batekin. Egiaztapena gainditzean, sinatutako froga ekitaldi ofizialaren erregistroan gordetzen da.",
+            testedEvent: "Probatutako ekitaldia",
+            archived: "Artxibatuta",
+            noEvents: "Ez dago beste ekitaldirik erabilgarri",
+            retry: "Saiatu berriro",
+            eventsError: "Ezin izan dira hauteskunde-ekitaldiak kargatu.",
+            run: "Exekutatu egiaztapena",
+            running: "Prestasuna egiaztatzen…",
+            error: "Ezin izan da egiaztapena osatu. Begiratu erregistroa berriro saiatu aurretik; erantzuna galdu egin daiteke froga gorde ondoren.",
+            downloadError: "Ezin izan da txostena deskargatu. Saiatu berriro.",
+            success:
+                "Prestasuna egiaztatuta. Sinatutako froga ekitaldi ofizialaren erregistroan gorde da.",
+            failed: "Prestasun-egiaztapenak huts egin du. Konpondu huts egindako egiaztapenak eta errepikatu. Ez da prestasun-sarrerarik gorde.",
+            download: "Deskargatu JSON txostena",
+            snapshot:
+                "Txosten hau une bateko egoera da. Errepikatu aldaketa garrantzitsuen ondoren; ez du ekitaldia izozten, eta ez du baimen operatiboa ordezkatzen.",
+            results: "Egiaztapenen emaitzak",
+        },
         philippinePassport: "Filipinetako Pasaportea",
         seamanBook: "Marinoaren Liburua",
         philSysID: "PhilSys IDa",

@@ -5,6 +5,29 @@ import englishTranslation, {TranslationType} from "./en"
 
 const catalanTranslation: TranslationType = {
     translations: {
+        readiness: {
+            close: "Tanca",
+            action: "Verificar preparació",
+            title: "Preparació electoral",
+            description:
+                "Compareu aquest esdeveniment oficial amb un assaig finalitzat. Si la verificació és satisfactòria, es registra evidència signada al registre de l’esdeveniment oficial.",
+            testedEvent: "Esdeveniment provat",
+            archived: "Arxivat",
+            noEvents: "No hi ha altres esdeveniments disponibles",
+            retry: "Torna-ho a provar",
+            eventsError: "No s’han pogut carregar els esdeveniments.",
+            run: "Executa la verificació",
+            running: "Verificant la preparació…",
+            error: "No s’ha pogut completar la verificació. Reviseu el registre abans de tornar-ho a provar; la resposta es pot haver perdut després de registrar l’evidència.",
+            downloadError: "No s’ha pogut descarregar l’informe. Torneu-ho a provar.",
+            success:
+                "Preparació verificada. S’ha registrat evidència signada al registre de l’esdeveniment oficial.",
+            failed: "La preparació ha fallat. Resoleu les verificacions fallides i repetiu. No s’ha registrat cap entrada de preparació.",
+            download: "Descarrega l’informe JSON",
+            snapshot:
+                "Aquest informe és una instantània. Repetiu després de canvis rellevants; no bloqueja l’esdeveniment ni substitueix l’aprovació operativa.",
+            results: "Resultats de la verificació",
+        },
         philippinePassport: "Passaport filipí",
         seamanBook: "Llibreta de mariner",
         philSysID: "Identificació PhilSys",

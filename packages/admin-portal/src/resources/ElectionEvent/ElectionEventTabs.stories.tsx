@@ -590,3 +590,18 @@ export const Approvals: Story = {
         operations: ["getUserProfileAttributes"],
     }),
 }
+
+export const ReadinessDuringLockdown: Story = {
+    args: {
+        lockedDown: true,
+        roles: [IPermissions.READINESS_CHECK, IPermissions.ELECTION_EVENT_READ],
+    },
+    parameters: {widgets: []},
+    play: async ({canvasElement}) => {
+        await expect(
+            await within(canvasElement).findByRole("button", {name: i18n.t("readiness.action")})
+        ).toBeVisible()
+        expect(within(canvasElement).queryByRole("tab", {name: "Data"})).toBeNull()
+        expect(within(canvasElement).queryByRole("tab", {name: "Logs"})).toBeNull()
+    },
+}

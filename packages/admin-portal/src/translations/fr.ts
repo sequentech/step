@@ -5,6 +5,29 @@ import englishTranslation, {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
+        readiness: {
+            close: "Fermer",
+            action: "Vérifier la préparation",
+            title: "Préparation électorale",
+            description:
+                "Comparez cet événement officiel à une répétition terminée. Une vérification réussie inscrit une preuve signée dans le journal de l’événement officiel.",
+            testedEvent: "Événement testé",
+            archived: "Archivé",
+            noEvents: "Aucun autre événement disponible",
+            retry: "Réessayer",
+            eventsError: "Impossible de charger les événements.",
+            run: "Lancer la vérification",
+            running: "Vérification en cours…",
+            error: "La vérification n’a pas pu être terminée. Consultez le journal avant de réessayer ; la réponse peut avoir été perdue après l’enregistrement des preuves.",
+            downloadError: "Impossible de télécharger le rapport. Réessayez.",
+            success:
+                "Préparation vérifiée. Une preuve signée a été inscrite dans le journal de l’événement officiel.",
+            failed: "La vérification a échoué. Corrigez les contrôles en échec et recommencez. Aucune entrée de préparation n’a été inscrite.",
+            download: "Télécharger le rapport JSON",
+            snapshot:
+                "Ce rapport est un instantané. Répétez après toute modification pertinente ; il ne fige pas l’événement et ne remplace pas l’approbation opérationnelle.",
+            results: "Résultats des contrôles",
+        },
         philippinePassport: "Passeport philippin",
         seamanBook: "Livret de marin",
         philSysID: "Carte d'identité PhilSys",

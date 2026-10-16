@@ -4,6 +4,29 @@
 
 const englishTranslation = {
     translations: {
+        readiness: {
+            close: "Close",
+            action: "Check readiness",
+            title: "Election readiness",
+            description:
+                "Compare this official event with a completed rehearsal. A passing check writes signed evidence to this official event’s log.",
+            testedEvent: "Tested event",
+            archived: "Archived",
+            noEvents: "No other events available",
+            retry: "Retry",
+            eventsError: "Could not load election events.",
+            run: "Run check",
+            running: "Checking readiness…",
+            error: "The check could not be completed. Check Logs before retrying; the response may have been lost after evidence was recorded.",
+            downloadError: "Could not download the report. Try again.",
+            success:
+                "Readiness verified. Signed evidence was recorded in the official event’s Logs.",
+            failed: "Readiness failed. Resolve the failed checks and run again. No readiness entry was recorded.",
+            download: "Download JSON report",
+            snapshot:
+                "This report is a snapshot. Repeat after relevant changes; it does not freeze the event or replace operational approval.",
+            results: "Check results",
+        },
         philippinePassport: "Passport",
         seamanBook: "Seafarer's Book",
         philSysID: "PhilSys ID",

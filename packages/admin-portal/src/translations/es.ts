@@ -5,6 +5,29 @@ import englishTranslation, {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
+        readiness: {
+            close: "Cerrar",
+            action: "Verificar preparación",
+            title: "Preparación electoral",
+            description:
+                "Compare este evento oficial con un ensayo finalizado. Si la verificación es satisfactoria, se registra evidencia firmada en el historial del evento oficial.",
+            testedEvent: "Evento probado",
+            archived: "Archivado",
+            noEvents: "No hay otros eventos disponibles",
+            retry: "Reintentar",
+            eventsError: "No se pudieron cargar los eventos.",
+            run: "Ejecutar verificación",
+            running: "Verificando preparación…",
+            error: "No se pudo completar la verificación. Revise el historial antes de reintentar; la respuesta puede haberse perdido tras registrar la evidencia.",
+            downloadError: "No se pudo descargar el informe. Inténtelo de nuevo.",
+            success:
+                "Preparación verificada. Se registró evidencia firmada en el historial del evento oficial.",
+            failed: "La preparación no es válida. Resuelva las verificaciones fallidas y repita. No se registró ninguna entrada de preparación.",
+            download: "Descargar informe JSON",
+            snapshot:
+                "Este informe es una instantánea. Repita tras cambios relevantes; no bloquea el evento ni sustituye la aprobación operativa.",
+            results: "Resultados de la verificación",
+        },
         philippinePassport: "Pasaporte filipino",
         seamanBook: "Libro de marinero",
         philSysID: "Identificación PhilSys",

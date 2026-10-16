@@ -107,11 +107,25 @@ Do not open official voting or create a tally session before checking readiness.
 This also excludes initialization workflows that create tally sessions. Future
 scheduled voting dates are expected; actual voting must not have started or ended.
 
-Run `step-cli step readiness-check` at the points required by the approved
-procedure, such as after the rehearsal or when a scheduled lockdown starts.
-Each successful invocation records a separate signed `ReadinessVerified` entry
-in the official event's existing **Logs**. Retain the JSON report and returned
-log entry reference, and correlate them with the exported event log.
+In the Admin Portal, open the **official** election event and select **Check
+readiness** beside its title. Select the completed **Tested event**, checking its
+name and ID, then select **Run check**. Archived rehearsal events are included.
+The action requires `readiness-check`; selecting events uses the existing
+`election-event-read` permission and event permission labels. It remains available
+during lockdown and does not require access to the Data or Logs tabs.
+
+The dialog shows every check's outcome, the check time and, on success, the signed
+log entry reference. Select **Download JSON report** to retain the complete report,
+including evidence for failed checks. Changing the tested event clears the previous
+result. If a request fails, check the official event's Logs before retrying: the
+server may have recorded evidence before the response was lost.
+
+Run this check at the points required by the approved procedure, such as after the
+rehearsal or when a scheduled lockdown starts. The CLI alternative is
+`step-cli step readiness-check`. Each successful invocation records a separate
+signed `ReadinessVerified` entry in the official event's existing **Logs**. Retain
+the JSON report and returned log entry reference, and correlate them with the
+exported event log.
 
 The report compares approved content and approvers, certified voter hashes and
 area counts, official zero state, publication designs and tested close/seal state.
@@ -119,9 +133,9 @@ Evidence includes `current_voter_counts`, `voter_import_in_progress` and
 `received_ballot_count`. Current counts must match the certified import; active
 imports and any official received ballot prevent a pass.
 
-A failed check exits unsuccessfully and appends no `ReadinessVerified`. Resolve
-the reported cause and repeat. Missing evidence cannot pass. A successful report
-is a snapshot, and does not freeze later changes or certify enrollment,
+A failed comparison shows the failed checks (and the CLI exits unsuccessfully)
+and appends no `ReadinessVerified`. Resolve the reported cause and repeat. Missing
+evidence cannot pass. A successful report is a snapshot, and does not freeze later changes or certify enrollment,
 identity-provider configuration or operational approval. Repeat after relevant
 corrections and retain the correction record and new report.
 

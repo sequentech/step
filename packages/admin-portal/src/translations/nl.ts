@@ -5,6 +5,29 @@ import englishTranslation, {TranslationType} from "./en"
 
 const dutchTranslation: TranslationType = {
     translations: {
+        readiness: {
+            close: "Sluiten",
+            action: "Gereedheid controleren",
+            title: "Verkiezingsgereedheid",
+            description:
+                "Vergelijk dit officiële evenement met een voltooide repetitie. Een geslaagde controle legt ondertekend bewijs vast in het logboek van het officiële evenement.",
+            testedEvent: "Getest evenement",
+            archived: "Gearchiveerd",
+            noEvents: "Geen andere evenementen beschikbaar",
+            retry: "Opnieuw proberen",
+            eventsError: "Verkiezingsevenementen konden niet worden geladen.",
+            run: "Controle uitvoeren",
+            running: "Gereedheid wordt gecontroleerd…",
+            error: "De controle kon niet worden voltooid. Bekijk het logboek voordat u het opnieuw probeert; het antwoord kan verloren zijn gegaan nadat het bewijs was vastgelegd.",
+            downloadError: "Het rapport kon niet worden gedownload. Probeer het opnieuw.",
+            success:
+                "Gereedheid bevestigd. Ondertekend bewijs is vastgelegd in het logboek van het officiële evenement.",
+            failed: "De controle is mislukt. Verhelp de mislukte controles en voer deze opnieuw uit. Er is geen gereedheidsvermelding vastgelegd.",
+            download: "JSON-rapport downloaden",
+            snapshot:
+                "Dit rapport is een momentopname. Herhaal na relevante wijzigingen; het bevriest het evenement niet en vervangt geen operationele goedkeuring.",
+            results: "Controleresultaten",
+        },
         philippinePassport: "Filipijns Paspoort",
         seamanBook: "Zeemansboek",
         philSysID: "PhilSys ID",
