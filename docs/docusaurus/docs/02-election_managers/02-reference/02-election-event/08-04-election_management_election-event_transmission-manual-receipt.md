@@ -56,8 +56,9 @@ Send button, and the send action refuses the package.
 ### The OVCS identity
 
 The package names the OVCS by its device id, serial number, IP address and MAC
-address. Windmill reads them from these variables, and it refuses to generate
-a package while any of them is missing or malformed:
+address. Windmill, which generates the package, and Harvest, which seals it
+again with each uploaded signature, read them from these variables. Both
+refuse to seal a package while any of them is missing or malformed:
 
 | Variable | Value |
 | --- | --- |
