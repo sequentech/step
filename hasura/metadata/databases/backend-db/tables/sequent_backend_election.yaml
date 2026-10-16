@@ -470,7 +470,6 @@ select_permissions:
       permission:
           columns:
               - external_id
-              - annotations
               - created_at
               - description
               - election_event_id
