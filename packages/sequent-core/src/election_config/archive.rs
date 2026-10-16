@@ -45,7 +45,7 @@ impl Artifact {
     /// importer parses it — but it does mean the first regeneration of an existing
     /// event reindents the whole file once.
     fn json(name: impl Into<String>, value: &Value) -> Self {
-        let mut text = serde_json::to_string_pretty(value)
+        let mut text = super::canonical::pretty(value)
             .unwrap_or_else(|_| "null".to_string());
         text.push('\n');
         Artifact::text(name, text)

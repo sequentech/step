@@ -221,3 +221,13 @@ it.each([DropFile, DropJsonFile])(
         picker.mockRestore()
     }
 )
+
+it("offers multi-file browsing only when requested and forwards every source", async () => {
+    const handleFiles = jest.fn()
+    const {ref} = renderDrop({handleFiles, multiple: true})
+    expect(ref.current).toHaveAttribute("multiple")
+    const files = [new File(["sql"], "source.sql"), new File(["xlsx"], "source.xlsx")]
+    fireEvent.change(ref.current!, {target: {files}})
+    await waitFor(() => expect(handleFiles).toHaveBeenCalledWith(files))
+    expect(screen.getByText("source.sql, source.xlsx")).toBeVisible()
+})

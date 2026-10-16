@@ -371,18 +371,27 @@ pub fn build_from_workbook(
         Err(problem) => return failed(problem).map(IBuildOutput::from),
     };
 
+    to_js(&build_workbook_output(&read, &options)).map(IBuildOutput::from)
+}
+
+#[cfg(all(
+    feature = "election_config_xlsx",
+    feature = "election_config_archive"
+))]
+fn build_workbook_output(
+    read: &crate::election_config::Workbook,
+    options: &BuildOptions,
+) -> Output {
     let templates = match TemplateSet::builtin() {
         Ok(templates) => templates,
-        Err(problem) => return failed(problem).map(IBuildOutput::from),
+        Err(problem) => return output_problem(problem),
     };
 
-    let built = build(&read, &templates, &options, &Sources::default());
+    let built = build(read, &templates, options, &Sources::default());
 
     let bundle = match built {
         Ok(bundle) => bundle,
-        Err(report) => {
-            return to_js(&Output::refused(report)).map(IBuildOutput::from)
-        }
+        Err(report) => return Output::refused(report),
     };
 
     // The same second pass `step-cli` makes: a document can be internally
@@ -407,16 +416,16 @@ pub fn build_from_workbook(
     }
 
     if report.has_errors() {
-        return to_js(&Output::refused(report)).map(IBuildOutput::from);
+        return Output::refused(report);
     }
 
     let layout = archive::layout(&bundle);
     let zipped = match archive::zip(&layout.importable) {
         Ok(bytes) => bytes,
-        Err(problem) => return failed(problem).map(IBuildOutput::from),
+        Err(problem) => return output_problem(problem),
     };
 
-    to_js(&Output {
+    Output {
         importable: layout.importable.iter().map(File::from).collect(),
         auxiliary: layout.auxiliary.iter().map(File::from).collect(),
         archive: Some(File {
@@ -426,8 +435,68 @@ pub fn build_from_workbook(
         delivery: None,
         report,
         event_external_id: Some(bundle.event_external_id.clone()),
-    })
-    .map(IBuildOutput::from)
+    }
+}
+
+#[cfg(all(
+    feature = "election_config_xlsx",
+    feature = "election_config_archive"
+))]
+fn output_problem(problem: Problem) -> Output {
+    let mut report = Report::default();
+    report.push(problem);
+    Output::refused(report)
+}
+
+/// Versioned handshake for an opt-in browser converter loaded as static assets.
+#[cfg(all(
+    feature = "election_config_xlsx",
+    feature = "election_config_archive"
+))]
+#[wasm_bindgen(js_name = historicalImportInfo)]
+pub fn historical_import_info() -> Result<JsValue, JsError> {
+    to_js(&serde_json::json!({
+        "abiVersion": 1,
+        "profile": crate::election_config::historical::PROFILE,
+        "packageVersion": env!("CARGO_PKG_VERSION")
+    }))
+}
+
+/// Build the reviewed legacy-seat-v1 profile locally, sharing the workbook build.
+#[cfg(all(
+    feature = "election_config_xlsx",
+    feature = "election_config_archive"
+))]
+#[wasm_bindgen(js_name = buildFromHistorical)]
+pub fn build_from_historical(
+    sql: &[u8],
+    workbook: &[u8],
+    decisions: JsValue,
+    options: JsValue,
+) -> Result<JsValue, JsError> {
+    use crate::election_config::historical::{
+        adapt, HistoricalOptions, Summary,
+    };
+    #[derive(Serialize)]
+    struct HistoricalOutput {
+        summary: Summary,
+        output: Output,
+    }
+    let decisions: HistoricalOptions =
+        serde_wasm_bindgen::from_value(decisions)
+            .map_err(|_| JsError::new("historical decisions are invalid"))?;
+    let options = build_options(options)?;
+    let result = match adapt(sql, workbook, &decisions) {
+        Ok(adapted) => HistoricalOutput {
+            summary: adapted.summary,
+            output: build_workbook_output(&adapted.workbook, &options),
+        },
+        Err(refused) => HistoricalOutput {
+            summary: refused.summary,
+            output: Output::refused(refused.report),
+        },
+    };
+    to_js(&result)
 }
 
 /// Check a plan, in the wizard's own vocabulary.
@@ -1616,21 +1685,16 @@ pub fn policy_catalog() -> Result<JsValue, JsError> {
             let default = crate::election_config::policy::Tally::default();
             TallyCatalog {
                 voting_types: crate::election_config::validate::VOTING_TYPES,
-                counting_algorithms:
-                    crate::election_config::validate::COUNTING_ALGORITHMS,
+                counting_algorithms: crate::election_config::validate::COUNTING_ALGORITHMS,
                 offered_counting_algorithms:
                     crate::election_config::validate::OFFERED_COUNTING_ALGORITHMS,
-                preferential:
-                    crate::election_config::validate::PREFERENTIAL_ALGORITHMS,
+                preferential: crate::election_config::validate::PREFERENTIAL_ALGORITHMS,
                 default_voting_type: default.voting_type.clone(),
                 default_counting_algorithm: default.counting_algorithm.clone(),
                 default_min_votes: default.min_votes,
                 default_is_encrypted: default.is_encrypted,
-                tie_breaking_policies:
-                    crate::election_config::validate::TIE_BREAKING_POLICIES,
-                default_tie_breaking_policy: default
-                    .tie_breaking_policy
-                    .clone(),
+                tie_breaking_policies: crate::election_config::validate::TIE_BREAKING_POLICIES,
+                default_tie_breaking_policy: default.tie_breaking_policy.clone(),
             }
         },
         layout: {
