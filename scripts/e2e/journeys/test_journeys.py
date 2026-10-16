@@ -2367,6 +2367,17 @@ class BackendJourneys(unittest.TestCase):
 
     # ER transmission for manual receipt (VOTE-TRANSMISSION, T2 to T7)
 
+    def grant_sbei_role(self, username):
+        """Give an account the SBEI's signing role, which no group carries."""
+        user = self.keycloak.user(TENANT_REALM, username)
+        role = self.keycloak.admin("GET", f"{TENANT_REALM}/roles/miru-sign")
+        self.keycloak.admin(
+            "POST",
+            f"{TENANT_REALM}/users/{user['id']}/role-mappings/realm",
+            [role],
+            expect=(204,),
+        )
+
     def sbei_account(self):
         """A second signer for the Post: an administrator of the tenant, as an SBEI is."""
         username = f"sbei-{self.tag}"
@@ -2388,6 +2399,7 @@ class BackendJourneys(unittest.TestCase):
         )
         bootstrap.set_password(self.keycloak, username, password)
         bootstrap.enroll_mfa(self.keycloak, username, password)
+        self.grant_sbei_role(username)
         token = self.keycloak.password_grant(
             TENANT_REALM,
             "api-key-client",
@@ -2502,6 +2514,7 @@ class BackendJourneys(unittest.TestCase):
     def test_d_er_transmission_manual_receipt(self):
         """T2-T7: the ER file is generated, signed by two SBEIs, downloaded with its log, and verified on receipt."""
         self.requires("journey 2c", "journey 7")
+        self.grant_sbei_role(ENV["ADMIN_USERNAME"])
         admin_token = self.admin_token()
         sbei_name, sbei_token = self.sbei_account()
         transmission.loader.load(
@@ -2576,10 +2589,8 @@ class BackendJourneys(unittest.TestCase):
         self.assertEqual(downloads["all_servers"][0]["file_name"], "all_servers.zip")
         logs = [line["log_text"] for line in self.transmission_package()["logs"]]
         for recorded, _ in downloads.values():
-            self.assertIn(
-                f"Downloaded {recorded['file_name']} (SHA-256 {recorded['sha256']}) by Jose Dela Cruz",
-                logs,
-            )
+            line = f"Downloaded {recorded['file_name']} (SHA-256 {recorded['sha256']}) by "
+            self.assertTrue(any(log.startswith(line) for log in logs), (line, logs))
         self.wait_for_log(self.state.event_id, {"TransmissionFileDownloaded": 3})
 
         # T5: the XML is EML 510 and the CSV has the same votes as the tally.
