@@ -22,6 +22,7 @@ use crate::services::ceremonies::sealed_box_ballots::{
 };
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::election::{get_election_event_elections, ElectionHead};
+use crate::services::initialization_record::initialization_area_filter;
 use crate::services::join::merge_join_csv;
 use crate::services::join::read_ballot_voter_ids;
 use crate::services::join::{MergeJoinResult, MultiplicitySource};
@@ -43,7 +44,7 @@ use sequent_core::serialization::deserialize_with_path::{deserialize_str, deseri
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::ceremonies::TallyType;
-use sequent_core::types::hasura::core::TallySession;
+use sequent_core::types::hasura::core::{BallotStyle, TallySession};
 use sequent_core::types::hasura::core::{TallySessionContest, TallySessionContestAnnotations};
 use sequent_core::types::keycloak::{MAX_TOTAL_VOTE_WEIGHT, VOTE_WEIGHT_BATCHES};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
@@ -105,16 +106,33 @@ pub struct ElectorateCount {
     pub sealed_voters: u64,
 }
 
+/// The `(election_id, area_id)` of the ballot styles that were published when
+/// the session was created, which are the ones its contest areas were made
+/// from.
+pub fn published_for_session(
+    styles: Vec<BallotStyle>,
+    tally_session: &TallySession,
+) -> Vec<(String, String)> {
+    styles
+        .into_iter()
+        .filter(|style| match (style.created_at, tally_session.created_at) {
+            (Some(style_created), Some(session_created)) => style_created <= session_created,
+            _ => true,
+        })
+        .filter_map(|style| style.area_id.map(|area_id| (style.election_id, area_id)))
+        .collect()
+}
+
 /// How each of `election_ids` has its electorate counted, from the areas with
-/// a published ballot style for it (`published`, as `(election_id, area_id)`)
-/// within the session's areas (`session_areas`, all of them when `None`), and
-/// the session's annotated contest areas.
+/// a published ballot style for it (`published`, as `(election_id, area_id)`),
+/// kept to the session's chosen areas (`area_filter`, as a country-by-country
+/// initialization records them), and the session's annotated contest areas.
 ///
 /// A sealed area keeps the census its seal recorded, as the tally counts it.
 pub fn electorate_counts(
     election_ids: &[String],
     published: &[(String, String)],
-    session_areas: Option<&[String]>,
+    area_filter: Option<&[String]>,
     contests: &[TallySessionContest],
 ) -> Result<Vec<ElectorateCount>> {
     election_ids
@@ -124,7 +142,7 @@ pub fn electorate_counts(
                 .iter()
                 .filter(|(election, area)| {
                     election == election_id
-                        && session_areas.map_or(true, |session_areas| session_areas.contains(area))
+                        && area_filter.map_or(true, |area_filter| area_filter.contains(area))
                 })
                 .map(|(_, area)| area.clone())
                 .collect();
@@ -171,12 +189,13 @@ pub async fn record_election_electorates(
     let tenant_id = &tally_session.tenant_id;
     let election_event_id = &tally_session.election_event_id;
     let election_ids = tally_session.election_ids.clone().unwrap_or_default();
-    let published: Vec<(String, String)> = PgTallyCreationReader::new(hasura_transaction)
-        .published_ballot_styles(tenant_id, election_event_id, &election_ids)
-        .await?
-        .into_iter()
-        .filter_map(|style| style.area_id.map(|area_id| (style.election_id, area_id)))
-        .collect();
+    let published = published_for_session(
+        PgTallyCreationReader::new(hasura_transaction)
+            .published_ballot_styles(tenant_id, election_event_id, &election_ids)
+            .await?,
+        tally_session,
+    );
+    let area_filter = initialization_area_filter(tally_session);
     let aliases = election_voter_authorization_aliases(
         get_election_event_elections(hasura_transaction, tenant_id, election_event_id)
             .await?
@@ -195,12 +214,7 @@ pub async fn record_election_electorates(
         .with_context(|| "Error acquiring keycloak transaction")?;
 
     let mut electorates = ElectionElectorates::new();
-    for count in electorate_counts(
-        &election_ids,
-        &published,
-        tally_session.area_ids.as_deref(),
-        contests,
-    )? {
+    for count in electorate_counts(&election_ids, &published, area_filter.as_deref(), contests)? {
         let alias = aliases
             .get(&count.election_id)
             .cloned()
@@ -855,12 +869,13 @@ async fn posted_by_other_sessions(
 #[cfg(test)]
 mod tests {
     use super::{
-        election_voter_authorization_aliases, electorate_counts, recorded_election_electorates,
-        voters_replacing_their_delegation, ElectionElectorates, ElectorateCount,
-        ELECTION_ELECTORATES_ANNOTATION,
+        election_voter_authorization_aliases, electorate_counts, published_for_session,
+        recorded_election_electorates, voters_replacing_their_delegation, ElectionElectorates,
+        ElectorateCount, ELECTION_ELECTORATES_ANNOTATION,
     };
     use crate::services::users::VoterMultiplicityColumn;
-    use sequent_core::types::hasura::core::{TallySession, TallySessionContest};
+    use chrono::{DateTime, Local};
+    use sequent_core::types::hasura::core::{BallotStyle, TallySession, TallySessionContest};
     use std::collections::HashMap;
     use std::io::Write;
 
@@ -1078,7 +1093,7 @@ mod tests {
     }
 
     #[test]
-    fn an_electorate_keeps_to_the_areas_of_the_session() {
+    fn an_electorate_keeps_to_the_areas_a_country_initialization_chose() {
         // A country-by-country initialization session of `post` covers north
         // and the acclaimed area, not south.
         let styles = published(&[
@@ -1087,12 +1102,12 @@ mod tests {
             ("post", "acclaimed-area"),
         ]);
         let contests = vec![contest_area("post", "north", "c1", census(3, None))];
-        let session_areas = ids(&["acclaimed-area", "north"]);
+        let area_filter = ids(&["acclaimed-area", "north"]);
 
         let counts = electorate_counts(
             &ids(&["post"]),
             &styles,
-            Some(session_areas.as_slice()),
+            Some(area_filter.as_slice()),
             &contests,
         )
         .unwrap();
@@ -1169,5 +1184,59 @@ mod tests {
 
         assert_eq!(counts[0].sealed_voters, 4);
         assert!(counts[0].counted_areas.is_empty());
+    }
+
+    fn at(time: &str) -> Option<DateTime<Local>> {
+        Some(
+            DateTime::parse_from_rfc3339(time)
+                .unwrap()
+                .with_timezone(&Local),
+        )
+    }
+
+    fn style(area_id: &str, created_at: Option<DateTime<Local>>) -> BallotStyle {
+        BallotStyle {
+            id: format!("style-{area_id}"),
+            tenant_id: "tenant".into(),
+            election_id: "post".into(),
+            area_id: Some(area_id.into()),
+            created_at,
+            last_updated_at: None,
+            labels: None,
+            annotations: None,
+            ballot_eml: None,
+            ballot_signature: None,
+            status: None,
+            election_event_id: "event".into(),
+            deleted_at: None,
+            ballot_publication_id: "publication".into(),
+        }
+    }
+
+    #[test]
+    fn the_areas_are_those_published_when_the_session_was_created() {
+        // The session's area-contest links no longer include the acclaimed
+        // area, whose link was removed after it was published: it is still
+        // published, so it is still the election's.
+        let mut session = session(None);
+        session.created_at = at("2026-10-10T12:00:00Z");
+        session.area_ids = Some(ids(&["north"]));
+        let styles = vec![
+            style("north", at("2026-10-01T09:00:00Z")),
+            style("acclaimed-area", at("2026-10-01T09:00:00Z")),
+            // Published after the session was created.
+            style("later", at("2026-10-11T09:00:00Z")),
+            // Without a time, as far as can be told it was there.
+            style("untimed", None),
+        ];
+
+        assert_eq!(
+            published_for_session(styles, &session),
+            published(&[
+                ("post", "north"),
+                ("post", "acclaimed-area"),
+                ("post", "untimed"),
+            ])
+        );
     }
 }
