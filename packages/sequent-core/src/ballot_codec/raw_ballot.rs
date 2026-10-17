@@ -323,12 +323,9 @@ impl RawBallotCodec for Contest {
         }
 
         if write_in_index < choices.len() {
-            decoded_contest.invalid_errors.push(InvalidPlaintextError {
-                error_type: InvalidPlaintextErrorType::EncodingError,
-                candidate_id: None,
-                message: Some("errors.encoding.ballotTooLarge".to_string()),
-                message_map: HashMap::new(),
-            });
+            decoded_contest
+                .invalid_errors
+                .push(InvalidPlaintextError::ballot_too_large());
         }
 
         let presentation = self.presentation.clone().unwrap_or_default();
