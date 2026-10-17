@@ -240,6 +240,17 @@ impl Registry {
         .await
     }
 
+    /// Checks that `identity` may run `operation` of plugin `id`. Transports
+    /// call it before contacting any backend; `execute` checks it again.
+    pub fn authorize(
+        &self,
+        identity: &Identity,
+        id: &str,
+        operation: &str,
+    ) -> Result<(), PluginError> {
+        authorize(self.plugin(id)?.manifest(), operation, identity)
+    }
+
     /// Executes one operation in the caller's transaction. Any error must cause
     /// the caller to drop/roll back the transaction, including validation errors.
     pub async fn execute(

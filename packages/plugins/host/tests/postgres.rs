@@ -25,7 +25,11 @@ const STUB_SCHEMA: &str = "CREATE SCHEMA sequent_backend;
     CREATE TABLE sequent_backend.tenant (id uuid PRIMARY KEY);
     CREATE TABLE sequent_backend.scheduled_event (id uuid PRIMARY KEY, value text);
     INSERT INTO sequent_backend.scheduled_event
-        VALUES ('00000000-0000-4000-8000-000000000001', 'untouched');";
+        VALUES ('00000000-0000-4000-8000-000000000001', 'untouched');
+    -- The admin audit trigger comes from earlier platform migrations; these
+    -- tests check the plugin tables, so a stand-in that logs nothing is enough.
+    CREATE FUNCTION sequent_backend.audit_change() RETURNS trigger
+        LANGUAGE plpgsql AS $$ BEGIN RETURN NULL; END $$;";
 const PROJECTS: &str = "projects";
 const ALL_ROLES: [&str; 5] = [
     "admin-user",

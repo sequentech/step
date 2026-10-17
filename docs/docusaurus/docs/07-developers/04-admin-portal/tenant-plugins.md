@@ -76,6 +76,11 @@ Three tables, not tracked by Hasura, so the gateway is the only API:
 Deleting a tenant deletes its plugin rows; otherwise history cannot be changed
 or deleted.
 
+Every change to `plugin_tenant` and `plugin_record` is also logged in the
+tenant's admin audit log, like other admin changes: the gateway names the admin
+with `audit::act_for`, and the `audit_change` trigger records the old and new
+values.
+
 Every operation runs in one transaction; any error rolls back all of its
 writes and history. Updates and deletes name the version they replace; a
 stale version is refused with `plugin-conflict` and the current record, so the
@@ -98,7 +103,8 @@ Harvest with the caller's token:
 | `set_tenant_plugin_state(plugin_id, state, expected_version)` | `POST /plugins/state` | `admin-user`, `tenant-write` |
 | `execute_plugin_operation(plugin_id, operation, data)` | `POST /plugins/execute` | `admin-user` and the operation's permission |
 
-The token must be a tenant realm token (not an election event realm's) whose
+The gateway checks the operation's permission, or `tenant-write` for a state
+change, before it contacts any backend. The token must be a tenant realm token (not an election event realm's) whose
 subject is the Hasura user. Requests with unknown fields, such as a
 `tenant_id`, are refused. Errors carry a stable `extensions.code`:
 `plugin-forbidden`, `plugin-disabled`, `plugin-incompatible`,

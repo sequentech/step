@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //! Authenticated tenant plugin gateway. Input never selects the tenant or actor.
 use crate::ports::identity::IdentityAdmin;
+use crate::services::audit;
 use crate::services::dependencies::HarvestServices;
 use rocket::{
     fairing::AdHoc, http::Status, response::status::Custom, serde::json::Json,
@@ -13,13 +14,14 @@ use sequent_core::types::permissions::Permissions;
 use sequent_plugin_api::PluginError;
 use sequent_plugin_host::{
     postgres::{PluginState, Registry, RoleProvisioner},
-    Identity,
+    Identity, TENANT_WRITE,
 };
 use sequent_plugin_projects::Projects;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::time::Duration;
 use uuid::Uuid;
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 
 /// Bounds a remote Keycloak failure while the lifecycle row lock is held.
 const PROVISIONING_TIMEOUT: Duration = Duration::from_secs(30);
@@ -228,6 +230,7 @@ pub async fn set_tenant_plugin_state(
     services: &State<HarvestServices>,
 ) -> Result<Json<Output>, ApiError> {
     let identity = identity(&claims)?;
+    identity.require(TENANT_WRITE).map_err(api_error)?;
     let mut client = services
         .databases
         .hasura()
@@ -236,6 +239,9 @@ pub async fn set_tenant_plugin_state(
         .await
         .map_err(unavailable)?;
     let tx = client.transaction().await.map_err(unavailable)?;
+    audit::act_for(&tx, &claims)
+        .await
+        .map_err(|(_, message)| unavailable(message))?;
     // Partial role provisioning is safe to retry; the enabled state is only
     // committed after every role and group mapping exists.
     tokio::time::timeout(
@@ -254,6 +260,7 @@ pub async fn set_tenant_plugin_state(
     .map_err(api_error)?;
     let plugins = registry.list(&tx, &identity).await.map_err(api_error)?;
     tx.commit().await.map_err(unavailable)?;
+    kick_audit_log_outbox();
     Ok(Json(Output {
         data: json!({ "plugins": plugins }),
     }))
@@ -276,6 +283,9 @@ pub async fn execute_plugin_operation(
 ) -> Result<Json<Output>, ApiError> {
     let identity = identity(&claims)?;
     let request = input.into_inner();
+    registry
+        .authorize(&identity, &request.plugin_id, &request.operation)
+        .map_err(api_error)?;
     let mut client = services
         .databases
         .hasura()
@@ -284,6 +294,9 @@ pub async fn execute_plugin_operation(
         .await
         .map_err(unavailable)?;
     let tx = client.transaction().await.map_err(unavailable)?;
+    audit::act_for(&tx, &claims)
+        .await
+        .map_err(|(_, message)| unavailable(message))?;
     // Dropping the transaction on any error rolls back every write.
     let data = registry
         .execute(
@@ -296,6 +309,7 @@ pub async fn execute_plugin_operation(
         .await
         .map_err(api_error)?;
     tx.commit().await.map_err(unavailable)?;
+    kick_audit_log_outbox();
     Ok(Json(Output { data }))
 }
 

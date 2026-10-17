@@ -37,6 +37,16 @@ export default {
         return humanize(area.replace(/\.tsx?$/, ""))
     },
     excluded: {
+        "src/index.tsx#Portal":
+            "Application root: wraps the providers and the app in the data router; the " +
+            "production journeys render it.",
+        "src/plugins/NavigationGuard.tsx#NavigationGuard":
+            "Renders nothing: holds navigation while a screen has unsaved changes; the " +
+            "Admin/Plugins/ProjectView and Admin/Plugins/PluginRoute stories cover it.",
+        "src/plugins/PluginProvider.tsx#PluginProvider":
+            PROVIDER +
+            " The Admin/Plugins/PluginRoute and PluginSettings stories render it with the " +
+            "plugin gateway's actions answered.",
         "src/App.tsx#App":
             "Application root: builds the Hasura data provider and registers the routes; " +
             "the production journeys' route matrix renders every route.",

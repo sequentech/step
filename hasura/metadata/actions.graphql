@@ -4,8 +4,16 @@ type Query {
 }
 
 type Mutation {
-    set_tenant_plugin_state(plugin_id: String!, state: String!, expected_version: Int!): PluginsRouteOutput!
-    execute_plugin_operation(plugin_id: String!, operation: String!, data: jsonb!): PluginsRouteOutput!
+    set_tenant_plugin_state(
+        plugin_id: String!
+        state: String!
+        expected_version: Int!
+    ): PluginsRouteOutput!
+    execute_plugin_operation(
+        plugin_id: String!
+        operation: String!
+        data: jsonb!
+    ): PluginsRouteOutput!
     request_server_custody(object: jsonb!): jsonb!
     submit_trustee_action_result(result: jsonb!): TrusteeReportOutput!
 }

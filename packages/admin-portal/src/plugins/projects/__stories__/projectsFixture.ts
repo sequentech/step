@@ -2,7 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import type {FetchResult, Operation as GraphqlOperation} from "@apollo/client"
 import {GraphQLError} from "graphql"
-import {Compatibility, PluginErrorCode, PluginState, TenantPlugin} from "../../contracts"
+import {
+    Compatibility,
+    PluginErrorCode,
+    PluginHost,
+    PluginRequestError,
+    PluginState,
+    TenantPlugin,
+} from "../../contracts"
 import {HistoryEvent, Operation, ProjectState, Saved, Task, TaskKind, TaskStatus} from "../model"
 
 export const STORY_TIMEZONE = "Asia/Manila"
@@ -91,13 +98,10 @@ export const projectsPlugin = (state = PluginState.Enabled): TenantPlugin => ({
 
 type Reply = FetchResult | Promise<FetchResult>
 
-/** The gateway's refusal, as Hasura forwards it. */
-const failure = (message: string, extensions: Record<string, unknown>): Reply => ({
-    errors: [new GraphQLError(message, {extensions})],
-})
+export const PROJECT_IDS = {plan: PROJECT_ID, second: SECOND_PROJECT_ID}
 
-/** Answers the plugin gateway's GraphQL actions from memory, with versions. */
-export function projectsServices({state = PluginState.Enabled}: {state?: PluginState} = {}) {
+/** An in-memory Projects API with versions, shared by the stories. */
+export function projectsBackend() {
     const project = saved(PROJECT_ID, {
         name: SAMPLE_PROJECT_NAME,
         timezone: STORY_TIMEZONE,
@@ -122,6 +126,16 @@ export function projectsServices({state = PluginState.Enabled}: {state?: PluginS
     const operations: string[] = []
     const history: HistoryEvent[] = [
         {
+            id: 2,
+            record_id: id(3),
+            parent_id: PROJECT_ID,
+            action: "update",
+            actor: "planner",
+            at: "2026-10-17T03:10:00Z",
+            before: {data: {title: "Test voting"}},
+            after: {data: {title: "Test voting"}},
+        },
+        {
             id: 1,
             record_id: PROJECT_ID,
             parent_id: null,
@@ -132,12 +146,11 @@ export function projectsServices({state = PluginState.Enabled}: {state?: PluginS
             after: {task_count: 7},
         },
     ]
-    const reply = (data: unknown): Reply => ({data: {execute_plugin_operation: {data}}})
-    const execute = (operation: string, data: Record<string, unknown>): Reply => {
+    const execute = async (operation: string, data: Record<string, unknown>): Promise<unknown> => {
         operations.push(operation)
         switch (operation) {
             case Operation.ListProjects:
-                return reply({
+                return {
                     items: [
                         {
                             ...project,
@@ -147,20 +160,35 @@ export function projectsServices({state = PluginState.Enabled}: {state?: PluginS
                         },
                         {...second, task_count: 0, start: null, end: null},
                     ],
-                })
+                }
             case Operation.GetProject:
-                return reply(
-                    data.id === PROJECT_ID ? {project, tasks} : {project: second, tasks: []}
-                )
+                return data.id === PROJECT_ID ? {project, tasks} : {project: second, tasks: []}
             case Operation.History:
-                return reply({events: data.task_id ? [] : history})
+                return {
+                    events: data.task_id
+                        ? history.filter((event) => event.record_id === data.task_id)
+                        : history,
+                }
+            case Operation.PreviewImport:
+                return {
+                    valid: false,
+                    rows: [
+                        {line: 2, task: tasks[0].data, errors: []},
+                        {
+                            line: 3,
+                            task: null,
+                            errors: ["Use an ISO 8601 date and time with a UTC offset"],
+                        },
+                    ],
+                }
             case Operation.SaveTask: {
                 const current = tasks.find((task) => task.id === data.id)
                 if (current && current.version !== data.expected_version) {
-                    return failure("This record changed. Load the current version before saving", {
-                        code: PluginErrorCode.Conflict,
-                        current,
-                    })
+                    throw new PluginRequestError(
+                        "This record changed. Load the current version before saving",
+                        PluginErrorCode.Conflict,
+                        current
+                    )
                 }
                 const next = saved(
                     String(data.id ?? id(tasks.length + 1)),
@@ -170,20 +198,62 @@ export function projectsServices({state = PluginState.Enabled}: {state?: PluginS
                 tasks = current
                     ? tasks.map((task) => (task.id === next.id ? next : task))
                     : [...tasks, next]
-                return reply(next)
+                return next
             }
             default:
-                return failure("Unknown operation", {code: PluginErrorCode.NotFound})
+                throw new PluginRequestError("Unknown operation", PluginErrorCode.NotFound)
+        }
+    }
+    return {operations, execute, project, tasks: () => tasks}
+}
+
+/** A plugin host for a component story, with these Projects permissions. */
+export const storyHost = (
+    backend: ReturnType<typeof projectsBackend>,
+    permissions: string[]
+): PluginHost => ({
+    execute: <T>(operation: string, data: Record<string, unknown>) =>
+        backend.execute(operation, data) as Promise<T>,
+    can: (permission) => permissions.includes(permission),
+})
+
+/** Answers the plugin gateway's GraphQL actions, as Hasura forwards them. */
+export function projectsServices({state = PluginState.Enabled}: {state?: PluginState} = {}) {
+    const backend = projectsBackend()
+    let plugin = projectsPlugin(state)
+    const reply = async (run: () => Promise<unknown>): Promise<FetchResult> => {
+        try {
+            return {data: {execute_plugin_operation: {data: await run()}}}
+        } catch (cause) {
+            const error = cause as PluginRequestError
+            return {
+                errors: [
+                    new GraphQLError(error.message, {
+                        extensions: {code: error.code, current: error.current},
+                    }),
+                ],
+            }
         }
     }
     return {
-        operations,
+        operations: backend.operations,
         handlers: {
-            TenantPlugins: (): Reply => ({
-                data: {tenant_plugins: {data: {plugins: [projectsPlugin(state)]}}},
-            }),
+            TenantPlugins: (): Reply => ({data: {tenant_plugins: {data: {plugins: [plugin]}}}}),
+            SetTenantPluginState: ({variables}: GraphqlOperation): Reply => {
+                plugin = {
+                    ...plugin,
+                    state: variables.state as PluginState,
+                    version: plugin.version + 1,
+                }
+                return {data: {set_tenant_plugin_state: {data: {plugins: [plugin]}}}}
+            },
             ExecutePluginOperation: ({variables}: GraphqlOperation): Reply =>
-                execute(String(variables.operation), variables.data as Record<string, unknown>),
+                reply(() =>
+                    backend.execute(
+                        String(variables.operation),
+                        variables.data as Record<string, unknown>
+                    )
+                ),
         },
     }
 }

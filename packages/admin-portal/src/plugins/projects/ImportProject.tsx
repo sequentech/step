@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useMemo, useState} from "react"
+import React, {useMemo, useRef, useState} from "react"
 import {
     Alert,
     Autocomplete,
@@ -53,6 +53,7 @@ export const ImportProject: React.FC<Props> = ({mode, host, onClose, onCreated})
     const [preview, setPreview] = useState<ImportPreview | null>(null)
     const [busy, setBusy] = useState(false)
     const [error, setError] = useState("")
+    const fileInput = useRef<HTMLInputElement>(null)
     const importing = mode === NewProjectMode.Import
     const nameValid = name.trim().length > 0 && Array.from(name.trim()).length <= MAX_TITLE
     const ready = nameValid && Boolean(timezone) && (!importing || Boolean(preview?.valid))
@@ -141,15 +142,21 @@ export const ImportProject: React.FC<Props> = ({mode, host, onClose, onCreated})
                                 {t("projects.import.help", {columns: CSV_COLUMNS})}
                             </Alert>
                             <Stack direction="row" spacing={2} alignItems="center">
-                                <Button variant="outlined" component="label" disabled={busy}>
+                                <Button
+                                    variant="outlined"
+                                    disabled={busy}
+                                    onClick={() => fileInput.current?.click()}
+                                >
                                     {t("projects.import.choose")}
-                                    <input
-                                        type="file"
-                                        accept=".csv,text/csv"
-                                        hidden
-                                        onChange={(event) => void read(event.target.files?.[0])}
-                                    />
                                 </Button>
+                                <input
+                                    ref={fileInput}
+                                    type="file"
+                                    accept=".csv,text/csv"
+                                    hidden
+                                    aria-label={t("projects.import.choose")}
+                                    onChange={(event) => void read(event.target.files?.[0])}
+                                />
                                 <Typography variant="body2" color="text.secondary" noWrap>
                                     {fileName || t("projects.import.noFile")}
                                 </Typography>

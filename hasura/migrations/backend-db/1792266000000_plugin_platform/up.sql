@@ -67,3 +67,11 @@ $$;
 CREATE TRIGGER plugin_history_append_only
     BEFORE UPDATE OR DELETE ON sequent_backend.plugin_record_event
     FOR EACH ROW EXECUTE FUNCTION sequent_backend.plugin_history_append_only();
+
+-- Plugin changes made for an admin are logged in the tenant's audit log like
+-- other admin changes (SW-F-0364); the gateway names the admin with
+-- audit::act_for. The plugin's own history above is what its screens show.
+CREATE TRIGGER audit_change AFTER INSERT OR UPDATE OR DELETE ON sequent_backend.plugin_tenant
+    FOR EACH ROW EXECUTE FUNCTION sequent_backend.audit_change();
+CREATE TRIGGER audit_change AFTER INSERT OR UPDATE OR DELETE ON sequent_backend.plugin_record
+    FOR EACH ROW EXECUTE FUNCTION sequent_backend.audit_change();
