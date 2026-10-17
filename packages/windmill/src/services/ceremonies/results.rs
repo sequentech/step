@@ -20,6 +20,7 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use rusqlite::Connection;
 use rusqlite::Transaction as SqliteTransaction;
+use sequent_core::ballot::DecodedBallotsInclusionPolicy;
 use sequent_core::sqlite::results_event::find_results_event_sqlite;
 use sequent_core::types::ceremonies::{TallySessionDocuments, TallyType};
 use sequent_core::types::hasura::core::TallySessionExecution;
@@ -368,6 +369,7 @@ pub async fn process_results_tables(
     tally_type_enum: TallyType,
     sqlite_transaction_opt: Option<&SqliteTransaction<'_>>,
     force_new_id: bool,
+    decoded_ballots_policy: &DecodedBallotsInclusionPolicy,
 ) -> Result<Option<String>> {
     let results_event_id_opt = generate_results_id_if_necessary(
         hasura_transaction,
@@ -402,6 +404,7 @@ pub async fn process_results_tables(
                 default_language,
                 tally_type_enum,
                 sqlite_transaction_opt,
+                decoded_ballots_policy,
             )
             .await?;
         }
@@ -427,6 +430,7 @@ pub async fn populate_results_tables(
     tally_type_enum: TallyType,
     is_empty: bool,
     force_new_id: bool,
+    decoded_ballots_policy: &DecodedBallotsInclusionPolicy,
 ) -> Result<(Option<String>, Option<TallySessionDocuments>)> {
     let velvet_output_dir = base_tally_path.join("output");
     let base_database_path = velvet_output_dir.join(PipeNameOutputDir::GenerateDatabase.as_ref());
@@ -454,6 +458,7 @@ pub async fn populate_results_tables(
                         tally_type_enum,
                         Some(&sqlite_transaction),
                         force_new_id,
+                        decoded_ballots_policy,
                     )
                     .await
                 })?;
@@ -479,6 +484,7 @@ pub async fn populate_results_tables(
                         tally_type_enum,
                         None,
                         force_new_id,
+                        decoded_ballots_policy,
                     )
                     .await
                 })?;

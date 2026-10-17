@@ -597,7 +597,8 @@ const dutchTranslation: TranslationType = {
                     },
                 },
                 decodedBallots: {
-                    policyLabel: "Gedecodeerde stembiljetten opnemen in de resultaten database",
+                    policyLabel:
+                        "Gedecodeerde stembiljetten opnemen in de resultaten database en het tellingsarchief",
                     options: {"included": "Opnemen", "not-included": "Niet opnemen"},
                 },
                 contestEncryptionPolicy: {

@@ -1401,6 +1401,11 @@ pub async fn execute_tally_session_wrapped(
     };
 
     let default_language = election_event.get_default_language();
+    let decoded_ballots_policy = tally_session
+        .configuration
+        .clone()
+        .unwrap_or_default()
+        .get_decoded_ballots_policy();
 
     let (results_event_id, tally_session_execution_documents) = populate_results_tables(
         hasura_transaction,
@@ -1425,6 +1430,7 @@ pub async fn execute_tally_session_wrapped(
                 is_execution_completed,
                 tally_session_execution.results_event_id.as_deref(),
             ),
+        &decoded_ballots_policy,
     )
     .await?;
 

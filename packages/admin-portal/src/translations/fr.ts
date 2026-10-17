@@ -596,7 +596,7 @@ const frenchTranslation: TranslationType = {
                 },
                 decodedBallots: {
                     policyLabel:
-                        "Inclure les bulletins décodés dans la base de données de résultats",
+                        "Inclure les bulletins décodés dans la base de données de résultats et dans l'archive du décompte",
                     options: {"included": "Inclure", "not-included": "Ne pas inclure"},
                 },
                 contestEncryptionPolicy: {

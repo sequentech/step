@@ -6,6 +6,7 @@ use super::encrypter::{
     traversal_encrypt_files, traversal_find_secrets_for_files,
 };
 use super::renamer::rename_folders;
+use super::velvet_tally::{VELVET_INPUT_DIR, VELVET_OUTPUT_DIR};
 use crate::postgres::document::get_document;
 use crate::postgres::reports::Report;
 use crate::postgres::reports::{get_reports_by_election_event_id, ReportType};
@@ -19,13 +20,15 @@ use crate::{
         results_event::update_results_event_documents,
     },
     services::{
-        compress::create_archive_from_folder, documents::upload_and_return_document,
-        folders::copy_to_temp_dir,
+        compress::create_archive_from_folder,
+        documents::upload_and_return_document,
+        folders::{copy_to_temp_dir, copy_to_temp_dir_excluding},
     },
 };
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use rusqlite::Transaction as SqliteTransaction;
+use sequent_core::ballot::DecodedBallotsInclusionPolicy;
 use sequent_core::services::translations::Name;
 use sequent_core::sqlite::results_area_contest::update_results_area_contest_documents_sqlite;
 use sequent_core::sqlite::results_contest::update_results_contest_documents_sqlite;
@@ -43,13 +46,17 @@ use std::{
     path::{Path, PathBuf},
 };
 use strand::hash::hash_b64;
+use tempfile::TempDir;
 use tokio::task;
 use tracing::instrument;
 use velvet::pipes::generate_reports::{
     BasicArea, ElectionReportDataComputed, ReportDataComputed, OUTPUT_ALL_AREAS_HTML,
     OUTPUT_ALL_AREAS_JSON, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
 };
-use velvet::pipes::pipe_inputs::{PREFIX_ALL_AREAS, PREFIX_CONTEST, PREFIX_ELECTION};
+use velvet::pipes::pipe_inputs::{
+    DEFAULT_DIR_BALLOTS, PREFIX_ALL_AREAS, PREFIX_CONTEST, PREFIX_ELECTION,
+};
+use velvet::pipes::pipe_name::PipeNameOutputDir;
 
 pub const MIME_PDF: &str = "application/pdf";
 pub const MIME_JSON: &str = "application/json";
@@ -732,6 +739,32 @@ pub fn generate_ids_map(
     Ok(rename_map)
 }
 
+/// Paths, relative to the tally folder, of the ballots the tally read and of
+/// the decoded ballots it wrote.
+fn decoded_ballots_paths() -> Vec<PathBuf> {
+    vec![
+        Path::new(VELVET_INPUT_DIR).join(DEFAULT_DIR_BALLOTS),
+        Path::new(VELVET_OUTPUT_DIR).join(PipeNameOutputDir::DecodeBallots.as_ref()),
+        Path::new(VELVET_OUTPUT_DIR).join(PipeNameOutputDir::DecodeMCBallots.as_ref()),
+    ]
+}
+
+/// Returns a copy of the tally folder without the ballots when the policy
+/// leaves decoded ballots out, or `None` when the tally folder can be archived
+/// as it is.
+#[instrument(err)]
+pub fn filter_tally_archive_dir(
+    base_tally_path: &PathBuf,
+    decoded_ballots_policy: &DecodedBallotsInclusionPolicy,
+) -> Result<Option<TempDir>> {
+    match decoded_ballots_policy {
+        DecodedBallotsInclusionPolicy::INCLUDED => Ok(None),
+        DecodedBallotsInclusionPolicy::NOT_INCLUDED => {
+            copy_to_temp_dir_excluding(base_tally_path, &decoded_ballots_paths()).map(Some)
+        }
+    }
+}
+
 #[instrument(skip(hasura_transaction, results, areas), err)]
 pub async fn save_result_documents(
     hasura_transaction: &Transaction<'_>,
@@ -744,9 +777,14 @@ pub async fn save_result_documents(
     default_language: &str,
     tally_type_enum: TallyType,
     sqlite_transaction_opt: Option<&SqliteTransaction<'_>>,
+    decoded_ballots_policy: &DecodedBallotsInclusionPolicy,
 ) -> Result<()> {
     let rename_map = generate_ids_map(&results, areas, default_language)?;
-    let event_document_paths = results.get_document_paths(None, base_tally_path);
+    let filtered_tally_dir = filter_tally_archive_dir(base_tally_path, decoded_ballots_policy)?;
+    let archive_path = filtered_tally_dir
+        .as_ref()
+        .map_or_else(|| base_tally_path.clone(), |dir| dir.path().to_path_buf());
+    let event_document_paths = results.get_document_paths(None, &archive_path);
     results
         .save_documents(
             hasura_transaction,
@@ -962,6 +1000,112 @@ async fn save_area_documents(
 mod tests {
     use super::*;
     use sequent_core::ballot::Contest;
+    use std::collections::BTreeSet;
+    use velvet::pipes::decode_ballots::OUTPUT_DECODED_BALLOTS_FILE;
+    use velvet::pipes::do_tally::OUTPUT_CONTEST_RESULT_FILE;
+    use velvet::pipes::generate_db::DATABASE_FILENAME;
+    use velvet::pipes::pipe_inputs::{BALLOTS_FILE, DEFAULT_DIR_CONFIGS, ELECTION_CONFIG_FILE};
+
+    const TEST_DECODED_MCBALLOTS_FILE: &str = "decoded_mcballots.json";
+    const TEST_AREA_CONTEST_DIR: &str = "election__e/contest__c/area__a";
+
+    fn ballot_files() -> Vec<PathBuf> {
+        vec![
+            Path::new(VELVET_INPUT_DIR)
+                .join(DEFAULT_DIR_BALLOTS)
+                .join(TEST_AREA_CONTEST_DIR)
+                .join(BALLOTS_FILE),
+            Path::new(VELVET_OUTPUT_DIR)
+                .join(PipeNameOutputDir::DecodeBallots.as_ref())
+                .join(TEST_AREA_CONTEST_DIR)
+                .join(OUTPUT_DECODED_BALLOTS_FILE),
+            Path::new(VELVET_OUTPUT_DIR)
+                .join(PipeNameOutputDir::DecodeMCBallots.as_ref())
+                .join("election__e/area__a")
+                .join(TEST_DECODED_MCBALLOTS_FILE),
+        ]
+    }
+
+    fn result_files() -> Vec<PathBuf> {
+        vec![
+            Path::new(VELVET_INPUT_DIR)
+                .join(DEFAULT_DIR_CONFIGS)
+                .join("election__e")
+                .join(ELECTION_CONFIG_FILE),
+            Path::new(VELVET_OUTPUT_DIR)
+                .join(PipeNameOutputDir::DoTally.as_ref())
+                .join(TEST_AREA_CONTEST_DIR)
+                .join(OUTPUT_CONTEST_RESULT_FILE),
+            Path::new(VELVET_OUTPUT_DIR)
+                .join(PipeNameOutputDir::GenerateDatabase.as_ref())
+                .join(DATABASE_FILENAME),
+        ]
+    }
+
+    fn write_tally_dir() -> Result<TempDir> {
+        let tally_dir = tempfile::tempdir()?;
+        for relative_path in ballot_files().iter().chain(result_files().iter()) {
+            let path = tally_dir.path().join(relative_path);
+            if let Some(parent) = path.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::write(&path, "content")?;
+        }
+        Ok(tally_dir)
+    }
+
+    fn archived_files(
+        base_tally_path: &PathBuf,
+        decoded_ballots_policy: &DecodedBallotsInclusionPolicy,
+    ) -> Result<BTreeSet<PathBuf>> {
+        let filtered_dir = filter_tally_archive_dir(base_tally_path, decoded_ballots_policy)?;
+        let archive_path = filtered_dir
+            .as_ref()
+            .map_or_else(|| base_tally_path.clone(), |dir| dir.path().to_path_buf());
+        let (_tar_temp_path, tar_path, _tar_size) =
+            create_archive_from_folder(&archive_path, false)?;
+        let mut archive = tar::Archive::new(fs::File::open(tar_path)?);
+        let mut files = BTreeSet::new();
+        for entry in archive.entries()? {
+            let entry = entry?;
+            if entry.header().entry_type().is_file() {
+                files.insert(entry.path()?.into_owned());
+            }
+        }
+        Ok(files)
+    }
+
+    #[test]
+    fn tally_archive_omits_ballots_when_decoded_ballots_not_included() -> Result<()> {
+        let tally_dir = write_tally_dir()?;
+        let base_tally_path = tally_dir.path().to_path_buf();
+
+        let files = archived_files(
+            &base_tally_path,
+            &DecodedBallotsInclusionPolicy::NOT_INCLUDED,
+        )?;
+
+        assert_eq!(files, result_files().into_iter().collect::<BTreeSet<_>>());
+        for relative_path in ballot_files() {
+            assert!(base_tally_path.join(relative_path).is_file());
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn tally_archive_keeps_ballots_when_decoded_ballots_included() -> Result<()> {
+        let tally_dir = write_tally_dir()?;
+        let base_tally_path = tally_dir.path().to_path_buf();
+
+        let files = archived_files(&base_tally_path, &DecodedBallotsInclusionPolicy::INCLUDED)?;
+
+        let expected = ballot_files()
+            .into_iter()
+            .chain(result_files())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(files, expected);
+        Ok(())
+    }
 
     fn make_test_result(
         election_name: &str,

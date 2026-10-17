@@ -597,7 +597,7 @@ const catalanTranslation: TranslationType = {
                 },
                 decodedBallots: {
                     policyLabel:
-                        "Inclou les paperetes descodificades a la base de dades de resultats",
+                        "Inclou les paperetes descodificades a la base de dades de resultats i a l'arxiu del recompte",
                     options: {"included": "Inclou", "not-included": "No incloguis"},
                 },
                 contestEncryptionPolicy: {
