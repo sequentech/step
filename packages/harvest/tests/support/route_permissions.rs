@@ -306,7 +306,7 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/get-users", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [VOTER_READ], BACKEND_TEXT, UNAUTHORIZED),
         case!(Admin, "/trustee/action-result", {"id": "test-action", "request": {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "keys_ceremony_id": "test-ceremony", "trustee_name": "test-trustee", "signing_public_key": "fixture-signing-key", "share_encryption_public_key": "fixture-share-key"}, "status": "FAILED", "detail": "fixture error"}, [TRUSTEE_CEREMONY], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/trustee/boards/report", {"board": "dkg_d9792af071b849528aac94bc0fead5f7", "kind": "HALTED", "detail": "fixture error"}, [TRUSTEE_CEREMONY], BACKEND, UNAUTHORIZED),
-        case!(Admin, "/trustee/request-server-custody", {"election_event_id": EVENT_ID, "keys_ceremony_id": "test-ceremony", "custody_request_json": "{}"}, [TRUSTEE_CEREMONY], BACKEND, UNAUTHORIZED_JSON),
+        case!(Admin, "/trustee/request-server-custody", {"election_event_id": EVENT_ID, "keys_ceremony_id": "test-ceremony", "tally_session_id": "test-session", "custody_request_json": "{}"}, [TRUSTEE_CEREMONY], BACKEND, UNAUTHORIZED_JSON),
         case!(Voter, "/get-voter-cast-votes", {"election_event_id": EVENT_ID}, [CAST_VOTE], BACKEND, FORBIDDEN),
         // Looking ballots up by their ID first reads the checks period.
         case!(Voter, "/get-voter-cast-votes", {"election_event_id": EVENT_ID, "election_id": ELECTION_ID, "ballot_id": "0abc12"}, [CAST_VOTE], BACKEND, FORBIDDEN),

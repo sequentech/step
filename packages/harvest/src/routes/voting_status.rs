@@ -298,3 +298,7 @@ async fn update_election_status_response(
         signing_request: None,
     }))
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/voting_status_routes.rs"]
+mod route_tests;
