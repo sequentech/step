@@ -27,23 +27,6 @@ object_relationships:
 insert_permissions:
     - comment: ""
       permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          columns:
-              - annotations
-              - election_event_id
-              - labels
-              - resolution_data
-              - resolution_type
-              - resolved_at
-              - resolved_by_user
-              - status
-              - tally_session_id
-              - tenant_id
-      role: admin-user
-    - comment: ""
-      permission:
           check: {}
           columns:
               - annotations
@@ -123,22 +106,6 @@ select_permissions:
                   _eq: X-Hasura-Tenant-Id
       role: tally-resolution-submit
 update_permissions:
-    - comment: ""
-      permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          columns:
-              - annotations
-              - labels
-              - resolution_data
-              - resolved_at
-              - resolved_by_user
-              - status
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: admin-user
     - comment: ""
       permission:
           check: {}
