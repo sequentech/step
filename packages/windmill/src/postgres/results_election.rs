@@ -72,9 +72,11 @@ pub async fn update_results_election_documents(
     election_id: &str,
     documents: &ResultDocuments,
     json_hash: &str,
+    results_content_hash: &str,
 ) -> Result<()> {
     let documents_value = serde_json::to_value(documents.clone())?;
     let json_hash_value = serde_json::Value::String(json_hash.to_string()); // Convert json_hash to JSON
+    let results_content_hash_value = serde_json::Value::String(results_content_hash.to_string());
     let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
     let results_event_uuid: uuid::Uuid = parse_uuid_v4(&results_event_id)
@@ -91,15 +93,19 @@ pub async fn update_results_election_documents(
                 SET
                     documents = $1,
                     annotations = jsonb_set(
-                        COALESCE(annotations, '{}'),
-                        '{results_hash}',
-                        $2
+                        jsonb_set(
+                            COALESCE(annotations, '{}'),
+                            '{results_hash}',
+                            $2
+                        ),
+                        '{results_content_hash}',
+                        $3
                     )
                 WHERE
-                    tenant_id = $3 AND
-                    results_event_id = $4 AND
-                    election_event_id = $5 AND
-                    election_id = $6
+                    tenant_id = $4 AND
+                    results_event_id = $5 AND
+                    election_event_id = $6 AND
+                    election_id = $7
                 RETURNING
                     id;
             "#,
@@ -111,6 +117,7 @@ pub async fn update_results_election_documents(
             &[
                 &documents_value,
                 &json_hash_value,
+                &results_content_hash_value,
                 &tenant_uuid,
                 &results_event_uuid,
                 &election_event_uuid,
