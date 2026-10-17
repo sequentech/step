@@ -214,6 +214,7 @@ pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<Real
     // we remove secrets and certs so that keycloak regenerates them
     // remove client secrets
     let mut realm_copy = realm.clone();
+    super::realm_identity_providers::remove_demo_identity_providers(&mut realm_copy);
     realm_copy.clients = realm_copy.clients.map(|clients| {
         clients
             .iter()
