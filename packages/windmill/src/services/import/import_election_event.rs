@@ -33,9 +33,7 @@ use sequent_core::ballot::ElectionEventStatistics;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionStatistics;
 use sequent_core::ballot::ElectionStatus;
-use sequent_core::ballot::PeriodDates;
 use sequent_core::ballot::VotingPeriodDates;
-use sequent_core::ballot::VotingStatus;
 use sequent_core::ballot::{AllowTallyStatus, LanguageDetectionPolicy};
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
@@ -605,6 +603,15 @@ pub async fn get_election_event_schema(
     replace_ids(data_str, &original_data, event_id, tenant_id.clone())
 }
 
+fn reset_imported_election_status(status: ElectionStatus) -> ElectionStatus {
+    ElectionStatus {
+        is_published: status.is_published,
+        init_report: status.init_report,
+        allow_tally: status.allow_tally,
+        ..ElectionStatus::default()
+    }
+}
+
 #[instrument(err, skip_all)]
 pub async fn process_election_event_file(
     hasura_transaction: &Transaction<'_>,
@@ -652,20 +659,14 @@ pub async fn process_election_event_file(
                     .with_context(|| "Error serializing election statistics")?,
             );
 
-            let mut status: ElectionStatus = clone
+            let status: ElectionStatus = clone
                 .status
                 .clone()
                 .map(|value| deserialize_value::<ElectionStatus>(value))
                 .transpose()
                 .unwrap_or_default()
                 .unwrap_or_default();
-
-            status.voting_status = VotingStatus::default();
-            status.kiosk_voting_status = VotingStatus::default();
-            status.telephone_voting_status = VotingStatus::default();
-            status.voting_period_dates = PeriodDates::default();
-            status.kiosk_voting_period_dates = PeriodDates::default();
-            status.telephone_voting_period_dates = PeriodDates::default();
+            let status = reset_imported_election_status(status);
 
             clone.status = Some(
                 serde_json::to_value(status)
@@ -1590,6 +1591,75 @@ pub async fn maybe_create_scheduled_event(
     .await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod election_status_import_tests {
+    use super::*;
+    use chrono::{TimeZone, Utc};
+    use sequent_core::ballot::{InitReport, PeriodDates, VotingStatus, VotingStatusChannel};
+
+    const CHANNELS: [VotingStatusChannel; 4] = [
+        VotingStatusChannel::ONLINE,
+        VotingStatusChannel::KIOSK,
+        VotingStatusChannel::EARLY_VOTING,
+        VotingStatusChannel::TELEPHONE,
+    ];
+
+    fn used_period_dates() -> PeriodDates {
+        let date = Utc.with_ymd_and_hms(2026, 1, 1, 9, 0, 0).unwrap();
+        PeriodDates {
+            first_started_at: Some(date),
+            last_started_at: Some(date),
+            first_paused_at: Some(date),
+            last_paused_at: Some(date),
+            first_stopped_at: Some(date),
+            last_stopped_at: Some(date),
+        }
+    }
+
+    fn status_with_every_channel_open() -> ElectionStatus {
+        ElectionStatus {
+            is_published: Some(true),
+            voting_status: VotingStatus::OPEN,
+            init_report: InitReport::DISALLOWED,
+            kiosk_voting_status: VotingStatus::OPEN,
+            early_voting_status: VotingStatus::OPEN,
+            telephone_voting_status: VotingStatus::OPEN,
+            voting_period_dates: used_period_dates(),
+            kiosk_voting_period_dates: used_period_dates(),
+            early_voting_period_dates: used_period_dates(),
+            telephone_voting_period_dates: used_period_dates(),
+            allow_tally: AllowTallyStatus::DISALLOWED,
+        }
+    }
+
+    #[test]
+    fn imported_election_status_resets_every_channel() {
+        let status = reset_imported_election_status(status_with_every_channel_open());
+
+        for channel in CHANNELS {
+            assert_eq!(
+                status.status_by_channel(channel),
+                VotingStatus::NOT_STARTED,
+                "{channel:?} status"
+            );
+            assert_eq!(
+                status.dates_by_channel(channel),
+                PeriodDates::default(),
+                "{channel:?} dates"
+            );
+        }
+    }
+
+    #[test]
+    fn imported_election_status_keeps_publication_and_tally_settings() {
+        let status = reset_imported_election_status(status_with_every_channel_open());
+
+        assert_eq!(status.is_published, Some(true));
+        assert_eq!(status.init_report, InitReport::DISALLOWED);
+        assert_eq!(status.allow_tally, AllowTallyStatus::DISALLOWED);
+    }
 }
 
 #[cfg(test)]
