@@ -146,12 +146,16 @@ class AirgapBundleTest(unittest.TestCase):
         )
         self.assertIsNotNone(secret, generated)
         # Other lines are left as they were.
-        self.assertEqual(
-            generated.replace(
-                secret.group(0), f'MESSAGING_RELAY_SECRET="{PLACEHOLDER}"'
-            ),
-            self.env,
+        restored = generated.replace(
+            secret.group(0), f'MESSAGING_RELAY_SECRET="{PLACEHOLDER}"'
         )
+        restored = re.sub(
+            r'^(TRUSTEE[123]_PASSWORD)="[0-9a-f]{48}"$',
+            rf'\1="{PLACEHOLDER}"',
+            restored,
+            flags=re.M,
+        )
+        self.assertEqual(restored, self.env)
         result, again = self.run_preamble(generated)
         self.assertEqual(result.returncode, 0)
         self.assertEqual(again, generated)
@@ -162,6 +166,22 @@ class AirgapBundleTest(unittest.TestCase):
         result, _ = self.run_preamble(blank)
         self.assertEqual(result.returncode, 1)
         self.assertIn("MESSAGING_RELAY_SECRET", result.stdout)
+
+    def test_up_generates_distinct_trustee_runner_passwords_once(self):
+        names = ("TRUSTEE1_PASSWORD", "TRUSTEE2_PASSWORD", "TRUSTEE3_PASSWORD")
+        for name in names:
+            self.assertIn(f'{name}="{PLACEHOLDER}"', self.env)
+        result, generated = self.run_preamble(self.env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        passwords = [
+            re.search(rf'^{name}="([0-9a-f]{{48}})"$', generated, re.M)
+            for name in names
+        ]
+        self.assertTrue(all(passwords), generated)
+        self.assertEqual(len({password.group(1) for password in passwords}), 3)
+        result, again = self.run_preamble(generated)
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(again, generated)
 
 
 if __name__ == "__main__":

@@ -104,6 +104,14 @@ KEYCLOAK_ADMIN_PASSWORD=$(generate_base64 32)
 MESSAGING_RELAY_SECRET=$(generate_hex 32)
 sed -i.bak "s|^MESSAGING_RELAY_SECRET=.*|MESSAGING_RELAY_SECRET=$MESSAGING_RELAY_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 
+# The unattended trustee runners sign in with these. The operator sets them as
+# the trustee1 and trustee2 Keycloak passwords during the trustees' first login.
+for TRUSTEE_INDEX in 1 2; do
+  TRUSTEE_PASSWORD=$(generate_base64 32)
+  sed -i.bak "s|^TRUSTEE${TRUSTEE_INDEX}_PASSWORD=.*|TRUSTEE${TRUSTEE_INDEX}_PASSWORD=$TRUSTEE_PASSWORD|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
+done
+unset TRUSTEE_PASSWORD TRUSTEE_INDEX
+
 sed -i.bak "s|^KEYCLOAK_CLIENT_SECRET=.*|KEYCLOAK_CLIENT_SECRET=$KEYCLOAK_CLIENT_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 jq --arg secret "$KEYCLOAK_CLIENT_SECRET" '(.clients[] | select(.clientId == "service-account") | .secret) = $secret' "$KEYCLOAK_JSON_FILE" > "$KEYCLOAK_JSON_FILE.tmp" && mv "$KEYCLOAK_JSON_FILE.tmp" "$KEYCLOAK_JSON_FILE"
 
@@ -121,6 +129,7 @@ sed -i.bak "s|^KEYCLOAK_ADMIN_CLIENT_SECRET=.*|KEYCLOAK_ADMIN_CLIENT_SECRET=$KEY
 echo "  ✓ Generated MASTER_SECRET (32 bytes hex)"
 echo "  ✓ Generated Keycloak client secrets"
 echo "  ✓ Generated MESSAGING_RELAY_SECRET (32 bytes hex)"
+echo "  ✓ Generated TRUSTEE1_PASSWORD and TRUSTEE2_PASSWORD (set them on the trustee accounts)"
 echo "  ✓ Set SECRETS_BACKEND=EnvVarMasterSecret"
 echo ""
 

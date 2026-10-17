@@ -306,8 +306,16 @@ its configured client secrets and roles. The development stack imports the templ
 as it is, so its `admin` also starts without a password; `step-dev scenario` and the
 backend journeys set the one in `ADMIN_PORTAL_TEST_PASSWORD`.
 
+The template's `api-user` is disabled: it belongs to the admin group and nothing
+signs in with it. Enable it only after giving it a password of its own.
+
 The remote deployment configuration script also removes user credentials from its
-prepared realm JSON while continuing to generate client secrets. Updating templates
+prepared realm JSON while continuing to generate client secrets. It also generates
+`TRUSTEE1_PASSWORD` and `TRUSTEE2_PASSWORD`, and the air-gap bundle's `up`
+generates `TRUSTEE1_PASSWORD` to `TRUSTEE3_PASSWORD` on its first run. The
+unattended trustee runners sign in with these values, so set each one as the
+matching trustee account's password during its first login. Never set a trustee's
+password to its username. Updating templates
 or configuration files does not rotate existing deployed accounts. For existing
 realms, replace passwords for the seeded human accounts or disable unused accounts,
 terminate their sessions and inspect their login events. Coordinate changes with

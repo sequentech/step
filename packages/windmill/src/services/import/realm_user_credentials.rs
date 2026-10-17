@@ -65,16 +65,31 @@ mod tests {
         remove_user_credentials(&mut RealmRepresentation::default());
     }
 
+    const SHIPPED_TENANT_TEMPLATE: &str = include_str!(
+        "../../../../../.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json"
+    );
+
     /// Prevent shipped realm templates from reintroducing user credentials.
     #[test]
     fn shipped_tenant_template_has_no_user_credentials() {
-        let realm: RealmRepresentation = serde_json::from_str(include_str!(
-            "../../../../../.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json"
-        )).unwrap();
+        let realm: RealmRepresentation = serde_json::from_str(SHIPPED_TENANT_TEMPLATE).unwrap();
         assert!(realm
             .users
             .unwrap_or_default()
             .iter()
             .all(|user| user.credentials.as_ref().is_none_or(Vec::is_empty)));
+    }
+
+    /// The template's api-user is in the admin group and nothing signs in
+    /// with it, so a password set on it later must not activate it.
+    #[test]
+    fn shipped_tenant_template_disables_api_user() {
+        let realm: RealmRepresentation = serde_json::from_str(SHIPPED_TENANT_TEMPLATE).unwrap();
+        let api_user = realm
+            .users
+            .unwrap_or_default()
+            .into_iter()
+            .find(|user| user.username.as_deref() == Some("api-user"));
+        assert!(api_user.is_none_or(|user| user.enabled == Some(false)));
     }
 }
