@@ -6,7 +6,7 @@ use crate::ballot::{
     sign_hashable_ballot_with_ephemeral_voter_signing_key,
     verify_ballot_signature,
 };
-use crate::ballot_codec::bigint::BigUIntCodec;
+use crate::ballot_codec::bigint::{test_contest_reencoding, BigUIntCodec};
 use crate::ballot_codec::multi_ballot::*;
 use crate::ballot_codec::raw_ballot::RawBallotCodec;
 use crate::encrypt;
@@ -24,7 +24,6 @@ use crate::types::ceremonies::CountingAlgType;
 use crate::util::locale::{
     iso_639_2t_to_bcp47, locale_to_internal_language_code,
 };
-use crate::util::normalize_vote::*;
 use strand::backend::ristretto::RistrettoCtx;
 use wasm_bindgen::prelude::*;
 extern crate console_error_panic_hook;
@@ -791,34 +790,8 @@ pub fn test_contest_reencoding_js(
             .into_json();
     }
 
-    let bigint = contest
-        .encode_plaintext_contest_bigint(&decoded_contest)
-        .into_json()?;
-    let modified_decoded_contest = contest
-        .decode_plaintext_contest_bigint(&bigint)
-        .into_json()?;
-
-    let invalid_candidate_ids = contest.get_invalid_candidate_ids();
-
-    let input_compare = normalize_vote_contest(
-        &decoded_contest,
-        contest.get_counting_algorithm(),
-        true,
-        &invalid_candidate_ids,
-    );
-    let output_compare = normalize_vote_contest(
-        &modified_decoded_contest,
-        contest.get_counting_algorithm(),
-        true,
-        &invalid_candidate_ids,
-    );
-    if input_compare != output_compare {
-        return Err(format!(
-            "Consistency check failed. Input =! Output, {:?} != {:?}",
-            input_compare, output_compare
-        ))
-        .into_json();
-    }
+    let modified_decoded_contest =
+        test_contest_reencoding(&decoded_contest, contest).into_json()?;
 
     let serializer = Serializer::json_compatible();
     modified_decoded_contest
