@@ -403,7 +403,7 @@ services:
     container_name: b3
     restart: always
     ports:
-      - "50051:50051"
+      - "127.0.0.1:50051:50051"
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
       RUST_BACKTRACE: ${RUST_BACKTRACE}

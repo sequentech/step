@@ -124,7 +124,7 @@ The generated configuration will be:
 
 1. **Secrets Management**: Always use a proper secrets backend in production. The `EnvVarMasterSecret` option should only be used for development.
 
-2. **Network Security**: Ensure that communication between trustees, B3 service, and ImmuDB is properly secured using TLS.
+2. **Network Security**: Ensure that communication between trustees, B3 service, and ImmuDB is properly secured using TLS. See [Bulletin Board Transport Security](./b3_transport_security.md) for the trustee and b3 settings.
 
 3. **Access Control**: Limit access to trustee configuration and secrets to authorized personnel only.
 
