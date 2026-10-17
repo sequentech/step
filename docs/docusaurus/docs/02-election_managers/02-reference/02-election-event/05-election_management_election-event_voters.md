@@ -134,6 +134,15 @@ external-system connectivity, wait for the review beat to resolve the
 ballots, and retry the same `Sequence`. Apply-time snapshot validation
 prevents that retry from overwriting voter data changed in the meantime.
 
+A ballot also stays `in-progress` when VoterView refuses its `SetVoted`
+request (the voter has already voted or is rejected) and the event's
+`datafix:set_voted_conflict_policy` annotation is `hold-for-review`, the
+default. The review beat does not resolve such a ballot until VoterView
+accepts the request. Check the voter's record in VoterView: once it is
+corrected, the next beat validates the ballot, and disabling the voter
+discards it. The other values are `validate-and-reconcile`, which counts the
+ballot and leaves the conflict to reconciliation, and `discard`.
+
 Both the real-time `/unmark-voted` operation and file reconciliation clear the
 voted-channel marker. They only re-enable a voter when the corresponding
 `MarkVoted` operation owns the disable. An independent administrator disable
