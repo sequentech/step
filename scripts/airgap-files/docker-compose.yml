@@ -9,7 +9,7 @@ services:
     pull_policy: never
     container_name: simplesamlphp
     ports:
-      - "8083:8080"
+      - "${BIND_ADDRESS:-127.0.0.1}:8083:8080"
     volumes:
       - ./simplesaml/authsources.php:/var/www/simplesamlphp/config/authsources.php
       - ./simplesaml/saml20-sp-remote.php:/var/www/simplesamlphp/metadata/saml20-sp-remote.php
@@ -57,8 +57,8 @@ services:
     image: docker.io/pgsty/silo:RELEASE.2026-09-16T00-00-00Z
     pull_policy: never
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "${BIND_ADDRESS:-127.0.0.1}:9000:9000"
+      - "${BIND_ADDRESS:-127.0.0.1}:9001:9001"
     volumes:
       - minio_storage:/data
     environment:
@@ -81,7 +81,7 @@ services:
     image: nginx:latest
     pull_policy: never
     ports:
-      - "9002:9002"
+      - "${BIND_ADDRESS:-127.0.0.1}:9002:9002"
     volumes:
       - ./minio/nginx:/etc/nginx/conf.d
     depends_on:
@@ -112,11 +112,6 @@ services:
     image: sequentech.local/vault
     pull_policy: never
     restart: on-failure:10
-    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
-    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
-    ports:
-      - "8201:8201"
-      - "8200:8200"
     environment:
       VAULT_API_ADDR: 'http://0.0.0.0:8200'
       VAULT_ADDR: 'http://0.0.0.0:8201'
@@ -136,7 +131,7 @@ services:
     pull_policy: never
     container_name: hasura
     ports:
-      - "8080:8080"
+      - "${BIND_ADDRESS:-127.0.0.1}:8080:8080"
     restart: always
     volumes:
       - ./hasura/metadata:/hasura/metadata
@@ -184,7 +179,7 @@ services:
     pull_policy: never
     restart: always
     ports:
-      - 8081:8081
+      - "${BIND_ADDRESS:-127.0.0.1}:8081:8081"
     environment:
       QUARKUS_LOG_LEVEL: ERROR # FATAL, ERROR, WARN, INFO, DEBUG, TRACE
       ## https://quarkus.io/guides/opentelemetry#configuration-reference
@@ -223,7 +218,7 @@ services:
     pull_policy: never
     restart: always
     ports:
-      - 8090:8090
+      - "${BIND_ADDRESS:-127.0.0.1}:8090:8090"
     environment:
       KC_HOSTNAME: ${KC_HOSTNAME}
       KC_HOSTNAME_STRICT: ${KC_HOSTNAME_STRICT}
@@ -285,7 +280,7 @@ services:
     container_name: admin-portal
     restart: always
     ports:
-      - 3002:8000
+      - "${BIND_ADDRESS:-127.0.0.1}:3002:8000"
     stdin_open: true
     environment:
         MAX_DIFF_LINES: ${MAX_DIFF_LINES}
@@ -303,7 +298,7 @@ services:
       - admin-portal
     restart: always
     ports:
-      - 3000:8000
+      - "${BIND_ADDRESS:-127.0.0.1}:3000:8000"
     stdin_open: true
     environment:
         APP_VERSION: ${APP_VERSION}
@@ -318,9 +313,9 @@ services:
     environment:
       - IMMUDB_PGSQL_SERVER=true
     ports:
-      - 3322:3322 # immudb service
-      - 3324:9497 # prometheus
-      - 3325:8080 # web console
+      - "${BIND_ADDRESS:-127.0.0.1}:3322:3322" # immudb service
+      - "${BIND_ADDRESS:-127.0.0.1}:3324:9497" # prometheus
+      - "${BIND_ADDRESS:-127.0.0.1}:3325:8080" # web console
     volumes:
       - immudb_data:/var/lib/immudb
       - immudb_logs:/var/log/immudb
@@ -410,7 +405,7 @@ services:
       B3_PG_DATABASE: ${B3_PG_DATABASE}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
     ports:
-     - ${HARVEST_PORT}:${HARVEST_PORT}
+     - "${BIND_ADDRESS:-127.0.0.1}:${HARVEST_PORT}:${HARVEST_PORT}"
 
   b3:
     profiles: ["full", "base"]
@@ -420,7 +415,7 @@ services:
     container_name: b3
     restart: always
     ports:
-      - "50051:50051"
+      - "${BIND_ADDRESS:-127.0.0.1}:50051:50051"
     command: ["--host", "${B3_PG_HOST}", "--port", "${B3_PG_PORT}", "--username", "${B3_PG_USER}", "--password", "${B3_PG_PASSWORD}", "--database", "${B3_PG_DATABASE}", "--bind", "0.0.0.0:50051"]
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
@@ -587,8 +582,8 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "${BIND_ADDRESS:-127.0.0.1}:5672:5672"
+      - "${BIND_ADDRESS:-127.0.0.1}:15672:15672"
     healthcheck:
       test: rabbitmq-diagnostics -q ping
       interval: 30s
