@@ -101,7 +101,12 @@ async fn run_protocol_test_grpc<C: Ctx + 'static>(
         sessions.push(session);
     }
 
-    let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
+    let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW).with_tls(
+        b3::postgres::PgTlsConfig {
+            mode: b3::postgres::PgTlsMode::Disable,
+            ca_path: None,
+        },
+    );
     let c = c.with_database(PG_DATABASE);
     let mut b = PgsqlB3Client::new(&c).await?;
 
@@ -255,7 +260,12 @@ pub async fn create_protocol_test<C: Ctx>(
         PhantomData,
     );
 
-    let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
+    let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW).with_tls(
+        b3::postgres::PgTlsConfig {
+            mode: b3::postgres::PgTlsMode::Disable,
+            ca_path: None,
+        },
+    );
     // swallow database already exists errors
     let _ = pgsql::create_database(&c, PG_DATABASE).await;
 

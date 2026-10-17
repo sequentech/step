@@ -3,13 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use std::fs::{self, File};
 use std::io::{Read, Write};
-use std::str::FromStr;
 use std::time::Instant;
 
+use crate::postgres::{self, DbPool};
 use anyhow::{anyhow, Result};
-use bb8_postgres::bb8::Pool;
-use bb8_postgres::PostgresConnectionManager;
-use tokio_postgres::{config::Config, NoTls};
 use tonic::{Request, Response, Status};
 use tracing::{error, info, warn};
 
@@ -33,7 +30,7 @@ const BB8_POOL_SIZE: u32 = 20;
 use std::path::{Path, PathBuf};
 
 pub struct PgsqlB3Server {
-    pool: Pool<PostgresConnectionManager<NoTls>>,
+    pool: DbPool,
     blob_root: Option<PathBuf>,
 }
 impl PgsqlB3Server {
@@ -41,12 +38,8 @@ impl PgsqlB3Server {
         connection: PgsqlDbConnectionParams,
         blob_root: Option<PathBuf>,
     ) -> Result<PgsqlB3Server> {
-        let config = Config::from_str(&connection.connection_string())?;
-        let manager = PostgresConnectionManager::new(config, NoTls);
-        let pool = Pool::builder()
-            .max_size(BB8_POOL_SIZE)
-            .build(manager)
-            .await?;
+        let pool =
+            postgres::pool(connection.config()?, connection.tls_config(), BB8_POOL_SIZE).await?;
 
         Ok(PgsqlB3Server { pool, blob_root })
     }
@@ -476,7 +469,12 @@ pub(crate) mod tests {
     const TEST_BOARD: &'static str = "testboard";
 
     async fn set_up() -> PgsqlB3Client {
-        let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
+        let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW).with_tls(
+            crate::postgres::PgTlsConfig {
+                mode: crate::postgres::PgTlsMode::Disable,
+                ca_path: None,
+            },
+        );
         drop_database(&c, PG_DATABASE).await.unwrap();
         create_database(&c, PG_DATABASE).await.unwrap();
 
@@ -495,7 +493,12 @@ pub(crate) mod tests {
     async fn test_put_get_messages() {
         let _ = set_up().await;
 
-        let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
+        let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW).with_tls(
+            crate::postgres::PgTlsConfig {
+                mode: crate::postgres::PgTlsMode::Disable,
+                ca_path: None,
+            },
+        );
         let c = c.with_database(PG_DATABASE);
         let b3_impl = PgsqlB3Server::new(c, None).await.unwrap();
 
@@ -531,7 +534,12 @@ pub(crate) mod tests {
     async fn test_get_boards() {
         let _ = set_up().await;
 
-        let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
+        let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW).with_tls(
+            crate::postgres::PgTlsConfig {
+                mode: crate::postgres::PgTlsMode::Disable,
+                ca_path: None,
+            },
+        );
         let c = c.with_database(PG_DATABASE);
         let b3_impl = PgsqlB3Server::new(c, None).await.unwrap();
 
