@@ -31,6 +31,14 @@ in interactively and chooses their own password. Create actual trustee accounts
 through the normal trustee workflow. Service-account client authentication keeps
 its configured client secrets and roles.
 
+The template's `api-user` is disabled: it belongs to the admin group and nothing
+signs in with it. Enable it only after giving it a password of its own. In the
+devcontainer, `init-cli.sh` runs `.devcontainer/scripts/set-dev-passwords.sh`,
+which gives the local `admin`, `trustee1` and `trustee2` the development passwords
+that `config-cli.sh` and the dev tooling use (`TRUSTEE1_PASSWORD` and
+`TRUSTEE2_PASSWORD` in `.devcontainer/.env`). Accounts that already have a password
+keep it. It is for local development only.
+
 The remote deployment configuration script also removes user credentials from its
 prepared realm JSON while continuing to generate client secrets. Updating templates
 or configuration files does not rotate existing deployed accounts. For existing
