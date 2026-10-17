@@ -27,6 +27,11 @@ on:
         required: false
         type: boolean
         default: false
+      version:
+        description: 'Exact version to release instead of the computed one (e.g. 10.0.1-rc.3). Use it when the computed tag already exists. Leave empty for the automatic version'
+        required: false
+        type: string
+        default: ''
 
 
 permissions:
@@ -41,6 +46,8 @@ jobs:
       DEPLOYER_BRANCH: ${{ steps.CreateReleaseBranch.outputs.DEPLOYER_BRANCH }}
     steps:
     - name: Input Validation
+      env:
+        REQUESTED_VERSION: ${{ github.event.inputs.version }}
       run: |
         # Validate inputs, check its none or it is one of createMajorReleaseBranch or createMinorReleaseBranch and it is triggered from main branch
         if [ "${{ github.event.inputs.createMajorReleaseBranch }}" = "true" ] && [ "${{ github.event.inputs.createMinorReleaseBranch }}" = "true" ]; then
@@ -59,6 +66,32 @@ jobs:
           #  echo "Warning: You can set preRelease to true for the subsequent releases on the release branch"
           #  exit 1
           #fi
+        fi
+
+        # Validate the requested version, if any
+        version="${REQUESTED_VERSION#v}"
+        if [ -n "$version" ]; then
+          if [ "${{ github.event.inputs.createMajorReleaseBranch }}" = "true" ] || [ "${{ github.event.inputs.createMinorReleaseBranch }}" = "true" ]; then
+            echo "Error: version cannot be set when creating a release branch"
+            exit 1
+          fi
+          if ! [[ "$version" =~ ^([0-9]+\.[0-9]+)\.[0-9]+(-rc\.[0-9]+)?$ ]]; then
+            echo "Error: version must look like 10.0.1 or 10.0.1-rc.3, got '$REQUESTED_VERSION'"
+            exit 1
+          fi
+          versionMajorMinor="${BASH_REMATCH[1]}"
+          if [[ "${{ github.ref_name }}" =~ ^release/([0-9]+\.[0-9]+)$ ]] && [ "${BASH_REMATCH[1]}" != "$versionMajorMinor" ]; then
+            echo "Error: version $version does not belong to branch ${{ github.ref_name }}"
+            exit 1
+          fi
+          if [ "${{ github.event.inputs.preRelease }}" = "true" ] && [[ "$version" != *-rc.* ]]; then
+            echo "Error: preRelease is true but version $version is not a pre-release (e.g. $version-rc.0)"
+            exit 1
+          fi
+          if [ "${{ github.event.inputs.preRelease }}" = "false" ] && [[ "$version" == *-* ]]; then
+            echo "Error: preRelease is false but version $version is a pre-release"
+            exit 1
+          fi
         fi
 
     - name: Checkout code
@@ -154,6 +187,35 @@ jobs:
       with:
         node-version: '24'
 
+    - name: Check the requested version
+      if: github.event.inputs.version != ''
+      env:
+        REQUESTED_VERSION: ${{ github.event.inputs.version }}
+      run: |
+        tag="v${REQUESTED_VERSION#v}"
+        if git ls-remote --exit-code --tags origin "refs/tags/$tag" > /dev/null; then
+          echo "Error: tag $tag already exists. Latest tags:"
+          git ls-remote --tags --sort=-v:refname origin "refs/tags/${tag%.*}*" | grep -v '\^{}' | head -5
+          exit 1
+        fi
+        # release-it silently skips a version older than the latest tag on the branch
+        latestTag=$(git describe --tags --abbrev=0)
+        if ! python3 - "${tag#v}" "${latestTag#v}" <<'EOF'
+        import re, sys
+        def key(version):
+            match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)(?:-rc\.(\d+))?", version)
+            if match is None:
+                return None
+            major, minor, patch, rc = match.groups()
+            return (int(major), int(minor), int(patch), float("inf") if rc is None else int(rc))
+        requested, latest = key(sys.argv[1]), key(sys.argv[2])
+        sys.exit(0 if latest is None or requested > latest else 1)
+        EOF
+        then
+          echo "Error: $tag is not newer than $latestTag, the latest tag on this branch"
+          exit 1
+        fi
+
     - name: Install release tools
       run: |
         sudo npm install --global release-it@16.2.1
@@ -192,9 +254,14 @@ jobs:
       id: Release
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        REQUESTED_VERSION: ${{ github.event.inputs.version }}
       run: |
+        requestedVersion="${REQUESTED_VERSION#v}"
+        if [ -n "$requestedVersion" ]; then
+          # Release exactly the requested version (validated in create-release-branch)
+          release-it --ci "$requestedVersion" --verbose
         # If the new release branch is not created, then increment the patch version
-        if [ "${{ needs.create-release-branch.outputs.NEW_RELEASE_BRANCH }}" == "" ]; then
+        elif [ "${{ needs.create-release-branch.outputs.NEW_RELEASE_BRANCH }}" == "" ]; then
           if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
             # Check if the latest tag is a pre-release
             if [ "${{ steps.CheckLatestRelease.outputs.latestReleaseIsPreRelease }}" = "true" ]; then
@@ -233,7 +300,9 @@ jobs:
         
         # Fetch latest tags and get the most recent one for this major.minor version
         git fetch origin --tags
-        if [ -n "$branchMajorMinor" ]; then
+        if [ -n "$requestedVersion" ]; then
+          VERSION="v$requestedVersion"
+        elif [ -n "$branchMajorMinor" ]; then
           # On a release branch: get latest tag for this major.minor version
           VERSION=$(git -c "versionsort.suffix=-" for-each-ref --count=1 --sort=-v:refname --format="%(refname:short)" "refs/tags/v${branchMajorMinor}.*")
         else
