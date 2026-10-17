@@ -434,3 +434,7 @@ mod tests {
         assert!(registry().is_ok());
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/plugin_platform_routes.rs"]
+mod route_tests;

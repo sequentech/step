@@ -120,6 +120,15 @@ export const SMOKE: Record<string, Smoke> = {
         },
     },
     "/settings/*": {url: "/settings", shows: settingsPage},
+    // The journeys' tenant has not turned Projects on: the route explains where to.
+    "/plugins/:id/*": {
+        url: "/plugins/projects",
+        shows: (page) =>
+            text(
+                page,
+                "Projects is not turned on for this tenant. A tenant administrator can turn it on in Settings → Plugins."
+            ),
+    },
     "/sequent_backend_election_event": {url: "/sequent_backend_election_event", ...eventRedirect},
     "/sequent_backend_election_event/:id": {
         url: `/sequent_backend_election_event/${SHELL_IDS.event}`,
