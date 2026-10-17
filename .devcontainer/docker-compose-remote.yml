@@ -463,6 +463,8 @@ services:
       B3_PG_USER: ${B3_PG_USER}
       B3_PG_PASSWORD: ${B3_PG_PASSWORD}
       B3_PG_DATABASE: ${B3_PG_DATABASE}
+      B3_PG_SSL_MODE: ${B3_PG_SSL_MODE:-verify-full}
+      B3_PG_CA_PATH: ${B3_PG_CA_PATH:-}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       ENV_SLUG: ${ENV_SLUG}
 
@@ -710,6 +712,8 @@ services:
       B3_PG_USER: ${B3_PG_USER}
       B3_PG_PASSWORD: ${B3_PG_PASSWORD}
       B3_PG_DATABASE: ${B3_PG_DATABASE}
+      B3_PG_SSL_MODE: ${B3_PG_SSL_MODE:-verify-full}
+      B3_PG_CA_PATH: ${B3_PG_CA_PATH:-}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       BALLOT_VERIFIER_URL: ${BALLOT_VERIFIER_URL}
       ENV_SLUG: ${ENV_SLUG}
@@ -803,6 +807,8 @@ services:
       B3_PG_USER: ${B3_PG_USER}
       B3_PG_PASSWORD: ${B3_PG_PASSWORD}
       B3_PG_DATABASE: ${B3_PG_DATABASE}
+      B3_PG_SSL_MODE: ${B3_PG_SSL_MODE:-verify-full}
+      B3_PG_CA_PATH: ${B3_PG_CA_PATH:-}
       B3_BIND: ${B3_BIND}
 
   admin-portal:
