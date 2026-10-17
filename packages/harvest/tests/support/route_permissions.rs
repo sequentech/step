@@ -387,6 +387,11 @@ fn cases() -> Vec<Case> {
         case!(UuidTenant, "/monitoring/set-mode", {"election_event_id": UUID_EVENT_ID, "mode": "CONFIGURED"}, [MONITORING_CONFIGURE, ELECTION_EVENT_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(UuidTenant, "/monitoring/validate-config", {"election_event_id": UUID_EVENT_ID, "kind": "widget", "key": "turnout", "yaml": "id: turnout"}, [MONITORING_CONFIGURE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/plugin", {"path": "/test-plugin/test-route", "data": {}}, [], BACKEND_TEXT),
+        // A tenant admin token; the operation's own permission is checked
+        // before the database is contacted.
+        case!(UuidTenant, "/plugins/execute", {"plugin_id": "projects", "operation": "list-projects", "data": {}}, [ADMIN_USER, PROJECTS_READ], BACKEND, FORBIDDEN_JSON),
+        case!(UuidTenant, "/plugins/execute", {"plugin_id": "projects", "operation": "create-project", "data": {}}, [ADMIN_USER, PROJECTS_MANAGE], BACKEND, FORBIDDEN_JSON),
+        case!(UuidTenant, "/plugins/state", {"plugin_id": "projects", "state": "enabled", "expected_version": 0}, [ADMIN_USER, TENANT_WRITE], BACKEND, FORBIDDEN_JSON),
         case!(Admin, "/prepare-ballot-publication-preview", {"election_event_id": EVENT_ID, "ballot_publication_id": "test-publication"}, [DOCUMENT_UPLOAD], BACKEND, UNAUTHORIZED),
         case!(Admin, "/preview-tally-sheet-import", {"election_event_id": EVENT_ID, "document_id": "test-document", "source_format": "CANONICAL_CSV", "selected_channel": "PAPER"}, [TALLY_SHEET_IMPORT_CREATE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/publish-ballot", {"election_event_id": EVENT_ID, "ballot_publication_id": "test-publication"}, [PUBLISH_WRITE], BACKEND, UNAUTHORIZED_JSON),

@@ -173,6 +173,35 @@ export const test = base.extend<
                 },
             }
         })
+        // The portal loads the tenant's plugins for its menu; this tenant never turned any on.
+        graphql.on("TenantPlugins", () => ({
+            data: {
+                tenant_plugins: {
+                    data: {
+                        plugins: [
+                            {
+                                manifest: {
+                                    id: "projects",
+                                    version: "1.0.0",
+                                    api_major: 1,
+                                    label_key: "projects.title",
+                                    route: "/plugins/projects",
+                                    read_permission: "projects-read",
+                                    permissions: [
+                                        "projects-read",
+                                        "projects-write",
+                                        "projects-manage",
+                                    ],
+                                },
+                                state: "disabled",
+                                version: 0,
+                                compatibility: "compatible",
+                            },
+                        ],
+                    },
+                },
+            },
+        }))
         graphql.on("election_events_tree", () => ({data: {sequent_backend_election_event: []}}))
         graphql.on("sequent_backend_election_event", () => ({
             data: {

@@ -141,6 +141,8 @@
 /monitoring/set-mode
 /monitoring/validate-config
 /plugin
+/plugins/execute
+/plugins/state
 /prepare-ballot-publication-preview
 /preview-tally-sheet-import
 /publish-ballot

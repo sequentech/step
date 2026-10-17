@@ -22,6 +22,7 @@ import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useNavigate, useLocation} from "react-router-dom"
+import {PluginMenu} from "@/plugins/PluginRoutes"
 
 const StyledHelpItem = styled(Button)`
     margin-top: -4px;
@@ -226,6 +227,7 @@ export const CustomMenu = () => {
                             leftIcon={<MailIcon sx={{color: adminTheme.palette.brandColor}} />}
                         />
                     )}
+                    <PluginMenu />
                     {tenant?.settings?.help_links?.length > 0 && (
                         <StyledHelpItem
                             disableElevation
