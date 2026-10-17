@@ -130,6 +130,10 @@ The generated configuration will be:
 
 4. **Key Storage**: The trustee's cryptographic keys are critical. Ensure proper backup and access control procedures.
 
+## Upgrading Trustees
+
+Each keys ceremony records its key generation rules in the configuration of its board. A keys ceremony created after a platform upgrade can use rules that earlier trustee builds cannot read, and those trustees cannot take part in it. Upgrade every trustee before creating a new keys ceremony. Keys ceremonies created before the upgrade keep their rules and continue to work with upgraded trustees.
+
 ## Troubleshooting
 
 ### Common Issues
