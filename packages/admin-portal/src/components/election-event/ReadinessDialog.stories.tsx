@@ -134,6 +134,16 @@ async function run(canvasElement: HTMLElement) {
     await userEvent.click(dialog.getByRole("button", {name: text("run")}))
     return dialog
 }
+function expectChecklistAlignment(dialog: ReturnType<typeof within>) {
+    const list = dialog.getByRole("list", {name: text("results")})
+    for (const row of within(list).getAllByRole("listitem")) {
+        const pill = row.querySelector(".MuiChip-root") as HTMLElement
+        const label = row.querySelector("p") as HTMLElement
+        expect(
+            Math.abs(pill.getBoundingClientRect().top - label.getBoundingClientRect().top)
+        ).toBeLessThan(1)
+    }
+}
 export const Passed: Story = {
     play: async ({canvasElement}) => {
         const dialog = await run(canvasElement)
@@ -141,6 +151,7 @@ export const Passed: Story = {
         await expect(dialog.getByText("signed-readiness-entry")).toBeVisible()
         expect(dialog.getByRole("button", {name: text("download")})).toBeEnabled()
         expect(dialog.getAllByText(i18n.t("logsScreen.readiness.passed"))).toHaveLength(5)
+        expectChecklistAlignment(dialog)
         expect(boundary.calls).toEqual([
             {
                 name: "GetReadinessEvents",
@@ -162,6 +173,7 @@ export const Failed: Story = {
         await expect(await dialog.findByText(text("failed"))).toBeVisible()
         expect(dialog.getAllByText(i18n.t("logsScreen.readiness.failed"))).toHaveLength(1)
         expect(dialog.queryByText("signed-readiness-entry")).toBeNull()
+        expectChecklistAlignment(dialog)
     },
 }
 export const ServerError: Story = {

@@ -200,6 +200,7 @@ export function ReadinessDialog({
                                     >
                                         <Chip
                                             size="small"
+                                            sx={{flexShrink: 0}}
                                             color={check.passed ? "success" : "error"}
                                             label={t(
                                                 check.passed
@@ -207,7 +208,7 @@ export function ReadinessDialog({
                                                     : "logsScreen.readiness.failed"
                                             )}
                                         />
-                                        <Typography>
+                                        <Typography sx={{m: 0}}>
                                             {READINESS_CHECK_KINDS.some(
                                                 (kind) => kind === check.kind
                                             )
