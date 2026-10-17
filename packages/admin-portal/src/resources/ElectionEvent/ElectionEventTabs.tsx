@@ -14,7 +14,6 @@ import React, {
 import {useRecordContext, useSidebarState, RecordContextProvider} from "react-admin"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import ElectionHeader from "@/components/ElectionHeader"
-import {ReadinessCheckButton} from "@/components/election-event/ReadinessCheckButton"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {useTranslation} from "react-i18next"
@@ -666,15 +665,10 @@ export const ElectionEventTabs: React.FC = () => {
             }}
             className="events-box"
         >
-            <Box sx={{display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1, pr: 2}}>
-                <Box sx={{flex: 1}}>
-                    <ElectionHeader
-                        title={aliasRenderer(record)}
-                        subtitle="electionEventScreen.common.subtitle"
-                    />
-                </Box>
-                <ReadinessCheckButton key={record.id} event={record} />
-            </Box>
+            <ElectionHeader
+                title={aliasRenderer(record)}
+                subtitle="electionEventScreen.common.subtitle"
+            />
             <Box sx={{bgcolor: "background.paper"}}>
                 <RecordContextProvider value={record}>
                     {/* The event's screens show their times in its zones. */}

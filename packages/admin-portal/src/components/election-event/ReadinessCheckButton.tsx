@@ -19,6 +19,7 @@ import {
     TextField,
     Typography,
 } from "@mui/material"
+import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined"
 import {useMutation, useQuery} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {useRefresh} from "react-admin"
@@ -241,7 +242,7 @@ export function ReadinessDialog({
     )
 }
 
-/** Available during lockdown; the server checks both events' access and signs only a pass. */
+/** The server checks both events' access and signs only a pass. */
 export function ReadinessCheckButton({event}: {event: Event}) {
     const auth = useContext(AuthContext)
     const [tenantId] = useTenantStore()
@@ -250,7 +251,12 @@ export function ReadinessCheckButton({event}: {event: Event}) {
     if (!tenantId || !auth.isAuthorized(true, tenantId, IPermissions.READINESS_CHECK)) return null
     return (
         <>
-            <Button variant="outlined" onClick={() => setOpen(true)}>
+            <Button
+                variant="text"
+                size="small"
+                startIcon={<FactCheckOutlinedIcon />}
+                onClick={() => setOpen(true)}
+            >
                 {t("readiness.action")}
             </Button>
             {open && (

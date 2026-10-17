@@ -107,12 +107,14 @@ Do not open official voting or create a tally session before checking readiness.
 This also excludes initialization workflows that create tally sessions. Future
 scheduled voting dates are expected; actual voting must not have started or ended.
 
-In the Admin Portal, open the **official** election event and select **Check
-readiness** beside its title. Select the completed **Tested event**, checking its
-name and ID, then select **Run check**. Archived rehearsal events are included.
+In the Admin Portal, open the **official** election event's **Data** tab and select
+**Check readiness** alongside the other action buttons. Select the completed
+**Tested event**, checking its name and ID, then select **Run check**. Archived
+rehearsal events are included.
 The action requires `readiness-check`; selecting events uses the existing
-`election-event-read` permission and event permission labels. It remains available
-during lockdown and does not require access to the Data or Logs tabs.
+`election-event-read` permission and event permission labels. Access follows the
+Data tab's existing permission and lockdown rules; use the CLI when that tab is
+hidden. Running the check does not require access to the Logs tab.
 
 The dialog shows every check's outcome, the check time and, on success, the signed
 log entry reference. Select **Download JSON report** to retain the complete report,

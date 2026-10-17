@@ -96,6 +96,7 @@ import {
     type ILifecyclePolicies,
 } from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
+import {ReadinessCheckButton} from "@/components/election-event/ReadinessCheckButton"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {ListSupportMaterials} from "../SupportMaterials/ListSuportMaterial"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -1457,7 +1458,13 @@ export const EditElectionEventDataForm: React.FC<{
                     isExportDisabled={openExport || loadingExport}
                     withColumns={false}
                     withFilter={false}
-                    extraActions={extraActionsButtons()}
+                    extraActions={[
+                        ...extraActionsButtons(),
+                        <ReadinessCheckButton
+                            key={`readiness-${parsedValue.id}`}
+                            event={parsedValue}
+                        />,
+                    ]}
                 />
             </Box>
             <SimpleForm

@@ -591,16 +591,21 @@ export const Approvals: Story = {
     }),
 }
 
-export const ReadinessDuringLockdown: Story = {
+export const ReadinessRequiresDataTab: Story = {
     args: {
         lockedDown: true,
-        roles: [IPermissions.READINESS_CHECK, IPermissions.ELECTION_EVENT_READ],
+        roles: [
+            IPermissions.READINESS_CHECK,
+            IPermissions.ELECTION_EVENT_READ,
+            IPermissions.ELECTION_EVENT_DATA_TAB,
+        ],
     },
     parameters: {widgets: []},
     play: async ({canvasElement}) => {
-        await expect(
-            await within(canvasElement).findByRole("button", {name: i18n.t("readiness.action")})
-        ).toBeVisible()
+        await expect(await within(canvasElement).findByText("Council")).toBeVisible()
+        expect(
+            within(canvasElement).queryByRole("button", {name: i18n.t("readiness.action")})
+        ).toBeNull()
         expect(within(canvasElement).queryByRole("tab", {name: "Data"})).toBeNull()
         expect(within(canvasElement).queryByRole("tab", {name: "Logs"})).toBeNull()
     },
