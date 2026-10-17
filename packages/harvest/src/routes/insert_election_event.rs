@@ -135,7 +135,12 @@ pub async fn import_election_event_f(
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
 
-    authorize(&claims, true, Some(input.tenant_id.clone()), vec![])?;
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![Permissions::ELECTION_EVENT_CREATE],
+    )?;
     input.may_write_secret_attributes = authorize(
         &claims,
         true,
