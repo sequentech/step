@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Tenant Plugins | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3931/docs/developers/admin-portal/tenant_plugins"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Tenant Plugins | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3931/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3931/docs/developers/admin-portal/tenant_plugins"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3931/docs/developers/admin-portal/tenant_plugins" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3931/docs/developers/admin-portal/tenant_plugins" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Tenant Plugins","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3931/docs/developers/admin-portal/tenant_plugins"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3931/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3931/assets/js/runtime~main.b8683913.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3931/assets/js/runtime~main.d9f815c5.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3931/assets/js/main.4a8674eb.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -50,6 +50,10 @@ history keeps changes to children that were later deleted.</li>
 </ul>
 <p>Deleting a tenant deletes its plugin rows; otherwise history cannot be changed
 or deleted.</p>
+<p>Every change to <code>plugin_tenant</code> and <code>plugin_record</code> is also logged in the
+tenant&#x27;s admin audit log, like other admin changes: the gateway names the admin
+with <code>audit::act_for</code>, and the <code>audit_change</code> trigger records the old and new
+values.</p>
 <p>Every operation runs in one transaction; any error rolls back all of its
 writes and history. Updates and deletes name the version they replace; a
 stale version is refused with <code>plugin-conflict</code> and the current record, so the
@@ -62,7 +66,8 @@ Projects allows 1000 tasks per project, 200-character names and titles,
 <p>Hasura exposes three actions to the <code>admin-user</code> role, all forwarded to
 Harvest with the caller&#x27;s token:</p>
 <table><thead><tr><th>Action</th><th>Harvest route</th><th>Needs</th></tr></thead><tbody><tr><td><code>tenant_plugins</code></td><td><code>GET /plugins</code></td><td><code>admin-user</code></td></tr><tr><td><code>set_tenant_plugin_state(plugin_id, state, expected_version)</code></td><td><code>POST /plugins/state</code></td><td><code>admin-user</code>, <code>tenant-write</code></td></tr><tr><td><code>execute_plugin_operation(plugin_id, operation, data)</code></td><td><code>POST /plugins/execute</code></td><td><code>admin-user</code> and the operation&#x27;s permission</td></tr></tbody></table>
-<p>The token must be a tenant realm token (not an election event realm&#x27;s) whose
+<p>The gateway checks the operation&#x27;s permission, or <code>tenant-write</code> for a state
+change, before it contacts any backend. The token must be a tenant realm token (not an election event realm&#x27;s) whose
 subject is the Hasura user. Requests with unknown fields, such as a
 <code>tenant_id</code>, are refused. Errors carry a stable <code>extensions.code</code>:
 <code>plugin-forbidden</code>, <code>plugin-disabled</code>, <code>plugin-incompatible</code>,
