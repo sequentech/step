@@ -14,7 +14,7 @@ use std::time::Instant;
 
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
-use strand::serialization::StrandSerialize;
+use strand::serialization::{StrandDeserialize, StrandSerialize};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
 use b3::messages::artifact::{Ballots, Configuration, Plaintexts};
@@ -22,8 +22,10 @@ use b3::messages::message::Message;
 use b3::messages::newtypes::PublicKeyHash;
 use b3::messages::newtypes::MAX_TRUSTEES;
 use b3::messages::newtypes::NULL_TRUSTEE;
+use b3::messages::newtypes::VERIFIER_INDEX;
 use b3::messages::protocol_manager::ProtocolManager;
 
+use crate::protocol::predicate::Predicate;
 use crate::protocol::trustee2::Trustee;
 use crate::test::vector_board::VectorBoard;
 use crate::test::vector_session::VectorSession;
@@ -31,9 +33,18 @@ use crate::test::vector_session::VectorSession;
 pub fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
     let n_trustees = rand::thread_rng().gen_range(2..13);
     let n_threshold = rand::thread_rng().gen_range(2..=n_trustees);
-    // To test all trustees participating
-    // let n_trustees = 12;
-    // let n_threshold = n_trustees;
+    run_with_trustees(ciphertexts, batches, ctx, n_trustees, n_threshold);
+}
+
+/// Like `run`, with the given number of trustees of which `n_threshold`
+/// are selected, chosen at random, to mix and decrypt.
+pub fn run_with_trustees<C: Ctx + 'static>(
+    ciphertexts: u32,
+    batches: usize,
+    ctx: C,
+    n_trustees: usize,
+    n_threshold: usize,
+) {
     let max: [usize; 12] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
     let all = &max[0..n_trustees];
     let mut rng = &mut rand::rng();
@@ -55,6 +66,9 @@ pub fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
     );
 }
 
+/// Runs the protocol on an in-memory board with the given selected trustees,
+/// checks that every batch decrypts to the encrypted plaintexts, and that the
+/// verifier then verifies every batch.
 fn run_protocol_test<C: Ctx + 'static>(
     test: ProtocolTest<C>,
     ciphertexts: u32,
@@ -155,6 +169,8 @@ fn run_protocol_test<C: Ctx + 'static>(
             assert!(expected == actual);
             info!("Match ok on plaintexts for batch {}", i + 1);
         }
+        let board = data.lock().unwrap().clone();
+        assert_eq!(verified_batches(&test.cfg, &board)?, batches);
     } else {
         error!("No plaintexts found");
         panic!();
@@ -168,6 +184,47 @@ fn run_protocol_test<C: Ctx + 'static>(
     info!("***************************************************************");
 
     Ok(())
+}
+
+/// Runs a verifier trustee over the board, then the verify datalog over the
+/// board and the verifier's own statements, returning the number of batches
+/// it verifies.
+fn verified_batches<C: Ctx>(cfg: &Configuration<C>, board: &VectorBoard) -> Result<usize> {
+    let messages = board
+        .messages
+        .iter()
+        .map(|m| Ok((Message::strand_deserialize(&m.message)?, m.id)))
+        .collect::<Result<Vec<(Message, i64)>>>()?;
+
+    let mut predicates = vec![Predicate::get_verifier_bootstrap_predicate(cfg)?];
+    for (message, _) in messages.iter().skip(1) {
+        let verified = message.verify(cfg)?;
+        predicates.push(Predicate::from_statement::<C>(
+            &verified.statement,
+            verified.signer_position,
+            cfg,
+        )?);
+    }
+
+    let mut verifier = Trustee::<C>::new(
+        "Verifier".to_string(),
+        "foo".to_string(),
+        StrandSignatureSk::gen()?,
+        strand::symm::gen_key(),
+        None,
+        None,
+    );
+    for message in verifier.verify(messages)? {
+        predicates.push(Predicate::from_statement::<C>(
+            &message.statement,
+            VERIFIER_INDEX,
+            cfg,
+        )?);
+    }
+
+    let (_, _, verified) = crate::verify::datalog::S.run(&predicates);
+
+    Ok(verified.len())
 }
 
 pub struct ProtocolTest<C: Ctx> {
