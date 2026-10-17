@@ -119,6 +119,8 @@ const frenchTranslation: TranslationType = {
                     "Vote invalide! L'ordre de préférence comporte un ou plusieurs trous.",
                 duplicatedPosition:
                     "Vote invalide! La même position a été sélectionnée pour deux ou plusieurs candidats.",
+                selectedDisabledCandidate:
+                    "Vote invalide! Un candidat désactivé a été sélectionné.",
             },
             explicit: {
                 notAllowed:
