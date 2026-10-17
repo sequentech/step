@@ -20,6 +20,8 @@ pub mod probe;
 pub mod reports;
 #[cfg(feature = "s3")]
 pub mod s3;
+#[cfg(feature = "probe")]
+pub mod setup_probe;
 
 pub mod error_checker;
 pub mod generate_urls;

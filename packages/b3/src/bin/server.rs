@@ -13,6 +13,7 @@ cfg_if::cfg_if! {
         use b3::grpc::server::PgsqlB3Server;
         use b3::grpc::B3Server;
         use b3::grpc::MAX_MESSAGE_SIZE;
+        use b3::probe;
 
         #[derive(Debug, Deserialize)]
         #[serde(default)]
@@ -71,10 +72,13 @@ cfg_if::cfg_if! {
             drop(client);
 
             let addr = config.bind.parse()?;
-            let b3_impl = PgsqlB3Server::new(c_db, config.blob_root).await?;
+            let b3_impl = PgsqlB3Server::new(c_db.clone(), config.blob_root).await?;
             let service = B3Server::new(b3_impl)
                 .max_encoding_message_size(config.max_message_size_bytes)
                 .max_decoding_message_size(config.max_message_size_bytes);
+
+            let pg_probe = c_db.clone();
+            probe::setup_probe(pg_probe).await;
 
             Server::builder().add_service(service).serve(addr).await?;
 
