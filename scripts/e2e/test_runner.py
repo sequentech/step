@@ -425,6 +425,25 @@ class BootstrapAdminContracts(unittest.TestCase):
         self.assertEqual(calls, ["password", "enroll"])
 
 
+class CoveragePackageContracts(unittest.TestCase):
+    def test_only_packages_of_the_checkout_are_measured(self):
+        # Generic code of a dependency, compiled into an instrumented binary,
+        # names files in the cargo registry: those are not Step's packages.
+        with tempfile.TemporaryDirectory() as temporary:
+            crate = Path(temporary) / "registry/src/index.crates.io-0/tracing-0.1.44"
+            (crate / "src").mkdir(parents=True)
+            (crate / "Cargo.toml").write_text('[package]\nname = "tracing"\n')
+            (crate / "src/instrument.rs").write_text("")
+            windmill = coverage.ROOT / "packages/windmill"
+            payload = {"data": [{"files": [
+                {"filename": str(crate / "src/instrument.rs")},
+                {"filename": str(windmill / "src/lib.rs")},
+            ]}]}
+            self.assertEqual(
+                coverage.package_directories(payload), {windmill: "windmill"}
+            )
+
+
 class CoverageExitContracts(unittest.TestCase):
     def report(self, codes, *, json_lines=False):
         with tempfile.TemporaryDirectory() as temporary:
