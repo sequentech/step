@@ -9,67 +9,24 @@ SPDX-License-Identifier: AGPL-3.0-only
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>sequent</groupId>
+    <parent>
+        <groupId>sequent</groupId>
+        <artifactId>keycloak-extensions</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
     <artifactId>idp-linking-authenticator</artifactId>
-    <version>1.0-SNAPSHOT</version>
 
     <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <keycloak.version>26.4.0</keycloak.version>
-        <maven.compiler.release>17</maven.compiler.release>
-        <maven.compiler.version>3.14.0</maven.compiler.version>
-        <maven.shade.version>3.6.1</maven.shade.version>
         <junit.version>5.11.3</junit.version>
         <mockito.version>5.14.2</mockito.version>
     </properties>
 
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>com.github.dasniko</groupId>
-                <artifactId>keycloak-spi-bom</artifactId>
-                <version>${keycloak.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
-
     <dependencies>
-        <!-- Keycloak dependencies -->
-        <dependency>
-            <groupId>org.keycloak</groupId>
-            <artifactId>keycloak-server-spi</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.keycloak</groupId>
-            <artifactId>keycloak-server-spi-private</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.keycloak</groupId>
-            <artifactId>keycloak-services</artifactId>
-        </dependency>
         <dependency>
             <groupId>org.keycloak</groupId>
             <artifactId>keycloak-core</artifactId>
             <version>${keycloak.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>jakarta.validation</groupId>
-            <artifactId>jakarta.validation-api</artifactId>
-            <version>3.1.1</version>
-        </dependency>
-
-        <!-- Lombok -->
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-        </dependency>
-
-        <!-- Auto Service -->
-        <dependency>
-            <groupId>com.google.auto.service</groupId>
-            <artifactId>auto-service</artifactId>
         </dependency>
 
         <!-- JUnit 5 -->
@@ -127,20 +84,11 @@ SPDX-License-Identifier: AGPL-3.0-only
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>${maven.shade.version}</version>
                 <executions>
+                    <!-- The parent shades the AWS SDK for the providers that use it; this module has
+                         no runtime dependencies to bundle, so its jar only holds its own classes. -->
                     <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                        <configuration>
-                            <artifactSet>
-                                <includes>
-                                    <include>org.reactivestreams:reactive-streams</include>
-                                </includes>
-                            </artifactSet>
-                        </configuration>
+                        <phase>none</phase>
                     </execution>
                 </executions>
             </plugin>
