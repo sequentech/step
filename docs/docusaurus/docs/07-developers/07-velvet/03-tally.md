@@ -125,9 +125,9 @@ At contest level, the tally operation is read from the contest `annotations` JSO
 
 - **Location**: `contest.annotations["tally_operation"]`
 - **Type**: string
-- **Allowed values**: `"process-ballots-all"`, `"aggregate-results"`, `"skip-candidate-results"`
+- **Allowed values**: `"process-ballots-all"`, and `"aggregate-results"` for non-preferential algorithms only
 
-If `tally_operation` is **not present**, empty, or contains an unknown value, the engine falls back to a default that depends on the counting algorithm (`CountingAlgType`):
+If `tally_operation` is **not present**, empty, or contains an unknown value, the engine falls back to a default that depends on the counting algorithm (`CountingAlgType`). An unknown value is logged as a warning.
 
 - For **preferential (ranked-choice)** algorithms (`instant-runoff`, `borda`, `borda-nauru`, `borda-mas-madrid`, `pairwise-beta`, `desborda`, `desborda2`, `desborda3`):
   - **Default contest operation**: `process-ballots-all`
@@ -143,7 +143,7 @@ At area level, the tally operation is configured via the `area_annotations` asso
 - **Source**: the `BallotStyle` entry whose `area_id` matches the area being tallied.
 - **Location**: `ballot_style.area_annotations.tally_operation`
 - **Type**: string
-- **Allowed values**: same as contest level – `"process-ballots-all"`, `"aggregate-results"`, `"skip-candidate-results"`.
+- **Allowed values**: `"process-ballots-all"`, `"skip-candidate-results"`.
 
 If no matching `BallotStyle` is found for an area, or if `tally_operation` is missing/invalid in `area_annotations`, the engine uses a default that also depends on the counting algorithm:
 
@@ -162,6 +162,16 @@ This behavior is implemented by `get_area_tally_operation`, which selects the co
 | Non-preferential            | `aggregate-results`    | `process-ballots-all`     |
 
 When in doubt or when configuration is missing, the tally engine will always choose a safe default based on the counting algorithm, so tallying can proceed even without explicit `tally_operation` settings.
+
+### Unsupported operations
+
+`CountingAlgType::validate_tally_operation` checks every tally operation against the counting algorithm before counting. The tally fails with an `InvalidTallyOperation` error when:
+
+- the contest operation is `skip-candidate-results`, because the contest result must carry candidate results;
+- the contest operation is `aggregate-results` and the algorithm is preferential, because preferential results cannot be obtained by adding up per-area results;
+- the area operation is `aggregate-results`.
+
+Acclaimed contests do not run a count, so their tally operations are not checked.
 
 ## Cast vote status guard
 

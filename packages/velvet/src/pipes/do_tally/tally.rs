@@ -413,6 +413,13 @@ pub fn create_tally(
         tally_results,
     )?;
 
+    tally
+        .id
+        .validate_tally_operation(&tally.scope_operation)
+        .map_err(|err| {
+            CntAlgError::InvalidTallyOperation(format!("Contest {}: {err}", contest.id))
+        })?;
+
     match tally.id {
         CountingAlgType::PluralityAtLarge => Ok(Box::new(PluralityAtLarge::new(tally))),
         CountingAlgType::InstantRunoff => Ok(Box::new(InstantRunoff::new(tally))),
@@ -616,6 +623,69 @@ mod tests {
             assert_eq!(result.candidate_result.len(), 1);
             assert_eq!(result.candidate_result[0].total_count, 0);
             assert_eq!(result.process_results, None);
+        }
+    }
+
+    fn instant_runoff_contest() -> Contest {
+        Contest {
+            counting_algorithm: Some(CountingAlgType::InstantRunoff),
+            ..contest()
+        }
+    }
+
+    fn create_contest_tally(
+        contest: &Contest,
+        operation: TallyOperation,
+    ) -> Result<Box<dyn CountingAlgorithm>> {
+        let area_result = ContestResult {
+            contest: contest.clone(),
+            ..ContestResult::default()
+        };
+        create_tally(
+            contest,
+            ScopeOperation::Contest(operation),
+            vec![],
+            0,
+            0,
+            vec![],
+            vec![area_result],
+        )
+    }
+
+    #[test]
+    fn instant_runoff_rejects_aggregated_contest_results() {
+        assert!(
+            create_contest_tally(&instant_runoff_contest(), TallyOperation::AggregateResults)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn contest_tally_rejects_skipping_candidate_results() {
+        for contest in [instant_runoff_contest(), multi_selection_contest()] {
+            assert!(
+                create_contest_tally(&contest, TallyOperation::SkipCandidateResults).is_err(),
+                "{:?} accepted skip-candidate-results at contest level",
+                contest.counting_algorithm
+            );
+        }
+    }
+
+    #[test]
+    fn contest_tally_accepts_supported_operations() {
+        for (contest, operation) in [
+            (instant_runoff_contest(), TallyOperation::ProcessBallotsAll),
+            (multi_selection_contest(), TallyOperation::ProcessBallotsAll),
+            (multi_selection_contest(), TallyOperation::AggregateResults),
+        ] {
+            let result = create_contest_tally(&contest, operation)
+                .expect("supported contest operation")
+                .tally();
+            assert!(
+                result.is_ok(),
+                "{:?} rejected {operation} at contest level",
+                contest.counting_algorithm
+            );
         }
     }
 

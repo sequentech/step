@@ -11,8 +11,10 @@ use sequent_core::{
 };
 use std::collections::HashSet;
 use std::str::FromStr;
-use tracing::{info, instrument};
+use tracing::{info, instrument, warn};
 use uuid::Uuid;
+
+const TALLY_OPERATION_ANNOTATION: &str = "tally_operation";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BallotClass {
@@ -198,10 +200,18 @@ pub fn get_contest_tally_operation(contest: &Contest) -> TallyOperation {
         .get_default_tally_operation_for_contest();
     let annotations = contest.annotations.clone().unwrap_or_default();
     let operation = annotations
-        .get("tally_operation")
+        .get(TALLY_OPERATION_ANNOTATION)
         .map(|val| val.clone())
         .unwrap_or_default();
-    TallyOperation::from_str(&operation).unwrap_or(default_tally_op)
+    TallyOperation::from_str(&operation).unwrap_or_else(|_| {
+        if !operation.is_empty() {
+            warn!(
+                "Unknown tally_operation {operation:?} in contest {}, using {default_tally_op}",
+                contest.id
+            );
+        }
+        default_tally_op
+    })
 }
 
 #[instrument(skip_all)]
@@ -295,6 +305,56 @@ mod tests {
 
         let ballot_styles = vec![ballot_style_with(&area_id, None)];
         assert_eq!(*get_area_weight(&ballot_styles, &area_id), Some(1));
+    }
+
+    fn contest_with_tally_operation(
+        counting_algorithm: CountingAlgType,
+        tally_operation: Option<&str>,
+    ) -> Contest {
+        Contest {
+            counting_algorithm: Some(counting_algorithm),
+            annotations: tally_operation.map(|operation| {
+                HashMap::from([(
+                    TALLY_OPERATION_ANNOTATION.to_string(),
+                    operation.to_string(),
+                )])
+            }),
+            ..Contest::default()
+        }
+    }
+
+    #[test]
+    fn contest_tally_operation_reads_the_annotation() {
+        for counting_algorithm in [
+            CountingAlgType::InstantRunoff,
+            CountingAlgType::PluralityAtLarge,
+        ] {
+            let contest =
+                contest_with_tally_operation(counting_algorithm, Some("process-ballots-all"));
+            assert_eq!(
+                get_contest_tally_operation(&contest),
+                TallyOperation::ProcessBallotsAll
+            );
+        }
+    }
+
+    #[test]
+    fn contest_tally_operation_falls_back_to_the_algorithm_default() {
+        for tally_operation in [None, Some(""), Some("process-ballot-all")] {
+            for (counting_algorithm, expected) in [
+                (
+                    CountingAlgType::InstantRunoff,
+                    TallyOperation::ProcessBallotsAll,
+                ),
+                (
+                    CountingAlgType::PluralityAtLarge,
+                    TallyOperation::AggregateResults,
+                ),
+            ] {
+                let contest = contest_with_tally_operation(counting_algorithm, tally_operation);
+                assert_eq!(get_contest_tally_operation(&contest), expected);
+            }
+        }
     }
 
     fn candidate(id: &str, is_explicit_blank: bool) -> Candidate {
