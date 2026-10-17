@@ -90,7 +90,18 @@ pub async fn set_public_key_impl(
         &keys_ceremony,
     )
     .await?;
-    let public_key_opt = public_keys::get_public_key(board_name.clone()).await.ok();
+    let manager =
+        protocol_manager::get_protocol_manager::<strand::backend::ristretto::RistrettoCtx>(
+            &hasura_transaction,
+            &tenant_id,
+            Some(&election_event_id),
+            &board_name,
+        )
+        .await?;
+    let manager_pk = strand::signature::StrandSignaturePk::from_sk(&manager.signing_key)?;
+    let public_key_opt = public_keys::get_public_key(board_name.clone(), &manager_pk)
+        .await
+        .ok();
     // verify trustee names and fetch their objects to get their ids
     let trustee_names = current_status
         .trustees
@@ -123,7 +134,8 @@ pub async fn set_public_key_impl(
         .with_context(|| "empty last_updated_at")?
         .timestamp() as u64;
 
-    let messages = protocol_manager::get_board_public_key_messages(&board_name).await?;
+    let messages =
+        protocol_manager::get_board_public_key_messages(&board_name, &manager_pk).await?;
     let mut new_logs = generate_logs(&messages, next_timestamp, &vec![0])?;
     let mut logs = current_status.logs.clone();
     logs.append(&mut new_logs);
