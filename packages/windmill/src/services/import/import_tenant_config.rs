@@ -7,6 +7,7 @@ use crate::services::database::get_hasura_pool;
 use crate::services::documents;
 use crate::services::import::import_tenant::upsert_tenant;
 use crate::services::keycloak::read_roles_config_file;
+use crate::services::task_audit;
 use crate::tasks::import_tenant_config::ImportOptions;
 use crate::types::documents::EDocuments;
 use anyhow::{anyhow, Context, Result};
@@ -16,6 +17,7 @@ use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_tenant_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::util::integrity_check::{integrity_check, HashFileVerifyError};
+use serde::Serialize;
 use std::fs::File;
 use std::io;
 use std::io::{Cursor, Read, Seek};
@@ -23,12 +25,30 @@ use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 use zip::read::ZipArchive;
 
+/// A section of a tenant's configuration document.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TenantConfigSection {
+    Tenant,
+    RolesPermissions,
+    Keycloak,
+}
+
+/// What an import read and did, for its audit entry.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportedTenantConfig {
+    /// The SHA-256 of the document's file.
+    pub file_sha256: String,
+    /// The sections imported, in the document's order.
+    pub sections: Vec<TenantConfigSection>,
+}
+
 pub async fn import_tenant_config_zip(
     import_options: ImportOptions,
     tenant_id: &str,
     document_id: &str,
     sha256: Option<String>,
-) -> Result<()> {
+) -> Result<ImportedTenantConfig> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -48,9 +68,11 @@ pub async fn import_tenant_config_zip(
                 &document_id
             ))?;
 
-    let temp_zip_file = documents::get_document_as_temp_file(tenant_id, &document)
+    let mut temp_zip_file = documents::get_document_as_temp_file(tenant_id, &document)
         .await
         .map_err(|err| anyhow!("Error trying to get document as temporary file {err}"))?;
+    let file_sha256 = task_audit::file_sha256(temp_zip_file.as_file_mut())?;
+    let mut sections = vec![];
 
     match sha256 {
         Some(hash) if !hash.is_empty() => match integrity_check(&temp_zip_file, hash) {
@@ -102,6 +124,7 @@ pub async fn import_tenant_config_zip(
             upsert_tenant(&hasura_transaction, tenant_id, temp_file)
                 .await
                 .with_context(|| "Failed to upsert tenant")?;
+            sections.push(TenantConfigSection::Tenant);
         }
 
         // Process and import roles & permissions configurations
@@ -113,6 +136,7 @@ pub async fn import_tenant_config_zip(
                 .map_err(|e| anyhow!("Failed create roles & permissions temp file: {e}"))?;
 
             read_roles_config_file(temp_file, &realm, tenant_id).await?;
+            sections.push(TenantConfigSection::RolesPermissions);
         }
         if file_name.contains(&EDocuments::KEYCLOAK_CONFIG.to_file_name())
             && import_options.include_keycloak.unwrap_or(false)
@@ -159,14 +183,19 @@ pub async fn import_tenant_config_zip(
                 .upsert_realm(&realm_name, &realm_string, tenant_id, false, None, None)
                 .await
                 .with_context(|| "Failed to upsert realm configuration in Keycloak")?;
+            sections.push(TenantConfigSection::Keycloak);
         }
     }
-    let _commit = hasura_transaction
+    // An import whose tenant rows did not commit is not recorded as done.
+    hasura_transaction
         .commit()
         .await
-        .map_err(|e| anyhow!("Commit failed: {e}"));
+        .map_err(|e| anyhow!("Commit failed: {e}"))?;
 
-    Ok(())
+    Ok(ImportedTenantConfig {
+        file_sha256,
+        sections,
+    })
 }
 
 #[instrument(err, skip(temp_file_path))]

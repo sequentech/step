@@ -70,11 +70,24 @@ A row or an event without an election event belongs to the tenant log.
   the caller's Hasura transaction: a caller that rolls back makes the next call generate a new key,
   for a log that holds no entry signed with the lost one.
 - **When.** `insert_tenant` creates the log with the tenant and stages the tenant's creation as its
-  first entry. Tenants that existed before get theirs from the one-off migration (section 11), and any
-  writer or export that reaches a tenant without a log creates it.
+  first entry. It creates the tenant's realm from the template with what the one-off migration gives
+  older realms (`prepare_realm_for_tenant_log`): `custom-event-listener`, admin events with their
+  representation, and the `tenant-logs-read` and `tenant-logs-export` roles granted to `admin`, so a
+  template that predates the tenant log still gives a realm that feeds it. Tenants that existed
+  before get theirs from the one-off migration (section 11), and any writer or export that reaches a
+  tenant without a log creates it.
 - **Admin keys.** An administrator's signing key is one per tenant. `get_admin_user_signing_key`
-  creates it on first use and `ElectoralLog::post_admin_pk` appends its `AdminPublicKey` record to
-  the tenant log, not to the log of the event where the administrator happened to act first.
+  creates it on first use, in the caller's transaction, and `ElectoralLog::post_admin_pk` appends its
+  `AdminPublicKey` record to the tenant log, not to the log of the event where the administrator
+  happened to act first. The record is appended only **after that transaction commits**: a task of
+  the process (`NewAdminPublicKey::post_after_commit`) waits for the transaction
+  (`txid_status`) and posts the key if the vault kept it, so a change that rolls back leaves no
+  announced key. Callers that own their transaction (the outbox worker, the monitoring
+  configuration) use `get_admin_user_signing_key_to_announce` and post right after their commit, so
+  the key precedes the entries it signs. The record's delivery ID is
+  `admin-public-key:<user ID>:<SHA-256 of the key>`: posting a key twice stores it once. A key whose
+  record was lost (the process stopped first, or the log was down) is posted by the migration's
+  backfill (section 11). The outbox does not carry these records: it posts `Audit` statements only.
 
 ### 2.1 New columns
 
@@ -133,7 +146,7 @@ Written through the outbox for a change made through Hasura, Harvest or Windmill
 | `actor` | The person. Every field can be `null`: a task queued without its administrator writes a SYSTEM entry without an actor |
 | `origin` | `hasura`, `harvest` or `windmill` (`AuditOrigin`) |
 | `changes` | One element per changed field. `old` or `new` is absent when there was no value. A secret has `"secret": true` and no values. A long text has `old_sha256` and `new_sha256` instead of values |
-| `extra` | Present only when the entry has facts that are not field changes: an import's or export's `count`, `document_id` and `file_sha256`, a deleted event's log state (section 8) |
+| `extra` | Present only when the entry has facts that are not field changes: an import's or export's `count`, `document_id` and `file_sha256`, a deleted event's log state (section 8). An election event's or a tenant configuration's import also has `counts` (elections, contests, candidates, areas and area contests; or the configuration sections imported, listed in `sections`), the `declared_sha256` its admin typed, when there was one to check, and `declared_checksum`: `undeclared`, `matches` or `mismatch` against the computed `file_sha256` |
 
 The worker adds two things when it signs a row: the actor's `username`, when the row was queued
 without one, and `rerouted_from_election_event`, when the entry was queued for an election event that
@@ -576,12 +589,14 @@ handoff transaction, so it does not block the queue ([design](01-electoral-log-d
      "entries": 5259,
      "state_hash": "<hex of the board's Merkle root>",
      "log_uid": "<the Merkle log's identity>",
-     "task_id": "<the deletion task's execution ID>"
+     "task_id": "<the deletion task's execution ID>",
+     "system_public_key": "<base64 of the log's system public key>"
    }
    ```
 
-   `entries` and `state_hash` are the board's checkpoint: its size and root. An event without a log
-   database has `{"status": "ABSENT", "task_id": …}`.
+   `entries` and `state_hash` are the board's checkpoint: its size and root. `system_public_key`
+   verifies the retired log's system signatures: the private key is deleted with the event. An event
+   without a log database has `{"status": "ABSENT", "task_id": …}`.
 2. **After the commit**, the task kicks the outbox and calls `EventDatabases::retire_event`: it sets
    `ALLOW_CONNECTIONS false` on the database, terminates the connections to it, renames it to the name
    recorded in the entry, and moves its catalog row from `electoral_log_events` to
@@ -613,7 +628,7 @@ against the caller's token. With an election event, it behaves as before and req
 
 | Action | Harvest route | Permission | Task type |
 | --- | --- | --- | --- |
-| `export_tenant_logs(format, scope, username, created_from, created_to, time_zone)` | `POST /export-tenant-logs` | `tenant-logs-export` (403 otherwise) | `EXPORT_TENANT_LOGS` |
+| `export_tenant_logs(format, scope, username, created_from, created_to, time_zone)` | `POST /export-tenant-logs` | `tenant-logs-export` and `tenant-logs-read` (403 otherwise) | `EXPORT_TENANT_LOGS` |
 | `export_election_event_logs(election_event_id, format, created_from, created_to, time_zone, scope, election_id, area_id, username)` | `POST /export-election-event-logs` | `logs-export` (it was `report-write`) | `EXPORT_ACTIVITY_LOGS_REPORT` |
 
 - **Which code writes the file.** A tenant export, and an event export with a scope other than `ALL`
@@ -623,11 +638,22 @@ against the caller's token. With an election event, it behaves as before and req
   one without the username, election or area it names (400). `created_from` and `created_to` are RFC
   3339 instants; the range includes both ends to the minute (`MinuteRange`), as the list's does. An
   account is matched by its exact username.
-- **Account with events.** `ACCOUNT_WITH_EVENTS` reads the tenant log and the log of every election
-  event of the tenant that has a board and a key, and merges the rows by `created`, then log, then ID.
+- **Account with events.** `ACCOUNT_WITH_EVENTS` reads the tenant log, the log of every election
+  event of the tenant that has a board and a key, and every retired database of the tenant's deleted
+  events, and merges the rows by `created`, then log, then ID. A deleted event's rows have `log`
+  `retired event <event ID>`, and its manifest entry has `system_public_key: null`; the key is in the
+  tenant log's entry of the deletion (section 8).
+- **Reading a retired database.** A retired database refuses connections, and PostgreSQL reads no
+  database through another's connection, so `EventDatabases::read_retired_event` opens it for the
+  read alone: it checks that `electoral_log_retired_events` lists it as the tenant's, takes the lock
+  that serializes the creation, retirement and drop of event databases (so reads take turns too),
+  first closes any retired database a stopped process left open, sets `ALLOW_CONNECTIONS true`, reads
+  every log of the database for the account through one connection whose transactions are read-only,
+  and then sets `ALLOW_CONNECTIONS false` and ends the connections to it, also when the read fails.
 - **Timezone.** `time_zone` is an IANA name. Without it, a tenant export uses the tenant setting
   `logs_timezone` (UTC when it is not set) and an event export uses UTC.
-- **Rows.** Each row (`AuditExportRow`) has `log` (`tenant` or `event <event ID>`), `id`, `created`,
+- **Rows.** Each row (`AuditExportRow`) has `log` (`tenant`, `event <event ID>` or `retired event
+  <event ID>`), `id`, `created`,
   `statement_timestamp`, `statement_kind`, `event_type`, `log_type`, `user_id`, `username`,
   `description`, `message` (the message as JSON), `statement` (the Borsh bytes that were signed),
   `sender_name`, `sender_public_key`, `sender_signature`, `system_signature`, `created_utc`,
@@ -635,7 +661,7 @@ against the caller's token. With an election event, it behaves as before and req
 - **SQL.** One transaction: `CREATE TABLE audit_log`, one `INSERT` per row with `statement` and the
   signatures as `bytea`, then `CREATE TABLE audit_log_export (manifest JSONB)` with the manifest: the
   format, scope, range, timezone, entry count and, for each log read, its name, its system public key
-  and its entry count.
+  (`null` for a deleted event's) and its entry count.
 - **PDF.** The export's facts and a table without signatures, rendered with `PdfRenderer`.
 - **Recording.** The task stores the file as a document and, in the same transaction, queues a
   `LogsExported` entry (section 3.5) in the log it exports, with the SHA-256 of the stored file. An
@@ -691,14 +717,21 @@ Windmill writes one JSON object per line to its standard output for:
 | `changed_fields` | The paths of an `AdminChange`'s changes. Old and new values are never written |
 | `ip_address` | For Keycloak user and admin events |
 
-After each pass that leaves entries waiting, the worker also writes the backlog:
+Every pass of the worker ends with the outbox's backlog, also when nothing waits:
 
 ```json
-{"target": "audit_log_outbox", "waiting": 3, "oldest_seconds": 412.7}
+{"target": "audit_log_outbox", "pending_entries": 3, "oldest_pending_seconds": 412.7}
 ```
 
-`waiting` is the number of unposted rows and `oldest_seconds` the age of the oldest. No line is
-written while the outbox is empty. Alert rules and forwarding to a SIEM belong to the deployment.
+| Key | Content |
+| --- | --- |
+| `pending_entries` | The number of unposted rows of every log, `0` when none waits |
+| `oldest_pending_seconds` | How long, in seconds, the oldest unposted row has waited since it was queued, `0` when none waits |
+
+Beat runs a pass every 5 seconds, so this line comes at least that often while the worker runs. An
+alert on entries waiting more than 5 minutes is `oldest_pending_seconds > 300`; an alert on no line
+for a minute catches a worker that stopped. Alert rules and forwarding to a SIEM belong to the
+deployment.
 
 ## 11. The one-off migration
 
@@ -716,6 +749,14 @@ a growing wait, as when Keycloak is still starting with beat.
 3. For every tenant realm, `grant_tenant_log_roles` adds the realm roles `tenant-logs-read` and
    `tenant-logs-export` when the realm lacks them and grants them to the `admin` group, as the realm
    templates do.
+4. For every tenant, before the realms, `backfill_admin_public_keys` posts an `AdminPublicKey` record
+   for each administrator's key in the vault that the tenant log does not announce: keys made before
+   keys were announced in the tenant log, and keys whose record was lost. The records it reads are
+   compared by account and key, so running it again posts nothing. A tenant whose keys could not be
+   posted fails the task like a realm.
+
+Tenants created after the migration need none of this: `insert_tenant` gives them their log and key
+and a realm that already feeds the log (section 2).
 
 ## 12. Operating notes
 
@@ -753,11 +794,10 @@ a growing wait, as when Keycloak is still starting with beat.
   tallies, publications, scheduled events, reports, applications, the approval matrix, monitoring
   configuration and others) were not changed: they write the statements they wrote before, or none,
   and carry no old and new values. Exporting an election event writes no audit entry.
-- **Erasing a retired database** has no command. Nothing reopens, exports or drops a retired
-  database, and `electoral-log-admin drop-event-database` does not find one, because it is no longer
-  registered as an event's. Retention and erasure are a separate piece of work.
-- **Deleted events are not part of an account's export.** `ACCOUNT_WITH_EVENTS` reads the events that
-  exist; a retired database is not read.
+- **Erasing a retired database** has no command. Only one account's export reads a retired
+  database (section 9.2); nothing drops one, and `electoral-log-admin drop-event-database` does not
+  find one, because it is no longer registered as an event's. Retention and erasure are a separate
+  piece of work.
 - **Deleting a tenant** does not retire or drop its log database.
 - **No checkpoints, audits or proofs for the tenant log.** The tenant log has a Merkle log, but no
   code publishes its checkpoints, audits it or serves proofs of it; the Admin Portal offers **Audit**
@@ -765,7 +805,8 @@ a growing wait, as when Keycloak is still starting with beat.
 - **A request's `TenantAdminAction` is not transactional.** It is queued after the request is
   answered. If the task-queue database cannot be reached then, the entry is lost and Harvest logs
   `tenant activity: <action> could not be queued`.
-- **`AdminPublicKey` is appended directly**, not through the outbox, and has no monitoring line.
+- **`AdminPublicKey` is appended directly**, after the key's transaction commits, not through the
+  outbox, and has no monitoring line (section 2).
 - **The SQL manifest has no SHA-256 of the file.** The file's hash is in the export's `LogsExported`
   entry.
 - **A deleted event's database is retired, not unloaded.** The design spoke of unloading an immudb

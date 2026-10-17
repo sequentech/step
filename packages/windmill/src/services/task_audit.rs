@@ -16,6 +16,7 @@ use crate::services::audit_log::{
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::tasks::audit_log_outbox::kick_audit_log_outbox;
 use anyhow::{Context, Result};
+use serde::Serialize;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::io::{Read, Seek, SeekFrom};
@@ -99,6 +100,42 @@ pub fn source_document(document_id: &str, declared_sha256: Option<&str>) -> Valu
     if let Some(sha256) = declared_sha256.filter(|sha256| !sha256.is_empty()) {
         source["declared_sha256"] = Value::String(sha256.to_lowercase());
     }
+    source
+}
+
+/// How an imported file's SHA-256 compares with the one its admin declared.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DeclaredChecksum {
+    /// The admin declared no checksum, or it has nothing to check, as for a
+    /// signed configuration package.
+    Undeclared,
+    Matches,
+    Mismatch,
+}
+
+impl DeclaredChecksum {
+    pub fn of(file_sha256: &str, declared_sha256: Option<&str>) -> Self {
+        match declared_sha256.filter(|sha256| !sha256.is_empty()) {
+            None => Self::Undeclared,
+            Some(declared) if declared.eq_ignore_ascii_case(file_sha256) => Self::Matches,
+            Some(_) => Self::Mismatch,
+        }
+    }
+}
+
+/// The document an import read, with the SHA-256 computed from its file and,
+/// when the admin declared one, the declared checksum and how they compare.
+pub fn imported_document(
+    document_id: &str,
+    file_sha256: &str,
+    declared_sha256: Option<&str>,
+) -> Value {
+    let mut source = source_document(document_id, declared_sha256);
+    source["file_sha256"] = Value::String(file_sha256.to_lowercase());
+    source["declared_checksum"] =
+        serde_json::to_value(DeclaredChecksum::of(file_sha256, declared_sha256))
+            .unwrap_or(Value::Null);
     source
 }
 
@@ -235,6 +272,29 @@ mod tests {
                 serde_json::json!({"document_id": "document-1"})
             );
         }
+    }
+
+    #[test]
+    fn an_imported_document_carries_its_computed_and_declared_checksums() {
+        assert_eq!(
+            imported_document("document-1", "ABCD", None),
+            serde_json::json!({
+                "document_id": "document-1",
+                "file_sha256": "abcd",
+                "declared_checksum": "undeclared",
+            })
+        );
+        assert_eq!(
+            imported_document("document-1", "abcd", Some("ABCD"))["declared_checksum"],
+            "matches"
+        );
+        let mismatch = imported_document("document-1", "abcd", Some("ef01"));
+        assert_eq!(mismatch["declared_sha256"], "ef01");
+        assert_eq!(mismatch["declared_checksum"], "mismatch");
+        assert_eq!(
+            DeclaredChecksum::of("abcd", Some("")),
+            DeclaredChecksum::Undeclared
+        );
     }
 
     #[test]

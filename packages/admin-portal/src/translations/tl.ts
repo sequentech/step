@@ -337,6 +337,27 @@ const tagalogTranslation: TranslationType = {
                     newValue: "Bagong halaga",
                     error: "Error",
                 },
+                importedFile: {
+                    title: "Ang na-import na file",
+                    declared: "Idineklarang checksum",
+                    sha256: "SHA-256 ng file",
+                    declaredSha256: "Idineklarang SHA-256",
+                    document: "Dokumento",
+                    checksum: {
+                        undeclared: "Walang idineklara",
+                        matches: "Tugma sa file",
+                        mismatch: "Hindi tugma sa file",
+                    },
+                    counts: {
+                        count: "Mga hilera",
+                        elections: "Mga halalan",
+                        contests: "Mga paligsahan",
+                        candidates: "Mga kandidato",
+                        areas: "Mga lugar",
+                        area_contests: "Mga lugar bawat paligsahan",
+                        sections: "Mga seksyon ng configuration",
+                    },
+                },
                 deletedEvent: {
                     title: "Ang log ng binurang kaganapan ng halalan",
                     lastEntry: "Huling entry",
@@ -346,6 +367,7 @@ const tagalogTranslation: TranslationType = {
                     retired:
                         "Inalis sa pagkaka-load at iniingatan hanggang mabura ito ayon sa patakaran sa pagpapanatili",
                     task: "Gawain",
+                    systemKey: "Ang system key ng log",
                 },
                 exported: {
                     title: "Pag-export",
