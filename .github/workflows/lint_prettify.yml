@@ -88,6 +88,16 @@ jobs:
           cmd: prettify
           dir: hasura/
 
+  deployment-env-templates:
+    name: Check deployment env templates
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Check Hasura log types
+        run: scripts/check-deployment-env-templates.sh
+
   rust-fmt:
     name: Check Rust format 
     runs-on: ubuntu-24.04
