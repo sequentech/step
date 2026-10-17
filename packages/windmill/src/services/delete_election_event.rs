@@ -13,6 +13,7 @@ use crate::services::audit_log::{
 };
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::get_election_event_board;
+use crate::services::electoral_log_board::get_board_signing_key;
 use crate::services::electoral_log_board::get_event_board;
 use crate::services::electoral_log_board::get_event_databases;
 use anyhow::{anyhow, Context, Result};
@@ -33,6 +34,7 @@ use sequent_core::types::hasura::core::{Election, ElectionEvent};
 use thiserror::Error;
 use tracing::info;
 use tracing::{event, instrument, Level};
+use voting_crypto::signing::VerificationKey;
 
 const VOTING_STATUS_CHANNELS: [VotingStatusChannel; 4] = [
     VotingStatusChannel::ONLINE,
@@ -269,6 +271,29 @@ pub async fn stage_election_event_deletion(
     let mut extra =
         deleted_event_log_state(tenant_id, election_event_id, board.as_deref(), retired_at).await?;
     extra["task_id"] = serde_json::json!(task_id);
+    // The key that verifies the retired log's system signatures is deleted
+    // with the event, so its public half is kept here. A log without its key
+    // is deleted all the same.
+    let retired = extra["status"] == serde_json::json!(DeletedLogStatus::Retired);
+    if let (Some(board), true) = (board.as_deref(), retired) {
+        match get_board_signing_key(
+            hasura_transaction,
+            tenant_id,
+            Some(election_event_id),
+            board,
+        )
+        .await
+        {
+            Ok(key) => {
+                extra["system_public_key"] =
+                    serde_json::json!(VerificationKey::from_sk(&key)?.to_b64_string()?);
+            }
+            Err(error) => tracing::warn!(
+                election_event_id,
+                "The deleted event's log has no system key: {error:#}"
+            ),
+        }
+    }
     // The name the event shows, else the one it was created with.
     let name = match event_display_name(event.presentation.as_ref()) {
         Some(name) => Some(name),

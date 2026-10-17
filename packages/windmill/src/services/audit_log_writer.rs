@@ -204,13 +204,14 @@ pub async fn prepare_target_log<U: Usernames>(
             }
         }
     };
+    let mut new_keys = vec![];
     for (user_id, username) in unposted_users(&transaction, target).await? {
         // The public key is announced under the name the entries will carry.
         let username = match username {
             Some(name) => Some(name),
             None => usernames.username(target.tenant_id, &user_id).await,
         };
-        let key = vault::get_admin_user_signing_key(
+        let (key, new_key) = vault::get_admin_user_signing_key_to_announce(
             &transaction,
             &tenant,
             &user_id,
@@ -220,11 +221,23 @@ pub async fn prepare_target_log<U: Usernames>(
         )
         .await?;
         log.admin_keys.insert(user_id, key);
+        new_keys.extend(new_key);
     }
     transaction
         .commit()
         .await
         .context("Error ending the preparation of an audit log")?;
+    // Announced before the entries they sign. A key whose announcement fails
+    // is kept and announced by the backfill: its entries still post.
+    for new_key in new_keys {
+        if let Err(error) = new_key.post(client).await {
+            error!(
+                ?target,
+                user_id = new_key.user_id,
+                "Error posting an admin public key: {error:#}"
+            );
+        }
+    }
     Ok(log)
 }
 
@@ -484,9 +497,19 @@ pub async fn post_target<U: Usernames>(
     }
 }
 
+/// The monitoring line of the outbox's backlog: how many entries wait and how
+/// long, in seconds, the oldest has waited; both zero when none waits.
+pub fn backlog_line(pending_entries: i64, oldest_pending_seconds: f64) -> Value {
+    json!({
+        "target": MONITORING_OUTBOX_TARGET,
+        "pending_entries": pending_entries,
+        "oldest_pending_seconds": oldest_pending_seconds,
+    })
+}
+
 /// One pass over every log with unposted entries. Each log has its own
 /// transactions: one that fails doesn't hold up the others. Ends with the
-/// outbox's waiting time as a monitoring line when entries still wait.
+/// outbox's backlog as a monitoring line, also when nothing waits.
 #[instrument(skip_all, err)]
 pub async fn post_audit_log_outboxes<U: Usernames>(
     client: &mut Client,
@@ -512,15 +535,9 @@ pub async fn post_audit_log_outboxes<U: Usernames>(
         outcomes.push((target, outcome));
     }
     let transaction = client.transaction().await?;
-    let (waiting, oldest_seconds) = audit_log_outbox_backlog(&transaction).await?;
+    let (pending, oldest_seconds) = audit_log_outbox_backlog(&transaction).await?;
     transaction.commit().await?;
-    if waiting > 0 {
-        emit_monitoring_line(&json!({
-            "target": MONITORING_OUTBOX_TARGET,
-            "waiting": waiting,
-            "oldest_seconds": oldest_seconds,
-        }));
-    }
+    emit_monitoring_line(&backlog_line(pending, oldest_seconds));
     Ok(outcomes)
 }
 
@@ -590,4 +607,31 @@ pub async fn record_log_writer(client: &mut Client, event: LogWriterEvent) -> Re
         .await
         .context("Error recording a log writer event")?;
     Ok(tenants.len())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Monitoring alerts on the age of the oldest entry: every pass reports
+    /// it, an empty outbox as zero, so a missing line means a stopped worker.
+    #[test]
+    fn the_backlog_line_has_stable_fields_also_when_nothing_waits() {
+        assert_eq!(
+            backlog_line(3, 412.7),
+            json!({
+                "target": "audit_log_outbox",
+                "pending_entries": 3,
+                "oldest_pending_seconds": 412.7,
+            })
+        );
+        assert_eq!(
+            backlog_line(0, 0.0),
+            json!({
+                "target": "audit_log_outbox",
+                "pending_entries": 0,
+                "oldest_pending_seconds": 0.0,
+            })
+        );
+    }
 }

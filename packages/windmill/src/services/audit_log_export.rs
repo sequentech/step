@@ -7,7 +7,8 @@
 //! An export honors its scope and its range of `created` (both ends
 //! included, to the minute), so it holds exactly the entries the list shows
 //! for the same scope and range. One account's export can add that account's
-//! entries of every election event, merged by time, each row naming its log.
+//! entries of every election event, deleted ones included, merged by time,
+//! each row naming its log.
 //! The SQL export carries the signed statement, both signatures and the
 //! public keys, so that every entry can be verified after loading it. Each
 //! export is itself recorded, as `LogsExported`, in the log it exports.
@@ -17,13 +18,15 @@ use crate::services::audit_log::{stage_entry, AuditActor};
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::MinuteRange;
 use crate::services::electoral_log_board::{
-    ensure_tenant_log, get_board_client, get_board_signing_key,
+    ensure_tenant_log, get_board_client, get_board_signing_key, get_event_databases,
 };
 use crate::services::time_zones::parse_zone;
 use anyhow::{anyhow, ensure, Context, Result};
 use chrono::{DateTime, SecondsFormat, Utc};
 use chrono_tz::Tz;
 use deadpool_postgres::Transaction;
+use electoral_log::adapters::events::RetiredEventDatabase;
+use electoral_log::adapters::postgres::LogScope;
 use electoral_log::messages::message::Message;
 use electoral_log::messages::newtypes::AuditStatementKind;
 use electoral_log::messages::statement::{StatementEventType, StatementLogType};
@@ -34,6 +37,7 @@ use electoral_log::{
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
+use std::future::Future;
 use std::io::Write;
 use strum_macros::{Display, EnumString};
 use tracing::instrument;
@@ -232,9 +236,16 @@ impl AuditExportRequest {
 pub struct ExportedLog {
     #[serde(skip)]
     pub board: String,
-    /// `tenant`, or `event <election event ID>`.
+    /// The database of a deleted election event's log, read in place of the
+    /// board.
+    #[serde(skip)]
+    pub retired: Option<RetiredEventDatabase>,
+    /// `tenant`, `event <election event ID>`, or `retired event <election
+    /// event ID>` for a deleted one's.
     pub log: String,
-    pub system_public_key: String,
+    /// `None` for a deleted election event's log: its key was deleted with the
+    /// event, and the tenant log's entry of the deletion names it.
+    pub system_public_key: Option<String>,
     pub entries: u64,
 }
 
@@ -344,8 +355,9 @@ pub async fn exported_logs(
     };
     let event_log = |event: Uuid, board: String, key: String| ExportedLog {
         board,
+        retired: None,
         log: format!("event {event}"),
-        system_public_key: key,
+        system_public_key: Some(key),
         entries: 0,
     };
     if let Some(event) = given(&request.election_event_id) {
@@ -373,8 +385,9 @@ pub async fn exported_logs(
     let tenant_log = ensure_tenant_log(hasura_transaction, &request.tenant_id).await?;
     let mut logs = vec![ExportedLog {
         board: tenant_log.board,
+        retired: None,
         log: "tenant".to_string(),
-        system_public_key: public(&tenant_log.system_key)?,
+        system_public_key: Some(public(&tenant_log.system_key)?),
         entries: 0,
     }];
     if request.scope == AuditExportScope::AccountWithEvents {
@@ -403,18 +416,68 @@ pub async fn exported_logs(
                 logs.push(event_log(event, board, public(&key)?));
             }
         }
+        // Deleted events' logs, kept in their retired databases.
+        for retired in get_event_databases()
+            .await?
+            .retired_events(&request.tenant_id)
+            .await?
+        {
+            logs.push(ExportedLog {
+                board: String::new(),
+                log: format!("retired event {}", retired.election_event_id),
+                retired: Some(retired),
+                system_public_key: None,
+                entries: 0,
+            });
+        }
     }
     Ok(logs)
 }
 
-/// Every entry of `log` that matches `filters`, oldest first, read in pages.
+/// Every entry of `log` that matches `filters`, oldest first, read in pages:
+/// from its board, or every log of a deleted event's retired database, which
+/// is opened for the read alone.
 async fn read_log(
     log: &ExportedLog,
     filters: &[Filter],
     zone: Tz,
-    mut each: impl FnMut(AuditExportRow) -> Result<()>,
+    each: impl FnMut(AuditExportRow) -> Result<()>,
 ) -> Result<u64> {
-    let client = get_board_client().await?;
+    match &log.retired {
+        None => {
+            let client = get_board_client().await?;
+            read_pages(log, filters, zone, each, |query| {
+                let client = client.clone();
+                async move { client.query(&log.board, &query).await }
+            })
+            .await
+        }
+        Some(retired) => {
+            get_event_databases()
+                .await?
+                .read_retired_event(retired, |store| async move {
+                    read_pages(log, filters, zone, each, |query| {
+                        let store = store.clone();
+                        async move { store.query_scope(LogScope::Database, &query).await }
+                    })
+                    .await
+                })
+                .await
+        }
+    }
+}
+
+async fn read_pages<Read, Page>(
+    log: &ExportedLog,
+    filters: &[Filter],
+    zone: Tz,
+    mut each: impl FnMut(AuditExportRow) -> Result<()>,
+    page: Read,
+) -> Result<u64>
+where
+    Read: Fn(LogQuery) -> Page,
+    Page: Future<Output = Result<Vec<ElectoralLogMessage>>>,
+{
     let (mut last_id, mut read) = (0i64, 0u64);
     loop {
         let query = LogQuery {
@@ -429,8 +492,7 @@ async fn read_log(
             limit: PAGE,
             ..LogQuery::default()
         };
-        let entries = client
-            .query(&log.board, &query)
+        let entries = page(query)
             .await
             .with_context(|| format!("Error reading log {}", log.log))?;
         let last_page = i64::try_from(entries.len())? < PAGE;

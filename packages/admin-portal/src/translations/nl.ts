@@ -338,6 +338,27 @@ const dutchTranslation: TranslationType = {
                     newValue: "Nieuwe waarde",
                     error: "Fout",
                 },
+                importedFile: {
+                    title: "Het geïmporteerde bestand",
+                    declared: "Opgegeven controlesom",
+                    sha256: "SHA-256 van het bestand",
+                    declaredSha256: "Opgegeven SHA-256",
+                    document: "Document",
+                    checksum: {
+                        undeclared: "Niet opgegeven",
+                        matches: "Komt overeen met het bestand",
+                        mismatch: "Komt niet overeen met het bestand",
+                    },
+                    counts: {
+                        count: "Rijen",
+                        elections: "Verkiezingen",
+                        contests: "Kiesrondes",
+                        candidates: "Kandidaten",
+                        areas: "Gebieden",
+                        area_contests: "Gebieden per kiesronde",
+                        sections: "Configuratiesecties",
+                    },
+                },
                 deletedEvent: {
                     title: "Het log van het verwijderde verkiezingsevenement",
                     lastEntry: "Laatste vermelding",
@@ -346,6 +367,7 @@ const dutchTranslation: TranslationType = {
                     status: "Status",
                     retired: "Ontladen en bewaard totdat het volgens het bewaarbeleid wordt gewist",
                     task: "Taak",
+                    systemKey: "De systeemsleutel van het log",
                 },
                 exported: {
                     title: "Export",

@@ -25,6 +25,7 @@ use voting_crypto::RecordDeserialize;
 use windmill::postgres::audit_log_outbox::{
     audit_log_outbox_backlog, fetch_unposted_audit_log_outbox, AuditLogTarget,
 };
+use windmill::services::admin_public_key::backfill_admin_public_keys;
 use windmill::services::audit_log::{
     diff_values, stage, AdminAction, AdminChange, AuditActor, AuditObject, AuditOrigin,
 };
@@ -42,8 +43,10 @@ use windmill::services::delete_election_event::{
 };
 use windmill::services::electoral_log_board::get_event_databases;
 use windmill::services::electoral_log_board::{
-    create_protocol_manager_keys, ensure_tenant_log, get_board_client, get_tenant_board,
+    create_protocol_manager_keys, ensure_tenant_log, get_board_client, get_board_signing_key,
+    get_tenant_board,
 };
+use windmill::services::vault::get_admin_user_signing_key_to_announce;
 
 const SLUG: &str = "audittest";
 
@@ -714,6 +717,19 @@ fn a_deleted_events_log_is_recorded_first_and_then_retired() {
         )
         .await
         .unwrap();
+        let system_public_key = VerificationKey::from_sk(
+            &get_board_signing_key(
+                &transaction,
+                &tenant.to_string(),
+                Some(&event.to_string()),
+                &database.board,
+            )
+            .await
+            .unwrap(),
+        )
+        .unwrap()
+        .to_b64_string()
+        .unwrap();
         transaction.commit().await.unwrap();
         let event_target = AuditLogTarget {
             tenant_id: tenant,
@@ -788,6 +804,9 @@ fn a_deleted_events_log_is_recorded_first_and_then_retired() {
         assert_eq!(extra["task_id"], "task");
         let retired = extra["log_database"].as_str().unwrap().to_string();
         assert!(retired.ends_with(&format!("_r{retired_at}_{}", event.simple())));
+        // The key that verifies the retired log's system signatures, which goes
+        // with the event.
+        assert_eq!(extra["system_public_key"], system_public_key);
 
         // The log database is kept under that name, closed, and the event has none.
         let databases = get_event_databases().await.unwrap();
@@ -795,6 +814,54 @@ fn a_deleted_events_log_is_recorded_first_and_then_retired() {
         let kept = databases.retired_events(&tenant.to_string()).await.unwrap();
         assert_eq!(kept.len(), 1);
         assert_eq!(kept[0].database_name, retired);
+
+        // One account's export reads the account's entries of the retired event
+        // too, merged by time, and leaves its database closed.
+        let mut account = export_request(
+            tenant,
+            AuditExportScope::AccountWithEvents,
+            AuditExportFormat::Csv,
+        );
+        account.username = Some("ada".to_string());
+        let transaction = client.transaction().await.unwrap();
+        let exported = write_export(&transaction, &account).await.unwrap();
+        transaction.commit().await.unwrap();
+        let retired_log = format!("retired event {event}");
+        let logs: Vec<(&str, u64, Option<&str>)> = exported
+            .manifest
+            .logs
+            .iter()
+            .map(|log| {
+                (
+                    log.log.as_str(),
+                    log.entries,
+                    log.system_public_key.as_deref(),
+                )
+            })
+            .collect();
+        assert_eq!(logs[1], (retired_log.as_str(), 2, None));
+        let csv = String::from_utf8(exported.contents).unwrap();
+        let rows: Vec<AuditExportRow> = csv::Reader::from_reader(csv.as_bytes())
+            .deserialize()
+            .map(Result::unwrap)
+            .collect();
+        assert_eq!(rows.iter().filter(|row| row.log == retired_log).count(), 2);
+        assert!(rows
+            .windows(2)
+            .all(|pair| pair[0].created <= pair[1].created));
+        let allows: bool = databases
+            .catalog()
+            .client()
+            .await
+            .unwrap()
+            .query_one(
+                "SELECT datallowconn FROM pg_database WHERE datname = $1",
+                &[&retired],
+            )
+            .await
+            .unwrap()
+            .get(0);
+        assert!(!allows);
 
         // An event without a log is deleted all the same.
         let state = deleted_event_log_state(&tenant.to_string(), &event.to_string(), None, 1)
@@ -865,5 +932,176 @@ fn the_writers_start_and_stop_are_entries_of_the_tenant_log() {
         );
         assert_eq!(details["last_entry_id"], change.to_string());
         assert_eq!(stored[2].user_id, None);
+    });
+}
+
+/// The accounts and public keys a log's `AdminPublicKey` entries announce.
+async fn announced_keys(board: &str) -> Vec<(Option<String>, Option<String>, String)> {
+    records(board)
+        .await
+        .into_iter()
+        .filter(|record| record.statement_kind == "AdminPublicKey")
+        .map(|record| {
+            let message = Message::record_deserialize(&record.message).unwrap();
+            let StatementBody::AdminPublicKey(_, user_id, key) = message.statement.body else {
+                panic!("not an admin key: {}", record.statement_kind);
+            };
+            (user_id, record.username, key.0)
+        })
+        .collect()
+}
+
+#[test]
+fn an_admin_key_is_announced_once_its_transaction_commits() {
+    run(async {
+        let _serial = SERIAL.lock().await;
+        let mut client = client().await;
+        let pool = schema::pool().await;
+        let tenant = new_tenant(&mut client).await;
+        let tenant_id = tenant.to_string();
+        let transaction = client.transaction().await.unwrap();
+        let board = ensure_tenant_log(&transaction, &tenant_id)
+            .await
+            .unwrap()
+            .board;
+        transaction.commit().await.unwrap();
+
+        let transaction = client.transaction().await.unwrap();
+        let (key, new_key) = get_admin_user_signing_key_to_announce(
+            &transaction,
+            &tenant_id,
+            ADMIN_ID,
+            Some("ada".to_string()),
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+        let new_key = new_key.unwrap();
+        let public_key = VerificationKey::from_sk(&key)
+            .unwrap()
+            .to_b64_string()
+            .unwrap();
+        assert_eq!(new_key.public_key, public_key);
+        let announcing = {
+            let (new_key, pool) = (new_key.clone(), pool.clone());
+            tokio::spawn(async move { new_key.post_after_commit(&pool).await })
+        };
+        // Nothing is announced while the transaction is open.
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        assert!(announced_keys(&board).await.is_empty());
+        // A key that exists is not made, nor announced, again.
+        let (again, none) = get_admin_user_signing_key_to_announce(
+            &transaction,
+            &tenant_id,
+            ADMIN_ID,
+            None,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+        assert!(none.is_none());
+        assert_eq!(again.to_b64_string().unwrap(), key.to_b64_string().unwrap());
+        transaction.commit().await.unwrap();
+        announcing.await.unwrap();
+        let announced = vec![(
+            Some(ADMIN_ID.to_string()),
+            Some("ada".to_string()),
+            public_key.clone(),
+        )];
+        assert_eq!(announced_keys(&board).await, announced);
+        // Announcing it again stores nothing.
+        new_key.post(&mut pool.get().await.unwrap()).await.unwrap();
+        assert_eq!(announced_keys(&board).await, announced);
+
+        // A key made in a transaction that rolls back is never announced.
+        let other_admin = "3c0d9c0e-6a4b-4f0e-8d57-0a1b2c3d4e5f";
+        let transaction = client.transaction().await.unwrap();
+        let (_, lost) = get_admin_user_signing_key_to_announce(
+            &transaction,
+            &tenant_id,
+            other_admin,
+            Some("bob".to_string()),
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+        let lost = lost.unwrap();
+        let announcing = {
+            let (lost, pool) = (lost.clone(), pool.clone());
+            tokio::spawn(async move { lost.post_after_commit(&pool).await })
+        };
+        transaction.rollback().await.unwrap();
+        announcing.await.unwrap();
+        assert!(!lost.kept(&mut pool.get().await.unwrap()).await.unwrap());
+        assert_eq!(announced_keys(&board).await, announced);
+    });
+}
+
+#[test]
+fn the_migration_announces_the_keys_the_tenant_log_lacks() {
+    run(async {
+        let _serial = SERIAL.lock().await;
+        let mut client = client().await;
+        let tenant = new_tenant(&mut client).await;
+        let tenant_id = tenant.to_string();
+        // A key made before keys were announced in the tenant log, and one
+        // announced already.
+        let other_admin = "3c0d9c0e-6a4b-4f0e-8d57-0a1b2c3d4e5f";
+        let transaction = client.transaction().await.unwrap();
+        let (unannounced, _) = get_admin_user_signing_key_to_announce(
+            &transaction,
+            &tenant_id,
+            ADMIN_ID,
+            None,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+        let (_, announced) = get_admin_user_signing_key_to_announce(
+            &transaction,
+            &tenant_id,
+            other_admin,
+            Some("bob".to_string()),
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+        transaction.commit().await.unwrap();
+        announced.unwrap().post(&mut client).await.unwrap();
+        let board = get_tenant_board(&tenant_id, SLUG);
+        assert_eq!(announced_keys(&board).await.len(), 1);
+
+        assert_eq!(
+            backfill_admin_public_keys(&mut client, &tenant_id, &Directory)
+                .await
+                .unwrap(),
+            1
+        );
+        let keys = announced_keys(&board).await;
+        assert_eq!(keys.len(), 2);
+        assert_eq!(
+            keys[1],
+            (
+                Some(ADMIN_ID.to_string()),
+                Some("ada".to_string()),
+                VerificationKey::from_sk(&unannounced)
+                    .unwrap()
+                    .to_b64_string()
+                    .unwrap()
+            )
+        );
+        // Running it again posts nothing.
+        assert_eq!(
+            backfill_admin_public_keys(&mut client, &tenant_id, &Directory)
+                .await
+                .unwrap(),
+            0
+        );
+        assert_eq!(announced_keys(&board).await.len(), 2);
     });
 }

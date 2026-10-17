@@ -338,6 +338,27 @@ const basqueTranslation: TranslationType = {
                     newValue: "Balio berria",
                     error: "Errorea",
                 },
+                importedFile: {
+                    title: "Inportatutako fitxategia",
+                    declared: "Adierazitako egiaztapen-batura",
+                    sha256: "Fitxategiaren SHA-256",
+                    declaredSha256: "Adierazitako SHA-256",
+                    document: "Dokumentua",
+                    checksum: {
+                        undeclared: "Ez da adierazi",
+                        matches: "Fitxategiarekin bat dator",
+                        mismatch: "Ez dator bat fitxategiarekin",
+                    },
+                    counts: {
+                        count: "Errenkadak",
+                        elections: "Hauteskundeak",
+                        contests: "Lehiak",
+                        candidates: "Hautagaiak",
+                        areas: "Eremuak",
+                        area_contests: "Eremuak lehiako",
+                        sections: "Konfigurazio-atalak",
+                    },
+                },
                 deletedEvent: {
                     title: "Ezabatutako hauteskunde gertaeraren egunkaria",
                     lastEntry: "Azken sarrera",
@@ -346,6 +367,7 @@ const basqueTranslation: TranslationType = {
                     status: "Egoera",
                     retired: "Deskargatuta eta gordeta, atxikipen politikaren arabera ezabatu arte",
                     task: "Ataza",
+                    systemKey: "Egunkariaren sistema-gakoa",
                 },
                 exported: {
                     title: "Esportazioa",

@@ -77,13 +77,30 @@ async fn only_tenant_log_exporters_export_the_tenant_log() {
         assert_eq!(status, Status::Forbidden, "{roles:?}");
     }
     // An exporter's bad request is refused before anything is queued.
-    let exporter = Claims::new(CALLER_TENANT_ID, "auditor")
-        .roles(&[Permissions::TENANT_LOGS_EXPORT]);
+    let exporter = Claims::new(CALLER_TENANT_ID, "auditor").roles(&[
+        Permissions::TENANT_LOGS_EXPORT,
+        Permissions::TENANT_LOGS_READ,
+    ]);
     let bad = json!({"format": "CSV", "scope": "ACCOUNT"});
     let (status, reason) =
         text(post(&client, "/export-tenant-logs", &exporter, &bad).await).await;
     assert_eq!(status, Status::BadRequest);
     assert!(reason.contains("username"), "{reason}");
+}
+
+/// An export holds what the log holds: exporting it without reading it is
+/// refused too.
+#[rocket::async_test]
+async fn exporting_the_tenant_log_needs_reading_it_too() {
+    let services = Services::without_database();
+    let client = services.client().await;
+    let body = json!({"format": "CSV", "scope": "TENANT_LOG"});
+    let exporter = Claims::new(CALLER_TENANT_ID, "auditor")
+        .roles(&[Permissions::TENANT_LOGS_EXPORT]);
+    let (status, _) =
+        text(post(&client, "/export-tenant-logs", &exporter, &body).await)
+            .await;
+    assert_eq!(status, Status::Forbidden);
 }
 
 #[rocket::async_test]

@@ -3,10 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::secret::{
-    delete_secret_by_key, get_secret_by_id, get_secret_by_key, insert_secret, update_secret_value,
-    Secret,
+    delete_secret_by_key, get_secret_by_id, get_secret_by_key, get_secrets_by_key_prefix,
+    insert_secret, update_secret_value, Secret,
 };
-use crate::services::electoral_log::ElectoralLog;
+use crate::services::admin_public_key::NewAdminPublicKey;
+use crate::services::database::get_hasura_pool;
 use crate::services::vault::{
     aws_secret_manager::AwsSecretManager, env_var_master_secret::EnvVarMasterSecret,
     hashicorp_vault::HashiCorpVault,
@@ -236,6 +237,10 @@ pub async fn read_secret_by_id(
     Ok(Some((secret, value)))
 }
 
+/// The admin user's signing key, made and saved in `hasura_transaction` the
+/// first time. Its public key is posted to the tenant's log once that
+/// transaction commits, by a task of this process: see
+/// [`get_admin_user_signing_key_to_announce`].
 #[instrument(err)]
 pub async fn get_admin_user_signing_key(
     hasura_transaction: &Transaction<'_>,
@@ -245,41 +250,97 @@ pub async fn get_admin_user_signing_key(
     elections_ids: Option<String>,
     user_area_id: Option<String>,
 ) -> Result<SigningKey> {
-    let lookup_key = admin_vault_lookup_key(&tenant_id, &user_id);
-    let sk_der_b64 = read_secret(hasura_transaction, tenant_id, None, &lookup_key).await?;
-
-    let sk = if let Some(sk_der_b64) = sk_der_b64 {
-        SigningKey::from_b64_string(&sk_der_b64)?
-    } else {
-        info!(
-            "Vault: generating private signing key for admin user {}",
-            lookup_key.clone()
-        );
-        let sk = SigningKey::generate()?;
-        let sk_string = sk.to_b64_string()?;
-        let pk = VerificationKey::from_sk(&sk)?;
-        let pk = pk.to_b64_string()?;
-
-        // We save the secret right before notifying the public key
-        // to minimize the chances that the second call fails while
-        // while the first one succeeds. If this happens the
-        // secret will exist but the pk notification will not.
-        save_secret(hasura_transaction, tenant_id, None, &lookup_key, &sk_string).await?;
-        ElectoralLog::post_admin_pk(
-            hasura_transaction,
-            tenant_id,
-            user_id,
-            username,
-            &pk,
-            elections_ids,
-            user_area_id,
-        )
-        .await?;
-
-        sk
-    };
-
+    let (sk, new_key) = get_admin_user_signing_key_to_announce(
+        hasura_transaction,
+        tenant_id,
+        user_id,
+        username,
+        elections_ids,
+        user_area_id,
+    )
+    .await?;
+    if let Some(new_key) = new_key {
+        let pool = get_hasura_pool().await;
+        tokio::spawn(async move { new_key.post_after_commit(&pool).await });
+    }
     Ok(sk)
+}
+
+/// The admin user's signing key and, when it was made now and saved in
+/// `hasura_transaction`, its public key to post to the tenant's log after
+/// that transaction commits. Posted before, a transaction that then rolled
+/// back would leave the log announcing a key nobody has.
+#[instrument(err)]
+pub async fn get_admin_user_signing_key_to_announce(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    user_id: &str,
+    username: Option<String>,
+    elections_ids: Option<String>,
+    user_area_id: Option<String>,
+) -> Result<(SigningKey, Option<NewAdminPublicKey>)> {
+    let lookup_key = admin_vault_lookup_key(&tenant_id, &user_id);
+    if let Some(sk_der_b64) = read_secret(hasura_transaction, tenant_id, None, &lookup_key).await? {
+        return Ok((SigningKey::from_b64_string(&sk_der_b64)?, None));
+    }
+    info!(
+        "Vault: generating private signing key for admin user {}",
+        lookup_key.clone()
+    );
+    let sk = SigningKey::generate()?;
+    save_secret(
+        hasura_transaction,
+        tenant_id,
+        None,
+        &lookup_key,
+        &sk.to_b64_string()?,
+    )
+    .await?;
+    let transaction_id: i64 = hasura_transaction
+        .query_one("SELECT txid_current()", &[])
+        .await
+        .context("Error reading the transaction that saves the admin key")?
+        .try_get(0)?;
+    let new_key = NewAdminPublicKey {
+        tenant_id: tenant_id.to_string(),
+        user_id: user_id.to_string(),
+        username,
+        public_key: VerificationKey::from_sk(&sk)?.to_b64_string()?,
+        elections_ids,
+        user_area_id,
+        transaction_id,
+    };
+    Ok((sk, Some(new_key)))
+}
+
+/// The admin user's signing key, if they have one.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn read_admin_user_signing_key(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    user_id: &str,
+) -> Result<Option<SigningKey>> {
+    let lookup_key = admin_vault_lookup_key(tenant_id, user_id);
+    read_secret(hasura_transaction, tenant_id, None, &lookup_key)
+        .await?
+        .map(|sk_der_b64| SigningKey::from_b64_string(&sk_der_b64))
+        .transpose()
+}
+
+/// The admin signing keys of a tenant, by the user they belong to.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn list_admin_user_signing_keys(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+) -> Result<Vec<(String, SigningKey)>> {
+    let prefix = admin_vault_lookup_key(tenant_id, "");
+    let mut keys = vec![];
+    for secret in get_secrets_by_key_prefix(hasura_transaction, tenant_id, &prefix).await? {
+        let user_id = secret.key[prefix.len()..].to_string();
+        let key = SigningKey::from_b64_string(&decrypt_stored_secret(&secret).await?)?;
+        keys.push((user_id, key));
+    }
+    Ok(keys)
 }
 
 /// Whether the admin user has a signing key, without reading it.
