@@ -545,7 +545,9 @@ update_permissions:
       role: admin-user
     - comment: ""
       permission:
-          check: null
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
           columns:
               - is_consolidated_ballot_encoding
               - initialization_report_generated
@@ -611,7 +613,9 @@ update_permissions:
       role: election-event-write
     - comment: ""
       permission:
-          check: {}
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
           columns:
               - is_consolidated_ballot_encoding
               - initialization_report_generated
@@ -643,7 +647,9 @@ update_permissions:
       role: election-write
     - comment: ""
       permission:
-          check: null
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
           columns:
               - alias
               - annotations
@@ -728,7 +734,9 @@ delete_permissions:
       role: election-event-write
     - comment: ""
       permission:
-          filter: {}
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
       role: permission-label-write
     - comment: ""
       permission:
