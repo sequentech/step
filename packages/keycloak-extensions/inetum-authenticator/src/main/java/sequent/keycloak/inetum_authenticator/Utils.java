@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
@@ -93,6 +94,34 @@ public class Utils {
   private static final List<String> DEFAULT_KEYS_USERDATA =
       List.of(UserModel.FIRST_NAME, UserModel.LAST_NAME, UserModel.EMAIL, UserModel.USERNAME);
   private static final String USER_ID = "userId";
+
+  /**
+   * Notes that only authenticators set: the one-time code and link state, the verified email flag,
+   * the verification outcome, the stored field list and the matched user. A form field with one of
+   * these names is not stored as a note.
+   */
+  private static final Set<String> RESERVED_NOTES =
+      Set.of(
+          sequent.keycloak.authenticator.Utils.CODE,
+          sequent.keycloak.authenticator.Utils.CODE_TTL,
+          sequent.keycloak.authenticator.Utils.OTL_VISITED,
+          sequent.keycloak.authenticator.Utils.EMAIL_VERIFIED,
+          LookupAndUpdateUser.VERIFICATION_COMPLETED,
+          LookupAndUpdateUser.VERIFICATION_STATUS,
+          LookupAndUpdateUser.VERIFICATION_REJECTION_REASON,
+          LookupAndUpdateUser.VERIFICATION_MISMATCHED_FIELDS,
+          LookupAndUpdateUser.FIELDS_MATCH,
+          KEYS_USERDATA,
+          USER_ID);
+
+  /**
+   * Whether a submitted form field is stored as a note and listed in {@link #KEYS_USERDATA}: its
+   * name is not reserved and does not contain the list separator.
+   */
+  private static boolean isStoredFormField(String key) {
+    return !RESERVED_NOTES.contains(key) && !key.contains(KEYS_USERDATA_SEPARATOR);
+  }
+
   public static final String MULTIVALUE_SEPARATOR = "##";
   public static final String ATTRIBUTE_TO_VALIDATE_SEPARATOR = ":";
   public static final String ERROR_MESSAGE_NOT_SENT = "messageNotSent";
@@ -114,6 +143,8 @@ public class Utils {
   public static final String SESSION_ID = "session_id";
   public static final String MAX_RETRIES = "max-retries";
   public static final String EVENT_TYPE_COMMUNICATIONS = "communications";
+  public static final String EVENT_DETAIL_TYPE = "type";
+  public static final String EVENT_DETAIL_MSG_BODY = "msgBody";
   public static final int DEFAULT_MAX_RETRIES = 3;
   public static final int BASE_RETRY_DELAY = 1_000;
   public static final String ERROR_GENERATING_APPROVAL = "approvalGenerationError";
@@ -162,19 +193,27 @@ public class Utils {
     // Lookup user by attributes using form data
     UserModel user = Utils.lookupUserByFormData(context, searchAttributesList, formData);
 
+    Map<Boolean, List<String>> fieldsByStored =
+        formData.keySet().stream().collect(Collectors.partitioningBy(Utils::isStoredFormField));
+    List<String> storedFields = fieldsByStored.get(true);
+    List<String> ignoredFields = fieldsByStored.get(false);
+
     // We store each key
-    String keys = Utils.serializeUserdataKeys(formData.keySet());
+    String keys = Utils.serializeUserdataKeys(storedFields);
 
     log.debug(
         "storeUserDataInAuthSessionNotes: setAuthNote(" + Utils.KEYS_USERDATA + ", " + keys + ")");
     sessionModel.setAuthNote(Utils.KEYS_USERDATA, keys);
 
-    formData.forEach(
-        (key, value) -> {
+    storedFields.forEach(
+        key -> {
           String values = Utils.serializeUserdataKeys(formData.get(key));
           log.debug("storeUserDataInAuthSessionNotes: setAuthNote(" + key + ", " + values + ")");
           sessionModel.setAuthNote(key, values);
         });
+    if (!ignoredFields.isEmpty()) {
+      log.warnv("storeUserDataInAuthSessionNotes: ignoring fields {0}", ignoredFields);
+    }
 
     sessionModel.setAuthNote(USER_ID, user.getId());
   }
@@ -280,9 +319,7 @@ public class Utils {
   }
 
   private static String serializeUserdataKeys(Collection<String> keys, String separator) {
-    final StringBuilder key = new StringBuilder();
-    keys.forEach((s -> key.append(separator).append(s)));
-    return key.deleteCharAt(0).toString();
+    return String.join(separator, keys);
   }
 
   private static String serializeUserdataKeys(Collection<String> keys) {
@@ -290,7 +327,7 @@ public class Utils {
   }
 
   private static List<String> deserializeUserdataKeys(String key, String separator) {
-    if (key == null) {
+    if (key == null || key.isEmpty()) {
       return Collections.emptyList();
     }
     return List.of(key.split(separator));
