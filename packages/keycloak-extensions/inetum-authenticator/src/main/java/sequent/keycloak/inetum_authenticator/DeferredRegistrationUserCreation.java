@@ -471,7 +471,9 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         Stream<UserModel> currentStream =
             session
                 .users()
-                .searchForUserStream(realm, Collections.singletonMap(attribute, value.trim()));
+                .searchForUserStream(
+                    realm,
+                    Map.of(attribute, value.trim(), UserModel.EXACT, Boolean.TRUE.toString()));
 
         // Invalid if there's more than one user with specified attributes.
         if (currentStream.count() > 1) {
