@@ -497,6 +497,9 @@ pub async fn set_post_tally_task_completed(
     Ok(())
 }
 
+/// Marks a running tally session as completed with `execution_status`.
+/// Returns `false` without changing anything when the session is no longer
+/// `IN_PROGRESS`, for example because it was cancelled while the tally ran.
 #[instrument(err, skip_all)]
 pub async fn set_tally_session_completed(
     hasura_transaction: &Transaction<'_>,
@@ -504,7 +507,7 @@ pub async fn set_tally_session_completed(
     election_event_id: &str,
     tally_session_id: &str,
     execution_status: TallyExecutionStatus,
-) -> Result<()> {
+) -> Result<bool> {
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -517,25 +520,27 @@ pub async fn set_tally_session_completed(
             WHERE
                 id = $2 AND
                 tenant_id = $3 AND
-                election_event_id = $4;
+                election_event_id = $4 AND
+                execution_status = $5;
         "#,
         )
         .await?;
 
-    let _rows: Vec<Row> = hasura_transaction
-        .query(
+    let updated_rows = hasura_transaction
+        .execute(
             &statement,
             &[
                 &execution_status.to_string(),
                 &parse_uuid_v4(tally_session_id)?,
                 &parse_uuid_v4(tenant_id)?,
                 &parse_uuid_v4(&election_event_id)?,
+                &TallyExecutionStatus::IN_PROGRESS.to_string(),
             ],
         )
         .await
         .map_err(|err| anyhow!("Error running query update tally sesstion status: {err}"))?;
 
-    Ok(())
+    Ok(updated_rows > 0)
 }
 
 #[derive(Debug, Serialize)]
