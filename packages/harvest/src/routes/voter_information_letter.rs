@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
 use crate::services::dependencies::HarvestServices;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
@@ -20,6 +21,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{error, instrument};
 use uuid::Uuid;
 use windmill::postgres::reports::ReportType;
+use windmill::services::audit_log::AdminAction;
 use windmill::services::electoral_log::{
     ElectoralLogAdminContext, VoterSecretAttributeAction,
     VoterSecretAttributeAudit,
@@ -289,6 +291,23 @@ pub async fn generate_voter_information_letter(
         }
     };
 
+    // The task resets the voter's password and writes the letter.
+    let entry = audit::target(&tenant_id, Some(&input.election_event_id))
+        .map(|target| {
+            audit::change(
+                &claims,
+                target,
+                audit::account(&target, &input.voter_id, None),
+                AdminAction::ResetPassword,
+            )
+            .with_extra(serde_json::json!({
+                "task_execution_id": task_execution.id,
+                "document_id": document_id,
+            }))
+            .with_description("Requested a voter information letter, which resets the voter's password")
+        })
+        .map_err(audit::json_error)?;
+
     let password_change_initiator = ElectoralLogAdminContext {
         user_id: claims.hasura_claims.user_id.clone(),
         username: claims.preferred_username.clone(),
@@ -330,6 +349,10 @@ pub async fn generate_voter_information_letter(
             "Failed to enqueue Voter Information Letter task",
         ));
     }
+
+    audit::record(services, &entry)
+        .await
+        .map_err(audit::json_error)?;
 
     Ok(Json(GenerateVoterInformationLetterOutput {
         document_id,

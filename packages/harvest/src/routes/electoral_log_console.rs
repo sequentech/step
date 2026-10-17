@@ -6,6 +6,7 @@
 //! browse any tenant's events and run read-only SQL queries on an event's
 //! electoral-log database.
 
+use crate::services::audit;
 use crate::services::authorization::{
     authorize, authorize_election_permission_labels,
 };
@@ -22,12 +23,13 @@ use sequent_core::{
     types::permissions::Permissions,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::time::Duration;
 use tracing::instrument;
 use uuid::Uuid;
 use windmill::postgres::election_event::get_election_event_by_id_if_exist;
+use windmill::services::audit_log::{AdminAction, AuditObject};
 use windmill::services::database::get_hasura_pool;
 use windmill::services::election_event_board::get_election_event_board;
 use windmill::services::electoral_log_board::get_event_databases;
@@ -579,6 +581,24 @@ pub async fn electoral_log_console_query(
     {
         return Err(no_electoral_log());
     }
+    // A query reads personal data as stored: it is logged, in the queried
+    // event's log, before it runs, so no query reads unlogged.
+    let target =
+        audit::target(&input.tenant_id, Some(input.election_event_id.as_str()))
+            .map_err(internal_error)?;
+    audit::record(
+        services,
+        &audit::change(
+            &claims,
+            target,
+            AuditObject::new("electoral_log", &input.election_event_id, None),
+            AdminAction::Export,
+        )
+        .with_extra(json!({ "sql": sql }))
+        .with_description("Ran a read-only query on the electoral log"),
+    )
+    .await
+    .map_err(internal_error)?;
     let mut client =
         match databases.reader_client(&input.election_event_id).await {
             Ok(client) => client,

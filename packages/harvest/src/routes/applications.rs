@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::iter::Map;
 use std::str::FromStr;
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
 use crate::services::dependencies::HarvestServices;
 use crate::services::signing_gate::{caller, waiting, Guarded};
@@ -36,6 +37,7 @@ use windmill::services::signing::actions::voter::{
 };
 use windmill::services::signing::guard::SigningRequestSummary;
 use windmill::services::users::check_is_user_verified;
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 use windmill::tasks::send_template::send_template;
 use windmill::tasks::signing_log_outbox::kick_signing_log_outbox;
 use windmill::types::application::{
@@ -96,6 +98,11 @@ pub async fn verify_user_application(
                 ErrorCode::GetTransactionFailed,
             )
         })?;
+    // The service account verifies on the applicant's behalf: the entries of
+    // the rows it writes name it as the actor.
+    audit::act_for(&hasura_transaction, &claims)
+        .await
+        .map_err(audit::json_error)?;
 
     let mut keycloak_db_client: DbClient =
         get_keycloak_pool().await.get().await.map_err(|e| {
@@ -140,6 +147,7 @@ pub async fn verify_user_application(
             ErrorCode::InternalServerError,
         )
     })?;
+    kick_audit_log_outbox();
 
     Ok(Json(result))
 }
@@ -224,6 +232,9 @@ pub async fn change_application_status(
                 ErrorCode::GetTransactionFailed,
             )
         })?;
+    audit::act_for(&hasura_transaction, &claims)
+        .await
+        .map_err(audit::json_error)?;
 
     let user_id = &claims.hasura_claims.user_id;
     let admin_name = claims
@@ -328,6 +339,7 @@ pub async fn change_application_status(
                 .await
                 .map_err(|e| internal(format!("Commit failed: {e:?}")))?;
             kick_signing_log_outbox();
+            kick_audit_log_outbox();
             return Ok(Json(ApplicationChangeStatusOutput {
                 message: None,
                 error: None,
@@ -364,6 +376,7 @@ pub async fn change_application_status(
             ErrorCode::InternalServerError,
         )
     })?;
+    kick_audit_log_outbox();
 
     Ok(Json(ApplicationChangeStatusOutput {
         message: Some("Success".to_string()),

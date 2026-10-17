@@ -191,7 +191,7 @@ pub struct UploadSignatureInput {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UploadSignatureOutput {}
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, input))]
 #[post("/miru/upload-signature", format = "json", data = "<input>")]
 pub async fn upload_signature(
     claims: jwt::JwtClaims,

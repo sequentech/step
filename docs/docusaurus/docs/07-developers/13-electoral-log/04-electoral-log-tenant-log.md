@@ -401,24 +401,27 @@ Hasura.
 
 For each row a person changes, the function:
 
-1. **Reads the Hasura session** from the transaction setting `hasura.user`: the user ID, the role and
-   the tenant.
-2. **Returns without logging** when there is no session (a direct SQL statement, Harvest, Windmill),
-   when the role is `admin` or `service-account` (Step's own writes, which log themselves), when the
-   row was written by another trigger (`pg_trigger_depth() > 1`), or when a deleted row went with a
-   parent it references `ON DELETE CASCADE` (`audit_deleted_by_cascade`).
+1. **Reads who made the change.** A Hasura session, in the transaction setting `hasura.user`, gives the
+   user ID, the role and the tenant. Without one, the admin Harvest or Windmill named in the setting
+   `sequent.audit_actor` (section 6.1) gives the user ID, the username, the role, the origin and the
+   tenant.
+2. **Returns without logging** when there is neither (a direct SQL statement, or Step's own work for
+   nobody), when the Hasura role is `admin` or `service-account` (Step's own writes, which log
+   themselves), when the row was written by another trigger (`pg_trigger_depth() > 1`), or when a
+   deleted row went with a parent it references `ON DELETE CASCADE` (`audit_deleted_by_cascade`).
 3. **Compares the old and new row** column by column, ignoring `created_at`, `updated_at` and
    `last_updated_at`. A JSON object column is compared key by key under dotted paths
-   (`settings.logs_timezone`); anything else is compared whole. The secret and long-text rules of
-   section 3.2 apply.
+   (`settings.logs_timezone`); anything else is compared whole. A key set to `null` is a key left
+   out. The secret and long-text rules of section 3.2 apply.
 4. **Chooses the log.** A row with an `election_event_id` goes to that event's log; any other row goes
    to the tenant log. For `election_event` itself, an insert and a delete are tenant-log entries; an
    update to `is_archived` is a tenant-log entry with the action `archive` or `unarchive`, and its
    other changes are an `update` entry in the event's own log.
-5. **Writes the outbox row** in the same transaction, as a `USER` `AdminChange` with `origin`
-   `hasura`. The object's name is its `name`, `alias`, `slug`, `title`, `username` or `email`, or the
-   name in its `presentation` (`audit_object_name`). The username is left `NULL`: the worker reads it
-   from Keycloak.
+5. **Writes the outbox row** in the same transaction, as a `USER` `AdminChange` (`SYSTEM` without a
+   user ID) with `origin` `hasura`, or the origin Step named. The object's name is its `name`,
+   `alias`, `slug`, `title`, `username` or `email`, or the name in its `presentation`
+   (`audit_object_name`). Through Hasura the username is left `NULL`: the worker reads it from
+   Keycloak.
 
 An update that changes nothing but the ignored columns writes no row.
 
@@ -520,6 +523,64 @@ What queues entries today:
 | Windmill `tasks/import_tenant_config.rs`, `tasks/export_tenant_config.rs` | Tenant configuration imported, exported |
 | Windmill `tasks/import_users.rs`, `tasks/export_users.rs`, `tasks/delete_users.rs` | Accounts imported, exported, voters deleted in bulk |
 | Windmill `tasks/export_audit_logs.rs`, `tasks/activity_logs_report.rs` | `LogsExported` |
+| Harvest `routes/import_areas.rs`, `routes/import_candidates.rs` | Areas, area parents and candidates imported: one entry with the document and its declared checksum (`audit::imported`) |
+| Harvest `routes/export_election_event.rs`, `export_tally_results.rs`, `export_ballot_publication.rs`, `export_application.rs`, `export_tasks_execution.rs`, `export_certificate_authority.rs`, `trustees.rs`, `reports.rs` (`/generate-report`) | Export requested, once its task is queued, with the task and the document (`audit::exported`) |
+| Harvest `routes/approval_matrix.rs` | Approval matrix saved, with the old and new version |
+| Harvest `routes/reports.rs` (`/encrypt-report`), `routes/document_password.rs` | A report's password set (named, never recorded); a document's password revealed |
+| Harvest `routes/electoral_log_console.rs` | A console query, with its SQL |
+| Harvest `routes/voter_information_letter.rs` | A voter information letter requested, which resets the voter's password |
+| Harvest `routes/limit_access_by_countries.rs` | The country lists before and after, once Cloudflare set them |
+| Windmill `tasks/delete_tenant.rs` | Tenant deleted, in the log of the tenant whose admin deleted it |
+
+### 6.1 Naming the admin to the trigger
+
+Most routes change rows of tables that have the `audit_change` trigger (section 5) with SQL of their
+own. Instead of building each entry, such a route names its admin on its transaction, right after
+opening it:
+
+```rust
+    let hasura_transaction = hasura_db_client.transaction().await?;
+    audit::act_for(&hasura_transaction, &claims).await?;
+    // … the route's writes …
+    hasura_transaction.commit().await?;
+    kick_audit_log_outbox();
+```
+
+`audit::act_for` calls `windmill::services::audit_log::act_for(&transaction, &actor, origin,
+tenant_id)`, which sets the transaction-local setting `sequent.audit_actor` to
+`{user_id, username, role, origin, tenant_id}`. From then until the transaction ends, every row the
+transaction inserts, updates or deletes in an audited table is an `AdminChange` of that admin, with its
+old and new values, written in the same transaction as the change. A Hasura session in the same
+transaction still takes precedence.
+
+Windmill code that opens the transaction itself takes the admin from its caller and calls
+`audit_log::act_for` with origin `harvest`: the results publication requests
+(`services/results_publication.rs`), the monitoring settings (`services/monitoring/config_store.rs`,
+`save_as`, `reset_to_preset_as`, `set_mode_as`) and a signing approval
+(`services/signing/approve.rs`), whose action is logged as the signer's whose signature completed it.
+
+The migration `1791800000000_audit_changes_step_makes` adds the trigger to the tables only Step's own
+code writes for an admin: `keys_ceremony`, `messaging_account`, `messaging_event_config`,
+`monitoring_config`, `signing_checks`, `staff_certificate`, `tally_results_publication`,
+`tally_sheet_import` and `tally_sheet_import_item`. It also makes a key qualified as a webhook's
+(`webhook_key`) a secret.
+
+Don't name the admin on a transaction that also stages a hand-written entry for the same rows: both
+would be logged.
+
+### 6.2 The route coverage test
+
+`packages/harvest/tests/support/audited_routes.rs` fails when a file of `packages/harvest/src/routes`
+commits a transaction and neither names its admin (`audit::act_for`, or `audit::actor` handed to the
+Windmill code that opens the transaction) nor queues an entry of its own (`stage`, `audit::record`).
+A route file that changes nothing an admin would audit (voting portal routes,
+reads that commit, callbacks) is listed with its reason in
+`packages/harvest/tests/fixtures/unaudited-committing-routes.txt`. The test also fails for an
+exemption that names a file that no longer commits or that audits. It runs with Harvest's unit tests:
+
+```bash
+cargo test -p harvest --bin harvest audited_routes
+```
 
 ## 7. Keycloak events
 
@@ -786,19 +847,22 @@ and a realm that already feeds the log (section 2).
 
 - **Signing entries keep their own outbox.** The signatures feature still stages its entries in
   `signing_log_outbox`, posted by `post_signing_log_outbox`. It was not moved to `audit_log_outbox`.
-- **Certificate authority routes are unchanged.** Importing and deleting a certificate authority
-  still post their own record directly, after their change, and log an error if posting fails. Writes
-  to `certificate_authority` through Hasura are covered by the trigger.
-- **Not every route queues an `AdminChange`.** Only the routes and tasks of the table in section 6
-  do. Other Harvest routes that change an event (areas, elections, dates, voting status, ceremonies,
-  tallies, publications, scheduled events, reports, applications, the approval matrix, monitoring
-  configuration and others) were not changed: they write the statements they wrote before, or none,
-  and carry no old and new values. Exporting an election event writes no audit entry.
+- **Certificate authority routes keep their own record.** Their rows are logged as the admin's
+  (section 6.1), and importing and deleting a certificate authority still also post their own record
+  directly, after their change.
+- **Work a task does on its own has no admin.** What a Windmill task writes after the route that
+  queued it answered (the ballot styles of a publication, a tally's execution, the documents of reports
+  and letters, reconciliation patches) is not named to the trigger. The route's own entry records the
+  admin's decision; the task's statements record the rest.
+- **Keycloak changes of an application's approval** (`confirm_application`, `reject_application`)
+  are recorded only by Keycloak's admin events (section 7); the application's row is logged.
+- **Downloading a document** (`/fetch-document`) writes no entry; exports write one when requested.
 - **Erasing a retired database** has no command. Only one account's export reads a retired
   database (section 9.2); nothing drops one, and `electoral-log-admin drop-event-database` does not
   find one, because it is no longer registered as an event's. Retention and erasure are a separate
   piece of work.
-- **Deleting a tenant** does not retire or drop its log database.
+- **Deleting a tenant** does not retire or drop its log database. Its `AdminChange` goes to the log
+  of the tenant whose admin deleted it, staged in the deleting transaction.
 - **No checkpoints, audits or proofs for the tenant log.** The tenant log has a Merkle log, but no
   code publishes its checkpoints, audits it or serves proofs of it; the Admin Portal offers **Audit**
   only in an election event's Logs tab.
@@ -832,7 +896,9 @@ and a realm that already feeds the log (section 2).
 | `packages/windmill/src/services/delete_election_event.rs`, `tasks/delete_election_event.rs` | The deletion entry and retiring |
 | `packages/windmill/src/tasks/electoral_log.rs` | Keycloak events: tenant log, admin events, unplaced events |
 | `packages/windmill/src/tasks/migrate_tenant_logs.rs`, `tasks/migrate_realm_permissions.rs` | The one-off migrations |
-| `packages/harvest/src/services/audit.rs` | Entries of Harvest routes |
+| `packages/harvest/src/services/audit.rs` | Entries of Harvest routes, `act_for` |
+| `hasura/migrations/backend-db/1791800000000_audit_changes_step_makes` | `sequent.audit_actor` in `audit_change()`, the tables only Step writes |
+| `packages/harvest/tests/support/audited_routes.rs`, `tests/fixtures/unaudited-committing-routes.txt` | The route coverage test |
 | `packages/harvest/src/services/tenant_activity.rs` | `TenantActivityRecorder`, its fairing and `TenantAction`: the `TenantAdminAction` entries of requests |
 | `packages/harvest/src/routes/electoral_log.rs`, `export_tenant_logs.rs`, `export_election_event_logs.rs` | Listing and exports |
 | `packages/keycloak-extensions/custom-event-listener` | `LogRealm`, `TenantRealmEvents`, `UserEventDetails`, `AdminRepresentation` |

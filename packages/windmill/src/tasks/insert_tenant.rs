@@ -92,7 +92,11 @@ pub async fn check_tenant_exists(hasura_transaction: &Transaction<'_>, slug: &st
 }
 
 #[instrument(err)]
-pub async fn process_insert_tenant(tenant_id: String, slug: String) -> Result<()> {
+pub async fn process_insert_tenant(
+    tenant_id: String,
+    slug: String,
+    audit_actor: Option<AuditActor>,
+) -> Result<()> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -123,7 +127,7 @@ pub async fn process_insert_tenant(tenant_id: String, slug: String) -> Result<()
         },
         AuditObject::new("tenant", &tenant_id, Some(&slug)),
         AdminAction::Create,
-        AuditActor::default(),
+        audit_actor.unwrap_or_default(),
         AuditOrigin::Windmill,
     );
     audit_log::stage(&hasura_transaction, &created).await?;
@@ -144,8 +148,9 @@ pub async fn insert_tenant(
     tenant_id: String,
     slug: String,
     task_execution: Option<TasksExecution>,
+    audit_actor: Option<AuditActor>,
 ) -> Result<()> {
-    let res = process_insert_tenant(tenant_id.clone(), slug.clone()).await;
+    let res = process_insert_tenant(tenant_id.clone(), slug.clone(), audit_actor).await;
     if let Some(task_execution) = task_execution {
         if let Err(err) = res {
             let err_str = format!("Error inserting tenant: {}", err);

@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
 use crate::types::error_response::ErrorCode;
 use anyhow::anyhow;
@@ -17,6 +18,7 @@ use tracing::{event, instrument, Level};
 use windmill::postgres::election;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::import::import_election_event::ensure_election_audit_boards;
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateElectionInput {
@@ -54,6 +56,7 @@ pub async fn create_election(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    audit::act_for(&hasura_transaction, &claims).await?;
 
     let election = election::create_election(
         &hasura_transaction,
@@ -81,6 +84,7 @@ pub async fn create_election(
         .await
         .with_context(|| "error comitting transaction")
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    kick_audit_log_outbox();
 
     Ok(Json(CreateElectionOutput { id: election.id }))
 }

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::audit;
 use crate::services::authorization::authorize;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -58,6 +59,7 @@ pub async fn get_upload_url(
                 format!("Error creating a transaction: {err}"),
             )
         })?;
+    audit::act_for(&hasura_transaction, &claims).await?;
 
     let (document, url) = documents::get_upload_url(
         &hasura_transaction,
@@ -78,6 +80,7 @@ pub async fn get_upload_url(
             format!("Failed to commit Hasura transactionn: {err}"),
         )
     })?;
+    windmill::tasks::audit_log_outbox::kick_audit_log_outbox();
 
     Ok(Json(UploadDocumentOutput {
         document_id: document.id,

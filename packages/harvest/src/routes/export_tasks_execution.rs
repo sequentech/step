@@ -2,14 +2,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
+use crate::services::dependencies::HarvestServices;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use rocket::State;
 use sequent_core::services::jwt;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
+use windmill::services::audit_log::AuditObject;
 use windmill::services::celery_app::get_celery_app;
 use windmill::tasks::export_tasks_execution;
 
@@ -25,11 +29,12 @@ pub struct ExportTasksExecutionOutput {
     error_msg: Option<String>,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(services, claims))]
 #[post("/export-tasks-execution", format = "json", data = "<input>")]
 pub async fn export_tasks_execution_route(
     claims: jwt::JwtClaims,
     input: Json<ExportTasksExecutionBody>,
+    services: &State<HarvestServices>,
 ) -> Result<Json<ExportTasksExecutionOutput>, (Status, String)> {
     let body = input.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
@@ -58,6 +63,19 @@ pub async fn export_tasks_execution_route(
                 format!("Error sending Export Tasks Execution task: ${err}"),
             )
         })?;
+
+    let entry = audit::exported(
+        &claims,
+        audit::target(
+            &claims.hasura_claims.tenant_id,
+            Some(&body.election_event_id),
+        )?,
+        AuditObject::new("tasks_execution", audit::MANY, None),
+        "Requested the export of the task executions",
+        None,
+        Some(&document_id),
+    );
+    audit::record(services, &entry).await?;
 
     let output = ExportTasksExecutionOutput {
         document_id,
