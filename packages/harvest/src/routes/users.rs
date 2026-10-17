@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{authorize, import_users_privileges};
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
@@ -817,13 +817,12 @@ pub struct CreateUserBody {
     secret_attributes: Option<HashMap<String, Option<Vec<String>>>>,
 }
 
-#[instrument(skip(claims, body))]
-#[post("/create-user", format = "json", data = "<body>")]
-pub async fn create_user(
-    claims: jwt::JwtClaims,
-    body: Json<CreateUserBody>,
-) -> Result<Json<User>, JsonError> {
-    let input = body.into_inner();
+/// The permissions needed to create the requested user: the create permission
+/// of the scope, plus the ones for the secret attributes, the permission labels
+/// and the roles that the request sets.
+fn create_user_permissions(
+    input: &CreateUserBody,
+) -> Result<Vec<Permissions>, &'static str> {
     let has_secret_attributes = input
         .secret_attributes
         .as_ref()
@@ -836,11 +835,7 @@ pub async fn create_user(
         }
     } else {
         if has_secret_attributes {
-            return Err(ErrorResponse::new(
-                Status::BadRequest,
-                "Encrypted attributes are only supported for election-event voters",
-                ErrorCode::UnknownError,
-            ));
+            return Err("Encrypted attributes are only supported for election-event voters");
         }
         required_perms.push(Permissions::USER_CREATE);
         if let Some(attributes) = &input.user.attributes {
@@ -851,6 +846,50 @@ pub async fn create_user(
             }
         }
     };
+    if input
+        .user_roles_ids
+        .as_ref()
+        .is_some_and(|role_ids| !role_ids.is_empty())
+    {
+        // The same permissions the set-user-role route requires.
+        required_perms.push(Permissions::USER_WRITE);
+        required_perms.push(Permissions::ROLE_WRITE);
+    }
+    Ok(required_perms)
+}
+
+/// A new user always gets the id of the tenant it is created in, so the request
+/// must not carry a `tenant-id` attribute of its own.
+fn reject_tenant_id_attribute(user: &User) -> Result<(), String> {
+    if user
+        .attributes
+        .as_ref()
+        .is_some_and(|attributes| attributes.contains_key(TENANT_ID_ATTR_NAME))
+    {
+        return Err(format!("Cannot set {TENANT_ID_ATTR_NAME} attribute"));
+    }
+    Ok(())
+}
+
+#[instrument(skip(claims, body))]
+#[post("/create-user", format = "json", data = "<body>")]
+pub async fn create_user(
+    claims: jwt::JwtClaims,
+    body: Json<CreateUserBody>,
+) -> Result<Json<User>, JsonError> {
+    let input = body.into_inner();
+    let has_secret_attributes = input
+        .secret_attributes
+        .as_ref()
+        .is_some_and(|attributes| !attributes.is_empty());
+    let required_perms =
+        create_user_permissions(&input).map_err(|message| {
+            ErrorResponse::new(
+                Status::BadRequest,
+                message,
+                ErrorCode::UnknownError,
+            )
+        })?;
     authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)
         .map_err(|(status, message)| {
             let code = if status == Status::InternalServerError {
@@ -860,6 +899,13 @@ pub async fn create_user(
             };
             ErrorResponse::new(status, &message, code)
         })?;
+    reject_tenant_id_attribute(&input.user).map_err(|message| {
+        ErrorResponse::new(
+            Status::BadRequest,
+            &message,
+            ErrorCode::UnknownError,
+        )
+    })?;
     let realm = match input.election_event_id.clone() {
         Some(election_event_id) => {
             get_event_realm(&input.tenant_id, &election_event_id)
@@ -1866,6 +1912,7 @@ pub async fn import_users_f(
     task_input.secret_write_initiator = task_input
         .may_write_secret_attributes
         .then(|| ElectoralLogAdminContext::from_claims(&claims));
+    task_input.privileges = import_users_privileges(&claims, &input.tenant_id);
 
     let _celery_task = match celery_app
         .send_task(import_users::import_users::new(
@@ -2312,5 +2359,119 @@ mod tests {
             response.0 .1 .0.message,
             "Password does not contain enough digits"
         );
+    }
+
+    use sequent_core::types::permissions::Permissions;
+
+    fn create_user_body(body: serde_json::Value) -> super::CreateUserBody {
+        serde_json::from_value(body).expect("valid create-user body")
+    }
+
+    fn required_for(body: serde_json::Value) -> Vec<Permissions> {
+        super::create_user_permissions(&create_user_body(body))
+            .expect("permissions must be computed")
+    }
+
+    /// Setting roles on a new user needs the permissions of the set-user-role
+    /// route, in the tenant scope and in the election-event scope.
+    #[test]
+    fn assigning_roles_on_create_requires_user_and_role_write() {
+        for scope in [
+            serde_json::json!({"tenant_id": "tenant"}),
+            serde_json::json!({
+                "tenant_id": "tenant", "election_event_id": "event"
+            }),
+        ] {
+            let mut body = scope.clone();
+            body["user"] = serde_json::json!({"username": "new-user"});
+            body["user_roles_ids"] = serde_json::json!(["admin-group-id"]);
+            let required = required_for(body);
+            assert!(
+                required.contains(&Permissions::USER_WRITE)
+                    && required.contains(&Permissions::ROLE_WRITE),
+                "{scope}: {required:?}"
+            );
+        }
+    }
+
+    /// The admin portal sends an empty role list when no role is selected, and
+    /// that must keep needing only the create permission.
+    #[test]
+    fn creating_without_roles_requires_only_create() {
+        for user_roles_ids in [serde_json::json!(null), serde_json::json!([])] {
+            assert_eq!(
+                required_for(serde_json::json!({
+                    "tenant_id": "tenant",
+                    "user": {"username": "new-user"},
+                    "user_roles_ids": user_roles_ids,
+                })),
+                vec![Permissions::USER_CREATE]
+            );
+            assert_eq!(
+                required_for(serde_json::json!({
+                    "tenant_id": "tenant",
+                    "election_event_id": "event",
+                    "user": {"username": "new-voter"},
+                    "user_roles_ids": user_roles_ids,
+                })),
+                vec![Permissions::VOTER_CREATE]
+            );
+        }
+    }
+
+    /// Permission labels keep needing their own permission, on top of the ones
+    /// for the roles.
+    #[test]
+    fn creating_with_permission_labels_and_roles_requires_every_permission() {
+        let required = required_for(serde_json::json!({
+            "tenant_id": "tenant",
+            "user": {
+                "username": "new-user",
+                "attributes": {"permission_labels": ["label-a"]}
+            },
+            "user_roles_ids": ["group-id"],
+        }));
+        assert_eq!(
+            required,
+            vec![
+                Permissions::USER_CREATE,
+                Permissions::PERMISSION_LABEL_WRITE,
+                Permissions::USER_WRITE,
+                Permissions::ROLE_WRITE,
+            ]
+        );
+    }
+
+    /// A new user always gets the id of the tenant it is created in, so a
+    /// request that carries a `tenant-id` attribute, whatever its value, is
+    /// refused while other attributes are accepted.
+    #[test]
+    fn creating_with_a_tenant_id_attribute_is_rejected() {
+        for tenant_id in ["tenant", "another-tenant"] {
+            let body = create_user_body(serde_json::json!({
+                "tenant_id": "tenant",
+                "user": {
+                    "username": "new-user",
+                    "attributes": {"tenant-id": [tenant_id]}
+                },
+            }));
+            let message = super::reject_tenant_id_attribute(&body.user)
+                .expect_err("tenant-id must be rejected");
+            assert!(message.contains(super::TENANT_ID_ATTR_NAME), "{message}");
+        }
+
+        for user in [
+            serde_json::json!({"username": "new-user"}),
+            serde_json::json!({
+                "username": "new-user",
+                "attributes": {"customerReference": ["REF-1"]}
+            }),
+        ] {
+            let body = create_user_body(serde_json::json!({
+                "tenant_id": "tenant",
+                "user": user,
+            }));
+            assert!(super::reject_tenant_id_attribute(&body.user).is_ok());
+        }
     }
 }
