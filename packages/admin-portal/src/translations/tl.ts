@@ -849,6 +849,7 @@ const tagalogTranslation: TranslationType = {
                 trustees: "Mga Tagapangasiwa",
                 status: "Katayuan",
                 permissionLabels: "Mga Label ng Pahintulot",
+                imported: "Na-import",
                 tallyType: {
                     label: "Uri ng Bilang",
                     ELECTORAL_RESULTS: "Mga Resulta ng Halalan",
@@ -2101,6 +2102,8 @@ const tagalogTranslation: TranslationType = {
             },
         },
         tally: {
+            importedProvenance:
+                "Ang pagbibilang na ito ay na-import mula sa isang archive ng kaganapan sa halalan. Ang mga resulta nito ay hindi kinalkula sa platapormang ito.",
             errorUploadingSignature: "Nagkaroon ng error sa pag-upload ng pirma",
             downloadTransmissionPackage: "I-download ang pakete",
             resultsPublication: {

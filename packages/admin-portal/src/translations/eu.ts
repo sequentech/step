@@ -845,6 +845,7 @@ const basqueTranslation: TranslationType = {
                 electionNumber: "Hauteskunde Kopurua",
                 trustees: "Fideikomisarioak",
                 permissionLabels: "Baimen Etiketak",
+                imported: "Inportatua",
                 status: "Egoera",
                 tallyType: {
                     label: "Zenbaketa Mota",
@@ -2091,6 +2092,8 @@ const basqueTranslation: TranslationType = {
             },
         },
         tally: {
+            importedProvenance:
+                "Zenbaketa hau hauteskunde-ekitaldi baten artxibotik inportatu da. Bere emaitzak ez dira plataforma honetan kalkulatu.",
             errorUploadingSignature: "Errorea izan da sinadura igotzean",
             downloadTransmissionPackage: "Deskargatu Transmisio Paketea",
             resultsPublication: {

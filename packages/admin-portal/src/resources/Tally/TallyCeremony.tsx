@@ -45,7 +45,7 @@ import {WizardStyles} from "@/components/styles/WizardStyles"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {CREATE_TALLY_CEREMONY} from "@/queries/CreateTallyCeremony"
 import {useMutation, useQuery} from "@apollo/client"
-import {ETallyType, ITallyExecutionStatus} from "@/types/ceremonies"
+import {ETallyProvenance, ETallyType, ITallyExecutionStatus} from "@/types/ceremonies"
 import {
     EElectionEventCeremoniesPolicy,
     EElectionEventContestEncryptionPolicy,
@@ -95,6 +95,7 @@ import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 import {getTallyDisabledReason} from "@/services/tallyEligibility"
+import {getTallyProvenance} from "@/services/tallyProvenance"
 import {getGraphQLActionErrorReason} from "@/services/graphqlActionError"
 
 const WizardSteps = {
@@ -800,6 +801,11 @@ export const TallyCeremony: React.FC = () => {
                             colorPreviousSteps={true}
                         />
                     </TallyStyles.StyledHeader>
+
+                    {getTallyProvenance(tallySession?.annotations) ===
+                        ETallyProvenance.IMPORTED && (
+                        <Alert severity="warning">{t("tally.importedProvenance")}</Alert>
+                    )}
 
                     {resultsEventId &&
                     record?.id &&

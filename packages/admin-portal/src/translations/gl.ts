@@ -850,6 +850,7 @@ const galegoTranslation: TranslationType = {
                 trustees: "Fiduciarios",
                 status: "Estado",
                 permissionLabels: "Etiquetas de Permisos",
+                imported: "Importado",
                 tallyType: {
                     label: "Tipo de Conteo",
                     ELECTORAL_RESULTS: "Resultados Electorales",
@@ -2097,6 +2098,8 @@ const galegoTranslation: TranslationType = {
             },
         },
         tally: {
+            importedProvenance:
+                "Este escrutinio importouse dun arquivo de evento electoral. Os seus resultados non se calcularon nesta plataforma.",
             errorUploadingSignature: "Houbo un erro ao cargar a sinatura",
             downloadTransmissionPackage: "Descargar Paquete de Transmisión",
             resultsPublication: {

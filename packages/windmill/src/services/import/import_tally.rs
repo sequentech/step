@@ -25,6 +25,7 @@ use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::{
     services::date::ISO8601,
     types::{
+        ceremonies::{TallyProvenance, TALLY_PROVENANCE_ANNOTATION_KEY},
         hasura::core::{TallySession, TallySessionContest, TallySessionExecution},
         results::{
             ResultsAreaContest, ResultsAreaContestCandidate, ResultsContest,
@@ -32,7 +33,7 @@ use sequent_core::{
         },
     },
 };
-use serde_json::Value;
+use serde_json::{Map, Value};
 use std::{collections::HashMap, fs::File};
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
@@ -154,6 +155,19 @@ pub async fn get_opt_date(record: &StringRecord, index: usize) -> Result<Option<
     Ok(item)
 }
 
+fn with_imported_provenance(annotations: Option<Value>) -> Result<Value> {
+    let mut annotations = match annotations {
+        None | Some(Value::Null) => Map::new(),
+        Some(Value::Object(annotations)) => annotations,
+        Some(other) => return Err(anyhow!("Annotations must be a JSON object, got: {other}")),
+    };
+    annotations.insert(
+        TALLY_PROVENANCE_ANNOTATION_KEY.to_string(),
+        serde_json::to_value(TallyProvenance::IMPORTED)?,
+    );
+    Ok(Value::Object(annotations))
+}
+
 #[instrument(err, skip_all)]
 async fn process_event_results_file(
     hasura_transaction: &Transaction<'_>,
@@ -176,7 +190,9 @@ async fn process_event_results_file(
         let created_at = get_opt_date(&record, 4).await?;
         let last_updated_at = get_opt_date(&record, 5).await?;
 
-        let annotations = get_opt_json_value_item(&record, 6).await?;
+        let annotations = Some(with_imported_provenance(
+            get_opt_json_value_item(&record, 6).await?,
+        )?);
         let labels = get_opt_json_value_item(&record, 7).await?;
 
         let documents = record
@@ -320,7 +336,9 @@ pub async fn process_tally_session_record(
     let last_updated_at = get_opt_date(&record, 4).await?;
 
     let labels = get_opt_json_value_item(&record, 5).await?;
-    let annotations = get_opt_json_value_item(&record, 6).await?;
+    let annotations = Some(with_imported_provenance(
+        get_opt_json_value_item(&record, 6).await?,
+    )?);
     let election_ids = process_uuids(record.get(7), replacement_map.clone()).await?;
     let area_ids = process_uuids(record.get(8), replacement_map.clone()).await?;
 
@@ -469,7 +487,9 @@ async fn process_tally_session_execution_file(
         let last_updated_at = get_opt_date(&record, 4).await?;
 
         let labels = get_opt_json_value_item(&record, 5).await?;
-        let annotations = get_opt_json_value_item(&record, 6).await?;
+        let annotations = Some(with_imported_provenance(
+            get_opt_json_value_item(&record, 6).await?,
+        )?);
 
         let current_message_id = record
             .get(7)
@@ -1083,4 +1103,114 @@ pub async fn process_tally_file(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    const TENANT_ID: &str = "4a1e2f6c-6d0b-4f3e-9d7a-1c2b3d4e5f60";
+    const ELECTION_EVENT_ID: &str = "5b2f3a7d-7e1c-4a4f-8e8b-2d3c4e5f6a71";
+    const OLD_TALLY_SESSION_ID: &str = "6c3a4b8e-8f2d-4b5a-9f9c-3e4d5f6a7b82";
+    const NEW_TALLY_SESSION_ID: &str = "7d4b5c9f-9a3e-4c6b-8a0d-4f5a6b7c8d93";
+    const OLD_KEYS_CEREMONY_ID: &str = "8e5c6d0a-0b4f-4d7c-9b1e-5a6b7c8d9ea4";
+    const NEW_KEYS_CEREMONY_ID: &str = "9f6d7e1b-1c5a-4e8d-8c2f-6b7c8d9eafb5";
+    const OLD_ELECTION_ID: &str = "a07e8f2c-2d6b-4f9e-9d3a-7c8d9eafb0c6";
+    const NEW_ELECTION_ID: &str = "b18f9a3d-3e7c-4a0f-8e4b-8d9eafb0c1d7";
+
+    fn replacement_map() -> HashMap<String, String> {
+        HashMap::from([
+            (
+                OLD_TALLY_SESSION_ID.to_string(),
+                NEW_TALLY_SESSION_ID.to_string(),
+            ),
+            (
+                OLD_KEYS_CEREMONY_ID.to_string(),
+                NEW_KEYS_CEREMONY_ID.to_string(),
+            ),
+            (OLD_ELECTION_ID.to_string(), NEW_ELECTION_ID.to_string()),
+        ])
+    }
+
+    fn tally_session_record(annotations: &str) -> StringRecord {
+        let quoted = |value: &str| json!(value).to_string();
+        StringRecord::from(vec![
+            quoted(OLD_TALLY_SESSION_ID),
+            quoted(TENANT_ID),
+            quoted(ELECTION_EVENT_ID),
+            "null".to_string(),
+            "null".to_string(),
+            "null".to_string(),
+            annotations.to_string(),
+            json!([OLD_ELECTION_ID]).to_string(),
+            "[]".to_string(),
+            "true".to_string(),
+            quoted(OLD_KEYS_CEREMONY_ID),
+            quoted("SUCCESS"),
+            "2".to_string(),
+            String::new(),
+            quoted("ELECTORAL_RESULTS"),
+            String::new(),
+        ])
+    }
+
+    fn provenance_of(annotations: &Option<Value>) -> Option<TallyProvenance> {
+        annotations
+            .as_ref()
+            .and_then(|value| value.get(TALLY_PROVENANCE_ANNOTATION_KEY))
+            .cloned()
+            .and_then(|value| serde_json::from_value(value).ok())
+    }
+
+    #[tokio::test]
+    async fn imported_tally_session_is_marked_imported() {
+        let record = tally_session_record(
+            &json!({
+                "executer_username": "admin",
+                TALLY_PROVENANCE_ANNOTATION_KEY: TallyProvenance::NATIVE,
+            })
+            .to_string(),
+        );
+
+        let tally_session =
+            process_tally_session_record(TENANT_ID, ELECTION_EVENT_ID, &record, replacement_map())
+                .await
+                .expect("tally session record should import");
+
+        assert_eq!(
+            provenance_of(&tally_session.annotations),
+            Some(TallyProvenance::IMPORTED)
+        );
+        assert_eq!(
+            tally_session
+                .annotations
+                .as_ref()
+                .and_then(|value| value.get("executer_username")),
+            Some(&json!("admin"))
+        );
+        assert_eq!(tally_session.id, NEW_TALLY_SESSION_ID);
+        assert_eq!(tally_session.keys_ceremony_id, NEW_KEYS_CEREMONY_ID);
+    }
+
+    #[tokio::test]
+    async fn imported_tally_session_without_annotations_is_marked_imported() {
+        let record = tally_session_record("null");
+
+        let tally_session =
+            process_tally_session_record(TENANT_ID, ELECTION_EVENT_ID, &record, replacement_map())
+                .await
+                .expect("tally session record should import");
+
+        assert_eq!(
+            provenance_of(&tally_session.annotations),
+            Some(TallyProvenance::IMPORTED)
+        );
+    }
+
+    #[test]
+    fn imported_provenance_rejects_non_object_annotations() {
+        assert!(with_imported_provenance(Some(json!(["IMPORTED"]))).is_err());
+        assert!(with_imported_provenance(Some(json!("NATIVE"))).is_err());
+    }
 }

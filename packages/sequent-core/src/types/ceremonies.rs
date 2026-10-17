@@ -201,6 +201,31 @@ pub enum TallyType {
     INITIALIZATION_REPORT,
 }
 
+/// Annotation key holding the `TallyProvenance` of tally session, tally
+/// session execution and results event rows. A missing key means `NATIVE`.
+pub const TALLY_PROVENANCE_ANNOTATION_KEY: &str = "tally_provenance";
+
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+pub enum TallyProvenance {
+    /// Computed by a tally ceremony on this platform.
+    #[default]
+    NATIVE,
+    /// Restored from an election event import archive.
+    IMPORTED,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq)]
 pub struct TallySessionDocuments {
     pub sqlite: Option<String>,

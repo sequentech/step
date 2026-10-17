@@ -851,6 +851,7 @@ const catalanTranslation: TranslationType = {
                 electionNumber: "Número d'Eleccions",
                 trustees: "Trustees",
                 permissionLabels: "Etiquetes de Permís",
+                imported: "Importat",
                 status: "Estat",
                 tallyType: {
                     label: "Tipus de Recompte",
@@ -2108,6 +2109,8 @@ const catalanTranslation: TranslationType = {
             },
         },
         tally: {
+            importedProvenance:
+                "Aquest recompte es va importar des d'un arxiu d'esdeveniment electoral. Els seus resultats no es van calcular en aquesta plataforma.",
             errorUploadingSignature: "S'ha produït un error en carregar la signatura",
             downloadTransmissionPackage: "Descarregar paquet",
             resultsPublication: {

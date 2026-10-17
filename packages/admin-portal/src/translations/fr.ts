@@ -851,6 +851,7 @@ const frenchTranslation: TranslationType = {
                 trustees: "Autorités",
                 status: "État",
                 permissionLabels: "Étiquettes d’Autorisation",
+                imported: "Importé",
                 tallyType: {
                     label: "Type de Décompte",
                     ELECTORAL_RESULTS: "Résultats Électoraux",
@@ -2111,6 +2112,8 @@ const frenchTranslation: TranslationType = {
             },
         },
         tally: {
+            importedProvenance:
+                "Ce comptage a été importé depuis une archive d'événement électoral. Ses résultats n'ont pas été calculés sur cette plateforme.",
             errorUploadingSignature:
                 "Une erreur s'est produite lors du téléchargement de la signature",
             downloadTransmissionPackage: "Télécharger le paquet",

@@ -85,6 +85,13 @@ export enum ETallyType {
     INITIALIZATION_REPORT = "INITIALIZATION_REPORT",
 }
 
+export const TALLY_PROVENANCE_ANNOTATION_KEY = "tally_provenance"
+
+export enum ETallyProvenance {
+    NATIVE = "NATIVE",
+    IMPORTED = "IMPORTED",
+}
+
 export enum ETallyTypeCssClass {
     ELECTORAL_RESULTS = "electoral-results",
     INITIALIZATION_REPORT = "init-report",

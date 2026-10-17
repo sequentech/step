@@ -849,6 +849,7 @@ const dutchTranslation: TranslationType = {
                 electionNumber: "Aantal Verkiezingen",
                 trustees: "Trustees",
                 permissionLabels: "Machtigingslabels",
+                imported: "Geïmporteerd",
                 status: "Status",
                 tallyType: {
                     label: "Type Telling",
@@ -2095,6 +2096,8 @@ const dutchTranslation: TranslationType = {
             },
         },
         tally: {
+            importedProvenance:
+                "Deze telling is geïmporteerd uit een archief van een verkiezingsevenement. De resultaten zijn niet op dit platform berekend.",
             errorUploadingSignature: "Er was een fout bij het uploaden van de handtekening",
             downloadTransmissionPackage: "Transmissiepakket Downloaden",
             resultsPublication: {
