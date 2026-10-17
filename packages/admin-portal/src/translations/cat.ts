@@ -300,6 +300,13 @@ const catalanTranslation: TranslationType = {
                 event_type: "Tipus d'esdeveniment",
                 description: "Descripció",
                 version: "Versió",
+                verification_status: "Verificació",
+            },
+            verificationStatus: {
+                Verified: "Verificat",
+                Unreadable: "Il·legible",
+                InvalidSignature: "Signatura no vàlida",
+                ColumnMismatch: "No coincideix amb el seu contingut signat",
             },
             main: {
                 title: "Bitàcola de Base de Dades Principal",
