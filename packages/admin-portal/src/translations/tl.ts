@@ -693,6 +693,15 @@ const tagalogTranslation: TranslationType = {
                         disabled: "Hindi pinagana",
                     },
                 },
+                kioskChannelAuthenticationPolicy: {
+                    policyLabel: "Patakaran sa Pag-authenticate ng Kiosk Channel",
+                    helperText:
+                        "Sa Attested, tinatanggap lamang ang boto sa kiosk kapag ang login ay may kiosk channel attestation claim na naka-configure sa Keycloak.",
+                    options: {
+                        "client-identity": "Pagkakakilanlan ng client",
+                        "attested": "Attested",
+                    },
+                },
                 languageDetectionPolicy: {
                     policyLabel: "Patakaran sa Pag-detect ng Wika",
                     options: {
