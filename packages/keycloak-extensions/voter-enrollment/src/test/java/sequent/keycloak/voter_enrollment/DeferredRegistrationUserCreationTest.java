@@ -23,6 +23,7 @@ import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import java.lang.reflect.Method;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -478,6 +479,40 @@ class DeferredRegistrationUserCreationTest {
     assertFalse(normalized.containsKey(UserModel.LOCALE));
     assertFalse(normalized.containsKey(CUSTOM_HIDDEN_ATTRIBUTE));
     assertTrue(normalized.containsKey(UserModel.EMAIL));
+  }
+
+  /**
+   * The event listener classifies events by these details, so they must come only from the
+   * authenticators that set them, while ordinary form fields stay in the registration event.
+   */
+  @Test
+  void eventDetailsKeepFormFieldsExceptListenerDetails() throws Exception {
+    ValidationContext context = mock(ValidationContext.class);
+    EventBuilder event = mock(EventBuilder.class);
+    when(context.getEvent()).thenReturn(event);
+    List<String> listenerDetails =
+        List.of("type", "msgBody", "voter_cert_subject_dn", "ca_cert_issuer_cn", "deny-type");
+    MultivaluedMap<String, String> formData = new MultivaluedHashMap<>();
+    formData.add(UserModel.FIRST_NAME, "Ana");
+    listenerDetails.forEach(detail -> formData.add(detail, "communications"));
+
+    Method method =
+        DeferredRegistrationUserCreation.class.getDeclaredMethod(
+            "buildEventDetails",
+            MultivaluedMap.class,
+            ValidationContext.class,
+            UserModel.class,
+            Set.class);
+    method.setAccessible(true);
+    method.invoke(
+        new DeferredRegistrationUserCreation(), formData, context, null, Set.of(UserModel.LOCALE));
+
+    verify(event).detail(UserModel.FIRST_NAME, List.of("Ana"));
+    listenerDetails.forEach(
+        detail -> {
+          verify(event, never()).detail(eq(detail), ArgumentMatchers.<Collection<String>>any());
+          verify(event, never()).detail(eq(detail), ArgumentMatchers.<String>any());
+        });
   }
 
   @Test
