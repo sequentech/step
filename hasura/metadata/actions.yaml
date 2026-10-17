@@ -1,4 +1,43 @@
 actions:
+    - name: tenant_plugins
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/plugins
+          forward_client_headers: true
+          request_transform:
+              method: GET
+              body:
+                  action: remove
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+    - name: set_tenant_plugin_state
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/plugins/state
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+    - name: execute_plugin_operation
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/plugins/execute
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
     - name: request_server_custody
       definition:
           kind: synchronous
