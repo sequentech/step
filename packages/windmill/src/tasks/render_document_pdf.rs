@@ -20,6 +20,7 @@ use sequent_core::temp_path::write_into_named_temp_file;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::util::path::change_file_extension;
 use std::io::{Read, Seek};
+use std::path::Path;
 use tracing::instrument;
 use velvet::config::generate_reports::PipeConfigGenerateReports;
 use velvet::pipes::pipe_name::PipeName;
@@ -44,11 +45,13 @@ pub async fn get_tally_pdf_config(
     )
     .await?;
 
-    let tally_path = extract_archive_to_temp_dir(tar_gz_file.path(), false)?;
+    read_tally_pdf_options(tar_gz_file.path())
+}
 
-    let tally_path_path = tally_path.into_path();
+fn read_tally_pdf_options(tar_file: &Path) -> Result<Option<PrintToPdfOptions>> {
+    let tally_dir = extract_archive_to_temp_dir(tar_file, false)?;
 
-    let state = generate_initial_state(&tally_path_path, "decode-ballots")?;
+    let state = generate_initial_state(&tally_dir.path().to_path_buf(), "decode-ballots")?;
 
     let pipe = state
         .stages
@@ -196,4 +199,22 @@ pub async fn render_document_pdf(
     )
     .await
     .map_err(|err| WrapError::from(anyhow!("Task panicked: {}", err)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::compress::test_support::{tally_archive_fixture, temp_dirs_containing};
+    use std::path::PathBuf;
+
+    #[test]
+    fn read_tally_pdf_options_removes_extracted_tally() -> Result<()> {
+        let (archive, marker) = tally_archive_fixture()?;
+
+        let pdf_options = read_tally_pdf_options(&archive)?;
+
+        assert!(pdf_options.is_some());
+        assert_eq!(temp_dirs_containing(&marker), Vec::<PathBuf>::new());
+        Ok(())
+    }
 }
