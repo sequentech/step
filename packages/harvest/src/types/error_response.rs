@@ -49,6 +49,8 @@ pub enum ErrorCode {
     BallotPublicationValidation,
     TallyValidation,
     InvalidVotingChannels,
+    ServerOwnedField,
+    ElectionEventAlreadyExists,
     // Add any other needed error codes
 }
 
