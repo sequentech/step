@@ -152,6 +152,109 @@ async fn get_area_ids(
     Ok((Some(area_ids), area_ids_join_clause, area_ids_where_clause))
 }
 
+/// A voter field the tally census reads when the tally runs. Changing one
+/// can leave a cast ballot out of the tally.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CensusAttribute {
+    Enabled,
+    AreaId,
+    AuthorizedElectionIds,
+}
+
+impl CensusAttribute {
+    const KEYCLOAK_ATTRIBUTES: [CensusAttribute; 2] = [
+        CensusAttribute::AreaId,
+        CensusAttribute::AuthorizedElectionIds,
+    ];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            CensusAttribute::Enabled => "enabled",
+            CensusAttribute::AreaId => AREA_ID_ATTR_NAME,
+            CensusAttribute::AuthorizedElectionIds => AUTHORIZED_ELECTION_IDS_NAME,
+        }
+    }
+}
+
+impl std::fmt::Display for CensusAttribute {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(self.name())
+    }
+}
+
+fn census_values(values: Option<&Vec<String>>) -> Vec<&str> {
+    let mut values: Vec<&str> = values.into_iter().flatten().map(String::as_str).collect();
+    values.sort_unstable();
+    values
+}
+
+/// The census attributes an edit of `current` would change. `enabled` and
+/// `attributes` are what the edit writes; an attribute it leaves out keeps
+/// its value, as `KeycloakAdminClient::edit_user` merges attributes.
+pub fn changed_census_attributes(
+    current: &User,
+    enabled: Option<bool>,
+    attributes: &HashMap<String, Vec<String>>,
+) -> Vec<CensusAttribute> {
+    let mut changed = vec![];
+    if enabled.is_some_and(|enabled| Some(enabled) != current.enabled) {
+        changed.push(CensusAttribute::Enabled);
+    }
+    for attribute in CensusAttribute::KEYCLOAK_ATTRIBUTES {
+        let Some(requested) = attributes.get(attribute.name()) else {
+            continue;
+        };
+        let current_values = current
+            .attributes
+            .as_ref()
+            .and_then(|current| current.get(attribute.name()));
+        if census_values(Some(requested)) != census_values(current_values) {
+            changed.push(attribute);
+        }
+    }
+    changed
+}
+
+/// Why an edit changing `changed` must be refused: the voter has cast a
+/// ballot.
+pub fn census_change_refusal(has_ballot: bool, changed: &[CensusAttribute]) -> Option<String> {
+    if changed.is_empty() || !has_ballot {
+        return None;
+    }
+    let names: Vec<String> = changed.iter().map(ToString::to_string).collect();
+    Some(format!(
+        "Cannot change {} of a voter who has cast a ballot",
+        names.join(", ")
+    ))
+}
+
+/// Whether the voter has cast a ballot in the election event.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn voter_has_cast_ballot(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    user_id: &str,
+) -> Result<bool> {
+    let user = User {
+        id: Some(user_id.to_string()),
+        ..User::default()
+    };
+    let voters = get_users_with_vote_info(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        None,
+        vec![user],
+        None,
+    )
+    .await?;
+    Ok(voters
+        .first()
+        .and_then(|voter| voter.votes_info.as_ref())
+        .is_some_and(|votes_info| !votes_info.is_empty()))
+}
+
 // Paginate users
 #[instrument(skip(keycloak_transaction), err)]
 pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
@@ -1906,5 +2009,82 @@ mod tests {
         assert!(clause.contains("ra.name = $1"));
         assert!(clause.contains(r#"("email" = $3) AND"#));
         assert!(clause.contains("(u.id = ANY($2) OR $2 IS NULL)"));
+    }
+
+    fn voter(enabled: bool, attributes: &[(&str, &[&str])]) -> User {
+        User {
+            enabled: Some(enabled),
+            attributes: Some(
+                attributes
+                    .iter()
+                    .map(|(name, values)| {
+                        (
+                            name.to_string(),
+                            values.iter().map(|value| value.to_string()).collect(),
+                        )
+                    })
+                    .collect(),
+            ),
+            ..User::default()
+        }
+    }
+
+    fn requested(attributes: &[(&str, &[&str])]) -> HashMap<String, Vec<String>> {
+        voter(true, attributes).attributes.unwrap_or_default()
+    }
+
+    #[test]
+    fn census_changes_detect_every_tally_attribute() {
+        let current = voter(
+            true,
+            &[
+                (AREA_ID_ATTR_NAME, &["area-a"]),
+                (AUTHORIZED_ELECTION_IDS_NAME, &["mayor", "council"]),
+            ],
+        );
+        let edit = requested(&[
+            (AREA_ID_ATTR_NAME, &["area-b"]),
+            (AUTHORIZED_ELECTION_IDS_NAME, &["mayor"]),
+        ]);
+
+        assert_eq!(
+            changed_census_attributes(&current, Some(false), &edit),
+            vec![
+                CensusAttribute::Enabled,
+                CensusAttribute::AreaId,
+                CensusAttribute::AuthorizedElectionIds,
+            ]
+        );
+    }
+
+    #[test]
+    fn echoed_or_unrelated_values_change_no_census_attribute() {
+        let current = voter(
+            true,
+            &[
+                (AREA_ID_ATTR_NAME, &["area-a"]),
+                (AUTHORIZED_ELECTION_IDS_NAME, &["mayor", "council"]),
+                ("first-language", &["en"]),
+            ],
+        );
+        let edit = requested(&[
+            (AREA_ID_ATTR_NAME, &["area-a"]),
+            (AUTHORIZED_ELECTION_IDS_NAME, &["council", "mayor"]),
+            ("first-language", &["fr"]),
+        ]);
+
+        assert!(changed_census_attributes(&current, Some(true), &edit).is_empty());
+        assert!(changed_census_attributes(&current, None, &HashMap::new()).is_empty());
+    }
+
+    #[test]
+    fn census_change_is_refused_only_for_a_voter_with_a_ballot() {
+        let changed = [CensusAttribute::AreaId, CensusAttribute::Enabled];
+        assert_eq!(
+            census_change_refusal(true, &changed).as_deref(),
+            Some("Cannot change area-id, enabled of a voter who has cast a ballot")
+        );
+        assert_eq!(census_change_refusal(false, &changed), None);
+        assert_eq!(census_change_refusal(true, &[]), None);
     }
 }
