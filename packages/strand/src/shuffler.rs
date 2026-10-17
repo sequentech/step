@@ -36,6 +36,7 @@ use rand::seq::SliceRandom;
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
 use std::sync::{Arc, Mutex};
+use zeroize::Zeroizing;
 // use std::time::Instant;
 
 use crate::context::{Ctx, Element, Exponent};
@@ -228,7 +229,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         assert!(N > 0, "cannot shuffle 0 ciphertexts");
 
         let (cs, rs) = (perm_data.commitments_c, perm_data.commitments_r);
-        let perm = perm_data.permutation;
+        let perm = Zeroizing::new(perm_data.permutation);
 
         let es_bytes = serialize_flatten(&es)?;
         drop(es);

@@ -9,6 +9,7 @@ use reedline_repl_rs::clap::{Arg, ArgMatches, Command};
 use reedline_repl_rs::{Repl, Result};
 use std::collections::HashSet;
 use std::marker::PhantomData;
+use std::sync::Arc;
 
 use tracing_attributes::instrument;
 use tracing_subscriber::filter;
@@ -20,6 +21,7 @@ use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+use zeroize::Zeroizing;
 
 use crate::protocol::action::Action;
 use crate::protocol::board::local2::{ArtifactEntryIdentifier, StatementEntryIdentifier};
@@ -296,8 +298,8 @@ fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContex
             Trustee::new(
                 i.to_string(),
                 "foo".to_string(),
-                kp,
-                encryption_key,
+                Arc::new(kp),
+                Arc::new(Zeroizing::new(encryption_key)),
                 None,
                 None,
             )

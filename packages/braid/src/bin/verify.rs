@@ -5,6 +5,7 @@
 // cargo run --bin verify -- --b3-url http://[::1]:50051 --board testboard
 use anyhow::Result;
 use clap::Parser;
+use std::sync::Arc;
 use tracing::info;
 use tracing::instrument;
 
@@ -14,6 +15,7 @@ use braid::verify::verifier::Verifier;
 
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
+use zeroize::Zeroizing;
 
 /// Verifies election data on a bulletin board
 #[derive(Parser)]
@@ -54,8 +56,8 @@ async fn main() -> Result<()> {
     let trustee: Trustee<RistrettoCtx> = Trustee::new(
         "Verifier".to_string(),
         args.board.to_string(),
-        dummy_sk,
-        dummy_encryption_key,
+        Arc::new(dummy_sk),
+        Arc::new(Zeroizing::new(dummy_encryption_key)),
         None,
         None,
     );

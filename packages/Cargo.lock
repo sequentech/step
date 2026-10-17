@@ -1482,6 +1482,7 @@ dependencies = [
  "tracing-wasm",
  "wasm-bindgen",
  "wasm-bindgen-rayon",
+ "zeroize",
 ]
 
 [[package]]
@@ -9491,6 +9492,7 @@ dependencies = [
  "wasm-bindgen-rayon",
  "web-sys",
  "x509-parser 0.18.1",
+ "zeroize",
 ]
 
 [[package]]
