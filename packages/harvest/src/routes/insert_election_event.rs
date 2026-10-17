@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{authorize, import_users_privileges};
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -127,7 +127,7 @@ pub async fn import_election_event_f(
     body: Json<import_election_event::ImportElectionEventBody>,
     claims: JwtClaims,
 ) -> Result<Json<ImportElectionEventOutput>, (Status, String)> {
-    let input = body.into_inner();
+    let mut input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let executer_name = claims
         .name
@@ -135,6 +135,7 @@ pub async fn import_election_event_f(
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
 
     authorize(&claims, true, Some(input.tenant_id.clone()), vec![])?;
+    input.privileges = import_users_privileges(&claims, &input.tenant_id);
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|err| {
