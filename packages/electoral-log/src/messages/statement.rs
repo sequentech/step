@@ -332,6 +332,16 @@ impl StatementHead {
                 },
                 ..default_head
             },
+            StatementBody::ConfigurationPackageWithContentHash(_, details) => StatementHead {
+                kind: StatementType::ConfigurationPackageImported,
+                event_type: StatementEventType::USER,
+                description: format!(
+                    "Configuration {} revision {} imported from a signed package (manifest {}, content_hash {}).",
+                    details.package.external_id, details.package.revision,
+                    details.package.manifest_sha256, details.content_hash
+                ),
+                ..default_head
+            },
             StatementBody::ReportGenerated(_, details) => StatementHead {
                 kind: StatementType::ReportGenerated,
                 description: report_generated_description(details),
@@ -817,6 +827,10 @@ pub enum StatementBody {
     /// Rollout invariant: as for `CastVoteWithChannel`, readers must be
     /// upgraded before writers emit this variant.
     Audit(AuditLogEntry),
+    /// A configuration import including the approved content hash. The legacy
+    /// `ConfigurationPackage` body is unchanged so existing signatures verify.
+    /// Upgrade electoral-log readers before writers emit this variant.
+    ConfigurationPackageWithContentHash(EventIdString, ConfigurationPackageImportDetails),
 }
 
 // Note: When creating new variants, consider that the length limit STATEMENT_KIND_VARCHAR_LENGTH is 40.

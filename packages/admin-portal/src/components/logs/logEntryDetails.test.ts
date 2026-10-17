@@ -671,3 +671,38 @@ describe("certified import and readiness evidence", () => {
         )
     })
 })
+
+describe("configuration package import evidence", () => {
+    const details = {
+        action: "Imported",
+        external_id: "approved-configuration",
+        revision: 9,
+        manifest_sha256: "ab".repeat(32),
+        design_digests: [],
+    }
+    it("shows the signed content hash separately from the manifest hash", () => {
+        const view = logEntryView(
+            row("ConfigurationPackageImported", {
+                ConfigurationPackageWithContentHash: [
+                    EVENT_ID,
+                    {...details, content_hash: "cd".repeat(32)},
+                ],
+            })
+        )
+        expect(view.extra).toEqual(
+            expect.arrayContaining([
+                {name: "content_hash", value: "cd".repeat(32)},
+                {name: "manifest_sha256", value: "ab".repeat(32)},
+            ])
+        )
+    })
+    it("shows historical import details without inventing a content hash", () => {
+        const view = logEntryView(
+            row("ConfigurationPackageImported", {
+                ConfigurationPackage: [EVENT_ID, details],
+            })
+        )
+        expect(view.extra).toContainEqual({name: "manifest_sha256", value: "ab".repeat(32)})
+        expect(view.extra.some(({name}) => name === "content_hash")).toBe(false)
+    })
+})

@@ -1114,12 +1114,12 @@ impl ElectoralLog {
     pub async fn post_configuration_package(
         &self,
         event_id: String,
-        details: ConfigurationPackageDetails,
+        details: ConfigurationPackageImportDetails,
         user_id: Option<String>,
         username: Option<String>,
     ) -> Result<()> {
-        let delivery_id = configuration_package_delivery_id(&details);
-        let message = Message::configuration_package_message(
+        let delivery_id = configuration_package_delivery_id(&details.package);
+        let message = Message::configuration_package_with_content_hash_message(
             EventIdString(event_id),
             details,
             &self.sd,

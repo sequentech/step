@@ -5,7 +5,7 @@
 //! payload. Expected bytes are assembled independently of the serializer.
 
 use electoral_log::messages::newtypes::*;
-use electoral_log::messages::statement::{StatementEventType, StatementLogType};
+use electoral_log::messages::statement::{StatementBody, StatementEventType, StatementLogType};
 
 macro_rules! string_wire_cases {
     ($($name:ident => $wrapper:ident),+ $(,)?) => {
@@ -518,4 +518,45 @@ fn an_audit_entry_is_encoded_field_by_field() {
         assert_eq!(borsh::to_vec(&kind).unwrap(), vec![tag]);
         assert_eq!(kind.statement_type().to_string(), kind.to_string());
     }
+}
+
+#[test]
+fn a_configuration_content_hash_has_an_appended_wire_tag_without_changing_legacy_fields() {
+    let text = |value: &str| {
+        let mut bytes = (value.len() as u32).to_le_bytes().to_vec();
+        bytes.extend_from_slice(value.as_bytes());
+        bytes
+    };
+    let body = StatementBody::ConfigurationPackageWithContentHash(
+        EventIdString("event".into()),
+        ConfigurationPackageImportDetails {
+            package: ConfigurationPackageDetails {
+                action: ConfigurationPackageAction::Imported,
+                external_id: "approved".into(),
+                revision: 9,
+                manifest_sha256: "ab".repeat(32),
+                design_digests: vec![],
+            },
+            content_hash: "cd".repeat(32),
+        },
+    );
+    let mut expected = vec![45];
+    expected.extend(text("event"));
+    expected.push(0); // Imported
+    expected.extend(text("approved"));
+    expected.extend(9_u64.to_le_bytes());
+    expected.extend(text(&"ab".repeat(32)));
+    expected.extend(0_u32.to_le_bytes()); // no ballot design digests
+    expected.extend(text(&"cd".repeat(32)));
+    assert_eq!(borsh::to_vec(&body).unwrap(), expected);
+    assert_eq!(
+        borsh::to_vec(&borsh::from_slice::<StatementBody>(&expected).unwrap()).unwrap(),
+        expected
+    );
+    for limit in 0..expected.len() {
+        assert!(borsh::from_slice::<StatementBody>(&expected[..limit]).is_err());
+    }
+    let mut trailing = expected;
+    trailing.push(0);
+    assert!(borsh::from_slice::<StatementBody>(&trailing).is_err());
 }

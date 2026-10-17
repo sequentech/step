@@ -443,6 +443,10 @@ export const logEntryView = (
     if (isObject(body) && Array.isArray(body[STATEMENT_KIND_ADMIN_PUBLIC_KEY])) {
         view.publicKey = keyText(body[STATEMENT_KIND_ADMIN_PUBLIC_KEY][2])
     }
+    if (kind === "ConfigurationPackageImported" && isObject(body)) {
+        const imported = body.ConfigurationPackageWithContentHash ?? body.ConfigurationPackage
+        if (Array.isArray(imported) && isObject(imported[1])) view.extra = rows(imported[1])
+    }
     if (!details) return view
 
     switch (kind) {

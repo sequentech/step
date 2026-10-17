@@ -498,6 +498,18 @@ pub struct ConfigurationPackageDetails {
     pub design_digests: Vec<ConfigurationDesignDigest>,
 }
 
+/// An import's approved content hash, alongside the original package details.
+/// Kept in a separate body variant so historical signed Borsh records stay intact.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ConfigurationPackageImportDetails {
+    #[serde(flatten)]
+    pub package: ConfigurationPackageDetails,
+    /// The verified manifest's `content_sha256`: what the approvers signed.
+    pub content_hash: String,
+}
+
 /// The hash manifest a report's generation wrote, and the signed
 /// configuration it names.
 #[derive(

@@ -1124,3 +1124,43 @@ fn a_keycloak_event_keeps_the_time_keycloak_saw_it() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn a_configuration_import_authenticates_the_approved_content_hash() -> Result<()> {
+    let (data, public) = signer()?;
+    let details = ConfigurationPackageImportDetails {
+        package: ConfigurationPackageDetails {
+            action: ConfigurationPackageAction::Imported,
+            external_id: "approved-configuration".into(),
+            revision: 9,
+            manifest_sha256: "ab".repeat(32),
+            design_digests: vec![],
+        },
+        content_hash: "cd".repeat(32),
+    };
+    let mut message = Message::configuration_package_with_content_hash_message(
+        event(),
+        details,
+        &data,
+        actor(),
+        actor(),
+    )?;
+    assert_record(&message, &public, "ConfigurationPackageImported", None)?;
+    let json = serde_json::to_value(&message)?;
+    let details = &json["statement"]["body"]["ConfigurationPackageWithContentHash"][1];
+    assert_eq!(details["content_hash"], "cd".repeat(32));
+    assert_eq!(details["manifest_sha256"], "ab".repeat(32));
+    assert!(message
+        .statement
+        .head
+        .description
+        .contains(&"cd".repeat(32)));
+    let StatementBody::ConfigurationPackageWithContentHash(_, details) =
+        &mut message.statement.body
+    else {
+        panic!("not a configuration import with its content hash");
+    };
+    details.content_hash = "ef".repeat(32);
+    assert!(message.verify(&public).is_err());
+    Ok(())
+}

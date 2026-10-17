@@ -479,3 +479,43 @@ export const ReadinessDistrictTerminology: Story = {
         expect(LEGACY_READINESS_ENTRY.message).toContain("counts_by_post")
     },
 }
+
+export const ConfigurationPackageImport: Story = {
+    args: {
+        log: {kind: ELogScope.EVENT, electionEventId: EVENT_ID},
+        entry: {
+            ...SEAL_ENTRY,
+            statement_kind: "ConfigurationPackageImported",
+            message: JSON.stringify({
+                user_id: "configuration-operator",
+                username: "configuration.operator",
+                statement: {
+                    head: {
+                        event_type: "USER",
+                        log_type: "INFO",
+                        description: "Approved configuration imported.",
+                    },
+                    body: {
+                        ConfigurationPackageWithContentHash: [
+                            EVENT_ID,
+                            {
+                                action: "Imported",
+                                external_id: "approved-configuration",
+                                revision: 9,
+                                manifest_sha256: "ab".repeat(32),
+                                content_hash: "cd".repeat(32),
+                                design_digests: [],
+                            },
+                        ],
+                    },
+                },
+            }),
+        },
+    },
+    play: async () => {
+        const view = await dialog()
+        await expect(view.getByText("content_hash", {exact: true})).toBeVisible()
+        await expect(view.getByText("cd".repeat(32), {exact: true})).toBeVisible()
+        await expect(view.getByText("ab".repeat(32), {exact: true})).toBeVisible()
+    },
+}
