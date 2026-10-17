@@ -88,6 +88,9 @@ jobs:
           cargo-build-path: packages/wbraid/target
           cargo-lock-path: packages/wbraid/Cargo.lock
 
+      - name: Install PostgreSQL TLS fixture tools
+        run: sudo apt-get install -y postgresql libpq-dev openssl
+
       # The live-b4 protocol tests (test_protocol_http*) and the Verificatum
       # interop tests are #[ignore]d: they need a running b4 + LocalStack or a
       # JVM with the Verificatum jars. The live-b4 ones run in the live-b4 job below.
@@ -228,7 +231,7 @@ jobs:
       - name: Start b4v6 postgres
         id: b4v6-postgres
         env:
-          DATABASE_URL: 'postgres://postgres:postgres@localhost:5432/b4'
+          DATABASE_URL: 'postgres://postgres:postgres@localhost:5432/b4?sslmode=disable'
           WBRAID_B4_BIND: '127.0.0.1:${{ env.POSTGRES_B4_PORT }}'
           WBRAID_B4_URL: 'http://127.0.0.1:${{ env.POSTGRES_B4_PORT }}'
         run: |
@@ -237,7 +240,7 @@ jobs:
 
       - name: Wait b4v6 postgres
         env:
-          DATABASE_URL: 'postgres://postgres:postgres@localhost:5432/b4'
+          DATABASE_URL: 'postgres://postgres:postgres@localhost:5432/b4?sslmode=disable'
           WBRAID_B4_BIND: '127.0.0.1:${{ env.POSTGRES_B4_PORT }}'
           WBRAID_B4_URL: 'http://127.0.0.1:${{ env.POSTGRES_B4_PORT }}'
         run: |

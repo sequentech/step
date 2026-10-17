@@ -250,7 +250,7 @@ jobs:
       CARGO_PROFILE_DEV_DEBUG: "0"
       CARGO_PROFILE_TEST_DEBUG: "0"
       CARGO_INCREMENTAL: "0"
-      WBRAID_BOARD_DATABASE_URL: postgres://test:test@127.0.0.1:3322/test
+      WBRAID_BOARD_DATABASE_URL: postgres://test:test@127.0.0.1:3322/test?sslmode=disable
       # The ballot box seal tests post to boards of their own on this server.
     services:
       postgres:
