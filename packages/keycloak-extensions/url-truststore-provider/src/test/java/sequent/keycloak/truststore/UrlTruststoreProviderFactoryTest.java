@@ -9,6 +9,7 @@ import static org.mockito.Mockito.*;
 
 import java.net.URL;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import javax.security.auth.x500.X500Principal;
@@ -19,6 +20,8 @@ import org.keycloak.models.KeycloakContext;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.truststore.TruststoreProvider;
+import sequent.keycloak.harvest.HarvestEndpoint;
+import sequent.keycloak.harvest.HarvestTlsPolicy;
 
 class UrlTruststoreProviderFactoryTest {
 
@@ -35,26 +38,33 @@ class UrlTruststoreProviderFactoryTest {
     return url.substring(0, url.lastIndexOf('/') + 1);
   }
 
-  /** Creates and initialises a factory using the given PEM URL as the global truststore. */
-  private static UrlTruststoreProviderFactory initFactory(String globalUrl) {
+  private static final Map<String, String> TEST_HARVEST_ENVIRONMENT =
+      Map.of(HarvestEndpoint.ENV_HARVEST_DOMAIN, "test-harvest");
+
+  /**
+   * Creates and initialises a factory using the given PEM URL as the global truststore and the
+   * given environment variables.
+   */
+  private static UrlTruststoreProviderFactory initFactory(
+      String globalUrl, Map<String, String> environment) {
     Config.Scope config = mock(Config.Scope.class);
     when(config.get("url")).thenReturn(globalUrl);
     when(config.get("hostname-verification-policy", "DEFAULT")).thenReturn("DEFAULT");
     when(config.getLong("refresh-interval-seconds", 0L)).thenReturn(0L);
     UrlTruststoreProviderFactory factory = new UrlTruststoreProviderFactory();
+    factory.environment = environment::get;
     factory.init(config);
     return factory;
   }
 
+  /** Creates and initialises a factory using the given PEM URL as the global truststore. */
+  private static UrlTruststoreProviderFactory initFactory(String globalUrl) {
+    return initFactory(globalUrl, TEST_HARVEST_ENVIRONMENT);
+  }
+
   /** Creates and initialises a factory with no global URL (falls back to JVM truststore). */
   private static UrlTruststoreProviderFactory initFactoryNoGlobalUrl() {
-    Config.Scope config = mock(Config.Scope.class);
-    when(config.get("url")).thenReturn(null);
-    when(config.get("hostname-verification-policy", "DEFAULT")).thenReturn("DEFAULT");
-    when(config.getLong("refresh-interval-seconds", 0L)).thenReturn(0L);
-    UrlTruststoreProviderFactory factory = new UrlTruststoreProviderFactory();
-    factory.init(config);
-    return factory;
+    return initFactory(null, TEST_HARVEST_ENVIRONMENT);
   }
 
   /**
@@ -140,9 +150,8 @@ class UrlTruststoreProviderFactoryTest {
   @Test
   void noGlobalUrlRealmCertNotFoundFallsBackToJvmTruststore() {
     UrlTruststoreProviderFactory factory = initFactoryNoGlobalUrl();
-    factory.harvestDomainSupplier = () -> "test-harvest";
     factory.realmUrlBuilder =
-        (domain, electionEventId) -> certsBaseUrl() + "client-ca-" + electionEventId + ".pem";
+        (harvest, electionEventId) -> certsBaseUrl() + "client-ca-" + electionEventId + ".pem";
     // "master" exits early — should fall back to JVM truststore.
     KeycloakSession masterSession = sessionWithRealm("master-id", "master");
 
@@ -184,10 +193,9 @@ class UrlTruststoreProviderFactoryTest {
   @Test
   void createReturnsRealmSpecificProviderForRealm() {
     UrlTruststoreProviderFactory factory = initFactory(certUrl("root-ca.pem"));
-    factory.harvestDomainSupplier = () -> "test-harvest";
     // election event id "realm-chain" resolves to client-ca-realm-chain.pem (root + intermediate).
     factory.realmUrlBuilder =
-        (domain, electionEventId) -> certsBaseUrl() + "client-ca-" + electionEventId + ".pem";
+        (harvest, electionEventId) -> certsBaseUrl() + "client-ca-" + electionEventId + ".pem";
     KeycloakSession session = sessionWithRealm("realm-1", "tenant-test-event-realm-chain");
 
     TruststoreProvider realmProvider = factory.create(session);
@@ -202,8 +210,7 @@ class UrlTruststoreProviderFactoryTest {
 
   @Test
   void createFallsBackToGlobalWhenEnvVarNotSet() {
-    UrlTruststoreProviderFactory factory = initFactory(certUrl("root-ca.pem"));
-    factory.harvestDomainSupplier = () -> null; // env var not configured
+    UrlTruststoreProviderFactory factory = initFactory(certUrl("root-ca.pem"), Map.of());
     KeycloakSession sessionWithRealm = sessionWithRealm("realm-1", "realm-root");
     KeycloakSession sessionNoRealm = sessionWithNoRealm();
 
@@ -216,9 +223,8 @@ class UrlTruststoreProviderFactoryTest {
   @Test
   void createFallsBackToGlobalForNonEventRealm() {
     UrlTruststoreProviderFactory factory = initFactory(certUrl("root-ca.pem"));
-    factory.harvestDomainSupplier = () -> "test-harvest";
     factory.realmUrlBuilder =
-        (domain, electionEventId) -> certsBaseUrl() + "client-ca-" + electionEventId + ".pem";
+        (harvest, electionEventId) -> certsBaseUrl() + "client-ca-" + electionEventId + ".pem";
     // Tenant-only realm names (no "-event-" infix) should fall back to global.
     KeycloakSession tenantSession = sessionWithRealm("tenant-id", "tenant-test");
 
@@ -233,9 +239,8 @@ class UrlTruststoreProviderFactoryTest {
   @Test
   void createFallsBackToGlobalWhenNoRealmContext() {
     UrlTruststoreProviderFactory factory = initFactory(certUrl("root-ca.pem"));
-    factory.harvestDomainSupplier = () -> "test-harvest";
     factory.realmUrlBuilder =
-        (domain, electionEventId) -> certsBaseUrl() + "client-ca-" + electionEventId + ".pem";
+        (harvest, electionEventId) -> certsBaseUrl() + "client-ca-" + electionEventId + ".pem";
 
     TruststoreProvider provider = factory.create(sessionWithNoRealm());
 
@@ -246,9 +251,8 @@ class UrlTruststoreProviderFactoryTest {
   @Test
   void createCachesRealmProvider() {
     UrlTruststoreProviderFactory factory = initFactory(certUrl("root-ca.pem"));
-    factory.harvestDomainSupplier = () -> "test-harvest";
     factory.realmUrlBuilder =
-        (domain, electionEventId) -> certsBaseUrl() + "client-ca-" + electionEventId + ".pem";
+        (harvest, electionEventId) -> certsBaseUrl() + "client-ca-" + electionEventId + ".pem";
 
     TruststoreProvider p1 =
         factory.create(sessionWithRealm("realm-1", "tenant-test-event-realm-root"));
@@ -261,9 +265,8 @@ class UrlTruststoreProviderFactoryTest {
   @Test
   void createFallsBackToGlobalWhenRealmCertNotFound() {
     UrlTruststoreProviderFactory factory = initFactory(certUrl("root-ca.pem"));
-    factory.harvestDomainSupplier = () -> "test-harvest";
     factory.realmUrlBuilder =
-        (domain, electionEventId) -> certsBaseUrl() + "client-ca-" + electionEventId + ".pem";
+        (harvest, electionEventId) -> certsBaseUrl() + "client-ca-" + electionEventId + ".pem";
     // "master" exits early — should silently use global provider.
     KeycloakSession masterSession = sessionWithRealm("master-id", "master");
 
@@ -279,9 +282,8 @@ class UrlTruststoreProviderFactoryTest {
   @Test
   void createCachesNotFoundSentinelToAvoidRetry() {
     UrlTruststoreProviderFactory factory = initFactory(certUrl("root-ca.pem"));
-    factory.harvestDomainSupplier = () -> "test-harvest";
     factory.realmUrlBuilder =
-        (domain, electionEventId) -> certsBaseUrl() + "client-ca-" + electionEventId + ".pem";
+        (harvest, electionEventId) -> certsBaseUrl() + "client-ca-" + electionEventId + ".pem";
     // Use an event realm whose cert file does not exist — should cache a sentinel.
     KeycloakSession masterSession1 =
         sessionWithRealm("missing-id", "tenant-test-event-nonexistent");
@@ -298,9 +300,8 @@ class UrlTruststoreProviderFactoryTest {
   @Test
   void differentRealmsGetIndependentProviders() {
     UrlTruststoreProviderFactory factory = initFactory(certUrl("root-ca.pem"));
-    factory.harvestDomainSupplier = () -> "test-harvest";
     factory.realmUrlBuilder =
-        (domain, electionEventId) -> certsBaseUrl() + "client-ca-" + electionEventId + ".pem";
+        (harvest, electionEventId) -> certsBaseUrl() + "client-ca-" + electionEventId + ".pem";
 
     // realm-a → client-ca-realm-root.pem (root only)
     // realm-b → client-ca-realm-chain.pem (root + intermediate)
@@ -316,5 +317,61 @@ class UrlTruststoreProviderFactoryTest {
     assertTrue(
         pA.getIntermediateCertificates().isEmpty(),
         "realm-a uses realm-root so should have no intermediate CAs");
+  }
+
+  // --- Harvest endpoint resolution ---
+
+  /**
+   * Initialises a factory with the given environment and returns the per-realm CA URLs that the
+   * default URL builder constructs for an event realm.
+   */
+  private static List<String> realmCaUrlsFor(Map<String, String> environment) {
+    UrlTruststoreProviderFactory factory = initFactory(certUrl("root-ca.pem"), environment);
+    List<String> builtUrls = new ArrayList<>();
+    factory.realmUrlBuilder =
+        factory.realmUrlBuilder.andThen(
+            url -> {
+              builtUrls.add(url);
+              return certsBaseUrl() + "client-ca-realm-root.pem";
+            });
+
+    factory.create(sessionWithRealm("realm-1", "tenant-t1-event-e1"));
+    return builtUrls;
+  }
+
+  @Test
+  void realmCaUrlUsesHarvestUrlUnderRequireTls() {
+    List<String> urls =
+        realmCaUrlsFor(
+            Map.of(
+                HarvestEndpoint.ENV_HARVEST_URL, "https://harvest.internal:8443",
+                HarvestEndpoint.ENV_HARVEST_DOMAIN, "harvest:8400",
+                HarvestEndpoint.ENV_HARVEST_TLS_POLICY, HarvestTlsPolicy.REQUIRE_TLS.name()));
+
+    assertEquals(
+        List.of("https://harvest.internal:8443/election-event/e1/certificate-authorities/pem"),
+        urls);
+  }
+
+  @Test
+  void realmCaUrlFallsBackToPlainHttpHarvestDomain() {
+    List<String> urls = realmCaUrlsFor(Map.of(HarvestEndpoint.ENV_HARVEST_DOMAIN, "harvest:8400"));
+
+    assertEquals(
+        List.of("http://harvest:8400/election-event/e1/certificate-authorities/pem"), urls);
+  }
+
+  @Test
+  void initRejectsPlainHttpHarvestWhenTlsIsRequired() {
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            initFactory(
+                certUrl("root-ca.pem"),
+                Map.of(
+                    HarvestEndpoint.ENV_HARVEST_DOMAIN,
+                    "harvest:8400",
+                    HarvestEndpoint.ENV_HARVEST_TLS_POLICY,
+                    HarvestTlsPolicy.REQUIRE_TLS.name())));
   }
 }
