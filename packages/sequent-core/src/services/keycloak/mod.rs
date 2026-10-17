@@ -6,6 +6,8 @@ mod admin_client;
 mod permission;
 mod realm;
 mod role;
+#[cfg(test)]
+mod test_support;
 mod user;
 
 pub use self::admin_client::*;
