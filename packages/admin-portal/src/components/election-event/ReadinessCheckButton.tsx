@@ -53,7 +53,7 @@ export function ReadinessDialog({
     tenantId: string
     onClose: () => void
 }) {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const alias = useAliasRenderer()
     const refresh = useRefresh()
     const [tested, setTested] = useState<TestedEvent | null>(null)
@@ -73,9 +73,14 @@ export function ReadinessDialog({
     )
     const eventLabel = (option: TestedEvent) =>
         `${alias(option)} · ${option.id}${option.is_archived ? ` · ${t("readiness.archived")}` : ""}`
-    const options = (data?.sequent_backend_election_event ?? []).filter(
-        (option) => option.id !== event.id
-    )
+    const collator = new Intl.Collator(i18n.language, {numeric: true, sensitivity: "base"})
+    const options = (data?.sequent_backend_election_event ?? [])
+        .filter((option) => option.id !== event.id)
+        .sort(
+            (left, right) =>
+                collator.compare(alias(left), alias(right)) ||
+                String(left.id).localeCompare(String(right.id))
+        )
 
     const run = async () => {
         if (!tested || tested.id === event.id || pending || loading || error) return

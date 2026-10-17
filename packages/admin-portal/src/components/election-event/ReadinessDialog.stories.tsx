@@ -59,7 +59,23 @@ const meta = {
                         : {
                               data: {
                                   sequent_backend_election_event:
-                                      args.eventList === "empty" ? [] : [tested],
+                                      args.eventList === "empty"
+                                          ? []
+                                          : [
+                                                eventRecord(undefined, {
+                                                    id: storyId(2, 5),
+                                                    presentation: {
+                                                        i18n: {en: {name: "Zulu rehearsal"}},
+                                                    },
+                                                }),
+                                                tested,
+                                                eventRecord(undefined, {
+                                                    id: storyId(2, 4),
+                                                    presentation: {
+                                                        i18n: {en: {name: "Alpha rehearsal"}},
+                                                    },
+                                                }),
+                                            ],
                               },
                           },
                 ReadinessCheck: () =>
@@ -106,7 +122,13 @@ async function open(canvasElement: HTMLElement) {
 async function run(canvasElement: HTMLElement) {
     const dialog = await open(canvasElement)
     await userEvent.click(dialog.getByRole("combobox"))
-    const option = await within(document.body).findByRole("option", {name: /Archived rehearsal/})
+    const options = await within(document.body).findAllByRole("option")
+    expect(options.map((option) => option.textContent?.split(" · ")[0])).toEqual([
+        "Alpha rehearsal",
+        "Archived rehearsal",
+        "Zulu rehearsal",
+    ])
+    const option = within(document.body).getByRole("option", {name: /Archived rehearsal/})
     expect(option).toHaveTextContent(text("archived"))
     await userEvent.click(option)
     await userEvent.click(dialog.getByRole("button", {name: text("run")}))

@@ -13,6 +13,7 @@ const mockDownload = jest.fn()
 const mockQuery = jest.fn()
 const mockRefresh = jest.fn()
 let mockAuthorized = true
+let mockLanguage = "en"
 const official = "22222222-2222-4222-8222-222222222222"
 const tested = "33333333-3333-4333-8333-333333333333"
 const other = "44444444-4444-4444-8444-444444444444"
@@ -49,7 +50,9 @@ jest.mock("@apollo/client", () => ({
     useMutation: () => [mockRun],
     useQuery: (...args: unknown[]) => mockQuery(...args),
 }))
-jest.mock("react-i18next", () => ({useTranslation: () => ({t: (key: string) => key})}))
+jest.mock("react-i18next", () => ({
+    useTranslation: () => ({t: (key: string) => key, i18n: {language: mockLanguage}}),
+}))
 jest.mock("react-admin", () => ({useRefresh: () => mockRefresh}))
 jest.mock("@sequentech/ui-core", () => ({
     downloadBlob: (...args: unknown[]) => mockDownload(...args),
@@ -66,6 +69,7 @@ jest.mock("@/hooks/useAliasRenderer", () => ({
 beforeEach(() => {
     jest.clearAllMocks()
     mockAuthorized = true
+    mockLanguage = "en"
     mockQuery.mockReturnValue({
         data: {sequent_backend_election_event: mockEvents},
         loading: false,
@@ -202,3 +206,26 @@ it("does not permit running against an unavailable event list", async () => {
     expect(screen.getByText("readiness.eventsError")).toBeVisible()
     expect(screen.getByRole("button", {name: "readiness.run"})).toBeDisabled()
 })
+
+it.each([
+    ["en", ["Alpha 2", "alpha 10", "Ängel", "Zulu"]],
+    ["sv", ["Alpha 2", "alpha 10", "Zulu", "Ängel"]],
+])(
+    "sorts displayed event names in %s with natural numbering, including archived events",
+    (language, names) => {
+        mockLanguage = language
+        const events = [
+            event(other, "Zulu"),
+            event(tested, "alpha 10", true),
+            event("fifth", "Ängel"),
+            event("sixth", "Alpha 2"),
+        ]
+        mockQuery.mockReturnValue({data: {sequent_backend_election_event: events}, loading: false})
+        open()
+        fireEvent.mouseDown(screen.getByRole("combobox"))
+        expect(
+            screen.getAllByRole("option").map((option) => option.textContent?.split(" · ")[0])
+        ).toEqual(names)
+        expect(events.map((event) => event.id)).toEqual([other, tested, "fifth", "sixth"])
+    }
+)
