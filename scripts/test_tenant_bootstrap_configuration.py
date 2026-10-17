@@ -32,6 +32,7 @@ class TenantBootstrapConfigurationTests(unittest.TestCase):
                 "MASTER_SECRET", "KEYCLOAK_CLIENT_SECRET", "KEYCLOAK_CLI_CLIENT_SECRET",
                 "HASURA_GRAPHQL_ADMIN_SECRET", "AWS_S3_ROOT_PASSWORD", "AWS_S3_ACCESS_SECRET",
                 "KEYCLOAK_ADMIN_PASSWORD", "KEYCLOAK_ADMIN_CLIENT_SECRET",
+                "TRUSTEE1_PASSWORD", "TRUSTEE2_PASSWORD",
             ]
             (root / ".env.remote-deployment.example").write_text(
                 "\n".join(f"{name}=synthetic-before" for name in names) + "\n"
@@ -58,11 +59,15 @@ class TenantBootstrapConfigurationTests(unittest.TestCase):
                 capture_output=True, text=True, timeout=30,
             )
             prepared = None if invalid_realm else json.loads(realm_path.read_text())
-            return result, prepared
+            env_path = root / ".env"
+            env = dict(
+                line.split("=", 1) for line in env_path.read_text().splitlines() if "=" in line
+            ) if env_path.exists() else {}
+            return result, prepared, env
 
     def test_prepared_realm_has_no_user_credentials_and_keeps_service_clients(self):
         """Remove imported credentials while retaining user metadata and client authentication."""
-        result, realm = self.configure()
+        result, realm, _ = self.configure()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue(all("credentials" not in user for user in realm["users"]))
         admin = realm["users"][0]
@@ -72,9 +77,18 @@ class TenantBootstrapConfigurationTests(unittest.TestCase):
         self.assertTrue(all(client["serviceAccountsEnabled"] for client in realm["clients"]))
         self.assertTrue(all(client["secret"] != "synthetic-before" for client in realm["clients"]))
 
+    def test_trustee_runner_passwords_are_generated(self):
+        """The runners' passwords are per deployment, never the trustee names."""
+        result, _, env = self.configure()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        passwords = [env["TRUSTEE1_PASSWORD"], env["TRUSTEE2_PASSWORD"]]
+        self.assertTrue(all(len(password) == 32 for password in passwords))
+        self.assertNotEqual(passwords[0], passwords[1])
+        self.assertNotIn("synthetic-before", passwords)
+
     def test_invalid_realm_aborts_configuration(self):
         """Never continue provisioning if the realm's credential removal failed."""
-        result, _ = self.configure(invalid_realm=True)
+        result, _, _ = self.configure(invalid_realm=True)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json", result.stderr)
 

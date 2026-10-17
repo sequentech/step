@@ -35,7 +35,9 @@ keys when its configured identity is missing.
 
 Set an initial password for each trustee account and complete its required
 profile fields and MFA enrollment through the tenant portal before starting
-the unattended runner. The account must belong to the trustee group and its
+the unattended runner. Use the runner's `TRUSTEE_PASSWORD` as that password:
+remote deployment configuration and the air-gap bundle generate one per trustee
+in `.env`. The account must belong to the trustee group and its
 `trustee` attribute must match `TRUSTEE_NAME`.
 
 The runner discovers DKG and tally boards through the same public Hasura actions
