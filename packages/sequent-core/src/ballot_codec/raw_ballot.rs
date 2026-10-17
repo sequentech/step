@@ -74,7 +74,7 @@ impl RawBallotCodec for Contest {
         plaintext: &DecodedVoteContest,
     ) -> Result<RawBallotContest, String> {
         let context = ContestCodecContext::new(self)?;
-        let mut bases = context.single_contest_bases();
+        let mut bases = context.single_contest_bases()?;
         let mut choices: Vec<u64> = vec![];
 
         let char_map = self.get_char_map();
@@ -353,15 +353,15 @@ impl RawBallotCodec for Contest {
 
             let write_in_str = write_in_str_res.map(Some).unwrap_or(None);
 
-            // add write_in to choice
-            let n = decoded_contest
+            // add write_in to choice. An explicit invalid candidate has no
+            // decoded choice, so its write-in text is consumed and dropped.
+            if let Some(choice) = decoded_contest
                 .choices
-                .iter()
-                .position(|choice| choice.id == candidate.id)
-                .unwrap();
-            let mut choice = decoded_contest.choices[n].clone();
-            choice.write_in_text = write_in_str;
-            decoded_contest.choices[n] = choice;
+                .iter_mut()
+                .find(|choice| choice.id == candidate.id)
+            {
+                choice.write_in_text = write_in_str;
+            }
         }
 
         if write_in_index < choices.len() {
