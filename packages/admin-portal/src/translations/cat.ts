@@ -1108,6 +1108,10 @@ const catalanTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    since: "Bloquejat des de {{date}}.",
+                    scheduledEnd: "Final del bloqueig programat per a {{date}}.",
+                    endScheduled: "Hi ha un final del bloqueig programat.",
+                    noScheduledEnd: "No hi ha cap final del bloqueig programat.",
                     banner: "Aquest esdeveniment electoral està bloquejat.",
                     policyLabel: "Estat de Confinament",
                     helperText:

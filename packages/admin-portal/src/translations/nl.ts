@@ -1104,6 +1104,10 @@ const dutchTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    since: "Vergrendeld sinds {{date}}.",
+                    scheduledEnd: "Einde van de vergrendeling gepland voor {{date}}.",
+                    endScheduled: "Er is een einde van de vergrendeling gepland.",
+                    noScheduledEnd: "Er is geen einde van de vergrendeling gepland.",
                     banner: "Dit verkiezingsevenement is vergrendeld.",
                     policyLabel: "Vergrendelingsstatus",
                     helperText:

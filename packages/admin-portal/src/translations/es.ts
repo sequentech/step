@@ -1105,6 +1105,10 @@ const spanishTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    since: "Bloqueado desde {{date}}.",
+                    scheduledEnd: "Fin del bloqueo programado para {{date}}.",
+                    endScheduled: "Hay un fin del bloqueo programado.",
+                    noScheduledEnd: "No hay un fin del bloqueo programado.",
                     banner: "Este evento electoral está bloqueado.",
                     policyLabel: "Estado de Confinamiento",
                     helperText:

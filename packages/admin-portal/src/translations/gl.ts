@@ -1103,6 +1103,10 @@ const galegoTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    since: "Bloqueado desde {{date}}.",
+                    scheduledEnd: "Fin do bloqueo programado para {{date}}.",
+                    endScheduled: "Hai un fin do bloqueo programado.",
+                    noScheduledEnd: "Non hai un fin do bloqueo programado.",
                     banner: "Este evento electoral está bloqueado.",
                     policyLabel: "Estado de Bloqueo",
                     helperText:

@@ -1100,6 +1100,10 @@ const englishTranslation = {
                     },
                 },
                 lockdownState: {
+                    since: "Locked down since {{date}}.",
+                    scheduledEnd: "End of lockdown scheduled for {{date}}.",
+                    endScheduled: "An end of lockdown is scheduled.",
+                    noScheduledEnd: "No end of lockdown is scheduled.",
                     banner: "This election event is in lockdown.",
                     policyLabel: "Lockdown Status",
                     helperText:

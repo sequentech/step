@@ -1113,6 +1113,10 @@ const tagalogTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    since: "Naka-lockdown mula {{date}}.",
+                    scheduledEnd: "Nakatakda ang pagtatapos ng lockdown sa {{date}}.",
+                    endScheduled: "May nakatakdang pagtatapos ng lockdown.",
+                    noScheduledEnd: "Walang nakatakdang pagtatapos ng lockdown.",
                     banner: "Naka-lockdown ang kaganapang ito ng halalan.",
                     policyLabel: "Kalagayan ng Lockdown",
                     helperText:

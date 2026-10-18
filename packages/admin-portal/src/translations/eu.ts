@@ -1097,6 +1097,10 @@ const basqueTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    since: "Blokeatuta {{date}} unetik.",
+                    scheduledEnd: "Blokeoaren amaiera {{date}} unerako programatuta dago.",
+                    endScheduled: "Blokeoaren amaiera programatuta dago.",
+                    noScheduledEnd: "Ez dago blokeoaren amaierarik programatuta.",
                     banner: "Hauteskunde-ekitaldi hau blokeatuta dago.",
                     policyLabel: "Blokeo Egoera",
                     helperText:

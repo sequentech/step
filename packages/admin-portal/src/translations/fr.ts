@@ -1110,6 +1110,10 @@ const frenchTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    since: "Verrouillé depuis le {{date}}.",
+                    scheduledEnd: "Fin du verrouillage prévue le {{date}}.",
+                    endScheduled: "Une fin du verrouillage est prévue.",
+                    noScheduledEnd: "Aucune fin du verrouillage n’est prévue.",
                     banner: "Cet événement électoral est verrouillé.",
                     policyLabel: "État de Confinement",
                     helperText:
