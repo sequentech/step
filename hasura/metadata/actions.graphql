@@ -57,7 +57,10 @@ type Mutation {
 }
 
 type Mutation {
-    readiness_check(official_event_id: String!, tested_event_id: String!): jsonb!
+    readiness_check(
+        official_event_id: String!
+        tested_event_id: String!
+    ): jsonb!
 }
 
 type Query {
