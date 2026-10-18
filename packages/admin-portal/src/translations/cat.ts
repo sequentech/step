@@ -317,6 +317,7 @@ const catalanTranslation: TranslationType = {
             },
         },
         logsScreen: {
+            configurationPackage: englishTranslation.translations.logsScreen.configurationPackage,
             readiness: {
                 passed: "Superat",
                 failed: "Fallat",

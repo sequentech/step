@@ -493,7 +493,7 @@ export const ConfigurationPackageImport: Story = {
                     head: {
                         event_type: "USER",
                         log_type: "INFO",
-                        description: "Approved configuration imported.",
+                        description: `Configuration approved-configuration revision 9 imported from a signed package (manifest ${"ab".repeat(32)}, content_hash ${"cd".repeat(32)}).`,
                     },
                     body: {
                         ConfigurationPackageWithContentHash: [
@@ -514,7 +514,13 @@ export const ConfigurationPackageImport: Story = {
     },
     play: async () => {
         const view = await dialog()
-        await expect(view.getByText("content_hash", {exact: true})).toBeVisible()
+        await expect(
+            view.getByText(
+                "Configuration approved-configuration revision 9 imported from a signed package.",
+                {exact: true}
+            )
+        ).toBeVisible()
+        await expect(view.getByText("Content hash", {exact: true})).toBeVisible()
         await expect(view.getByText("cd".repeat(32), {exact: true})).toBeVisible()
         await expect(view.getByText("ab".repeat(32), {exact: true})).toBeVisible()
     },

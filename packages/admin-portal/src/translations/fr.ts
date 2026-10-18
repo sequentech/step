@@ -240,6 +240,7 @@ const frenchTranslation: TranslationType = {
             },
         },
         logsScreen: {
+            configurationPackage: englishTranslation.translations.logsScreen.configurationPackage,
             readiness: {
                 passed: "Réussi",
                 failed: "Échoué",

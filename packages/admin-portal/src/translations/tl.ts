@@ -240,6 +240,7 @@ const tagalogTranslation: TranslationType = {
             },
         },
         logsScreen: {
+            configurationPackage: englishTranslation.translations.logsScreen.configurationPackage,
             readiness: {
                 passed: "Pumasa",
                 failed: "Nabigo",

@@ -240,6 +240,7 @@ const basqueTranslation: TranslationType = {
             },
         },
         logsScreen: {
+            configurationPackage: englishTranslation.translations.logsScreen.configurationPackage,
             readiness: {
                 passed: "Gainditua",
                 failed: "Huts eginda",

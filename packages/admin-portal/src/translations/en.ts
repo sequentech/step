@@ -237,6 +237,18 @@ const englishTranslation = {
             },
         },
         logsScreen: {
+            configurationPackage: {
+                imported:
+                    "Configuration {{externalId}} revision {{revision}} imported from a signed package.",
+                fields: {
+                    action: "Action",
+                    external_id: "External ID",
+                    revision: "Revision",
+                    manifest_sha256: "Manifest SHA-256",
+                    content_hash: "Content hash",
+                    design_digests: "Ballot design digests",
+                },
+            },
             readiness: {
                 passed: "Passed",
                 failed: "Failed",

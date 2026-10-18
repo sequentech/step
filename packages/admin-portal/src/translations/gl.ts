@@ -239,6 +239,7 @@ const galegoTranslation: TranslationType = {
             },
         },
         logsScreen: {
+            configurationPackage: englishTranslation.translations.logsScreen.configurationPackage,
             readiness: {
                 passed: "Superado",
                 failed: "Fallido",

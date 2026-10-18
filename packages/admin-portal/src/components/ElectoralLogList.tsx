@@ -40,6 +40,7 @@ import {
 } from "@/queries/ListElectoralLog"
 import type {TFunction} from "i18next"
 import {readinessDescription} from "./logs/readinessLog"
+import {configurationPackageDescription} from "./logs/configurationPackageLog"
 import {logMessage} from "./logs/logMessage"
 import {LogTime} from "./logs/LogTime"
 import {ExportLogsDialog} from "./logs/ExportLogsDialog"
@@ -184,6 +185,7 @@ const messageUser = (record: ILogRow, field: "user_id" | "username"): string | n
 
 const description = (t: TFunction, record: ILogRow): string =>
     readinessDescription(t, record.statement_kind) ??
+    configurationPackageDescription(t, record.statement_kind, logMessage(record)) ??
     (logMessage(record)?.statement?.head?.description || "-")
 
 /** A narrow list's entry: two lines that open the same popup as a row. */

@@ -1150,11 +1150,10 @@ fn a_configuration_import_authenticates_the_approved_content_hash() -> Result<()
     let details = &json["statement"]["body"]["ConfigurationPackageWithContentHash"][1];
     assert_eq!(details["content_hash"], "cd".repeat(32));
     assert_eq!(details["manifest_sha256"], "ab".repeat(32));
-    assert!(message
-        .statement
-        .head
-        .description
-        .contains(&"cd".repeat(32)));
+    assert_eq!(
+        message.statement.head.description,
+        "Configuration approved-configuration revision 9 imported from a signed package."
+    );
     let StatementBody::ConfigurationPackageWithContentHash(_, details) =
         &mut message.statement.body
     else {

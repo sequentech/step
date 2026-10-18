@@ -241,6 +241,7 @@ const dutchTranslation: TranslationType = {
             },
         },
         logsScreen: {
+            configurationPackage: englishTranslation.translations.logsScreen.configurationPackage,
             readiness: {
                 passed: "Geslaagd",
                 failed: "Mislukt",

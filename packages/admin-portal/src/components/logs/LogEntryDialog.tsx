@@ -20,6 +20,10 @@ import {logFieldLabelKey, logObjectTypeKey} from "./logFieldLabels"
 import {logMessage} from "./logMessage"
 import {ELogScope, type ILogTarget} from "./logScope"
 import {readinessDescription, readinessDetailRows} from "./readinessLog"
+import {
+    configurationPackageDescription,
+    configurationPackageFieldLabel,
+} from "./configurationPackageLog"
 import {StatementExplanation, explanationLines} from "./StatementExplanation"
 
 /** A row of a log list, as listElectoralLog answers it. */
@@ -295,7 +299,9 @@ const EntryContent: React.FC<{entry: ILogRow; log: ILogTarget; zone: string}> = 
                 className="log-entry-description"
                 sx={{fontWeight: 500, overflowWrap: "anywhere", whiteSpace: "pre-wrap", m: 0}}
             >
-                {readinessDescription(t, entry.statement_kind) ?? (view.description || "-")}
+                {readinessDescription(t, entry.statement_kind) ??
+                    configurationPackageDescription(t, view.statementKind, message) ??
+                    (view.description || "-")}
             </Typography>
             <Box sx={{display: "flex", flexWrap: "wrap", gap: 1}}>
                 {chips.map(({title, label, error}) =>
@@ -618,7 +624,10 @@ const EntryContent: React.FC<{entry: ILogRow; log: ILogTarget; zone: string}> = 
                 <Section title={String(t("logsScreen.entry.details"))}>
                     <Facts>
                         {extra.map(({name, value}) => (
-                            <Fact key={name} label={name}>
+                            <Fact
+                                key={name}
+                                label={configurationPackageFieldLabel(t, view.statementKind, name)}
+                            >
                                 {value}
                             </Fact>
                         ))}

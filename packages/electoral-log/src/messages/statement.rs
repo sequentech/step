@@ -336,9 +336,8 @@ impl StatementHead {
                 kind: StatementType::ConfigurationPackageImported,
                 event_type: StatementEventType::USER,
                 description: format!(
-                    "Configuration {} revision {} imported from a signed package (manifest {}, content_hash {}).",
-                    details.package.external_id, details.package.revision,
-                    details.package.manifest_sha256, details.content_hash
+                    "Configuration {} revision {} imported from a signed package.",
+                    details.package.external_id, details.package.revision
                 ),
                 ..default_head
             },
