@@ -187,6 +187,8 @@ export interface TreeServicesOptions {
     sealAtClose?: boolean
     /** How the election event deletion task ends. */
     deleteTask?: ETaskExecutionStatus
+    /** More GraphQL operations, e.g. a screen's, answered beside the tree's. */
+    handlers?: Parameters<typeof graphqlBoundary>[0]
 }
 
 export interface TreeServices {
@@ -213,6 +215,7 @@ export function treeServices({
     deleteRefusal,
     sealAtClose = false,
     deleteTask = ETaskExecutionStatus.SUCCESS,
+    handlers = {},
 }: TreeServicesOptions = {}): TreeServices {
     const data = resourceBoundary(
         {
@@ -329,6 +332,7 @@ export function treeServices({
                     ],
                 },
             }),
+            ...handlers,
         },
         {schema: true}
     )

@@ -318,6 +318,12 @@ fn build_application_with(
             ],
         )
         .mount("/", routes![routes::plugins::plugin_routes])
+        .mount("/", routes![
+            routes::plugin_platform::tenant_plugins,
+            routes::plugin_platform::set_tenant_plugin_state,
+            routes::plugin_platform::execute_plugin_operation,
+        ])
+        .attach(routes::plugin_platform::registry_fairing())
         .manage(LastDatafixAccessToken::init())
         .manage(services);
     // Only with MESSAGING_FAKE_PROVIDER_ROUTES=ENABLED (development).
