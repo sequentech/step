@@ -6,18 +6,22 @@ title: Election Readiness Rehearsal and Verification
 <!-- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io> -->
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
-Use a separate tested election event to rehearse the approved procedure while
-keeping the official event unopened. The readiness check compares these two
-events and records technical evidence at one time. The election authority defines
+Use three election events in the same tenant: **ERT** for the readiness rehearsal,
+**FTL** for final testing, and **official** for enrollment and actual voting. Label
+the tested events in their display names without changing signed content. The
+official event must be imported and published, with its certified registry loaded,
+before enrollment starts; its voting stays unopened until the first voting day.
+The readiness check compares FTL with the official event and records technical
+evidence at one time. The election authority defines
 the operating procedure, officer authorization, witnesses, key custody, account
 isolation, retention and schedule; the report does not replace those approvals.
 
 ## Prepare the approved configuration
 
 Assign an operator with `readiness-check` and the authorized officers and
-witnesses required by the approved procedure. If the procedure uses lockdown,
-plan its start and end with the existing scheduling controls. End lockdown before
-an authorized tally that requires access to the restricted actions.
+witnesses required by the approved procedure. Record the authority's decisions on
+the separate-event re-zero, custody, selected voter accounts, schedule exceptions
+and test tallies before execution. Keep separate ERT and FTL evidence folders.
 
 In the source configuration, choose **Required SHA-256** for voter-file integrity
 and **Seal at close** before producing the approved tested and official packages.
@@ -42,8 +46,26 @@ Follow the [configuration import guide](../../07-developers/10-tutorials/06-impo
 [scheduling tutorial](./13-admin_portal_tutorials_scheduled-events.md) and
 [seal runbook](./22-admin_portal_tutorials_ballot-box-seal-runbook.md).
 Use the supported ceremony, export/import and trustee custody workflows required
-by the approved procedure. A separate ceremony can rehearse the procedure but
-does not prove operation with the official keys.
+by the approved procedure. To prove that the official keys decrypt, perform one
+ceremony on the airgap computer and carry its keys into all three events using
+event exports that include the bulletin board, subject to the approved custody
+decision. Retain the ceremony and import-verification evidence. A separate
+ceremony can rehearse the procedure but does not prove operation with the
+official keys.
+
+## Set and verify the official schedule
+
+In the **official** event's **Scheduled Events**, enter the start and end dates
+for ERT, FTL, lockdown and voting for every area, or use **Import schedule**.
+Check each area's timezone and export the schedule. FTL must be no later than
+seven days before voting; resolve every existing seven-day warning or retain the
+authority's approval of the exception in the FTL minutes.
+
+Retain `LifecycleWindowChanged` entries as the scheduled windows open and close.
+Set **Start Lockdown Period** for the end of FTL and **End Lockdown Period** before
+the authorized official tally; the proposed period ends when voting closes in
+every area. **Lockdown Status** is read-only and changes through these scheduled
+events. The operator must run the readiness check again when lockdown starts.
 
 ## Import the certified voter registry
 
@@ -77,21 +99,92 @@ For commands, see [Certified imports and readiness checks](../../07-developers/0
 A locally computed hash can diagnose a mismatch but cannot replace the
 independently certified expected value.
 
-## Execute the rehearsal
+## Execute ERT
 
-Confirm the approved **Seal at close** policy was imported into the tested event
-before opening voting, and publish the expected ballot designs for every area.
-Run the approved script using the actual authorization and opening/closing
-workflows. Include authentication, ballot display, casting, receipt verification
-and any tally exercise required by the approved procedure. Record expected
-outcomes and observations using the
-[acceptance-stage ledger](../../07-developers/02-cli/02-tutorials/06-cli-tutorials-acceptance-stage.md).
+1. Import and publish the ERT package with the same approved content and approvers
+   as the official event, using a distinct increasing revision. Retain its import
+   and publication log entries and package hashes.
+2. Import the certified **test** voter file into ERT using the integrity procedure
+   above. Its hash and area counts must match its own certified transmittal; this
+   file can differ from the official registry.
+3. Confirm the imported **Seal at close** policy and the expected published ballot
+   designs for every area. Put the approved keys in place, open ERT through the
+   existing authorization workflow, and open an OPS-PQ acceptance ledger before
+   voters authenticate or vote. Run the approved script, including authentication,
+   ballot display, casting and receipt verification. Record expected results and
+   observed results in the ledger.
+4. Close every applicable election and voting channel. Confirm every expected
+   publication-derived ballot box is **Sealed**; resolve missing, failed or pending
+   seals. Run the ERT tally with the trustees, compare results by contest and area
+   with the script, and generate reports. Keep the results as evidence without
+   publishing them.
+5. Export ERT's CSV/PDF logs and reports, retain its seals and acceptance ledger,
+   then archive ERT. The auditor signs ERT minutes listing each evidence file and
+   its SHA-256. The event must remain closed, sealed and archived with its logs.
 
-Before readiness comparison, close every applicable election and voting channel,
-and confirm every expected publication-derived ballot box is **Sealed**. Resolve
-pending, failed or missing seals. Export and retain the evidence; archive the
-tested event if the approved retention procedure calls for it. Archiving does not
-replace closing and sealing.
+## Execute FTL
+
+1. Recheck the seven-day lead and any approved exception. Import and publish the
+   FTL revision of the same approved content, retaining its package and schedule
+   evidence. Keep the official event unopened.
+2. Import the **same certified full registry** into FTL and the official event
+   using the same certified hash. Match both area-count maps to the transmittal.
+   Give selected voters accounts and credentials in FTL only; their official
+   accounts remain untouched.
+3. Each area's authorized officers initialize and open FTL using the existing
+   quorum workflow. Open a separate OPS-PQ ledger before the selected voters
+   authenticate or vote, execute the script, and record which areas started and
+   completed. Close every election and channel and verify every expected box is
+   sealed under **Seal at close**. Do not run an FTL tally.
+4. With the auditor watching, compare FTL against the official event as described
+   below. Retain the passing JSON and its signed `ReadinessVerified` reference.
+   Archive FTL after the check; keep its logs and seals.
+5. Wait for the official event's scheduled **Start Lockdown Period**. Verify its
+   read-only **Lockdown Status** and retain `LockdownChanged`. Run the readiness
+   check a second time using the CLI, because lockdown hides the Data tab. Retain
+   a separate JSON report and the second `ReadinessVerified` reference. Both the
+   lockdown state and the second check must pass.
+6. Export the official and FTL CSV/PDF logs. Match both readiness records to the
+   saved JSON outputs. The auditor signs the FTL minutes listing every evidence
+   file and its SHA-256, including the schedule and any approved exception.
+
+Use the existing
+[acceptance-stage ledger](../../07-developers/02-cli/02-tutorials/06-cli-tutorials-acceptance-stage.md)
+for each event. For example, after ERT is open and before its voters start:
+
+```bash
+mkdir -p ert-evidence ftl-evidence
+step-cli acceptance init --template voting --output ert-evidence/voting-stage.yaml
+```
+
+Edit the stage to include the approved script's checks, then open its ledger:
+
+```bash
+step-cli acceptance open ert-evidence/voting-stage.yaml \
+  --ledger ert-evidence/voting-ledger.jsonl \
+  --election-event-id "$ERT_EVENT_ID"
+```
+
+After voting, run the automatic checks with the participating test usernames and
+the receipt Ballot IDs, then record all witnessed checks before getting the verdict:
+
+```bash
+step-cli acceptance run ert-evidence/voting-ledger.jsonl \
+  --voters-file ert-voters.txt --ballot-ids-file ert-ballot-ids.txt
+step-cli acceptance record ert-evidence/voting-ledger.jsonl \
+  --check voting.ballot-displayed --outcome pass --witness "$WITNESS" \
+  --note "Approved ballot display checks completed"
+step-cli acceptance verdict ert-evidence/voting-ledger.jsonl \
+  --report ert-evidence/voting-report.md
+```
+
+Record a pass only when the witness observed it; record failures with their
+evidence. Repeat with a new stage and ledger in `ftl-evidence`, `$FTL_EVENT_ID`, and
+the FTL participants and receipt IDs. Keep each ledger head with its signed minutes.
+Use the separate certified-import and readiness command examples in the
+[CLI guide](../../07-developers/02-cli/02-tutorials/07-cli-tutorials-readiness.md).
+These commands use the existing OPS-PQ implementation; they do not cast ballots
+for the voters.
 
 Keep test credentials isolated from official accounts and enrollment. Verify a
 tested-event ballot cannot be cast into the official event. Every ordinary
@@ -122,8 +215,8 @@ including evidence for failed checks. Changing the tested event clears the previ
 result. If a request fails, check the official event's Logs before retrying: the
 server may have recorded evidence before the response was lost.
 
-Run this check at the points required by the approved procedure, such as after the
-rehearsal or when a scheduled lockdown starts. The CLI alternative is
+Run this check after FTL closes and again when scheduled lockdown starts, as above.
+The CLI alternative is
 `step-cli step readiness-check`. Each successful invocation records a separate
 signed `ReadinessVerified` entry in the official event's existing **Logs**. Retain
 the JSON report and returned log entry reference, and correlate them with the

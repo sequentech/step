@@ -102,7 +102,23 @@ a failed check does not. In the existing **Logs** tab, filter statement kind to
 reference. Export CSV/PDF logs through the existing export action. Keep the
 complete JSON alongside the exports.
 
-Repeat at the points required by the authority-approved procedure, including
-lockdown start if applicable. Write each report to a separate file, such as
-`readiness-at-lockdown.json`. An intentional new invocation is a new snapshot. Neither invocation opens voting, clears ballots, changes seals or
+For the ERT/FTL procedure, compare the closed, sealed FTL event with the official
+event, then archive FTL. When the official event's scheduled lockdown starts,
+confirm its read-only lockdown status and retain `LockdownChanged`, then run:
+
+```bash
+step-cli step readiness-check \
+  --official "$OFFICIAL_EVENT_ID" \
+  --tested "$TESTED_EVENT_ID" \
+  > readiness-at-lockdown.json
+```
+
+Here `$TESTED_EVENT_ID` must still identify FTL. Inspect the command exit status
+and retain the second `ReadinessVerified` reference alongside the first report
+and both events' exported logs in the FTL evidence folder. The readiness verdict
+does not require lockdown; verify the reported official `locked_down` value is
+`true` for this second execution. ERT has its own evidence folder, including its
+tally; FTL has no tally.
+
+An intentional new invocation is a new snapshot. Neither invocation opens voting, clears ballots, changes seals or
 replaces the operational approval procedure.
