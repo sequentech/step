@@ -27,7 +27,7 @@ import {
     EVoterCertificatePolicy,
     IVotingChannelsConfig,
 } from "@sequentech/ui-core"
-import {Box, CircularProgress} from "@mui/material"
+import {Alert, Box, CircularProgress} from "@mui/material"
 import {Tabs} from "@/components/Tabs"
 import {useNavigate, useLocation} from "react-router-dom"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
@@ -669,6 +669,23 @@ export const ElectionEventTabs: React.FC = () => {
                 title={aliasRenderer(record)}
                 subtitle="electionEventScreen.common.subtitle"
             />
+            {isElectionEventLocked && (
+                <Alert
+                    severity="warning"
+                    icon={false}
+                    role="status"
+                    aria-label={t("electionEventScreen.field.lockdownState.policyLabel")}
+                    sx={{
+                        mx: 2,
+                        mb: 2,
+                        border: "1px solid",
+                        borderColor: "warning.light",
+                        fontWeight: 600,
+                    }}
+                >
+                    {t("electionEventScreen.field.lockdownState.banner")}
+                </Alert>
+            )}
             <Box sx={{bgcolor: "background.paper"}}>
                 <RecordContextProvider value={record}>
                     {/* The event's screens show their times in its zones. */}

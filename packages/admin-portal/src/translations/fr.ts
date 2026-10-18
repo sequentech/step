@@ -1110,6 +1110,7 @@ const frenchTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    banner: "Cet événement électoral est verrouillé.",
                     policyLabel: "État de Confinement",
                     helperText:
                         "Programmez le début ou la fin de la période de verrouillage pour modifier cet état.",

@@ -1108,6 +1108,7 @@ const catalanTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    banner: "Aquest esdeveniment electoral està bloquejat.",
                     policyLabel: "Estat de Confinament",
                     helperText:
                         "Programeu l’inici o el final del període de bloqueig per canviar aquest estat.",

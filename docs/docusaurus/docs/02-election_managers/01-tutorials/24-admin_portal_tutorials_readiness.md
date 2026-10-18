@@ -140,10 +140,10 @@ independently certified expected value.
    below. Retain the passing JSON and its signed `ReadinessVerified` reference.
    Archive FTL after the check; keep its logs and seals.
 5. Wait for the official event's scheduled **Start Lockdown Period**. Verify its
-   read-only **Lockdown Status** and retain `LockdownChanged`. Run the readiness
-   check a second time using the CLI, because lockdown hides the Data tab. Retain
-   a separate JSON report and the second `ReadinessVerified` reference. Both the
-   lockdown state and the second check must pass.
+   lockdown banner above the event's tabs and retain `LockdownChanged`. Run the
+   readiness check a second time using the CLI, because the Data tab is unavailable
+   during lockdown. Retain a separate JSON report and the second `ReadinessVerified`
+   reference. Both the lockdown state and the second check must pass.
 6. Export the official and FTL CSV/PDF logs. Match both readiness records to the
    saved JSON outputs. The auditor signs the FTL minutes listing every evidence
    file and its SHA-256, including the schedule and any approved exception.

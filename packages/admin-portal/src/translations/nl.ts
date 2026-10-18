@@ -1104,6 +1104,7 @@ const dutchTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    banner: "Dit verkiezingsevenement is vergrendeld.",
                     policyLabel: "Vergrendelingsstatus",
                     helperText:
                         "Plan het begin of einde van de vergrendelingsperiode om deze status te wijzigen.",

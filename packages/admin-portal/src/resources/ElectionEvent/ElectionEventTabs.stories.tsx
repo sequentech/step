@@ -242,6 +242,7 @@ export const Populated: Story = {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText("Council")).toBeVisible()
         expect(await tabNames(canvasElement)).toEqual(ADMIN_TABS)
+        expect(canvas.queryByRole("status", {name: "Lockdown Status"})).toBeNull()
         await expect(canvas.getByRole("tab", {name: "Dashboard"})).toHaveAttribute(
             "aria-selected",
             "true"
@@ -274,6 +275,14 @@ export const LockedDownEvent: Story = {
             "Logs",
             "Reports",
         ])
+        await dashboardLoads(canvasElement)
+        const canvas = within(canvasElement)
+        const banner = canvas.getByRole("status", {name: "Lockdown Status"})
+        expect(banner).toHaveTextContent("This election event is in lockdown.")
+        expect(banner).toBeVisible()
+        await openTab(canvasElement, "Logs")
+        expect(banner).toBeVisible()
+        await openTab(canvasElement, "Dashboard")
         await dashboardLoads(canvasElement)
     },
 }

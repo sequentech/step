@@ -1097,6 +1097,7 @@ const basqueTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    banner: "Hauteskunde-ekitaldi hau blokeatuta dago.",
                     policyLabel: "Blokeo Egoera",
                     helperText:
                         "Programatu blokeo-aldiaren hasiera edo amaiera egoera hau aldatzeko.",

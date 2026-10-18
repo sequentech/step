@@ -1113,6 +1113,7 @@ const tagalogTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    banner: "Naka-lockdown ang kaganapang ito ng halalan.",
                     policyLabel: "Kalagayan ng Lockdown",
                     helperText:
                         "Iiskedyul ang simula o katapusan ng panahon ng lockdown upang baguhin ang kalagayang ito.",

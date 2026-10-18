@@ -1100,6 +1100,7 @@ const englishTranslation = {
                     },
                 },
                 lockdownState: {
+                    banner: "This election event is in lockdown.",
                     policyLabel: "Lockdown Status",
                     helperText:
                         "Schedule a start or end of the lockdown period to change this state.",

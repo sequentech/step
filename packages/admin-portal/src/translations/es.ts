@@ -1105,6 +1105,7 @@ const spanishTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    banner: "Este evento electoral está bloqueado.",
                     policyLabel: "Estado de Confinamiento",
                     helperText:
                         "Programe el inicio o el fin del período de confinamiento para cambiar este estado.",

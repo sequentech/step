@@ -1103,6 +1103,7 @@ const galegoTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    banner: "Este evento electoral está bloqueado.",
                     policyLabel: "Estado de Bloqueo",
                     helperText:
                         "Programe o inicio ou o fin do período de bloqueo para cambiar este estado.",
