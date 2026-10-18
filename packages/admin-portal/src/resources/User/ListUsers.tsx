@@ -872,6 +872,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             console.log(``)
             console.log(`Error importing voters: ${err}`)
             updateWidgetFail(currWidget.identifier)
+            notify(t("electionEventScreen.import.importVotersError"), {type: "error"})
         }
     }
 
