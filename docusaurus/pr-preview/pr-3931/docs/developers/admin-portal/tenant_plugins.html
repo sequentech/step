@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Tenant Plugins | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3931/docs/developers/admin-portal/tenant_plugins"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Tenant Plugins | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3931/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3931/docs/developers/admin-portal/tenant_plugins"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3931/docs/developers/admin-portal/tenant_plugins" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3931/docs/developers/admin-portal/tenant_plugins" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Tenant Plugins","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3931/docs/developers/admin-portal/tenant_plugins"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3931/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3931/assets/js/runtime~main.d9f815c5.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3931/assets/js/runtime~main.5e45669f.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3931/assets/js/main.4a8674eb.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -48,6 +48,9 @@ progress, and concurrent changes are refused with <code>plugin-state-conflict</c
 before and after values, and the record&#x27;s parent at the time, so a parent&#x27;s
 history keeps changes to children that were later deleted.</li>
 </ul>
+<p>The actor is stored twice: the stable user ID (<code>updated_by</code>, <code>actor</code>) and the
+username at the time (<code>updated_by_name</code>, <code>actor_name</code>), which is what screens
+show.</p>
 <p>Deleting a tenant deletes its plugin rows; otherwise history cannot be changed
 or deleted.</p>
 <p>Every change to <code>plugin_tenant</code> and <code>plugin_record</code> is also logged in the
