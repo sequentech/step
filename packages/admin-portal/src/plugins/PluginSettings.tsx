@@ -54,6 +54,11 @@ export const PluginSettings = () => {
                     {error || context.error}
                 </Alert>
             )}
+            {!context.can("tenant-write") && (
+                <Alert severity="info" sx={{mb: 2}}>
+                    {t("plugins.noPermission")}
+                </Alert>
+            )}
             <Stack spacing={2}>
                 {context.plugins.map((plugin) => (
                     <Card variant="outlined" key={plugin.manifest.id}>
@@ -64,12 +69,12 @@ export const PluginSettings = () => {
                                 <Chip label={t(`plugins.${plugin.state}`)} />
                             </Stack>
                             <Typography sx={{my: 1}}>
-                                API {plugin.manifest.api_major} ·{" "}
+                                {t("plugins.api", {major: plugin.manifest.api_major})} ·{" "}
                                 {t(`plugins.${plugin.compatibility}`)}
                             </Typography>
                             <Typography>
                                 {t("plugins.permissions")}: {plugin.manifest.permissions.join(", ")}{" "}
-                                · admin
+                                · {t("plugins.adminGroup")}
                             </Typography>
                             <Button
                                 sx={{mt: 2}}

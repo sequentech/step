@@ -50,6 +50,8 @@ export const TurnOn: Story = {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText("Projects")).toBeVisible()
         await expect(canvas.getByText("Off")).toBeVisible()
+        await expect(canvas.getByText(/^Plugin API 1 · Compatible$/)).toBeVisible()
+        await expect(canvas.getByText(/· granted to the admin group when turned on$/)).toBeVisible()
         await userEvent.click(canvas.getByRole("button", {name: "Turn on"}))
         const dialog = within(await within(document.body).findByRole("dialog"))
         await waitFor(() => expect(dialog.getByText(/granted to the admin group/)).toBeVisible())
@@ -66,6 +68,9 @@ export const WithoutTenantWrite: Story = {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText("Projects")).toBeVisible()
         await expect(canvas.getByRole("button", {name: "Turn on"})).toBeDisabled()
+        await expect(
+            canvas.getByText("Changing plugins needs the tenant-write permission.")
+        ).toBeVisible()
         expect(graphql.calls.map(({name}) => name)).not.toContain("SetTenantPluginState")
     },
 }
