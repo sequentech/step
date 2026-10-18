@@ -56,6 +56,7 @@ export class PluginRequestError extends Error {
         public current?: unknown
     ) {
         super(message)
+        Object.setPrototypeOf(this, PluginRequestError.prototype)
     }
 }
 export const errorMessage = (error: unknown): string =>
