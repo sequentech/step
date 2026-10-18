@@ -4,7 +4,9 @@
 
 # Sequent Hasura runtime: official cli-migrations image + this commit's
 # hasura/migrations and hasura/metadata. On start the upstream entrypoint
-# (docker-entrypoint.sh) applies metadata then migrations, then serves.
+# (docker-entrypoint.sh) applies metadata then migrations, then serves;
+# docker/sequent-entrypoint.sh skips that when nothing changed since the last
+# apply to this database.
 #
 # Build context must be the repo-root `hasura/` directory (CI matrix
 # `context: hasura`), so COPY paths below are relative to that dir — not
@@ -25,7 +27,13 @@ FROM hasura/graphql-engine:${HASURA_VERSION}.cli-migrations-v3
 # those paths are writable by hasura before dropping privileges.
 COPY --chown=hasura:hasura migrations /hasura-migrations
 COPY --chown=hasura:hasura metadata /hasura-metadata
+COPY --chmod=0755 docker/sequent-entrypoint.sh /bin/sequent-entrypoint.sh
+COPY --chmod=0755 docker/sequent-record-apply.sh /bin/sequent-record-apply.sh
 RUN mkdir -p /.hasura /tmp/hasura-project \
     && chown -R hasura:hasura /.hasura /tmp \
     && chmod -R g=u /.hasura /tmp
 USER hasura
+
+# Skips the upstream apply when this image's metadata and migrations were
+# already applied to the database (meta#14308). CMD stays the upstream one.
+ENTRYPOINT ["/bin/sequent-entrypoint.sh"]
