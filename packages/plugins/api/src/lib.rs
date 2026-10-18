@@ -75,6 +75,7 @@ pub struct Record {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub updated_by: String,
+    pub updated_by_name: String,
 }
 
 /// Append-only history, stored in the same transaction as a record change.
@@ -87,6 +88,7 @@ pub struct AuditEvent {
     pub parent_id: Option<Uuid>,
     pub action: String,
     pub actor: String,
+    pub actor_name: String,
     pub at: DateTime<Utc>,
     pub before: Option<Value>,
     pub after: Option<Value>,

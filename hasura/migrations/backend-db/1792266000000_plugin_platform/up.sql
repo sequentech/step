@@ -26,6 +26,8 @@ CREATE TABLE sequent_backend.plugin_record (
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
     updated_by text NOT NULL,
+    -- The actor's username when written; updated_by stays the stable user ID.
+    updated_by_name text NOT NULL,
     PRIMARY KEY (tenant_id, plugin_id, id),
     FOREIGN KEY (tenant_id, plugin_id) REFERENCES sequent_backend.plugin_tenant ON DELETE CASCADE,
     FOREIGN KEY (tenant_id, plugin_id, parent_id)
@@ -43,6 +45,7 @@ CREATE TABLE sequent_backend.plugin_record_event (
     parent_id uuid,
     action text NOT NULL,
     actor text NOT NULL,
+    actor_name text NOT NULL,
     at timestamptz NOT NULL DEFAULT now(),
     before_data jsonb,
     after_data jsonb,

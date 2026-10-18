@@ -24,6 +24,7 @@ import AddIcon from "@mui/icons-material/Add"
 import UploadFileIcon from "@mui/icons-material/UploadFile"
 import TimelineIcon from "@mui/icons-material/Timeline"
 import {useTranslation} from "react-i18next"
+import {useInRouterContext, useNavigate, useParams} from "react-router-dom"
 import {PluginHost, errorMessage} from "../contracts"
 import {
     Operation,
@@ -206,7 +207,7 @@ const ProjectList: React.FC<{host: PluginHost; onOpen: (id: string) => void}> = 
                                                     project.updated_at,
                                                     project.data.timezone
                                                 ),
-                                                actor: project.updated_by,
+                                                actor: project.updated_by_name,
                                             })}
                                         </TableCell>
                                     </TableRow>
@@ -240,19 +241,42 @@ const ProjectList: React.FC<{host: PluginHost; onOpen: (id: string) => void}> = 
     )
 }
 
-/** The Projects plugin screen. The host scopes every operation to the user's tenant. */
-const Projects: React.FC<{host: PluginHost}> = ({host}) => {
-    const [projectId, setProjectId] = useState<string | null>(null)
-    return projectId ? (
-        <ProjectView
-            key={projectId}
-            host={host}
-            projectId={projectId}
-            onBack={() => setProjectId(null)}
-        />
+interface ScreenProps {
+    host: PluginHost
+    projectId: string | null
+    open: (projectId: string | null) => void
+}
+
+const Screen: React.FC<ScreenProps> = ({host, projectId, open}) =>
+    projectId ? (
+        <ProjectView key={projectId} host={host} projectId={projectId} onBack={() => open(null)} />
     ) : (
-        <ProjectList host={host} onOpen={setProjectId} />
+        <ProjectList host={host} onOpen={open} />
+    )
+
+/** Under the plugin's route the open project is in the URL, so a reload or a link keeps it. */
+const RoutedProjects: React.FC<{host: PluginHost}> = ({host}) => {
+    const {"id": pluginId, "*": rest = ""} = useParams()
+    const navigate = useNavigate()
+    const [localId, setLocalId] = useState<string | null>(null)
+    if (!pluginId) return <Screen host={host} projectId={localId} open={setLocalId} />
+    const base = `/plugins/${pluginId}`
+    return (
+        <Screen
+            host={host}
+            projectId={rest.split("/")[0] || null}
+            open={(projectId) => navigate(projectId ? `${base}/${projectId}` : base)}
+        />
     )
 }
+
+const LocalProjects: React.FC<{host: PluginHost}> = ({host}) => {
+    const [projectId, setProjectId] = useState<string | null>(null)
+    return <Screen host={host} projectId={projectId} open={setProjectId} />
+}
+
+/** The Projects plugin screen. The host scopes every operation to the user's tenant. */
+const Projects: React.FC<{host: PluginHost}> = ({host}) =>
+    useInRouterContext() ? <RoutedProjects host={host} /> : <LocalProjects host={host} />
 
 export default Projects

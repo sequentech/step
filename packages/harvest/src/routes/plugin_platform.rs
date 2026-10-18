@@ -100,6 +100,11 @@ fn identity(claims: &JwtClaims) -> Result<Identity, ApiError> {
     let identity = Identity {
         tenant_id,
         user_id: claims.sub.clone(),
+        username: claims
+            .preferred_username
+            .clone()
+            .filter(|name| !name.is_empty())
+            .unwrap_or_else(|| claims.sub.clone()),
         roles: claims.hasura_claims.allowed_roles.clone(),
     };
     identity
@@ -420,6 +425,7 @@ mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
             updated_by: "planner-b".into(),
+            updated_by_name: "planner.b".into(),
         };
         let response = api_error(PluginError::Conflict(Box::new(current)));
         assert_eq!(response.0, Status::Conflict);

@@ -42,6 +42,9 @@ timezone and last change. **New project** asks for a name and an IANA
 timezone, such as `Asia/Manila`. Every date in a project is entered and shown in
 its timezone, and the timezone is always shown on the project's page.
 
+Each project has its own address, so you can bookmark or share a link to it,
+and reloading the page keeps it open.
+
 Archiving a project keeps it readable and exportable but prevents task
 changes until it is restored.
 

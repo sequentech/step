@@ -216,6 +216,8 @@ async fn turning_projects_on_provisions_roles_and_its_changes_are_audited() {
     )
     .await;
     assert_eq!(status, Status::Ok, "{saved}");
+    assert_eq!(saved["data"]["updated_by"], ADMIN_ID);
+    assert_eq!(saved["data"]["updated_by_name"], ADMIN);
     let (status, listed) =
         execute(&client, &claims, "list-projects", json!({})).await;
     assert_eq!(status, Status::Ok);

@@ -127,6 +127,15 @@ export const ProjectView: React.FC<Props> = ({host, projectId, onBack}) => {
         if (guard) keepEditing.current?.focus()
     }, [guard])
 
+    // Proceed once the discarded draft has rendered, so the navigation guard
+    // no longer holds the navigation that the user just confirmed.
+    const [discarded, setDiscarded] = useState<(() => void) | null>(null)
+    useEffect(() => {
+        if (!discarded || dirty) return
+        setDiscarded(null)
+        discarded()
+    }, [discarded, dirty])
+
     /** After closing the details, focus returns to the task's bar once it renders. */
     const [returnFocus, setReturnFocus] = useState<{id: string} | null>(null)
     useEffect(() => {
@@ -596,7 +605,7 @@ export const ProjectView: React.FC<Props> = ({host, projectId, onBack}) => {
                                                     setGuard(null)
                                                     setDraft(null)
                                                     setPendingDates(false)
-                                                    proceed()
+                                                    setDiscarded(() => proceed)
                                                 }}
                                             >
                                                 {t("projects.unsaved.discard")}
@@ -607,7 +616,7 @@ export const ProjectView: React.FC<Props> = ({host, projectId, onBack}) => {
                                 {conflict && (
                                     <Alert severity="warning" role="alert">
                                         {t("projects.conflict.body", {
-                                            actor: conflict.updated_by,
+                                            actor: conflict.updated_by_name,
                                             at: formatDate(conflict.updated_at, timezone),
                                         })}
                                         <Box sx={{mt: 1}}>

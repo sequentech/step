@@ -20,6 +20,8 @@ pub const TENANT_WRITE: &str = "tenant-write";
 pub struct Identity {
     pub tenant_id: Uuid,
     pub user_id: String,
+    /// Shown to people; changes and history keep `user_id` as the actor.
+    pub username: String,
     pub roles: Vec<String>,
 }
 

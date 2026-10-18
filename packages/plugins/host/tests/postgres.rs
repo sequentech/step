@@ -75,6 +75,7 @@ impl TestDb {
         let identity = Identity {
             tenant_id: Uuid::new_v4(),
             user_id: "test-admin".into(),
+            username: "test.admin".into(),
             roles: ALL_ROLES.map(String::from).to_vec(),
         };
         self.client
@@ -804,6 +805,7 @@ async fn task_history_survives_deletion_and_stays_in_its_project() {
         "Renamed"
     );
     assert_eq!(task_history["events"][0]["actor"], "test-admin");
+    assert_eq!(task_history["events"][0]["actor_name"], "test.admin");
 
     let project_history = execute(
         &mut db,

@@ -313,6 +313,7 @@ fn record(row: Row) -> Record {
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
         updated_by: row.get("updated_by"),
+        updated_by_name: row.get("updated_by_name"),
     }
 }
 
@@ -323,6 +324,7 @@ fn audit_event(row: Row) -> AuditEvent {
         parent_id: row.get("parent_id"),
         action: row.get("action"),
         actor: row.get("actor"),
+        actor_name: row.get("actor_name"),
         at: row.get("at"),
         before: row.get("before_data"),
         after: row.get("after_data"),
@@ -362,8 +364,8 @@ impl ScopedStore<'_, '_> {
             .execute(
                 "INSERT INTO sequent_backend.plugin_record_event \
                  (tenant_id, plugin_id, record_id, parent_id, action, actor, \
-                  before_data, after_data) \
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+                  actor_name, before_data, after_data) \
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
                 &[
                     &self.identity.tenant_id,
                     &self.manifest.id,
@@ -371,6 +373,7 @@ impl ScopedStore<'_, '_> {
                     &parent_id,
                     &action,
                     &self.identity.user_id,
+                    &self.identity.username,
                     &before,
                     &after,
                 ],
@@ -454,8 +457,9 @@ impl RecordStore for ScopedStore<'_, '_> {
             self.tx
                 .query_one(
                     "INSERT INTO sequent_backend.plugin_record \
-                     (tenant_id, plugin_id, id, kind, parent_id, data, updated_by) \
-                     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
+                     (tenant_id, plugin_id, id, kind, parent_id, data, updated_by, \
+                      updated_by_name) \
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *",
                     &[
                         &self.identity.tenant_id,
                         &self.manifest.id,
@@ -464,6 +468,7 @@ impl RecordStore for ScopedStore<'_, '_> {
                         &parent,
                         &data,
                         &self.identity.user_id,
+                        &self.identity.username,
                     ],
                 )
                 .await
@@ -497,7 +502,8 @@ impl RecordStore for ScopedStore<'_, '_> {
             .tx
             .query_opt(
                 "UPDATE sequent_backend.plugin_record \
-                 SET data=$5, version=version+1, updated_at=now(), updated_by=$6 \
+                 SET data=$5, version=version+1, updated_at=now(), updated_by=$6, \
+                 updated_by_name=$8 \
                  WHERE tenant_id=$1 AND plugin_id=$2 AND kind=$3 AND id=$4 \
                  AND version=$7 RETURNING *",
                 &[
@@ -508,6 +514,7 @@ impl RecordStore for ScopedStore<'_, '_> {
                     &data,
                     &self.identity.user_id,
                     &version,
+                    &self.identity.username,
                 ],
             )
             .await

@@ -33,6 +33,7 @@ fn reader_cannot_write_and_admin_user_alone_grants_no_plugin_permission() {
     let mut identity = Identity {
         tenant_id: Uuid::new_v4(),
         user_id: "user".into(),
+        username: "user".into(),
         roles: vec!["admin-user".into(), "example-read".into()],
     };
     assert!(authorize(&manifest(), "list", &identity).is_ok());
@@ -52,6 +53,7 @@ fn plugin_roles_do_not_admit_voter_tokens_or_unknown_operations() {
     let identity = Identity {
         tenant_id: Uuid::new_v4(),
         user_id: "voter".into(),
+        username: "voter".into(),
         roles: vec!["example-read".into()],
     };
     assert!(matches!(
@@ -69,6 +71,7 @@ fn unsupported_api_is_rejected_before_dispatch() {
     let identity = Identity {
         tenant_id: Uuid::new_v4(),
         user_id: "user".into(),
+        username: "user".into(),
         roles: vec!["admin-user".into(), "example-read".into()],
     };
     let mut plugin = manifest();

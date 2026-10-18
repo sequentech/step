@@ -105,7 +105,7 @@ export const History: React.FC<Props> = ({host, projectId, taskId, timezone, rev
                         <ListItemText
                             primary={describe(event)}
                             secondary={t("projects.history.by", {
-                                actor: event.actor,
+                                actor: event.actor_name,
                                 at: formatDate(event.at, timezone),
                             })}
                         />

@@ -73,6 +73,10 @@ Three tables, not tracked by Hasura, so the gateway is the only API:
   before and after values, and the record's parent at the time, so a parent's
   history keeps changes to children that were later deleted.
 
+The actor is stored twice: the stable user ID (`updated_by`, `actor`) and the
+username at the time (`updated_by_name`, `actor_name`), which is what screens
+show.
+
 Deleting a tenant deletes its plugin rows; otherwise history cannot be changed
 or deleted.
 

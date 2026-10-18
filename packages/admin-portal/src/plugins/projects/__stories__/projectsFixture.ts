@@ -78,7 +78,8 @@ const saved = <T>(recordId: string, data: T, version = 1): Saved<T> => ({
     version,
     created_at: "2026-10-17T02:00:00Z",
     updated_at: "2026-10-17T02:42:00Z",
-    updated_by: "admin",
+    updated_by: "0c7e5a52-4f0b-4d8e-9b43-6a1f2d3c4e01",
+    updated_by_name: "admin",
 })
 
 export const projectsPlugin = (state = PluginState.Enabled): TenantPlugin => ({
@@ -130,7 +131,8 @@ export function projectsBackend() {
             record_id: id(3),
             parent_id: PROJECT_ID,
             action: "update",
-            actor: "planner",
+            actor: "5b2d9f10-8c3a-4e6f-a7d1-0e9c8b7a6f02",
+            actor_name: "planner",
             at: "2026-10-17T03:10:00Z",
             before: {data: {title: "Test voting"}},
             after: {data: {title: "Test voting"}},
@@ -140,7 +142,8 @@ export function projectsBackend() {
             record_id: PROJECT_ID,
             parent_id: null,
             action: "import",
-            actor: "admin",
+            actor: "0c7e5a52-4f0b-4d8e-9b43-6a1f2d3c4e01",
+            actor_name: "admin",
             at: "2026-10-17T02:42:00Z",
             before: null,
             after: {task_count: 7},

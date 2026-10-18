@@ -35,7 +35,8 @@ const project = {
     id: "p1",
     version: 1,
     updated_at: "2026-10-17T02:00:00Z",
-    updated_by: "admin",
+    updated_by: "user-admin",
+    updated_by_name: "admin",
     data: {name: "Launch", timezone: TZ, state: "active"},
 }
 const taskData = (title: string, day: number, order: number): Task =>
@@ -56,14 +57,16 @@ class FakeServer {
             id: "t1",
             version: 1,
             updated_at: "2026-10-17T02:00:00Z",
-            updated_by: "admin",
+            updated_by: "user-admin",
+            updated_by_name: "admin",
             data: taskData("Prepare", 17, 0),
         },
         {
             id: "t2",
             version: 1,
             updated_at: "2026-10-17T02:00:00Z",
-            updated_by: "admin",
+            updated_by: "user-admin",
+            updated_by_name: "admin",
             data: taskData("Review", 20, 1),
         },
     ]
@@ -117,7 +120,8 @@ class FakeServer {
                     const current = {
                         ...existing,
                         version: existing.version + 1,
-                        updated_by: "planner-b",
+                        updated_by: "user-planner-b",
+                        updated_by_name: "planner-b",
                         data: {...existing.data, title: "Their version"},
                     }
                     this.tasks = this.tasks.map((task) =>
@@ -133,7 +137,8 @@ class FakeServer {
                     id: existing?.id ?? `t${this.tasks.length + 1}`,
                     version: (existing?.version ?? 0) + 1,
                     updated_at: "2026-10-17T03:00:00Z",
-                    updated_by: "admin",
+                    updated_by: "user-admin",
+                    updated_by_name: "admin",
                     data: data.task as Task,
                 }
                 this.tasks = existing
@@ -176,7 +181,11 @@ const Menu = () => {
     )
 }
 
-const setup = (roles: string[] = permissions.manager) => {
+const setup = (
+    roles: string[] = permissions.manager,
+    entries = ["/home", "/plugins/projects"],
+    index = 1
+) => {
     const server = new FakeServer()
     const host: PluginHost = {
         execute: <T,>(operation: string, data: Record<string, unknown>) =>
@@ -186,7 +195,7 @@ const setup = (roles: string[] = permissions.manager) => {
     const router = createMemoryRouter(
         [
             {
-                path: "/plugins/projects",
+                path: "/plugins/:id/*",
                 element: (
                     <>
                         <Menu />
@@ -196,7 +205,7 @@ const setup = (roles: string[] = permissions.manager) => {
             },
             {path: "/settings", element: <p>Settings screen</p>},
         ],
-        {initialEntries: ["/home", "/plugins/projects"], initialIndex: 1}
+        {initialEntries: entries, initialIndex: index}
     )
     render(
         <StrictMode>
@@ -370,22 +379,22 @@ test("a new task is guarded after any edit, even with a blank title", async () =
 })
 
 test("menu navigation and browser Back wait for unsaved changes; Keep editing stays", async () => {
-    const {router} = setup()
-    await open()
+    const {router} = setup(permissions.manager, ["/home", "/plugins/projects/p1", "/settings"])
+    await screen.findByRole("button", {name: /Prepare/})
     await select(/Prepare/)
     type("My draft")
     fireEvent.click(screen.getByRole("button", {name: "Settings menu"}))
     expect(await screen.findByText(/projects.unsaved.body/)).toBeTruthy()
-    expect(router.state.location.pathname).toBe("/plugins/projects")
+    expect(router.state.location.pathname).toBe("/plugins/projects/p1")
     fireEvent.click(screen.getByRole("button", {name: "projects.unsaved.keep"}))
     expect(titleField().value).toBe("My draft")
-    expect(router.state.location.pathname).toBe("/plugins/projects")
+    expect(router.state.location.pathname).toBe("/plugins/projects/p1")
 
     await act(async () => {
         await router.navigate(-1)
     })
     expect(await screen.findByText(/projects.unsaved.body/)).toBeTruthy()
-    expect(router.state.location.pathname).toBe("/plugins/projects")
+    expect(router.state.location.pathname).toBe("/plugins/projects/p1")
     fireEvent.click(screen.getByRole("button", {name: "projects.unsaved.keep"}))
 
     await act(async () => {
@@ -398,6 +407,33 @@ test("menu navigation and browser Back wait for unsaved changes; Keep editing st
     fireEvent.click(await screen.findByRole("button", {name: "projects.unsaved.discard"}))
     await screen.findByText("Settings screen")
     expect(router.state.location.pathname).toBe("/settings")
+})
+
+test("the open project is in the URL: Back returns to the list, and a link opens it", async () => {
+    const {router} = setup()
+    await open()
+    expect(router.state.location.pathname).toBe("/plugins/projects/p1")
+    await act(async () => {
+        await router.navigate(-1)
+    })
+    expect(await screen.findByRole("button", {name: "Launch"})).toBeTruthy()
+    expect(router.state.location.pathname).toBe("/plugins/projects")
+    await act(async () => {
+        await router.navigate("/plugins/projects/p1")
+    })
+    expect(await screen.findByRole("button", {name: /Prepare/})).toBeTruthy()
+})
+
+test("discarding changes to go back to the list asks once", async () => {
+    const {router} = setup()
+    await open()
+    await select(/Prepare/)
+    type("My draft")
+    fireEvent.click(screen.getByRole("button", {name: "projects.title"}))
+    fireEvent.click(await screen.findByRole("button", {name: "projects.unsaved.discard"}))
+    expect(await screen.findByRole("button", {name: "Launch"})).toBeTruthy()
+    expect(router.state.location.pathname).toBe("/plugins/projects")
+    expect(screen.queryByText(/projects.unsaved.body/)).toBeNull()
 })
 
 test("navigation is free once the changes are saved", async () => {
@@ -465,7 +501,8 @@ test("a delayed history response for a previous task is not shown", async () => 
             record_id: "t1",
             parent_id: "p1",
             action: "update",
-            actor: "first-task-editor",
+            actor: "user-first-task-editor",
+            actor_name: "first-task-editor",
             at: "2026-10-17T02:00:00Z",
             before: null,
             after: {data: {title: "Prepare"}},
@@ -477,7 +514,8 @@ test("a delayed history response for a previous task is not shown", async () => 
             record_id: "t2",
             parent_id: "p1",
             action: "create",
-            actor: "second-task-editor",
+            actor: "user-second-task-editor",
+            actor_name: "second-task-editor",
             at: "2026-10-17T02:00:00Z",
             before: null,
             after: {data: {title: "Review"}},

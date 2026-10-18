@@ -61,7 +61,9 @@ export interface Saved<T> {
     version: number
     created_at?: string
     updated_at: string
+    /** The stable user ID; `updated_by_name` is what people see. */
     updated_by: string
+    updated_by_name: string
 }
 export interface ProjectSummary extends Saved<Project> {
     task_count: number
@@ -78,6 +80,7 @@ export interface HistoryEvent {
     parent_id: string | null
     action: string
     actor: string
+    actor_name: string
     at: string
     before: {data?: Partial<Task & Project>} | null
     after: {data?: Partial<Task & Project>; task_count?: number} | null
