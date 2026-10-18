@@ -43,6 +43,15 @@ export default {
         "src/plugins/NavigationGuard.tsx#NavigationGuard":
             "Renders nothing: holds navigation while a screen has unsaved changes; the " +
             "Admin/Plugins/ProjectView and Admin/Plugins/PluginRoute stories cover it.",
+        "src/plugins/projects/Projects.tsx#Screen":
+            "Chooses the project list or a project for Projects; the Admin/Plugins/Projects " +
+            "and Admin/Plugins/PluginRoute stories render both.",
+        "src/plugins/projects/Projects.tsx#RoutedProjects":
+            "Keeps the open project in the URL; the Admin/Plugins/PluginRoute stories render " +
+            "Projects under the plugin route.",
+        "src/plugins/projects/Projects.tsx#LocalProjects":
+            "Keeps the open project in state outside a router; the Admin/Plugins/Projects " +
+            "stories render it.",
         "src/plugins/PluginProvider.tsx#PluginProvider":
             PROVIDER +
             " The Admin/Plugins/PluginRoute and PluginSettings stories render it with the " +
