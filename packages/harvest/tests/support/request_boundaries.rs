@@ -31,7 +31,7 @@ const UUID_TENANT_ID: &str = "00000000-0000-0000-0000-00000000000a";
 const SUPER_ADMIN_TENANT_ID: &str = "fixture-super-admin";
 const USER_ID: &str = "test-user";
 // Update only with a reviewed change to the checked-in route inventory.
-const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 197;
+const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 199;
 
 const CHILD: &str = "HARVEST_ISOLATED_TEST_CHILD";
 
@@ -549,9 +549,10 @@ async fn relayed_callbacks_need_a_fresh_relay_signature() {
     // signed again as new.
     let mut stale: serde_json::Value =
         serde_json::from_slice(&envelope(key)).unwrap();
-    stale["received_at"] = json!((chrono::Utc::now()
-        - chrono::Duration::seconds(301))
-    .to_rfc3339());
+    stale["received_at"] =
+        json!(chrono::DateTime::from_timestamp(now - 301, 0)
+            .unwrap()
+            .to_rfc3339());
     let stale = serde_json::to_vec(&stale).unwrap();
     assert_eq!(
         post_signed(relay::sign(RELAY_SECRET, now, &stale), stale).await,

@@ -54,3 +54,4 @@ pub mod update_voter;
 pub mod upload_document;
 pub mod verify_ballot_box_seal;
 pub mod verify_package;
+pub mod verify_transmission_package;

@@ -122,6 +122,11 @@ export const ElectionEventImport: Story = {
         const root = await drawer("Import Election Event")
         const screen = within(root)
         await expect(screen.getByText("Import Election Events using a JSON file.")).toBeVisible()
+        await expect(screen.getByTestId("drop-input-file")).not.toHaveAttribute("multiple")
+        await expect(screen.queryByText(/SQL|XLSX|converter|historical/i)).not.toBeInTheDocument()
+        await expect(
+            screen.queryByRole("button", {name: "Converted ZIP options"})
+        ).not.toBeInTheDocument()
         await userEvent.type(
             screen.getByRole("textbox", {name: "Integrity Check (SHA-256)"}),
             CHECKSUM

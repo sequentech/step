@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::{
     authorize, authorize_tally_session_permission_labels,
 };
@@ -13,6 +14,7 @@ use serde::Serialize;
 use windmill::services::trustee_updates::{
     self, ServerCustodyInput, ServerCustodyReply,
 };
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 
 #[derive(Serialize)]
 pub struct ActionAcknowledgement {
@@ -65,6 +67,7 @@ pub async fn request_server_custody(
         .await
         .map_err(internal)?;
     let tx = db.transaction().await.map_err(internal)?;
+    audit::act_for(&tx, &claims).await.map_err(refusal)?;
     if let Some(id) = &body.tally_session_id {
         authorize_tally_session_permission_labels(
             &tx,
@@ -79,6 +82,7 @@ pub async fn request_server_custody(
         .await
         .map_err(refused)?;
     tx.commit().await.map_err(internal)?;
+    kick_audit_log_outbox();
     Ok(Json(reply))
 }
 
@@ -98,10 +102,12 @@ pub async fn submit_trustee_action_result(
         .await
         .map_err(internal)?;
     let tx = db.transaction().await.map_err(internal)?;
+    audit::act_for(&tx, &claims).await.map_err(refusal)?;
     trustee_updates::submit_action_result(&tx, &claims, &body)
         .await
         .map_err(refused)?;
     tx.commit().await.map_err(internal)?;
+    kick_audit_log_outbox();
     Ok(Json(ActionAcknowledgement { accepted: true }))
 }
 

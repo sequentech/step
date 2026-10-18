@@ -904,6 +904,7 @@ pub enum StatementType {
     LogsExported,
     LogWriterStarted,
     LogWriterStopped,
+    TransmissionFileDownloaded,
     // Append only: signed historical statements encode this variant index.
     VotersImported,
     ReadinessVerified,

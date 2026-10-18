@@ -33,6 +33,21 @@ pub struct MiruDocumentIds {
     pub eml: String,
     pub xz: String,
     pub all_servers: String,
+    /// The results CSV generated with the EML. Packages made before it have
+    /// none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub csv: Option<String>,
+}
+
+/// The uppercase hex SHA-256 of each stored file of a package document, as
+/// the page shows it and the download log records it. The EML's is the one
+/// the package's JSON carries.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct MiruDocumentHashes {
+    pub eml: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub csv: Option<String>,
+    pub all_servers: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -42,15 +57,40 @@ pub struct MiruDocument {
     pub servers_sent_to: Vec<MiruServerDocument>,
     pub created_at: String,
     pub signatures: Vec<MiruSignature>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sha256: Option<MiruDocumentHashes>,
 }
 
 #[derive(Eq, PartialEq, Serialize, Deserialize, Debug, Clone)]
 pub struct MiruCcsServer {
     pub name: String,
     pub tag: String,
+    /// Where the package is sent. Empty for a destination that receives it
+    /// by hand.
+    #[serde(default)]
     pub address: String,
     pub public_key_pem: String,
     pub send_logs: Option<bool>,
+}
+
+/// How a destination receives its package.
+#[derive(Display, Debug, Clone, Copy, PartialEq, Eq, EnumString)]
+pub enum MiruDelivery {
+    /// Sent over the network to the destination's address.
+    Network,
+    /// Downloaded from the Transmission page and handed over: the
+    /// destination has no address.
+    ManualReceipt,
+}
+
+impl MiruCcsServer {
+    pub fn delivery(&self) -> MiruDelivery {
+        if self.address.trim().is_empty() {
+            MiruDelivery::ManualReceipt
+        } else {
+            MiruDelivery::Network
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -65,6 +105,9 @@ pub struct MiruTransmissionPackageData {
     /// transmit-results rule needs them.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub signing_request: Option<MiruSigningRequest>,
+    /// The OVCS public key (PEM) the package's own signature verifies with.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ovcs_public_key: Option<String>,
 }
 
 /// The signing request of a transmission package.
@@ -86,3 +129,33 @@ pub struct MiruSbeiUser {
 }
 
 pub type MiruTallySessionData = Vec<MiruTransmissionPackageData>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn server(address: &str) -> MiruCcsServer {
+        MiruCcsServer {
+            name: "CCS".to_string(),
+            tag: "ccs".to_string(),
+            address: address.to_string(),
+            public_key_pem: String::new(),
+            send_logs: None,
+        }
+    }
+
+    #[test]
+    fn a_destination_without_an_address_receives_its_package_by_hand() {
+        assert_eq!(server("").delivery(), MiruDelivery::ManualReceipt);
+        assert_eq!(server("  ").delivery(), MiruDelivery::ManualReceipt);
+        assert_eq!(
+            server("https://ccs.example").delivery(),
+            MiruDelivery::Network
+        );
+        let missing: MiruCcsServer = serde_json::from_str(
+            r#"{"name": "CCS", "tag": "ccs", "public_key_pem": "", "send_logs": null}"#,
+        )
+        .unwrap();
+        assert_eq!(missing.delivery(), MiruDelivery::ManualReceipt);
+    }
+}

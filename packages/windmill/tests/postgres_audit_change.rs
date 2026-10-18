@@ -13,6 +13,8 @@ use deadpool_postgres::Transaction;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
+use windmill::services::audit_log::{act_for, act_for_tenant, AuditActor, AuditOrigin};
+use windmill::services::delete_tenant::stage_tenant_deletion;
 
 const USER_ID: &str = "8f2b7a52-5a0c-4c0e-9d57-3f1f4a8f6f10";
 const ADMIN_USER: &str = "admin-user";
@@ -650,7 +652,7 @@ async fn json_values_are_compared_key_by_key_under_dotted_paths() {
     assert_eq!(
         entry.details["changes"],
         json!([
-            {"path": "settings.cleared", "old": "value", "new": null},
+            {"path": "settings.cleared", "old": "value"},
             {
                 "path": "settings.help_links",
                 "old": [{"url": "https://example.com/a", "title": "A"}],
@@ -843,6 +845,7 @@ async fn the_redaction_list_names_secrets_and_spares_their_lookalikes() {
         "settings.s3.secret_key",
         "settings.password_hash",
         "settings.headers.Authorization",
+        "webhook_key",
     ] {
         assert!(is_secret(path).await, "{path} is a secret");
     }
@@ -1019,4 +1022,295 @@ async fn the_outbox_refuses_kinds_the_worker_cannot_post() {
             "{kind} {event_type} {log_type} {attempts}"
         );
     }
+}
+
+/// The admin a Harvest route or a Windmill task changes rows for.
+fn step_admin() -> AuditActor {
+    AuditActor {
+        user_id: Some(USER_ID.to_string()),
+        username: Some("ada".to_string()),
+        role: Some(ADMIN_USER.to_string()),
+    }
+}
+
+#[tokio::test]
+async fn a_change_step_makes_for_an_admin_is_logged_as_theirs() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let tenant = insert_tenant(&tx, &json!({})).await;
+    let event = insert_event(&tx, tenant, "National").await;
+
+    act_for(&tx, &step_admin(), AuditOrigin::Harvest, tenant)
+        .await
+        .unwrap();
+    let area = insert_area(&tx, tenant, event, "North").await;
+    tx.execute(
+        "UPDATE sequent_backend.area SET name = 'North-East' WHERE id = $1",
+        &[&area],
+    )
+    .await
+    .unwrap();
+
+    let found = entries(&tx, tenant).await;
+    assert_eq!(found.len(), 2, "{found:#?}");
+    let (created, updated) = (&found[0], &found[1]);
+    assert_eq!(created.action(), "create");
+    assert_eq!(created.description, "Created area \"North\"");
+    assert_eq!(updated.election_event_id, Some(event));
+    assert_eq!(updated.area_id, Some(area));
+    assert_eq!(updated.user_id.as_deref(), Some(USER_ID));
+    assert_eq!(updated.username.as_deref(), Some("ada"));
+    assert_eq!(updated.event_type, "USER");
+    assert_eq!(updated.description, "Updated area \"North-East\": name");
+    assert_eq!(
+        updated.details,
+        json!({
+            "object": {"type": "area", "id": area, "name": "North-East"},
+            "action": "update",
+            "actor": {"user_id": USER_ID, "username": "ada", "role": ADMIN_USER},
+            "origin": "harvest",
+            "changes": [{"path": "name", "old": "North", "new": "North-East"}],
+        })
+    );
+}
+
+#[tokio::test]
+async fn a_task_is_logged_with_windmill_as_its_origin() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let tenant = insert_tenant(&tx, &json!({"logs_timezone": "UTC"})).await;
+
+    act_for(&tx, &step_admin(), AuditOrigin::Windmill, tenant)
+        .await
+        .unwrap();
+    set_settings(&tx, tenant, &json!({"logs_timezone": "Asia/Manila"})).await;
+
+    let entry = one_entry(&tx, tenant).await;
+    assert_eq!(entry.election_event_id, None);
+    assert_eq!(entry.details["origin"], "windmill");
+    assert_eq!(entry.details["actor"]["username"], "ada");
+}
+
+#[tokio::test]
+async fn an_admin_named_by_step_ends_with_the_transaction() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let mut tx = client.transaction().await.unwrap();
+    let tenant = insert_tenant(&tx, &json!({"logs_timezone": "UTC"})).await;
+
+    let route = tx.transaction().await.unwrap();
+    act_for(&route, &step_admin(), AuditOrigin::Harvest, tenant)
+        .await
+        .unwrap();
+    route.rollback().await.unwrap();
+
+    // A savepoint's rollback undoes its settings, as a commit of the outer
+    // transaction would end them.
+    set_settings(&tx, tenant, &json!({"logs_timezone": "Asia/Manila"})).await;
+    assert!(entries(&tx, tenant).await.is_empty());
+}
+
+#[tokio::test]
+async fn a_hasura_session_is_logged_as_hasura_even_with_an_admin_named_by_step() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let tenant = insert_tenant(&tx, &json!({"logs_timezone": "UTC"})).await;
+
+    act_for(&tx, &step_admin(), AuditOrigin::Harvest, tenant)
+        .await
+        .unwrap();
+    act_as(&tx, "service-account", tenant).await;
+    set_settings(&tx, tenant, &json!({"logs_timezone": "Asia/Manila"})).await;
+    assert!(entries(&tx, tenant).await.is_empty(), "service account");
+
+    act_as(&tx, ADMIN_USER, tenant).await;
+    set_settings(&tx, tenant, &json!({"logs_timezone": "Asia/Tokyo"})).await;
+    let entry = one_entry(&tx, tenant).await;
+    assert_eq!(entry.details["origin"], "hasura");
+    assert_eq!(entry.username, None);
+}
+
+/// Tables only Step's own code writes, for an admin: what they hold is
+/// configuration or a decision, so their changes are logged too.
+const WRITTEN_BY_STEP: [&str; 9] = [
+    "keys_ceremony",
+    "messaging_account",
+    "messaging_event_config",
+    "monitoring_config",
+    "signing_checks",
+    "staff_certificate",
+    "tally_results_publication",
+    "tally_sheet_import",
+    "tally_sheet_import_item",
+];
+
+#[tokio::test]
+async fn the_tables_step_writes_for_an_admin_have_the_trigger() {
+    let pool = schema::pool().await;
+    let client = pool.get().await.unwrap();
+    let audited: Vec<String> = client
+        .query(
+            "SELECT relation.relname::text
+             FROM pg_trigger AS trigger
+             JOIN pg_class AS relation ON relation.oid = trigger.tgrelid
+             JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+             WHERE namespace.nspname = 'sequent_backend'
+               AND trigger.tgname = 'audit_change'",
+            &[],
+        )
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|row| row.get(0))
+        .collect();
+    for table in WRITTEN_BY_STEP {
+        assert!(audited.iter().any(|name| name == table), "{table}");
+    }
+}
+
+#[tokio::test]
+async fn a_keys_ceremony_step_creates_is_in_its_event_log() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let tenant = insert_tenant(&tx, &json!({})).await;
+    let event = insert_event(&tx, tenant, "National").await;
+
+    act_for(&tx, &step_admin(), AuditOrigin::Harvest, tenant)
+        .await
+        .unwrap();
+    let ceremony = Uuid::new_v4();
+    tx.execute(
+        "INSERT INTO sequent_backend.keys_ceremony
+             (id, tenant_id, election_event_id, trustee_ids, execution_status, threshold)
+         VALUES ($1, $2, $3, '{}', 'NOT_STARTED', 2)",
+        &[&ceremony, &tenant, &event],
+    )
+    .await
+    .unwrap();
+
+    let entry = one_entry(&tx, tenant).await;
+    assert_eq!(entry.election_event_id, Some(event));
+    assert_eq!(entry.action(), "create");
+    assert_eq!(entry.details["object"]["type"], "keys_ceremony");
+    assert_eq!(entry.change("execution_status")["new"], "NOT_STARTED");
+}
+
+#[tokio::test]
+async fn a_deleted_tenant_is_logged_in_the_log_of_the_admin_who_deleted_it() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let admins = insert_tenant(&tx, &json!({})).await;
+    let deleted = insert_tenant(&tx, &json!({"logs_timezone": "UTC"})).await;
+
+    stage_tenant_deletion(
+        &tx,
+        &deleted.to_string(),
+        &admins.to_string(),
+        Some(step_admin()),
+        Some("task-1"),
+    )
+    .await
+    .unwrap();
+
+    assert!(entries(&tx, deleted).await.is_empty());
+    let entry = one_entry(&tx, admins).await;
+    assert_eq!(entry.election_event_id, None);
+    assert_eq!(entry.action(), "delete");
+    assert_eq!(entry.username.as_deref(), Some("ada"));
+    assert_eq!(entry.details["origin"], "windmill");
+    assert_eq!(
+        entry.details["object"],
+        json!({"type": "tenant", "id": deleted, "name": slug(deleted)})
+    );
+    assert_eq!(entry.change("slug")["old"], slug(deleted));
+    assert_eq!(entry.change("settings.logs_timezone")["old"], "UTC");
+    assert_eq!(entry.details["extra"], json!({"task_id": "task-1"}));
+}
+
+#[tokio::test]
+async fn a_retried_tenant_deletion_adds_no_entry() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let admins = insert_tenant(&tx, &json!({})).await;
+
+    stage_tenant_deletion(
+        &tx,
+        &Uuid::new_v4().to_string(),
+        &admins.to_string(),
+        None,
+        None,
+    )
+    .await
+    .unwrap();
+    assert!(entries(&tx, admins).await.is_empty());
+    assert!(
+        stage_tenant_deletion(&tx, "not-a-tenant", "not-a-tenant", None, None)
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn a_key_set_to_null_is_no_change_from_a_key_left_out() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let tenant = insert_tenant(&tx, &json!({"logs_timezone": "UTC", "sms": {}})).await;
+
+    act_as(&tx, ADMIN_USER, tenant).await;
+    set_settings(
+        &tx,
+        tenant,
+        &json!({
+            "logs_timezone": "Asia/Manila",
+            "ballot_tracker_policy": null,
+            "sms": {"sender": null},
+        }),
+    )
+    .await;
+
+    let entry = one_entry(&tx, tenant).await;
+    assert_eq!(entry.paths(), vec!["settings.logs_timezone"]);
+}
+
+#[tokio::test]
+async fn a_tenant_named_by_its_id_is_acted_for_like_any_other() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let tenant = insert_tenant(&tx, &json!({})).await;
+    let event = insert_event(&tx, tenant, "National").await;
+
+    act_for_tenant(
+        &tx,
+        &step_admin(),
+        AuditOrigin::Windmill,
+        &tenant.to_string(),
+    )
+    .await
+    .unwrap();
+    insert_area(&tx, tenant, event, "South").await;
+
+    let found = entries(&tx, tenant).await;
+    assert_eq!(found.len(), 1, "{found:#?}");
+    assert_eq!(found[0].username.as_deref(), Some("ada"));
+    assert_eq!(found[0].details["origin"], "windmill");
+}
+
+#[tokio::test]
+async fn a_tenant_id_that_is_not_a_uuid_acts_for_no_one() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+
+    let error = act_for_tenant(&tx, &step_admin(), AuditOrigin::Harvest, "not-a-tenant")
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("Invalid tenant id"), "{error:#}");
 }

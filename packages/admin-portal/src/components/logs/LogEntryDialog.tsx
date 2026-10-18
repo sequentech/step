@@ -8,6 +8,7 @@ import type {TFunction} from "i18next"
 import {Dialog} from "@sequentech/ui-essentials"
 import {useZonedFormat} from "@/hooks/useZonedFormat"
 import {
+    EImportChecksum,
     ELogChangeKind,
     ELogOrigin,
     logEntryView,
@@ -264,7 +265,7 @@ const EntryContent: React.FC<{entry: ILogRow; log: ILogTarget; zone: string}> = 
     const extra = readinessDetailRows(t, entry.statement_kind, message) ?? view.extra
     const seconds = entry.statement_timestamp ?? entry.created
     const explained = !!explanationLines(t, entry.statement_kind, message)?.length
-    const {who, signIn, keycloak, deletedEvent, exported, writer, signatures} = view
+    const {who, signIn, keycloak, deletedEvent, importedFile, exported, writer, signatures} = view
 
     const chips: Array<{title: string; label: string | null; error?: boolean}> = [
         {title: String(t("logsScreen.entry.statementKind")), label: view.statementKind},
@@ -540,6 +541,65 @@ const EntryContent: React.FC<{entry: ILogRow; log: ILogTarget; zone: string}> = 
                         {deletedEvent.taskId ? (
                             <Fact label={String(t("logsScreen.entry.deletedEvent.task"))} wide>
                                 <Mono>{deletedEvent.taskId}</Mono>
+                            </Fact>
+                        ) : null}
+                        {deletedEvent.systemPublicKey ? (
+                            <Fact label={String(t("logsScreen.entry.deletedEvent.systemKey"))} wide>
+                                <Mono>{deletedEvent.systemPublicKey}</Mono>
+                            </Fact>
+                        ) : null}
+                    </Facts>
+                </Section>
+            ) : null}
+            {importedFile ? (
+                <Section title={String(t("logsScreen.entry.importedFile.title"))}>
+                    <Facts>
+                        {importedFile.declaredChecksum ? (
+                            <Fact label={String(t("logsScreen.entry.importedFile.declared"))} wide>
+                                <Chip
+                                    size="small"
+                                    label={t(
+                                        `logsScreen.entry.importedFile.checksum.${importedFile.declaredChecksum}`
+                                    )}
+                                    color={
+                                        importedFile.declaredChecksum === EImportChecksum.MISMATCH
+                                            ? "error"
+                                            : importedFile.declaredChecksum ===
+                                                EImportChecksum.MATCHES
+                                              ? "success"
+                                              : "default"
+                                    }
+                                    variant="outlined"
+                                />
+                            </Fact>
+                        ) : null}
+                        <Fact label={String(t("logsScreen.entry.importedFile.sha256"))} wide>
+                            <Mono>{importedFile.fileSha256}</Mono>
+                        </Fact>
+                        {importedFile.declaredSha256 &&
+                        importedFile.declaredChecksum !== EImportChecksum.MATCHES ? (
+                            <Fact
+                                label={String(t("logsScreen.entry.importedFile.declaredSha256"))}
+                                wide
+                            >
+                                <Mono>{importedFile.declaredSha256}</Mono>
+                            </Fact>
+                        ) : null}
+                        {importedFile.counts.map(({name, value}) => (
+                            <Fact
+                                key={name}
+                                label={String(
+                                    t(`logsScreen.entry.importedFile.counts.${name}`, {
+                                        defaultValue: name,
+                                    })
+                                )}
+                            >
+                                {value}
+                            </Fact>
+                        ))}
+                        {importedFile.documentId ? (
+                            <Fact label={String(t("logsScreen.entry.importedFile.document"))} wide>
+                                <Mono>{importedFile.documentId}</Mono>
                             </Fact>
                         ) : null}
                     </Facts>

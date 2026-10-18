@@ -29,6 +29,8 @@ use super::requests::{
 };
 use super::{InvalidReason, SigningCaller, SigningError, SigningResult};
 use crate::postgres::signing::*;
+use crate::services::audit_log::{act_for, AuditActor, AuditOrigin};
+use crate::tasks::audit_log_outbox::kick_audit_log_outbox;
 use crate::tasks::signing_log_outbox::kick_signing_log_outbox;
 use anyhow::Context;
 use async_trait::async_trait;
@@ -225,6 +227,18 @@ pub async fn approve(
         .transaction()
         .await
         .context("Error starting the approval")?;
+    // The action the last signature runs is logged as that signer's (SW-F-0364).
+    act_for(
+        &transaction,
+        &AuditActor {
+            user_id: Some(caller.user_id.clone()),
+            username: Some(caller.username.clone()),
+            role: None,
+        },
+        AuditOrigin::Harvest,
+        tenant_id,
+    )
+    .await?;
     match approve_in(&mut transaction, services, caller, tenant_id, input, now).await? {
         Step::Signed(outcome, post_commit) => {
             transaction
@@ -232,6 +246,7 @@ pub async fn approve(
                 .await
                 .context("Error committing the approval")?;
             kick_signing_log_outbox();
+            kick_audit_log_outbox();
             for work in post_commit {
                 if let Err(error) = work.run().await {
                     warn!("post-commit work of a signing request failed: {error:?}");

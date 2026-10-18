@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
 use crate::services::tenant_activity::{TenantAction, TenantActivityRecorder};
 use anyhow::Result;
@@ -117,6 +118,9 @@ pub async fn delete_tenant_f(
             tenant_id.clone(),
             realm,
             task_execution.clone(),
+            // The task records the deletion, with this admin, in the log
+            // of the tenant that asked for it.
+            Some(audit::actor(&claims)),
         ))
         .await;
 

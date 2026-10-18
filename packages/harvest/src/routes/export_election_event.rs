@@ -2,11 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
+use crate::services::dependencies::HarvestServices;
 use crate::types::error_response::ErrorCode;
 use anyhow::{anyhow, Context, Result};
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use rocket::State;
 use sequent_core::services::jwt;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::TasksExecution;
@@ -37,11 +40,12 @@ pub struct ExportElectionEventOutput {
     task_execution: TasksExecution,
 }
 
-#[instrument(skip(claims, input))]
+#[instrument(skip(services, claims, input))]
 #[post("/export-election-event", format = "json", data = "<input>")]
 pub async fn export_election_event_route(
     claims: jwt::JwtClaims,
     input: Json<ExportElectionEventInput>,
+    services: &State<HarvestServices>,
 ) -> Result<Json<ExportElectionEventOutput>, (Status, String)> {
     authorize(
         &claims,
@@ -188,6 +192,19 @@ pub async fn export_election_event_route(
             ));
         }
     };
+
+    let entry = audit::exported(
+        &claims,
+        audit::target(
+            &claims.hasura_claims.tenant_id,
+            Some(&body.election_event_id),
+        )?,
+        audit::election_event(&body.election_event_id),
+        "Requested the export of the election event",
+        Some(&task_execution.id),
+        Some(&document_id),
+    );
+    audit::record(services, &entry).await?;
 
     let output = ExportElectionEventOutput {
         document_id,

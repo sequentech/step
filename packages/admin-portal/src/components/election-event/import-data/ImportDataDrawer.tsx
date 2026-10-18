@@ -44,6 +44,7 @@ export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
     const {
         importDrawer,
         closeImportDrawer,
+        openImportDrawer,
         handleImportElectionEvent,
         uploadCallback: doUploadCallback,
         errors: importErrors,
@@ -58,10 +59,8 @@ export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
                 onClose={() => {
                     closeDrawer ? closeDrawer() : closeImportDrawer()
                 }}
-                PaperProps={{
-                    "aria-label": String(t(title)),
-                    "sx": {width: {xs: "100%", sm: "60%", md: "40%", lg: "30%"}},
-                }}
+                PaperProps={{"aria-label": String(t(title))}}
+                sx={{"& .MuiDrawer-paper": {width: {xs: "100%", sm: "min(640px, 100%)"}}}}
             >
                 <Box sx={{padding: "16px"}}>
                     <ElectionHeader title={title} subtitle={subtitle} />
@@ -70,6 +69,8 @@ export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
                             <DrawerStyles.SubTitle>{t(paragraph)}</DrawerStyles.SubTitle>
                             <ImportScreen
                                 fileIntegrityPolicy={fileIntegrityPolicy}
+                                allowHistoricalSource={!doImport}
+                                onSourceChange={!doImport ? openImportDrawer : undefined}
                                 refresh="electionEventScreen.import.voters"
                                 doCancel={() => {
                                     closeDrawer ? closeDrawer() : closeImportDrawer()

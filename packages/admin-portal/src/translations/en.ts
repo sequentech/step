@@ -436,6 +436,27 @@ const englishTranslation = {
                     newValue: "New value",
                     error: "Error",
                 },
+                importedFile: {
+                    title: "The imported file",
+                    declared: "Declared checksum",
+                    sha256: "SHA-256 of the file",
+                    declaredSha256: "Declared SHA-256",
+                    document: "Document",
+                    checksum: {
+                        undeclared: "None declared",
+                        matches: "Matches the file",
+                        mismatch: "Doesn't match the file",
+                    },
+                    counts: {
+                        count: "Rows",
+                        elections: "Elections",
+                        contests: "Contests",
+                        candidates: "Candidates",
+                        areas: "Areas",
+                        area_contests: "Areas per contest",
+                        sections: "Configuration sections",
+                    },
+                },
                 deletedEvent: {
                     title: "The deleted election event's log",
                     lastEntry: "Last entry",
@@ -444,6 +465,7 @@ const englishTranslation = {
                     status: "Status",
                     retired: "Unloaded and kept until it is erased under the retention policy",
                     task: "Task",
+                    systemKey: "The log's system key",
                 },
                 exported: {
                     title: "Export",
@@ -2827,6 +2849,7 @@ const englishTranslation = {
                 title: "Transmission Package for Area '{{name}}' and Election '{{eventName}}'",
                 description:
                     "Allows you to export a Transmission Package to Destination Servers or download it.",
+                erFileSha256: "ER file SHA-256:",
                 actions: {
                     send: {
                         title: "Send",
@@ -2869,6 +2892,10 @@ const englishTranslation = {
                         emlTitle: "Download EML {{date}}",
                         transmissionPackageTitle: "Download Transmission Package {{date}}",
                         transmissionReportTitle: "Download Transmission Report",
+                        csvTitle: "Download Results CSV {{date}}",
+                        ovcsPublicKeyTitle: "Download OVCS public key",
+                        recordError:
+                            "The download could not be recorded, so it was not started. Please try again.",
                         dialog: {
                             title: "Do you want to Download the Transmission Package?",
                             description:
@@ -2883,6 +2910,9 @@ const englishTranslation = {
                     description:
                         "The table below shows the sending status of each of the Destination Servers.",
                     status: "Sent to {{signed}} out of {{total}}",
+                    manualReceipt: "Manual receipt",
+                    handOver: "Download the package and hand it over",
+                    sealedFor: "Sealed for its key, SHA-256 {{key}}…",
                     table: {
                         serverName: "Server Name",
                         sendStatus: "Sending Status",
@@ -2892,7 +2922,8 @@ const englishTranslation = {
                     title: "Signatures",
                     description:
                         "Members can sign the transmission package. The table shows each member’s signing status.",
-                    status: "{{signed}} out of {{total}} Signed, {{minimum}} minimum",
+                    status: "{{signed}} of {{total}}, {{minimum}} needed",
+                    statusNoMinimum: "{{signed}} of {{total}}",
                     table: {
                         trusteeName: "Member",
                         signed: "Has Signed",

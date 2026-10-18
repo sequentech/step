@@ -3,6 +3,7 @@
 
 //! A permission-scoped readiness snapshot; failed checks never mutate events.
 
+use crate::services::audit;
 use crate::services::authorization::{
     authorize, authorize_election_permission_labels,
 };
@@ -14,7 +15,6 @@ use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use windmill::domain::readiness::ReadinessReport;
-use windmill::services::audit_log::AuditActor;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ReadinessInput {
@@ -105,11 +105,7 @@ pub async fn readiness_check(
     )
     .await
     .map_err(internal)?;
-    let actor = AuditActor {
-        user_id: Some(claims.hasura_claims.user_id.clone()),
-        username: claims.preferred_username.clone(),
-        role: Some(claims.hasura_claims.default_role.clone()),
-    };
+    let actor = audit::actor(&claims);
     let report = windmill::services::readiness::verify(
         &tx,
         tenant,

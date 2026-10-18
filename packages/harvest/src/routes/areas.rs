@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
 use anyhow::{Context, Result};
 use deadpool_postgres::Client as DbClient;
@@ -22,6 +23,7 @@ use windmill::postgres::area_contest::insert_area_to_area_contests;
 use windmill::postgres::election_event::get_election_event_by_id_if_exist;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::import::import_election_event::ensure_election_audit_boards;
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpsertAreaInput {
@@ -74,6 +76,7 @@ pub async fn upsert_area(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    audit::act_for(&hasura_transaction, &claims).await?;
 
     let tenant_id = body.tenant_id.to_string();
     let election_event_id_str = body.election_event_id.to_string();
@@ -173,6 +176,7 @@ pub async fn upsert_area(
         .await
         .with_context(|| "error comitting transaction")
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    kick_audit_log_outbox();
 
     Ok(Json(UpsertAreaOutput { id: area.id }))
 }

@@ -173,6 +173,26 @@ fn quote_identifier(name: &str) -> String {
     format!("\"{}\"", name.replace('"', "\"\""))
 }
 
+/// Refuse new connections to a database and end the ones it has.
+async fn close_database(client: &tokio_postgres::Client, database: &str) -> Result<()> {
+    client
+        .batch_execute(&format!(
+            "ALTER DATABASE {} WITH ALLOW_CONNECTIONS false",
+            quote_identifier(database)
+        ))
+        .await
+        .with_context(|| format!("Error closing database {database}"))?;
+    client
+        .execute(
+            "SELECT pg_terminate_backend(pid) FROM pg_stat_activity \
+             WHERE datname = $1 AND pid <> pg_backend_pid()",
+            &[&database],
+        )
+        .await
+        .with_context(|| format!("Error ending the connections to {database}"))?;
+    Ok(())
+}
+
 /// The election event whose board this is: its name ends with `event` and the event
 /// ID without hyphens.
 pub fn event_of_board(board: &str) -> Result<String> {
@@ -599,23 +619,11 @@ impl EventDatabases {
         self.forget(&event);
         // Renaming needs the right to create databases, which only the connection's
         // own role has: the owner's rights come from its membership.
-        let quoted = quote_identifier(&entry.database_name);
+        close_database(&client, &entry.database_name).await?;
         client
             .batch_execute(&format!(
-                "ALTER DATABASE {quoted} WITH ALLOW_CONNECTIONS false"
-            ))
-            .await
-            .with_context(|| format!("Error closing database {}", entry.database_name))?;
-        client
-            .execute(
-                "SELECT pg_terminate_backend(pid) FROM pg_stat_activity \
-                 WHERE datname = $1 AND pid <> pg_backend_pid()",
-                &[&entry.database_name],
-            )
-            .await?;
-        client
-            .batch_execute(&format!(
-                "ALTER DATABASE {quoted} RENAME TO {}",
+                "ALTER DATABASE {} RENAME TO {}",
+                quote_identifier(&entry.database_name),
                 quote_identifier(&retired)
             ))
             .await
@@ -675,6 +683,78 @@ impl EventDatabases {
                 })
             })
             .collect()
+    }
+
+    /// Read a retired election event's database with `read`, given a store of one
+    /// read-only connection to it. A retired database refuses every connection, and
+    /// PostgreSQL reads no database through another's connection, so it is opened for
+    /// the read alone: under the lock that makes creations, retirements and drops take
+    /// turns, which also makes reads take turns, and closed again afterwards, its
+    /// connections ended, also when the read fails. Retired databases a stopped
+    /// process left open are closed first. Refuses a database the catalog does not
+    /// list as the tenant's retired one.
+    pub async fn read_retired_event<T, F, Fut>(
+        &self,
+        retired: &RetiredEventDatabase,
+        read: F,
+    ) -> Result<T>
+    where
+        F: FnOnce(PostgresStore) -> Fut,
+        Fut: std::future::Future<Output = Result<T>>,
+    {
+        let tenant = canonical_uuid(&retired.tenant_id)?;
+        let event = canonical_uuid(&retired.election_event_id)?;
+        self.initialize().await?;
+        let listed = self
+            .inner
+            .catalog
+            .client()
+            .await?
+            .query_opt(
+                "SELECT 1 FROM electoral_log_retired_events WHERE database_name = $1 \
+                 AND tenant_id = $2::text::uuid AND election_event_id = $3::text::uuid",
+                &[&retired.database_name, &tenant, &event],
+            )
+            .await?
+            .is_some();
+        ensure!(
+            listed,
+            "{} is not a retired database of tenant {tenant}",
+            retired.database_name
+        );
+        let client = self.locked_client().await?;
+        let read = async {
+            for left_open in client
+                .query(
+                    "SELECT r.database_name FROM electoral_log_retired_events r \
+                     JOIN pg_database d ON d.datname = r.database_name WHERE d.datallowconn",
+                    &[],
+                )
+                .await?
+            {
+                close_database(&client, left_open.try_get(0)?).await?;
+            }
+            client
+                .batch_execute(&format!(
+                    "ALTER DATABASE {} WITH ALLOW_CONNECTIONS true",
+                    quote_identifier(&retired.database_name)
+                ))
+                .await
+                .with_context(|| format!("Error opening database {}", retired.database_name))?;
+            let store = self
+                .inner
+                .connection
+                .read_only_store_of(&retired.database_name, 1)?;
+            let result = read(store.clone()).await;
+            store.close();
+            result
+        }
+        .await;
+        let closed = close_database(&client, &retired.database_name).await;
+        Self::release(client).await;
+        let value = read?;
+        closed?;
+        Ok(value)
     }
 
     /// A connection of its own to the base database, as the role that creates and drops

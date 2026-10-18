@@ -43,6 +43,7 @@ fn secrets_are_told_by_their_path() {
         "headers.Authorization",
         "password_hash",
         "VERIFY_TOKEN",
+        "webhook_key",
     ] {
         assert!(is_secret_path(path), "{path}");
     }

@@ -8,6 +8,7 @@
 
 use electoral_log::adapters::events::{
     event_of_board, owner_of_board, tenant_of_board, BoardOwner, EventDatabases,
+    RetiredEventDatabase,
 };
 use electoral_log::ports::ElectoralLogStore;
 use electoral_log::{ElectoralLogMessage, LogEntry, LogQuery};
@@ -122,7 +123,37 @@ async fn a_server_that_is_down_names_its_databases_and_fails_everything_else() {
         let mut entries = std::iter::once(Ok(entry()));
         assert!(databases.append(board, &mut entries).await.is_err());
     }
+    let retired = RetiredEventDatabase {
+        election_event_id: EVENT.into(),
+        tenant_id: TENANT.into(),
+        database_name: retired,
+    };
+    let read = databases
+        .read_retired_event(&retired, |_| async { Ok(()) })
+        .await;
+    assert!(read.is_err());
+    // A store is built without the server; only its use needs it.
+    let store = databases
+        .connection()
+        .read_only_store_of(&retired.database_name, 1)
+        .unwrap();
+    assert!(store.client().await.is_err());
     // An invalid ID is refused before the server is asked.
     assert!(databases.create_tenant("tenant").await.is_err());
     assert!(databases.retire_event("tenant", EVENT, 1).await.is_err());
+    for invalid in [
+        RetiredEventDatabase {
+            tenant_id: "tenant".into(),
+            ..retired.clone()
+        },
+        RetiredEventDatabase {
+            election_event_id: "event".into(),
+            ..retired.clone()
+        },
+    ] {
+        let read = databases
+            .read_retired_event(&invalid, |_| async { Ok(()) })
+            .await;
+        assert!(read.is_err());
+    }
 }

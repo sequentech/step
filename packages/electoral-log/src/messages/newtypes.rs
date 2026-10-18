@@ -748,6 +748,9 @@ pub enum AuditStatementKind {
     LogWriterStarted,
     /// The writer of audit entries stopped.
     LogWriterStopped,
+    /// A file of an ER transmission package was downloaded for manual
+    /// receipt: which file, its SHA-256 and who downloaded it.
+    TransmissionFileDownloaded,
     /// Completed certified voter registry import and its counts per area.
     VotersImported,
     /// A successful comparison of a tested event against the official event.
@@ -762,6 +765,7 @@ impl AuditStatementKind {
             Self::LogsExported => StatementType::LogsExported,
             Self::LogWriterStarted => StatementType::LogWriterStarted,
             Self::LogWriterStopped => StatementType::LogWriterStopped,
+            Self::TransmissionFileDownloaded => StatementType::TransmissionFileDownloaded,
             Self::VotersImported => StatementType::VotersImported,
             Self::ReadinessVerified => StatementType::ReadinessVerified,
         }

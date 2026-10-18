@@ -5,6 +5,7 @@
 use crate::routes::keys_ceremony::{
     custody_proof_failure, finish_custody_proof_step,
 };
+use crate::services::audit;
 use crate::services::authorization::{
     authorize, authorize_election_permission_labels,
     authorize_tally_session_permission_labels,
@@ -150,6 +151,7 @@ async fn create_tally_ceremony_response(
                 format!("Error starting hasura transaction: {err}"),
             )
         })?;
+    audit::act_for(&hasura_transaction, &claims).await?;
 
     // Initializing voting may need signatures first.
     let outcome = gate_tally_creation(
@@ -167,6 +169,7 @@ async fn create_tally_ceremony_response(
         hasura_transaction.commit().await.map_err(|err| {
             (Status::InternalServerError, format!("Commit failed: {err}"))
         })?;
+        windmill::tasks::audit_log_outbox::kick_audit_log_outbox();
         kick_signing_log_outbox();
         return Ok(Json(CreateTallyOutput {
             tally_session_id: None,
@@ -192,6 +195,7 @@ async fn create_tally_ceremony_response(
     let _commit = hasura_transaction.commit().await.map_err(|err| {
         (Status::InternalServerError, format!("Commit failed: {err}"))
     })?;
+    windmill::tasks::audit_log_outbox::kick_audit_log_outbox();
     event!(
         Level::INFO,
         "Created Tally Ceremony, type={}, electionEventId={}, tallySessionId={}",
@@ -265,6 +269,7 @@ async fn update_tally_ceremony_response(
                 format!("Error starting hasura transaction: {err}"),
             )
         })?;
+    audit::act_for(&hasura_transaction, &claims).await?;
 
     let tally_session = get_tally_session_by_id(
         &hasura_transaction,
@@ -304,6 +309,7 @@ async fn update_tally_ceremony_response(
     hasura_transaction.commit().await.map_err(|err| {
         (Status::InternalServerError, format!("Commit failed: {err}"))
     })?;
+    windmill::tasks::audit_log_outbox::kick_audit_log_outbox();
 
     Ok(Json(CreateTallyCeremonyOutput {
         tally_session_id: input.tally_session_id.clone(),
@@ -353,6 +359,7 @@ pub async fn recount_tally_session(
                 format!("Error starting hasura transaction: {err}"),
             )
         })?;
+    audit::act_for(&hasura_transaction, &claims).await?;
 
     let tally_session = get_tally_session_by_id(
         &hasura_transaction,
@@ -413,6 +420,7 @@ pub async fn recount_tally_session(
     hasura_transaction.commit().await.map_err(|err| {
         (Status::InternalServerError, format!("Commit failed: {err}"))
     })?;
+    windmill::tasks::audit_log_outbox::kick_audit_log_outbox();
 
     let task = services
         .tasks
@@ -508,6 +516,7 @@ pub async fn authorize_tally_custody(
                 format!("Error starting hasura transaction: {err}"),
             )
         })?;
+    audit::act_for(&hasura_transaction, &claims).await?;
 
     authorize_tally_session_permission_labels(
         &hasura_transaction,
@@ -540,6 +549,7 @@ pub async fn authorize_tally_custody(
     .map_err(custody_proof_failure)?;
     let (is_valid, signing_request) =
         finish_custody_proof_step(hasura_transaction, outcome).await?;
+    windmill::tasks::audit_log_outbox::kick_audit_log_outbox();
 
     event!(
         Level::INFO,
@@ -616,6 +626,7 @@ pub async fn submit_tally_resolution(
                 format!("Error starting hasura transaction: {err}"),
             )
         })?;
+    audit::act_for(&hasura_transaction, &claims).await?;
 
     authorize_tally_session_permission_labels(
         &hasura_transaction,
@@ -640,6 +651,7 @@ pub async fn submit_tally_resolution(
     hasura_transaction.commit().await.map_err(|err| {
         (Status::InternalServerError, format!("Commit failed: {err}"))
     })?;
+    windmill::tasks::audit_log_outbox::kick_audit_log_outbox();
 
     event!(
         Level::INFO,

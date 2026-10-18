@@ -7,11 +7,11 @@ use crate::postgres::messaging::{latest_attempt_ids, ChannelFilter};
 use crate::services::celery_app::try_get_celery_app;
 use crate::services::database::{get_hasura_pool, PgConfig};
 use crate::services::election_event_board::get_election_event_board;
-use crate::services::electoral_log_board::ensure_tenant_log;
 use crate::services::electoral_log_board::get_board_client;
 use crate::services::electoral_log_board::get_board_signing_key;
 use crate::services::electoral_log_board::get_event_board;
 use crate::services::electoral_log_board::get_tenant_board;
+use crate::services::electoral_log_board::TenantLog;
 use crate::services::electoral_log_checkpoint_copies::{
     store_checkpoint_copy, CheckpointCopyConfig,
 };
@@ -501,6 +501,18 @@ const MONITORING_CONFIG_DELIVERY_PREFIX: &str = "monitoring-config:";
 const CONFIGURATION_PACKAGE_DELIVERY_PREFIX: &str = "configuration-package:";
 /// Prefix of the delivery IDs of report manifests: `<report manifest sha256>`.
 const REPORT_GENERATED_DELIVERY_PREFIX: &str = "report-generated:";
+/// Prefix of the delivery IDs of admin public keys: `<user ID>:<sha256 of the
+/// public key>`.
+const ADMIN_PK_DELIVERY_PREFIX: &str = "admin-public-key:";
+
+/// The delivery id of an admin's public key on the tenant's log: one per
+/// account and key.
+pub fn admin_pk_delivery_id(user_id: &str, pk_der_b64: &str) -> String {
+    format!(
+        "{ADMIN_PK_DELIVERY_PREFIX}{user_id}:{}",
+        sha256_hex(pk_der_b64.as_bytes())
+    )
+}
 
 fn approval_matrix_delivery_id(version: u32, sha256: &str) -> String {
     format!("{APPROVAL_MATRIX_DELIVERY_PREFIX}{version}:{sha256}")
@@ -850,14 +862,16 @@ impl ElectoralLog {
         Ok(())
     }
 
-    /// Posts an admin user's public key to the tenant's log: the key is one
-    /// per tenant and signs the admin's entries in every election event.
+    /// Posts an admin user's public key to the tenant's log, signed with the
+    /// log's system key: the key is one per tenant and signs the admin's
+    /// entries in every election event and in the tenant's log. The entry's
+    /// delivery id is made from the account and the key, so posting the same
+    /// key again stores nothing.
     ///
-    /// Because admin users are cross election event entities, a
-    /// dummy election event id will be used instead, with value
-    /// electoral_log::messages::Message:GENERIC_EVENT.
+    /// Callers post once the admin's key is committed (`vault`), with a
+    /// `tenant_log` whose system key is committed too.
     pub async fn post_admin_pk(
-        hasura_transaction: &Transaction<'_>,
+        tenant_log: &TenantLog,
         tenant_id: &str,
         user_id: &str,
         username: Option<String>,
@@ -865,9 +879,8 @@ impl ElectoralLog {
         elections_ids: Option<String>,
         user_area_id: Option<String>,
     ) -> Result<()> {
-        let tenant_log = ensure_tenant_log(hasura_transaction, tenant_id).await?;
         let elog_database = tenant_log.board.as_str();
-        let system_sk = tenant_log.system_key;
+        let system_sk = tenant_log.system_key.clone();
         let sd = SigningData::new(system_sk.clone(), "", system_sk.clone());
 
         let message = Message::admin_public_key_message(
@@ -885,7 +898,9 @@ impl ElectoralLog {
             elog_database: elog_database.to_string(),
         };
 
-        let ret = elog.post(&message).await;
+        let ret = elog
+            .post_with_delivery_id(&message, admin_pk_delivery_id(user_id, pk_der_b64))
+            .await;
 
         if ret.is_err() {
             tracing::error!(

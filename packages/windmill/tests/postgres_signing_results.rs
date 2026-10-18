@@ -437,15 +437,18 @@ impl Packages {
                         eml: "eml".into(),
                         xz: "xz".into(),
                         all_servers: "unsigned".into(),
+                        csv: None,
                     },
                     transaction_id: "tx".into(),
                     servers_sent_to: vec![],
                     created_at: "2028-05-12T10:00:00+08:00".into(),
                     signatures: vec![],
+                    sha256: None,
                 }],
                 logs: vec![],
                 threshold: i64::from(signing_request.required),
                 signing_request: Some(signing_request.clone()),
+                ovcs_public_key: None,
             }),
             eml: parts.eml.clone(),
             compressed: parts.compressed.clone(),
@@ -953,6 +956,7 @@ async fn the_2025_upload_is_refused_while_signing_applies() {
             logs: vec![],
             threshold: 0,
             signing_request: None,
+            ovcs_public_key: None,
         };
         let refusal = |package: MiruTransmissionPackageData| {
             let w = w.clone();
@@ -1061,6 +1065,7 @@ async fn the_send_follows_the_rule_and_the_request() {
             logs: vec![],
             threshold: 0,
             signing_request: None,
+            ovcs_public_key: None,
         };
         let check = |package: MiruTransmissionPackageData| {
             let w = w.clone();

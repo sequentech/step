@@ -308,7 +308,11 @@ fn statement_type_borsh_discriminants_are_append_only() {
         borsh::to_vec(&StatementType::ApprovalMatrixUpdated).unwrap(),
         vec![57]
     );
-    assert!(borsh::from_slice::<StatementType>(&[71]).is_err());
+    assert_eq!(
+        borsh::to_vec(&StatementType::TransmissionFileDownloaded).unwrap(),
+        vec![69]
+    );
+    assert!(borsh::from_slice::<StatementType>(&[72]).is_err());
 }
 
 fn report_generated(document_id: Option<&str>) -> StatementBody {

@@ -20,6 +20,15 @@ export interface IMiruDocumentIds {
     eml: string
     xz: string
     all_servers: string
+    /** The results CSV, generated with the EML. */
+    csv?: string | null
+}
+
+/** Uppercase hex SHA-256 of each stored file; the EML's is the one the package carries. */
+export interface IMiruDocumentHashes {
+    eml: string
+    csv?: string | null
+    all_servers: string
 }
 
 // MiruDocument interface
@@ -29,12 +38,14 @@ export interface IMiruDocument {
     transaction_id: string
     created_at: string
     signatures: Array<IMiruSignature>
+    sha256?: IMiruDocumentHashes | null
 }
 
 // MiruCcsServer interface
 export interface IMiruCcsServer {
     name: string
     tag: string
+    /** Empty for a destination that receives the package by hand. */
     address: string
     public_key_pem: string
     send_logs?: boolean
@@ -50,6 +61,8 @@ export interface IMiruTransmissionPackageData {
     threshold: number
     /** The signing request the package waits for, when the transmit-results rule needs signatures. */
     signing_request?: IMiruSigningRequest | null
+    /** The OVCS public key PEM the package's signature verifies with. */
+    ovcs_public_key?: string | null
 }
 
 /** A transmission package's signing request. */

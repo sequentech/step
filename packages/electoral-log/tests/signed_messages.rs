@@ -945,6 +945,12 @@ fn an_audit_entry_is_signed_with_the_time_of_its_action() -> Result<()> {
             StatementLogType::INFO,
         ),
         (
+            AuditStatementKind::TransmissionFileDownloaded,
+            "TransmissionFileDownloaded",
+            StatementEventType::USER,
+            StatementLogType::INFO,
+        ),
+        (
             AuditStatementKind::VotersImported,
             "VotersImported",
             StatementEventType::USER,

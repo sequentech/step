@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::migrate_tenant_logs::prepare_realm_for_tenant_log;
 use super::tenant_bootstrap_admin::TenantBootstrapAdminPolicy;
 use crate::postgres::audit_log_outbox::AuditLogTarget;
 use crate::postgres::tenant::{
@@ -34,11 +35,18 @@ pub async fn read_default_tenant_realm() -> AnyhowResult<RealmRepresentation> {
     read_realm_config_from_s3(KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY).await
 }
 
+/// Makes the default realm, without its secrets, a new tenant's: with its
+/// bootstrap administrator, and sending its events and admin events to the
+/// tenant log from the start, whatever template it comes from.
+pub fn prepare_new_tenant_realm(realm: &mut RealmRepresentation) {
+    TenantBootstrapAdminPolicy::apply_to_realm(realm);
+    prepare_realm_for_tenant_log(realm);
+}
+
 #[instrument(err)]
 pub async fn upsert_keycloak_realm(tenant_id: &str, slug: &str) -> Result<()> {
-    let mut default_tenant = read_default_tenant_realm().await?;
-    default_tenant = remove_keycloak_realm_secrets(&default_tenant)?;
-    TenantBootstrapAdminPolicy::apply_to_realm(&mut default_tenant);
+    let mut default_tenant = remove_keycloak_realm_secrets(&read_default_tenant_realm().await?)?;
+    prepare_new_tenant_realm(&mut default_tenant);
     let realm_config = serde_json::to_string(&default_tenant)?;
     let client = KeycloakAdminClient::new().await?;
     let realm = get_tenant_realm(tenant_id);
@@ -84,7 +92,11 @@ pub async fn check_tenant_exists(hasura_transaction: &Transaction<'_>, slug: &st
 }
 
 #[instrument(err)]
-pub async fn process_insert_tenant(tenant_id: String, slug: String) -> Result<()> {
+pub async fn process_insert_tenant(
+    tenant_id: String,
+    slug: String,
+    audit_actor: Option<AuditActor>,
+) -> Result<()> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -115,7 +127,7 @@ pub async fn process_insert_tenant(tenant_id: String, slug: String) -> Result<()
         },
         AuditObject::new("tenant", &tenant_id, Some(&slug)),
         AdminAction::Create,
-        AuditActor::default(),
+        audit_actor.unwrap_or_default(),
         AuditOrigin::Windmill,
     );
     audit_log::stage(&hasura_transaction, &created).await?;
@@ -136,8 +148,9 @@ pub async fn insert_tenant(
     tenant_id: String,
     slug: String,
     task_execution: Option<TasksExecution>,
+    audit_actor: Option<AuditActor>,
 ) -> Result<()> {
-    let res = process_insert_tenant(tenant_id.clone(), slug.clone()).await;
+    let res = process_insert_tenant(tenant_id.clone(), slug.clone(), audit_actor).await;
     if let Some(task_execution) = task_execution {
         if let Err(err) = res {
             let err_str = format!("Error inserting tenant: {}", err);
@@ -153,4 +166,31 @@ pub async fn insert_tenant(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tasks::migrate_tenant_logs::EVENT_LISTENER;
+
+    /// A tenant created after the tenant log's one-off migration needs no
+    /// migration: its realm feeds the log from the start.
+    #[test]
+    fn a_new_tenants_realm_feeds_the_tenant_log() {
+        let mut realm = RealmRepresentation {
+            events_listeners: Some(vec!["jboss-logging".into()]),
+            ..Default::default()
+        };
+        prepare_new_tenant_realm(&mut realm);
+        assert_eq!(
+            realm.events_listeners.as_deref(),
+            Some([EVENT_LISTENER.to_string(), "jboss-logging".to_string()].as_slice())
+        );
+        assert_eq!(realm.admin_events_enabled, Some(true));
+        assert_eq!(realm.admin_events_details_enabled, Some(true));
+        let roles = realm.roles.and_then(|roles| roles.realm).unwrap();
+        assert!(roles
+            .iter()
+            .any(|role| role.name.as_deref() == Some("tenant-logs-read")));
+    }
 }

@@ -255,6 +255,16 @@ type Mutation {
 }
 
 type Mutation {
+    record_transmission_download(
+        election_event_id: uuid!
+        election_id: uuid!
+        area_id: uuid!
+        tally_session_id: uuid!
+        document_id: uuid!
+    ): RecordTransmissionDownloadOutput
+}
+
+type Mutation {
     create_user(
         tenant_id: String!
         election_event_id: String
@@ -1932,6 +1942,11 @@ type ExportTasksExecutionOutput {
 type createTransmissionPackageOutput {
     error_msg: String
     task_execution: tasks_execution_type
+}
+
+type RecordTransmissionDownloadOutput {
+    file_name: String!
+    sha256: String!
 }
 
 type GetEventListOutput {

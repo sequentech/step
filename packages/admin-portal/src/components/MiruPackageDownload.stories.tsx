@@ -25,7 +25,7 @@ import {
     taskHandler,
     taskWidgetDefects,
 } from "./tally/__stories__/DownloadFixture"
-import {MIRU_DOCUMENT_IDS, miruDocuments} from "./__stories__/MiruFixture"
+import {MIRU_DOCUMENT_IDS, OVCS_PUBLIC_KEY, miruDocuments} from "./__stories__/MiruFixture"
 import {MiruPackageDownload} from "./MiruPackageDownload"
 import {formatZoned} from "@/lib/timezones/zonedFormat"
 
@@ -44,6 +44,7 @@ const FILE_NAME = "area__North district-__event__Council"
 let boundary: ReturnType<typeof graphqlBoundary>
 let downloads: RecordedDownload[]
 let reportFails: boolean
+let recordFails: boolean
 
 const meta = {
     title: "Admin/Components/MiruPackageDownload",
@@ -55,18 +56,32 @@ const meta = {
         tenantId: TENANT_ID,
         electionEventId: EVENT_ID,
         electionId: STORY_IDS.election,
+        areaId: STORY_IDS.area,
         tallySessionId: STORY_IDS.tallySession,
     },
     argTypes: {documents: {table: {disable: true}}},
     beforeEach: async () => {
         reportFails = false
+        recordFails = false
         boundary = graphqlBoundary(
             {
                 ...documentHandlers({
                     [REPORT_ID]: {name: "transmission_report.pdf"},
                     [MIRU_DOCUMENT_IDS.eml]: {name: "package.eml"},
+                    [MIRU_DOCUMENT_IDS.csv]: {name: "package.csv"},
                     [MIRU_DOCUMENT_IDS.allServers]: {name: "package.zip"},
                 }),
+                RecordTransmissionDownload: ({variables}) => {
+                    if (recordFails) throw new Error("Synthetic download log unavailable")
+                    return {
+                        data: {
+                            record_transmission_download: {
+                                file_name: `${String(variables.documentId)}.file`,
+                                sha256: "AB".repeat(32),
+                            },
+                        },
+                    }
+                },
                 ...taskHandler("SUCCESS", "GENERATE_TRANSMISSION_REPORT"),
                 generate_transmission_report: () => {
                     if (reportFails) throw new Error("Synthetic report service unavailable")
@@ -126,12 +141,26 @@ async function confirmDownload() {
 
 const operations = () => boundary.calls.map(({name}) => name)
 
+/** The download log's record of a package file, made before the file is fetched. */
+const recorded = (documentId: string) => ({
+    name: "RecordTransmissionDownload",
+    variables: {
+        electionEventId: EVENT_ID,
+        electionId: STORY_IDS.election,
+        areaId: STORY_IDS.area,
+        tallySessionId: STORY_IDS.tallySession,
+        documentId,
+    },
+    headers: {"x-hasura-role": "miru-download"},
+})
+
 export const Populated: Story = {
     play: async ({canvasElement}) => {
         const menu = await openMenu(canvasElement)
         // The newest of the package's generations is offered, never the older one.
         expect(menu.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
             label("emlTitle", {date: LATEST}),
+            label("csvTitle", {date: LATEST}),
             label("transmissionPackageTitle", {date: LATEST}),
             label("transmissionReportTitle"),
         ])
@@ -155,6 +184,8 @@ export const DownloadEmlAfterConfirmation: Story = {
                 },
             ])
         )
+        // The download is logged before the file is looked up.
+        expect(boundary.calls[0]).toEqual(recorded(MIRU_DOCUMENT_IDS.eml))
         expect(boundary.calls.find(({name}) => name === "GetDocument")?.variables).toEqual({
             id: MIRU_DOCUMENT_IDS.eml,
             tenantId: TENANT_ID,
@@ -181,6 +212,83 @@ export const DownloadPackageAfterConfirmation: Story = {
                 },
             ])
         )
+        expect(boundary.calls[0]).toEqual(recorded(MIRU_DOCUMENT_IDS.allServers))
+    },
+}
+
+export const DownloadResultsCsvAfterConfirmation: Story = {
+    play: async ({canvasElement}) => {
+        const menu = await openMenu(canvasElement)
+        await userEvent.click(menu.getByRole("menuitem", {name: label("csvTitle", {date: LATEST})}))
+        await confirmDownload()
+        await waitFor(() =>
+            expect(downloads).toEqual([
+                {
+                    name: `${FILE_NAME}${LATEST_IN_NAME}.csv`,
+                    href: documentUrl(MIRU_DOCUMENT_IDS.csv),
+                },
+            ])
+        )
+        expect(boundary.calls[0]).toEqual(recorded(MIRU_DOCUMENT_IDS.csv))
+    },
+}
+
+export const UnrecordedDownloadDoesNotStart: Story = {
+    beforeEach: () => {
+        recordFails = true
+    },
+    play: async ({canvasElement}) => {
+        const menu = await openMenu(canvasElement)
+        await userEvent.click(
+            menu.getByRole("menuitem", {name: label("transmissionPackageTitle", {date: LATEST})})
+        )
+        await confirmDownload()
+        // Without its record in the package's log, the file is never fetched.
+        await expect(await within(document.body).findByText(label("recordError"))).toBeVisible()
+        expect(operations()).toEqual(["RecordTransmissionDownload"])
+        expect(downloads).toEqual([])
+    },
+}
+
+export const OvcsPublicKeyIsSaved: Story = {
+    args: {ovcsPublicKey: OVCS_PUBLIC_KEY},
+    play: async ({canvasElement}) => {
+        const menu = await openMenu(canvasElement)
+        expect(menu.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
+            label("emlTitle", {date: LATEST}),
+            label("csvTitle", {date: LATEST}),
+            label("transmissionPackageTitle", {date: LATEST}),
+            label("transmissionReportTitle"),
+            label("ovcsPublicKeyTitle"),
+        ])
+        await userEvent.click(menu.getByRole("menuitem", {name: label("ovcsPublicKeyTitle")}))
+        await waitFor(() =>
+            expect(downloads).toEqual([
+                {name: `${FILE_NAME}-ovcs-public-key.pem`, href: expect.stringMatching(/^blob:/)},
+            ])
+        )
+        // The key is part of the package's data: nothing is fetched or logged.
+        expect(boundary.calls).toEqual([])
+        await exportMenuHidden()
+    },
+}
+
+export const PackageWithoutCsvOffersNoCsv: Story = {
+    args: {
+        documents: miruDocuments().map((document) => ({
+            ...document,
+            document_ids: {...document.document_ids, csv: undefined},
+        })),
+    },
+    play: async ({canvasElement}) => {
+        const menu = await openMenu(canvasElement)
+        expect(menu.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
+            label("emlTitle", {date: LATEST}),
+            label("transmissionPackageTitle", {date: LATEST}),
+            label("transmissionReportTitle"),
+        ])
+        await userEvent.keyboard("{Escape}")
+        await exportMenuHidden()
     },
 }
 

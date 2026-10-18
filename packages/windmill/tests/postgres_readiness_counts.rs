@@ -144,3 +144,31 @@ fn ordinary_ballot_count_includes_unsequenced_pending_and_rejected_records() {
         db.drop().await;
     });
 }
+
+#[tokio::test]
+async fn migrated_outbox_accepts_readiness_and_transmission_audit_kinds() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let transaction = client.transaction().await.unwrap();
+    // Reuse the migrated CHECK constraints without foreign keys or durable rows.
+    transaction
+        .batch_execute(
+            "CREATE TEMP TABLE readiness_outbox (LIKE sequent_backend.audit_log_outbox INCLUDING CONSTRAINTS INCLUDING DEFAULTS)",
+        )
+        .await
+        .unwrap();
+    for kind in [
+        "VotersImported",
+        "ReadinessVerified",
+        "TransmissionFileDownloaded",
+    ] {
+        transaction
+            .execute(
+                "INSERT INTO readiness_outbox (id, tenant_id, statement_kind, event_type, log_type, description, details, created_at, attempts) VALUES ($1, $2, $3, 'SYSTEM', 'INFO', 'synthetic', '{}'::jsonb, now(), 0)",
+                &[&Uuid::new_v4(), &Uuid::new_v4(), &kind],
+            )
+            .await
+            .unwrap_or_else(|error| panic!("migrated outbox rejected {kind}: {error:?}"));
+    }
+    transaction.rollback().await.unwrap();
+}

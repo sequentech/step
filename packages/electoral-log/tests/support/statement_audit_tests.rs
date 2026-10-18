@@ -56,11 +56,17 @@ fn the_audit_kinds_are_appended() {
             68,
             "LogWriterStopped",
         ),
-        (AuditStatementKind::VotersImported, 5, 69, "VotersImported"),
+        (
+            AuditStatementKind::TransmissionFileDownloaded,
+            5,
+            69,
+            "TransmissionFileDownloaded",
+        ),
+        (AuditStatementKind::VotersImported, 6, 70, "VotersImported"),
         (
             AuditStatementKind::ReadinessVerified,
-            6,
-            70,
+            7,
+            71,
             "ReadinessVerified",
         ),
     ];
@@ -75,7 +81,7 @@ fn the_audit_kinds_are_appended() {
         assert_eq!(name.parse::<AuditStatementKind>().unwrap(), kind);
     }
     assert!("CastVote".parse::<AuditStatementKind>().is_err());
-    assert!(borsh::from_slice::<StatementType>(&[71]).is_err());
+    assert!(borsh::from_slice::<StatementType>(&[72]).is_err());
 }
 
 #[test]

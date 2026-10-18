@@ -507,6 +507,27 @@ const catalanTranslation: TranslationType = {
                     newValue: "Valor nou",
                     error: "Error",
                 },
+                importedFile: {
+                    title: "El fitxer importat",
+                    declared: "Suma de verificació declarada",
+                    sha256: "SHA-256 del fitxer",
+                    declaredSha256: "SHA-256 declarat",
+                    document: "Document",
+                    checksum: {
+                        undeclared: "No se n'ha declarat cap",
+                        matches: "Coincideix amb el fitxer",
+                        mismatch: "No coincideix amb el fitxer",
+                    },
+                    counts: {
+                        count: "Files",
+                        elections: "Eleccions",
+                        contests: "Contesses",
+                        candidates: "Candidats",
+                        areas: "Àrees",
+                        area_contests: "Àrees per contesa",
+                        sections: "Seccions de configuració",
+                    },
+                },
                 deletedEvent: {
                     title: "La bitàcola de l'esdeveniment electoral eliminat",
                     lastEntry: "Darrera entrada",
@@ -516,6 +537,7 @@ const catalanTranslation: TranslationType = {
                     retired:
                         "Descarregada i conservada fins que s'esborri segons la política de conservació",
                     task: "Tasca",
+                    systemKey: "La clau de sistema de la bitàcola",
                 },
                 exported: {
                     title: "Exportació",
@@ -2840,6 +2862,7 @@ const catalanTranslation: TranslationType = {
                 title: "Paquet de Transmissió per a l'Àrea '{{name}}' y Elección '{{eventName}}'",
                 description:
                     "Et permet exportar un Paquet de Transmissió als Servidors de Destinació o descarregar-lo.",
+                erFileSha256: "Fitxer ER SHA-256:",
                 actions: {
                     sign: {
                         title: "Regenerar",
@@ -2882,6 +2905,10 @@ const catalanTranslation: TranslationType = {
                         emlTitle: "Descarregar EML {{date}}",
                         transmissionPackageTitle: "Descarregar el Paquet de Transmissió {{date}}",
                         transmissionReportTitle: "Descarrega l'informe de transmissió",
+                        csvTitle: "Descarrega el CSV de resultats {{date}}",
+                        ovcsPublicKeyTitle: "Descarrega la clau pública de l'OVCS",
+                        recordError:
+                            "No s'ha pogut registrar la baixada, així que no s'ha iniciat. Torna-ho a provar.",
                         dialog: {
                             title: "Vols descarregar el Paquet de Transmissió?",
                             description:
@@ -2896,6 +2923,9 @@ const catalanTranslation: TranslationType = {
                     description:
                         "La taula a continuació mostra l'estat d'enviament de cadascun dels Servidors de Destinació.",
                     status: "Enviat a {{signed}} de {{total}}",
+                    manualReceipt: "Recepció manual",
+                    handOver: "Descarrega el paquet i lliura'l en mà",
+                    sealedFor: "Segellat per a la seva clau, SHA-256 {{key}}…",
                     table: {
                         serverName: "Nom del Servidor",
                         sendStatus: "Estat d'Enviament",
@@ -2909,7 +2939,8 @@ const catalanTranslation: TranslationType = {
                         trusteeName: "Membre",
                         signed: "Ha Signat",
                     },
-                    status: "{{signed}} de {{total}} Han Signat, mínim {{minimum}}",
+                    status: "{{signed}} de {{total}}, se'n necessiten {{minimum}}",
+                    statusNoMinimum: "{{signed}} de {{total}}",
                 },
             },
             sendToTransmissionPackageServers:

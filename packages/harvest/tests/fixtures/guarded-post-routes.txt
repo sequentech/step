@@ -126,6 +126,7 @@
 /messaging/recount-voters
 /messaging/voter-counts
 /miru/create-transmission-package
+/miru/record-download
 /miru/send-transmission-package
 /miru/upload-signature
 /monitoring/export
@@ -201,3 +202,4 @@
 /preview-schedule-import
 /preview-scheduled-outcome-change
 /save-lifecycle-policies
+/readiness-check
