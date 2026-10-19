@@ -261,6 +261,62 @@ select_permissions:
       permission:
           allow_aggregations: true
           columns:
+              - alias
+              - annotations
+              - audit_election_event_id
+              - bulletin_board_reference
+              - created_at
+              - description
+              - encryption_protocol
+              - id
+              - is_archived
+              - is_audit
+              - labels
+              - name
+              - presentation
+              - public_key
+              - statistics
+              - status
+              - tenant_id
+              - updated_at
+              - user_boards
+              - voting_channels
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: trustee-ceremony
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - alias
+              - annotations
+              - audit_election_event_id
+              - bulletin_board_reference
+              - created_at
+              - description
+              - encryption_protocol
+              - id
+              - is_archived
+              - is_audit
+              - labels
+              - name
+              - presentation
+              - public_key
+              - statistics
+              - status
+              - tenant_id
+              - updated_at
+              - user_boards
+              - voting_channels
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: publish-read
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
               - is_archived
               - is_audit
               - encryption_protocol

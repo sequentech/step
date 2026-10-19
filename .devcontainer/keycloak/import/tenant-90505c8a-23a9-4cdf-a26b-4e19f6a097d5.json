@@ -2395,7 +2395,6 @@
       "attributes": {},
       "realmRoles": [
         "election-event-publish-tab",
-        "admin-user",
         "publish-write",
         "election-event-read",
         "publish-read"
@@ -2489,7 +2488,6 @@
         "trustee-read",
         "keys-read",
         "logs-read",
-        "admin-user",
         "election-event-read",
         "election-event-keys-tab",
         "election-event-tally-tab",

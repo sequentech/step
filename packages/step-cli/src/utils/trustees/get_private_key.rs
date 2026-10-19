@@ -4,7 +4,10 @@
 
 use std::error::Error;
 
-use crate::{types::hasura_types::*, utils::read_config::read_config};
+use crate::{
+    types::hasura_types::*,
+    utils::{read_config::read_config, trustees::trustee_graphql_request},
+};
 use graphql_client::{GraphQLQuery, Response};
 use serde_json::Value;
 use windmill::services::ceremonies::keys_ceremony::PrivateKeyDownloadUnavailable;
@@ -36,9 +39,7 @@ impl GetPrivateKey {
 
         let request_body = GetPrivateKey::build_query(variables);
 
-        let response = client
-            .post(&config.endpoint_url)
-            .bearer_auth(config.auth_token)
+        let response = trustee_graphql_request(&client, &config.endpoint_url, &config.auth_token)
             .json(&request_body)
             .send()?;
 
