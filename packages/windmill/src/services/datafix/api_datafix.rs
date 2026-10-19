@@ -11,7 +11,9 @@ use super::utils::*;
 use crate::postgres::cast_vote::{get_voter_cast_vote_state, VoterCastVoteState};
 use crate::services::database::get_hasura_pool;
 use crate::services::pg_lock::PgLock;
-use crate::services::users::{get_user_area_id, list_users, FilterOption, ListUsersFilter};
+use crate::services::users::{
+    changed_census_attributes, get_user_area_id, list_users, FilterOption, ListUsersFilter,
+};
 use anyhow::Result;
 use chrono::Duration;
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -257,6 +259,28 @@ pub async fn update_datafix_voter(
         hash_map.insert(DATE_OF_BIRTH.to_string(), vec![birthdate.clone()]);
     }
     let written: Vec<&str> = hash_map.keys().map(String::as_str).collect();
+
+    if !changed_census_attributes(&previous_user, voter_info.enabled, &hash_map).is_empty() {
+        let tenant_uuid = parse_uuid_v4(tenant_id)
+            .map_err(|err| DatafixError::internal(format!("Invalid tenant id: {err}")))?;
+        let election_event_uuid = parse_uuid_v4(election_event_id)
+            .map_err(|err| DatafixError::internal(format!("Invalid election event id: {err}")))?;
+        let state = get_voter_cast_vote_state(
+            hasura_transaction,
+            &tenant_uuid,
+            &election_event_uuid,
+            &user_id,
+        )
+        .await
+        .map_err(|err| {
+            DatafixError::internal(format!(
+                "Error checking for an active online vote before updating a Datafix voter: {err}"
+            ))
+        })?;
+        if let Some(err) = active_vote_error(&state) {
+            return Err(err);
+        }
+    }
 
     ensure_realm_stores_attributes(&client, realm, &written).await?;
     let attributes = Some(hash_map);
