@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Harvest request boundary tests | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3930/docs/developers/development-environment/testing/harvest"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Harvest request boundary tests | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3930/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3930/docs/developers/development-environment/testing/harvest"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3930/docs/developers/development-environment/testing/harvest" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3930/docs/developers/development-environment/testing/harvest" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Harvest request boundary tests","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3930/docs/developers/development-environment/testing/harvest"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3930/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3930/assets/js/runtime~main.747652c3.js" defer="defer"></script>
-<script src="/docusaurus/pr-preview/pr-3930/assets/js/main.18e75d1f.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3930/assets/js/runtime~main.08415b36.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3930/assets/js/main.faf8f5db.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg style="display: none;"><defs>
@@ -26,6 +26,12 @@ Synthetic JWTs are signed with the public test key of Core&#x27;s verification
 fixtures, and the tests register matching issuer settings backed by a local key
 server, so the request guards verify them as they do real tokens. They are not
 a substitute for deployment access controls.</p>
+<p><code>support/readiness_routes.rs</code> checks distinct UUID-v4 event IDs, tenant and
+permission-label boundaries, redacted snapshot failures and release of observation
+locks. A completed request for events without readiness evidence returns a failed
+report without recording a success. That control runs in an isolated child so
+Windmill&#x27;s global voter-registry pool can use the private fixture database; its
+event ballot boxes live on the synthetic electoral-log PostgreSQL server.</p>
 <p><code>support/request_logging.rs</code> checks that routine <code>GET /trustee/boards</code> polls,
 including Rocket request logs and shared helper spans, are visible only with
 <code>LOG_LEVEL=debug</code> or <code>trace</code>. Warnings, errors and failed polls remain visible;
