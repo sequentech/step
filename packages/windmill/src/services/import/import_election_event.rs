@@ -1194,10 +1194,22 @@ pub async fn get_election_event_schema(
 ) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
     // Catch a version missmatch early and return a clear error message about it, rather than having it fail later on
     // with a more obscure error when trying to deserialize data that is incompatible with the current version.
-    let raw: serde_json::Value = serde_json::from_str(data_str).map_err(|e| {
+    let mut raw: serde_json::Value = serde_json::from_str(data_str).map_err(|e| {
         reject("election event file", import_problems::not_json(&e))
             .context(format!("Failed to parse import data as JSON: {e}"))
     })?;
+    let mut legacy = election_config::ValidationReport::default();
+    let adopted = election_config::legacy_names::adopt_legacy_names(&mut raw, &mut legacy);
+    for problem in legacy.warnings() {
+        event!(Level::WARN, "election event import: {problem}");
+    }
+    let adopted_str;
+    let data_str = if adopted {
+        adopted_str = raw.to_string();
+        adopted_str.as_str()
+    } else {
+        data_str
+    };
     let default_ver = HISTORICAL_DEFAULT_VERSION.to_string();
     let imported_version = raw
         .get(VERSION_KEY)
@@ -2912,6 +2924,31 @@ mod tests {
                 .expect("a bundle with no fatal problems should get past validation");
 
         assert!(!ids.is_empty());
+    }
+
+    /// An export from before names moved into `presentation` keeps them.
+    #[tokio::test]
+    async fn an_old_export_keeps_its_names() {
+        std::env::set_var(ENV_VAR_APP_VERSION, DEV_APP_VERSION);
+
+        let mut bundle: serde_json::Value =
+            serde_json::from_str(&a_bundle_with_a_dangling_election()).expect("the fixture parses");
+        bundle["contests"][0]["election_id"] =
+            serde_json::json!("e1000000-0000-5000-8000-000000000000");
+        bundle["election_event"]["name"] = serde_json::json!("Old event");
+        bundle["elections"][0]["name"] = serde_json::json!("Old election");
+        bundle["contests"][0]["name"] = serde_json::json!("Old contest");
+
+        let (schema, _) = get_election_event_schema(&bundle.to_string(), None, TENANT.to_string())
+            .await
+            .expect("an old export imports");
+
+        let name = |presentation: &Option<serde_json::Value>| {
+            presentation.as_ref().expect("a presentation")["i18n"]["en"]["name"].clone()
+        };
+        assert_eq!(name(&schema.election_event.presentation), "Old event");
+        assert_eq!(name(&schema.elections[0].presentation), "Old election");
+        assert_eq!(name(&schema.contests[0].presentation), "Old contest");
     }
 
     fn problem_id(error: &anyhow::Error) -> Option<String> {
