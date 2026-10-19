@@ -2008,7 +2008,7 @@ pub async fn count_have_voted(
     let participation = get_event_ballot_box(hasura_transaction, tenant_id, election_event_id)
         .await?
         .store
-        .participation(election_event_id, election_id.as_deref())
+        .participation(election_event_id, election_id.as_deref(), None)
         .await?;
     Ok(participation.voters.try_into()?)
 }

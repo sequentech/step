@@ -550,6 +550,15 @@ async fn report_routes_answer_500_when_the_database_is_unreachable() {
             Permissions::REPORT_WRITE,
             encrypt_request(&event),
         ),
+        (
+            "/generate-transmission-report",
+            Permissions::TRANSMISSION_REPORT_GENERATE,
+            transmission_request(
+                &event,
+                Some(&uuid::Uuid::new_v4().to_string()),
+                Some(&uuid::Uuid::new_v4().to_string()),
+            ),
+        ),
     ] {
         let response =
             post(&client, path, &reader(&event, &[permission]), &body).await;
@@ -639,4 +648,285 @@ async fn a_report_whose_action_needs_signatures_is_not_generated_here() {
         );
         assert_eq!(services.ledger.tasks().len(), 1, "{report_type}");
     }
+}
+
+// The Transmission Report of a Post (an election), downloaded from the tally.
+
+fn transmission_request(
+    event: &Event,
+    election_id: Option<&str>,
+    tally_session_id: Option<&str>,
+) -> Value {
+    json!({
+        "tenant_id": event.tenant_id,
+        "election_event_id": event.election_event_id,
+        "election_id": election_id,
+        "tally_session_id": tally_session_id,
+    })
+}
+
+fn transmission_officer(event: &Event) -> Claims {
+    reader(event, &[Permissions::TRANSMISSION_REPORT_GENERATE])
+}
+
+#[rocket::async_test]
+async fn a_transmission_report_is_generated_for_a_tally_sessions_election() {
+    let services = Services::on_test_database().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let election_id = event.election(&services.hasura).await;
+    let session_id = event
+        .tally_session(
+            &services.hasura,
+            std::slice::from_ref(&election_id),
+            "SUCCESS",
+        )
+        .await;
+
+    let (status, body) = json(
+        post(
+            &client,
+            "/generate-transmission-report",
+            &transmission_officer(&event),
+            &transmission_request(
+                &event,
+                Some(&election_id),
+                Some(&session_id),
+            ),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+
+    let tasks = services.ledger.tasks();
+    assert_eq!(tasks.len(), 1);
+    assert_eq!(tasks[0].task_type, "GENERATE_TRANSMISSION_REPORT");
+    assert_eq!(tasks[0].tenant_id, event.tenant_id);
+    assert_eq!(
+        tasks[0].election_event_id.as_deref(),
+        Some(event.election_event_id.as_str())
+    );
+    assert_eq!(body["task_execution"]["id"], tasks[0].id.as_str());
+    assert_eq!(body["encryption_policy"], "unencrypted");
+
+    let sent = services.tasks.sent();
+    assert_eq!(sent.len(), 1);
+    assert_eq!(sent[0].name, "generate_report");
+    let kwargs = &sent[0].kwargs;
+    assert_eq!(kwargs["report"]["report_type"], "TRANSMISSION_REPORT");
+    assert_eq!(kwargs["report"]["tenant_id"], event.tenant_id);
+    assert_eq!(
+        kwargs["report"]["election_event_id"],
+        event.election_event_id
+    );
+    assert_eq!(kwargs["report"]["election_id"], election_id.as_str());
+    assert_eq!(kwargs["report"]["template_alias"], Value::Null);
+    assert_eq!(kwargs["report_mode"], "REAL");
+    assert_eq!(kwargs["document_id"], body["document_id"]);
+    assert_eq!(kwargs["tally_session_id"], session_id.as_str());
+    assert_eq!(kwargs["executer_username"], USERNAME);
+    assert_eq!(kwargs["may_read_secret_attributes"], false);
+}
+
+#[rocket::async_test]
+async fn a_transmission_report_uses_the_template_its_election_saved() {
+    let services = Services::on_test_database().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let election_id = event.election(&services.hasura).await;
+    let session_id = event
+        .tally_session(
+            &services.hasura,
+            std::slice::from_ref(&election_id),
+            "SUCCESS",
+        )
+        .await;
+    let report_id = event
+        .report(&services.hasura, "TRANSMISSION_REPORT", "post-transmission")
+        .await;
+    rows::execute(
+        &services.hasura,
+        "UPDATE sequent_backend.report SET election_id = $2 WHERE id = $1",
+        &[
+            &uuid::Uuid::parse_str(&report_id).unwrap(),
+            &uuid::Uuid::parse_str(&election_id).unwrap(),
+        ],
+    )
+    .await;
+
+    let (status, body) = json(
+        post(
+            &client,
+            "/generate-transmission-report",
+            &transmission_officer(&event),
+            &transmission_request(
+                &event,
+                Some(&election_id),
+                Some(&session_id),
+            ),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    let report = &services.tasks.sent()[0].kwargs["report"];
+    assert_eq!(report["id"], report_id.as_str());
+    assert_eq!(report["template_alias"], "post-transmission");
+}
+
+#[rocket::async_test]
+async fn a_transmission_report_needs_an_election_and_a_tally_session_of_it() {
+    let services = Services::on_test_database().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let election_id = event.election(&services.hasura).await;
+    let other_election = event.election(&services.hasura).await;
+    let session_id = event
+        .tally_session(
+            &services.hasura,
+            std::slice::from_ref(&other_election),
+            "SUCCESS",
+        )
+        .await;
+    let unknown = uuid::Uuid::new_v4().to_string();
+    let claims = transmission_officer(&event);
+
+    for (request, expected) in [
+        (
+            transmission_request(&event, None, Some(&session_id)),
+            (
+                Status::BadRequest,
+                "The transmission report is generated for one election".to_string(),
+            ),
+        ),
+        (
+            transmission_request(&event, Some(&election_id), None),
+            (
+                Status::BadRequest,
+                "Tally session id is required to generate transmission report"
+                    .to_string(),
+            ),
+        ),
+        (
+            transmission_request(&event, Some("not-a-uuid"), Some(&session_id)),
+            (Status::BadRequest, "Invalid election id".to_string()),
+        ),
+        (
+            transmission_request(&event, Some(&election_id), Some("not-a-uuid")),
+            (Status::BadRequest, "Invalid tally session id".to_string()),
+        ),
+        (
+            transmission_request(&event, Some(&election_id), Some(&unknown)),
+            (Status::NotFound, format!("Tally session {unknown} not found")),
+        ),
+        (
+            transmission_request(&event, Some(&election_id), Some(&session_id)),
+            (
+                Status::BadRequest,
+                format!(
+                    "Tally session {session_id} does not count election {election_id}"
+                ),
+            ),
+        ),
+    ] {
+        let response = post(
+            &client,
+            "/generate-transmission-report",
+            &claims,
+            &request,
+        )
+        .await;
+        assert_eq!(text(response).await, expected, "{request}");
+    }
+    assert!(services.ledger.tasks().is_empty());
+    assert!(services.tasks.sent().is_empty());
+}
+
+#[rocket::async_test]
+async fn a_transmission_report_of_another_tenant_or_without_the_role_is_refused(
+) {
+    let services = Services::on_test_database().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let other = rows::event(&services.hasura).await;
+    let election_id = other.election(&services.hasura).await;
+    let session_id = other
+        .tally_session(
+            &services.hasura,
+            std::slice::from_ref(&election_id),
+            "SUCCESS",
+        )
+        .await;
+    let request =
+        transmission_request(&other, Some(&election_id), Some(&session_id));
+
+    for claims in [
+        transmission_officer(&event),
+        reader(&other, &[Permissions::REPORT_READ]),
+    ] {
+        let response =
+            post(&client, "/generate-transmission-report", &claims, &request)
+                .await;
+        assert_eq!(response.status(), Status::Unauthorized);
+    }
+    assert!(services.ledger.tasks().is_empty());
+    assert!(services.tasks.sent().is_empty());
+}
+
+#[rocket::async_test]
+async fn a_transmission_report_of_a_labelled_election_needs_the_label() {
+    let services = Services::on_test_database().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let election_id = event.labelled_election(&services.hasura, "madrid").await;
+    let session_id = event
+        .tally_session(
+            &services.hasura,
+            std::slice::from_ref(&election_id),
+            "SUCCESS",
+        )
+        .await;
+
+    let response = post(
+        &client,
+        "/generate-transmission-report",
+        &transmission_officer(&event),
+        &transmission_request(&event, Some(&election_id), Some(&session_id)),
+    )
+    .await;
+    assert_eq!(response.status(), Status::Forbidden);
+    assert!(services.ledger.tasks().is_empty());
+}
+
+#[rocket::async_test]
+async fn a_transmission_report_the_task_queues_cannot_take_is_a_server_error() {
+    let services = Services::on_test_database()
+        .await
+        .with_tasks(MemoryTaskQueue::refusing());
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let election_id = event.election(&services.hasura).await;
+    let session_id = event
+        .tally_session(
+            &services.hasura,
+            std::slice::from_ref(&election_id),
+            "SUCCESS",
+        )
+        .await;
+
+    let response = post(
+        &client,
+        "/generate-transmission-report",
+        &transmission_officer(&event),
+        &transmission_request(&event, Some(&election_id), Some(&session_id)),
+    )
+    .await;
+    assert_eq!(
+        text(response).await,
+        (
+            Status::InternalServerError,
+            "Error generating report: ForcedShutdown".into()
+        )
+    );
 }

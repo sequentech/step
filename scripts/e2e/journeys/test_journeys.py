@@ -2648,3 +2648,90 @@ class BackendJourneys(unittest.TestCase):
         code, output = self.verify_transmission(received, "--expect-sha256", "0" * 64)
         self.assertNotEqual(code, 0, output)
         self.passed("ER transmission")
+
+    def test_e_transmission_report(self):
+        """The Transmission Report of the sample Post is generated as a PDF and downloaded; its fields match the sample configuration and the tally."""
+        self.requires("ER transmission")
+        token = self.admin_token()
+        generated = Hasura(token=token, role="transmission-report-generate").query(
+            """mutation ($tenant: String!, $event: uuid!, $election: uuid, $session: String) {
+              generate_transmission_report(tenant_id: $tenant, election_event_id: $event,
+                                           election_id: $election, tally_session_id: $session) {
+                document_id task_execution { id }
+              }
+            }""",
+            {
+                "tenant": TENANT_ID,
+                "event": self.state.event_id,
+                "election": self.state.elections["main"],
+                "session": self.state.tally_session_id,
+            },
+        )["generate_transmission_report"]
+        task_id = generated["task_execution"]["id"]
+
+        def finished():
+            (task,) = self.admin.query(
+                "query ($id: uuid!) { sequent_backend_tasks_execution(where: {id: {_eq: $id}}) { execution_status logs } }",
+                {"id": task_id},
+            )["sequent_backend_tasks_execution"]
+            if task["execution_status"] == "FAILED":
+                raise AssertionError(f"Generating the report failed: {task['logs']}")
+            return task["execution_status"] == "SUCCESS"
+
+        wait_until("the transmission report", finished, timeout=300, interval=3)
+        url = Hasura(token=token).query(
+            """query ($event: String, $document: String!) {
+              fetchDocument(election_event_id: $event, document_id: $document) { url }
+            }""",
+            {"event": self.state.event_id, "document": generated["document_id"]},
+        )["fetchDocument"]["url"]
+        response = http_get(url)
+        self.assertEqual(response.status, 200)
+        self.assertTrue(response.body.startswith(b"%PDF-"), response.body[:16])
+        folder = OUTPUT / "transmission"
+        folder.mkdir(parents=True, exist_ok=True)
+        pdf = folder / "transmission_report.pdf"
+        pdf.write_bytes(response.body)
+        layout = subprocess.run(
+            ["pdftotext", "-layout", str(pdf), "-"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+        (folder / "transmission_report.txt").write_text(layout)
+        text = " ".join(layout.split())
+
+        # The sample Post (one election) has one country (area A).
+        post = transmission.CONFIG["post"]["annotations"]
+        country = transmission.CONFIG["country"]["annotations"]
+        registered = int(country["miru:registered-voters"])
+        counted = len(
+            {voter for voter, area, _, _ in self.state.accepted if area == self.state.areas["A"]}
+        )
+        self.assertTrue(counted)
+        (destination,) = country["miru:area-ccs-servers"]
+        expected = [
+            "TRANSMISSION REPORT",
+            f"Geographical Region: {post['miru:geographical-region']}",
+            f"Post: {post['miru:voting-center']}",
+            f"Country: {country['miru:area-country']}",
+            f"Voting Center: {post['miru:voting-center']}",
+            f"Polling Station ID: {country['miru:area-station-id']}",
+            f"Polling Station: {country['miru:area-station-name']}",
+            f"Number of Registered Voters: {registered:,}",
+            f"Number of Ballots Counted: {counted:,}",
+            f"Voters Turnout (%): {counted / registered * 100:.2f}%",
+            f"Server name: {destination['name']} {destination['tag']}",
+            # Received by hand: the package is never sent over the network.
+            "Transmission status: Not Transmitted",
+            "Received status: Not Received",
+            "The Special Board of Election Inspectors",
+            "Results hash:",
+            "Report hash:",
+            "End of Report",
+        ]
+        for sbei in transmission.CONFIG["election_event"]["annotations"]["miru:sbei-users"]:
+            expected.append(f"{sbei['miru_name']} {sbei['miru_role']}")
+        for line in expected:
+            self.assertIn(line, text)
+        self.passed("transmission report")

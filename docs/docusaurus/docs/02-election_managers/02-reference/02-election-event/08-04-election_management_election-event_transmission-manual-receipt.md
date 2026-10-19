@@ -156,6 +156,29 @@ candidate_id, candidate, party_id, votes`.
   | `VV` | Votes |
   | `UV` | Under votes |
 
+### The Transmission Report
+
+**Transmission Report** in the same menu generates a PDF for the Post (the
+election) of the tally, with one page per country (area). Each page shows:
+
+- the geographical region, the Post, the country, the voting center and the
+  polling station's ID and name, from the Post's and the country's `miru:`
+  annotations;
+- the registered voters (`miru:registered-voters`), the voters whose valid
+  ballot was counted in the country, and the turnout;
+- for each destination of the country, whether the ER file was transmitted
+  and received, with the time of each. A destination with manual receipt
+  shows **Not Transmitted** and **Not Received**, since nothing is sent over
+  the network;
+- a signature box for each SBEI member of the country, with their name and
+  role, three lines for watchers, and the results, report and system hashes
+  with a QR code.
+
+It needs the `transmission-report-generate` permission, and the tally
+session must count the Post. If the election event has a Transmission
+Report saved for the Post in **Reports**, its template is used; otherwise
+the default template is.
+
 ## Checking the package on receipt
 
 The receiving computer checks the package offline with `step-cli`. It needs
@@ -190,7 +213,7 @@ fails. It refuses, for example:
 - a package with a changed byte;
 - a package opened with another destination's key.
 
-## The test (T1 to T7)
+## The test (T1 to T8)
 
 Run it on any test event with the sample configuration.
 
@@ -203,6 +226,7 @@ Run it on any test event with the sample configuration.
 | T5 Check the files | Compare the XML and CSV with the election returns | The XML is EML 510 with the page's SHA-256; the CSV has the same votes |
 | T6 Check on receipt | Run the verifier offline with the destination's key and the page's SHA-256 | It opens, the SHA-256 matches, and the OVCS and SBEI signatures are valid and chain to the event's CA |
 | T7 Altered copies | Run the verifier on altered copies | Each one is refused |
+| T8 Transmission Report | Generate and download the Post's Transmission Report | The PDF shows the configuration's Post, country, station, registered voters and destinations, the tally's counted voters and turnout, and the SBEI members |
 
 Where the test runs:
 
@@ -210,7 +234,8 @@ Where the test runs:
   - The backend journey `test_d_er_transmission_manual_receipt`
     (`scripts/e2e/journeys`) runs T2 to T7 on a full stack after the journeys'
     tally. `test_2c_transmission_sample_ballot` loads the ballot's part of the
-    configuration before publication.
+    configuration before publication. `test_e_transmission_report` runs T8
+    and keeps the PDF and its text in the output's `transmission` folder.
   - Windmill's tests check the sample configuration, the CSV, the sealing
     against Step's ECIES tool, and the verifier's refusals.
 - **Staging:** run it before the post-qualification.
