@@ -185,7 +185,7 @@ export const LockedDownEvent: Story = {
         await expect(await within(canvasElement).findByText("Council")).toBeVisible()
         // The Signatures tab stays, read-only, after lockdown.
         expect(tabLabels(canvasElement)).toEqual([
-            ...labels("dashboard", "voters"),
+            ...labels("dashboard", "data", "voters"),
             signatures(),
             ...labels("logs", "reports"),
         ])

@@ -1183,6 +1183,10 @@ const tagalogTranslation: TranslationType = {
             },
         },
         electionEventScreen: {
+            dataUnavailable: "Hindi available ang data para sa kaganapang ito ng halalan.",
+            noAccessibleTabs:
+                "Wala kang access sa mga available na tab para sa kaganapang ito ng halalan.",
+
             common: {
                 subtitle: "Pag-configure ng kaganapan ng halalan.",
                 showMore: "Lakihan ang nakikita",

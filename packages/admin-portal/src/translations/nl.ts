@@ -1172,6 +1172,10 @@ const dutchTranslation: TranslationType = {
             },
         },
         electionEventScreen: {
+            dataUnavailable: "Gegevens zijn niet beschikbaar voor dit verkiezingsevenement.",
+            noAccessibleTabs:
+                "Je hebt geen toegang tot beschikbare tabbladen voor dit verkiezingsevenement.",
+
             common: {
                 subtitle: "Configuratie verkiezingsevenement.",
                 showMore: "Toon meer",

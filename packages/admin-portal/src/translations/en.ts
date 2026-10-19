@@ -1172,6 +1172,10 @@ const englishTranslation = {
             },
         },
         electionEventScreen: {
+            dataUnavailable: "Data is unavailable for this election event.",
+            noAccessibleTabs:
+                "You don't have access to any available tabs for this election event.",
+
             common: {
                 subtitle: "Election event configuration.",
                 showMore: "Show More",

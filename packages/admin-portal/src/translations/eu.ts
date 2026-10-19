@@ -1175,6 +1175,10 @@ const basqueTranslation: TranslationType = {
             },
         },
         electionEventScreen: {
+            dataUnavailable: "Datuak ez daude erabilgarri hauteskunde-ekitaldi honetarako.",
+            noAccessibleTabs:
+                "Ez duzu sarbiderik hauteskunde-ekitaldi honetako fitxa erabilgarrietara.",
+
             common: {
                 subtitle: "Hauteskunde gertaera konfigurazioa.",
                 showMore: "Erakutsi Gehiago",

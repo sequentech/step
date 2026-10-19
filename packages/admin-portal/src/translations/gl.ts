@@ -1171,6 +1171,10 @@ const galegoTranslation: TranslationType = {
             },
         },
         electionEventScreen: {
+            dataUnavailable: "Os datos non están dispoñibles para este evento electoral.",
+            noAccessibleTabs:
+                "Non tes acceso a ningunha pestana dispoñible deste evento electoral.",
+
             common: {
                 subtitle: "Configuración do evento electoral.",
                 showMore: "Mostrar Máis",

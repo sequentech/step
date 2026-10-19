@@ -1171,6 +1171,10 @@ const spanishTranslation: TranslationType = {
             },
         },
         electionEventScreen: {
+            dataUnavailable: "Los datos no están disponibles para este evento electoral.",
+            noAccessibleTabs:
+                "No tienes acceso a ninguna pestaña disponible de este evento electoral.",
+
             common: {
                 subtitle: "Configuración del Evento Electoral.",
                 showMore: "Mostrar más",

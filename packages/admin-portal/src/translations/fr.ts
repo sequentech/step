@@ -1176,6 +1176,10 @@ const frenchTranslation: TranslationType = {
             },
         },
         electionEventScreen: {
+            dataUnavailable: "Les données ne sont pas disponibles pour cet événement électoral.",
+            noAccessibleTabs:
+                "Vous n’avez accès à aucun onglet disponible pour cet événement électoral.",
+
             common: {
                 subtitle: "Configuration de l'Événement Électoral.",
                 showMore: "Afficher plus",

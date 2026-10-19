@@ -143,9 +143,9 @@ independently certified expected value.
    lockdown banner above the event's tabs and retain `LockdownChanged`. The banner
    shows the recorded start and the scheduled end in the event's primary timezone
    when those records are available to the administrator. If no end is scheduled,
-   it says so. Run the readiness check a second time using the CLI, because the Data
-   tab is unavailable during lockdown. Retain a separate JSON report and the second
-   `ReadinessVerified` reference. Both the lockdown state and the second check must pass.
+   it says so. Run the readiness check a second time from **Data → Check readiness**
+   or using the CLI. During lockdown, Data contains only the readiness action.
+   Retain a separate JSON report and the second `ReadinessVerified` reference. Both the lockdown state and the second check must pass.
 6. Export the official and FTL CSV/PDF logs. Match both readiness records to the
    saved JSON outputs. The auditor signs the FTL minutes listing every evidence
    file and its SHA-256, including the schedule and any approved exception.
@@ -206,10 +206,12 @@ In the Admin Portal, open the **official** election event's **Data** tab and sel
 **Check readiness** alongside the other action buttons. Select the completed
 **Tested event**, checking its name and ID, then select **Run check**. Archived
 rehearsal events are included.
-The action requires `readiness-check`; selecting events uses the existing
-`election-event-read` permission and event permission labels. Access follows the
-Data tab's existing permission and lockdown rules; use the CLI when that tab is
-hidden. Running the check does not require access to the Logs tab.
+The action requires `readiness-check` and access to the Data tab; selecting events
+uses the existing `election-event-read` permission and event permission labels.
+During lockdown, users with both Data and readiness permissions can still open
+Data, which contains only **Check readiness**. Configuration fields and other
+actions are unavailable. Users without readiness permission do not get this
+lockdown Data view. Running the check does not require access to the Logs tab.
 
 The dialog shows every check's outcome, the check time and, on success, the signed
 log entry reference. Select **Download JSON report** to retain the complete report,

@@ -1176,6 +1176,10 @@ const catalanTranslation: TranslationType = {
             },
         },
         electionEventScreen: {
+            dataUnavailable: "Les dades no estan disponibles per a aquest esdeveniment electoral.",
+            noAccessibleTabs:
+                "No tens accés a cap pestanya disponible d’aquest esdeveniment electoral.",
+
             common: {
                 subtitle: "Configuració de l'Esdeveniment Electoral.",
                 showMore: "Mostra'n més",
