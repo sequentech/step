@@ -15,48 +15,6 @@ object_relationships:
 insert_permissions:
     - comment: ""
       permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          columns:
-              - ballot_signature
-              - status
-              - annotations
-              - labels
-              - ballot_eml
-              - created_at
-              - deleted_at
-              - last_updated_at
-              - area_id
-              - ballot_publication_id
-              - election_event_id
-              - election_id
-              - id
-              - tenant_id
-      role: admin-user
-    - comment: ""
-      permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          columns:
-              - ballot_signature
-              - status
-              - annotations
-              - labels
-              - ballot_eml
-              - created_at
-              - deleted_at
-              - last_updated_at
-              - area_id
-              - ballot_publication_id
-              - election_event_id
-              - election_id
-              - id
-              - tenant_id
-      role: publish-write
-    - comment: ""
-      permission:
           check: {}
           columns:
               - ballot_signature
@@ -193,54 +151,6 @@ select_permissions:
 update_permissions:
     - comment: ""
       permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          columns:
-              - ballot_signature
-              - status
-              - annotations
-              - labels
-              - ballot_eml
-              - created_at
-              - deleted_at
-              - last_updated_at
-              - area_id
-              - ballot_publication_id
-              - election_event_id
-              - election_id
-              - id
-              - tenant_id
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: admin-user
-    - comment: ""
-      permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          columns:
-              - ballot_signature
-              - status
-              - annotations
-              - labels
-              - ballot_eml
-              - created_at
-              - deleted_at
-              - last_updated_at
-              - area_id
-              - ballot_publication_id
-              - election_event_id
-              - election_id
-              - id
-              - tenant_id
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: publish-write
-    - comment: ""
-      permission:
           check: {}
           columns:
               - ballot_signature
@@ -260,18 +170,6 @@ update_permissions:
           filter: {}
       role: service-account
 delete_permissions:
-    - comment: ""
-      permission:
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: admin-user
-    - comment: ""
-      permission:
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: publish-write
     - comment: ""
       permission:
           filter: {}
