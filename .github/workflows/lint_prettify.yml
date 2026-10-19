@@ -76,6 +76,12 @@ jobs:
           cmd: prettify
           dir: hasura/
 
+      - name: Test metadata permissions
+        uses: borales/actions-yarn@v4
+        with:
+          cmd: test
+          dir: hasura/
+
   rust-fmt:
     name: Check Rust format 
     runs-on: ubuntu-24.04
