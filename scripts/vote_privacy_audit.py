@@ -17,6 +17,7 @@ from pathlib import Path
 
 CATEGORIES = frozenset({"voter_id", "username", "ip", "country", "device", "credential"})
 BASE64_FIELDS = frozenset({"received_entry", "cast_entry", "message"})
+MAX_JSON_DEPTH = 32
 
 
 def read_forbidden(path):
@@ -32,7 +33,7 @@ def read_forbidden(path):
 
 def decoded_texts(value, depth=0):
     """Inspect decoded JSON strings and canonical signed-message base64 too."""
-    if depth > 8:
+    if depth > MAX_JSON_DEPTH:
         raise ValueError("Nested artifact exceeds supported depth")
     if isinstance(value, dict):
         for key, item in value.items():

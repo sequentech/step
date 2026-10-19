@@ -38,6 +38,28 @@ class BallotArtifactAudit(unittest.TestCase):
         self.assertEqual(audit.scan(self.write("proof.json", json.dumps(body)), self.forbidden),
                          ["username", "voter_id"])
 
+    def test_signed_ballot_export_envelope_accepts_realistic_nested_json(self):
+        # Activity-log JSON wraps a serialized signed Message, whose privacy
+        # evidence in turn embeds the serialized encrypted ballot.
+        ballot = {"version": 3, "contests": ["synthetic-ciphertext"]}
+        message = {"statement": {"body": {"BallotReceived": {
+            "encrypted_ballot": json.dumps(ballot)}}}}
+        rows = [{"message": json.dumps(message)}]
+        path = self.write("ballot-log.json", json.dumps(rows))
+        self.assertEqual(audit.scan(path, self.forbidden), [])
+        ballot["username"] = "Jörg Synthetic"
+        message["statement"]["body"]["BallotReceived"]["encrypted_ballot"] = json.dumps(ballot)
+        rows[0]["message"] = json.dumps(message)
+        path = self.write("ballot-log.json", json.dumps(rows))
+        self.assertEqual(audit.scan(path, self.forbidden), ["username"])
+
+    def test_excessive_nesting_still_fails_closed(self):
+        nested = "synthetic-private-voter"
+        for _ in range(40):
+            nested = {"nested": nested}
+        with self.assertRaises(ValueError):
+            audit.scan(self.write("too-deep.json", json.dumps(nested)), self.forbidden)
+
     def test_csv_plain_and_extracted_pdf_text_detect_network_and_device(self):
         for extension in ["csv", "txt", "pdf.txt"]:
             path = self.write("artifact." + extension, '198.51.100.7,"US",synthetic-device')

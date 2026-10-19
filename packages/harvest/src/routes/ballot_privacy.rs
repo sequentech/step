@@ -3,7 +3,7 @@
 
 //! Ballot-store views and separately authorized private investigation actions.
 //! Public responses never contain a voter identity or personalized cache data.
-use crate::routes::ballot_checks::ensure_checks_open;
+use crate::routes::ballot_checks::ensure_checks_open_with_pool;
 use crate::services::authorization::{
     authorize, authorize_voter_event, cast_vote_read_elections,
 };
@@ -39,7 +39,6 @@ use std::{
 use tokio::sync::Mutex;
 use voting_crypto::signing::VerificationKey;
 use windmill::services::{
-    database::get_hasura_pool,
     election_event_board::get_election_event_board,
     electoral_log_board::{get_board_signing_key, get_event_store},
 };
@@ -155,6 +154,7 @@ fn proof_token_scope(
 }
 
 async fn voter_scope(
+    services: &HarvestServices,
     claims: &JwtClaims,
     event: &ElectionEvent,
     election: Option<&str>,
@@ -172,7 +172,13 @@ async fn voter_scope(
     {
         return Err(forbidden());
     }
-    ensure_checks_open(&claims.hasura_claims.tenant_id, &event.id).await?;
+    let pool = services.databases.hasura().await;
+    ensure_checks_open_with_pool(
+        &pool,
+        &claims.hasura_claims.tenant_id,
+        &event.id,
+    )
+    .await?;
     Ok((area, elections))
 }
 
@@ -326,7 +332,8 @@ pub async fn ballot_box_log(
     )?;
     let event = event(services, &claims, &body.election_event_id).await?;
     let (area, elections) =
-        voter_scope(&claims, &event, body.election_id.as_deref()).await?;
+        voter_scope(services, &claims, &event, body.election_id.as_deref())
+            .await?;
     let prefix = prefix(body.prefix.as_deref())?;
     if !prefix.is_empty() {
         limit_search(&claims).await?;
@@ -407,7 +414,8 @@ pub async fn ballot_box_own(
     )?;
     let event = event(services, &claims, &body.election_event_id).await?;
     let (area, elections) =
-        voter_scope(&claims, &event, body.election_id.as_deref()).await?;
+        voter_scope(services, &claims, &event, body.election_id.as_deref())
+            .await?;
     let identity = windmill::services::vote_privacy::ballot_identity(
         &event,
         &claims.hasura_claims.user_id,
@@ -435,12 +443,14 @@ pub async fn ballot_box_own(
 }
 
 async fn proof_scope(
+    services: &HarvestServices,
     claims: &JwtClaims,
     event: &ElectionEvent,
     election: &str,
 ) -> Result<Option<String>, ApiError> {
     if claims.hasura_claims.election_event_id.is_some() {
-        let (area, _) = voter_scope(claims, event, Some(election)).await?;
+        let (area, _) =
+            voter_scope(services, claims, event, Some(election)).await?;
         return Ok(Some(area));
     }
     authorize(
@@ -449,8 +459,13 @@ async fn proof_scope(
         Some(event.tenant_id.clone()),
         vec![Permissions::LOGS_READ],
     )?;
-    let mut client =
-        get_hasura_pool().await.get().await.map_err(unavailable)?;
+    let mut client = services
+        .databases
+        .hasura()
+        .await
+        .get()
+        .await
+        .map_err(unavailable)?;
     let tx = client.transaction().await.map_err(unavailable)?;
     cast_vote_read_elections(&tx, claims, &event.id, Some(election)).await?;
     Ok(None)
@@ -484,7 +499,8 @@ pub async fn ballot_box_entry(
 ) -> Result<Json<PrivacyPayload>, ApiError> {
     proof_token_scope(&claims, &body.election_event_id, &body.election_id)?;
     let event = event(services, &claims, &body.election_event_id).await?;
-    let allowed_area = proof_scope(&claims, &event, &body.election_id).await?;
+    let allowed_area =
+        proof_scope(services, &claims, &event, &body.election_id).await?;
     let store = get_event_store(&event.id).await.map_err(unavailable)?;
     let code = electoral_log::adapters::privacy::normalize_privacy_code(
         &body.ballot_id,
@@ -562,9 +578,14 @@ pub async fn ballot_box_keys(
 ) -> Result<Json<PrivacyPayload>, ApiError> {
     proof_token_scope(&claims, &body.election_event_id, &body.election_id)?;
     let event = event(services, &claims, &body.election_event_id).await?;
-    proof_scope(&claims, &event, &body.election_id).await?;
-    let mut client =
-        get_hasura_pool().await.get().await.map_err(unavailable)?;
+    proof_scope(services, &claims, &event, &body.election_id).await?;
+    let mut client = services
+        .databases
+        .hasura()
+        .await
+        .get()
+        .await
+        .map_err(unavailable)?;
     let tx = client.transaction().await.map_err(unavailable)?;
     let board =
         get_election_event_board(event.bulletin_board_reference.clone())
@@ -606,11 +627,17 @@ pub struct ResolveInput {
     reason: String,
 }
 async fn audit_signing(
+    services: &HarvestServices,
     claims: &JwtClaims,
     event: &ElectionEvent,
 ) -> Result<SigningData, ApiError> {
-    let mut client =
-        get_hasura_pool().await.get().await.map_err(unavailable)?;
+    let mut client = services
+        .databases
+        .hasura()
+        .await
+        .get()
+        .await
+        .map_err(unavailable)?;
     let tx = client.transaction().await.map_err(unavailable)?;
     let board =
         get_election_event_board(event.bulletin_board_reference.clone())
@@ -673,7 +700,7 @@ pub async fn resolve_voter_pseudonym(
             "The resolution reason must not contain voter identity",
         ));
     }
-    let signing = audit_signing(&claims, &event).await?;
+    let signing = audit_signing(services, &claims, &event).await?;
     let message = Message::pseudonym_resolved_message(
         &event.id,
         PseudonymResolution {
@@ -729,8 +756,13 @@ async fn forensic_scope(
     {
         return Err(forbidden());
     }
-    let mut client =
-        get_hasura_pool().await.get().await.map_err(unavailable)?;
+    let mut client = services
+        .databases
+        .hasura()
+        .await
+        .get()
+        .await
+        .map_err(unavailable)?;
     let tx = client.transaction().await.map_err(unavailable)?;
     let elections = cast_vote_read_elections(
         &tx,
@@ -741,7 +773,7 @@ async fn forensic_scope(
     .await?;
     drop(tx);
     drop(client);
-    let signing = audit_signing(claims, &event).await?;
+    let signing = audit_signing(services, claims, &event).await?;
     let scope_id = uuid::Uuid::new_v4().to_string();
     let message = Message::forensic_read_message(
         &event.id,
@@ -806,8 +838,13 @@ pub async fn forensic_network_summary(
     let election_presentation = if let Some(election) =
         body.election_id.as_deref()
     {
-        let client =
-            get_hasura_pool().await.get().await.map_err(unavailable)?;
+        let client = services
+            .databases
+            .hasura()
+            .await
+            .get()
+            .await
+            .map_err(unavailable)?;
         client.query_opt("SELECT presentation FROM sequent_backend.election WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid AND id=$3::text::uuid", &[&event.tenant_id,&event.id,&election])
             .await.map_err(unavailable)?.and_then(|row| row.get::<_,Option<Value>>(0))
     } else {
@@ -939,8 +976,13 @@ pub async fn ballot_privacy_settings(
             .collect::<Vec<_>>()
     };
     let system_public_key = if event.bulletin_board_reference.is_some() {
-        let mut client =
-            get_hasura_pool().await.get().await.map_err(unavailable)?;
+        let mut client = services
+            .databases
+            .hasura()
+            .await
+            .get()
+            .await
+            .map_err(unavailable)?;
         let tx = client.transaction().await.map_err(unavailable)?;
         let board =
             get_election_event_board(event.bulletin_board_reference.clone())
