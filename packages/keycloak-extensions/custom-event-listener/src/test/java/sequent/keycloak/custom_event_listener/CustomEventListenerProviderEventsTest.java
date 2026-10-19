@@ -30,6 +30,7 @@ import org.keycloak.events.admin.OperationType;
 import org.keycloak.events.admin.ResourceType;
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.KeycloakTransaction;
 import org.keycloak.models.KeycloakTransactionManager;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.RealmProvider;
@@ -66,6 +67,54 @@ class CustomEventListenerProviderEventsTest {
     provider =
         new CustomEventListenerProvider(
             session, new PgmqEventPublisher(sender, PublishFailurePolicy.FAIL_REQUEST));
+  }
+
+  @Test
+  void successfulSignInCaptureRunsAfterCommitAndNeverChangesTheAuditPayload() throws Exception {
+    SigninNetworkSender capture = mock(SigninNetworkSender.class);
+    provider =
+        new CustomEventListenerProvider(
+            session, new PgmqEventPublisher(sender, PublishFailurePolicy.FAIL_REQUEST), capture);
+    account(realm(EVENT_REALM), USER_ID, "voter");
+    KeycloakTransactionManager transaction = session.getTransactionManager();
+    when(transaction.isActive()).thenReturn(true);
+    Event event = event(EVENT_REALM, EventType.LOGIN, USER_ID, null);
+    event.setDetails(Map.of("country", "ES", "user_agent", "Synthetic private browser"));
+    provider.onEvent(event);
+    verifyNoInteractions(capture, sender);
+    ArgumentCaptor<KeycloakTransaction> audit = ArgumentCaptor.forClass(KeycloakTransaction.class);
+    verify(transaction).enlistPrepare(audit.capture());
+    audit.getValue().begin();
+    audit.getValue().commit();
+    String ordinary = publishedInput().toString();
+    assertFalse(ordinary.contains("10.0.0.7"));
+    assertFalse(ordinary.contains("Synthetic private browser"));
+    assertFalse(ordinary.contains("country"));
+    ArgumentCaptor<KeycloakTransaction> after = ArgumentCaptor.forClass(KeycloakTransaction.class);
+    verify(transaction).enlistAfterCompletion(after.capture());
+    after.getValue().begin();
+    after.getValue().commit();
+    ArgumentCaptor<Event> snapshot = ArgumentCaptor.forClass(Event.class);
+    verify(capture).capture(eq(session), eq(LogRealm.fromName(EVENT_REALM)), snapshot.capture());
+    assertEquals(USER_ID, snapshot.getValue().getUserId());
+    assertEquals("10.0.0.7", snapshot.getValue().getIpAddress());
+  }
+
+  @Test
+  void rolledBackSignInDoesNotSendForensicAttribution() {
+    SigninNetworkSender capture = mock(SigninNetworkSender.class);
+    provider =
+        new CustomEventListenerProvider(
+            session, new PgmqEventPublisher(sender, PublishFailurePolicy.FAIL_REQUEST), capture);
+    account(realm(EVENT_REALM), USER_ID, "voter");
+    KeycloakTransactionManager transaction = session.getTransactionManager();
+    when(transaction.isActive()).thenReturn(true);
+    provider.onEvent(event(EVENT_REALM, EventType.LOGIN, USER_ID, null));
+    ArgumentCaptor<KeycloakTransaction> after = ArgumentCaptor.forClass(KeycloakTransaction.class);
+    verify(transaction).enlistAfterCompletion(after.capture());
+    after.getValue().begin();
+    after.getValue().rollback();
+    verifyNoInteractions(capture, sender);
   }
 
   /** A realm whose id is not its name, as in Keycloak. */

@@ -33,9 +33,11 @@ In the Admin Portal, open a ballot entry in the event's **Logs** tab to run the 
 **Data > Privacy > Network data** offers two policies:
 
 - **Do not store**: no new network data is retained, and the IP Addresses list is hidden.
-- **Keep for forensic review**: ballot receive and cast requests retain IP address, country and browser data separately in the forensic store. The dashboard lists pseudonyms, never voter identities, and each read is recorded.
+- **Keep for forensic review**: successful voter sign-ins and ballot receive and cast requests retain IP address and available country and browser data separately in the forensic store. The dashboard lists pseudonyms, never voter identities, and each read is recorded.
 
-**Current limitation:** fresh sign-in network attribution is not captured. The private Keycloak sender is not implemented or connected; the authenticated receiver alone does not retain new sign-ins. Sign-in audit records have network data removed, including when **Keep for forensic review** is enabled. Do not rely on this release to investigate sign-in IP addresses or browser data.
+Sign-in capture runs after a successful authentication transaction. Keycloak checks the event policy before sending attribution directly to the internal Harvest service; Harvest checks it again before storage. Ordinary sign-in audit records and queues contain no network data. Failed sign-ins, tenant administrator sign-ins and voters without an existing pseudonym are not captured.
+
+Sign-in attribution is best effort: an unavailable service or failed policy check can leave a gap, while the completed sign-in remains valid. A first sign-in after automatic voter registration may also arrive before its pseudonym has been allocated and leave no forensic record. No durable retry queue retains the network payload. The forensic store therefore does not establish a complete history of sign-in addresses during an outage.
 
 Forensic attribution is available only for new events using voter pseudonyms. Historical and Datafix events retain their existing identity mode; their Privacy settings do not offer forensic storage.
 

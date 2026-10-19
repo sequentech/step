@@ -6,9 +6,13 @@
 use crate::services::dependencies::HarvestServices;
 use crate::services::service_auth::VerifiedServiceClaims;
 use electoral_log::adapters::privacy::ForensicNetworkRecord;
-use rocket::{http::Status, serde::json::Json, State};
+use rocket::{
+    http::{Header, Status},
+    serde::json::Json,
+    State,
+};
 use sequent_core::types::vote_privacy::{BallotIdentity, NetworkDataPolicy};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::electoral_log_board::get_event_store;
 
@@ -46,6 +50,70 @@ fn internal(_: impl std::fmt::Display) -> Refusal {
     )
 }
 
+/// Query only tenant/event policy before a producer sends any attribution.
+/// The POST repeats this check, so a disabled policy cannot retain a later send.
+async fn service_network_policy(
+    services: &HarvestServices,
+    claims: &VerifiedServiceClaims,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<NetworkDataPolicy, Refusal> {
+    claims.require_tenant(tenant_id)?;
+    let mut db = services
+        .databases
+        .hasura()
+        .await
+        .get()
+        .await
+        .map_err(internal)?;
+    claims.require_event(&db, Some(election_event_id)).await?;
+    let tx = db.transaction().await.map_err(internal)?;
+    let event = get_election_event_by_id(&tx, tenant_id, election_event_id)
+        .await
+        .map_err(internal)?;
+    let presentation = event
+        .get_presentation()
+        .map_err(internal)?
+        .unwrap_or_default();
+    Ok(
+        if presentation.ballot_identity == Some(BallotIdentity::Pseudonym) {
+            presentation.network_data_policy.unwrap_or_default()
+        } else {
+            NetworkDataPolicy::DoNotStore
+        },
+    )
+}
+
+#[derive(Serialize)]
+pub struct SigninNetworkPolicy {
+    network_data_policy: NetworkDataPolicy,
+}
+
+#[derive(rocket::response::Responder)]
+pub struct SigninPolicyResponse {
+    policy: Json<SigninNetworkPolicy>,
+    cache_control: Header<'static>,
+}
+
+#[tracing::instrument(skip_all)]
+#[get("/privacy/sign-in-network/policy?<tenant_id>&<election_event_id>")]
+pub async fn signin_network_policy(
+    claims: VerifiedServiceClaims,
+    services: &State<HarvestServices>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<SigninPolicyResponse, Refusal> {
+    let network_data_policy =
+        service_network_policy(services, &claims, tenant_id, election_event_id)
+            .await?;
+    Ok(SigninPolicyResponse {
+        policy: Json(SigninNetworkPolicy {
+            network_data_policy,
+        }),
+        cache_control: Header::new("Cache-Control", "no-store"),
+    })
+}
+
 #[tracing::instrument(skip_all)]
 #[post("/privacy/sign-in-network", format = "json", data = "<body>")]
 pub async fn retain_signin_network(
@@ -61,31 +129,14 @@ pub async fn retain_signin_network(
             "Invalid sign-in network evidence".into(),
         ));
     }
-    let mut db = services
-        .databases
-        .hasura()
-        .await
-        .get()
-        .await
-        .map_err(internal)?;
-    claims
-        .require_event(&db, Some(&input.election_event_id))
-        .await?;
-    let tx = db.transaction().await.map_err(internal)?;
-    let event = get_election_event_by_id(
-        &tx,
+    if service_network_policy(
+        services,
+        &claims,
         &input.tenant_id,
         &input.election_event_id,
     )
-    .await
-    .map_err(internal)?;
-    let presentation = event
-        .get_presentation()
-        .map_err(internal)?
-        .unwrap_or_default();
-    if presentation.ballot_identity != Some(BallotIdentity::Pseudonym)
-        || presentation.network_data_policy
-            != Some(NetworkDataPolicy::ForensicStore)
+    .await?
+        != NetworkDataPolicy::ForensicStore
     {
         return Ok(Status::NoContent);
     }
@@ -150,6 +201,103 @@ mod tests {
         input.country = Some("a person's name".into());
         assert!(!valid(&input));
     }
+    #[tokio::test]
+    async fn policy_preflight_is_service_scoped_and_immediately_reflects_disable(
+    ) {
+        use crate::route_services::{
+            rows, service_tokens::RealmSigner, Services,
+        };
+        use crate::services::service_auth::DEFAULT_SERVICE_CLIENT;
+        use crate::test_claims::Claims;
+        use rocket::http::Header;
+        use sequent_core::types::permissions::Permissions;
+        use serde_json::{json, Value};
+        let services = Services::on_test_database().await;
+        let legacy = rows::event(&services.hasura).await;
+        let event = uuid::Uuid::new_v4().to_string();
+        let foreign = rows::event(&services.hasura).await;
+        rows::execute(&services.hasura,
+            "INSERT INTO sequent_backend.election_event (id,tenant_id,encryption_protocol,presentation) VALUES ($1::text::uuid,$2::text::uuid,'RSA256',$3)",
+            &[&event,&legacy.tenant_id,&json!({"ballot_identity":"pseudonym","network_data_policy":"forensic-store",
+                "voter_signing_policy":"with-signature","receipts":{"policy":"signed-by-ballot-box"}})]).await;
+        let signer = RealmSigner::shared();
+        services.trust(&legacy.tenant_id, signer);
+        let client = services.client().await;
+        let claims = Claims::new(&legacy.tenant_id, "service-account-keycloak")
+            .azp(DEFAULT_SERVICE_CLIENT)
+            .roles([Permissions::SERVICE_ACCOUNT]);
+        let token = signer.sign(&claims, &legacy.tenant_id);
+        let path = |tenant: &str, event: &str| {
+            format!("/privacy/sign-in-network/policy?tenant_id={tenant}&election_event_id={event}")
+        };
+        let response = client
+            .get(path(&legacy.tenant_id, &event))
+            .header(Header::new("Authorization", token.clone()))
+            .dispatch()
+            .await;
+        assert_eq!(response.status(), Status::Ok);
+        assert_eq!(
+            response.headers().get_one("Cache-Control"),
+            Some("no-store")
+        );
+        assert_eq!(
+            response.into_json::<Value>().await.unwrap(),
+            json!({"network_data_policy":"forensic-store"})
+        );
+        // No event log database is needed: this gate reads no private attribution.
+        rows::execute(&services.hasura,
+            "UPDATE sequent_backend.election_event SET presentation=jsonb_set(presentation,'{network_data_policy}', $2) WHERE id=$1::text::uuid",
+            &[&event,&json!("do-not-store")]).await;
+        for selected in [&event, &legacy.election_event_id] {
+            let response = client
+                .get(path(&legacy.tenant_id, selected))
+                .header(Header::new("Authorization", token.clone()))
+                .dispatch()
+                .await;
+            assert_eq!(response.status(), Status::Ok);
+            assert_eq!(
+                response.into_json::<Value>().await.unwrap(),
+                json!({"network_data_policy":"do-not-store"})
+            );
+        }
+        for (tenant, event) in [
+            (&legacy.tenant_id, &foreign.election_event_id),
+            (&foreign.tenant_id, &foreign.election_event_id),
+        ] {
+            assert_eq!(
+                client
+                    .get(path(tenant, event))
+                    .header(Header::new("Authorization", token.clone()))
+                    .dispatch()
+                    .await
+                    .status(),
+                Status::Forbidden
+            );
+        }
+        let ordinary = Claims::new(&legacy.tenant_id, "ordinary")
+            .azp(DEFAULT_SERVICE_CLIENT);
+        assert_eq!(
+            client
+                .get(path(&legacy.tenant_id, &event))
+                .header(Header::new(
+                    "Authorization",
+                    signer.sign(&ordinary, &legacy.tenant_id)
+                ))
+                .dispatch()
+                .await
+                .status(),
+            Status::Unauthorized
+        );
+        assert_eq!(
+            client
+                .get(path(&legacy.tenant_id, &event))
+                .dispatch()
+                .await
+                .status(),
+            Status::Unauthorized
+        );
+    }
+
     #[tokio::test]
     async fn signed_service_ingress_is_tenant_scoped_and_honors_do_not_store() {
         use crate::route_services::{

@@ -204,6 +204,7 @@ fn build_application_with(
                 routes::phone_blacklist::delete_phone_blacklist_entry,
                 routes::messaging::send_message,
                 routes::privacy_signin::retain_signin_network,
+                routes::privacy_signin::signin_network_policy,
                 routes::messaging::create_messenger_link,
                 routes::messaging::messenger_link_status,
                 routes::messaging::confirm_messenger_link,
