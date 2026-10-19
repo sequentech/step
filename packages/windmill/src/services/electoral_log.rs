@@ -1550,6 +1550,11 @@ pub struct GetElectoralLogBody {
     pub area_ids: Option<Vec<String>>,
     pub only_with_user: Option<bool>,
     pub statement_kind: Option<StatementType>,
+    /// Elections whose rows may be listed, besides rows of no election. The
+    /// server sets it from the caller's permission labels; `None` lists the
+    /// rows of every election.
+    #[serde(skip)]
+    pub permitted_election_ids: Option<Vec<String>>,
 }
 
 impl GetElectoralLogBody {
@@ -1643,6 +1648,23 @@ impl GetElectoralLogBody {
                     .to_string(),
             );
 
+            extra_where_clauses.push(format!("({})", conds.join(" OR ")));
+        }
+
+        if let Some(election_ids) = &self.permitted_election_ids {
+            let mut conds = vec!["(election_id = '' OR election_id IS NULL)".to_string()];
+            if !election_ids.is_empty() {
+                let mut placeholders = Vec::with_capacity(election_ids.len());
+                for (i, election_id) in election_ids.iter().enumerate() {
+                    let param_name = format!("param_permitted_election{i}");
+                    placeholders.push(format!("@{param_name}"));
+                    params.push(create_named_param(
+                        param_name,
+                        Value::S(election_id.clone()),
+                    ));
+                }
+                conds.push(format!("election_id IN ({})", placeholders.join(", ")));
+            }
             extra_where_clauses.push(format!("({})", conds.join(" OR ")));
         }
 
@@ -2276,5 +2298,75 @@ mod voter_secret_attribute_audit_tests {
         assert_eq!(body["voter"]["user_id"], "voter-id");
         assert_eq!(body["initiated_by"]["username"], "admin");
         assert!(body.get("document_id").is_none());
+    }
+}
+
+#[cfg(test)]
+mod permitted_election_tests {
+    use super::*;
+
+    fn body(permitted_election_ids: Option<Vec<String>>) -> GetElectoralLogBody {
+        GetElectoralLogBody {
+            tenant_id: "tenant".to_string(),
+            election_event_id: "event".to_string(),
+            permitted_election_ids,
+            ..Default::default()
+        }
+    }
+
+    fn param_names(params: &[NamedParam]) -> Vec<&str> {
+        params.iter().map(|param| param.name.as_str()).collect()
+    }
+
+    #[test]
+    fn log_query_keeps_rows_of_no_election_and_of_permitted_elections() {
+        let (sql, params) = body(Some(vec!["north-1".to_string(), "north-2".to_string()]))
+            .as_sql(true)
+            .unwrap();
+        assert_eq!(
+            sql,
+            "WHERE ((election_id = '' OR election_id IS NULL) OR election_id IN \
+             (@param_permitted_election0, @param_permitted_election1))"
+        );
+        assert_eq!(
+            param_names(&params),
+            ["param_permitted_election0", "param_permitted_election1"]
+        );
+    }
+
+    #[test]
+    fn log_query_keeps_rows_of_no_election_when_no_election_is_permitted() {
+        let (sql, params) = body(Some(vec![])).as_sql(true).unwrap();
+        assert_eq!(sql, "WHERE ((election_id = '' OR election_id IS NULL))");
+        assert!(params.is_empty());
+    }
+
+    #[test]
+    fn log_query_scope_is_combined_with_the_request_filters() {
+        let mut input = body(Some(vec!["north-1".to_string()]));
+        input.election_id = Some("north-1".to_string());
+        let (sql, _) = input.as_sql(true).unwrap();
+        assert!(sql.ends_with(
+            "AND ((election_id = '' OR election_id IS NULL) OR election_id IN \
+             (@param_permitted_election0))"
+        ));
+    }
+
+    #[test]
+    fn log_query_is_unchanged_when_every_election_is_permitted() {
+        let (sql, params) = body(None).as_sql(true).unwrap();
+        assert_eq!(sql, "");
+        assert!(params.is_empty());
+    }
+
+    #[test]
+    fn request_body_cannot_set_the_permitted_elections() {
+        let input: GetElectoralLogBody = serde_json::from_value(serde_json::json!({
+            "tenant_id": "tenant",
+            "election_event_id": "event",
+            "permitted_election_ids": ["south-1"]
+        }))
+        .unwrap();
+        assert_eq!(input.permitted_election_ids, None);
     }
 }
