@@ -2,7 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_permission_labels,
+    authorize_tally_session_permission_labels,
+};
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Client as DbClient;
@@ -214,6 +217,13 @@ async fn update_tally_ceremony_response(
             ),
         )
     })?;
+    authorize_election_permission_labels(
+        &hasura_transaction,
+        &claims,
+        &input.election_event_id,
+        tally_session.election_ids.as_deref(),
+    )
+    .await?;
     tally_ceremony::update_tally_ceremony(
         &hasura_transaction,
         tenant_id,
@@ -289,6 +299,13 @@ pub async fn recount_tally_session(
             ),
         )
     })?;
+    authorize_election_permission_labels(
+        &hasura_transaction,
+        &claims,
+        &input.election_event_id,
+        tally_session.election_ids.as_deref(),
+    )
+    .await?;
 
     if tally_session.execution_status.as_deref()
         != Some(TallyExecutionStatus::SUCCESS.to_string().as_str())
@@ -408,6 +425,14 @@ pub async fn restore_private_key(
             )
         })?;
 
+    authorize_tally_session_permission_labels(
+        &hasura_transaction,
+        &claims,
+        &input.election_event_id,
+        &input.tally_session_id,
+    )
+    .await?;
+
     let outcome = tally_ceremony::set_private_key(
         &hasura_transaction,
         &claims,
@@ -490,6 +515,14 @@ pub async fn submit_tally_resolution(
                 format!("Error starting hasura transaction: {err}"),
             )
         })?;
+
+    authorize_tally_session_permission_labels(
+        &hasura_transaction,
+        &claims,
+        &input.election_event_id,
+        &input.tally_session_id,
+    )
+    .await?;
 
     let resolved_count = tally_resolution::submit_tally_resolution(
         &hasura_transaction,
