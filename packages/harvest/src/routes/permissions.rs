@@ -10,6 +10,7 @@ use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
 use sequent_core::services::keycloak::get_tenant_realm;
+use sequent_core::services::keycloak::validate_keycloak_scope;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::keycloak::Permission;
 use sequent_core::types::permissions::Permissions;
@@ -31,6 +32,8 @@ pub async fn get_permissions(
     body: Json<GetPermissionsBody>,
 ) -> Result<Json<DataList<Permission>>, (Status, String)> {
     let input = body.into_inner();
+    validate_keycloak_scope(&input.tenant_id, None)
+        .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
         &claims,
         true,
@@ -68,6 +71,8 @@ pub async fn create_permission(
     body: Json<CreatePermissionsBody>,
 ) -> Result<Json<Permission>, (Status, String)> {
     let input = body.into_inner();
+    validate_keycloak_scope(&input.tenant_id, None)
+        .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
         &claims,
         true,
@@ -99,6 +104,8 @@ pub async fn set_role_permission(
     body: Json<SetOrDeleteRolePermissionsBody>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
+    validate_keycloak_scope(&input.tenant_id, None)
+        .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
         &claims,
         true,
@@ -123,6 +130,8 @@ pub async fn delete_role_permission(
     body: Json<SetOrDeleteRolePermissionsBody>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
+    validate_keycloak_scope(&input.tenant_id, None)
+        .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
         &claims,
         true,
@@ -153,6 +162,8 @@ pub async fn delete_permission(
     body: Json<DeletePermissionBody>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
+    validate_keycloak_scope(&input.tenant_id, None)
+        .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
         &claims,
         true,

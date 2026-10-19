@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::validate_keycloak_path_segment;
 use crate::serialization::deserialize_with_path::deserialize_str;
 use crate::services::connection;
 use crate::services::connection::PRE_EXPIRATION_SECS;
@@ -107,6 +108,7 @@ fn get_keycloak_login_admin_config() -> KeycloakLoginConfig {
 pub async fn get_credentials_inner(
     login_config: KeycloakLoginConfig,
 ) -> Result<String> {
+    validate_keycloak_path_segment(&login_config.realm)?;
     let body_string = serde_urlencoded::to_string::<[(String, String); 4]>([
         ("client_id".into(), login_config.client_id.clone()),
         ("scope".into(), "openid".into()),
