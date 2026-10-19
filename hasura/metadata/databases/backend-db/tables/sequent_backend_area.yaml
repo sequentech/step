@@ -321,7 +321,9 @@ update_permissions:
       role: admin-user
     - comment: ""
       permission:
-          check: {}
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
           columns:
               - annotations
               - created_at
