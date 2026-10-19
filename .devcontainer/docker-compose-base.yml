@@ -322,7 +322,7 @@ services:
       CARGO_TARGET_DIR: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/rust-local-target/docker-dev
       WBRAID_B4_BIND: 0.0.0.0:3005
       WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
-      DATABASE_URL: postgres://postgres@postgres-b4v6:5432/b4
+      DATABASE_URL: ${WBRAID_BOARD_DATABASE_URL:-postgres://postgres@postgres-b4v6:5432/b4?sslmode=disable}
       AWS_ENDPOINT_URL: ${WBRAID_S3_ENDPOINT_URL}
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
@@ -760,7 +760,7 @@ services:
       CLOUDFLARE_API_KEY: ${CLOUDFLARE_API_KEY}
       CUSTOM_URLS_IP_DNS_CONTENT: ${CUSTOM_URLS_IP_DNS_CONTENT}
       WBRAID_B4_URL: http://b4v6:3005
-      WBRAID_BOARD_DATABASE_URL: postgres://postgres@postgres-b4v6:5432/b4
+      WBRAID_BOARD_DATABASE_URL: ${WBRAID_BOARD_DATABASE_URL:-postgres://postgres@postgres-b4v6:5432/b4?sslmode=disable}
       WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       ENV_SLUG: ${ENV_SLUG}
@@ -1244,7 +1244,7 @@ services:
        #Demo key
       DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
       WBRAID_B4_URL: http://b4v6:3005
-      WBRAID_BOARD_DATABASE_URL: postgres://postgres@postgres-b4v6:5432/b4
+      WBRAID_BOARD_DATABASE_URL: ${WBRAID_BOARD_DATABASE_URL:-postgres://postgres@postgres-b4v6:5432/b4?sslmode=disable}
       WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       BALLOT_VERIFIER_URL: ${BALLOT_VERIFIER_URL}
