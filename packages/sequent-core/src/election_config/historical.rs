@@ -19,6 +19,9 @@ use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 
 pub const PROFILE: &str = "legacy-seat-v1";
+/// Where the importer keeps a name: event, election, contest and candidate rows
+/// have no plain `name` column since names moved into `presentation`.
+const NAME: &str = "presentation.i18n.en.name";
 const TABLES: &[&str] = &[
     "allbgy",
     "allmun",
@@ -505,6 +508,29 @@ fn text(row: &Row, column: &str) -> Result<String, Problem> {
         .at(&row.origin(Some(column)))),
     }
 }
+/// Moves a workbook row's plain `name` to [`NAME`]. A row may carry both only
+/// when they agree.
+fn localized_name(row: &mut Row) -> Result<(), Problem> {
+    let plain = text(row, "name").ok();
+    let origin = row.origin(Some("name"));
+    row.cells.retain(|(column, _)| column != "name");
+    let Some(plain) = plain else {
+        return Ok(());
+    };
+    match text(row, NAME) {
+        Ok(localized) if localized != plain => Err(Problem::error(
+            Code::ConflictingColumns,
+            origin.to_string(),
+            "name and presentation.i18n.en.name differ; keep only one",
+        )
+        .at(&origin)),
+        Ok(_) => Ok(()),
+        Err(_) => {
+            set(row, NAME, json!(plain));
+            Ok(())
+        }
+    }
+}
 fn workbook_index(
     rows: &[Row],
     column: &str,
@@ -664,6 +690,7 @@ fn map(
         ));
     }
     let mut event = workbook.rows("electionevent")[0].clone();
+    localized_name(&mut event)?;
     let event_key = text(&event, "annotations.miru_election_event_id")?;
     set(
         &mut event,
@@ -1094,6 +1121,7 @@ fn map(
                 text(original_election, "alias")?
             );
             let mut election = original_election.clone();
+            localized_name(&mut election)?;
             election.cells.retain(|(c, _)| c != "election_post");
             set(&mut election, "external_id", json!(election_id));
             historical_annotations(
@@ -1171,7 +1199,7 @@ fn map(
                         vec![
                             ("external_id", json!(contest_id)),
                             ("election.external_id", json!(election_id)),
-                            ("name", json!(seats.text(seat, "CONTEST")?)),
+                            (NAME, json!(seats.text(seat, "CONTEST")?)),
                             ("min_votes", json!(0)),
                             ("max_votes", json!(eligible)),
                             ("winning_candidates_num", json!(eligible)),
@@ -1218,7 +1246,7 @@ fn map(
                             ),
                             ("contest.external_id", json!(contest_id)),
                             (
-                                "name",
+                                NAME,
                                 json!(candidates
                                     .text(candidate, "NAMEONBALLOT")?),
                             ),

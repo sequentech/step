@@ -106,6 +106,12 @@ The workbook contains `ElectionEvent`, `Elections`, `Areas`,
 Election aliases must be unique because schedules refer to aliases. Several
 election rows may share a post; they remain separate contexts.
 
+Event and election names belong in `presentation.i18n.en.name`, which is where
+the importer keeps them. A plain `name` column is accepted and moved there; a
+row that has both must give the same name in each. Contest and candidate names
+come from `seat.CONTEST` and `candidate.NAMEONBALLOT` and are written to the
+same field.
+
 | Relationship                   | Rule                                                                                     |
 | ------------------------------ | ---------------------------------------------------------------------------------------- |
 | Precinct to polling center     | `pop.POLLCENTER_CODE = polling_centers.ID`                                               |
