@@ -40,11 +40,37 @@ async fn readiness_requires_a_verified_operator_and_valid_distinct_event_ids_bef
 
     let operator =
         Claims::new(TENANT, "operator").roles([Permissions::READINESS_CHECK]);
-    for input in [request(OFFICIAL, OFFICIAL), request("not-an-id", TESTED)] {
-        let (status, _) =
+    for (input, message) in [
+        (
+            request(OFFICIAL, OFFICIAL),
+            "The official and tested events must differ",
+        ),
+        (
+            request("not-an-id", TESTED),
+            "Each event ID must be a UUID v4",
+        ),
+        (
+            request(OFFICIAL, "not-an-id"),
+            "Each event ID must be a UUID v4",
+        ),
+        (
+            request(OFFICIAL, "00000000-0000-1000-8000-000000000003"),
+            "Each event ID must be a UUID v4",
+        ),
+        (
+            request(
+                "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA",
+            ),
+            "The official and tested events must differ",
+        ),
+    ] {
+        let (status, body) =
             json(post(&client, "/readiness-check", &operator, &input).await)
                 .await;
         assert_eq!(status, Status::BadRequest);
+        assert_eq!(body["message"], message);
+        assert_eq!(body["extensions"]["code"], "InvalidReadinessCheck");
     }
     // A valid operator and request get past both gates and reach the first
     // backend, which this fixture deliberately leaves unavailable.
@@ -128,4 +154,123 @@ fn readiness_hasura_action_preserves_authentication_and_passes_only_event_ids()
         "{{$body.input}}"
     );
     assert_eq!(action["permissions"], json!([{"role":"readiness-check"}]));
+}
+
+#[test]
+fn readiness_snapshot_failure_is_redacted_and_does_not_write_audit_entries() {
+    rows::run(async {
+        let services = Services::on_test_database().await;
+        let official = rows::event(&services.hasura).await;
+        let tested =
+            rows::event_of(&services.hasura, &official.tenant_id).await;
+        let client = services.client().await;
+        let operator = Claims::new(&official.tenant_id, "operator")
+            .roles([Permissions::READINESS_CHECK]);
+        let before = audit_entries(&services, &official.tenant_id).await;
+        // Both events exist and are authorized, but the official event has no
+        // electoral-log board. Snapshot failures must not expose internals.
+        let (status, body) = json(
+            post(
+                &client,
+                "/readiness-check",
+                &operator,
+                &request(
+                    &official.election_event_id,
+                    &tested.election_event_id,
+                ),
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(status, Status::InternalServerError);
+        assert_eq!(
+            body,
+            json!({
+                "message": "Readiness check could not be completed",
+                "extensions": {"code": "InternalServerError"},
+            })
+        );
+        assert_eq!(audit_entries(&services, &official.tenant_id).await, before);
+        // The failed observation transaction must release its event locks.
+        tokio::time::timeout(std::time::Duration::from_secs(5), rows::query(&services.hasura,
+            "SELECT id FROM sequent_backend.election_event WHERE id = $1 FOR UPDATE NOWAIT",
+            &[&Uuid::parse_str(&official.election_event_id).unwrap()],
+        )).await.expect("readiness failure releases event locks");
+    });
+}
+
+#[test]
+fn readiness_returns_failed_checks_without_recording_a_success() {
+    const TEST: &str = "readiness_routes::readiness_returns_failed_checks_without_recording_a_success";
+    if !crate::request_boundaries::is_isolated_child() {
+        crate::request_boundaries::run_isolated_with_postgres(
+            TEST,
+            "http://127.0.0.1:9",
+            true,
+        );
+        return;
+    }
+    rows::run(async {
+        let services = Services::on_test_database().await;
+        let database: String =
+            rows::query(&services.hasura, "SELECT current_database()", &[])
+                .await[0]
+                .get(0);
+        // The snapshot counts voters through Windmill's process-global pool.
+        // Only this child points it at the private migrated fixture database.
+        std::env::set_var("KEYCLOAK_DB__DBNAME", database);
+        let official = rows::event(&services.hasura).await;
+        let tested =
+            rows::event_of(&services.hasura, &official.tenant_id).await;
+        official.ballot_box(&services.hasura).await;
+        tested.ballot_box(&services.hasura).await;
+        let client = services.client().await;
+        let operator = Claims::new(&official.tenant_id, "operator")
+            .roles([Permissions::READINESS_CHECK]);
+        let before = audit_entries(&services, &official.tenant_id).await;
+        let (status, body) = json(
+            post(
+                &client,
+                "/readiness-check",
+                &operator,
+                &request(
+                    &official.election_event_id,
+                    &tested.election_event_id,
+                ),
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(status, Status::Ok, "{body}");
+        assert_eq!(body["passed"], false);
+        assert!(body["log_entry_id"].is_null());
+        assert!(chrono::DateTime::parse_from_rfc3339(
+            body["checked_at"].as_str().unwrap()
+        )
+        .is_ok());
+        let checks = body["checks"].as_array().unwrap();
+        assert_eq!(
+            checks
+                .iter()
+                .map(|check| check["kind"].as_str().unwrap())
+                .collect::<Vec<_>>(),
+            [
+                "configuration",
+                "certified_voters",
+                "official_zero",
+                "publication",
+                "tested_finished"
+            ]
+        );
+        assert!(checks.iter().all(|check| check["passed"] == false));
+        assert_eq!(
+            body["evidence"]["official"]["event_id"],
+            official.election_event_id
+        );
+        assert_eq!(
+            body["evidence"]["tested"]["event_id"],
+            tested.election_event_id
+        );
+        assert_eq!(audit_entries(&services, &official.tenant_id).await, before);
+    });
 }

@@ -56,7 +56,7 @@ pub(crate) fn run_isolated(test: &str, keycloak_url: &str) -> String {
     run_isolated_with_postgres(test, keycloak_url, false)
 }
 
-fn run_isolated_with_postgres(
+pub(crate) fn run_isolated_with_postgres(
     test: &str,
     keycloak_url: &str,
     postgres: bool,

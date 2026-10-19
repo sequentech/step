@@ -24,6 +24,13 @@ fixtures, and the tests register matching issuer settings backed by a local key
 server, so the request guards verify them as they do real tokens. They are not
 a substitute for deployment access controls.
 
+`support/readiness_routes.rs` checks distinct UUID-v4 event IDs, tenant and
+permission-label boundaries, redacted snapshot failures and release of observation
+locks. A completed request for events without readiness evidence returns a failed
+report without recording a success. That control runs in an isolated child so
+Windmill's global voter-registry pool can use the private fixture database; its
+event ballot boxes live on the synthetic electoral-log PostgreSQL server.
+
 `support/request_logging.rs` checks that routine `GET /trustee/boards` polls,
 including Rocket request logs and shared helper spans, are visible only with
 `LOG_LEVEL=debug` or `trace`. Warnings, errors and failed polls remain visible;
