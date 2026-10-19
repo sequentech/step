@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useState} from "react"
-import {Box} from "@mui/material"
+import {Alert, Box, CircularProgress} from "@mui/material"
 import {useTranslation, Trans} from "react-i18next"
 import {
     Icon,
@@ -22,6 +22,7 @@ import {
     IAuditableSingleBallot,
     IAuditableMultiBallot,
     EElectionEventContestEncryptionPolicy,
+    EReceiptsPolicy,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Button from "@mui/material/Button"
@@ -34,7 +35,8 @@ import {
 import {Link as RouterLink, useLocation, useNavigate, useParams} from "react-router-dom"
 import {Typography} from "@mui/material"
 import {useAppSelector} from "../store/hooks"
-import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
+import {selectBallotForAudit} from "../store/auditableBallots/auditableBallotsSlice"
+import {useAuditBallot} from "../hooks/useAuditBallot"
 import {provideBallotService} from "../services/BallotService"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {useRootBackLink} from "../hooks/root-back-link"
@@ -112,7 +114,14 @@ const AuditScreen: React.FC = () => {
         electionId?: string
     }>()
     const {globalSettings} = useContext(SettingsContext)
-    const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
+    const auditableBallot = useAppSelector(selectBallotForAudit(String(electionId)))
+    const audit = useAuditBallot(
+        String(electionId),
+        !globalSettings.DISABLE_AUTH &&
+            !auditableBallot?.config.public_key?.is_demo &&
+            auditableBallot?.config.election_event_presentation?.receipts?.policy ===
+                EReceiptsPolicy.SIGNED_BY_BALLOT_BOX
+    )
     const {t, i18n} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openStep1Help, setOpenStep1Help] = useState(false)
@@ -151,13 +160,33 @@ const AuditScreen: React.FC = () => {
     const verifierHref = `${globalSettings.BALLOT_VERIFIER_URL}tenant/${tenantId}/event/${eventId}/start?${verifierSearchParams.toString()}`
 
     const downloadAuditableBallot = () => {
-        if (!auditableBallot) {
+        if (!auditableBallot || !audit.ready) {
             return
         }
         let fileName = `${electionId}-ballot.txt`
         let file = new File([JSON.stringify(auditableBallot)], fileName, {type: "text/plain"})
         downloadBlob(file, fileName)
     }
+
+    if (!audit.ready)
+        return (
+            <PageLimit maxWidth="lg" className="audit-screen screen">
+                {audit.error ? (
+                    <Alert
+                        severity="error"
+                        action={
+                            <Button onClick={() => void audit.retry()} disabled={audit.loading}>
+                                {t("ballotPrivacy.retry")}
+                            </Button>
+                        }
+                    >
+                        {t("auditScreen.auditUnavailable")}
+                    </Alert>
+                ) : (
+                    <CircularProgress aria-label={t("auditScreen.confirmingAudit")} />
+                )}
+            </PageLimit>
+        )
 
     return (
         <PageLimit maxWidth="lg" className="audit-screen screen">

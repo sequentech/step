@@ -289,6 +289,38 @@ export const AddressDetails: Story = {
     },
 }
 
+export const FilteredElectionDetails: Story = {
+    ...atViewport(1440),
+    parameters: {...atViewport(1440).parameters, expectedFailure: null},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await voteRow(canvasElement, "192.0.2.10")
+        await userEvent.click(canvas.getByRole("button", {name: "Add filter"}))
+        await userEvent.click(
+            await within(document.body).findByRole("menuitemcheckbox", {name: "Election Name"})
+        )
+        const election = await canvas.findByRole("combobox", {name: /Election Name/})
+        await userEvent.type(election, "Council")
+        await userEvent.click(await within(document.body).findByRole("option", {name: "Council"}))
+        await waitFor(() => expect(listFilter()).toMatchObject({election_id: STORY_IDS.election}))
+        await userEvent.click(await canvas.findByRole("button", {name: "192.0.2.10"}))
+        await within(document.body).findByRole("dialog", {name: "IP address 192.0.2.10"})
+        await waitFor(() =>
+            expect(
+                graphql.calls.filter(({name}) => name === "ForensicNetworkDetail")
+            ).toMatchObject([
+                {
+                    variables: {
+                        electionId: STORY_IDS.election,
+                        electionEventId: EVENT_ID,
+                        ip: "192.0.2.10",
+                    },
+                },
+            ])
+        )
+    },
+}
+
 export const PopulatedPhone: Story = {
     ...Populated,
     ...atViewport(390),

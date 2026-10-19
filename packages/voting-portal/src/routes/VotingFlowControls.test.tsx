@@ -44,6 +44,9 @@ import {ReviewScreen} from "./ReviewScreen"
 import ConfirmationScreen from "./ConfirmationScreen"
 import SupportMaterialsScreen from "./SupportMaterialsScreen"
 import PublishedBallot from "./PublishedBallot"
+import auditableBallotsReducer, {
+    EBallotAuditStatus,
+} from "../store/auditableBallots/auditableBallotsSlice"
 
 jest.mock("react-i18next", () => ({
     Trans: ({i18nKey}: {i18nKey: string}) => i18nKey,
@@ -136,6 +139,10 @@ jest.mock("../store/hooks", () => ({
     useAppSelector: (selector: (state: RootState) => unknown) => selector(mockState),
     useAppDispatch: () => mockDispatch,
 }))
+jest.mock("react-redux", () => ({
+    ...jest.requireActual("react-redux"),
+    useStore: () => ({getState: () => mockState}),
+}))
 jest.mock("../providers/AuthContextProvider", () => ({
     AuthContext: jest.requireActual<typeof React>("react").createContext({
         logout: (...args: unknown[]) => mockLogout(...args),
@@ -163,10 +170,15 @@ jest.mock("../services/BallotService", () => ({
         toHashableMultiBallot: () => ({}),
         decodeAuditableBallot: () => mockDecodedBallot,
         decodeAuditableMultiBallot: () => mockDecodedBallot,
+        forgetVoterSigningKey: (...args: unknown[]) => mockForgetVoterSigningKey(...args),
     }),
 }))
 jest.mock("../hooks/useEncryptBallotForReview", () => ({
     useEncryptBallotForReview: () => ({encryptAndStoreBallot: jest.fn()}),
+}))
+// Audit admission has its own connected-store tests; this suite checks screen controls.
+jest.mock("../hooks/useAuditBallot", () => ({
+    useAuditBallot: () => ({ready: true, loading: false, error: false, retry: jest.fn()}),
 }))
 jest.mock("../hooks/useReceiveBallot", () => ({
     ...jest.requireActual("../hooks/useReceiveBallot"),
@@ -196,8 +208,11 @@ jest.mock("../components/SupportMaterial/SupportMaterial", () => ({SupportMateri
 jest.mock("../hooks/useVoterContext", () => ({useVoterContext: () => mockVoterContext}))
 jest.mock("@apollo/client/react", () => ({
     useMutation: () => [mockInsertCastVote],
-    useQuery: () => ({
-        data: mockElectionQueryData,
+    useQuery: (_query: unknown, options?: {variables?: Record<string, unknown>}) => ({
+        data:
+            options?.variables && "documentId" in options.variables
+                ? undefined
+                : mockElectionQueryData,
         startPolling: jest.fn(),
         stopPolling: jest.fn(),
     }),
@@ -212,6 +227,7 @@ const mockInsertCastVote = jest.fn()
 const mockReceiveBallotParams = jest.fn()
 const mockSignReceivedCast = jest.fn()
 const mockCastReceivedBallot = jest.fn()
+const mockForgetVoterSigningKey = jest.fn()
 let mockReceiveBallotState: IReceiveBallotState
 const routeAction = jest.fn(() => null)
 let mockEmptyHashTranslation = false
@@ -681,6 +697,52 @@ describe("Ballot ID copy visibility", () => {
 })
 
 describe("pending cast", () => {
+    it.each([false, true])(
+        "disposes only the legacy ballot that was cast, new ballot=%s",
+        async (newBallot) => {
+            mockDisableAuth = false
+            const resolveCastVote = deferCastVote()
+            renderRoute(<ReviewScreen />, "review")
+            await userEvent
+                .setup()
+                .click(screen.getByRole("button", {name: "reviewScreen.castBallotButton"}))
+            if (newBallot) {
+                const current = mockState.auditableBallots["election-1"]!
+                mockState = {
+                    ...mockState,
+                    auditableBallots: {
+                        ...mockState.auditableBallots,
+                        "election-1": {
+                            ...current,
+                            auditableBallot: {
+                                ...current.auditableBallot!,
+                                ballot_hash: "new-ballot-hash",
+                            },
+                        },
+                    },
+                }
+            }
+            mockDispatch.mockImplementation((action) => {
+                mockState = {
+                    ...mockState,
+                    auditableBallots: auditableBallotsReducer(mockState.auditableBallots, action),
+                }
+            })
+            resolveCastVote()
+            await waitFor(() => expect(routeAction).toHaveBeenCalledTimes(1))
+            expect(mockState.auditableBallots["election-1"]?.auditableBallot?.ballot_hash).toBe(
+                newBallot ? "new-ballot-hash" : undefined
+            )
+            expect(mockForgetVoterSigningKey).toHaveBeenCalledTimes(newBallot ? 0 : 1)
+            expect(mockDispatch).toHaveBeenCalledWith(
+                setConfirmationScreenData({
+                    electionId: "election-1",
+                    confirmationScreenData: {ballotId: BALLOT_ID, isDemo: false},
+                })
+            )
+        }
+    )
+
     it("disables the cast button and shows progress while the cast is pending", async () => {
         mockDisableAuth = false
         const resolveCastVote = deferCastVote()
@@ -910,7 +972,7 @@ describe("ballot received by the ballot box at review", () => {
 
     it("does not send a ballot whose hash is inconsistent", () => {
         mockDisableAuth = false
-        mockState.auditableBallots["election-1"]!.auditableBallot.ballot_hash = "f".repeat(64)
+        mockState.auditableBallots["election-1"]!.auditableBallot!.ballot_hash = "f".repeat(64)
         renderRoute(<ReviewScreen />, "review")
 
         expect(mockReceiveBallotParams).toHaveBeenLastCalledWith(
@@ -1141,7 +1203,7 @@ describe("review ballot hash integrity", () => {
         expect(screen.getByRole("heading", {name: "First contest"})).toBeVisible()
         validReview.unmount()
 
-        mockState.auditableBallots["election-1"]!.auditableBallot.ballot_hash = "f".repeat(64)
+        mockState.auditableBallots["election-1"]!.auditableBallot!.ballot_hash = "f".repeat(64)
         renderRoute(<ReviewScreen />, "review")
         expect(screen.getByRole("alert")).toHaveTextContent("reviewScreen.error.INCONSISTENT_HASH")
         expect(screen.queryByText("errors.encoding.writeInCharsExceeded")).toBeNull()
@@ -1166,7 +1228,7 @@ it.each([false, true])(
         valid.unmount()
         jest.clearAllMocks()
         sessionStorage.clear()
-        mockState.auditableBallots["election-1"]!.auditableBallot.ballot_hash = "f".repeat(64)
+        mockState.auditableBallots["election-1"]!.auditableBallot!.ballot_hash = "f".repeat(64)
         const invalid = renderRoute(<ReviewScreen />, "review")
         const cast = screen.getByRole("button", {name: "reviewScreen.castBallotButton"})
         fireEvent.click(cast)
@@ -1182,7 +1244,7 @@ it.each([false, true])(
 it("keeps the integrity guard active with an empty custom error translation", () => {
     mockEmptyHashTranslation = true
     mockDisableAuth = false
-    mockState.auditableBallots["election-1"]!.auditableBallot.ballot_hash = "f".repeat(64)
+    mockState.auditableBallots["election-1"]!.auditableBallot!.ballot_hash = "f".repeat(64)
     renderRoute(<ReviewScreen />, "review")
     const cast = screen.getByRole("button", {name: "reviewScreen.castBallotButton"})
     fireEvent.click(cast)
@@ -1228,7 +1290,7 @@ it.each([
 
         storeBallot()
         mockEmptyHashTranslation = emptyTranslation
-        mockState.auditableBallots["election-1"]!.auditableBallot.ballot_hash = "f".repeat(64)
+        mockState.auditableBallots["election-1"]!.auditableBallot!.ballot_hash = "f".repeat(64)
         const invalid = renderRoute(<ReviewScreen />, "review")
         expect(mockInsertCastVote).not.toHaveBeenCalled()
         expect(mockDispatch).not.toHaveBeenCalledWith(
@@ -1557,6 +1619,15 @@ it("keeps the audit download named when its mobile label is hidden", () => {
     const label = screen.getByText("auditScreen.downloadButton")
     label.style.display = "none"
     expect(screen.getByRole("button", {name: "auditScreen.downloadButton"})).toBeEnabled()
+})
+
+it("browser Back from an audited ballot goes to a fresh voting screen without offering its cast", async () => {
+    setUpState({})
+    mockState.auditableBallots["election-1"]!.auditStatus = EBallotAuditStatus.AUDITED
+    const {router} = renderRoute(<ReviewScreen />, "review")
+    await waitFor(() => expect(router.state.location.pathname).toBe(`${ELECTION_PATH}/vote`))
+    expect(screen.queryByRole("button", {name: "reviewScreen.castBallotButton"})).toBeNull()
+    expect(mockInsertCastVote).not.toHaveBeenCalled()
 })
 
 describe("published summaries before ballot downloads", () => {

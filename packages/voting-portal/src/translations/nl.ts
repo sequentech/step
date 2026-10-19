@@ -364,6 +364,9 @@ const dutchTranslation: TranslationType = {
             demoQRText: "Stembiljet tracker is uitgeschakeld in demo-modus",
         },
         auditScreen: {
+            confirmingAudit: "Bevestigen dat dit stembiljet niet meer kan worden uitgebracht…",
+            auditUnavailable:
+                "Het stembiljet kon niet worden gecontroleerd. De inhoud is niet onthuld. Probeer het opnieuw.",
             printButton: "Afdrukken",
             restartButton: "Begin met stemmen",
             title: "Controleer uw Stembiljet",

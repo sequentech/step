@@ -1,7 +1,14 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {ReactElement, useContext, useState} from "react"
-import {DatagridConfigurable, FunctionField, List, TextField, useRecordContext} from "react-admin"
+import {
+    DatagridConfigurable,
+    FunctionField,
+    List,
+    TextField,
+    useListContext,
+    useRecordContext,
+} from "react-admin"
 import {Box, Button, Chip, IconButton, Menu, MenuItem, Stack, Typography} from "@mui/material"
 import MoreVertIcon from "@mui/icons-material/MoreVert"
 import {useTranslation} from "react-i18next"
@@ -36,6 +43,25 @@ export interface RecordVoteCloudflareData {
 const Empty: React.FC = () => {
     const {t} = useTranslation()
     return <Typography sx={{p: 2}}>{t("dashboard.ipAddress.emptyState")}</Typography>
+}
+
+const SelectedForensicAddress: React.FC<{
+    electionEventId: string
+    electionId?: string
+    selected?: IForensicAddress
+    onClose: () => void
+}> = ({electionEventId, electionId, selected, onClose}) => {
+    const {filterValues} = useListContext()
+    const effectiveElectionId = electionId ?? filterValues.election_id
+    return selected ? (
+        <ForensicAddressDialog
+            key={`${effectiveElectionId ?? "all"}:${selected.ip}`}
+            electionEventId={electionEventId}
+            electionId={effectiveElectionId}
+            ip={selected.ip}
+            onClose={onClose}
+        />
+    ) : null
 }
 
 const AddressActions: React.FC<{row: IForensicAddress; onOpen: () => void}> = ({row, onOpen}) => {
@@ -210,7 +236,9 @@ export const ListIpAddress: React.FC<ListIpAddressProps> = ({aside}) => {
                                             />
                                         )}
                                         <Typography variant="body2">
-                                            {t("ballotPrivacy.ballots", {count: row.vote_count})}
+                                            {t("ballotPrivacy.ballots", {
+                                                count: row.vote_count,
+                                            })}
                                         </Typography>
                                     </Stack>
                                     <Typography variant="caption">
@@ -311,16 +339,13 @@ export const ListIpAddress: React.FC<ListIpAddressProps> = ({aside}) => {
                         )}
                     />
                 </DatagridConfigurable>
-            </List>
-            {selected && (
-                <ForensicAddressDialog
-                    key={selected.ip}
+                <SelectedForensicAddress
                     electionEventId={electionEventId}
                     electionId={electionId}
-                    ip={selected.ip}
+                    selected={selected}
                     onClose={() => setSelected(undefined)}
                 />
-            )}
+            </List>
         </Box>
     )
 }

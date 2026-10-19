@@ -366,6 +366,9 @@ const catalanTranslation: TranslationType = {
             demoQRText: "El rastrejador de butlletes està deshabilitat en mode de demostració",
         },
         auditScreen: {
+            confirmingAudit: "Confirmant que aquesta papereta ja no es pot emetre…",
+            auditUnavailable:
+                "No s'ha pogut auditar la papereta. No se n'ha revelat el contingut. Torneu-ho a provar.",
             printButton: "Imprimir",
             restartButton: "Iniciar votació",
             title: "Comproveu la vostra papereta",

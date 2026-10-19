@@ -363,6 +363,9 @@ const tagalogTranslation: TranslationType = {
             demoQRText: "Ang ballot tracker ay hindi gumagana sa demo mode",
         },
         auditScreen: {
+            confirmingAudit: "Kinukumpirmang hindi na maaaring isumite ang balotang ito…",
+            auditUnavailable:
+                "Hindi nasuri ang balota. Hindi pa ipinapakita ang nilalaman nito. Pakisubukang muli.",
             printButton: "I-print",
             restartButton: "Simulan ang Pagboto",
             title: "Suriin ang Iyong Balota",

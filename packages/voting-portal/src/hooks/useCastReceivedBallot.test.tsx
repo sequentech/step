@@ -1,10 +1,15 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import React from "react"
 import {renderHook} from "@testing-library/react"
+import {Provider} from "react-redux"
 import type {IReceivedBallot} from "@sequentech/ui-core"
 import {addCastVotes} from "../store/castVotes/castVotesSlice"
 import {IReceivedCast, signReceivedCast, useCastReceivedBallot} from "./useCastReceivedBallot"
+import {clearVoterSession, store} from "../store/store"
+import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
+import type {IAuditableBallot} from "@sequentech/ui-core"
 
 jest.mock("react-i18next", () => ({
     useTranslation: () => ({
@@ -59,10 +64,14 @@ const ANSWER = {
     cast_receipt_signature: "ballot-box-cast-signature",
 }
 
-const cast = () => renderHook(() => useCastReceivedBallot()).result.current(CAST, setErrorMsg)
+const cast = () =>
+    renderHook(() => useCastReceivedBallot(), {
+        wrapper: ({children}) => <Provider store={store}>{children}</Provider>,
+    }).result.current(CAST, setErrorMsg)
 
 beforeEach(() => {
     jest.clearAllMocks()
+    store.dispatch(clearVoterSession())
     jest.spyOn(console, "log").mockImplementation(() => undefined)
     jest.spyOn(console, "error").mockImplementation(() => undefined)
     mockCastBallot.mockResolvedValue({data: {cast_ballot: ANSWER}})
@@ -141,6 +150,53 @@ it("records the cast vote and drops the voter's key once the receipt verifies", 
         ])
     )
     expect(mockForgetVoterSigningKey).toHaveBeenCalledWith("election-1")
+})
+
+it("disposes audit plaintext after a verified cast while preserving the confirmation code", async () => {
+    store.dispatch(clearVoterSession())
+    store.dispatch(
+        setAuditableBallot({
+            electionId: "election-1",
+            isBlankBallot: false,
+            auditableBallot: {ballot_hash: BALLOT_HASH} as IAuditableBallot,
+        })
+    )
+    mockDispatch.mockImplementation(store.dispatch)
+    try {
+        expect(await cast()).toBe(true)
+        expect(store.getState().auditableBallots["election-1"]?.auditableBallot).toBeUndefined()
+        expect(store.getState().confirmationScreenData["election-1"]?.ballotId).toBe("FTBE-MHRX")
+    } finally {
+        mockDispatch.mockImplementation(() => undefined)
+    }
+})
+
+it("preserves a new ballot prepared while an earlier cast was pending", async () => {
+    let finishCast!: (value: {data: {cast_ballot: typeof ANSWER}}) => void
+    mockCastBallot.mockReturnValue(
+        new Promise((resolve) => {
+            finishCast = resolve
+        })
+    )
+    mockDispatch.mockImplementation(store.dispatch)
+    try {
+        const pending = cast()
+        store.dispatch(
+            setAuditableBallot({
+                electionId: "election-1",
+                isBlankBallot: false,
+                auditableBallot: {ballot_hash: "a-new-ballot"} as IAuditableBallot,
+            })
+        )
+        finishCast({data: {cast_ballot: ANSWER}})
+        expect(await pending).toBe(true)
+        expect(store.getState().auditableBallots["election-1"]?.auditableBallot?.ballot_hash).toBe(
+            "a-new-ballot"
+        )
+        expect(mockForgetVoterSigningKey).not.toHaveBeenCalled()
+    } finally {
+        mockDispatch.mockImplementation(() => undefined)
+    }
 })
 
 it("does not confirm a cast whose receipt the ballot box did not sign", async () => {

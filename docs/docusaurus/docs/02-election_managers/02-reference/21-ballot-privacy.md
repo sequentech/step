@@ -28,6 +28,10 @@ The browser uses published keys independently of the proof response. **Still bei
 
 In the Admin Portal, open a ballot entry in the event's **Logs** tab to run the same checks. Other audit explanations, filters and exports remain available. For pseudonym events, **Voters > User's Logs** contains the voter's sign-ins and messages rather than their ballots. Participation remains available without an individual ballot timestamp.
 
+## Auditing a ballot
+
+Auditing reveals the ballot's choices and encryption evidence so they can be checked. Before displaying or downloading that evidence, the portal asks the ballot box to permanently mark the received ballot as audited. An audited ballot cannot subsequently be cast, including by returning to Review. To vote after an audit, prepare a new ballot. A ballot that has already been cast cannot be audited; the portal discards its audit material and keeps its non-disclosing confirmation and receipts.
+
 ## Network data
 
 **Data > Privacy > Network data** offers two policies:

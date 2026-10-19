@@ -87,6 +87,12 @@ export type ApprovalMatrixOutput = {
   version: Scalars['Int']['output'];
 };
 
+export type AuditBallotOutput = {
+  __typename?: 'AuditBallotOutput';
+  ballot_id: Scalars['String']['output'];
+  status: Scalars['String']['output'];
+};
+
 export type AuthorizeTallyCustodyInput = {
   custody_proof_json: Scalars['String']['input'];
   custody_proof_sha256?: InputMaybe<Scalars['String']['input']>;
@@ -2014,6 +2020,7 @@ export type Mutation_Root = {
   apply_external_reconciliation_changes?: Maybe<TaskOutput>;
   /** Apply scheduled dates recomputed with the current timezone database */
   apply_schedule_recompute?: Maybe<ApplyScheduleRecomputeOutput>;
+  audit_ballot: AuditBallotOutput;
   audit_electoral_log: TaskOutput;
   authorize_tally_custody?: Maybe<AuthorizeTallyCustodyOutput>;
   call_plugin_route: PluginsRouteOutput;
@@ -3033,6 +3040,13 @@ export type Mutation_RootApply_External_Reconciliation_ChangesArgs = {
 /** mutation root */
 export type Mutation_RootApply_Schedule_RecomputeArgs = {
   election_event_id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootAudit_BallotArgs = {
+  ballot_id: Scalars['String']['input'];
+  election_id: Scalars['uuid']['input'];
 };
 
 

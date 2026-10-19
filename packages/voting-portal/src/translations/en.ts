@@ -489,6 +489,9 @@ const englishTranslation = {
             demoQRText: "Ballot tracker is disabled in demo mode",
         },
         auditScreen: {
+            confirmingAudit: "Confirming that this ballot cannot be cast…",
+            auditUnavailable:
+                "The ballot could not be audited. Its contents have not been revealed. Please try again.",
             printButton: "Print",
             restartButton: "Start Voting",
             title: "Check your ballot",

@@ -3,10 +3,12 @@
 import React from "react"
 import {render, screen} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import {BallotBoxLogView, type BallotBoxLogViewProps} from "./BallotBoxLog"
+import {BallotBoxLog, BallotBoxLogView, type BallotBoxLogViewProps} from "./BallotBoxLog"
 
 jest.mock("react-i18next", () => ({useTranslation: () => ({t: (key: string) => key})}))
 jest.mock("./BallotBoxEntry", () => ({BallotBoxEntry: () => null}))
+jest.mock("@apollo/client/react", () => ({useQuery: (...args: unknown[]) => mockQuery(...args)}))
+const mockQuery = jest.fn()
 
 const ballot = {
     ballot_id: "FTBE-MHRX",
@@ -54,4 +56,15 @@ test("invalid prefix never displays stale rows or unrestricted results", () => {
     render(<BallotBoxLogView {...props()} ownBallots={[]} search="%" />)
     expect(screen.getByText("ballotPrivacy.invalidPrefix")).toBeInTheDocument()
     expect(screen.queryByText("FTBE-MHRX")).not.toBeInTheDocument()
+})
+
+test("public rows remain usable when the private own-ballot lookup is unavailable", () => {
+    mockQuery.mockImplementation((_query, options) =>
+        "limit" in options.variables
+            ? {data: {ballot_box_log: {payload: props().page}}, loading: false}
+            : {error: new Error("Mapping no longer retained"), loading: false}
+    )
+    render(<BallotBoxLog electionEventId="event" formatTime={() => "03:00 UTC"} />)
+    expect(screen.getAllByRole("button", {name: "FTBE-MHRX"}).length).toBeGreaterThan(0)
+    expect(screen.queryByText("ballotPrivacy.own")).not.toBeInTheDocument()
 })

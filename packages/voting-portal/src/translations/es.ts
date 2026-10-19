@@ -365,6 +365,9 @@ const spanishTranslation: TranslationType = {
             demoQRText: "El rastreador de papeletas está deshabilitado en modo de demostración",
         },
         auditScreen: {
+            confirmingAudit: "Confirmando que esta papeleta ya no se puede emitir…",
+            auditUnavailable:
+                "No se ha podido auditar la papeleta. Su contenido no se ha revelado. Inténtelo de nuevo.",
             printButton: "Imprimir",
             restartButton: "Iniciar votación",
             title: "Compruebe su papeleta",

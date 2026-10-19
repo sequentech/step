@@ -348,7 +348,7 @@ export const BallotBoxLog: React.FC<{
                 page={page}
                 ownBallots={own.data?.ballot_box_own.payload.ballots ?? []}
                 loading={list.loading || normalizeBallotLogPrefix(search) !== prefix}
-                error={!!list.error || !!own.error}
+                error={!!list.error}
                 search={search}
                 onSearch={setSearch}
                 limit={limit}

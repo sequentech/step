@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState, useContext, useMemo, useRef} from "react"
+import {useStore} from "react-redux"
+import type {RootState} from "../store/store"
 import {castVoteErrorMessage} from "../services/CastVoteErrors"
 import {EReceiveBallotStatus, useReceiveBallot} from "../hooks/useReceiveBallot"
 import {
@@ -47,7 +49,12 @@ import {styled} from "@mui/material/styles"
 import {faAngleLeft, faFire} from "@fortawesome/free-solid-svg-icons"
 import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
-import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
+import {
+    clearAuditableBallot,
+    EBallotAuditStatus,
+    selectAuditableBallot,
+    selectBallotAuditStatus,
+} from "../store/auditableBallots/auditableBallotsSlice"
 import {useMutation, useQuery} from "@apollo/client/react"
 import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
 import {GetElectionEventQuery, InsertCastVoteMutation, GetElectionsQuery} from "../gql/graphql"
@@ -195,6 +202,7 @@ const useTryInsertCastVote = () => {
     const {t} = useTranslation()
     const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
     const dispatch = useAppDispatch()
+    const store = useStore<RootState>()
 
     return async (
         electionId: string,
@@ -220,8 +228,19 @@ const useTryInsertCastVote = () => {
             let newCastVote = result.data?.insert_cast_vote
             if (newCastVote) {
                 dispatch(addCastVotes([newCastVote]))
+                dispatch(
+                    setConfirmationScreenData({
+                        electionId,
+                        confirmationScreenData: {ballotId, isDemo: false},
+                    })
+                )
+                const currentBallot = store.getState().auditableBallots[electionId]?.auditableBallot
+                if (!currentBallot || currentBallot.ballot_hash === ballotId) {
+                    dispatch(clearAuditableBallot(electionId))
+                    provideBallotService().forgetVoterSigningKey(electionId)
+                }
             }
-            return true
+            return !!newCastVote
         } catch (error) {
             console.log(error)
             setErrorMsg(castVoteErrorMessage(error, t))
@@ -398,6 +417,14 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 return await storeBallotDataAndReauth(ballotData)
             } else {
                 addFakeCastVote()
+                dispatch(
+                    setConfirmationScreenData({
+                        electionId: ballotStyle.election_id,
+                        confirmationScreenData: {ballotId, isDemo: true, auditButtonCfg},
+                    })
+                )
+                dispatch(clearAuditableBallot(ballotStyle.election_id))
+                provideBallotService().forgetVoterSigningKey(ballotStyle.election_id)
                 return submit(null, {method: "post"})
             }
         }
@@ -542,6 +569,7 @@ export const ReviewScreen: React.FC = () => {
     const isFullyAcclaimed = areAllContestsAcclaimed(ballotStyle?.ballot_eml.contests)
     const location = useLocation()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
+    const auditStatus = useAppSelector(selectBallotAuditStatus(String(electionId)))
     const [auditBallotHelp, setAuditBallotHelp] = useState<boolean>(false)
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openReviewScreenHelp, setReviewScreenHelp] = useState(false)
@@ -556,6 +584,12 @@ export const ReviewScreen: React.FC = () => {
     const navigate = useNavigate()
     const submit = useSubmit()
     const {tenantId, eventId} = useParams<TenantEventType>()
+    useEffect(() => {
+        if (auditStatus === EBallotAuditStatus.AUDITED)
+            navigate(
+                `/tenant/${tenantId}/event/${eventId}/election/${electionId}/vote${location.search}`
+            )
+    }, [auditStatus, tenantId, eventId, electionId, navigate, location.search])
     const [errorMsg, setErrorMsg] = useState<string>()
     const authContext = useContext(AuthContext)
     const {isGoldUser, reauthWithGold} = authContext
@@ -781,6 +815,18 @@ export const ReviewScreen: React.FC = () => {
 
         if (ballotData?.isDemo) {
             addFakeCastVote()
+            dispatch(
+                setConfirmationScreenData({
+                    electionId: ballotData.electionId,
+                    confirmationScreenData: {
+                        ballotId: ballotData.ballotId,
+                        isDemo: true,
+                        auditButtonCfg: ballotData.auditButtonCfg,
+                    },
+                })
+            )
+            dispatch(clearAuditableBallot(ballotData.electionId))
+            provideBallotService().forgetVoterSigningKey(ballotData.electionId)
             clearSessionStorageBallotData()
             setCasting(false)
             return submit(null, {method: "post"})

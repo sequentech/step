@@ -364,6 +364,9 @@ const basqueTranslation: TranslationType = {
             demoQRText: "Bozketa jarraitzailea desgaituta dago demo moduan",
         },
         auditScreen: {
+            confirmingAudit: "Boto-paper hau bidali ezin dela berresten…",
+            auditUnavailable:
+                "Ezin izan da boto-papera egiaztatu. Ez da haren edukia erakutsi. Saiatu berriro.",
             printButton: "Inprimatu",
             restartButton: "Hasi Bozketa",
             title: "Egiaztatu zure Bozketa",

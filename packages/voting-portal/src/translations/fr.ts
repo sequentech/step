@@ -363,6 +363,9 @@ const frenchTranslation: TranslationType = {
             demoQRText: "Le suivi des bulletins est désactivé en mode démo",
         },
         auditScreen: {
+            confirmingAudit: "Confirmation que ce bulletin ne peut plus être déposé…",
+            auditUnavailable:
+                "Le bulletin n’a pas pu être audité. Son contenu n’a pas été révélé. Veuillez réessayer.",
             printButton: "Imprimer",
             restartButton: "Démarrer le vote",
             title: "Vérifiez votre Bulletin",

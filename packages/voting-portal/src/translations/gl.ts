@@ -364,6 +364,9 @@ const galegoTranslation: TranslationType = {
             demoQRText: "O rastrexador de papeletas está desactivado en modo de demostración",
         },
         auditScreen: {
+            confirmingAudit: "Confirmando que esta papeleta xa non se pode emitir…",
+            auditUnavailable:
+                "Non se puido auditar a papeleta. Non se revelou o seu contido. Téntao de novo.",
             printButton: "Imprimir",
             restartButton: "Comezar a votar",
             title: "Comproba a túa Papeleta",
