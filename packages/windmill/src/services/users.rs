@@ -5,7 +5,7 @@
 use crate::postgres::area::get_areas;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::ballot_box_reads::get_event_ballot_box;
-use crate::services::cast_votes::get_users_with_vote_info;
+use crate::services::cast_votes::get_users_with_vote_info_in_elections;
 use crate::services::database::PgConfig;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
@@ -19,7 +19,6 @@ use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient, Pub
 use sequent_core::types::keycloak::*;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
-use std::cmp::min;
 use std::env;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -1033,6 +1032,9 @@ pub struct ListUsersFilter {
     pub tenant_id: String,
     pub election_event_id: Option<String>,
     pub election_id: Option<String>,
+    /// Server-derived participation scope; absent on older queued selections.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub permitted_election_ids: Option<Vec<String>>,
     pub area_id: Option<String>,
     pub realm: String,
     pub search: Option<String>,
@@ -1206,6 +1208,19 @@ pub async fn count_keycloak_users(
     for filt_param in filter_params.iter() {
         params.push(filt_param);
     }
+    let search_pattern = filter
+        .search
+        .as_deref()
+        .map(str::trim)
+        .filter(|text| !text.is_empty())
+        .map(|text| format!("%{text}%"));
+    if let Some(pattern) = &search_pattern {
+        filters_clause.push_str(&format!(
+            "concat_ws(' ', u.username, u.first_name, u.last_name, u.email) ILIKE ${next_param_number} AND ",
+        ));
+        params.push(pattern);
+        next_param_number += 1;
+    }
 
     // Add area-related joins/filters.
     let (area_ids, area_ids_join_clause, area_ids_where_clause) = get_area_ids(
@@ -1321,6 +1336,17 @@ pub async fn list_users(
     keycloak_transaction: &Transaction<'_>,
     filter: ListUsersFilter,
 ) -> Result<(Vec<User>, i32)> {
+    list_users_page(hasura_transaction, keycloak_transaction, filter, None, true).await
+}
+
+/// Internal keyset scans do not repeatedly recount the entire matching census.
+async fn list_users_page(
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    filter: ListUsersFilter,
+    after_user_id: Option<&str>,
+    count_rows: bool,
+) -> Result<(Vec<User>, i32)> {
     info!("filter: {filter:?}");
     let low_sql_limit = PgConfig::from_env()?.low_sql_limit;
     let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
@@ -1362,6 +1388,19 @@ pub async fn list_users(
     }
     for filt_param in filter_params.iter() {
         params.push(filt_param);
+    }
+    let search_pattern = filter
+        .search
+        .as_deref()
+        .map(str::trim)
+        .filter(|text| !text.is_empty())
+        .map(|text| format!("%{text}%"));
+    if let Some(pattern) = &search_pattern {
+        filters_clause.push_str(&format!(
+            "concat_ws(' ', u.username, u.first_name, u.last_name, u.email) ILIKE ${next_param_number} AND ",
+        ));
+        params.push(pattern);
+        next_param_number += 1;
     }
 
     let (area_ids, area_ids_join_clause, area_ids_where_clause) = get_area_ids(
@@ -1441,12 +1480,29 @@ pub async fn list_users(
         }
     };
 
+    if after_user_id.is_some() {
+        filters_clause.push_str(&format!("u.id > ${next_param_number} AND "));
+        params.push(&after_user_id);
+        next_param_number += 1;
+    }
+    let keyset_scan = after_user_id.is_some();
+    // A voter may have several matching area attributes. Group by the
+    // user_entity primary key before applying participation pagination.
+    let group_users = if keyset_scan || filter.has_voted.is_some() {
+        "GROUP BY u.id"
+    } else {
+        ""
+    };
+    let scan_order = if keyset_scan { "ORDER BY lu.id" } else { "" };
+
     // The count query below has no ORDER BY clause, so it must not receive the
     // optional dynamic-attribute sort parameter used by the listing query.
     let count_params_len = params.len();
     let mut sort_params: Vec<Option<String>> = vec![];
-    let (sort_clause, field_param) =
-        get_sort_clause_and_field_param(filter.sort, next_param_number);
+    let (sort_clause, field_param) = get_sort_clause_and_field_param(
+        if keyset_scan { None } else { filter.sort },
+        next_param_number,
+    );
 
     if field_param.is_some() {
         sort_params.push(field_param);
@@ -1485,6 +1541,7 @@ pub async fn list_users(
                 {enabled_condition}
                 {email_verified_condition}
                 {dynamic_attr_clause}
+            {group_users}
             {sort_clause}
             LIMIT {query_limit} OFFSET {query_offset}
         )
@@ -1511,7 +1568,8 @@ pub async fn list_users(
                 WHERE ua.user_id = lu.id
                 GROUP BY ua.name
             ) attr
-        ) attr_json ON TRUE;
+        ) attr_json ON TRUE
+        {scan_order};
         "#
     );
     debug!("statement_str {statement_str:?}");
@@ -1550,15 +1608,19 @@ pub async fn list_users(
     );
     debug!("statement_str {count_statement_str:?}");
 
-    let count_statement = keycloak_transaction
-        .prepare(count_statement_str.as_str())
-        .await?;
-    let count_row: Row = keycloak_transaction
-        .query_one(&count_statement, &params[..count_params_len])
-        .await
-        .map_err(|err| anyhow!("{}", err))?;
+    let count: i32 = if count_rows {
+        let count_statement = keycloak_transaction
+            .prepare(count_statement_str.as_str())
+            .await?;
+        let count_row: Row = keycloak_transaction
+            .query_one(&count_statement, &params[..count_params_len])
+            .await
+            .map_err(|err| anyhow!("{}", err))?;
 
-    let count: i32 = count_row.try_get::<&str, i64>("total_count")?.try_into()?;
+        count_row.try_get::<&str, i64>("total_count")?.try_into()?
+    } else {
+        0
+    };
 
     // Process the users
     let users = rows
@@ -1620,18 +1682,20 @@ pub async fn list_users_with_vote_info(
         .ok_or(anyhow!("Election event id is empty"))?;
     let election_id = filter.election_id.clone();
 
-    let filter_by_has_voted = filter.has_voted.clone();
+    let filter_by_has_voted = filter.has_voted;
+    let permitted_election_ids = filter.permitted_election_ids.clone();
     let (mut users, users_count) = list_users(hasura_transaction, keycloak_transaction, filter)
         .await
         .with_context(|| "Error listing users")?;
 
-    let users: Vec<User> = get_users_with_vote_info(
+    let users: Vec<User> = get_users_with_vote_info_in_elections(
         hasura_transaction,
         tenant_id.as_str(),
         election_event_id.as_str(),
         election_id,
         users,
         filter_by_has_voted,
+        permitted_election_ids.as_deref(),
     )
     .await
     .with_context(|| "Error listing users with vote info")?;
@@ -2189,106 +2253,94 @@ pub async fn list_users_has_voted(
     filter: ListUsersFilter,
     tenant_id: &str,
 ) -> Result<(Vec<User>, i32)> {
-    let limit = filter.limit.ok_or(anyhow!("Limit not specified."))? as usize;
-    let batch_size = PgConfig::from_env()
-        .map_err(|e| anyhow!("Error getting default_sql_batch_size {e:?}"))?
-        .default_sql_batch_size;
-    info!("batch_size {batch_size}");
-    let real_offset = filter.offset.unwrap_or(0);
-
-    // Get the total number of users who have actually voted.
-    let count_total_voted =
-        count_have_voted(hasura_transaction, &filter, tenant_id).await? as usize;
-    // Get the total voters
-    let count_total_voters =
-        count_keycloak_enabled_users(keycloak_transaction, &filter.realm).await? as usize;
-    info!("count_total_voters: {count_total_voters}, count_total_voted: {count_total_voted}");
-    let count_total_not_voted = if count_total_voted <= count_total_voters {
-        count_total_voters - count_total_voted
-    } else {
-        0usize
-    };
-
-    // This will only store the final page of users.
-    let mut final_users = Vec::with_capacity(limit);
-    // Counter for how many users we still need to skip *after filtering*.
-    let mut users_to_skip = real_offset as usize;
-    // Counter for total users found that match the filter, to respect `count_voted`.
-    let mut matching_users_found = 0;
-
-    let mut fetch_offset = 0; // The offset for the database query.
-    let mut total_users_from_filter = 0;
-
-    // Loop until the page is full or we run out of potential users.
-    while final_users.len() < limit {
-        // If we've already processed all possible voted users, stop.
-        if matching_users_found >= count_total_voted && Some(true) == filter.has_voted {
+    let wanted = filter
+        .has_voted
+        .context("Participation filter not specified")?;
+    let event = filter
+        .election_event_id
+        .as_deref()
+        .context("Participation requires an event")?;
+    let settings = PgConfig::from_env()?;
+    let batch_size = settings
+        .default_sql_batch_size
+        .min(settings.low_sql_limit)
+        .max(1);
+    let mut after = String::new();
+    let mut matching_ids = Vec::new();
+    loop {
+        let mut batch = filter.clone();
+        batch.limit = Some(batch_size);
+        batch.offset = Some(0);
+        batch.sort = None;
+        let (users, _) = list_users_page(
+            hasura_transaction,
+            keycloak_transaction,
+            batch,
+            Some(&after),
+            false,
+        )
+        .await?;
+        if users.is_empty() {
             break;
         }
-
-        // If we've already processed all possible non voted users, stop.
-        if matching_users_found >= count_total_not_voted && Some(false) == filter.has_voted {
-            break;
-        }
-
-        let mut batch_filter = filter.clone();
-        batch_filter.offset = Some(fetch_offset);
-        batch_filter.limit = Some(batch_size as i32);
-
-        let (mut voters, count_voters) =
-            list_users_with_vote_info(hasura_transaction, keycloak_transaction, batch_filter)
-                .await?;
-
-        if total_users_from_filter == 0 {
-            total_users_from_filter = count_voters;
-        }
-
-        let fetched_count = voters.len();
-        if fetched_count == 0 {
-            break; // No more users available from the source.
-        }
-
-        fetch_offset += fetched_count as i32;
-
-        // Filter the batch by the `has_voted` criteria.
-        if let Some(has_voted) = filter.has_voted {
-            voters.retain(|voter| {
-                let info_count = voter.votes_info.as_ref().map(|v| v.len()).unwrap_or(0);
-                if has_voted {
-                    info_count > 0
-                } else {
-                    info_count == 0
-                }
-            });
-        }
-
-        // Process the filtered batch, skipping or collecting each user.
-        for voter in voters {
-            matching_users_found += 1;
-
-            if users_to_skip > 0 {
-                users_to_skip -= 1;
-                continue; // Skip this user and move to the next.
-            }
-
-            // If skipping is done, start collecting.
-            final_users.push(voter);
-
-            // If the page is full, we can stop entirely.
-            if final_users.len() == limit {
-                break;
-            }
-        }
+        let next = users
+            .iter()
+            .filter_map(|user| user.id.as_ref())
+            .max()
+            .context("A listed voter has no identifier")?
+            .clone();
+        anyhow::ensure!(next > after, "Voter scan did not advance");
+        let users = get_users_with_vote_info_in_elections(
+            hasura_transaction,
+            tenant_id,
+            event,
+            filter.election_id.clone(),
+            users,
+            None,
+            filter.permitted_election_ids.as_deref(),
+        )
+        .await?;
+        matching_ids.extend(
+            users
+                .into_iter()
+                .filter(|user| {
+                    let voted = user
+                        .votes_info
+                        .as_ref()
+                        .is_some_and(|votes| !votes.is_empty());
+                    voted == wanted
+                })
+                .filter_map(|user| user.id),
+        );
+        after = next;
+    }
+    matching_ids.sort_unstable();
+    matching_ids.dedup();
+    let total = matching_ids
+        .len()
+        .try_into()
+        .context("Too many matching voters")?;
+    if matching_ids.is_empty() || filter.limit == Some(0) {
+        return Ok((vec![], total));
     }
 
-    // The total count should not exceed the number of users who have actually voted or not voted.
-    let final_total = if let Some(true) = filter.has_voted {
-        min(total_users_from_filter, count_total_voted as i32)
-    } else {
-        min(total_users_from_filter, count_total_not_voted as i32)
-    };
-
-    Ok((final_users, final_total))
+    // The same matching identity set controls both the total and the normal
+    // requested sort/page. Participation lookups never read privacy ballots.
+    let mut page = filter.clone();
+    page.user_ids = Some(matching_ids);
+    let (users, _) =
+        list_users_page(hasura_transaction, keycloak_transaction, page, None, false).await?;
+    let users = get_users_with_vote_info_in_elections(
+        hasura_transaction,
+        tenant_id,
+        event,
+        filter.election_id.clone(),
+        users,
+        None,
+        filter.permitted_election_ids.as_deref(),
+    )
+    .await?;
+    Ok((users, total))
 }
 
 #[cfg(test)]

@@ -39,6 +39,59 @@ use voting_crypto::signing::SigningKey;
 pub type ReceiveBallotInput = InsertCastVoteInput;
 pub type ReceiveBallotOutput = ReceivedBallot;
 
+/// The authenticated owner may audit a received ballot, which permanently
+/// prevents casting it. No plaintext, signing key or user identity is input.
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct AuditBallotInput {
+    pub election_id: Uuid,
+    pub ballot_id: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AuditBallotStatus {
+    Audited,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct AuditBallotOutput {
+    pub ballot_id: String,
+    pub status: AuditBallotStatus,
+}
+
+/// Resolves only the authenticated caller internally; an unknown or purged
+/// mapping is indistinguishable from an unowned receipt.
+#[instrument(skip_all)]
+pub async fn audit_ballot_for_voter(
+    store: &electoral_log::adapters::postgres::PostgresStore,
+    event: &sequent_core::types::hasura::core::ElectionEvent,
+    area: &str,
+    voter: &str,
+    input: &AuditBallotInput,
+) -> anyhow::Result<electoral_log::adapters::ballot_box_received::AuditOutcome> {
+    use electoral_log::adapters::ballot_box_received::AuditOutcome;
+    let identity = if crate::services::vote_privacy::identity_mode(event)?
+        == sequent_core::types::vote_privacy::BallotIdentity::Pseudonym
+    {
+        let Some(identity) = store.voter_pseudonym(&event.id, voter).await? else {
+            return Ok(AuditOutcome::NotFound);
+        };
+        identity
+    } else {
+        voter.to_owned()
+    };
+    crate::services::ballot_box::request_sequencer(&event.id).await?;
+    store
+        .audit_received_ballot(
+            &event.id,
+            &input.election_id.to_string(),
+            area,
+            &identity,
+            &input.ballot_id,
+        )
+        .await
+}
+
 /// The format of the times the ballot box signs: `ReceivedStatement::received_at`
 /// and `CastReceiptStatement::cast_at`.
 const SIGNED_TIME_FORMAT: &str = "%Y-%m-%dT%H:%M:%S%.3fZ";
@@ -454,9 +507,24 @@ pub async fn try_receive_ballot_with_network(
         })?,
         is_multi_contest,
     )?;
+    let network = if presentation.ballot_identity
+        == Some(sequent_core::types::vote_privacy::BallotIdentity::Pseudonym)
+        && presentation.network_data_policy
+            == Some(sequent_core::types::vote_privacy::NetworkDataPolicy::ForensicStore)
+    {
+        network.map(|(ip, country, user_agent)| {
+            electoral_log::adapters::ballot_box_received::ReceivedNetwork {
+                ip,
+                country,
+                user_agent,
+            }
+        })
+    } else {
+        None
+    };
     let first_received_at = truncate_to_milliseconds(Utc::now())?;
     let outcome = store
-        .receive_ballot(
+        .receive_ballot_with_network(
             &ReceiveBallot {
                 election_event_id: &election_event.id,
                 election_id: &election_id,
@@ -468,6 +536,7 @@ pub async fn try_receive_ballot_with_network(
                 voter_ballot_signature: &voter_ballot_signature,
             },
             first_received_at,
+            network.as_ref(),
             |received_at| {
                 let received = sign_received(
                     &signing_key,
@@ -492,41 +561,6 @@ pub async fn try_receive_ballot_with_network(
 
     match outcome {
         ReceiveOutcome::Received(stored) | ReceiveOutcome::AlreadyReceived(stored) => {
-            let policy = election_event
-                .get_presentation()
-                .map_err(|_| CastVoteError::CheckStatusFailed("Invalid privacy policy".into()))?
-                .unwrap_or_default();
-            if policy.ballot_identity
-                == Some(sequent_core::types::vote_privacy::BallotIdentity::Pseudonym)
-                && policy.network_data_policy
-                    == Some(sequent_core::types::vote_privacy::NetworkDataPolicy::ForensicStore)
-            {
-                if let Some((ip, country, user_agent)) = network {
-                    store
-                        .record_forensic_network(
-                            &electoral_log::adapters::privacy::ForensicNetworkRecord {
-                                election_event_id: &stored.election_event_id,
-                                election_id: Some(&stored.election_id),
-                                area_id: Some(&stored.area_id),
-                                event_kind: "receive",
-                                delivery_id: &format!(
-                                    "receive:{}:{}",
-                                    stored.election_event_id, stored.ballot_id
-                                ),
-                                pseudonym: &stored.voter_id,
-                                ballot_id: Some(&stored.ballot_id),
-                                ip,
-                                country,
-                                user_agent,
-                                recorded_at: stored.received_at,
-                            },
-                        )
-                        .await
-                        .map_err(|_| {
-                            CastVoteError::InsertFailed("Unable to record forensic receive".into())
-                        })?;
-                }
-            }
             Ok(stored_receipt(&tenant_uuid, stored))
         }
         ReceiveOutcome::NoFreeBallotId => Err(CastVoteError::InsertFailed(

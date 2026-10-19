@@ -30,6 +30,7 @@ use windmill::tasks::migrate_messaging_attributes::migrate_messaging_attributes;
 use windmill::tasks::migrate_realm_permissions::{migrate_realm_permissions, RunOnce};
 use windmill::tasks::migrate_registration_flows::migrate_registration_flows;
 use windmill::tasks::migrate_tenant_logs::migrate_tenant_logs;
+use windmill::tasks::migrate_vote_privacy_realms::migrate_vote_privacy_realms;
 use windmill::tasks::publish_electoral_log_checkpoint::publish_periodic_electoral_log_checkpoints;
 use windmill::tasks::purge_queue_archives::{
     purge_interval_secs, purge_queue_archives, DEFAULT_PURGE_INTERVAL_SECS,
@@ -259,6 +260,7 @@ async fn main() -> Result<()> {
             post_signing_log_outbox::NAME => Queue::ElectoralLogBeat.queue_name(),
             post_audit_log_outbox::NAME => Queue::ElectoralLogBeat.queue_name(),
             migrate_tenant_logs::NAME => Queue::Short.queue_name(),
+            migrate_vote_privacy_realms::NAME => Queue::Short.queue_name(),
             expire_signing_requests::NAME => Queue::Beat.queue_name(),
             sweep_signing_executions::NAME => Queue::Beat.queue_name(),
             refresh_staff_crls::NAME => Queue::Beat.queue_name(),
@@ -293,6 +295,9 @@ async fn main() -> Result<()> {
     // Tenants made before the tenant log get their log, its key and the
     // realm settings that feed it, once whenever beat starts (EMS-AUDIT).
     beat.schedule_task(migrate_tenant_logs::new(), RunOnce);
+    // Existing event realms retain their audit settings and custom listeners;
+    // remove the built-in process logger that emits raw network metadata.
+    beat.schedule_task(migrate_vote_privacy_realms::new(), RunOnce);
 
     set_is_app_active(true);
     let monitor = async {

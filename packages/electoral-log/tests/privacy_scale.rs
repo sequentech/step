@@ -309,3 +309,61 @@ async fn explain_indexed(
     }
     Ok(())
 }
+
+// The event dashboard has no election filter by default. Its preview/count
+// subqueries must use an event/address prefix instead of reading every voter.
+#[tokio::test]
+#[ignore = "explicit isolated PostgreSQL address-index regression"]
+async fn forensic_address_lookup_is_indexed_at_large_address_cardinality() -> Result<()> {
+    let store = PostgresStore::new(std::env::var("ELECTORAL_LOG_TEST_DATABASE_URL")?.parse()?)?;
+    store.initialize().await?;
+    let event = Uuid::new_v4().to_string();
+    let election = Uuid::new_v4().to_string();
+    let area = Uuid::new_v4().to_string();
+    let mut client = store.client().await?;
+    let tx = client.transaction().await?;
+    tx.execute(
+        "INSERT INTO sequent_backend.forensic_network_pseudonym
+         (election_event_id,election_id,area_id,ip,pseudonym,records)
+         SELECT $1::text::uuid,$2::text::uuid,$3::text::uuid,
+                host('10.0.0.0'::inet+n), '7QKM-2HXD',1
+         FROM generate_series(1,100000) n",
+        &[&event, &election, &area],
+    )
+    .await?;
+    tx.batch_execute("ANALYZE sequent_backend.forensic_network_pseudonym")
+        .await?;
+    let allowed: Option<Vec<String>> = None;
+    for sql in [
+        "SELECT DISTINCT p.pseudonym FROM sequent_backend.forensic_network_pseudonym p
+         WHERE p.election_event_id=$1::text::uuid AND p.ip=$2
+         AND ($3::text[] IS NULL OR p.election_id::text=ANY($3))
+         ORDER BY p.pseudonym LIMIT 6",
+        "SELECT count(DISTINCT p.pseudonym) FROM sequent_backend.forensic_network_pseudonym p
+         WHERE p.election_event_id=$1::text::uuid AND p.ip=$2
+         AND ($3::text[] IS NULL OR p.election_id::text=ANY($3))",
+    ] {
+        let rows = tx
+            .query(
+                &format!("EXPLAIN (ANALYZE, BUFFERS) {sql}"),
+                &[&event, &"10.0.0.1", &allowed],
+            )
+            .await?;
+        let plan = rows
+            .iter()
+            .map(|r| r.get::<_, String>(0))
+            .collect::<Vec<_>>()
+            .join("\n");
+        println!("{plan}");
+        assert!(
+            !plan.contains("Seq Scan"),
+            "address lookup scanned unrelated voters: {plan}"
+        );
+        assert!(
+            plan.contains("forensic_pseudonym_address"),
+            "address index was not used: {plan}"
+        );
+    }
+    tx.rollback().await?;
+    Ok(())
+}

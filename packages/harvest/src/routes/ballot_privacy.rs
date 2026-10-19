@@ -293,30 +293,112 @@ async fn page_cache_entry(key: String) -> CachedPage {
         .or_insert_with(|| Arc::new(Mutex::new(None)))
         .clone()
 }
-static SEARCHES: OnceLock<Mutex<HashMap<String, Instant>>> = OnceLock::new();
-async fn limit_search(claims: &JwtClaims) -> Result<(), ApiError> {
-    let mut searches = SEARCHES
-        .get_or_init(|| Mutex::new(HashMap::new()))
-        .lock()
-        .await;
-    let key = format!(
-        "{}:{}",
-        claims.hasura_claims.tenant_id, claims.hasura_claims.user_id
-    );
-    if searches
-        .get(&key)
-        .is_some_and(|when| when.elapsed() < Duration::from_millis(200))
-    {
+async fn limit_search(
+    claims: &JwtClaims,
+    store: &PostgresStore,
+) -> Result<(), ApiError> {
+    let key = crate::services::ballot_log_cache::search_session(claims);
+    let client = store.client().await.map_err(unavailable)?;
+    let accepted = client.query_opt(
+        "WITH expired AS (
+            DELETE FROM sequent_backend.ballot_log_search_limit WHERE session_key IN
+              (SELECT session_key FROM sequent_backend.ballot_log_search_limit
+               WHERE searched_at < clock_timestamp() - interval '1 day' AND session_key <> $1 LIMIT 100)
+         )
+         INSERT INTO sequent_backend.ballot_log_search_limit (session_key, searched_at)
+         VALUES ($1,clock_timestamp()) ON CONFLICT (session_key) DO UPDATE
+         SET searched_at=EXCLUDED.searched_at
+         WHERE ballot_log_search_limit.searched_at <= EXCLUDED.searched_at - interval '200 milliseconds'
+         RETURNING 1", &[&key]).await.map_err(unavailable)?;
+    if accepted.is_none() {
         return Err((
             Status::TooManyRequests,
             "Wait before searching again".into(),
         ));
     }
-    if searches.len() > 50_000 {
-        searches.retain(|_, when| when.elapsed() < Duration::from_secs(1));
-    }
-    searches.insert(key, Instant::now());
     Ok(())
+}
+
+#[derive(rocket::Responder)]
+#[response(status = 204)]
+pub struct BallotCacheAuthorization {
+    body: (),
+    scope: rocket::http::Header<'static>,
+    cache_control: rocket::http::Header<'static>,
+}
+
+/// Called by the internal proxy on every request, including cache hits. No
+/// request body, voter identity or token is included in the shared cache key.
+#[get("/ballot-box-log-authorize")]
+pub async fn ballot_box_log_authorize(
+    services: &State<HarvestServices>,
+    claims: JwtClaims,
+) -> Result<BallotCacheAuthorization, ApiError> {
+    let event_id = claims
+        .hasura_claims
+        .election_event_id
+        .as_deref()
+        .ok_or_else(forbidden)?;
+    voter_token_scope(&claims, event_id, None)?;
+    let event = event(services, &claims, event_id).await?;
+    let (area, elections) =
+        voter_scope(services, &claims, &event, None).await?;
+    if event
+        .get_presentation()
+        .map_err(unavailable)?
+        .unwrap_or_default()
+        .ballot_identity
+        != Some(sequent_core::types::vote_privacy::BallotIdentity::Pseudonym)
+    {
+        return Err(forbidden());
+    }
+    Ok(BallotCacheAuthorization {
+        body: (),
+        scope: rocket::http::Header::new(
+            "X-Ballot-Scope",
+            crate::services::ballot_log_cache::scope(
+                &event.tenant_id,
+                &event.id,
+                &area,
+                &elections,
+            ),
+        ),
+        cache_control: rocket::http::Header::new("Cache-Control", "no-store"),
+    })
+}
+
+#[derive(Clone, Copy)]
+enum BallotPageCache {
+    Shared,
+    Bypass,
+}
+
+#[derive(rocket::Responder)]
+pub struct BallotPageResponse {
+    body: Json<PrivacyPayload>,
+    cacheable: rocket::http::Header<'static>,
+    cache_control: rocket::http::Header<'static>,
+}
+
+fn page_payload(
+    value: Value,
+    cache: BallotPageCache,
+) -> Result<BallotPageResponse, ApiError> {
+    Ok(BallotPageResponse {
+        body: payload(value)?,
+        cacheable: rocket::http::Header::new(
+            "X-Ballot-Cacheable",
+            match cache {
+                BallotPageCache::Shared => "1",
+                BallotPageCache::Bypass => "0",
+            },
+        ),
+        // Only the internal proxy may override this for its authorized cache.
+        cache_control: rocket::http::Header::new(
+            "Cache-Control",
+            "private, no-store",
+        ),
+    })
 }
 
 #[post("/ballot-box-log", format = "json", data = "<body>")]
@@ -324,7 +406,7 @@ pub async fn ballot_box_log(
     services: &State<HarvestServices>,
     claims: JwtClaims,
     body: Json<BallotLogInput>,
-) -> Result<Json<PrivacyPayload>, ApiError> {
+) -> Result<BallotPageResponse, ApiError> {
     voter_token_scope(
         &claims,
         &body.election_event_id,
@@ -335,9 +417,6 @@ pub async fn ballot_box_log(
         voter_scope(services, &claims, &event, body.election_id.as_deref())
             .await?;
     let prefix = prefix(body.prefix.as_deref())?;
-    if !prefix.is_empty() {
-        limit_search(&claims).await?;
-    }
     let scope = scope_key(&event.id, &area, &elections, &prefix);
     let before = decode_cursor(&scope, body.cursor.as_deref())?;
     let limit = body.limit.unwrap_or(25);
@@ -345,6 +424,9 @@ pub async fn ballot_box_log(
         return Err(bad("Page size must be between 1 and 100"));
     }
     let store = get_event_store(&event.id).await.map_err(unavailable)?;
+    if !prefix.is_empty() {
+        limit_search(&claims, &store).await?;
+    }
     let cached = if prefix.is_empty() && before.is_none() {
         Some(
             page_cache_entry(page_cache_key(
@@ -367,7 +449,7 @@ pub async fn ballot_box_log(
     if let Some(entry) = &cached {
         if let Some((when, value)) = &**entry {
             if when.elapsed() < Duration::from_secs(3) {
-                return payload(value.clone());
+                return page_payload(value.clone(), BallotPageCache::Shared);
             }
         }
     }
@@ -398,7 +480,14 @@ pub async fn ballot_box_log(
     if let Some(entry) = &mut cached {
         **entry = Some((Instant::now(), response.clone()));
     }
-    payload(response)
+    page_payload(
+        response,
+        if prefix.is_empty() && before.is_none() {
+            BallotPageCache::Shared
+        } else {
+            BallotPageCache::Bypass
+        },
+    )
 }
 
 #[post("/ballot-box-own", format = "json", data = "<body>")]
@@ -416,12 +505,6 @@ pub async fn ballot_box_own(
     let (area, elections) =
         voter_scope(services, &claims, &event, body.election_id.as_deref())
             .await?;
-    let identity = windmill::services::vote_privacy::ballot_identity(
-        &event,
-        &claims.hasura_claims.user_id,
-    )
-    .await
-    .map_err(unavailable)?;
     let store = get_event_store(&event.id).await.map_err(unavailable)?;
     if store
         .ballot_identity(&event.id)
@@ -431,6 +514,21 @@ pub async fn ballot_box_own(
     {
         return Err(forbidden());
     }
+    let mapping = store.client().await.map_err(unavailable)?.query_opt(
+        "SELECT i.mapping_purged_at IS NOT NULL, m.pseudonym FROM sequent_backend.ballot_identity i \
+         LEFT JOIN sequent_backend.voter_pseudonym m ON m.election_event_id=i.election_event_id AND m.voter_id=$2 \
+         WHERE i.election_event_id=$1::text::uuid",
+        &[&event.id, &claims.hasura_claims.user_id],
+    ).await.map_err(unavailable)?.ok_or_else(|| unavailable("Identity mode unavailable"))?;
+    if mapping.try_get::<_, bool>(0).map_err(unavailable)? {
+        return payload(json!({"ballots":[]}));
+    }
+    let identity: String = mapping
+        .try_get::<_, Option<String>>(1)
+        .map_err(unavailable)?
+        .ok_or_else(|| {
+            unavailable("Voter privacy registration is not ready")
+        })?;
     let rows = store.client().await.map_err(unavailable)?.query(
         "SELECT r.ballot_id,r.voter_id,b.accepted_at,b.voting_channel,b.election_id::text FROM ballot_box_ballot b \
          JOIN ballot_box_received r ON r.election_event_id=b.election_event_id AND r.election_id=b.election_id AND r.voter_id=b.voter_id AND r.ballot_hash=b.ballot_id \

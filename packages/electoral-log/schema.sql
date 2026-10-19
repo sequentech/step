@@ -350,6 +350,8 @@ CREATE TABLE IF NOT EXISTS sequent_backend.ballot_evidence_pending (
     kind TEXT NOT NULL CHECK (kind IN ('received', 'audited')),
     UNIQUE (election_event_id, received_id, kind)
 );
+ALTER TABLE sequent_backend.ballot_evidence_pending
+    ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now();
 CREATE INDEX IF NOT EXISTS ballot_evidence_pending_event
     ON sequent_backend.ballot_evidence_pending (election_event_id, id);
 CREATE TABLE IF NOT EXISTS sequent_backend.privacy_message_pending (
@@ -404,6 +406,18 @@ CREATE TABLE IF NOT EXISTS sequent_backend.forensic_network_pseudonym (
     records BIGINT NOT NULL,
     PRIMARY KEY (election_event_id, election_id, area_id, ip, pseudonym)
 );
+-- Event-wide address previews must not scan every election/area's pseudonyms.
+CREATE INDEX IF NOT EXISTS forensic_pseudonym_address
+    ON sequent_backend.forensic_network_pseudonym (election_event_id, ip, pseudonym, election_id);
+CREATE INDEX IF NOT EXISTS forensic_summary_address
+    ON sequent_backend.forensic_network_summary (election_event_id, ip, election_id);
+-- A shared per-session limiter; only an irreversible digest is retained.
+CREATE TABLE IF NOT EXISTS sequent_backend.ballot_log_search_limit (
+    session_key BYTEA PRIMARY KEY CHECK (octet_length(session_key) = 32),
+    searched_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ballot_log_search_expiry
+    ON sequent_backend.ballot_log_search_limit (searched_at);
 CREATE INDEX IF NOT EXISTS ballot_box_privacy_page
     ON ballot_box_ballot (election_event_id, area_id, seq DESC) WHERE status = 'valid';
 CREATE INDEX IF NOT EXISTS ballot_box_privacy_pseudonym

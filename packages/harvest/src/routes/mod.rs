@@ -97,3 +97,5 @@ pub mod ballot_privacy;
 pub mod privacy_signin;
 
 pub mod receipt_document;
+
+pub mod audit_ballot;

@@ -80,6 +80,7 @@ impl Message {
             pseudonym,
             Some(ballot_id),
             StatementBody::BallotReceived(evidence),
+            None,
             system_key,
         )
     }
@@ -98,6 +99,7 @@ impl Message {
             pseudonym,
             Some(ballot_id),
             StatementBody::PrivacyCastVote(evidence),
+            None,
             system_key,
         )
     }
@@ -116,6 +118,29 @@ impl Message {
             pseudonym,
             ballot_id,
             StatementBody::PrivateBallotEvent(evidence),
+            None,
+            system_key,
+        )
+    }
+
+    /// Uses the persisted occurrence time so delayed/retried audit evidence
+    /// always signs identical bytes and reports when auditing actually happened.
+    pub fn private_ballot_event_message_at(
+        event: &str,
+        pseudonym: &str,
+        evidence: super::privacy::PrivateBallotEvent,
+        occurred_at: u64,
+        system_key: &SigningKey,
+    ) -> Result<Self> {
+        let election = evidence.election_id.clone();
+        let ballot_id = evidence.ballot_id.clone();
+        Self::private_ballot_message(
+            event,
+            &election,
+            pseudonym,
+            ballot_id,
+            StatementBody::PrivateBallotEvent(evidence),
+            Some(occurred_at),
             system_key,
         )
     }
@@ -126,6 +151,7 @@ impl Message {
         pseudonym: &str,
         ballot_id: Option<String>,
         body: StatementBody,
+        occurred_at: Option<u64>,
         system_key: &SigningKey,
     ) -> Result<Self> {
         let hash = super::privacy::pseudonym_hash(pseudonym)
@@ -141,6 +167,9 @@ impl Message {
             "Pseudonym does not match signed evidence"
         );
         let mut head = StatementHead::from_body(EventIdString(event.into()), &body);
+        if let Some(occurred_at) = occurred_at {
+            head.timestamp = occurred_at;
+        }
         let receipt_time = match &body {
             StatementBody::BallotReceived(e) => Some((&e.received_ballot_json, "received_at")),
             StatementBody::PrivacyCastVote(e) => Some((&e.cast_receipt_json, "cast_at")),

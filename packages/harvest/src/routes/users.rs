@@ -562,6 +562,35 @@ pub async fn delete_users(
         .election_event_id
         .clone()
         .expect("tenant users returned above");
+    let vote_elections = if select_all && input.has_voted.is_some() {
+        let mut client = services
+            .databases
+            .hasura()
+            .await
+            .get()
+            .await
+            .map_err(|error| {
+                (
+                    Status::InternalServerError,
+                    format!("Cannot read voter selection scope: {error}"),
+                )
+            })?;
+        let tx = client.transaction().await.map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Cannot read voter selection scope: {error}"),
+            )
+        })?;
+        permitted_event_election_ids(
+            &tx,
+            &claims,
+            &input.tenant_id,
+            &election_event_id,
+        )
+        .await?
+    } else {
+        None
+    };
     let task_execution = Some(
         post(
             &input.tenant_id,
@@ -583,6 +612,7 @@ pub async fn delete_users(
             tenant_id: input.tenant_id.clone(),
             election_event_id: input.election_event_id.clone(),
             election_id: input.election_id.clone(),
+            permitted_election_ids: vote_elections,
             area_id: None,
             realm: realm.clone(),
             search: None,
@@ -726,10 +756,23 @@ pub async fn count_users(
             )
         })?;
 
-    let filter = ListUsersFilter {
+    let vote_elections = match input.election_event_id.as_deref() {
+        Some(event) if input.has_voted.is_some() => {
+            permitted_event_election_ids(
+                &hasura_transaction,
+                &claims,
+                &input.tenant_id,
+                event,
+            )
+            .await?
+        }
+        _ => None,
+    };
+    let mut filter = ListUsersFilter {
         tenant_id: input.tenant_id.clone(),
         election_event_id: input.election_event_id.clone(),
         election_id: input.election_id.clone(),
+        permitted_election_ids: vote_elections,
         area_id: None,
         realm: realm.clone(),
         search: input.search,
@@ -748,12 +791,20 @@ pub async fn count_users(
         authorized_to_election_alias: input.authorized_to_election_alias,
     };
 
-    let count = count_keycloak_users(
-        &hasura_transaction,
-        &keycloak_transaction,
-        filter,
-    )
-    .await
+    let count = if filter.has_voted.is_some() {
+        filter.limit = Some(0);
+        list_users_has_voted(
+            &hasura_transaction,
+            &keycloak_transaction,
+            filter,
+            &input.tenant_id,
+        )
+        .await
+        .map(|(_, count)| count)
+    } else {
+        count_keycloak_users(&hasura_transaction, &keycloak_transaction, filter)
+            .await
+    }
     .map_err(|e| {
         (
             Status::InternalServerError,
@@ -863,6 +914,7 @@ pub async fn get_users(
         tenant_id: input.tenant_id.clone(),
         election_event_id: input.election_event_id.clone(),
         election_id: input.election_id.clone(),
+        permitted_election_ids: vote_elections.clone(),
         area_id: None,
         realm: realm.clone(),
         search: input.search,

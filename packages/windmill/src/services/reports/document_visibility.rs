@@ -3,6 +3,28 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::reports::ReportType;
+use sequent_core::types::hasura::core::DocumentPurpose;
+
+pub(super) fn report_document_purpose(
+    report_type: &ReportType,
+    is_real: bool,
+) -> Option<DocumentPurpose> {
+    (*report_type == ReportType::BALLOT_RECEIPT && is_real)
+        .then_some(DocumentPurpose::BallotReceipt)
+}
+
+pub(super) fn report_document_name(report_type: &ReportType, is_real: bool, name: &str) -> String {
+    // Legacy receipts are protected by their filename as well as their purpose.
+    // Keep sample previews outside that namespace without relaxing either guard.
+    if *report_type == ReportType::BALLOT_RECEIPT
+        && !is_real
+        && name.to_ascii_lowercase().starts_with("ballot_receipt_")
+    {
+        format!("preview_{name}")
+    } else {
+        name.to_string()
+    }
+}
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub(super) enum DocumentVisibility {
@@ -30,6 +52,52 @@ impl DocumentVisibility {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sequent_core::types::hasura::core::{Document, DocumentAnnotations};
+
+    #[test]
+    fn receipt_preview_is_downloadable_without_weakening_real_receipt_protection() {
+        for is_real in [false, true] {
+            let name = report_document_name(
+                &ReportType::BALLOT_RECEIPT,
+                is_real,
+                "ballot_receipt_event.pdf",
+            );
+            let annotations = DocumentAnnotations {
+                purpose: report_document_purpose(&ReportType::BALLOT_RECEIPT, is_real),
+                ..Default::default()
+            };
+            let document: Document = serde_json::from_value(serde_json::json!({
+                "id":"document", "name":name, "annotations":annotations, "is_public":false
+            }))
+            .unwrap();
+            assert_eq!(
+                document.is_ballot_receipt(),
+                is_real,
+                "Only real receipts are refused by ordinary administrative document access"
+            );
+            assert_eq!(document.is_public, Some(false));
+            assert_eq!(
+                name,
+                if is_real {
+                    "ballot_receipt_event.pdf"
+                } else {
+                    "preview_ballot_receipt_event.pdf"
+                }
+            );
+        }
+        assert_eq!(
+            report_document_name(
+                &ReportType::PARTICIPATION_REPORT,
+                false,
+                "participation.pdf"
+            ),
+            "participation.pdf"
+        );
+        assert_eq!(
+            report_document_purpose(&ReportType::PARTICIPATION_REPORT, false),
+            None
+        );
+    }
 
     /// Non-receipt reports remain private regardless of secret-attribute declarations.
     #[test]

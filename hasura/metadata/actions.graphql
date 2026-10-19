@@ -3263,21 +3263,67 @@ type UpdateEventMessagingConfigOutput {
 
 # Ballot views expose pseudonyms; private reads have separately granted permissions.
 type Query {
-    ballot_box_log(election_event_id: uuid!, election_id: uuid, prefix: String, cursor: String, limit: Int): BallotPrivacyPayload!
-    ballot_box_own(election_event_id: uuid!, election_id: uuid): BallotPrivacyPayload!
-    ballot_box_entry(election_event_id: uuid!, election_id: uuid!, ballot_id: String!): BallotPrivacyPayload!
-    ballot_box_keys(election_event_id: uuid!, election_id: uuid!): BallotPrivacyPayload!
+    ballot_box_log(
+        election_event_id: uuid!
+        election_id: uuid
+        prefix: String
+        cursor: String
+        limit: Int
+    ): BallotPrivacyPayload!
+    ballot_box_own(
+        election_event_id: uuid!
+        election_id: uuid
+    ): BallotPrivacyPayload!
+    ballot_box_entry(
+        election_event_id: uuid!
+        election_id: uuid!
+        ballot_id: String!
+    ): BallotPrivacyPayload!
+    ballot_box_keys(
+        election_event_id: uuid!
+        election_id: uuid!
+    ): BallotPrivacyPayload!
     ballot_privacy_settings(election_event_id: uuid!): BallotPrivacyPayload!
-    forensic_network_summary(election_event_id: uuid!, election_id: uuid, ip: String, country: String, limit: Int, offset: Int, operation: String): BallotPrivacyPayload!
-    forensic_network_detail(election_event_id: uuid!, election_id: uuid, ip: String!, cursor: String, limit: Int): BallotPrivacyPayload!
+    forensic_network_summary(
+        election_event_id: uuid!
+        election_id: uuid
+        ip: String
+        country: String
+        limit: Int
+        offset: Int
+        operation: String
+    ): BallotPrivacyPayload!
+    forensic_network_detail(
+        election_event_id: uuid!
+        election_id: uuid
+        ip: String!
+        cursor: String
+        limit: Int
+    ): BallotPrivacyPayload!
 }
 type Mutation {
-    resolve_voter_pseudonym(election_event_id: uuid!, pseudonym: String!, reason: String!): BallotPrivacyPayload!
+    resolve_voter_pseudonym(
+        election_event_id: uuid!
+        pseudonym: String!
+        reason: String!
+    ): BallotPrivacyPayload!
 }
 type BallotPrivacyPayload {
     payload: jsonb!
 }
 
 type Query {
-    receipt_document(election_event_id: uuid!, document_id: uuid!): BallotPrivacyPayload!
+    receipt_document(
+        election_event_id: uuid!
+        document_id: uuid!
+    ): BallotPrivacyPayload!
+}
+
+type Mutation {
+    audit_ballot(election_id: uuid!, ballot_id: String!): AuditBallotOutput!
+}
+
+type AuditBallotOutput {
+    ballot_id: String!
+    status: String!
 }

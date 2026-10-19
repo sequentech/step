@@ -317,8 +317,50 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
             .authorized_elections(&[&election])
             .roles([VoterPermissions::CAST_VOTE]);
         let scope = json!({"election_event_id":event.election_event_id,"election_id":election,"ballot_id":ballot_id});
+        let authorize = client
+            .get("/ballot-box-log-authorize")
+            .header(crate::route_services::bearer(&ordinary))
+            .dispatch()
+            .await;
+        assert_eq!(authorize.status(), Status::NoContent);
+        assert_eq!(
+            authorize.headers().get_one("Cache-Control"),
+            Some("no-store")
+        );
+        let expected_scope = crate::services::ballot_log_cache::scope(
+            &event.tenant_id,
+            &event.election_event_id,
+            &area,
+            std::slice::from_ref(&election),
+        );
+        assert_eq!(
+            authorize.headers().get_one("X-Ballot-Scope"),
+            Some(expected_scope.as_str())
+        );
+        let mut session = ordinary.build();
+        session.sid = Some("synthetic-session-a".into());
+        limit_search(&session, &store).await.unwrap();
+        let mut refreshed = session.clone();
+        refreshed.jti = "synthetic-refreshed-token".into();
+        assert_eq!(
+            limit_search(&refreshed, &store).await.unwrap_err().0,
+            Status::TooManyRequests
+        );
+        refreshed.sid = Some("synthetic-session-b".into());
+        limit_search(&refreshed, &store).await.unwrap();
+        let session_key =
+            crate::services::ballot_log_cache::search_session(&session);
+        store.client().await.unwrap().execute(
+            "UPDATE sequent_backend.ballot_log_search_limit SET searched_at=clock_timestamp()-interval '2 days' WHERE session_key=$1",
+            &[&session_key]).await.unwrap();
+        limit_search(&session, &store).await.unwrap();
         let page = post(&client, "/ballot-box-log", &ordinary, &scope).await;
         assert_eq!(page.status(), Status::Ok);
+        assert_eq!(page.headers().get_one("X-Ballot-Cacheable"), Some("1"));
+        assert_eq!(
+            page.headers().get_one("Cache-Control"),
+            Some("private, no-store")
+        );
         let page: Value = page.into_json().await.unwrap();
         assert_eq!(page["payload"]["ballots"].as_array().unwrap().len(), 1);
         let displayed =
@@ -467,6 +509,14 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
             .is_empty());
         proof.verify(&checkpoint).unwrap();
         verify();
+        let own = post(&client, "/ballot-box-own", &ordinary, &scope).await;
+        assert_eq!(
+            own.status(),
+            Status::Ok,
+            "purged mapping is an empty own view"
+        );
+        let own: Value = own.into_json().await.unwrap();
+        assert_eq!(own["payload"]["ballots"], json!([]));
         let retained =
             post(&client, "/ballot-box-entry", &ordinary, &scope).await;
         assert_eq!(retained.status(), Status::Ok);

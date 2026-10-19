@@ -53,6 +53,7 @@ pub mod migrate_messaging_attributes;
 pub mod migrate_realm_permissions;
 pub mod migrate_registration_flows;
 pub mod migrate_tenant_logs;
+pub mod migrate_vote_privacy_realms;
 pub mod miru_plugin_tasks;
 pub mod plugins_tasks;
 pub mod post_tally;

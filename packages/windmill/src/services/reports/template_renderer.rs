@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use super::document_visibility::DocumentVisibility;
+use super::document_visibility::{
+    report_document_name, report_document_purpose, DocumentVisibility,
+};
 use super::generation::{
     attach_report_manifest, bundle, copy_template_data, delivered_manifest, manifest_log,
     report_copies, task_with_log, write_report_manifest, Delivery, GeneratedFile, ReportCopy,
@@ -50,7 +52,7 @@ use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClien
 use sequent_core::services::reports::template_time_variables;
 use sequent_core::services::{pdf, reports};
 use sequent_core::signing::SigningAction;
-use sequent_core::types::hasura::core::{DocumentAnnotations, DocumentPurpose, TasksExecution};
+use sequent_core::types::hasura::core::{DocumentAnnotations, TasksExecution};
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use sequent_core::types::templates::{
     CommunicationTemplatesExtraConfig, EmailConfig, PrintToPdfOptionsLocal, ReportExtraConfig,
@@ -1057,6 +1059,9 @@ pub trait TemplateRenderer: Debug {
             );
         }
 
+        for file in &mut generated {
+            file.name = report_document_name(&self.get_report_type(), is_real, &file.name);
+        }
         // For an event imported from a signed configuration, the hash
         // manifest of what was just written.
         let report_manifest = stamp
@@ -1071,7 +1076,7 @@ pub trait TemplateRenderer: Debug {
         )?;
         let (final_file_path, final_report_name, mimetype) = (
             delivered.path.clone(),
-            delivered.name.clone(),
+            report_document_name(&self.get_report_type(), is_real, &delivered.name),
             delivered.media_type.clone(),
         );
         let requester = ReportRequester::named(
@@ -1087,9 +1092,7 @@ pub trait TemplateRenderer: Debug {
             DocumentAnnotations::default()
         };
 
-        if self.get_report_type() == ReportType::BALLOT_RECEIPT {
-            annotations.purpose = Some(DocumentPurpose::BallotReceipt);
-        }
+        annotations.purpose = report_document_purpose(&self.get_report_type(), is_real);
 
         // A report whose action needs signatures gets its signature page,
         // and is kept as a signing document only.

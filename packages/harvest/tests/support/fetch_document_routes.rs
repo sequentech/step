@@ -188,3 +188,27 @@ async fn ballot_receipts_are_unavailable_through_the_admin_document_route() {
         assert_eq!(body["message"], "Document not found");
     }
 }
+
+/// A generated sample receipt contains no voter ballot and remains a private
+/// administrative report. Real receipts still use the separate ownership route.
+#[rocket::async_test]
+async fn a_receipt_preview_is_available_through_the_admin_document_route() {
+    let services = Services::on_test_database().await;
+    let event = rows::event(&services.hasura).await;
+    let id = event
+        .document(
+            &services.hasura,
+            "preview_ballot_receipt_event.pdf",
+            "application/pdf",
+            None,
+        )
+        .await;
+    let (status, body) = fetch(
+        &services,
+        &reader(&event, &[Permissions::DOCUMENT_DOWNLOAD]),
+        &request(&event, &id),
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    assert_eq!(body["url"], format!("https://documents.test/{id}"));
+}

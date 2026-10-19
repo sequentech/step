@@ -605,6 +605,7 @@ pub async fn find_voter(
             email_verified: None,
             sort: None,
             has_voted: None,
+            permitted_election_ids: None,
             authorized_to_election_alias: None,
         },
     )
@@ -985,6 +986,7 @@ pub async fn send_template(
             email_verified: None,
             sort: None,
             has_voted: None,
+            permitted_election_ids: None,
             authorized_to_election_alias: None,
         };
 

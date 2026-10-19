@@ -104,6 +104,14 @@ pub async fn allocate_registry(tx: &Transaction<'_>, tenant: &str, event_id: &st
     require_signed_receipts(&event, None)?;
     ensure!(event.voting_channels.as_ref().and_then(|channels| channels.get("telephone")).and_then(serde_json::Value::as_bool) != Some(true),
         "Disable telephone voting before publishing a pseudonymous event: this channel cannot produce the required voter signatures");
+    let child_telephone: bool = tx.query_one(
+        "SELECT EXISTS (SELECT 1 FROM sequent_backend.election WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid AND voting_channels->>'telephone'='true')",
+        &[&tenant, &event_id],
+    ).await?.get(0);
+    ensure!(
+        !child_telephone,
+        "Disable telephone voting on every child election before publishing a pseudonymous event"
+    );
     let store = get_event_store(event_id).await?;
     store
         .set_ballot_identity(event_id, StoredIdentity::Pseudonym)
@@ -198,7 +206,7 @@ pub fn received_log_entry(
             },
             key,
         )?,
-        ReceivedEvidenceKind::Audited => Message::private_ballot_event_message(
+        ReceivedEvidenceKind::Audited => Message::private_ballot_event_message_at(
             &ballot.election_event_id,
             &ballot.voter_id,
             PrivateBallotEvent {
@@ -207,6 +215,11 @@ pub fn received_log_entry(
                 ballot_id: Some(ballot.ballot_id.clone()),
                 outcome: PrivateBallotOutcome::Audited,
             },
+            pending
+                .queued_at
+                .timestamp()
+                .try_into()
+                .context("Invalid ballot audit time")?,
             key,
         )?,
     };

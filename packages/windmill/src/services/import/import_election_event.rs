@@ -190,7 +190,9 @@ pub async fn ensure_election_audit_boards(
 
 #[instrument(err)]
 pub async fn read_default_election_event_realm() -> Result<RealmRepresentation> {
-    read_realm_config_from_s3(KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY).await
+    let mut realm = read_realm_config_from_s3(KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY).await?;
+    crate::tasks::migrate_vote_privacy_realms::prepare_event_realm(&mut realm);
+    Ok(realm)
 }
 
 /// Claim namespace that Keycloak protocol mappers use to emit Hasura session
@@ -626,6 +628,7 @@ fn sanitize_imported_event_realm(
         }
     }
 
+    crate::tasks::migrate_vote_privacy_realms::prepare_event_realm(&mut realm);
     Ok(realm)
 }
 
@@ -2741,6 +2744,45 @@ pub async fn maybe_create_scheduled_event(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn imported_event_realms_do_not_reenable_raw_network_logging() {
+        let raw = RealmRepresentation {
+            events_listeners: Some(vec!["jboss-logging".into()]),
+            events_enabled: Some(true),
+            admin_events_enabled: Some(true),
+            admin_events_details_enabled: Some(true),
+            ..Default::default()
+        };
+        let clean = sanitize_imported_event_realm(
+            &raw,
+            &RealmRepresentation::default(),
+            ImportedRealmReconciliation::default(),
+        )
+        .unwrap();
+        assert_eq!(
+            clean.events_listeners,
+            Some(vec!["custom-event-listener".into()])
+        );
+        // The confirmed leak is the independent process logger. Preserve
+        // explicitly configured audit-store policy and other realm settings.
+        assert_eq!(clean.events_enabled, Some(true));
+        assert_eq!(clean.admin_events_enabled, Some(true));
+        assert_eq!(clean.admin_events_details_enabled, Some(true));
+    }
+
+    #[test]
+    fn shipped_event_realm_uses_only_private_authentication_capture() {
+        let realm: RealmRepresentation = serde_json::from_str(include_str!(
+            "../../../../../.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559.json"
+        )).unwrap();
+        assert_eq!(
+            realm.events_listeners,
+            Some(vec!["custom-event-listener".into()])
+        );
+        assert_eq!(realm.events_enabled, Some(false));
+        assert_eq!(realm.admin_events_enabled, Some(false));
+    }
 
     const TENANT: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
     const EVENT: &str = "e0000000-0000-5000-8000-000000000000";

@@ -82,6 +82,7 @@ impl ReceivedEvidenceKind {
 #[derive(Debug, Clone)]
 pub struct PendingReceivedBallot {
     pub id: i64,
+    pub queued_at: DateTime<Utc>,
     pub kind: ReceivedEvidenceKind,
     pub ballot: ReceivedBallot,
 }
@@ -440,7 +441,7 @@ impl PostgresStore {
             .await?
             .query(
                 &format!(
-                    "SELECT r.*, p.id, p.kind FROM sequent_backend.ballot_evidence_pending p
+                    "SELECT r.*, p.id, p.kind, p.created_at FROM sequent_backend.ballot_evidence_pending p
                       CROSS JOIN LATERAL (SELECT {RECEIVED_COLUMNS} FROM ballot_box_received
                         WHERE election_event_id = p.election_event_id AND id = p.received_id) r
                       WHERE p.election_event_id = $1::text::uuid ORDER BY p.id LIMIT $2"
@@ -452,6 +453,7 @@ impl PostgresStore {
             .map(|row| {
                 Ok(PendingReceivedBallot {
                     id: row.try_get(17)?,
+                    queued_at: row.try_get(19)?,
                     kind: match row.try_get::<_, String>(18)?.as_str() {
                         "received" => ReceivedEvidenceKind::Received,
                         "audited" => ReceivedEvidenceKind::Audited,

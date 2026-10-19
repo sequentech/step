@@ -313,6 +313,7 @@ async fn append_pending(
                     tenant_id,
                     &electoral_log::adapters::privacy::PendingReceivedBallot {
                         id: 0,
+                        queued_at: received.received_at,
                         kind: electoral_log::adapters::privacy::ReceivedEvidenceKind::Received,
                         ballot: received.clone(),
                     },

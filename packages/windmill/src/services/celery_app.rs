@@ -66,6 +66,7 @@ use crate::tasks::migrate_messaging_attributes::migrate_messaging_attributes;
 use crate::tasks::migrate_realm_permissions::migrate_realm_permissions;
 use crate::tasks::migrate_registration_flows::migrate_registration_flows;
 use crate::tasks::migrate_tenant_logs::migrate_tenant_logs;
+use crate::tasks::migrate_vote_privacy_realms::migrate_vote_privacy_realms;
 use crate::tasks::miru_plugin_tasks::create_transmission_package_task;
 use crate::tasks::miru_plugin_tasks::send_transmission_package_task;
 use crate::tasks::plugins_tasks::execute_plugin_task;
@@ -375,6 +376,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             post_signing_log_outbox,
             post_audit_log_outbox,
             migrate_tenant_logs,
+            migrate_vote_privacy_realms,
             expire_signing_requests,
             sweep_signing_executions,
             refresh_staff_crls,
@@ -477,6 +479,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             post_signing_log_outbox::NAME => Queue::ElectoralLogBeat.queue_name(),
             post_audit_log_outbox::NAME => Queue::ElectoralLogBeat.queue_name(),
             migrate_tenant_logs::NAME => Queue::Short.queue_name(),
+            migrate_vote_privacy_realms::NAME => Queue::Short.queue_name(),
             expire_signing_requests::NAME => Queue::Beat.queue_name(),
             sweep_signing_executions::NAME => Queue::Beat.queue_name(),
             refresh_staff_crls::NAME => Queue::Beat.queue_name(),
