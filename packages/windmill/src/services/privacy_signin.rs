@@ -293,6 +293,25 @@ fn registration_identity(
     Some((&input.tenant_id, &input.election_event_id, voter))
 }
 
+/// Read authoritative event-realm membership. An absent account differs from
+/// an existing staff/service account for the REGISTER consumer's commit retry.
+pub async fn registered_voter<C: deadpool_postgres::GenericClient>(
+    keycloak: &C,
+    tenant: &str,
+    event_id: &str,
+    voter: &str,
+) -> anyhow::Result<Option<bool>> {
+    use anyhow::Context;
+    let realm = sequent_core::services::keycloak::get_event_realm(tenant, event_id);
+    let group = std::env::var("KEYCLOAK_VOTER_GROUP_NAME")
+        .context("Voter group configuration unavailable")?;
+    keycloak.query_opt(
+        "SELECT u.service_account_client_link IS NULL AND EXISTS (SELECT 1 FROM user_group_membership m JOIN keycloak_group g ON g.id=m.group_id AND g.realm_id=u.realm_id WHERE m.user_id=u.id AND g.name=$3) AS voter_group \
+         FROM user_entity u JOIN realm r ON r.id=u.realm_id WHERE r.name=$1 AND u.id=$2",
+        &[&realm,&voter,&group]).await?
+        .map(|row|row.try_get(0)).transpose().context("Cannot read voter registration")
+}
+
 /// Successful registration can create a voter through Keycloak's smart-link
 /// flow as well as Harvest. Wait for its account transaction to be visible,
 /// verify the authoritative voter group, then share the publication lock.
@@ -318,14 +337,10 @@ pub async fn allocate_registered_voters(
         {
             continue;
         }
-        let realm = sequent_core::services::keycloak::get_event_realm(tenant, event_id);
-        let group = std::env::var("KEYCLOAK_VOTER_GROUP_NAME")
-            .context("Voter group configuration unavailable")?;
-        let row=keycloak.query_opt(
-            "SELECT u.service_account_client_link IS NULL AND EXISTS (SELECT 1 FROM user_group_membership m JOIN keycloak_group g ON g.id=m.group_id AND g.realm_id=u.realm_id WHERE m.user_id=u.id AND g.name=$3) AS voter_group \
-             FROM user_entity u JOIN realm r ON r.id=u.realm_id WHERE r.name=$1 AND u.id=$2",
-            &[&realm,&voter,&group]).await?.context("Registration account has not committed; retry event batch")?;
-        if row.get::<_, bool>(0) {
+        if registered_voter(keycloak, tenant, event_id, voter)
+            .await?
+            .context("Registration account has not committed; retry event batch")?
+        {
             crate::services::vote_privacy::allocate_added_voter(hasura, tenant, event_id, voter)
                 .await?;
         }

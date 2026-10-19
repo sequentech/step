@@ -114,6 +114,75 @@ pub async fn signin_network_policy(
     })
 }
 
+/// A successful LOGIN arrives after its account commits, but its durable
+/// REGISTER event may still await allocation. Never acknowledge that race as
+/// retained, and never allocate a mapping from a sign-in request.
+async fn signin_identity(
+    services: &HarvestServices,
+    tenant: &str,
+    event: &str,
+    voter: &str,
+) -> Result<
+    Option<(electoral_log::adapters::postgres::PostgresStore, String)>,
+    Refusal,
+> {
+    let hasura = services
+        .databases
+        .hasura()
+        .await
+        .get()
+        .await
+        .map_err(internal)?;
+    let published: bool=hasura.query_one(
+        "SELECT EXISTS(SELECT 1 FROM sequent_backend.ballot_publication WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid AND published_at IS NOT NULL AND deleted_at IS NULL)",
+        &[&tenant,&event]).await.map_err(internal)?.try_get(0).map_err(internal)?;
+    if !published {
+        return Ok(None);
+    }
+    drop(hasura);
+    let store = get_event_store(event).await.map_err(internal)?;
+    let registration=store.client().await.map_err(internal)?.query_opt(
+        "SELECT i.mapping_purged_at IS NOT NULL,m.pseudonym FROM sequent_backend.ballot_identity i LEFT JOIN sequent_backend.voter_pseudonym m ON m.election_event_id=i.election_event_id AND m.voter_id=$2 WHERE i.election_event_id=$1::text::uuid",
+        &[&event,&voter]).await.map_err(internal)?;
+    if registration
+        .as_ref()
+        .map(|row| row.try_get::<_, bool>(0))
+        .transpose()
+        .map_err(internal)?
+        .unwrap_or(false)
+    {
+        return Ok(None);
+    }
+    let keycloak = services
+        .databases
+        .keycloak()
+        .await
+        .get()
+        .await
+        .map_err(internal)?;
+    if windmill::services::privacy_signin::registered_voter(
+        &keycloak, tenant, event, voter,
+    )
+    .await
+    .map_err(internal)?
+        != Some(true)
+    {
+        return Ok(None);
+    }
+    let pseudonym = registration
+        .map(|row| row.try_get::<_, Option<String>>(1))
+        .transpose()
+        .map_err(internal)?
+        .flatten();
+    match pseudonym {
+        Some(pseudonym) => Ok(Some((store, pseudonym))),
+        None => Err((
+            Status::ServiceUnavailable,
+            "Sign-in privacy registration pending".into(),
+        )),
+    }
+}
+
 #[tracing::instrument(skip_all)]
 #[post("/privacy/sign-in-network", format = "json", data = "<body>")]
 pub async fn retain_signin_network(
@@ -140,16 +209,14 @@ pub async fn retain_signin_network(
     {
         return Ok(Status::NoContent);
     }
-    let store = get_event_store(&input.election_event_id)
-        .await
-        .map_err(internal)?;
-    let Some(pseudonym) = store
-        .voter_pseudonym(&input.election_event_id, &input.voter_id)
-        .await
-        .map_err(internal)?
+    let Some((store, pseudonym)) = signin_identity(
+        services,
+        &input.tenant_id,
+        &input.election_event_id,
+        &input.voter_id,
+    )
+    .await?
     else {
-        // An unpublished or purged registry has no identity to attribute. It is
-        // never allocated or reconstructed in an authentication request.
         return Ok(Status::NoContent);
     };
     let recorded_at =
@@ -365,3 +432,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/privacy_signin_registration.rs"]
+mod registration_tests;
