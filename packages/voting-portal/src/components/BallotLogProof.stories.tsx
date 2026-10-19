@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
+import {atViewport} from "../../../test-support/storybook/viewport"
 import type {Meta, StoryObj} from "@storybook/react-vite"
 import {expect, within} from "storybook/test"
 import initCore from "sequent-core"
@@ -18,6 +19,7 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const Verified: Story = {
+    ...atViewport(1440),
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(canvas.getByText("All four checks passed")).toBeVisible()
@@ -26,6 +28,7 @@ export const Verified: Story = {
     },
 }
 export const Pending: Story = {
+    ...atViewport(1440),
     args: {proof: {...fixture.proof, cast_entry: null}},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
@@ -35,6 +38,7 @@ export const Pending: Story = {
     },
 }
 export const Tampered: Story = {
+    ...atViewport(1440),
     args: {proof: {...fixture.proof, voting_channel: "KIOSK"}},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
@@ -42,4 +46,34 @@ export const Tampered: Story = {
         expect(canvas.getByText("Do not rely on this entry.")).toBeVisible()
         expect(canvas.queryByText("All four checks passed")).toBeNull()
     },
+}
+
+export const VerifiedPhone: Story = {
+    ...Verified,
+    ...atViewport(390),
+}
+
+export const VerifiedTablet: Story = {
+    ...Verified,
+    ...atViewport(820),
+}
+
+export const PendingPhone: Story = {
+    ...Pending,
+    ...atViewport(390),
+}
+
+export const PendingTablet: Story = {
+    ...Pending,
+    ...atViewport(820),
+}
+
+export const TamperedPhone: Story = {
+    ...Tampered,
+    ...atViewport(390),
+}
+
+export const TamperedTablet: Story = {
+    ...Tampered,
+    ...atViewport(820),
 }

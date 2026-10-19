@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {atViewport} from "../../../../test-support/storybook/viewport"
 import React from "react"
 import initCore from "sequent-core"
 import ballotFixture from "../../../../voting-portal/src/components/__stories__/ballotProof.json"
@@ -572,6 +573,7 @@ export const ConfigurationPackageImport: Story = {
 
 /** The dialog independently fetches keys and canonical proof bytes, then verifies in real WASM. */
 export const PseudonymousReceived: Story = {
+    ...atViewport(1440),
     args: {
         log: {kind: ELogScope.EVENT, electionEventId: ballotFixture.trusted.election_event_id},
         entry: {
@@ -620,6 +622,7 @@ export const PseudonymousReceived: Story = {
 
 /** Resolution shows the requester, code and reason, while the answer is absent. */
 export const PseudonymResolved: Story = {
+    ...atViewport(1440),
     args: {
         log: {kind: ELogScope.EVENT, electionEventId: EVENT_ID},
         entry: {
@@ -663,6 +666,7 @@ export const PseudonymResolved: Story = {
 
 /** A received-only ballot is verifiable before a cast entry exists. */
 export const ReceivedBeforeCast: Story = {
+    ...atViewport(1440),
     args: {...PseudonymousReceived.args, pendingCast: true},
     play: async () => {
         const view = await dialog()
@@ -673,4 +677,34 @@ export const ReceivedBeforeCast: Story = {
         const element = within(document.body).getByRole("dialog")
         expect(element.scrollWidth).toBeLessThanOrEqual(element.clientWidth + 1)
     },
+}
+
+export const PseudonymousReceivedPhone: Story = {
+    ...PseudonymousReceived,
+    ...atViewport(390),
+}
+
+export const PseudonymousReceivedTablet: Story = {
+    ...PseudonymousReceived,
+    ...atViewport(820),
+}
+
+export const PseudonymResolvedPhone: Story = {
+    ...PseudonymResolved,
+    ...atViewport(390),
+}
+
+export const PseudonymResolvedTablet: Story = {
+    ...PseudonymResolved,
+    ...atViewport(820),
+}
+
+export const ReceivedBeforeCastPhone: Story = {
+    ...ReceivedBeforeCast,
+    ...atViewport(390),
+}
+
+export const ReceivedBeforeCastTablet: Story = {
+    ...ReceivedBeforeCast,
+    ...atViewport(820),
 }

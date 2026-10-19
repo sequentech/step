@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {atViewport} from "../../../../test-support/storybook/viewport"
 import React from "react"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, waitFor, within} from "storybook/test"
@@ -165,11 +166,12 @@ const listFilter = () =>
         ?.filter
 
 export const Populated: Story = {
+    ...atViewport(1440),
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(canvas.getByText("IP Addresses")).toBeVisible()
         const first = await voteRow(canvasElement, "192.0.2.10")
-        await expect(within(first).getByText("ES")).toBeVisible()
+        await expect(within(first).getByText(/^ES/)).toBeVisible()
         await expect(within(first).getByText("7QKM-2HXD")).toBeVisible()
         // A ballot without a known country shows a dash; voter identities are absent.
         await expect(
@@ -273,6 +275,7 @@ export const WithoutForensicPermission: Story = {
 }
 
 export const AddressDetails: Story = {
+    ...atViewport(1440),
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await userEvent.click(await canvas.findByRole("button", {name: "192.0.2.10"}))
@@ -284,4 +287,64 @@ export const AddressDetails: Story = {
         expect(dialog.scrollWidth).toBeLessThanOrEqual(dialog.clientWidth + 1)
         await userEvent.click(within(dialog).getByRole("button", {name: "Close"}))
     },
+}
+
+export const PopulatedPhone: Story = {
+    ...Populated,
+    ...atViewport(390),
+    parameters: {...Populated.parameters, ...atViewport(390).parameters},
+}
+
+export const PopulatedTablet: Story = {
+    ...Populated,
+    ...atViewport(820),
+    parameters: {...Populated.parameters, ...atViewport(820).parameters},
+}
+
+export const FilterByIpPhone: Story = {
+    ...FilterByIp,
+    ...atViewport(390),
+    parameters: {...FilterByIp.parameters, ...atViewport(390).parameters},
+}
+
+export const FilterByIpTablet: Story = {
+    ...FilterByIp,
+    ...atViewport(820),
+    parameters: {...FilterByIp.parameters, ...atViewport(820).parameters},
+}
+
+export const ExportCsvPhone: Story = {
+    ...ExportCsv,
+    ...atViewport(390),
+    parameters: {...ExportCsv.parameters, ...atViewport(390).parameters},
+}
+
+export const ExportCsvTablet: Story = {
+    ...ExportCsv,
+    ...atViewport(820),
+    parameters: {...ExportCsv.parameters, ...atViewport(820).parameters},
+}
+
+export const AddressDetailsPhone: Story = {
+    ...AddressDetails,
+    ...atViewport(390),
+    parameters: {...AddressDetails.parameters, ...atViewport(390).parameters},
+}
+
+export const AddressDetailsTablet: Story = {
+    ...AddressDetails,
+    ...atViewport(820),
+    parameters: {...AddressDetails.parameters, ...atViewport(820).parameters},
+}
+
+export const NoNetworkStoragePhone: Story = {
+    ...NoNetworkStorage,
+    ...atViewport(390),
+    parameters: {...NoNetworkStorage.parameters, ...atViewport(390).parameters},
+}
+
+export const NoNetworkStorageTablet: Story = {
+    ...NoNetworkStorage,
+    ...atViewport(820),
+    parameters: {...NoNetworkStorage.parameters, ...atViewport(820).parameters},
 }

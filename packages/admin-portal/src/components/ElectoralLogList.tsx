@@ -577,6 +577,13 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
             className={`electoral-log-list electoral-log-list-${layout}`}
             sx={{
                 "minWidth": 0,
+                "& .RaList-main": {minWidth: 0},
+                "& .RaFilterForm-filterFormInput": {maxWidth: "100%", minWidth: 0},
+                "& .RaFilterForm-filterFormInput .MuiFormControl-root": {
+                    minWidth: 0,
+                    flexShrink: 1,
+                },
+                "& .RaFilterForm-filterFormInput input": {minWidth: 0},
                 // The filters and the buttons share one line while both fit;
                 // the buttons move below when the list is narrower than both.
                 "& .RaList-actions": {flexWrap: "wrap", alignItems: "flex-end", rowGap: 1},

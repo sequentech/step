@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {atViewport} from "../../../test-support/storybook/viewport"
 import React from "react"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, waitFor, within} from "storybook/test"
@@ -20,7 +21,7 @@ import {useStoryGlobals} from "../../../ui-essentials/.storybook/globals"
 
 interface Scenario {
     reads: ReadState
-    logs: "listed" | "none" | "configuration-import"
+    logs: "listed" | "none" | "configuration-import" | "privacy"
     /** Rendered inside the event's record, as the event's Logs tab does. */
     inEvent: boolean
     electionEventId?: string
@@ -126,6 +127,37 @@ const logs = [
     }),
 ]
 
+const PRIVACY_PSEUDONYM = "K7M2-P9AX"
+const privacyLogs = [
+    logRow(
+        8,
+        "CastVote",
+        {id: "", name: PRIVACY_PSEUDONYM},
+        {event_type: "CAST_VOTE", log_type: "INFO", description: "Pseudonymous ballot cast"},
+        {PrivacyCastVote: {}}
+    ),
+    logRow(
+        7,
+        "KeycloakUserEvent",
+        {id: STORY_IDS.user, name: "alice"},
+        {event_type: "USER", log_type: "INFO", description: "Account signed in"},
+        {KeycloakUserEvent: [JSON.stringify({client_id: "voting-portal"}), "LOGIN"]}
+    ),
+    logRow(
+        6,
+        "SendCommunications",
+        {id: STORY_IDS.user, name: "alice"},
+        {event_type: "SEND_COMMUNICATIONS", log_type: "INFO", description: "Account message sent"},
+        {SendCommunications: JSON.stringify({channel: "email", outcome: "ACCEPTED"})}
+    ),
+].map((row) => {
+    const head = JSON.parse(row.message).statement.head as {
+        event_type: string
+        log_type: string
+    }
+    return {...row, event_type: head.event_type, log_type: head.log_type}
+})
+
 let graphql: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof resourceBoundary>
 
@@ -203,20 +235,33 @@ function Fixture({
 const meta = {
     title: "Admin/Components/ElectoralLogList",
     component: ElectoralLogList,
+    parameters: {
+        viewport: {
+            options: {
+                privacyPhone: {name: "Privacy phone", styles: {width: "390px", height: "1000px"}},
+                privacyTablet: {name: "Privacy tablet", styles: {width: "820px", height: "1000px"}},
+            },
+        },
+    },
     args: {reads: "records", logs: "listed", inEvent: true},
     argTypes: {
         reads: {control: "inline-radio", options: ["records", "loading", "error"]},
-        logs: {control: "inline-radio", options: ["listed", "none", "configuration-import"]},
+        logs: {
+            control: "inline-radio",
+            options: ["listed", "none", "configuration-import", "privacy"],
+        },
     },
     beforeEach: async ({args}) => {
         data = resourceBoundary(
             {
                 electoral_log:
-                    args.logs === "configuration-import"
-                        ? [CONFIGURATION_IMPORT]
-                        : args.logs === "listed"
-                          ? logs
-                          : [],
+                    args.logs === "privacy"
+                        ? privacyLogs
+                        : args.logs === "configuration-import"
+                          ? [CONFIGURATION_IMPORT]
+                          : args.logs === "listed"
+                            ? logs
+                            : [],
             },
             {reads: args.reads}
         )
@@ -323,7 +368,8 @@ const exported = (electionEventId: string, format: string) => [
 ]
 
 export const Populated: Story = {
-    parameters: {widgets: ["LogRowTime"]},
+    ...atViewport(1440),
+    parameters: {...atViewport(1440).parameters, widgets: ["LogRowTime"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText("alice")).toBeVisible()
@@ -494,6 +540,7 @@ export const NarrowList: Story = {
 
 /** The event type and log type filters reach the list request. */
 export const FilterByEventAndLogType: Story = {
+    ...atViewport(1440),
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await canvas.findByText("alice")
@@ -641,6 +688,7 @@ export const WithoutExportPermission: Story = {
 }
 
 export const ExportAsCsv: Story = {
+    ...atViewport(1440),
     play: async ({canvasElement}) => {
         const dialog = await exportAs(canvasElement, "CSV")
         const title = dialog.getByText("Export logs")
@@ -734,4 +782,93 @@ export const WithoutAuditPermission: Story = {
         await expect(canvas.getByRole("button", {name: "Export"})).toBeVisible()
         expect(canvas.queryByRole("button", {name: "Audit"})).toBeNull()
     },
+}
+
+/** The compact privacy list preserves filters/export without resolving a ballot's identity. */
+export const PrivacyCompactListFiltersAndExport: Story = {
+    globals: {viewport: {value: "privacyPhone", isRotated: false}},
+    args: {logs: "privacy", roles: ["logs-read", "logs-export"]},
+    play: async ({canvasElement, globals}) => {
+        expect(window.innerWidth).toBe(globals.viewport.value === "privacyPhone" ? 390 : 820)
+        const canvas = within(canvasElement)
+        await waitFor(() => expect(canvas.getAllByRole("listitem")).toHaveLength(3))
+        expect(canvas.queryByRole("table")).toBeNull()
+        expect(canvas.getByText(new RegExp(PRIVACY_PSEUDONYM))).toBeVisible()
+        expect(canvas.queryByText(STORY_IDS.user, {exact: true})).toBeNull()
+        expect(canvas.getByText("Account signed in")).toBeVisible()
+        expect(canvas.getByText("Account message sent")).toBeVisible()
+        const list = canvasElement.querySelector(".electoral-log-list") as HTMLElement
+        expect(list.getBoundingClientRect().right).toBeLessThanOrEqual(window.innerWidth + 1)
+        expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth + 1)
+
+        await userEvent.click(canvas.getByRole("button", {name: "Add filter"}))
+        await userEvent.click(
+            await within(document.body).findByRole("menuitemcheckbox", {name: "Statement kind"})
+        )
+        await userEvent.type(
+            await canvas.findByRole("textbox", {name: "Statement kind"}),
+            "CastVote"
+        )
+        await waitFor(() => expect(canvas.getAllByRole("listitem")).toHaveLength(1))
+        expect(canvas.queryByText("Account signed in")).toBeNull()
+        expect(
+            data.calls.some(
+                ({method, args}) =>
+                    method === "getList" &&
+                    (args[1] as {filter?: {statement_kind?: string}}).filter?.statement_kind ===
+                        "CastVote"
+            )
+        ).toBe(true)
+
+        await userEvent.click(canvas.getByRole("button", {name: "Export"}))
+        const view = within(await within(document.body).findByRole("dialog"))
+        expect(view.getByRole("combobox", {name: "Scope"})).toHaveTextContent(
+            "The whole election event"
+        )
+        await userEvent.click(view.getByRole("button", {name: "Export"}))
+        await waitFor(() => expect(graphql.calls).toEqual(exported(EVENT_ID, "CSV").slice(1)))
+        expect(data.calls.every(({method}) => method === "getList")).toBe(true)
+    },
+}
+
+/** The real user's auth/message history stays visible; pseudonymous ballots have no user ID. */
+export const PrivacyUserLogsKeepAccountHistory: Story = {
+    globals: {viewport: {value: "privacyPhone", isRotated: false}},
+    args: {
+        logs: "privacy",
+        roles: ["logs-read"],
+        inDialog: true,
+        showActions: false,
+        filterToShow: ElectoralLogFilters.USER_ID,
+        filterValue: STORY_IDS.user,
+    },
+    play: async ({globals}) => {
+        expect(window.innerWidth).toBe(globals.viewport.value === "privacyPhone" ? 390 : 820)
+        const popup = await within(document.body).findByRole("dialog", {name: "Voter logs"})
+        const view = within(popup)
+        await waitFor(() => expect(view.getAllByRole("listitem")).toHaveLength(2))
+        expect(view.getByText("Account signed in")).toBeVisible()
+        expect(view.getByText("Account message sent")).toBeVisible()
+        expect(view.queryByText(/Pseudonymous ballot cast|K7M2-P9AX/)).toBeNull()
+        expect(listed()?.[1]).toMatchObject({
+            filter: {election_event_id: EVENT_ID, user_id: STORY_IDS.user},
+        })
+        expect(view.queryByRole("button", {name: "Export"})).toBeNull()
+        expect(graphql.calls).toEqual([])
+        await userEvent.click(view.getByText("Account signed in"))
+        const entry = within(await entryDialog())
+        await waitFor(() => expect(entry.getByText("alice")).toBeVisible())
+        expect(entry.queryByText(PRIVACY_PSEUDONYM)).toBeNull()
+        expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth + 1)
+    },
+}
+
+export const PrivacyTabletListFiltersAndExport: Story = {
+    ...PrivacyCompactListFiltersAndExport,
+    globals: {viewport: {value: "privacyTablet", isRotated: false}},
+}
+
+export const PrivacyTabletUserLogsKeepAccountHistory: Story = {
+    ...PrivacyUserLogsKeepAccountHistory,
+    globals: {viewport: {value: "privacyTablet", isRotated: false}},
 }

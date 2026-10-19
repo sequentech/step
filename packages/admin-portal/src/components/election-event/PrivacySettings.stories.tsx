@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
+import {atViewport} from "../../../../test-support/storybook/viewport"
 import React from "react"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, within} from "storybook/test"
@@ -70,6 +71,7 @@ export default meta
 type Story = StoryObj<Scenario>
 
 export const ForensicStore: Story = {
+    ...atViewport(1440),
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText("Election reviewers")).toBeVisible()
@@ -96,4 +98,34 @@ export const LoadError: Story = {
         ).toBeVisible()
         expect(canvas.queryByText("No role yet")).toBeNull()
     },
+}
+
+export const ForensicStorePhone: Story = {
+    ...ForensicStore,
+    ...atViewport(390),
+}
+
+export const ForensicStoreTablet: Story = {
+    ...ForensicStore,
+    ...atViewport(820),
+}
+
+export const LegacyPhone: Story = {
+    ...Legacy,
+    ...atViewport(390),
+}
+
+export const LegacyTablet: Story = {
+    ...Legacy,
+    ...atViewport(820),
+}
+
+export const LoadErrorPhone: Story = {
+    ...LoadError,
+    ...atViewport(390),
+}
+
+export const LoadErrorTablet: Story = {
+    ...LoadError,
+    ...atViewport(820),
 }

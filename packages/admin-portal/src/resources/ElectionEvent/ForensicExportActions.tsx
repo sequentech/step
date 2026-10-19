@@ -2,7 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
 import {useApolloClient} from "@apollo/client"
-import {Button, defaultExporter, useDataProvider, useListContext, useNotify} from "react-admin"
+import {
+    Button,
+    defaultExporter,
+    useDataProvider,
+    useListContext,
+    useNotify,
+    useTranslate,
+} from "react-admin"
 import DownloadIcon from "@mui/icons-material/Download"
 import type {IForensicAddress} from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
@@ -19,6 +26,7 @@ export const ForensicExportActions: React.FC<{
     const client = useApolloClient()
     const dataProvider = useDataProvider()
     const notify = useNotify()
+    const translate = useTranslate()
     const [exporting, setExporting] = useState(false)
     const exportRows = async () => {
         setExporting(true)
@@ -56,7 +64,12 @@ export const ForensicExportActions: React.FC<{
     }
     if (selectedOnly)
         return selectedIds.length ? (
-            <Button onClick={() => void exportRows()} disabled={exporting} label="ra.action.export">
+            <Button
+                onClick={() => void exportRows()}
+                disabled={exporting}
+                label="ra.action.export"
+                aria-label={translate("ra.action.export")}
+            >
                 <DownloadIcon />
             </Button>
         ) : null

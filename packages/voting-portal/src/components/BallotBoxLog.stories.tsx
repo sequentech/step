@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
+import {atViewport} from "../../../test-support/storybook/viewport"
 import type {Meta, StoryObj} from "@storybook/react-vite"
 import {expect, fn, userEvent, within} from "storybook/test"
 import {BallotBoxLogView} from "./BallotBoxLog"
@@ -49,6 +50,7 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const Ballots: Story = {
+    ...atViewport(1440),
     play: async ({canvasElement, args}) => {
         const canvas = within(canvasElement)
         await expect(canvas.getByRole("heading", {name: "Ballot box log"})).toBeVisible()
@@ -85,3 +87,33 @@ export const NoMatch: Story = {
     },
 }
 export const LoadError: Story = {args: {error: true, page: undefined}}
+
+export const BallotsPhone: Story = {
+    ...Ballots,
+    ...atViewport(390),
+}
+
+export const BallotsTablet: Story = {
+    ...Ballots,
+    ...atViewport(820),
+}
+
+export const CappedSearchPhone: Story = {
+    ...CappedSearch,
+    ...atViewport(390),
+}
+
+export const CappedSearchTablet: Story = {
+    ...CappedSearch,
+    ...atViewport(820),
+}
+
+export const NoMatchPhone: Story = {
+    ...NoMatch,
+    ...atViewport(390),
+}
+
+export const NoMatchTablet: Story = {
+    ...NoMatch,
+    ...atViewport(820),
+}
