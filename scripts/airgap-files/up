@@ -16,6 +16,16 @@ if [ -z "$RELAY_SECRET_VALUE" ] || [ "$RELAY_SECRET_VALUE" = "$RELAY_SECRET_PLAC
 fi
 unset RELAY_SECRET_VALUE
 
+# The unattended trustee runners' passwords, generated once in the same way.
+# Set each one as its trustee's Keycloak password during the trustee's first login.
+for TRUSTEE_PASSWORD_NAME in TRUSTEE1_PASSWORD TRUSTEE2_PASSWORD TRUSTEE3_PASSWORD; do
+    if grep -q "^${TRUSTEE_PASSWORD_NAME}=\"${RELAY_SECRET_PLACEHOLDER}\"" .env; then
+        sed -i "s|^${TRUSTEE_PASSWORD_NAME}=.*|${TRUSTEE_PASSWORD_NAME}=\"$(openssl rand -hex 24)\"|" .env
+        echo "Generated ${TRUSTEE_PASSWORD_NAME} in .env: set it as the trustee's Keycloak password"
+    fi
+done
+unset TRUSTEE_PASSWORD_NAME
+
 # Add two optional input params: <ezip_path> <password>
 # With an empty <password> or "-", the password is read without echo.
 ezip_path="$1"
