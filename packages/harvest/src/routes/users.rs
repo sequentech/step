@@ -13,8 +13,8 @@ use sequent_core::services::jwt;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::services::keycloak::{GroupInfo, KeycloakAdminClient};
 use sequent_core::types::keycloak::{
-    User, UserProfileAttribute, MOBILE_PHONE_ATTR_NAME, PERMISSION_LABELS,
-    TENANT_ID_ATTR_NAME,
+    User, UserProfileAttribute, EMAIL_AND_OR_MOBILE_ATTR_NAME,
+    MOBILE_PHONE_ATTR_NAME, PERMISSION_LABELS, TENANT_ID_ATTR_NAME,
 };
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
@@ -515,7 +515,6 @@ pub struct EditUserBody {
     temporary: Option<bool>,
 }
 
-const EMAIL_AND_OR_MOBILE_ATTR_NAME: &str = "emailAndOrMobile";
 const EMAIL_TLF_ATTRIBUTES: [&str; 2] =
     [MOBILE_PHONE_ATTR_NAME, EMAIL_AND_OR_MOBILE_ATTR_NAME];
 
@@ -1084,10 +1083,11 @@ mod tests {
     mod voter_edit_scope {
         use super::super::{
             email_tlf_edit_violations, keep_only_email_tlf, EditUserBody,
-            VoterEditScope, EMAIL_AND_OR_MOBILE_ATTR_NAME,
+            VoterEditScope,
         };
         use sequent_core::types::keycloak::{
-            User, AUTHORIZED_ELECTION_IDS_NAME, MOBILE_PHONE_ATTR_NAME,
+            User, AUTHORIZED_ELECTION_IDS_NAME, EMAIL_AND_OR_MOBILE_ATTR_NAME,
+            MOBILE_PHONE_ATTR_NAME,
         };
         use sequent_core::types::permissions::Permissions;
         use serde_json::{json, Value};
