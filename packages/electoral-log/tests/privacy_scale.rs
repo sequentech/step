@@ -1,0 +1,311 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-License-Identifier: AGPL-3.0-only
+
+//! Explicit storage smoke benchmark, not an HTTP/cast/cryptographic throughput test.
+//! Run only against an isolated ELECTORAL_LOG_TEST_DATABASE_URL. The registry uses
+//! the production allocator; SQL seeds synthetic ballot rows to exercise read indexes.
+
+use anyhow::Result;
+use electoral_log::adapters::postgres::PostgresStore;
+use electoral_log::adapters::privacy::{BallotIdentity, PrivacyBallotQuery};
+use std::time::Instant;
+use tokio_postgres::types::ToSql;
+use uuid::Uuid;
+
+#[tokio::test]
+#[ignore = "explicit large isolated database smoke benchmark"]
+async fn privacy_registry_and_scoped_reads_at_large_event_shape() -> Result<()> {
+    let voters: usize = std::env::var("PRIVACY_SCALE_VOTERS")
+        .unwrap_or_else(|_| "1500000".into())
+        .parse()?;
+    let elections: i64 = 104;
+    let sample_ballots = voters.min(104_000) as i64;
+    let store = PostgresStore::new(std::env::var("ELECTORAL_LOG_TEST_DATABASE_URL")?.parse()?)?;
+    store.initialize().await?;
+    let event = Uuid::new_v4().to_string();
+    store.create_ballot_box(&event).await?;
+    store
+        .set_ballot_identity(&event, BallotIdentity::Pseudonym)
+        .await?;
+    let started = Instant::now();
+    for first in (0..voters).step_by(5_000) {
+        let ids = (first..(first + 5_000).min(voters))
+            .map(|id| format!("scale-voter-{id:08}"))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            store.allocate_voter_pseudonyms(&event, &ids).await?,
+            ids.len()
+        );
+        if first % 100_000 == 0 {
+            println!("allocated {} of {voters}", (first + 5_000).min(voters));
+        }
+    }
+    println!(
+        "registry voters={voters} allocation_seconds={:.3}",
+        started.elapsed().as_secs_f64()
+    );
+    let client = store.client().await?;
+    let identities: i64 = client.query_one(
+        "SELECT count(*) FROM sequent_backend.voter_pseudonym WHERE election_event_id=$1::text::uuid", &[&event],
+    ).await?.get(0);
+    assert_eq!(identities, voters as i64);
+    let started = Instant::now();
+    client
+        .execute(
+            "CREATE TEMP TABLE privacy_scale_fixture AS
+         SELECT row_number() OVER (ORDER BY voter_id)::bigint AS n, pseudonym
+         FROM sequent_backend.voter_pseudonym WHERE election_event_id=$1::text::uuid
+         ORDER BY voter_id LIMIT $2",
+            &[&event, &sample_ballots],
+        )
+        .await?;
+    client
+        .execute(
+            "ALTER TABLE privacy_scale_fixture ADD COLUMN ballot_id text",
+            &[],
+        )
+        .await?;
+    client.execute(
+        "UPDATE privacy_scale_fixture SET ballot_id=upper(substr(lpad(to_hex(n),8,'0'),1,4)||'-'||substr(lpad(to_hex(n),8,'0'),5,4))", &[],
+    ).await?;
+    // The shared namespace may already contain a generated receipt code: omit
+    // that synthetic row, exactly as production would reserve a different code.
+    client
+        .execute(
+            "WITH reserved AS (
+             INSERT INTO sequent_backend.ballot_code (election_event_id,code,kind)
+             SELECT $1::text::uuid,ballot_id,'ballot' FROM privacy_scale_fixture
+             ON CONFLICT DO NOTHING RETURNING code
+         ) DELETE FROM privacy_scale_fixture WHERE ballot_id NOT IN (SELECT code FROM reserved)",
+            &[&event],
+        )
+        .await?;
+    client.execute(
+        "INSERT INTO ballot_box_received
+         (election_event_id,ballot_id,election_id,area_id,voter_id,ballot_hash,content,
+          voter_signing_pk,voter_ballot_signature,received_at,key_id,received_signature,status,cast_at)
+         SELECT $1::text::uuid,ballot_id,md5('scale-election-'||((n-1)%$2)::text)::uuid,
+             md5('scale-area-'||(((n-1)/$2)%$2)::text)::uuid,pseudonym,'scale-hash-'||n,
+             'synthetic-encrypted-content','synthetic-key','synthetic-signature',now(),
+             'synthetic-key-id','synthetic-receipt','cast',now() FROM privacy_scale_fixture", &[&event, &elections],
+    ).await?;
+    let inserted = client.execute(
+        "INSERT INTO ballot_box_ballot
+         (election_event_id,ballot_id,election_id,area_id,voter_id,format,content,pseudonym_hash,ballot_hash,voting_channel,status)
+         SELECT $1::text::uuid,'scale-hash-'||n,md5('scale-election-'||((n-1)%$2)::text)::uuid,
+             md5('scale-area-'||(((n-1)/$2)%$2)::text)::uuid,pseudonym,'hashable-ballot','synthetic-encrypted-content',
+             decode(repeat('00',64),'hex'),decode(repeat('00',64),'hex'),'ONLINE','valid'
+         FROM privacy_scale_fixture", &[&event, &elections],
+    ).await?;
+    client.batch_execute("ANALYZE ballot_box_ballot; ANALYZE ballot_box_received; ANALYZE sequent_backend.voter_pseudonym").await?;
+    println!(
+        "synthetic_ballots={inserted} election_scopes={elections} areas={elections} fixture_seconds={:.3}",
+        started.elapsed().as_secs_f64()
+    );
+    let sample = client
+        .query_one(
+            "SELECT election_id::text,area_id::text,ballot_id,voter_id FROM ballot_box_received
+         WHERE election_event_id=$1::text::uuid LIMIT 1",
+            &[&event],
+        )
+        .await?;
+    let election: String = sample.get(0);
+    let area: String = sample.get(1);
+    let ballot_id: String = sample.get(2);
+    let pseudonym: String = sample.get(3);
+    let allowed: Vec<String> = client.query(
+        "SELECT DISTINCT election_id::text FROM ballot_box_received WHERE election_event_id=$1::text::uuid",
+        &[&event],
+    ).await?.iter().map(|row| row.get(0)).collect();
+    let areas: i64 = client.query_one(
+        "SELECT count(DISTINCT area_id) FROM ballot_box_received WHERE election_event_id=$1::text::uuid",
+        &[&event],
+    ).await?.get(0);
+    if sample_ballots >= elections * elections {
+        assert_eq!(areas, elections);
+        assert_eq!(allowed.len(), elections as usize);
+    }
+    let mut later = None;
+    let mut newest_ids = Vec::new();
+    for prefix in [None, Some(&pseudonym[..4]), Some(ballot_id.as_str())] {
+        let started = Instant::now();
+        let page = store
+            .privacy_ballot_page(&PrivacyBallotQuery {
+                event: &event,
+                area: &area,
+                election: None,
+                elections: Some(&allowed),
+                prefix,
+                before: None,
+                limit: 50,
+            })
+            .await?;
+        assert!(!page.ballots.is_empty());
+        assert!(page
+            .ballots
+            .iter()
+            .all(|row| allowed.contains(&row.election_id)));
+        if prefix.is_none() {
+            later = page.next_cursor;
+            newest_ids = page
+                .ballots
+                .iter()
+                .map(|row| row.ballot_id.clone())
+                .collect();
+        }
+        println!(
+            "scoped_page prefix={prefix:?} rows={} milliseconds={:.3}",
+            page.ballots.len(),
+            started.elapsed().as_secs_f64() * 1000.0
+        );
+    }
+    let started = Instant::now();
+    assert!(store
+        .privacy_ballot_details(&event, &area, Some(&election), &ballot_id)
+        .await?
+        .is_some());
+    assert!(store
+        .voter_pseudonym(&event, "scale-voter-00000000")
+        .await?
+        .is_some());
+    println!(
+        "exact_ballot_and_identity_lookup_ms={:.3}",
+        started.elapsed().as_secs_f64() * 1000.0
+    );
+    let later = later.unwrap_or(i64::MAX);
+    let later_page = store
+        .privacy_ballot_page(&PrivacyBallotQuery {
+            event: &event,
+            area: &area,
+            election: None,
+            elections: Some(&allowed),
+            prefix: None,
+            before: Some(later),
+            limit: 50,
+        })
+        .await?;
+    if inserted >= 50_000 {
+        assert!(!later_page.ballots.is_empty());
+        assert!(later_page
+            .ballots
+            .iter()
+            .all(|row| !newest_ids.contains(&row.ballot_id)));
+    }
+    // These predicates/projections mirror the production page/search/detail
+    // queries. Prepared parameter types and authorized election subsets match
+    // the real APIs, so plans include their optional-scope clauses.
+    let join = "ballot_box_ballot b JOIN ballot_box_received r
+        ON r.election_event_id=b.election_event_id AND r.ballot_hash=b.ballot_id
+        AND r.election_id=b.election_id AND r.voter_id=b.voter_id";
+    let scope = "b.election_event_id=$1::text::uuid AND b.area_id=$2::text::uuid
+        AND ($3::text IS NULL OR b.election_id=$3::text::uuid)
+        AND ($4::text[] IS NULL OR b.election_id::text=ANY($4)) AND b.status='valid' AND r.status='cast'";
+    let columns = "b.seq,b.election_id::text,r.ballot_id,b.voter_id,b.accepted_at,b.voting_channel";
+    let election_scope: Option<&str> = None;
+    let allowed_scope = Some(allowed.as_slice());
+    let limit = 51i64;
+    let large = inserted >= 50_000;
+    let page_sql = format!(
+        "SELECT {columns} FROM {join} WHERE {scope} AND b.seq<$5 ORDER BY b.seq DESC LIMIT $6"
+    );
+    for (label, before) in [("newest", i64::MAX), ("later", later)] {
+        explain_indexed(
+            &client,
+            label,
+            &page_sql,
+            &[
+                &event,
+                &area,
+                &election_scope,
+                &allowed_scope,
+                &before,
+                &limit,
+            ],
+            large,
+        )
+        .await?;
+    }
+    let pattern = format!("{}%", &pseudonym[..4]);
+    let matches = format!(
+        "(SELECT b.seq FROM {join} WHERE {scope} AND r.ballot_id LIKE $5 AND b.seq<$6 ORDER BY b.seq DESC LIMIT $7)
+         UNION (SELECT b.seq FROM {join} WHERE {scope} AND b.voter_id LIKE $5 AND b.seq<$6 ORDER BY b.seq DESC LIMIT $7)"
+    );
+    let search_sql = format!(
+        "WITH matched AS ({matches}) SELECT {columns} FROM {join}
+        JOIN matched m ON m.seq=b.seq WHERE {scope} AND b.seq<$6 ORDER BY b.seq DESC LIMIT $7"
+    );
+    explain_indexed(
+        &client,
+        "prefix",
+        &search_sql,
+        &[
+            &event,
+            &area,
+            &election_scope,
+            &allowed_scope,
+            &pattern,
+            &i64::MAX,
+            &limit,
+        ],
+        large,
+    )
+    .await?;
+    explain_indexed(
+        &client,
+        "details",
+        "SELECT * FROM ballot_box_received
+        WHERE election_event_id=$1::text::uuid AND area_id=$2::text::uuid
+        AND ($3::text IS NULL OR election_id=$3::text::uuid) AND ballot_id=$4 AND status='cast'",
+        &[&event, &area, &Some(election.as_str()), &ballot_id],
+        large,
+    )
+    .await?;
+    explain_indexed(
+        &client,
+        "identity",
+        "SELECT pseudonym FROM sequent_backend.voter_pseudonym
+        WHERE election_event_id=$1::text::uuid AND voter_id='scale-voter-00000000'",
+        &[&event],
+        voters >= 100_000,
+    )
+    .await?;
+    drop(client);
+    store.drop_ballot_box(&event).await?;
+    assert_eq!(store.purge_voter_pseudonyms(&event).await?, voters as u64);
+    store
+        .client()
+        .await?
+        .execute(
+            "DELETE FROM sequent_backend.ballot_code WHERE election_event_id=$1::text::uuid",
+            &[&event],
+        )
+        .await?;
+    Ok(())
+}
+
+async fn explain_indexed(
+    client: &tokio_postgres::Client,
+    label: &str,
+    sql: &str,
+    parameters: &[&(dyn ToSql + Sync)],
+    large: bool,
+) -> Result<()> {
+    let rows = client
+        .query(
+            &format!("EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT) {sql}"),
+            parameters,
+        )
+        .await?;
+    for row in rows {
+        let line: String = row.get(0);
+        println!("{label}_plan: {line}");
+        if large {
+            assert!(
+                !line.contains("Seq Scan on ballot_box_")
+                    && !line.contains("Seq Scan on voter_pseudonym"),
+                "{label} unexpectedly scans a large storage table: {line}"
+            );
+        }
+    }
+    Ok(())
+}

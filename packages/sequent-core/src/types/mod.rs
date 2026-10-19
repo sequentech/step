@@ -26,4 +26,5 @@ pub mod templates;
 pub mod voter_channel;
 
 pub mod to_map;
+pub mod vote_privacy;
 pub mod voter_import;

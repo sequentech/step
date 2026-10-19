@@ -7,6 +7,7 @@
 
 use super::ballot_box_reads::{BallotContent, BallotIdMatch, StoredBallot};
 use super::postgres::PostgresStore;
+use super::privacy::BallotIdentity;
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Duration, Utc};
 use strum_macros::{Display, EnumString};
@@ -91,7 +92,7 @@ pub struct ReceivedCastBallot {
     pub ballot: BallotContent,
 }
 
-const RECEIVED_COLUMNS: &str = "id::text, election_event_id::text, election_id::text, \
+pub(crate) const RECEIVED_COLUMNS: &str = "id::text, election_event_id::text, election_id::text, \
      area_id::text, voter_id, ballot_id, ballot_hash, content, voter_signing_pk, \
      voter_ballot_signature, received_at, key_id, received_signature, status, cast_at, \
      cast_signature, cast_receipt_signature";
@@ -99,7 +100,7 @@ const RECEIVED_COLUMNS: &str = "id::text, election_event_id::text, election_id::
 const BY_HASH: &str = "election_event_id = $1::text::uuid AND election_id = $2::text::uuid \
      AND voter_id = $3 AND ballot_hash = $4";
 
-fn received_ballot(row: &Row) -> Result<ReceivedBallot> {
+pub(crate) fn received_ballot(row: &Row) -> Result<ReceivedBallot> {
     let status: String = row.try_get(13)?;
     Ok(ReceivedBallot {
         id: row.try_get(0)?,
@@ -138,7 +139,9 @@ impl PostgresStore {
     where
         F: FnMut(DateTime<Utc>) -> Result<ReceivedSignature> + Send,
     {
-        let client = self.client().await?;
+        let privacy =
+            self.ballot_identity(ballot.election_event_id).await? == BallotIdentity::Pseudonym;
+        let mut client = self.client().await?;
         let by_hash = client
             .prepare_cached(&format!(
                 "SELECT {RECEIVED_COLUMNS} FROM ballot_box_received WHERE {BY_HASH}"
@@ -170,7 +173,25 @@ impl PostgresStore {
         for attempt in 0..RECEIVE_ATTEMPTS {
             let received_at = first_received_at + Duration::milliseconds(attempt);
             let signature = sign(received_at)?;
-            let inserted = client
+            let transaction = client.transaction().await?;
+            if privacy {
+                let reserved = transaction
+                    .query_opt(
+                        "INSERT INTO sequent_backend.ballot_code (election_event_id, code, kind)
+                     VALUES ($1::text::uuid, $2, 'ballot') ON CONFLICT DO NOTHING RETURNING code",
+                        &[&ballot.election_event_id, &signature.ballot_id],
+                    )
+                    .await?;
+                if reserved.is_none() {
+                    transaction.rollback().await?;
+                    // A simultaneous retry may have reserved this same receipt.
+                    if let Some(row) = client.query_opt(&by_hash, &hash_parameters).await? {
+                        return Ok(ReceiveOutcome::AlreadyReceived(received_ballot(&row)?));
+                    }
+                    continue;
+                }
+            }
+            let inserted = transaction
                 .query_opt(
                     &insert,
                     &[
@@ -191,8 +212,12 @@ impl PostgresStore {
                 .await
                 .context("Error storing the received ballot")?;
             if let Some(row) = inserted {
-                return Ok(ReceiveOutcome::Received(received_ballot(&row)?));
+                let stored = received_ballot(&row)?;
+                transaction.commit().await?;
+                return Ok(ReceiveOutcome::Received(stored));
             }
+            // Roll back an unused reservation as well as the unsuccessful insert.
+            transaction.rollback().await?;
             // Either the voter's same ballot arrived on another request, or the
             // Ballot ID is taken in the election event.
             if let Some(row) = client.query_opt(&by_hash, &hash_parameters).await? {

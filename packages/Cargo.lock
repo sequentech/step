@@ -9383,6 +9383,7 @@ dependencies = [
  "chrono-tz",
  "console_error_panic_hook",
  "csv",
+ "electoral-log",
  "handlebars",
  "handlebars-chrono",
  "headless_chrome",

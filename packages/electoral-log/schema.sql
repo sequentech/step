@@ -307,4 +307,209 @@ BEGIN
     END IF;
 END;
 $$;
+
+-- Privacy data deliberately lives outside public: console readers are granted
+-- all public tables, including future ones, but must never resolve identities.
+CREATE SCHEMA IF NOT EXISTS sequent_backend;
+REVOKE ALL ON SCHEMA sequent_backend FROM PUBLIC;
+CREATE TABLE IF NOT EXISTS sequent_backend.ballot_identity (
+    election_event_id UUID PRIMARY KEY,
+    mode TEXT NOT NULL CHECK (mode IN ('voter-id', 'pseudonym')),
+    mapping_purged_at TIMESTAMPTZ
+);
+CREATE TABLE IF NOT EXISTS sequent_backend.ballot_code (
+    election_event_id UUID NOT NULL,
+    code TEXT NOT NULL CHECK (code ~ '^[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$'),
+    kind TEXT NOT NULL CHECK (kind IN ('pseudonym', 'ballot')),
+    PRIMARY KEY (election_event_id, code)
+);
+CREATE TABLE IF NOT EXISTS sequent_backend.voter_pseudonym (
+    election_event_id UUID NOT NULL REFERENCES sequent_backend.ballot_identity,
+    voter_id TEXT NOT NULL CHECK (voter_id <> ''),
+    pseudonym TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (election_event_id, voter_id),
+    UNIQUE (election_event_id, pseudonym),
+    FOREIGN KEY (election_event_id, pseudonym)
+        REFERENCES sequent_backend.ballot_code (election_event_id, code)
+);
+CREATE TABLE IF NOT EXISTS sequent_backend.voter_participation (
+    election_event_id UUID NOT NULL,
+    election_id UUID NOT NULL,
+    pseudonym TEXT NOT NULL,
+    PRIMARY KEY (election_event_id, election_id, pseudonym),
+    FOREIGN KEY (election_event_id, pseudonym)
+        REFERENCES sequent_backend.voter_pseudonym (election_event_id, pseudonym) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS voter_participation_pseudonym
+    ON sequent_backend.voter_participation (election_event_id, pseudonym, election_id);
+CREATE TABLE IF NOT EXISTS sequent_backend.ballot_evidence_pending (
+    id BIGSERIAL PRIMARY KEY,
+    election_event_id UUID NOT NULL,
+    received_id UUID NOT NULL,
+    kind TEXT NOT NULL CHECK (kind IN ('received', 'audited')),
+    UNIQUE (election_event_id, received_id, kind)
+);
+CREATE INDEX IF NOT EXISTS ballot_evidence_pending_event
+    ON sequent_backend.ballot_evidence_pending (election_event_id, id);
+CREATE TABLE IF NOT EXISTS sequent_backend.privacy_message_pending (
+    id BIGSERIAL PRIMARY KEY,
+    election_event_id UUID NOT NULL,
+    delivery_id TEXT NOT NULL,
+    message BYTEA NOT NULL,
+    UNIQUE (election_event_id, delivery_id)
+);
+CREATE INDEX IF NOT EXISTS privacy_message_pending_event
+    ON sequent_backend.privacy_message_pending (election_event_id, id);
+CREATE TABLE IF NOT EXISTS sequent_backend.forensic_network_record (
+    id BIGSERIAL PRIMARY KEY,
+    election_event_id UUID NOT NULL,
+    election_id UUID,
+    area_id UUID,
+    event_kind TEXT NOT NULL,
+    delivery_id TEXT NOT NULL,
+    pseudonym TEXT NOT NULL,
+    ballot_id TEXT,
+    ip TEXT NOT NULL,
+    country TEXT,
+    user_agent TEXT,
+    recorded_at TIMESTAMPTZ NOT NULL,
+    UNIQUE (election_event_id, delivery_id)
+);
+CREATE TABLE IF NOT EXISTS sequent_backend.forensic_summary_pending (
+    record_id BIGINT PRIMARY KEY REFERENCES sequent_backend.forensic_network_record(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS forensic_network_address
+    ON sequent_backend.forensic_network_record (election_event_id, ip, recorded_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS forensic_network_retention
+    ON sequent_backend.forensic_network_record (election_event_id, recorded_at, id);
+CREATE TABLE IF NOT EXISTS sequent_backend.forensic_network_summary (
+    election_event_id UUID NOT NULL,
+    election_id UUID NOT NULL,
+    area_id UUID NOT NULL,
+    ip TEXT NOT NULL,
+    records BIGINT NOT NULL,
+    country TEXT,
+    first_at TIMESTAMPTZ NOT NULL,
+    last_at TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (election_event_id, election_id, area_id, ip)
+);
+
+CREATE TABLE IF NOT EXISTS sequent_backend.forensic_network_pseudonym (
+    election_event_id UUID NOT NULL,
+    election_id UUID NOT NULL,
+    area_id UUID NOT NULL,
+    ip TEXT NOT NULL,
+    pseudonym TEXT NOT NULL,
+    records BIGINT NOT NULL,
+    PRIMARY KEY (election_event_id, election_id, area_id, ip, pseudonym)
+);
+CREATE INDEX IF NOT EXISTS ballot_box_privacy_page
+    ON ballot_box_ballot (election_event_id, area_id, seq DESC) WHERE status = 'valid';
+CREATE INDEX IF NOT EXISTS ballot_box_privacy_pseudonym
+    ON ballot_box_ballot (election_event_id, area_id, voter_id text_pattern_ops, seq DESC) WHERE status = 'valid';
+CREATE INDEX IF NOT EXISTS ballot_box_privacy_received_code
+    ON ballot_box_received (election_event_id, area_id, ballot_id text_pattern_ops) WHERE status = 'cast';
+CREATE INDEX IF NOT EXISTS ballot_box_received_hash
+    ON ballot_box_received (election_event_id, ballot_hash);
+
+CREATE OR REPLACE FUNCTION sequent_backend.immutable_ballot_identity() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    IF TG_OP = 'DELETE' OR NEW.mode <> OLD.mode
+       OR (OLD.mapping_purged_at IS NOT NULL AND NEW.mapping_purged_at IS DISTINCT FROM OLD.mapping_purged_at) THEN
+        RAISE EXCEPTION 'ballot_identity_immutable' USING ERRCODE = '42501';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+CREATE OR REPLACE FUNCTION sequent_backend.guard_private_ballot() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE privacy BOOLEAN;
+BEGIN
+    SELECT mode = 'pseudonym' INTO privacy FROM sequent_backend.ballot_identity
+        WHERE election_event_id = NEW.election_event_id;
+    IF NOT COALESCE(privacy, false) THEN RETURN NEW; END IF;
+    IF NOT EXISTS (SELECT 1 FROM sequent_backend.voter_pseudonym
+                   WHERE election_event_id = NEW.election_event_id AND pseudonym = NEW.voter_id) THEN
+        RAISE EXCEPTION 'ballot_pseudonym_not_allocated' USING ERRCODE = '42501';
+    END IF;
+    IF TG_TABLE_NAME LIKE 'ballot_box_ballot%' AND
+       (to_jsonb(NEW)->>'voter_ip' IS NOT NULL OR to_jsonb(NEW)->>'voter_country' IS NOT NULL
+        OR (to_jsonb(NEW)->>'username' IS NOT NULL AND to_jsonb(NEW)->>'username' <> NEW.voter_id)) THEN
+        RAISE EXCEPTION 'ballot_private_fields_forbidden' USING ERRCODE = '42501';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+CREATE OR REPLACE FUNCTION sequent_backend.record_private_participation() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    INSERT INTO sequent_backend.voter_participation (election_event_id, election_id, pseudonym)
+        SELECT NEW.election_event_id, NEW.election_id, NEW.voter_id
+        FROM sequent_backend.ballot_identity
+        WHERE election_event_id = NEW.election_event_id AND mode = 'pseudonym'
+          AND NEW.status IN ('valid', 'pending')
+        ON CONFLICT DO NOTHING;
+    RETURN NEW;
+END;
+$$;
+CREATE OR REPLACE FUNCTION sequent_backend.queue_received_evidence() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE entry_kind TEXT;
+BEGIN
+    IF TG_OP = 'INSERT' THEN entry_kind := 'received';
+    ELSIF NEW.status = 'audited' AND OLD.status <> 'audited' THEN entry_kind := 'audited';
+    ELSE RETURN NEW;
+    END IF;
+    INSERT INTO sequent_backend.ballot_evidence_pending (election_event_id, received_id, kind)
+        SELECT NEW.election_event_id, NEW.id, entry_kind
+        FROM sequent_backend.ballot_identity
+        WHERE election_event_id = NEW.election_event_id AND mode = 'pseudonym'
+        ON CONFLICT DO NOTHING;
+    RETURN NEW;
+END;
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'sequent_backend.ballot_identity'::regclass
+                   AND tgname = 'ballot_identity_immutable') THEN
+        CREATE TRIGGER ballot_identity_immutable BEFORE UPDATE OR DELETE ON sequent_backend.ballot_identity
+            FOR EACH ROW EXECUTE FUNCTION sequent_backend.immutable_ballot_identity();
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'ballot_box_ballot'::regclass
+                   AND tgname = 'ballot_privacy_guard') THEN
+        CREATE TRIGGER ballot_privacy_guard BEFORE INSERT OR UPDATE ON ballot_box_ballot
+            FOR EACH ROW EXECUTE FUNCTION sequent_backend.guard_private_ballot();
+        CREATE TRIGGER ballot_privacy_participation AFTER INSERT ON ballot_box_ballot
+            FOR EACH ROW EXECUTE FUNCTION sequent_backend.record_private_participation();
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'ballot_box_received'::regclass
+                   AND tgname = 'received_privacy_guard') THEN
+        CREATE TRIGGER received_privacy_guard BEFORE INSERT OR UPDATE ON ballot_box_received
+            FOR EACH ROW EXECUTE FUNCTION sequent_backend.guard_private_ballot();
+        CREATE TRIGGER received_privacy_evidence AFTER INSERT OR UPDATE ON ballot_box_received
+            FOR EACH ROW EXECUTE FUNCTION sequent_backend.queue_received_evidence();
+    END IF;
+END;
+$$;
+
+
+-- Non-identifying evidence survives deletion of the private identities/records.
+CREATE TABLE IF NOT EXISTS sequent_backend.privacy_purge_evidence (
+    id BIGSERIAL PRIMARY KEY,
+    election_event_id UUID NOT NULL,
+    kind TEXT NOT NULL CHECK (kind IN ('mappings', 'network')),
+    cutoff TIMESTAMPTZ,
+    removed BIGINT NOT NULL CHECK (removed >= 0),
+    completed_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS sequent_backend.private_receipt_document (
+    election_event_id UUID NOT NULL,
+    document_id UUID NOT NULL,
+    pseudonym TEXT NOT NULL,
+    PRIMARY KEY (election_event_id, document_id)
+);
+
 COMMIT;
