@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize_voter_election;
+use crate::services::authorization::{
+    authorize_voter_election, ensure_election_in_event,
+};
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -58,6 +60,12 @@ pub async fn create_ballot_receipt(
             return Err(error);
         }
     };
+    ensure_election_in_event(
+        &tenant_id,
+        &input.election_event_id,
+        &input.election_id,
+    )
+    .await?;
 
     let voter_id = claims.hasura_claims.user_id.clone();
     let document_id: String = Uuid::new_v4().to_string();
