@@ -35,6 +35,7 @@ use sequent_core::types::keycloak::{
 };
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, HashMap};
 use std::num::NonZeroU32;
 use std::sync::LazyLock;
 use tempfile::NamedTempFile;
@@ -639,6 +640,25 @@ fn get_insert_user_query(
     Ok(ret)
 }
 
+/// Counts accepted records, rather than source lines or SQL attribute rows.
+/// The insert is all-or-nothing: duplicate usernames fail its transaction.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ImportedUsersSummary {
+    pub accepted_count: u64,
+    pub counts_by_area: BTreeMap<String, u64>,
+}
+
+impl ImportedUsersSummary {
+    fn accept(&mut self, area_id: Option<&str>, areas: &HashMap<String, String>) {
+        self.accepted_count += 1;
+        let key = area_id
+            .and_then(|id| areas.get(id))
+            .cloned()
+            .unwrap_or_default();
+        *self.counts_by_area.entry(key).or_default() += 1;
+    }
+}
+
 #[instrument(err, skip(hasura_transaction))]
 pub async fn import_users_file(
     hasura_transaction: &Transaction<'_>,
@@ -650,7 +670,7 @@ pub async fn import_users_file(
     may_write_secret_attributes: bool,
     secret_write_initiator: Option<&ElectoralLogAdminContext>,
     privileges: ImportUsersPrivileges,
-) -> Result<()> {
+) -> Result<ImportedUsersSummary> {
     let mut keycloak_db_client = match get_keycloak_pool().await.get().await {
         Ok(client) => client,
         Err(err) => {
@@ -696,6 +716,17 @@ pub async fn import_users_file(
     } else {
         None
     };
+
+    let area_names: HashMap<String, String> = areas_map
+        .as_ref()
+        .map(|areas| {
+            areas
+                .iter()
+                .map(|(name, id)| (id.clone(), name.trim().to_string()))
+                .collect()
+        })
+        .unwrap_or_default();
+    let mut summary = ImportedUsersSummary::default();
 
     let mut rdr = csv::ReaderBuilder::new()
         .delimiter(separator)
@@ -870,6 +901,7 @@ pub async fn import_users_file(
         owned_data.clear();
         let user_id = Uuid::new_v4().to_string();
 
+        let mut accepted_area_id: Option<String> = None;
         let mut password_salt: Option<String> = None;
         let mut hashed_password: Option<String> = None;
         let mut num_of_iterations = *PBKDF2_ITERATIONS;
@@ -917,6 +949,10 @@ pub async fn import_users_file(
                     column_name if column_name == EMAIL_VERIFIED_COL_NAME => data.to_lowercase(),
                     _ => data.to_string(),
                 };
+
+            if column_name == AREA_ID_ATTR_NAME && !is_admin {
+                accepted_area_id = Some(processed_data.clone());
+            }
 
             if secret_names.contains(column_name) && !processed_data.is_empty() {
                 let event_id = election_event_id.as_deref().ok_or_else(|| {
@@ -983,6 +1019,8 @@ pub async fn import_users_file(
             .map(|data| data as &(dyn tokio_postgres::types::ToSql + Sync))
             .collect();
 
+        summary.accept(accepted_area_id.as_deref(), &area_names);
+
         if let Err(err) = writer.as_mut().write(row.as_slice()).await {
             return Err(Error::String(format!(
                 "Error writing to COPY IN transaction: {err}"
@@ -1020,13 +1058,40 @@ pub async fn import_users_file(
         )));
     }
 
-    Ok(())
+    Ok(summary)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use csv::StringRecord;
+
+    #[test]
+    fn accepted_voters_are_counted_once_under_the_stable_area_name() {
+        let areas = [
+            ("area-1".to_string(), "Area A".to_string()),
+            ("area-2".to_string(), "Area B".to_string()),
+        ]
+        .into();
+        let mut summary = ImportedUsersSummary::default();
+        summary.accept(Some("area-1"), &areas);
+        summary.accept(Some("area-1"), &areas);
+        summary.accept(Some("area-2"), &areas);
+        assert_eq!(summary.accepted_count, 3);
+        assert_eq!(
+            summary.counts_by_area,
+            [("Area A".to_string(), 2), ("Area B".to_string(), 1)].into()
+        );
+    }
+
+    #[test]
+    fn an_unassigned_voter_cannot_disappear_from_the_import_counts() {
+        let mut summary = ImportedUsersSummary::default();
+        summary.accept(None, &Default::default());
+        summary.accept(Some("missing-area"), &Default::default());
+        assert_eq!(summary.accepted_count, 2);
+        assert_eq!(summary.counts_by_area.get(""), Some(&2));
+    }
 
     /// The import writes `user_attribute.name` straight from these lists and the
     /// ballot dump reads the attribute by name, so the column has to survive

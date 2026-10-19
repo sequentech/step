@@ -1,4 +1,20 @@
 actions:
+    - name: readiness_check
+      definition:
+          kind: synchronous
+          type: mutation
+          handler: http://{{HARVEST_DOMAIN}}/readiness-check
+          forward_client_headers: true
+          timeout: 60
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: readiness-check
+      comment: Compare tested and official events and sign a successful readiness snapshot
     - name: tenant_plugins
       definition:
           type: query

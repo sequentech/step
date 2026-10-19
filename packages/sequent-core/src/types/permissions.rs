@@ -293,6 +293,8 @@ pub enum Permissions {
     #[strum(serialize = "application-write")]
     APPLICATION_WRITE,
     // save a new version of the enrollment approval matrix
+    #[strum(serialize = "readiness-check")]
+    READINESS_CHECK,
     #[strum(serialize = "approval-matrix-write")]
     APPROVAL_MATRIX_WRITE,
     #[strum(serialize = "ee-voters-columns")]

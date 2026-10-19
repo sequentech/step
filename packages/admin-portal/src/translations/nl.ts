@@ -5,6 +5,29 @@ import englishTranslation, {TranslationType} from "./en"
 
 const dutchTranslation: TranslationType = {
     translations: {
+        readiness: {
+            close: "Sluiten",
+            action: "Gereedheid controleren",
+            title: "Verkiezingsgereedheid",
+            description:
+                "Vergelijk dit officiële evenement met een voltooide repetitie. Een geslaagde controle legt ondertekend bewijs vast in het logboek van het officiële evenement.",
+            testedEvent: "Getest evenement",
+            archived: "Gearchiveerd",
+            noEvents: "Geen andere evenementen beschikbaar",
+            retry: "Opnieuw proberen",
+            eventsError: "Verkiezingsevenementen konden niet worden geladen.",
+            run: "Controle uitvoeren",
+            running: "Gereedheid wordt gecontroleerd…",
+            error: "De controle kon niet worden voltooid. Bekijk het logboek voordat u het opnieuw probeert; het antwoord kan verloren zijn gegaan nadat het bewijs was vastgelegd.",
+            downloadError: "Het rapport kon niet worden gedownload. Probeer het opnieuw.",
+            success:
+                "Gereedheid bevestigd. Ondertekend bewijs is vastgelegd in het logboek van het officiële evenement.",
+            failed: "De controle is mislukt. Verhelp de mislukte controles en voer deze opnieuw uit. Er is geen gereedheidsvermelding vastgelegd.",
+            download: "JSON-rapport downloaden",
+            snapshot:
+                "Dit rapport is een momentopname. Herhaal na relevante wijzigingen; het bevriest het evenement niet en vervangt geen operationele goedkeuring.",
+            results: "Controleresultaten",
+        },
         plugins: {
             title: "Plug-ins",
             description:
@@ -434,6 +457,75 @@ const dutchTranslation: TranslationType = {
             },
         },
         logsScreen: {
+            configurationPackage: englishTranslation.translations.logsScreen.configurationPackage,
+            readiness: {
+                passed: "Geslaagd",
+                failed: "Mislukt",
+                checkResult: "{{outcome}}: {{description}}",
+                description: {
+                    VotersImported: "Kiezersbestand geïmporteerd.",
+                    ReadinessVerified:
+                        "Gereedheid van het officiële evenement geverifieerd met het geteste evenement.",
+                },
+                checks: {
+                    configuration:
+                        "Beide evenementen hebben dezelfde goedgekeurde inhoud, geverifieerde goedkeurders en gebieden.",
+                    certified_voters:
+                        "Beide evenementen komen overeen met hetzelfde gecertificeerde kiezersbestand en de huidige aantallen per gebied.",
+                    official_zero:
+                        "Het officiële evenement is nooit geopend voor stemmen en bevat geen stembiljetten of telsessies.",
+                    publication:
+                        "De officiële publicatie komt overeen met de ondertekende configuratie.",
+                    tested_finished:
+                        "De stemkanalen van het geteste evenement zijn gesloten en alle verwachte stembussen zijn verzegeld.",
+                },
+                fields: {
+                    report: "Gereedheidsrapport",
+                    passed: "Geslaagd",
+                    checked_at: "Gecontroleerd op",
+                    evidence: "Bewijs",
+                    official: "Officieel evenement",
+                    tested: "Getest evenement",
+                    official_event_id: "ID officieel evenement",
+                    tested_event_id: "ID getest evenement",
+                    event_id: "Evenement-ID",
+                    election_id: "Verkiezings-ID",
+                    configuration: "Configuratie",
+                    external_id: "Externe ID",
+                    revision: "Revisie",
+                    content_sha256: "SHA-256 inhoud",
+                    manifest_sha256: "SHA-256 manifest",
+                    approvers: "Geverifieerde goedkeurders",
+                    areas: "Gebieden",
+                    voters: "Kiezersimport",
+                    import_id: "Import-ID",
+                    document_id: "Document-ID",
+                    file_name: "Bestandsnaam",
+                    sha256: "SHA-256 bestand",
+                    declared_sha256: "Opgegeven SHA-256",
+                    counts_by_area: "Kiezers per gebied",
+                    imported_at: "Geïmporteerd op",
+                    voter_log_delivered: "Ondertekende import vastgelegd",
+                    current_voter_counts: "Huidige kiezers per gebied",
+                    voter_import_in_progress: "Kiezersimport actief",
+                    status: "Status",
+                    elections: "Verkiezingen",
+                    ballot_count: "Opgeslagen stembiljetten",
+                    received_ballot_count: "Ontvangen stembiljetten bij controle",
+                    tally_session_count: "Telsessies",
+                    publication: "Publicatie",
+                    publication_id: "Publicatie-ID",
+                    publication_ids: "Publicatie-ID’s",
+                    matches_manifest: "Komt overeen met ondertekend manifest",
+                    design_count: "Gepubliceerde ontwerpen",
+                    seal_at_close: "Verzegelen bij sluiting",
+                    expected_boxes: "Verwachte stembussen",
+                    sealed_boxes: "Verzegelde stembussen",
+                    all_channels_closed: "Alle stemkanalen gesloten",
+                    locked_down: "Vergrendeld",
+                    log_entry_id: "Logboekvermelding-ID",
+                },
+            },
             noPermissions: "U hebt geen toestemming om toegang te krijgen tot de logs.",
             title: "Logs",
             subtitle:
@@ -1080,6 +1172,10 @@ const dutchTranslation: TranslationType = {
             },
         },
         electionEventScreen: {
+            dataUnavailable: "Gegevens zijn niet beschikbaar voor dit verkiezingsevenement.",
+            noAccessibleTabs:
+                "Je hebt geen toegang tot beschikbare tabbladen voor dit verkiezingsevenement.",
+
             common: {
                 subtitle: "Configuratie verkiezingsevenement.",
                 showMore: "Toon meer",
@@ -1250,6 +1346,11 @@ const dutchTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    since: "Vergrendeld sinds {{date}}.",
+                    scheduledEnd: "Einde van de vergrendeling gepland voor {{date}}.",
+                    endScheduled: "Er is een einde van de vergrendeling gepland.",
+                    noScheduledEnd: "Er is geen einde van de vergrendeling gepland.",
+                    banner: "Dit verkiezingsevenement is vergrendeld.",
                     policyLabel: "Vergrendelingsstatus",
                     helperText:
                         "Plan het begin of einde van de vergrendelingsperiode om deze status te wijzigen.",
@@ -1296,6 +1397,15 @@ const dutchTranslation: TranslationType = {
                 decodedBallots: {
                     policyLabel: "Gedecodeerde stembiljetten opnemen in de resultaten database",
                     options: {"included": "Opnemen", "not-included": "Niet opnemen"},
+                },
+                fileIntegrityPolicy: {
+                    policyLabel: "Integriteit van het kiezersbestand",
+                    helperText:
+                        "Vereis de onafhankelijk gecertificeerde SHA-256 voordat kiezers worden geïmporteerd.",
+                    options: {
+                        OPTIONAL: "Optionele SHA-256",
+                        REQUIRED_SHA256: "Verplichte SHA-256",
+                    },
                 },
                 contestEncryptionPolicy: {
                     options: {
@@ -1628,6 +1738,8 @@ const dutchTranslation: TranslationType = {
                 importVotersError: "Fout bij importeren van kiezers",
                 importElectionEventSuccess: "Verkiezingsevenement succesvol geïmporteerd",
                 importElectionEventError: "Fout bij importeren verkiezingsevenement",
+                shaRequiredHelp:
+                    "Voer de gecertificeerde hexadecimale SHA-256 van 64 tekens in. Deze is verplicht voor de import.",
                 shaDialog: {
                     ok: "Ja, importeren zonder integriteitscontrole",
                     cancel: "Terug",
@@ -2220,6 +2332,7 @@ const dutchTranslation: TranslationType = {
                 "application-read": "Applicatie Lezen",
                 "application-write": "Applicatie Bewerken",
                 "approval-matrix-write": "Goedkeuringsmatrix Bewerken",
+                "readiness-check": "Verkiezingsgereedheid controleren",
                 "logs-export": "Logs Exporteren",
                 "tenant-logs-read": "Tenantlog Lezen",
                 "tenant-logs-export": "Tenantlog Exporteren",

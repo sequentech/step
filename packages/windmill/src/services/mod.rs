@@ -69,6 +69,7 @@ pub mod plugins_manager;
 pub mod probe;
 pub mod protocol_board;
 pub mod providers;
+pub mod readiness;
 pub mod realm_localization;
 pub mod receive_ballot;
 pub mod reports;

@@ -5,6 +5,29 @@ import englishTranslation, {TranslationType} from "./en"
 
 const catalanTranslation: TranslationType = {
     translations: {
+        readiness: {
+            close: "Tanca",
+            action: "Verificar preparació",
+            title: "Preparació electoral",
+            description:
+                "Compareu aquest esdeveniment oficial amb un assaig finalitzat. Si la verificació és satisfactòria, es registra evidència signada al registre de l’esdeveniment oficial.",
+            testedEvent: "Esdeveniment provat",
+            archived: "Arxivat",
+            noEvents: "No hi ha altres esdeveniments disponibles",
+            retry: "Torna-ho a provar",
+            eventsError: "No s’han pogut carregar els esdeveniments.",
+            run: "Executa la verificació",
+            running: "Verificant la preparació…",
+            error: "No s’ha pogut completar la verificació. Reviseu el registre abans de tornar-ho a provar; la resposta es pot haver perdut després de registrar l’evidència.",
+            downloadError: "No s’ha pogut descarregar l’informe. Torneu-ho a provar.",
+            success:
+                "Preparació verificada. S’ha registrat evidència signada al registre de l’esdeveniment oficial.",
+            failed: "La preparació ha fallat. Resoleu les verificacions fallides i repetiu. No s’ha registrat cap entrada de preparació.",
+            download: "Descarrega l’informe JSON",
+            snapshot:
+                "Aquest informe és una instantània. Repetiu després de canvis rellevants; no bloqueja l’esdeveniment ni substitueix l’aprovació operativa.",
+            results: "Resultats de la verificació",
+        },
         plugins: {
             title: "Complements",
             description:
@@ -511,6 +534,75 @@ const catalanTranslation: TranslationType = {
             },
         },
         logsScreen: {
+            configurationPackage: englishTranslation.translations.logsScreen.configurationPackage,
+            readiness: {
+                passed: "Superat",
+                failed: "Fallat",
+                checkResult: "{{outcome}}: {{description}}",
+                description: {
+                    VotersImported: "Fitxer de votants importat.",
+                    ReadinessVerified:
+                        "Preparació de l’esdeveniment oficial verificada amb l’esdeveniment provat.",
+                },
+                checks: {
+                    configuration:
+                        "Tots dos esdeveniments tenen el mateix contingut aprovat, aprovadors verificats i àrees.",
+                    certified_voters:
+                        "Tots dos esdeveniments coincideixen en el fitxer certificat de votants i els recomptes actuals per àrea.",
+                    official_zero:
+                        "L’esdeveniment oficial mai ha obert la votació i no té vots ni sessions de recompte.",
+                    publication:
+                        "La publicació oficial coincideix amb la seva configuració signada.",
+                    tested_finished:
+                        "Els canals de votació de l’esdeveniment provat estan tancats i totes les urnes previstes estan segellades.",
+                },
+                fields: {
+                    report: "Informe de preparació",
+                    passed: "Superat",
+                    checked_at: "Data de comprovació",
+                    evidence: "Evidència",
+                    official: "Esdeveniment oficial",
+                    tested: "Esdeveniment provat",
+                    official_event_id: "ID de l’esdeveniment oficial",
+                    tested_event_id: "ID de l’esdeveniment provat",
+                    event_id: "ID de l’esdeveniment",
+                    election_id: "ID de l’elecció",
+                    configuration: "Configuració",
+                    external_id: "ID extern",
+                    revision: "Revisió",
+                    content_sha256: "SHA-256 del contingut",
+                    manifest_sha256: "SHA-256 del manifest",
+                    approvers: "Aprovadors verificats",
+                    areas: "Àrees",
+                    voters: "Importació de votants",
+                    import_id: "ID d’importació",
+                    document_id: "ID del document",
+                    file_name: "Nom del fitxer",
+                    sha256: "SHA-256 del fitxer",
+                    declared_sha256: "SHA-256 declarat",
+                    counts_by_area: "Votants per àrea",
+                    imported_at: "Data d’importació",
+                    voter_log_delivered: "Importació signada registrada",
+                    current_voter_counts: "Votants actuals per àrea",
+                    voter_import_in_progress: "Importació de votants activa",
+                    status: "Estat",
+                    elections: "Eleccions",
+                    ballot_count: "Vots emmagatzemats",
+                    received_ballot_count: "Vots rebuts en revisió",
+                    tally_session_count: "Sessions de recompte",
+                    publication: "Publicació",
+                    publication_id: "ID de publicació",
+                    publication_ids: "ID de les publicacions",
+                    matches_manifest: "Coincideix amb el manifest signat",
+                    design_count: "Dissenys publicats",
+                    seal_at_close: "Segellar al tancament",
+                    expected_boxes: "Urnes previstes",
+                    sealed_boxes: "Urnes segellades",
+                    all_channels_closed: "Tots els canals tancats",
+                    locked_down: "Bloquejat",
+                    log_entry_id: "ID de l’entrada del registre",
+                },
+            },
             noPermissions: "No tens permís per accedir a les bitàcoles.",
             title: "Bitàcoles",
             subtitle:
@@ -1084,6 +1176,10 @@ const catalanTranslation: TranslationType = {
             },
         },
         electionEventScreen: {
+            dataUnavailable: "Les dades no estan disponibles per a aquest esdeveniment electoral.",
+            noAccessibleTabs:
+                "No tens accés a cap pestanya disponible d’aquest esdeveniment electoral.",
+
             common: {
                 subtitle: "Configuració de l'Esdeveniment Electoral.",
                 showMore: "Mostra'n més",
@@ -1255,6 +1351,11 @@ const catalanTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    since: "Bloquejat des de {{date}}.",
+                    scheduledEnd: "Final del bloqueig programat per a {{date}}.",
+                    endScheduled: "Hi ha un final del bloqueig programat.",
+                    noScheduledEnd: "No hi ha cap final del bloqueig programat.",
+                    banner: "Aquest esdeveniment electoral està bloquejat.",
                     policyLabel: "Estat de Confinament",
                     helperText:
                         "Programeu l’inici o el final del període de bloqueig per canviar aquest estat.",
@@ -1302,6 +1403,15 @@ const catalanTranslation: TranslationType = {
                     policyLabel:
                         "Inclou les paperetes descodificades a la base de dades de resultats",
                     options: {"included": "Inclou", "not-included": "No incloguis"},
+                },
+                fileIntegrityPolicy: {
+                    policyLabel: "Integritat del fitxer de votants",
+                    helperText:
+                        "Exigeix el SHA-256 certificat de manera independent abans d’importar votants.",
+                    options: {
+                        OPTIONAL: "SHA-256 opcional",
+                        REQUIRED_SHA256: "SHA-256 obligatori",
+                    },
                 },
                 contestEncryptionPolicy: {
                     options: {
@@ -1636,6 +1746,8 @@ const catalanTranslation: TranslationType = {
                 importVotersError: "Error Important Votants.",
                 importElectionEventSuccess: "Esdeveniment electoral importat correctament",
                 importElectionEventError: "Error en importar l'esdeveniment electoral",
+                shaRequiredHelp:
+                    "Introduïu el SHA-256 hexadecimal certificat de 64 caràcters. És obligatori per importar.",
                 shaDialog: {
                     ok: "Sí, Importar Sense Verificació d'Integritat",
                     cancel: "Tornar",
@@ -2230,6 +2342,7 @@ const catalanTranslation: TranslationType = {
                 "application-read": "Llegir Aplicació",
                 "application-write": "Editar Aplicació",
                 "approval-matrix-write": "Editar la Matriu d'Aprovació",
+                "readiness-check": "Verificar la preparació electoral",
                 "logs-export": "Exportar Registres",
                 "tenant-logs-read": "Llegir Bitàcola de l'Inquilí",
                 "tenant-logs-export": "Exportar Bitàcola de l'Inquilí",

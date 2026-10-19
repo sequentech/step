@@ -5,6 +5,7 @@ import React from "react"
 import type {Meta, StoryObj} from "@storybook/react-vite"
 import {expect, fn, spyOn, userEvent, waitFor, within} from "storybook/test"
 import {ImportScreen} from "./ImportScreen"
+import {EFileIntegrityPolicy} from "@sequentech/ui-core"
 import {AdminStoryProvider, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 
 const DOCUMENT_ID = "33333333-3333-4333-8333-333333333333"
@@ -239,6 +240,47 @@ export const CancelEncryptedFile: Story = {
         expect(upload).not.toHaveBeenCalled()
         expect(args.uploadCallback).not.toHaveBeenCalled()
         expect(args.doImport).not.toHaveBeenCalled()
+        await expect(within(canvasElement).getByRole("button", {name: "Import"})).toBeDisabled()
+    },
+}
+
+export const RequiredCertifiedHash: Story = {
+    args: {fileIntegrityPolicy: EFileIntegrityPolicy.REQUIRED_SHA256},
+    play: async ({canvasElement, args}) => {
+        const canvas = within(canvasElement)
+        const hash = canvas.getByRole("textbox", {name: /Integrity Check/})
+        await expect(hash).toBeRequired()
+        await expect(canvas.getByText(/independently certified 64-character/)).toBeVisible()
+        await selectFile(canvasElement)
+        await waitFor(() => expect(args.uploadCallback).toHaveBeenCalledTimes(1))
+        const button = canvas.getByRole("button", {name: "Import"})
+        await expect(button).toBeDisabled()
+        await userEvent.type(hash, "invalid")
+        await expect(button).toBeDisabled()
+        await expect(within(document.body).queryByRole("dialog")).not.toBeInTheDocument()
+        await userEvent.clear(hash)
+        await userEvent.type(hash, CHECKSUM)
+        await expect(button).toBeEnabled()
+        await userEvent.click(button)
+        await expect(args.doImport).toHaveBeenCalledWith(DOCUMENT_ID, CHECKSUM, "")
+    },
+}
+
+export const CertifiedHashMismatch: Story = {
+    args: {
+        fileIntegrityPolicy: EFileIntegrityPolicy.REQUIRED_SHA256,
+        problems: [
+            {
+                severity: "error",
+                code: "checksum-mismatch",
+                path: "file",
+                id: "file.checksum-mismatch",
+                message: "The file does not match the certified SHA-256.",
+            },
+        ],
+    },
+    play: async ({canvasElement}) => {
+        await expect(within(canvasElement).getByTestId("import-problems")).toBeVisible()
         await expect(within(canvasElement).getByRole("button", {name: "Import"})).toBeDisabled()
     },
 }

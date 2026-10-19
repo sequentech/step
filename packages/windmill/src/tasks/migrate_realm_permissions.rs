@@ -11,8 +11,9 @@
 //! replace the `admin-user` reads the release removes, so without a group
 //! every administrator of an existing tenant would lose the event Messaging
 //! tab, Logs and Send Notification: the groups `admin` and `admin-light`
-//! get them as the realm template gives them ([`MESSAGING_GROUP_GRANTS`]),
-//! and any group that manages messaging accounts or configurations can read
+//! get them as the realm template gives them ([`TEMPLATE_GROUP_GRANTS`]).
+//! Readiness verification is granted only to the administrator group.
+//! Any group that manages messaging accounts or configurations can read
 //! the configuration. Only missing mappings are added; each is logged.
 
 use crate::postgres::tenant::get_tenant_ids;
@@ -34,7 +35,7 @@ use tracing::{error, info, instrument};
 
 /// The permissions the migration adds, with the English label Users and
 /// Roles shows for each, which becomes the role's description.
-pub const MIGRATED_PERMISSIONS: [(Permissions, &str); 25] = [
+pub const MIGRATED_PERMISSIONS: [(Permissions, &str); 26] = [
     (
         Permissions::ELECTION_EVENT_SIGNATURES_TAB,
         "Election Event Signatures Tab",
@@ -104,6 +105,7 @@ pub const MIGRATED_PERMISSIONS: [(Permissions, &str); 25] = [
     ),
     (Permissions::SIGN_KEY_CEREMONY, "Sign: confirm custody"),
     (Permissions::SIGN_TALLY_KEY, "Sign: authorize tally custody"),
+    (Permissions::READINESS_CHECK, "Verify election readiness"),
     (
         Permissions::MESSAGING_ACCOUNT_READ,
         "Read messaging accounts",
@@ -122,9 +124,9 @@ pub const MIGRATED_PERMISSIONS: [(Permissions, &str); 25] = [
     ),
 ];
 
-/// The messaging roles each template group holds in the realm templates;
+/// Roles each template group receives when upgrading an existing realm;
 /// existing realms' groups get the ones they lack.
-pub const MESSAGING_GROUP_GRANTS: [(&str, &[Permissions]); 2] = [
+pub const TEMPLATE_GROUP_GRANTS: [(&str, &[Permissions]); 2] = [
     (
         "admin",
         &[
@@ -132,6 +134,7 @@ pub const MESSAGING_GROUP_GRANTS: [(&str, &[Permissions]); 2] = [
             Permissions::MESSAGING_ACCOUNT_WRITE,
             Permissions::MESSAGING_CONFIG_WRITE,
             Permissions::MESSAGING_CONFIG_READ,
+            Permissions::READINESS_CHECK,
         ],
     ),
     (
@@ -206,11 +209,11 @@ pub(crate) async fn top_level_group(
     }))
 }
 
-/// Grants each group the messaging roles it lacks: the template's to
+/// Grants each group the release roles it lacks: the template's to
 /// `admin` and `admin-light`, and the configuration read to the groups
 /// holding a role in [`READ_FOLLOWS`]. Returns what was granted.
 #[instrument(skip(client), err)]
-pub async fn grant_messaging_roles(
+pub async fn grant_template_roles(
     client: &PubKeycloakAdmin,
     realm: &str,
 ) -> anyhow::Result<Vec<GroupGrant>> {
@@ -229,7 +232,7 @@ pub async fn grant_messaging_roles(
         }
         None => wanted.push((id, path, roles)),
     };
-    for (name, roles) in MESSAGING_GROUP_GRANTS {
+    for (name, roles) in TEMPLATE_GROUP_GRANTS {
         if let Some(group) = top_level_group(client, realm, name).await? {
             if let Some(id) = group.id {
                 want(
@@ -303,7 +306,7 @@ pub async fn grant_messaging_roles(
         if !status.is_success() {
             return Err(anyhow!("granting {missing:?} to {path}: HTTP {status}"));
         }
-        info!(realm, group = %path, roles = ?missing, "Messaging roles granted to a group");
+        info!(realm, group = %path, roles = ?missing, "Release roles granted to a group");
         granted.push(GroupGrant {
             group: path,
             roles: missing,
@@ -328,8 +331,8 @@ pub fn migrated_roles() -> Vec<RoleRepresentation> {
 }
 
 /// Imports [`migrated_roles`] into the realm of each tenant, skipping the
-/// roles a realm already has, then grants the messaging roles to its groups
-/// ([`grant_messaging_roles`]). Every realm is tried; if any failed the
+/// roles a realm already has, then grants the template roles to its groups
+/// ([`grant_template_roles`]). Every realm is tried; if any failed the
 /// result is an error naming them, after the others were migrated.
 #[instrument(skip(client), err)]
 pub async fn migrate_realms(
@@ -356,7 +359,7 @@ pub async fn migrate_realms(
                 continue;
             }
         };
-        match grant_messaging_roles(client, &realm).await {
+        match grant_template_roles(client, &realm).await {
             Ok(granted) => {
                 info!(
                     realm,

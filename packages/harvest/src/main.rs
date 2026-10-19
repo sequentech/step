@@ -26,6 +26,10 @@ mod types;
 mod test_claims;
 
 #[cfg(test)]
+#[path = "../tests/support/readiness_routes.rs"]
+mod readiness_routes;
+
+#[cfg(test)]
 #[path = "../tests/support/request_boundaries.rs"]
 mod request_boundaries;
 
@@ -140,6 +144,7 @@ fn build_application_with(
                 routes::electoral_log_console::electoral_log_console_record,
                 routes::electoral_log_console::electoral_log_console_query,
                 routes::electoral_log_console::electoral_log_console_tenants,
+                routes::readiness::readiness_check,
                 routes::task_queues::task_queues_overview,
                 routes::task_queues::task_queues_throughput,
                 routes::task_queues::task_queues_messages,

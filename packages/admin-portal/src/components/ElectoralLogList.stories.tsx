@@ -20,7 +20,7 @@ import {useStoryGlobals} from "../../../ui-essentials/.storybook/globals"
 
 interface Scenario {
     reads: ReadState
-    logs: "listed" | "none"
+    logs: "listed" | "none" | "configuration-import"
     /** Rendered inside the event's record, as the event's Logs tab does. */
     inEvent: boolean
     electionEventId?: string
@@ -63,6 +63,31 @@ const SEAL_HASH = `ef187f0b${"3c".repeat(56)}22a65e5b`
 const MESSAGE_ID = "0f6f2a8e-3c1b-4d7e-9b2a-5e4d3c2b1a00"
 const SEALED = "Ballot box of Madrid Post, Spain sealed: 1,340 of 1,342 ballots counted."
 const AUDIT_TASK_ID = "99999999-9999-4999-8999-999999999991"
+const CONFIGURATION_IMPORTED =
+    "Configuration approved-configuration revision 9 imported from a signed package."
+const CONFIGURATION_IMPORT = logRow(
+    5,
+    "ConfigurationPackageImported",
+    {id: STORY_IDS.user, name: "alice"},
+    {
+        event_type: "USER",
+        log_type: "INFO",
+        description: `Configuration approved-configuration revision 9 imported from a signed package (manifest ${"ab".repeat(32)}, content_hash ${"cd".repeat(32)}).`,
+    },
+    {
+        ConfigurationPackageWithContentHash: [
+            EVENT_ID,
+            {
+                action: "Imported",
+                external_id: "approved-configuration",
+                revision: 9,
+                manifest_sha256: "ab".repeat(32),
+                content_hash: "cd".repeat(32),
+                design_digests: [],
+            },
+        ],
+    }
+)
 
 const logs = [
     logRow(
@@ -181,11 +206,18 @@ const meta = {
     args: {reads: "records", logs: "listed", inEvent: true},
     argTypes: {
         reads: {control: "inline-radio", options: ["records", "loading", "error"]},
-        logs: {control: "inline-radio", options: ["listed", "none"]},
+        logs: {control: "inline-radio", options: ["listed", "none", "configuration-import"]},
     },
     beforeEach: async ({args}) => {
         data = resourceBoundary(
-            {electoral_log: args.logs === "listed" ? logs : []},
+            {
+                electoral_log:
+                    args.logs === "configuration-import"
+                        ? [CONFIGURATION_IMPORT]
+                        : args.logs === "listed"
+                          ? logs
+                          : [],
+            },
             {reads: args.reads}
         )
         graphql = graphqlBoundary(
@@ -312,6 +344,23 @@ export const Populated: Story = {
             }),
         ])
         await waitFor(() => expect(graphql.calls).toEqual(ledgerReads))
+    },
+}
+
+export const ConfigurationPackageImport: Story = {
+    args: {logs: "configuration-import"},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const description = await canvas.findByText(CONFIGURATION_IMPORTED)
+        await expect(description).toBeVisible()
+        expect(description).not.toHaveAttribute("title", expect.stringContaining("ab".repeat(32)))
+        await userEvent.click(description)
+        const entry = await within(document.body).findByRole("dialog", {name: "Log entry 5"})
+        const view = within(entry)
+        await waitFor(() => expect(view.getByText(CONFIGURATION_IMPORTED)).toBeVisible())
+        expect(view.getByText("Content hash", {exact: true})).toBeVisible()
+        expect(view.getByText("cd".repeat(32), {exact: true})).toBeVisible()
+        expect(view.getByText("ab".repeat(32), {exact: true})).toBeVisible()
     },
 }
 

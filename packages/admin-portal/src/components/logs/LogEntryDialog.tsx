@@ -20,6 +20,11 @@ import {
 import {logFieldLabelKey, logObjectTypeKey} from "./logFieldLabels"
 import {logMessage} from "./logMessage"
 import {ELogScope, type ILogTarget} from "./logScope"
+import {readinessDescription, readinessDetailRows} from "./readinessLog"
+import {
+    configurationPackageDescription,
+    configurationPackageFieldLabel,
+} from "./configurationPackageLog"
 import {StatementExplanation, explanationLines} from "./StatementExplanation"
 
 /** A row of a log list, as listElectoralLog answers it. */
@@ -257,6 +262,7 @@ const EntryContent: React.FC<{entry: ILogRow; log: ILogTarget; zone: string}> = 
     const descriptionId = useId()
     const view = logEntryView(entry)
     const message = logMessage(entry)
+    const extra = readinessDetailRows(t, entry.statement_kind, message) ?? view.extra
     const seconds = entry.statement_timestamp ?? entry.created
     const explained = !!explanationLines(t, entry.statement_kind, message)?.length
     const {who, signIn, keycloak, deletedEvent, importedFile, exported, writer, signatures} = view
@@ -294,7 +300,9 @@ const EntryContent: React.FC<{entry: ILogRow; log: ILogTarget; zone: string}> = 
                 className="log-entry-description"
                 sx={{fontWeight: 500, overflowWrap: "anywhere", whiteSpace: "pre-wrap", m: 0}}
             >
-                {view.description || "-"}
+                {readinessDescription(t, entry.statement_kind) ??
+                    configurationPackageDescription(t, view.statementKind, message) ??
+                    (view.description || "-")}
             </Typography>
             <Box sx={{display: "flex", flexWrap: "wrap", gap: 1}}>
                 {chips.map(({title, label, error}) =>
@@ -672,11 +680,14 @@ const EntryContent: React.FC<{entry: ILogRow; log: ILogTarget; zone: string}> = 
                     </Facts>
                 </Section>
             ) : null}
-            {view.extra.length ? (
+            {extra.length ? (
                 <Section title={String(t("logsScreen.entry.details"))}>
                     <Facts>
-                        {view.extra.map(({name, value}) => (
-                            <Fact key={name} label={name}>
+                        {extra.map(({name, value}) => (
+                            <Fact
+                                key={name}
+                                label={configurationPackageFieldLabel(t, view.statementKind, name)}
+                            >
                                 {value}
                             </Fact>
                         ))}

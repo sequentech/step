@@ -5,6 +5,29 @@ import englishTranslation, {TranslationType} from "./en"
 
 const galegoTranslation: TranslationType = {
     translations: {
+        readiness: {
+            close: "Pechar",
+            action: "Verificar preparación",
+            title: "Preparación electoral",
+            description:
+                "Compare este evento oficial cun ensaio finalizado. Se a verificación é satisfactoria, rexístrase evidencia asinada no rexistro do evento oficial.",
+            testedEvent: "Evento probado",
+            archived: "Arquivado",
+            noEvents: "Non hai outros eventos dispoñibles",
+            retry: "Tentar de novo",
+            eventsError: "Non se puideron cargar os eventos.",
+            run: "Executar verificación",
+            running: "Verificando preparación…",
+            error: "Non se puido completar a verificación. Revise o rexistro antes de tentalo de novo; a resposta pode terse perdido tras rexistrar a evidencia.",
+            downloadError: "Non se puido descargar o informe. Ténteo de novo.",
+            success:
+                "Preparación verificada. Rexistrouse evidencia asinada no rexistro do evento oficial.",
+            failed: "A preparación fallou. Resolva as comprobacións fallidas e repita. Non se rexistrou ningunha entrada de preparación.",
+            download: "Descargar informe JSON",
+            snapshot:
+                "Este informe é unha instantánea. Repita tras cambios relevantes; non bloquea o evento nin substitúe a aprobación operativa.",
+            results: "Resultados da verificación",
+        },
         plugins: {
             title: "Complementos",
             description:
@@ -432,6 +455,74 @@ const galegoTranslation: TranslationType = {
             },
         },
         logsScreen: {
+            configurationPackage: englishTranslation.translations.logsScreen.configurationPackage,
+            readiness: {
+                passed: "Superado",
+                failed: "Fallido",
+                checkResult: "{{outcome}}: {{description}}",
+                description: {
+                    VotersImported: "Ficheiro de votantes importado.",
+                    ReadinessVerified:
+                        "Preparación do evento oficial verificada co evento probado.",
+                },
+                checks: {
+                    configuration:
+                        "Ambos os eventos teñen o mesmo contido aprobado, aprobadores verificados e áreas.",
+                    certified_voters:
+                        "Ambos os eventos coinciden no ficheiro certificado de votantes e nos recontos actuais por área.",
+                    official_zero:
+                        "O evento oficial nunca abriu a votación e non ten votos nin sesións de reconto.",
+                    publication: "A publicación oficial coincide coa súa configuración asinada.",
+                    tested_finished:
+                        "As canles de votación do evento probado están pechadas e todas as urnas previstas están seladas.",
+                },
+                fields: {
+                    report: "Informe de preparación",
+                    passed: "Superado",
+                    checked_at: "Data da comprobación",
+                    evidence: "Evidencia",
+                    official: "Evento oficial",
+                    tested: "Evento probado",
+                    official_event_id: "ID do evento oficial",
+                    tested_event_id: "ID do evento probado",
+                    event_id: "ID do evento",
+                    election_id: "ID da elección",
+                    configuration: "Configuración",
+                    external_id: "ID externo",
+                    revision: "Revisión",
+                    content_sha256: "SHA-256 do contido",
+                    manifest_sha256: "SHA-256 do manifesto",
+                    approvers: "Aprobadores verificados",
+                    areas: "Áreas",
+                    voters: "Importación de votantes",
+                    import_id: "ID da importación",
+                    document_id: "ID do documento",
+                    file_name: "Nome do ficheiro",
+                    sha256: "SHA-256 do ficheiro",
+                    declared_sha256: "SHA-256 declarado",
+                    counts_by_area: "Votantes por área",
+                    imported_at: "Data da importación",
+                    voter_log_delivered: "Importación asinada rexistrada",
+                    current_voter_counts: "Votantes actuais por área",
+                    voter_import_in_progress: "Importación de votantes activa",
+                    status: "Estado",
+                    elections: "Eleccións",
+                    ballot_count: "Votos almacenados",
+                    received_ballot_count: "Votos recibidos na revisión",
+                    tally_session_count: "Sesións de reconto",
+                    publication: "Publicación",
+                    publication_id: "ID da publicación",
+                    publication_ids: "ID das publicacións",
+                    matches_manifest: "Coincide co manifesto asinado",
+                    design_count: "Deseños publicados",
+                    seal_at_close: "Selar ao peche",
+                    expected_boxes: "Urnas previstas",
+                    sealed_boxes: "Urnas seladas",
+                    all_channels_closed: "Todas as canles pechadas",
+                    locked_down: "Bloqueado",
+                    log_entry_id: "ID da entrada do rexistro",
+                },
+            },
             noPermissions: "Non tes permiso para acceder aos rexistros.",
             title: "Rexistros",
             subtitle:
@@ -1080,6 +1171,10 @@ const galegoTranslation: TranslationType = {
             },
         },
         electionEventScreen: {
+            dataUnavailable: "Os datos non están dispoñibles para este evento electoral.",
+            noAccessibleTabs:
+                "Non tes acceso a ningunha pestana dispoñible deste evento electoral.",
+
             common: {
                 subtitle: "Configuración do evento electoral.",
                 showMore: "Mostrar Máis",
@@ -1250,6 +1345,11 @@ const galegoTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    since: "Bloqueado desde {{date}}.",
+                    scheduledEnd: "Fin do bloqueo programado para {{date}}.",
+                    endScheduled: "Hai un fin do bloqueo programado.",
+                    noScheduledEnd: "Non hai un fin do bloqueo programado.",
+                    banner: "Este evento electoral está bloqueado.",
                     policyLabel: "Estado de Bloqueo",
                     helperText:
                         "Programe o inicio ou o fin do período de bloqueo para cambiar este estado.",
@@ -1295,6 +1395,15 @@ const galegoTranslation: TranslationType = {
                 decodedBallots: {
                     policyLabel: "Incluír papeletas descodificadas na base de datos de resultados",
                     options: {"included": "Incluír", "not-included": "Non incluír"},
+                },
+                fileIntegrityPolicy: {
+                    policyLabel: "Integridade do ficheiro de votantes",
+                    helperText:
+                        "Esixir o SHA-256 certificado de forma independente antes de importar votantes.",
+                    options: {
+                        OPTIONAL: "SHA-256 opcional",
+                        REQUIRED_SHA256: "SHA-256 obrigatorio",
+                    },
                 },
                 contestEncryptionPolicy: {
                     options: {
@@ -1628,6 +1737,8 @@ const galegoTranslation: TranslationType = {
                 importVotersError: "Erro ao importar os Votantes",
                 importElectionEventSuccess: "Evento electoral importado correctamente",
                 importElectionEventError: "Erro ao importar o evento electoral",
+                shaRequiredHelp:
+                    "Introduza o SHA-256 hexadecimal certificado de 64 caracteres. É obrigatorio para importar.",
                 shaDialog: {
                     ok: "Si, Importar sen Verificación de Integridade",
                     cancel: "Volver Atrás",
@@ -2219,6 +2330,7 @@ const galegoTranslation: TranslationType = {
                 "application-read": "Leer Aplicación",
                 "application-write": "Editar Aplicación",
                 "approval-matrix-write": "Editar a Matriz de Aprobación",
+                "readiness-check": "Verificar a preparación electoral",
                 "logs-export": "Exportar Registros",
                 "tenant-logs-read": "Ler Rexistro do Inquilino",
                 "tenant-logs-export": "Exportar Rexistro do Inquilino",

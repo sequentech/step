@@ -5,6 +5,29 @@ import englishTranslation, {TranslationType} from "./en"
 
 const tagalogTranslation: TranslationType = {
     translations: {
+        readiness: {
+            close: "Isara",
+            action: "Suriin ang kahandaan",
+            title: "Kahandaan ng halalan",
+            description:
+                "Ihambing ang opisyal na kaganapang ito sa natapos na ensayo. Kapag pumasa, itinatala ang nilagdaang ebidensiya sa log ng opisyal na kaganapan.",
+            testedEvent: "Sinubukang kaganapan",
+            archived: "Naka-archive",
+            noEvents: "Walang ibang kaganapang magagamit",
+            retry: "Subukan muli",
+            eventsError: "Hindi mai-load ang mga kaganapan ng halalan.",
+            run: "Patakbuhin ang pagsusuri",
+            running: "Sinusuri ang kahandaan…",
+            error: "Hindi makumpleto ang pagsusuri. Suriin ang mga log bago ulitin; maaaring nawala ang tugon matapos maitala ang ebidensiya.",
+            downloadError: "Hindi ma-download ang ulat. Subukan muli.",
+            success:
+                "Napatunayan ang kahandaan. Naitala ang nilagdaang ebidensiya sa mga log ng opisyal na kaganapan.",
+            failed: "Nabigo ang pagsusuri ng kahandaan. Ayusin ang mga nabigong pagsusuri at ulitin. Walang naitalang entry ng kahandaan.",
+            download: "I-download ang ulat na JSON",
+            snapshot:
+                "Ang ulat na ito ay kalagayan sa isang sandali. Ulitin pagkatapos ng mahahalagang pagbabago; hindi nito pinipirmi ang kaganapan o pinapalitan ang pag-apruba sa operasyon.",
+            results: "Mga resulta ng pagsusuri",
+        },
         plugins: {
             title: "Mga plugin",
             description:
@@ -436,6 +459,75 @@ const tagalogTranslation: TranslationType = {
             },
         },
         logsScreen: {
+            configurationPackage: englishTranslation.translations.logsScreen.configurationPackage,
+            readiness: {
+                passed: "Pumasa",
+                failed: "Nabigo",
+                checkResult: "{{outcome}}: {{description}}",
+                description: {
+                    VotersImported: "Na-import ang file ng mga botante.",
+                    ReadinessVerified:
+                        "Nasuri ang kahandaan ng opisyal na kaganapan laban sa sinubukang kaganapan.",
+                },
+                checks: {
+                    configuration:
+                        "Pareho ang aprubadong nilalaman, napatunayang tagapag-apruba at mga lugar ng dalawang kaganapan.",
+                    certified_voters:
+                        "Pareho ang sertipikadong file ng botante at kasalukuyang bilang ayon sa lugar ng dalawang kaganapan.",
+                    official_zero:
+                        "Hindi pa nabubuksan ang opisyal na botohan at wala itong balota o sesyon ng pagbibilang.",
+                    publication:
+                        "Tugma ang opisyal na paglalathala sa nilagdaang configuration nito.",
+                    tested_finished:
+                        "Sarado ang mga channel ng sinubukang botohan at selyado ang lahat ng inaasahang kahon ng balota.",
+                },
+                fields: {
+                    report: "Ulat ng kahandaan",
+                    passed: "Pumasa",
+                    checked_at: "Oras ng pagsusuri",
+                    evidence: "Ebidensiya",
+                    official: "Opisyal na kaganapan",
+                    tested: "Sinubukang kaganapan",
+                    official_event_id: "ID ng opisyal na kaganapan",
+                    tested_event_id: "ID ng sinubukang kaganapan",
+                    event_id: "ID ng kaganapan",
+                    election_id: "ID ng halalan",
+                    configuration: "Configuration",
+                    external_id: "Panlabas na ID",
+                    revision: "Rebisyon",
+                    content_sha256: "SHA-256 ng nilalaman",
+                    manifest_sha256: "SHA-256 ng manifest",
+                    approvers: "Mga napatunayang tagapag-apruba",
+                    areas: "Mga lugar",
+                    voters: "Pag-import ng botante",
+                    import_id: "ID ng import",
+                    document_id: "ID ng dokumento",
+                    file_name: "Pangalan ng file",
+                    sha256: "SHA-256 ng file",
+                    declared_sha256: "Idineklarang SHA-256",
+                    counts_by_area: "Mga botante ayon sa lugar",
+                    imported_at: "Oras ng pag-import",
+                    voter_log_delivered: "Naitala ang nilagdaang import",
+                    current_voter_counts: "Kasalukuyang botante ayon sa lugar",
+                    voter_import_in_progress: "Aktibo ang pag-import ng botante",
+                    status: "Katayuan",
+                    elections: "Mga halalan",
+                    ballot_count: "Mga nakaimbak na balota",
+                    received_ballot_count: "Mga balotang natanggap sa pagsusuri",
+                    tally_session_count: "Mga sesyon ng pagbibilang",
+                    publication: "Paglalathala",
+                    publication_id: "ID ng paglalathala",
+                    publication_ids: "Mga ID ng paglalathala",
+                    matches_manifest: "Tugma sa nilagdaang manifest",
+                    design_count: "Mga nailathalang disenyo",
+                    seal_at_close: "Selyuhan sa pagsasara",
+                    expected_boxes: "Mga inaasahang kahon ng balota",
+                    sealed_boxes: "Mga selyadong kahon ng balota",
+                    all_channels_closed: "Sarado ang lahat ng channel",
+                    locked_down: "Naka-lock",
+                    log_entry_id: "ID ng tala sa log",
+                },
+            },
             noPermissions: "Wala kang permiso upang ma-access ang mga log.",
             title: "Mga Log",
             subtitle:
@@ -1091,6 +1183,10 @@ const tagalogTranslation: TranslationType = {
             },
         },
         electionEventScreen: {
+            dataUnavailable: "Hindi available ang data para sa kaganapang ito ng halalan.",
+            noAccessibleTabs:
+                "Wala kang access sa mga available na tab para sa kaganapang ito ng halalan.",
+
             common: {
                 subtitle: "Pag-configure ng kaganapan ng halalan.",
                 showMore: "Lakihan ang nakikita",
@@ -1262,6 +1358,11 @@ const tagalogTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    since: "Naka-lockdown mula {{date}}.",
+                    scheduledEnd: "Nakatakda ang pagtatapos ng lockdown sa {{date}}.",
+                    endScheduled: "May nakatakdang pagtatapos ng lockdown.",
+                    noScheduledEnd: "Walang nakatakdang pagtatapos ng lockdown.",
+                    banner: "Naka-lockdown ang kaganapang ito ng halalan.",
                     policyLabel: "Kalagayan ng Lockdown",
                     helperText:
                         "Iiskedyul ang simula o katapusan ng panahon ng lockdown upang baguhin ang kalagayang ito.",
@@ -1307,6 +1408,15 @@ const tagalogTranslation: TranslationType = {
                 decodedBallots: {
                     policyLabel: "Isama ang mga na-decode na balota sa database ng mga resulta",
                     options: {"included": "Isama", "not-included": "Huwag isama"},
+                },
+                fileIntegrityPolicy: {
+                    policyLabel: "Integridad ng file ng mga botante",
+                    helperText:
+                        "Hingin ang hiwalay na sertipikadong SHA-256 bago mag-import ng mga botante.",
+                    options: {
+                        OPTIONAL: "Opsyonal na SHA-256",
+                        REQUIRED_SHA256: "Kinakailangang SHA-256",
+                    },
                 },
                 contestEncryptionPolicy: {
                     options: {
@@ -1638,6 +1748,8 @@ const tagalogTranslation: TranslationType = {
                 importVotersError: "Error sa pag-import ng mga Botante",
                 importElectionEventSuccess: "Matagumpay na na-import ang kaganapan ng halalan",
                 importElectionEventError: "Error sa pag-import ng kaganapan ng halalan",
+                shaRequiredHelp:
+                    "Ilagay ang sertipikadong SHA-256 na may 64 na hexadecimal na character. Kailangan ito upang mag-import.",
                 shaDialog: {
                     ok: "Oo, Mag-import nang walang Pag-check ng Integridad",
                     cancel: "Bumalik",
@@ -2233,6 +2345,7 @@ const tagalogTranslation: TranslationType = {
                 "application-read": "Basahin ang Aplikasyon",
                 "application-write": "I-edit ang Aplikasyon",
                 "approval-matrix-write": "I-edit ang Matrix ng Pag-apruba",
+                "readiness-check": "Suriin ang kahandaan ng halalan",
                 "logs-export": "I-export ang mga Log",
                 "tenant-logs-read": "Basahin ang Log ng Tenant",
                 "tenant-logs-export": "I-export ang Log ng Tenant",

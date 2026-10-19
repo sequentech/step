@@ -39,6 +39,7 @@ pub mod import_voters;
 pub mod migrate_realm_permissions;
 pub mod migrate_registration_flows;
 pub mod publish_changes;
+pub mod readiness_check;
 pub mod refresh_token;
 pub mod render_template;
 pub mod results_publication;

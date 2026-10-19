@@ -66,6 +66,48 @@ pub async fn check_publication_designs(
     election_event_id: &str,
     ballot_publication_id: &str,
 ) -> Result<Option<DesignCheck>> {
+    check_designs(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        ballot_publication_id,
+        DesignScope::All,
+    )
+    .await
+}
+
+/// Readiness compares the union of designs still available for voting. An
+/// earlier event-wide publication can retain tombstoned styles after one
+/// election is republished separately.
+pub async fn check_active_publication_designs(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    ballot_publication_id: &str,
+) -> Result<Option<DesignCheck>> {
+    check_designs(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        ballot_publication_id,
+        DesignScope::Active,
+    )
+    .await
+}
+
+#[derive(Clone, Copy)]
+enum DesignScope {
+    All,
+    Active,
+}
+
+async fn check_designs(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    ballot_publication_id: &str,
+    scope: DesignScope,
+) -> Result<Option<DesignCheck>> {
     let Some((manifest, manifest_sha256)) =
         manifest_of_event(hasura_transaction, tenant_id, election_event_id).await?
     else {
@@ -102,6 +144,7 @@ pub async fn check_publication_designs(
     )
     .await?
     .into_iter()
+    .filter(|row| matches!(scope, DesignScope::All) || row.deleted_at.is_none())
     .filter_map(|row| row.ballot_eml)
     .map(|eml| deserialize_str::<BallotStyle>(&eml).map_err(|error| anyhow!("{error}")))
     .collect::<Result<Vec<_>>>()?;

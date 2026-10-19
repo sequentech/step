@@ -169,6 +169,7 @@ fn cases() -> Vec<Case> {
     use VoterPermissions::{ACK_SUPPORT_MATERIALS, CAST_VOTE};
     vec![
         case!(Voter, "/acknowledge-support-materials", {"election_event_id": EVENT_ID, "document_ids": []}, [ACK_SUPPORT_MATERIALS], BACKEND, UNAUTHORIZED),
+        case!(UuidTenant, "/readiness-check", {"official_event_id": UUID_V4_EVENT_ID, "tested_event_id": "00000000-0000-4000-8000-00000000000f"}, [READINESS_CHECK], BACKEND, UNAUTHORIZED_JSON),
         case!(UuidTenant, "/apply-schedule-recompute", {"election_event_id": UUID_EVENT_ID}, [SCHEDULED_EVENT_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(UuidTenant, "/export-schedule", {"election_event_id": UUID_EVENT_ID}, [SCHEDULED_EVENT_WRITE], BACKEND, UNAUTHORIZED),
         case!(UuidTenant, "/get-lifecycle-snapshots", {"election_event_id": UUID_EVENT_ID}, [ELECTION_EVENT_READ], BACKEND, UNAUTHORIZED_JSON),
@@ -320,9 +321,9 @@ fn cases() -> Vec<Case> {
         // The task row is written before the permission check.
         case!(Admin, "/import-templates", {"tenant_id": TENANT_ID, "document_id": "test-document"}, [TEMPLATE_WRITE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/import-tenant-config", {"tenant_id": TENANT_ID, "document_id": "test-document", "import_configurations": {}}, [TENANT_WRITE], BACKEND, UNAUTHORIZED),
-        // The task row is written before the permission check.
-        case!(Admin, "/import-users", {"tenant_id": TENANT_ID, "document_id": "test-document"}, [USER_CREATE], BACKEND, BACKEND),
-        case!(Admin, "/import-users", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "document_id": "test-document"}, [VOTER_CREATE], BACKEND, BACKEND),
+        // Import authorization runs before a task row can be created.
+        case!(Admin, "/import-users", {"tenant_id": TENANT_ID, "document_id": "test-document"}, [USER_CREATE], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/import-users", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "document_id": "test-document"}, [VOTER_CREATE], BACKEND, UNAUTHORIZED),
         case!(Voter, "/insert-cast-vote", {"ballot_id": "test-ballot", "election_id": ELECTION_ID, "content": "test-content"}, [CAST_VOTE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/insert-election-event", {"tenant_id": TENANT_ID, "name": "test-event"}, [ELECTION_EVENT_CREATE], BACKEND, UNAUTHORIZED),
         // The task row is written before the permission check.

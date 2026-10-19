@@ -204,3 +204,4 @@
 /preview-schedule-import
 /preview-scheduled-outcome-change
 /save-lifecycle-policies
+/readiness-check

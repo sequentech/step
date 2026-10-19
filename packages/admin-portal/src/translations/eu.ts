@@ -5,6 +5,29 @@ import englishTranslation, {TranslationType} from "./en"
 
 const basqueTranslation: TranslationType = {
     translations: {
+        readiness: {
+            close: "Itxi",
+            action: "Prestasuna egiaztatu",
+            title: "Hauteskundeen prestasuna",
+            description:
+                "Alderatu ekitaldi ofizial hau amaitutako entsegu batekin. Egiaztapena gainditzean, sinatutako froga ekitaldi ofizialaren erregistroan gordetzen da.",
+            testedEvent: "Probatutako ekitaldia",
+            archived: "Artxibatuta",
+            noEvents: "Ez dago beste ekitaldirik erabilgarri",
+            retry: "Saiatu berriro",
+            eventsError: "Ezin izan dira hauteskunde-ekitaldiak kargatu.",
+            run: "Exekutatu egiaztapena",
+            running: "Prestasuna egiaztatzen…",
+            error: "Ezin izan da egiaztapena osatu. Begiratu erregistroa berriro saiatu aurretik; erantzuna galdu egin daiteke froga gorde ondoren.",
+            downloadError: "Ezin izan da txostena deskargatu. Saiatu berriro.",
+            success:
+                "Prestasuna egiaztatuta. Sinatutako froga ekitaldi ofizialaren erregistroan gorde da.",
+            failed: "Prestasun-egiaztapenak huts egin du. Konpondu huts egindako egiaztapenak eta errepikatu. Ez da prestasun-sarrerarik gorde.",
+            download: "Deskargatu JSON txostena",
+            snapshot:
+                "Txosten hau une bateko egoera da. Errepikatu aldaketa garrantzitsuen ondoren; ez du ekitaldia izozten, eta ez du baimen operatiboa ordezkatzen.",
+            results: "Egiaztapenen emaitzak",
+        },
         plugins: {
             title: "Pluginak",
             description:
@@ -436,6 +459,74 @@ const basqueTranslation: TranslationType = {
             },
         },
         logsScreen: {
+            configurationPackage: englishTranslation.translations.logsScreen.configurationPackage,
+            readiness: {
+                passed: "Gainditua",
+                failed: "Huts eginda",
+                checkResult: "{{outcome}}: {{description}}",
+                description: {
+                    VotersImported: "Hautesle-fitxategia inportatu da.",
+                    ReadinessVerified:
+                        "Gertaera ofizialaren prestasuna probatutako gertaerarekin egiaztatu da.",
+                },
+                checks: {
+                    configuration:
+                        "Bi gertaerek onartutako eduki, egiaztatutako onartzaile eta eremu berberak dituzte.",
+                    certified_voters:
+                        "Bi gertaerek ziurtatutako hautesle-fitxategi eta eremukako uneko kopuru berberak dituzte.",
+                    official_zero:
+                        "Gertaera ofizialak ez du inoiz bozketa ireki eta ez du botorik edo zenbaketa-saiorik.",
+                    publication: "Argitalpen ofiziala sinatutako konfigurazioarekin bat dator.",
+                    tested_finished:
+                        "Probatutako gertaeraren boto-kanalak itxita eta espero diren hautestontzi guztiak zigilatuta daude.",
+                },
+                fields: {
+                    report: "Prestasun-txostena",
+                    passed: "Gainditua",
+                    checked_at: "Egiaztapen-data",
+                    evidence: "Frogak",
+                    official: "Gertaera ofiziala",
+                    tested: "Probatutako gertaera",
+                    official_event_id: "Gertaera ofizialaren IDa",
+                    tested_event_id: "Probatutako gertaeraren IDa",
+                    event_id: "Gertaeraren IDa",
+                    election_id: "Hauteskundearen IDa",
+                    configuration: "Konfigurazioa",
+                    external_id: "Kanpoko IDa",
+                    revision: "Berrikuspena",
+                    content_sha256: "Edukiaren SHA-256",
+                    manifest_sha256: "Manifestuaren SHA-256",
+                    approvers: "Egiaztatutako onartzaileak",
+                    areas: "Eremuak",
+                    voters: "Hautesleen inportazioa",
+                    import_id: "Inportazioaren IDa",
+                    document_id: "Dokumentuaren IDa",
+                    file_name: "Fitxategiaren izena",
+                    sha256: "Fitxategiaren SHA-256",
+                    declared_sha256: "Adierazitako SHA-256",
+                    counts_by_area: "Hautesleak eremuka",
+                    imported_at: "Inportazio-data",
+                    voter_log_delivered: "Sinatutako inportazioa erregistratuta",
+                    current_voter_counts: "Uneko hautesleak eremuka",
+                    voter_import_in_progress: "Hautesleen inportazioa aktibo",
+                    status: "Egoera",
+                    elections: "Hauteskundeak",
+                    ballot_count: "Gordetako botoak",
+                    received_ballot_count: "Berrikuspenean jasotako botoak",
+                    tally_session_count: "Zenbaketa-saioak",
+                    publication: "Argitalpena",
+                    publication_id: "Argitalpenaren IDa",
+                    publication_ids: "Argitalpenen IDak",
+                    matches_manifest: "Sinatutako manifestuarekin bat dator",
+                    design_count: "Argitaratutako diseinuak",
+                    seal_at_close: "Zigilatu ixtean",
+                    expected_boxes: "Espero diren hautestontziak",
+                    sealed_boxes: "Zigilatutako hautestontziak",
+                    all_channels_closed: "Boto-kanal guztiak itxita",
+                    locked_down: "Blokeatuta",
+                    log_entry_id: "Erregistro-sarreraren IDa",
+                },
+            },
             noPermissions: "Ez duzu egunkariak atzitzeko baimenik.",
             title: "Egunkariak",
             subtitle:
@@ -1084,6 +1175,10 @@ const basqueTranslation: TranslationType = {
             },
         },
         electionEventScreen: {
+            dataUnavailable: "Datuak ez daude erabilgarri hauteskunde-ekitaldi honetarako.",
+            noAccessibleTabs:
+                "Ez duzu sarbiderik hauteskunde-ekitaldi honetako fitxa erabilgarrietara.",
+
             common: {
                 subtitle: "Hauteskunde gertaera konfigurazioa.",
                 showMore: "Erakutsi Gehiago",
@@ -1247,6 +1342,11 @@ const basqueTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    since: "Blokeatuta {{date}} unetik.",
+                    scheduledEnd: "Blokeoaren amaiera {{date}} unerako programatuta dago.",
+                    endScheduled: "Blokeoaren amaiera programatuta dago.",
+                    noScheduledEnd: "Ez dago blokeoaren amaierarik programatuta.",
+                    banner: "Hauteskunde-ekitaldi hau blokeatuta dago.",
                     policyLabel: "Blokeo Egoera",
                     helperText:
                         "Programatu blokeo-aldiaren hasiera edo amaiera egoera hau aldatzeko.",
@@ -1291,6 +1391,15 @@ const basqueTranslation: TranslationType = {
                 decodedBallots: {
                     policyLabel: "Deskodetutako boto-paperak emaitzen datu-basean sartu",
                     options: {"included": "Sartu", "not-included": "Ez sartu"},
+                },
+                fileIntegrityPolicy: {
+                    policyLabel: "Hautesleen fitxategiaren osotasuna",
+                    helperText:
+                        "Eskatu modu independentean ziurtatutako SHA-256 hautesleak inportatu aurretik.",
+                    options: {
+                        OPTIONAL: "Aukerako SHA-256",
+                        REQUIRED_SHA256: "Nahitaezko SHA-256",
+                    },
                 },
                 contestEncryptionPolicy: {
                     options: {
@@ -1624,6 +1733,8 @@ const basqueTranslation: TranslationType = {
                 importVotersError: "Errorea Bozkatzaileak inportatzerakoan",
                 importElectionEventSuccess: "Hauteskunde gertaera arrakastaz inportatua",
                 importElectionEventError: "Errorea hauteskunde gertaera inportatzerakoan",
+                shaRequiredHelp:
+                    "Sartu ziurtatutako 64 karaktereko SHA-256 hamaseitarra. Inportatzeko beharrezkoa da.",
                 shaDialog: {
                     ok: "Bai, Inportatu Osotasun Egiaztapenik gabe",
                     cancel: "Itzuli",
@@ -2214,6 +2325,7 @@ const basqueTranslation: TranslationType = {
                 "application-read": "Irakurri Aplikazioa",
                 "application-write": "Editatu Aplikazioa",
                 "approval-matrix-write": "Editatu Onarpen Matrizea",
+                "readiness-check": "Egiaztatu hauteskundeen prestasuna",
                 "logs-export": "Esportatu Egunkariak",
                 "tenant-logs-read": "Irakurri Maizterraren Egunkaria",
                 "tenant-logs-export": "Esportatu Maizterraren Egunkaria",

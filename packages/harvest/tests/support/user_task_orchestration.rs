@@ -28,7 +28,10 @@ fn import_input(event_id: Option<&str>) -> ImportUsersBody {
         may_write_secret_attributes: false,
         secret_write_initiator: None,
         privileges: ImportUsersPrivileges::default(),
-        sha256: Some("source-sha256".into()),
+        sha256: Some(
+            "abababababababababababababababababababababababababababababababab"
+                .into(),
+        ),
         audit_actor: None,
     }
 }
@@ -59,26 +62,21 @@ async fn export(
 }
 
 #[tokio::test]
-async fn imports_keep_the_existing_task_row_when_authorization_fails() {
+async fn denied_imports_do_not_leave_a_pending_task_that_blocks_readiness() {
     let tasks = InMemoryUserTasks::default();
     let error = import(&tasks, claims(&[]), import_input(Some("event-a")))
         .await
         .unwrap_err();
     assert_eq!(error.0, Status::Unauthorized);
     let state = tasks.snapshot();
-    assert_eq!(state.tasks.len(), 1);
-    assert_eq!(state.tasks[0].tenant_id, "tenant-a");
-    assert_eq!(state.tasks[0].election_event_id.as_deref(), Some("event-a"));
-    assert_eq!(state.tasks[0].task_type, "IMPORT_USERS");
-    assert_eq!(state.tasks[0].execution_status, "IN_PROGRESS");
+    assert!(state.tasks.is_empty());
     assert_eq!(state.connection_count, 0);
     assert!(state.import_attempts.is_empty());
     assert!(state.failed_tasks.is_empty());
 }
 
 #[tokio::test]
-async fn import_task_rows_use_the_claims_tenant_before_checking_the_body_tenant(
-) {
+async fn a_cross_tenant_import_is_refused_before_creating_its_task() {
     let tasks = InMemoryUserTasks::default();
     let mut input = import_input(Some("event-a"));
     input.tenant_id = "other-tenant".into();
@@ -89,7 +87,7 @@ async fn import_task_rows_use_the_claims_tenant_before_checking_the_body_tenant(
             .0,
         Status::Unauthorized
     );
-    assert_eq!(tasks.snapshot().tasks[0].tenant_id, "tenant-a");
+    assert!(tasks.snapshot().tasks.is_empty());
     assert!(tasks.snapshot().import_attempts.is_empty());
 }
 
@@ -129,7 +127,7 @@ async fn tenant_imports_store_an_empty_event_and_force_the_admin_flag() {
             "tenant_id":"tenant-a", "document_id":"source-document", "election_event_id":null,
             "is_admin":true, "may_write_secret_attributes":false, "secret_write_initiator":null,
             "privileges":{"group_assignment":"DefaultGroupOnly","permission_labels":"Forbidden"},
-            "sha256":"source-sha256",
+            "sha256":"abababababababababababababababababababababababababababababababab",
             "audit_actor":{"user_id":"user-a", "username":"operator-a", "role":"user"}
         })
     );
@@ -276,7 +274,8 @@ async fn imports_carry_the_privileges_the_callers_permissions_give() {
 }
 
 #[tokio::test]
-async fn import_broker_failures_still_return_the_in_progress_task() {
+async fn an_import_that_fails_to_enqueue_is_marked_failed_and_cannot_block_readiness(
+) {
     let tasks = InMemoryUserTasks::default();
     tasks.fail_on(UserTaskCall::SendImport, "broker offline");
     let output = import(
@@ -287,14 +286,21 @@ async fn import_broker_failures_still_return_the_in_progress_task() {
     .await
     .unwrap();
     assert_eq!(output.task_execution.id, "task-1");
-    assert_eq!(output.task_execution.execution_status, "IN_PROGRESS");
+    assert_eq!(output.task_execution.execution_status, "FAILED");
+    assert_eq!(tasks.snapshot().tasks[0].execution_status, "FAILED");
     assert_eq!(tasks.snapshot().import_attempts.len(), 1);
-    assert!(tasks.snapshot().failed_tasks.is_empty());
+    assert_eq!(
+        tasks.snapshot().failed_tasks,
+        vec![(
+            "task-1".into(),
+            "Failed to enqueue user import: BrokerFailure(broker offline)"
+                .into()
+        )]
+    );
 }
 
 #[tokio::test]
-async fn an_import_the_task_queues_cannot_take_still_returns_the_in_progress_task(
-) {
+async fn an_import_with_no_broker_connection_is_marked_failed() {
     let tasks = InMemoryUserTasks::default();
     tasks.fail_on(UserTaskCall::Connect, "task queues unreachable");
     let output = import(
@@ -304,11 +310,31 @@ async fn an_import_the_task_queues_cannot_take_still_returns_the_in_progress_tas
     )
     .await
     .unwrap();
-    assert_eq!(output.task_execution.execution_status, "IN_PROGRESS");
+    assert_eq!(output.task_execution.execution_status, "FAILED");
     let state = tasks.snapshot();
     assert_eq!(state.connection_count, 1);
     assert!(state.import_attempts.is_empty());
-    assert!(state.failed_tasks.is_empty());
+    assert_eq!(state.tasks[0].execution_status, "FAILED");
+    assert_eq!(state.failed_tasks, vec![("task-1".into(), "Failed to enqueue user import: BrokerFailure(task queues unreachable)".into())]);
+}
+
+#[tokio::test]
+async fn an_import_enqueue_failure_that_cannot_be_recorded_returns_an_internal_error(
+) {
+    let tasks = InMemoryUserTasks::default();
+    tasks.fail_on(UserTaskCall::SendImport, "broker offline");
+    tasks.fail_on(UserTaskCall::Fail, "ledger offline");
+    let error = import(
+        &tasks,
+        claims(&[VOTER_CREATE]),
+        import_input(Some("event-a")),
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(error.0, Status::InternalServerError);
+    assert!(error.1.contains(
+        "Failed to mark unqueued user import failed: ledger offline"
+    ));
 }
 
 #[tokio::test]
@@ -599,4 +625,17 @@ async fn consecutive_exports_keep_each_document_bound_to_its_own_task_grant() {
     );
     assert_eq!(state.export_attempts[1].1, "document-2");
     assert_eq!(state.export_attempts[1].2.as_ref().unwrap().id, "task-2");
+}
+
+#[tokio::test]
+async fn a_malformed_import_hash_is_rejected_before_enqueue() {
+    let tasks = InMemoryUserTasks::default();
+    let mut input = import_input(Some("event-a"));
+    input.sha256 = Some("not-a-sha256".into());
+    let error = import(&tasks, claims(&[VOTER_CREATE]), input)
+        .await
+        .unwrap_err();
+    assert_eq!(error.0, Status::BadRequest);
+    assert!(error.1.contains("64 hexadecimal"));
+    assert!(tasks.snapshot().import_attempts.is_empty());
 }

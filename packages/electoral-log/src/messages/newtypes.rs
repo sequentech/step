@@ -498,6 +498,18 @@ pub struct ConfigurationPackageDetails {
     pub design_digests: Vec<ConfigurationDesignDigest>,
 }
 
+/// An import's approved content hash, alongside the original package details.
+/// Kept in a separate body variant so historical signed Borsh records stay intact.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ConfigurationPackageImportDetails {
+    #[serde(flatten)]
+    pub package: ConfigurationPackageDetails,
+    /// The verified manifest's `content_sha256`: what the approvers signed.
+    pub content_hash: String,
+}
+
 /// The hash manifest a report's generation wrote, and the signed
 /// configuration it names.
 #[derive(
@@ -739,6 +751,10 @@ pub enum AuditStatementKind {
     /// A file of an ER transmission package was downloaded for manual
     /// receipt: which file, its SHA-256 and who downloaded it.
     TransmissionFileDownloaded,
+    /// Completed certified voter registry import and its counts per area.
+    VotersImported,
+    /// A successful comparison of a tested event against the official event.
+    ReadinessVerified,
 }
 
 impl AuditStatementKind {
@@ -750,6 +766,8 @@ impl AuditStatementKind {
             Self::LogWriterStarted => StatementType::LogWriterStarted,
             Self::LogWriterStopped => StatementType::LogWriterStopped,
             Self::TransmissionFileDownloaded => StatementType::TransmissionFileDownloaded,
+            Self::VotersImported => StatementType::VotersImported,
+            Self::ReadinessVerified => StatementType::ReadinessVerified,
         }
     }
 }

@@ -5,6 +5,29 @@ import englishTranslation, {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
+        readiness: {
+            close: "Fermer",
+            action: "Vérifier la préparation",
+            title: "Préparation électorale",
+            description:
+                "Comparez cet événement officiel à une répétition terminée. Une vérification réussie inscrit une preuve signée dans le journal de l’événement officiel.",
+            testedEvent: "Événement testé",
+            archived: "Archivé",
+            noEvents: "Aucun autre événement disponible",
+            retry: "Réessayer",
+            eventsError: "Impossible de charger les événements.",
+            run: "Lancer la vérification",
+            running: "Vérification en cours…",
+            error: "La vérification n’a pas pu être terminée. Consultez le journal avant de réessayer ; la réponse peut avoir été perdue après l’enregistrement des preuves.",
+            downloadError: "Impossible de télécharger le rapport. Réessayez.",
+            success:
+                "Préparation vérifiée. Une preuve signée a été inscrite dans le journal de l’événement officiel.",
+            failed: "La vérification a échoué. Corrigez les contrôles en échec et recommencez. Aucune entrée de préparation n’a été inscrite.",
+            download: "Télécharger le rapport JSON",
+            snapshot:
+                "Ce rapport est un instantané. Répétez après toute modification pertinente ; il ne fige pas l’événement et ne remplace pas l’approbation opérationnelle.",
+            results: "Résultats des contrôles",
+        },
         plugins: {
             title: "Extensions",
             description:
@@ -433,6 +456,74 @@ const frenchTranslation: TranslationType = {
             },
         },
         logsScreen: {
+            configurationPackage: englishTranslation.translations.logsScreen.configurationPackage,
+            readiness: {
+                passed: "Réussi",
+                failed: "Échoué",
+                checkResult: "{{outcome}}: {{description}}",
+                description: {
+                    VotersImported: "Fichier des électeurs importé.",
+                    ReadinessVerified:
+                        "Préparation de l’événement officiel vérifiée par rapport à l’événement testé.",
+                },
+                checks: {
+                    configuration:
+                        "Les deux événements ont le même contenu approuvé, les mêmes approbateurs vérifiés et les mêmes zones.",
+                    certified_voters:
+                        "Les deux événements correspondent au même fichier électoral certifié et aux effectifs actuels par zone.",
+                    official_zero:
+                        "L’événement officiel n’a jamais ouvert le vote et ne contient ni bulletins ni sessions de dépouillement.",
+                    publication: "La publication officielle correspond à sa configuration signée.",
+                    tested_finished:
+                        "Les canaux de vote de l’événement testé sont fermés et toutes les urnes attendues sont scellées.",
+                },
+                fields: {
+                    report: "Rapport de préparation",
+                    passed: "Réussi",
+                    checked_at: "Date de vérification",
+                    evidence: "Preuves",
+                    official: "Événement officiel",
+                    tested: "Événement testé",
+                    official_event_id: "ID de l’événement officiel",
+                    tested_event_id: "ID de l’événement testé",
+                    event_id: "ID de l’événement",
+                    election_id: "ID de l’élection",
+                    configuration: "Configuration",
+                    external_id: "ID externe",
+                    revision: "Révision",
+                    content_sha256: "SHA-256 du contenu",
+                    manifest_sha256: "SHA-256 du manifeste",
+                    approvers: "Approbateurs vérifiés",
+                    areas: "Zones",
+                    voters: "Import des électeurs",
+                    import_id: "ID de l’import",
+                    document_id: "ID du document",
+                    file_name: "Nom du fichier",
+                    sha256: "SHA-256 du fichier",
+                    declared_sha256: "SHA-256 déclaré",
+                    counts_by_area: "Électeurs par zone",
+                    imported_at: "Date d’import",
+                    voter_log_delivered: "Import signé enregistré",
+                    current_voter_counts: "Électeurs actuels par zone",
+                    voter_import_in_progress: "Import des électeurs actif",
+                    status: "État",
+                    elections: "Élections",
+                    ballot_count: "Bulletins stockés",
+                    received_ballot_count: "Bulletins reçus à la vérification",
+                    tally_session_count: "Sessions de dépouillement",
+                    publication: "Publication",
+                    publication_id: "ID de publication",
+                    publication_ids: "ID des publications",
+                    matches_manifest: "Correspond au manifeste signé",
+                    design_count: "Modèles publiés",
+                    seal_at_close: "Sceller à la fermeture",
+                    expected_boxes: "Urnes attendues",
+                    sealed_boxes: "Urnes scellées",
+                    all_channels_closed: "Tous les canaux de vote fermés",
+                    locked_down: "Verrouillé",
+                    log_entry_id: "ID de l’entrée du journal",
+                },
+            },
             noPermissions: "Vous n'avez pas la permission d'accéder aux journaux.",
             title: "Journaux",
             subtitle:
@@ -1085,6 +1176,10 @@ const frenchTranslation: TranslationType = {
             },
         },
         electionEventScreen: {
+            dataUnavailable: "Les données ne sont pas disponibles pour cet événement électoral.",
+            noAccessibleTabs:
+                "Vous n’avez accès à aucun onglet disponible pour cet événement électoral.",
+
             common: {
                 subtitle: "Configuration de l'Événement Électoral.",
                 showMore: "Afficher plus",
@@ -1257,6 +1352,11 @@ const frenchTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    since: "Verrouillé depuis le {{date}}.",
+                    scheduledEnd: "Fin du verrouillage prévue le {{date}}.",
+                    endScheduled: "Une fin du verrouillage est prévue.",
+                    noScheduledEnd: "Aucune fin du verrouillage n’est prévue.",
+                    banner: "Cet événement électoral est verrouillé.",
                     policyLabel: "État de Confinement",
                     helperText:
                         "Programmez le début ou la fin de la période de verrouillage pour modifier cet état.",
@@ -1303,6 +1403,15 @@ const frenchTranslation: TranslationType = {
                     policyLabel:
                         "Inclure les bulletins décodés dans la base de données de résultats",
                     options: {"included": "Inclure", "not-included": "Ne pas inclure"},
+                },
+                fileIntegrityPolicy: {
+                    policyLabel: "Intégrité du fichier des électeurs",
+                    helperText:
+                        "Exiger le SHA-256 certifié indépendamment avant d’importer les électeurs.",
+                    options: {
+                        OPTIONAL: "SHA-256 facultatif",
+                        REQUIRED_SHA256: "SHA-256 obligatoire",
+                    },
                 },
                 contestEncryptionPolicy: {
                     options: {
@@ -1639,6 +1748,8 @@ const frenchTranslation: TranslationType = {
                 importVotersError: "Erreur lors de l'Importation des Électeurs.",
                 importElectionEventSuccess: "Événement électoral importé avec succès",
                 importElectionEventError: "Erreur lors de l'importation de l'événement électoral",
+                shaRequiredHelp:
+                    "Saisissez le SHA-256 hexadécimal certifié de 64 caractères. Il est obligatoire pour importer.",
                 shaDialog: {
                     ok: "Oui, Importer Sans Vérification de l'Intégrité",
                     cancel: "Retour",
@@ -2234,6 +2345,7 @@ const frenchTranslation: TranslationType = {
                 "application-read": "Lire l'Application",
                 "application-write": "Modifier l'Application",
                 "approval-matrix-write": "Modifier la Matrice d'Approbation",
+                "readiness-check": "Vérifier la préparation électorale",
                 "logs-export": "Exporter les Journaux",
                 "tenant-logs-read": "Lire le Journal du Locataire",
                 "tenant-logs-export": "Exporter le Journal du Locataire",
