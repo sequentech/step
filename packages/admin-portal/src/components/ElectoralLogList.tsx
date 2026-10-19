@@ -15,7 +15,7 @@ import {
     SelectInput,
     useInput,
 } from "react-admin"
-import {Box, ButtonBase, Typography} from "@mui/material"
+import {Box, ButtonBase, Chip, Typography} from "@mui/material"
 import {LogRangeDateTimeInput} from "./logs/LogRangeDateTimeInput"
 import {ListActions} from "@/components/ListActions"
 import {useTranslation} from "react-i18next"
@@ -41,6 +41,7 @@ import {
 import type {TFunction} from "i18next"
 import {readinessDescription} from "./logs/readinessLog"
 import {configurationPackageDescription} from "./logs/configurationPackageLog"
+import {ballotLogDetails} from "./logs/ballotLogDetails"
 import {logMessage} from "./logs/logMessage"
 import {LogTime} from "./logs/LogTime"
 import {ExportLogsDialog} from "./logs/ExportLogsDialog"
@@ -482,7 +483,13 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                 <FunctionField
                     source="username"
                     label={String(t("logsScreen.column.username"))}
-                    render={(row: ILogRow) => <span>{messageUser(row, "username") ?? "-"}</span>}
+                    render={(row: ILogRow) =>
+                        ballotLogDetails(logMessage(row)) ? (
+                            <Chip size="small" label={messageUser(row, "username")} />
+                        ) : (
+                            <span>{messageUser(row, "username") ?? "-"}</span>
+                        )
+                    }
                 />
                 <FunctionField
                     source="created"

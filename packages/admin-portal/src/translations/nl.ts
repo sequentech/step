@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const dutchTranslation: TranslationType = {
     translations: {
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
             close: "Sluiten",
             action: "Gereedheid controleren",

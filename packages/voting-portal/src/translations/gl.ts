@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 
-import {TranslationType} from "./en"
+import englishTranslation, {TranslationType} from "./en"
 
 // SPDX-License-Identifier: AGPL-3.0-only
 const galegoTranslation: TranslationType = {
     translations: {
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         startup: {
             error: "Non se puido iniciar o portal de votación. Téntao de novo.",
             retry: "Tentar de novo",

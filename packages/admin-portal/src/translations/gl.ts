@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const galegoTranslation: TranslationType = {
     translations: {
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
             close: "Pechar",
             action: "Verificar preparación",

@@ -48,6 +48,7 @@ import {
     verify_auditable_ballot_ciphertext_js,
     verify_auditable_multi_ballot_ciphertext_js,
     verify_received_ballot_js,
+    verify_ballot_log_proof_js,
     sign_ballot_cast_js,
     forget_voter_signing_key_js,
     verify_cast_receipt_js,
@@ -674,3 +675,36 @@ export const getVotingScreenBackPolicyValues = (): IVotingScreenBackPolicy[] => 
         throw error
     }
 }
+
+
+export interface BallotPrivacyTrust {
+    tenant_id: string
+    election_event_id: string
+    election_id: string
+    system_public_key: string
+    ballot_box_key: IBallotBoxKey
+}
+
+export interface BallotPrivacyProof {
+    ballot_id: string
+    pseudonym: string
+    voting_channel: string
+    received_entry: string | null
+    cast_entry: string | null
+}
+
+export type BallotPrivacyCheckStatus = "passed" | "failed" | "pending"
+export interface BallotPrivacyReport {
+    checks: {
+        binding: BallotPrivacyCheckStatus
+        received: BallotPrivacyCheckStatus
+        ballotId: BallotPrivacyCheckStatus
+        cast: BallotPrivacyCheckStatus
+    }
+}
+
+/** Trusted keys must come from published configuration, separately from proof entries. */
+export const verifyBallotLogProof = (
+    trusted: BallotPrivacyTrust,
+    proof: BallotPrivacyProof
+): BallotPrivacyReport => verify_ballot_log_proof_js(trusted, proof)

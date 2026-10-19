@@ -53,7 +53,7 @@ export default function DashboardElection() {
     const showIpAdresses = authContext.isAuthorized(
         true,
         authContext.tenantId,
-        IPermissions.ELECTION_IP_ADDRESS_VIEW
+        IPermissions.FORENSIC_READ
     )
 
     // Ensure required parameters are set before running the query.

@@ -18,6 +18,8 @@ import {
     type LogValue,
 } from "./logEntryDetails"
 import {logFieldLabelKey, logObjectTypeKey} from "./logFieldLabels"
+import {ballotLogDetails, pseudonymResolution} from "./ballotLogDetails"
+import {BallotEntryProof} from "./BallotEntryProof"
 import {logMessage} from "./logMessage"
 import {ELogScope, type ILogTarget} from "./logScope"
 import {readinessDescription, readinessDetailRows} from "./readinessLog"
@@ -262,6 +264,8 @@ const EntryContent: React.FC<{entry: ILogRow; log: ILogTarget; zone: string}> = 
     const descriptionId = useId()
     const view = logEntryView(entry)
     const message = logMessage(entry)
+    const ballot = ballotLogDetails(message)
+    const resolution = pseudonymResolution(message)
     const extra = readinessDetailRows(t, entry.statement_kind, message) ?? view.extra
     const seconds = entry.statement_timestamp ?? entry.created
     const explained = !!explanationLines(t, entry.statement_kind, message)?.length
@@ -365,7 +369,7 @@ const EntryContent: React.FC<{entry: ILogRow; log: ILogTarget; zone: string}> = 
                             ) : undefined
                         }
                     >
-                        {whoName}
+                        {ballot ? <Chip size="small" label={ballot.pseudonym} /> : whoName}
                     </Fact>
                     {view.origin && !keycloak ? (
                         <Fact label={String(t("logsScreen.entry.madeIn"))}>
@@ -391,6 +395,32 @@ const EntryContent: React.FC<{entry: ILogRow; log: ILogTarget; zone: string}> = 
                     ) : null}
                 </Facts>
             )}
+            {ballot && log.kind === ELogScope.EVENT ? (
+                <Section title={String(t("ballotPrivacy.ballotSection"))}>
+                    <Facts>
+                        <Fact label={String(t("ballotPrivacy.ballotId"))}>{ballot.ballotId}</Fact>
+                        <Fact label={String(t("ballotPrivacy.pseudonym"))}>
+                            <Chip size="small" label={ballot.pseudonym} />
+                        </Fact>
+                    </Facts>
+                    <BallotEntryProof
+                        electionEventId={log.electionEventId}
+                        electionId={ballot.electionId}
+                        ballotId={ballot.ballotId}
+                    />
+                </Section>
+            ) : null}
+            {resolution ? (
+                <Section title={String(t("ballotPrivacy.resolution"))}>
+                    <Facts>
+                        <Fact label={String(t("ballotPrivacy.pseudonym"))}>
+                            <Chip size="small" label={resolution.pseudonym} />
+                        </Fact>
+                        <Fact label={String(t("ballotPrivacy.reason"))}>{resolution.reason}</Fact>
+                    </Facts>
+                    <Typography variant="body2">{t("ballotPrivacy.resolutionHelp")}</Typography>
+                </Section>
+            ) : null}
             {explained ? (
                 <StatementExplanation kind={entry.statement_kind} message={message} />
             ) : null}
@@ -717,11 +747,13 @@ const EntryContent: React.FC<{entry: ILogRow; log: ILogTarget; zone: string}> = 
                                 ) : undefined
                             }
                         >
-                            {signatures.signedBy
-                                ? t("logsScreen.entry.signatures.adminKey", {
-                                      name: signatures.signedBy,
-                                  })
-                                : t("logsScreen.entry.signatures.systemOnly")}
+                            {ballot
+                                ? t("ballotPrivacy.signed")
+                                : signatures.signedBy
+                                  ? t("logsScreen.entry.signatures.adminKey", {
+                                        name: signatures.signedBy,
+                                    })
+                                  : t("logsScreen.entry.signatures.systemOnly")}
                         </Fact>
                         {signatures.systemSignature ? (
                             <Fact label={String(t("logsScreen.entry.signatures.systemSignature"))}>

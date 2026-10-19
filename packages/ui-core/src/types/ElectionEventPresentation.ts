@@ -257,7 +257,20 @@ export type VotingPortalDateTimeFormat =
     | EVotingPortalDateTimeFormat
     | IVotingPortalCustomDateTimeFormat
 
+export enum EBallotIdentity {
+    PSEUDONYM = "pseudonym",
+    VOTER_ID = "voter-id",
+}
+
+export enum ENetworkDataPolicy {
+    FORENSIC_STORE = "forensic-store",
+    DO_NOT_STORE = "do-not-store",
+}
+
 export interface IElectionEventPresentation {
+    /** Immutable identity mode; absent on historical events. */
+    ballot_identity?: EBallotIdentity
+    network_data_policy?: ENetworkDataPolicy
     i18n?: Record<string, Record<string, string>>
     materials?: IElectionEventMaterials
     language_conf?: ILanguageConf

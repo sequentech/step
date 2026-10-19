@@ -67,3 +67,5 @@ export * from "./types/VotingChannel"
 export * from "./types/Slates"
 export * from "./services/slates"
 export * from "./types/SlateCoverage"
+
+export * from "./types/BallotPrivacy"

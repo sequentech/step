@@ -4,6 +4,141 @@
 
 const englishTranslation = {
     translations: {
+        ballotPrivacy: {
+            title: "Ballot box log",
+            subtitle:
+                "Every ballot cast in this election, listed under a pseudonym instead of the voter's name.",
+            private: "Voters appear only as pseudonyms",
+            signed: "Signed by the election authority and the ballot box",
+            device: "Checked on your device",
+            own: "Your ballot is in the ballot box",
+            listedAs: "Listed as",
+            check: "Check my ballot",
+            copy: "Copy Ballot ID",
+            copied: "Ballot ID copied",
+            copyFailed: "Could not copy the Ballot ID. Select the code to copy it.",
+            search: "Find a Ballot ID or pseudonym",
+            placeholder: "Ballot ID or pseudonym",
+            clear: "Clear search",
+            ballots: "{{count}} ballots",
+            matches: "{{count}} of {{total}} ballots match",
+            capped: "More than {{count}} of {{total}} ballots match; type more of the code",
+            ballotId: "Ballot ID",
+            pseudonym: "Pseudonym",
+            castAt: "Cast",
+            channel: "Channel",
+            yours: "Yours",
+            channels: {
+                online: "Online",
+                kiosk: "Kiosk",
+                telephone: "Telephone",
+            },
+            previous: "Previous",
+            next: "Next",
+            rows: "Rows per page",
+            noMatch: "No Ballot ID or pseudonym starts with {{prefix}}",
+            noBallots: "No ballots have been cast yet.",
+            invalidPrefix:
+                "The codes use the digits 0 to 9 and capital letters, without I, L, O and U. Enter up to eight characters.",
+            loadError: "The ballot box log could not be loaded. Please try again.",
+            retry: "Try again",
+            help: "About the ballot box log",
+            helpText:
+                "Each voter is listed under a pseudonym, a code such as 7QKM-2HXD. The log never says who the voter is. The election authority signs which voter key each pseudonym uses. Open a ballot to check its signatures in this browser.",
+            detailTitle: "Ballot {{ballotId}}",
+            checking: "Checking the signatures…",
+            passed: "All four checks passed",
+            verified: "Checked on this device with the published keys.",
+            failed: "A check failed",
+            failedHelp: "Do not rely on this entry.",
+            pending: "Still being added to the log",
+            pendingHelp: "The signed entries may appear after a ballot is cast. Check again later.",
+            proofError: "The signed entries or published keys could not be loaded. Try again.",
+            checkLabels: {
+                binding: "Voter key registered",
+                received: "Ballot received",
+                ballotId: "Ballot ID",
+                cast: "Ballot cast",
+            },
+            checkDescriptions: {
+                binding: "The election authority signed which voter key this pseudonym uses.",
+                received: "The ballot box received a ballot signed with that voter key.",
+                ballotId: "The Ballot ID is computed from that signed ballot.",
+                cast: "The same key cast the ballot, and the ballot box confirmed the cast.",
+            },
+            states: {
+                passed: "Passed",
+                failed: "Does not match.",
+                pending: "Not in the log yet.",
+            },
+            neverPublished:
+                "Never published: the voter's name, username, IP address, country or device.",
+            download: "Download signed log entries",
+            close: "Close",
+            systemKey: "Election event log key",
+            boxKey: "Ballot box key",
+            userLogs:
+                "A voter's own entries: sign-ins and messages. Their ballots are in the log under a pseudonym, so they never appear here; only a logged resolution links the two.",
+            ballotSection: "Ballot and pseudonym",
+            resolution: "Pseudonym resolution",
+            resolutionHelp:
+                "The answer went only to the person who asked. The voter is never named in this log.",
+            reason: "Reason given",
+            settings: {
+                legacyNetwork:
+                    "Forensic attribution is available for new events that use voter pseudonyms. Historical and Datafix events keep their existing ballot identity mode.",
+                authority:
+                    "The election event log key {{fingerprint}} signs which voter key each pseudonym uses.",
+                loading: "Loading privacy permissions",
+                loadError: "The current privacy permissions could not be loaded.",
+                noRoles: "No role yet",
+                title: "Privacy",
+                identity: "Voter pseudonyms",
+                on: "On: ballots, the log and its exports name a pseudonym for each voter, never the voter.",
+                legacy: "This event uses the historical voter identity mode.",
+                immutable:
+                    "The identity mode is set when the event is created and cannot be changed.",
+                network: "Network data",
+                description:
+                    "The IP address, country and browser of each ballot sent. They are never kept with ballots, voter records or log entries.",
+                forensic: "Keep for forensic review",
+                forensicHelp:
+                    "Kept apart in the forensic store. Only people with Forensic Read see it, and every view is logged.",
+                none: "Do not store",
+                noneHelp:
+                    "Nothing new is kept, and the dashboard's IP Addresses list is not shown. Previously retained forensic data follows its retention policy.",
+                permissions: "Who can see or link it",
+                permissionHelp:
+                    "No preset role holds these permissions. Give them in Users and Roles to the few people who need them.",
+                forensicPermission: "Forensic Read",
+                forensicPermissionHelp: "Sees the network data in the forensic store",
+                resolvePermission: "Resolve a pseudonym",
+                resolvePermissionHelp:
+                    "Links one pseudonym to its voter, with a reason. Each use is logged.",
+                roles: "Manage in Users and Roles",
+            },
+            forensic: {
+                allElections: "All permitted elections",
+                exportError: "The forensic records could not be exported.",
+                subtitle:
+                    "Where ballots were sent from, by pseudonym. Only people with Forensic Read see this list, and each view is logged.",
+                store: "Forensic store",
+                pseudonyms: "Pseudonyms",
+                first: "First ballot",
+                last: "Last ballot",
+                shared: "Shared",
+                sharedHelp:
+                    "Ballots of several pseudonyms came from this address, as from a hotel or office network.",
+                more: "+{{count}} more",
+                view: "View ballots",
+                copy: "Copy IP address",
+                detailTitle: "IP address {{ip}}",
+                detailHelp:
+                    "Opening this address was written to the election event’s log. Nobody is named here: each ballot is listed by its pseudonym.",
+                error: "The forensic records could not be loaded.",
+                empty: "No forensic ballot records for this address.",
+            },
+        },
         readiness: {
             close: "Close",
             action: "Check readiness",

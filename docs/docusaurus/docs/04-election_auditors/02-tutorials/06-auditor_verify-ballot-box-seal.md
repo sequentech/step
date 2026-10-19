@@ -51,24 +51,24 @@ lets you detect a later change.
 
 ## What the seal record contains
 
-| Field | Content |
-| --- | --- |
-| `format` | `step/ballot-box-seal/v1` |
-| `tenant_id` | The tenant ID. |
-| `election_event`, `election`, `area` | Each an `id` and a `name`. The IDs are signed. The election and area names are those stored when the box was sealed (for seals made before the upgrade, see [below](#seals-made-before-the-upgrade)); the command checks them against the signed statement. The event name is not signed. |
-| `closed_at` | When voting closed (the latest close of the election's channels that ran), UTC, in the form `2026-10-06T19:22:16Z`. |
-| `grace_deadline` | When the grace period ended (equal to `closed_at` without one). |
-| `sealed_at` | When the box was sealed. |
-| `eligible_voters` | The number of voters eligible in this area for this election at the seal. |
-| `ballots` | `in_the_box` (every ballot, in any status) and `counted` (the number of counted ballots). |
-| `close_request` | The signed Close voting request, if there was one: its `id`, `signing_code`, and each signer's `name` and `certificate_sha256`. `null` for Stop Voting without signatures and for the scheduled close. Only the request ID is signed. |
-| `seal_hash` | SHA-512 of the manifest, hex. |
-| `log_entry` | Where the `BallotBoxSealed` entry is on the event's electoral log: its `delivery_id` (`ballot-box-seal:<event>:<election>:<area>`), the log it is in (`log_uid`) and its position there (`leaf_index`), which a copy of the log keeps, and its `id` in the database that stored the log, which a copy can change; and its `statement_kind`. Records made before the log's leaves were recorded have only the `id`. **Not signed.** |
-| `system_public_key` | The public key that signed the entry (base64 SPKI DER), taken from the signed message. |
-| `message` | The signed log message, as readable JSON. |
-| `message_b64` | The same message as the exact bytes the log stores (base64). |
-| `entries` | One entry per ballot, sorted: `ballot_hash` (SHA-512 of the stored encrypted ballot, hex), `ballot_id`, `disposition` (`counted`, `replaced`, `not-eligible` or `discarded`), `weight` and `channel`. |
-| `manifest` | The exact manifest bytes (base64). The seal hash is computed over these bytes. |
+| Field                                | Content                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `format`                             | `step/ballot-box-seal/v1`                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `tenant_id`                          | The tenant ID.                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `election_event`, `election`, `area` | Each an `id` and a `name`. The IDs are signed. The election and area names are those stored when the box was sealed (for seals made before the upgrade, see [below](#seals-made-before-the-upgrade)); the command checks them against the signed statement. The event name is not signed.                                                                                                                                          |
+| `closed_at`                          | When voting closed (the latest close of the election's channels that ran), UTC, in the form `2026-10-06T19:22:16Z`.                                                                                                                                                                                                                                                                                                                |
+| `grace_deadline`                     | When the grace period ended (equal to `closed_at` without one).                                                                                                                                                                                                                                                                                                                                                                    |
+| `sealed_at`                          | When the box was sealed.                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `eligible_voters`                    | The number of voters eligible in this area for this election at the seal.                                                                                                                                                                                                                                                                                                                                                          |
+| `ballots`                            | `in_the_box` (every ballot, in any status) and `counted` (the number of counted ballots).                                                                                                                                                                                                                                                                                                                                          |
+| `close_request`                      | The signed Close voting request, if there was one: its `id`, `signing_code`, and each signer's `name` and `certificate_sha256`. `null` for Stop Voting without signatures and for the scheduled close. Only the request ID is signed.                                                                                                                                                                                              |
+| `seal_hash`                          | SHA-512 of the manifest, hex.                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `log_entry`                          | Where the `BallotBoxSealed` entry is on the event's electoral log: its `delivery_id` (`ballot-box-seal:<event>:<election>:<area>`), the log it is in (`log_uid`) and its position there (`leaf_index`), which a copy of the log keeps, and its `id` in the database that stored the log, which a copy can change; and its `statement_kind`. Records made before the log's leaves were recorded have only the `id`. **Not signed.** |
+| `system_public_key`                  | The public key that signed the entry (base64 SPKI DER), taken from the signed message.                                                                                                                                                                                                                                                                                                                                             |
+| `message`                            | The signed log message, as readable JSON.                                                                                                                                                                                                                                                                                                                                                                                          |
+| `message_b64`                        | The same message as the exact bytes the log stores (base64).                                                                                                                                                                                                                                                                                                                                                                       |
+| `entries`                            | One entry per ballot, sorted: `ballot_hash` (SHA-512 of the stored encrypted ballot, hex), `ballot_id`, `disposition` (`counted`, `replaced`, `not-eligible` or `discarded`), `weight` and `channel`.                                                                                                                                                                                                                              |
+| `manifest`                           | The exact manifest bytes (base64). The seal hash is computed over these bytes.                                                                                                                                                                                                                                                                                                                                                     |
 
 The record holds **no** voter IDs, pseudonyms, times of individual ballots or
 network data. Each entry carries the hash of the encrypted ballot, not the
@@ -86,13 +86,13 @@ step-cli step verify-ballot-box-seal <record.json> \
   [--cast-votes <export.csv>]
 ```
 
-| Option | Effect |
-| --- | --- |
-| `<record.json>` | The seal record to check. Required. |
-| `--expected-key` | The key you trust: the base64 public key, or its 128-bit fingerprint (32 hex digits; spaces, colons and dashes are ignored). A different key makes the check fail. |
-| `--election-id`, `--area-id` | The ballot box you expect. A record signed for another election or area fails. Use them so that a genuine record of another box can't be passed off as this one. |
-| `--ballot-id` | Reports whether this Ballot ID is in the ballot box and how it counts. |
-| `--cast-votes` | Compares the box's Ballot IDs with the `CastVote` entries of an `export-cast-votes` CSV (see [below](#what---cast-votes-proves)). |
+| Option                       | Effect                                                                                                                                                             |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `<record.json>`              | The seal record to check. Required.                                                                                                                                |
+| `--expected-key`             | The key you trust: the base64 public key, or its 128-bit fingerprint (32 hex digits; spaces, colons and dashes are ignored). A different key makes the check fail. |
+| `--election-id`, `--area-id` | The ballot box you expect. A record signed for another election or area fails. Use them so that a genuine record of another box can't be passed off as this one.   |
+| `--ballot-id`                | Reports whether this Ballot ID is in the ballot box and how it counts.                                                                                             |
+| `--cast-votes`               | Compares the box's Ballot IDs with the `CastVote` entries of an `export-cast-votes` CSV (see [below](#what---cast-votes-proves)).                                  |
 
 The examples below are real output from a test event: one election with no
 grace period, an area with four ballots (one of them replaced by the voter's
@@ -167,7 +167,7 @@ Other failures look the same, with their own line:
 
 - another key: `✗ Expected key       signed by key …, not the expected key`;
 - another box: `✗ Expected box       the seal is for election …, area …, not the
-  expected area …`;
+expected area …`;
 - names that are not those of the signed statement: `✗ Names` with both;
 - a time not in the canonical form (UTC, whole seconds, ending in `Z`), times
   out of order, more counted ballots than eligible voters, or a counted ballot
@@ -204,21 +204,21 @@ If all three hold, the seal is genuine and only its readable names are newer.
 
 ## What each line proves
 
-| Line | Check | A failure means |
-| --- | --- | --- |
-| Entries | The entries are well formed and sorted; only counted entries have a weight, of at least 1; no more counted ballots than eligible voters. | The record was edited or truncated. |
-| Manifest | The manifest rebuilt from the record's header (IDs, times, close request ID, eligible voters) and entries is byte-for-byte the record's manifest. Times must be in the canonical form. | The readable fields and the hashed bytes disagree: an entry, a time or an ID was changed, added or removed. |
-| Message | The readable `message` is the same as `message_b64`, and it is a `BallotBoxSealed` statement. | The readable message was edited. (Shown only on failure.) |
-| Seal hash | SHA-512 of the manifest equals the hash in the signed statement. The full hash is printed. | The manifest is not the one that was sealed. |
-| Statement | The signed statement names the same election, area, counts and close request as the manifest. | The record mixes data from different boxes. |
-| Names | The record's election and area names give back the signed statement's description. | The names were changed. |
-| System signature | The signature over the statement verifies with the record's system key. The command prints the key's fingerprint: the first 16 bytes of the SHA-256 of the key, in eight groups of four hex digits. | The statement was changed, or it was signed by another key. |
-| Expected key | The record's key is the one you gave with `--expected-key`. | The record was not signed by the key you trust. |
-| Sender signature | The statement is a system entry: its sender is the system key itself. | The entry did not come from the system. A record signed by any other sender is "Seal NOT valid". |
-| Time | The seal time in the signed statement equals the manifest's, and close time ≤ grace deadline ≤ seal time. | The statement and the manifest disagree on the seal time, or the times are out of order. |
-| Close request | The statement's Close voting request is the manifest's. The signing code and signers are shown, but they are not signed. | The statement and the manifest disagree on the close request. |
-| Log entry | Not checked: where the entry is on the log is not signed. The command shows its leaf and log, or, for an older record, its entry ID. | |
-| Expected box | With `--election-id` or `--area-id`, the signed IDs are the ones you gave. | The record is for another ballot box. |
+| Line             | Check                                                                                                                                                                                               | A failure means                                                                                             |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Entries          | The entries are well formed and sorted; only counted entries have a weight, of at least 1; no more counted ballots than eligible voters.                                                            | The record was edited or truncated.                                                                         |
+| Manifest         | The manifest rebuilt from the record's header (IDs, times, close request ID, eligible voters) and entries is byte-for-byte the record's manifest. Times must be in the canonical form.              | The readable fields and the hashed bytes disagree: an entry, a time or an ID was changed, added or removed. |
+| Message          | The readable `message` is the same as `message_b64`, and it is a `BallotBoxSealed` statement.                                                                                                       | The readable message was edited. (Shown only on failure.)                                                   |
+| Seal hash        | SHA-512 of the manifest equals the hash in the signed statement. The full hash is printed.                                                                                                          | The manifest is not the one that was sealed.                                                                |
+| Statement        | The signed statement names the same election, area, counts and close request as the manifest.                                                                                                       | The record mixes data from different boxes.                                                                 |
+| Names            | The record's election and area names give back the signed statement's description.                                                                                                                  | The names were changed.                                                                                     |
+| System signature | The signature over the statement verifies with the record's system key. The command prints the key's fingerprint: the first 16 bytes of the SHA-256 of the key, in eight groups of four hex digits. | The statement was changed, or it was signed by another key.                                                 |
+| Expected key     | The record's key is the one you gave with `--expected-key`.                                                                                                                                         | The record was not signed by the key you trust.                                                             |
+| Sender signature | The statement is a system entry: its sender is the system key itself.                                                                                                                               | The entry did not come from the system. A record signed by any other sender is "Seal NOT valid".            |
+| Time             | The seal time in the signed statement equals the manifest's, and close time ≤ grace deadline ≤ seal time.                                                                                           | The statement and the manifest disagree on the seal time, or the times are out of order.                    |
+| Close request    | The statement's Close voting request is the manifest's. The signing code and signers are shown, but they are not signed.                                                                            | The statement and the manifest disagree on the close request.                                               |
+| Log entry        | Not checked: where the entry is on the log is not signed. The command shows its leaf and log, or, for an older record, its entry ID.                                                                |                                                                                                             |
+| Expected box     | With `--election-id` or `--area-id`, the signed IDs are the ones you gave.                                                                                                                          | The record is for another ballot box.                                                                       |
 
 What a valid seal does **not** prove on its own:
 
@@ -278,13 +278,13 @@ The Ballot ID on a voter's receipt, in the `export-cast-votes` CSV and in the
 seal record are the same 64 hex characters. Pass it in full; case does not
 matter. The command says how it counts:
 
-| Result | Meaning |
-| --- | --- |
-| `in the ballot box: counted` | The voter's latest valid ballot, counted. A weight other than 1 (delegated or weighted voting) is shown: `counted (weight 3)`. |
-| `in the ballot box: replaced by a later ballot, not counted` | The voter cast a later ballot, which counts instead. |
-| `in the ballot box: not eligible, not counted` | The voter was not enabled for this area and election at the seal. |
-| `in the ballot box: discarded, not counted` | The ballot was discarded before the close (for example, by Datafix). |
-| `not in the ballot box` (✗) | The Ballot ID is not in this box. Check that you have the right election and area. |
+| Result                                                       | Meaning                                                                                                                        |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| `in the ballot box: counted`                                 | The voter's latest valid ballot, counted. A weight other than 1 (delegated or weighted voting) is shown: `counted (weight 3)`. |
+| `in the ballot box: replaced by a later ballot, not counted` | The voter cast a later ballot, which counts instead.                                                                           |
+| `in the ballot box: not eligible, not counted`               | The voter was not enabled for this area and election at the seal.                                                              |
+| `in the ballot box: discarded, not counted`                  | The ballot was discarded before the close (for example, by Datafix).                                                           |
+| `not in the ballot box` (✗)                                  | The Ballot ID is not in this box. Check that you have the right election and area.                                             |
 
 ## What `--cast-votes` proves
 
@@ -327,20 +327,26 @@ Investigate any non-zero count before drawing a conclusion.
 The record pairs each Ballot ID with how it counts, its weight and its channel.
 Compare it with what other sources already show.
 
-**What the electoral log already shows.** Each `CastVote` entry of the
-electoral log carries the voter's pseudonym, the ballot's **channel** (Online,
-Kiosk, Early Voting or Telephone), and the voter's **IP address** and
-**country**. The pseudonym is an unsalted hash of the voter's ID
-(`hash_voter_id`), the same for every ballot of that voter, so anyone who knows
-a voter's ID can find that voter's entries. Anyone who can read the log can
-link a voter's ballots, see that the voter voted again, and, with a Ballot ID
-from a receipt, find that voter's other ballots. Revoting and channels are
-visible there, with or without the seal record.
+**What the electoral log already shows depends on the event's identity mode.**
+New pseudonym-mode events use a random code for each voter within that event.
+Their signed Received/Cast entries contain the Ballot ID, pseudonym binding and
+channel, without the real voter ID, IP address or country. Knowing a voter ID
+does not reveal that code. Entries with the same pseudonym remain linkable, so
+revoting and channels remain visible, with or without the seal record.
+
+Historical voter-ID-mode entries retain their original format and signatures.
+Those `CastVote` entries may contain IP address and country, and their pseudonym
+is the unsalted `hash_voter_id` of the voter ID. Someone who knows that voter ID
+can derive the legacy pseudonym and link those historical entries. The privacy
+change does not rewrite or erase this signed evidence.
 
 **What the ballot locator shows.** When the event's `show_cast_vote_logs`
-setting is **ShowLogsTab**, the voting portal's ballot locator lists every
-`CastVote` entry of the election, with its log message, to any voter signed in
-to that election, for example during voting.
+setting is **ShowLogsTab** and ballot checks are open, the new pseudonym-mode
+Logs tab lists cast ballots within the signed-in voter's authorized election
+and area. It shows Ballot ID, pseudonym, cast time and channel, with a separate
+view of that voter's own ballots. Historical events retain their legacy viewer.
+See [Ballot privacy](../../02-election_managers/02-reference/21-ballot-privacy.md)
+for identity modes and forensic policy limits.
 
 **What the seal record adds**, for each Ballot ID:
 

@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: 2025 Enric Badia <enric@xtremis.com>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {TranslationType} from "./en"
+import englishTranslation, {TranslationType} from "./en"
 
 const basqueTranslation: TranslationType = {
     translations: {
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         startup: {
             error: "Ezin izan da bozketa-ataria abiarazi. Saiatu berriro.",
             retry: "Saiatu berriro",

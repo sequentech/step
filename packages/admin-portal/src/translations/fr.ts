@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
             close: "Fermer",
             action: "Vérifier la préparation",

@@ -71,12 +71,6 @@ const meta = {
     component: DashboardElectionEvent,
     args: {stats: "records", kiosk: false, onMount: fn()},
     argTypes: {stats: {control: "inline-radio", options: ["records", "loading", "error"]}},
-    parameters: {
-        expectedFailure: {
-            reason: "React-admin row selection of the IP address list labels a MUI 7 span instead of its checkbox.",
-            a11y: ["aria-prohibited-attr", "label"],
-        },
-    },
     beforeEach: async ({args, globals}) => {
         // The voter portal links come from sequent-core.
         await initCore()
@@ -178,11 +172,9 @@ export const Populated: Story = {
         const login = canvas.getByRole("link", {name: "Voter Login URL"})
         expect(login.getAttribute("href")).toContain("voting.admin-story.invalid")
         expect(canvas.queryByRole("link", {name: "Voter Enroll Kiosk URL"})).toBeNull()
-        if (permissions === EStoryPermissions.ADMIN) {
-            await expect(await canvas.findByRole("row", {name: /192\.0\.2\.10/})).toBeVisible()
-        } else {
-            expect(canvas.queryByText("IP Addresses")).not.toBeInTheDocument()
-        }
+        // Preset roles do not grant forensic access; default events do not retain networks.
+        expect(canvas.queryByText("IP Addresses")).not.toBeInTheDocument()
+        expect(data.calls.map(({args}) => args[0])).not.toContain("ip_address")
         expect(args.onMount).toHaveBeenCalled()
     },
 }

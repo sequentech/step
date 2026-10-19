@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const tagalogTranslation: TranslationType = {
     translations: {
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
             close: "Isara",
             action: "Suriin ang kahandaan",

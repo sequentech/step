@@ -96,6 +96,8 @@ import {EXPORT_USERS} from "@/queries/ExportUsers"
 import {EXPORT_TENANT_USERS} from "@/queries/ExportTenantUsers"
 import {DownloadDocument} from "./DownloadDocument"
 import {IMPORT_USERS} from "@/queries/ImportUsers"
+import {EBallotIdentity} from "@sequentech/ui-core"
+import {useEventPresentation} from "@/hooks/useZonedFormat"
 import {ElectoralLogFilters, ElectoralLogList} from "@/components/ElectoralLogList"
 import {USER_PROFILE_CONFIGURATION} from "@/queries/GetUserProfileConfiguration"
 import {
@@ -181,6 +183,7 @@ export interface ListUsersProps {
 }
 
 export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, electionId}) => {
+    const privacyPresentation = useEventPresentation(electionEventId)
     const {t, i18n} = useTranslation()
     const parentTheme = useTheme()
     // React-admin still labels the checkbox root; MUI 7 needs the input slot.
@@ -1896,6 +1899,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 <>
                     {/* The conditional below prevents re-rendering and data
                 refetching when closing the dialog with no id */}
+                    {privacyPresentation?.ballot_identity === EBallotIdentity.PSEUDONYM && (
+                        <Typography variant="body2" sx={{mb: 2}}>
+                            {t("ballotPrivacy.userLogs")}
+                        </Typography>
+                    )}
                     {recordIds && recordIds.length > 0 && (
                         <ElectoralLogList
                             electionEventId={electionEventId}

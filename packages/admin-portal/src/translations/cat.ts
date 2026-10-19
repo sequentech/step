@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const catalanTranslation: TranslationType = {
     translations: {
+        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
             close: "Tanca",
             action: "Verificar preparació",

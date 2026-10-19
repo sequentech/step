@@ -54,12 +54,6 @@ const meta = {
     component: DashboardElection,
     args: {stats: "records"},
     argTypes: {stats: {control: "inline-radio", options: ["records", "loading", "error"]}},
-    parameters: {
-        expectedFailure: {
-            reason: "React-admin row selection of the IP address list labels a MUI 7 span instead of its checkbox.",
-            a11y: ["aria-prohibited-attr", "label"],
-        },
-    },
     beforeEach: async ({args}) => {
         data = resourceBoundary({ip_address: ipAddressRows()})
         graphql = graphqlBoundary(
@@ -129,18 +123,9 @@ export const Populated: Story = {
                 headers: {},
             },
         ])
-        if (permissions === EStoryPermissions.ADMIN) {
-            await expect(await canvas.findByRole("row", {name: /192\.0\.2\.10/})).toBeVisible()
-            expect(data.calls[0]?.args[1]).toMatchObject({
-                filter: {
-                    tenant_id: TENANT_ID,
-                    election_event_id: STORY_IDS.event,
-                    election_id: STORY_IDS.election,
-                },
-            })
-        } else {
-            expect(canvas.queryByText("IP Addresses")).not.toBeInTheDocument()
-        }
+        // Preset roles do not grant forensic access; default events do not retain networks.
+        expect(canvas.queryByText("IP Addresses")).not.toBeInTheDocument()
+        expect(data.calls.map(({args}) => args[0])).not.toContain("ip_address")
     },
 }
 

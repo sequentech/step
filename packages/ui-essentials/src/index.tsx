@@ -196,3 +196,4 @@ export {IInvalidPlaintextErrorType} from "./ballot/errors"
 // What an import or a validation found, and how to say it. Shared with the
 // Election Architect as the workbench build's `dist/problem-list/`, with its sentences.
 export * from "./components/ProblemList"
+export * from "./components/BallotLogProof/BallotLogProof"

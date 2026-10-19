@@ -2,6 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
+import initCore from "sequent-core"
+import ballotFixture from "../../../../voting-portal/src/components/__stories__/ballotProof.json"
+import {IPermissions} from "@/types/keycloak"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, fn, userEvent, waitFor, within} from "storybook/test"
 import {AdminStoryProvider, EVENT_ID, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
@@ -37,6 +40,7 @@ interface Scenario {
     myZone: string
     onClose: () => void
     readinessTerminology?: "areas" | "districts"
+    pendingCast?: boolean
 }
 
 const TENANT_LOG: ILogTarget = {kind: ELogScope.TENANT}
@@ -97,7 +101,22 @@ const meta = {
                   }
                 : undefined
         )
-        graphql = graphqlBoundary({}, {schema: true})
+        if (args.entry?.statement_kind === "BallotReceived") await initCore()
+        graphql = graphqlBoundary(
+            {
+                BallotBoxEntry: () => ({
+                    data: {
+                        ballot_box_entry: {
+                            payload: args.pendingCast
+                                ? {...ballotFixture.proof, cast_entry: null, voting_channel: ""}
+                                : ballotFixture.proof,
+                        },
+                    },
+                }),
+                BallotBoxKeys: () => ({data: {ballot_box_keys: {payload: ballotFixture.trusted}}}),
+            },
+            {schema: true}
+        )
         await graphql.ready
         return () => triggerOverrideTranslations()
     },
@@ -548,5 +567,110 @@ export const ConfigurationPackageImport: Story = {
         await expect(view.getByText("Content hash", {exact: true})).toBeVisible()
         await expect(view.getByText("cd".repeat(32), {exact: true})).toBeVisible()
         await expect(view.getByText("ab".repeat(32), {exact: true})).toBeVisible()
+    },
+}
+
+/** The dialog independently fetches keys and canonical proof bytes, then verifies in real WASM. */
+export const PseudonymousReceived: Story = {
+    args: {
+        log: {kind: ELogScope.EVENT, electionEventId: ballotFixture.trusted.election_event_id},
+        entry: {
+            id: 18443,
+            created: 1833186098,
+            statement_timestamp: 1833186097,
+            statement_kind: "BallotReceived",
+            user_id: "",
+            message: JSON.stringify({
+                sender: {
+                    name: ballotFixture.proof.pseudonym,
+                    pk: ballotFixture.trusted.system_public_key,
+                },
+                system_signature: SYSTEM_SIGNATURE,
+                user_id: null,
+                username: ballotFixture.proof.pseudonym,
+                ballot_id: ballotFixture.proof.ballot_id,
+                election_id: ballotFixture.trusted.election_id,
+                statement: {
+                    head: {
+                        event_type: "USER",
+                        log_type: "INFO",
+                        description: "Ballot received under a pseudonym",
+                    },
+                    body: {BallotReceived: {}},
+                },
+            }),
+        },
+    },
+    play: async () => {
+        const view = await dialog()
+        await expect(await view.findByText("All four checks passed")).toBeVisible()
+        expect(view.getAllByText("Passed")).toHaveLength(4)
+        expect(view.getByRole("button", {name: "Download signed log entries"})).toBeVisible()
+        expect(graphql.calls.map(({name}) => name).sort()).toEqual([
+            "BallotBoxEntry",
+            "BallotBoxKeys",
+        ])
+        expect(
+            graphql.calls.every(({headers}) => headers["x-hasura-role"] === IPermissions.LOGS_READ)
+        ).toBe(true)
+        const element = within(document.body).getByRole("dialog")
+        expect(element.scrollWidth).toBeLessThanOrEqual(element.clientWidth + 1)
+    },
+}
+
+/** Resolution shows the requester, code and reason, while the answer is absent. */
+export const PseudonymResolved: Story = {
+    args: {
+        log: {kind: ELogScope.EVENT, electionEventId: EVENT_ID},
+        entry: {
+            id: 18444,
+            created: 1833186098,
+            statement_timestamp: 1833186097,
+            statement_kind: "PseudonymResolved",
+            user_id: "investigator",
+            message: JSON.stringify({
+                sender: {name: "election-reviewer", pk: ADMIN_KEY},
+                system_signature: SYSTEM_SIGNATURE,
+                user_id: "investigator",
+                username: "election-reviewer",
+                statement: {
+                    head: {
+                        event_type: "USER",
+                        log_type: "INFO",
+                        description: "Pseudonym resolved: Authorized election protest review",
+                    },
+                    body: {
+                        PseudonymResolved: {
+                            pseudonym: "7QKM-2HXD",
+                            reason: "Authorized election protest review",
+                        },
+                    },
+                },
+            }),
+        },
+    },
+    play: async () => {
+        const view = await dialog()
+        expect(view.getByText("7QKM-2HXD")).toBeVisible()
+        expect(view.getByText("Authorized election protest review")).toBeVisible()
+        expect(view.getByText(/The answer went only to the person who asked/)).toBeVisible()
+        expect(view.queryByText("voter_id")).toBeNull()
+        expect(graphql.calls).toHaveLength(0)
+        const element = within(document.body).getByRole("dialog")
+        expect(element.scrollWidth).toBeLessThanOrEqual(element.clientWidth + 1)
+    },
+}
+
+/** A received-only ballot is verifiable before a cast entry exists. */
+export const ReceivedBeforeCast: Story = {
+    args: {...PseudonymousReceived.args, pendingCast: true},
+    play: async () => {
+        const view = await dialog()
+        await expect(await view.findByText("Still being added to the log")).toBeVisible()
+        expect(view.getAllByText("Passed")).toHaveLength(3)
+        expect(view.getByText("Not in the log yet.")).toBeVisible()
+        expect(view.queryByText("A check failed")).toBeNull()
+        const element = within(document.body).getByRole("dialog")
+        expect(element.scrollWidth).toBeLessThanOrEqual(element.clientWidth + 1)
     },
 }

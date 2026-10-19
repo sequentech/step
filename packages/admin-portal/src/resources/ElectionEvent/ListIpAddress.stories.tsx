@@ -4,6 +4,9 @@
 import React from "react"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, waitFor, within} from "storybook/test"
+import {ENetworkDataPolicy, EBallotIdentity} from "@sequentech/ui-core"
+import {EventTimeZoneProvider} from "@/providers/EventTimeZoneProvider"
+import {IPermissions} from "@/types/keycloak"
 import {RecordContextProvider} from "react-admin"
 import {
     AdminStoryProvider,
@@ -29,19 +32,29 @@ interface Scenario {
     empty: boolean
     /** Whether the list is an election's rather than the event's. */
     scope: "event" | "election"
+    networkPolicy?: ENetworkDataPolicy
+    allowed?: boolean
 }
 
 const RESOURCE = "ip_address"
 
 const votes = [
-    {ip: "192.0.2.10", country: "ES", vote_count: 3, voters_id: "voter-1, voter-2"},
-    {ip: "198.51.100.7", country: null, vote_count: 1, voters_id: "voter-3"},
+    {
+        ip: "192.0.2.10",
+        country: "ES",
+        vote_count: 3,
+        pseudonyms: ["7QKM-2HXD", "3BCF-5GHJ"],
+        shared: true,
+    },
+    {ip: "198.51.100.7", country: null, vote_count: 1, pseudonyms: ["9KMP-2RST"], shared: false},
 ].map((row, index) => ({
     id: storyId(3, index + 5),
     tenant_id: TENANT_ID,
     election_event_id: EVENT_ID,
     election_id: STORY_IDS.election,
     election_presentation: electionPresentation("Council election"),
+    first_ballot: "2028-05-08T03:00:00Z",
+    last_ballot: "2028-05-08T04:00:00Z",
     ...row,
 }))
 
@@ -49,18 +62,36 @@ let graphql: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof resourceBoundary>
 let downloads: ReturnType<typeof recordDownloads>
 
-function Fixture({scope}: Scenario) {
+function Fixture({
+    scope,
+    networkPolicy = ENetworkDataPolicy.FORENSIC_STORE,
+    allowed = true,
+}: Scenario) {
     const {permissions, tenant} = useStoryGlobals()
+    const event = eventRecord(undefined, {
+        presentation: {
+            ...eventRecord().presentation,
+            ballot_identity: EBallotIdentity.PSEUDONYM,
+            network_data_policy: networkPolicy,
+        },
+    })
     return (
         <AdminStoryProvider
             boundary={graphql}
             dataProvider={data.provider}
             role={permissions}
+            roles={
+                allowed
+                    ? [IPermissions.ADMIN_USER, IPermissions.FORENSIC_READ]
+                    : [IPermissions.ADMIN_USER]
+            }
             tenant={tenant}
         >
-            <RecordContextProvider value={scope === "event" ? eventRecord() : electionRecord()}>
-                <ListIpAddress />
-            </RecordContextProvider>
+            <EventTimeZoneProvider event={event}>
+                <RecordContextProvider value={scope === "event" ? event : electionRecord()}>
+                    <ListIpAddress />
+                </RecordContextProvider>
+            </EventTimeZoneProvider>
         </AdminStoryProvider>
     )
 }
@@ -86,7 +117,37 @@ const meta = {
             {[RESOURCE]: args.empty ? [] : votes, sequent_backend_election: [electionRecord()]},
             {reads: {[RESOURCE]: args.reads}}
         )
-        graphql = graphqlBoundary({}, {schema: true})
+        graphql = graphqlBoundary(
+            {
+                ForensicNetworkSummary: () => ({
+                    data: {
+                        forensic_network_summary: {payload: {items: votes, total: votes.length}},
+                    },
+                }),
+                ForensicNetworkDetail: () => ({
+                    data: {
+                        forensic_network_detail: {
+                            payload: {
+                                ip: "192.0.2.10",
+                                country: "ES",
+                                vote_count: 3,
+                                first_ballot: "2028-05-08T03:00:00Z",
+                                last_ballot: "2028-05-08T04:00:00Z",
+                                ballots: [
+                                    {
+                                        ballot_id: "FTBE-MHRX",
+                                        pseudonym: "7QKM-2HXD",
+                                        cast_at: "2028-05-08T03:00:00Z",
+                                    },
+                                ],
+                                next_cursor: null,
+                            },
+                        },
+                    },
+                }),
+            },
+            {schema: true}
+        )
         await graphql.ready
         downloads = recordDownloads()
         return downloads.restore
@@ -109,11 +170,10 @@ export const Populated: Story = {
         await expect(canvas.getByText("IP Addresses")).toBeVisible()
         const first = await voteRow(canvasElement, "192.0.2.10")
         await expect(within(first).getByText("ES")).toBeVisible()
-        await expect(within(first).getByText("3")).toBeVisible()
-        await expect(within(first).getByText("Council")).toBeVisible()
-        // A vote without a known country shows a dash; voter IDs are hidden by default.
+        await expect(within(first).getByText("7QKM-2HXD")).toBeVisible()
+        // A ballot without a known country shows a dash; voter identities are absent.
         await expect(
-            within(await voteRow(canvasElement, "198.51.100.7")).getByText("-")
+            within(await voteRow(canvasElement, "198.51.100.7")).getByText("—", {exact: false})
         ).toBeVisible()
         expect(canvas.queryByText("voter-3")).toBeNull()
         expect(listFilter()).toEqual({tenant_id: TENANT_ID, election_event_id: EVENT_ID})
@@ -186,7 +246,42 @@ export const ExportCsv: Story = {
         await voteRow(canvasElement, "192.0.2.10")
         await userEvent.click(within(canvasElement).getByRole("button", {name: "Export"}))
         await waitFor(() => expect(downloads.downloads).toHaveLength(1))
-        expect(downloads.downloads[0].name).toBe(`${RESOURCE}.csv`)
-        expect(data.calls.filter(({method}) => method === "getList")).toHaveLength(2)
+        expect(downloads.downloads[0].name).toBe("forensic-network.csv")
+        expect(data.calls.filter(({method}) => method === "getList")).toHaveLength(1)
+        expect(graphql.calls.filter(({name}) => name === "ForensicNetworkSummary")).toMatchObject([
+            {
+                variables: {electionEventId: EVENT_ID, limit: 100, offset: 0, operation: "export"},
+                headers: {"x-hasura-role": IPermissions.FORENSIC_READ},
+            },
+        ])
+    },
+}
+
+export const NoNetworkStorage: Story = {
+    args: {networkPolicy: ENetworkDataPolicy.DO_NOT_STORE},
+    parameters: {expectedFailure: null},
+    play: async ({canvasElement}) => {
+        expect(within(canvasElement).queryByText("IP Addresses")).toBeNull()
+        expect(data.calls.some(({args}) => args[0] === RESOURCE)).toBe(false)
+    },
+}
+
+export const WithoutForensicPermission: Story = {
+    args: {allowed: false},
+    parameters: {expectedFailure: null},
+    play: NoNetworkStorage.play,
+}
+
+export const AddressDetails: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await userEvent.click(await canvas.findByRole("button", {name: "192.0.2.10"}))
+        const dialog = await within(document.body).findByRole("dialog", {
+            name: "IP address 192.0.2.10",
+        })
+        await expect(within(dialog).getByText(/Opening this address was written/)).toBeVisible()
+        await expect(await within(dialog).findByText(/FTBE-MHRX/)).toBeVisible()
+        expect(dialog.scrollWidth).toBeLessThanOrEqual(dialog.clientWidth + 1)
+        await userEvent.click(within(dialog).getByRole("button", {name: "Close"}))
     },
 }

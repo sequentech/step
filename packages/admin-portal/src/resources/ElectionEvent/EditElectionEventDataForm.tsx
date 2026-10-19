@@ -137,6 +137,7 @@ import {
     PasswordPolicyAccordionHandle,
 } from "@/components/election-event/PasswordPolicyAccordion"
 import {SettingsLanguageSelector} from "../../components/SettingsLanguageSelector"
+import {PrivacySettings} from "@/components/election-event/PrivacySettings"
 import {BallotReceiptsInput} from "./BallotReceiptsInput"
 import {
     VOTER_SIGNING_POLICY_SOURCE,
@@ -2107,6 +2108,31 @@ export const EditElectionEventDataForm: React.FC<{
                                 ) : null
                             }
                         </FormDataConsumer>
+                    </AccordionDetails>
+                </Accordion>
+
+                <Accordion
+                    sx={{width: "100%"}}
+                    expanded={expanded === "election-event-data-privacy"}
+                    onChange={() =>
+                        setExpanded((previous) =>
+                            previous === "election-event-data-privacy"
+                                ? ""
+                                : "election-event-data-privacy"
+                        )
+                    }
+                >
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                        <ElectionHeaderStyles.Wrapper>
+                            <ElectionHeaderStyles.Title>
+                                {t("ballotPrivacy.settings.title")}
+                            </ElectionHeaderStyles.Title>
+                        </ElectionHeaderStyles.Wrapper>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                        {expanded === "election-event-data-privacy" ? (
+                            <PrivacySettings canEdit={canEdit} />
+                        ) : null}
                     </AccordionDetails>
                 </Accordion>
 
