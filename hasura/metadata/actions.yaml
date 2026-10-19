@@ -16,7 +16,7 @@ actions:
     - name: ballot_box_log
       definition:
           type: query
-          handler: http://{{HARVEST_DOMAIN}}/ballot-box-log
+          handler: http://{{HARVEST_BALLOT_LOG_DOMAIN}}/ballot-box-log
           forward_client_headers: true
           request_transform:
               body:

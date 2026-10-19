@@ -173,6 +173,7 @@ services:
       HASURA_GRAPHQL_ADMIN_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       ACTIONS_ADMIN_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       HARVEST_DOMAIN: ${HARVEST_DOMAIN}
+      HARVEST_BALLOT_LOG_DOMAIN: ${HARVEST_BALLOT_LOG_DOMAIN:-harvest-edge:8080}
     depends_on:
       data-connector-agent:
         condition: service_healthy
@@ -322,6 +323,18 @@ services:
     ports:
       - 3004:8000
     stdin_open: true
+
+  harvest-edge:
+    profiles: ["full", "base"]
+    image: nginx:latest
+    restart: always
+    environment:
+      HARVEST_DOMAIN: ${HARVEST_DOMAIN}
+    volumes:
+      - ./harvest-edge/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    depends_on:
+      harvest:
+        condition: service_started
 
   harvest:
     profiles: ["full", "base"]
