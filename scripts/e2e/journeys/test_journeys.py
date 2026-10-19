@@ -2699,7 +2699,8 @@ class BackendJourneys(unittest.TestCase):
             text=True,
         ).stdout
         (folder / "transmission_report.txt").write_text(layout)
-        text = " ".join(layout.split())
+        # The template prints titles and names in capitals.
+        text = " ".join(layout.split()).upper()
 
         # The sample Post (one election) has one country (area A).
         post = transmission.CONFIG["post"]["annotations"]
@@ -2733,5 +2734,5 @@ class BackendJourneys(unittest.TestCase):
         for sbei in transmission.CONFIG["election_event"]["annotations"]["miru:sbei-users"]:
             expected.append(f"{sbei['miru_name']} {sbei['miru_role']}")
         for line in expected:
-            self.assertIn(line, text)
+            self.assertIn(line.upper(), text)
         self.passed("transmission report")
