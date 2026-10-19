@@ -223,7 +223,11 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     adminEvent.put("resource_path", event.getResourcePath());
     adminEvent.put(
         "representation",
-        includeRepresentation ? AdminRepresentation.forLog(event.getRepresentation()) : null);
+        !includeRepresentation
+            ? null
+            : realm.kind() == LogRealm.Kind.EVENT
+                ? AdminRepresentation.forEventRealmLog(event.getRepresentation())
+                : AdminRepresentation.forLog(event.getRepresentation()));
     adminEvent.put("error", UserEventDetails.safeError(event.getError()));
     adminEvent.put("actor", actor);
 

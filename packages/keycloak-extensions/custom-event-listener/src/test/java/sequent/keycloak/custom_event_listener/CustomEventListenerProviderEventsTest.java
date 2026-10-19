@@ -523,9 +523,26 @@ class CustomEventListenerProviderEventsTest {
     JsonNode input = publishedInput();
     assertEquals(ELECTION_EVENT, input.get("election_event_id").asText());
     assertEquals(TENANT, input.get("tenant_id").asText());
-    assertEquals("plain text", input.at("/admin_event/representation").asText());
+    assertEquals(AdminRepresentation.REDACTED, input.at("/admin_event/representation").asText());
     assertEquals("not_allowed", input.at("/admin_event/error").asText());
     assertEquals(TENANT_REALM, input.at("/admin_event/actor/realm").asText());
+  }
+
+  @Test
+  void eventRealmAdminAuditDoesNotReintroduceNetworkAttribution() throws Exception {
+    realm(EVENT_REALM);
+    AdminEvent event =
+        adminEvent(
+            EVENT_REALM,
+            "{\"enabled\":true,\"attributes\":{\"area\":[\"north\"],\"ip\":[\"198.51.100.7\"],\"user_agent\":[\"private-browser\"],\"country\":[\"PH\"]}}");
+    provider.onEvent(event, true);
+    JsonNode representation = publishedInput().at("/admin_event/representation");
+    assertTrue(representation.path("enabled").asBoolean());
+    assertEquals("north", representation.at("/attributes/area/0").asText());
+    assertFalse(representation.toString().contains("198.51.100"));
+    assertFalse(representation.toString().contains("private-browser"));
+    assertFalse(representation.toString().contains("PH"));
+    assertTrue(event.getRepresentation().contains("private-browser"));
   }
 
   @Test

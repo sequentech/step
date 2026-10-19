@@ -83,6 +83,48 @@ keep the change, rebuild the image and recreate the container (the
 by the `up` command above), and run the module's tests with
 `mvn -f packages/keycloak-extensions/pom.xml -pl <module> -am verify`.
 
+### Privacy-safe authentication event storage
+
+Images containing `custom-event-listener` require this default-provider selection:
+
+```sh
+--spi-events-store--provider-default=sequent-privacy
+```
+
+The `provider-default` option keeps Keycloak's JPA provider loaded for explicit delegation.
+The exclusive `--spi-events-store--provider` option does not. Startup checks refuse a
+different default or an unavailable JPA delegate before serving authentication. Deploy the
+provider jar and this setting together; an older image without the provider cannot use it.
+
+Enabled election-realm authentication and admin audit stores remain enabled. Before persistence,
+the provider copies events, removes their IP address, and retains a known authentication-detail
+projection. Admin changes retain actor, operation, resource, outcome and safe representation
+fields while network and secret fields are redacted. An unstructured event-realm representation
+is replaced by a redaction marker. The same representation filtering protects electoral-log
+delivery. Known tenant and master realms retain their existing storage behavior; an unresolved
+realm receives the safe projection. Existing retention settings and queries are preserved,
+including the pinned JPA factory's admin-expiration callback.
+
+The original login event stays available to the separate forensic sender. Both Network Data
+Policies exclude attribution from ordinary storage; only an explicitly enabled forensic policy
+allows that sender to transmit it. This change does not delete historical audit rows.
+
+The disposable integration check uses pinned Keycloak 26.7.5 and PostgreSQL, enables audit storage
+in imported realms, tests actual database rows and custom audit delivery under both policies,
+and verifies that an exclusive JPA selection fails startup. Its queue and forensic endpoints use
+synthetic fixtures. It creates its own internal Docker network and containers, publishes no
+ports, and removes those resources on exit:
+
+```sh
+mvn -f packages/keycloak-extensions/pom.xml -pl custom-event-listener -am verify
+python3 packages/keycloak-extensions/custom-event-listener/src/test/integration/event_store.py
+```
+
+`--mock-image` can select an existing local image with Python 3 instead of the default
+`python:3.12-slim`. `--skip-build` reuses the test Keycloak image only when its provider jars
+already match the sources. Standalone fixtures that do not package `custom-event-listener`
+continue to use their normal event-store selection.
+
 ## React login and OTP development
 
 `packages/keycloak-ui` is a Keycloakify workspace with a scoped Sequent

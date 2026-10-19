@@ -33,6 +33,9 @@ public class CustomEventListenerProviderFactory implements EventListenerProvider
 
   @Override
   public void postInit(KeycloakSessionFactory factory) {
+    // An exclusive events-store provider setting can prevent our store factory from being loaded.
+    // Enforce activation from this existing SPI as well, before any authentication is served.
+    PrivacyEventStoreProviderFactory.requireSelected(factory);
     if (pgmqEventPublisher == null) {
       pgmqEventPublisher = PgmqEventPublisher.fromEnvironment();
     }
