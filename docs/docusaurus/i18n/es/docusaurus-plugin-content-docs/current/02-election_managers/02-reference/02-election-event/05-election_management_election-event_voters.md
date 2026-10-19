@@ -98,6 +98,25 @@ Puede añadir campos adicionales, como la fecha de nacimiento o el sexo del vota
 
 **Importante:** Los atributos adicionales de los votantes deben añadirse antes del proceso de inscripción. Por ejemplo, si no se añade el atributo de sexo, este dato no aparecerá en los informes ni en las estadísticas.
 
+### Credenciales del cliente de API del sistema externo {#external-system-api-client-credentials}
+
+La API de votantes del sistema externo se autentica con el cliente de Keycloak
+`datafix-account` del realm del inquilino, con el flujo de credenciales de cliente
+(client credentials). El secreto del cliente es una credencial, así que siga estas reglas:
+
+- Cree el cliente en Keycloak y deje que Keycloak genere su secreto
+  (Clients, `datafix-account`, Credentials, Regenerate). No importe nunca un archivo
+  de exportación de cliente que tenga un valor `secret` fijo, y no lo guarde nunca en
+  un repositorio.
+- Entregue el secreto generado al sistema externo por un canal privado.
+- Si un cliente de un realm se creó alguna vez a partir de un archivo de exportación
+  con un secreto fijo, regenere su secreto y entregue el nuevo al sistema externo.
+  La sincronización de votantes se detiene hasta que el sistema externo usa el nuevo
+  secreto. La votación y el recuento no se ven afectados.
+- Para comprobar un realm, solicite un token `client_credentials` para
+  `datafix-account` con el secreto antiguo. Debe fallar con `unauthorized_client`
+  donde el cliente existe y con `invalid_client` donde no existe.
+
 ### Conciliación de la lista de votantes con un sistema externo {#external-system-voter-list-reconciliation}
 
 Los usuarios con el permiso `election-event-voter-list-reconciliation` pueden abrir el asistente de conciliación desde la pestaña Votantes. Ejecute la conciliación solo durante una ventana de congelación acordada con el sistema externo:
